@@ -85,13 +85,53 @@ pub async fn write_documents(
     let mut deleted_count = 0usize;
     let mut skipped_count = 0usize;
     let mut rows_remaining: Option<bool> = None;
+    let track_ids = body.return_affected_ids.unwrap_or(false);
+    let mut upserted_ids: Vec<serde_json::Value> = Vec::new();
+    let mut patched_ids: Vec<serde_json::Value> = Vec::new();
+    let mut deleted_ids: Vec<serde_json::Value> = Vec::new();
+
+    // Process copy_from_namespace first
+    if let Some(ref copy_from) = body.copy_from_namespace {
+        let source_ns = if let Some(s) = copy_from.as_str() {
+            s.to_string()
+        } else if let Some(obj) = copy_from.as_object() {
+            obj.get("namespace")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string()
+        } else {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"status": "error", "error": "copy_from_namespace must be a string or object with 'namespace' field"})),
+            );
+        };
+        if source_ns.is_empty() {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"status": "error", "error": "copy_from_namespace: source namespace is empty"})),
+            );
+        }
+        let source_docs = state.get_namespace_docs(&source_ns);
+        if track_ids {
+            for doc in &source_docs {
+                upserted_ids.push(serde_json::to_value(&doc.id).unwrap_or_default());
+            }
+        }
+        upserted_count = state.upsert_documents(&namespace, source_docs, distance_metric);
+        total_affected += upserted_count;
+    }
 
     // Process deletes first (per spec ordering)
-    if let Some(ref delete_ids) = body.deletes {
-        let ids: Vec<DocumentId> = delete_ids
+    if let Some(ref delete_ids_val) = body.deletes {
+        let ids: Vec<DocumentId> = delete_ids_val
             .iter()
             .filter_map(|v| serde_json::from_value(v.clone()).ok())
             .collect();
+        if track_ids {
+            for id in &ids {
+                deleted_ids.push(serde_json::to_value(id).unwrap_or_default());
+            }
+        }
         deleted_count = state.delete_documents(&namespace, &ids);
         total_affected += deleted_count;
     }
@@ -152,6 +192,11 @@ pub async fn write_documents(
                 }
             }
         }
+        if track_ids {
+            for doc in &docs {
+                upserted_ids.push(serde_json::to_value(&doc.id).unwrap_or_default());
+            }
+        }
         upserted_count = state.upsert_documents(&namespace, docs, distance_metric);
         total_affected += upserted_count;
     }
@@ -177,6 +222,11 @@ pub async fn write_documents(
                 }
                 docs = filtered_docs;
             }
+            if track_ids {
+                for doc in &docs {
+                    upserted_ids.push(serde_json::to_value(&doc.id).unwrap_or_default());
+                }
+            }
             let count = state.upsert_documents(&namespace, docs, distance_metric);
             upserted_count += count;
             total_affected += count;
@@ -189,6 +239,11 @@ pub async fn write_documents(
         for patch_json in patches {
             if let Some(patch) = parse_patch_row(patch_json) {
                 patch_docs.push(patch);
+            }
+        }
+        if track_ids {
+            for patch in &patch_docs {
+                patched_ids.push(serde_json::to_value(&patch.id).unwrap_or_default());
             }
         }
         patched_count += state.patch_documents(&namespace, patch_docs);
@@ -417,6 +472,62 @@ fn parse_upsert_columns(columns: &serde_json::Value) -> Option<Vec<InMemoryDoc>>
     }
 
     Some(docs)
+}
+
+/// Parse column-based patch data into PatchDoc entries.
+/// Similar to parse_upsert_columns but creates PatchDoc entries where
+/// null values mean "remove attribute" and missing values mean "don't update".
+fn parse_patch_columns(columns: &serde_json::Value) -> Option<Vec<PatchDoc>> {
+    let obj = columns.as_object()?;
+    let ids = obj.get("id")?.as_array()?;
+    let vectors = obj.get("vector").and_then(|v| v.as_array());
+
+    let n = ids.len();
+    let mut patches = Vec::with_capacity(n);
+
+    for i in 0..n {
+        let id: DocumentId = serde_json::from_value(ids[i].clone()).ok()?;
+
+        let vector = vectors.and_then(|vecs| {
+            vecs.get(i).and_then(|v| {
+                if v.is_null() {
+                    None
+                } else {
+                    v.as_array().map(|arr| {
+                        arr.iter()
+                            .filter_map(|n| n.as_f64().map(|f| f as f32))
+                            .collect()
+                    })
+                }
+            })
+        });
+
+        let mut attributes = HashMap::new();
+        for (key, value) in obj {
+            if key == "id" || key == "vector" {
+                continue;
+            }
+            if let Some(arr) = value.as_array() {
+                if let Some(val) = arr.get(i) {
+                    if val.is_null() {
+                        // null means remove this attribute
+                        attributes.insert(key.clone(), None);
+                    } else if let Some(attr) = json_to_attribute(val) {
+                        attributes.insert(key.clone(), Some(attr));
+                    }
+                }
+                // If the array doesn't have a value at index i, skip (don't update)
+            }
+        }
+
+        patches.push(PatchDoc {
+            id,
+            vector,
+            attributes,
+        });
+    }
+
+    Some(patches)
 }
 
 fn json_to_attribute(value: &serde_json::Value) -> Option<AttributeValue> {
