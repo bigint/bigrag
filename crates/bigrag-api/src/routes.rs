@@ -66,10 +66,15 @@ pub fn create_router(state: AppState) -> Router {
             "/v1/admin/api-keys/{id}",
             delete(handlers::revoke_api_key),
         )
-        // Export (stub)
+        // Export
         .route(
             "/v1/namespaces/{namespace}/export",
             post(handlers::export_namespace),
+        )
+        // Copy namespace
+        .route(
+            "/v1/namespaces/{namespace}/copy",
+            post(handlers::copy_namespace),
         )
         .layer(middleware::from_fn_with_state(
             state.clone(),
