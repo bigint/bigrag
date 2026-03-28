@@ -52,6 +52,7 @@ pub enum FilterOperator {
     NotContains,
     ContainsAny,
     NotContainsAny,
+    ContainsAll,
     Glob,
     NotGlob,
     IGlob,
@@ -152,6 +153,7 @@ fn parse_operator(s: &str) -> Result<FilterOperator, FilterError> {
         "NotContains" => Ok(FilterOperator::NotContains),
         "ContainsAny" => Ok(FilterOperator::ContainsAny),
         "NotContainsAny" => Ok(FilterOperator::NotContainsAny),
+        "ContainsAll" => Ok(FilterOperator::ContainsAll),
         "Glob" => Ok(FilterOperator::Glob),
         "NotGlob" => Ok(FilterOperator::NotGlob),
         "IGlob" => Ok(FilterOperator::IGlob),
@@ -657,5 +659,360 @@ mod tests {
             AttributeValue::ArrayString(vec!["rust".into(), "search".into()]),
         );
         assert!(evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_glob() {
+        let filter = parse_filter(&serde_json::json!(["path", "Glob", "*.rs"])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert("path".into(), AttributeValue::String("filter.rs".into()));
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert("path".into(), AttributeValue::String("filter.py".into()));
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_not_glob() {
+        let filter = parse_filter(&serde_json::json!(["path", "NotGlob", "*.rs"])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert("path".into(), AttributeValue::String("filter.py".into()));
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert("path".into(), AttributeValue::String("filter.rs".into()));
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_iglob() {
+        let filter = parse_filter(&serde_json::json!(["name", "IGlob", "*.TXT"])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert("name".into(), AttributeValue::String("readme.txt".into()));
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert("name".into(), AttributeValue::String("README.TXT".into()));
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert("name".into(), AttributeValue::String("readme.md".into()));
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_not_iglob() {
+        let filter = parse_filter(&serde_json::json!(["name", "NotIGlob", "*.TXT"])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert("name".into(), AttributeValue::String("readme.md".into()));
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert("name".into(), AttributeValue::String("readme.txt".into()));
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_regex() {
+        let filter =
+            parse_filter(&serde_json::json!(["email", "Regex", r"^\w+@\w+\.\w+$"])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert(
+            "email".into(),
+            AttributeValue::String("user@example.com".into()),
+        );
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert(
+            "email".into(),
+            AttributeValue::String("not-an-email".into()),
+        );
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_contains_all_tokens() {
+        let filter = parse_filter(&serde_json::json!([
+            "text",
+            "ContainsAllTokens",
+            "hello world"
+        ]))
+        .unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert(
+            "text".into(),
+            AttributeValue::String("Hello World foo bar".into()),
+        );
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert(
+            "text".into(),
+            AttributeValue::String("Hello foo bar".into()),
+        );
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_contains_any_token() {
+        let filter =
+            parse_filter(&serde_json::json!(["text", "ContainsAnyToken", "rust python"]))
+                .unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert(
+            "text".into(),
+            AttributeValue::String("I love Rust programming".into()),
+        );
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert(
+            "text".into(),
+            AttributeValue::String("I love Java programming".into()),
+        );
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_contains_token_sequence() {
+        let filter = parse_filter(&serde_json::json!([
+            "text",
+            "ContainsTokenSequence",
+            "hello world"
+        ]))
+        .unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert(
+            "text".into(),
+            AttributeValue::String("say Hello World now".into()),
+        );
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert(
+            "text".into(),
+            AttributeValue::String("world hello".into()),
+        );
+        assert!(!evaluate_filter(&filter, &attrs));
+
+        // Empty query matches everything
+        let empty_filter =
+            parse_filter(&serde_json::json!(["text", "ContainsTokenSequence", ""])).unwrap();
+        attrs.insert("text".into(), AttributeValue::String("anything".into()));
+        assert!(evaluate_filter(&empty_filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_any_lt() {
+        let filter = parse_filter(&serde_json::json!(["scores", "AnyLt", 50])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert("scores".into(), AttributeValue::ArrayInt(vec![60, 30, 80]));
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert("scores".into(), AttributeValue::ArrayInt(vec![60, 70, 80]));
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_any_lte() {
+        let filter = parse_filter(&serde_json::json!(["scores", "AnyLte", 50])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert("scores".into(), AttributeValue::ArrayInt(vec![60, 50, 80]));
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert("scores".into(), AttributeValue::ArrayInt(vec![60, 70, 80]));
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_any_gt() {
+        let filter = parse_filter(&serde_json::json!(["scores", "AnyGt", 50])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert("scores".into(), AttributeValue::ArrayInt(vec![10, 20, 60]));
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert("scores".into(), AttributeValue::ArrayInt(vec![10, 20, 30]));
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_any_gte() {
+        let filter = parse_filter(&serde_json::json!(["scores", "AnyGte", 50])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert("scores".into(), AttributeValue::ArrayInt(vec![10, 50, 30]));
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert("scores".into(), AttributeValue::ArrayInt(vec![10, 20, 30]));
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_any_lt_float() {
+        let filter = parse_filter(&serde_json::json!(["values", "AnyLt", 2.5])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert(
+            "values".into(),
+            AttributeValue::ArrayFloat(vec![1.0, 3.0, 5.0]),
+        );
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert(
+            "values".into(),
+            AttributeValue::ArrayFloat(vec![3.0, 4.0, 5.0]),
+        );
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_contains_any() {
+        let filter =
+            parse_filter(&serde_json::json!(["tags", "ContainsAny", ["rust", "go"]])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert(
+            "tags".into(),
+            AttributeValue::ArrayString(vec!["rust".into(), "search".into()]),
+        );
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert(
+            "tags".into(),
+            AttributeValue::ArrayString(vec!["python".into(), "ml".into()]),
+        );
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_not_contains_any() {
+        let filter =
+            parse_filter(&serde_json::json!(["tags", "NotContainsAny", ["rust", "go"]])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert(
+            "tags".into(),
+            AttributeValue::ArrayString(vec!["python".into(), "ml".into()]),
+        );
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert(
+            "tags".into(),
+            AttributeValue::ArrayString(vec!["rust".into(), "search".into()]),
+        );
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_contains_all() {
+        let filter =
+            parse_filter(&serde_json::json!(["tags", "ContainsAll", ["rust", "search"]])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert(
+            "tags".into(),
+            AttributeValue::ArrayString(vec!["rust".into(), "search".into(), "fast".into()]),
+        );
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert(
+            "tags".into(),
+            AttributeValue::ArrayString(vec!["rust".into(), "fast".into()]),
+        );
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_contains_all_int() {
+        let filter =
+            parse_filter(&serde_json::json!(["ids", "ContainsAll", [1, 2]])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert("ids".into(), AttributeValue::ArrayInt(vec![1, 2, 3]));
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert("ids".into(), AttributeValue::ArrayInt(vec![1, 3, 4]));
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_not_contains() {
+        let filter =
+            parse_filter(&serde_json::json!(["tags", "NotContains", "rust"])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert(
+            "tags".into(),
+            AttributeValue::ArrayString(vec!["python".into(), "ml".into()]),
+        );
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert(
+            "tags".into(),
+            AttributeValue::ArrayString(vec!["rust".into(), "search".into()]),
+        );
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_not_contains_string() {
+        let filter =
+            parse_filter(&serde_json::json!(["text", "NotContains", "error"])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert(
+            "text".into(),
+            AttributeValue::String("all good here".into()),
+        );
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert(
+            "text".into(),
+            AttributeValue::String("found an error".into()),
+        );
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_tokenize() {
+        assert_eq!(tokenize("Hello World"), vec!["hello", "world"]);
+        assert_eq!(tokenize("  spaced  out  "), vec!["spaced", "out"]);
+        assert!(tokenize("").is_empty());
+        assert!(tokenize("   ").is_empty());
+    }
+
+    #[test]
+    fn test_evaluate_contains_any_int() {
+        let filter =
+            parse_filter(&serde_json::json!(["ids", "ContainsAny", [1, 5]])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert("ids".into(), AttributeValue::ArrayInt(vec![1, 2, 3]));
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert("ids".into(), AttributeValue::ArrayInt(vec![4, 6, 7]));
+        assert!(!evaluate_filter(&filter, &attrs));
+    }
+
+    #[test]
+    fn test_evaluate_any_gte_float() {
+        let filter = parse_filter(&serde_json::json!(["values", "AnyGte", 5.0])).unwrap();
+
+        let mut attrs = HashMap::new();
+        attrs.insert(
+            "values".into(),
+            AttributeValue::ArrayFloat(vec![1.0, 5.0, 3.0]),
+        );
+        assert!(evaluate_filter(&filter, &attrs));
+
+        attrs.insert(
+            "values".into(),
+            AttributeValue::ArrayFloat(vec![1.0, 2.0, 3.0]),
+        );
+        assert!(!evaluate_filter(&filter, &attrs));
     }
 }

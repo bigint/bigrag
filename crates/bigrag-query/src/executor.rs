@@ -619,7 +619,7 @@ mod tests {
         let filter = serde_json::json!(["age", "Gt", 28]);
 
         let result =
-            execute_query(&docs, None, Some(&filter), 10, None, None, None, None).unwrap();
+            execute_query(&docs, None, Some(&filter), 10, None, None, None, None, false).unwrap();
         let rows = result.rows.unwrap();
         assert_eq!(rows.len(), 2); // Alice (30) and Charlie (35)
     }
@@ -630,7 +630,7 @@ mod tests {
         let rank = serde_json::json!(["vector", "ANN", [0.9, 0.1, 0.0]]);
 
         let result =
-            execute_query(&docs, Some(&rank), None, 2, None, None, None, None).unwrap();
+            execute_query(&docs, Some(&rank), None, 2, None, None, None, None, false).unwrap();
         let rows = result.rows.unwrap();
         assert_eq!(rows.len(), 2);
         // Alice's vector [1,0,0] is closest to [0.9, 0.1, 0]
@@ -643,7 +643,7 @@ mod tests {
         let include = serde_json::json!(["name"]);
 
         let result =
-            execute_query(&docs, None, None, 10, Some(&include), None, None, None).unwrap();
+            execute_query(&docs, None, None, 10, Some(&include), None, None, None, false).unwrap();
         let rows = result.rows.unwrap();
         assert!(rows[0].attributes.contains_key("name"));
         assert!(!rows[0].attributes.contains_key("age"));
@@ -657,7 +657,7 @@ mod tests {
             {"type": "sum", "attribute": "age"}
         ]);
         let result =
-            execute_query(&docs, None, None, 10, None, None, Some(&agg_json), None).unwrap();
+            execute_query(&docs, None, None, 10, None, None, Some(&agg_json), None, false).unwrap();
         let aggs = result.aggregations.unwrap();
         assert_eq!(aggs["count"], serde_json::json!(3));
         assert_eq!(aggs["sum_age"], serde_json::json!(90.0)); // 30 + 25 + 35
@@ -671,7 +671,7 @@ mod tests {
             {"type": "max", "attribute": "age"}
         ]);
         let result =
-            execute_query(&docs, None, None, 10, None, None, Some(&agg_json), None).unwrap();
+            execute_query(&docs, None, None, 10, None, None, Some(&agg_json), None, false).unwrap();
         let aggs = result.aggregations.unwrap();
         assert_eq!(aggs["min_age"], serde_json::json!(25.0));
         assert_eq!(aggs["max_age"], serde_json::json!(35.0));
@@ -682,7 +682,7 @@ mod tests {
         let docs = make_docs();
         let agg_json = serde_json::json!([{"type": "distinct", "attribute": "name"}]);
         let result =
-            execute_query(&docs, None, None, 10, None, None, Some(&agg_json), None).unwrap();
+            execute_query(&docs, None, None, 10, None, None, Some(&agg_json), None, false).unwrap();
         let aggs = result.aggregations.unwrap();
         let distinct = aggs["distinct_name"].as_array().unwrap();
         assert_eq!(distinct.len(), 3);
@@ -693,7 +693,7 @@ mod tests {
         let docs = make_docs();
         // Get first page of 2
         let result =
-            execute_query(&docs, None, None, 2, None, None, None, None).unwrap();
+            execute_query(&docs, None, None, 2, None, None, None, None, false).unwrap();
         let rows = result.rows.unwrap();
         assert_eq!(rows.len(), 2);
         assert!(result.next_cursor.is_some());
@@ -701,7 +701,7 @@ mod tests {
         // Get second page using cursor
         let cursor = result.next_cursor.unwrap();
         let result2 =
-            execute_query(&docs, None, None, 2, None, None, None, Some(&cursor)).unwrap();
+            execute_query(&docs, None, None, 2, None, None, None, Some(&cursor), false).unwrap();
         let rows2 = result2.rows.unwrap();
         assert_eq!(rows2.len(), 1); // Only 1 remaining doc
         assert!(result2.next_cursor.is_none());

@@ -21,6 +21,7 @@ pub struct WriteRequest {
     pub upsert_rows: Option<Vec<serde_json::Value>>,
     pub upsert_columns: Option<serde_json::Value>,
     pub patch_rows: Option<Vec<serde_json::Value>>,
+    pub patch_columns: Option<serde_json::Value>,
     pub deletes: Option<Vec<serde_json::Value>>,
     pub delete_by_filter: Option<serde_json::Value>,
     pub patch_by_filter: Option<serde_json::Value>,
@@ -29,6 +30,7 @@ pub struct WriteRequest {
     pub return_affected_ids: Option<bool>,
     pub disable_backpressure: Option<bool>,
     pub condition: Option<serde_json::Value>,
+    pub copy_from_namespace: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -467,6 +469,7 @@ pub struct QueryRequest {
     pub aggregations: Option<serde_json::Value>,
     pub cursor: Option<String>,
     pub queries: Option<Vec<QueryRequest>>,
+    pub include_vectors: Option<bool>,
     pub vector_encoding: Option<String>,
     pub consistency: Option<ConsistencyLevel>,
 }
