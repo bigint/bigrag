@@ -1,1 +1,6 @@
 /target
+**/*.rs.bk
+*.pdb
+.env*.local
+data/
+*.log

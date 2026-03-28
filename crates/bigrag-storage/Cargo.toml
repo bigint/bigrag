@@ -23,6 +23,8 @@ parking_lot = { workspace = true }
 crc32fast = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
+dashmap = { workspace = true }
+futures = "0.3"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
