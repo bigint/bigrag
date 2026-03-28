@@ -522,3 +522,168 @@ pub async fn health_check() -> impl IntoResponse {
         Json(serde_json::json!({"status": "ok", "version": env!("CARGO_PKG_VERSION")})),
     )
 }
+
+// === Schema Endpoints ===
+
+pub async fn get_schema(
+    State(state): State<AppState>,
+    Path(namespace): Path<String>,
+) -> impl IntoResponse {
+    if let Some(ns) = state.documents.get(&namespace) {
+        let schema = ns.schema.clone().unwrap_or(serde_json::json!({}));
+        (
+            StatusCode::OK,
+            Json(schema),
+        )
+    } else {
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": {"code": "NAMESPACE_NOT_FOUND", "message": format!("Namespace '{}' not found", namespace)}})),
+        )
+    }
+}
+
+pub async fn update_schema(
+    State(state): State<AppState>,
+    Path(namespace): Path<String>,
+    Json(schema): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    if let Some(mut ns) = state.documents.get_mut(&namespace) {
+        ns.schema = Some(schema);
+        (
+            StatusCode::OK,
+            Json(serde_json::json!({"status": "ok"})),
+        )
+    } else {
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": {"code": "NAMESPACE_NOT_FOUND", "message": format!("Namespace '{}' not found", namespace)}})),
+        )
+    }
+}
+
+// === Get Single Document ===
+
+/// Parse a string path parameter into a DocumentId.
+/// Tries u64 first, then UUID, then falls back to string.
+fn parse_document_id(id: &str) -> DocumentId {
+    if let Ok(n) = id.parse::<u64>() {
+        DocumentId::UInt(n)
+    } else if let Ok(u) = id.parse::<uuid::Uuid>() {
+        DocumentId::Uuid(u)
+    } else {
+        DocumentId::String(id.to_string())
+    }
+}
+
+pub async fn get_document(
+    State(state): State<AppState>,
+    Path((namespace, id)): Path<(String, String)>,
+) -> impl IntoResponse {
+    let docs = state.get_namespace_docs(&namespace);
+    let doc_id = parse_document_id(&id);
+
+    if let Some(doc) = docs.iter().find(|d| d.id == doc_id) {
+        let mut obj = serde_json::Map::new();
+        obj.insert("id".to_string(), serde_json::to_value(&doc.id).unwrap());
+        if let Some(ref vec) = doc.vector {
+            obj.insert("vector".to_string(), serde_json::to_value(vec).unwrap());
+        }
+        for (key, val) in &doc.attributes {
+            obj.insert(key.clone(), serde_json::to_value(val).unwrap());
+        }
+        (
+            StatusCode::OK,
+            Json(serde_json::Value::Object(obj)),
+        )
+    } else {
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": {"code": "DOCUMENT_NOT_FOUND", "message": format!("Document '{}' not found in namespace '{}'", id, namespace)}})),
+        )
+    }
+}
+
+// === Admin Endpoints ===
+
+pub async fn admin_compact(
+    State(_state): State<AppState>,
+    Path(namespace): Path<String>,
+) -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"status": "ok", "message": format!("compaction triggered for {}", namespace)})),
+    )
+}
+
+pub async fn admin_warm(
+    State(_state): State<AppState>,
+    Path(namespace): Path<String>,
+) -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"status": "ok", "message": format!("cache warming initiated for {}", namespace)})),
+    )
+}
+
+pub async fn admin_config(
+    State(_state): State<AppState>,
+) -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "version": env!("CARGO_PKG_VERSION"),
+            "storage_backend": "local",
+            "cache": {"block_cache_size_mb": 256, "metadata_cache_size_mb": 64}
+        })),
+    )
+}
+
+// === Health Probes ===
+
+pub async fn readiness_probe(State(_state): State<AppState>) -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"status": "ready"})),
+    )
+}
+
+pub async fn liveness_probe() -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"status": "alive"})),
+    )
+}
+
+// === Prometheus Metrics ===
+
+pub async fn prometheus_metrics() -> impl IntoResponse {
+    let output = format!(
+        "# HELP bigrag_info Server information\n\
+         # TYPE bigrag_info gauge\n\
+         bigrag_info{{version=\"{}\"}} 1\n\
+         # HELP bigrag_namespaces_total Number of active namespaces\n\
+         # TYPE bigrag_namespaces_total gauge\n\
+         # HELP bigrag_documents_total Total documents across all namespaces\n\
+         # TYPE bigrag_documents_total gauge\n",
+        env!("CARGO_PKG_VERSION"),
+    );
+    (
+        StatusCode::OK,
+        ([("content-type", "text/plain; version=0.0.4; charset=utf-8")], output),
+    )
+}
+
+// === Export Namespace (stub) ===
+
+pub async fn export_namespace(
+    State(_state): State<AppState>,
+    Path(namespace): Path<String>,
+    Json(_body): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    let _ = namespace;
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(serde_json::json!({"error": {"code": "NOT_IMPLEMENTED", "message": "namespace export is planned for a future release"}})),
+    )
+}

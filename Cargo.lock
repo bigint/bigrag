@@ -324,6 +324,7 @@ name = "bigrag-query"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64",
  "bigrag-common",
  "bigrag-index",
  "bigrag-storage",

@@ -1,11 +1,18 @@
 use anyhow::Result;
 use clap::Parser;
+use figment::{
+    providers::{Env, Format, Serialized, Toml},
+    Figment,
+};
 use std::sync::Arc;
+use tokio::signal;
 use tracing::info;
 
-use bigrag_common::config::{ServerConfig, StorageConfig, CacheConfig, WalConfig, CompactionConfig};
 use bigrag_api::routes::create_router;
 use bigrag_api::state::AppState;
+use bigrag_common::config::{
+    CacheConfig, CompactionConfig, ServerConfig, StorageConfig, WalConfig,
+};
 use bigrag_storage::engine::StorageEngine;
 
 #[global_allocator]
@@ -26,6 +33,10 @@ struct Cli {
     #[arg(short, long, default_value = "3000")]
     port: u16,
 
+    /// Metrics port (Prometheus)
+    #[arg(long, default_value = "9090", env = "BIGRAG_METRICS_PORT")]
+    metrics_port: u16,
+
     /// Storage path (local mode)
     #[arg(long, default_value = "./data")]
     data_dir: String,
@@ -33,25 +44,39 @@ struct Cli {
     /// API keys (comma-separated)
     #[arg(long, env = "BIGRAG_API_KEYS")]
     api_keys: Option<String>,
+
+    /// Log format (text or json)
+    #[arg(long, default_value = "text", env = "BIGRAG_LOG_FORMAT")]
+    log_format: String,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "bigrag=info,tower_http=info".into()),
-        )
-        .init();
-
     let cli = Cli::parse();
 
-    // Build config
-    let config = ServerConfig {
+    // Initialize tracing with configurable format
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "bigrag=info,tower_http=info".into());
+
+    match cli.log_format.as_str() {
+        "json" => {
+            tracing_subscriber::fmt()
+                .json()
+                .with_env_filter(env_filter)
+                .init();
+        }
+        _ => {
+            tracing_subscriber::fmt()
+                .with_env_filter(env_filter)
+                .init();
+        }
+    }
+
+    // Build config with figment: TOML file -> env vars -> CLI overrides
+    let cli_defaults = ServerConfig {
         host: cli.host.clone(),
         port: cli.port,
-        metrics_port: 9090,
+        metrics_port: cli.metrics_port,
         max_connections: 10000,
         request_timeout_ms: 60000,
         max_request_body_mb: 512,
@@ -63,11 +88,23 @@ async fn main() -> Result<()> {
         compaction: CompactionConfig::default(),
     };
 
+    let config: ServerConfig = Figment::new()
+        .merge(Toml::file(&cli.config).nested())
+        .merge(Env::prefixed("BIGRAG_").split("_"))
+        .merge(Serialized::defaults(&cli_defaults))
+        .extract()
+        .unwrap_or_else(|e| {
+            tracing::warn!("failed to load config via figment ({e}), falling back to CLI defaults");
+            cli_defaults
+        });
+
     info!(
         host = %config.host,
         port = config.port,
-        data_dir = %cli.data_dir,
-        "starting bigRAG"
+        metrics_port = cli.metrics_port,
+        storage = ?config.storage,
+        "starting bigRAG v{}",
+        env!("CARGO_PKG_VERSION")
     );
 
     // Initialize storage engine

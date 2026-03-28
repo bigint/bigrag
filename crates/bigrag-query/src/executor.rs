@@ -257,7 +257,8 @@ pub struct InMemoryDoc {
 }
 
 /// Execute a query against in-memory documents.
-/// This is the core query executor that handles filtering, ranking, and projection.
+/// This is the core query executor that handles filtering, ranking, projection,
+/// aggregations, and cursor-based pagination.
 pub fn execute_query(
     docs: &[InMemoryDoc],
     rank_by: Option<&serde_json::Value>,
@@ -265,6 +266,8 @@ pub fn execute_query(
     top_k: usize,
     include_attributes: Option<&serde_json::Value>,
     exclude_attributes: Option<&[String]>,
+    aggregations: Option<&serde_json::Value>,
+    cursor: Option<&str>,
 ) -> Result<QueryResult, QueryError> {
     let start = std::time::Instant::now();
 
@@ -276,6 +279,26 @@ pub fn execute_query(
             .collect()
     } else {
         docs.iter().collect()
+    };
+
+    // Execute aggregations on filtered (pre-ranking) docs
+    let agg_results = if let Some(agg_json) = aggregations {
+        let agg_requests = parse_aggregations(agg_json)?;
+        let result = execute_aggregations(&filtered, &agg_requests);
+        if result.is_empty() {
+            None
+        } else {
+            Some(result)
+        }
+    } else {
+        None
+    };
+
+    // Decode cursor if provided
+    let cursor_data = if let Some(c) = cursor {
+        Some(decode_cursor(c)?)
+    } else {
+        None
     };
 
     // Parse rank_by and score
@@ -296,18 +319,59 @@ pub fn execute_query(
 
         // Sort by score descending
         scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        scored.truncate(top_k);
+
+        // Apply cursor: skip past the cursor position
+        if let Some(ref cd) = cursor_data {
+            let skip_pos = scored.iter().position(|(doc, score)| {
+                doc.id == cd.last_id
+                    && cd.last_score.map_or(true, |cs| (*score - cs).abs() < f64::EPSILON)
+            });
+            if let Some(pos) = skip_pos {
+                scored = scored.split_off(pos + 1);
+            }
+        }
+
+        // Take top_k + 1 to determine if there's a next page
+        scored.truncate(top_k + 1);
         scored
     } else {
-        filtered
-            .into_iter()
-            .take(top_k)
-            .map(|d| (d, 0.0))
-            .collect()
+        let mut collected: Vec<(&InMemoryDoc, f64)> =
+            filtered.into_iter().map(|d| (d, 0.0)).collect();
+
+        // Apply cursor: skip past the cursor position
+        if let Some(ref cd) = cursor_data {
+            let skip_pos = collected.iter().position(|(doc, _)| doc.id == cd.last_id);
+            if let Some(pos) = skip_pos {
+                collected = collected.split_off(pos + 1);
+            }
+        }
+
+        collected.truncate(top_k + 1);
+        collected
+    };
+
+    // Determine if there's a next page
+    let has_next = ranked.len() > top_k;
+    let page_results: Vec<(&InMemoryDoc, f64)> = ranked.into_iter().take(top_k).collect();
+
+    // Build next_cursor from the last result in the page
+    let next_cursor = if has_next {
+        page_results.last().map(|(doc, score)| {
+            encode_cursor(&CursorData {
+                last_id: doc.id.clone(),
+                last_score: if rank_by.is_some() {
+                    Some(*score)
+                } else {
+                    None
+                },
+            })
+        })
+    } else {
+        None
     };
 
     // Project attributes
-    let rows: Vec<QueryResultRow> = ranked
+    let rows: Vec<QueryResultRow> = page_results
         .into_iter()
         .map(|(doc, score)| {
             let mut attrs = HashMap::new();
@@ -357,8 +421,9 @@ pub fn execute_query(
 
     Ok(QueryResult {
         rows: Some(rows),
+        next_cursor,
         results: None,
-        aggregations: None,
+        aggregations: agg_results,
         aggregation_groups: None,
         billing: BillingInfo::default(),
         performance: PerformanceInfo {
@@ -545,7 +610,8 @@ mod tests {
         let docs = make_docs();
         let filter = serde_json::json!(["age", "Gt", 28]);
 
-        let result = execute_query(&docs, None, Some(&filter), 10, None, None).unwrap();
+        let result =
+            execute_query(&docs, None, Some(&filter), 10, None, None, None, None).unwrap();
         let rows = result.rows.unwrap();
         assert_eq!(rows.len(), 2); // Alice (30) and Charlie (35)
     }
@@ -555,7 +621,8 @@ mod tests {
         let docs = make_docs();
         let rank = serde_json::json!(["vector", "ANN", [0.9, 0.1, 0.0]]);
 
-        let result = execute_query(&docs, Some(&rank), None, 2, None, None).unwrap();
+        let result =
+            execute_query(&docs, Some(&rank), None, 2, None, None, None, None).unwrap();
         let rows = result.rows.unwrap();
         assert_eq!(rows.len(), 2);
         // Alice's vector [1,0,0] is closest to [0.9, 0.1, 0]
@@ -567,9 +634,80 @@ mod tests {
         let docs = make_docs();
         let include = serde_json::json!(["name"]);
 
-        let result = execute_query(&docs, None, None, 10, Some(&include), None).unwrap();
+        let result =
+            execute_query(&docs, None, None, 10, Some(&include), None, None, None).unwrap();
         let rows = result.rows.unwrap();
         assert!(rows[0].attributes.contains_key("name"));
         assert!(!rows[0].attributes.contains_key("age"));
+    }
+
+    #[test]
+    fn test_aggregation_count_and_sum() {
+        let docs = make_docs();
+        let agg_json = serde_json::json!([
+            {"type": "count"},
+            {"type": "sum", "attribute": "age"}
+        ]);
+        let result =
+            execute_query(&docs, None, None, 10, None, None, Some(&agg_json), None).unwrap();
+        let aggs = result.aggregations.unwrap();
+        assert_eq!(aggs["count"], serde_json::json!(3));
+        assert_eq!(aggs["sum_age"], serde_json::json!(90.0)); // 30 + 25 + 35
+    }
+
+    #[test]
+    fn test_aggregation_min_max() {
+        let docs = make_docs();
+        let agg_json = serde_json::json!([
+            {"type": "min", "attribute": "age"},
+            {"type": "max", "attribute": "age"}
+        ]);
+        let result =
+            execute_query(&docs, None, None, 10, None, None, Some(&agg_json), None).unwrap();
+        let aggs = result.aggregations.unwrap();
+        assert_eq!(aggs["min_age"], serde_json::json!(25.0));
+        assert_eq!(aggs["max_age"], serde_json::json!(35.0));
+    }
+
+    #[test]
+    fn test_aggregation_distinct() {
+        let docs = make_docs();
+        let agg_json = serde_json::json!([{"type": "distinct", "attribute": "name"}]);
+        let result =
+            execute_query(&docs, None, None, 10, None, None, Some(&agg_json), None).unwrap();
+        let aggs = result.aggregations.unwrap();
+        let distinct = aggs["distinct_name"].as_array().unwrap();
+        assert_eq!(distinct.len(), 3);
+    }
+
+    #[test]
+    fn test_cursor_pagination() {
+        let docs = make_docs();
+        // Get first page of 2
+        let result =
+            execute_query(&docs, None, None, 2, None, None, None, None).unwrap();
+        let rows = result.rows.unwrap();
+        assert_eq!(rows.len(), 2);
+        assert!(result.next_cursor.is_some());
+
+        // Get second page using cursor
+        let cursor = result.next_cursor.unwrap();
+        let result2 =
+            execute_query(&docs, None, None, 2, None, None, None, Some(&cursor)).unwrap();
+        let rows2 = result2.rows.unwrap();
+        assert_eq!(rows2.len(), 1); // Only 1 remaining doc
+        assert!(result2.next_cursor.is_none());
+    }
+
+    #[test]
+    fn test_cursor_encode_decode() {
+        let data = CursorData {
+            last_id: DocumentId::UInt(42),
+            last_score: Some(0.95),
+        };
+        let encoded = encode_cursor(&data);
+        let decoded = decode_cursor(&encoded).unwrap();
+        assert_eq!(decoded.last_id, DocumentId::UInt(42));
+        assert_eq!(decoded.last_score, Some(0.95));
     }
 }

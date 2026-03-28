@@ -4,3 +4,6 @@
 .env*.local
 data/
 *.log
+
+# Docker
+.docker/
