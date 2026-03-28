@@ -53,7 +53,7 @@ metrics-exporter-prometheus = "0.16"
 
 # Configuration & CLI
 figment = { version = "0.10", features = ["toml", "env"] }
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive", "env"] }
 
 # Utilities
 uuid = { version = "1", features = ["v4", "v7", "serde"] }

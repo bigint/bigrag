@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 
 /// Parsed rank_by expression.
 #[derive(Debug, Clone)]

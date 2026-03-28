@@ -490,8 +490,8 @@ pub struct RecallRequest {
 }
 
 pub async fn debug_recall(
-    State(state): State<AppState>,
-    Path(namespace): Path<String>,
+    State(_state): State<AppState>,
+    Path(_namespace): Path<String>,
     Json(body): Json<RecallRequest>,
 ) -> impl IntoResponse {
     let _num = body.num.unwrap_or(25);

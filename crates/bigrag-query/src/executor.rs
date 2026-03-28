@@ -1,7 +1,7 @@
 use bigrag_common::types::{AttributeValue, BillingInfo, DocumentId, PerformanceInfo};
 use std::collections::HashMap;
 
-use crate::filter::{evaluate_filter, parse_filter, Filter};
+use crate::filter::{evaluate_filter, parse_filter};
 use crate::ranking::{parse_rank_by, RankBy};
 
 /// A query result row.

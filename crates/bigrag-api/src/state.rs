@@ -1,4 +1,4 @@
-use bigrag_common::types::{AttributeValue, DocumentId, DistanceMetric};
+use bigrag_common::types::{DocumentId, DistanceMetric};
 use bigrag_index::{InvertedIndex, VectorIndex};
 use bigrag_query::executor::InMemoryDoc;
 use bigrag_storage::engine::StorageEngine;
@@ -44,7 +44,7 @@ impl AppState {
         &self,
         namespace: &str,
         distance_metric: Option<DistanceMetric>,
-    ) -> dashmap::mapref::one::RefMut<String, NamespaceData> {
+    ) -> dashmap::mapref::one::RefMut<'_, String, NamespaceData> {
         if !self.documents.contains_key(namespace) {
             let vector_index = distance_metric.map(|m| VectorIndex::new(0, m));
             self.documents.insert(
@@ -77,7 +77,7 @@ impl AppState {
             docs.retain(|d| d.id != new_doc.id);
 
             // Add to vector index if has vector
-            if let (Some(ref vi), Some(ref vec)) = (&ns.vector_index, &new_doc.vector) {
+            if let (Some(vi), Some(vec)) = (&ns.vector_index, &new_doc.vector) {
                 if let DocumentId::UInt(uid) = &new_doc.id {
                     vi.insert(*uid, vec.clone());
                 }
@@ -126,12 +126,12 @@ impl AppState {
 
         // Filter by prefix
         if let Some(p) = prefix {
-            names.retain(|n| n.starts_with(p));
+            names.retain(|n: &String| n.starts_with(p));
         }
 
         // Apply cursor
         let start_idx = if let Some(c) = cursor {
-            names.iter().position(|n| n.as_str() > c).unwrap_or(names.len())
+            names.iter().position(|n: &String| n.as_str() > c).unwrap_or(names.len())
         } else {
             0
         };

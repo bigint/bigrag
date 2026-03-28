@@ -264,8 +264,10 @@ dependencies = [
  "bigrag-storage",
  "bytes",
  "chrono",
+ "dashmap",
  "metrics",
  "metrics-exporter-prometheus",
+ "parking_lot",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -342,6 +344,7 @@ name = "bigrag-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "bigrag-api",
  "bigrag-common",
  "bigrag-storage",
@@ -350,6 +353,7 @@ dependencies = [
  "mimalloc",
  "serde",
  "tokio",
+ "tower-http",
  "tracing",
  "tracing-subscriber",
 ]

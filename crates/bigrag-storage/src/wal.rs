@@ -238,6 +238,7 @@ pub enum WalError {
 mod tests {
     use super::*;
     use bigrag_common::config::StorageConfig;
+    use bytes::Bytes;
 
     #[tokio::test]
     async fn test_wal_write_and_flush() {
