@@ -33,6 +33,7 @@ pub enum StorageConfig {
         bucket: String,
         region: String,
         prefix: Option<String>,
+        endpoint: Option<String>,
     },
     #[serde(rename = "gcs")]
     Gcs {
@@ -112,6 +113,18 @@ fn default_host() -> String {
 }
 fn default_port() -> u16 {
     3000
+}
+fn default_metrics_port() -> u16 {
+    9090
+}
+fn default_max_connections() -> u32 {
+    10000
+}
+fn default_request_timeout_ms() -> u64 {
+    60000
+}
+fn default_max_request_body_mb() -> u64 {
+    512
 }
 fn default_block_cache_size() -> u64 {
     256

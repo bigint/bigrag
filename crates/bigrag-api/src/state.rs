@@ -155,6 +155,183 @@ impl AppState {
         (page, next_cursor)
     }
 
+    /// Patch documents: merge attributes into existing docs, optionally replace vector.
+    /// Setting an attribute value to None removes it. Returns the count of docs actually patched.
+    pub fn patch_documents(&self, namespace: &str, patches: Vec<PatchDoc>) -> usize {
+        if let Some(ns) = self.documents.get(namespace) {
+            let mut docs = ns.docs.write();
+            let mut patched = 0usize;
+
+            for patch in patches {
+                if let Some(doc) = docs.iter_mut().find(|d| d.id == patch.id) {
+                    // Replace vector only if specified
+                    if let Some(new_vec) = patch.vector {
+                        doc.vector = Some(new_vec);
+                    }
+
+                    // Merge attributes
+                    for (key, maybe_val) in patch.attributes {
+                        match maybe_val {
+                            Some(val) if val.is_null() => {
+                                // Setting to null removes the attribute
+                                doc.attributes.remove(&key);
+                            }
+                            Some(val) => {
+                                doc.attributes.insert(key, val);
+                            }
+                            None => {
+                                // None also removes the attribute
+                                doc.attributes.remove(&key);
+                            }
+                        }
+                    }
+
+                    patched += 1;
+                }
+            }
+
+            patched
+        } else {
+            0
+        }
+    }
+
+    /// Delete documents matching a filter. Returns (count_deleted, has_remaining).
+    pub fn delete_by_filter(
+        &self,
+        namespace: &str,
+        filter_json: &serde_json::Value,
+        max_affected: usize,
+        allow_partial: bool,
+    ) -> Result<(usize, bool), String> {
+        let filter = parse_filter(filter_json).map_err(|e| e.to_string())?;
+
+        if let Some(ns) = self.documents.get(namespace) {
+            let mut docs = ns.docs.write();
+
+            // First, find all matching indices
+            let matching_indices: Vec<usize> = docs
+                .iter()
+                .enumerate()
+                .filter(|(_, d)| evaluate_filter(&filter, &d.attributes))
+                .map(|(i, _)| i)
+                .collect();
+
+            let total_matching = matching_indices.len();
+
+            if total_matching > max_affected && !allow_partial {
+                return Err(format!(
+                    "filter matches {} rows which exceeds max_affected ({}). Set allow_partial=true to delete up to max_affected.",
+                    total_matching, max_affected
+                ));
+            }
+
+            let to_delete: Vec<usize> = matching_indices
+                .into_iter()
+                .take(max_affected)
+                .collect();
+
+            let count = to_delete.len();
+            let has_remaining = total_matching > max_affected;
+
+            // Remove in reverse order to preserve indices
+            for idx in to_delete.into_iter().rev() {
+                docs.swap_remove(idx);
+            }
+
+            Ok((count, has_remaining))
+        } else {
+            Ok((0, false))
+        }
+    }
+
+    /// Patch documents matching a filter with the given attributes.
+    /// Returns (count_patched, has_remaining).
+    pub fn patch_by_filter(
+        &self,
+        namespace: &str,
+        filter_json: &serde_json::Value,
+        patch_attrs: &HashMap<String, Option<AttributeValue>>,
+        max_affected: usize,
+        allow_partial: bool,
+    ) -> Result<(usize, bool), String> {
+        let filter = parse_filter(filter_json).map_err(|e| e.to_string())?;
+
+        if let Some(ns) = self.documents.get(namespace) {
+            let mut docs = ns.docs.write();
+
+            // Find all matching indices
+            let matching_indices: Vec<usize> = docs
+                .iter()
+                .enumerate()
+                .filter(|(_, d)| evaluate_filter(&filter, &d.attributes))
+                .map(|(i, _)| i)
+                .collect();
+
+            let total_matching = matching_indices.len();
+
+            if total_matching > max_affected && !allow_partial {
+                return Err(format!(
+                    "filter matches {} rows which exceeds max_affected ({}). Set allow_partial=true to patch up to max_affected.",
+                    total_matching, max_affected
+                ));
+            }
+
+            let to_patch: Vec<usize> = matching_indices
+                .into_iter()
+                .take(max_affected)
+                .collect();
+
+            let count = to_patch.len();
+            let has_remaining = total_matching > max_affected;
+
+            for idx in &to_patch {
+                let doc = &mut docs[*idx];
+                for (key, maybe_val) in patch_attrs {
+                    match maybe_val {
+                        Some(val) if val.is_null() => {
+                            doc.attributes.remove(key);
+                        }
+                        Some(val) => {
+                            doc.attributes.insert(key.clone(), val.clone());
+                        }
+                        None => {
+                            doc.attributes.remove(key);
+                        }
+                    }
+                }
+            }
+
+            Ok((count, has_remaining))
+        } else {
+            Ok((0, false))
+        }
+    }
+
+    /// Evaluate a condition against an existing document for conditional writes.
+    /// Returns true if the condition is met (document should be written).
+    pub fn evaluate_condition(
+        &self,
+        namespace: &str,
+        doc_id: &DocumentId,
+        condition_json: &serde_json::Value,
+    ) -> Result<bool, String> {
+        let filter = parse_filter(condition_json).map_err(|e| e.to_string())?;
+
+        if let Some(ns) = self.documents.get(namespace) {
+            let docs = ns.docs.read();
+            if let Some(existing) = docs.iter().find(|d| d.id == *doc_id) {
+                Ok(evaluate_filter(&filter, &existing.attributes))
+            } else {
+                // No existing doc — condition evaluates against empty attributes
+                Ok(evaluate_filter(&filter, &HashMap::new()))
+            }
+        } else {
+            // Namespace doesn't exist yet — evaluate against empty
+            Ok(evaluate_filter(&filter, &HashMap::new()))
+        }
+    }
+
     /// Delete a namespace and all its data.
     pub fn delete_namespace(&self, namespace: &str) -> bool {
         self.documents.remove(namespace).is_some()

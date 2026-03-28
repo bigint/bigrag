@@ -226,6 +226,8 @@ impl VectorIndex {
         match self.metric {
             DistanceMetric::CosineDistance => cosine_distance(a, b),
             DistanceMetric::EuclideanSquared => euclidean_squared(a, b),
+            DistanceMetric::DotProduct => dot_product_distance(a, b),
+            DistanceMetric::Hamming => hamming_distance(a, b),
         }
     }
 
