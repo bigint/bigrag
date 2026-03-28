@@ -270,6 +270,7 @@ pub fn execute_query(
     exclude_attributes: Option<&[String]>,
     aggregations: Option<&serde_json::Value>,
     cursor: Option<&str>,
+    include_vectors: bool,
 ) -> Result<QueryResult, QueryError> {
     let start = std::time::Instant::now();
 
@@ -411,6 +412,11 @@ pub fn execute_query(
                 id: doc.id.clone(),
                 dist: if rank_by.is_some() {
                     Some(score)
+                } else {
+                    None
+                },
+                vector: if include_vectors {
+                    doc.vector.clone()
                 } else {
                     None
                 },
