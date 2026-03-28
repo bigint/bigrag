@@ -1,6 +1,5 @@
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use crc32fast::Hasher;
-use std::collections::BTreeMap;
 
 /// Default block size for SSTable data blocks.
 pub const DEFAULT_BLOCK_SIZE: usize = 4096;
@@ -309,7 +308,7 @@ impl SstBuilder {
         output.put_u32(blocks.len() as u32);
         output.put_u8(self.compression as u8);
 
-        let header_size = output.len();
+        let _header_size = output.len();
 
         // Data blocks (optionally compressed)
         let mut index_entries = Vec::new();

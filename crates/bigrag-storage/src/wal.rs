@@ -1,10 +1,8 @@
-use bytes::Bytes;
-use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::{mpsc, oneshot, Notify};
-use tracing::{debug, error, info, warn};
+use tokio::sync::{mpsc, oneshot};
+use tracing::{debug, info};
 
 use crate::backend::StorageBackend;
 use crate::manifest::ManifestManager;

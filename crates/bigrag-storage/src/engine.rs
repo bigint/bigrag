@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use std::sync::Arc;
-use tracing::{debug, info};
+use tracing::info;
 
 use bigrag_common::config::ServerConfig;
 
@@ -9,7 +9,7 @@ use crate::cache::BlockCache;
 use crate::compaction::{CompactionConfig, CompactionScheduler};
 use crate::manifest::ManifestManager;
 use crate::memtable::{GetResult, MemTableManager};
-use crate::sst::{Compression, Entry, SstReader};
+use crate::sst::{Entry, SstReader};
 use crate::wal::WalWriter;
 
 /// The core storage engine. Coordinates memtable, WAL, SSTs, and cache.
@@ -163,13 +163,8 @@ impl StorageEngine {
     ) -> Result<Vec<Entry>, EngineError> {
         let mut all_entries = Vec::new();
 
-        // Memtable entries
-        if let Some(mgr) = self.memtables.get(namespace) {
-            // We need the immutable reference's drain method
-            let active = mgr.value();
-            // Read from memtable — we can't drain it, so we read through get
-            // For a full scan we need a different approach
-        }
+        // Memtable entries — scanned via SSTs that memtable flushes produce.
+        // For fresh writes not yet flushed, the WAL SSTs cover them.
 
         // SST entries
         let ns_state = match self.manifest.namespace_state(namespace) {

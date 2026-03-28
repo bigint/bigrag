@@ -128,7 +128,6 @@ impl StorageBackend {
     /// Read a byte range from a path.
     pub async fn get_range(&self, path: &str, range: std::ops::Range<u64>) -> BackendResult<Bytes> {
         let location = self.full_path(path);
-        let range = range.start as usize..range.end as usize;
         let bytes = self.store.get_range(&location, range).await?;
         Ok(bytes)
     }
