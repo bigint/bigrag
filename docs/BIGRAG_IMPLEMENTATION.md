@@ -93,7 +93,7 @@ After deep analysis of turbopuffer's architecture and customer case studies (Cur
 | HNSW tuning | Hidden/auto | Exposed (`ef_construction`, `M`, `ef_search`) |
 | Recall tuning | No user control | Full HNSW param exposure |
 | Cold start | ~400ms | Target <200ms with prefetch hints |
-| Filter-aware ANN | Post-filter only | Pre-filter HNSW (planned v2) |
+| Filter-aware ANN | Native (integrated with ANN clustering) | Native + Pre-filter HNSW (planned v2) |
 | WASM embedding | No | Yes (run Nomic/BGE/E5 in-process) |
 | Dashboard | PHPMyAdmin-style (roadmap) | Day-1 built-in web UI |
 | Pricing model | Per-query metered | Self-hosted: free; Cloud edition: usage-based |
@@ -598,7 +598,11 @@ Unicode normalization (NFC)
     │
     ▼
 Tokenizer selection:
-  word_v3 (default): Unicode word boundary segmentation
+  word_v3 (default): Unicode v17.0 text segmentation for most languages/scripts/emoji
+  word_v2: Ideographic + alphanumeric + emoji tokens (Unicode v16.0)
+  word_v1: Like word_v2 but ideographics treated as alphanumeric (Unicode v10.0)
+  word_v0: Like word_v1 but emojis discarded
+  pre_tokenized_array: Client-side tokenization (array of strings, case-sensitive, no stemming)
   ngram: character n-gram (for CJK, no-space languages)
   whitespace: simple space split
     │
@@ -610,9 +614,9 @@ ASCII folding (configurable, default: off)
     │
     ▼
 Stop word removal (configurable, default: off)
-  Supported languages: english, french, german, spanish,
-                       portuguese, italian, dutch, russian,
-                       chinese, japanese, korean
+  Supported languages (18): arabic, danish, dutch, english (default),
+    finnish, french, german, greek, hungarian, italian, norwegian,
+    portuguese, romanian, russian, spanish, swedish, tamil, turkish
     │
     ▼
 Stemming (configurable, default: off)
@@ -702,6 +706,47 @@ For filterable attributes, bigRAG maintains secondary indexes:
 | **Bitmap index** | bool, low-cardinality string | AND/OR across large sets |
 | **Regex trie** | string | Glob, Regex, IGlob patterns |
 | **Inverted list** | []string, []uuid | Contains, ContainsAny, ContainsAll |
+
+### 6.4 Native Filter-Aware Indexing
+
+bigRAG implements turbopuffer's native filtering architecture, which integrates attribute indexes directly with the ANN clustering hierarchy rather than using naive pre-filter or post-filter approaches.
+
+#### 6.4.1 Architecture
+
+Attribute indexes store document addresses as `{cluster_id}:{local_id}` pairs:
+
+```
+Row-Level Indexes:
+  (attribute_value, cluster_id) → Set<local_id>
+
+Cluster-Level Indexes (downsampled):
+  attribute_value → bitmap of cluster_ids containing matches
+```
+
+#### 6.4.2 Two-Level Indexing
+
+1. **Row-level indexes** — map attribute values to specific document addresses within clusters
+2. **Cluster-level indexes** — precomputed downsampled versions enabling fast bitmap unions/intersections before fetching exact bitmaps
+
+#### 6.4.3 Native Filtering Query Plan
+
+```
+1. Scan attribute indexes → identify clusters containing matching documents
+2. Use cluster-level bitmaps to select promising clusters
+3. Within each selected cluster, evaluate only candidates that match filters
+4. Maintain candidate counts similar to unfiltered queries
+5. Result: consistent query performance regardless of filter selectivity
+```
+
+#### 6.4.4 Why Not Pre-Filter or Post-Filter?
+
+| Approach | Recall | Latency | Problem |
+|----------|--------|---------|---------|
+| Post-filter (naive) | ~0% | 20ms | Discards most candidates after ANN |
+| Pre-filter (naive) | 100% | 10s | O(dims × matches) scan cost |
+| **Native filtering** | **~90%** | **25ms** | Integrated, consistent perf |
+
+Native filtering avoids both pitfalls by integrating attribute awareness into the ANN index structure itself.
 
 #### Online Schema Updates
 
@@ -914,6 +959,211 @@ bigRAG supports aggregations in queries:
 ```
 
 Aggregations run concurrently with the vector/BM25 search. The response includes both ranked results AND aggregation results in a single API call.
+
+### 7.7 Advanced Scoring / Rank-By Expressions
+
+bigRAG supports turbopuffer-compatible composite scoring expressions, enabling sophisticated relevance tuning without client-side logic.
+
+#### 7.7.1 Combination Operators
+
+| Operator | Syntax | Description |
+|----------|--------|-------------|
+| `Sum` | `["Sum", [clause1, clause2, ...]]` | Add scores together |
+| `Max` | `["Max", [clause1, clause2, ...]]` | Use the maximum score among clauses |
+| `Product` | `["Product", weight, clause]` | Multiply clause score by a non-negative weight |
+
+#### 7.7.2 Attribute Scoring
+
+| Operator | Syntax | Description |
+|----------|--------|-------------|
+| `Attribute` | `["Attribute", "field_name"]` | Use raw attribute value as score |
+
+#### 7.7.3 Normalization Functions
+
+**Saturate** — Maps non-negative values to [0, 1):
+
+```
+Saturate(x) = x^exponent / (x^exponent + midpoint^exponent)
+```
+
+```json
+["Saturate", ["Attribute", "clicks"], {"midpoint": 100, "exponent": 1}]
+```
+
+- `midpoint` (required): the input value that yields 0.5
+- `exponent` (optional, default 1): controls growth curve steepness
+- Counterpart of BM25 but for numeric attributes
+
+**Decay** — Inverse of Saturate for negatively-correlated attributes:
+
+```
+Decay(x) = midpoint^exponent / (x^exponent + midpoint^exponent)
+```
+
+```json
+["Decay", ["Attribute", "negative_reviews"], {"midpoint": 10}]
+```
+
+Higher input values yield LOWER scores.
+
+**Dist** — Distance between an origin and an attribute value:
+
+```json
+["Dist", ["Attribute", "published_at"], "2026-02-03T12:13:14"]
+```
+
+For datetime fields, `midpoint` accepts duration strings: `s` (seconds), `m` (minutes), `h` (hours), `d` (days), `w` (weeks).
+
+#### 7.7.4 Rank-by Filters (Conditional Boosts)
+
+Filter operators can be used inside `rank_by`. Documents matching the filter get score 1, otherwise 0:
+
+```json
+["Sum", [
+  ["title", "BM25", "quick fox"],
+  ["species", "Eq", "whale"]
+]]
+```
+
+#### 7.7.5 Complex Scoring Examples
+
+**Weighted BM25 across fields:**
+```json
+{
+  "rank_by": ["Sum", [
+    ["Product", 2.0, ["title", "BM25", "fox"]],
+    ["content", "BM25", "fox"]
+  ]],
+  "limit": {"total": 10}
+}
+```
+
+**BM25 with popularity boost:**
+```json
+{
+  "rank_by": ["Sum", [
+    ["title", "BM25", "quick fox"],
+    ["Product", 1.7, ["Saturate", ["Attribute", "clicks"], {"midpoint": 100}]]
+  ]]
+}
+```
+
+**BM25 with temporal decay (recency boost):**
+```json
+{
+  "rank_by": ["Sum", [
+    ["title", "BM25", "fox"],
+    ["Decay", ["Dist", ["Attribute", "published_at"], "2026-03-01T00:00:00Z"], {"midpoint": "6h"}]
+  ]]
+}
+```
+
+**Hybrid vector + BM25 with attribute boost:**
+```json
+{
+  "queries": [
+    {
+      "rank_by": ["vector", "ANN", [0.1, 0.2, ...]],
+      "limit": {"total": 100}
+    },
+    {
+      "rank_by": ["Sum", [
+        ["content", "BM25", "retrieval augmented generation"],
+        ["Product", 0.5, ["Saturate", ["Attribute", "citation_count"], {"midpoint": 50}]],
+        ["Decay", ["Dist", ["Attribute", "published_at"], "2026-03-01"], {"midpoint": "30d"}]
+      ]],
+      "limit": {"total": 100}
+    }
+  ],
+  "fusion": {"method": "rrf", "k": 60},
+  "limit": {"total": 10}
+}
+```
+
+### 7.8 Prefix Queries / Type-Ahead Search
+
+BM25 supports type-ahead style prefix queries via the `last_as_prefix` parameter:
+
+```json
+{
+  "rank_by": ["title", "BM25", "search wal", {"last_as_prefix": true}]
+}
+```
+
+When `last_as_prefix` is `true`, the last token is treated as a literal prefix. Example: prefix "wal" matches "wal", "walrus", "walnut", etc.
+
+**Prefix queries also work with filter operators:**
+
+```json
+["title", "ContainsAllTokens", "search wal", {"last_as_prefix": true}]
+["title", "ContainsAnyToken", "search wal", {"last_as_prefix": true}]
+["title", "ContainsTokenSequence", "search wal", {"last_as_prefix": true}]
+```
+
+### 7.9 Consistency Modes
+
+#### Strong Consistency (Default)
+
+```json
+{"consistency": {"level": "strong"}}
+```
+
+- Searches ALL unindexed writes
+- Queries see all data written before they started
+- Updates the cache
+- **~10ms latency floor** due to object storage GET IF-NOT-MATCH checks
+
+#### Eventual Consistency
+
+```json
+{"consistency": {"level": "eventual"}}
+```
+
+- Searches up to **128 MiB** of unindexed writes
+- May return stale results (extremely rare — **>99.8%** of queries return consistent data)
+- Enables **sub-10ms** latency by skipping the consistency check round-trip
+
+### 7.10 Enhanced Response Format
+
+```json
+{
+  "rows": [
+    {
+      "id": "doc-123",
+      "$dist": 0.15,
+      "title": "Introduction to RAG",
+      "category": "ml"
+    }
+  ],
+  "billing": {
+    "billable_logical_bytes_queried": 52428800,
+    "billable_logical_bytes_returned": 2048
+  },
+  "performance": {
+    "cache_hit_ratio": 0.95,
+    "cache_temperature": "hot",
+    "server_total_ms": 12,
+    "query_execution_ms": 8,
+    "exhaustive_search_count": 0,
+    "approx_namespace_size": 1000000
+  }
+}
+```
+
+**Performance fields:**
+
+| Field | Description |
+|-------|-------------|
+| `cache_hit_ratio` | Float 0.0-1.0, ratio of data served from cache |
+| `cache_temperature` | `"hot"` (DRAM), `"warm"` (NVMe), or `"cold"` (object store) |
+| `server_total_ms` | Total server time including concurrency waits |
+| `query_execution_ms` | Server time excluding concurrency waits |
+| `exhaustive_search_count` | Number of unindexed documents searched |
+| `approx_namespace_size` | Approximate total documents in namespace |
+
+**Multi-query response** uses `results` array of response objects instead of top-level `rows`.
+
+**Aggregation response** uses `aggregations` (label → value map) or `aggregation_groups` (array of group objects with keys and values).
 
 ---
 
@@ -1485,6 +1735,8 @@ Or as query parameter (not recommended for production):
 | POST | `/v1/admin/compact/{ns}` | Trigger manual compaction |
 | POST | `/v1/admin/warm/{ns}` | Pre-warm namespace into cache |
 | GET | `/v1/admin/config` | Get current runtime config |
+| POST | `/v1/namespaces/{ns}/explain_query` | Explain query plan |
+| GET | `/v1/namespaces/{ns}/hint_cache_warm` | Pre-warm namespace into cache |
 
 ### 12.4 Error Format
 
@@ -2921,8 +3173,519 @@ Add:
 
 ---
 
-*Document ends. Total features specified: 200+. Implementation phases: 3. Timeline: 40 weeks to production-ready v1.*
+---
+
+## 29. turbopuffer Technical Deep Dive (Reference Material)
+
+This section documents every technical detail discovered about turbopuffer during deep OSINT research, serving as the authoritative reference for bigRAG's implementation decisions.
+
+### 29.1 Complete API Surface
+
+**Base URL:** `https://{region}.turbopuffer.com`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/namespaces` | List namespaces (paginated) |
+| `GET` | `/v1/namespaces/:ns/schema` | Get namespace schema |
+| `POST` | `/v1/namespaces/:ns/schema` | Update namespace schema |
+| `GET` | `/v1/namespaces/:ns/metadata` | Get namespace metadata |
+| `GET` | `/v1/namespaces/:ns/hint_cache_warm` | Pre-warm namespace cache |
+| `POST` | `/v1/namespaces/:ns/_debug/recall` | Evaluate recall (debug) |
+| `POST` | `/v2/namespaces/:ns` | Write documents (upsert/patch/delete) |
+| `DELETE` | `/v2/namespaces/:ns` | Delete entire namespace |
+| `POST` | `/v2/namespaces/:ns/query` | Query documents |
+| `POST` | `/v2/namespaces/:ns/query?stainless_overload=multiQuery` | Multi-query |
+| `POST` | `/v2/namespaces/:ns/explain_query` | Explain query plan |
+
+### 29.2 Complete Write API
+
+**Write endpoint:** `POST /v2/namespaces/:namespace`
+
+Supports ALL of the following in a single request:
+- `upsert_rows` / `upsert_columns`: Create/overwrite documents
+- `patch_rows` / `patch_columns`: Partial attribute updates (vectors cannot be patched)
+- `deletes`: Array of IDs to remove
+- `delete_by_filter`: Filter expression for batch deletion (max 5M docs)
+- `delete_by_filter_allow_partial`: Allows partial completion
+- `patch_by_filter`: Filter + patch object (max 50k docs)
+- `patch_by_filter_allow_partial`: Allows partial completion
+- `upsert_condition` / `patch_condition` / `delete_condition`: Atomic conditional writes
+- `copy_from_namespace`: Server-side namespace copy (string or object with cross-region/cross-org)
+- `distance_metric`: `"cosine_distance"` or `"euclidean_squared"`
+- `schema`: Explicit type/indexing configuration
+- `encryption`: CMEK configuration
+- `disable_backpressure`: Allow >2 GiB unindexed data
+- `return_affected_ids`: Include ID arrays in response
+
+**Conditional Write Semantics:**
+- `$ref_new` references for new document values
+- Provides **Serializable** isolation (strongest level)
+- Prevents Lost Update anomalies
+- Two-phase execution for filter-based operations: (1) filter evaluation against snapshot, (2) atomic re-evaluation
+
+### 29.3 Complete Scoring System (10 Ranking Mechanisms)
+
+| Mechanism | Syntax | Description |
+|-----------|--------|-------------|
+| ANN | `["vector", "ANN", [...]]` | Approximate nearest neighbor |
+| kNN | `["vector", "kNN", [...]]` | Exact nearest neighbor (requires filter) |
+| BM25 | `["field", "BM25", "query"]` | Full-text BM25 scoring |
+| Attribute | `["field", "asc"/"desc"]` | Sort by attribute value |
+| Sum | `["Sum", [clause1, clause2]]` | Add scores |
+| Max | `["Max", [clause1, clause2]]` | Maximum score |
+| Product | `["Product", weight, clause]` | Weighted score |
+| Saturate | `["Saturate", clause, {midpoint}]` | Normalize to [0,1) |
+| Decay | `["Decay", clause, {midpoint}]` | Inverse normalize |
+| Dist | `["Dist", clause, origin]` | Distance from origin |
+
+### 29.4 Complete Filter Operators (27 Total)
+
+**Comparison (6):** Eq, NotEq, Lt, Lte, Gt, Gte
+**Array Comparison (4):** AnyLt, AnyLte, AnyGt, AnyGte
+**Set/Membership (6):** In, NotIn, Contains, ContainsAny, NotContains, NotContainsAny
+**Full-Text Token (3):** ContainsAllTokens, ContainsTokenSequence, ContainsAnyToken
+**Pattern Matching (5):** Glob, NotGlob, IGlob, NotIGlob, Regex
+**Logical (3):** And, Or, Not
+
+### 29.5 Data Types
+
+| Type | Array | Description |
+|------|-------|-------------|
+| `string` | `[]string` | UTF-8 text (8 MiB max, 4 KiB filterable) |
+| `int` | `[]int` | Signed 64-bit integer |
+| `uint` | `[]uint` | Unsigned 64-bit integer |
+| `float` | `[]float` | 64-bit floating point |
+| `bool` | `[]bool` | Boolean |
+| `uuid` | `[]uuid` | 128-bit UUID (requires explicit schema) |
+| `datetime` | `[]datetime` | ISO 8601 → 64-bit millisecond UTC |
+| Vector | — | `[dims]f32` or `[dims]f16` |
+
+All attributes nullable except `id`. ID types: u64, UUID, or string (up to 64 bytes).
+
+### 29.6 SPFresh ANN Architecture (Detailed)
+
+turbopuffer's ANN v3 uses a hierarchical clustering index with 100x branching factor:
+
+```
+Memory Hierarchy Alignment:
+┌────────────────────────────────────┐
+│ L3 Cache (504 MiB)                │ Quantized centroids (3 levels)
+│ Level 3: 100³ × 128 = 128 MiB    │ → 33,000 QPS theoretical
+├────────────────────────────────────┤
+│ DRAM                               │ Quantized data vectors
+│ RaBitQ binary (1 bit/dim)         │ → 50,000 QPS theoretical
+├────────────────────────────────────┤
+│ NVMe SSD                           │ Full-precision vectors (<1% rerank)
+│ Scatter-gather parallel reads     │ → 10,000 QPS theoretical
+├────────────────────────────────────┤
+│ Object Storage (S3/GCS)            │ Source of truth
+│ ~100ms per round trip             │ Production: ~1,000 QPS
+└────────────────────────────────────┘
+```
+
+**RaBitQ Binary Quantization:**
+- Exploits "concentration of measure" in high-dimensional space
+- 16-32x compression (1 bit per dimension)
+- Produces estimated distance **ranges** (e.g., `[0.69, 0.83]`), not exact values
+- Less than 1% of candidates need full-precision reranking
+- Uses AVX-512 VPOPCNTDQ instruction (30% kernel improvement)
+
+**Production Numbers (100B vectors, 1024 dims, f16, 200 TiB):**
+- p99 latency: 200ms
+- p50 latency: ~40ms
+- QPS: 1,000+ sustained
+- Recall@10: 92%
+
+### 29.7 FTS v2 Engine Architecture (Detailed)
+
+**Evolution from v1 → v2:**
+
+| Metric | FTS v1 | FTS v2 |
+|--------|--------|--------|
+| Index size (MSMARCO 40M docs) | 51.6 GiB | 5.22 GiB (9.9x smaller) |
+| "san francisco" query | 8ms | 3ms |
+| "the who" query | 57ms | 7ms (8.1x faster) |
+| 5-term query | 174ms | 20ms (8.7x faster) |
+
+**Key architectural changes:**
+1. **Fixed-size block partitioning** (256 postings/block) instead of cluster-aligned partitions
+2. **MAXSCORE algorithm** (same as Apache Lucene since their switch from WAND)
+3. **Bitpacking compression** via Quickwit's Rust port of simdcomp (741M postings/s, ~4.5 GB/s)
+4. **Dynamic bit-set encoding** for high-frequency terms (up to 26% faster)
+5. **Vectorized inner loops** — batched iterators (512 elements) expose loop structure for SIMD
+
+**Why MAXSCORE over WAND:**
+- MAXSCORE is term-centric: sorts terms by score contribution
+- Better for LLM-generated long queries (WAND overhead scales linearly with term count)
+- "Throughput first, skipping second" philosophy
+- Surprising result: longer queries can be FASTER because additional terms classify more terms as non-essential
+
+### 29.8 Distributed Indexing Queue
+
+turbopuffer's indexing queue is built on a single `queue.json` file on object storage:
+
+```
+Evolution:
+1. Single JSON file with CAS (compare-and-set) operations
+2. Group commit batching for multiple concurrent jobs
+3. Stateless broker architecture (eliminates client contention)
+
+Properties:
+- At-least-once delivery guarantee
+- Worker heartbeating via timestamps in queue.json
+- 10x lower tail latency vs prior implementation
+- No external dependencies (no Kafka, no Redis, no etcd)
+```
+
+**bigRAG implementation:** Use the same pattern — a manifest-based approach with CAS atomicity on object storage. This eliminates the need for external coordination services.
+
+### 29.9 Rust SIMD Optimization Patterns
+
+From turbopuffer's engineering blog — key lessons for bigRAG:
+
+**Problem:** Rust's zero-cost abstractions (iterators) compile individual operations efficiently but prevent cross-call SIMD vectorization. The compiler cannot see through recursive `next()` calls.
+
+**Solution: Batched Iterators**
+
+```rust
+// BAD: Standard iterator prevents SIMD
+for item in posting_list.iter() {
+    process(item);
+}
+
+// GOOD: Batched iterator (N=512) enables SIMD
+while let Some(batch) = posting_list.next_batch(512) {
+    // Compiler can vectorize this inner loop with AVX2/NEON
+    for i in 0..batch.len() {
+        process(batch[i]);
+    }
+}
+```
+
+**Results:**
+- Microbenchmarks: 59x faster (6.5ms → 110μs for 100k integers)
+- Production: 4.7x faster (220ms → 47ms for filter-heavy BM25 queries)
+
+### 29.10 Continuous Recall Measurement
+
+turbopuffer continuously monitors recall on 1% of live production queries:
+
+```
+Process:
+1. Sample 1% of incoming ANN queries
+2. Run the same query exhaustively (kNN) in background
+3. Compare ANN results vs exhaustive results
+4. Compute recall@10 (ratio of overlapping results)
+5. Alert if recall drops below 90%
+6. Automatically adjust nprobe/search parameters
+
+Claims: "Not something any other search engine or database does"
+```
+
+**bigRAG implementation:** Ship an identical recall monitoring system as a built-in background service, not an optional add-on.
+
+---
+
+## 30. Competitive Pricing Analysis
+
+### 30.1 turbopuffer Pricing
+
+| Plan | Minimum | Key Features |
+|------|---------|-------------|
+| Launch | $64/month | Multi-tenancy, SOC2, community Slack |
+| Scale | $256/month | HIPAA BAA, SSO, private Slack, 8-5 support |
+| Enterprise | $4,096/month (+35% usage premium) | Single-tenancy/BYOC, CMEK, PrivateLink, 24/7 SLA, 99.95% uptime |
+
+**No free tier. Unused commitments do NOT roll over.**
+
+**Usage components:**
+- **Storage:** Per logical byte/month. Non-indexed attributes: 50% discount.
+- **Queries:** Per logical byte queried+returned. Minimum 1.28 GB floor per query. Tiered: 32-128 GB at 80% discount, 128+ GB at 96% discount.
+- **Writes:** Per logical byte written. Minimum 10 KB. Batch discount up to 50%.
+
+### 30.2 Competitor Pricing Comparison
+
+| Provider | Free Tier | Minimum Paid | Self-Hosted |
+|----------|-----------|-------------|-------------|
+| turbopuffer | No | $64/month | No |
+| Pinecone | Yes (5 indexes, 2GB) | $16/M read units | No (BYOC preview) |
+| Qdrant | Yes (1GB cloud) | $0 self-hosted | Yes (Apache 2.0) |
+| Weaviate | 14-day trial | $45/month | Yes (BSD-3) |
+| Milvus/Zilliz | Yes (5GB cloud) | $0 self-hosted | Yes (Apache 2.0) |
+| ChromaDB | Yes ($5 credit) | $0 self-hosted | Yes (Apache 2.0) |
+| pgvector | Yes (infra only) | $0 (extension) | Yes (PostgreSQL) |
+| LanceDB | Yes | $0 self-hosted | Yes (Apache 2.0) |
+| **bigRAG** | **Yes ($0 forever)** | **$0 self-hosted** | **Yes (Apache 2.0)** |
+
+### 30.3 Cost Architecture Analysis
+
+| Architecture | Cost/TB/month | Examples |
+|-------------|---------------|---------|
+| RAM + 3x SSD (traditional) | $3,600 | Old-gen Pinecone, Elasticsearch |
+| RAM Cache + 3x SSD (incumbents) | $1,600 | Qdrant Cloud, Weaviate Cloud |
+| 3x SSD only | $600 | Milvus standalone |
+| **S3 + SSD Cache** | **$70** | **turbopuffer, bigRAG** |
+| S3 alone | $20 | Cold storage only |
+
+**bigRAG's self-hosted advantage:** Users bring their own object storage ($20-23/TB/month for S3/GCS) + compute. No markup, no minimums, no metering.
+
+---
+
+## 31. turbopuffer SDK Ecosystem (Reference for bigRAG SDK Design)
+
+### 31.1 Official turbopuffer SDKs (All Stainless-generated from OpenAPI spec)
+
+| Language | Package | Version | Key Features |
+|----------|---------|---------|-------------|
+| Python | `turbopuffer` (PyPI) | v1.16.2 | Sync + Async (httpx/aiohttp), Pydantic models, TypedDict params |
+| TypeScript | `@turbopuffer/turbopuffer` (npm) | v1.19.0 | Node.js, Deno, Bun, Cloudflare Workers, Vercel Edge; Undici backend |
+| Go | `turbopuffer-go` | v1.20.0 | Functional options, Go 1.22+, `param.Opt[T]` for optionals |
+| Java | Maven Central | v1.20.0 | Java 8+, OkHttp, immutable builders, CompletableFuture async |
+| Ruby | RubyGems | v1.18.0 | Ruby 3.2+, connection_pool, Sorbet RBI definitions, threadsafe |
+
+**Community:** Rust crate `turbopuffer-client` (v0.0.3, minimal, uses deprecated v1 API)
+
+### 31.2 Framework Integrations
+
+| Framework | Package | Status |
+|-----------|---------|--------|
+| LangChain (Python) | `langchain-turbopuffer` v0.2.0 | Official |
+| LangChain (JS) | `@langchain/turbopuffer` | Official |
+| Mastra | `@mastra/turbopuffer` | Official |
+| LlamaIndex | Fork in turbopuffer GitHub org | Not published |
+| Vectorize | Managed RAG pipeline connector | Official |
+| Daft | Distributed DataFrame connector | Community |
+
+### 31.3 Ecosystem Tools
+
+| Tool | Description |
+|------|-------------|
+| MCP Server (beta) | 3 tools for AI assistants (list, search, write) |
+| Puffgres (archived) | Postgres CDC to turbopuffer |
+| Turbopuffer GUI | Electron desktop client (community) |
+| tpuf-benchmark | Official Go benchmarking tool |
+| OpenAPI spec | `github.com/turbopuffer/turbopuffer-openapi` (3.1.0) |
+
+### 31.4 bigRAG SDK Strategy
+
+bigRAG should generate SDKs from an OpenAPI spec (like turbopuffer) for consistency, but also provide hand-crafted ergonomic wrappers:
+
+**SDK Priority:**
+1. **Python** (v1.0, launch) — sync + async, Pydantic models
+2. **TypeScript** (v1.0, launch) — works on Node, Deno, Bun, edge runtimes
+3. **Go** (v1.0, launch) — idiomatic Go patterns
+4. **Rust** (v1.0, launch) — reference implementation, used by bigRAG itself
+5. **Java** (v1.0, Phase 2) — Spring Boot integration
+6. **Ruby** (v1.0, Phase 2) — Rails integration
+
+**Framework Integrations (Phase 2):**
+1. LangChain (Python + JS) — VectorStore adapter
+2. LlamaIndex — VectorStore adapter
+3. Mastra — VectorStore adapter
+4. Haystack — Document store adapter (gap in turbopuffer ecosystem)
+5. MCP Server — For AI agent integration
+
+**turbopuffer Compatibility Mode:**
+bigRAG's turbopuffer compat mode means existing turbopuffer SDK users can switch by only changing the base URL:
+
+```python
+# turbopuffer's own SDK, no changes needed
+import turbopuffer as tpuf
+tpuf.api_key = "br_your_bigrag_key"
+tpuf.api_base = "http://localhost:8080/v2"  # only change
+ns = tpuf.Namespace("my-ns")  # everything works
+```
+
+---
+
+## 32. Customer Case Studies (turbopuffer — Reference for bigRAG Positioning)
+
+### 32.1 Cursor (AI Code Editor)
+- **Scale:** 100B+ vectors, 10M+ namespaces, 10 GB/s write peaks
+- **Impact:** 95% cost reduction vs prior solution
+- **Story:** Simon flew to SF unannounced; migrated entire workload in one week
+
+### 32.2 Notion (AI Workspace)
+- **Scale:** 10B+ vectors, 1M+ namespaces, 1 GB/s write peaks
+- **Impact:** 80% cost reduction, millions saved annually, removed per-user AI charges
+- **Story:** Justine coded 24-hour marathons during POC; fixed 300ms latency in 3 hours
+
+### 32.3 Linear (Project Management)
+- **Scale:** 250M+ documents, 1.5M+ namespaces
+- **Impact:** 70% cost reduction, 13ms p50 latency
+
+### 32.4 Superhuman (Email)
+- **Scale:** 9B+ documents, 60ms p90 latency
+- **Impact:** Expanded from 1 to 5 years of email indexing, 20%+ cost reduction
+
+### 32.5 Pylon (B2B Support)
+- **Scale:** 300M+ documents, 20K+ namespaces
+- **Impact:** 3 days to production, 24ms p90 latency
+
+**Key insight for bigRAG:** These customers chose turbopuffer for cost (10-95% savings) and scale (unlimited namespaces). bigRAG targets the same use cases at $0 licensing cost with self-hosting flexibility.
+
+---
+
+## 33. Known turbopuffer Limitations (bigRAG Opportunities)
+
+### 33.1 Limitations Confirmed by Research
+
+| Limitation | Impact | bigRAG Response |
+|-----------|--------|----------------|
+| No self-hosting | "Non-starter" for many devs (HN feedback) | First-class Docker/K8s |
+| $64/month minimum | Excludes hobbyists, small projects | $0 forever |
+| No local dev story | CI environments with no network access blocked | `docker run bigrag/bigrag` |
+| No free tier | Cannot prototype without payment | Free self-hosted |
+| Cold start 400ms-4s | Problematic for real-time apps | Target <200ms |
+| No recall tuning | 54% recall on narrow filtered queries (Zilliz test) | Exposed HNSW params |
+| Eventual consistency on deletes | ~60min convergence in Zilliz testing | Configurable, documented |
+| SPFresh recall degradation | "Degrades silently over time" with data distribution changes | Continuous recall monitoring + auto-rebuild |
+| No GPU acceleration | Milvus has NVIDIA CAGRA | GPU support planned |
+| No built-in embeddings | External service required | Optional WASM sidecar |
+| No built-in reranking | Client-side pattern | Planned reranking endpoint |
+| No webhooks/CDC | No event system | Planned WAL subscription API |
+| No OpenTelemetry | No tracing export | Built-in OTel export |
+| No Prometheus metrics | No metrics endpoint | Built-in `/v1/metrics` |
+| Closed source risk | Seed-stage vendor dependency | Apache 2.0, forever free |
+
+### 33.2 Feature Gaps in turbopuffer's Roadmap (Not Yet Shipped)
+
+- Highlighting for search results
+- Native search-as-you-type
+- Aggregate functions: distinct, min, max
+- Late interaction support (ColBERT)
+- Nested attributes
+- Namespace branching
+- Namespace cache pinning
+- Dashboard improvements
+
+**bigRAG should ship these before turbopuffer where feasible.**
+
+### 33.3 Criticisms from Hacker News & Community
+
+1. **Offline development is a "non-starter"** — Bazel sandboxing, air-gapped CI
+2. **Pricing calculator underestimates** — Zilliz found 10x higher real costs due to `queried_bytes` billing
+3. **Cold p99 up to 4 seconds** — Not just 400ms p50
+4. **92% recall "could definitely be much better"** — Varies significantly by dataset
+5. **No contractual SLA on base plans** — Reliance on seed-stage vendor
+6. **IVF-family limited to hundreds/low thousands QPS** — vs HNSW's tens of thousands
+
+---
+
+## 34. Performance Benchmarks (turbopuffer vs bigRAG Targets)
+
+### 34.1 Query Latency Comparison
+
+| Scenario | turbopuffer | bigRAG Target |
+|----------|------------|---------------|
+| ANN warm (1M vectors) p50 | 8ms | 8ms |
+| ANN warm (1M vectors) p90 | 10ms | 15ms |
+| ANN cold (1M vectors) p50 | 343ms | 150ms |
+| ANN cold (1M vectors) p90 | 444ms | 300ms |
+| BM25 warm p90 | 18ms | 20ms |
+| BM25 cold p90 | 285ms | 200ms |
+| Write (500KB batch) p50 | 285ms | 285ms |
+| Write (500KB batch) p90 | 370ms | 370ms |
+| Write (500KB batch) p99 | 688ms | 688ms |
+
+### 34.2 Scale Benchmarks
+
+| Metric | turbopuffer | bigRAG Target |
+|--------|------------|---------------|
+| Max docs per namespace | 500M at 2TB | 500M at 2TB |
+| Max namespaces proven | 10M (Cursor) | 10M+ |
+| Max total docs | 2.5T+ | Trillions |
+| Max dimensions | 10,752 | 10,752 (65,536 for HNSW) |
+| Max concurrent queries/ns | 16 | 64 |
+| Write throughput per ns | 10k writes/s at 32 MB/s | 10k writes/s at 32 MB/s |
+| Global write throughput | 10M+ writes/s | Unlimited (per-cluster) |
+| Global query throughput | 10k+ queries/s | Per-cluster, horizontally scalable |
+
+### 34.3 Hard Limits
+
+| Limit | turbopuffer | bigRAG |
+|-------|------------|--------|
+| Max document size | 64 MiB | 64 MiB |
+| Max attribute value size | 8 MiB | 8 MiB |
+| Max filterable value size | 4 KiB | 4 KiB |
+| Max attribute names per ns | 256 | 256 (configurable to 1024) |
+| Max attribute name length | 128 bytes | 128 bytes |
+| Max ID size | 64 bytes | 64 bytes |
+| Max full-text query length | 1,024 chars | 4,096 chars |
+| Max top_k / limit.total | 10,000 | 10,000 (configurable to 100,000) |
+| Max multi-query count | 16 | 16 |
+| Max aggregation groups | 10,000 | 10,000 (configurable to 100,000) |
+| Max write payload | 512 MB | 512 MB |
+| Max unindexed data backpressure | 2 GB | 2 GB (configurable) |
+
+---
+
+## 35. Supported Regions (turbopuffer Reference)
+
+### 35.1 GCP Regions (7)
+
+| Region | Location |
+|--------|----------|
+| gcp-us-central1 | Iowa |
+| gcp-us-west1 | Oregon |
+| gcp-us-east4 | N. Virginia |
+| gcp-northamerica-northeast2 | Toronto |
+| gcp-europe-west3 | Frankfurt |
+| gcp-asia-southeast1 | Singapore |
+| gcp-asia-northeast3 | Seoul |
+
+### 35.2 AWS Regions (9)
+
+| Region | Location |
+|--------|----------|
+| aws-us-east-1 | N. Virginia |
+| aws-us-east-2 | Ohio |
+| aws-us-west-2 | Oregon |
+| aws-ca-central-1 | Montreal |
+| aws-eu-central-1 | Frankfurt |
+| aws-eu-west-1 | Ireland |
+| aws-eu-west-2 | London |
+| aws-ap-south-1 | Mumbai |
+| aws-ap-southeast-2 | Sydney |
+
+**bigRAG advantage:** Self-hosted anywhere — any AWS region, any GCP region, any Azure region, on-premises, air-gapped, edge locations. No region restrictions.
+
+---
+
+## 36. Expanded Feature Comparison Matrix
+
+```
+                       turbopuffer  bigRAG  Pinecone  Qdrant  Weaviate  Milvus  ChromaDB  pgvector  LanceDB  S3 Vectors
+Open Source               No         YES      No       Yes     Yes       Yes     Yes       Yes       Yes      No
+Self-Hosted               No         YES      No       Yes     Yes       Yes     Yes       Yes       Yes      No
+Managed Cloud             Yes        Plan     Yes      Yes     Yes       Yes     Beta      Providers Emerging Yes
+Local Dev                 No         YES      No       Yes     Yes       Yes     Yes       Yes       Yes      No
+Free Tier                 No         YES      Yes      Yes     Trial     Yes     Yes       Yes       Yes      Pay
+Vector ANN                Yes        YES      Yes      Yes     Yes       Yes     Yes       Yes       Yes      Yes
+Full-Text BM25            Yes        YES      Basic    Basic   Yes       Yes     Yes       No*       Yes      No
+Hybrid Search             Yes        YES      Yes      Yes     Yes       Yes     Yes       No        Yes      No
+Multi-Query (16x)         Yes        YES      No       No      No        No      No        No        No       No
+Scoring Expressions       Yes        YES      No       No      No        No      No        No        No       No
+Unlimited Namespaces      Yes        YES      No       No      No        No      No        No        No       No
+Object Storage Primary    Yes        YES      No       No      No        Part    No        No        Yes      Yes
+Native Filtering          Yes        YES      Yes      Yes     Yes       Yes     Yes       Yes       No       Yes
+27 Filter Operators       Yes        YES      No       No      No        No      No        No        No       No
+Conditional Writes        Yes        YES      No       No      No        No      No        SQL       No       No
+HNSW Param Tuning         No         YES      No       Yes     Yes       Yes     No        Yes       No       No
+Prometheus Metrics        No         YES      No       Yes     Yes       Yes     No        PG stats  No       No
+Admin Dashboard           Roadmap    YES      Yes      Yes     Yes       Yes     No        PgAdmin   No       No
+LangChain Integration     Yes        YES      Yes      Yes     Yes       Yes     Yes       Yes       Yes      No
+Docker Deploy             No         YES      No       Yes     Yes       Yes     Yes       N/A       Yes      No
+K8s Helm Chart            No         YES      No       Yes     Yes       Yes     No        Operators No       No
+GPU Support               No         Plan     No       No      No        Yes     No        No        Yes      No
+100B+ Proven Scale        Yes        Target   Yes      No      No        Yes     No        No        No       Yes
+```
+
+---
+
+*Document ends. Total features specified: 300+. Sections: 36. Implementation phases: 3. Timeline: 40 weeks to production-ready v1.*
 
 *Prepared by: Research Engineers 1-5, Team Lead, Product Manager*
 *Research date: 2026-03-28*
+*Research sources: turbopuffer.com/docs, turbopuffer.com/blog, turbopuffer GitHub, Hacker News, PyPI, npm, Zilliz analysis, competitor documentation*
 *Next step: Create implementation plan (writing-plans skill)*
