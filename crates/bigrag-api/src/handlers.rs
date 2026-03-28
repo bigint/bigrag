@@ -340,9 +340,21 @@ pub async fn write_documents(
                     None
                 },
                 rows_remaining,
-                upserted_ids: None,
-                patched_ids: None,
-                deleted_ids: None,
+                upserted_ids: if track_ids && !upserted_ids.is_empty() {
+                    Some(upserted_ids)
+                } else {
+                    None
+                },
+                patched_ids: if track_ids && !patched_ids.is_empty() {
+                    Some(patched_ids)
+                } else {
+                    None
+                },
+                deleted_ids: if track_ids && !deleted_ids.is_empty() {
+                    Some(deleted_ids)
+                } else {
+                    None
+                },
                 billing: BillingInfo::default(),
                 performance: PerformanceInfo {
                     server_total_ms: elapsed.as_secs_f64() * 1000.0,
