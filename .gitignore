@@ -1,10 +1,26 @@
+# Rust
 /target
 **/*.rs.bk
 *.pdb
+
+# Environment
 .env*.local
+
+# Data
 data/
 *.log
+
+# Node / UI
 node_modules/
+ui/.next/
+ui/out/
+ui/dist/
+ui/*.tsbuildinfo
+ui/next-env.d.ts
 
 # Docker
 .docker/
+
+# OS
+.DS_Store
+Thumbs.db
