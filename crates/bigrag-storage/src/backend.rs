@@ -49,11 +49,15 @@ impl StorageBackend {
                 bucket,
                 region,
                 prefix,
+                endpoint,
             } => {
-                let store = AmazonS3Builder::new()
+                let mut builder = AmazonS3Builder::new()
                     .with_bucket_name(bucket)
-                    .with_region(region)
-                    .build()?;
+                    .with_region(region);
+                if let Some(ep) = endpoint {
+                    builder = builder.with_endpoint(ep).with_allow_http(true);
+                }
+                let store = builder.build()?;
                 Ok(Self {
                     store: Arc::new(store),
                     prefix: prefix.clone().unwrap_or_default(),
