@@ -47,6 +47,18 @@ struct Cli {
     #[arg(long, env = "BIGRAG_API_KEYS")]
     api_keys: Option<String>,
 
+    /// Master API key (bypasses all permission checks)
+    #[arg(long, env = "BIGRAG_MASTER_KEY")]
+    master_key: Option<String>,
+
+    /// JWT shared secret for HS256 token validation
+    #[arg(long, env = "BIGRAG_JWT_SECRET")]
+    jwt_secret: Option<String>,
+
+    /// JWT issuer for validation (optional)
+    #[arg(long, env = "BIGRAG_JWT_ISSUER")]
+    jwt_issuer: Option<String>,
+
     /// Log format (text or json)
     #[arg(long, default_value = "text", env = "BIGRAG_LOG_FORMAT")]
     log_format: String,
@@ -127,14 +139,22 @@ async fn main() -> Result<()> {
     // Set server info gauge
     metrics::gauge!("bigrag_info", "version" => env!("CARGO_PKG_VERSION").to_string()).set(1.0);
 
-    // Parse API keys
+    // Parse API keys and build the key store
     let api_keys: Vec<String> = cli
         .api_keys
         .map(|k| k.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
         .unwrap_or_default();
 
+    let key_store = ApiKeyStore::new(cli.master_key, api_keys);
+
+    // Build optional JWT config
+    let jwt_config = cli.jwt_secret.map(|secret| JwtConfig {
+        secret,
+        issuer: cli.jwt_issuer,
+    });
+
     // Build app state and router
-    let state = AppState::new(engine, api_keys, prometheus_handle);
+    let state = AppState::new(engine, key_store, jwt_config, prometheus_handle);
     let app = create_router(state);
 
     // Add tower-http layers

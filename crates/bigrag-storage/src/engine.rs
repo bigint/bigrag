@@ -310,6 +310,10 @@ impl StorageEngine {
     pub fn cache(&self) -> &BlockCache {
         &self.cache
     }
+
+    pub fn disk_cache(&self) -> Option<&DiskCache> {
+        self.disk_cache.as_ref()
+    }
 }
 
 /// Background tasks that must be spawned separately.
