@@ -4,6 +4,7 @@
 .env*.local
 data/
 *.log
+node_modules/
 
 # Docker
 .docker/
