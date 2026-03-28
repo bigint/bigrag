@@ -237,6 +237,8 @@ pub struct QueryResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rows: Option<Vec<QueryResultRow>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_cursor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub results: Option<Vec<QueryResult>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub aggregations: Option<HashMap<String, serde_json::Value>>,

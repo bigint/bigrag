@@ -71,6 +71,8 @@ pub async fn write_documents(
     let distance_metric = body.distance_metric.as_deref().and_then(|m| match m {
         "cosine_distance" => Some(DistanceMetric::CosineDistance),
         "euclidean_squared" => Some(DistanceMetric::EuclideanSquared),
+        "dot_product" => Some(DistanceMetric::DotProduct),
+        "hamming" => Some(DistanceMetric::Hamming),
         _ => None,
     });
 
