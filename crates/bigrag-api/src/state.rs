@@ -1,11 +1,20 @@
-use bigrag_common::types::{DocumentId, DistanceMetric};
+use bigrag_common::types::{AttributeValue, DocumentId, DistanceMetric};
 use bigrag_index::{InvertedIndex, VectorIndex};
 use bigrag_query::executor::InMemoryDoc;
+use bigrag_query::filter::{evaluate_filter, parse_filter};
 use bigrag_storage::engine::StorageEngine;
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+/// A patch operation: update only specified attributes on an existing document.
+pub struct PatchDoc {
+    pub id: DocumentId,
+    pub vector: Option<Vec<f32>>,
+    /// `None` value means remove that attribute; `Some(val)` means set it.
+    pub attributes: HashMap<String, Option<AttributeValue>>,
+}
 
 /// Application state shared across all handlers.
 #[derive(Clone)]

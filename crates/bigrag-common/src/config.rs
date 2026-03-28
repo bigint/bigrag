@@ -6,6 +6,14 @@ pub struct ServerConfig {
     pub host: String,
     #[serde(default = "default_port")]
     pub port: u16,
+    #[serde(default = "default_metrics_port")]
+    pub metrics_port: u16,
+    #[serde(default = "default_max_connections")]
+    pub max_connections: u32,
+    #[serde(default = "default_request_timeout_ms")]
+    pub request_timeout_ms: u64,
+    #[serde(default = "default_max_request_body_mb")]
+    pub max_request_body_mb: u64,
     pub storage: StorageConfig,
     #[serde(default)]
     pub cache: CacheConfig,

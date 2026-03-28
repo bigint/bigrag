@@ -53,16 +53,50 @@ impl BigRagError {
 
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
-    pub status: &'static str,
-    pub error: String,
+    pub error: ErrorDetail,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ErrorDetail {
+    pub code: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_id: Option<String>,
+}
+
+impl BigRagError {
+    pub fn error_code(&self) -> &'static str {
+        match self {
+            Self::BadRequest(_) => "INVALID_REQUEST",
+            Self::AuthenticationError => "UNAUTHORIZED",
+            Self::PermissionDenied(_) => "FORBIDDEN",
+            Self::NotFound(_) => "NOT_FOUND",
+            Self::UnprocessableEntity(_) => "UNPROCESSABLE",
+            Self::RateLimited(_) => "RATE_LIMITED",
+            Self::IndexNotReady => "INDEX_BUILDING",
+            Self::Internal(_) | Self::Storage(_) => "INTERNAL_ERROR",
+            Self::CasConflict(_) => "CAS_CONFLICT",
+            Self::EpochFenced { .. } => "EPOCH_FENCED",
+        }
+    }
+
+    pub fn to_error_response(&self, request_id: Option<String>) -> ErrorResponse {
+        ErrorResponse {
+            error: ErrorDetail {
+                code: self.error_code().to_string(),
+                message: self.to_string(),
+                details: None,
+                request_id,
+            },
+        }
+    }
 }
 
 impl From<&BigRagError> for ErrorResponse {
     fn from(e: &BigRagError) -> Self {
-        Self {
-            status: "error",
-            error: e.to_string(),
-        }
+        e.to_error_response(None)
     }
 }
 
