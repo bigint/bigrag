@@ -27,6 +27,9 @@ metrics = { workspace = true }
 metrics-exporter-prometheus = { workspace = true }
 dashmap = { workspace = true }
 parking_lot = { workspace = true }
+jsonwebtoken = { workspace = true }
+sha2 = { workspace = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

@@ -1,0 +1,90 @@
+image:
+  repository: bigrag/bigrag
+  tag: ""  # Defaults to appVersion
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8080
+  metricsPort: 9090
+
+storage:
+  backend: local
+  path: /data
+  # S3:
+  # backend: s3
+  # bucket: my-bigrag-bucket
+  # region: us-east-1
+  # prefix: bigrag/
+  # endpoint: ""
+
+auth:
+  masterKey: ""
+  existingSecret: ""
+  secretKey: "master-key"
+
+cache:
+  dram:
+    sizePercent: "20"
+  nvme:
+    enabled: false
+    storageClass: ""
+    size: 100Gi
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "4"
+    memory: 16Gi
+
+persistence:
+  enabled: true
+  storageClass: ""
+  size: 10Gi
+  accessModes: [ReadWriteOnce]
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+
+ingress:
+  enabled: false
+  className: ""
+  host: bigrag.example.com
+  tls: false
+  annotations: {}
+
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  labels: {}
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+securityContext:
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+
+env: []
+envFrom: []

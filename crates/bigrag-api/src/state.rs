@@ -39,11 +39,16 @@ pub struct NamespaceData {
 }
 
 impl AppState {
-    pub fn new(engine: Arc<StorageEngine>, api_keys: Vec<String>) -> Self {
+    pub fn new(
+        engine: Arc<StorageEngine>,
+        api_keys: Vec<String>,
+        prometheus_handle: PrometheusHandle,
+    ) -> Self {
         Self {
             engine,
             documents: Arc::new(DashMap::new()),
             api_keys: Arc::new(api_keys),
+            prometheus_handle,
         }
     }
 
