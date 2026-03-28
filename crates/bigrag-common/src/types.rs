@@ -196,6 +196,85 @@ pub fn validate_namespace(name: &str) -> crate::error::Result<()> {
     Ok(())
 }
 
+// === API Key Types ===
+
+/// Scoped API key with permissions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiKey {
+    pub id: String,
+    pub name: String,
+    pub key_hash: String,
+    pub prefix: String,
+    pub permissions: ApiKeyPermissions,
+    pub created_at: String,
+    pub last_used_at: Option<String>,
+    pub expires_at: Option<String>,
+}
+
+/// Summary of an API key (without the hash), safe to return in list responses.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiKeySummary {
+    pub id: String,
+    pub name: String,
+    pub prefix: String,
+    pub permissions: ApiKeyPermissions,
+    pub created_at: String,
+    pub last_used_at: Option<String>,
+    pub expires_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiKeyPermissions {
+    pub namespaces: Vec<String>,
+    pub operations: Vec<ApiOperation>,
+    pub admin: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApiOperation {
+    Read,
+    Write,
+    Delete,
+    Schema,
+    Admin,
+}
+
+impl ApiKey {
+    /// Check if this key can access the given namespace with the given operation.
+    pub fn can_access(&self, namespace: &str, operation: ApiOperation) -> bool {
+        if self.permissions.admin {
+            return true;
+        }
+        if !self.permissions.operations.contains(&operation) {
+            return false;
+        }
+        self.permissions.namespaces.iter().any(|pattern| {
+            if pattern == "*" {
+                return true;
+            }
+            if let Some(prefix) = pattern.strip_suffix('*') {
+                namespace.starts_with(prefix)
+            } else {
+                pattern == namespace
+            }
+        })
+    }
+
+    /// Convert to a summary (without the key hash).
+    pub fn to_summary(&self) -> ApiKeySummary {
+        ApiKeySummary {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            prefix: self.prefix.clone(),
+            permissions: self.permissions.clone(),
+            created_at: self.created_at.clone(),
+            last_used_at: self.last_used_at.clone(),
+            expires_at: self.expires_at.clone(),
+        }
+    }
+}
+
 /// Attribute name validation: max 128 chars, must not start with `$`.
 pub fn validate_attribute_name(name: &str) -> crate::error::Result<()> {
     if name.is_empty() || name.len() > 128 {

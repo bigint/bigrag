@@ -1,0 +1,151 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "bigrag.fullname" . }}
+  labels:
+    {{- include "bigrag.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "bigrag.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "bigrag.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "bigrag.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: bigrag
+          image: {{ include "bigrag.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "{{ .Values.service.port }}"
+            - "--data-dir"
+            - "{{ .Values.storage.path }}"
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: BIGRAG_STORAGE_BACKEND
+              value: {{ .Values.storage.backend | quote }}
+            {{- if .Values.storage.bucket }}
+            - name: BIGRAG_STORAGE_BUCKET
+              value: {{ .Values.storage.bucket | quote }}
+            {{- end }}
+            {{- if .Values.storage.region }}
+            - name: BIGRAG_STORAGE_REGION
+              value: {{ .Values.storage.region | quote }}
+            {{- end }}
+            {{- if .Values.storage.prefix }}
+            - name: BIGRAG_STORAGE_PREFIX
+              value: {{ .Values.storage.prefix | quote }}
+            {{- end }}
+            {{- if .Values.storage.endpoint }}
+            - name: BIGRAG_STORAGE_ENDPOINT
+              value: {{ .Values.storage.endpoint | quote }}
+            {{- end }}
+            - name: BIGRAG_CACHE_DRAM_SIZE_PERCENT
+              value: {{ .Values.cache.dram.sizePercent | quote }}
+            {{- if or .Values.auth.masterKey .Values.auth.existingSecret }}
+            - name: BIGRAG_API_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bigrag.authSecretName" . }}
+                  key: {{ .Values.auth.secretKey }}
+            {{- end }}
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.service.metricsPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /v1/health/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.storage.path }}
+            - name: config
+              mountPath: /etc/bigrag
+              readOnly: true
+            {{- if .Values.cache.nvme.enabled }}
+            - name: nvme-cache
+              mountPath: /cache
+            {{- end }}
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "bigrag.fullname" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: config
+          configMap:
+            name: {{ include "bigrag.fullname" . }}
+        {{- if .Values.cache.nvme.enabled }}
+        - name: nvme-cache
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                accessModes: ["ReadWriteOnce"]
+                {{- if .Values.cache.nvme.storageClass }}
+                storageClassName: {{ .Values.cache.nvme.storageClass | quote }}
+                {{- end }}
+                resources:
+                  requests:
+                    storage: {{ .Values.cache.nvme.size }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

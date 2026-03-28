@@ -236,6 +236,12 @@ pub async fn write_documents(
 
     let elapsed = start.elapsed();
 
+    // Record write metrics
+    crate::metrics::record_write(&namespace, elapsed, total_affected);
+    if deleted_count > 0 {
+        crate::metrics::record_delete(&namespace, deleted_count);
+    }
+
     (
         StatusCode::OK,
         Json(
