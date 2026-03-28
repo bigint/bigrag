@@ -137,9 +137,6 @@ impl VectorIndex {
             if let Some(posting) = self.postings.get(&cluster_id) {
                 for entry in posting.value() {
                     let dist = self.compute_distance(query, &entry.vector);
-                    if dist == 0.0 {
-                        continue; // Skip zero-distance (the query itself)
-                    }
 
                     if heap.len() < top_k {
                         heap.push(SearchResult {
@@ -159,8 +156,8 @@ impl VectorIndex {
             }
         }
 
-        let mut results: Vec<SearchResult> = heap.into_sorted_vec();
-        results.reverse(); // Sort ascending by distance
+        let mut results: Vec<SearchResult> = heap.into_vec();
+        results.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap_or(std::cmp::Ordering::Equal));
         results
     }
 
@@ -171,9 +168,6 @@ impl VectorIndex {
         for posting in self.postings.iter() {
             for entry in posting.value() {
                 let dist = self.compute_distance(query, &entry.vector);
-                if dist == 0.0 {
-                    continue;
-                }
 
                 if heap.len() < top_k {
                     heap.push(SearchResult {
@@ -192,8 +186,8 @@ impl VectorIndex {
             }
         }
 
-        let mut results: Vec<SearchResult> = heap.into_sorted_vec();
-        results.reverse();
+        let mut results: Vec<SearchResult> = heap.into_vec();
+        results.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap_or(std::cmp::Ordering::Equal));
         results
     }
 
