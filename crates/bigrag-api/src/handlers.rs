@@ -250,6 +250,20 @@ pub async fn write_documents(
         total_affected += patched_count;
     }
 
+    // Process column-based patches
+    if let Some(ref columns) = body.patch_columns {
+        if let Some(patch_docs) = parse_patch_columns(columns) {
+            if track_ids {
+                for patch in &patch_docs {
+                    patched_ids.push(serde_json::to_value(&patch.id).unwrap_or_default());
+                }
+            }
+            let count = state.patch_documents(&namespace, patch_docs);
+            patched_count += count;
+            total_affected += count;
+        }
+    }
+
     // Process patch-by-filter
     if let Some(ref pbf) = body.patch_by_filter {
         if let Some(obj) = pbf.as_object() {
