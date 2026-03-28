@@ -19,33 +19,44 @@ pub fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
 }
 
 /// Authentication middleware.
+/// Validates the bearer token (API key or JWT) and inserts the resolved
+/// `ApiKey` into request extensions so handlers can perform permission checks.
 pub async fn auth_middleware(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request: Request,
+    mut request: Request,
     next: Next,
 ) -> Response {
-    // Skip auth if no API keys configured
-    if state.api_keys.is_empty() {
+    // If no keys are configured (open mode), allow all requests
+    if state.key_store.is_open() && state.jwt_config.is_none() {
         return next.run(request).await;
     }
 
     let token = extract_bearer_token(request.headers());
 
     match token {
-        Some(ref t) if state.validate_auth(t) => next.run(request).await,
-        Some(_) => (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({
-                "status": "error",
-                "error": "invalid API key"
-            })),
-        )
-            .into_response(),
+        Some(ref t) => match state.validate_auth(t) {
+            Some(api_key) => {
+                request.extensions_mut().insert(api_key);
+                next.run(request).await
+            }
+            None => (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({
+                    "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "Invalid API key"
+                    }
+                })),
+            )
+                .into_response(),
+        },
         None => (
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({
-                "status": "error",
-                "error": "authentication required"
+                "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Missing Authorization header"
+                }
             })),
         )
             .into_response(),

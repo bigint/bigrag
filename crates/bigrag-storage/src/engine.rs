@@ -5,7 +5,7 @@ use tracing::info;
 use bigrag_common::config::ServerConfig;
 
 use crate::backend::StorageBackend;
-use crate::cache::BlockCache;
+use crate::cache::{BlockCache, DiskCache};
 use crate::compaction::{CompactionConfig, CompactionScheduler};
 use crate::manifest::ManifestManager;
 use crate::memtable::{GetResult, MemTableManager};
@@ -18,6 +18,7 @@ pub struct StorageEngine {
     manifest: Arc<ManifestManager>,
     memtables: Arc<dashmap::DashMap<String, MemTableManager>>,
     cache: BlockCache,
+    disk_cache: Option<DiskCache>,
     wal_writer: Arc<WalWriter>,
     writer_epoch: u64,
 }

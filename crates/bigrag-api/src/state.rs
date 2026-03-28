@@ -24,14 +24,240 @@ pub struct PatchDoc {
     pub attributes: HashMap<String, Option<AttributeValue>>,
 }
 
+// === API Key Store ===
+
+/// Hash a plaintext key with SHA-256 (hex-encoded).
+fn hash_key(plaintext: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(plaintext.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+/// Generate a random API key with "br_" prefix (40 hex chars after prefix).
+fn generate_api_key() -> String {
+    let random_bytes: [u8; 20] = rand::rng().random();
+    let hex: String = random_bytes.iter().map(|b| format!("{b:02x}")).collect();
+    format!("br_{hex}")
+}
+
+/// In-memory store for API keys with validation and management.
+pub struct ApiKeyStore {
+    keys: RwLock<Vec<ApiKey>>,
+    master_key: Option<String>,
+}
+
+impl ApiKeyStore {
+    pub fn new(master_key: Option<String>, initial_keys: Vec<String>) -> Self {
+        let keys: Vec<ApiKey> = initial_keys
+            .into_iter()
+            .enumerate()
+            .map(|(i, plaintext)| {
+                let prefix = if plaintext.len() >= 8 {
+                    plaintext[..8].to_string()
+                } else {
+                    plaintext.clone()
+                };
+                ApiKey {
+                    id: format!("legacy-{i}"),
+                    name: format!("legacy-key-{i}"),
+                    key_hash: hash_key(&plaintext),
+                    prefix,
+                    permissions: ApiKeyPermissions {
+                        namespaces: vec!["*".to_string()],
+                        operations: vec![
+                            ApiOperation::Read,
+                            ApiOperation::Write,
+                            ApiOperation::Delete,
+                            ApiOperation::Schema,
+                            ApiOperation::Admin,
+                        ],
+                        admin: true,
+                    },
+                    created_at: chrono::Utc::now().to_rfc3339(),
+                    last_used_at: None,
+                    expires_at: None,
+                }
+            })
+            .collect();
+        Self {
+            keys: RwLock::new(keys),
+            master_key,
+        }
+    }
+
+    /// Returns true when no keys are configured and no master key is set (open access).
+    pub fn is_open(&self) -> bool {
+        self.master_key.is_none() && self.keys.read().is_empty()
+    }
+
+    /// Validate a token against the master key and stored keys.
+    /// Returns the matching `ApiKey` if found, updating `last_used_at`.
+    pub fn validate(&self, token: &str) -> Option<ApiKey> {
+        // Check master key first
+        if let Some(ref mk) = self.master_key {
+            if token == mk {
+                return Some(ApiKey {
+                    id: "master".to_string(),
+                    name: "master-key".to_string(),
+                    key_hash: String::new(),
+                    prefix: "master".to_string(),
+                    permissions: ApiKeyPermissions {
+                        namespaces: vec!["*".to_string()],
+                        operations: vec![
+                            ApiOperation::Read,
+                            ApiOperation::Write,
+                            ApiOperation::Delete,
+                            ApiOperation::Schema,
+                            ApiOperation::Admin,
+                        ],
+                        admin: true,
+                    },
+                    created_at: String::new(),
+                    last_used_at: None,
+                    expires_at: None,
+                });
+            }
+        }
+
+        let token_hash = hash_key(token);
+        let mut keys = self.keys.write();
+        let now = chrono::Utc::now().to_rfc3339();
+        for key in keys.iter_mut() {
+            if key.key_hash == token_hash {
+                // Check expiry
+                if let Some(ref expires) = key.expires_at {
+                    if let Ok(exp) = chrono::DateTime::parse_from_rfc3339(expires) {
+                        if chrono::Utc::now() > exp {
+                            return None;
+                        }
+                    }
+                }
+                key.last_used_at = Some(now);
+                return Some(key.clone());
+            }
+        }
+        None
+    }
+
+    /// Create a new API key. Returns (plaintext_key, api_key_record).
+    pub fn create_key(
+        &self,
+        name: String,
+        permissions: ApiKeyPermissions,
+        expires_at: Option<String>,
+    ) -> (String, ApiKey) {
+        let plaintext = generate_api_key();
+        let prefix = plaintext[..11].to_string(); // "br_" + first 8 hex chars
+        let id = uuid::Uuid::new_v4().to_string();
+        let api_key = ApiKey {
+            id,
+            name,
+            key_hash: hash_key(&plaintext),
+            prefix,
+            permissions,
+            created_at: chrono::Utc::now().to_rfc3339(),
+            last_used_at: None,
+            expires_at,
+        };
+        self.keys.write().push(api_key.clone());
+        (plaintext, api_key)
+    }
+
+    /// List all keys as summaries (without hashes).
+    pub fn list_keys(&self) -> Vec<ApiKeySummary> {
+        self.keys.read().iter().map(|k| k.to_summary()).collect()
+    }
+
+    /// Revoke (delete) a key by ID. Returns true if found and removed.
+    pub fn revoke_key(&self, id: &str) -> bool {
+        let mut keys = self.keys.write();
+        let before = keys.len();
+        keys.retain(|k| k.id != id);
+        keys.len() < before
+    }
+}
+
+// === JWT Configuration ===
+
+/// JWT configuration for HS256 shared-secret validation.
+#[derive(Clone)]
+pub struct JwtConfig {
+    pub secret: String,
+    pub issuer: Option<String>,
+}
+
+/// JWT claims structure.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JwtClaims {
+    pub sub: Option<String>,
+    pub exp: Option<u64>,
+    pub iat: Option<u64>,
+    pub iss: Option<String>,
+    #[serde(default)]
+    pub namespaces: Vec<String>,
+    #[serde(default)]
+    pub operations: Vec<ApiOperation>,
+    #[serde(default)]
+    pub admin: bool,
+}
+
+impl JwtConfig {
+    pub fn validate_jwt(&self, token: &str) -> Result<ApiKey, String> {
+        let mut validation = Validation::new(jsonwebtoken::Algorithm::HS256);
+        if let Some(ref iss) = self.issuer {
+            validation.set_issuer(&[iss]);
+        }
+        // Required claims: exp
+        validation.set_required_spec_claims(&["exp"]);
+
+        let key = DecodingKey::from_secret(self.secret.as_bytes());
+        let token_data = jsonwebtoken::decode::<JwtClaims>(token, &key, &validation)
+            .map_err(|e| format!("JWT validation failed: {e}"))?;
+
+        let claims = token_data.claims;
+        let namespaces = if claims.namespaces.is_empty() {
+            vec!["*".to_string()]
+        } else {
+            claims.namespaces
+        };
+        let operations = if claims.operations.is_empty() {
+            vec![
+                ApiOperation::Read,
+                ApiOperation::Write,
+                ApiOperation::Delete,
+                ApiOperation::Schema,
+            ]
+        } else {
+            claims.operations
+        };
+
+        Ok(ApiKey {
+            id: format!("jwt-{}", claims.sub.as_deref().unwrap_or("anonymous")),
+            name: format!("jwt-{}", claims.sub.as_deref().unwrap_or("anonymous")),
+            key_hash: String::new(),
+            prefix: "jwt".to_string(),
+            permissions: ApiKeyPermissions {
+                namespaces,
+                operations,
+                admin: claims.admin,
+            },
+            created_at: String::new(),
+            last_used_at: None,
+            expires_at: None,
+        })
+    }
+}
+
 /// Application state shared across all handlers.
 #[derive(Clone)]
 pub struct AppState {
     pub engine: Arc<StorageEngine>,
     /// In-memory document store per namespace (for queries).
     pub documents: Arc<DashMap<String, NamespaceData>>,
-    /// API keys for authentication.
-    pub api_keys: Arc<Vec<String>>,
+    /// API key store for authentication and management.
+    pub key_store: Arc<ApiKeyStore>,
+    /// Optional JWT configuration for token-based auth.
+    pub jwt_config: Option<Arc<JwtConfig>>,
     /// Handle to render Prometheus metrics output.
     pub prometheus_handle: PrometheusHandle,
 }
@@ -48,19 +274,31 @@ pub struct NamespaceData {
 impl AppState {
     pub fn new(
         engine: Arc<StorageEngine>,
-        api_keys: Vec<String>,
+        key_store: ApiKeyStore,
+        jwt_config: Option<JwtConfig>,
         prometheus_handle: PrometheusHandle,
     ) -> Self {
         Self {
             engine,
             documents: Arc::new(DashMap::new()),
-            api_keys: Arc::new(api_keys),
+            key_store: Arc::new(key_store),
+            jwt_config: jwt_config.map(Arc::new),
             prometheus_handle,
         }
     }
 
-    pub fn validate_auth(&self, token: &str) -> bool {
-        self.api_keys.is_empty() || self.api_keys.contains(&token.to_string())
+    /// Validate a bearer token. Tries JWT first (if token starts with "ey" and
+    /// JWT is configured), then falls back to API key store.
+    pub fn validate_auth(&self, token: &str) -> Option<ApiKey> {
+        // JWT tokens start with "ey" (base64-encoded JSON header)
+        if token.starts_with("ey") {
+            if let Some(ref jwt_config) = self.jwt_config {
+                if let Ok(api_key) = jwt_config.validate_jwt(token) {
+                    return Some(api_key);
+                }
+            }
+        }
+        self.key_store.validate(token)
     }
 
     /// Get or create namespace data.

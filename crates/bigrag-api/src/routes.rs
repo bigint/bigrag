@@ -1,11 +1,11 @@
 use axum::{
-    Router,
     middleware,
     routing::{delete, get, post},
+    Router,
 };
 
 use crate::handlers;
-use crate::middleware::auth_middleware;
+use crate::middleware::{auth_middleware, request_tracking};
 use crate::state::AppState;
 
 pub fn create_router(state: AppState) -> Router {
@@ -73,5 +73,6 @@ pub fn create_router(state: AppState) -> Router {
         .route("/v1/health/live", get(handlers::liveness_probe))
         .route("/v1/metrics", get(handlers::prometheus_metrics))
         .merge(api_routes)
+        .layer(middleware::from_fn(request_tracking))
         .with_state(state)
 }

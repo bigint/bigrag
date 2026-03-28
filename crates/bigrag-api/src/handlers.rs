@@ -1,11 +1,12 @@
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
 use bigrag_common::types::{
-    AttributeValue, BillingInfo, ConsistencyLevel, DistanceMetric, DocumentId, PerformanceInfo,
+    ApiKey, ApiKeyPermissions, ApiOperation, AttributeValue, BillingInfo, ConsistencyLevel,
+    DistanceMetric, DocumentId, PerformanceInfo,
 };
 use bigrag_query::executor::{execute_query, InMemoryDoc};
 use serde::{Deserialize, Serialize};
@@ -876,20 +877,17 @@ pub async fn liveness_probe() -> impl IntoResponse {
 
 // === Prometheus Metrics ===
 
-pub async fn prometheus_metrics() -> impl IntoResponse {
-    let output = format!(
-        "# HELP bigrag_info Server information\n\
-         # TYPE bigrag_info gauge\n\
-         bigrag_info{{version=\"{}\"}} 1\n\
-         # HELP bigrag_namespaces_total Number of active namespaces\n\
-         # TYPE bigrag_namespaces_total gauge\n\
-         # HELP bigrag_documents_total Total documents across all namespaces\n\
-         # TYPE bigrag_documents_total gauge\n",
-        env!("CARGO_PKG_VERSION"),
-    );
+pub async fn prometheus_metrics(State(state): State<AppState>) -> impl IntoResponse {
+    let output = state.prometheus_handle.render();
     (
         StatusCode::OK,
-        ([("content-type", "text/plain; version=0.0.4; charset=utf-8")], output),
+        (
+            [(
+                "content-type",
+                "text/plain; version=0.0.4; charset=utf-8",
+            )],
+            output,
+        ),
     )
 }
 

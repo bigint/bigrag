@@ -4,10 +4,12 @@ use figment::{
     providers::{Env, Format, Serialized, Toml},
     Figment,
 };
+use metrics_exporter_prometheus::PrometheusBuilder;
 use std::sync::Arc;
 use tokio::signal;
 use tracing::info;
 
+use bigrag_api::metrics::register_metrics;
 use bigrag_api::routes::create_router;
 use bigrag_api::state::AppState;
 use bigrag_common::config::{
@@ -114,6 +116,17 @@ async fn main() -> Result<()> {
     // Spawn background tasks (WAL processor, compaction)
     let _bg_handles = background.spawn();
 
+    // Initialize Prometheus metrics recorder
+    let prometheus_handle = PrometheusBuilder::new()
+        .install_recorder()
+        .expect("failed to install Prometheus metrics recorder");
+
+    // Register metric descriptions
+    register_metrics();
+
+    // Set server info gauge
+    metrics::gauge!("bigrag_info", "version" => env!("CARGO_PKG_VERSION").to_string()).set(1.0);
+
     // Parse API keys
     let api_keys: Vec<String> = cli
         .api_keys
@@ -121,7 +134,7 @@ async fn main() -> Result<()> {
         .unwrap_or_default();
 
     // Build app state and router
-    let state = AppState::new(engine, api_keys);
+    let state = AppState::new(engine, api_keys, prometheus_handle);
     let app = create_router(state);
 
     // Add tower-http layers

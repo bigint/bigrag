@@ -1,6 +1,7 @@
 use bytes::Bytes;
 use moka::future::Cache;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tracing::debug;
 
 /// Multi-tier read cache: in-memory block cache + metadata cache.
@@ -125,6 +126,59 @@ impl BlockCache {
     }
 }
 
+/// L2 cache tier: stores data on NVMe/SSD for faster access than object storage.
+pub struct DiskCache {
+    base_path: std::path::PathBuf,
+    max_size_bytes: u64,
+    current_size: AtomicU64,
+}
+
+impl DiskCache {
+    pub fn new(path: &str, max_size_gb: u64) -> std::io::Result<Self> {
+        std::fs::create_dir_all(path)?;
+        Ok(Self {
+            base_path: path.into(),
+            max_size_bytes: max_size_gb * 1024 * 1024 * 1024,
+            current_size: AtomicU64::new(0),
+        })
+    }
+
+    fn cache_path(&self, key: &str) -> std::path::PathBuf {
+        // Hash key to avoid path issues
+        let hash = crc32fast::hash(key.as_bytes());
+        let dir = self.base_path.join(format!("{:02x}", hash & 0xFF));
+        dir.join(format!("{:08x}.cache", hash))
+    }
+
+    pub fn get(&self, key: &str) -> Option<Bytes> {
+        let path = self.cache_path(key);
+        std::fs::read(&path).ok().map(Bytes::from)
+    }
+
+    pub fn put(&self, key: &str, data: &[u8]) {
+        if self.current_size.load(Ordering::Relaxed) + data.len() as u64 > self.max_size_bytes {
+            return; // Skip if full (simple eviction: just stop caching)
+        }
+        let path = self.cache_path(key);
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if std::fs::write(&path, data).is_ok() {
+            self.current_size.fetch_add(data.len() as u64, Ordering::Relaxed);
+        }
+    }
+
+    pub fn remove(&self, key: &str) {
+        let path = self.cache_path(key);
+        if let Ok(meta) = std::fs::metadata(&path) {
+            let size = meta.len();
+            if std::fs::remove_file(&path).is_ok() {
+                self.current_size.fetch_sub(size, Ordering::Relaxed);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -190,5 +244,43 @@ mod tests {
 
         let ratio = cache.hit_ratio();
         assert!((ratio - 0.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_disk_cache_put_get() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = DiskCache::new(&dir.path().to_string_lossy(), 1).unwrap();
+
+        // Miss
+        assert!(cache.get("key1").is_none());
+
+        // Put
+        cache.put("key1", b"hello world");
+
+        // Hit
+        let data = cache.get("key1").unwrap();
+        assert_eq!(data.as_ref(), b"hello world");
+    }
+
+    #[test]
+    fn test_disk_cache_remove() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = DiskCache::new(&dir.path().to_string_lossy(), 1).unwrap();
+
+        cache.put("key1", b"data");
+        assert!(cache.get("key1").is_some());
+
+        cache.remove("key1");
+        assert!(cache.get("key1").is_none());
+    }
+
+    #[test]
+    fn test_disk_cache_size_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        // 0 GB max = 0 bytes, nothing should be cached
+        let cache = DiskCache::new(&dir.path().to_string_lossy(), 0).unwrap();
+
+        cache.put("key1", b"data");
+        assert!(cache.get("key1").is_none());
     }
 }
