@@ -81,6 +81,8 @@ impl<'de> Deserialize<'de> for DocumentId {
 pub enum DistanceMetric {
     CosineDistance,
     EuclideanSquared,
+    DotProduct,
+    Hamming,
 }
 
 /// Attribute value stored in documents.
