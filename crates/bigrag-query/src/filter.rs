@@ -230,6 +230,13 @@ fn evaluate_comparison(
         }
         FilterOperator::Contains => {
             match attr_val {
+                Some(AttributeValue::String(s)) => {
+                    if let Some(needle) = cmp.value.as_str() {
+                        s.contains(needle)
+                    } else {
+                        false
+                    }
+                }
                 Some(AttributeValue::ArrayString(arr)) => {
                     if let Some(s) = cmp.value.as_str() {
                         arr.contains(&s.to_string())
