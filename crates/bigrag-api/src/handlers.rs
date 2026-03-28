@@ -904,3 +904,144 @@ pub async fn export_namespace(
         Json(serde_json::json!({"error": {"code": "NOT_IMPLEMENTED", "message": "namespace export is planned for a future release"}})),
     )
 }
+
+// === API Key Management ===
+
+/// Helper: require admin permissions from the request's authenticated API key.
+fn require_admin(api_key: &Option<ApiKey>) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
+    match api_key {
+        Some(key) if key.permissions.admin => Ok(()),
+        Some(_) => Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({
+                "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Admin permissions required"
+                }
+            })),
+        )),
+        None => {
+            // No key in extensions means open mode -- allow admin
+            Ok(())
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateApiKeyRequest {
+    pub name: String,
+    #[serde(default = "default_namespaces")]
+    pub namespaces: Vec<String>,
+    #[serde(default = "default_operations")]
+    pub operations: Vec<ApiOperation>,
+    #[serde(default)]
+    pub admin: bool,
+    pub expires_at: Option<String>,
+}
+
+fn default_namespaces() -> Vec<String> {
+    vec!["*".to_string()]
+}
+
+fn default_operations() -> Vec<ApiOperation> {
+    vec![
+        ApiOperation::Read,
+        ApiOperation::Write,
+        ApiOperation::Delete,
+        ApiOperation::Schema,
+    ]
+}
+
+/// POST /v1/admin/api-keys -- Create a new API key.
+pub async fn create_api_key(
+    State(state): State<AppState>,
+    api_key: Option<Extension<ApiKey>>,
+    Json(body): Json<CreateApiKeyRequest>,
+) -> impl IntoResponse {
+    let caller_key = api_key.map(|Extension(k)| k);
+    if let Err(resp) = require_admin(&caller_key) {
+        return resp.into_response();
+    }
+
+    if body.name.is_empty() || body.name.len() > 128 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "name must be 1-128 characters"
+                }
+            })),
+        )
+            .into_response();
+    }
+
+    let permissions = ApiKeyPermissions {
+        namespaces: body.namespaces,
+        operations: body.operations,
+        admin: body.admin,
+    };
+
+    let (plaintext, record) = state
+        .key_store
+        .create_key(body.name, permissions, body.expires_at);
+
+    (
+        StatusCode::CREATED,
+        Json(serde_json::json!({
+            "key": plaintext,
+            "id": record.id,
+            "name": record.name,
+            "prefix": record.prefix,
+            "permissions": record.permissions,
+            "created_at": record.created_at,
+            "expires_at": record.expires_at
+        })),
+    )
+        .into_response()
+}
+
+/// GET /v1/admin/api-keys -- List all API keys (summaries only).
+pub async fn list_api_keys(
+    State(state): State<AppState>,
+    api_key: Option<Extension<ApiKey>>,
+) -> impl IntoResponse {
+    let caller_key = api_key.map(|Extension(k)| k);
+    if let Err(resp) = require_admin(&caller_key) {
+        return resp.into_response();
+    }
+
+    let keys = state.key_store.list_keys();
+    (StatusCode::OK, Json(serde_json::json!({ "keys": keys }))).into_response()
+}
+
+/// DELETE /v1/admin/api-keys/{id} -- Revoke an API key.
+pub async fn revoke_api_key(
+    State(state): State<AppState>,
+    api_key: Option<Extension<ApiKey>>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    let caller_key = api_key.map(|Extension(k)| k);
+    if let Err(resp) = require_admin(&caller_key) {
+        return resp.into_response();
+    }
+
+    if state.key_store.revoke_key(&id) {
+        (
+            StatusCode::OK,
+            Json(serde_json::json!({"status": "ok", "message": "API key revoked"})),
+        )
+            .into_response()
+    } else {
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": {
+                    "code": "NOT_FOUND",
+                    "message": "API key not found"
+                }
+            })),
+        )
+            .into_response()
+    }
+}

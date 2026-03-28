@@ -47,6 +47,22 @@ impl StorageEngine {
             config.cache.metadata_cache_size_mb,
         );
 
+        // Initialize NVMe/disk L2 cache if configured
+        let disk_cache = if let Some(ref path) = config.cache.nvme_cache_path {
+            match DiskCache::new(path, config.cache.nvme_cache_size_gb) {
+                Ok(dc) => {
+                    info!(path, size_gb = config.cache.nvme_cache_size_gb, "disk L2 cache enabled");
+                    Some(dc)
+                }
+                Err(e) => {
+                    tracing::warn!(path, error = %e, "failed to initialize disk cache, continuing without it");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         let (wal_writer, wal_processor) =
             WalWriter::new(backend.clone(), manifest.clone(), writer_epoch);
 
@@ -64,6 +80,7 @@ impl StorageEngine {
             manifest,
             memtables,
             cache,
+            disk_cache,
             wal_writer: Arc::new(wal_writer),
             writer_epoch,
         };
