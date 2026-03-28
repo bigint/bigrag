@@ -27,6 +27,7 @@ pub struct WriteRequest {
     pub schema: Option<serde_json::Value>,
     pub return_affected_ids: Option<bool>,
     pub disable_backpressure: Option<bool>,
+    pub condition: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize)]
