@@ -66,7 +66,7 @@ rand = "0.9"
 chrono = { version = "0.4", features = ["serde"] }
 base64 = "0.22"
 crc32fast = "1"
-jsonwebtoken = "9"
+jsonwebtoken = "10"
 sha2 = "0.10"
 
 # Allocator
