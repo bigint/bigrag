@@ -1,0 +1,22 @@
+[package]
+name = "bigrag-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "bigrag"
+path = "src/main.rs"
+
+[dependencies]
+bigrag-common = { workspace = true }
+bigrag-storage = { workspace = true }
+bigrag-api = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { workspace = true }
+figment = { workspace = true }
+mimalloc = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }

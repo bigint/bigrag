@@ -1,0 +1,29 @@
+[package]
+name = "bigrag-storage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bigrag-common = { workspace = true }
+tokio = { workspace = true }
+object_store = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rkyv = { workspace = true }
+bytes = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+zstd = { workspace = true }
+lz4_flex = { workspace = true }
+crossbeam-skiplist = { workspace = true }
+moka = { workspace = true }
+parking_lot = { workspace = true }
+crc32fast = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+tempfile = "3"
