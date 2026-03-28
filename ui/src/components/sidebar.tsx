@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: DashboardIcon },
+  { href: "/vault", label: "Vault", icon: VaultIcon },
   { href: "/namespaces", label: "Namespaces", icon: NamespaceIcon },
   { href: "/metrics", label: "Metrics", icon: MetricsIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
@@ -75,6 +76,15 @@ function MetricsIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 14V8l4-3 4 5 4-8" />
+    </svg>
+  );
+}
+
+function VaultIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="12" height="11" rx="1.5" />
+      <path d="M5.5 3V1.5M10.5 3V1.5M8 7v3M6.5 8.5h3" />
     </svg>
   );
 }

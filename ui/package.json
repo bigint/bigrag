@@ -9,22 +9,23 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
+    "geist": "^1.4.1",
     "next": "^15.3.2",
+    "pdfjs-dist": "^5.5.207",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "geist": "^1.4.1",
-    "clsx": "^2.1.1",
     "tailwind-merge": "^3.3.0"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "typescript": "^5.8",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
-    "@eslint/eslintrc": "^3",
     "eslint": "^9",
-    "eslint-config-next": "^15.3.2"
+    "eslint-config-next": "^15.3.2",
+    "tailwindcss": "^4",
+    "typescript": "^5.8"
   }
 }

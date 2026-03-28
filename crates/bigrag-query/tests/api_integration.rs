@@ -41,6 +41,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )
         .unwrap();
         assert_eq!(result.rows.as_ref().unwrap().len(), 2);
@@ -55,6 +56,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )
         .unwrap();
         assert_eq!(result.rows.as_ref().unwrap().len(), 2);
@@ -69,6 +71,7 @@ mod tests {
             None,
             Some(&serde_json::json!([{"type": "count"}])),
             None,
+            false,
         )
         .unwrap();
         assert_eq!(result.aggregations.as_ref().unwrap()["count"], 4);
@@ -168,6 +171,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )
         .unwrap();
         let rows = result.rows.as_ref().unwrap();
@@ -191,6 +195,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )
         .unwrap();
         assert_eq!(result.rows.as_ref().unwrap().len(), 5);
@@ -206,6 +211,7 @@ mod tests {
             None,
             None,
             result.next_cursor.as_deref(),
+            false,
         )
         .unwrap();
         assert_eq!(result2.rows.as_ref().unwrap().len(), 5);
@@ -229,6 +235,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )
         .unwrap();
         let rows = result.rows.as_ref().unwrap();
@@ -256,6 +263,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )
         .unwrap();
         let rows = result.rows.as_ref().unwrap();
@@ -287,6 +295,7 @@ mod tests {
                 {"type": "max", "attribute": "score"}
             ])),
             None,
+            false,
         )
         .unwrap();
         let aggs = result.aggregations.as_ref().unwrap();
@@ -319,6 +328,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )
         .unwrap();
         let row = &result.rows.as_ref().unwrap()[0];
@@ -336,6 +346,7 @@ mod tests {
             Some(&["secret".to_string()]),
             None,
             None,
+            false,
         )
         .unwrap();
         let row = &result.rows.as_ref().unwrap()[0];
@@ -347,7 +358,7 @@ mod tests {
     #[test]
     fn test_empty_namespace_query() {
         let docs: Vec<InMemoryDoc> = vec![];
-        let result = execute_query(&docs, None, None, 10, None, None, None, None).unwrap();
+        let result = execute_query(&docs, None, None, 10, None, None, None, None, false).unwrap();
         assert!(result.rows.as_ref().unwrap().is_empty());
     }
 
@@ -396,6 +407,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )
         .unwrap();
         let rows = result.rows.as_ref().unwrap();
