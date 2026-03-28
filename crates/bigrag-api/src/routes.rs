@@ -20,6 +20,10 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::query_documents),
         )
         .route(
+            "/v2/namespaces/{namespace}/explain_query",
+            post(handlers::explain_query),
+        )
+        .route(
             "/v2/namespaces/{namespace}",
             delete(handlers::delete_namespace),
         )

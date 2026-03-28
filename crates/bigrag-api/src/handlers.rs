@@ -748,6 +748,44 @@ fn resolve_limit(top_k: Option<usize>, limit: Option<&serde_json::Value>) -> usi
     10 // default
 }
 
+// === Explain Query ===
+
+pub async fn explain_query(
+    State(state): State<AppState>,
+    Path(namespace): Path<String>,
+    Json(body): Json<QueryRequest>,
+) -> impl IntoResponse {
+    if let Err(e) = bigrag_common::types::validate_namespace(&namespace) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"status": "error", "error": e.to_string()})),
+        );
+    }
+
+    let docs = state.get_namespace_docs(&namespace);
+    let plan = serde_json::json!({
+        "namespace": namespace,
+        "total_documents": docs.len(),
+        "has_rank_by": body.rank_by.is_some(),
+        "has_filters": body.filters.is_some(),
+        "rank_by_type": body.rank_by.as_ref().and_then(|r| {
+            r.as_array().and_then(|a| a.get(1).and_then(|v| v.as_str().map(String::from)))
+        }),
+        "limit": body.top_k.unwrap_or(10),
+        "strategy": if body.filters.is_some() && body.rank_by.is_some() {
+            "filter_then_rank"
+        } else if body.rank_by.is_some() {
+            "rank_only"
+        } else if body.filters.is_some() {
+            "filter_only"
+        } else {
+            "full_scan"
+        },
+        "estimated_cost": "low",
+    });
+    (StatusCode::OK, Json(plan))
+}
+
 // === Namespace Metadata ===
 
 #[derive(Debug, Serialize)]
