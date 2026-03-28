@@ -474,6 +474,38 @@ pub struct QueryRequest {
     pub consistency: Option<ConsistencyLevel>,
 }
 
+/// Encode a vector as base64-encoded little-endian f32 bytes.
+fn encode_vector_base64(v: &[f32]) -> String {
+    use base64::Engine;
+    let bytes: Vec<u8> = v.iter().flat_map(|f| f.to_le_bytes()).collect();
+    format!("base64:{}", base64::engine::general_purpose::STANDARD.encode(&bytes))
+}
+
+/// Apply base64 vector encoding to query result rows when vector_encoding is "base64".
+fn apply_vector_encoding(result: &mut serde_json::Value, encoding: Option<&str>) {
+    if encoding != Some("base64") {
+        return;
+    }
+    if let Some(rows) = result.get_mut("rows").and_then(|r| r.as_array_mut()) {
+        for row in rows {
+            if let Some(vec_val) = row.get("vector") {
+                if let Some(arr) = vec_val.as_array() {
+                    let floats: Vec<f32> = arr
+                        .iter()
+                        .filter_map(|v| v.as_f64().map(|f| f as f32))
+                        .collect();
+                    if !floats.is_empty() {
+                        row.as_object_mut().unwrap().insert(
+                            "vector".to_string(),
+                            serde_json::Value::String(encode_vector_base64(&floats)),
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub async fn query_documents(
     State(state): State<AppState>,
     Path(namespace): Path<String>,
