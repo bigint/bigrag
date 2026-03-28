@@ -11,7 +11,7 @@ use bigrag_query::executor::{execute_query, InMemoryDoc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::state::AppState;
+use crate::state::{AppState, PatchDoc};
 
 // === Write Documents ===
 
@@ -39,6 +39,10 @@ pub struct WriteResponse {
     pub rows_patched: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rows_deleted: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rows_skipped: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rows_remaining: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub upserted_ids: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]

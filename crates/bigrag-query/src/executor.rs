@@ -1,8 +1,224 @@
+use base64::Engine;
 use bigrag_common::types::{AttributeValue, BillingInfo, DocumentId, PerformanceInfo};
 use std::collections::HashMap;
 
 use crate::filter::{evaluate_filter, parse_filter};
 use crate::ranking::{parse_rank_by, RankBy};
+
+// === Aggregation types ===
+
+/// Aggregation request types.
+#[derive(Debug, Clone)]
+pub enum AggregationRequest {
+    Count,
+    Sum { attribute: String },
+    Min { attribute: String },
+    Max { attribute: String },
+    GroupBy { attribute: String, limit: usize },
+    Distinct { attribute: String },
+}
+
+/// Parse aggregation requests from JSON.
+/// Expects an array of objects like:
+/// `[{"type": "count"}, {"type": "sum", "attribute": "score"}]`
+pub fn parse_aggregations(
+    json: &serde_json::Value,
+) -> Result<Vec<AggregationRequest>, QueryError> {
+    let arr = json
+        .as_array()
+        .ok_or_else(|| QueryError::Filter("aggregations must be an array".into()))?;
+
+    let mut aggs = Vec::with_capacity(arr.len());
+    for item in arr {
+        let obj = item
+            .as_object()
+            .ok_or_else(|| QueryError::Filter("each aggregation must be an object".into()))?;
+        let agg_type = obj
+            .get("type")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| QueryError::Filter("aggregation missing 'type' field".into()))?;
+
+        let agg = match agg_type {
+            "count" => AggregationRequest::Count,
+            "sum" => AggregationRequest::Sum {
+                attribute: require_attribute(obj, "sum")?,
+            },
+            "min" => AggregationRequest::Min {
+                attribute: require_attribute(obj, "min")?,
+            },
+            "max" => AggregationRequest::Max {
+                attribute: require_attribute(obj, "max")?,
+            },
+            "group_by" => AggregationRequest::GroupBy {
+                attribute: require_attribute(obj, "group_by")?,
+                limit: obj
+                    .get("limit")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(10) as usize,
+            },
+            "distinct" => AggregationRequest::Distinct {
+                attribute: require_attribute(obj, "distinct")?,
+            },
+            other => {
+                return Err(QueryError::Filter(format!(
+                    "unknown aggregation type: {other}"
+                )));
+            }
+        };
+        aggs.push(agg);
+    }
+    Ok(aggs)
+}
+
+fn require_attribute(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    agg_type: &str,
+) -> Result<String, QueryError> {
+    obj.get("attribute")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .ok_or_else(|| {
+            QueryError::Filter(format!(
+                "aggregation '{agg_type}' requires an 'attribute' field"
+            ))
+        })
+}
+
+/// Execute aggregation requests against a set of documents.
+pub fn execute_aggregations(
+    docs: &[&InMemoryDoc],
+    aggregations: &[AggregationRequest],
+) -> HashMap<String, serde_json::Value> {
+    let mut results = HashMap::new();
+    for agg in aggregations {
+        match agg {
+            AggregationRequest::Count => {
+                results.insert("count".to_string(), serde_json::json!(docs.len()));
+            }
+            AggregationRequest::Sum { attribute } => {
+                let sum: f64 = docs
+                    .iter()
+                    .filter_map(|d| {
+                        d.attributes.get(attribute).and_then(|v| match v {
+                            AttributeValue::Int(i) => Some(*i as f64),
+                            AttributeValue::UInt(u) => Some(*u as f64),
+                            AttributeValue::Float(f) => Some(*f),
+                            _ => None,
+                        })
+                    })
+                    .sum();
+                results.insert(format!("sum_{attribute}"), serde_json::json!(sum));
+            }
+            AggregationRequest::Min { attribute } => {
+                let min = docs
+                    .iter()
+                    .filter_map(|d| {
+                        d.attributes.get(attribute).and_then(|v| match v {
+                            AttributeValue::Int(i) => Some(*i as f64),
+                            AttributeValue::UInt(u) => Some(*u as f64),
+                            AttributeValue::Float(f) => Some(*f),
+                            AttributeValue::DateTime(dt) => Some(dt.timestamp() as f64),
+                            _ => None,
+                        })
+                    })
+                    .fold(f64::INFINITY, f64::min);
+                if min.is_finite() {
+                    results.insert(format!("min_{attribute}"), serde_json::json!(min));
+                } else {
+                    results.insert(
+                        format!("min_{attribute}"),
+                        serde_json::Value::Null,
+                    );
+                }
+            }
+            AggregationRequest::Max { attribute } => {
+                let max = docs
+                    .iter()
+                    .filter_map(|d| {
+                        d.attributes.get(attribute).and_then(|v| match v {
+                            AttributeValue::Int(i) => Some(*i as f64),
+                            AttributeValue::UInt(u) => Some(*u as f64),
+                            AttributeValue::Float(f) => Some(*f),
+                            AttributeValue::DateTime(dt) => Some(dt.timestamp() as f64),
+                            _ => None,
+                        })
+                    })
+                    .fold(f64::NEG_INFINITY, f64::max);
+                if max.is_finite() {
+                    results.insert(format!("max_{attribute}"), serde_json::json!(max));
+                } else {
+                    results.insert(
+                        format!("max_{attribute}"),
+                        serde_json::Value::Null,
+                    );
+                }
+            }
+            AggregationRequest::GroupBy { attribute, limit } => {
+                let mut groups: HashMap<String, usize> = HashMap::new();
+                for doc in docs {
+                    if let Some(val) = doc.attributes.get(attribute) {
+                        let key = attribute_to_json(val).to_string();
+                        *groups.entry(key).or_insert(0) += 1;
+                    }
+                }
+                // Sort by count descending, take top limit
+                let mut sorted: Vec<_> = groups.into_iter().collect();
+                sorted.sort_by(|a, b| b.1.cmp(&a.1));
+                sorted.truncate(*limit);
+                let group_list: Vec<serde_json::Value> = sorted
+                    .into_iter()
+                    .map(|(key, count)| serde_json::json!({"value": key, "count": count}))
+                    .collect();
+                results.insert(
+                    format!("group_by_{attribute}"),
+                    serde_json::json!(group_list),
+                );
+            }
+            AggregationRequest::Distinct { attribute } => {
+                let mut seen = std::collections::HashSet::new();
+                let mut distinct_values = Vec::new();
+                for doc in docs {
+                    if let Some(val) = doc.attributes.get(attribute) {
+                        let json_val = attribute_to_json(val);
+                        let key = json_val.to_string();
+                        if seen.insert(key) {
+                            distinct_values.push(json_val);
+                        }
+                    }
+                }
+                results.insert(
+                    format!("distinct_{attribute}"),
+                    serde_json::json!(distinct_values),
+                );
+            }
+        }
+    }
+    results
+}
+
+// === Cursor-based pagination ===
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct CursorData {
+    last_id: DocumentId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_score: Option<f64>,
+}
+
+/// Decode a base64-encoded cursor string into CursorData.
+pub fn decode_cursor(cursor: &str) -> Result<CursorData, QueryError> {
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(cursor)
+        .map_err(|_| QueryError::Filter("invalid cursor".into()))?;
+    serde_json::from_slice(&decoded)
+        .map_err(|_| QueryError::Filter("invalid cursor format".into()))
+}
+
+/// Encode CursorData into a base64 string.
+pub fn encode_cursor(data: &CursorData) -> String {
+    let json = serde_json::to_vec(data).unwrap();
+    base64::engine::general_purpose::STANDARD.encode(&json)
+}
 
 /// A query result row.
 #[derive(Debug, Clone, serde::Serialize)]

@@ -289,6 +289,28 @@ fn euclidean_squared(a: &[f32], b: &[f32]) -> f32 {
     sum
 }
 
+fn dot_product_distance(a: &[f32], b: &[f32]) -> f32 {
+    // Negate dot product so that higher similarity = lower distance
+    let mut dot = 0.0f32;
+    for i in 0..a.len().min(b.len()) {
+        dot += a[i] * b[i];
+    }
+    -dot
+}
+
+fn hamming_distance(a: &[f32], b: &[f32]) -> f32 {
+    // Treat f32 values as binary (threshold at 0.0) and count differing positions
+    let mut dist = 0u32;
+    for i in 0..a.len().min(b.len()) {
+        let bit_a = a[i] > 0.0;
+        let bit_b = b[i] > 0.0;
+        if bit_a != bit_b {
+            dist += 1;
+        }
+    }
+    dist as f32
+}
+
 fn compute_mean_vector(entries: &[PostingEntry]) -> Vec<f32> {
     if entries.is_empty() {
         return vec![];
