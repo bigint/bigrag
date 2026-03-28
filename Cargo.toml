@@ -22,7 +22,7 @@ memmap2 = "0.9"
 # Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-rkyv = { version = "0.8", features = ["validation"] }
+rkyv = { version = "0.8" }
 
 # Compression
 zstd = "0.13"
