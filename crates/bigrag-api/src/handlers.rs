@@ -127,6 +127,8 @@ pub async fn write_documents(
             } else {
                 None
             },
+            rows_skipped: None,
+            rows_remaining: None,
             upserted_ids: None,
             patched_ids: None,
             deleted_ids: None,
@@ -294,6 +296,8 @@ pub async fn query_documents(
                 top_k,
                 sub_query.include_attributes.as_ref(),
                 sub_query.exclude_attributes.as_deref(),
+                None, // TODO: aggregations
+                None, // TODO: cursor
             ) {
                 Ok(r) => results.push(serde_json::to_value(r).unwrap()),
                 Err(e) => {
@@ -320,6 +324,8 @@ pub async fn query_documents(
         top_k,
         body.include_attributes.as_ref(),
         body.exclude_attributes.as_deref(),
+        None, // TODO: aggregations
+        None, // TODO: cursor
     ) {
         Ok(result) => (StatusCode::OK, Json(serde_json::to_value(result).unwrap())),
         Err(e) => (

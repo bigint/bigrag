@@ -1,7 +1,7 @@
 use axum::{
     Router,
     middleware,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
 };
 
 use crate::handlers;
@@ -37,6 +37,31 @@ pub fn create_router(state: AppState) -> Router {
             "/v1/namespaces/{namespace}/_debug/recall",
             post(handlers::debug_recall),
         )
+        // Schema
+        .route(
+            "/v1/namespaces/{namespace}/schema",
+            get(handlers::get_schema).put(handlers::update_schema),
+        )
+        // Single document
+        .route(
+            "/v1/namespaces/{namespace}/documents/{id}",
+            get(handlers::get_document),
+        )
+        // Admin
+        .route(
+            "/v1/admin/compact/{namespace}",
+            post(handlers::admin_compact),
+        )
+        .route(
+            "/v1/admin/warm/{namespace}",
+            post(handlers::admin_warm),
+        )
+        .route("/v1/admin/config", get(handlers::admin_config))
+        // Export (stub)
+        .route(
+            "/v1/namespaces/{namespace}/export",
+            post(handlers::export_namespace),
+        )
         .layer(middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,
@@ -44,6 +69,9 @@ pub fn create_router(state: AppState) -> Router {
 
     Router::new()
         .route("/health", get(handlers::health_check))
+        .route("/v1/health/ready", get(handlers::readiness_probe))
+        .route("/v1/health/live", get(handlers::liveness_probe))
+        .route("/v1/metrics", get(handlers::prometheus_metrics))
         .merge(api_routes)
         .with_state(state)
 }
