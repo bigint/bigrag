@@ -521,11 +521,15 @@ pub async fn query_documents(
         );
     }
 
+    let include_vectors = body.include_vectors.unwrap_or(false);
+    let vector_encoding = body.vector_encoding.as_deref();
+
     // Handle multi-query
     if let Some(ref queries) = body.queries {
         let docs = state.get_namespace_docs(&namespace);
         let mut results = Vec::new();
         for sub_query in queries {
+            let sub_include_vectors = sub_query.include_vectors.unwrap_or(include_vectors);
             let top_k = resolve_limit(sub_query.top_k.as_ref().copied(), sub_query.limit.as_ref());
             match execute_query(
                 &docs,
@@ -536,8 +540,14 @@ pub async fn query_documents(
                 sub_query.exclude_attributes.as_deref(),
                 None, // TODO: aggregations
                 None, // TODO: cursor
+                sub_include_vectors,
             ) {
-                Ok(r) => results.push(serde_json::to_value(r).unwrap()),
+                Ok(r) => {
+                    let mut val = serde_json::to_value(r).unwrap();
+                    let sub_encoding = sub_query.vector_encoding.as_deref().or(vector_encoding);
+                    apply_vector_encoding(&mut val, sub_encoding);
+                    results.push(val);
+                }
                 Err(e) => {
                     crate::metrics::record_query(&namespace, start.elapsed(), false);
                     return (
@@ -564,12 +574,15 @@ pub async fn query_documents(
         top_k,
         body.include_attributes.as_ref(),
         body.exclude_attributes.as_deref(),
-        None, // TODO: aggregations
-        None, // TODO: cursor
+        body.aggregations.as_ref(),
+        body.cursor.as_deref(),
+        include_vectors,
     ) {
         Ok(result) => {
             crate::metrics::record_query(&namespace, start.elapsed(), true);
-            (StatusCode::OK, Json(serde_json::to_value(result).unwrap()))
+            let mut val = serde_json::to_value(result).unwrap();
+            apply_vector_encoding(&mut val, vector_encoding);
+            (StatusCode::OK, Json(val))
         }
         Err(e) => {
             crate::metrics::record_query(&namespace, start.elapsed(), false);
