@@ -78,7 +78,10 @@ pub async fn write_documents(
 
     let mut total_affected = 0usize;
     let mut upserted_count = 0usize;
+    let mut patched_count = 0usize;
     let mut deleted_count = 0usize;
+    let mut skipped_count = 0usize;
+    let mut rows_remaining: Option<bool> = None;
 
     // Process deletes first (per spec ordering)
     if let Some(ref delete_ids) = body.deletes {
@@ -90,23 +93,144 @@ pub async fn write_documents(
         total_affected += deleted_count;
     }
 
-    // Process upserts
+    // Process delete-by-filter
+    if let Some(ref dbf) = body.delete_by_filter {
+        if let Some(obj) = dbf.as_object() {
+            let filter_json = obj.get("filter");
+            let max_affected = obj
+                .get("max_affected")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(5_000_000) as usize;
+            let allow_partial = obj
+                .get("allow_partial")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+
+            if let Some(filter_json) = filter_json {
+                match state.delete_by_filter(&namespace, filter_json, max_affected, allow_partial) {
+                    Ok((count, remaining)) => {
+                        deleted_count += count;
+                        total_affected += count;
+                        if remaining {
+                            rows_remaining = Some(true);
+                        }
+                    }
+                    Err(e) => {
+                        return (
+                            StatusCode::BAD_REQUEST,
+                            Json(serde_json::json!({"status": "error", "error": e})),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // Process upserts (with optional conditional writes)
     if let Some(ref rows) = body.upsert_rows {
         let mut docs = Vec::new();
         for row in rows {
             if let Some(doc) = parse_upsert_row(row) {
-                docs.push(doc);
+                if let Some(ref condition) = body.condition {
+                    match state.evaluate_condition(&namespace, &doc.id, condition) {
+                        Ok(true) => docs.push(doc),
+                        Ok(false) => {
+                            skipped_count += 1;
+                        }
+                        Err(e) => {
+                            return (
+                                StatusCode::BAD_REQUEST,
+                                Json(serde_json::json!({"status": "error", "error": e})),
+                            );
+                        }
+                    }
+                } else {
+                    docs.push(doc);
+                }
             }
         }
         upserted_count = state.upsert_documents(&namespace, docs, distance_metric);
         total_affected += upserted_count;
     }
 
-    // Process column-based upserts
+    // Process column-based upserts (with optional conditional writes)
     if let Some(ref columns) = body.upsert_columns {
-        if let Some(docs) = parse_upsert_columns(columns) {
-            upserted_count += state.upsert_documents(&namespace, docs, distance_metric);
-            total_affected += upserted_count;
+        if let Some(mut docs) = parse_upsert_columns(columns) {
+            if let Some(ref condition) = body.condition {
+                let mut filtered_docs = Vec::new();
+                for doc in docs.drain(..) {
+                    match state.evaluate_condition(&namespace, &doc.id, condition) {
+                        Ok(true) => filtered_docs.push(doc),
+                        Ok(false) => {
+                            skipped_count += 1;
+                        }
+                        Err(e) => {
+                            return (
+                                StatusCode::BAD_REQUEST,
+                                Json(serde_json::json!({"status": "error", "error": e})),
+                            );
+                        }
+                    }
+                }
+                docs = filtered_docs;
+            }
+            let count = state.upsert_documents(&namespace, docs, distance_metric);
+            upserted_count += count;
+            total_affected += count;
+        }
+    }
+
+    // Process patch rows
+    if let Some(ref patches) = body.patch_rows {
+        let mut patch_docs = Vec::new();
+        for patch_json in patches {
+            if let Some(patch) = parse_patch_row(patch_json) {
+                patch_docs.push(patch);
+            }
+        }
+        patched_count += state.patch_documents(&namespace, patch_docs);
+        total_affected += patched_count;
+    }
+
+    // Process patch-by-filter
+    if let Some(ref pbf) = body.patch_by_filter {
+        if let Some(obj) = pbf.as_object() {
+            let filter_json = obj.get("filter");
+            let attributes_json = obj.get("attributes");
+            let max_affected = obj
+                .get("max_affected")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(50_000) as usize;
+            let allow_partial = obj
+                .get("allow_partial")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+
+            if let (Some(filter_json), Some(attributes_json)) = (filter_json, attributes_json) {
+                let patch_attrs = parse_patch_attributes(attributes_json);
+
+                match state.patch_by_filter(
+                    &namespace,
+                    filter_json,
+                    &patch_attrs,
+                    max_affected,
+                    allow_partial,
+                ) {
+                    Ok((count, remaining)) => {
+                        patched_count += count;
+                        total_affected += count;
+                        if remaining {
+                            rows_remaining = Some(true);
+                        }
+                    }
+                    Err(e) => {
+                        return (
+                            StatusCode::BAD_REQUEST,
+                            Json(serde_json::json!({"status": "error", "error": e})),
+                        );
+                    }
+                }
+            }
         }
     }
 
@@ -114,30 +238,41 @@ pub async fn write_documents(
 
     (
         StatusCode::OK,
-        Json(serde_json::to_value(WriteResponse {
-            rows_affected: total_affected,
-            rows_upserted: if upserted_count > 0 {
-                Some(upserted_count)
-            } else {
-                None
-            },
-            rows_patched: None,
-            rows_deleted: if deleted_count > 0 {
-                Some(deleted_count)
-            } else {
-                None
-            },
-            rows_skipped: None,
-            rows_remaining: None,
-            upserted_ids: None,
-            patched_ids: None,
-            deleted_ids: None,
-            billing: BillingInfo::default(),
-            performance: PerformanceInfo {
-                server_total_ms: elapsed.as_secs_f64() * 1000.0,
-                ..Default::default()
-            },
-        }).unwrap()),
+        Json(
+            serde_json::to_value(WriteResponse {
+                rows_affected: total_affected,
+                rows_upserted: if upserted_count > 0 {
+                    Some(upserted_count)
+                } else {
+                    None
+                },
+                rows_patched: if patched_count > 0 {
+                    Some(patched_count)
+                } else {
+                    None
+                },
+                rows_deleted: if deleted_count > 0 {
+                    Some(deleted_count)
+                } else {
+                    None
+                },
+                rows_skipped: if skipped_count > 0 {
+                    Some(skipped_count)
+                } else {
+                    None
+                },
+                rows_remaining,
+                upserted_ids: None,
+                patched_ids: None,
+                deleted_ids: None,
+                billing: BillingInfo::default(),
+                performance: PerformanceInfo {
+                    server_total_ms: elapsed.as_secs_f64() * 1000.0,
+                    ..Default::default()
+                },
+            })
+            .unwrap(),
+        ),
     )
 }
 
@@ -168,6 +303,62 @@ fn parse_upsert_row(row: &serde_json::Value) -> Option<InMemoryDoc> {
         vector,
         attributes,
     })
+}
+
+/// Parse a patch row from JSON. Similar to parse_upsert_row but vector is optional
+/// and attributes use Option<AttributeValue> where None/null means remove.
+fn parse_patch_row(row: &serde_json::Value) -> Option<PatchDoc> {
+    let obj = row.as_object()?;
+    let id: DocumentId = serde_json::from_value(obj.get("id")?.clone()).ok()?;
+
+    let vector = obj.get("vector").and_then(|v| {
+        if v.is_null() {
+            None
+        } else {
+            v.as_array().map(|arr| {
+                arr.iter()
+                    .filter_map(|n| n.as_f64().map(|f| f as f32))
+                    .collect()
+            })
+        }
+    });
+
+    let mut attributes = HashMap::new();
+    for (key, value) in obj {
+        if key == "id" || key == "vector" {
+            continue;
+        }
+        if value.is_null() {
+            // null means remove this attribute
+            attributes.insert(key.clone(), None);
+        } else if let Some(attr) = json_to_attribute(value) {
+            attributes.insert(key.clone(), Some(attr));
+        }
+    }
+
+    Some(PatchDoc {
+        id,
+        vector,
+        attributes,
+    })
+}
+
+/// Parse patch attributes from a JSON object for patch-by-filter.
+/// Returns a map where None values indicate attribute removal.
+fn parse_patch_attributes(
+    value: &serde_json::Value,
+) -> HashMap<String, Option<AttributeValue>> {
+    let mut attrs = HashMap::new();
+    if let Some(obj) = value.as_object() {
+        for (key, val) in obj {
+            if val.is_null() {
+                attrs.insert(key.clone(), None);
+            } else if let Some(attr) = json_to_attribute(val) {
+                attrs.insert(key.clone(), Some(attr));
+            }
+        }
+    }
+    attrs
 }
 
 fn parse_upsert_columns(columns: &serde_json::Value) -> Option<Vec<InMemoryDoc>> {
@@ -298,8 +489,8 @@ pub async fn query_documents(
                 top_k,
                 sub_query.include_attributes.as_ref(),
                 sub_query.exclude_attributes.as_deref(),
-                sub_query.aggregations.as_ref(),
-                sub_query.cursor.as_deref(),
+                None, // TODO: aggregations
+                None, // TODO: cursor
             ) {
                 Ok(r) => results.push(serde_json::to_value(r).unwrap()),
                 Err(e) => {
@@ -326,8 +517,8 @@ pub async fn query_documents(
         top_k,
         body.include_attributes.as_ref(),
         body.exclude_attributes.as_deref(),
-        body.aggregations.as_ref(),
-        body.cursor.as_deref(),
+        None, // TODO: aggregations
+        None, // TODO: cursor
     ) {
         Ok(result) => (StatusCode::OK, Json(serde_json::to_value(result).unwrap())),
         Err(e) => (
