@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bigrag_common::types::AttributeValue;
 use serde::{Deserialize, Serialize};
 
@@ -254,10 +256,229 @@ fn evaluate_comparison(
                 _ => false,
             }
         }
-        _ => {
-            // TODO: implement remaining operators
-            false
+        FilterOperator::NotContains => {
+            !evaluate_comparison(
+                &ComparisonFilter {
+                    attribute: cmp.attribute.clone(),
+                    operator: FilterOperator::Contains,
+                    value: cmp.value.clone(),
+                },
+                attributes,
+            )
         }
+        FilterOperator::ContainsAny => {
+            if let Some(query_arr) = cmp.value.as_array() {
+                match attr_val {
+                    Some(AttributeValue::ArrayString(arr)) => query_arr.iter().any(|v| {
+                        v.as_str()
+                            .map(|s| arr.contains(&s.to_string()))
+                            .unwrap_or(false)
+                    }),
+                    Some(AttributeValue::ArrayInt(arr)) => query_arr
+                        .iter()
+                        .any(|v| v.as_i64().map(|n| arr.contains(&n)).unwrap_or(false)),
+                    Some(AttributeValue::ArrayUInt(arr)) => query_arr
+                        .iter()
+                        .any(|v| v.as_u64().map(|n| arr.contains(&n)).unwrap_or(false)),
+                    _ => false,
+                }
+            } else {
+                false
+            }
+        }
+        FilterOperator::NotContainsAny => {
+            !evaluate_comparison(
+                &ComparisonFilter {
+                    attribute: cmp.attribute.clone(),
+                    operator: FilterOperator::ContainsAny,
+                    value: cmp.value.clone(),
+                },
+                attributes,
+            )
+        }
+        FilterOperator::ContainsAll => {
+            if let Some(query_arr) = cmp.value.as_array() {
+                match attr_val {
+                    Some(AttributeValue::ArrayString(arr)) => query_arr.iter().all(|v| {
+                        v.as_str()
+                            .map(|s| arr.contains(&s.to_string()))
+                            .unwrap_or(false)
+                    }),
+                    Some(AttributeValue::ArrayInt(arr)) => query_arr
+                        .iter()
+                        .all(|v| v.as_i64().map(|n| arr.contains(&n)).unwrap_or(false)),
+                    Some(AttributeValue::ArrayUInt(arr)) => query_arr
+                        .iter()
+                        .all(|v| v.as_u64().map(|n| arr.contains(&n)).unwrap_or(false)),
+                    _ => false,
+                }
+            } else {
+                false
+            }
+        }
+        FilterOperator::Glob => match (attr_val, cmp.value.as_str()) {
+            (Some(AttributeValue::String(s)), Some(pattern)) => globset::Glob::new(pattern)
+                .ok()
+                .map(|g| g.compile_matcher().is_match(s))
+                .unwrap_or(false),
+            _ => false,
+        },
+        FilterOperator::NotGlob => match (attr_val, cmp.value.as_str()) {
+            (Some(AttributeValue::String(s)), Some(pattern)) => globset::Glob::new(pattern)
+                .ok()
+                .map(|g| !g.compile_matcher().is_match(s))
+                .unwrap_or(false),
+            _ => false,
+        },
+        FilterOperator::IGlob => match (attr_val, cmp.value.as_str()) {
+            (Some(AttributeValue::String(s)), Some(pattern)) => {
+                globset::Glob::new(&pattern.to_lowercase())
+                    .ok()
+                    .map(|g| g.compile_matcher().is_match(&s.to_lowercase()))
+                    .unwrap_or(false)
+            }
+            _ => false,
+        },
+        FilterOperator::NotIGlob => match (attr_val, cmp.value.as_str()) {
+            (Some(AttributeValue::String(s)), Some(pattern)) => {
+                globset::Glob::new(&pattern.to_lowercase())
+                    .ok()
+                    .map(|g| !g.compile_matcher().is_match(&s.to_lowercase()))
+                    .unwrap_or(false)
+            }
+            _ => false,
+        },
+        FilterOperator::Regex => match (attr_val, cmp.value.as_str()) {
+            (Some(AttributeValue::String(s)), Some(pattern)) => regex::Regex::new(pattern)
+                .map(|re| re.is_match(s))
+                .unwrap_or(false),
+            _ => false,
+        },
+        FilterOperator::ContainsAllTokens => match (attr_val, cmp.value.as_str()) {
+            (Some(AttributeValue::String(s)), Some(query)) => {
+                let attr_tokens: HashSet<String> = tokenize(s).into_iter().collect();
+                let query_tokens = tokenize(query);
+                query_tokens.iter().all(|t| attr_tokens.contains(t))
+            }
+            _ => false,
+        },
+        FilterOperator::ContainsAnyToken => match (attr_val, cmp.value.as_str()) {
+            (Some(AttributeValue::String(s)), Some(query)) => {
+                let attr_tokens: HashSet<String> = tokenize(s).into_iter().collect();
+                let query_tokens = tokenize(query);
+                query_tokens.iter().any(|t| attr_tokens.contains(t))
+            }
+            _ => false,
+        },
+        FilterOperator::ContainsTokenSequence => match (attr_val, cmp.value.as_str()) {
+            (Some(AttributeValue::String(s)), Some(query)) => {
+                let attr_tokens = tokenize(s);
+                let query_tokens = tokenize(query);
+                if query_tokens.is_empty() {
+                    return true;
+                }
+                attr_tokens
+                    .windows(query_tokens.len())
+                    .any(|w| w == query_tokens.as_slice())
+            }
+            _ => false,
+        },
+        FilterOperator::AnyLt => match attr_val {
+            Some(AttributeValue::ArrayInt(arr)) => {
+                if let Some(n) = cmp.value.as_i64() {
+                    arr.iter().any(|v| *v < n)
+                } else {
+                    false
+                }
+            }
+            Some(AttributeValue::ArrayUInt(arr)) => {
+                if let Some(n) = cmp.value.as_u64() {
+                    arr.iter().any(|v| *v < n)
+                } else {
+                    false
+                }
+            }
+            Some(AttributeValue::ArrayFloat(arr)) => {
+                if let Some(n) = cmp.value.as_f64() {
+                    arr.iter().any(|v| *v < n)
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        },
+        FilterOperator::AnyLte => match attr_val {
+            Some(AttributeValue::ArrayInt(arr)) => {
+                if let Some(n) = cmp.value.as_i64() {
+                    arr.iter().any(|v| *v <= n)
+                } else {
+                    false
+                }
+            }
+            Some(AttributeValue::ArrayUInt(arr)) => {
+                if let Some(n) = cmp.value.as_u64() {
+                    arr.iter().any(|v| *v <= n)
+                } else {
+                    false
+                }
+            }
+            Some(AttributeValue::ArrayFloat(arr)) => {
+                if let Some(n) = cmp.value.as_f64() {
+                    arr.iter().any(|v| *v <= n)
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        },
+        FilterOperator::AnyGt => match attr_val {
+            Some(AttributeValue::ArrayInt(arr)) => {
+                if let Some(n) = cmp.value.as_i64() {
+                    arr.iter().any(|v| *v > n)
+                } else {
+                    false
+                }
+            }
+            Some(AttributeValue::ArrayUInt(arr)) => {
+                if let Some(n) = cmp.value.as_u64() {
+                    arr.iter().any(|v| *v > n)
+                } else {
+                    false
+                }
+            }
+            Some(AttributeValue::ArrayFloat(arr)) => {
+                if let Some(n) = cmp.value.as_f64() {
+                    arr.iter().any(|v| *v > n)
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        },
+        FilterOperator::AnyGte => match attr_val {
+            Some(AttributeValue::ArrayInt(arr)) => {
+                if let Some(n) = cmp.value.as_i64() {
+                    arr.iter().any(|v| *v >= n)
+                } else {
+                    false
+                }
+            }
+            Some(AttributeValue::ArrayUInt(arr)) => {
+                if let Some(n) = cmp.value.as_u64() {
+                    arr.iter().any(|v| *v >= n)
+                } else {
+                    false
+                }
+            }
+            Some(AttributeValue::ArrayFloat(arr)) => {
+                if let Some(n) = cmp.value.as_f64() {
+                    arr.iter().any(|v| *v >= n)
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        },
     }
 }
 
@@ -307,6 +528,14 @@ fn compare_scalar(
         }
         _ => false,
     }
+}
+
+/// Simple whitespace tokenizer that lowercases tokens.
+fn tokenize(text: &str) -> Vec<String> {
+    text.split_whitespace()
+        .map(|t| t.to_lowercase())
+        .filter(|t| !t.is_empty())
+        .collect()
 }
 
 #[derive(Debug, thiserror::Error)]

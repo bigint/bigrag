@@ -227,6 +227,8 @@ pub struct QueryResultRow {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "$dist")]
     pub dist: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vector: Option<Vec<f32>>,
     #[serde(flatten)]
     pub attributes: HashMap<String, serde_json::Value>,
 }
