@@ -199,10 +199,10 @@ pub fn execute_aggregations(
 // === Cursor-based pagination ===
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct CursorData {
-    last_id: DocumentId,
+pub struct CursorData {
+    pub last_id: DocumentId,
     #[serde(skip_serializing_if = "Option::is_none")]
-    last_score: Option<f64>,
+    pub last_score: Option<f64>,
 }
 
 /// Decode a base64-encoded cursor string into CursorData.

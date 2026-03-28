@@ -266,6 +266,8 @@ pub struct QueryRequest {
     pub exclude_attributes: Option<Vec<String>>,
     pub aggregate_by: Option<serde_json::Value>,
     pub group_by: Option<Vec<String>>,
+    pub aggregations: Option<serde_json::Value>,
+    pub cursor: Option<String>,
     pub queries: Option<Vec<QueryRequest>>,
     pub vector_encoding: Option<String>,
     pub consistency: Option<ConsistencyLevel>,
@@ -296,8 +298,8 @@ pub async fn query_documents(
                 top_k,
                 sub_query.include_attributes.as_ref(),
                 sub_query.exclude_attributes.as_deref(),
-                None, // TODO: aggregations
-                None, // TODO: cursor
+                sub_query.aggregations.as_ref(),
+                sub_query.cursor.as_deref(),
             ) {
                 Ok(r) => results.push(serde_json::to_value(r).unwrap()),
                 Err(e) => {
@@ -324,8 +326,8 @@ pub async fn query_documents(
         top_k,
         body.include_attributes.as_ref(),
         body.exclude_attributes.as_deref(),
-        None, // TODO: aggregations
-        None, // TODO: cursor
+        body.aggregations.as_ref(),
+        body.cursor.as_deref(),
     ) {
         Ok(result) => (StatusCode::OK, Json(serde_json::to_value(result).unwrap())),
         Err(e) => (

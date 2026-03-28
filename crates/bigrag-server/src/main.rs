@@ -91,7 +91,7 @@ async fn main() -> Result<()> {
     let config: ServerConfig = Figment::new()
         .merge(Toml::file(&cli.config).nested())
         .merge(Env::prefixed("BIGRAG_").split("_"))
-        .merge(Serialized::defaults(&cli_defaults))
+        .merge(Serialized::defaults(cli_defaults.clone()))
         .extract()
         .unwrap_or_else(|e| {
             tracing::warn!("failed to load config via figment ({e}), falling back to CLI defaults");
