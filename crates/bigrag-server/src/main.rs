@@ -51,6 +51,10 @@ async fn main() -> Result<()> {
     let config = ServerConfig {
         host: cli.host.clone(),
         port: cli.port,
+        metrics_port: 9090,
+        max_connections: 10000,
+        request_timeout_ms: 60000,
+        max_request_body_mb: 512,
         storage: StorageConfig::Local {
             path: cli.data_dir.clone(),
         },

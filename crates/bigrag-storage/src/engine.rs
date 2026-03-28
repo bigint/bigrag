@@ -301,6 +301,10 @@ mod tests {
         ServerConfig {
             host: "127.0.0.1".into(),
             port: 3000,
+            metrics_port: 9090,
+            max_connections: 10000,
+            request_timeout_ms: 60000,
+            max_request_body_mb: 512,
             storage: StorageConfig::Local {
                 path: path.to_string(),
             },
