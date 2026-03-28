@@ -1,9 +1,10 @@
-use bigrag_common::types::{AttributeValue, DocumentId, DistanceMetric};
+use bigrag_common::types::{AttributeValue, DistanceMetric, DocumentId};
 use bigrag_index::{InvertedIndex, VectorIndex};
 use bigrag_query::executor::InMemoryDoc;
 use bigrag_query::filter::{evaluate_filter, parse_filter};
 use bigrag_storage::engine::StorageEngine;
 use dashmap::DashMap;
+use metrics_exporter_prometheus::PrometheusHandle;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -24,6 +25,8 @@ pub struct AppState {
     pub documents: Arc<DashMap<String, NamespaceData>>,
     /// API keys for authentication.
     pub api_keys: Arc<Vec<String>>,
+    /// Handle to render Prometheus metrics output.
+    pub prometheus_handle: PrometheusHandle,
 }
 
 /// Per-namespace in-memory data for serving queries.

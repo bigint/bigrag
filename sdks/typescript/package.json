@@ -1,0 +1,16 @@
+{
+  "name": "@bigrag/client",
+  "version": "0.1.0",
+  "description": "TypeScript client for bigRAG",
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test tests/"
+  },
+  "devDependencies": {
+    "typescript": "^5.8",
+    "@types/node": "^22"
+  }
+}
