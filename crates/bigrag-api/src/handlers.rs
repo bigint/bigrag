@@ -475,7 +475,10 @@ pub async fn query_documents(
     Path(namespace): Path<String>,
     Json(body): Json<QueryRequest>,
 ) -> impl IntoResponse {
+    let start = std::time::Instant::now();
+
     if let Err(e) = bigrag_common::types::validate_namespace(&namespace) {
+        crate::metrics::record_query(&namespace, start.elapsed(), false);
         return (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({"status": "error", "error": e.to_string()})),
@@ -500,6 +503,7 @@ pub async fn query_documents(
             ) {
                 Ok(r) => results.push(serde_json::to_value(r).unwrap()),
                 Err(e) => {
+                    crate::metrics::record_query(&namespace, start.elapsed(), false);
                     return (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         Json(serde_json::json!({"status": "error", "error": e.to_string()})),
@@ -507,6 +511,7 @@ pub async fn query_documents(
                 }
             }
         }
+        crate::metrics::record_query(&namespace, start.elapsed(), true);
         return (
             StatusCode::OK,
             Json(serde_json::json!({"results": results})),
@@ -526,11 +531,17 @@ pub async fn query_documents(
         None, // TODO: aggregations
         None, // TODO: cursor
     ) {
-        Ok(result) => (StatusCode::OK, Json(serde_json::to_value(result).unwrap())),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"status": "error", "error": e.to_string()})),
-        ),
+        Ok(result) => {
+            crate::metrics::record_query(&namespace, start.elapsed(), true);
+            (StatusCode::OK, Json(serde_json::to_value(result).unwrap()))
+        }
+        Err(e) => {
+            crate::metrics::record_query(&namespace, start.elapsed(), false);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"status": "error", "error": e.to_string()})),
+            )
+        }
     }
 }
 
@@ -636,6 +647,9 @@ pub async fn list_namespaces(
         query.cursor.as_deref(),
         page_size,
     );
+
+    // Update namespace count gauge
+    crate::metrics::set_namespace_count(state.documents.len());
 
     let ns_objs: Vec<serde_json::Value> = namespaces
         .into_iter()
