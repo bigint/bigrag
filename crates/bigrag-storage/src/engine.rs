@@ -234,11 +234,26 @@ impl StorageEngine {
             }
         }
 
-        let data = self
-            .backend
-            .get(&sst_meta.path)
-            .await
-            .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))?;
+        // Try L2 disk cache before going to object storage
+        let data = if let Some(ref dc) = self.disk_cache {
+            if let Some(cached) = dc.get(&sst_meta.path) {
+                cached
+            } else {
+                let fetched = self
+                    .backend
+                    .get(&sst_meta.path)
+                    .await
+                    .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))?;
+                // Populate L2 cache on miss
+                dc.put(&sst_meta.path, &fetched);
+                fetched
+            }
+        } else {
+            self.backend
+                .get(&sst_meta.path)
+                .await
+                .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))?
+        };
 
         let reader = SstReader::open(data)
             .ok_or_else(|| EngineError::Read("failed to parse SST".into()))?;
@@ -250,11 +265,25 @@ impl StorageEngine {
         &self,
         sst_meta: &crate::manifest::SstMeta,
     ) -> Result<Vec<Entry>, EngineError> {
-        let data = self
-            .backend
-            .get(&sst_meta.path)
-            .await
-            .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))?;
+        // Try L2 disk cache before going to object storage
+        let data = if let Some(ref dc) = self.disk_cache {
+            if let Some(cached) = dc.get(&sst_meta.path) {
+                cached
+            } else {
+                let fetched = self
+                    .backend
+                    .get(&sst_meta.path)
+                    .await
+                    .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))?;
+                dc.put(&sst_meta.path, &fetched);
+                fetched
+            }
+        } else {
+            self.backend
+                .get(&sst_meta.path)
+                .await
+                .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))?
+        };
 
         let reader = SstReader::open(data)
             .ok_or_else(|| EngineError::Read("failed to parse SST".into()))?;

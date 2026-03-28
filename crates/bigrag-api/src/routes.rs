@@ -57,6 +57,15 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::admin_warm),
         )
         .route("/v1/admin/config", get(handlers::admin_config))
+        // API key management
+        .route(
+            "/v1/admin/api-keys",
+            post(handlers::create_api_key).get(handlers::list_api_keys),
+        )
+        .route(
+            "/v1/admin/api-keys/{id}",
+            delete(handlers::revoke_api_key),
+        )
         // Export (stub)
         .route(
             "/v1/namespaces/{namespace}/export",
