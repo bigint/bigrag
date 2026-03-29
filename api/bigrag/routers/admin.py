@@ -19,8 +19,8 @@ router = APIRouter(prefix="/v1/admin", tags=["admin"])
 
 
 @router.get("/users")
-async def list_users(_: dict = Depends(require_admin)):
-    users = await auth_service.list_users()
+async def list_users(limit: int = 100, offset: int = 0, _: dict = Depends(require_admin)):
+    users = await auth_service.list_users(limit=limit, offset=offset)
     return {
         "users": [
             {k: str(v) if isinstance(v, UUID) else v for k, v in u.items()}
@@ -60,8 +60,8 @@ async def create_invite(body: CreateInviteRequest, admin: dict = Depends(require
 
 
 @router.get("/invites")
-async def list_invites(_: dict = Depends(require_admin)):
-    invites = await auth_service.list_invites()
+async def list_invites(limit: int = 100, offset: int = 0, _: dict = Depends(require_admin)):
+    invites = await auth_service.list_invites(limit=limit, offset=offset)
     return {
         "invites": [
             {k: str(v) if isinstance(v, UUID) else v for k, v in inv.items()}
@@ -99,8 +99,8 @@ async def create_api_key(body: CreateApiKeyRequest, admin: dict = Depends(requir
 
 
 @router.get("/api-keys")
-async def list_api_keys(_: dict = Depends(require_admin)):
-    keys = await auth_service.list_api_keys()
+async def list_api_keys(limit: int = 100, offset: int = 0, _: dict = Depends(require_admin)):
+    keys = await auth_service.list_api_keys(limit=limit, offset=offset)
     return {
         "keys": [
             {k: str(v) if isinstance(v, UUID) else v for k, v in key.items()}

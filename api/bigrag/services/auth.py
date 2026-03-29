@@ -129,9 +129,10 @@ async def get_user_by_id(user_id: UUID) -> dict | None:
     return dict(row) if row else None
 
 
-async def list_users() -> list[dict]:
+async def list_users(limit: int = 100, offset: int = 0) -> list[dict]:
     rows = await db.fetch(
-        "SELECT id, email, display_name, role, created_at, updated_at FROM users ORDER BY created_at"
+        "SELECT id, email, display_name, role, created_at, updated_at FROM users ORDER BY created_at LIMIT $1 OFFSET $2",
+        limit, offset,
     )
     return [dict(r) for r in rows]
 
@@ -163,7 +164,7 @@ async def create_invite(created_by: UUID, role: str = "member", expires_in_hours
     return dict(row)
 
 
-async def list_invites() -> list[dict]:
+async def list_invites(limit: int = 100, offset: int = 0) -> list[dict]:
     rows = await db.fetch(
         """
         SELECT i.id, i.code, i.role, i.expires_at, i.created_at, i.used_by,
@@ -171,7 +172,9 @@ async def list_invites() -> list[dict]:
         FROM invites i
         LEFT JOIN users u ON i.created_by = u.id
         ORDER BY i.created_at DESC
-        """
+        LIMIT $1 OFFSET $2
+        """,
+        limit, offset,
     )
     return [dict(r) for r in rows]
 
@@ -235,12 +238,14 @@ async def validate_api_key(key: str) -> dict | None:
     return None
 
 
-async def list_api_keys() -> list[dict]:
+async def list_api_keys(limit: int = 100, offset: int = 0) -> list[dict]:
     rows = await db.fetch(
         """
         SELECT id, name, prefix, permissions, created_at, last_used_at, expires_at
         FROM api_keys ORDER BY created_at DESC
-        """
+        LIMIT $1 OFFSET $2
+        """,
+        limit, offset,
     )
     return [dict(r) for r in rows]
 
