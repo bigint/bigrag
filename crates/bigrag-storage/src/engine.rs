@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use std::sync::Arc;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace};
 
 use bigrag_common::config::ServerConfig;
 
