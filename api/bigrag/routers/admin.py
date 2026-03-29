@@ -83,7 +83,7 @@ async def delete_invite(invite_id: str, _: dict = Depends(require_admin)):
 @router.post("/api-keys")
 async def create_api_key(body: CreateApiKeyRequest, admin: dict = Depends(require_admin)):
     permissions = {
-        "namespaces": body.namespaces,
+        "collections": body.collections,
         "operations": body.operations,
         "admin": body.admin,
     }

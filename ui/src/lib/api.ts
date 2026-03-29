@@ -342,7 +342,7 @@ export async function deleteInvite(id: string) {
 // Admin - API Keys
 
 export interface ApiKeyPermissions {
-  namespaces: string[];
+  collections: string[];
   operations: string[];
   admin: boolean;
 }
@@ -359,7 +359,7 @@ export interface ApiKeySummary {
 
 export interface CreateApiKeyRequest {
   name: string;
-  namespaces?: string[];
+  collections?: string[];
   operations?: string[];
   admin?: boolean;
   expires_at?: string;

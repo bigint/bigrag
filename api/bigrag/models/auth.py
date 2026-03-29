@@ -43,7 +43,7 @@ class AuthResponse(BaseModel):
 
 class CreateApiKeyRequest(BaseModel):
     name: str
-    namespaces: list[str] = []
+    collections: list[str] = []
     operations: list[str] = []
     admin: bool = False
     expires_at: datetime | None = None

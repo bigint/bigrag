@@ -50,7 +50,7 @@ const ApiKeysPage = () => {
     createMutation.mutate({
       admin: newKeyAdmin,
       name: newKeyName.trim(),
-      namespaces: newKeyCollections
+      collections: newKeyCollections
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean)
@@ -227,7 +227,7 @@ const ApiKeysPage = () => {
                     {key.prefix}...
                   </td>
                   <td className="px-4 py-2.5 font-mono text-xs text-text-muted">
-                    {(key.permissions.namespaces ?? []).join(", ")}
+                    {(key.permissions.collections ?? []).join(", ")}
                   </td>
                   <td className="px-4 py-2.5">
                     {key.permissions.admin ? (

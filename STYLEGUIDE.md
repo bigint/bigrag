@@ -41,7 +41,6 @@ function processLargeDataset(data: any) {
 - [Error Boundaries](#error-boundaries)
 - [Styling with Tailwind CSS](#styling-with-tailwind-css)
 - [Routing with Next.js App Router](#routing-with-nextjs-app-router)
-- [Backend Patterns (Hono)](#backend-patterns-hono)
 - [Accessibility](#accessibility)
 - [General TypeScript/JavaScript Coding Guidelines](#general-typescriptjavascript-coding-guidelines)
 - [Code Formatting \& Linting with Biome](#code-formatting--linting-with-biome)
@@ -149,9 +148,9 @@ The app uses modern web technologies:
 - **Next.js 15 (App Router)** - Full-stack React framework with file-based routing, server components, and API routes
 
 ### API & Data Management
-- **Hono** - Lightweight, fast backend framework (API server)
+- **FastAPI** - Python backend framework (API server, in `api/` directory)
 - **TanStack Query v5** - Async state management for data fetching
-- **Drizzle ORM** - Zero-overhead PostgreSQL ORM
+- **asyncpg** - Fast PostgreSQL driver (Python backend uses asyncpg, not Drizzle)
 - **Zod** - Runtime schema validation for API inputs and form data
 
 ### Routing
@@ -1554,7 +1553,7 @@ app/
 │   │   └── page.tsx          # /:name/records
 │   └── history/
 │       └── page.tsx          # /:name/history
-└── api/                      # API routes (if needed alongside Hono)
+└── api/                      # API routes (Next.js API routes if needed)
     └── [...slug]/
         └── route.ts
 ```
@@ -1651,209 +1650,6 @@ export const Navigation = () => {
     </nav>
   )
 }
-```
-
-## Backend Patterns (Hono)
-
-### Module Structure
-
-Each backend module exports a Hono app that is mounted on the main router. This keeps the codebase modular and each domain isolated.
-
-```typescript
-// modules/profiles/index.ts
-import { Hono } from 'hono'
-
-const app = new Hono()
-
-app.get('/:name', async (c) => {
-  const name = c.req.param('name')
-  const profile = await getProfile(name)
-  return c.json(profile)
-})
-
-app.post('/', async (c) => {
-  const body = await c.req.json()
-  const profile = await createProfile(body)
-  return c.json(profile, 201)
-})
-
-export default app
-```
-
-```typescript
-// Main router - mounts all modules
-import { Hono } from 'hono'
-import profiles from './modules/profiles'
-import channels from './modules/channels'
-import auth from './modules/auth'
-
-const app = new Hono()
-
-app.route('/profiles', profiles)
-app.route('/channels', channels)
-app.route('/auth', auth)
-
-export default app
-```
-
-### Request Validation with Zod
-
-Use `@hono/zod-validator` to validate request bodies, params, and query strings at the route level:
-
-```typescript
-import { Hono } from 'hono'
-import { zValidator } from '@hono/zod-validator'
-import { z } from 'zod'
-
-const createProfileSchema = z.object({
-  name: z.string().min(1).max(253),
-  email: z.string().email(),
-  bio: z.string().max(500).optional(),
-})
-
-const querySchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-})
-
-const app = new Hono()
-
-app.post(
-  '/',
-  zValidator('json', createProfileSchema),
-  async (c) => {
-    const data = c.req.valid('json') // Fully typed from schema
-    const profile = await createProfile(data)
-    return c.json(profile, 201)
-  }
-)
-
-app.get(
-  '/',
-  zValidator('query', querySchema),
-  async (c) => {
-    const { page, limit } = c.req.valid('query')
-    const profiles = await listProfiles({ page, limit })
-    return c.json(profiles)
-  }
-)
-
-export default app
-```
-
-### Error Handling
-
-Use custom error classes with a global error handler:
-
-```typescript
-// errors.ts
-export class AppError extends Error {
-  constructor(
-    message: string,
-    public readonly statusCode: number = 500,
-    public readonly code: string = 'INTERNAL_ERROR'
-  ) {
-    super(message)
-  }
-}
-
-export class NotFoundError extends AppError {
-  constructor(resource: string, id: string) {
-    super(`${resource} '${id}' not found`, 404, 'NOT_FOUND')
-  }
-}
-
-export class ValidationError extends AppError {
-  constructor(message: string) {
-    super(message, 400, 'VALIDATION_ERROR')
-  }
-}
-
-export class UnauthorizedError extends AppError {
-  constructor(message = 'Unauthorized') {
-    super(message, 401, 'UNAUTHORIZED')
-  }
-}
-```
-
-```typescript
-// Global error handler
-import { type ErrorHandler } from 'hono'
-
-export const errorHandler: ErrorHandler = (err, c) => {
-  if (err instanceof AppError) {
-    return c.json(
-      { error: { code: err.code, message: err.message } },
-      err.statusCode as 400 | 401 | 404 | 500
-    )
-  }
-
-  console.error('Unhandled error:', err)
-  return c.json(
-    { error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
-    500
-  )
-}
-
-// Mount on app
-app.onError(errorHandler)
-```
-
-### Middleware Patterns
-
-Create reusable middleware for cross-cutting concerns:
-
-```typescript
-import { createMiddleware } from 'hono/factory'
-
-// Auth middleware
-export const requireAuth = createMiddleware<{
-  Variables: { userId: string }
-}>(async (c, next) => {
-  const token = c.req.header('Authorization')?.replace('Bearer ', '')
-  if (!token) throw new UnauthorizedError()
-
-  const session = await validateToken(token)
-  if (!session) throw new UnauthorizedError('Invalid token')
-
-  c.set('userId', session.userId)
-  await next()
-})
-
-// Usage in routes
-app.get('/me', requireAuth, async (c) => {
-  const userId = c.get('userId') // Typed from middleware
-  const profile = await getProfileByUserId(userId)
-  return c.json(profile)
-})
-```
-
-```typescript
-// Logging middleware
-export const requestLogger = createMiddleware(async (c, next) => {
-  const start = Date.now()
-  await next()
-  const duration = Date.now() - start
-  console.log(`${c.req.method} ${c.req.path} - ${c.res.status} (${duration}ms)`)
-})
-
-// Mount globally
-app.use('*', requestLogger)
-```
-
-### API Response Patterns
-
-Keep response shapes consistent across all endpoints:
-
-```typescript
-// Success responses
-c.json({ data: profile })              // Single resource
-c.json({ data: profiles, meta: { page, total } })  // Paginated list
-c.json(null, 204)                       // No content (delete)
-
-// Error responses (handled by global error handler)
-throw new NotFoundError('Profile', name)
-throw new ValidationError('Name is required')
 ```
 
 ## Accessibility
@@ -2238,7 +2034,7 @@ Ask yourself these questions when writing code:
 - **React 19**: [react.dev](https://react.dev)
 - **TypeScript**: [typescriptlang.org](https://www.typescriptlang.org/)
 - **Next.js 15**: [nextjs.org](https://nextjs.org/)
-- **Hono**: [hono.dev](https://hono.dev/)
+- **FastAPI**: [fastapi.tiangolo.com](https://fastapi.tiangolo.com/)
 - **TanStack Query**: [tanstack.com/query](https://tanstack.com/query/latest)
 - **Drizzle ORM**: [orm.drizzle.team](https://orm.drizzle.team/)
 - **Zod**: [zod.dev](https://zod.dev/)
