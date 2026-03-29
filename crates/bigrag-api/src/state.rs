@@ -417,28 +417,10 @@ impl AppState {
 
             for patch in patches {
                 if let Some(doc) = docs.iter_mut().find(|d| d.id == patch.id) {
-                    // Replace vector only if specified
                     if let Some(new_vec) = patch.vector {
                         doc.vector = Some(new_vec);
                     }
-
-                    // Merge attributes
-                    for (key, maybe_val) in patch.attributes {
-                        match maybe_val {
-                            Some(val) if val.is_null() => {
-                                // Setting to null removes the attribute
-                                doc.attributes.remove(&key);
-                            }
-                            Some(val) => {
-                                doc.attributes.insert(key, val);
-                            }
-                            None => {
-                                // None also removes the attribute
-                                doc.attributes.remove(&key);
-                            }
-                        }
-                    }
-
+                    apply_attribute_patch(&mut doc.attributes, &patch.attributes);
                     patched += 1;
                 }
             }
@@ -540,19 +522,7 @@ impl AppState {
 
             for idx in &to_patch {
                 let doc = &mut docs[*idx];
-                for (key, maybe_val) in patch_attrs {
-                    match maybe_val {
-                        Some(val) if val.is_null() => {
-                            doc.attributes.remove(key);
-                        }
-                        Some(val) => {
-                            doc.attributes.insert(key.clone(), val.clone());
-                        }
-                        None => {
-                            doc.attributes.remove(key);
-                        }
-                    }
-                }
+                apply_attribute_patch(&mut doc.attributes, patch_attrs);
             }
 
             Ok((count, has_remaining))

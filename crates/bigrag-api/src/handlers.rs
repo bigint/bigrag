@@ -366,17 +366,22 @@ pub async fn write_documents(
     )
 }
 
+/// Parse a JSON value as a vector of f32, skipping nulls.
+fn parse_vector_json(value: &serde_json::Value) -> Option<Vec<f32>> {
+    if value.is_null() {
+        return None;
+    }
+    value.as_array().map(|arr| {
+        arr.iter()
+            .filter_map(|n| n.as_f64().map(|f| f as f32))
+            .collect()
+    })
+}
+
 fn parse_upsert_row(row: &serde_json::Value) -> Option<InMemoryDoc> {
     let obj = row.as_object()?;
     let id: DocumentId = serde_json::from_value(obj.get("id")?.clone()).ok()?;
-
-    let vector = obj.get("vector").and_then(|v| {
-        v.as_array().map(|arr| {
-            arr.iter()
-                .filter_map(|n| n.as_f64().map(|f| f as f32))
-                .collect()
-        })
-    });
+    let vector = obj.get("vector").and_then(parse_vector_json);
 
     let mut attributes = HashMap::new();
     for (key, value) in obj {
@@ -400,18 +405,7 @@ fn parse_upsert_row(row: &serde_json::Value) -> Option<InMemoryDoc> {
 fn parse_patch_row(row: &serde_json::Value) -> Option<PatchDoc> {
     let obj = row.as_object()?;
     let id: DocumentId = serde_json::from_value(obj.get("id")?.clone()).ok()?;
-
-    let vector = obj.get("vector").and_then(|v| {
-        if v.is_null() {
-            None
-        } else {
-            v.as_array().map(|arr| {
-                arr.iter()
-                    .filter_map(|n| n.as_f64().map(|f| f as f32))
-                    .collect()
-            })
-        }
-    });
+    let vector = obj.get("vector").and_then(parse_vector_json);
 
     let mut attributes = HashMap::new();
     for (key, value) in obj {
@@ -461,20 +455,7 @@ fn parse_upsert_columns(columns: &serde_json::Value) -> Option<Vec<InMemoryDoc>>
 
     for i in 0..n {
         let id: DocumentId = serde_json::from_value(ids[i].clone()).ok()?;
-
-        let vector = vectors.and_then(|vecs| {
-            vecs.get(i).and_then(|v| {
-                if v.is_null() {
-                    None
-                } else {
-                    v.as_array().map(|arr| {
-                        arr.iter()
-                            .filter_map(|n| n.as_f64().map(|f| f as f32))
-                            .collect()
-                    })
-                }
-            })
-        });
+        let vector = vectors.and_then(|vecs| vecs.get(i).and_then(parse_vector_json));
 
         let mut attributes = HashMap::new();
         for (key, value) in obj {
@@ -513,20 +494,7 @@ fn parse_patch_columns(columns: &serde_json::Value) -> Option<Vec<PatchDoc>> {
 
     for i in 0..n {
         let id: DocumentId = serde_json::from_value(ids[i].clone()).ok()?;
-
-        let vector = vectors.and_then(|vecs| {
-            vecs.get(i).and_then(|v| {
-                if v.is_null() {
-                    None
-                } else {
-                    v.as_array().map(|arr| {
-                        arr.iter()
-                            .filter_map(|n| n.as_f64().map(|f| f as f32))
-                            .collect()
-                    })
-                }
-            })
-        });
+        let vector = vectors.and_then(|vecs| vecs.get(i).and_then(parse_vector_json));
 
         let mut attributes = HashMap::new();
         for (key, value) in obj {
