@@ -1,4 +1,4 @@
-"""bigRAG - Python client for the bigRAG vector database."""
+"""bigRAG - Python client for the bigRAG RAG platform."""
 
 from bigrag.client import AsyncBigRAG, BigRAG
 from bigrag.errors import (
@@ -12,22 +12,18 @@ from bigrag.errors import (
     NotFoundError,
     RateLimitError,
 )
-from bigrag.namespace import AsyncNamespace, Namespace
 from bigrag.types import (
+    Collection,
+    CollectionListResponse,
     Document,
-    NamespaceListResponse,
-    NamespaceMetadata,
-    NamespaceSummary,
+    DocumentListResponse,
     QueryResponse,
-    QueryRow,
-    WriteResponse,
+    QueryResult,
 )
 
 __all__ = [
     "BigRAG",
     "AsyncBigRAG",
-    "Namespace",
-    "AsyncNamespace",
     "BigRAGError",
     "APIError",
     "BadRequestError",
@@ -37,13 +33,12 @@ __all__ = [
     "InternalServerError",
     "APIConnectionError",
     "APITimeoutError",
+    "Collection",
+    "CollectionListResponse",
     "Document",
-    "WriteResponse",
+    "DocumentListResponse",
     "QueryResponse",
-    "QueryRow",
-    "NamespaceMetadata",
-    "NamespaceListResponse",
-    "NamespaceSummary",
+    "QueryResult",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

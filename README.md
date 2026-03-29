@@ -1,53 +1,246 @@
 <p align="center">
   <h1 align="center">bigRAG</h1>
-  <p align="center">Open-source, self-hostable vector and full-text search database for RAG workloads.</p>
-  <p align="center">The open-source answer to turbopuffer.</p>
+  <p align="center">Open-source, self-hostable RAG platform with document ingestion and vector search.</p>
+  <p align="center">Powered by Docling + Milvus.</p>
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
   <a href="https://github.com/bigrag-io/bigrag/actions/workflows/ci.yml"><img src="https://github.com/bigrag-io/bigrag/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://hub.docker.com/r/bigrag/bigrag"><img src="https://img.shields.io/docker/v/bigrag/bigrag?label=docker" alt="Docker"></a>
 </p>
 
 ---
 
 ## Features
 
-- **Object-storage-first architecture** — S3, GCS, Azure Blob, MinIO, local filesystem
-- **Full turbopuffer API compatibility** — drop-in replacement for existing workloads
-- **Hybrid search** — ANN + BM25 + metadata filters in a single query
-- **Unlimited namespaces** — per-tenant isolation at near-zero cost
-- **Docker + Kubernetes native** — `docker run bigrag/bigrag`
-- **Sub-10ms warm query latency**
-- **Written in Rust** — safe, fast, zero GC pauses
+- **End-to-end RAG pipeline** — upload documents, auto-chunk, embed, search
+- **Any document format** — PDF, DOCX, PPTX, HTML, Markdown, images, and more via [Docling](https://github.com/DS4SD/docling)
+- **Any embedding model** — sentence-transformers (local), OpenAI, Ollama, or any OpenAI-compatible API
+- **Milvus vector database** — production-grade vector search with hybrid capabilities
+- **Admin web UI** — manage collections, upload documents, query, and administer users
+- **Self-hostable** — Docker Compose or Kubernetes, no external dependencies
+- **User auth** — session-based auth with invite system, API keys, and role-based access
 - **Apache 2.0** — run it anywhere, forever free
 
 ## Quick Start
 
-### Docker
-
-```bash
-docker run -d \
-  -p 8080:8080 \
-  -v $(pwd)/data:/data \
-  bigrag/bigrag:latest
-```
-
-### From Source
-
-```bash
-cargo build --release
-./target/release/bigrag --port 8080 --data-dir ./data
-```
-
-### Docker Compose (with MinIO)
+### Docker Compose
 
 ```bash
 docker compose up -d
 ```
 
-This starts bigRAG alongside MinIO for S3-compatible object storage. See `docker-compose.yml` for the full configuration.
+This starts the full stack:
+- **bigRAG API** on port 8080 (with Swagger docs at `/docs`)
+- **Milvus** vector database on port 19530
+- **Postgres** for metadata and auth on port 5432
+- **MinIO** for Milvus storage on ports 9000/9001
+
+### Development
+
+```bash
+./dev.sh
+```
+
+This starts all services and opens:
+- Backend API: http://localhost:8080
+- API Docs: http://localhost:8080/docs
+- Admin UI: http://localhost:3000
+
+### From Source
+
+```bash
+cd api
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
+python -m bigrag.main --database-url postgres://bigrag:bigrag@localhost:5432/bigrag
+```
+
+## How It Works
+
+```
+Document Upload → Docling (parse any format) → Chunking → Embedding → Milvus
+                                                                         ↑
+Query → Embed → Vector Search ─────────────────────────────────────────→ │
+                                                                         ↓
+                                                              Results + Context
+```
+
+1. **Upload** any document (PDF, DOCX, PPTX, HTML, images, etc.)
+2. **Docling** extracts structured text with layout understanding and OCR
+3. Text is **chunked** with configurable size and overlap
+4. Chunks are **embedded** using your chosen model
+5. Embeddings are stored in **Milvus** for fast vector search
+6. **Query** with natural language — your query is embedded and matched against stored chunks
+
+## Usage Examples
+
+### Python
+
+```python
+import httpx
+
+client = httpx.Client(base_url="http://localhost:8080")
+
+# Create a collection
+client.post("/v1/collections", json={
+    "name": "research",
+    "description": "Research papers",
+    "embedding_model": "all-MiniLM-L6-v2"
+})
+
+# Upload a document
+with open("paper.pdf", "rb") as f:
+    client.post("/v1/collections/research/documents",
+        files={"file": f})
+
+# Query
+results = client.post("/v1/collections/research/query", json={
+    "query": "What are the main findings?",
+    "top_k": 5
+}).json()
+
+for r in results["results"]:
+    print(f"Score: {r['score']:.3f} — {r['text'][:100]}...")
+```
+
+### curl
+
+```bash
+# Health check
+curl http://localhost:8080/health
+
+# Create collection
+curl -X POST http://localhost:8080/v1/collections \
+  -H "Content-Type: application/json" \
+  -d '{"name": "docs", "description": "Documentation"}'
+
+# Upload document
+curl -X POST http://localhost:8080/v1/collections/docs/documents \
+  -F "file=@manual.pdf"
+
+# Query
+curl -X POST http://localhost:8080/v1/collections/docs/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "How do I configure logging?", "top_k": 5}'
+```
+
+## API Reference
+
+| Method   | Endpoint                                          | Description                     |
+| -------- | ------------------------------------------------- | ------------------------------- |
+| `GET`    | `/health`                                         | Health check                    |
+| `GET`    | `/v1/collections`                                 | List collections                |
+| `POST`   | `/v1/collections`                                 | Create collection               |
+| `GET`    | `/v1/collections/{name}`                          | Get collection details          |
+| `DELETE` | `/v1/collections/{name}`                          | Delete collection               |
+| `POST`   | `/v1/collections/{name}/documents`                | Upload document                 |
+| `GET`    | `/v1/collections/{name}/documents`                | List documents                  |
+| `DELETE` | `/v1/collections/{name}/documents/{id}`           | Delete document                 |
+| `POST`   | `/v1/collections/{name}/documents/{id}/reprocess` | Reprocess document              |
+| `POST`   | `/v1/collections/{name}/query`                    | Query collection                |
+| `POST`   | `/v1/collections/{name}/vectors/upsert`           | Upsert raw vectors              |
+| `POST`   | `/v1/collections/{name}/vectors/delete`           | Delete vectors by ID            |
+| `GET`    | `/v1/embeddings/models`                           | List embedding models           |
+| `GET`    | `/v1/metrics`                                     | Prometheus metrics              |
+| `POST`   | `/v1/auth/setup`                                  | Initial admin setup             |
+| `POST`   | `/v1/auth/login`                                  | Login                           |
+| `POST`   | `/v1/auth/signup`                                 | Signup with invite              |
+| `GET`    | `/v1/auth/me`                                     | Current user                    |
+
+Full interactive API docs available at `/docs` (Swagger) when running.
+
+## Embedding Models
+
+| Provider             | Model                      | Dimensions | Notes                        |
+| -------------------- | -------------------------- | ---------- | ---------------------------- |
+| sentence-transformers | all-MiniLM-L6-v2 (default) | 384        | Fast, lightweight            |
+| sentence-transformers | all-mpnet-base-v2          | 768        | Higher quality               |
+| sentence-transformers | multilingual-e5-large      | 1024       | 100+ languages               |
+| openai               | text-embedding-3-small     | 1536       | Requires API key             |
+| openai               | text-embedding-3-large     | 3072       | Best quality (OpenAI)        |
+| ollama               | nomic-embed-text           | 768        | Local via Ollama             |
+| custom               | Any                        | Any        | OpenAI-compatible endpoint   |
+
+Configure per collection or set defaults in `bigrag.toml`.
+
+## Configuration
+
+```toml
+[server]
+host = "0.0.0.0"
+port = 8080
+
+[database]
+url = "postgres://bigrag:bigrag@localhost:5432/bigrag"
+
+[milvus]
+uri = "http://localhost:19530"
+
+[embedding]
+provider = "sentence-transformers"
+model = "all-MiniLM-L6-v2"
+dimension = 384
+
+[ingestion]
+chunk_size = 512
+chunk_overlap = 50
+upload_dir = "./data/uploads"
+max_upload_size_mb = 500
+```
+
+### Environment Variables
+
+All config options use the `BIGRAG_` prefix:
+
+| Variable                  | Description                        | Default                  |
+| ------------------------- | ---------------------------------- | ------------------------ |
+| `BIGRAG_DATABASE_URL`     | Postgres connection URL            | `postgres://...`         |
+| `BIGRAG_MILVUS_URI`       | Milvus connection URI              | `http://localhost:19530` |
+| `BIGRAG_PORT`             | Server port                        | `8080`                   |
+| `BIGRAG_MASTER_KEY`       | Admin master key                   | —                        |
+| `BIGRAG_API_KEYS`         | Comma-separated API keys           | —                        |
+| `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider       | `sentence-transformers`  |
+| `BIGRAG_EMBEDDING_MODEL`  | Default embedding model            | `all-MiniLM-L6-v2`      |
+| `BIGRAG_EMBEDDING_API_KEY`| API key for OpenAI/Cohere          | —                        |
+| `BIGRAG_LOG_LEVEL`        | Log level                          | `info`                   |
+
+## Architecture
+
+```
+┌────────────────────────────────────────────────────────┐
+│                     bigRAG API                         │
+│                   (Python/FastAPI)                      │
+├──────────┬───────────┬──────────────┬─────────────────┤
+│  Auth    │ Ingestion │   Query      │   Admin         │
+│  Service │ Service   │   Service    │   Service       │
+├──────────┴───────────┴──────────────┴─────────────────┤
+│                                                        │
+│  ┌─────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │Postgres │  │   Docling    │  │  Embedding Model │  │
+│  │(auth +  │  │ (document    │  │ (sentence-xfmr,  │  │
+│  │metadata)│  │  converter)  │  │  OpenAI, Ollama) │  │
+│  └─────────┘  └──────────────┘  └──────────────────┘  │
+│                                                        │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │              Milvus Vector DB                    │  │
+│  │    (vector storage, indexing, search)            │  │
+│  └──────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────┘
+```
+
+## Supported Document Formats
+
+Via Docling, bigRAG supports:
+- PDF (with OCR for scanned documents)
+- Microsoft Word (DOCX)
+- Microsoft PowerPoint (PPTX)
+- HTML
+- Markdown
+- AsciiDoc
+- Images (PNG, JPG, TIFF — via OCR)
+- And more
 
 ## Client SDKs
 
@@ -56,368 +249,6 @@ This starts bigRAG alongside MinIO for S3-compatible object storage. See `docker
 | Python     | `pip install bigrag`                       |
 | TypeScript | `npm install @bigrag/client`               |
 | Go         | `go get github.com/bigrag-io/bigrag-go`    |
-
-## Usage Examples (Python)
-
-### Upsert Vectors
-
-```python
-from bigrag import Client
-
-client = Client("http://localhost:8080")
-
-client.upsert(
-    namespace="documents",
-    vectors=[
-        {
-            "id": "doc-1",
-            "values": [0.1, 0.2, 0.3, ...],  # 768-dim embedding
-            "metadata": {"title": "Introduction", "category": "guide"},
-            "content": "bigRAG is an open-source vector database..."
-        },
-        {
-            "id": "doc-2",
-            "values": [0.4, 0.5, 0.6, ...],
-            "metadata": {"title": "Quick Start", "category": "tutorial"},
-            "content": "Get started with bigRAG in under 5 minutes..."
-        }
-    ]
-)
-```
-
-### ANN Query (Vector Search)
-
-```python
-results = client.query(
-    namespace="documents",
-    vector=[0.1, 0.2, 0.3, ...],
-    top_k=10
-)
-
-for match in results.matches:
-    print(f"{match.id}: {match.score}")
-```
-
-### BM25 Query (Full-Text Search)
-
-```python
-results = client.query(
-    namespace="documents",
-    text="how to deploy bigRAG",
-    top_k=10,
-    search_type="bm25"
-)
-```
-
-### Hybrid Search (ANN + BM25)
-
-```python
-results = client.query(
-    namespace="documents",
-    vector=[0.1, 0.2, 0.3, ...],
-    text="deployment guide",
-    top_k=10,
-    search_type="hybrid",
-    alpha=0.7  # 0.0 = pure BM25, 1.0 = pure ANN
-)
-```
-
-### Metadata Filters
-
-```python
-results = client.query(
-    namespace="documents",
-    vector=[0.1, 0.2, 0.3, ...],
-    top_k=10,
-    filters={
-        "category": {"$eq": "guide"},
-        "date": {"$gte": "2024-01-01"}
-    }
-)
-```
-
-## Usage Examples (TypeScript)
-
-```typescript
-import { Client } from "@bigrag/client";
-
-const client = new Client("http://localhost:8080");
-
-// Upsert
-await client.upsert("documents", {
-  vectors: [
-    {
-      id: "doc-1",
-      values: [0.1, 0.2, 0.3],
-      metadata: { title: "Introduction", category: "guide" },
-      content: "bigRAG is an open-source vector database...",
-    },
-  ],
-});
-
-// ANN Query
-const results = await client.query("documents", {
-  vector: [0.1, 0.2, 0.3],
-  topK: 10,
-});
-
-// Hybrid Search
-const hybrid = await client.query("documents", {
-  vector: [0.1, 0.2, 0.3],
-  text: "deployment guide",
-  topK: 10,
-  searchType: "hybrid",
-  alpha: 0.7,
-});
-
-// With Filters
-const filtered = await client.query("documents", {
-  vector: [0.1, 0.2, 0.3],
-  topK: 10,
-  filters: {
-    category: { $eq: "guide" },
-  },
-});
-```
-
-## Usage Examples (curl)
-
-### Health Check
-
-```bash
-curl http://localhost:8080/health
-```
-
-### Upsert Vectors
-
-```bash
-curl -X POST http://localhost:8080/v1/namespaces/documents/vectors \
-  -H "Content-Type: application/json" \
-  -d '{
-    "vectors": [
-      {
-        "id": "doc-1",
-        "values": [0.1, 0.2, 0.3],
-        "metadata": {"title": "Introduction"},
-        "content": "bigRAG is an open-source vector database..."
-      }
-    ]
-  }'
-```
-
-### Query Vectors
-
-```bash
-curl -X POST http://localhost:8080/v1/namespaces/documents/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "vector": [0.1, 0.2, 0.3],
-    "top_k": 10,
-    "filters": {
-      "title": {"$eq": "Introduction"}
-    }
-  }'
-```
-
-### Delete Vectors
-
-```bash
-curl -X DELETE http://localhost:8080/v1/namespaces/documents/vectors \
-  -H "Content-Type: application/json" \
-  -d '{"ids": ["doc-1", "doc-2"]}'
-```
-
-### List Namespaces
-
-```bash
-curl http://localhost:8080/v1/namespaces
-```
-
-## Configuration
-
-bigRAG is configured via `bigrag.toml` or environment variables. Create a config file:
-
-```toml
-[server]
-port = 8080
-host = "0.0.0.0"
-max_connections = 1024
-
-[storage]
-backend = "s3"           # "local", "s3", "gcs", "azure"
-data_dir = "./data"      # for local backend
-bucket = "bigrag-data"   # for object storage backends
-prefix = ""
-
-[storage.s3]
-region = "us-east-1"
-endpoint = ""            # custom endpoint for MinIO
-access_key_id = ""
-secret_access_key = ""
-
-[index]
-default_metric = "cosine"    # "cosine", "euclidean", "dot_product"
-max_dimensions = 4096
-hnsw_m = 16
-hnsw_ef_construction = 200
-hnsw_ef_search = 100
-
-[cache]
-max_size_mb = 512
-ttl_seconds = 300
-
-[compaction]
-enabled = true
-interval_seconds = 3600
-min_segments = 4
-
-[logging]
-level = "info"           # "debug", "info", "warn", "error"
-format = "json"          # "json", "pretty"
-```
-
-### Environment Variables
-
-All configuration options can be set via environment variables with the `BIGRAG_` prefix:
-
-| Variable                      | Description                        | Default       |
-| ----------------------------- | ---------------------------------- | ------------- |
-| `BIGRAG_PORT`                 | Server listen port                 | `8080`        |
-| `BIGRAG_HOST`                 | Server bind address                | `0.0.0.0`     |
-| `BIGRAG_STORAGE_BACKEND`      | Storage backend type               | `local`       |
-| `BIGRAG_STORAGE_DATA_DIR`     | Local data directory               | `./data`      |
-| `BIGRAG_STORAGE_BUCKET`       | Object storage bucket name         | —             |
-| `BIGRAG_S3_REGION`            | AWS S3 region                      | `us-east-1`   |
-| `BIGRAG_S3_ENDPOINT`          | Custom S3 endpoint (MinIO)         | —             |
-| `BIGRAG_CACHE_MAX_SIZE_MB`    | In-memory cache size               | `512`         |
-| `BIGRAG_LOG_LEVEL`            | Log level                          | `info`        |
-
-## API Reference
-
-| Method   | Endpoint                                      | Description                       |
-| -------- | --------------------------------------------- | --------------------------------- |
-| `GET`    | `/health`                                     | Health check                      |
-| `GET`    | `/v1/namespaces`                              | List all namespaces               |
-| `POST`   | `/v1/namespaces/{ns}/vectors`                 | Upsert vectors                    |
-| `POST`   | `/v1/namespaces/{ns}/query`                   | Query vectors (ANN/BM25/hybrid)   |
-| `GET`    | `/v1/namespaces/{ns}/vectors/{id}`            | Get vector by ID                  |
-| `DELETE` | `/v1/namespaces/{ns}/vectors`                 | Delete vectors by IDs             |
-| `DELETE` | `/v1/namespaces/{ns}`                         | Delete a namespace                |
-| `GET`    | `/v1/namespaces/{ns}/stats`                   | Namespace statistics              |
-| `GET`    | `/metrics`                                    | Prometheus metrics                |
-
-## Architecture
-
-bigRAG uses a 3-tier storage architecture designed for cost efficiency and low latency:
-
-```
-                     Queries
-                       |
-                 +-----v------+
-                 |   API Layer |  (Axum, REST + turbopuffer compat)
-                 +-----+------+
-                       |
-              +--------v---------+
-              |   Query Engine   |  (ANN + BM25 + filter fusion)
-              +--------+---------+
-                       |
-         +-------------+-------------+
-         |             |             |
-    +----v----+  +-----v-----+  +---v----+
-    |  Hot    |  |   Warm    |  |  Cold  |
-    |  Cache  |  |  (Local)  |  | (S3/..)|
-    | (Memory)|  |  (mmap)   |  |        |
-    +---------+  +-----------+  +--------+
-```
-
-- **Hot tier**: In-memory cache (moka) for frequently accessed segments
-- **Warm tier**: Memory-mapped local files for recent data
-- **Cold tier**: Object storage (S3/GCS/Azure) for long-term, cost-effective storage
-
-Data flows through a write-ahead log, gets indexed into HNSW (vector) and BM25 (text) indices, compacted into immutable segments, and tiered to object storage based on access patterns.
-
-## Deployment
-
-### Docker
-
-```bash
-docker run -d \
-  --name bigrag \
-  -p 8080:8080 \
-  -v bigrag-data:/data \
-  -e BIGRAG_LOG_LEVEL=info \
-  bigrag/bigrag:latest
-```
-
-### Docker Compose
-
-See the included `docker-compose.yml` for a full setup with MinIO:
-
-```bash
-docker compose up -d
-```
-
-### Kubernetes (Helm)
-
-```bash
-helm repo add bigrag https://charts.bigrag.io
-helm install bigrag bigrag/bigrag \
-  --set storage.backend=s3 \
-  --set storage.bucket=my-bigrag-bucket
-```
-
-### Single Binary
-
-Download the latest release and run directly:
-
-```bash
-curl -sSL https://get.bigrag.io | sh
-bigrag --port 8080 --data-dir ./data
-```
-
-## turbopuffer Compatibility
-
-bigRAG includes a turbopuffer-compatible API layer, making it a drop-in replacement. Point your existing turbopuffer client at bigRAG:
-
-```python
-# Just change the base URL
-import tpuf
-
-tpuf.api_base = "http://localhost:8080"
-ns = tpuf.Namespace("my-namespace")
-ns.upsert(ids=[1, 2], vectors=[[0.1, 0.2], [0.3, 0.4]])
-```
-
-### Supported turbopuffer Operations
-
-- Namespace create/delete/list
-- Vector upsert (with metadata and content)
-- Vector query (ANN, filters)
-- Vector delete by ID
-- Namespace statistics
-
-### Migration from turbopuffer
-
-1. Deploy bigRAG and configure your storage backend
-2. Export your data from turbopuffer using their API
-3. Point the turbopuffer client at your bigRAG instance
-4. Upsert your exported data
-5. Update your application's base URL
-
-## Performance
-
-Target latency at p99, measured with 1M vectors of 768 dimensions:
-
-| Operation              | Warm (cached) | Cold (from S3) |
-| ---------------------- | ------------- | -------------- |
-| ANN query (top-10)     | < 5ms         | < 50ms         |
-| BM25 query (top-10)    | < 8ms         | < 60ms         |
-| Hybrid query (top-10)  | < 10ms        | < 80ms         |
-| Single vector upsert   | < 2ms         | < 2ms          |
-| Batch upsert (1000)    | < 50ms        | < 50ms         |
-| Namespace creation     | < 1ms         | < 1ms          |
-
-Performance varies based on hardware, dataset size, and storage backend. Object storage latency depends on network proximity.
 
 ## Contributing
 
