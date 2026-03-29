@@ -31,7 +31,7 @@ done
 
 # --- Docker services ---
 echo -e "${CYAN}Starting Docker services (Postgres, Redis, Milvus)...${NC}"
-docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres redis milvus-etcd milvus-minio milvus -d
+docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres redis milvus-minio milvus -d
 
 # Wait for Postgres
 echo -e "${CYAN}Waiting for Postgres...${NC}"
