@@ -6,7 +6,6 @@
 - `ui/` — Next.js 16 admin dashboard (React 19 + TanStack Query + Tailwind 4)
 - `sdks/` — Client SDKs (Python, TypeScript, Go)
 - `docs/` — Documentation
-- `helm/` — Kubernetes Helm chart
 
 ## Style Guide
 

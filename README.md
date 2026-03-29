@@ -18,7 +18,7 @@
 - **Any embedding model** — sentence-transformers (local), OpenAI, Ollama, or any OpenAI-compatible API
 - **Milvus vector database** — production-grade vector search with hybrid capabilities
 - **Admin web UI** — manage collections, upload documents, query, and administer users
-- **Self-hostable** — Docker Compose or Kubernetes, no external dependencies
+- **Self-hostable** — Docker Compose, no external dependencies
 - **User auth** — session-based auth with invite system, API keys, and role-based access
 - **Apache 2.0** — run it anywhere, forever free
 

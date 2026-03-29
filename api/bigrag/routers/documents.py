@@ -37,15 +37,26 @@ async def _get_collection(name: str) -> dict:
 
 def _validate_embedding_provider(collection: dict) -> None:
     """Validate the embedding provider is available before accepting the upload."""
+    provider = collection["embedding_provider"]
+    api_key = collection.get("embedding_api_key") or settings.embedding_api_key
+    base_url = collection.get("embedding_base_url") or settings.embedding_base_url
+
+    if provider in ("openai", "cohere", "custom") and not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Collection '{collection['name']}' uses '{provider}' embeddings but no API key is configured. "
+                   f"Set BIGRAG_EMBEDDING_API_KEY or recreate the collection with an API key.",
+        )
+
     try:
         get_embedding_model(
-            provider=collection["embedding_provider"],
+            provider=provider,
             model_name=collection["embedding_model"],
             dimension=collection["dimension"],
-            api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
-            base_url=collection.get("embedding_base_url") or settings.embedding_base_url,
+            api_key=api_key,
+            base_url=base_url,
         )
-    except (ImportError, ValueError) as e:
+    except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
