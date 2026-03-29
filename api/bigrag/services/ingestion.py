@@ -37,8 +37,12 @@ def _chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
     if chunk_overlap > 0 and len(chunks) > 1:
         overlapped: list[str] = [chunks[0]]
         for i in range(1, len(chunks)):
-            prev_tail = chunks[i - 1][-chunk_overlap:]
-            overlapped.append(f"{prev_tail} {chunks[i]}")
+            tail = chunks[i - 1][-chunk_overlap:]
+            # Align to word boundary to avoid cutting mid-word
+            space_idx = tail.find(" ")
+            if space_idx != -1:
+                tail = tail[space_idx + 1:]
+            overlapped.append(f"{tail} {chunks[i]}")
         chunks = overlapped
 
     return chunks
