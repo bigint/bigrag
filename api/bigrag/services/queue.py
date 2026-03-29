@@ -169,10 +169,13 @@ class IngestionQueue:
         """Move jobs stuck in processing back to the queue (crash recovery)."""
         count = 0
         while True:
-            data = await self._redis.rpoplpush(PROCESSING_KEY, QUEUE_KEY)
+            data = await self._redis.lmove(PROCESSING_KEY, QUEUE_KEY, "RIGHT", "LEFT")
             if data is None:
                 break
             count += 1
+        # Reset the processing counter since all stuck jobs have been recovered
+        if count > 0:
+            await self._redis.hset(STATS_KEY, "processing", 0)
         return count
 
     async def enqueue(self, job: IngestionJob) -> None:
