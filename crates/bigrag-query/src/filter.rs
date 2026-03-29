@@ -385,102 +385,27 @@ fn evaluate_comparison(
             }
             _ => false,
         },
-        FilterOperator::AnyLt => match attr_val {
-            Some(AttributeValue::ArrayInt(arr)) => {
-                if let Some(n) = cmp.value.as_i64() {
-                    arr.iter().any(|v| *v < n)
-                } else {
-                    false
-                }
-            }
-            Some(AttributeValue::ArrayUInt(arr)) => {
-                if let Some(n) = cmp.value.as_u64() {
-                    arr.iter().any(|v| *v < n)
-                } else {
-                    false
-                }
-            }
-            Some(AttributeValue::ArrayFloat(arr)) => {
-                if let Some(n) = cmp.value.as_f64() {
-                    arr.iter().any(|v| *v < n)
-                } else {
-                    false
-                }
-            }
-            _ => false,
-        },
-        FilterOperator::AnyLte => match attr_val {
-            Some(AttributeValue::ArrayInt(arr)) => {
-                if let Some(n) = cmp.value.as_i64() {
-                    arr.iter().any(|v| *v <= n)
-                } else {
-                    false
-                }
-            }
-            Some(AttributeValue::ArrayUInt(arr)) => {
-                if let Some(n) = cmp.value.as_u64() {
-                    arr.iter().any(|v| *v <= n)
-                } else {
-                    false
-                }
-            }
-            Some(AttributeValue::ArrayFloat(arr)) => {
-                if let Some(n) = cmp.value.as_f64() {
-                    arr.iter().any(|v| *v <= n)
-                } else {
-                    false
-                }
-            }
-            _ => false,
-        },
-        FilterOperator::AnyGt => match attr_val {
-            Some(AttributeValue::ArrayInt(arr)) => {
-                if let Some(n) = cmp.value.as_i64() {
-                    arr.iter().any(|v| *v > n)
-                } else {
-                    false
-                }
-            }
-            Some(AttributeValue::ArrayUInt(arr)) => {
-                if let Some(n) = cmp.value.as_u64() {
-                    arr.iter().any(|v| *v > n)
-                } else {
-                    false
-                }
-            }
-            Some(AttributeValue::ArrayFloat(arr)) => {
-                if let Some(n) = cmp.value.as_f64() {
-                    arr.iter().any(|v| *v > n)
-                } else {
-                    false
-                }
-            }
-            _ => false,
-        },
-        FilterOperator::AnyGte => match attr_val {
-            Some(AttributeValue::ArrayInt(arr)) => {
-                if let Some(n) = cmp.value.as_i64() {
-                    arr.iter().any(|v| *v >= n)
-                } else {
-                    false
-                }
-            }
-            Some(AttributeValue::ArrayUInt(arr)) => {
-                if let Some(n) = cmp.value.as_u64() {
-                    arr.iter().any(|v| *v >= n)
-                } else {
-                    false
-                }
-            }
-            Some(AttributeValue::ArrayFloat(arr)) => {
-                if let Some(n) = cmp.value.as_f64() {
-                    arr.iter().any(|v| *v >= n)
-                } else {
-                    false
-                }
-            }
-            _ => false,
-        },
+        FilterOperator::AnyLt => any_array_cmp(attr_val, &cmp.value, |a, b| a < b, |a, b| a < b, |a, b| a < b),
+        FilterOperator::AnyLte => any_array_cmp(attr_val, &cmp.value, |a, b| a <= b, |a, b| a <= b, |a, b| a <= b),
+        FilterOperator::AnyGt => any_array_cmp(attr_val, &cmp.value, |a, b| a > b, |a, b| a > b, |a, b| a > b),
+        FilterOperator::AnyGte => any_array_cmp(attr_val, &cmp.value, |a, b| a >= b, |a, b| a >= b, |a, b| a >= b),
+    }
+}
+
+/// Helper for AnyLt/AnyLte/AnyGt/AnyGte operators: checks if any element
+/// in an array attribute satisfies the given comparison against the JSON value.
+fn any_array_cmp(
+    attr_val: Option<&AttributeValue>,
+    json: &serde_json::Value,
+    cmp_i64: impl Fn(i64, i64) -> bool,
+    cmp_u64: impl Fn(u64, u64) -> bool,
+    cmp_f64: impl Fn(f64, f64) -> bool,
+) -> bool {
+    match attr_val {
+        Some(AttributeValue::ArrayInt(arr)) => json.as_i64().is_some_and(|n| arr.iter().any(|v| cmp_i64(*v, n))),
+        Some(AttributeValue::ArrayUInt(arr)) => json.as_u64().is_some_and(|n| arr.iter().any(|v| cmp_u64(*v, n))),
+        Some(AttributeValue::ArrayFloat(arr)) => json.as_f64().is_some_and(|n| arr.iter().any(|v| cmp_f64(*v, n))),
+        _ => false,
     }
 }
 
