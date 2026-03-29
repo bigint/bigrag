@@ -110,17 +110,20 @@ class OllamaEmbedding(EmbeddingModel):
         self._client = httpx.AsyncClient(timeout=120.0)
         logger.info(f"Initialized Ollama embedding: {model_name} (dim={dimension})")
 
+    async def _embed_single(self, text: str) -> list[float]:
+        resp = await self._client.post(
+            f"{self._base_url}/api/embed",
+            json={"model": self._model_name, "input": text},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["embeddings"][0]
+
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        results = []
-        for text in texts:
-            resp = await self._client.post(
-                f"{self._base_url}/api/embed",
-                json={"model": self._model_name, "input": text},
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            results.append(data["embeddings"][0])
-        return results
+        import asyncio
+
+        tasks = [self._embed_single(text) for text in texts]
+        return await asyncio.gather(*tasks)
 
     @property
     def dimension(self) -> int:
