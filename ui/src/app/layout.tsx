@@ -1,9 +1,14 @@
 import { GeistMono } from "geist/font/mono";
-import { GeistSans } from "geist/font/sans";
 import type { Metadata } from "next";
+import { Outfit } from "next/font/google";
 import { Sidebar } from "@/components/sidebar";
 import { Providers } from "@/lib/query-client";
 import "./globals.css";
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-outfit"
+});
 
 export const metadata: Metadata = {
   description: "Admin dashboard for bigRAG vector database",
@@ -12,7 +17,7 @@ export const metadata: Metadata = {
 
 const RootLayout = ({ children }: { readonly children: React.ReactNode }) => {
   return (
-    <html className={`${GeistSans.variable} ${GeistMono.variable}`} lang="en">
+    <html className={`${outfit.variable} ${GeistMono.variable}`} lang="en">
       <body className="antialiased">
         <Providers>
           <Sidebar />
