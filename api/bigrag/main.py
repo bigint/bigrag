@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -76,9 +76,15 @@ def create_app() -> FastAPI:
 
     Instrumentator().instrument(app).expose(app, endpoint="/v1/metrics")
 
+    from bigrag.middleware.auth import get_current_user
+
     @app.get("/health")
     async def health():
         return {"status": "ok", "version": __version__}
+
+    @app.get("/v1/queue/stats")
+    async def queue_stats(_: dict = Depends(get_current_user)):
+        return await ingestion_queue.stats
 
     from bigrag.routers.auth import router as auth_router
     from bigrag.routers.admin import router as admin_router
