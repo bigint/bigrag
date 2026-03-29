@@ -64,7 +64,7 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
-DATABASE_URL="postgres://bigrag:bigrag@localhost:5432/bigrag"
+DATABASE_URL="postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 
 # --- Config ---
 if [ ! -f "$ROOT_DIR/bigrag.toml" ]; then
