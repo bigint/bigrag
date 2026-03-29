@@ -14,6 +14,7 @@ use parking_lot::RwLock;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use sqlx::PgPool;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
@@ -36,7 +37,7 @@ fn hash_key(plaintext: &str) -> String {
 }
 
 /// Generate a random API key with "br_" prefix (40 hex chars after prefix).
-fn generate_api_key() -> String {
+pub fn generate_api_key() -> String {
     let random_bytes: [u8; 20] = rand::rng().random();
     let hex: String = random_bytes.iter().map(|b| format!("{b:02x}")).collect();
     format!("br_{hex}")
@@ -85,6 +86,10 @@ impl ApiKeyStore {
             keys: RwLock::new(keys),
             master_key,
         }
+    }
+
+    pub fn master_key_ref(&self) -> &Option<String> {
+        &self.master_key
     }
 
     /// Returns true when no keys are configured and no master key is set (open access).
@@ -283,6 +288,8 @@ pub struct AppState {
     pub jwt_config: Option<Arc<JwtConfig>>,
     /// Handle to render Prometheus metrics output.
     pub prometheus_handle: PrometheusHandle,
+    /// Optional Postgres connection pool for user authentication.
+    pub db_pool: Option<PgPool>,
 }
 
 /// Per-namespace in-memory data for serving queries.
@@ -300,6 +307,7 @@ impl AppState {
         key_store: ApiKeyStore,
         jwt_config: Option<JwtConfig>,
         prometheus_handle: PrometheusHandle,
+        db_pool: Option<PgPool>,
     ) -> Self {
         Self {
             engine,
@@ -307,6 +315,7 @@ impl AppState {
             key_store: Arc::new(key_store),
             jwt_config: jwt_config.map(Arc::new),
             prometheus_handle,
+            db_pool,
         }
     }
 
@@ -322,6 +331,128 @@ impl AppState {
             }
         }
         self.key_store.validate(token)
+    }
+
+    /// Validate a bearer token asynchronously. Checks: master key -> session -> Postgres API keys -> in-memory API keys -> JWT.
+    /// Returns (Option<ApiKey>, is_session_token: bool).
+    pub async fn validate_auth_async(&self, token: &str) -> (Option<ApiKey>, bool) {
+        // 1. Master key check
+        if let Some(mk) = self.key_store.master_key_ref() {
+            if token == mk {
+                return (
+                    Some(ApiKey {
+                        id: "master".to_string(),
+                        name: "master-key".to_string(),
+                        key_hash: String::new(),
+                        prefix: "master".to_string(),
+                        permissions: ApiKeyPermissions {
+                            namespaces: vec!["*".to_string()],
+                            operations: vec![
+                                ApiOperation::Read,
+                                ApiOperation::Write,
+                                ApiOperation::Delete,
+                                ApiOperation::Schema,
+                                ApiOperation::Admin,
+                            ],
+                            admin: true,
+                        },
+                        created_at: String::new(),
+                        last_used_at: None,
+                        expires_at: None,
+                    }),
+                    false,
+                );
+            }
+        }
+
+        // 2. Session token (DB-backed)
+        if let Some(ref pool) = self.db_pool {
+            if let Ok(Some(user)) = crate::auth::session::validate_session(pool, token).await {
+                let is_admin = user.role == "admin";
+                let mut operations = vec![
+                    ApiOperation::Read,
+                    ApiOperation::Write,
+                    ApiOperation::Delete,
+                    ApiOperation::Schema,
+                ];
+                if is_admin {
+                    operations.push(ApiOperation::Admin);
+                }
+                return (
+                    Some(ApiKey {
+                        id: format!("session-{}", user.id),
+                        name: user.display_name.clone(),
+                        key_hash: String::new(),
+                        prefix: "session".to_string(),
+                        permissions: ApiKeyPermissions {
+                            namespaces: vec!["*".to_string()],
+                            operations,
+                            admin: is_admin,
+                        },
+                        created_at: user.created_at.to_rfc3339(),
+                        last_used_at: None,
+                        expires_at: None,
+                    }),
+                    true,
+                );
+            }
+
+            // 3. Postgres API keys
+            let token_hash = crate::auth::session::hash_token(token);
+            if let Ok(Some(row)) = sqlx::query_as::<_, PgApiKeyRow>(
+                "SELECT id, name, prefix, permissions, expires_at, created_at, last_used_at FROM api_keys WHERE key_hash = $1",
+            )
+            .bind(&token_hash)
+            .fetch_optional(pool)
+            .await
+            {
+                if let Some(ref exp) = row.expires_at {
+                    if *exp < chrono::Utc::now() {
+                        return (None, false);
+                    }
+                }
+                let _ = sqlx::query("UPDATE api_keys SET last_used_at = now() WHERE id = $1")
+                    .bind(row.id)
+                    .execute(pool)
+                    .await;
+
+                let perms: ApiKeyPermissions =
+                    serde_json::from_value(row.permissions.clone()).unwrap_or(ApiKeyPermissions {
+                        namespaces: vec![],
+                        operations: vec![],
+                        admin: false,
+                    });
+                return (
+                    Some(ApiKey {
+                        id: row.id.to_string(),
+                        name: row.name,
+                        key_hash: token_hash,
+                        prefix: row.prefix,
+                        permissions: perms,
+                        created_at: row.created_at.to_rfc3339(),
+                        last_used_at: row.last_used_at.map(|t| t.to_rfc3339()),
+                        expires_at: row.expires_at.map(|t| t.to_rfc3339()),
+                    }),
+                    false,
+                );
+            }
+        }
+
+        // 4. In-memory API key store (legacy)
+        if let Some(key) = self.key_store.validate(token) {
+            return (Some(key), false);
+        }
+
+        // 5. JWT
+        if token.starts_with("ey") {
+            if let Some(ref jwt_config) = self.jwt_config {
+                if let Ok(api_key) = jwt_config.validate_jwt(token) {
+                    return (Some(api_key), false);
+                }
+            }
+        }
+
+        (None, false)
     }
 
     /// Load a namespace's documents from the storage engine into the in-memory store.
@@ -711,4 +842,15 @@ impl AppState {
     pub fn delete_namespace(&self, namespace: &str) -> bool {
         self.documents.remove(namespace).is_some()
     }
+}
+
+#[derive(sqlx::FromRow)]
+struct PgApiKeyRow {
+    id: uuid::Uuid,
+    name: String,
+    prefix: String,
+    permissions: serde_json::Value,
+    expires_at: Option<chrono::DateTime<chrono::Utc>>,
+    created_at: chrono::DateTime<chrono::Utc>,
+    last_used_at: Option<chrono::DateTime<chrono::Utc>>,
 }

@@ -8,6 +8,8 @@ use axum::{
 use tracing::{debug, trace, warn};
 use uuid::Uuid;
 
+use crate::auth::handlers::{SessionToken, SessionUser};
+use crate::auth::session::validate_session;
 use crate::state::AppState;
 
 /// Extract bearer token from Authorization header.
@@ -20,15 +22,15 @@ pub fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
 }
 
 /// Authentication middleware.
-/// Validates the bearer token (API key or JWT) and inserts the resolved
+/// Validates the bearer token (API key, JWT, or session) and inserts the resolved
 /// `ApiKey` into request extensions so handlers can perform permission checks.
 pub async fn auth_middleware(
     axum::extract::State(state): axum::extract::State<AppState>,
     mut request: Request,
     next: Next,
 ) -> Response {
-    // If no keys are configured (open mode), allow all requests
-    if state.key_store.is_open() && state.jwt_config.is_none() {
+    // If no keys are configured (open mode) and no JWT or DB auth, allow all requests
+    if state.key_store.is_open() && state.jwt_config.is_none() && state.db_pool.is_none() {
         trace!("auth: open mode, allowing request");
         return next.run(request).await;
     }
@@ -36,26 +38,37 @@ pub async fn auth_middleware(
     let token = extract_bearer_token(request.headers());
 
     match token {
-        Some(ref t) => match state.validate_auth(t) {
-            Some(api_key) => {
-                debug!(key_id = %api_key.id, key_name = %api_key.name, "auth: request authenticated");
-                request.extensions_mut().insert(api_key);
-                next.run(request).await
-            }
-            None => {
-                warn!("auth: invalid API key or JWT token");
-                (
-                    StatusCode::UNAUTHORIZED,
-                    Json(serde_json::json!({
-                        "error": {
-                            "code": "UNAUTHORIZED",
-                            "message": "Invalid API key"
+        Some(ref t) => {
+            let (api_key, is_session) = state.validate_auth_async(t).await;
+            match api_key {
+                Some(key) => {
+                    debug!(key_id = %key.id, key_name = %key.name, "auth: request authenticated");
+                    if is_session {
+                        if let Some(ref pool) = state.db_pool {
+                            if let Ok(Some(user)) = validate_session(pool, t).await {
+                                request.extensions_mut().insert(SessionUser(user));
+                                request.extensions_mut().insert(SessionToken(t.clone()));
+                            }
                         }
-                    })),
-                )
-                    .into_response()
+                    }
+                    request.extensions_mut().insert(key);
+                    next.run(request).await
+                }
+                None => {
+                    warn!("auth: invalid token");
+                    (
+                        StatusCode::UNAUTHORIZED,
+                        Json(serde_json::json!({
+                            "error": {
+                                "code": "UNAUTHORIZED",
+                                "message": "Invalid API key"
+                            }
+                        })),
+                    )
+                        .into_response()
+                }
             }
-        },
+        }
         None => {
             warn!("auth: missing Authorization header");
             (
