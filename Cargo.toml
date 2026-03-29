@@ -53,6 +53,8 @@ base64 = "0.22"
 crc32fast = "1"
 jsonwebtoken = "9"
 sha2 = "0.10"
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "json", "migrate"] }
+argon2 = "0.5"
 
 # Allocator
 mimalloc = { version = "0.1", default-features = false }

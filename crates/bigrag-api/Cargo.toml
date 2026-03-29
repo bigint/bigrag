@@ -25,6 +25,8 @@ parking_lot = { workspace = true }
 jsonwebtoken = { workspace = true }
 sha2 = { workspace = true }
 rand = { workspace = true }
+sqlx = { workspace = true }
+argon2 = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
