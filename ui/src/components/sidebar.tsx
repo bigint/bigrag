@@ -1,11 +1,12 @@
 "use client";
 
 import {
+  Database,
+  FileText,
   Key,
   LayoutGrid,
-  List,
-  Lock,
   LogOut,
+  Search,
   Settings,
   TrendingUp,
   Users
@@ -19,8 +20,8 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/", icon: LayoutGrid, label: "Dashboard" },
-  { href: "/vault", icon: Lock, label: "Vault" },
-  { href: "/namespaces", icon: List, label: "Namespaces" },
+  { href: "/collections", icon: Database, label: "Collections" },
+  { href: "/query", icon: Search, label: "Query" },
   { href: "/metrics", icon: TrendingUp, label: "Metrics" },
   { href: "/api-keys", icon: Key, label: "API Keys" },
   { href: "/settings", icon: Settings, label: "Settings" }

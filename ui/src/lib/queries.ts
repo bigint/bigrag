@@ -1,11 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
 import {
-  getAdminConfig,
+  getCollection,
   getHealth,
   getMetrics,
-  getNamespaceMetadata,
-  getSchema,
-  listNamespaces
+  listCollections,
+  listDocuments,
+  listEmbeddingModels
 } from "@/lib/api";
 
 export const healthQueryOptions = () =>
@@ -14,33 +14,28 @@ export const healthQueryOptions = () =>
     queryKey: ["health"]
   });
 
-export const namespacesQueryOptions = (params?: {
-  readonly prefix?: string;
-  readonly cursor?: string;
-  readonly pageSize?: number;
-}) =>
+export const collectionsQueryOptions = () =>
   queryOptions({
-    queryFn: () =>
-      listNamespaces(params?.prefix, params?.cursor, params?.pageSize ?? 100),
-    queryKey: ["namespaces", params]
+    queryFn: () => listCollections(),
+    queryKey: ["collections"]
   });
 
-export const namespaceMetadataQueryOptions = (namespace: string) =>
+export const collectionQueryOptions = (name: string) =>
   queryOptions({
-    queryFn: () => getNamespaceMetadata(namespace),
-    queryKey: ["namespace-metadata", { namespace }]
+    queryFn: () => getCollection(name),
+    queryKey: ["collection", name]
   });
 
-export const schemaQueryOptions = (namespace: string) =>
+export const documentsQueryOptions = (collectionName: string, status?: string) =>
   queryOptions({
-    queryFn: () => getSchema(namespace),
-    queryKey: ["schema", { namespace }]
+    queryFn: () => listDocuments(collectionName, status),
+    queryKey: ["documents", collectionName, status]
   });
 
-export const adminConfigQueryOptions = () =>
+export const embeddingModelsQueryOptions = () =>
   queryOptions({
-    queryFn: () => getAdminConfig(),
-    queryKey: ["admin-config"]
+    queryFn: () => listEmbeddingModels(),
+    queryKey: ["embedding-models"]
   });
 
 export const metricsQueryOptions = () =>
