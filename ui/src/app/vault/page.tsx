@@ -1,5 +1,7 @@
 "use client";
 
+import { AlertDialog } from "@base-ui/react/alert-dialog";
+import { Collapsible } from "@base-ui/react/collapsible";
 import { FileText, Loader2, Search, Settings, Upload, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -395,9 +397,10 @@ export default function VaultPage() {
     [namespace, loadExistingDocuments]
   );
 
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+
   const handleClearAll = useCallback(async () => {
-    if (!confirm("Delete all documents in the vault? This cannot be undone."))
-      return;
+    setClearDialogOpen(false);
     setError(null);
     try {
       await deleteNamespace(namespace);
@@ -431,7 +434,7 @@ export default function VaultPage() {
     return parts.map((part, i) =>
       regex.test(part) ? (
         <mark
-          className="bg-blue-500/20 text-blue-400 rounded-sm px-0.5"
+          className="bg-blue-100 text-blue-700 rounded-sm px-0.5"
           key={i}
         >
           {part}
@@ -447,98 +450,94 @@ export default function VaultPage() {
   // -------------------------------------------------------------------------
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-[#fafafa]">
+    <div className="min-h-screen bg-bg text-text">
       <div className="mx-auto max-w-6xl px-6 py-10">
-        {/* Page header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Vault</h1>
-            <p className="mt-1 text-[13px] text-[#a1a1aa]">
-              Upload PDFs, extract text, and search across all documents
-              {namespaceStats && (
-                <span className="ml-2 text-[#71717a]">
-                  &middot; {formatNumber(namespaceStats.rows)} chunks &middot;{" "}
-                  {formatBytes(namespaceStats.bytes)}
-                </span>
-              )}
-            </p>
+        {/* Page header + Collapsible settings */}
+        <Collapsible.Root
+          open={showSettings}
+          onOpenChange={setShowSettings}
+        >
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Vault</h1>
+              <p className="mt-1 text-[13px] text-text-muted">
+                Upload PDFs, extract text, and search across all documents
+                {namespaceStats && (
+                  <span className="ml-2 text-text-dim">
+                    &middot; {formatNumber(namespaceStats.rows)} chunks &middot;{" "}
+                    {formatBytes(namespaceStats.bytes)}
+                  </span>
+                )}
+              </p>
+            </div>
+            <Collapsible.Trigger className="flex items-center gap-1.5 rounded-md border border-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:border-border-hover hover:text-text">
+              <Settings className="size-4" />
+              Settings
+            </Collapsible.Trigger>
           </div>
-          <button
-            className="flex items-center gap-1.5 rounded-md border border-[#27272a] bg-[#18181b] px-3 py-2 text-sm text-[#a1a1aa] transition-colors hover:border-[#3f3f46] hover:text-[#fafafa]"
-            onClick={() => setShowSettings((s) => !s)}
-            type="button"
-          >
-            <Settings className="size-4" />
-            Settings
-          </button>
-        </div>
 
-        {/* Settings panel */}
-        {showSettings && (
-          <div className="mb-6 rounded-lg border border-[#27272a] bg-[#18181b] p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-medium text-[#fafafa]">
-                Processing Settings
-              </h2>
-              <button
-                className="text-[#71717a] transition-colors hover:text-[#a1a1aa]"
-                onClick={() => setShowSettings(false)}
-                type="button"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div>
-                <label className="mb-1.5 block text-[13px] text-[#a1a1aa]">
-                  Chunk size (words)
-                </label>
-                <input
-                  className="w-full rounded-md border border-[#27272a] bg-[#09090b] px-3 py-2 text-sm font-mono text-[#fafafa] focus:border-[#3f3f46] focus:outline-none"
-                  max={5000}
-                  min={50}
-                  onChange={(e) =>
-                    setChunkSize(
-                      Math.max(50, parseInt(e.target.value, 10) || 500)
-                    )
-                  }
-                  type="number"
-                  value={chunkSize}
-                />
+          <Collapsible.Panel className="mb-6">
+            <div className="rounded-lg border border-border bg-bg-card p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-sm font-medium text-text">
+                  Processing Settings
+                </h2>
+                <Collapsible.Trigger className="text-text-dim transition-colors hover:text-text-muted">
+                  <X className="size-4" />
+                </Collapsible.Trigger>
               </div>
-              <div>
-                <label className="mb-1.5 block text-[13px] text-[#a1a1aa]">
-                  Chunk overlap (words)
-                </label>
-                <input
-                  className="w-full rounded-md border border-[#27272a] bg-[#09090b] px-3 py-2 text-sm font-mono text-[#fafafa] focus:border-[#3f3f46] focus:outline-none"
-                  max={500}
-                  min={0}
-                  onChange={(e) =>
-                    setChunkOverlap(
-                      Math.max(0, parseInt(e.target.value, 10) || 50)
-                    )
-                  }
-                  type="number"
-                  value={chunkOverlap}
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-[13px] text-[#a1a1aa]">
-                  Vault namespace
-                </label>
-                <input
-                  className="w-full rounded-md border border-[#27272a] bg-[#09090b] px-3 py-2 text-sm font-mono text-[#fafafa] focus:border-[#3f3f46] focus:outline-none"
-                  onChange={(e) =>
-                    setNamespace(e.target.value || DEFAULT_NAMESPACE)
-                  }
-                  type="text"
-                  value={namespace}
-                />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1.5 block text-[13px] text-text-muted">
+                    Chunk size (words)
+                  </label>
+                  <input
+                    className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm font-mono text-text focus:border-border-hover focus:outline-none"
+                    max={5000}
+                    min={50}
+                    onChange={(e) =>
+                      setChunkSize(
+                        Math.max(50, parseInt(e.target.value, 10) || 500)
+                      )
+                    }
+                    type="number"
+                    value={chunkSize}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[13px] text-text-muted">
+                    Chunk overlap (words)
+                  </label>
+                  <input
+                    className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm font-mono text-text focus:border-border-hover focus:outline-none"
+                    max={500}
+                    min={0}
+                    onChange={(e) =>
+                      setChunkOverlap(
+                        Math.max(0, parseInt(e.target.value, 10) || 50)
+                      )
+                    }
+                    type="number"
+                    value={chunkOverlap}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[13px] text-text-muted">
+                    Vault namespace
+                  </label>
+                  <input
+                    className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm font-mono text-text focus:border-border-hover focus:outline-none"
+                    onChange={(e) =>
+                      setNamespace(e.target.value || DEFAULT_NAMESPACE)
+                    }
+                    type="text"
+                    value={namespace}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          </Collapsible.Panel>
+        </Collapsible.Root>
 
         {/* Error banner */}
         {error && (
@@ -559,7 +558,7 @@ export default function VaultPage() {
           className={`mb-8 flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-12 transition-colors ${
             isDragOver
               ? "border-blue-500 bg-blue-500/5"
-              : "border-[#27272a] bg-[#18181b] hover:border-[#3f3f46]"
+              : "border-border bg-bg-card hover:border-border-hover"
           } ${isUploading ? "pointer-events-none opacity-60" : ""}`}
           onClick={() => !isUploading && fileInputRef.current?.click()}
           onDragLeave={handleDragLeave}
@@ -579,17 +578,17 @@ export default function VaultPage() {
           {isUploading ? (
             <>
               <Loader2 className="mb-3 size-8 animate-spin text-blue-500" />
-              <p className="text-sm text-[#fafafa]">{uploadProgress}</p>
+              <p className="text-sm text-text">{uploadProgress}</p>
             </>
           ) : (
             <>
               <Upload
-                className={`mb-3 size-8 ${isDragOver ? "text-blue-500" : "text-[#71717a]"}`}
+                className={`mb-3 size-8 ${isDragOver ? "text-blue-500" : "text-text-dim"}`}
               />
-              <p className="text-sm text-[#fafafa]">
+              <p className="text-sm text-text">
                 Drop PDFs here or click to browse
               </p>
-              <p className="mt-1 text-[13px] text-[#71717a]">
+              <p className="mt-1 text-[13px] text-text-dim">
                 Supports: PDF (max 50MB)
               </p>
             </>
@@ -598,14 +597,14 @@ export default function VaultPage() {
 
         {/* Search */}
         <div className="mb-8">
-          <label className="mb-2 block text-sm font-medium text-[#fafafa]">
+          <label className="mb-2 block text-sm font-medium text-text">
             Search across all documents
           </label>
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#71717a]" />
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-dim" />
               <input
-                className="w-full rounded-md border border-[#27272a] bg-[#18181b] py-2 pl-10 pr-3 text-sm text-[#fafafa] placeholder-[#71717a] focus:border-[#3f3f46] focus:outline-none"
+                className="w-full rounded-md border border-border bg-bg-card py-2 pl-10 pr-3 text-sm text-text placeholder-text-dim focus:border-border-hover focus:outline-none"
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 placeholder="Search query..."
@@ -632,38 +631,38 @@ export default function VaultPage() {
         {/* Search results */}
         {hasSearched && (
           <div className="mb-8">
-            <h2 className="mb-3 text-sm font-medium text-[#fafafa]">
+            <h2 className="mb-3 text-sm font-medium text-text">
               Results
               {searchResults.length > 0 && (
-                <span className="ml-2 text-[#71717a]">
+                <span className="ml-2 text-text-dim">
                   ({searchResults.length})
                 </span>
               )}
             </h2>
 
             {searchResults.length === 0 ? (
-              <div className="rounded-lg border border-[#27272a] bg-[#18181b] px-5 py-12 text-center text-sm text-[#71717a]">
+              <div className="rounded-lg border border-border bg-bg-card px-5 py-12 text-center text-sm text-text-dim">
                 No results found. Try a different query.
               </div>
             ) : (
               <div className="space-y-2">
                 {searchResults.map((row, i) => (
                   <div
-                    className="rounded-lg border border-[#27272a] bg-[#18181b] px-5 py-4 transition-colors hover:border-[#3f3f46]"
+                    className="rounded-lg border border-border bg-bg-card px-5 py-4 transition-colors hover:border-border-hover"
                     key={`${row.id}-${i}`}
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm">
                         <FileText className="size-4 text-blue-500" />
-                        <span className="font-medium text-[#fafafa]">
+                        <span className="font-medium text-text">
                           {row.filename as string}
                         </span>
-                        <span className="text-[#71717a]">&middot;</span>
-                        <span className="font-mono text-[13px] text-[#a1a1aa]">
+                        <span className="text-text-dim">&middot;</span>
+                        <span className="font-mono text-[13px] text-text-muted">
                           Page {row.page_number as number}
                         </span>
-                        <span className="text-[#71717a]">&middot;</span>
-                        <span className="font-mono text-[13px] text-[#a1a1aa]">
+                        <span className="text-text-dim">&middot;</span>
+                        <span className="font-mono text-[13px] text-text-muted">
                           Chunk {row.chunk_index as number}
                         </span>
                       </div>
@@ -673,7 +672,7 @@ export default function VaultPage() {
                         </span>
                       )}
                     </div>
-                    <p className="line-clamp-3 text-[13px] leading-relaxed text-[#a1a1aa]">
+                    <p className="line-clamp-3 text-[13px] leading-relaxed text-text-muted">
                       &ldquo;
                       {highlightText(
                         truncateText(row.content as string, 300),
@@ -689,65 +688,90 @@ export default function VaultPage() {
         )}
 
         {/* Uploaded documents */}
-        <div className="rounded-lg border border-[#27272a] bg-[#18181b]">
-          <div className="flex items-center justify-between border-b border-[#27272a] px-5 py-4">
-            <h2 className="text-sm font-medium text-[#fafafa]">
+        <div className="rounded-lg border border-border bg-bg-card">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4">
+            <h2 className="text-sm font-medium text-text">
               Uploaded Documents
               {files.length > 0 && (
-                <span className="ml-2 text-[#71717a]">({files.length})</span>
+                <span className="ml-2 text-text-dim">({files.length})</span>
               )}
             </h2>
             {files.length > 0 && (
-              <button
-                className="rounded-md px-3 py-1.5 text-[13px] text-red-500 transition-colors hover:bg-red-500/10"
-                onClick={handleClearAll}
-                type="button"
+              <AlertDialog.Root
+                open={clearDialogOpen}
+                onOpenChange={setClearDialogOpen}
               >
-                Clear All
-              </button>
+                <AlertDialog.Trigger className="rounded-md px-3 py-1.5 text-[13px] text-danger transition-colors hover:bg-danger/10">
+                  Clear All
+                </AlertDialog.Trigger>
+                <AlertDialog.Portal>
+                  <AlertDialog.Backdrop className="fixed inset-0 bg-overlay" />
+                  <AlertDialog.Popup className="fixed left-1/2 top-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg p-6 shadow-lg">
+                    <AlertDialog.Title className="text-sm font-medium text-text">
+                      Delete all documents?
+                    </AlertDialog.Title>
+                    <AlertDialog.Description className="mt-2 text-sm text-text-muted">
+                      This will delete all documents in the vault. This action
+                      cannot be undone.
+                    </AlertDialog.Description>
+                    <div className="mt-4 flex justify-end gap-3">
+                      <AlertDialog.Close className="rounded-md px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-hover">
+                        Cancel
+                      </AlertDialog.Close>
+                      <button
+                        className="rounded-md bg-danger px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-danger-hover"
+                        onClick={handleClearAll}
+                        type="button"
+                      >
+                        Delete All
+                      </button>
+                    </div>
+                  </AlertDialog.Popup>
+                </AlertDialog.Portal>
+              </AlertDialog.Root>
             )}
           </div>
 
           {loading ? (
-            <div className="divide-y divide-[#27272a]">
+            <div className="divide-y divide-border">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div className="flex items-center gap-4 px-5 py-3.5" key={i}>
-                  <div className="h-4 w-4 animate-pulse rounded bg-[#27272a]" />
-                  <div className="h-4 w-32 animate-pulse rounded bg-[#27272a]" />
-                  <div className="ml-auto h-4 w-16 animate-pulse rounded bg-[#27272a]" />
-                  <div className="h-4 w-16 animate-pulse rounded bg-[#27272a]" />
-                  <div className="h-4 w-16 animate-pulse rounded bg-[#27272a]" />
+                  <div className="h-4 w-4 animate-pulse rounded bg-bg-hover" />
+                  <div className="h-4 w-32 animate-pulse rounded bg-bg-hover" />
+                  <div className="ml-auto h-4 w-16 animate-pulse rounded bg-bg-hover" />
+                  <div className="h-4 w-16 animate-pulse rounded bg-bg-hover" />
+                  <div className="h-4 w-16 animate-pulse rounded bg-bg-hover" />
                 </div>
               ))}
             </div>
           ) : files.length === 0 ? (
-            <div className="px-5 py-12 text-center text-sm text-[#71717a]">
+            <div className="px-5 py-12 text-center text-sm text-text-dim">
               No documents uploaded yet. Drop a PDF above to get started.
             </div>
           ) : (
-            <div className="divide-y divide-[#27272a]">
+            <div className="divide-y divide-border">
               {files.map((file) => (
                 <div
-                  className="group flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-[#27272a]/30"
+                  className="group flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-bg-hover/30"
                   key={file.name}
                 >
-                  <FileText className="size-4 shrink-0 text-[#71717a]" />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#fafafa]">
+                  <FileText className="size-4 shrink-0 text-text-dim" />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-text">
                     {file.name}
                   </span>
-                  <span className="shrink-0 text-[13px] text-[#a1a1aa]">
+                  <span className="shrink-0 text-[13px] text-text-muted">
                     {file.pages} {file.pages === 1 ? "page" : "pages"}
                   </span>
-                  <span className="shrink-0 font-mono text-[13px] text-[#a1a1aa]">
+                  <span className="shrink-0 font-mono text-[13px] text-text-muted">
                     {formatNumber(file.chunks)} chunks
                   </span>
                   {file.size > 0 && (
-                    <span className="shrink-0 font-mono text-[13px] text-[#71717a]">
+                    <span className="shrink-0 font-mono text-[13px] text-text-dim">
                       {formatBytes(file.size)}
                     </span>
                   )}
                   <button
-                    className="shrink-0 rounded p-1 text-[#71717a] opacity-0 transition-all hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
+                    className="shrink-0 rounded p-1 text-text-dim opacity-0 transition-all hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteFile(file.name);

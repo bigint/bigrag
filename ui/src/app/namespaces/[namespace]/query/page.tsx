@@ -1,5 +1,15 @@
 "use client";
 
+import { Collapsible } from "@base-ui/react/collapsible";
+import { Tabs } from "@base-ui/react/tabs";
+import {
+  AlertCircle,
+  ChevronDown,
+  ChevronLeft,
+  Loader2,
+  Play,
+  Search
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
@@ -60,45 +70,20 @@ function syntaxHighlight(json: string): string {
   return escaped.replace(
     /("(\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
     (match) => {
-      let cls = "text-blue-400"; // number
+      let cls = "text-blue-600"; // number
       if (/^"/.test(match)) {
         if (/:$/.test(match)) {
-          cls = "text-[#fafafa]"; // key
+          cls = "text-text"; // key
         } else {
-          cls = "text-emerald-400"; // string
+          cls = "text-emerald-600"; // string
         }
       } else if (/true|false/.test(match)) {
-        cls = "text-amber-400"; // boolean
+        cls = "text-amber-600"; // boolean
       } else if (/null/.test(match)) {
-        cls = "text-[#71717a]"; // null
+        cls = "text-text-dim"; // null
       }
       return `<span class="${cls}">${match}</span>`;
     }
-  );
-}
-
-function Spinner() {
-  return (
-    <svg
-      className="animate-spin h-5 w-5 text-blue-500"
-      fill="none"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
-      <path
-        className="opacity-75"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-        fill="currentColor"
-      />
-    </svg>
   );
 }
 
@@ -135,8 +120,6 @@ export default function QueryPlaygroundPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QueryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"table" | "json">("table");
-  const [examplesOpen, setExamplesOpen] = useState(false);
   const execTimeRef = useRef<number | null>(null);
 
   const handleExecute = useCallback(async () => {
@@ -192,33 +175,21 @@ export default function QueryPlaygroundPage() {
   const cacheTemp = result?.performance?.cache_temperature;
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-[#fafafa]">
+    <div className="min-h-screen text-text">
       <div className="max-w-[1600px] mx-auto p-6">
         {/* Header */}
         <div className="mb-6">
           <Link
-            className="text-sm text-[#a1a1aa] hover:text-[#fafafa] transition-colors inline-flex items-center gap-1"
+            className="text-sm text-text-muted hover:text-text transition-colors inline-flex items-center gap-1"
             href={`/namespaces/${encodeURIComponent(namespace)}`}
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M15 19l-7-7 7-7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-              />
-            </svg>
+            <ChevronLeft className="size-4" />
             Back to {namespace}
           </Link>
           <h1 className="text-2xl font-semibold mt-2">Query Playground</h1>
-          <p className="text-sm text-[#71717a] mt-1">
+          <p className="text-sm text-text-dim mt-1">
             Execute queries against{" "}
-            <span className="font-mono text-[#a1a1aa]">{namespace}</span>
+            <span className="font-mono text-text-muted">{namespace}</span>
           </p>
         </div>
 
@@ -226,18 +197,18 @@ export default function QueryPlaygroundPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Panel — Query Editor */}
           <div className="flex flex-col gap-4">
-            <div className="bg-[#18181b] border border-[#27272a] rounded-lg p-5 flex flex-col gap-4">
+            <div className="bg-bg-card border border-border rounded-lg p-5 flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-medium text-[#a1a1aa] uppercase tracking-wider">
+                <h2 className="text-sm font-medium text-text-muted uppercase tracking-wider">
                   Query Editor
                 </h2>
-                <span className="text-xs font-mono text-[#71717a] bg-[#27272a] px-2 py-1 rounded-md">
+                <span className="text-xs font-mono text-text-dim bg-bg-hover px-2 py-1 rounded-md">
                   {namespace}
                 </span>
               </div>
 
               <textarea
-                className="bg-[#09090b] border border-[#27272a] rounded-md p-3 font-mono text-sm text-[#fafafa] focus:outline-none focus:border-[#3f3f46] resize-none w-full transition-colors"
+                className="bg-bg border border-border rounded-md p-3 font-mono text-sm text-text focus:outline-none focus:border-border-hover resize-none w-full transition-colors"
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setParseError(null);
@@ -250,88 +221,54 @@ export default function QueryPlaygroundPage() {
               />
 
               {parseError && (
-                <div className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-md px-3 py-2 font-mono">
+                <div className="text-sm text-danger bg-danger/10 border border-danger/20 rounded-md px-3 py-2 font-mono">
                   {parseError}
                 </div>
               )}
 
               <div className="flex items-center gap-3">
                 <button
-                  className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md px-4 py-2 text-sm font-medium transition-colors inline-flex items-center gap-2"
+                  className="bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md px-4 py-2 text-sm font-medium transition-colors inline-flex items-center gap-2"
                   disabled={loading}
                   onClick={handleExecute}
                   type="button"
                 >
                   {loading ? (
                     <>
-                      <Spinner />
+                      <Loader2 className="size-4 animate-spin" />
                       Executing...
                     </>
                   ) : (
                     <>
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                        />
-                        <path
-                          d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                        />
-                      </svg>
+                      <Play className="size-4" />
                       Execute
                     </>
                   )}
                 </button>
                 <button
-                  className="text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] rounded-md px-4 py-2 text-sm font-medium transition-colors"
+                  className="text-text-muted hover:text-text hover:bg-bg-hover rounded-md px-4 py-2 text-sm font-medium transition-colors"
                   onClick={handleClear}
                   type="button"
                 >
                   Clear
                 </button>
-                <span className="text-xs text-[#71717a] ml-auto hidden sm:inline">
+                <span className="text-xs text-text-dim ml-auto hidden sm:inline">
                   {"\u2318"}+Enter to execute
                 </span>
               </div>
             </div>
 
             {/* Example Queries */}
-            <div className="bg-[#18181b] border border-[#27272a] rounded-lg overflow-hidden">
-              <button
-                className="w-full flex items-center justify-between px-5 py-3 text-sm font-medium text-[#a1a1aa] hover:text-[#fafafa] transition-colors"
-                onClick={() => setExamplesOpen(!examplesOpen)}
-                type="button"
-              >
+            <Collapsible.Root className="bg-bg-card border border-border rounded-lg overflow-hidden">
+              <Collapsible.Trigger className="w-full flex items-center justify-between px-5 py-3 text-sm font-medium text-text-muted hover:text-text transition-colors">
                 <span>Example Queries</span>
-                <svg
-                  className={`w-4 h-4 transition-transform ${examplesOpen ? "rotate-180" : ""}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M19 9l-7 7-7-7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-              </button>
-              {examplesOpen && (
-                <div className="border-t border-[#27272a] px-2 py-2 flex flex-col gap-1">
+                <ChevronDown className="size-4 transition-transform [[data-panel-open]_&]:rotate-180" />
+              </Collapsible.Trigger>
+              <Collapsible.Panel>
+                <div className="border-t border-border px-2 py-2 flex flex-col gap-1">
                   {EXAMPLE_QUERIES.map((ex) => (
                     <button
-                      className="text-left px-3 py-2 rounded-md text-sm text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition-colors"
+                      className="text-left px-3 py-2 rounded-md text-sm text-text-muted hover:text-text hover:bg-bg-hover transition-colors"
                       key={ex.label}
                       onClick={() => {
                         setQuery(ex.query);
@@ -343,227 +280,207 @@ export default function QueryPlaygroundPage() {
                     </button>
                   ))}
                 </div>
-              )}
-            </div>
+              </Collapsible.Panel>
+            </Collapsible.Root>
           </div>
 
           {/* Right Panel — Results */}
           <div className="flex flex-col gap-4">
-            <div className="bg-[#18181b] border border-[#27272a] rounded-lg p-5 flex flex-col gap-4 min-h-[500px]">
+            <div className="bg-bg-card border border-border rounded-lg p-5 flex flex-col gap-4 min-h-[500px]">
               {/* Tab toggle */}
-              <div className="flex items-center gap-1 bg-[#09090b] rounded-md p-1 self-start">
-                <button
-                  className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                    activeTab === "table"
-                      ? "bg-[#27272a] text-[#fafafa]"
-                      : "text-[#71717a] hover:text-[#a1a1aa]"
-                  }`}
-                  onClick={() => setActiveTab("table")}
-                  type="button"
-                >
-                  Table
-                </button>
-                <button
-                  className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                    activeTab === "json"
-                      ? "bg-[#27272a] text-[#fafafa]"
-                      : "text-[#71717a] hover:text-[#a1a1aa]"
-                  }`}
-                  onClick={() => setActiveTab("json")}
-                  type="button"
-                >
-                  JSON
-                </button>
-              </div>
+              <Tabs.Root defaultValue="table">
+                <Tabs.List className="flex items-center gap-1 bg-bg-muted rounded-md p-1 self-start">
+                  <Tabs.Tab
+                    className="px-3 py-1.5 text-sm font-medium rounded transition-colors text-text-dim hover:text-text-muted data-[selected]:bg-bg data-[selected]:text-text data-[selected]:shadow-sm"
+                    value="table"
+                  >
+                    Table
+                  </Tabs.Tab>
+                  <Tabs.Tab
+                    className="px-3 py-1.5 text-sm font-medium rounded transition-colors text-text-dim hover:text-text-muted data-[selected]:bg-bg data-[selected]:text-text data-[selected]:shadow-sm"
+                    value="json"
+                  >
+                    JSON
+                  </Tabs.Tab>
+                </Tabs.List>
 
-              {/* Content area */}
-              <div className="flex-1 overflow-auto">
-                {loading && (
-                  <div className="flex items-center justify-center h-full min-h-[300px]">
-                    <div className="flex flex-col items-center gap-3">
-                      <Spinner />
-                      <span className="text-sm text-[#71717a]">
-                        Executing query...
-                      </span>
+                {/* Content area */}
+                <div className="flex-1 overflow-auto">
+                  {loading && (
+                    <div className="flex items-center justify-center h-full min-h-[300px]">
+                      <div className="flex flex-col items-center gap-3">
+                        <Loader2 className="size-5 animate-spin text-accent" />
+                        <span className="text-sm text-text-dim">
+                          Executing query...
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {!loading && error && (
-                  <div className="bg-red-400/10 border border-red-400/20 rounded-md p-4">
-                    <div className="flex items-start gap-3">
-                      <svg
-                        className="w-5 h-5 text-red-400 mt-0.5 shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                        />
-                      </svg>
-                      <div>
-                        <p className="text-sm font-medium text-red-400">
-                          Query Error
-                        </p>
-                        <p className="text-sm text-red-400/80 font-mono mt-1">
-                          {error}
+                  {!loading && error && (
+                    <div className="bg-danger/10 border border-danger/20 rounded-md p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="size-5 text-danger mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-danger">
+                            Query Error
+                          </p>
+                          <p className="text-sm text-danger/80 font-mono mt-1">
+                            {error}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!loading && !error && !result && (
+                    <div className="flex items-center justify-center h-full min-h-[300px]">
+                      <div className="text-center">
+                        <Search className="size-12 text-border mx-auto mb-3" />
+                        <p className="text-text-dim text-sm">
+                          Execute a query to see results
                         </p>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {!loading && !error && !result && (
-                  <div className="flex items-center justify-center h-full min-h-[300px]">
-                    <div className="text-center">
-                      <svg
-                        className="w-12 h-12 text-[#27272a] mx-auto mb-3"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                        />
-                      </svg>
-                      <p className="text-[#71717a] text-sm">
-                        Execute a query to see results
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {!loading &&
-                  !error &&
-                  result &&
-                  activeTab === "table" &&
-                  (rows.length === 0 && !result.aggregations ? (
-                    <div className="flex items-center justify-center h-full min-h-[200px]">
-                      <p className="text-[#71717a] text-sm">
-                        Query returned no rows
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-4">
-                      {rows.length > 0 && (
-                        <div className="overflow-x-auto rounded-md border border-[#27272a]">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b border-[#27272a] bg-[#09090b]">
-                                {columns.map((col) => (
-                                  <th
-                                    className="text-left px-3 py-2 text-xs font-medium text-[#71717a] uppercase tracking-wider whitespace-nowrap"
-                                    key={col}
-                                  >
-                                    {col}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {rows.map((row, i) => (
-                                <tr
-                                  className="border-b border-[#27272a] last:border-0 hover:bg-[#27272a]/50 transition-colors"
-                                  key={
-                                    row.id === undefined ? i : String(row.id)
-                                  }
-                                >
-                                  {columns.map((col) => (
-                                    <td
-                                      className={`px-3 py-2 whitespace-nowrap ${
-                                        col === "id" || col === "$dist"
-                                          ? "font-mono text-[#fafafa]"
-                                          : "text-[#a1a1aa]"
-                                      } ${col === "$dist" ? "text-blue-400" : ""}`}
-                                      key={col}
-                                      title={
-                                        typeof row[col] === "object"
-                                          ? JSON.stringify(row[col])
-                                          : String(row[col] ?? "")
+                  <Tabs.Panel value="table">
+                    {!loading &&
+                      !error &&
+                      result &&
+                      (rows.length === 0 && !result.aggregations ? (
+                        <div className="flex items-center justify-center h-full min-h-[200px]">
+                          <p className="text-text-dim text-sm">
+                            Query returned no rows
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-4">
+                          {rows.length > 0 && (
+                            <div className="overflow-x-auto rounded-md border border-border">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b border-border bg-bg-muted">
+                                    {columns.map((col) => (
+                                      <th
+                                        className="text-left px-3 py-2 text-xs font-medium text-text-dim uppercase tracking-wider whitespace-nowrap"
+                                        key={col}
+                                      >
+                                        {col}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {rows.map((row, i) => (
+                                    <tr
+                                      className="border-b border-border last:border-0 hover:bg-bg-hover/50 transition-colors"
+                                      key={
+                                        row.id === undefined
+                                          ? i
+                                          : String(row.id)
                                       }
                                     >
-                                      {col === "$dist" &&
-                                      typeof row[col] === "number"
-                                        ? (row[col] as number).toFixed(6)
-                                        : truncate(row[col])}
-                                    </td>
+                                      {columns.map((col) => (
+                                        <td
+                                          className={`px-3 py-2 whitespace-nowrap ${
+                                            col === "id" || col === "$dist"
+                                              ? "font-mono text-text"
+                                              : "text-text-muted"
+                                          } ${col === "$dist" ? "text-blue-600" : ""}`}
+                                          key={col}
+                                          title={
+                                            typeof row[col] === "object"
+                                              ? JSON.stringify(row[col])
+                                              : String(row[col] ?? "")
+                                          }
+                                        >
+                                          {col === "$dist" &&
+                                          typeof row[col] === "number"
+                                            ? (row[col] as number).toFixed(6)
+                                            : truncate(row[col])}
+                                        </td>
+                                      ))}
+                                    </tr>
                                   ))}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
 
-                      {result.aggregations && (
-                        <div>
-                          <h3 className="text-xs font-medium text-[#71717a] uppercase tracking-wider mb-2">
-                            Aggregations
-                          </h3>
-                          <pre className="bg-[#09090b] border border-[#27272a] rounded-md p-3 font-mono text-sm overflow-x-auto">
-                            <code
-                              dangerouslySetInnerHTML={{
-                                __html: syntaxHighlight(
-                                  JSON.stringify(result.aggregations, null, 2)
-                                )
-                              }}
-                            />
-                          </pre>
+                          {result.aggregations && (
+                            <div>
+                              <h3 className="text-xs font-medium text-text-dim uppercase tracking-wider mb-2">
+                                Aggregations
+                              </h3>
+                              <pre className="bg-bg border border-border rounded-md p-3 font-mono text-sm overflow-x-auto">
+                                <code
+                                  dangerouslySetInnerHTML={{
+                                    __html: syntaxHighlight(
+                                      JSON.stringify(
+                                        result.aggregations,
+                                        null,
+                                        2
+                                      )
+                                    )
+                                  }}
+                                />
+                              </pre>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                      ))}
+                  </Tabs.Panel>
 
-                {!loading && !error && result && activeTab === "json" && (
-                  <pre className="bg-[#09090b] border border-[#27272a] rounded-md p-4 font-mono text-sm overflow-auto max-h-[600px]">
-                    <code
-                      dangerouslySetInnerHTML={{
-                        __html: syntaxHighlight(JSON.stringify(result, null, 2))
-                      }}
-                    />
-                  </pre>
-                )}
-              </div>
+                  <Tabs.Panel value="json">
+                    {!loading && !error && result && (
+                      <pre className="bg-bg border border-border rounded-md p-4 font-mono text-sm overflow-auto max-h-[600px]">
+                        <code
+                          dangerouslySetInnerHTML={{
+                            __html: syntaxHighlight(
+                              JSON.stringify(result, null, 2)
+                            )
+                          }}
+                        />
+                      </pre>
+                    )}
+                  </Tabs.Panel>
+                </div>
+              </Tabs.Root>
 
               {/* Performance bar */}
               {!loading && result && (
-                <div className="flex items-center gap-4 border-t border-[#27272a] pt-3 mt-auto">
+                <div className="flex items-center gap-4 border-t border-border pt-3 mt-auto">
                   {serverMs !== undefined && (
-                    <span className="text-xs text-[#71717a] font-mono">
+                    <span className="text-xs text-text-dim font-mono">
                       Server:{" "}
-                      <span className="text-[#a1a1aa]">
+                      <span className="text-text-muted">
                         {formatMs(serverMs as number)}
                       </span>
                     </span>
                   )}
                   {execTimeRef.current !== null && (
-                    <span className="text-xs text-[#71717a] font-mono">
+                    <span className="text-xs text-text-dim font-mono">
                       Round-trip:{" "}
-                      <span className="text-[#a1a1aa]">
+                      <span className="text-text-muted">
                         {formatMs(execTimeRef.current)}
                       </span>
                     </span>
                   )}
-                  <span className="text-xs text-[#71717a] font-mono">
-                    Rows: <span className="text-[#a1a1aa]">{rows.length}</span>
+                  <span className="text-xs text-text-dim font-mono">
+                    Rows:{" "}
+                    <span className="text-text-muted">{rows.length}</span>
                   </span>
                   {cacheTemp !== undefined && (
-                    <span className="text-xs text-[#71717a] font-mono">
+                    <span className="text-xs text-text-dim font-mono">
                       Cache:{" "}
-                      <span className="text-[#a1a1aa]">
+                      <span className="text-text-muted">
                         {String(cacheTemp)}
                       </span>
                     </span>
                   )}
                   {result.next_cursor && (
-                    <span className="text-xs text-[#71717a] font-mono ml-auto">
+                    <span className="text-xs text-text-dim font-mono ml-auto">
                       Has more results
                     </span>
                   )}

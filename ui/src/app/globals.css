@@ -4,26 +4,28 @@
   --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
 
-  --color-bg: #09090b;
-  --color-bg-card: #18181b;
-  --color-bg-hover: #27272a;
-  --color-bg-input: #18181b;
-  --color-bg-muted: #27272a;
+  --color-bg: #ffffff;
+  --color-bg-card: #fafafa;
+  --color-bg-hover: #f4f4f5;
+  --color-bg-input: #ffffff;
+  --color-bg-muted: #f4f4f5;
 
-  --color-border: #27272a;
-  --color-border-hover: #3f3f46;
+  --color-border: #e4e4e7;
+  --color-border-hover: #d4d4d8;
 
-  --color-text: #fafafa;
-  --color-text-muted: #a1a1aa;
-  --color-text-dim: #71717a;
+  --color-text: #09090b;
+  --color-text-muted: #52525b;
+  --color-text-dim: #a1a1aa;
 
   --color-accent: #3b82f6;
   --color-accent-hover: #2563eb;
 
-  --color-success: #22c55e;
-  --color-warning: #eab308;
-  --color-danger: #ef4444;
-  --color-danger-hover: #dc2626;
+  --color-success: #16a34a;
+  --color-warning: #ca8a04;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+
+  --color-overlay: #00000026;
 }
 
 body {

@@ -1,7 +1,8 @@
 "use client";
 
+import { Collapsible } from "@base-ui/react/collapsible";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { healthQueryOptions, metricsQueryOptions } from "@/lib/queries";
 
 interface ParsedMetric {
@@ -58,8 +59,6 @@ const TypeBadge = ({ type }: { readonly type: string }) => {
 };
 
 const MetricsPage = () => {
-  const [showRaw, setShowRaw] = useState(false);
-
   const healthQuery = useQuery(healthQueryOptions());
   const metricsQuery = useQuery(metricsQueryOptions());
 
@@ -225,28 +224,12 @@ const MetricsPage = () => {
         </div>
 
         {/* Raw Metrics */}
-        <div>
-          <button
-            className="mb-4 flex items-center gap-2 text-sm font-medium text-text-muted transition-colors hover:text-text"
-            onClick={() => setShowRaw(!showRaw)}
-            type="button"
-          >
-            <svg
-              className={`size-4 transition-transform ${showRaw ? "rotate-90" : ""}`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M9 5l7 7-7 7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            {showRaw ? "Hide Raw" : "Show Raw"}
-          </button>
-          {showRaw && (
+        <Collapsible.Root>
+          <Collapsible.Trigger className="mb-4 flex items-center gap-2 text-sm font-medium text-text-muted transition-colors hover:text-text">
+            <ChevronRight className="size-4 transition-transform [[data-panel-open]_&]:rotate-90" />
+            Raw Metrics
+          </Collapsible.Trigger>
+          <Collapsible.Panel>
             <div className="overflow-x-auto rounded-lg border border-border bg-bg-card p-5">
               {isLoading ? (
                 <div className="space-y-2">
@@ -264,8 +247,8 @@ const MetricsPage = () => {
                 </p>
               )}
             </div>
-          )}
-        </div>
+          </Collapsible.Panel>
+        </Collapsible.Root>
       </div>
     </div>
   );
