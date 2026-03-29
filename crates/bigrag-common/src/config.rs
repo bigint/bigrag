@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::default_true;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
     #[serde(default = "default_host")]
@@ -141,8 +143,6 @@ fn default_batch_interval_ms() -> u64 {
 fn default_memtable_size() -> u64 {
     64
 }
-use crate::default_true;
-
 fn default_size_ratio() -> f64 {
     4.0
 }

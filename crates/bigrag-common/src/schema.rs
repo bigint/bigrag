@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use crate::default_true;
+
 /// Schema attribute type.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -152,7 +154,6 @@ pub struct AttributeSchema {
 fn default_filterable() -> bool {
     true
 }
-use crate::default_true;
 
 /// FTS can be a bool or a config object.
 #[derive(Debug, Clone, Serialize, Deserialize)]
