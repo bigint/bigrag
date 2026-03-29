@@ -268,6 +268,7 @@ async def reprocess_document(
 async def document_progress_sse(
     collection_name: str,
     document_id: str,
+    _: dict = Depends(get_current_user),
 ):
     """SSE stream of real-time ingestion progress for a document."""
 
