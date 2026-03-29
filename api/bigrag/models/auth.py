@@ -5,18 +5,18 @@ from pydantic import BaseModel, EmailStr, Field
 
 
 class SetupRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str = Field(min_length=8)
     display_name: str = Field(min_length=1)
 
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 
 class SignupRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str = Field(min_length=8)
     display_name: str = Field(min_length=1)
     invite_code: str
