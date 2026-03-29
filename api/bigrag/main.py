@@ -43,6 +43,12 @@ async def lifespan(app: FastAPI):
 
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 
+    # Clean up expired sessions on startup
+    from bigrag.services.auth import cleanup_expired_sessions
+    cleaned = await cleanup_expired_sessions()
+    if cleaned:
+        logger.info(f"Cleaned up {cleaned} expired sessions")
+
     logger.info(f"Server ready on {settings.host}:{settings.port}")
     yield
 

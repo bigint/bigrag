@@ -97,6 +97,13 @@ async def validate_session(token: str) -> dict | None:
     return dict(row) if row else None
 
 
+async def cleanup_expired_sessions() -> int:
+    """Delete expired sessions. Returns number of rows deleted."""
+    result = await db.execute("DELETE FROM sessions WHERE expires_at <= now()")
+    count = int(result.split()[-1]) if result else 0
+    return count
+
+
 async def invalidate_session(token: str) -> None:
     token_hash = hash_token(token)
     await db.execute("DELETE FROM sessions WHERE token_hash = $1", token_hash)
