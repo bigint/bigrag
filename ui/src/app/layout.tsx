@@ -1,7 +1,6 @@
 import { GeistMono } from "geist/font/mono";
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
-import { Sidebar } from "@/components/sidebar";
 import { Providers } from "@/lib/query-client";
 import "./globals.css";
 
@@ -23,10 +22,7 @@ const RootLayout = ({ children }: { readonly children: React.ReactNode }) => {
     <html className={`${outfit.variable} ${GeistMono.variable}`} lang="en">
       <body className="antialiased">
         <Providers>
-          <Sidebar />
-          <main className="ml-56 min-h-screen">
-            <div className="px-8 py-6">{children}</div>
-          </main>
+          {children}
         </Providers>
       </body>
     </html>

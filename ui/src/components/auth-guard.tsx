@@ -1,0 +1,84 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  clearAuth,
+  getSessionToken,
+  isAuthenticated,
+  setUser
+} from "@/lib/auth-store";
+import { getMe, getSetupStatus } from "@/lib/api";
+
+const PUBLIC_PATHS = ["/login", "/setup", "/signup"];
+
+export const AuthGuard = ({ children }: { readonly children: React.ReactNode }) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [checked, setChecked] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
+
+  const check = useCallback(async () => {
+    const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+
+    try {
+      const { needs_setup } = await getSetupStatus();
+      if (needs_setup) {
+        if (pathname !== "/setup") {
+          router.replace("/setup");
+          return;
+        }
+        setAuthorized(true);
+        setChecked(true);
+        return;
+      }
+    } catch {
+      // If setup-status fails (no DB), allow through — legacy mode
+      setAuthorized(true);
+      setChecked(true);
+      return;
+    }
+
+    if (isPublic) {
+      if (isAuthenticated() && pathname === "/login") {
+        router.replace("/");
+        return;
+      }
+      setAuthorized(true);
+      setChecked(true);
+      return;
+    }
+
+    if (!isAuthenticated()) {
+      router.replace("/login");
+      return;
+    }
+
+    try {
+      const { user } = await getMe();
+      setUser(user as Parameters<typeof setUser>[0]);
+      setAuthorized(true);
+    } catch {
+      clearAuth();
+      router.replace("/login");
+    } finally {
+      setChecked(true);
+    }
+  }, [pathname, router]);
+
+  useEffect(() => {
+    check();
+  }, [check]);
+
+  if (!checked) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="size-5 animate-spin rounded-full border-2 border-border border-t-text" />
+      </div>
+    );
+  }
+
+  if (!authorized) return null;
+
+  return <>{children}</>;
+};

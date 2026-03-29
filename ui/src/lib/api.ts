@@ -1,10 +1,10 @@
-import { getApiKey, getBaseUrl } from "./auth-store";
+import { clearAuth, getBaseUrl, getSessionToken } from "./auth-store";
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const apiKey = getApiKey();
+  const token = getSessionToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...((options.headers as Record<string, string>) || {})
   };
 
@@ -15,6 +15,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined" && !path.startsWith("/v1/auth/")) {
+      clearAuth();
+      window.location.href = "/login";
+      throw new ApiError(401, "Session expired");
+    }
     const body = await res.json().catch(() => ({}));
     throw new ApiError(
       res.status,
@@ -354,10 +359,121 @@ export async function debugRecall(ns: string, num?: number, topK?: number) {
 // Metrics
 
 export async function getMetrics() {
-  const apiKey = getApiKey();
+  const token = getSessionToken();
   const res = await fetch(`${getBaseUrl()}/v1/metrics`, {
     cache: "no-store",
-    headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
   });
   return res.text();
+}
+
+// Auth
+
+export interface AuthResponse {
+  token: string;
+  user: {
+    id: string;
+    email: string;
+    display_name: string;
+    role: string;
+    created_at: string;
+    updated_at: string;
+  };
+}
+
+export async function getSetupStatus() {
+  return request<{ needs_setup: boolean }>("/v1/auth/setup-status");
+}
+
+export async function setupAdmin(body: { email: string; password: string; display_name: string }) {
+  return request<AuthResponse>("/v1/auth/setup", {
+    body: JSON.stringify(body),
+    method: "POST"
+  });
+}
+
+export async function login(body: { email: string; password: string }) {
+  return request<AuthResponse>("/v1/auth/login", {
+    body: JSON.stringify(body),
+    method: "POST"
+  });
+}
+
+export async function signup(body: { email: string; password: string; display_name: string; invite_code: string }) {
+  return request<AuthResponse>("/v1/auth/signup", {
+    body: JSON.stringify(body),
+    method: "POST"
+  });
+}
+
+export async function getMe() {
+  return request<{ user: AuthResponse["user"] }>("/v1/auth/me");
+}
+
+export async function logout() {
+  return request<{ status: string }>("/v1/auth/logout", { method: "POST" });
+}
+
+export async function changePassword(body: { current_password: string; new_password: string }) {
+  return request<{ status: string }>("/v1/auth/password", {
+    body: JSON.stringify(body),
+    method: "PUT"
+  });
+}
+
+// Admin - Users
+
+export interface UserSummary {
+  id: string;
+  email: string;
+  display_name: string;
+  role: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listUsers() {
+  return request<{ users: UserSummary[] }>("/v1/admin/users");
+}
+
+export async function deleteUser(id: string) {
+  return request<{ status: string; message: string }>(`/v1/admin/users/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+}
+
+export async function updateUserRole(id: string, role: string) {
+  return request<{ status: string }>(`/v1/admin/users/${encodeURIComponent(id)}`, {
+    body: JSON.stringify({ role }),
+    method: "PATCH"
+  });
+}
+
+// Admin - Invites
+
+export interface InviteSummary {
+  id: string;
+  code: string;
+  role: string;
+  expires_at: string;
+  created_at: string;
+  used_by: string | null;
+  created_by_email: string;
+}
+
+export async function createInvite(body: { role?: string; expires_in_hours?: number }) {
+  return request<InviteSummary>("/v1/admin/invites", {
+    body: JSON.stringify(body),
+    method: "POST"
+  });
+}
+
+export async function listInvites() {
+  return request<{ invites: InviteSummary[] }>("/v1/admin/invites");
+}
+
+export async function deleteInvite(id: string) {
+  return request<{ status: string; message: string }>(`/v1/admin/invites/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
 }

@@ -4,9 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminConfigQueryOptions, healthQueryOptions } from "@/lib/queries";
 import {
-  getApiKey,
   getBaseUrl,
-  setApiKey,
   setBaseUrl
 } from "@/lib/auth-store";
 
@@ -28,22 +26,18 @@ const SettingsPage = () => {
   const configQuery = useQuery(adminConfigQueryOptions());
 
   const [url, setUrl] = useState("");
-  const [apiKey, setKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     setUrl(getBaseUrl());
-    setKey(getApiKey());
   }, []);
 
   const handleSave = useCallback(() => {
     setBaseUrl(url);
-    setApiKey(apiKey);
     setSaved(true);
     queryClient.invalidateQueries();
     setTimeout(() => setSaved(false), 2000);
-  }, [url, apiKey, queryClient]);
+  }, [url, queryClient]);
 
   const isLoading = healthQuery.isLoading || configQuery.isLoading;
   const isConnected = healthQuery.isSuccess;
@@ -86,32 +80,6 @@ const SettingsPage = () => {
                   spellCheck={false}
                   value={url}
                 />
-              </div>
-
-              <div className="flex items-center justify-between gap-4 px-5 py-4">
-                <div className="min-w-0">
-                  <p className="text-sm text-text-muted">API Key</p>
-                  <p className="mt-0.5 text-[13px] text-text-dim">
-                    Master key or admin API key
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    className="w-80 rounded-md border border-border bg-bg px-3 py-1.5 font-mono text-sm text-text outline-none focus:border-text-muted"
-                    onChange={(e) => setKey(e.target.value)}
-                    placeholder="br_..."
-                    spellCheck={false}
-                    type={showKey ? "text" : "password"}
-                    value={apiKey}
-                  />
-                  <button
-                    className="shrink-0 rounded-md border border-border px-2.5 py-1.5 text-xs text-text-muted hover:bg-bg-hover"
-                    onClick={() => setShowKey(!showKey)}
-                    type="button"
-                  >
-                    {showKey ? "Hide" : "Show"}
-                  </button>
-                </div>
               </div>
 
               <div className="flex items-center justify-between px-5 py-4">
