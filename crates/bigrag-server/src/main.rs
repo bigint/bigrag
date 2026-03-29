@@ -32,7 +32,7 @@ struct Cli {
     host: String,
 
     /// Listen port
-    #[arg(short, long, default_value = "3000")]
+    #[arg(short, long, default_value = "8080")]
     port: u16,
 
     /// Metrics port (Prometheus)

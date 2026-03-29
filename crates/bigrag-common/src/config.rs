@@ -114,7 +114,7 @@ fn default_host() -> String {
     "0.0.0.0".into()
 }
 fn default_port() -> u16 {
-    3000
+    8080
 }
 fn default_metrics_port() -> u16 {
     9090
