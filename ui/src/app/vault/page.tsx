@@ -118,147 +118,6 @@ async function deleteDocumentChunks(namespace: string, filename: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Icons
-// ---------------------------------------------------------------------------
-
-function UploadIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-      viewBox="0 0 24 24"
-    >
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" x2="12" y1="3" y2="15" />
-    </svg>
-  );
-}
-
-function FileIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-      viewBox="0 0 24 24"
-    >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="16" x2="8" y1="13" y2="13" />
-      <line x1="16" x2="8" y1="17" y2="17" />
-      <polyline points="10 9 9 9 8 9" />
-    </svg>
-  );
-}
-
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-      viewBox="0 0 24 24"
-    >
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" x2="16.65" y1="21" y2="16.65" />
-    </svg>
-  );
-}
-
-function _ChevronIcon({
-  className,
-  open
-}: {
-  className?: string;
-  open: boolean;
-}) {
-  return (
-    <svg
-      className={`${className ?? ""} transition-transform ${open ? "rotate-180" : ""}`}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-      viewBox="0 0 24 24"
-    >
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  );
-}
-
-function XIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-    >
-      <line x1="18" x2="6" y1="6" y2="18" />
-      <line x1="6" x2="18" y1="6" y2="18" />
-    </svg>
-  );
-}
-
-function SettingsIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-      viewBox="0 0 24 24"
-    >
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
-}
-
-function SpinnerIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={`animate-spin ${className ?? ""}`}
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle
-        className="opacity-20"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="3"
-      />
-      <path
-        d="M12 2a10 10 0 0 1 10 10"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="3"
-      />
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Main Page Component
 // ---------------------------------------------------------------------------
 
@@ -609,7 +468,7 @@ export default function VaultPage() {
             onClick={() => setShowSettings((s) => !s)}
             type="button"
           >
-            <SettingsIcon className="size-4" />
+            <Settings className="size-4" />
             Settings
           </button>
         </div>
@@ -626,7 +485,7 @@ export default function VaultPage() {
                 onClick={() => setShowSettings(false)}
                 type="button"
               >
-                <XIcon className="size-4" />
+                <X className="size-4" />
               </button>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -690,7 +549,7 @@ export default function VaultPage() {
               onClick={() => setError(null)}
               type="button"
             >
-              <XIcon className="size-4" />
+              <X className="size-4" />
             </button>
           </div>
         )}
@@ -719,12 +578,12 @@ export default function VaultPage() {
 
           {isUploading ? (
             <>
-              <SpinnerIcon className="mb-3 size-8 text-blue-500" />
+              <Loader2 className="mb-3 size-8 animate-spin text-blue-500" />
               <p className="text-sm text-[#fafafa]">{uploadProgress}</p>
             </>
           ) : (
             <>
-              <UploadIcon
+              <Upload
                 className={`mb-3 size-8 ${isDragOver ? "text-blue-500" : "text-[#71717a]"}`}
               />
               <p className="text-sm text-[#fafafa]">
@@ -744,7 +603,7 @@ export default function VaultPage() {
           </label>
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#71717a]" />
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#71717a]" />
               <input
                 className="w-full rounded-md border border-[#27272a] bg-[#18181b] py-2 pl-10 pr-3 text-sm text-[#fafafa] placeholder-[#71717a] focus:border-[#3f3f46] focus:outline-none"
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -761,9 +620,9 @@ export default function VaultPage() {
               type="button"
             >
               {isSearching ? (
-                <SpinnerIcon className="size-4" />
+                <Loader2 className="size-4 animate-spin" />
               ) : (
-                <SearchIcon className="size-4" />
+                <Search className="size-4" />
               )}
               Search
             </button>
@@ -795,7 +654,7 @@ export default function VaultPage() {
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm">
-                        <FileIcon className="size-4 text-blue-500" />
+                        <FileText className="size-4 text-blue-500" />
                         <span className="font-medium text-[#fafafa]">
                           {row.filename as string}
                         </span>
@@ -872,7 +731,7 @@ export default function VaultPage() {
                   className="group flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-[#27272a]/30"
                   key={file.name}
                 >
-                  <FileIcon className="size-4 shrink-0 text-[#71717a]" />
+                  <FileText className="size-4 shrink-0 text-[#71717a]" />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#fafafa]">
                     {file.name}
                   </span>
@@ -896,7 +755,7 @@ export default function VaultPage() {
                     title={`Delete ${file.name}`}
                     type="button"
                   >
-                    <XIcon className="size-4" />
+                    <X className="size-4" />
                   </button>
                 </div>
               ))}

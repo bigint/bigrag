@@ -155,39 +155,4 @@ const NamespacesPage = () => {
   );
 };
 
-const SearchIcon = ({ className }: { readonly className?: string }) => {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-      viewBox="0 0 16 16"
-    >
-      <circle cx="7" cy="7" r="4.5" />
-      <path d="M10.5 10.5L14 14" />
-    </svg>
-  );
-};
-
-const EmptyIcon = ({ className }: { readonly className?: string }) => {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-      viewBox="0 0 24 24"
-    >
-      <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7" />
-      <path d="M1 4h22v3H1z" />
-      <path d="M10 12h4" />
-    </svg>
-  );
-};
-
 export default NamespacesPage;

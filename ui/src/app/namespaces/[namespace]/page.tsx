@@ -60,7 +60,7 @@ const NamespaceDetailPage = () => {
           className="mb-3 inline-flex items-center gap-1.5 text-xs text-text-muted transition-colors hover:text-text"
           href="/namespaces"
         >
-          <ArrowLeftIcon className="size-3.5" />
+          <ChevronLeft className="size-3.5" />
           Back to namespaces
         </Link>
 
@@ -631,25 +631,6 @@ const MetaRow = ({ label, value, sub, isMono, children }: MetaRowProps) => {
         )}
       </div>
     </div>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Icons
-// ---------------------------------------------------------------------------
-const ArrowLeftIcon = ({ className }: { readonly className?: string }) => {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-      viewBox="0 0 16 16"
-    >
-      <path d="M10 3L5 8l5 5" />
-    </svg>
   );
 };
 

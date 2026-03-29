@@ -631,8 +631,10 @@ pub async fn query_documents(
     Json(body): Json<QueryRequest>,
 ) -> impl IntoResponse {
     let start = std::time::Instant::now();
+    debug!(namespace = %namespace, "query_documents request received");
 
     if let Err(e) = bigrag_common::types::validate_namespace(&namespace) {
+        warn!(namespace = %namespace, error = %e, "invalid namespace name in query request");
         crate::metrics::record_query(&namespace, start.elapsed(), false);
         return (
             StatusCode::BAD_REQUEST,
@@ -698,12 +700,23 @@ pub async fn query_documents(
         include_vectors,
     ) {
         Ok(result) => {
-            crate::metrics::record_query(&namespace, start.elapsed(), true);
+            let elapsed = start.elapsed();
+            let row_count = result.rows.as_ref().map_or(0, |r| r.len());
+            info!(
+                namespace = %namespace,
+                rows = row_count,
+                top_k,
+                has_cursor = result.next_cursor.is_some(),
+                elapsed_ms = elapsed.as_secs_f64() * 1000.0,
+                "query_documents completed"
+            );
+            crate::metrics::record_query(&namespace, elapsed, true);
             let mut val = serde_json::to_value(result).unwrap();
             apply_vector_encoding(&mut val, vector_encoding);
             (StatusCode::OK, Json(val))
         }
         Err(e) => {
+            error!(namespace = %namespace, error = %e, "query_documents failed");
             crate::metrics::record_query(&namespace, start.elapsed(), false);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -884,8 +897,10 @@ pub async fn delete_namespace(
     }
 
     if state.delete_namespace(&namespace) {
+        info!(namespace = %namespace, "namespace deleted");
         (StatusCode::OK, Json(serde_json::json!({"status": "ok"})))
     } else {
+        warn!(namespace = %namespace, "delete_namespace: namespace not found");
         (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({"status": "error", "error": "namespace not found"})),
