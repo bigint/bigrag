@@ -369,9 +369,22 @@ class AsyncBigRAG:
         )
         return DocumentListResponse.from_dict(data)
 
+    async def get_document(self, collection: str, document_id: str) -> Document:
+        return Document(
+            **await self._request(
+                "GET", f"/v1/collections/{collection}/documents/{document_id}"
+            )
+        )
+
     async def delete_document(self, collection: str, document_id: str) -> dict[str, Any]:
         return await self._request(
             "DELETE", f"/v1/collections/{collection}/documents/{document_id}"
+        )
+
+    async def reprocess_document(self, collection: str, document_id: str) -> dict[str, Any]:
+        return await self._request(
+            "POST",
+            f"/v1/collections/{collection}/documents/{document_id}/reprocess",
         )
 
     async def query(
@@ -391,6 +404,20 @@ class AsyncBigRAG:
             "POST", f"/v1/collections/{collection}/query", json_body=body
         )
         return QueryResponse.from_dict(data)
+
+    async def upsert_vectors(self, collection: str, vectors: list[dict]) -> dict[str, Any]:
+        return await self._request(
+            "POST",
+            f"/v1/collections/{collection}/vectors/upsert",
+            json_body={"vectors": vectors},
+        )
+
+    async def delete_vectors(self, collection: str, ids: list[str]) -> dict[str, Any]:
+        return await self._request(
+            "POST",
+            f"/v1/collections/{collection}/vectors/delete",
+            json_body={"ids": ids},
+        )
 
     async def close(self) -> None:
         await self._client.aclose()
