@@ -5,6 +5,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use tracing::{debug, trace, warn};
 use uuid::Uuid;
 
 use crate::state::AppState;
@@ -28,6 +29,7 @@ pub async fn auth_middleware(
 ) -> Response {
     // If no keys are configured (open mode), allow all requests
     if state.key_store.is_open() && state.jwt_config.is_none() {
+        trace!("auth: open mode, allowing request");
         return next.run(request).await;
     }
 
@@ -36,30 +38,37 @@ pub async fn auth_middleware(
     match token {
         Some(ref t) => match state.validate_auth(t) {
             Some(api_key) => {
+                debug!(key_id = %api_key.id, key_name = %api_key.name, "auth: request authenticated");
                 request.extensions_mut().insert(api_key);
                 next.run(request).await
             }
-            None => (
+            None => {
+                warn!("auth: invalid API key or JWT token");
+                (
+                    StatusCode::UNAUTHORIZED,
+                    Json(serde_json::json!({
+                        "error": {
+                            "code": "UNAUTHORIZED",
+                            "message": "Invalid API key"
+                        }
+                    })),
+                )
+                    .into_response()
+            }
+        },
+        None => {
+            warn!("auth: missing Authorization header");
+            (
                 StatusCode::UNAUTHORIZED,
                 Json(serde_json::json!({
                     "error": {
                         "code": "UNAUTHORIZED",
-                        "message": "Invalid API key"
+                        "message": "Missing Authorization header"
                     }
                 })),
             )
-                .into_response(),
-        },
-        None => (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({
-                "error": {
-                    "code": "UNAUTHORIZED",
-                    "message": "Missing Authorization header"
-                }
-            })),
-        )
-            .into_response(),
+                .into_response()
+        }
     }
 }
 
@@ -80,6 +89,15 @@ pub async fn request_tracking(request: Request, next: Next) -> Response {
 
     let duration = start.elapsed();
     let status = response.status().as_u16();
+
+    debug!(
+        method = %method,
+        path = %path,
+        status,
+        duration_ms = duration.as_secs_f64() * 1000.0,
+        request_id = %request_id,
+        "request completed"
+    );
 
     // Record HTTP request metrics
     metrics::counter!(

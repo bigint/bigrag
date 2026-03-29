@@ -1014,6 +1014,7 @@ pub async fn update_schema(
     Path(namespace): Path<String>,
     Json(schema): Json<serde_json::Value>,
 ) -> impl IntoResponse {
+    info!(namespace = %namespace, "updating schema");
     if let Some(mut ns) = state.documents.get_mut(&namespace) {
         ns.schema = Some(schema);
         (
@@ -1302,6 +1303,13 @@ pub async fn create_api_key(
         .key_store
         .create_key(body.name, permissions, body.expires_at);
 
+    info!(
+        key_id = %record.id,
+        key_name = %record.name,
+        admin = record.permissions.admin,
+        "API key created"
+    );
+
     (
         StatusCode::CREATED,
         Json(serde_json::json!({
@@ -1343,12 +1351,14 @@ pub async fn revoke_api_key(
     }
 
     if state.key_store.revoke_key(&id) {
+        info!(key_id = %id, "API key revoked");
         (
             StatusCode::OK,
             Json(serde_json::json!({"status": "ok", "message": "API key revoked"})),
         )
             .into_response()
     } else {
+        warn!(key_id = %id, "revoke_api_key: key not found");
         (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({
