@@ -97,6 +97,9 @@ for i in $(seq 1 60); do
 done
 
 # --- UI ---
+echo -e "${CYAN}Installing UI dependencies...${NC}"
+(cd "$ROOT_DIR/ui" && pnpm install --frozen-lockfile 2>&1 | tail -1)
+
 echo -e "${CYAN}Starting Next.js UI...${NC}"
 (cd "$ROOT_DIR/ui" && pnpm dev 2>&1 | sed "s/^/[ui] /") &
 PIDS+=($!)
