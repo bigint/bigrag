@@ -35,13 +35,16 @@ async def query_collection(
 ):
     collection = await _get_collection(collection_name)
 
-    embedding_model = get_embedding_model(
-        provider=collection["embedding_provider"],
-        model_name=collection["embedding_model"],
-        dimension=collection["dimension"],
-        api_key=settings.embedding_api_key,
-        base_url=settings.embedding_base_url,
-    )
+    try:
+        embedding_model = get_embedding_model(
+            provider=collection["embedding_provider"],
+            model_name=collection["embedding_model"],
+            dimension=collection["dimension"],
+            api_key=settings.embedding_api_key,
+            base_url=settings.embedding_base_url,
+        )
+    except (ImportError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     results = await retrieve(
         collection_name=collection_name,

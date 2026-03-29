@@ -1,49 +1,35 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { adminConfigQueryOptions, healthQueryOptions } from "@/lib/queries";
+import { healthQueryOptions } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/auth-store";
 
 const Pulse = ({ className }: { readonly className?: string }) => (
   <div className={`animate-pulse rounded-md bg-bg-hover ${className ?? ""}`} />
 );
 
-function renderConfigValue(value: unknown): string {
-  if (value === null || value === undefined) return "---";
-  if (typeof value === "boolean") return value ? "true" : "false";
-  if (typeof value === "number") return String(value);
-  if (typeof value === "string") return value || '""';
-  return JSON.stringify(value);
-}
-
 const SettingsPage = () => {
   const healthQuery = useQuery(healthQueryOptions());
-  const configQuery = useQuery(adminConfigQueryOptions());
 
-  const isLoading = healthQuery.isLoading || configQuery.isLoading;
   const isConnected = healthQuery.isSuccess;
   const version = healthQuery.data?.version ?? "";
-  const config = configQuery.data ?? null;
 
   return (
     <div className="text-text">
       <div className="mx-auto max-w-6xl px-6 py-10">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
           <p className="mt-1 text-[13px] text-text-muted">
-            Server connection and configuration
+            Server connection and information
           </p>
         </div>
 
-        {/* Error */}
         {healthQuery.error && (
           <div className="mb-6 rounded-lg border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
             {healthQuery.error.message}
           </div>
         )}
 
-        {/* Section 1: Connection */}
         <div className="mb-8">
           <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-text-muted">
             Connection
@@ -71,11 +57,6 @@ const SettingsPage = () => {
                   >
                     {isConnected ? "Connected" : "Disconnected"}
                   </span>
-                  {version && (
-                    <span className="ml-1 font-mono text-xs text-text-dim">
-                      v{version}
-                    </span>
-                  )}
                 </div>
               </div>
 
@@ -88,49 +69,6 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        {/* Section 2: Server Configuration */}
-        <div className="mb-8">
-          <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-text-muted">
-            Server Configuration
-          </h2>
-          <div className="rounded-lg border border-border bg-bg-card">
-            {isLoading ? (
-              <div className="divide-y divide-border">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div
-                    className="flex items-center justify-between px-5 py-4"
-                    key={i}
-                  >
-                    <Pulse className="h-4 w-32" />
-                    <Pulse className="h-4 w-40" />
-                  </div>
-                ))}
-              </div>
-            ) : config && Object.keys(config).length > 0 ? (
-              <div className="divide-y divide-border">
-                {Object.entries(config).map(([key, value]) => (
-                  <div
-                    className="flex items-center justify-between px-5 py-4"
-                    key={key}
-                  >
-                    <span className="text-sm text-text-muted">{key}</span>
-                    <span className="max-w-[400px] truncate text-right font-mono text-sm text-text">
-                      {renderConfigValue(value)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="px-5 py-12 text-center text-sm text-text-dim">
-                {isConnected
-                  ? "No configuration data available."
-                  : "Unable to fetch configuration. Server is not connected."}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Section 3: About */}
         <div>
           <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-text-muted">
             About
@@ -140,13 +78,18 @@ const SettingsPage = () => {
               <SettingsRow isLoading={false} label="Product">
                 <span className="text-sm font-medium text-text">bigRAG</span>
               </SettingsRow>
-              <SettingsRow isLoading={false} label="Version">
-                <span className="font-mono text-sm text-text">
-                  {version || "---"}
-                </span>
-              </SettingsRow>
               <SettingsRow isLoading={false} label="License">
                 <span className="text-sm text-text">Apache 2.0</span>
+              </SettingsRow>
+              <SettingsRow isLoading={false} label="Docs">
+                <a
+                  className="font-mono text-sm text-accent hover:underline"
+                  href={`${getBaseUrl()}/docs`}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  {getBaseUrl()}/docs
+                </a>
               </SettingsRow>
             </div>
           </div>

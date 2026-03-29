@@ -1,9 +1,20 @@
 from __future__ import annotations
 
+import json
 import asyncpg
 import logging
 
 logger = logging.getLogger("bigrag.database")
+
+
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    """Register JSONB codec so dicts are auto-serialized."""
+    await conn.set_type_codec(
+        "jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
+    )
+    await conn.set_type_codec(
+        "json", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
+    )
 
 MIGRATIONS = [
     # 001: core auth tables
@@ -105,7 +116,9 @@ class Database:
         if "sslmode=disable" in dsn:
             dsn = dsn.replace("?sslmode=disable", "").replace("&sslmode=disable", "")
             ssl = False
-        self.pool = await asyncpg.create_pool(dsn, min_size=2, max_size=20, ssl=ssl)
+        self.pool = await asyncpg.create_pool(
+            dsn, min_size=2, max_size=20, ssl=ssl, init=_init_connection
+        )
         logger.info("Connected to Postgres")
 
     async def close(self) -> None:

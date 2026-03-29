@@ -83,13 +83,16 @@ async def upload_document(
     )
 
     # Start async ingestion
-    embedding_model = get_embedding_model(
-        provider=collection["embedding_provider"],
-        model_name=collection["embedding_model"],
-        dimension=collection["dimension"],
-        api_key=settings.embedding_api_key,
-        base_url=settings.embedding_base_url,
-    )
+    try:
+        embedding_model = get_embedding_model(
+            provider=collection["embedding_provider"],
+            model_name=collection["embedding_model"],
+            dimension=collection["dimension"],
+            api_key=settings.embedding_api_key,
+            base_url=settings.embedding_base_url,
+        )
+    except (ImportError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     asyncio.create_task(
         ingest_document(
@@ -227,13 +230,16 @@ async def reprocess_document(
     )
 
     # Re-ingest
-    embedding_model = get_embedding_model(
-        provider=collection["embedding_provider"],
-        model_name=collection["embedding_model"],
-        dimension=collection["dimension"],
-        api_key=settings.embedding_api_key,
-        base_url=settings.embedding_base_url,
-    )
+    try:
+        embedding_model = get_embedding_model(
+            provider=collection["embedding_provider"],
+            model_name=collection["embedding_model"],
+            dimension=collection["dimension"],
+            api_key=settings.embedding_api_key,
+            base_url=settings.embedding_base_url,
+        )
+    except (ImportError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     asyncio.create_task(
         ingest_document(

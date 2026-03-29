@@ -58,7 +58,13 @@ class OpenAIEmbedding(EmbeddingModel):
         self, model_name: str = "text-embedding-3-small", api_key: str | None = None,
         dimension: int = 1536,
     ) -> None:
-        import openai
+        try:
+            import openai
+        except ImportError:
+            raise ImportError(
+                "openai package is required for OpenAI embeddings. "
+                "Install it with: pip install 'bigrag[openai]'"
+            )
 
         self._model_name = model_name
         self._dimension = dimension
@@ -127,7 +133,13 @@ class CustomEmbedding(EmbeddingModel):
         self, model_name: str, base_url: str, api_key: str | None = None,
         dimension: int = 1536,
     ) -> None:
-        import openai
+        try:
+            import openai
+        except ImportError:
+            raise ImportError(
+                "openai package is required for custom embeddings. "
+                "Install it with: pip install 'bigrag[openai]'"
+            )
 
         self._model_name = model_name
         self._dimension = dimension
