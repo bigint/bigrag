@@ -179,13 +179,6 @@ export async function queryDocuments(ns: string, body: QueryRequest) {
   );
 }
 
-// Single document
-export async function getDocument(ns: string, id: string) {
-  return request<Record<string, unknown>>(
-    `/v1/namespaces/${encodeURIComponent(ns)}/documents/${encodeURIComponent(id)}`
-  );
-}
-
 // Admin
 export async function getAdminConfig() {
   return request<Record<string, unknown>>("/v1/admin/config");

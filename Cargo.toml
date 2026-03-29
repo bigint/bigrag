@@ -29,7 +29,6 @@ dashmap = "6"
 crossbeam-skiplist = "0.1"
 moka = { version = "0.12", features = ["future"] }
 parking_lot = "0.12"
-rayon = "1"
 
 # Observability
 tracing = "0.1"

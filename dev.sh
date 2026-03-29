@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eo pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -10,9 +10,12 @@ NC='\033[0m'
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PIDS=()
 
+# Source cargo env if present
+[ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
+
 cleanup() {
   echo -e "\n${YELLOW}Shutting down...${NC}"
-  for pid in "${PIDS[@]}"; do
+  for pid in "${PIDS[@]+"${PIDS[@]}"}"; do
     kill "$pid" 2>/dev/null || true
   done
   docker compose -f "$ROOT_DIR/docker-compose.yml" down 2>/dev/null || true
@@ -20,6 +23,14 @@ cleanup() {
 }
 
 trap cleanup EXIT INT TERM
+
+# --- Preflight checks ---
+for cmd in docker cargo pnpm curl; do
+  if ! command -v "$cmd" > /dev/null 2>&1; then
+    echo -e "${RED}Required command not found: $cmd${NC}"
+    exit 1
+  fi
+done
 
 # --- Docker services (MinIO) ---
 echo -e "${CYAN}Starting Docker services (MinIO)...${NC}"
