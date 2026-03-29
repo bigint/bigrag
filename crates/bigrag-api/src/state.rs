@@ -248,6 +248,27 @@ impl JwtConfig {
     }
 }
 
+/// Apply a set of attribute patches to a document's attributes map.
+/// `None` or `Null` values remove the attribute; `Some(val)` sets it.
+fn apply_attribute_patch(
+    attributes: &mut HashMap<String, AttributeValue>,
+    patches: &HashMap<String, Option<AttributeValue>>,
+) {
+    for (key, maybe_val) in patches {
+        match maybe_val {
+            Some(val) if val.is_null() => {
+                attributes.remove(key);
+            }
+            Some(val) => {
+                attributes.insert(key.clone(), val.clone());
+            }
+            None => {
+                attributes.remove(key);
+            }
+        }
+    }
+}
+
 /// Application state shared across all handlers.
 #[derive(Clone)]
 pub struct AppState {
