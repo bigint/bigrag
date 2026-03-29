@@ -152,9 +152,7 @@ pub struct AttributeSchema {
 fn default_filterable() -> bool {
     true
 }
-fn default_true() -> bool {
-    true
-}
+use crate::default_true;
 
 /// FTS can be a bool or a config object.
 #[derive(Debug, Clone, Serialize, Deserialize)]

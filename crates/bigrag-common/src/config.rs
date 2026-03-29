@@ -141,9 +141,8 @@ fn default_batch_interval_ms() -> u64 {
 fn default_memtable_size() -> u64 {
     64
 }
-fn default_true() -> bool {
-    true
-}
+use crate::default_true;
+
 fn default_size_ratio() -> f64 {
     4.0
 }
