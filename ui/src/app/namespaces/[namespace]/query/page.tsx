@@ -13,8 +13,8 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
-import type { QueryResponse, QueryRow } from "@/lib/api";
-import { ApiError, queryDocuments } from "@/lib/api";
+import type { ExplainResult, QueryResponse, QueryRow } from "@/lib/api";
+import { ApiError, explainQuery, queryDocuments } from "@/lib/api";
 import { formatMs } from "@/lib/utils";
 
 const EXAMPLE_QUERIES: { label: string; query: string }[] = [
@@ -120,7 +120,38 @@ export default function QueryPlaygroundPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QueryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [explainResult, setExplainResult] = useState<ExplainResult | null>(
+    null
+  );
+  const [isExplaining, setIsExplaining] = useState(false);
   const execTimeRef = useRef<number | null>(null);
+
+  const handleExplain = useCallback(async () => {
+    setParseError(null);
+    setExplainResult(null);
+
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(query);
+    } catch (e) {
+      setParseError(e instanceof Error ? e.message : "Invalid JSON");
+      return;
+    }
+
+    setIsExplaining(true);
+    try {
+      const res = await explainQuery(namespace, parsed);
+      setExplainResult(res);
+    } catch (e) {
+      if (e instanceof ApiError) {
+        setError(`${e.status}: ${e.message}`);
+      } else {
+        setError(e instanceof Error ? e.message : "Unknown error");
+      }
+    } finally {
+      setIsExplaining(false);
+    }
+  }, [query, namespace]);
 
   const handleExecute = useCallback(async () => {
     setParseError(null);
@@ -244,6 +275,14 @@ export default function QueryPlaygroundPage() {
                       Execute
                     </>
                   )}
+                </button>
+                <button
+                  className="text-text-muted hover:text-text hover:bg-bg-hover rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+                  disabled={isExplaining}
+                  onClick={handleExplain}
+                  type="button"
+                >
+                  {isExplaining ? "Explaining..." : "Explain"}
                 </button>
                 <button
                   className="text-text-muted hover:text-text hover:bg-bg-hover rounded-md px-4 py-2 text-sm font-medium transition-colors"

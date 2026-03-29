@@ -8,12 +8,16 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { StatusBadge } from "@/components/status-badge";
 import {
+  copyNamespace,
   deleteNamespace,
+  exportNamespace,
+  getDocument,
   type QueryRow,
   queryDocuments,
   triggerCompaction,
   triggerWarm,
-  updateSchema
+  updateSchema,
+  writeDocuments
 } from "@/lib/api";
 import {
   namespaceMetadataQueryOptions,
@@ -121,6 +125,12 @@ const NamespaceDetailPage = () => {
             </Tabs.Tab>
             <Tabs.Tab
               className="relative px-4 py-2.5 text-sm font-medium text-text-muted transition-colors hover:text-text data-[selected]:text-text"
+              value="write"
+            >
+              Write
+            </Tabs.Tab>
+            <Tabs.Tab
+              className="relative px-4 py-2.5 text-sm font-medium text-text-muted transition-colors hover:text-text data-[selected]:text-text"
               value="schema"
             >
               Schema
@@ -136,6 +146,9 @@ const NamespaceDetailPage = () => {
 
           <Tabs.Panel value="documents">
             <DocumentsTab namespace={namespace} />
+          </Tabs.Panel>
+          <Tabs.Panel value="write">
+            <WriteTab namespace={namespace} />
           </Tabs.Panel>
           <Tabs.Panel value="schema">
             <SchemaTab namespace={namespace} />
@@ -154,13 +167,18 @@ const NamespaceDetailPage = () => {
 };
 
 // ---------------------------------------------------------------------------
-// Documents Tab
+// Documents Tab — with document viewer
 // ---------------------------------------------------------------------------
 const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<readonly QueryRow[]>([]);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [isSearched, setIsSearched] = useState(false);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [docDetail, setDocDetail] = useState<Record<string, unknown> | null>(
+    null
+  );
+  const [docLoading, setDocLoading] = useState(false);
 
   const queryMutation = useMutation({
     mutationFn: (cursor?: string) => {
@@ -169,7 +187,7 @@ const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
         top_k: 50
       };
       if (query.trim()) {
-        body.rank_by = { bm25: { fields: [], query: query.trim() } };
+        body.rank_by = ["content", "BM25", query.trim()];
       }
       if (cursor) {
         body.cursor = cursor;
@@ -191,6 +209,8 @@ const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
   const handleSearch = () => {
     setRows([]);
     setNextCursor(undefined);
+    setSelectedDocId(null);
+    setDocDetail(null);
     queryMutation.mutate(undefined);
   };
 
@@ -198,7 +218,28 @@ const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
     setQuery("");
     setRows([]);
     setNextCursor(undefined);
+    setSelectedDocId(null);
+    setDocDetail(null);
     queryMutation.mutate(undefined);
+  };
+
+  const handleViewDoc = async (id: string | number) => {
+    const idStr = String(id);
+    if (selectedDocId === idStr) {
+      setSelectedDocId(null);
+      setDocDetail(null);
+      return;
+    }
+    setSelectedDocId(idStr);
+    setDocLoading(true);
+    try {
+      const doc = await getDocument(namespace, idStr);
+      setDocDetail(doc);
+    } catch {
+      setDocDetail(null);
+    } finally {
+      setDocLoading(false);
+    }
   };
 
   const attributeColumns = getAttributeColumns(rows);
@@ -280,28 +321,58 @@ const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
                 </thead>
                 <tbody>
                   {rows.map((row, i) => (
-                    <tr
-                      className="border-b border-border transition-colors last:border-b-0 hover:bg-bg-hover/50"
-                      key={`${row.id}-${i}`}
-                    >
-                      <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-text">
-                        {String(row.id)}
-                      </td>
-                      {hasDist && (
-                        <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-text-muted">
-                          {row.$dist === undefined ? "-" : row.$dist.toFixed(4)}
+                    <>
+                      <tr
+                        className="cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-bg-hover/50"
+                        key={`${row.id}-${i}`}
+                        onClick={() => handleViewDoc(row.id)}
+                      >
+                        <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-accent">
+                          {String(row.id)}
                         </td>
+                        {hasDist && (
+                          <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-text-muted">
+                            {row.$dist !== undefined
+                              ? row.$dist.toFixed(4)
+                              : "-"}
+                          </td>
+                        )}
+                        {attributeColumns.map((col) => (
+                          <td
+                            className="max-w-48 truncate px-4 py-2.5 text-xs text-text-muted"
+                            key={col}
+                            title={String(row[col] ?? "")}
+                          >
+                            {truncateValue(row[col])}
+                          </td>
+                        ))}
+                      </tr>
+                      {selectedDocId === String(row.id) && (
+                        <tr key={`detail-${row.id}`}>
+                          <td
+                            className="border-b border-border bg-bg-card/50 px-4 py-3"
+                            colSpan={
+                              1 + (hasDist ? 1 : 0) + attributeColumns.length
+                            }
+                          >
+                            {docLoading ? (
+                              <div className="flex items-center gap-2 py-2 text-xs text-text-muted">
+                                <div className="size-3 animate-spin rounded-full border-2 border-border border-t-accent" />
+                                Loading document...
+                              </div>
+                            ) : docDetail ? (
+                              <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all font-mono text-xs leading-relaxed text-text-muted">
+                                {JSON.stringify(docDetail, null, 2)}
+                              </pre>
+                            ) : (
+                              <p className="text-xs text-text-dim">
+                                Could not load document details.
+                              </p>
+                            )}
+                          </td>
+                        </tr>
                       )}
-                      {attributeColumns.map((col) => (
-                        <td
-                          className="max-w-48 truncate px-4 py-2.5 text-xs text-text-muted"
-                          key={col}
-                          title={String(row[col] ?? "")}
-                        >
-                          {truncateValue(row[col])}
-                        </td>
-                      ))}
-                    </tr>
+                    </>
                   ))}
                 </tbody>
               </table>
@@ -334,6 +405,94 @@ const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
 };
 
 // ---------------------------------------------------------------------------
+// Write Tab
+// ---------------------------------------------------------------------------
+const WriteTab = ({ namespace }: { readonly namespace: string }) => {
+  const [jsonText, setJsonText] = useState(
+    JSON.stringify(
+      {
+        upsert_rows: [{ id: 1, content: "Hello world" }]
+      },
+      null,
+      2
+    )
+  );
+  const [result, setResult] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const writeMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      writeDocuments(namespace, body),
+    onSuccess: (res) => {
+      setResult(JSON.stringify(res, null, 2));
+      queryClient.invalidateQueries({
+        queryKey: ["namespace-metadata", { namespace }]
+      });
+    }
+  });
+
+  const handleWrite = () => {
+    setResult(null);
+    try {
+      const parsed = JSON.parse(jsonText);
+      writeMutation.mutate(parsed);
+    } catch (e) {
+      setResult(
+        `Parse error: ${e instanceof Error ? e.message : "Invalid JSON"}`
+      );
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="mb-2 text-sm font-medium text-text">
+          Write Request Body
+        </h3>
+        <p className="mb-3 text-xs text-text-dim">
+          Supports upsert_rows, upsert_columns, patch_rows, patch_columns,
+          deletes, delete_by_filter, patch_by_filter, condition, schema,
+          distance_metric
+        </p>
+        <textarea
+          className="w-full resize-y rounded-lg border border-border bg-bg-input px-4 py-3 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
+          onChange={(e) => setJsonText(e.target.value)}
+          rows={14}
+          spellCheck={false}
+          value={jsonText}
+        />
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+          disabled={writeMutation.isPending}
+          onClick={handleWrite}
+          type="button"
+        >
+          {writeMutation.isPending ? "Writing..." : "Execute Write"}
+        </button>
+      </div>
+
+      {writeMutation.error && (
+        <div className="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
+          {writeMutation.error.message}
+        </div>
+      )}
+
+      {result && (
+        <div>
+          <h3 className="mb-2 text-sm font-medium text-text">Response</h3>
+          <pre className="max-h-64 overflow-auto rounded-lg border border-border bg-bg-card p-4 font-mono text-xs leading-relaxed text-text-muted">
+            {result}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Schema Tab
 // ---------------------------------------------------------------------------
 const SchemaTab = ({ namespace }: { readonly namespace: string }) => {
@@ -343,7 +502,6 @@ const SchemaTab = ({ namespace }: { readonly namespace: string }) => {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  // Sync schemaText once on first load
   if (schemaQuery.data && !isSynced) {
     setSchemaText(JSON.stringify(schemaQuery.data, null, 2));
     setIsSynced(true);
@@ -392,7 +550,6 @@ const SchemaTab = ({ namespace }: { readonly namespace: string }) => {
 
   return (
     <div className="space-y-6">
-      {/* Schema table */}
       {schemaEntries.length > 0 && (
         <div>
           <h3 className="mb-3 text-sm font-medium text-text">
@@ -450,7 +607,6 @@ const SchemaTab = ({ namespace }: { readonly namespace: string }) => {
         </div>
       )}
 
-      {/* JSON editor */}
       <div>
         <h3 className="mb-3 text-sm font-medium text-text">Edit Schema</h3>
         <textarea
@@ -489,7 +645,7 @@ const SchemaTab = ({ namespace }: { readonly namespace: string }) => {
 };
 
 // ---------------------------------------------------------------------------
-// Settings Tab
+// Settings Tab — with export + copy
 // ---------------------------------------------------------------------------
 interface SettingsTabProps {
   readonly namespace: string;
@@ -508,10 +664,36 @@ interface SettingsTabProps {
 
 const SettingsTab = ({ namespace, meta, onDeleted }: SettingsTabProps) => {
   const [confirmText, setConfirmText] = useState("");
+  const [copyDest, setCopyDest] = useState("");
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteNamespace(namespace),
     onSuccess: () => onDeleted()
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: () => exportNamespace(namespace),
+    onSuccess: (res) => {
+      const blob = new Blob([res.data], { type: "application/jsonl" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${namespace}-export.jsonl`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  });
+
+  const copyMutation = useMutation({
+    mutationFn: () => copyNamespace(copyDest.trim(), namespace),
+    onSuccess: (res) => {
+      setCopyMessage(
+        `Copied ${res.documents_copied} documents to "${res.destination_namespace}"`
+      );
+      setCopyDest("");
+    },
+    onError: (err) => setCopyMessage(err.message)
   });
 
   return (
@@ -556,6 +738,72 @@ const SettingsTab = ({ namespace, meta, onDeleted }: SettingsTabProps) => {
           </div>
         </div>
       )}
+
+      {/* Export */}
+      <div>
+        <h3 className="mb-4 text-sm font-medium text-text">Export</h3>
+        <div className="rounded-lg border border-border bg-bg-card p-5">
+          <p className="mb-3 text-xs text-text-muted">
+            Download all documents as a JSONL file.
+          </p>
+          <button
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+            disabled={exportMutation.isPending}
+            onClick={() => exportMutation.mutate()}
+            type="button"
+          >
+            {exportMutation.isPending ? "Exporting..." : "Export JSONL"}
+          </button>
+          {exportMutation.error && (
+            <p className="mt-2 text-xs text-danger">
+              {exportMutation.error.message}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Copy */}
+      <div>
+        <h3 className="mb-4 text-sm font-medium text-text">Copy Namespace</h3>
+        <div className="rounded-lg border border-border bg-bg-card p-5">
+          <p className="mb-3 text-xs text-text-muted">
+            Copy all documents from this namespace to a new or existing
+            namespace.
+          </p>
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs text-text-muted">
+                Destination namespace
+              </label>
+              <input
+                className="w-full rounded-md border border-border bg-bg-input px-3 py-2 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
+                onChange={(e) => {
+                  setCopyDest(e.target.value);
+                  setCopyMessage(null);
+                }}
+                placeholder="my-namespace-copy"
+                type="text"
+                value={copyDest}
+              />
+            </div>
+            <button
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+              disabled={!copyDest.trim() || copyMutation.isPending}
+              onClick={() => copyMutation.mutate()}
+              type="button"
+            >
+              {copyMutation.isPending ? "Copying..." : "Copy"}
+            </button>
+          </div>
+          {copyMessage && (
+            <p
+              className={`mt-2 text-xs ${copyMutation.error ? "text-danger" : "text-success"}`}
+            >
+              {copyMessage}
+            </p>
+          )}
+        </div>
+      </div>
 
       {/* Danger zone */}
       <div>
