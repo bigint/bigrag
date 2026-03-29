@@ -1,6 +1,6 @@
 # bigRAG Python SDK
 
-Python client for the [bigRAG](https://github.com/yoginth/bigrag) vector database.
+Python client for the [bigRAG](https://github.com/yoginth/bigrag) RAG platform.
 
 ## Installation
 
@@ -15,24 +15,16 @@ from bigrag import BigRAG
 
 client = BigRAG(api_key="your-api-key")
 
-# Create a namespace and upsert vectors
-ns = client.namespace("my-namespace")
-ns.upsert(
-    [
-        {"id": 1, "vector": [0.1, 0.2, 0.3], "title": "First document"},
-        {"id": 2, "vector": [0.4, 0.5, 0.6], "title": "Second document"},
-    ],
-    distance_metric="cosine_distance",
-)
+# Create a collection
+client.create_collection("research", description="Research papers")
+
+# Upload a document
+client.upload_document("research", "paper.pdf")
 
 # Query
-results = ns.query(
-    rank_by=["vector", "ANN", [0.1, 0.2, 0.3]],
-    top_k=10,
-    include_attributes=True,
-)
-for row in results.rows:
-    print(f"id={row.id} dist={row.dist} attrs={row.attributes}")
+results = client.query("research", "What are the main findings?", top_k=5)
+for r in results.results:
+    print(f"Score: {r.score:.3f} — {r.text[:100]}...")
 ```
 
 ## Async Usage
@@ -43,16 +35,11 @@ from bigrag import AsyncBigRAG
 
 async def main():
     async with AsyncBigRAG(api_key="your-api-key") as client:
-        ns = client.namespace("my-namespace")
-        await ns.upsert(
-            [{"id": 1, "vector": [0.1, 0.2, 0.3], "title": "hello"}],
-            distance_metric="cosine_distance",
-        )
-        results = await ns.query(
-            rank_by=["vector", "ANN", [0.1, 0.2, 0.3]],
-            top_k=5,
-        )
-        print(results.rows)
+        await client.create_collection("docs")
+        await client.upload_document("docs", "manual.pdf")
+        results = await client.query("docs", "How do I configure logging?")
+        for r in results.results:
+            print(f"{r.score:.3f}: {r.text[:80]}")
 
 asyncio.run(main())
 ```
@@ -61,73 +48,90 @@ asyncio.run(main())
 
 ```python
 client = BigRAG(
-    api_key="your-key",          # or set BIGRAG_API_KEY env var
+    api_key="your-key",                  # or set BIGRAG_API_KEY env var
     base_url="http://localhost:8080",
-    timeout=60.0,
+    timeout=120.0,
     max_retries=2,
 )
 ```
 
-## Namespace Operations
+## Collection Operations
 
 ```python
-ns = client.namespace("my-ns")
+# List collections
+collections = client.list_collections()
 
-# Upsert rows
-ns.upsert([{"id": 1, "vector": [0.1, 0.2], "title": "doc"}])
-
-# Query with filters
-results = ns.query(
-    rank_by=["vector", "ANN", [0.1, 0.2]],
-    top_k=10,
-    filters=["category", "Eq", "science"],
-    include_attributes=True,
+# Create with custom embedding model
+client.create_collection(
+    "multilingual",
+    embedding_provider="sentence-transformers",
+    embedding_model="multilingual-e5-large",
+    dimension=1024,
+    chunk_size=1024,
 )
 
-# Delete by IDs
-ns.delete([1, 2, 3])
+# Get details
+col = client.get_collection("research")
+print(col.document_count, col.embedding_model)
 
-# Delete by filter
-ns.delete_by_filter(["category", "Eq", "spam"])
-
-# Patch rows (partial update)
-ns.patch([{"id": 1, "title": "updated title"}])
-
-# Get metadata
-meta = ns.metadata()
-print(meta.approx_row_count)
-
-# Schema operations
-schema = ns.schema()
-ns.update_schema({"title": "string", "score": "float"})
-
-# Delete entire namespace
-ns.delete_all()
+# Delete
+client.delete_collection("old_collection")
 ```
 
-## Listing Namespaces
+## Document Operations
 
 ```python
-response = client.namespaces(prefix="prod-", page_size=50)
-for ns_summary in response.namespaces:
-    print(ns_summary.id)
+# Upload document (PDF, DOCX, PPTX, HTML, Markdown, images)
+doc = client.upload_document("research", "paper.pdf", metadata={"author": "Alice"})
+
+# List documents
+docs = client.list_documents("research")
+for d in docs.documents:
+    print(f"{d.filename} — {d.status} ({d.chunk_count} chunks)")
+
+# Reprocess a failed document
+client.reprocess_document("research", doc.id)
+
+# Delete
+client.delete_document("research", doc.id)
+```
+
+## Query
+
+```python
+# Basic query
+results = client.query("research", "What is RAG?", top_k=10)
+
+# With minimum score filter
+results = client.query("research", "deployment guide", min_score=0.5)
+
+# With metadata filters
+results = client.query("research", "findings", filters={"author": {"$eq": "Alice"}})
+```
+
+## Direct Vector Operations
+
+```python
+# Upsert pre-computed vectors
+client.upsert_vectors("research", [
+    {"id": "v1", "embedding": [0.1, 0.2, ...], "text": "hello world"},
+])
+
+# Delete vectors
+client.delete_vectors("research", ["v1", "v2"])
 ```
 
 ## Error Handling
 
 ```python
-from bigrag import BigRAGError, APIError, NotFoundError, RateLimitError
+from bigrag import BigRAGError, APIError, NotFoundError
 
 try:
-    ns.query(rank_by=["vector", "ANN", [0.1, 0.2]], top_k=10)
+    client.query("nonexistent", "test")
 except NotFoundError:
-    print("Namespace not found")
-except RateLimitError:
-    print("Rate limited, slow down")
+    print("Collection not found")
 except APIError as e:
     print(f"API error {e.status_code}: {e.message}")
-except BigRAGError as e:
-    print(f"Client error: {e.message}")
 ```
 
 ## License
