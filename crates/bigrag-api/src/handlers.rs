@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use tracing::{debug, error, info, warn};
 
 use crate::state::{AppState, PatchDoc};
+use sqlx::Row as _;
 
 // === Write Documents ===
 
@@ -1270,105 +1271,363 @@ fn default_operations() -> Vec<ApiOperation> {
     ]
 }
 
+/// Helper struct for querying api_keys rows from Postgres when listing keys.
+#[derive(Debug, sqlx::FromRow, serde::Serialize)]
+struct PgApiKeySummary {
+    id: uuid::Uuid,
+    name: String,
+    prefix: String,
+    permissions: serde_json::Value,
+    created_at: chrono::DateTime<chrono::Utc>,
+    last_used_at: Option<chrono::DateTime<chrono::Utc>>,
+    expires_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
 /// POST /v1/admin/api-keys -- Create a new API key.
 pub async fn create_api_key(
     State(state): State<AppState>,
     api_key: Option<Extension<ApiKey>>,
+    session_user: Option<Extension<crate::auth::handlers::SessionUser>>,
     Json(body): Json<CreateApiKeyRequest>,
 ) -> impl IntoResponse {
     let caller_key = api_key.map(|Extension(k)| k);
-    if let Err(resp) = require_admin(&caller_key) {
-        return resp.into_response();
-    }
 
-    if body.name.is_empty() || body.name.len() > 128 {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({
-                "error": {
-                    "code": "BAD_REQUEST",
-                    "message": "name must be 1-128 characters"
+    if let Some(ref pool) = state.db_pool {
+        // When DB is configured: any authenticated user (session or admin API key) may create keys.
+        // Unauthenticated callers in open mode are also allowed (no key present).
+        // Members (non-admin) are forced to admin:false.
+        let is_admin = caller_key.as_ref().map(|k| k.permissions.admin).unwrap_or(true);
+
+        if body.name.is_empty() || body.name.len() > 128 {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "error": {
+                        "code": "BAD_REQUEST",
+                        "message": "name must be 1-128 characters"
+                    }
+                })),
+            )
+                .into_response();
+        }
+
+        // Force admin:false for non-admin callers
+        let admin_flag = if is_admin { body.admin } else { false };
+
+        let permissions = ApiKeyPermissions {
+            namespaces: body.namespaces.clone(),
+            operations: body.operations.clone(),
+            admin: admin_flag,
+        };
+
+        let plaintext = crate::state::generate_api_key();
+        let key_hash = crate::auth::session::hash_token(&plaintext);
+        let prefix = plaintext[..11].to_string(); // "br_" + first 8 hex chars
+        let permissions_json = match serde_json::to_value(&permissions) {
+            Ok(v) => v,
+            Err(e) => {
+                error!(error = %e, "failed to serialize permissions");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({
+                        "error": { "code": "INTERNAL_ERROR", "message": "failed to serialize permissions" }
+                    })),
+                )
+                    .into_response();
+            }
+        };
+
+        let caller_user_id: Option<uuid::Uuid> = session_user.map(|Extension(su)| su.id);
+
+        let expires_at_parsed: Option<chrono::DateTime<chrono::Utc>> = match &body.expires_at {
+            Some(s) => match chrono::DateTime::parse_from_rfc3339(s) {
+                Ok(dt) => Some(dt.with_timezone(&chrono::Utc)),
+                Err(_) => {
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(serde_json::json!({
+                            "error": { "code": "BAD_REQUEST", "message": "invalid expires_at format, expected RFC3339" }
+                        })),
+                    )
+                        .into_response();
                 }
+            },
+            None => None,
+        };
+
+        let result = sqlx::query(
+            "INSERT INTO api_keys (name, key_hash, prefix, permissions, user_id, expires_at) \
+             VALUES ($1, $2, $3, $4, $5, $6) \
+             RETURNING id, name, prefix, permissions, created_at, expires_at",
+        )
+        .bind(&body.name)
+        .bind(&key_hash)
+        .bind(&prefix)
+        .bind(&permissions_json)
+        .bind(caller_user_id)
+        .bind(expires_at_parsed)
+        .fetch_one(pool)
+        .await;
+
+        match result {
+            Ok(row) => {
+                let id: uuid::Uuid = row.get(0);
+                let name: String = row.get(1);
+                let prefix_out: String = row.get(2);
+                let perms: serde_json::Value = row.get(3);
+                let created_at: chrono::DateTime<chrono::Utc> = row.get(4);
+                let expires_at_out: Option<chrono::DateTime<chrono::Utc>> = row.get(5);
+
+                info!(
+                    key_id = %id,
+                    key_name = %name,
+                    admin = admin_flag,
+                    "API key created (postgres)"
+                );
+
+                (
+                    StatusCode::CREATED,
+                    Json(serde_json::json!({
+                        "key": plaintext,
+                        "id": id,
+                        "name": name,
+                        "prefix": prefix_out,
+                        "permissions": perms,
+                        "created_at": created_at,
+                        "expires_at": expires_at_out
+                    })),
+                )
+                    .into_response()
+            }
+            Err(e) => {
+                error!(error = %e, "failed to insert api key into postgres");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({
+                        "error": { "code": "INTERNAL_ERROR", "message": "failed to create API key" }
+                    })),
+                )
+                    .into_response()
+            }
+        }
+    } else {
+        // In-memory fallback
+        if let Err(resp) = require_admin(&caller_key) {
+            return resp.into_response();
+        }
+
+        if body.name.is_empty() || body.name.len() > 128 {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "error": {
+                        "code": "BAD_REQUEST",
+                        "message": "name must be 1-128 characters"
+                    }
+                })),
+            )
+                .into_response();
+        }
+
+        let permissions = ApiKeyPermissions {
+            namespaces: body.namespaces,
+            operations: body.operations,
+            admin: body.admin,
+        };
+
+        let (plaintext, record) = state
+            .key_store
+            .create_key(body.name, permissions, body.expires_at);
+
+        info!(
+            key_id = %record.id,
+            key_name = %record.name,
+            admin = record.permissions.admin,
+            "API key created"
+        );
+
+        (
+            StatusCode::CREATED,
+            Json(serde_json::json!({
+                "key": plaintext,
+                "id": record.id,
+                "name": record.name,
+                "prefix": record.prefix,
+                "permissions": record.permissions,
+                "created_at": record.created_at,
+                "expires_at": record.expires_at
             })),
         )
-            .into_response();
+            .into_response()
     }
-
-    let permissions = ApiKeyPermissions {
-        namespaces: body.namespaces,
-        operations: body.operations,
-        admin: body.admin,
-    };
-
-    let (plaintext, record) = state
-        .key_store
-        .create_key(body.name, permissions, body.expires_at);
-
-    info!(
-        key_id = %record.id,
-        key_name = %record.name,
-        admin = record.permissions.admin,
-        "API key created"
-    );
-
-    (
-        StatusCode::CREATED,
-        Json(serde_json::json!({
-            "key": plaintext,
-            "id": record.id,
-            "name": record.name,
-            "prefix": record.prefix,
-            "permissions": record.permissions,
-            "created_at": record.created_at,
-            "expires_at": record.expires_at
-        })),
-    )
-        .into_response()
 }
 
 /// GET /v1/admin/api-keys -- List all API keys (summaries only).
 pub async fn list_api_keys(
     State(state): State<AppState>,
     api_key: Option<Extension<ApiKey>>,
+    session_user: Option<Extension<crate::auth::handlers::SessionUser>>,
 ) -> impl IntoResponse {
     let caller_key = api_key.map(|Extension(k)| k);
-    if let Err(resp) = require_admin(&caller_key) {
-        return resp.into_response();
-    }
 
-    let keys = state.key_store.list_keys();
-    (StatusCode::OK, Json(serde_json::json!({ "keys": keys }))).into_response()
+    if let Some(ref pool) = state.db_pool {
+        let is_admin = caller_key.as_ref().map(|k| k.permissions.admin).unwrap_or(true);
+
+        let keys: Result<Vec<PgApiKeySummary>, _> = if is_admin {
+            sqlx::query_as::<_, PgApiKeySummary>(
+                "SELECT id, name, prefix, permissions, created_at, last_used_at, expires_at FROM api_keys ORDER BY created_at DESC",
+            )
+            .fetch_all(pool)
+            .await
+        } else {
+            // Members only see their own keys
+            let caller_user_id: Option<uuid::Uuid> = session_user.map(|Extension(su)| su.id);
+            match caller_user_id {
+                Some(uid) => sqlx::query_as::<_, PgApiKeySummary>(
+                    "SELECT id, name, prefix, permissions, created_at, last_used_at, expires_at FROM api_keys WHERE user_id = $1 ORDER BY created_at DESC",
+                )
+                .bind(uid)
+                .fetch_all(pool)
+                .await,
+                None => {
+                    // Non-admin API key caller with no session user — return empty list
+                    let empty: Vec<serde_json::Value> = vec![];
+                    return (StatusCode::OK, Json(serde_json::json!({ "keys": empty }))).into_response();
+                }
+            }
+        };
+
+        match keys {
+            Ok(rows) => (StatusCode::OK, Json(serde_json::json!({ "keys": rows }))).into_response(),
+            Err(e) => {
+                error!(error = %e, "failed to list api keys from postgres");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({
+                        "error": { "code": "INTERNAL_ERROR", "message": "failed to list API keys" }
+                    })),
+                )
+                    .into_response()
+            }
+        }
+    } else {
+        // In-memory fallback
+        if let Err(resp) = require_admin(&caller_key) {
+            return resp.into_response();
+        }
+
+        let keys = state.key_store.list_keys();
+        (StatusCode::OK, Json(serde_json::json!({ "keys": keys }))).into_response()
+    }
 }
 
 /// DELETE /v1/admin/api-keys/{id} -- Revoke an API key.
 pub async fn revoke_api_key(
     State(state): State<AppState>,
     api_key: Option<Extension<ApiKey>>,
+    session_user: Option<Extension<crate::auth::handlers::SessionUser>>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
     let caller_key = api_key.map(|Extension(k)| k);
-    if let Err(resp) = require_admin(&caller_key) {
-        return resp.into_response();
-    }
 
-    if state.key_store.revoke_key(&id) {
-        info!(key_id = %id, "API key revoked");
-        (
-            StatusCode::OK,
-            Json(serde_json::json!({"status": "ok", "message": "API key revoked"})),
-        )
-            .into_response()
-    } else {
-        warn!(key_id = %id, "revoke_api_key: key not found");
-        (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({
-                "error": {
-                    "code": "NOT_FOUND",
-                    "message": "API key not found"
+    if let Some(ref pool) = state.db_pool {
+        let is_admin = caller_key.as_ref().map(|k| k.permissions.admin).unwrap_or(true);
+
+        let key_uuid = match uuid::Uuid::parse_str(&id) {
+            Ok(u) => u,
+            Err(_) => {
+                return (
+                    StatusCode::NOT_FOUND,
+                    Json(serde_json::json!({
+                        "error": { "code": "NOT_FOUND", "message": "API key not found" }
+                    })),
+                )
+                    .into_response();
+            }
+        };
+
+        let result = if is_admin {
+            sqlx::query("DELETE FROM api_keys WHERE id = $1")
+                .bind(key_uuid)
+                .execute(pool)
+                .await
+        } else {
+            let caller_user_id: Option<uuid::Uuid> = session_user.map(|Extension(su)| su.id);
+            match caller_user_id {
+                Some(uid) => {
+                    sqlx::query("DELETE FROM api_keys WHERE id = $1 AND user_id = $2")
+                        .bind(key_uuid)
+                        .bind(uid)
+                        .execute(pool)
+                        .await
                 }
-            })),
-        )
-            .into_response()
+                None => {
+                    return (
+                        StatusCode::FORBIDDEN,
+                        Json(serde_json::json!({
+                            "error": { "code": "FORBIDDEN", "message": "Admin permissions required" }
+                        })),
+                    )
+                        .into_response();
+                }
+            }
+        };
+
+        match result {
+            Ok(res) if res.rows_affected() > 0 => {
+                info!(key_id = %id, "API key revoked (postgres)");
+                (
+                    StatusCode::OK,
+                    Json(serde_json::json!({"status": "ok", "message": "API key revoked"})),
+                )
+                    .into_response()
+            }
+            Ok(_) => {
+                warn!(key_id = %id, "revoke_api_key: key not found (postgres)");
+                (
+                    StatusCode::NOT_FOUND,
+                    Json(serde_json::json!({
+                        "error": { "code": "NOT_FOUND", "message": "API key not found" }
+                    })),
+                )
+                    .into_response()
+            }
+            Err(e) => {
+                error!(error = %e, "failed to delete api key from postgres");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({
+                        "error": { "code": "INTERNAL_ERROR", "message": "failed to revoke API key" }
+                    })),
+                )
+                    .into_response()
+            }
+        }
+    } else {
+        // In-memory fallback
+        if let Err(resp) = require_admin(&caller_key) {
+            return resp.into_response();
+        }
+
+        if state.key_store.revoke_key(&id) {
+            info!(key_id = %id, "API key revoked");
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({"status": "ok", "message": "API key revoked"})),
+            )
+                .into_response()
+        } else {
+            warn!(key_id = %id, "revoke_api_key: key not found");
+            (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({
+                    "error": {
+                        "code": "NOT_FOUND",
+                        "message": "API key not found"
+                    }
+                })),
+            )
+                .into_response()
+        }
     }
 }
