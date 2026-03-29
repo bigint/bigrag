@@ -5,9 +5,7 @@ import {
   getMetrics,
   getNamespaceMetadata,
   getSchema,
-  listNamespaces,
-  type QueryRequest,
-  queryDocuments
+  listNamespaces
 } from "@/lib/api";
 
 export const healthQueryOptions = () =>
@@ -37,13 +35,6 @@ export const schemaQueryOptions = (namespace: string) =>
   queryOptions({
     queryFn: () => getSchema(namespace),
     queryKey: ["schema", { namespace }]
-  });
-
-export const queryDocumentsOptions = (namespace: string, body: QueryRequest) =>
-  queryOptions({
-    enabled: false,
-    queryFn: () => queryDocuments(namespace, body),
-    queryKey: ["query", { body, namespace }]
   });
 
 export const adminConfigQueryOptions = () =>
