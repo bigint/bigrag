@@ -332,9 +332,9 @@ const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
                         </td>
                         {hasDist && (
                           <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-text-muted">
-                            {row.$dist !== undefined
-                              ? row.$dist.toFixed(4)
-                              : "-"}
+                            {row.$dist === undefined
+                              ? "-"
+                              : row.$dist.toFixed(4)}
                           </td>
                         )}
                         {attributeColumns.map((col) => (
@@ -411,7 +411,7 @@ const WriteTab = ({ namespace }: { readonly namespace: string }) => {
   const [jsonText, setJsonText] = useState(
     JSON.stringify(
       {
-        upsert_rows: [{ id: 1, content: "Hello world" }]
+        upsert_rows: [{ content: "Hello world", id: 1 }]
       },
       null,
       2
@@ -687,13 +687,13 @@ const SettingsTab = ({ namespace, meta, onDeleted }: SettingsTabProps) => {
 
   const copyMutation = useMutation({
     mutationFn: () => copyNamespace(copyDest.trim(), namespace),
+    onError: (err) => setCopyMessage(err.message),
     onSuccess: (res) => {
       setCopyMessage(
         `Copied ${res.documents_copied} documents to "${res.destination_namespace}"`
       );
       setCopyDest("");
-    },
-    onError: (err) => setCopyMessage(err.message)
+    }
   });
 
   return (

@@ -548,8 +548,7 @@ export default function QueryPlaygroundPage() {
                     </span>
                   )}
                   <span className="text-xs text-text-dim font-mono">
-                    Rows:{" "}
-                    <span className="text-text-muted">{rows.length}</span>
+                    Rows: <span className="text-text-muted">{rows.length}</span>
                   </span>
                   {cacheTemp !== undefined && (
                     <span className="text-xs text-text-dim font-mono">

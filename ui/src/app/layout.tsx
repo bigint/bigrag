@@ -12,10 +12,7 @@ export const metadata: Metadata = {
 
 const RootLayout = ({ children }: { readonly children: React.ReactNode }) => {
   return (
-    <html
-      className={`${GeistSans.variable} ${GeistMono.variable}`}
-      lang="en"
-    >
+    <html className={`${GeistSans.variable} ${GeistMono.variable}`} lang="en">
       <body className="antialiased">
         <Providers>
           <Sidebar />

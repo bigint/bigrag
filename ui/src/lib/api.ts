@@ -360,11 +360,7 @@ export interface RecallResult {
   note?: string;
 }
 
-export async function debugRecall(
-  ns: string,
-  num?: number,
-  topK?: number
-) {
+export async function debugRecall(ns: string, num?: number, topK?: number) {
   return request<RecallResult>(
     `/v1/namespaces/${encodeURIComponent(ns)}/_debug/recall`,
     {

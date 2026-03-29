@@ -433,10 +433,7 @@ export default function VaultPage() {
     const parts = text.split(regex);
     return parts.map((part, i) =>
       regex.test(part) ? (
-        <mark
-          className="bg-blue-100 text-blue-700 rounded-sm px-0.5"
-          key={i}
-        >
+        <mark className="bg-blue-100 text-blue-700 rounded-sm px-0.5" key={i}>
           {part}
         </mark>
       ) : (
@@ -453,10 +450,7 @@ export default function VaultPage() {
     <div className="min-h-screen bg-bg text-text">
       <div className="mx-auto max-w-6xl px-6 py-10">
         {/* Page header + Collapsible settings */}
-        <Collapsible.Root
-          open={showSettings}
-          onOpenChange={setShowSettings}
-        >
+        <Collapsible.Root onOpenChange={setShowSettings} open={showSettings}>
           <div className="mb-8 flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">Vault</h1>
@@ -698,8 +692,8 @@ export default function VaultPage() {
             </h2>
             {files.length > 0 && (
               <AlertDialog.Root
-                open={clearDialogOpen}
                 onOpenChange={setClearDialogOpen}
+                open={clearDialogOpen}
               >
                 <AlertDialog.Trigger className="rounded-md px-3 py-1.5 text-[13px] text-danger transition-colors hover:bg-danger/10">
                   Clear All

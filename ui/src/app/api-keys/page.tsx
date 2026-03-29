@@ -3,11 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
+  type CreateApiKeyRequest,
   createApiKey,
   listApiKeys,
-  revokeApiKey,
-  type ApiKeySummary,
-  type CreateApiKeyRequest
+  revokeApiKey
 } from "@/lib/api";
 import { timeAgo } from "@/lib/utils";
 
@@ -142,10 +141,7 @@ const ApiKeysPage = () => {
                 onChange={(e) => setNewKeyAdmin(e.target.checked)}
                 type="checkbox"
               />
-              <label
-                className="text-sm text-text-muted"
-                htmlFor="admin-toggle"
-              >
+              <label className="text-sm text-text-muted" htmlFor="admin-toggle">
                 Admin privileges
               </label>
             </div>

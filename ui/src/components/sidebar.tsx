@@ -1,6 +1,13 @@
 "use client";
 
-import { Key, LayoutGrid, List, Lock, Settings, TrendingUp } from "lucide-react";
+import {
+  Key,
+  LayoutGrid,
+  List,
+  Lock,
+  Settings,
+  TrendingUp
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
