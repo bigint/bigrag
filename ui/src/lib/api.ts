@@ -151,6 +151,12 @@ export interface Document {
   updated_at: string;
 }
 
+export async function getDocument(collectionName: string, documentId: string) {
+  return request<Document>(
+    `/v1/collections/${encodeURIComponent(collectionName)}/documents/${documentId}`
+  );
+}
+
 export async function listDocuments(collectionName: string, status?: string) {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
