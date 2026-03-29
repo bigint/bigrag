@@ -457,10 +457,64 @@ fn score_document(doc: &InMemoryDoc, rank: &RankBy) -> f64 {
                 0.0
             }
         }
-        RankBy::Bm25 { .. } => {
-            // BM25 scoring handled by inverted index
-            // Placeholder: return 1.0 for now
-            1.0
+        RankBy::Bm25 {
+            field,
+            query,
+            last_as_prefix,
+        } => {
+            let text = match doc.attributes.get(field) {
+                Some(AttributeValue::String(s)) => s.as_str(),
+                _ => return 0.0,
+            };
+
+            let doc_tokens = tokenize_bm25(text);
+            if doc_tokens.is_empty() {
+                return 0.0;
+            }
+
+            let query_tokens = tokenize_bm25(query);
+            if query_tokens.is_empty() {
+                return 0.0;
+            }
+
+            // Build term frequency map for this document
+            let mut tf_map: HashMap<&str, u32> = HashMap::new();
+            for token in &doc_tokens {
+                *tf_map.entry(token.as_str()).or_default() += 1;
+            }
+
+            let dl = doc_tokens.len() as f64;
+            // Use a reasonable average doc length estimate
+            let avgdl = 100.0_f64;
+            let k1 = 1.2;
+            let b = 0.75;
+
+            let mut score = 0.0_f64;
+            for qt in &query_tokens {
+                let matches = if *last_as_prefix && qt == query_tokens.last().unwrap() {
+                    // Last token as prefix: match any doc token starting with this prefix
+                    tf_map
+                        .iter()
+                        .filter(|(k, _)| k.starts_with(qt.as_str()))
+                        .map(|(_, &v)| v)
+                        .sum::<u32>()
+                } else {
+                    tf_map.get(qt.as_str()).copied().unwrap_or(0)
+                };
+
+                if matches == 0 {
+                    continue;
+                }
+
+                let tf = matches as f64;
+                // Simplified IDF — treat each query term as moderately discriminative
+                let idf = 1.0_f64;
+                let numerator = tf * (k1 + 1.0);
+                let denominator = tf + k1 * (1.0 - b + b * dl / avgdl);
+                score += idf * numerator / denominator;
+            }
+
+            score
         }
         RankBy::OrderByAttribute { attribute, descending } => {
             if let Some(val) = doc.attributes.get(attribute) {
@@ -511,6 +565,14 @@ fn score_document(doc: &InMemoryDoc, rank: &RankBy) -> f64 {
         }
         _ => 0.0,
     }
+}
+
+/// Simple whitespace tokenizer with lowercasing for BM25 scoring.
+fn tokenize_bm25(text: &str) -> Vec<String> {
+    text.split(|c: char| !c.is_alphanumeric())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_lowercase())
+        .collect()
 }
 
 fn cosine_distance_f64(a: &[f32], b: &[f32]) -> f64 {
