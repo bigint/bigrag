@@ -25,7 +25,7 @@ async def retrieve(
     filter_expr = _build_filter_expr(filters) if filters else None
 
     # Search
-    results = vector_store.search(
+    results = await vector_store.search(
         collection=collection_name,
         query_embedding=query_embedding,
         top_k=top_k,

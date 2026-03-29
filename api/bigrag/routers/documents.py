@@ -97,7 +97,7 @@ async def upload_document(
     )
 
     # Enqueue for background processing
-    ingestion_queue.enqueue(IngestionJob(
+    await ingestion_queue.enqueue(IngestionJob(
         document_id=doc_id,
         file_path=str(file_path),
         collection_name=collection_name,
@@ -187,7 +187,7 @@ async def delete_document(
         raise HTTPException(status_code=404, detail="Document not found")
 
     # Delete vectors from Milvus
-    vector_store.delete_by_document(collection_name, document_id)
+    await vector_store.delete_by_document(collection_name, document_id)
 
     # Delete file from disk
     file_path = Path(row["file_path"])
@@ -228,7 +228,7 @@ async def reprocess_document(
     _validate_embedding_provider(collection)
 
     # Delete existing vectors
-    vector_store.delete_by_document(collection_name, document_id)
+    await vector_store.delete_by_document(collection_name, document_id)
 
     # Reset status
     await db.execute(
@@ -237,7 +237,7 @@ async def reprocess_document(
     )
 
     # Enqueue for reprocessing
-    ingestion_queue.enqueue(IngestionJob(
+    await ingestion_queue.enqueue(IngestionJob(
         document_id=document_id,
         file_path=row["file_path"],
         collection_name=collection_name,

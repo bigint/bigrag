@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -20,7 +19,6 @@ from bigrag.services.vector_store import vector_store
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     logging.basicConfig(
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s %(message)s"
@@ -30,24 +28,24 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger("bigrag")
     logger.info(f"bigRAG v{__version__} starting")
 
-    # Connect to Postgres
-    await db.connect(settings.database_url)
+    # Postgres
+    await db.connect(settings.database_url, min_size=settings.db_pool_min, max_size=settings.db_pool_max)
     await db.migrate()
 
-    # Connect to Milvus
+    # Milvus
     vector_store.__init__(settings.milvus_uri)
     vector_store.connect()
 
-    # Ensure upload dir exists
-    Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
-
-    # Start ingestion queue workers
+    # Redis + ingestion queue
+    ingestion_queue._num_workers = settings.ingestion_workers
+    await ingestion_queue.connect(settings.redis_url)
     await ingestion_queue.start()
+
+    Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 
     logger.info(f"Server ready on {settings.host}:{settings.port}")
     yield
 
-    # Shutdown
     await ingestion_queue.stop()
     vector_store.close()
     await db.close()
@@ -62,7 +60,6 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -71,20 +68,16 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Prometheus metrics
     Instrumentator().instrument(app).expose(app, endpoint="/v1/metrics")
 
-    # Health endpoint
     @app.get("/health")
     async def health():
         return {"status": "ok", "version": __version__}
 
-    # Queue stats endpoint
     @app.get("/v1/queue/stats")
     async def queue_stats():
-        return ingestion_queue.stats
+        return await ingestion_queue.stats
 
-    # Register routers
     from bigrag.routers.auth import router as auth_router
     from bigrag.routers.admin import router as admin_router
     from bigrag.routers.collections import router as collections_router
@@ -110,44 +103,29 @@ def cli():
     parser.add_argument("--port", type=int, help="Server port")
     parser.add_argument("--database-url", help="Postgres connection URL")
     parser.add_argument("--milvus-uri", help="Milvus connection URI")
+    parser.add_argument("--redis-url", help="Redis connection URL")
     parser.add_argument("--master-key", help="Master key for admin access")
     parser.add_argument("--api-keys", help="Comma-separated API keys")
-    parser.add_argument("--log-level", help="Log level (debug, info, warning, error)")
+    parser.add_argument("--log-level", help="Log level")
     parser.add_argument("--log-format", choices=["text", "json"], help="Log format")
     args = parser.parse_args()
 
-    # Load from TOML first, then override with CLI args
-    global settings
     from bigrag import config
-
     s = Settings.from_toml(args.config)
 
-    if args.host:
-        s.host = args.host
-    if args.port:
-        s.port = args.port
-    if args.database_url:
-        s.database_url = args.database_url
-    if args.milvus_uri:
-        s.milvus_uri = args.milvus_uri
-    if args.master_key:
-        s.master_key = args.master_key
-    if args.api_keys:
-        s.api_keys = [k.strip() for k in args.api_keys.split(",")]
-    if args.log_level:
-        s.log_level = args.log_level
-    if args.log_format:
-        s.log_format = args.log_format
+    if args.host: s.host = args.host
+    if args.port: s.port = args.port
+    if args.database_url: s.database_url = args.database_url
+    if args.milvus_uri: s.milvus_uri = args.milvus_uri
+    if args.redis_url: s.redis_url = args.redis_url
+    if args.master_key: s.master_key = args.master_key
+    if args.api_keys: s.api_keys = [k.strip() for k in args.api_keys.split(",")]
+    if args.log_level: s.log_level = args.log_level
+    if args.log_format: s.log_format = args.log_format
 
-    # Update global settings
     config.settings = s
 
-    uvicorn.run(
-        "bigrag.main:app",
-        host=s.host,
-        port=s.port,
-        log_level=s.log_level,
-    )
+    uvicorn.run("bigrag.main:app", host=s.host, port=s.port, log_level=s.log_level)
 
 
 if __name__ == "__main__":

@@ -30,39 +30,45 @@ for cmd in docker python3 pnpm curl; do
 done
 
 # --- Docker services ---
-echo -e "${CYAN}Starting Docker services (Postgres, Milvus)...${NC}"
-docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres milvus-etcd milvus-minio milvus -d
+echo -e "${CYAN}Starting Docker services (Postgres, Redis, Milvus)...${NC}"
+docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres redis milvus-etcd milvus-minio milvus -d
 
-# Wait for Postgres to be healthy
+# Wait for Postgres
 echo -e "${CYAN}Waiting for Postgres...${NC}"
 for i in $(seq 1 30); do
   if docker exec bigrag-postgres pg_isready -U bigrag > /dev/null 2>&1; then
     echo -e "${GREEN}Postgres is ready.${NC}"
     break
   fi
-  if [ "$i" -eq 30 ]; then
-    echo -e "${RED}Postgres failed to start.${NC}"
-    exit 1
-  fi
+  if [ "$i" -eq 30 ]; then echo -e "${RED}Postgres failed to start.${NC}"; exit 1; fi
   sleep 1
 done
 
-# Wait for Milvus to be healthy
+# Wait for Redis
+echo -e "${CYAN}Waiting for Redis...${NC}"
+for i in $(seq 1 15); do
+  if docker exec bigrag-redis redis-cli ping > /dev/null 2>&1; then
+    echo -e "${GREEN}Redis is ready.${NC}"
+    break
+  fi
+  if [ "$i" -eq 15 ]; then echo -e "${RED}Redis failed to start.${NC}"; exit 1; fi
+  sleep 1
+done
+
+# Wait for Milvus
 echo -e "${CYAN}Waiting for Milvus...${NC}"
 for i in $(seq 1 60); do
   if curl -sf http://localhost:9091/healthz > /dev/null 2>&1; then
     echo -e "${GREEN}Milvus is ready.${NC}"
     break
   fi
-  if [ "$i" -eq 60 ]; then
-    echo -e "${RED}Milvus failed to start within 60s.${NC}"
-    exit 1
-  fi
+  if [ "$i" -eq 60 ]; then echo -e "${RED}Milvus failed to start within 60s.${NC}"; exit 1; fi
   sleep 1
 done
 
 DATABASE_URL="postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 MILVUS_URI="http://localhost:19530"
+REDIS_URL="redis://localhost:6379/0"
 
 # --- Python backend ---
 echo -e "${CYAN}Setting up Python backend...${NC}"
@@ -79,20 +85,18 @@ echo -e "${CYAN}Starting Python backend...${NC}"
 (cd "$ROOT_DIR/api" && \
   BIGRAG_DATABASE_URL="$DATABASE_URL" \
   BIGRAG_MILVUS_URI="$MILVUS_URI" \
+  BIGRAG_REDIS_URL="$REDIS_URL" \
   python -m bigrag.main 2>&1 | sed "s/^/[backend] /") &
 PIDS+=($!)
 
-# Wait for backend to be ready
+# Wait for backend
 echo -e "${CYAN}Waiting for backend...${NC}"
-for i in $(seq 1 60); do
+for i in $(seq 1 120); do
   if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
     echo -e "${GREEN}Backend is ready.${NC}"
     break
   fi
-  if [ "$i" -eq 60 ]; then
-    echo -e "${RED}Backend failed to start within 60s.${NC}"
-    exit 1
-  fi
+  if [ "$i" -eq 120 ]; then echo -e "${RED}Backend failed to start within 120s.${NC}"; exit 1; fi
   sleep 1
 done
 
@@ -109,6 +113,7 @@ echo -e "  Backend  → http://localhost:8080"
 echo -e "  API Docs → http://localhost:8080/docs"
 echo -e "  UI       → http://localhost:3000"
 echo -e "  Postgres → localhost:5432"
+echo -e "  Redis    → localhost:6379"
 echo -e "  Milvus   → localhost:19530"
 echo -e "\n${YELLOW}Press Ctrl+C to stop all services.${NC}"
 

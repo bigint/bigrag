@@ -79,7 +79,7 @@ async def upsert_vectors(
     texts = [v.text for v in body.vectors]
     metadata = [v.metadata for v in body.vectors]
 
-    count = vector_store.upsert(
+    count = await vector_store.upsert(
         collection=collection_name,
         ids=ids,
         embeddings=embeddings,
@@ -97,7 +97,7 @@ async def delete_vectors(
     _: dict = Depends(get_current_user),
 ):
     await _get_collection(collection_name)
-    vector_store.delete_by_ids(collection_name, body.ids)
+    await vector_store.delete_by_ids(collection_name, body.ids)
     return {"status": "ok", "deleted": len(body.ids)}
 
 

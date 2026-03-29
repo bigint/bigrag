@@ -56,7 +56,7 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
     )
 
     # Create in Milvus
-    vector_store.create_collection(body.name, dimension)
+    await vector_store.create_collection(body.name, dimension)
 
     return _row_to_response(dict(row))
 
@@ -110,7 +110,7 @@ async def delete_collection(name: str, _: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Collection not found")
 
     # Delete from Milvus
-    vector_store.delete_collection(name)
+    await vector_store.delete_collection(name)
 
     # Delete from Postgres (cascades to documents)
     await db.execute("DELETE FROM collections WHERE name = $1", name)

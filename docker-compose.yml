@@ -10,10 +10,16 @@ services:
     environment:
       BIGRAG_DATABASE_URL: postgres://bigrag:bigrag@postgres:5432/bigrag?sslmode=disable
       BIGRAG_MILVUS_URI: http://milvus:19530
+      BIGRAG_REDIS_URL: redis://redis:6379/0
       BIGRAG_LOG_LEVEL: info
       BIGRAG_UPLOAD_DIR: /data/uploads
+      BIGRAG_INGESTION_WORKERS: "4"
+      BIGRAG_DB_POOL_MIN: "5"
+      BIGRAG_DB_POOL_MAX: "50"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       milvus:
         condition: service_healthy
@@ -35,8 +41,28 @@ services:
       POSTGRES_DB: bigrag
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c work_mem=8MB
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bigrag"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: bigrag-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -109,6 +135,7 @@ services:
 volumes:
   bigrag_data:
   postgres_data:
+  redis_data:
   etcd_data:
   minio_data:
   milvus_data:

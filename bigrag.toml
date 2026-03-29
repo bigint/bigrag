@@ -4,9 +4,14 @@ port = 8080
 
 [database]
 url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
+pool_min = 5
+pool_max = 50
 
 [milvus]
 uri = "http://localhost:19530"
+
+[redis]
+url = "redis://localhost:6379/0"
 
 [embedding]
 provider = "sentence-transformers"
@@ -14,6 +19,8 @@ model = "all-MiniLM-L6-v2"
 dimension = 384
 
 [ingestion]
+workers = 4
+batch_size = 128
 chunk_size = 512
 chunk_overlap = 50
 upload_dir = "./data/uploads"
