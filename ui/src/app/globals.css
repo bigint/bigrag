@@ -34,6 +34,18 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Clickable elements */
+button,
+a,
+select,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+input[type="reset"],
+summary {
+  cursor: pointer;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
