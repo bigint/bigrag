@@ -14,6 +14,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from bigrag import __version__
 from bigrag.config import Settings, settings
 from bigrag.database import db
+from bigrag.services.queue import ingestion_queue
 from bigrag.services.vector_store import vector_store
 
 
@@ -40,10 +41,14 @@ async def lifespan(app: FastAPI):
     # Ensure upload dir exists
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 
+    # Start ingestion queue workers
+    await ingestion_queue.start()
+
     logger.info(f"Server ready on {settings.host}:{settings.port}")
     yield
 
     # Shutdown
+    await ingestion_queue.stop()
     vector_store.close()
     await db.close()
     logger.info("bigRAG shut down")
@@ -73,6 +78,11 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health():
         return {"status": "ok", "version": __version__}
+
+    # Queue stats endpoint
+    @app.get("/v1/queue/stats")
+    async def queue_stats():
+        return ingestion_queue.stats
 
     # Register routers
     from bigrag.routers.auth import router as auth_router

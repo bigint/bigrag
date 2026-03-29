@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-import asyncio
-import shutil
+import json
 import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 
 from bigrag.config import settings
 from bigrag.database import db
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.document import DocumentListResponse, DocumentResponse
 from bigrag.services.embedding import get_embedding_model
-from bigrag.services.ingestion import ingest_document
+from bigrag.services.queue import IngestionJob, event_bus, ingestion_queue
 from bigrag.services.vector_store import vector_store
 
 router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["documents"])
@@ -35,6 +35,20 @@ async def _get_collection(name: str) -> dict:
     return dict(row)
 
 
+def _validate_embedding_provider(collection: dict) -> None:
+    """Validate the embedding provider is available before accepting the upload."""
+    try:
+        get_embedding_model(
+            provider=collection["embedding_provider"],
+            model_name=collection["embedding_model"],
+            dimension=collection["dimension"],
+            api_key=settings.embedding_api_key,
+            base_url=settings.embedding_base_url,
+        )
+    except (ImportError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("", response_model=DocumentResponse, status_code=201)
 async def upload_document(
     collection_name: str,
@@ -43,6 +57,7 @@ async def upload_document(
     _: dict = Depends(get_current_user),
 ):
     collection = await _get_collection(collection_name)
+    _validate_embedding_provider(collection)
 
     # Validate file size
     max_size = settings.max_upload_size_mb * 1024 * 1024
@@ -65,7 +80,6 @@ async def upload_document(
         f.write(content)
 
     # Parse metadata
-    import json
     try:
         meta = json.loads(metadata) if metadata else {}
     except json.JSONDecodeError:
@@ -82,28 +96,19 @@ async def upload_document(
         file_ext.lstrip("."), len(content), str(file_path), meta,
     )
 
-    # Start async ingestion
-    try:
-        embedding_model = get_embedding_model(
-            provider=collection["embedding_provider"],
-            model_name=collection["embedding_model"],
-            dimension=collection["dimension"],
-            api_key=settings.embedding_api_key,
-            base_url=settings.embedding_base_url,
-        )
-    except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    asyncio.create_task(
-        ingest_document(
-            document_id=doc_id,
-            file_path=str(file_path),
-            collection_name=collection_name,
-            embedding_model=embedding_model,
-            chunk_size=collection["chunk_size"],
-            chunk_overlap=collection["chunk_overlap"],
-        )
-    )
+    # Enqueue for background processing
+    ingestion_queue.enqueue(IngestionJob(
+        document_id=doc_id,
+        file_path=str(file_path),
+        collection_name=collection_name,
+        embedding_provider=collection["embedding_provider"],
+        embedding_model=collection["embedding_model"],
+        embedding_dimension=collection["dimension"],
+        embedding_api_key=settings.embedding_api_key,
+        embedding_base_url=settings.embedding_base_url,
+        chunk_size=collection["chunk_size"],
+        chunk_overlap=collection["chunk_overlap"],
+    ))
 
     return _row_to_response(dict(row))
 
@@ -220,6 +225,8 @@ async def reprocess_document(
     if not row:
         raise HTTPException(status_code=404, detail="Document not found")
 
+    _validate_embedding_provider(collection)
+
     # Delete existing vectors
     vector_store.delete_by_document(collection_name, document_id)
 
@@ -229,27 +236,37 @@ async def reprocess_document(
         uuid.UUID(document_id),
     )
 
-    # Re-ingest
-    try:
-        embedding_model = get_embedding_model(
-            provider=collection["embedding_provider"],
-            model_name=collection["embedding_model"],
-            dimension=collection["dimension"],
-            api_key=settings.embedding_api_key,
-            base_url=settings.embedding_base_url,
-        )
-    except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    asyncio.create_task(
-        ingest_document(
-            document_id=document_id,
-            file_path=row["file_path"],
-            collection_name=collection_name,
-            embedding_model=embedding_model,
-            chunk_size=collection["chunk_size"],
-            chunk_overlap=collection["chunk_overlap"],
-        )
-    )
+    # Enqueue for reprocessing
+    ingestion_queue.enqueue(IngestionJob(
+        document_id=document_id,
+        file_path=row["file_path"],
+        collection_name=collection_name,
+        embedding_provider=collection["embedding_provider"],
+        embedding_model=collection["embedding_model"],
+        embedding_dimension=collection["dimension"],
+        embedding_api_key=settings.embedding_api_key,
+        embedding_base_url=settings.embedding_base_url,
+        chunk_size=collection["chunk_size"],
+        chunk_overlap=collection["chunk_overlap"],
+    ))
 
     return {"status": "ok", "message": "Document reprocessing started"}
+
+
+@router.get("/{document_id}/progress")
+async def document_progress_sse(
+    collection_name: str,
+    document_id: str,
+):
+    """SSE stream of real-time ingestion progress for a document."""
+
+    async def generate():
+        yield "data: {\"step\":\"connected\",\"status\":\"connected\",\"message\":\"Listening for progress\",\"progress\":0}\n\n"
+        async for event in event_bus.stream(document_id):
+            yield event.to_sse()
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
