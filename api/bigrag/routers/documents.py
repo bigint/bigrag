@@ -17,6 +17,12 @@ from bigrag.services.vector_store import vector_store
 
 router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["documents"])
 
+SUPPORTED_EXTENSIONS = {
+    ".pdf", ".docx", ".pptx", ".xlsx", ".html", ".htm",
+    ".md", ".txt", ".csv", ".tsv", ".xml", ".json",
+    ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif",
+}
+
 
 def _row_to_response(row: dict) -> DocumentResponse:
     r = {}
@@ -69,6 +75,14 @@ async def upload_document(
 ):
     collection = await _get_collection(collection_name)
     _validate_embedding_provider(collection)
+
+    # Validate file type
+    file_ext = Path(file.filename or "").suffix.lower()
+    if file_ext and file_ext not in SUPPORTED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{file_ext}'. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
+        )
 
     # Validate file size
     max_size = settings.max_upload_size_mb * 1024 * 1024
