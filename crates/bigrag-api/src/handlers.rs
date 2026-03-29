@@ -1211,6 +1211,7 @@ pub async fn copy_namespace(
     }
 
     let count = state.upsert_documents(&destination, docs, None);
+    info!(source = %source, destination = %destination, documents_copied = count, "namespace copied");
     (
         StatusCode::OK,
         Json(serde_json::json!({
