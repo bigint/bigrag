@@ -29,9 +29,9 @@ for cmd in docker python3 pnpm curl; do
   fi
 done
 
-# --- Docker services (Postgres + Milvus + etcd + MinIO) ---
-echo -e "${CYAN}Starting Docker services (Postgres, Milvus, etcd, MinIO)...${NC}"
-docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres etcd minio milvus -d
+# --- Docker services (Postgres + Milvus) ---
+echo -e "${CYAN}Starting Docker services (Postgres, Milvus)...${NC}"
+docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres milvus -d
 
 # Wait for Postgres to be healthy
 echo -e "${CYAN}Waiting for Postgres...${NC}"
@@ -110,7 +110,6 @@ echo -e "  API Docs → http://localhost:8080/docs"
 echo -e "  UI       → http://localhost:3000"
 echo -e "  Postgres → localhost:5432"
 echo -e "  Milvus   → localhost:19530"
-echo -e "  MinIO    → http://localhost:9001 (console)"
 echo -e "\n${YELLOW}Press Ctrl+C to stop all services.${NC}"
 
 wait

@@ -8,83 +8,36 @@ replicaCount: 1
 service:
   type: ClusterIP
   port: 8080
-  metricsPort: 9090
 
-storage:
-  backend: local
-  path: /data
-  # S3:
-  # backend: s3
-  # bucket: my-bigrag-bucket
-  # region: us-east-1
-  # prefix: bigrag/
-  # endpoint: ""
+env:
+  BIGRAG_HOST: "0.0.0.0"
+  BIGRAG_PORT: "8080"
+  BIGRAG_LOG_LEVEL: "info"
+  BIGRAG_DATABASE_URL: ""       # Set via secret or configmap
+  BIGRAG_MILVUS_URI: ""         # Set via secret or configmap
+  BIGRAG_UPLOAD_DIR: "/data/uploads"
+  BIGRAG_EMBEDDING_PROVIDER: "sentence-transformers"
+  BIGRAG_EMBEDDING_MODEL: "all-MiniLM-L6-v2"
 
 auth:
   masterKey: ""
   existingSecret: ""
   secretKey: "master-key"
 
-cache:
-  dram:
-    sizePercent: "20"
-  nvme:
-    enabled: false
-    storageClass: ""
-    size: 100Gi
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: ""
+  accessMode: ReadWriteOnce
 
 resources:
   requests:
-    cpu: 500m
-    memory: 1Gi
+    memory: 512Mi
+    cpu: 250m
   limits:
-    cpu: "4"
-    memory: 16Gi
-
-persistence:
-  enabled: true
-  storageClass: ""
-  size: 10Gi
-  accessModes: [ReadWriteOnce]
-
-autoscaling:
-  enabled: false
-  minReplicas: 2
-  maxReplicas: 20
-  targetCPUUtilizationPercentage: 70
-
-ingress:
-  enabled: false
-  className: ""
-  host: bigrag.example.com
-  tls: false
-  annotations: {}
-
-serviceMonitor:
-  enabled: false
-  interval: 30s
-  labels: {}
-
-podDisruptionBudget:
-  enabled: false
-  minAvailable: 1
-
-serviceAccount:
-  create: true
-  name: ""
-  annotations: {}
+    memory: 2Gi
+    cpu: "2"
 
 nodeSelector: {}
 tolerations: []
 affinity: {}
-podAnnotations: {}
-podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
-  fsGroup: 1000
-securityContext:
-  readOnlyRootFilesystem: true
-  allowPrivilegeEscalation: false
-
-env: []
-envFrom: []
