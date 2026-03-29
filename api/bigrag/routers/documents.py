@@ -257,6 +257,13 @@ async def reprocess_document(
 
     _validate_embedding_provider(collection)
 
+    # Verify the source file still exists
+    if not Path(row["file_path"]).exists():
+        raise HTTPException(
+            status_code=400,
+            detail="Source file no longer exists on disk. Upload the document again.",
+        )
+
     # Delete existing vectors
     await vector_store.delete_by_document(collection_name, document_id)
 
