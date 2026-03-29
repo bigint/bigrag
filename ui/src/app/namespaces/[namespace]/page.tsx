@@ -166,9 +166,7 @@ const NamespaceDetailPage = () => {
   );
 };
 
-// ---------------------------------------------------------------------------
 // Documents Tab — with document viewer
-// ---------------------------------------------------------------------------
 const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<readonly QueryRow[]>([]);
@@ -404,9 +402,7 @@ const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
   );
 };
 
-// ---------------------------------------------------------------------------
 // Write Tab
-// ---------------------------------------------------------------------------
 const WriteTab = ({ namespace }: { readonly namespace: string }) => {
   const [jsonText, setJsonText] = useState(
     JSON.stringify(
@@ -492,9 +488,7 @@ const WriteTab = ({ namespace }: { readonly namespace: string }) => {
   );
 };
 
-// ---------------------------------------------------------------------------
 // Schema Tab
-// ---------------------------------------------------------------------------
 const SchemaTab = ({ namespace }: { readonly namespace: string }) => {
   const schemaQuery = useQuery(schemaQueryOptions(namespace));
   const [schemaText, setSchemaText] = useState("");
@@ -644,9 +638,7 @@ const SchemaTab = ({ namespace }: { readonly namespace: string }) => {
   );
 };
 
-// ---------------------------------------------------------------------------
 // Settings Tab — with export + copy
-// ---------------------------------------------------------------------------
 interface SettingsTabProps {
   readonly namespace: string;
   readonly meta: {
@@ -850,9 +842,7 @@ const SettingsTab = ({ namespace, meta, onDeleted }: SettingsTabProps) => {
   );
 };
 
-// ---------------------------------------------------------------------------
 // Shared Components
-// ---------------------------------------------------------------------------
 interface MetaRowProps {
   readonly label: string;
   readonly value: string;
@@ -879,9 +869,7 @@ const MetaRow = ({ label, value, sub, isMono, children }: MetaRowProps) => {
   );
 };
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 function getAttributeColumns(rows: readonly QueryRow[]): readonly string[] {
   const ignored = new Set(["id", "$dist"]);
   const counts = new Map<string, number>();

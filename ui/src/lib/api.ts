@@ -37,17 +37,13 @@ export class ApiError extends Error {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Health
-// ---------------------------------------------------------------------------
 
 export async function getHealth() {
   return request<{ status: string; version: string }>("/health");
 }
 
-// ---------------------------------------------------------------------------
 // Namespaces
-// ---------------------------------------------------------------------------
 
 export interface NamespaceListItem {
   id: string;
@@ -92,9 +88,7 @@ export async function deleteNamespace(ns: string) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Schema
-// ---------------------------------------------------------------------------
 
 export async function getSchema(ns: string) {
   return request<Record<string, unknown>>(
@@ -112,9 +106,7 @@ export async function updateSchema(
   );
 }
 
-// ---------------------------------------------------------------------------
 // Documents — Write
-// ---------------------------------------------------------------------------
 
 export interface WriteRequest {
   upsert_rows?: Record<string, unknown>[];
@@ -161,9 +153,7 @@ export async function writeDocuments(ns: string, body: WriteRequest) {
   });
 }
 
-// ---------------------------------------------------------------------------
 // Documents — Query
-// ---------------------------------------------------------------------------
 
 export interface QueryRequest {
   rank_by?: unknown;
@@ -201,9 +191,7 @@ export async function queryDocuments(ns: string, body: QueryRequest) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Documents — Explain Query
-// ---------------------------------------------------------------------------
 
 export interface ExplainResult {
   namespace: string;
@@ -223,9 +211,7 @@ export async function explainQuery(ns: string, body: QueryRequest) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Documents — Single Document
-// ---------------------------------------------------------------------------
 
 export async function getDocument(ns: string, id: string) {
   return request<Record<string, unknown>>(
@@ -233,9 +219,7 @@ export async function getDocument(ns: string, id: string) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Export & Copy
-// ---------------------------------------------------------------------------
 
 export interface ExportResponse {
   format: string;
@@ -270,9 +254,7 @@ export async function copyNamespace(
   );
 }
 
-// ---------------------------------------------------------------------------
 // Admin
-// ---------------------------------------------------------------------------
 
 export async function getAdminConfig() {
   return request<Record<string, unknown>>("/v1/admin/config");
@@ -292,9 +274,7 @@ export async function triggerWarm(ns: string) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // API Keys
-// ---------------------------------------------------------------------------
 
 export interface ApiKeyPermissions {
   namespaces: string[];
@@ -348,9 +328,7 @@ export async function revokeApiKey(id: string) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Debug
-// ---------------------------------------------------------------------------
 
 export interface RecallResult {
   avg_recall: number;
@@ -373,9 +351,7 @@ export async function debugRecall(ns: string, num?: number, topK?: number) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Metrics
-// ---------------------------------------------------------------------------
 
 export async function getMetrics() {
   const res = await fetch(`${BASE_URL}/v1/metrics`, {

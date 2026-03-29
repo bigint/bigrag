@@ -14,9 +14,7 @@ import {
 } from "@/lib/api";
 import { formatBytes, formatNumber } from "@/lib/utils";
 
-// ---------------------------------------------------------------------------
 // Types
-// ---------------------------------------------------------------------------
 
 interface UploadedFile {
   name: string;
@@ -26,9 +24,7 @@ interface UploadedFile {
   uploadedAt: Date;
 }
 
-// ---------------------------------------------------------------------------
 // PDF helpers (dynamic import to avoid SSR)
-// ---------------------------------------------------------------------------
 
 async function loadPdfJs() {
   const pdfjs = await import("pdfjs-dist");
@@ -55,9 +51,7 @@ async function extractTextFromPdf(
   return { pages };
 }
 
-// ---------------------------------------------------------------------------
 // Text chunking
-// ---------------------------------------------------------------------------
 
 function chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
   const words = text.split(/\s+/).filter(Boolean);
@@ -72,9 +66,7 @@ function chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
   return chunks;
 }
 
-// ---------------------------------------------------------------------------
 // bigRAG helpers
-// ---------------------------------------------------------------------------
 
 async function storeChunks(
   namespace: string,
@@ -119,9 +111,7 @@ async function deleteDocumentChunks(namespace: string, filename: string) {
   });
 }
 
-// ---------------------------------------------------------------------------
 // Main Page Component
-// ---------------------------------------------------------------------------
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 const DEFAULT_NAMESPACE = "vault_documents";
@@ -154,9 +144,7 @@ export default function VaultPage() {
     bytes: number;
   } | null>(null);
 
-  // -------------------------------------------------------------------------
   // Load existing documents on mount
-  // -------------------------------------------------------------------------
 
   const loadExistingDocuments = useCallback(async () => {
     try {
@@ -213,9 +201,7 @@ export default function VaultPage() {
     loadExistingDocuments();
   }, [loadExistingDocuments]);
 
-  // -------------------------------------------------------------------------
   // Drag and drop handlers
-  // -------------------------------------------------------------------------
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -348,9 +334,7 @@ export default function VaultPage() {
     [processFile]
   );
 
-  // -------------------------------------------------------------------------
   // Search
-  // -------------------------------------------------------------------------
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) return;
@@ -373,9 +357,7 @@ export default function VaultPage() {
     }
   }, [namespace, searchQuery]);
 
-  // -------------------------------------------------------------------------
   // Delete handlers
-  // -------------------------------------------------------------------------
 
   const handleDeleteFile = useCallback(
     async (filename: string) => {
@@ -417,9 +399,7 @@ export default function VaultPage() {
     }
   }, [namespace]);
 
-  // -------------------------------------------------------------------------
   // Highlight matching terms in text
-  // -------------------------------------------------------------------------
 
   function highlightText(text: string, query: string) {
     if (!query.trim()) return text;
@@ -442,9 +422,7 @@ export default function VaultPage() {
     );
   }
 
-  // -------------------------------------------------------------------------
   // Render
-  // -------------------------------------------------------------------------
 
   return (
     <div className="min-h-screen bg-bg text-text">
@@ -785,9 +763,7 @@ export default function VaultPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Helper
-// ---------------------------------------------------------------------------
 
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
