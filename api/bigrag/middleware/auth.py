@@ -49,11 +49,3 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
-
-
-async def optional_auth(request: Request) -> dict | None:
-    """Returns user if authenticated, None otherwise. For endpoints that work with or without auth."""
-    try:
-        return await get_current_user(request)
-    except HTTPException:
-        return None

@@ -149,12 +149,6 @@ export async function listDocuments(collectionName: string, status?: string) {
   );
 }
 
-export async function getDocument(collectionName: string, documentId: string) {
-  return request<Document>(
-    `/v1/collections/${encodeURIComponent(collectionName)}/documents/${documentId}`
-  );
-}
-
 export async function uploadDocument(collectionName: string, file: File, metadata?: Record<string, unknown>) {
   const formData = new FormData();
   formData.append("file", file);

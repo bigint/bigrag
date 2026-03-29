@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from bigrag.config import settings
 from bigrag.database import db
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.query import (

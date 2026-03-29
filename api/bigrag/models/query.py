@@ -7,13 +7,7 @@ class QueryRequest(BaseModel):
     query: str
     top_k: int = Field(default=10, ge=1, le=1000)
     filters: dict | None = None
-    include_metadata: bool = True
-    include_text: bool = True
     min_score: float | None = None
-
-
-class VectorUpsertRequest(BaseModel):
-    vectors: list[VectorEntry]
 
 
 class VectorEntry(BaseModel):
@@ -21,6 +15,10 @@ class VectorEntry(BaseModel):
     embedding: list[float]
     text: str = ""
     metadata: dict = {}
+
+
+class VectorUpsertRequest(BaseModel):
+    vectors: list[VectorEntry]
 
 
 class VectorDeleteRequest(BaseModel):
@@ -48,7 +46,3 @@ class EmbeddingModelInfo(BaseModel):
     model: str
     dimension: int
     description: str = ""
-
-
-# Fix forward reference
-VectorUpsertRequest.model_rebuild()
