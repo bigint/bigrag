@@ -114,6 +114,7 @@ impl StorageBackend {
     /// Used for manifest updates and writer epoch fencing.
     pub async fn put_if_not_exists(&self, path: &str, data: Bytes) -> BackendResult<()> {
         let location = self.full_path(path);
+        trace!(path, bytes = data.len(), "storage put_if_not_exists (CAS)");
         let opts = PutOptions {
             mode: PutMode::Create,
             ..Default::default()
@@ -121,6 +122,7 @@ impl StorageBackend {
         match self.store.put_opts(&location, PutPayload::from(data), opts).await {
             Ok(_) => Ok(()),
             Err(object_store::Error::AlreadyExists { path, .. }) => {
+                debug!(path = %path, "CAS conflict: object already exists");
                 Err(BackendError::CasConflict(path))
             }
             Err(e) => Err(BackendError::ObjectStore(e)),
@@ -132,6 +134,7 @@ impl StorageBackend {
         let location = self.full_path(path);
         let result = self.store.get(&location).await?;
         let bytes = result.bytes().await?;
+        trace!(path, bytes = bytes.len(), "storage get");
         Ok(bytes)
     }
 
@@ -139,12 +142,14 @@ impl StorageBackend {
     pub async fn get_range(&self, path: &str, range: std::ops::Range<u64>) -> BackendResult<Bytes> {
         let location = self.full_path(path);
         let bytes = self.store.get_range(&location, range).await?;
+        trace!(path, bytes = bytes.len(), "storage get_range");
         Ok(bytes)
     }
 
     /// Delete a path.
     pub async fn delete(&self, path: &str) -> BackendResult<()> {
         let location = self.full_path(path);
+        debug!(path, "storage delete");
         self.store.delete(&location).await?;
         Ok(())
     }

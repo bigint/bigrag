@@ -1,5 +1,6 @@
 "use client";
 
+import { FileText, Loader2, Search, Settings, Upload, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   deleteNamespace,

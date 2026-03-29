@@ -1,6 +1,7 @@
 "use client";
 
 import { useQueries, useQuery } from "@tanstack/react-query";
+import { Inbox, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/status-badge";
@@ -50,7 +51,7 @@ const NamespacesPage = () => {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-text">Namespaces</h1>
         <div className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-dim" />
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-dim" />
           <input
             className="w-72 rounded-md border border-border bg-bg-input py-2 pl-9 pr-3 text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
             onChange={(e) => setSearch(e.target.value)}
@@ -90,7 +91,7 @@ const NamespacesPage = () => {
       {/* Empty state */}
       {!isLoading && !error && namespaces.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20">
-          <EmptyIcon className="mb-3 size-10 text-text-dim" />
+          <Inbox className="mb-3 size-10 text-text-dim" />
           <p className="text-sm text-text-muted">No namespaces found</p>
           {debouncedSearch && (
             <p className="mt-1 text-xs text-text-dim">

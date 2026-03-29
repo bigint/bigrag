@@ -11,6 +11,7 @@ use bigrag_common::types::{
 use bigrag_query::executor::{execute_query, InMemoryDoc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tracing::{debug, error, info, warn};
 
 use crate::state::{AppState, PatchDoc};
 
@@ -62,9 +63,11 @@ pub async fn write_documents(
     Json(body): Json<WriteRequest>,
 ) -> impl IntoResponse {
     let start = std::time::Instant::now();
+    debug!(namespace = %namespace, "write_documents request received");
 
     // Validate namespace
     if let Err(e) = bigrag_common::types::validate_namespace(&namespace) {
+        warn!(namespace = %namespace, error = %e, "invalid namespace name in write request");
         return (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({"status": "error", "error": e.to_string()})),
@@ -307,6 +310,17 @@ pub async fn write_documents(
     }
 
     let elapsed = start.elapsed();
+
+    info!(
+        namespace = %namespace,
+        upserted = upserted_count,
+        patched = patched_count,
+        deleted = deleted_count,
+        skipped = skipped_count,
+        total = total_affected,
+        elapsed_ms = elapsed.as_secs_f64() * 1000.0,
+        "write_documents completed"
+    );
 
     // Record write metrics
     crate::metrics::record_write(&namespace, elapsed, total_affected);

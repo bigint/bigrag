@@ -54,6 +54,7 @@ impl CompactionScheduler {
 
     /// Run the compaction loop. Should be spawned as a background task.
     pub async fn run(self) {
+        info!("compaction scheduler started (interval=5s)");
         let mut tick = interval(Duration::from_secs(5));
         loop {
             tick.tick().await;
