@@ -32,9 +32,23 @@ for cmd in docker cargo pnpm curl; do
   fi
 done
 
-# --- Docker services (MinIO) ---
-echo -e "${CYAN}Starting Docker services (MinIO)...${NC}"
-docker compose -f "$ROOT_DIR/docker-compose.yml" up minio -d
+# --- Docker services (Postgres + MinIO) ---
+echo -e "${CYAN}Starting Docker services (Postgres, MinIO)...${NC}"
+docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres minio -d
+
+# Wait for Postgres to be healthy
+echo -e "${CYAN}Waiting for Postgres...${NC}"
+for i in $(seq 1 30); do
+  if docker exec bigrag-postgres pg_isready -U bigrag > /dev/null 2>&1; then
+    echo -e "${GREEN}Postgres is ready.${NC}"
+    break
+  fi
+  if [ "$i" -eq 30 ]; then
+    echo -e "${RED}Postgres failed to start.${NC}"
+    exit 1
+  fi
+  sleep 1
+done
 
 # Wait for MinIO to be healthy
 echo -e "${CYAN}Waiting for MinIO...${NC}"
@@ -50,6 +64,8 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
+DATABASE_URL="postgres://bigrag:bigrag@localhost:5432/bigrag"
+
 # --- Config ---
 if [ ! -f "$ROOT_DIR/bigrag.toml" ]; then
   echo -e "${YELLOW}No bigrag.toml found, copying from example...${NC}"
@@ -61,7 +77,7 @@ echo -e "${CYAN}Building Rust backend...${NC}"
 (cd "$ROOT_DIR" && cargo build 2>&1 | sed "s/^/[build] /")
 
 echo -e "${CYAN}Starting Rust backend...${NC}"
-(cd "$ROOT_DIR" && cargo run 2>&1 | sed "s/^/[backend] /") &
+(cd "$ROOT_DIR" && cargo run -- --database-url "$DATABASE_URL" 2>&1 | sed "s/^/[backend] /") &
 PIDS+=($!)
 
 # Wait for backend to be ready
@@ -86,6 +102,7 @@ PIDS+=($!)
 echo -e "${GREEN}All services started:${NC}"
 echo -e "  Backend  → http://localhost:8080"
 echo -e "  UI       → http://localhost:3000"
+echo -e "  Postgres → localhost:5432"
 echo -e "  MinIO    → http://localhost:9001 (console)"
 echo -e "\n${YELLOW}Press Ctrl+C to stop all services.${NC}"
 

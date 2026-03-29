@@ -20,6 +20,24 @@ services:
       timeout: 10s
       retries: 3
 
+  postgres:
+    image: postgres:17
+    container_name: bigrag-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: bigrag
+      POSTGRES_PASSWORD: bigrag
+      POSTGRES_DB: bigrag
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bigrag"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   minio:
     image: minio/minio:latest
     container_name: bigrag-minio
@@ -40,4 +58,5 @@ services:
 
 volumes:
   bigrag_data:
+  postgres_data:
   minio_data:
