@@ -1,18 +1,21 @@
 services:
   bigrag:
-    build: .
+    build: ./api
     container_name: bigrag
     restart: unless-stopped
     ports:
       - "8080:8080"
-      - "9090:9090"
     volumes:
       - bigrag_data:/data
     environment:
+      BIGRAG_DATABASE_URL: postgres://bigrag:bigrag@postgres:5432/bigrag
+      BIGRAG_MILVUS_URI: http://milvus:19530
       BIGRAG_LOG_LEVEL: info
-      BIGRAG_API_KEYS: br_dev_key_change_me
+      BIGRAG_UPLOAD_DIR: /data/uploads
     depends_on:
-      minio:
+      postgres:
+        condition: service_healthy
+      milvus:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -38,6 +41,28 @@ services:
       timeout: 5s
       retries: 5
 
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.18
+    container_name: bigrag-etcd
+    restart: unless-stopped
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+      ETCD_SNAPSHOT_COUNT: "50000"
+    volumes:
+      - etcd_data:/etcd
+    command: >
+      etcd
+      -advertise-client-urls=http://127.0.0.1:2379
+      -listen-client-urls=http://0.0.0.0:2379
+      --data-dir=/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
   minio:
     image: minio/minio:latest
     container_name: bigrag-minio
@@ -56,7 +81,37 @@ services:
       timeout: 10s
       retries: 3
 
+  milvus:
+    image: milvusdb/milvus:v2.5.4
+    container_name: bigrag-milvus
+    restart: unless-stopped
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - milvus_data:/var/lib/milvus
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
 volumes:
   bigrag_data:
   postgres_data:
+  etcd_data:
   minio_data:
+  milvus_data:

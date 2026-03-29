@@ -1,0 +1,249 @@
+from __future__ import annotations
+
+import asyncio
+import shutil
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+
+from bigrag.config import settings
+from bigrag.database import db
+from bigrag.middleware.auth import get_current_user
+from bigrag.models.document import DocumentListResponse, DocumentResponse
+from bigrag.services.embedding import get_embedding_model
+from bigrag.services.ingestion import ingest_document
+from bigrag.services.vector_store import vector_store
+
+router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["documents"])
+
+
+def _row_to_response(row: dict) -> DocumentResponse:
+    r = {}
+    for k, v in row.items():
+        if isinstance(v, uuid.UUID):
+            r[k] = str(v)
+        else:
+            r[k] = v
+    return DocumentResponse(**r)
+
+
+async def _get_collection(name: str) -> dict:
+    row = await db.fetchrow("SELECT * FROM collections WHERE name = $1", name)
+    if not row:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    return dict(row)
+
+
+@router.post("", response_model=DocumentResponse, status_code=201)
+async def upload_document(
+    collection_name: str,
+    file: UploadFile = File(...),
+    metadata: str = Form(default="{}"),
+    _: dict = Depends(get_current_user),
+):
+    collection = await _get_collection(collection_name)
+
+    # Validate file size
+    max_size = settings.max_upload_size_mb * 1024 * 1024
+    content = await file.read()
+    if len(content) > max_size:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Max size: {settings.max_upload_size_mb}MB",
+        )
+
+    # Save file to disk
+    upload_dir = Path(settings.upload_dir) / collection_name
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    doc_id = str(uuid.uuid4())
+    file_ext = Path(file.filename or "document").suffix
+    file_path = upload_dir / f"{doc_id}{file_ext}"
+
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    # Parse metadata
+    import json
+    try:
+        meta = json.loads(metadata) if metadata else {}
+    except json.JSONDecodeError:
+        meta = {}
+
+    # Create document record
+    row = await db.fetchrow(
+        """
+        INSERT INTO documents (id, collection_id, filename, file_type, file_size, file_path, metadata)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+        """,
+        uuid.UUID(doc_id), collection["id"], file.filename or "document",
+        file_ext.lstrip("."), len(content), str(file_path), meta,
+    )
+
+    # Start async ingestion
+    embedding_model = get_embedding_model(
+        provider=collection["embedding_provider"],
+        model_name=collection["embedding_model"],
+        dimension=collection["dimension"],
+        api_key=settings.embedding_api_key,
+        base_url=settings.embedding_base_url,
+    )
+
+    asyncio.create_task(
+        ingest_document(
+            document_id=doc_id,
+            file_path=str(file_path),
+            collection_name=collection_name,
+            embedding_model=embedding_model,
+            chunk_size=collection["chunk_size"],
+            chunk_overlap=collection["chunk_overlap"],
+        )
+    )
+
+    return _row_to_response(dict(row))
+
+
+@router.get("", response_model=DocumentListResponse)
+async def list_documents(
+    collection_name: str,
+    status: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+    _: dict = Depends(get_current_user),
+):
+    collection = await _get_collection(collection_name)
+
+    if status:
+        rows = await db.fetch(
+            """
+            SELECT * FROM documents
+            WHERE collection_id = $1 AND status = $2
+            ORDER BY created_at DESC LIMIT $3 OFFSET $4
+            """,
+            collection["id"], status, limit, offset,
+        )
+        count_row = await db.fetchrow(
+            "SELECT COUNT(*) as cnt FROM documents WHERE collection_id = $1 AND status = $2",
+            collection["id"], status,
+        )
+    else:
+        rows = await db.fetch(
+            """
+            SELECT * FROM documents
+            WHERE collection_id = $1
+            ORDER BY created_at DESC LIMIT $2 OFFSET $3
+            """,
+            collection["id"], limit, offset,
+        )
+        count_row = await db.fetchrow(
+            "SELECT COUNT(*) as cnt FROM documents WHERE collection_id = $1",
+            collection["id"],
+        )
+
+    return DocumentListResponse(
+        documents=[_row_to_response(dict(r)) for r in rows],
+        total=count_row["cnt"],
+    )
+
+
+@router.get("/{document_id}", response_model=DocumentResponse)
+async def get_document(
+    collection_name: str,
+    document_id: str,
+    _: dict = Depends(get_current_user),
+):
+    collection = await _get_collection(collection_name)
+    row = await db.fetchrow(
+        "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
+        uuid.UUID(document_id), collection["id"],
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return _row_to_response(dict(row))
+
+
+@router.delete("/{document_id}")
+async def delete_document(
+    collection_name: str,
+    document_id: str,
+    _: dict = Depends(get_current_user),
+):
+    collection = await _get_collection(collection_name)
+    row = await db.fetchrow(
+        "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
+        uuid.UUID(document_id), collection["id"],
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Delete vectors from Milvus
+    vector_store.delete_by_document(collection_name, document_id)
+
+    # Delete file from disk
+    file_path = Path(row["file_path"])
+    if file_path.exists():
+        file_path.unlink()
+
+    # Delete from Postgres
+    await db.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(document_id))
+
+    # Update collection count
+    await db.execute(
+        """
+        UPDATE collections SET
+            document_count = (SELECT COUNT(*) FROM documents WHERE collection_id = $1 AND status = 'ready'),
+            updated_at = now()
+        WHERE id = $1
+        """,
+        collection["id"],
+    )
+
+    return {"status": "ok", "message": "Document deleted"}
+
+
+@router.post("/{document_id}/reprocess")
+async def reprocess_document(
+    collection_name: str,
+    document_id: str,
+    _: dict = Depends(get_current_user),
+):
+    collection = await _get_collection(collection_name)
+    row = await db.fetchrow(
+        "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
+        uuid.UUID(document_id), collection["id"],
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Delete existing vectors
+    vector_store.delete_by_document(collection_name, document_id)
+
+    # Reset status
+    await db.execute(
+        "UPDATE documents SET status = 'pending', chunk_count = 0, error_message = NULL, updated_at = now() WHERE id = $1",
+        uuid.UUID(document_id),
+    )
+
+    # Re-ingest
+    embedding_model = get_embedding_model(
+        provider=collection["embedding_provider"],
+        model_name=collection["embedding_model"],
+        dimension=collection["dimension"],
+        api_key=settings.embedding_api_key,
+        base_url=settings.embedding_base_url,
+    )
+
+    asyncio.create_task(
+        ingest_document(
+            document_id=document_id,
+            file_path=row["file_path"],
+            collection_name=collection_name,
+            embedding_model=embedding_model,
+            chunk_size=collection["chunk_size"],
+            chunk_overlap=collection["chunk_overlap"],
+        )
+    )
+
+    return {"status": "ok", "message": "Document reprocessing started"}
