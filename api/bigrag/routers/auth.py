@@ -61,6 +61,8 @@ async def signup(body: SignupRequest):
     if not invite:
         raise HTTPException(status_code=400, detail="Invalid or expired invite code")
 
+    import asyncpg
+
     try:
         user = await auth_service.create_user(
             email=body.email,
@@ -68,7 +70,7 @@ async def signup(body: SignupRequest):
             display_name=body.display_name,
             role=invite["role"],
         )
-    except Exception:
+    except asyncpg.UniqueViolationError:
         raise HTTPException(status_code=409, detail="Email already registered")
 
     await auth_service.mark_invite_used(invite["id"], user["id"])
