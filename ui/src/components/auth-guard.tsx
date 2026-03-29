@@ -26,9 +26,7 @@ export const AuthGuard = ({ children }: { readonly children: React.ReactNode }) 
       if (needs_setup) {
         if (pathname !== "/setup") {
           router.replace("/setup");
-          return;
         }
-        setAuthorized(true);
         setChecked(true);
         return;
       }
@@ -42,7 +40,6 @@ export const AuthGuard = ({ children }: { readonly children: React.ReactNode }) 
     if (isPublic) {
       if (isAuthenticated() && pathname === "/login") {
         router.replace("/");
-        return;
       }
       setAuthorized(true);
       setChecked(true);
@@ -51,6 +48,7 @@ export const AuthGuard = ({ children }: { readonly children: React.ReactNode }) 
 
     if (!isAuthenticated()) {
       router.replace("/login");
+      setChecked(true);
       return;
     }
 
