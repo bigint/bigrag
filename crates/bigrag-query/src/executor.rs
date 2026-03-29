@@ -251,7 +251,7 @@ pub struct QueryResult {
 }
 
 /// In-memory document representation for query evaluation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InMemoryDoc {
     pub id: DocumentId,
     pub vector: Option<Vec<f32>>,

@@ -6,6 +6,7 @@ use bigrag_index::{InvertedIndex, VectorIndex};
 use bigrag_query::executor::InMemoryDoc;
 use bigrag_query::filter::{evaluate_filter, parse_filter};
 use bigrag_storage::engine::StorageEngine;
+use bytes::Bytes;
 use dashmap::DashMap;
 use jsonwebtoken::{DecodingKey, Validation};
 use metrics_exporter_prometheus::PrometheusHandle;
@@ -15,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tracing::{debug, error, info, warn};
 
 /// A patch operation: update only specified attributes on an existing document.
 pub struct PatchDoc {
@@ -320,6 +322,113 @@ impl AppState {
             }
         }
         self.key_store.validate(token)
+    }
+
+    /// Load a namespace's documents from the storage engine into the in-memory store.
+    /// Called lazily when a namespace is first accessed after a restart.
+    pub async fn load_namespace_from_engine(&self, namespace: &str) {
+        if self.documents.contains_key(namespace) {
+            return;
+        }
+
+        let entries = match self.engine.scan_namespace(namespace).await {
+            Ok(entries) => entries,
+            Err(e) => {
+                warn!(namespace, error = %e, "failed to load namespace from storage engine");
+                return;
+            }
+        };
+
+        if entries.is_empty() {
+            return;
+        }
+
+        let mut docs = Vec::new();
+        for entry in &entries {
+            let doc: Result<InMemoryDoc, _> = serde_json::from_slice(&entry.value);
+            match doc {
+                Ok(d) => docs.push(d),
+                Err(e) => {
+                    debug!(namespace, key = %String::from_utf8_lossy(&entry.key), error = %e, "skipping unparseable entry");
+                }
+            }
+        }
+
+        if !docs.is_empty() {
+            let count = docs.len();
+            self.documents.insert(
+                namespace.to_string(),
+                NamespaceData {
+                    docs: RwLock::new(docs),
+                    vector_index: None,
+                    inverted_indexes: HashMap::new(),
+                    distance_metric: None,
+                    schema: None,
+                },
+            );
+            info!(namespace, documents = count, "loaded namespace from storage engine");
+        }
+    }
+
+    /// Persist documents to the storage engine for durability across restarts.
+    pub async fn persist_documents(&self, namespace: &str, docs: &[InMemoryDoc]) {
+        let mut entries = Vec::with_capacity(docs.len());
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+
+        for doc in docs {
+            let key = Bytes::from(doc.id.to_string());
+            let value = match serde_json::to_vec(doc) {
+                Ok(v) => Bytes::from(v),
+                Err(e) => {
+                    error!(namespace, id = %doc.id, error = %e, "failed to serialize document");
+                    continue;
+                }
+            };
+            entries.push(bigrag_storage::sst::Entry::new(key, value, ts));
+        }
+
+        if entries.is_empty() {
+            return;
+        }
+
+        if let Err(e) = self.engine.write(namespace, entries).await {
+            error!(namespace, error = %e, "failed to persist documents to storage engine");
+        } else {
+            debug!(namespace, count = docs.len(), "documents persisted to storage engine");
+        }
+    }
+
+    /// Persist document deletions to the storage engine.
+    pub async fn persist_deletes(&self, namespace: &str, ids: &[DocumentId]) {
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+
+        let entries: Vec<bigrag_storage::sst::Entry> = ids
+            .iter()
+            .map(|id| bigrag_storage::sst::Entry::tombstone(Bytes::from(id.to_string()), ts))
+            .collect();
+
+        if let Err(e) = self.engine.write(namespace, entries).await {
+            error!(namespace, error = %e, "failed to persist deletes to storage engine");
+        }
+    }
+
+    /// Load all known namespaces from the manifest on startup.
+    pub async fn load_all_namespaces(&self) {
+        let ns_names = self.engine.manifest().list_namespaces();
+        if ns_names.is_empty() {
+            info!("no persisted namespaces to load");
+            return;
+        }
+        info!(count = ns_names.len(), "loading persisted namespaces");
+        for ns in &ns_names {
+            self.load_namespace_from_engine(ns).await;
+        }
     }
 
     /// Get or create namespace data.
