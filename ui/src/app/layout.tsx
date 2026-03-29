@@ -12,6 +12,9 @@ const outfit = Outfit({
 
 export const metadata: Metadata = {
   description: "Admin dashboard for bigRAG vector database",
+  icons: {
+    icon: "/logo.svg"
+  },
   title: "bigRAG Admin"
 };
 

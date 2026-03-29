@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -27,9 +28,7 @@ export const Sidebar = () => {
   return (
     <aside className="fixed left-0 top-0 z-50 flex h-screen w-56 flex-col border-r border-border bg-bg">
       <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-border px-5">
-        <div className="flex size-7 items-center justify-center rounded-lg bg-accent">
-          <span className="text-xs font-bold text-white">B</span>
-        </div>
+        <Logo size={28} />
         <span className="text-sm font-semibold tracking-tight">bigRAG</span>
       </div>
 
