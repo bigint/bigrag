@@ -203,8 +203,8 @@ class IngestionQueue:
     async def _worker(self, worker_id: int) -> None:
         logger.info(f"[worker-{worker_id}] started")
         while self._running:
-            # BRPOPLPUSH: atomically pop from queue, push to processing (crash-safe)
-            data = await self._redis.brpoplpush(QUEUE_KEY, PROCESSING_KEY, timeout=1)
+            # BLMOVE: atomically pop from queue, push to processing (crash-safe)
+            data = await self._redis.blmove(QUEUE_KEY, PROCESSING_KEY, timeout=1, wherefrom="RIGHT", whereto="LEFT")
             if data is None:
                 continue
 
