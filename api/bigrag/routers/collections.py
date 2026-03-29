@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -143,6 +144,12 @@ async def delete_collection(name: str, _: dict = Depends(get_current_user)):
 
     # Delete from Milvus
     await vector_store.delete_collection(name)
+
+    # Delete uploaded files from disk
+    upload_dir = Path(settings.upload_dir) / name
+    if upload_dir.exists():
+        import shutil
+        shutil.rmtree(upload_dir, ignore_errors=True)
 
     # Delete from Postgres (cascades to documents)
     await db.execute("DELETE FROM collections WHERE name = $1", name)
