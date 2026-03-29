@@ -1,12 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { adminConfigQueryOptions, healthQueryOptions } from "@/lib/queries";
-import {
-  getBaseUrl,
-  setBaseUrl
-} from "@/lib/auth-store";
+import { getBaseUrl } from "@/lib/auth-store";
 
 const Pulse = ({ className }: { readonly className?: string }) => (
   <div className={`animate-pulse rounded-md bg-bg-hover ${className ?? ""}`} />
@@ -21,23 +17,8 @@ function renderConfigValue(value: unknown): string {
 }
 
 const SettingsPage = () => {
-  const queryClient = useQueryClient();
   const healthQuery = useQuery(healthQueryOptions());
   const configQuery = useQuery(adminConfigQueryOptions());
-
-  const [url, setUrl] = useState("");
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    setUrl(getBaseUrl());
-  }, []);
-
-  const handleSave = useCallback(() => {
-    setBaseUrl(url);
-    setSaved(true);
-    queryClient.invalidateQueries();
-    setTimeout(() => setSaved(false), 2000);
-  }, [url, queryClient]);
 
   const isLoading = healthQuery.isLoading || configQuery.isLoading;
   const isConnected = healthQuery.isSuccess;
@@ -69,20 +50,14 @@ const SettingsPage = () => {
           </h2>
           <div className="rounded-lg border border-border bg-bg-card">
             <div className="divide-y divide-border">
-              <div className="flex items-center justify-between gap-4 px-5 py-4">
-                <div className="min-w-0">
-                  <p className="text-sm text-text-muted">API URL</p>
-                </div>
-                <input
-                  className="w-80 rounded-md border border-border bg-bg px-3 py-1.5 font-mono text-sm text-text outline-none focus:border-text-muted"
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="http://localhost:8080"
-                  spellCheck={false}
-                  value={url}
-                />
-              </div>
+              <SettingsRow isLoading={false} label="API URL">
+                <span className="font-mono text-sm text-text">
+                  {getBaseUrl()}
+                </span>
+              </SettingsRow>
 
               <div className="flex items-center justify-between px-5 py-4">
+                <span className="text-sm text-text-muted">Status</span>
                 <div className="flex items-center gap-2">
                   <span
                     className={`inline-block size-2 rounded-full ${
@@ -97,19 +72,18 @@ const SettingsPage = () => {
                     {isConnected ? "Connected" : "Disconnected"}
                   </span>
                   {version && (
-                    <span className="ml-2 font-mono text-xs text-text-dim">
+                    <span className="ml-1 font-mono text-xs text-text-dim">
                       v{version}
                     </span>
                   )}
                 </div>
-                <button
-                  className="rounded-md bg-text px-4 py-1.5 text-sm font-medium text-bg hover:opacity-90"
-                  onClick={handleSave}
-                  type="button"
-                >
-                  {saved ? "Saved" : "Save & Reconnect"}
-                </button>
               </div>
+
+              <SettingsRow isLoading={healthQuery.isLoading} label="Version">
+                <span className="font-mono text-sm text-text">
+                  {version || "---"}
+                </span>
+              </SettingsRow>
             </div>
           </div>
         </div>
