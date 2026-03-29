@@ -10,6 +10,7 @@ use object_store::{
 };
 use std::sync::Arc;
 use thiserror::Error;
+use tracing::{debug, info, trace};
 
 #[derive(Debug, Error)]
 pub enum BackendError {

@@ -185,7 +185,10 @@ impl WalBatchProcessor {
         self.backend
             .put(&path, sst.data.clone())
             .await
-            .map_err(|e| WalError::StorageError(format!("failed to write WAL SST: {e}")))?;
+            .map_err(|e| {
+                error!(namespace, path = %path, error = %e, "failed to write WAL SST to storage");
+                WalError::StorageError(format!("failed to write WAL SST: {e}"))
+            })?;
 
         debug!(
             namespace,

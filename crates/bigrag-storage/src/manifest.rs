@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::info;
+use tracing::{debug, error, info, warn};
 
 use crate::backend::{BackendError, StorageBackend};
 
@@ -153,21 +153,29 @@ impl ManifestManager {
                 Ok(epoch)
             }
             Err(BackendError::CasConflict(_)) => {
-                // Another writer claimed this sequence. Reload and check epoch.
+                warn!("CAS conflict claiming writer epoch, reloading manifest");
                 let latest = Self::load_latest(&self.backend).await?;
                 if latest.writer_epoch > state.writer_epoch {
+                    error!(
+                        our_epoch = state.writer_epoch,
+                        winner_epoch = latest.writer_epoch,
+                        "epoch fenced by another writer"
+                    );
                     Err(ManifestError::EpochFenced {
                         our_epoch: state.writer_epoch,
                         winner_epoch: latest.writer_epoch,
                     })
                 } else {
-                    // Race on same epoch — retry
+                    warn!("CAS race on same epoch, will retry");
                     Err(ManifestError::CasConflict)
                 }
             }
-            Err(e) => Err(ManifestError::Storage(format!(
-                "failed to write manifest: {e}"
-            ))),
+            Err(e) => {
+                error!(error = %e, "failed to write manifest during epoch claim");
+                Err(ManifestError::Storage(format!(
+                    "failed to write manifest: {e}"
+                )))
+            }
         }
     }
 
@@ -187,13 +195,20 @@ impl ManifestManager {
 
         match self.backend.put_if_not_exists(&path, Bytes::from(data)).await {
             Ok(()) => {
+                debug!(manifest_seq = state.manifest_seq, "manifest committed");
                 *self.current.write() = state;
                 Ok(())
             }
-            Err(BackendError::CasConflict(_)) => Err(ManifestError::CasConflict),
-            Err(e) => Err(ManifestError::Storage(format!(
-                "failed to write manifest: {e}"
-            ))),
+            Err(BackendError::CasConflict(_)) => {
+                warn!(manifest_seq = state.manifest_seq, "manifest CAS conflict");
+                Err(ManifestError::CasConflict)
+            }
+            Err(e) => {
+                error!(error = %e, "failed to write manifest");
+                Err(ManifestError::Storage(format!(
+                    "failed to write manifest: {e}"
+                )))
+            }
         }
     }
 
