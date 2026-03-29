@@ -34,6 +34,7 @@ impl StorageBackend {
     pub fn from_config(config: &StorageConfig) -> BackendResult<Self> {
         match config {
             StorageConfig::Local { path } => {
+                info!(path, "initializing local storage backend");
                 std::fs::create_dir_all(path).map_err(|e| {
                     BackendError::ObjectStore(object_store::Error::Generic {
                         store: "local",
@@ -52,6 +53,7 @@ impl StorageBackend {
                 prefix,
                 endpoint,
             } => {
+                info!(bucket, region, ?endpoint, "initializing S3 storage backend");
                 let mut builder = AmazonS3Builder::new()
                     .with_bucket_name(bucket)
                     .with_region(region);
@@ -65,6 +67,7 @@ impl StorageBackend {
                 })
             }
             StorageConfig::Gcs { bucket, prefix } => {
+                info!(bucket, "initializing GCS storage backend");
                 let store = GoogleCloudStorageBuilder::new()
                     .with_bucket_name(bucket)
                     .build()?;
@@ -78,6 +81,7 @@ impl StorageBackend {
                 account,
                 prefix,
             } => {
+                info!(container, account, "initializing Azure storage backend");
                 let store = MicrosoftAzureBuilder::new()
                     .with_container_name(container)
                     .with_account(account)
@@ -101,6 +105,7 @@ impl StorageBackend {
     /// Write data to a path. Overwrites if exists.
     pub async fn put(&self, path: &str, data: Bytes) -> BackendResult<()> {
         let location = self.full_path(path);
+        trace!(path, bytes = data.len(), "storage put");
         self.store.put(&location, PutPayload::from(data)).await?;
         Ok(())
     }
