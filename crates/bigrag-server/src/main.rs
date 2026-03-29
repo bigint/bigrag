@@ -155,6 +155,10 @@ async fn main() -> Result<()> {
 
     // Build app state and router
     let state = AppState::new(engine, key_store, jwt_config, prometheus_handle);
+
+    // Load persisted namespaces from storage engine
+    state.load_all_namespaces().await;
+
     let app = create_router(state);
 
     // Add tower-http layers
