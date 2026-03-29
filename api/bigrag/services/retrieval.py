@@ -39,37 +39,59 @@ async def retrieve(
     return results
 
 
+import re
+
+_SAFE_FIELD_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+_ALLOWED_FIELDS = {"document_id", "chunk_index", "text"}
+
+
+def _validate_field(key: str) -> str:
+    """Validate that a field name is safe for use in filter expressions."""
+    if not _SAFE_FIELD_RE.match(key):
+        raise ValueError(f"Invalid filter field name: {key!r}")
+    return key
+
+
+def _escape_string(value: str) -> str:
+    """Escape a string value for safe use in Milvus filter expressions."""
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _build_filter_expr(filters: dict) -> str | None:
     """Convert filter dict to Milvus filter expression."""
     expressions = []
 
     for key, value in filters.items():
+        field = _validate_field(key)
         if isinstance(value, str):
-            expressions.append(f'{key} == "{value}"')
+            expressions.append(f'{field} == "{_escape_string(value)}"')
         elif isinstance(value, (int, float)):
-            expressions.append(f"{key} == {value}")
+            expressions.append(f"{field} == {value}")
         elif isinstance(value, dict):
             for op, val in value.items():
                 if op == "$eq":
                     if isinstance(val, str):
-                        expressions.append(f'{key} == "{val}"')
+                        expressions.append(f'{field} == "{_escape_string(val)}"')
                     else:
-                        expressions.append(f"{key} == {val}")
+                        expressions.append(f"{field} == {val}")
                 elif op == "$ne":
                     if isinstance(val, str):
-                        expressions.append(f'{key} != "{val}"')
+                        expressions.append(f'{field} != "{_escape_string(val)}"')
                     else:
-                        expressions.append(f"{key} != {val}")
+                        expressions.append(f"{field} != {val}")
                 elif op == "$gt":
-                    expressions.append(f"{key} > {val}")
+                    expressions.append(f"{field} > {val}")
                 elif op == "$gte":
-                    expressions.append(f"{key} >= {val}")
+                    expressions.append(f"{field} >= {val}")
                 elif op == "$lt":
-                    expressions.append(f"{key} < {val}")
+                    expressions.append(f"{field} < {val}")
                 elif op == "$lte":
-                    expressions.append(f"{key} <= {val}")
+                    expressions.append(f"{field} <= {val}")
                 elif op == "$in":
-                    vals = ", ".join(f'"{v}"' if isinstance(v, str) else str(v) for v in val)
-                    expressions.append(f"{key} in [{vals}]")
+                    vals = ", ".join(
+                        f'"{_escape_string(v)}"' if isinstance(v, str) else str(v)
+                        for v in val
+                    )
+                    expressions.append(f"{field} in [{vals}]")
 
     return " and ".join(expressions) if expressions else None
