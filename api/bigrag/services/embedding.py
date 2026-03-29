@@ -32,7 +32,12 @@ class SentenceTransformerEmbedding(EmbeddingModel):
         from sentence_transformers import SentenceTransformer
 
         self._model_name = model_name
-        self._model = SentenceTransformer(model_name)
+        try:
+            self._model = SentenceTransformer(model_name)
+        except Exception as e:
+            raise ValueError(
+                f"Failed to load sentence-transformers model '{model_name}': {e}"
+            ) from e
         self._dimension = self._model.get_sentence_embedding_dimension()
         logger.info(f"Loaded sentence-transformers model: {model_name} (dim={self._dimension})")
 
@@ -216,7 +221,7 @@ AVAILABLE_MODELS = [
     },
     {
         "provider": "sentence-transformers",
-        "model": "multilingual-e5-large",
+        "model": "intfloat/multilingual-e5-large",
         "dimension": 1024,
         "description": "Multilingual model supporting 100+ languages",
     },

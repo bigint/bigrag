@@ -200,11 +200,7 @@ const CollectionDetailPage = ({ params }: { readonly params: Promise<{ name: str
   const [dragging, setDragging] = useState(false);
 
   const collectionQuery = useQuery(collectionQueryOptions(name));
-  const hasProcessing = [...uploads.values()].some((u) => u.phase === "processing");
-  const documentsQuery = useQuery({
-    ...documentsQueryOptions(name),
-    refetchInterval: hasProcessing ? 2000 : 10000
-  });
+  const documentsQuery = useQuery(documentsQueryOptions(name));
 
   const deleteMutation = useMutation({
     mutationFn: (docId: string) => deleteDocument(name, docId),
