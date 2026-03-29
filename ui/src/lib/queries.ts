@@ -1,63 +1,60 @@
-import { queryOptions } from '@tanstack/react-query'
+import { queryOptions } from "@tanstack/react-query";
 import {
+  getAdminConfig,
   getHealth,
-  listNamespaces,
+  getMetrics,
   getNamespaceMetadata,
   getSchema,
-  queryDocuments,
-  getAdminConfig,
-  getMetrics,
+  listNamespaces,
   type QueryRequest,
-} from '@/lib/api'
+  queryDocuments
+} from "@/lib/api";
 
 export const healthQueryOptions = () =>
   queryOptions({
-    queryKey: ['health'],
     queryFn: () => getHealth(),
-  })
+    queryKey: ["health"]
+  });
 
 export const namespacesQueryOptions = (params?: {
-  readonly prefix?: string
-  readonly cursor?: string
-  readonly pageSize?: number
+  readonly prefix?: string;
+  readonly cursor?: string;
+  readonly pageSize?: number;
 }) =>
   queryOptions({
-    queryKey: ['namespaces', params],
     queryFn: () =>
       listNamespaces(params?.prefix, params?.cursor, params?.pageSize ?? 100),
-  })
+    queryKey: ["namespaces", params]
+  });
 
 export const namespaceMetadataQueryOptions = (namespace: string) =>
   queryOptions({
-    queryKey: ['namespace-metadata', { namespace }],
     queryFn: () => getNamespaceMetadata(namespace),
-  })
+    queryKey: ["namespace-metadata", { namespace }]
+  });
 
 export const schemaQueryOptions = (namespace: string) =>
   queryOptions({
-    queryKey: ['schema', { namespace }],
     queryFn: () => getSchema(namespace),
-  })
+    queryKey: ["schema", { namespace }]
+  });
 
-export const queryDocumentsOptions = (
-  namespace: string,
-  body: QueryRequest
-) =>
+export const queryDocumentsOptions = (namespace: string, body: QueryRequest) =>
   queryOptions({
-    queryKey: ['query', { namespace, body }],
-    queryFn: () => queryDocuments(namespace, body),
     enabled: false,
-  })
+    queryFn: () => queryDocuments(namespace, body),
+    queryKey: ["query", { body, namespace }]
+  });
 
 export const adminConfigQueryOptions = () =>
   queryOptions({
-    queryKey: ['admin-config'],
     queryFn: () => getAdminConfig(),
-  })
+    queryKey: ["admin-config"]
+  });
 
 export const metricsQueryOptions = () =>
   queryOptions({
-    queryKey: ['metrics'],
     queryFn: () => getMetrics(),
-    refetchInterval: 10_000,
-  })
+    queryKey: ["metrics"],
+    refetchInterval: 10_000
+  });

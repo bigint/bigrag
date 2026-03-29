@@ -13,6 +13,7 @@
   "files": {
     "ignoreUnknown": true,
     "includes": [
+      "src/**/*.{ts,tsx,js,jsx,mjs}",
       "app/**/*.{ts,tsx,js,jsx,mjs}",
       "utils/**/*.{ts,tsx,js,jsx,mjs}",
       "*.{ts,tsx,js,jsx,json,mjs}"

@@ -1,25 +1,26 @@
 const BASE_URL = process.env.NEXT_PUBLIC_BIGRAG_URL || "http://localhost:8080";
 const API_KEY = process.env.NEXT_PUBLIC_BIGRAG_API_KEY || "";
 
-async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}),
-    ...(options.headers as Record<string, string> || {}),
+    ...((options.headers as Record<string, string>) || {})
   };
 
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
-    headers,
     cache: "no-store",
+    headers
   });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, body?.error?.message || res.statusText, body?.error?.code);
+    throw new ApiError(
+      res.status,
+      body?.error?.message || res.statusText,
+      body?.error?.code
+    );
   }
 
   return res.json();
@@ -51,7 +52,11 @@ export interface NamespaceListResponse {
   next_cursor?: string;
 }
 
-export async function listNamespaces(prefix?: string, cursor?: string, pageSize = 100) {
+export async function listNamespaces(
+  prefix?: string,
+  cursor?: string,
+  pageSize = 100
+) {
   const params = new URLSearchParams();
   if (prefix) params.set("prefix", prefix);
   if (cursor) params.set("cursor", cursor);
@@ -69,25 +74,38 @@ export interface NamespaceMetadata {
 }
 
 export async function getNamespaceMetadata(ns: string) {
-  return request<NamespaceMetadata>(`/v1/namespaces/${encodeURIComponent(ns)}/metadata`);
+  return request<NamespaceMetadata>(
+    `/v1/namespaces/${encodeURIComponent(ns)}/metadata`
+  );
 }
 
 export async function deleteNamespace(ns: string) {
-  return request<{ status: string }>(`/v2/namespaces/${encodeURIComponent(ns)}`, {
-    method: "DELETE",
-  });
+  return request<{ status: string }>(
+    `/v2/namespaces/${encodeURIComponent(ns)}`,
+    {
+      method: "DELETE"
+    }
+  );
 }
 
 // Schema
 export async function getSchema(ns: string) {
-  return request<Record<string, unknown>>(`/v1/namespaces/${encodeURIComponent(ns)}/schema`);
+  return request<Record<string, unknown>>(
+    `/v1/namespaces/${encodeURIComponent(ns)}/schema`
+  );
 }
 
-export async function updateSchema(ns: string, schema: Record<string, unknown>) {
-  return request<{ status: string }>(`/v1/namespaces/${encodeURIComponent(ns)}/schema`, {
-    method: "PUT",
-    body: JSON.stringify(schema),
-  });
+export async function updateSchema(
+  ns: string,
+  schema: Record<string, unknown>
+) {
+  return request<{ status: string }>(
+    `/v1/namespaces/${encodeURIComponent(ns)}/schema`,
+    {
+      body: JSON.stringify(schema),
+      method: "PUT"
+    }
+  );
 }
 
 // Documents
@@ -96,7 +114,11 @@ export interface WriteRequest {
   upsert_columns?: Record<string, unknown>;
   patch_rows?: Record<string, unknown>[];
   deletes?: (string | number)[];
-  delete_by_filter?: { filter: unknown; max_affected?: number; allow_partial?: boolean };
+  delete_by_filter?: {
+    filter: unknown;
+    max_affected?: number;
+    allow_partial?: boolean;
+  };
   distance_metric?: string;
   schema?: Record<string, unknown>;
 }
@@ -114,8 +136,8 @@ export interface WriteResponse {
 
 export async function writeDocuments(ns: string, body: WriteRequest) {
   return request<WriteResponse>(`/v2/namespaces/${encodeURIComponent(ns)}`, {
-    method: "POST",
     body: JSON.stringify(body),
+    method: "POST"
   });
 }
 
@@ -148,10 +170,13 @@ export interface QueryResponse {
 }
 
 export async function queryDocuments(ns: string, body: QueryRequest) {
-  return request<QueryResponse>(`/v2/namespaces/${encodeURIComponent(ns)}/query`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  return request<QueryResponse>(
+    `/v2/namespaces/${encodeURIComponent(ns)}/query`,
+    {
+      body: JSON.stringify(body),
+      method: "POST"
+    }
+  );
 }
 
 // Single document
@@ -183,8 +208,8 @@ export async function triggerWarm(ns: string) {
 // Metrics
 export async function getMetrics() {
   const res = await fetch(`${BASE_URL}/v1/metrics`, {
-    headers: API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {},
     cache: "no-store",
+    headers: API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}
   });
   return res.text();
 }

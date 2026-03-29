@@ -1,24 +1,20 @@
-import type { Metadata } from 'next'
-import { GeistSans } from 'geist/font/sans'
-import { GeistMono } from 'geist/font/mono'
-import { Sidebar } from '@/components/sidebar'
-import { Providers } from '@/lib/query-client'
-import './globals.css'
+import { GeistMono } from "geist/font/mono";
+import { GeistSans } from "geist/font/sans";
+import type { Metadata } from "next";
+import { Sidebar } from "@/components/sidebar";
+import { Providers } from "@/lib/query-client";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: 'bigRAG Admin',
-  description: 'Admin dashboard for bigRAG vector database',
-}
+  description: "Admin dashboard for bigRAG vector database",
+  title: "bigRAG Admin"
+};
 
-const RootLayout = ({
-  children,
-}: {
-  readonly children: React.ReactNode
-}) => {
+const RootLayout = ({ children }: { readonly children: React.ReactNode }) => {
   return (
     <html
-      lang="en"
       className={`${GeistSans.variable} ${GeistMono.variable} dark`}
+      lang="en"
     >
       <body className="antialiased">
         <Providers>
@@ -29,7 +25,7 @@ const RootLayout = ({
         </Providers>
       </body>
     </html>
-  )
-}
+  );
+};
 
-export default RootLayout
+export default RootLayout;

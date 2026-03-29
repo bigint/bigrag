@@ -1,48 +1,48 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useQuery, useQueries } from '@tanstack/react-query'
-import Link from 'next/link'
+import { useQueries, useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { StatusBadge } from "@/components/status-badge";
 import {
-  namespacesQueryOptions,
   namespaceMetadataQueryOptions,
-} from '@/lib/queries'
-import { formatNumber, formatBytes, timeAgo } from '@/lib/utils'
-import { StatusBadge } from '@/components/status-badge'
+  namespacesQueryOptions
+} from "@/lib/queries";
+import { formatBytes, formatNumber, timeAgo } from "@/lib/utils";
 
 const NamespacesPage = () => {
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 300)
-    return () => clearTimeout(timer)
-  }, [search])
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const namespacesQuery = useQuery(
     namespacesQueryOptions({
-      prefix: debouncedSearch || undefined,
       pageSize: 100,
+      prefix: debouncedSearch || undefined
     })
-  )
+  );
 
-  const items = namespacesQuery.data?.namespaces ?? []
+  const items = namespacesQuery.data?.namespaces ?? [];
 
   const metadataQueries = useQueries({
-    queries: items.map((ns) => namespaceMetadataQueryOptions(ns.id)),
-  })
+    queries: items.map((ns) => namespaceMetadataQueryOptions(ns.id))
+  });
 
   const namespaces = items.map((ns, i) => ({
     ...ns,
-    meta:
-      metadataQueries[i]?.status === 'success'
-        ? metadataQueries[i].data
-        : undefined,
     isMetaLoading: metadataQueries[i]?.isLoading ?? true,
-  }))
+    meta:
+      metadataQueries[i]?.status === "success"
+        ? metadataQueries[i].data
+        : undefined
+  }));
 
-  const isLoading = namespacesQuery.isLoading
-  const error = namespacesQuery.error
+  const isLoading = namespacesQuery.isLoading;
+  const error = namespacesQuery.error;
 
   return (
     <div>
@@ -52,11 +52,11 @@ const NamespacesPage = () => {
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-dim" />
           <input
-            type="text"
-            placeholder="Search by prefix..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
             className="w-72 rounded-md border border-border bg-bg-input py-2 pl-9 pr-3 text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by prefix..."
+            type="text"
+            value={search}
           />
         </div>
       </div>
@@ -73,8 +73,8 @@ const NamespacesPage = () => {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
-              key={i}
               className="animate-pulse rounded-lg border border-border bg-bg-card p-5"
+              key={i}
             >
               <div className="mb-3 flex items-center justify-between">
                 <div className="h-4 w-40 rounded bg-bg-hover" />
@@ -105,9 +105,9 @@ const NamespacesPage = () => {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {namespaces.map((ns) => (
             <Link
-              key={ns.id}
-              href={`/namespaces/${encodeURIComponent(ns.id)}`}
               className="group rounded-lg border border-border bg-bg-card p-5 transition-colors hover:border-border-hover hover:bg-bg-hover/30"
+              href={`/namespaces/${encodeURIComponent(ns.id)}`}
+              key={ns.id}
             >
               <div className="mb-2 flex items-center justify-between">
                 <span className="mr-3 truncate font-mono text-sm font-medium text-text">
@@ -130,7 +130,7 @@ const NamespacesPage = () => {
                   <p className="mt-1 text-xs text-text-muted">
                     <span className="font-mono">
                       {formatNumber(ns.meta.approx_row_count)}
-                    </span>{' '}
+                    </span>{" "}
                     documents
                     <span className="mx-1.5 text-text-dim">&middot;</span>
                     <span className="font-mono">
@@ -151,42 +151,42 @@ const NamespacesPage = () => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
 const SearchIcon = ({ className }: { readonly className?: string }) => {
   return (
     <svg
       className={className}
-      viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
+      viewBox="0 0 16 16"
     >
       <circle cx="7" cy="7" r="4.5" />
       <path d="M10.5 10.5L14 14" />
     </svg>
-  )
-}
+  );
+};
 
 const EmptyIcon = ({ className }: { readonly className?: string }) => {
   return (
     <svg
       className={className}
-      viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
+      viewBox="0 0 24 24"
     >
       <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7" />
       <path d="M1 4h22v3H1z" />
       <path d="M10 12h4" />
     </svg>
-  )
-}
+  );
+};
 
-export default NamespacesPage
+export default NamespacesPage;

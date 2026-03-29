@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  writeDocuments,
-  queryDocuments,
   deleteNamespace,
   getNamespaceMetadata,
   type QueryRow,
+  queryDocuments,
   type WriteRequest,
+  writeDocuments
 } from "@/lib/api";
 import { formatBytes, formatNumber } from "@/lib/utils";
 
@@ -56,11 +56,7 @@ async function extractTextFromPdf(
 // Text chunking
 // ---------------------------------------------------------------------------
 
-function chunkText(
-  text: string,
-  chunkSize = 500,
-  overlap = 50
-): string[] {
+function chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
   const words = text.split(/\s+/).filter(Boolean);
   if (words.length === 0) return [];
   const chunks: string[] = [];
@@ -83,40 +79,40 @@ async function storeChunks(
   chunks: { text: string; page: number; chunkIdx: number }[]
 ) {
   const rows = chunks.map((chunk) => ({
-    id: `${filename}__p${chunk.page}_c${chunk.chunkIdx}`,
-    filename,
-    page_number: chunk.page,
+    char_count: chunk.text.length,
     chunk_index: chunk.chunkIdx,
     content: chunk.text,
-    char_count: chunk.text.length,
+    filename,
+    id: `${filename}__p${chunk.page}_c${chunk.chunkIdx}`,
+    page_number: chunk.page
   }));
 
   await writeDocuments(namespace, {
-    upsert_rows: rows,
     distance_metric: "cosine_distance",
     schema: {
-      content: { type: "string", full_text_search: true, filterable: false },
-      filename: { type: "string", filterable: true },
-      page_number: { type: "uint", filterable: true },
-      chunk_index: { type: "uint", filterable: true },
-      char_count: { type: "uint", filterable: true },
+      char_count: { filterable: true, type: "uint" },
+      chunk_index: { filterable: true, type: "uint" },
+      content: { filterable: false, full_text_search: true, type: "string" },
+      filename: { filterable: true, type: "string" },
+      page_number: { filterable: true, type: "uint" }
     },
+    upsert_rows: rows
   } as WriteRequest);
 }
 
 async function searchVault(namespace: string, query: string) {
   return queryDocuments(namespace, {
-    rank_by: ["content", "BM25", query],
-    top_k: 20,
     include_attributes: true,
+    rank_by: ["content", "BM25", query],
+    top_k: 20
   });
 }
 
 async function deleteDocumentChunks(namespace: string, filename: string) {
   await writeDocuments(namespace, {
     delete_by_filter: {
-      filter: ["filename", "Eq", filename],
-    },
+      filter: ["filename", "Eq", filename]
+    }
   });
 }
 
@@ -128,16 +124,16 @@ function UploadIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}
-      viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
+      viewBox="0 0 24 24"
     >
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="17 8 12 3 7 8" />
-      <line x1="12" y1="3" x2="12" y2="15" />
+      <line x1="12" x2="12" y1="3" y2="15" />
     </svg>
   );
 }
@@ -146,17 +142,17 @@ function FileIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}
-      viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
+      viewBox="0 0 24 24"
     >
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <polyline points="14 2 14 8 20 8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
+      <line x1="16" x2="8" y1="13" y2="13" />
+      <line x1="16" x2="8" y1="17" y2="17" />
       <polyline points="10 9 9 9 8 9" />
     </svg>
   );
@@ -166,29 +162,35 @@ function SearchIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}
-      viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
+      viewBox="0 0 24 24"
     >
       <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      <line x1="21" x2="16.65" y1="21" y2="16.65" />
     </svg>
   );
 }
 
-function ChevronIcon({ className, open }: { className?: string; open: boolean }) {
+function _ChevronIcon({
+  className,
+  open
+}: {
+  className?: string;
+  open: boolean;
+}) {
   return (
     <svg
       className={`${className ?? ""} transition-transform ${open ? "rotate-180" : ""}`}
-      viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
+      viewBox="0 0 24 24"
     >
       <polyline points="6 9 12 15 18 9" />
     </svg>
@@ -199,15 +201,15 @@ function XIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}
-      viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
     >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
+      <line x1="18" x2="6" y1="6" y2="18" />
+      <line x1="6" x2="18" y1="6" y2="18" />
     </svg>
   );
 }
@@ -216,12 +218,12 @@ function SettingsIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}
-      viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
+      viewBox="0 0 24 24"
     >
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
@@ -233,23 +235,23 @@ function SpinnerIcon({ className }: { className?: string }) {
   return (
     <svg
       className={`animate-spin ${className ?? ""}`}
-      viewBox="0 0 24 24"
       fill="none"
+      viewBox="0 0 24 24"
     >
       <circle
+        className="opacity-20"
         cx="12"
         cy="12"
         r="10"
         stroke="currentColor"
-        strokeWidth="3"
         strokeLinecap="round"
-        className="opacity-20"
+        strokeWidth="3"
       />
       <path
         d="M12 2a10 10 0 0 1 10 10"
         stroke="currentColor"
-        strokeWidth="3"
         strokeLinecap="round"
+        strokeWidth="3"
       />
     </svg>
   );
@@ -298,14 +300,14 @@ export default function VaultPage() {
     try {
       const metadata = await getNamespaceMetadata(namespace);
       setNamespaceStats({
-        rows: metadata.approx_row_count,
         bytes: metadata.approx_logical_bytes,
+        rows: metadata.approx_row_count
       });
 
       // Fetch a sample to discover unique filenames
       const result = await queryDocuments(namespace, {
-        top_k: 1000,
         include_attributes: ["filename", "page_number", "chunk_index"],
+        top_k: 1000
       });
 
       if (result.rows && result.rows.length > 0) {
@@ -317,9 +319,10 @@ export default function VaultPage() {
           const fname = row.filename as string;
           if (!fname) continue;
           if (!fileMap.has(fname)) {
-            fileMap.set(fname, { pages: new Set(), chunks: 0 });
+            fileMap.set(fname, { chunks: 0, pages: new Set() });
           }
-          const entry = fileMap.get(fname)!;
+          const entry = fileMap.get(fname);
+          if (!entry) continue;
           entry.pages.add(row.page_number as number);
           entry.chunks += 1;
         }
@@ -327,11 +330,11 @@ export default function VaultPage() {
         const existing: UploadedFile[] = [];
         fileMap.forEach((val, name) => {
           existing.push({
-            name,
-            size: 0,
-            pages: val.pages.size,
             chunks: val.chunks,
-            uploadedAt: new Date(),
+            name,
+            pages: val.pages.size,
+            size: 0,
+            uploadedAt: new Date()
           });
         });
         setFiles(existing);
@@ -397,9 +400,9 @@ export default function VaultPage() {
           const pageChunks = chunkText(page.text, chunkSize, chunkOverlap);
           for (const text of pageChunks) {
             allChunks.push({
-              text,
-              page: page.pageNum,
               chunkIdx: globalChunkIdx++,
+              page: page.pageNum,
+              text
             });
           }
         }
@@ -414,9 +417,7 @@ export default function VaultPage() {
         }
 
         // Step 3: Store in bigRAG (batch in groups of 100)
-        setUploadProgress(
-          `Uploading ${allChunks.length} chunks to bigRAG...`
-        );
+        setUploadProgress(`Uploading ${allChunks.length} chunks to bigRAG...`);
         const batchSize = 100;
         for (let i = 0; i < allChunks.length; i += batchSize) {
           const batch = allChunks.slice(i, i + batchSize);
@@ -428,11 +429,11 @@ export default function VaultPage() {
 
         // Step 4: Update local state
         const newFile: UploadedFile = {
-          name: file.name,
-          size: file.size,
-          pages: pages.length,
           chunks: allChunks.length,
-          uploadedAt: new Date(),
+          name: file.name,
+          pages: pages.length,
+          size: file.size,
+          uploadedAt: new Date()
         };
 
         setFiles((prev) => {
@@ -500,7 +501,9 @@ export default function VaultPage() {
       setSearchResults(result.rows ?? []);
     } catch (err) {
       setError(
-        err instanceof Error ? `Search failed: ${err.message}` : "Search failed."
+        err instanceof Error
+          ? `Search failed: ${err.message}`
+          : "Search failed."
       );
       setSearchResults([]);
     } finally {
@@ -519,9 +522,7 @@ export default function VaultPage() {
         await deleteDocumentChunks(namespace, filename);
         setFiles((prev) => prev.filter((f) => f.name !== filename));
         // Clear search results that belong to deleted file
-        setSearchResults((prev) =>
-          prev.filter((r) => r.filename !== filename)
-        );
+        setSearchResults((prev) => prev.filter((r) => r.filename !== filename));
         loadExistingDocuments();
       } catch (err) {
         setError(
@@ -570,8 +571,8 @@ export default function VaultPage() {
     return parts.map((part, i) =>
       regex.test(part) ? (
         <mark
-          key={i}
           className="bg-blue-500/20 text-blue-400 rounded-sm px-0.5"
+          key={i}
         >
           {part}
         </mark>
@@ -603,8 +604,9 @@ export default function VaultPage() {
             </p>
           </div>
           <button
-            onClick={() => setShowSettings((s) => !s)}
             className="flex items-center gap-1.5 rounded-md border border-[#27272a] bg-[#18181b] px-3 py-2 text-sm text-[#a1a1aa] transition-colors hover:border-[#3f3f46] hover:text-[#fafafa]"
+            onClick={() => setShowSettings((s) => !s)}
+            type="button"
           >
             <SettingsIcon className="size-4" />
             Settings
@@ -619,8 +621,9 @@ export default function VaultPage() {
                 Processing Settings
               </h2>
               <button
-                onClick={() => setShowSettings(false)}
                 className="text-[#71717a] transition-colors hover:text-[#a1a1aa]"
+                onClick={() => setShowSettings(false)}
+                type="button"
               >
                 <XIcon className="size-4" />
               </button>
@@ -631,14 +634,16 @@ export default function VaultPage() {
                   Chunk size (words)
                 </label>
                 <input
-                  type="number"
-                  min={50}
-                  max={5000}
-                  value={chunkSize}
-                  onChange={(e) =>
-                    setChunkSize(Math.max(50, parseInt(e.target.value) || 500))
-                  }
                   className="w-full rounded-md border border-[#27272a] bg-[#09090b] px-3 py-2 text-sm font-mono text-[#fafafa] focus:border-[#3f3f46] focus:outline-none"
+                  max={5000}
+                  min={50}
+                  onChange={(e) =>
+                    setChunkSize(
+                      Math.max(50, parseInt(e.target.value, 10) || 500)
+                    )
+                  }
+                  type="number"
+                  value={chunkSize}
                 />
               </div>
               <div>
@@ -646,16 +651,16 @@ export default function VaultPage() {
                   Chunk overlap (words)
                 </label>
                 <input
-                  type="number"
-                  min={0}
+                  className="w-full rounded-md border border-[#27272a] bg-[#09090b] px-3 py-2 text-sm font-mono text-[#fafafa] focus:border-[#3f3f46] focus:outline-none"
                   max={500}
-                  value={chunkOverlap}
+                  min={0}
                   onChange={(e) =>
                     setChunkOverlap(
-                      Math.max(0, parseInt(e.target.value) || 50)
+                      Math.max(0, parseInt(e.target.value, 10) || 50)
                     )
                   }
-                  className="w-full rounded-md border border-[#27272a] bg-[#09090b] px-3 py-2 text-sm font-mono text-[#fafafa] focus:border-[#3f3f46] focus:outline-none"
+                  type="number"
+                  value={chunkOverlap}
                 />
               </div>
               <div>
@@ -663,10 +668,12 @@ export default function VaultPage() {
                   Vault namespace
                 </label>
                 <input
+                  className="w-full rounded-md border border-[#27272a] bg-[#09090b] px-3 py-2 text-sm font-mono text-[#fafafa] focus:border-[#3f3f46] focus:outline-none"
+                  onChange={(e) =>
+                    setNamespace(e.target.value || DEFAULT_NAMESPACE)
+                  }
                   type="text"
                   value={namespace}
-                  onChange={(e) => setNamespace(e.target.value || DEFAULT_NAMESPACE)}
-                  className="w-full rounded-md border border-[#27272a] bg-[#09090b] px-3 py-2 text-sm font-mono text-[#fafafa] focus:border-[#3f3f46] focus:outline-none"
                 />
               </div>
             </div>
@@ -678,8 +685,9 @@ export default function VaultPage() {
           <div className="mb-6 flex items-center justify-between rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
             <span>{error}</span>
             <button
-              onClick={() => setError(null)}
               className="ml-4 text-red-500/60 transition-colors hover:text-red-500"
+              onClick={() => setError(null)}
+              type="button"
             >
               <XIcon className="size-4" />
             </button>
@@ -688,23 +696,23 @@ export default function VaultPage() {
 
         {/* Upload drop zone */}
         <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={() => !isUploading && fileInputRef.current?.click()}
           className={`mb-8 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-12 transition-colors ${
             isDragOver
               ? "border-blue-500 bg-blue-500/5"
               : "border-[#27272a] bg-[#18181b] hover:border-[#3f3f46]"
           } ${isUploading ? "pointer-events-none opacity-60" : ""}`}
+          onClick={() => !isUploading && fileInputRef.current?.click()}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
         >
           <input
-            ref={fileInputRef}
-            type="file"
             accept=".pdf,application/pdf"
+            className="hidden"
             multiple
             onChange={handleFileInput}
-            className="hidden"
+            ref={fileInputRef}
+            type="file"
           />
 
           {isUploading ? (
@@ -736,18 +744,19 @@ export default function VaultPage() {
             <div className="relative flex-1">
               <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#71717a]" />
               <input
-                type="text"
-                placeholder="Search query..."
-                value={searchQuery}
+                className="w-full rounded-md border border-[#27272a] bg-[#18181b] py-2 pl-10 pr-3 text-sm text-[#fafafa] placeholder-[#71717a] focus:border-[#3f3f46] focus:outline-none"
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="w-full rounded-md border border-[#27272a] bg-[#18181b] py-2 pl-10 pr-3 text-sm text-[#fafafa] placeholder-[#71717a] focus:border-[#3f3f46] focus:outline-none"
+                placeholder="Search query..."
+                type="text"
+                value={searchQuery}
               />
             </div>
             <button
-              onClick={handleSearch}
-              disabled={isSearching || !searchQuery.trim()}
               className="flex items-center gap-2 rounded-md bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSearching || !searchQuery.trim()}
+              onClick={handleSearch}
+              type="button"
             >
               {isSearching ? (
                 <SpinnerIcon className="size-4" />
@@ -779,8 +788,8 @@ export default function VaultPage() {
               <div className="space-y-2">
                 {searchResults.map((row, i) => (
                   <div
-                    key={`${row.id}-${i}`}
                     className="rounded-lg border border-[#27272a] bg-[#18181b] px-5 py-4 transition-colors hover:border-[#3f3f46]"
+                    key={`${row.id}-${i}`}
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm">
@@ -829,8 +838,9 @@ export default function VaultPage() {
             </h2>
             {files.length > 0 && (
               <button
-                onClick={handleClearAll}
                 className="rounded-md px-3 py-1.5 text-[13px] text-red-500 transition-colors hover:bg-red-500/10"
+                onClick={handleClearAll}
+                type="button"
               >
                 Clear All
               </button>
@@ -840,7 +850,7 @@ export default function VaultPage() {
           {loading ? (
             <div className="divide-y divide-[#27272a]">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-3.5">
+                <div className="flex items-center gap-4 px-5 py-3.5" key={i}>
                   <div className="h-4 w-4 animate-pulse rounded bg-[#27272a]" />
                   <div className="h-4 w-32 animate-pulse rounded bg-[#27272a]" />
                   <div className="ml-auto h-4 w-16 animate-pulse rounded bg-[#27272a]" />
@@ -857,8 +867,8 @@ export default function VaultPage() {
             <div className="divide-y divide-[#27272a]">
               {files.map((file) => (
                 <div
-                  key={file.name}
                   className="group flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-[#27272a]/30"
+                  key={file.name}
                 >
                   <FileIcon className="size-4 shrink-0 text-[#71717a]" />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#fafafa]">
@@ -876,12 +886,13 @@ export default function VaultPage() {
                     </span>
                   )}
                   <button
+                    className="shrink-0 rounded p-1 text-[#71717a] opacity-0 transition-all hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteFile(file.name);
                     }}
-                    className="shrink-0 rounded p-1 text-[#71717a] opacity-0 transition-all hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
                     title={`Delete ${file.name}`}
+                    type="button"
                   >
                     <XIcon className="size-4" />
                   </button>
@@ -901,5 +912,5 @@ export default function VaultPage() {
 
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + "...";
+  return `${text.slice(0, maxLength)}...`;
 }

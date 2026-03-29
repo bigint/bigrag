@@ -1,64 +1,63 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
+import { StatusBadge } from "@/components/status-badge";
 import {
-  getSchema,
-  updateSchema,
-  queryDocuments,
   deleteNamespace,
+  type QueryRow,
+  queryDocuments,
   triggerCompaction,
   triggerWarm,
-  type QueryRow,
-} from '@/lib/api'
+  updateSchema
+} from "@/lib/api";
 import {
   namespaceMetadataQueryOptions,
-  schemaQueryOptions,
-} from '@/lib/queries'
-import { formatNumber, formatBytes, timeAgo } from '@/lib/utils'
-import { StatusBadge } from '@/components/status-badge'
+  schemaQueryOptions
+} from "@/lib/queries";
+import { formatBytes, formatNumber, timeAgo } from "@/lib/utils";
 
-type Tab = 'documents' | 'schema' | 'settings'
+type Tab = "documents" | "schema" | "settings";
 
 const NamespaceDetailPage = () => {
-  const params = useParams<{ namespace: string }>()
-  const router = useRouter()
-  const namespace = decodeURIComponent(params.namespace)
-  const [activeTab, setActiveTab] = useState<Tab>('documents')
+  const params = useParams<{ namespace: string }>();
+  const router = useRouter();
+  const namespace = decodeURIComponent(params.namespace);
+  const [activeTab, setActiveTab] = useState<Tab>("documents");
 
-  const metaQuery = useQuery(namespaceMetadataQueryOptions(namespace))
-  const meta = metaQuery.data ?? null
+  const metaQuery = useQuery(namespaceMetadataQueryOptions(namespace));
+  const meta = metaQuery.data ?? null;
 
-  const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const compactMutation = useMutation({
     mutationFn: () => triggerCompaction(namespace),
-    onSuccess: (res) => setActionMessage(res.message || 'Compaction triggered'),
     onError: (err) => setActionMessage(err.message),
-  })
+    onSuccess: (res) => setActionMessage(res.message || "Compaction triggered")
+  });
 
   const warmMutation = useMutation({
     mutationFn: () => triggerWarm(namespace),
-    onSuccess: (res) =>
-      setActionMessage(res.message || 'Cache warming triggered'),
     onError: (err) => setActionMessage(err.message),
-  })
+    onSuccess: (res) =>
+      setActionMessage(res.message || "Cache warming triggered")
+  });
 
   const tabs: readonly { readonly id: Tab; readonly label: string }[] = [
-    { id: 'documents', label: 'Documents' },
-    { id: 'schema', label: 'Schema' },
-    { id: 'settings', label: 'Settings' },
-  ]
+    { id: "documents", label: "Documents" },
+    { id: "schema", label: "Schema" },
+    { id: "settings", label: "Settings" }
+  ];
 
   return (
     <div>
       {/* Back link + header */}
       <div className="mb-6">
         <Link
-          href="/namespaces"
           className="mb-3 inline-flex items-center gap-1.5 text-xs text-text-muted transition-colors hover:text-text"
+          href="/namespaces"
         >
           <ArrowLeftIcon className="size-3.5" />
           Back to namespaces
@@ -74,26 +73,26 @@ const NamespaceDetailPage = () => {
 
           <div className="flex items-center gap-2">
             <button
-              type="button"
-              onClick={() => {
-                setActionMessage(null)
-                compactMutation.mutate()
-              }}
-              disabled={compactMutation.isPending}
               className="rounded-md px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-bg-hover hover:text-text disabled:opacity-50"
+              disabled={compactMutation.isPending}
+              onClick={() => {
+                setActionMessage(null);
+                compactMutation.mutate();
+              }}
+              type="button"
             >
-              {compactMutation.isPending ? 'Compacting...' : 'Compact'}
+              {compactMutation.isPending ? "Compacting..." : "Compact"}
             </button>
             <button
-              type="button"
-              onClick={() => {
-                setActionMessage(null)
-                warmMutation.mutate()
-              }}
-              disabled={warmMutation.isPending}
               className="rounded-md px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-bg-hover hover:text-text disabled:opacity-50"
+              disabled={warmMutation.isPending}
+              onClick={() => {
+                setActionMessage(null);
+                warmMutation.mutate();
+              }}
+              type="button"
             >
-              {warmMutation.isPending ? 'Warming...' : 'Warm Cache'}
+              {warmMutation.isPending ? "Warming..." : "Warm Cache"}
             </button>
           </div>
         </div>
@@ -107,14 +106,14 @@ const NamespaceDetailPage = () => {
       <div className="mb-6 flex items-center gap-1 border-b border-border">
         {tabs.map((tab) => (
           <button
-            type="button"
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
             className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
               activeTab === tab.id
-                ? 'text-text'
-                : 'text-text-muted hover:text-text'
+                ? "text-text"
+                : "text-text-muted hover:text-text"
             }`}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            type="button"
           >
             {tab.label}
             {activeTab === tab.id && (
@@ -141,101 +140,99 @@ const NamespaceDetailPage = () => {
       {/* Tab content */}
       {!metaQuery.isLoading && !metaQuery.error && (
         <>
-          {activeTab === 'documents' && (
-            <DocumentsTab namespace={namespace} />
-          )}
-          {activeTab === 'schema' && <SchemaTab namespace={namespace} />}
-          {activeTab === 'settings' && (
+          {activeTab === "documents" && <DocumentsTab namespace={namespace} />}
+          {activeTab === "schema" && <SchemaTab namespace={namespace} />}
+          {activeTab === "settings" && (
             <SettingsTab
-              namespace={namespace}
               meta={meta}
-              onDeleted={() => router.push('/namespaces')}
+              namespace={namespace}
+              onDeleted={() => router.push("/namespaces")}
             />
           )}
         </>
       )}
     </div>
-  )
-}
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Documents Tab
 // ---------------------------------------------------------------------------
 const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
-  const [query, setQuery] = useState('')
-  const [rows, setRows] = useState<readonly QueryRow[]>([])
-  const [nextCursor, setNextCursor] = useState<string | undefined>()
-  const [isSearched, setIsSearched] = useState(false)
+  const [query, setQuery] = useState("");
+  const [rows, setRows] = useState<readonly QueryRow[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [isSearched, setIsSearched] = useState(false);
 
   const queryMutation = useMutation({
     mutationFn: (cursor?: string) => {
       const body: Record<string, unknown> = {
-        top_k: 50,
         include_attributes: true,
-      }
+        top_k: 50
+      };
       if (query.trim()) {
-        body.rank_by = { bm25: { query: query.trim(), fields: [] } }
+        body.rank_by = { bm25: { fields: [], query: query.trim() } };
       }
       if (cursor) {
-        body.cursor = cursor
+        body.cursor = cursor;
       }
-      return queryDocuments(namespace, body)
+      return queryDocuments(namespace, body);
     },
     onSuccess: (res, cursor) => {
-      const newRows = res.rows ?? []
+      const newRows = res.rows ?? [];
       if (cursor) {
-        setRows((prev) => [...prev, ...newRows])
+        setRows((prev) => [...prev, ...newRows]);
       } else {
-        setRows(newRows)
+        setRows(newRows);
       }
-      setNextCursor(res.next_cursor)
-      setIsSearched(true)
-    },
-  })
+      setNextCursor(res.next_cursor);
+      setIsSearched(true);
+    }
+  });
 
   const handleSearch = () => {
-    setRows([])
-    setNextCursor(undefined)
-    queryMutation.mutate(undefined)
-  }
+    setRows([]);
+    setNextCursor(undefined);
+    queryMutation.mutate(undefined);
+  };
 
   const handleListAll = () => {
-    setQuery('')
-    setRows([])
-    setNextCursor(undefined)
-    queryMutation.mutate(undefined)
-  }
+    setQuery("");
+    setRows([]);
+    setNextCursor(undefined);
+    queryMutation.mutate(undefined);
+  };
 
-  const attributeColumns = getAttributeColumns(rows)
-  const hasDist = rows.some((r) => r.$dist !== undefined)
+  const attributeColumns = getAttributeColumns(rows);
+  const hasDist = rows.some((r) => r.$dist !== undefined);
 
   return (
     <div>
       {/* Query bar */}
       <div className="mb-4 flex items-center gap-3">
         <input
-          type="text"
-          placeholder="BM25 search query..."
-          value={query}
+          className="flex-1 rounded-md border border-border bg-bg-input px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSearch()
+            if (e.key === "Enter") handleSearch();
           }}
-          className="flex-1 rounded-md border border-border bg-bg-input px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
+          placeholder="BM25 search query..."
+          type="text"
+          value={query}
         />
         <button
-          type="button"
-          onClick={handleSearch}
-          disabled={queryMutation.isPending}
           className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+          disabled={queryMutation.isPending}
+          onClick={handleSearch}
+          type="button"
         >
           Search
         </button>
         <button
-          type="button"
-          onClick={handleListAll}
-          disabled={queryMutation.isPending}
           className="rounded-md px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:bg-bg-hover hover:text-text disabled:opacity-50"
+          disabled={queryMutation.isPending}
+          onClick={handleListAll}
+          type="button"
         >
           List All
         </button>
@@ -275,8 +272,8 @@ const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
                     )}
                     {attributeColumns.map((col) => (
                       <th
-                        key={col}
                         className="px-4 py-2.5 text-left text-xs font-medium text-text-muted"
+                        key={col}
                       >
                         {col}
                       </th>
@@ -286,24 +283,22 @@ const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
                 <tbody>
                   {rows.map((row, i) => (
                     <tr
-                      key={`${row.id}-${i}`}
                       className="border-b border-border transition-colors last:border-b-0 hover:bg-bg-hover/50"
+                      key={`${row.id}-${i}`}
                     >
                       <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-text">
                         {String(row.id)}
                       </td>
                       {hasDist && (
                         <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-text-muted">
-                          {row.$dist !== undefined
-                            ? row.$dist.toFixed(4)
-                            : '-'}
+                          {row.$dist === undefined ? "-" : row.$dist.toFixed(4)}
                         </td>
                       )}
                       {attributeColumns.map((col) => (
                         <td
-                          key={col}
                           className="max-w-48 truncate px-4 py-2.5 text-xs text-text-muted"
-                          title={String(row[col] ?? '')}
+                          key={col}
+                          title={String(row[col] ?? "")}
                         >
                           {truncateValue(row[col])}
                         </td>
@@ -319,12 +314,12 @@ const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
           {nextCursor && (
             <div className="mt-4 flex justify-center">
               <button
-                type="button"
-                onClick={() => queryMutation.mutate(nextCursor)}
-                disabled={queryMutation.isPending}
                 className="rounded-md px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:bg-bg-hover hover:text-text disabled:opacity-50"
+                disabled={queryMutation.isPending}
+                onClick={() => queryMutation.mutate(nextCursor)}
+                type="button"
               >
-                {queryMutation.isPending ? 'Loading...' : 'Load More'}
+                {queryMutation.isPending ? "Loading..." : "Load More"}
               </button>
             </div>
           )}
@@ -337,42 +332,42 @@ const DocumentsTab = ({ namespace }: { readonly namespace: string }) => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Schema Tab
 // ---------------------------------------------------------------------------
 const SchemaTab = ({ namespace }: { readonly namespace: string }) => {
-  const schemaQuery = useQuery(schemaQueryOptions(namespace))
-  const [schemaText, setSchemaText] = useState('')
-  const [isSynced, setIsSynced] = useState(false)
-  const [saveMessage, setSaveMessage] = useState<string | null>(null)
-  const queryClient = useQueryClient()
+  const schemaQuery = useQuery(schemaQueryOptions(namespace));
+  const [schemaText, setSchemaText] = useState("");
+  const [isSynced, setIsSynced] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // Sync schemaText once on first load
   if (schemaQuery.data && !isSynced) {
-    setSchemaText(JSON.stringify(schemaQuery.data, null, 2))
-    setIsSynced(true)
+    setSchemaText(JSON.stringify(schemaQuery.data, null, 2));
+    setIsSynced(true);
   }
 
   const saveMutation = useMutation({
     mutationFn: (text: string) => {
-      const parsed = JSON.parse(text)
-      return updateSchema(namespace, parsed)
-    },
-    onSuccess: () => {
-      setSaveMessage('Schema updated successfully')
-      queryClient.invalidateQueries({ queryKey: ['schema', { namespace }] })
+      const parsed = JSON.parse(text);
+      return updateSchema(namespace, parsed);
     },
     onError: (err) => {
       setSaveMessage(
         err instanceof SyntaxError
           ? `Invalid JSON: ${err.message}`
           : err.message
-      )
+      );
     },
-  })
+    onSuccess: () => {
+      setSaveMessage("Schema updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["schema", { namespace }] });
+    }
+  });
 
   if (schemaQuery.isLoading) {
     return (
@@ -380,22 +375,22 @@ const SchemaTab = ({ namespace }: { readonly namespace: string }) => {
         <div className="h-6 w-32 rounded bg-bg-hover" />
         <div className="h-64 rounded-lg bg-bg-hover" />
       </div>
-    )
+    );
   }
 
-  const schema = schemaQuery.data
+  const schema = schemaQuery.data;
   const schemaEntries = schema
     ? Object.entries(schema).map(([name, def]) => {
-        const d = def as Record<string, unknown> | undefined
+        const d = def as Record<string, unknown> | undefined;
         return {
-          name,
-          type: String(d?.type ?? 'unknown'),
           filterable: Boolean(d?.filterable),
           hasFullTextSearch:
             d?.full_text_search !== undefined && d?.full_text_search !== false,
-        }
+          name,
+          type: String(d?.type ?? "unknown")
+        };
       })
-    : []
+    : [];
 
   return (
     <div className="space-y-6">
@@ -426,8 +421,8 @@ const SchemaTab = ({ namespace }: { readonly namespace: string }) => {
               <tbody>
                 {schemaEntries.map((entry) => (
                   <tr
-                    key={entry.name}
                     className="border-b border-border last:border-b-0"
+                    key={entry.name}
                   >
                     <td className="px-4 py-2.5 font-mono text-xs text-text">
                       {entry.name}
@@ -461,18 +456,20 @@ const SchemaTab = ({ namespace }: { readonly namespace: string }) => {
       <div>
         <h3 className="mb-3 text-sm font-medium text-text">Edit Schema</h3>
         <textarea
-          value={schemaText}
+          className="w-full resize-y rounded-lg border border-border bg-bg-input px-4 py-3 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
           onChange={(e) => {
-            setSchemaText(e.target.value)
-            setSaveMessage(null)
+            setSchemaText(e.target.value);
+            setSaveMessage(null);
           }}
           rows={16}
           spellCheck={false}
-          className="w-full resize-y rounded-lg border border-border bg-bg-input px-4 py-3 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
+          value={schemaText}
         />
 
         {saveMutation.error && (
-          <p className="mt-2 text-xs text-danger">{saveMutation.error.message}</p>
+          <p className="mt-2 text-xs text-danger">
+            {saveMutation.error.message}
+          </p>
         )}
         {saveMessage && (
           <p className="mt-2 text-xs text-success">{saveMessage}</p>
@@ -480,41 +477,44 @@ const SchemaTab = ({ namespace }: { readonly namespace: string }) => {
 
         <div className="mt-3 flex justify-end">
           <button
-            type="button"
-            onClick={() => saveMutation.mutate(schemaText)}
-            disabled={saveMutation.isPending}
             className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+            disabled={saveMutation.isPending}
+            onClick={() => saveMutation.mutate(schemaText)}
+            type="button"
           >
-            {saveMutation.isPending ? 'Saving...' : 'Save Schema'}
+            {saveMutation.isPending ? "Saving..." : "Save Schema"}
           </button>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Settings Tab
 // ---------------------------------------------------------------------------
 interface SettingsTabProps {
-  readonly namespace: string
+  readonly namespace: string;
   readonly meta: {
-    readonly approx_row_count: number
-    readonly approx_logical_bytes: number
-    readonly created_at: string
-    readonly updated_at: string
-    readonly index: { readonly status: string; readonly unindexed_bytes?: number }
-  } | null
-  readonly onDeleted: () => void
+    readonly approx_row_count: number;
+    readonly approx_logical_bytes: number;
+    readonly created_at: string;
+    readonly updated_at: string;
+    readonly index: {
+      readonly status: string;
+      readonly unindexed_bytes?: number;
+    };
+  } | null;
+  readonly onDeleted: () => void;
 }
 
 const SettingsTab = ({ namespace, meta, onDeleted }: SettingsTabProps) => {
-  const [confirmText, setConfirmText] = useState('')
+  const [confirmText, setConfirmText] = useState("");
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteNamespace(namespace),
-    onSuccess: () => onDeleted(),
-  })
+    onSuccess: () => onDeleted()
+  });
 
   return (
     <div className="space-y-8">
@@ -527,32 +527,32 @@ const SettingsTab = ({ namespace, meta, onDeleted }: SettingsTabProps) => {
           <div className="divide-y divide-border rounded-lg border border-border bg-bg-card">
             <MetaRow
               label="Created"
-              value={meta.created_at ? timeAgo(meta.created_at) : '-'}
               sub={meta.created_at}
+              value={meta.created_at ? timeAgo(meta.created_at) : "-"}
             />
             <MetaRow
               label="Updated"
-              value={meta.updated_at ? timeAgo(meta.updated_at) : '-'}
               sub={meta.updated_at}
+              value={meta.updated_at ? timeAgo(meta.updated_at) : "-"}
             />
             <MetaRow
+              isMono
               label="Approx. Row Count"
               value={formatNumber(meta.approx_row_count)}
-              isMono
             />
             <MetaRow
+              isMono
               label="Approx. Logical Size"
               value={formatBytes(meta.approx_logical_bytes)}
-              isMono
             />
             <MetaRow label="Index Status" value={meta.index.status}>
               <StatusBadge status={meta.index.status} />
             </MetaRow>
             {meta.index.unindexed_bytes !== undefined && (
               <MetaRow
+                isMono
                 label="Unindexed Bytes"
                 value={formatBytes(meta.index.unindexed_bytes)}
-                isMono
               />
             )}
           </div>
@@ -576,20 +576,20 @@ const SettingsTab = ({ namespace, meta, onDeleted }: SettingsTabProps) => {
                 confirm
               </label>
               <input
-                type="text"
-                value={confirmText}
+                className="w-full rounded-md border border-border bg-bg-input px-3 py-2 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
                 onChange={(e) => setConfirmText(e.target.value)}
                 placeholder={namespace}
-                className="w-full rounded-md border border-border bg-bg-input px-3 py-2 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
+                type="text"
+                value={confirmText}
               />
             </div>
             <button
-              type="button"
-              onClick={() => deleteMutation.mutate()}
-              disabled={confirmText !== namespace || deleteMutation.isPending}
               className="whitespace-nowrap rounded-md bg-danger/10 px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/20 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={confirmText !== namespace || deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate()}
+              type="button"
             >
-              {deleteMutation.isPending ? 'Deleting...' : 'Delete Namespace'}
+              {deleteMutation.isPending ? "Deleting..." : "Delete Namespace"}
             </button>
           </div>
 
@@ -601,18 +601,18 @@ const SettingsTab = ({ namespace, meta, onDeleted }: SettingsTabProps) => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Shared Components
 // ---------------------------------------------------------------------------
 interface MetaRowProps {
-  readonly label: string
-  readonly value: string
-  readonly sub?: string
-  readonly isMono?: boolean
-  readonly children?: React.ReactNode
+  readonly label: string;
+  readonly value: string;
+  readonly sub?: string;
+  readonly isMono?: boolean;
+  readonly children?: React.ReactNode;
 }
 
 const MetaRow = ({ label, value, sub, isMono, children }: MetaRowProps) => {
@@ -622,7 +622,7 @@ const MetaRow = ({ label, value, sub, isMono, children }: MetaRowProps) => {
       <div className="flex items-center gap-2">
         {children ?? (
           <span
-            className={`text-sm text-text ${isMono ? 'font-mono' : ''}`}
+            className={`text-sm text-text ${isMono ? "font-mono" : ""}`}
             title={sub}
           >
             {value}
@@ -630,8 +630,8 @@ const MetaRow = ({ label, value, sub, isMono, children }: MetaRowProps) => {
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Icons
@@ -640,29 +640,29 @@ const ArrowLeftIcon = ({ className }: { readonly className?: string }) => {
   return (
     <svg
       className={className}
-      viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      strokeWidth="1.5"
+      viewBox="0 0 16 16"
     >
       <path d="M10 3L5 8l5 5" />
     </svg>
-  )
-}
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 function getAttributeColumns(rows: readonly QueryRow[]): readonly string[] {
-  const ignored = new Set(['id', '$dist'])
-  const counts = new Map<string, number>()
+  const ignored = new Set(["id", "$dist"]);
+  const counts = new Map<string, number>();
 
   for (const row of rows.slice(0, 20)) {
     for (const key of Object.keys(row)) {
       if (!ignored.has(key)) {
-        counts.set(key, (counts.get(key) ?? 0) + 1)
+        counts.set(key, (counts.get(key) ?? 0) + 1);
       }
     }
   }
@@ -670,25 +670,25 @@ function getAttributeColumns(rows: readonly QueryRow[]): readonly string[] {
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 4)
-    .map(([key]) => key)
+    .map(([key]) => key);
 }
 
 function truncateValue(value: unknown): string {
-  if (value === null || value === undefined) return '-'
-  if (typeof value === 'string') {
-    return value.length > 80 ? `${value.slice(0, 80)}...` : value
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "string") {
+    return value.length > 80 ? `${value.slice(0, 80)}...` : value;
   }
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value)
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
   }
   if (Array.isArray(value)) {
-    return `[${value.length} items]`
+    return `[${value.length} items]`;
   }
-  if (typeof value === 'object') {
-    const str = JSON.stringify(value)
-    return str.length > 80 ? `${str.slice(0, 80)}...` : str
+  if (typeof value === "object") {
+    const str = JSON.stringify(value);
+    return str.length > 80 ? `${str.slice(0, 80)}...` : str;
   }
-  return String(value)
+  return String(value);
 }
 
-export default NamespaceDetailPage
+export default NamespaceDetailPage;

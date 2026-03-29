@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
-import { useParams } from "next/navigation";
 import Link from "next/link";
-import { queryDocuments, ApiError } from "@/lib/api";
+import { useParams } from "next/navigation";
+import { useCallback, useRef, useState } from "react";
 import type { QueryResponse, QueryRow } from "@/lib/api";
+import { ApiError, queryDocuments } from "@/lib/api";
 import { formatMs } from "@/lib/utils";
 
 const EXAMPLE_QUERIES: { label: string; query: string }[] = [
   {
     label: "List all documents",
-    query: JSON.stringify({ top_k: 10, include_attributes: true }, null, 2),
+    query: JSON.stringify({ include_attributes: true, top_k: 10 }, null, 2)
   },
   {
     label: "Vector ANN search",
@@ -18,7 +18,7 @@ const EXAMPLE_QUERIES: { label: string; query: string }[] = [
       { rank_by: ["vector", "ANN", [0.1, 0.2, 0.3]], top_k: 10 },
       null,
       2
-    ),
+    )
   },
   {
     label: "BM25 text search",
@@ -26,24 +26,28 @@ const EXAMPLE_QUERIES: { label: string; query: string }[] = [
       { rank_by: ["content", "BM25", "search query"], top_k: 10 },
       null,
       2
-    ),
+    )
   },
   {
     label: "Filter by attribute",
     query: JSON.stringify(
-      { filters: ["category", "Eq", "ml"], top_k: 10, include_attributes: true },
+      {
+        filters: ["category", "Eq", "ml"],
+        include_attributes: true,
+        top_k: 10
+      },
       null,
       2
-    ),
+    )
   },
   {
     label: "Aggregation count",
-    query: JSON.stringify({ aggregations: [{ type: "count" }] }, null, 2),
-  },
+    query: JSON.stringify({ aggregations: [{ type: "count" }] }, null, 2)
+  }
 ];
 
 const DEFAULT_QUERY = JSON.stringify(
-  { top_k: 10, include_attributes: true },
+  { include_attributes: true, top_k: 10 },
   null,
   2
 );
@@ -77,9 +81,9 @@ function Spinner() {
   return (
     <svg
       className="animate-spin h-5 w-5 text-blue-500"
-      xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
     >
       <circle
         className="opacity-25"
@@ -91,8 +95,8 @@ function Spinner() {
       />
       <path
         className="opacity-75"
-        fill="currentColor"
         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        fill="currentColor"
       />
     </svg>
   );
@@ -117,10 +121,9 @@ function extractColumns(rows: QueryRow[]): string[] {
 
 function truncate(value: unknown, max = 80): string {
   if (value === null || value === undefined) return "\u2014";
-  const str =
-    typeof value === "object" ? JSON.stringify(value) : String(value);
+  const str = typeof value === "object" ? JSON.stringify(value) : String(value);
   if (str.length <= max) return str;
-  return str.slice(0, max) + "\u2026";
+  return `${str.slice(0, max)}\u2026`;
 }
 
 export default function QueryPlaygroundPage() {
@@ -144,9 +147,7 @@ export default function QueryPlaygroundPage() {
     try {
       parsed = JSON.parse(query);
     } catch (e) {
-      setParseError(
-        e instanceof Error ? e.message : "Invalid JSON"
-      );
+      setParseError(e instanceof Error ? e.message : "Invalid JSON");
       return;
     }
 
@@ -196,8 +197,8 @@ export default function QueryPlaygroundPage() {
         {/* Header */}
         <div className="mb-6">
           <Link
-            href={`/namespaces/${encodeURIComponent(namespace)}`}
             className="text-sm text-[#a1a1aa] hover:text-[#fafafa] transition-colors inline-flex items-center gap-1"
+            href={`/namespaces/${encodeURIComponent(namespace)}`}
           >
             <svg
               className="w-4 h-4"
@@ -206,10 +207,10 @@ export default function QueryPlaygroundPage() {
               viewBox="0 0 24 24"
             >
               <path
+                d="M15 19l-7-7 7-7"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M15 19l-7-7 7-7"
               />
             </svg>
             Back to {namespace}
@@ -236,16 +237,16 @@ export default function QueryPlaygroundPage() {
               </div>
 
               <textarea
-                value={query}
+                className="bg-[#09090b] border border-[#27272a] rounded-md p-3 font-mono text-sm text-[#fafafa] focus:outline-none focus:border-[#3f3f46] resize-none w-full transition-colors"
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setParseError(null);
                 }}
                 onKeyDown={handleKeyDown}
+                placeholder="Enter your query JSON..."
                 rows={14}
                 spellCheck={false}
-                className="bg-[#09090b] border border-[#27272a] rounded-md p-3 font-mono text-sm text-[#fafafa] focus:outline-none focus:border-[#3f3f46] resize-none w-full transition-colors"
-                placeholder="Enter your query JSON..."
+                value={query}
               />
 
               {parseError && (
@@ -256,9 +257,10 @@ export default function QueryPlaygroundPage() {
 
               <div className="flex items-center gap-3">
                 <button
-                  onClick={handleExecute}
-                  disabled={loading}
                   className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md px-4 py-2 text-sm font-medium transition-colors inline-flex items-center gap-2"
+                  disabled={loading}
+                  onClick={handleExecute}
+                  type="button"
                 >
                   {loading ? (
                     <>
@@ -274,16 +276,16 @@ export default function QueryPlaygroundPage() {
                         viewBox="0 0 24 24"
                       >
                         <path
+                          d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
                         />
                         <path
+                          d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                         />
                       </svg>
                       Execute
@@ -291,8 +293,9 @@ export default function QueryPlaygroundPage() {
                   )}
                 </button>
                 <button
-                  onClick={handleClear}
                   className="text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] rounded-md px-4 py-2 text-sm font-medium transition-colors"
+                  onClick={handleClear}
+                  type="button"
                 >
                   Clear
                 </button>
@@ -305,8 +308,9 @@ export default function QueryPlaygroundPage() {
             {/* Example Queries */}
             <div className="bg-[#18181b] border border-[#27272a] rounded-lg overflow-hidden">
               <button
-                onClick={() => setExamplesOpen(!examplesOpen)}
                 className="w-full flex items-center justify-between px-5 py-3 text-sm font-medium text-[#a1a1aa] hover:text-[#fafafa] transition-colors"
+                onClick={() => setExamplesOpen(!examplesOpen)}
+                type="button"
               >
                 <span>Example Queries</span>
                 <svg
@@ -316,10 +320,10 @@ export default function QueryPlaygroundPage() {
                   viewBox="0 0 24 24"
                 >
                   <path
+                    d="M19 9l-7 7-7-7"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
                   />
                 </svg>
               </button>
@@ -327,12 +331,13 @@ export default function QueryPlaygroundPage() {
                 <div className="border-t border-[#27272a] px-2 py-2 flex flex-col gap-1">
                   {EXAMPLE_QUERIES.map((ex) => (
                     <button
+                      className="text-left px-3 py-2 rounded-md text-sm text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition-colors"
                       key={ex.label}
                       onClick={() => {
                         setQuery(ex.query);
                         setParseError(null);
                       }}
-                      className="text-left px-3 py-2 rounded-md text-sm text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition-colors"
+                      type="button"
                     >
                       {ex.label}
                     </button>
@@ -348,22 +353,24 @@ export default function QueryPlaygroundPage() {
               {/* Tab toggle */}
               <div className="flex items-center gap-1 bg-[#09090b] rounded-md p-1 self-start">
                 <button
-                  onClick={() => setActiveTab("table")}
                   className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
                     activeTab === "table"
                       ? "bg-[#27272a] text-[#fafafa]"
                       : "text-[#71717a] hover:text-[#a1a1aa]"
                   }`}
+                  onClick={() => setActiveTab("table")}
+                  type="button"
                 >
                   Table
                 </button>
                 <button
-                  onClick={() => setActiveTab("json")}
                   className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
                     activeTab === "json"
                       ? "bg-[#27272a] text-[#fafafa]"
                       : "text-[#71717a] hover:text-[#a1a1aa]"
                   }`}
+                  onClick={() => setActiveTab("json")}
+                  type="button"
                 >
                   JSON
                 </button>
@@ -392,10 +399,10 @@ export default function QueryPlaygroundPage() {
                         viewBox="0 0 24 24"
                       >
                         <path
+                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                         />
                       </svg>
                       <div>
@@ -420,10 +427,10 @@ export default function QueryPlaygroundPage() {
                         viewBox="0 0 24 24"
                       >
                         <path
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={1.5}
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                         />
                       </svg>
                       <p className="text-[#71717a] text-sm">
@@ -433,100 +440,92 @@ export default function QueryPlaygroundPage() {
                   </div>
                 )}
 
-                {!loading && !error && result && activeTab === "table" && (
-                  <>
-                    {rows.length === 0 && !result.aggregations ? (
-                      <div className="flex items-center justify-center h-full min-h-[200px]">
-                        <p className="text-[#71717a] text-sm">
-                          Query returned no rows
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-4">
-                        {rows.length > 0 && (
-                          <div className="overflow-x-auto rounded-md border border-[#27272a]">
-                            <table className="w-full text-sm">
-                              <thead>
-                                <tr className="border-b border-[#27272a] bg-[#09090b]">
+                {!loading &&
+                  !error &&
+                  result &&
+                  activeTab === "table" &&
+                  (rows.length === 0 && !result.aggregations ? (
+                    <div className="flex items-center justify-center h-full min-h-[200px]">
+                      <p className="text-[#71717a] text-sm">
+                        Query returned no rows
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      {rows.length > 0 && (
+                        <div className="overflow-x-auto rounded-md border border-[#27272a]">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-[#27272a] bg-[#09090b]">
+                                {columns.map((col) => (
+                                  <th
+                                    className="text-left px-3 py-2 text-xs font-medium text-[#71717a] uppercase tracking-wider whitespace-nowrap"
+                                    key={col}
+                                  >
+                                    {col}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {rows.map((row, i) => (
+                                <tr
+                                  className="border-b border-[#27272a] last:border-0 hover:bg-[#27272a]/50 transition-colors"
+                                  key={
+                                    row.id === undefined ? i : String(row.id)
+                                  }
+                                >
                                   {columns.map((col) => (
-                                    <th
+                                    <td
+                                      className={`px-3 py-2 whitespace-nowrap ${
+                                        col === "id" || col === "$dist"
+                                          ? "font-mono text-[#fafafa]"
+                                          : "text-[#a1a1aa]"
+                                      } ${col === "$dist" ? "text-blue-400" : ""}`}
                                       key={col}
-                                      className="text-left px-3 py-2 text-xs font-medium text-[#71717a] uppercase tracking-wider whitespace-nowrap"
+                                      title={
+                                        typeof row[col] === "object"
+                                          ? JSON.stringify(row[col])
+                                          : String(row[col] ?? "")
+                                      }
                                     >
-                                      {col}
-                                    </th>
+                                      {col === "$dist" &&
+                                      typeof row[col] === "number"
+                                        ? (row[col] as number).toFixed(6)
+                                        : truncate(row[col])}
+                                    </td>
                                   ))}
                                 </tr>
-                              </thead>
-                              <tbody>
-                                {rows.map((row, i) => (
-                                  <tr
-                                    key={
-                                      row.id !== undefined
-                                        ? String(row.id)
-                                        : i
-                                    }
-                                    className="border-b border-[#27272a] last:border-0 hover:bg-[#27272a]/50 transition-colors"
-                                  >
-                                    {columns.map((col) => (
-                                      <td
-                                        key={col}
-                                        className={`px-3 py-2 whitespace-nowrap ${
-                                          col === "id" || col === "$dist"
-                                            ? "font-mono text-[#fafafa]"
-                                            : "text-[#a1a1aa]"
-                                        } ${col === "$dist" ? "text-blue-400" : ""}`}
-                                        title={
-                                          typeof row[col] === "object"
-                                            ? JSON.stringify(row[col])
-                                            : String(row[col] ?? "")
-                                        }
-                                      >
-                                        {col === "$dist" &&
-                                        typeof row[col] === "number"
-                                          ? (row[col] as number).toFixed(6)
-                                          : truncate(row[col])}
-                                      </td>
-                                    ))}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
 
-                        {result.aggregations && (
-                          <div>
-                            <h3 className="text-xs font-medium text-[#71717a] uppercase tracking-wider mb-2">
-                              Aggregations
-                            </h3>
-                            <pre className="bg-[#09090b] border border-[#27272a] rounded-md p-3 font-mono text-sm overflow-x-auto">
-                              <code
-                                dangerouslySetInnerHTML={{
-                                  __html: syntaxHighlight(
-                                    JSON.stringify(
-                                      result.aggregations,
-                                      null,
-                                      2
-                                    )
-                                  ),
-                                }}
-                              />
-                            </pre>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
+                      {result.aggregations && (
+                        <div>
+                          <h3 className="text-xs font-medium text-[#71717a] uppercase tracking-wider mb-2">
+                            Aggregations
+                          </h3>
+                          <pre className="bg-[#09090b] border border-[#27272a] rounded-md p-3 font-mono text-sm overflow-x-auto">
+                            <code
+                              dangerouslySetInnerHTML={{
+                                __html: syntaxHighlight(
+                                  JSON.stringify(result.aggregations, null, 2)
+                                )
+                              }}
+                            />
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  ))}
 
                 {!loading && !error && result && activeTab === "json" && (
                   <pre className="bg-[#09090b] border border-[#27272a] rounded-md p-4 font-mono text-sm overflow-auto max-h-[600px]">
                     <code
                       dangerouslySetInnerHTML={{
-                        __html: syntaxHighlight(
-                          JSON.stringify(result, null, 2)
-                        ),
+                        __html: syntaxHighlight(JSON.stringify(result, null, 2))
                       }}
                     />
                   </pre>
@@ -553,8 +552,7 @@ export default function QueryPlaygroundPage() {
                     </span>
                   )}
                   <span className="text-xs text-[#71717a] font-mono">
-                    Rows:{" "}
-                    <span className="text-[#a1a1aa]">{rows.length}</span>
+                    Rows: <span className="text-[#a1a1aa]">{rows.length}</span>
                   </span>
                   {cacheTemp !== undefined && (
                     <span className="text-xs text-[#71717a] font-mono">
