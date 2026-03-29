@@ -32,8 +32,8 @@ impl WalWriter {
         let (batch_tx, batch_rx) = mpsc::channel(10_000);
 
         let processor = WalBatchProcessor {
-            backend: backend.clone(),
-            manifest: manifest.clone(),
+            backend,
+            manifest,
             writer_epoch,
             batch_rx,
         };
