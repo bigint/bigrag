@@ -74,10 +74,6 @@ def create_app() -> FastAPI:
     async def health():
         return {"status": "ok", "version": __version__}
 
-    @app.get("/v1/queue/stats")
-    async def queue_stats():
-        return await ingestion_queue.stats
-
     from bigrag.routers.auth import router as auth_router
     from bigrag.routers.admin import router as admin_router
     from bigrag.routers.collections import router as collections_router
@@ -91,9 +87,6 @@ def create_app() -> FastAPI:
     app.include_router(query_router)
 
     return app
-
-
-app = create_app()
 
 
 def cli():
@@ -125,7 +118,10 @@ def cli():
 
     config.settings = s
 
-    uvicorn.run("bigrag.main:app", host=s.host, port=s.port, log_level=s.log_level)
+    # Use factory=True so the app is created AFTER config overrides are applied.
+    # Without this, module-level app creation uses default settings, ignoring
+    # CLI/TOML config for CORS origins and other middleware settings.
+    uvicorn.run("bigrag.main:create_app", host=s.host, port=s.port, log_level=s.log_level, factory=True)
 
 
 if __name__ == "__main__":
