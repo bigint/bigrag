@@ -10,7 +10,7 @@
     "test": "node --test tests/"
   },
   "devDependencies": {
-    "typescript": "^5.8",
-    "@types/node": "^22"
+    "@types/node": "^25.5.0",
+    "typescript": "^6.0.2"
   }
 }
