@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@tanstack/react-query": "^5.95.2",
     "clsx": "^2.1.1",
     "geist": "^1.4.1",
     "next": "^15.3.2",
