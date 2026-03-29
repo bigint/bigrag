@@ -454,6 +454,7 @@ impl AppState {
     }
 
     /// Insert or update documents in a namespace.
+    /// Also persists to the storage engine in the background.
     pub fn upsert_documents(
         &self,
         namespace: &str,
@@ -464,7 +465,7 @@ impl AppState {
         let mut docs = ns.docs.write();
         let count = new_docs.len();
 
-        for new_doc in new_docs {
+        for new_doc in &new_docs {
             // Remove existing doc with same ID
             docs.retain(|d| d.id != new_doc.id);
 
@@ -475,19 +476,40 @@ impl AppState {
                 }
             }
 
-            docs.push(new_doc);
+            docs.push(new_doc.clone());
         }
+        drop(docs);
+        drop(ns);
+
+        // Persist to storage engine in the background
+        let state = self.clone();
+        let ns_name = namespace.to_string();
+        tokio::spawn(async move {
+            state.persist_documents(&ns_name, &new_docs).await;
+        });
 
         count
     }
 
     /// Delete documents by IDs from a namespace.
+    /// Also persists tombstones to the storage engine in the background.
     pub fn delete_documents(&self, namespace: &str, ids: &[DocumentId]) -> usize {
         if let Some(ns) = self.documents.get(namespace) {
             let mut docs = ns.docs.write();
             let before = docs.len();
             docs.retain(|d| !ids.contains(&d.id));
-            before - docs.len()
+            let deleted = before - docs.len();
+
+            if deleted > 0 {
+                let state = self.clone();
+                let ns_name = namespace.to_string();
+                let ids_owned: Vec<DocumentId> = ids.to_vec();
+                tokio::spawn(async move {
+                    state.persist_deletes(&ns_name, &ids_owned).await;
+                });
+            }
+
+            deleted
         } else {
             0
         }
