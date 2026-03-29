@@ -1,9 +1,10 @@
 use axum::{
     middleware,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Router,
 };
 
+use crate::auth;
 use crate::handlers;
 use crate::middleware::{auth_middleware, request_tracking};
 use crate::state::AppState;
@@ -80,16 +81,48 @@ pub fn create_router(state: AppState) -> Router {
             "/v1/namespaces/{namespace}/copy",
             post(handlers::copy_namespace),
         )
+        // Auth (protected)
+        .route("/v1/auth/me", get(auth::handlers::me))
+        .route("/v1/auth/logout", post(auth::handlers::logout))
+        .route(
+            "/v1/auth/password",
+            put(auth::handlers::change_password),
+        )
+        // Admin user management
+        .route("/v1/admin/users", get(auth::admin::list_users))
+        .route(
+            "/v1/admin/users/{id}",
+            delete(auth::admin::delete_user).patch(auth::admin::update_user),
+        )
+        // Admin invite management
+        .route(
+            "/v1/admin/invites",
+            post(auth::admin::create_invite).get(auth::admin::list_invites),
+        )
+        .route(
+            "/v1/admin/invites/{id}",
+            delete(auth::admin::delete_invite),
+        )
         .layer(middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,
         ));
+
+    let auth_public_routes = Router::new()
+        .route(
+            "/v1/auth/setup-status",
+            get(auth::handlers::setup_status),
+        )
+        .route("/v1/auth/setup", post(auth::handlers::setup))
+        .route("/v1/auth/login", post(auth::handlers::login))
+        .route("/v1/auth/signup", post(auth::handlers::signup));
 
     Router::new()
         .route("/health", get(handlers::health_check))
         .route("/v1/health/ready", get(handlers::readiness_probe))
         .route("/v1/health/live", get(handlers::liveness_probe))
         .route("/v1/metrics", get(handlers::prometheus_metrics))
+        .merge(auth_public_routes)
         .merge(api_routes)
         .layer(middleware::from_fn(request_tracking))
         .with_state(state)

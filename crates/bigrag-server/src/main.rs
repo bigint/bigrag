@@ -59,6 +59,10 @@ struct Cli {
     #[arg(long, env = "BIGRAG_JWT_ISSUER")]
     jwt_issuer: Option<String>,
 
+    /// Postgres database URL for user authentication (optional).
+    #[arg(long, env = "BIGRAG_DATABASE_URL")]
+    database_url: Option<String>,
+
     /// Log format (text or json)
     #[arg(long, default_value = "text", env = "BIGRAG_LOG_FORMAT")]
     log_format: String,
@@ -153,8 +157,25 @@ async fn main() -> Result<()> {
         issuer: cli.jwt_issuer,
     });
 
+    // Connect to Postgres for user authentication (optional)
+    let db_pool = if let Some(ref url) = cli.database_url {
+        match bigrag_api::db::init_pool(url).await {
+            Ok(pool) => {
+                info!("database connected, user auth enabled");
+                Some(pool)
+            }
+            Err(e) => {
+                eprintln!("failed to connect to database: {e}");
+                std::process::exit(1);
+            }
+        }
+    } else {
+        info!("no database configured, running in legacy auth mode");
+        None
+    };
+
     // Build app state and router
-    let state = AppState::new(engine, key_store, jwt_config, prometheus_handle);
+    let state = AppState::new(engine, key_store, jwt_config, prometheus_handle, db_pool);
 
     // Load persisted namespaces from storage engine
     state.load_all_namespaces().await;
