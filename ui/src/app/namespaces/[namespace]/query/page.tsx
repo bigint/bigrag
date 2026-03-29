@@ -343,6 +343,47 @@ export default function QueryPlaygroundPage() {
                   </Tabs.Tab>
                 </Tabs.List>
 
+                {/* Explain result */}
+                {explainResult && (
+                  <div className="rounded-md border border-border bg-bg-muted p-4">
+                    <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-text-muted">
+                      Query Plan
+                    </h4>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1 font-mono text-xs">
+                      <span className="text-text-dim">Strategy</span>
+                      <span className="text-text">
+                        {explainResult.strategy}
+                      </span>
+                      <span className="text-text-dim">Total Documents</span>
+                      <span className="text-text">
+                        {explainResult.total_documents}
+                      </span>
+                      <span className="text-text-dim">Limit</span>
+                      <span className="text-text">{explainResult.limit}</span>
+                      <span className="text-text-dim">Has Rank By</span>
+                      <span className="text-text">
+                        {String(explainResult.has_rank_by)}
+                      </span>
+                      <span className="text-text-dim">Has Filters</span>
+                      <span className="text-text">
+                        {String(explainResult.has_filters)}
+                      </span>
+                      {explainResult.rank_by_type && (
+                        <>
+                          <span className="text-text-dim">Rank By Type</span>
+                          <span className="text-text">
+                            {explainResult.rank_by_type}
+                          </span>
+                        </>
+                      )}
+                      <span className="text-text-dim">Estimated Cost</span>
+                      <span className="text-text">
+                        {explainResult.estimated_cost}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Content area */}
                 <div className="flex-1 overflow-auto">
                   {loading && (
