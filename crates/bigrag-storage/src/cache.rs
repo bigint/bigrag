@@ -31,24 +31,22 @@ pub enum CacheKeyKind {
 
 #[derive(Debug, Default)]
 pub struct CacheStats {
-    hits: std::sync::atomic::AtomicU64,
-    misses: std::sync::atomic::AtomicU64,
+    hits: AtomicU64,
+    misses: AtomicU64,
 }
 
 impl CacheStats {
     pub fn record_hit(&self) {
-        self.hits
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.hits.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_miss(&self) {
-        self.misses
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.misses.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn hit_ratio(&self) -> f64 {
-        let hits = self.hits.load(std::sync::atomic::Ordering::Relaxed);
-        let misses = self.misses.load(std::sync::atomic::Ordering::Relaxed);
+        let hits = self.hits.load(Ordering::Relaxed);
+        let misses = self.misses.load(Ordering::Relaxed);
         let total = hits + misses;
         if total == 0 {
             0.0

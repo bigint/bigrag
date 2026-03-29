@@ -222,6 +222,29 @@ impl StorageEngine {
         Ok(deduped)
     }
 
+    async fn fetch_sst_data(
+        &self,
+        sst_meta: &crate::manifest::SstMeta,
+    ) -> Result<Bytes, EngineError> {
+        if let Some(ref dc) = self.disk_cache {
+            if let Some(cached) = dc.get(&sst_meta.path) {
+                return Ok(cached);
+            }
+            let fetched = self
+                .backend
+                .get(&sst_meta.path)
+                .await
+                .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))?;
+            dc.put(&sst_meta.path, &fetched);
+            Ok(fetched)
+        } else {
+            self.backend
+                .get(&sst_meta.path)
+                .await
+                .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))
+        }
+    }
+
     async fn read_from_sst(
         &self,
         sst_meta: &crate::manifest::SstMeta,
@@ -234,27 +257,7 @@ impl StorageEngine {
             }
         }
 
-        // Try L2 disk cache before going to object storage
-        let data = if let Some(ref dc) = self.disk_cache {
-            if let Some(cached) = dc.get(&sst_meta.path) {
-                cached
-            } else {
-                let fetched = self
-                    .backend
-                    .get(&sst_meta.path)
-                    .await
-                    .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))?;
-                // Populate L2 cache on miss
-                dc.put(&sst_meta.path, &fetched);
-                fetched
-            }
-        } else {
-            self.backend
-                .get(&sst_meta.path)
-                .await
-                .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))?
-        };
-
+        let data = self.fetch_sst_data(sst_meta).await?;
         let reader = SstReader::open(data)
             .ok_or_else(|| EngineError::Read("failed to parse SST".into()))?;
 
@@ -265,26 +268,7 @@ impl StorageEngine {
         &self,
         sst_meta: &crate::manifest::SstMeta,
     ) -> Result<Vec<Entry>, EngineError> {
-        // Try L2 disk cache before going to object storage
-        let data = if let Some(ref dc) = self.disk_cache {
-            if let Some(cached) = dc.get(&sst_meta.path) {
-                cached
-            } else {
-                let fetched = self
-                    .backend
-                    .get(&sst_meta.path)
-                    .await
-                    .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))?;
-                dc.put(&sst_meta.path, &fetched);
-                fetched
-            }
-        } else {
-            self.backend
-                .get(&sst_meta.path)
-                .await
-                .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))?
-        };
-
+        let data = self.fetch_sst_data(sst_meta).await?;
         let reader = SstReader::open(data)
             .ok_or_else(|| EngineError::Read("failed to parse SST".into()))?;
 
@@ -292,10 +276,9 @@ impl StorageEngine {
     }
 
     fn get_or_create_memtable(&self, namespace: &str) -> dashmap::mapref::one::Ref<String, MemTableManager> {
-        if !self.memtables.contains_key(namespace) {
-            self.memtables
-                .insert(namespace.to_string(), MemTableManager::new(64));
-        }
+        self.memtables
+            .entry(namespace.to_string())
+            .or_insert_with(|| MemTableManager::new(64));
         self.memtables.get(namespace).unwrap()
     }
 

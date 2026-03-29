@@ -58,6 +58,38 @@ impl Ord for SearchResult {
     }
 }
 
+/// Max-heap that retains only the top-k smallest distances.
+struct TopKHeap {
+    heap: BinaryHeap<SearchResult>,
+    k: usize,
+}
+
+impl TopKHeap {
+    fn new(k: usize) -> Self {
+        Self {
+            heap: BinaryHeap::new(),
+            k,
+        }
+    }
+
+    fn push(&mut self, id: u64, distance: f32) {
+        if self.heap.len() < self.k {
+            self.heap.push(SearchResult { id, distance });
+        } else if let Some(worst) = self.heap.peek() {
+            if distance < worst.distance {
+                self.heap.pop();
+                self.heap.push(SearchResult { id, distance });
+            }
+        }
+    }
+
+    fn into_sorted_results(self) -> Vec<SearchResult> {
+        let mut results: Vec<SearchResult> = self.heap.into_vec();
+        results.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap_or(Ordering::Equal));
+        results
+    }
+}
+
 impl VectorIndex {
     pub fn new(dims: u32, metric: DistanceMetric) -> Self {
         Self {
@@ -131,64 +163,30 @@ impl VectorIndex {
         drop(centroids);
 
         // Search within those posting lists
-        let mut heap: BinaryHeap<SearchResult> = BinaryHeap::new();
-
+        let mut heap = TopKHeap::new(top_k);
         for cluster_id in probe_clusters {
             if let Some(posting) = self.postings.get(&cluster_id) {
                 for entry in posting.value() {
                     let dist = self.compute_distance(query, &entry.vector);
-
-                    if heap.len() < top_k {
-                        heap.push(SearchResult {
-                            id: entry.id,
-                            distance: dist,
-                        });
-                    } else if let Some(worst) = heap.peek() {
-                        if dist < worst.distance {
-                            heap.pop();
-                            heap.push(SearchResult {
-                                id: entry.id,
-                                distance: dist,
-                            });
-                        }
-                    }
+                    heap.push(entry.id, dist);
                 }
             }
         }
 
-        let mut results: Vec<SearchResult> = heap.into_vec();
-        results.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap_or(std::cmp::Ordering::Equal));
-        results
+        heap.into_sorted_results()
     }
 
     /// Exact kNN search: scan all vectors.
     pub fn search_knn(&self, query: &[f32], top_k: usize) -> Vec<SearchResult> {
-        let mut heap: BinaryHeap<SearchResult> = BinaryHeap::new();
-
+        let mut heap = TopKHeap::new(top_k);
         for posting in self.postings.iter() {
             for entry in posting.value() {
                 let dist = self.compute_distance(query, &entry.vector);
-
-                if heap.len() < top_k {
-                    heap.push(SearchResult {
-                        id: entry.id,
-                        distance: dist,
-                    });
-                } else if let Some(worst) = heap.peek() {
-                    if dist < worst.distance {
-                        heap.pop();
-                        heap.push(SearchResult {
-                            id: entry.id,
-                            distance: dist,
-                        });
-                    }
-                }
+                heap.push(entry.id, dist);
             }
         }
 
-        let mut results: Vec<SearchResult> = heap.into_vec();
-        results.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap_or(std::cmp::Ordering::Equal));
-        results
+        heap.into_sorted_results()
     }
 
     /// Total number of vectors in the index.
