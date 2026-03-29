@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, List, Lock, Settings, TrendingUp } from "lucide-react";
+import { Key, LayoutGrid, List, Lock, Settings, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ const nav = [
   { href: "/vault", icon: Lock, label: "Vault" },
   { href: "/namespaces", icon: List, label: "Namespaces" },
   { href: "/metrics", icon: TrendingUp, label: "Metrics" },
+  { href: "/api-keys", icon: Key, label: "API Keys" },
   { href: "/settings", icon: Settings, label: "Settings" }
 ] as const;
 
