@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from bigrag.config import settings
 from bigrag.database import db
 from bigrag.middleware.auth import get_current_user
+from bigrag.services.crypto import decrypt, encrypt
 from bigrag.models.collection import (
     CollectionListResponse,
     CollectionResponse,
@@ -86,7 +87,8 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             """,
             body.name, body.description, provider, model,
             dimension, body.chunk_size, body.chunk_overlap, body.metadata,
-            body.embedding_api_key, body.embedding_base_url,
+            encrypt(body.embedding_api_key) if body.embedding_api_key else None,
+            body.embedding_base_url,
         )
     except asyncpg.UniqueViolationError:
         raise HTTPException(status_code=409, detail="Collection already exists")
