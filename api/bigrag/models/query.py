@@ -1,0 +1,54 @@
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+
+
+class QueryRequest(BaseModel):
+    query: str
+    top_k: int = Field(default=10, ge=1, le=1000)
+    filters: dict | None = None
+    include_metadata: bool = True
+    include_text: bool = True
+    min_score: float | None = None
+
+
+class VectorUpsertRequest(BaseModel):
+    vectors: list[VectorEntry]
+
+
+class VectorEntry(BaseModel):
+    id: str
+    embedding: list[float]
+    text: str = ""
+    metadata: dict = {}
+
+
+class VectorDeleteRequest(BaseModel):
+    ids: list[str]
+
+
+class QueryResult(BaseModel):
+    id: str
+    text: str
+    score: float
+    document_id: str | None = None
+    chunk_index: int | None = None
+    metadata: dict = {}
+
+
+class QueryResponse(BaseModel):
+    results: list[QueryResult]
+    query: str
+    collection: str
+    total: int
+
+
+class EmbeddingModelInfo(BaseModel):
+    provider: str
+    model: str
+    dimension: int
+    description: str = ""
+
+
+# Fix forward reference
+VectorUpsertRequest.model_rebuild()
