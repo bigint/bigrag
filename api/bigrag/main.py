@@ -74,9 +74,11 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    Instrumentator().instrument(app).expose(app, endpoint="/v1/metrics")
-
     from bigrag.middleware.auth import get_current_user
+
+    Instrumentator().instrument(app).expose(
+        app, endpoint="/v1/metrics", dependencies=[Depends(get_current_user)]
+    )
 
     @app.get("/health")
     async def health():
