@@ -6,20 +6,9 @@ license.workspace = true
 
 [dependencies]
 bigrag-common = { workspace = true }
-bigrag-storage = { workspace = true }
-bigrag-index = { workspace = true }
-tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-bytes = { workspace = true }
 thiserror = { workspace = true }
-anyhow = { workspace = true }
-tracing = { workspace = true }
-parking_lot = { workspace = true }
-dashmap = { workspace = true }
 globset = { workspace = true }
 regex = { workspace = true }
 base64 = { workspace = true }
-
-[dev-dependencies]
-tokio = { workspace = true, features = ["test-util"] }
