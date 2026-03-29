@@ -11,9 +11,10 @@ async def get_current_user(request: Request) -> dict:
     auth_header = request.headers.get("authorization", "")
 
     if not auth_header.startswith("Bearer "):
-        # Check if auth is disabled (no database, no keys, no master key)
+        # Auth is only disabled when no master key, no static API keys, AND no users exist
         if not settings.master_key and not settings.api_keys:
-            return {"id": None, "role": "admin", "email": "anonymous", "display_name": "Anonymous"}
+            if await auth_service.needs_setup():
+                return {"id": None, "role": "admin", "email": "anonymous", "display_name": "Anonymous"}
         raise HTTPException(status_code=401, detail="Missing authorization header")
 
     token = auth_header[7:]
