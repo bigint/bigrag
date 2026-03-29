@@ -20,9 +20,6 @@ pub struct WriteOp {
 /// Batches concurrent writes to the same namespace into a single object storage PUT.
 /// Maximum 1 batch per second per namespace.
 pub struct WalWriter {
-    backend: StorageBackend,
-    manifest: Arc<ManifestManager>,
-    writer_epoch: u64,
     batch_tx: mpsc::Sender<WriteOp>,
 }
 
@@ -41,12 +38,7 @@ impl WalWriter {
             batch_rx,
         };
 
-        let writer = Self {
-            backend,
-            manifest,
-            writer_epoch,
-            batch_tx,
-        };
+        let writer = Self { batch_tx };
 
         (writer, processor)
     }
