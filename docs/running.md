@@ -14,7 +14,6 @@ This starts the full stack:
 - bigRAG API on port 8080
 - Postgres on port 5432
 - Milvus on port 19530
-- MinIO on ports 9000/9001
 
 Open http://localhost:3000 for the admin UI (after starting the UI separately), or use the API directly at http://localhost:8080/docs.
 
@@ -22,7 +21,7 @@ Open http://localhost:3000 for the admin UI (after starting the UI separately), 
 
 ```bash
 # 1. Start infrastructure
-docker compose up postgres etcd minio milvus -d
+docker compose up postgres milvus -d
 
 # 2. Install and run the backend
 cd api

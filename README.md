@@ -34,7 +34,6 @@ This starts the full stack:
 - **bigRAG API** on port 8080 (with Swagger docs at `/docs`)
 - **Milvus** vector database on port 19530
 - **Postgres** for metadata and auth on port 5432
-- **MinIO** for Milvus storage on ports 9000/9001
 
 ### Development
 

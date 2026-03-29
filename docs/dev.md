@@ -12,14 +12,14 @@
 ./dev.sh
 ```
 
-This starts everything: Postgres, Milvus (with etcd + MinIO), the Python backend, and the Next.js UI.
+This starts everything: Postgres, Milvus, the Python backend, and the Next.js UI.
 
 ## Manual Setup
 
 ### 1. Start infrastructure
 
 ```bash
-docker compose up postgres etcd minio milvus -d
+docker compose up postgres milvus -d
 ```
 
 Wait for services to be healthy:
@@ -73,4 +73,3 @@ curl http://localhost:8080/health
 | UI       | http://localhost:3000         | Next.js admin dashboard  |
 | Postgres | localhost:5432               | User: bigrag / bigrag    |
 | Milvus   | localhost:19530              | Vector DB                |
-| MinIO    | http://localhost:9001        | Console (minioadmin/minioadmin) |

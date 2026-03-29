@@ -25,7 +25,7 @@ Or manually:
 
 ```bash
 # Start infrastructure
-docker compose up postgres etcd minio milvus -d
+docker compose up postgres milvus -d
 
 # Set up the Python backend
 cd api
@@ -54,7 +54,7 @@ bigrag/
 ├── ui/                    # Next.js admin dashboard
 ├── sdks/                  # Client SDKs (Python, TypeScript, Go)
 ├── docs/                  # Documentation
-├── docker-compose.yml     # Full stack (Postgres, Milvus, etcd, MinIO, API)
+├── docker-compose.yml     # Full stack (Postgres, Milvus, API)
 ├── dev.sh                 # One-command dev setup
 └── bigrag.toml            # Configuration
 ```
