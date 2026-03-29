@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from bigrag.config import settings
 from bigrag.database import db
 from bigrag.middleware.auth import get_current_user
+from bigrag.routers import get_collection_or_404
 from bigrag.models.document import DocumentListResponse, DocumentResponse
 from bigrag.services.embedding import get_embedding_model
 from bigrag.services.queue import IngestionJob, event_bus, ingestion_queue
@@ -34,11 +35,7 @@ def _row_to_response(row: dict) -> DocumentResponse:
     return DocumentResponse(**r)
 
 
-async def _get_collection(name: str) -> dict:
-    row = await db.fetchrow("SELECT * FROM collections WHERE name = $1", name)
-    if not row:
-        raise HTTPException(status_code=404, detail="Collection not found")
-    return dict(row)
+_get_collection = get_collection_or_404
 
 
 def _validate_embedding_provider(collection: dict) -> None:

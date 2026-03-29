@@ -3,8 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 
 from bigrag.config import settings
-from bigrag.database import db
 from bigrag.middleware.auth import get_current_user
+from bigrag.routers import get_collection_or_404
 from bigrag.models.query import (
     EmbeddingModelInfo,
     QueryRequest,
@@ -20,11 +20,7 @@ from bigrag.services.vector_store import vector_store
 router = APIRouter(tags=["query"])
 
 
-async def _get_collection(name: str) -> dict:
-    row = await db.fetchrow("SELECT * FROM collections WHERE name = $1", name)
-    if not row:
-        raise HTTPException(status_code=404, detail="Collection not found")
-    return dict(row)
+_get_collection = get_collection_or_404
 
 
 @router.post("/v1/collections/{collection_name}/query", response_model=QueryResponse)
