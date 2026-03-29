@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.auth import (
@@ -80,8 +80,11 @@ async def signup(body: SignupRequest):
 
 
 @router.post("/logout")
-async def logout_route(user: dict = Depends(get_current_user)):
-    # We don't have the raw token here easily, but we can clear from header
+async def logout_route(request: Request, user: dict = Depends(get_current_user)):
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        await auth_service.invalidate_session(token)
     return {"status": "ok"}
 
 
