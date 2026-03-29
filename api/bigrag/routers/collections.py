@@ -69,22 +69,26 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Create in Postgres
-    row = await db.fetchrow(
-        """
-        INSERT INTO collections (name, description, embedding_provider, embedding_model,
-                                  dimension, chunk_size, chunk_overlap, metadata,
-                                  embedding_api_key, embedding_base_url)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        RETURNING *
-        """,
-        body.name, body.description, provider, model,
-        dimension, body.chunk_size, body.chunk_overlap, body.metadata,
-        body.embedding_api_key, body.embedding_base_url,
-    )
-
-    # Create in Milvus
+    # Create in Milvus first (easier to clean up if Postgres fails)
     await vector_store.create_collection(body.name, dimension)
+
+    try:
+        row = await db.fetchrow(
+            """
+            INSERT INTO collections (name, description, embedding_provider, embedding_model,
+                                      dimension, chunk_size, chunk_overlap, metadata,
+                                      embedding_api_key, embedding_base_url)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING *
+            """,
+            body.name, body.description, provider, model,
+            dimension, body.chunk_size, body.chunk_overlap, body.metadata,
+            body.embedding_api_key, body.embedding_base_url,
+        )
+    except Exception:
+        # Roll back Milvus collection if Postgres insert fails
+        await vector_store.delete_collection(body.name)
+        raise
 
     return _row_to_response(dict(row))
 
