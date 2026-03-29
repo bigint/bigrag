@@ -42,7 +42,11 @@ class SentenceTransformerEmbedding(EmbeddingModel):
         logger.info(f"Loaded sentence-transformers model: {model_name} (dim={self._dimension})")
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        embeddings = self._model.encode(texts, normalize_embeddings=True)
+        import asyncio
+
+        embeddings = await asyncio.to_thread(
+            self._model.encode, texts, normalize_embeddings=True
+        )
         return embeddings.tolist()
 
     @property
