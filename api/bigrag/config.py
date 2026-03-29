@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["*"]
 
     # Postgres (required for auth/metadata)
-    database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag"
+    database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 
     # Milvus
     milvus_uri: str = "http://localhost:19530"

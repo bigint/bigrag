@@ -61,7 +61,7 @@ for i in $(seq 1 60); do
   sleep 1
 done
 
-DATABASE_URL="postgres://bigrag:bigrag@localhost:5432/bigrag"
+DATABASE_URL="postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 MILVUS_URI="http://localhost:19530"
 
 # --- Python backend ---

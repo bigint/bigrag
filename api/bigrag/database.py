@@ -99,7 +99,13 @@ class Database:
         self.pool: asyncpg.Pool | None = None
 
     async def connect(self, dsn: str) -> None:
-        self.pool = await asyncpg.create_pool(dsn, min_size=2, max_size=20)
+        # asyncpg doesn't understand ?sslmode=disable in the DSN,
+        # so we parse it out and pass ssl=False explicitly
+        ssl = None
+        if "sslmode=disable" in dsn:
+            dsn = dsn.replace("?sslmode=disable", "").replace("&sslmode=disable", "")
+            ssl = False
+        self.pool = await asyncpg.create_pool(dsn, min_size=2, max_size=20, ssl=ssl)
         logger.info("Connected to Postgres")
 
     async def close(self) -> None:
