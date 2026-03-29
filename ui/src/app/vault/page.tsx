@@ -695,8 +695,8 @@ export default function VaultPage() {
         )}
 
         {/* Upload drop zone */}
-        <div
-          className={`mb-8 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-12 transition-colors ${
+        <button
+          className={`mb-8 flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-12 transition-colors ${
             isDragOver
               ? "border-blue-500 bg-blue-500/5"
               : "border-[#27272a] bg-[#18181b] hover:border-[#3f3f46]"
@@ -705,6 +705,7 @@ export default function VaultPage() {
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
+          type="button"
         >
           <input
             accept=".pdf,application/pdf"
@@ -733,7 +734,7 @@ export default function VaultPage() {
               </p>
             </>
           )}
-        </div>
+        </button>
 
         {/* Search */}
         <div className="mb-8">
