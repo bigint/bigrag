@@ -23,7 +23,7 @@ const ApiKeysPage = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyAdmin, setNewKeyAdmin] = useState(false);
-  const [newKeyNamespaces, setNewKeyNamespaces] = useState("*");
+  const [newKeyCollections, setNewKeyCollections] = useState("*");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -33,7 +33,7 @@ const ApiKeysPage = () => {
       setCreatedKey(res.key);
       setNewKeyName("");
       setNewKeyAdmin(false);
-      setNewKeyNamespaces("*");
+      setNewKeyCollections("*");
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
     }
   });
@@ -50,7 +50,7 @@ const ApiKeysPage = () => {
     createMutation.mutate({
       admin: newKeyAdmin,
       name: newKeyName.trim(),
-      namespaces: newKeyNamespaces
+      namespaces: newKeyCollections
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean)
@@ -124,14 +124,14 @@ const ApiKeysPage = () => {
             </div>
             <div>
               <label className="mb-1 block text-xs text-text-muted">
-                Namespaces (comma-separated, * for all)
+                Collections (comma-separated, * for all)
               </label>
               <input
                 className="w-full rounded-md border border-border bg-bg-input px-3 py-2 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
-                onChange={(e) => setNewKeyNamespaces(e.target.value)}
+                onChange={(e) => setNewKeyCollections(e.target.value)}
                 placeholder="*"
                 type="text"
-                value={newKeyNamespaces}
+                value={newKeyCollections}
               />
             </div>
             <div className="flex items-center gap-2">
@@ -198,7 +198,7 @@ const ApiKeysPage = () => {
                   Prefix
                 </th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-text-muted">
-                  Namespaces
+                  Collections
                 </th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-text-muted">
                   Admin
@@ -227,7 +227,7 @@ const ApiKeysPage = () => {
                     {key.prefix}...
                   </td>
                   <td className="px-4 py-2.5 font-mono text-xs text-text-muted">
-                    {key.permissions.namespaces.join(", ")}
+                    {(key.permissions.namespaces ?? []).join(", ")}
                   </td>
                   <td className="px-4 py-2.5">
                     {key.permissions.admin ? (

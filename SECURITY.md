@@ -35,15 +35,15 @@ Instead, please email **security@bigrag.io** with:
 
 The following are in scope:
 
-- The bigRAG server binary and all crates in this repository
-- Official Docker images (`bigrag/bigrag`)
+- The bigRAG API server and all Python packages in this repository
+- Official Docker images
 - Official client SDKs (Python, TypeScript, Go)
 
 The following are out of scope:
 
 - Third-party dependencies (report to the upstream project)
 - Self-hosted deployments with misconfigured infrastructure
-- Denial of service via expected resource exhaustion (e.g., uploading very large vectors)
+- Denial of service via expected resource exhaustion (e.g., uploading very large documents)
 
 ## Security Best Practices
 

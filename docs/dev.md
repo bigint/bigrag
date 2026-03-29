@@ -2,54 +2,52 @@
 
 ## Prerequisites
 
-- Rust 1.86+
-- Node.js 20+ and pnpm
-- Docker (for Postgres and optionally MinIO)
+- Python 3.12+
+- Node.js 22+ and pnpm
+- Docker and Docker Compose (for Postgres, Milvus)
 
-## Start Postgres
-
-User authentication requires Postgres. Start one with Docker:
+## One-Command Start
 
 ```bash
-docker run -d --name bigrag-pg \
-  -e POSTGRES_PASSWORD=bigrag \
-  -e POSTGRES_DB=bigrag \
-  -p 5432:5432 \
-  postgres:17
+./dev.sh
 ```
 
-## Start MinIO (optional, for S3 storage)
+This starts everything: Postgres, Milvus (with etcd + MinIO), the Python backend, and the Next.js UI.
+
+## Manual Setup
+
+### 1. Start infrastructure
 
 ```bash
-docker compose up minio -d
+docker compose up postgres etcd minio milvus -d
 ```
 
-MinIO Console: http://localhost:9001 (user: `minioadmin`, password: `minioadmin`)
-
-## Run the Server
+Wait for services to be healthy:
 
 ```bash
-# One-time: copy and edit config
-cp bigrag.example.toml bigrag.toml
+# Postgres
+docker exec bigrag-postgres pg_isready -U bigrag
 
-# With user auth (Postgres)
-cargo run -p bigrag-server -- --port 8080 --data-dir ./data \
-  --database-url "postgres://postgres:bigrag@localhost:5432/bigrag"
-
-# Without auth (legacy open mode)
-cargo run -p bigrag-server -- --port 8080 --data-dir ./data
+# Milvus
+curl -f http://localhost:9091/healthz
 ```
 
-For auto-reload on code changes, install [cargo-watch](https://github.com/watchexec/cargo-watch):
+### 2. Run the backend
 
 ```bash
-cargo install cargo-watch
-cargo watch -x 'run -p bigrag-server -- --port 8080 --data-dir ./data --database-url "postgres://postgres:bigrag@localhost:5432/bigrag"'
+cd api
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
+
+BIGRAG_DATABASE_URL="postgres://bigrag:bigrag@localhost:5432/bigrag" \
+BIGRAG_MILVUS_URI="http://localhost:19530" \
+python -m bigrag.main
 ```
 
-API: http://localhost:8080 | Metrics: http://localhost:9090
+API: http://localhost:8080 | Swagger docs: http://localhost:8080/docs
 
-## Run the UI
+### 3. Run the UI
 
 ```bash
 cd ui
@@ -61,10 +59,18 @@ Dashboard: http://localhost:3000
 
 On first visit, the UI redirects to `/setup` to create the initial admin account. After that, users log in with email/password. Admins can invite new users from the Users page.
 
-If the server is running without `--database-url`, the UI runs in legacy mode (no login required).
-
 ## Verify
 
 ```bash
 curl http://localhost:8080/health
 ```
+
+## Services
+
+| Service  | URL                          | Notes                    |
+|----------|------------------------------|--------------------------|
+| API      | http://localhost:8080         | FastAPI + Swagger at /docs |
+| UI       | http://localhost:3000         | Next.js admin dashboard  |
+| Postgres | localhost:5432               | User: bigrag / bigrag    |
+| Milvus   | localhost:19530              | Vector DB                |
+| MinIO    | http://localhost:9001        | Console (minioadmin/minioadmin) |
