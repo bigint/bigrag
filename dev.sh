@@ -46,9 +46,26 @@ if [ ! -f "$ROOT_DIR/bigrag.toml" ]; then
 fi
 
 # --- Rust backend ---
-echo -e "${CYAN}Starting Rust backend (cargo run)...${NC}"
-(cd "$ROOT_DIR" && cargo run --release 2>&1 | sed "s/^/[backend] /") &
+echo -e "${CYAN}Building Rust backend...${NC}"
+(cd "$ROOT_DIR" && cargo build 2>&1 | sed "s/^/[build] /")
+
+echo -e "${CYAN}Starting Rust backend...${NC}"
+(cd "$ROOT_DIR" && cargo run 2>&1 | sed "s/^/[backend] /") &
 PIDS+=($!)
+
+# Wait for backend to be ready
+echo -e "${CYAN}Waiting for backend...${NC}"
+for i in $(seq 1 60); do
+  if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+    echo -e "${GREEN}Backend is ready.${NC}"
+    break
+  fi
+  if [ "$i" -eq 60 ]; then
+    echo -e "${RED}Backend failed to start within 60s.${NC}"
+    exit 1
+  fi
+  sleep 1
+done
 
 # --- UI ---
 echo -e "${CYAN}Starting Next.js UI...${NC}"

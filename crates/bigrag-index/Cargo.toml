@@ -6,24 +6,8 @@ license.workspace = true
 
 [dependencies]
 bigrag-common = { workspace = true }
-bigrag-storage = { workspace = true }
-tokio = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-bytes = { workspace = true }
-thiserror = { workspace = true }
-anyhow = { workspace = true }
-tracing = { workspace = true }
-roaring = { workspace = true }
-fst = { workspace = true }
-bitpacking = { workspace = true }
-simsimd = { workspace = true }
-faer = { workspace = true }
-half = { workspace = true }
-parking_lot = { workspace = true }
-rayon = { workspace = true }
-rand = { workspace = true }
 dashmap = { workspace = true }
+parking_lot = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

@@ -10,10 +10,8 @@ tokio = { workspace = true }
 object_store = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-rkyv = { workspace = true }
 bytes = { workspace = true }
 thiserror = { workspace = true }
-anyhow = { workspace = true }
 tracing = { workspace = true }
 zstd = { workspace = true }
 lz4_flex = { workspace = true }
@@ -21,7 +19,6 @@ crossbeam-skiplist = { workspace = true }
 moka = { workspace = true }
 parking_lot = { workspace = true }
 crc32fast = { workspace = true }
-uuid = { workspace = true }
 chrono = { workspace = true }
 dashmap = { workspace = true }
 futures = "0.3"

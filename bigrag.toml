@@ -1,0 +1,33 @@
+# bigRAG Configuration
+# Copy to bigrag.toml and customize
+
+[server]
+host = "0.0.0.0"
+port = 8080
+# metrics_port = 9090
+
+[storage]
+backend = "local"
+path = "./data"
+
+# [storage]
+# backend = "s3"
+# bucket = "my-bigrag-bucket"
+# region = "us-east-1"
+# prefix = "bigrag/"
+# endpoint = "http://minio:9000"  # For MinIO
+
+[cache]
+block_cache_size_mb = 256
+metadata_cache_size_mb = 64
+# nvme_cache_path = "/nvme/bigrag"
+# nvme_cache_size_gb = 100
+
+[wal]
+batch_interval_ms = 1000
+memtable_flush_size_mb = 64
+
+[compaction]
+enabled = true
+size_ratio = 4.0
+max_levels = 7
