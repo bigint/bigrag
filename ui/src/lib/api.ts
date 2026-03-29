@@ -1,14 +1,14 @@
-const BASE_URL = process.env.NEXT_PUBLIC_BIGRAG_URL || "http://localhost:8080";
-const API_KEY = process.env.NEXT_PUBLIC_BIGRAG_API_KEY || "";
+import { getApiKey, getBaseUrl } from "./auth-store";
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const apiKey = getApiKey();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}),
+    ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
     ...((options.headers as Record<string, string>) || {})
   };
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${getBaseUrl()}${path}`, {
     ...options,
     cache: "no-store",
     headers
@@ -354,9 +354,10 @@ export async function debugRecall(ns: string, num?: number, topK?: number) {
 // Metrics
 
 export async function getMetrics() {
-  const res = await fetch(`${BASE_URL}/v1/metrics`, {
+  const apiKey = getApiKey();
+  const res = await fetch(`${getBaseUrl()}/v1/metrics`, {
     cache: "no-store",
-    headers: API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}
+    headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
   });
   return res.text();
 }

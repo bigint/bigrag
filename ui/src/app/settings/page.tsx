@@ -1,37 +1,18 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminConfigQueryOptions, healthQueryOptions } from "@/lib/queries";
+import {
+  getApiKey,
+  getBaseUrl,
+  setApiKey,
+  setBaseUrl
+} from "@/lib/auth-store";
 
 const Pulse = ({ className }: { readonly className?: string }) => (
   <div className={`animate-pulse rounded-md bg-bg-hover ${className ?? ""}`} />
 );
-
-const ENV_VARS = [
-  {
-    default: "http://localhost:8080",
-    description: "API base URL for the bigRAG server",
-    name: "NEXT_PUBLIC_BIGRAG_URL"
-  },
-  {
-    default: "",
-    description: "Bearer token for authenticating with the API",
-    name: "NEXT_PUBLIC_BIGRAG_API_KEY"
-  }
-] as const;
-
-function maskValue(key: string, value: string): string {
-  if (!value) return "Not set";
-  const lowerKey = key.toLowerCase();
-  if (
-    lowerKey.includes("key") ||
-    lowerKey.includes("secret") ||
-    lowerKey.includes("token")
-  ) {
-    return value.length <= 4 ? "****" : `${value.slice(0, 4)}****`;
-  }
-  return value;
-}
 
 function renderConfigValue(value: unknown): string {
   if (value === null || value === undefined) return "---";
@@ -42,16 +23,32 @@ function renderConfigValue(value: unknown): string {
 }
 
 const SettingsPage = () => {
+  const queryClient = useQueryClient();
   const healthQuery = useQuery(healthQueryOptions());
   const configQuery = useQuery(adminConfigQueryOptions());
+
+  const [url, setUrl] = useState("");
+  const [apiKey, setKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setUrl(getBaseUrl());
+    setKey(getApiKey());
+  }, []);
+
+  const handleSave = useCallback(() => {
+    setBaseUrl(url);
+    setApiKey(apiKey);
+    setSaved(true);
+    queryClient.invalidateQueries();
+    setTimeout(() => setSaved(false), 2000);
+  }, [url, apiKey, queryClient]);
 
   const isLoading = healthQuery.isLoading || configQuery.isLoading;
   const isConnected = healthQuery.isSuccess;
   const version = healthQuery.data?.version ?? "";
   const config = configQuery.data ?? null;
-
-  const apiUrl = process.env.NEXT_PUBLIC_BIGRAG_URL || "http://localhost:8080";
-  const apiKey = process.env.NEXT_PUBLIC_BIGRAG_API_KEY || "";
 
   return (
     <div className="text-text">
@@ -60,7 +57,7 @@ const SettingsPage = () => {
         <div className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
           <p className="mt-1 text-[13px] text-text-muted">
-            Server configuration and connection details
+            Server connection and configuration
           </p>
         </div>
 
@@ -78,11 +75,46 @@ const SettingsPage = () => {
           </h2>
           <div className="rounded-lg border border-border bg-bg-card">
             <div className="divide-y divide-border">
-              <SettingsRow isLoading={isLoading} label="API URL">
-                <span className="font-mono text-sm text-text">{apiUrl}</span>
-              </SettingsRow>
+              <div className="flex items-center justify-between gap-4 px-5 py-4">
+                <div className="min-w-0">
+                  <p className="text-sm text-text-muted">API URL</p>
+                </div>
+                <input
+                  className="w-80 rounded-md border border-border bg-bg px-3 py-1.5 font-mono text-sm text-text outline-none focus:border-text-muted"
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="http://localhost:8080"
+                  spellCheck={false}
+                  value={url}
+                />
+              </div>
 
-              <SettingsRow isLoading={isLoading} label="Status">
+              <div className="flex items-center justify-between gap-4 px-5 py-4">
+                <div className="min-w-0">
+                  <p className="text-sm text-text-muted">API Key</p>
+                  <p className="mt-0.5 text-[13px] text-text-dim">
+                    Master key or admin API key
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    className="w-80 rounded-md border border-border bg-bg px-3 py-1.5 font-mono text-sm text-text outline-none focus:border-text-muted"
+                    onChange={(e) => setKey(e.target.value)}
+                    placeholder="br_..."
+                    spellCheck={false}
+                    type={showKey ? "text" : "password"}
+                    value={apiKey}
+                  />
+                  <button
+                    className="shrink-0 rounded-md border border-border px-2.5 py-1.5 text-xs text-text-muted hover:bg-bg-hover"
+                    onClick={() => setShowKey(!showKey)}
+                    type="button"
+                  >
+                    {showKey ? "Hide" : "Show"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between px-5 py-4">
                 <div className="flex items-center gap-2">
                   <span
                     className={`inline-block size-2 rounded-full ${
@@ -96,14 +128,20 @@ const SettingsPage = () => {
                   >
                     {isConnected ? "Connected" : "Disconnected"}
                   </span>
+                  {version && (
+                    <span className="ml-2 font-mono text-xs text-text-dim">
+                      v{version}
+                    </span>
+                  )}
                 </div>
-              </SettingsRow>
-
-              <SettingsRow isLoading={isLoading} label="Version">
-                <span className="font-mono text-sm text-text">
-                  {version || "---"}
-                </span>
-              </SettingsRow>
+                <button
+                  className="rounded-md bg-text px-4 py-1.5 text-sm font-medium text-bg hover:opacity-90"
+                  onClick={handleSave}
+                  type="button"
+                >
+                  {saved ? "Saved" : "Save & Reconnect"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -150,52 +188,7 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        {/* Section 3: Environment Variables */}
-        <div className="mb-8">
-          <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-text-muted">
-            Environment Variables
-          </h2>
-          <div className="rounded-lg border border-border bg-bg-card">
-            <div className="divide-y divide-border">
-              {ENV_VARS.map((env) => {
-                const currentValue =
-                  env.name === "NEXT_PUBLIC_BIGRAG_URL"
-                    ? apiUrl
-                    : env.name === "NEXT_PUBLIC_BIGRAG_API_KEY"
-                      ? apiKey
-                      : "";
-
-                return (
-                  <div className="px-5 py-4" key={env.name}>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="font-mono text-sm text-text">
-                          {env.name}
-                        </p>
-                        <p className="mt-0.5 text-[13px] text-text-dim">
-                          {env.description}
-                        </p>
-                        {env.default && (
-                          <p className="mt-0.5 text-[13px] text-text-dim">
-                            Default:{" "}
-                            <span className="font-mono text-text-muted">
-                              {env.default}
-                            </span>
-                          </p>
-                        )}
-                      </div>
-                      <span className="shrink-0 font-mono text-sm text-text-muted">
-                        {maskValue(env.name, currentValue)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Section 4: About */}
+        {/* Section 3: About */}
         <div>
           <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-text-muted">
             About
