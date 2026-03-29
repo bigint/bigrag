@@ -9,7 +9,6 @@ use tracing::{debug, trace, warn};
 use uuid::Uuid;
 
 use crate::auth::handlers::{SessionToken, SessionUser};
-use crate::auth::session::validate_session;
 use crate::state::AppState;
 
 /// Extract bearer token from Authorization header.
@@ -39,17 +38,13 @@ pub async fn auth_middleware(
 
     match token {
         Some(ref t) => {
-            let (api_key, is_session) = state.validate_auth_async(t).await;
+            let (api_key, session_user) = state.validate_auth_async(t).await;
             match api_key {
                 Some(key) => {
                     debug!(key_id = %key.id, key_name = %key.name, "auth: request authenticated");
-                    if is_session {
-                        if let Some(ref pool) = state.db_pool {
-                            if let Ok(Some(user)) = validate_session(pool, t).await {
-                                request.extensions_mut().insert(SessionUser(user));
-                                request.extensions_mut().insert(SessionToken(t.clone()));
-                            }
-                        }
+                    if let Some(user) = session_user {
+                        request.extensions_mut().insert(SessionUser(user));
+                        request.extensions_mut().insert(SessionToken(t.clone()));
                     }
                     request.extensions_mut().insert(key);
                     next.run(request).await

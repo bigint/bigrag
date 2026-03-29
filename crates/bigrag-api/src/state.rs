@@ -319,23 +319,12 @@ impl AppState {
         }
     }
 
-    /// Validate a bearer token. Tries JWT first (if token starts with "ey" and
-    /// JWT is configured), then falls back to API key store.
-    pub fn validate_auth(&self, token: &str) -> Option<ApiKey> {
-        // JWT tokens start with "ey" (base64-encoded JSON header)
-        if token.starts_with("ey") {
-            if let Some(ref jwt_config) = self.jwt_config {
-                if let Ok(api_key) = jwt_config.validate_jwt(token) {
-                    return Some(api_key);
-                }
-            }
-        }
-        self.key_store.validate(token)
-    }
-
     /// Validate a bearer token asynchronously. Checks: master key -> session -> Postgres API keys -> in-memory API keys -> JWT.
-    /// Returns (Option<ApiKey>, is_session_token: bool).
-    pub async fn validate_auth_async(&self, token: &str) -> (Option<ApiKey>, bool) {
+    /// Returns (Option<ApiKey>, Option<User> if session-based).
+    pub async fn validate_auth_async(
+        &self,
+        token: &str,
+    ) -> (Option<ApiKey>, Option<crate::auth::session::User>) {
         // 1. Master key check
         if let Some(mk) = self.key_store.master_key_ref() {
             if token == mk {
@@ -360,7 +349,7 @@ impl AppState {
                         last_used_at: None,
                         expires_at: None,
                     }),
-                    false,
+                    None,
                 );
             }
         }
@@ -378,23 +367,21 @@ impl AppState {
                 if is_admin {
                     operations.push(ApiOperation::Admin);
                 }
-                return (
-                    Some(ApiKey {
-                        id: format!("session-{}", user.id),
-                        name: user.display_name.clone(),
-                        key_hash: String::new(),
-                        prefix: "session".to_string(),
-                        permissions: ApiKeyPermissions {
-                            namespaces: vec!["*".to_string()],
-                            operations,
-                            admin: is_admin,
-                        },
-                        created_at: user.created_at.to_rfc3339(),
-                        last_used_at: None,
-                        expires_at: None,
-                    }),
-                    true,
-                );
+                let api_key = ApiKey {
+                    id: format!("session-{}", user.id),
+                    name: user.display_name.clone(),
+                    key_hash: String::new(),
+                    prefix: "session".to_string(),
+                    permissions: ApiKeyPermissions {
+                        namespaces: vec!["*".to_string()],
+                        operations,
+                        admin: is_admin,
+                    },
+                    created_at: user.created_at.to_rfc3339(),
+                    last_used_at: None,
+                    expires_at: None,
+                };
+                return (Some(api_key), Some(user));
             }
 
             // 3. Postgres API keys
@@ -408,7 +395,7 @@ impl AppState {
             {
                 if let Some(ref exp) = row.expires_at {
                     if *exp < chrono::Utc::now() {
-                        return (None, false);
+                        return (None, None);
                     }
                 }
                 let _ = sqlx::query("UPDATE api_keys SET last_used_at = now() WHERE id = $1")
@@ -433,26 +420,26 @@ impl AppState {
                         last_used_at: row.last_used_at.map(|t| t.to_rfc3339()),
                         expires_at: row.expires_at.map(|t| t.to_rfc3339()),
                     }),
-                    false,
+                    None,
                 );
             }
         }
 
         // 4. In-memory API key store (legacy)
         if let Some(key) = self.key_store.validate(token) {
-            return (Some(key), false);
+            return (Some(key), None);
         }
 
         // 5. JWT
         if token.starts_with("ey") {
             if let Some(ref jwt_config) = self.jwt_config {
                 if let Ok(api_key) = jwt_config.validate_jwt(token) {
-                    return (Some(api_key), false);
+                    return (Some(api_key), None);
                 }
             }
         }
 
-        (None, false)
+        (None, None)
     }
 
     /// Load a namespace's documents from the storage engine into the in-memory store.
