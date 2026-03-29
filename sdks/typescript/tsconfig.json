@@ -8,6 +8,7 @@
     "module": "Node16",
     "moduleResolution": "Node16",
     "esModuleInterop": true,
+    "types": ["node"],
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,

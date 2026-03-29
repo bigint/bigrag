@@ -10,6 +10,11 @@
 data/
 *.log
 
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+
 # Node / UI
 node_modules/
 ui/.next/
