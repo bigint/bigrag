@@ -9,6 +9,8 @@ class CreateCollectionRequest(BaseModel):
     description: str = ""
     embedding_provider: str | None = None
     embedding_model: str | None = None
+    embedding_api_key: str | None = None
+    embedding_base_url: str | None = None
     dimension: int | None = None
     chunk_size: int = 512
     chunk_overlap: int = 50
@@ -30,6 +32,7 @@ class CollectionResponse(BaseModel):
     chunk_size: int
     chunk_overlap: int
     document_count: int
+    has_api_key: bool = False
     metadata: dict
     created_at: datetime
     updated_at: datetime

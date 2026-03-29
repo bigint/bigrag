@@ -16,7 +16,15 @@ const CollectionsPage = () => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedModel, setSelectedModel] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
   const [error, setError] = useState("");
+
+  const selectedProvider = modelsQuery.data?.models.find(
+    (m) => `${m.provider}/${m.model}` === selectedModel
+  )?.provider;
+  const needsApiKey = selectedProvider === "openai" || selectedProvider === "cohere" || selectedProvider === "custom";
+  const needsBaseUrl = selectedProvider === "ollama" || selectedProvider === "custom";
 
   const createMutation = useMutation({
     mutationFn: () => {
@@ -32,7 +40,9 @@ const CollectionsPage = () => {
               embedding_model: model.model,
               dimension: model.dimension
             }
-          : {})
+          : {}),
+        ...(apiKey ? { embedding_api_key: apiKey } : {}),
+        ...(baseUrl ? { embedding_base_url: baseUrl } : {}),
       });
     },
     onSuccess: () => {
@@ -40,6 +50,8 @@ const CollectionsPage = () => {
       setShowCreate(false);
       setName("");
       setDescription("");
+      setApiKey("");
+      setBaseUrl("");
       setError("");
     },
     onError: (err) => setError(err.message)
@@ -95,13 +107,44 @@ const CollectionsPage = () => {
                 </option>
               ))}
             </select>
+            {needsApiKey && (
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">
+                  API Key {selectedProvider === "openai" ? "(OpenAI)" : selectedProvider === "cohere" ? "(Cohere)" : ""}
+                </label>
+                <input
+                  className="w-full rounded-md border border-border bg-bg-input px-3 py-2 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="sk-..."
+                  type="password"
+                  value={apiKey}
+                />
+                <p className="mt-1 text-[11px] text-text-dim">
+                  Required. Stored securely per collection.
+                </p>
+              </div>
+            )}
+            {needsBaseUrl && (
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">
+                  Base URL {selectedProvider === "ollama" ? "(Ollama)" : "(API endpoint)"}
+                </label>
+                <input
+                  className="w-full rounded-md border border-border bg-bg-input px-3 py-2 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder={selectedProvider === "ollama" ? "http://localhost:11434" : "https://api.example.com/v1"}
+                  type="url"
+                  value={baseUrl}
+                />
+              </div>
+            )}
             {error && (
               <p className="text-sm text-danger">{error}</p>
             )}
             <div className="flex gap-2">
               <button
                 className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent/90 disabled:opacity-50"
-                disabled={!name || createMutation.isPending}
+                disabled={!name || createMutation.isPending || (needsApiKey && !apiKey)}
                 onClick={() => createMutation.mutate()}
                 type="button"
               >

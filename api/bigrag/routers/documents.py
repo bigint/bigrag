@@ -42,8 +42,8 @@ def _validate_embedding_provider(collection: dict) -> None:
             provider=collection["embedding_provider"],
             model_name=collection["embedding_model"],
             dimension=collection["dimension"],
-            api_key=settings.embedding_api_key,
-            base_url=settings.embedding_base_url,
+            api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
+            base_url=collection.get("embedding_base_url") or settings.embedding_base_url,
         )
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -104,8 +104,8 @@ async def upload_document(
         embedding_provider=collection["embedding_provider"],
         embedding_model=collection["embedding_model"],
         embedding_dimension=collection["dimension"],
-        embedding_api_key=settings.embedding_api_key,
-        embedding_base_url=settings.embedding_base_url,
+        embedding_api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
+        embedding_base_url=collection.get("embedding_base_url") or settings.embedding_base_url,
         chunk_size=collection["chunk_size"],
         chunk_overlap=collection["chunk_overlap"],
     ))
@@ -244,8 +244,8 @@ async def reprocess_document(
         embedding_provider=collection["embedding_provider"],
         embedding_model=collection["embedding_model"],
         embedding_dimension=collection["dimension"],
-        embedding_api_key=settings.embedding_api_key,
-        embedding_base_url=settings.embedding_base_url,
+        embedding_api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
+        embedding_base_url=collection.get("embedding_base_url") or settings.embedding_base_url,
         chunk_size=collection["chunk_size"],
         chunk_overlap=collection["chunk_overlap"],
     ))

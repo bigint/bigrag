@@ -94,6 +94,10 @@ MIGRATIONS = [
         applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     """,
+    """
+    ALTER TABLE collections ADD COLUMN IF NOT EXISTS embedding_api_key TEXT;
+    ALTER TABLE collections ADD COLUMN IF NOT EXISTS embedding_base_url TEXT;
+    """,
 ]
 
 

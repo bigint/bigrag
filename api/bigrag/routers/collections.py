@@ -19,9 +19,10 @@ router = APIRouter(prefix="/v1/collections", tags=["collections"])
 
 
 def _row_to_response(row: dict) -> CollectionResponse:
-    return CollectionResponse(
-        **{k: str(v) if isinstance(v, UUID) else v for k, v in row.items()}
-    )
+    data = {k: str(v) if isinstance(v, UUID) else v for k, v in row.items()}
+    data["has_api_key"] = bool(data.pop("embedding_api_key", None))
+    data.pop("embedding_base_url", None)
+    return CollectionResponse(**data)
 
 
 @router.get("", response_model=CollectionListResponse)
@@ -43,16 +44,43 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
     model = body.embedding_model or settings.embedding_model
     dimension = body.dimension or settings.embedding_dimension
 
+    # Providers that require an API key
+    api_key = body.embedding_api_key or settings.embedding_api_key
+    base_url = body.embedding_base_url or settings.embedding_base_url
+
+    if provider in ("openai", "cohere", "custom") and not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail=f"API key is required for the '{provider}' embedding provider",
+        )
+    if provider in ("ollama", "custom") and not base_url:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Base URL is required for the '{provider}' embedding provider",
+        )
+
+    # Validate the embedding provider is available
+    try:
+        from bigrag.services.embedding import get_embedding_model
+        get_embedding_model(
+            provider=provider, model_name=model, dimension=dimension,
+            api_key=api_key, base_url=base_url,
+        )
+    except (ImportError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     # Create in Postgres
     row = await db.fetchrow(
         """
         INSERT INTO collections (name, description, embedding_provider, embedding_model,
-                                  dimension, chunk_size, chunk_overlap, metadata)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                                  dimension, chunk_size, chunk_overlap, metadata,
+                                  embedding_api_key, embedding_base_url)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *
         """,
         body.name, body.description, provider, model,
         dimension, body.chunk_size, body.chunk_overlap, body.metadata,
+        body.embedding_api_key, body.embedding_base_url,
     )
 
     # Create in Milvus

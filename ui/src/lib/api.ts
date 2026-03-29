@@ -86,6 +86,7 @@ export interface Collection {
   chunk_size: number;
   chunk_overlap: number;
   document_count: number;
+  has_api_key: boolean;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -104,6 +105,8 @@ export interface CreateCollectionBody {
   description?: string;
   embedding_provider?: string;
   embedding_model?: string;
+  embedding_api_key?: string;
+  embedding_base_url?: string;
   dimension?: number;
   chunk_size?: number;
   chunk_overlap?: number;
