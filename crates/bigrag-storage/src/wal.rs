@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, info};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::backend::StorageBackend;
 use crate::manifest::ManifestManager;
@@ -59,9 +59,15 @@ impl WalWriter {
         self.batch_tx
             .send(op)
             .await
-            .map_err(|_| WalError::ChannelClosed)?;
+            .map_err(|_| {
+                error!("WAL write channel closed");
+                WalError::ChannelClosed
+            })?;
 
-        result_rx.await.map_err(|_| WalError::ChannelClosed)?
+        result_rx.await.map_err(|_| {
+            error!("WAL result channel closed");
+            WalError::ChannelClosed
+        })?
     }
 }
 
@@ -128,9 +134,21 @@ impl WalBatchProcessor {
                 .push(op);
         }
 
+        debug!(
+            namespaces = by_namespace.len(),
+            "flushing WAL batch"
+        );
+
         // Flush each namespace batch
         for (namespace, ns_ops) in by_namespace {
+            let op_count = ns_ops.len();
             let result = self.flush_namespace_batch(&namespace, &ns_ops).await;
+
+            if let Err(ref e) = result {
+                error!(namespace = %namespace, ops = op_count, error = %e, "WAL namespace flush failed");
+            } else {
+                trace!(namespace = %namespace, ops = op_count, "WAL namespace flush succeeded");
+            }
 
             // Notify all waiters
             for op in ns_ops {

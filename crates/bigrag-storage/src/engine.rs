@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{debug, error, info, trace, warn};
 
 use bigrag_common::config::ServerConfig;
 
@@ -98,6 +98,7 @@ impl StorageEngine {
         entries: Vec<Entry>,
     ) -> Result<usize, EngineError> {
         let count = entries.len();
+        debug!(namespace, count, "writing entries to namespace");
 
         // Write to memtable for serving reads immediately
         let mgr = self.get_or_create_memtable(namespace);
@@ -108,13 +109,18 @@ impl StorageEngine {
                 mgr.put(entry.key.clone(), entry.value.clone(), entry.timestamp);
             }
         }
+        trace!(namespace, count, "memtable updated");
 
         // Write to WAL for durability
         self.wal_writer
             .write(namespace.to_string(), entries)
             .await
-            .map_err(|e| EngineError::Write(format!("WAL write failed: {e}")))?;
+            .map_err(|e| {
+                error!(namespace, error = %e, "WAL write failed");
+                EngineError::Write(format!("WAL write failed: {e}"))
+            })?;
 
+        debug!(namespace, count, "write committed to WAL");
         Ok(count)
     }
 
@@ -128,11 +134,19 @@ impl StorageEngine {
         namespace: &str,
         key: &[u8],
     ) -> Result<Option<Bytes>, EngineError> {
+        trace!(namespace, "reading key from namespace");
+
         // 1. Check memtable
         if let Some(mgr) = self.memtables.get(namespace) {
             match mgr.get(key) {
-                Some(GetResult::Found(v)) => return Ok(Some(v)),
-                Some(GetResult::Deleted) => return Ok(None),
+                Some(GetResult::Found(v)) => {
+                    trace!(namespace, "key found in memtable");
+                    return Ok(Some(v));
+                }
+                Some(GetResult::Deleted) => {
+                    trace!(namespace, "key deleted in memtable");
+                    return Ok(None);
+                }
                 None => {}
             }
         }
@@ -226,20 +240,28 @@ impl StorageEngine {
     ) -> Result<Bytes, EngineError> {
         if let Some(ref dc) = self.disk_cache {
             if let Some(cached) = dc.get(&sst_meta.path) {
+                trace!(path = %sst_meta.path, "SST data served from disk cache");
                 return Ok(cached);
             }
             let fetched = self
                 .backend
                 .get(&sst_meta.path)
                 .await
-                .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))?;
+                .map_err(|e| {
+                    error!(path = %sst_meta.path, error = %e, "failed to read SST from backend");
+                    EngineError::Read(format!("failed to read SST: {e}"))
+                })?;
             dc.put(&sst_meta.path, &fetched);
+            trace!(path = %sst_meta.path, "SST data fetched from backend, cached to disk");
             Ok(fetched)
         } else {
             self.backend
                 .get(&sst_meta.path)
                 .await
-                .map_err(|e| EngineError::Read(format!("failed to read SST: {e}")))
+                .map_err(|e| {
+                    error!(path = %sst_meta.path, error = %e, "failed to read SST from backend");
+                    EngineError::Read(format!("failed to read SST: {e}"))
+                })
         }
     }
 
@@ -305,6 +327,7 @@ pub struct EngineBackground {
 
 impl EngineBackground {
     pub fn spawn(self) -> Vec<tokio::task::JoinHandle<()>> {
+        info!("spawning background tasks: WAL processor, compaction scheduler");
         let mut handles = Vec::new();
         handles.push(tokio::spawn(self.wal_processor.run()));
         handles.push(tokio::spawn(self.compaction.run()));
