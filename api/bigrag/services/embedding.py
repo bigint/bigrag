@@ -179,7 +179,10 @@ def get_embedding_model(
     api_key: str | None = None,
     base_url: str | None = None,
 ) -> EmbeddingModel:
-    cache_key = f"{provider}:{model_name}"
+    import hashlib
+
+    key_hash = hashlib.sha256(api_key.encode()).hexdigest()[:8] if api_key else "none"
+    cache_key = f"{provider}:{model_name}:{key_hash}:{base_url or ''}"
     if cache_key in _models:
         return _models[cache_key]
 
