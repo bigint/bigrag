@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from bigrag.middleware.auth import get_current_user
+from bigrag.middleware.rate_limit import auth_rate_limit
 from bigrag.models.auth import (
     AuthResponse,
     LoginRequest,
@@ -24,7 +25,7 @@ async def setup_status():
     return {"needs_setup": needs}
 
 
-@router.post("/setup", response_model=AuthResponse)
+@router.post("/setup", response_model=AuthResponse, dependencies=[Depends(auth_rate_limit)])
 async def setup(body: SetupRequest):
     if not await auth_service.needs_setup():
         raise HTTPException(status_code=409, detail="Setup already completed")
@@ -42,7 +43,7 @@ async def setup(body: SetupRequest):
     )
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post("/login", response_model=AuthResponse, dependencies=[Depends(auth_rate_limit)])
 async def login(body: LoginRequest):
     user = await auth_service.authenticate(body.email, body.password)
     if not user:
@@ -55,7 +56,7 @@ async def login(body: LoginRequest):
     )
 
 
-@router.post("/signup", response_model=AuthResponse)
+@router.post("/signup", response_model=AuthResponse, dependencies=[Depends(auth_rate_limit)])
 async def signup(body: SignupRequest):
     invite = await auth_service.redeem_invite(body.invite_code)
     if not invite:
