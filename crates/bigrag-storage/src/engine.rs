@@ -20,7 +20,6 @@ pub struct StorageEngine {
     cache: BlockCache,
     disk_cache: Option<DiskCache>,
     wal_writer: Arc<WalWriter>,
-    writer_epoch: u64,
 }
 
 impl StorageEngine {
@@ -82,7 +81,6 @@ impl StorageEngine {
             cache,
             disk_cache,
             wal_writer: Arc::new(wal_writer),
-            writer_epoch,
         };
 
         let background = EngineBackground {
@@ -275,7 +273,7 @@ impl StorageEngine {
         Ok(reader.scan())
     }
 
-    fn get_or_create_memtable(&self, namespace: &str) -> dashmap::mapref::one::Ref<String, MemTableManager> {
+    fn get_or_create_memtable(&self, namespace: &str) -> dashmap::mapref::one::Ref<'_, String, MemTableManager> {
         self.memtables
             .entry(namespace.to_string())
             .or_insert_with(|| MemTableManager::new(64));

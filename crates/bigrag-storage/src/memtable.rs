@@ -5,14 +5,6 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 use crate::sst::{Entry, SstBuilder, SstData, Compression};
 
-/// Composite key for the skip list: (user_key, inverted_timestamp).
-/// Inverted timestamp ensures newest entries come first for the same key.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct MemKey {
-    key: Bytes,
-    inv_ts: u64,
-}
-
 /// Value stored in the memtable.
 #[derive(Debug, Clone)]
 struct MemValue {

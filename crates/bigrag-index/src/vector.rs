@@ -3,7 +3,6 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use std::collections::BinaryHeap;
 use std::cmp::Ordering;
-use std::sync::Arc;
 
 /// SPFresh-based vector index with incremental rebalancing.
 ///
@@ -16,8 +15,6 @@ pub struct VectorIndex {
     postings: DashMap<u32, Vec<PostingEntry>>,
     /// Distance metric.
     metric: DistanceMetric,
-    /// Vector dimensionality.
-    dims: u32,
     /// Number of posting lists to probe during search.
     nprobe: usize,
 }
@@ -91,12 +88,11 @@ impl TopKHeap {
 }
 
 impl VectorIndex {
-    pub fn new(dims: u32, metric: DistanceMetric) -> Self {
+    pub fn new(_dims: u32, metric: DistanceMetric) -> Self {
         Self {
             centroids: RwLock::new(Vec::new()),
             postings: DashMap::new(),
             metric,
-            dims,
             nprobe: 64,
         }
     }

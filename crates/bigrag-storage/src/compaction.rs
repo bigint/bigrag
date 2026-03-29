@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use tokio::time::{Duration, interval};
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 use crate::backend::StorageBackend;
 use crate::manifest::{ManifestManager, SstMeta, SortedRun};

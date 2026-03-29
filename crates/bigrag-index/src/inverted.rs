@@ -16,7 +16,6 @@ pub struct InvertedIndex {
     /// BM25 parameters.
     k1: f64,
     b: f64,
-    k3: f64,
 }
 
 /// A single posting block containing up to 512 postings.
@@ -32,9 +31,7 @@ pub struct PostingBlock {
     pub block_id: u32,
 }
 
-const TARGET_BLOCK_SIZE: usize = 256;
 const MAX_BLOCK_SIZE: usize = 512;
-const MIN_BLOCK_SIZE: usize = 128;
 
 /// Result of a BM25 search.
 #[derive(Debug, Clone)]
@@ -44,7 +41,7 @@ pub struct BM25Result {
 }
 
 impl InvertedIndex {
-    pub fn new(k1: f64, b: f64, k3: f64) -> Self {
+    pub fn new(k1: f64, b: f64, _k3: f64) -> Self {
         Self {
             terms: BTreeMap::new(),
             doc_lengths: HashMap::new(),
@@ -52,7 +49,6 @@ impl InvertedIndex {
             avg_doc_length: 0.0,
             k1,
             b,
-            k3,
         }
     }
 
