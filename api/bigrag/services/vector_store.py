@@ -25,6 +25,10 @@ class VectorStore:
         self.uri = uri
         self.client: MilvusClient | None = None
 
+    def configure(self, uri: str) -> None:
+        """Update the URI before connecting. Use instead of calling __init__ directly."""
+        self.uri = uri
+
     def connect(self) -> None:
         self.client = MilvusClient(uri=self.uri)
         logger.info(f"Connected to Milvus at {self.uri}")
