@@ -97,15 +97,20 @@ async def upload_document(
         meta = {}
 
     # Create document record
-    row = await db.fetchrow(
-        """
-        INSERT INTO documents (id, collection_id, filename, file_type, file_size, file_path, metadata)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING *
-        """,
-        uuid.UUID(doc_id), collection["id"], file.filename or "document",
-        file_ext.lstrip("."), len(content), str(file_path), meta,
-    )
+    try:
+        row = await db.fetchrow(
+            """
+            INSERT INTO documents (id, collection_id, filename, file_type, file_size, file_path, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+            """,
+            uuid.UUID(doc_id), collection["id"], file.filename or "document",
+            file_ext.lstrip("."), len(content), str(file_path), meta,
+        )
+    except Exception:
+        # Clean up the file if DB insert fails
+        file_path.unlink(missing_ok=True)
+        raise
 
     # Enqueue for background processing
     await ingestion_queue.enqueue(IngestionJob(
