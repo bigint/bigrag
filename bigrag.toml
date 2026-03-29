@@ -1,33 +1,20 @@
-# bigRAG Configuration
-# Copy to bigrag.toml and customize
-
 [server]
 host = "0.0.0.0"
 port = 8080
-# metrics_port = 9090
 
-[storage]
-backend = "local"
-path = "./data"
+[database]
+url = "postgres://bigrag:bigrag@localhost:5432/bigrag"
 
-# [storage]
-# backend = "s3"
-# bucket = "my-bigrag-bucket"
-# region = "us-east-1"
-# prefix = "bigrag/"
-# endpoint = "http://minio:9000"  # For MinIO
+[milvus]
+uri = "http://localhost:19530"
 
-[cache]
-block_cache_size_mb = 256
-metadata_cache_size_mb = 64
-# nvme_cache_path = "/nvme/bigrag"
-# nvme_cache_size_gb = 100
+[embedding]
+provider = "sentence-transformers"
+model = "all-MiniLM-L6-v2"
+dimension = 384
 
-[wal]
-batch_interval_ms = 1000
-memtable_flush_size_mb = 64
-
-[compaction]
-enabled = true
-size_ratio = 4.0
-max_levels = 7
+[ingestion]
+chunk_size = 512
+chunk_overlap = 50
+upload_dir = "./data/uploads"
+max_upload_size_mb = 500
