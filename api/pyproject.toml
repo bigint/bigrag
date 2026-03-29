@@ -19,6 +19,8 @@ dependencies = [
     "httpx>=0.28.0",
     "prometheus-fastapi-instrumentator>=7.0.0",
     "tomli>=2.2.0",
+    "redis[hiredis]>=5.2.0",
+    "orjson>=3.10.0",
 ]
 
 [project.optional-dependencies]

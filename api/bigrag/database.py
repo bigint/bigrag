@@ -8,7 +8,6 @@ logger = logging.getLogger("bigrag.database")
 
 
 async def _init_connection(conn: asyncpg.Connection) -> None:
-    """Register JSONB codec so dicts are auto-serialized."""
     await conn.set_type_codec(
         "jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
     )
@@ -16,8 +15,8 @@ async def _init_connection(conn: asyncpg.Connection) -> None:
         "json", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
     )
 
+
 MIGRATIONS = [
-    # 001: core auth tables
     """
     CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -28,7 +27,6 @@ MIGRATIONS = [
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
-
     CREATE TABLE IF NOT EXISTS sessions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -36,7 +34,6 @@ MIGRATIONS = [
         expires_at TIMESTAMPTZ NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
-
     CREATE TABLE IF NOT EXISTS invites (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         code TEXT UNIQUE NOT NULL,
@@ -46,7 +43,6 @@ MIGRATIONS = [
         expires_at TIMESTAMPTZ NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
-
     CREATE TABLE IF NOT EXISTS api_keys (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -59,7 +55,6 @@ MIGRATIONS = [
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     """,
-    # 002: collections and documents
     """
     CREATE TABLE IF NOT EXISTS collections (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -75,7 +70,6 @@ MIGRATIONS = [
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
-
     CREATE TABLE IF NOT EXISTS documents (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         collection_id UUID NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
@@ -91,11 +85,9 @@ MIGRATIONS = [
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
-
     CREATE INDEX IF NOT EXISTS idx_documents_collection_id ON documents(collection_id);
     CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
     """,
-    # 003: migration tracking
     """
     CREATE TABLE IF NOT EXISTS _migrations (
         version INT PRIMARY KEY,
@@ -109,17 +101,17 @@ class Database:
     def __init__(self) -> None:
         self.pool: asyncpg.Pool | None = None
 
-    async def connect(self, dsn: str) -> None:
-        # asyncpg doesn't understand ?sslmode=disable in the DSN,
-        # so we parse it out and pass ssl=False explicitly
+    async def connect(self, dsn: str, min_size: int = 5, max_size: int = 50) -> None:
         ssl = None
         if "sslmode=disable" in dsn:
             dsn = dsn.replace("?sslmode=disable", "").replace("&sslmode=disable", "")
             ssl = False
         self.pool = await asyncpg.create_pool(
-            dsn, min_size=2, max_size=20, ssl=ssl, init=_init_connection
+            dsn, min_size=min_size, max_size=max_size, ssl=ssl,
+            init=_init_connection,
+            command_timeout=30,
         )
-        logger.info("Connected to Postgres")
+        logger.info(f"Postgres pool ready (min={min_size}, max={max_size})")
 
     async def close(self) -> None:
         if self.pool:
@@ -129,7 +121,6 @@ class Database:
     async def migrate(self) -> None:
         assert self.pool is not None
         async with self.pool.acquire() as conn:
-            # Ensure migration tracking exists
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS _migrations (
                     version INT PRIMARY KEY,
@@ -151,17 +142,14 @@ class Database:
             logger.info("Migrations complete")
 
     async def fetchrow(self, query: str, *args) -> asyncpg.Record | None:
-        assert self.pool is not None
         async with self.pool.acquire() as conn:
             return await conn.fetchrow(query, *args)
 
     async def fetch(self, query: str, *args) -> list[asyncpg.Record]:
-        assert self.pool is not None
         async with self.pool.acquire() as conn:
             return await conn.fetch(query, *args)
 
     async def execute(self, query: str, *args) -> str:
-        assert self.pool is not None
         async with self.pool.acquire() as conn:
             return await conn.execute(query, *args)
 

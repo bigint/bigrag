@@ -1,9 +1,23 @@
+"""Async wrapper around pymilvus MilvusClient. All blocking calls run in a thread pool."""
+
 from __future__ import annotations
 
+import asyncio
 import logging
-from pymilvus import MilvusClient, DataType, CollectionSchema, FieldSchema
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
+
+from pymilvus import MilvusClient, DataType
 
 logger = logging.getLogger("bigrag.vector_store")
+
+# Dedicated thread pool for Milvus I/O so we never block the event loop
+_executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="milvus")
+
+
+async def _run(fn, *args, **kwargs):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_executor, partial(fn, *args, **kwargs))
 
 
 class VectorStore:
@@ -20,14 +34,13 @@ class VectorStore:
             self.client.close()
             logger.info("Milvus connection closed")
 
-    def _collection_name(self, name: str) -> str:
+    def _col(self, name: str) -> str:
         return f"bigrag_{name}"
 
-    def create_collection(self, name: str, dimension: int) -> None:
-        col_name = self._collection_name(name)
+    async def create_collection(self, name: str, dimension: int) -> None:
+        col = self._col(name)
 
-        if self.client.has_collection(col_name):
-            logger.info(f"Collection {col_name} already exists")
+        if await _run(self.client.has_collection, col):
             return
 
         schema = self.client.create_schema(auto_id=False, enable_dynamic_field=True)
@@ -45,20 +58,19 @@ class VectorStore:
             params={"nlist": 256},
         )
 
-        self.client.create_collection(
-            collection_name=col_name,
-            schema=schema,
-            index_params=index_params,
+        await _run(
+            self.client.create_collection,
+            collection_name=col, schema=schema, index_params=index_params,
         )
-        logger.info(f"Created Milvus collection: {col_name} (dim={dimension})")
+        logger.info(f"Created Milvus collection: {col} (dim={dimension})")
 
-    def delete_collection(self, name: str) -> None:
-        col_name = self._collection_name(name)
-        if self.client.has_collection(col_name):
-            self.client.drop_collection(col_name)
-            logger.info(f"Dropped Milvus collection: {col_name}")
+    async def delete_collection(self, name: str) -> None:
+        col = self._col(name)
+        if await _run(self.client.has_collection, col):
+            await _run(self.client.drop_collection, col)
+            logger.info(f"Dropped Milvus collection: {col}")
 
-    def insert(
+    async def insert(
         self,
         collection: str,
         ids: list[str],
@@ -68,8 +80,7 @@ class VectorStore:
         embeddings: list[list[float]],
         metadata: list[dict] | None = None,
     ) -> int:
-        col_name = self._collection_name(collection)
-
+        col = self._col(collection)
         data = []
         for i in range(len(ids)):
             entry = {
@@ -83,12 +94,10 @@ class VectorStore:
                 entry.update(metadata[i])
             data.append(entry)
 
-        result = self.client.insert(collection_name=col_name, data=data)
-        count = result.get("insert_count", len(ids))
-        logger.info(f"Inserted {count} vectors into {col_name}")
-        return count
+        result = await _run(self.client.insert, collection_name=col, data=data)
+        return result.get("insert_count", len(ids))
 
-    def search(
+    async def search(
         self,
         collection: str,
         query_embedding: list[float],
@@ -96,19 +105,17 @@ class VectorStore:
         filters: str | None = None,
         output_fields: list[str] | None = None,
     ) -> list[dict]:
-        col_name = self._collection_name(collection)
-
+        col = self._col(collection)
         if output_fields is None:
             output_fields = ["text", "document_id", "chunk_index"]
 
-        search_params = {"metric_type": "COSINE", "params": {"nprobe": 32}}
-
-        results = self.client.search(
-            collection_name=col_name,
+        results = await _run(
+            self.client.search,
+            collection_name=col,
             data=[query_embedding],
             limit=top_k,
             output_fields=output_fields,
-            search_params=search_params,
+            search_params={"metric_type": "COSINE", "params": {"nprobe": 32}},
             filter=filters,
         )
 
@@ -124,20 +131,15 @@ class VectorStore:
                 })
         return hits
 
-    def delete_by_document(self, collection: str, document_id: str) -> None:
-        col_name = self._collection_name(collection)
-        self.client.delete(
-            collection_name=col_name,
-            filter=f'document_id == "{document_id}"',
-        )
-        logger.info(f"Deleted vectors for document {document_id} from {col_name}")
+    async def delete_by_document(self, collection: str, document_id: str) -> None:
+        col = self._col(collection)
+        await _run(self.client.delete, collection_name=col, filter=f'document_id == "{document_id}"')
 
-    def delete_by_ids(self, collection: str, ids: list[str]) -> None:
-        col_name = self._collection_name(collection)
-        self.client.delete(collection_name=col_name, ids=ids)
-        logger.info(f"Deleted {len(ids)} vectors from {col_name}")
+    async def delete_by_ids(self, collection: str, ids: list[str]) -> None:
+        col = self._col(collection)
+        await _run(self.client.delete, collection_name=col, ids=ids)
 
-    def upsert(
+    async def upsert(
         self,
         collection: str,
         ids: list[str],
@@ -145,32 +147,19 @@ class VectorStore:
         texts: list[str],
         metadata: list[dict] | None = None,
     ) -> int:
-        col_name = self._collection_name(collection)
-
+        col = self._col(collection)
         data = []
         for i in range(len(ids)):
             entry = {
-                "id": ids[i],
-                "document_id": "",
-                "chunk_index": 0,
-                "text": texts[i],
-                "embedding": embeddings[i],
+                "id": ids[i], "document_id": "", "chunk_index": 0,
+                "text": texts[i], "embedding": embeddings[i],
             }
             if metadata and metadata[i]:
                 entry.update(metadata[i])
             data.append(entry)
 
-        result = self.client.upsert(collection_name=col_name, data=data)
-        count = result.get("upsert_count", len(ids))
-        logger.info(f"Upserted {count} vectors into {col_name}")
-        return count
-
-    def get_collection_stats(self, name: str) -> dict | None:
-        col_name = self._collection_name(name)
-        if not self.client.has_collection(col_name):
-            return None
-        stats = self.client.get_collection_stats(col_name)
-        return stats
+        result = await _run(self.client.upsert, collection_name=col, data=data)
+        return result.get("upsert_count", len(ids))
 
 
 vector_store = VectorStore()

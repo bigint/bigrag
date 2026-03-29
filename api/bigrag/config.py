@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import tomli
 from pathlib import Path
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,21 +11,27 @@ class Settings(BaseSettings):
     # Server
     host: str = "0.0.0.0"
     port: int = 8080
+    workers: int = 1
     log_level: str = "info"
     log_format: str = "text"
     cors_origins: list[str] = ["*"]
 
-    # Postgres (required for auth/metadata)
+    # Postgres
     database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
+    db_pool_min: int = 5
+    db_pool_max: int = 50
 
     # Milvus
     milvus_uri: str = "http://localhost:19530"
+
+    # Redis
+    redis_url: str = "redis://localhost:6379/0"
 
     # Auth
     master_key: str | None = None
     jwt_secret: str | None = None
     api_keys: list[str] = []
-    session_expiry_hours: int = 168  # 7 days
+    session_expiry_hours: int = 168
 
     # Embedding defaults
     embedding_provider: str = "sentence-transformers"
@@ -40,6 +45,8 @@ class Settings(BaseSettings):
     chunk_overlap: int = 50
     upload_dir: str = "./data/uploads"
     max_upload_size_mb: int = 500
+    ingestion_workers: int = 4
+    ingestion_batch_size: int = 128
 
     @classmethod
     def from_toml(cls, path: str | Path) -> Settings:
