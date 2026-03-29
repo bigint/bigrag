@@ -29,9 +29,9 @@ for cmd in docker python3 pnpm curl; do
   fi
 done
 
-# --- Docker services (Postgres + Milvus) ---
+# --- Docker services ---
 echo -e "${CYAN}Starting Docker services (Postgres, Milvus)...${NC}"
-docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres milvus -d
+docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres milvus-etcd milvus-minio milvus -d
 
 # Wait for Postgres to be healthy
 echo -e "${CYAN}Waiting for Postgres...${NC}"
