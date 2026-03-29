@@ -3,121 +3,86 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any
+
+
+@dataclass
+class Collection:
+    id: str
+    name: str
+    description: str
+    embedding_provider: str
+    embedding_model: str
+    dimension: int
+    chunk_size: int
+    chunk_overlap: int
+    document_count: int
+    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: str = ""
+    updated_at: str = ""
+
+
+@dataclass
+class CollectionListResponse:
+    collections: list[Collection]
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> CollectionListResponse:
+        return cls(
+            collections=[Collection(**c) for c in data.get("collections", [])]
+        )
 
 
 @dataclass
 class Document:
-    """A document to upsert into a namespace."""
-
-    id: int | str
-    vector: list[float] | None = None
-    attributes: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        row: dict[str, Any] = {"id": self.id}
-        if self.vector is not None:
-            row["vector"] = self.vector
-        row.update(self.attributes)
-        return row
+    id: str
+    collection_id: str
+    filename: str
+    file_type: str
+    file_size: int
+    chunk_count: int
+    status: str
+    error_message: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: str = ""
+    updated_at: str = ""
 
 
 @dataclass
-class QueryRow:
-    """A single row returned from a query."""
-
-    id: int | str
-    dist: float | None = None
-    vector: list[float] | None = None
-    attributes: dict[str, Any] = field(default_factory=dict)
+class DocumentListResponse:
+    documents: list[Document]
+    total: int
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> QueryRow:
+    def from_dict(cls, data: dict[str, Any]) -> DocumentListResponse:
         return cls(
-            id=data["id"],
-            dist=data.get("dist"),
-            vector=data.get("vector"),
-            attributes={
-                k: v
-                for k, v in data.items()
-                if k not in ("id", "dist", "vector")
-            },
+            documents=[Document(**d) for d in data.get("documents", [])],
+            total=data.get("total", 0),
         )
+
+
+@dataclass
+class QueryResult:
+    id: str
+    text: str
+    score: float
+    document_id: str | None = None
+    chunk_index: int | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class QueryResponse:
-    """Response from a query operation."""
-
-    rows: List[QueryRow]
+    results: list[QueryResult]
+    query: str
+    collection: str
+    total: int
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> QueryResponse:
         return cls(
-            rows=[QueryRow.from_dict(r) for r in data.get("rows", [])],
-        )
-
-
-@dataclass
-class WriteResponse:
-    """Response from a write operation (upsert, delete, patch)."""
-
-    status: str
-    rows_affected: int = 0
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> WriteResponse:
-        return cls(
-            status=data.get("status", "ok"),
-            rows_affected=data.get("rows_affected", 0),
-        )
-
-
-@dataclass
-class NamespaceSummary:
-    """Summary of a namespace from the list endpoint."""
-
-    id: str
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> NamespaceSummary:
-        return cls(id=data["id"])
-
-
-@dataclass
-class NamespaceListResponse:
-    """Response from listing namespaces."""
-
-    namespaces: List[NamespaceSummary]
-    next_cursor: Optional[str] = None
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> NamespaceListResponse:
-        return cls(
-            namespaces=[
-                NamespaceSummary.from_dict(ns)
-                for ns in data.get("namespaces", [])
-            ],
-            next_cursor=data.get("next_cursor"),
-        )
-
-
-@dataclass
-class NamespaceMetadata:
-    """Metadata about a namespace."""
-
-    schema: dict[str, Any] = field(default_factory=dict)
-    approx_row_count: int = 0
-    extra: dict[str, Any] = field(default_factory=dict)
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> NamespaceMetadata:
-        return cls(
-            schema=data.get("schema", {}),
-            approx_row_count=data.get("approx_row_count", 0),
-            extra={
-                k: v
-                for k, v in data.items()
-                if k not in ("schema", "approx_row_count")
-            },
+            results=[QueryResult(**r) for r in data.get("results", [])],
+            query=data.get("query", ""),
+            collection=data.get("collection", ""),
+            total=data.get("total", 0),
         )

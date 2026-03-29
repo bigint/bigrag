@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
 import time
+from pathlib import Path
 from typing import Any, Optional
 
 import httpx
@@ -13,22 +15,27 @@ from bigrag.errors import (
     APITimeoutError,
     raise_for_status,
 )
-from bigrag.namespace import AsyncNamespace, Namespace
-from bigrag.types import NamespaceListResponse
+from bigrag.types import (
+    Collection,
+    CollectionListResponse,
+    Document,
+    DocumentListResponse,
+    QueryResponse,
+)
 
 _DEFAULT_BASE_URL = "http://localhost:8080"
-_USER_AGENT = "bigrag-python/0.1.0"
+_USER_AGENT = "bigrag-python/0.2.0"
 
 
 class BigRAG:
-    """Synchronous client for the bigRAG vector database."""
+    """Synchronous client for the bigRAG RAG platform."""
 
     def __init__(
         self,
         api_key: str | None = None,
         *,
         base_url: str = _DEFAULT_BASE_URL,
-        timeout: float = 60.0,
+        timeout: float = 120.0,
         max_retries: int = 2,
     ) -> None:
         self.api_key = api_key or os.environ.get("BIGRAG_API_KEY", "")
@@ -47,14 +54,12 @@ class BigRAG:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
-    # -- low-level helpers -----------------------------------------------------
-
     def _request(
         self,
         method: str,
         path: str,
         *,
-        json: Any = None,
+        json_body: Any = None,
         params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         last_exc: Exception | None = None
@@ -63,7 +68,7 @@ class BigRAG:
                 time.sleep(min(0.5 * 2**attempt, 4.0))
             try:
                 response = self._client.request(
-                    method, path, json=json, params=params
+                    method, path, json=json_body, params=params
                 )
             except httpx.TimeoutException as exc:
                 last_exc = exc
@@ -97,52 +102,137 @@ class BigRAG:
             raise APIConnectionError(str(last_exc))
         raise APIConnectionError(str(last_exc))
 
-    def _get(
-        self, path: str, *, params: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        return self._request("GET", path, params=params)
-
-    def _post(
-        self, path: str, *, json: Any = None
-    ) -> dict[str, Any]:
-        return self._request("POST", path, json=json)
-
-    def _put(
-        self, path: str, *, json: Any = None
-    ) -> dict[str, Any]:
-        return self._request("PUT", path, json=json)
-
-    def _delete(self, path: str) -> dict[str, Any]:
-        return self._request("DELETE", path)
-
-    # -- public API ------------------------------------------------------------
-
-    def namespace(self, name: str) -> Namespace:
-        """Return a :class:`Namespace` handle for *name*."""
-        return Namespace(self, name)
-
-    def namespaces(
-        self,
-        *,
-        prefix: Optional[str] = None,
-        cursor: Optional[str] = None,
-        page_size: int = 100,
-    ) -> NamespaceListResponse:
-        """List namespaces."""
-        params: dict[str, Any] = {"page_size": page_size}
-        if prefix is not None:
-            params["prefix"] = prefix
-        if cursor is not None:
-            params["cursor"] = cursor
-        data = self._get("/v1/namespaces", params=params)
-        return NamespaceListResponse.from_dict(data)
+    # Health
 
     def health(self) -> dict[str, Any]:
-        """Check API health."""
-        return self._get("/health")
+        return self._request("GET", "/health")
+
+    # Collections
+
+    def list_collections(self) -> CollectionListResponse:
+        data = self._request("GET", "/v1/collections")
+        return CollectionListResponse.from_dict(data)
+
+    def create_collection(
+        self,
+        name: str,
+        description: str = "",
+        embedding_provider: str | None = None,
+        embedding_model: str | None = None,
+        dimension: int | None = None,
+        chunk_size: int = 512,
+        chunk_overlap: int = 50,
+    ) -> Collection:
+        body: dict[str, Any] = {
+            "name": name,
+            "description": description,
+            "chunk_size": chunk_size,
+            "chunk_overlap": chunk_overlap,
+        }
+        if embedding_provider:
+            body["embedding_provider"] = embedding_provider
+        if embedding_model:
+            body["embedding_model"] = embedding_model
+        if dimension:
+            body["dimension"] = dimension
+        return Collection(**self._request("POST", "/v1/collections", json_body=body))
+
+    def get_collection(self, name: str) -> Collection:
+        return Collection(**self._request("GET", f"/v1/collections/{name}"))
+
+    def delete_collection(self, name: str) -> dict[str, Any]:
+        return self._request("DELETE", f"/v1/collections/{name}")
+
+    # Documents
+
+    def upload_document(
+        self, collection: str, file_path: str | Path, metadata: dict | None = None
+    ) -> Document:
+        p = Path(file_path)
+        with open(p, "rb") as f:
+            files = {"file": (p.name, f)}
+            data: dict[str, str] = {}
+            if metadata:
+                data["metadata"] = json.dumps(metadata)
+            response = self._client.post(
+                f"/v1/collections/{collection}/documents",
+                files=files,
+                data=data,
+            )
+            if response.status_code >= 400:
+                try:
+                    body = response.json()
+                except Exception:
+                    body = response.text
+                raise_for_status(response.status_code, body)
+            return Document(**response.json())
+
+    def list_documents(
+        self, collection: str, status: str | None = None
+    ) -> DocumentListResponse:
+        params: dict[str, Any] = {}
+        if status:
+            params["status"] = status
+        data = self._request(
+            "GET", f"/v1/collections/{collection}/documents", params=params
+        )
+        return DocumentListResponse.from_dict(data)
+
+    def get_document(self, collection: str, document_id: str) -> Document:
+        return Document(
+            **self._request(
+                "GET", f"/v1/collections/{collection}/documents/{document_id}"
+            )
+        )
+
+    def delete_document(self, collection: str, document_id: str) -> dict[str, Any]:
+        return self._request(
+            "DELETE", f"/v1/collections/{collection}/documents/{document_id}"
+        )
+
+    def reprocess_document(self, collection: str, document_id: str) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/v1/collections/{collection}/documents/{document_id}/reprocess",
+        )
+
+    # Query
+
+    def query(
+        self,
+        collection: str,
+        query: str,
+        top_k: int = 10,
+        filters: dict | None = None,
+        min_score: float | None = None,
+    ) -> QueryResponse:
+        body: dict[str, Any] = {"query": query, "top_k": top_k}
+        if filters:
+            body["filters"] = filters
+        if min_score is not None:
+            body["min_score"] = min_score
+        data = self._request(
+            "POST", f"/v1/collections/{collection}/query", json_body=body
+        )
+        return QueryResponse.from_dict(data)
+
+    # Vectors (direct)
+
+    def upsert_vectors(self, collection: str, vectors: list[dict]) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/v1/collections/{collection}/vectors/upsert",
+            json_body={"vectors": vectors},
+        )
+
+    def delete_vectors(self, collection: str, ids: list[str]) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/v1/collections/{collection}/vectors/delete",
+            json_body={"ids": ids},
+        )
 
     def close(self) -> None:
-        """Close the underlying HTTP client."""
         self._client.close()
 
     def __enter__(self) -> BigRAG:
@@ -153,14 +243,14 @@ class BigRAG:
 
 
 class AsyncBigRAG:
-    """Asynchronous client for the bigRAG vector database."""
+    """Asynchronous client for the bigRAG RAG platform."""
 
     def __init__(
         self,
         api_key: str | None = None,
         *,
         base_url: str = _DEFAULT_BASE_URL,
-        timeout: float = 60.0,
+        timeout: float = 120.0,
         max_retries: int = 2,
     ) -> None:
         self.api_key = api_key or os.environ.get("BIGRAG_API_KEY", "")
@@ -179,14 +269,12 @@ class AsyncBigRAG:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
-    # -- low-level helpers -----------------------------------------------------
-
     async def _request(
         self,
         method: str,
         path: str,
         *,
-        json: Any = None,
+        json_body: Any = None,
         params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         import asyncio
@@ -197,7 +285,7 @@ class AsyncBigRAG:
                 await asyncio.sleep(min(0.5 * 2**attempt, 4.0))
             try:
                 response = await self._client.request(
-                    method, path, json=json, params=params
+                    method, path, json=json_body, params=params
                 )
             except httpx.TimeoutException as exc:
                 last_exc = exc
@@ -231,52 +319,80 @@ class AsyncBigRAG:
             raise APIConnectionError(str(last_exc))
         raise APIConnectionError(str(last_exc))
 
-    async def _get(
-        self, path: str, *, params: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        return await self._request("GET", path, params=params)
-
-    async def _post(
-        self, path: str, *, json: Any = None
-    ) -> dict[str, Any]:
-        return await self._request("POST", path, json=json)
-
-    async def _put(
-        self, path: str, *, json: Any = None
-    ) -> dict[str, Any]:
-        return await self._request("PUT", path, json=json)
-
-    async def _delete(self, path: str) -> dict[str, Any]:
-        return await self._request("DELETE", path)
-
-    # -- public API ------------------------------------------------------------
-
-    def namespace(self, name: str) -> AsyncNamespace:
-        """Return an :class:`AsyncNamespace` handle for *name*."""
-        return AsyncNamespace(self, name)
-
-    async def namespaces(
-        self,
-        *,
-        prefix: Optional[str] = None,
-        cursor: Optional[str] = None,
-        page_size: int = 100,
-    ) -> NamespaceListResponse:
-        """List namespaces."""
-        params: dict[str, Any] = {"page_size": page_size}
-        if prefix is not None:
-            params["prefix"] = prefix
-        if cursor is not None:
-            params["cursor"] = cursor
-        data = await self._get("/v1/namespaces", params=params)
-        return NamespaceListResponse.from_dict(data)
-
     async def health(self) -> dict[str, Any]:
-        """Check API health."""
-        return await self._get("/health")
+        return await self._request("GET", "/health")
+
+    async def list_collections(self) -> CollectionListResponse:
+        data = await self._request("GET", "/v1/collections")
+        return CollectionListResponse.from_dict(data)
+
+    async def create_collection(self, name: str, **kwargs: Any) -> Collection:
+        body = {"name": name, **kwargs}
+        return Collection(**await self._request("POST", "/v1/collections", json_body=body))
+
+    async def get_collection(self, name: str) -> Collection:
+        return Collection(**await self._request("GET", f"/v1/collections/{name}"))
+
+    async def delete_collection(self, name: str) -> dict[str, Any]:
+        return await self._request("DELETE", f"/v1/collections/{name}")
+
+    async def upload_document(
+        self, collection: str, file_path: str | Path, metadata: dict | None = None
+    ) -> Document:
+        p = Path(file_path)
+        with open(p, "rb") as f:
+            files = {"file": (p.name, f)}
+            data: dict[str, str] = {}
+            if metadata:
+                data["metadata"] = json.dumps(metadata)
+            response = await self._client.post(
+                f"/v1/collections/{collection}/documents",
+                files=files,
+                data=data,
+            )
+            if response.status_code >= 400:
+                try:
+                    body = response.json()
+                except Exception:
+                    body = response.text
+                raise_for_status(response.status_code, body)
+            return Document(**response.json())
+
+    async def list_documents(
+        self, collection: str, status: str | None = None
+    ) -> DocumentListResponse:
+        params: dict[str, Any] = {}
+        if status:
+            params["status"] = status
+        data = await self._request(
+            "GET", f"/v1/collections/{collection}/documents", params=params
+        )
+        return DocumentListResponse.from_dict(data)
+
+    async def delete_document(self, collection: str, document_id: str) -> dict[str, Any]:
+        return await self._request(
+            "DELETE", f"/v1/collections/{collection}/documents/{document_id}"
+        )
+
+    async def query(
+        self,
+        collection: str,
+        query: str,
+        top_k: int = 10,
+        filters: dict | None = None,
+        min_score: float | None = None,
+    ) -> QueryResponse:
+        body: dict[str, Any] = {"query": query, "top_k": top_k}
+        if filters:
+            body["filters"] = filters
+        if min_score is not None:
+            body["min_score"] = min_score
+        data = await self._request(
+            "POST", f"/v1/collections/{collection}/query", json_body=body
+        )
+        return QueryResponse.from_dict(data)
 
     async def close(self) -> None:
-        """Close the underlying HTTP client."""
         await self._client.aclose()
 
     async def __aenter__(self) -> AsyncBigRAG:
