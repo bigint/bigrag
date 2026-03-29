@@ -119,6 +119,16 @@ export async function createCollection(body: CreateCollectionBody) {
   });
 }
 
+export async function updateCollection(
+  name: string,
+  body: { description?: string; metadata?: Record<string, unknown> }
+) {
+  return request<Collection>(`/v1/collections/${encodeURIComponent(name)}`, {
+    body: JSON.stringify(body),
+    method: "PUT"
+  });
+}
+
 export async function deleteCollection(name: string) {
   return request<{ status: string }>(`/v1/collections/${encodeURIComponent(name)}`, {
     method: "DELETE"
