@@ -4,9 +4,9 @@ export function StatusBadge({ status }: { status: string }) {
 
   let colorClasses: string;
   if (isReady) {
-    colorClasses = "bg-success/10 text-success";
+    colorClasses = "bg-bg-hover text-text";
   } else if (isBuilding) {
-    colorClasses = "bg-warning/10 text-warning";
+    colorClasses = "bg-bg-hover text-text-muted";
   } else {
     colorClasses = "bg-bg-hover text-text-muted";
   }
@@ -18,9 +18,9 @@ export function StatusBadge({ status }: { status: string }) {
       <span
         className={`size-1.5 rounded-full ${
           isReady
-            ? "bg-success"
+            ? "bg-text"
             : isBuilding
-              ? "bg-warning animate-pulse"
+              ? "bg-text-muted animate-pulse"
               : "bg-text-dim"
         }`}
       />

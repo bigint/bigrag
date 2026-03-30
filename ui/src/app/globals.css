@@ -6,24 +6,24 @@
 
   --color-bg: #ffffff;
   --color-bg-card: #fafafa;
-  --color-bg-hover: #f4f4f5;
+  --color-bg-hover: #f5f5f5;
   --color-bg-input: #ffffff;
-  --color-bg-muted: #f4f4f5;
+  --color-bg-muted: #f5f5f5;
 
-  --color-border: #e4e4e7;
-  --color-border-hover: #d4d4d8;
+  --color-border: #eaeaea;
+  --color-border-hover: #999999;
 
-  --color-text: #09090b;
-  --color-text-muted: #52525b;
-  --color-text-dim: #a1a1aa;
+  --color-text: #000000;
+  --color-text-muted: #666666;
+  --color-text-dim: #999999;
 
-  --color-accent: #3b82f6;
-  --color-accent-hover: #2563eb;
+  --color-accent: #000000;
+  --color-accent-hover: #333333;
 
-  --color-success: #16a34a;
-  --color-warning: #ca8a04;
-  --color-danger: #dc2626;
-  --color-danger-hover: #b91c1c;
+  --color-success: #000000;
+  --color-warning: #666666;
+  --color-danger: #000000;
+  --color-danger-hover: #333333;
 
   --color-overlay: #00000026;
 }

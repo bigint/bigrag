@@ -41,10 +41,10 @@ const Pulse = ({ className }: { readonly className?: string }) => (
 );
 
 const TYPE_COLORS: Record<string, string> = {
-  counter: "bg-blue-500/10 text-blue-500",
-  gauge: "bg-success/10 text-success",
-  histogram: "bg-warning/10 text-warning",
-  summary: "bg-purple-500/10 text-purple-500"
+  counter: "bg-bg-hover text-text",
+  gauge: "bg-bg-hover text-text",
+  histogram: "bg-bg-hover text-text-muted",
+  summary: "bg-bg-hover text-text-muted"
 };
 
 const TypeBadge = ({ type }: { readonly type: string }) => {

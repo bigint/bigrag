@@ -50,17 +50,17 @@ interface ProgressEvent {
 // --- Status colors ---
 
 const STATUS_COLORS: Record<string, string> = {
-  ready: "bg-success/10 text-success",
-  processing: "bg-warning/10 text-warning",
+  ready: "bg-bg-hover text-text",
+  processing: "bg-bg-hover text-text-muted",
   pending: "bg-bg-hover text-text-muted",
-  failed: "bg-danger/10 text-danger"
+  failed: "bg-bg-hover text-text"
 };
 
 const PHASE_COLORS: Record<string, string> = {
-  uploading: "text-accent",
-  processing: "text-warning",
-  complete: "text-success",
-  failed: "text-danger"
+  uploading: "text-text",
+  processing: "text-text-muted",
+  complete: "text-text",
+  failed: "text-text"
 };
 
 // --- SSE hook ---
