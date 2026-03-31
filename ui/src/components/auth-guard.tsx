@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { getMe, getSetupStatus } from "@/lib/api";
+import { ApiError, getMe, getSetupStatus } from "@/lib/api";
 import { clearAuth, isAuthenticated, setUser } from "@/lib/auth-store";
 
 const PUBLIC_PATHS = ["/login", "/setup", "/signup"];
@@ -29,8 +29,13 @@ export const AuthGuard = ({
         setChecked(true);
         return;
       }
-    } catch {
-      // If setup-status fails (no DB), allow through — legacy mode
+    } catch (err) {
+      if (err instanceof ApiError && err.status >= 500) {
+        // Server error — don't silently grant access, let the user see the problem
+        setChecked(true);
+        return;
+      }
+      // Network error or 404 (no setup endpoint) — legacy mode, allow through
       setAuthorized(true);
       setChecked(true);
       return;

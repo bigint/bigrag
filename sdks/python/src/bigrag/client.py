@@ -326,8 +326,28 @@ class AsyncBigRAG:
         data = await self._request("GET", "/v1/collections")
         return CollectionListResponse.from_dict(data)
 
-    async def create_collection(self, name: str, **kwargs: Any) -> Collection:
-        body = {"name": name, **kwargs}
+    async def create_collection(
+        self,
+        name: str,
+        description: str = "",
+        embedding_provider: str | None = None,
+        embedding_model: str | None = None,
+        dimension: int | None = None,
+        chunk_size: int = 512,
+        chunk_overlap: int = 50,
+    ) -> Collection:
+        body: dict[str, Any] = {
+            "name": name,
+            "description": description,
+            "chunk_size": chunk_size,
+            "chunk_overlap": chunk_overlap,
+        }
+        if embedding_provider:
+            body["embedding_provider"] = embedding_provider
+        if embedding_model:
+            body["embedding_model"] = embedding_model
+        if dimension:
+            body["dimension"] = dimension
         return Collection(**await self._request("POST", "/v1/collections", json_body=body))
 
     async def get_collection(self, name: str) -> Collection:

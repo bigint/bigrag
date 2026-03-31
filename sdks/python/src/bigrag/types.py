@@ -18,8 +18,9 @@ class Collection:
     chunk_overlap: int
     document_count: int
     metadata: dict[str, Any] = field(default_factory=dict)
-    created_at: str = ""
-    updated_at: str = ""
+    created_at: str | None = None
+    updated_at: str | None = None
+    has_api_key: bool = False
 
 
 @dataclass
@@ -44,8 +45,8 @@ class Document:
     status: str
     error_message: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
-    created_at: str = ""
-    updated_at: str = ""
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 @dataclass
