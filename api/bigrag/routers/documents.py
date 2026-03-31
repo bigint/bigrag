@@ -4,7 +4,7 @@ import json
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 
 from bigrag.config import settings
@@ -144,8 +144,8 @@ async def upload_document(
 async def list_documents(
     collection_name: str,
     status: str | None = None,
-    limit: int = 100,
-    offset: int = 0,
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
     _: dict = Depends(get_current_user),
 ):
     collection = await _get_collection(collection_name)
@@ -216,12 +216,7 @@ async def delete_document(
     # Delete vectors from Milvus
     await vector_store.delete_by_document(collection_name, document_id)
 
-    # Delete file from disk
-    file_path = Path(row["file_path"])
-    if file_path.exists():
-        file_path.unlink()
-
-    # Delete from Postgres
+    # Delete from Postgres first (reversible), before deleting file (irreversible)
     await db.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(document_id))
 
     # Update collection count
@@ -234,6 +229,11 @@ async def delete_document(
         """,
         collection["id"],
     )
+
+    # Delete file from disk last (irreversible)
+    file_path = Path(row["file_path"])
+    if file_path.exists():
+        file_path.unlink()
 
     return {"status": "ok", "message": "Document deleted"}
 

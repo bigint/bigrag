@@ -125,6 +125,9 @@ class OllamaEmbedding(EmbeddingModel):
         tasks = [self._embed_single(text) for text in texts]
         return await asyncio.gather(*tasks)
 
+    async def close(self) -> None:
+        await self._client.aclose()
+
     @property
     def dimension(self) -> int:
         return self._dimension

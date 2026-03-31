@@ -27,7 +27,16 @@ def _chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
                     else:
                         if current_chunk:
                             chunks.append(current_chunk.strip())
-                        current_chunk = sentence
+                        # Split sentence further if it exceeds chunk_size
+                        if len(sentence) > chunk_size:
+                            for pos in range(0, len(sentence), chunk_size):
+                                part = sentence[pos:pos + chunk_size]
+                                if pos + chunk_size < len(sentence):
+                                    chunks.append(part.strip())
+                                else:
+                                    current_chunk = part
+                        else:
+                            current_chunk = sentence
             else:
                 current_chunk = para
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class CreateCollectionRequest(BaseModel):
@@ -12,9 +12,15 @@ class CreateCollectionRequest(BaseModel):
     embedding_api_key: str | None = None
     embedding_base_url: str | None = None
     dimension: int | None = None
-    chunk_size: int = 512
-    chunk_overlap: int = 50
+    chunk_size: int = Field(default=512, ge=64, le=10000)
+    chunk_overlap: int = Field(default=50, ge=0, le=5000)
     metadata: dict = {}
+
+    @model_validator(mode="after")
+    def validate_overlap_less_than_size(self):
+        if self.chunk_overlap >= self.chunk_size:
+            raise ValueError("chunk_overlap must be less than chunk_size")
+        return self
 
 
 class UpdateCollectionRequest(BaseModel):

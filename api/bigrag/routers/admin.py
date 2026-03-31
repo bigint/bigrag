@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from bigrag.middleware.auth import require_admin
 from bigrag.models.auth import (
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/v1/admin", tags=["admin"])
 
 
 @router.get("/users")
-async def list_users(limit: int = 100, offset: int = 0, _: dict = Depends(require_admin)):
+async def list_users(limit: int = Query(default=100, ge=1, le=1000), offset: int = Query(default=0, ge=0), _: dict = Depends(require_admin)):
     users = await auth_service.list_users(limit=limit, offset=offset)
     return {
         "users": [
@@ -60,7 +60,7 @@ async def create_invite(body: CreateInviteRequest, admin: dict = Depends(require
 
 
 @router.get("/invites")
-async def list_invites(limit: int = 100, offset: int = 0, _: dict = Depends(require_admin)):
+async def list_invites(limit: int = Query(default=100, ge=1, le=1000), offset: int = Query(default=0, ge=0), _: dict = Depends(require_admin)):
     invites = await auth_service.list_invites(limit=limit, offset=offset)
     return {
         "invites": [
@@ -99,7 +99,7 @@ async def create_api_key(body: CreateApiKeyRequest, admin: dict = Depends(requir
 
 
 @router.get("/api-keys")
-async def list_api_keys(limit: int = 100, offset: int = 0, _: dict = Depends(require_admin)):
+async def list_api_keys(limit: int = Query(default=100, ge=1, le=1000), offset: int = Query(default=0, ge=0), _: dict = Depends(require_admin)):
     keys = await auth_service.list_api_keys(limit=limit, offset=offset)
     return {
         "keys": [
