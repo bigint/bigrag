@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import logging
 
 from cryptography.fernet import Fernet, InvalidToken
 
 from bigrag.config import settings
+
+logger = logging.getLogger("bigrag.crypto")
 
 _fernet: Fernet | None = None
 
@@ -20,7 +23,13 @@ def _get_fernet() -> Fernet:
     if _fernet is not None:
         return _fernet
 
-    secret = settings.master_key or settings.jwt_secret or "bigrag-default-encryption-key"
+    secret = settings.master_key or settings.jwt_secret
+    if not secret:
+        logger.warning(
+            "No master_key or jwt_secret configured — using default encryption key. "
+            "This is insecure for production. Set BIGRAG_MASTER_KEY or BIGRAG_JWT_SECRET."
+        )
+        secret = "bigrag-default-encryption-key"
     key = hashlib.pbkdf2_hmac("sha256", secret.encode(), b"bigrag-at-rest", 100_000)
     _fernet = Fernet(base64.urlsafe_b64encode(key))
     return _fernet
