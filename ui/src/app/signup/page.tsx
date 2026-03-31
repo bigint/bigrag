@@ -1,10 +1,10 @@
 "use client";
 
-import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { Logo } from "@/components/logo";
 import { signup } from "@/lib/api";
 import { setSessionToken, setUser } from "@/lib/auth-store";
-import { Logo } from "@/components/logo";
 
 const SignupForm = () => {
   const router = useRouter();

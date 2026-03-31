@@ -1,18 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  clearAuth,
-  getSessionToken,
-  isAuthenticated,
-  setUser
-} from "@/lib/auth-store";
+import { useCallback, useEffect, useState } from "react";
 import { getMe, getSetupStatus } from "@/lib/api";
+import { clearAuth, isAuthenticated, setUser } from "@/lib/auth-store";
 
 const PUBLIC_PATHS = ["/login", "/setup", "/signup"];
 
-export const AuthGuard = ({ children }: { readonly children: React.ReactNode }) => {
+export const AuthGuard = ({
+  children
+}: {
+  readonly children: React.ReactNode;
+}) => {
   const router = useRouter();
   const pathname = usePathname();
   const [checked, setChecked] = useState(false);

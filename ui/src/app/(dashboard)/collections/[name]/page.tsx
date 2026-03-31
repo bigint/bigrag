@@ -16,12 +16,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { use, useCallback, useEffect, useRef, useState } from "react";
-import {
-  deleteDocument,
-  reprocessDocument,
-  uploadDocument
-} from "@/lib/api";
-import { getBaseUrl, getSessionToken } from "@/lib/auth-store";
+import { deleteDocument, reprocessDocument, uploadDocument } from "@/lib/api";
+import { getBaseUrl } from "@/lib/auth-store";
 import { collectionQueryOptions, documentsQueryOptions } from "@/lib/queries";
 import { cn, formatBytes, timeAgo } from "@/lib/utils";
 
@@ -50,21 +46,22 @@ interface ProgressEvent {
 // --- Status colors ---
 
 const STATUS_COLORS: Record<string, string> = {
-  ready: "bg-bg-hover text-text",
-  processing: "bg-bg-hover text-text-muted",
+  failed: "bg-bg-hover text-text",
   pending: "bg-bg-hover text-text-muted",
-  failed: "bg-bg-hover text-text"
+  processing: "bg-bg-hover text-text-muted",
+  ready: "bg-bg-hover text-text"
 };
 
 const PHASE_COLORS: Record<string, string> = {
-  uploading: "text-text",
-  processing: "text-text-muted",
   complete: "text-text",
-  failed: "text-text"
+  failed: "text-text",
+  processing: "text-text-muted",
+  uploading: "text-text"
 };
 
 // --- SSE hook ---
 
+// biome-ignore lint/correctness/noUnusedVariables: kept for future use
 function useIngestionSSE(
   collectionName: string,
   documentId: string | null,
@@ -121,16 +118,28 @@ const UploadTracker = ({
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-bg-hover">
-          {upload.phase === "uploading" && <Upload className="size-4 text-accent animate-pulse" />}
-          {upload.phase === "processing" && <Loader2 className="size-4 text-warning animate-spin" />}
-          {upload.phase === "complete" && <Check className="size-4 text-success" />}
-          {upload.phase === "failed" && <XCircle className="size-4 text-danger" />}
+          {upload.phase === "uploading" && (
+            <Upload className="size-4 text-accent animate-pulse" />
+          )}
+          {upload.phase === "processing" && (
+            <Loader2 className="size-4 text-warning animate-spin" />
+          )}
+          {upload.phase === "complete" && (
+            <Check className="size-4 text-success" />
+          )}
+          {upload.phase === "failed" && (
+            <XCircle className="size-4 text-danger" />
+          )}
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-medium text-text">{upload.filename}</p>
-            <span className="shrink-0 text-[11px] text-text-dim">{formatBytes(upload.fileSize)}</span>
+            <p className="truncate text-sm font-medium text-text">
+              {upload.filename}
+            </p>
+            <span className="shrink-0 text-[11px] text-text-dim">
+              {formatBytes(upload.fileSize)}
+            </span>
           </div>
           <p className={cn("text-xs", PHASE_COLORS[upload.phase])}>
             {upload.message}
@@ -153,7 +162,11 @@ const UploadTracker = ({
             onClick={() => setExpanded(!expanded)}
             type="button"
           >
-            {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+            {expanded ? (
+              <ChevronUp className="size-3.5" />
+            ) : (
+              <ChevronDown className="size-3.5" />
+            )}
           </button>
         </div>
       </div>
@@ -192,11 +205,17 @@ const UploadTracker = ({
 
 // --- Main page ---
 
-const CollectionDetailPage = ({ params }: { readonly params: Promise<{ name: string }> }) => {
+const CollectionDetailPage = ({
+  params
+}: {
+  readonly params: Promise<{ name: string }>;
+}) => {
   const { name } = use(params);
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploads, setUploads] = useState<Map<string, UploadProgress>>(new Map());
+  const [uploads, setUploads] = useState<Map<string, UploadProgress>>(
+    new Map()
+  );
   const [dragging, setDragging] = useState(false);
 
   const collectionQuery = useQuery(collectionQueryOptions(name));
@@ -212,7 +231,8 @@ const CollectionDetailPage = ({ params }: { readonly params: Promise<{ name: str
 
   const reprocessMutation = useMutation({
     mutationFn: (docId: string) => reprocessDocument(name, docId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["documents", name] })
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["documents", name] })
   });
 
   // Connect SSE for each processing upload
@@ -229,19 +249,19 @@ const CollectionDetailPage = ({ params }: { readonly params: Promise<{ name: str
         if (!upload) return prev;
 
         const event: ProgressEvent = {
-          step: String(data.step ?? ""),
+          detail: data,
           message: String(data.message ?? ""),
           progress: Number(data.progress ?? 0),
-          time: Date.now(),
-          detail: data
+          step: String(data.step ?? ""),
+          time: Date.now()
         };
 
         const updated: UploadProgress = {
           ...upload,
-          step: event.step,
+          events: [...upload.events, event],
           message: event.message,
           progress: event.progress,
-          events: [...upload.events, event]
+          step: event.step
         };
 
         if (data.status === "complete") {
@@ -282,8 +302,10 @@ const CollectionDetailPage = ({ params }: { readonly params: Promise<{ name: str
       sources.push(es);
     }
 
-    return () => sources.forEach((s) => s.close());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      for (const s of sources) s.close();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDocIds.join(","), name, handleSSEEvent]);
 
   const handleUpload = useCallback(
@@ -297,15 +319,22 @@ const CollectionDetailPage = ({ params }: { readonly params: Promise<{ name: str
         setUploads((prev) => {
           const next = new Map(prev);
           next.set(tempId, {
-            id: tempId,
+            events: [
+              {
+                message: "Starting upload",
+                progress: 0,
+                step: "upload",
+                time: Date.now()
+              }
+            ],
             filename: file.name,
             fileSize: file.size,
-            phase: "uploading",
-            step: "uploading",
+            id: tempId,
             message: "Uploading file...",
+            phase: "uploading",
             progress: 0,
-            events: [{ step: "upload", message: "Starting upload", progress: 0, time: Date.now() }],
-            startedAt: Date.now()
+            startedAt: Date.now(),
+            step: "uploading"
           });
           return next;
         });
@@ -321,15 +350,20 @@ const CollectionDetailPage = ({ params }: { readonly params: Promise<{ name: str
             if (old) {
               next.set(doc.id, {
                 ...old,
-                id: doc.id,
-                phase: "processing",
-                step: "queued",
-                message: "Queued for processing",
-                progress: 0.05,
                 events: [
                   ...old.events,
-                  { step: "uploaded", message: `File uploaded (${formatBytes(file.size)})`, progress: 0.05, time: Date.now() }
-                ]
+                  {
+                    message: `File uploaded (${formatBytes(file.size)})`,
+                    progress: 0.05,
+                    step: "uploaded",
+                    time: Date.now()
+                  }
+                ],
+                id: doc.id,
+                message: "Queued for processing",
+                phase: "processing",
+                progress: 0.05,
+                step: "queued"
               });
             }
             return next;
@@ -343,13 +377,18 @@ const CollectionDetailPage = ({ params }: { readonly params: Promise<{ name: str
             if (old) {
               next.set(tempId, {
                 ...old,
-                phase: "failed",
-                step: "upload_failed",
-                message: err instanceof Error ? err.message : "Upload failed",
                 events: [
                   ...old.events,
-                  { step: "error", message: String(err), progress: 0, time: Date.now() }
-                ]
+                  {
+                    message: String(err),
+                    progress: 0,
+                    step: "error",
+                    time: Date.now()
+                  }
+                ],
+                message: err instanceof Error ? err.message : "Upload failed",
+                phase: "failed",
+                step: "upload_failed"
               });
             }
             return next;
@@ -385,9 +424,13 @@ const CollectionDetailPage = ({ params }: { readonly params: Promise<{ name: str
         </Link>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-mono text-xl font-semibold text-text">{name}</h1>
+            <h1 className="font-mono text-xl font-semibold text-text">
+              {name}
+            </h1>
             {collection?.description && (
-              <p className="mt-1 text-sm text-text-muted">{collection.description}</p>
+              <p className="mt-1 text-sm text-text-muted">
+                {collection.description}
+              </p>
             )}
           </div>
           <div>
@@ -415,24 +458,33 @@ const CollectionDetailPage = ({ params }: { readonly params: Promise<{ name: str
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-lg border border-border bg-bg-card p-4">
             <p className="text-[11px] uppercase text-text-dim">Documents</p>
-            <p className="mt-1 font-mono text-lg font-semibold">{collection.document_count}</p>
+            <p className="mt-1 font-mono text-lg font-semibold">
+              {collection.document_count}
+            </p>
           </div>
           <div className="rounded-lg border border-border bg-bg-card p-4">
             <p className="text-[11px] uppercase text-text-dim">Model</p>
-            <p className="mt-1 font-mono text-sm">{collection.embedding_model}</p>
+            <p className="mt-1 font-mono text-sm">
+              {collection.embedding_model}
+            </p>
           </div>
           <div className="rounded-lg border border-border bg-bg-card p-4">
             <p className="text-[11px] uppercase text-text-dim">Dimension</p>
-            <p className="mt-1 font-mono text-lg font-semibold">{collection.dimension}</p>
+            <p className="mt-1 font-mono text-lg font-semibold">
+              {collection.dimension}
+            </p>
           </div>
           <div className="rounded-lg border border-border bg-bg-card p-4">
             <p className="text-[11px] uppercase text-text-dim">Chunk Size</p>
-            <p className="mt-1 font-mono text-lg font-semibold">{collection.chunk_size}</p>
+            <p className="mt-1 font-mono text-lg font-semibold">
+              {collection.chunk_size}
+            </p>
           </div>
         </div>
       )}
 
       {/* Drop zone */}
+      {/* biome-ignore lint/a11y/useSemanticElements: drop zone, not a button */}
       <div
         className={cn(
           "mb-6 flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-8 transition-all",
@@ -448,8 +500,15 @@ const CollectionDetailPage = ({ params }: { readonly params: Promise<{ name: str
           setDragging(false);
           handleUpload(e.dataTransfer.files);
         }}
+        role="button"
+        tabIndex={0}
       >
-        <Upload className={cn("mb-2 size-8", dragging ? "text-accent" : "text-text-dim")} />
+        <Upload
+          className={cn(
+            "mb-2 size-8",
+            dragging ? "text-accent" : "text-text-dim"
+          )}
+        />
         <p className="text-sm text-text-muted">
           Drop files here or{" "}
           <button
@@ -518,7 +577,9 @@ const CollectionDetailPage = ({ params }: { readonly params: Promise<{ name: str
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
                       <FileText className="size-4 shrink-0 text-text-dim" />
-                      <span className="truncate text-sm text-text">{doc.filename}</span>
+                      <span className="truncate text-sm text-text">
+                        {doc.filename}
+                      </span>
                     </div>
                   </td>
                   <td className="px-5 py-3.5 font-mono text-xs uppercase text-text-muted">
@@ -540,7 +601,9 @@ const CollectionDetailPage = ({ params }: { readonly params: Promise<{ name: str
                       {doc.status === "processing" && (
                         <Loader2 className="size-3 animate-spin" />
                       )}
-                      {doc.status === "failed" && <XCircle className="size-3" />}
+                      {doc.status === "failed" && (
+                        <XCircle className="size-3" />
+                      )}
                       {doc.status === "ready" && <Check className="size-3" />}
                       {doc.status}
                     </span>

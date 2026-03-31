@@ -49,11 +49,11 @@ const ApiKeysPage = () => {
     if (!newKeyName.trim()) return;
     createMutation.mutate({
       admin: newKeyAdmin,
-      name: newKeyName.trim(),
       collections: newKeyCollections
         .split(",")
         .map((s) => s.trim())
-        .filter(Boolean)
+        .filter(Boolean),
+      name: newKeyName.trim()
     });
   };
 

@@ -26,7 +26,10 @@ export const collectionQueryOptions = (name: string) =>
     queryKey: ["collection", name]
   });
 
-export const documentsQueryOptions = (collectionName: string, status?: string) =>
+export const documentsQueryOptions = (
+  collectionName: string,
+  status?: string
+) =>
   queryOptions({
     queryFn: () => listDocuments(collectionName, status),
     queryKey: ["documents", collectionName, status]

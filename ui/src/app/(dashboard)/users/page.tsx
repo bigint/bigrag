@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Trash2 } from "lucide-react";
+import { useState } from "react";
 import {
   createInvite,
   deleteInvite,
@@ -125,7 +125,8 @@ const UsersPage = () => {
 
             {createInviteMutation.isError && (
               <div className="mt-3 rounded-md border border-danger/20 bg-danger/10 px-3 py-2.5 text-sm text-danger">
-                {createInviteMutation.error?.message ?? "Failed to create invite"}
+                {createInviteMutation.error?.message ??
+                  "Failed to create invite"}
               </div>
             )}
 
@@ -290,9 +291,7 @@ const UsersPage = () => {
                           <button
                             className="rounded p-1 text-text-dim transition-colors hover:text-danger disabled:opacity-50"
                             disabled={deleteInviteMutation.isPending}
-                            onClick={() =>
-                              deleteInviteMutation.mutate(inv.id)
-                            }
+                            onClick={() => deleteInviteMutation.mutate(inv.id)}
                             type="button"
                           >
                             <Trash2 className="size-4" />

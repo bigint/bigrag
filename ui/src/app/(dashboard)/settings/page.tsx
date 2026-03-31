@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { healthQueryOptions } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/auth-store";
+import { healthQueryOptions } from "@/lib/queries";
 
 const Pulse = ({ className }: { readonly className?: string }) => (
   <div className={`animate-pulse rounded-md bg-bg-hover ${className ?? ""}`} />

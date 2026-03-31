@@ -2,7 +2,6 @@
 
 import {
   Database,
-  FileText,
   Key,
   LayoutGrid,
   LogOut,
@@ -27,9 +26,7 @@ const nav = [
   { href: "/settings", icon: Settings, label: "Settings" }
 ] as const;
 
-const ADMIN_ITEMS = [
-  { href: "/users", icon: Users, label: "Users" }
-] as const;
+const ADMIN_ITEMS = [{ href: "/users", icon: Users, label: "Users" }] as const;
 
 export const Sidebar = () => {
   const pathname = usePathname();
