@@ -59,32 +59,6 @@ const PHASE_COLORS: Record<string, string> = {
   uploading: "text-text"
 };
 
-// --- SSE hook ---
-
-// biome-ignore lint/correctness/noUnusedVariables: kept for future use
-function useIngestionSSE(
-  collectionName: string,
-  documentId: string | null,
-  onEvent: (data: Record<string, unknown>) => void
-) {
-  useEffect(() => {
-    if (!documentId) return;
-    const url = `${getBaseUrl()}/v1/collections/${encodeURIComponent(collectionName)}/documents/${documentId}/progress`;
-    const es = new EventSource(url);
-    es.onmessage = (e) => {
-      try {
-        onEvent(JSON.parse(e.data));
-      } catch {
-        // ignore parse errors
-      }
-    };
-    es.onerror = () => {
-      es.close();
-    };
-    return () => es.close();
-  }, [collectionName, documentId, onEvent]);
-}
-
 // --- Progress bar component ---
 
 const ProgressBar = ({ value }: { readonly value: number }) => (
@@ -185,8 +159,8 @@ const UploadTracker = ({
       {expanded && upload.events.length > 0 && (
         <div className="border-t border-border bg-bg/50 px-4 py-2 max-h-48 overflow-y-auto">
           <div className="space-y-1">
-            {upload.events.map((ev, i) => (
-              <div className="flex items-start gap-2 text-[11px]" key={i}>
+            {upload.events.map((ev) => (
+              <div className="flex items-start gap-2 text-[11px]" key={`${ev.time}-${ev.step}`}>
                 <span className="shrink-0 font-mono text-text-dim">
                   {((ev.time - upload.startedAt) / 1000).toFixed(1)}s
                 </span>
