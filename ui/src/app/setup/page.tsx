@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Logo } from "@/components/logo";
 import { setupAdmin } from "@/lib/api";
 import { setSessionToken, setUser } from "@/lib/auth-store";
-import { Logo } from "@/components/logo";
 
 const SetupPage = () => {
   const router = useRouter();
@@ -38,9 +38,7 @@ const SetupPage = () => {
           <h1 className="text-2xl font-semibold tracking-tight text-text">
             bigRAG
           </h1>
-          <p className="text-sm text-text-muted">
-            Create your admin account
-          </p>
+          <p className="text-sm text-text-muted">Create your admin account</p>
           <p className="text-center text-xs text-text-dim">
             This is the initial setup for your instance
           </p>

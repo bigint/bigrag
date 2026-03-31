@@ -3,7 +3,11 @@
 import { AuthGuard } from "./auth-guard";
 import { Sidebar } from "./sidebar";
 
-export const AppShell = ({ children }: { readonly children: React.ReactNode }) => (
+export const AppShell = ({
+  children
+}: {
+  readonly children: React.ReactNode;
+}) => (
   <AuthGuard>
     <Sidebar />
     <main className="ml-56 min-h-screen">

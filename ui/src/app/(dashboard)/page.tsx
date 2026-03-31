@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { collectionsQueryOptions, healthQueryOptions } from "@/lib/queries";
-import { formatBytes, formatNumber, timeAgo } from "@/lib/utils";
+import { formatNumber, timeAgo } from "@/lib/utils";
 
 const Pulse = ({ className }: { readonly className?: string }) => {
   return (
@@ -98,7 +98,9 @@ const DashboardPage = () => {
                 <tr className="border-b border-border text-left text-[13px] text-text-dim">
                   <th className="px-5 py-3 font-medium">Name</th>
                   <th className="px-5 py-3 font-medium">Model</th>
-                  <th className="px-5 py-3 text-right font-medium">Documents</th>
+                  <th className="px-5 py-3 text-right font-medium">
+                    Documents
+                  </th>
                   <th className="px-5 py-3 text-right font-medium">Updated</th>
                 </tr>
               </thead>
@@ -120,7 +122,9 @@ const DashboardPage = () => {
                     </td>
                     <td className="px-5 py-3.5 text-xs text-text-muted">
                       <span className="font-mono">{col.embedding_model}</span>
-                      <span className="ml-1 text-text-dim">({col.dimension}d)</span>
+                      <span className="ml-1 text-text-dim">
+                        ({col.dimension}d)
+                      </span>
                     </td>
                     <td className="px-5 py-3.5 text-right font-mono text-sm text-text-muted">
                       {formatNumber(col.document_count)}

@@ -21,9 +21,7 @@ const RootLayout = ({ children }: { readonly children: React.ReactNode }) => {
   return (
     <html className={`${outfit.variable} ${GeistMono.variable}`} lang="en">
       <body className="antialiased">
-        <Providers>
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

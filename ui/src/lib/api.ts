@@ -15,7 +15,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   if (!res.ok) {
-    if (res.status === 401 && typeof window !== "undefined" && !path.startsWith("/v1/auth/")) {
+    if (
+      res.status === 401 &&
+      typeof window !== "undefined" &&
+      !path.startsWith("/v1/auth/")
+    ) {
       clearAuth();
       window.location.href = "/login";
       throw new ApiError(401, "Session expired");
@@ -31,17 +35,20 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json();
 }
 
-async function requestFormData<T>(path: string, formData: FormData): Promise<T> {
+async function requestFormData<T>(
+  path: string,
+  formData: FormData
+): Promise<T> {
   const token = getSessionToken();
   const headers: Record<string, string> = {
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
 
   const res = await fetch(`${getBaseUrl()}${path}`, {
-    method: "POST",
+    body: formData,
     cache: "no-store",
     headers,
-    body: formData
+    method: "POST"
   });
 
   if (!res.ok) {
@@ -130,9 +137,12 @@ export async function updateCollection(
 }
 
 export async function deleteCollection(name: string) {
-  return request<{ status: string }>(`/v1/collections/${encodeURIComponent(name)}`, {
-    method: "DELETE"
-  });
+  return request<{ status: string }>(
+    `/v1/collections/${encodeURIComponent(name)}`,
+    {
+      method: "DELETE"
+    }
+  );
 }
 
 // Documents
@@ -165,7 +175,11 @@ export async function listDocuments(collectionName: string, status?: string) {
   );
 }
 
-export async function uploadDocument(collectionName: string, file: File, metadata?: Record<string, unknown>) {
+export async function uploadDocument(
+  collectionName: string,
+  file: File,
+  metadata?: Record<string, unknown>
+) {
   const formData = new FormData();
   formData.append("file", file);
   if (metadata) formData.append("metadata", JSON.stringify(metadata));
@@ -175,14 +189,20 @@ export async function uploadDocument(collectionName: string, file: File, metadat
   );
 }
 
-export async function deleteDocument(collectionName: string, documentId: string) {
+export async function deleteDocument(
+  collectionName: string,
+  documentId: string
+) {
   return request<{ status: string }>(
     `/v1/collections/${encodeURIComponent(collectionName)}/documents/${documentId}`,
     { method: "DELETE" }
   );
 }
 
-export async function reprocessDocument(collectionName: string, documentId: string) {
+export async function reprocessDocument(
+  collectionName: string,
+  documentId: string
+) {
   return request<{ status: string }>(
     `/v1/collections/${encodeURIComponent(collectionName)}/documents/${documentId}/reprocess`,
     { method: "POST" }
@@ -209,7 +229,12 @@ export interface QueryResponse {
 
 export async function queryCollection(
   collectionName: string,
-  body: { query: string; top_k?: number; filters?: Record<string, unknown>; min_score?: number }
+  body: {
+    query: string;
+    top_k?: number;
+    filters?: Record<string, unknown>;
+    min_score?: number;
+  }
 ) {
   return request<QueryResponse>(
     `/v1/collections/${encodeURIComponent(collectionName)}/query`,
@@ -259,7 +284,11 @@ export async function getSetupStatus() {
   return request<{ needs_setup: boolean }>("/v1/auth/setup-status");
 }
 
-export async function setupAdmin(body: { email: string; password: string; display_name: string }) {
+export async function setupAdmin(body: {
+  email: string;
+  password: string;
+  display_name: string;
+}) {
   return request<AuthResponse>("/v1/auth/setup", {
     body: JSON.stringify(body),
     method: "POST"
@@ -273,7 +302,12 @@ export async function login(body: { email: string; password: string }) {
   });
 }
 
-export async function signup(body: { email: string; password: string; display_name: string; invite_code: string }) {
+export async function signup(body: {
+  email: string;
+  password: string;
+  display_name: string;
+  invite_code: string;
+}) {
   return request<AuthResponse>("/v1/auth/signup", {
     body: JSON.stringify(body),
     method: "POST"
@@ -288,7 +322,10 @@ export async function logout() {
   return request<{ status: string }>("/v1/auth/logout", { method: "POST" });
 }
 
-export async function changePassword(body: { current_password: string; new_password: string }) {
+export async function changePassword(body: {
+  current_password: string;
+  new_password: string;
+}) {
   return request<{ status: string }>("/v1/auth/password", {
     body: JSON.stringify(body),
     method: "PUT"
@@ -311,16 +348,22 @@ export async function listUsers() {
 }
 
 export async function deleteUser(id: string) {
-  return request<{ status: string; message: string }>(`/v1/admin/users/${encodeURIComponent(id)}`, {
-    method: "DELETE"
-  });
+  return request<{ status: string; message: string }>(
+    `/v1/admin/users/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE"
+    }
+  );
 }
 
 export async function updateUserRole(id: string, role: string) {
-  return request<{ status: string }>(`/v1/admin/users/${encodeURIComponent(id)}`, {
-    body: JSON.stringify({ role }),
-    method: "PATCH"
-  });
+  return request<{ status: string }>(
+    `/v1/admin/users/${encodeURIComponent(id)}`,
+    {
+      body: JSON.stringify({ role }),
+      method: "PATCH"
+    }
+  );
 }
 
 // Admin - Invites
@@ -335,7 +378,10 @@ export interface InviteSummary {
   created_by_email: string;
 }
 
-export async function createInvite(body: { role?: string; expires_in_hours?: number }) {
+export async function createInvite(body: {
+  role?: string;
+  expires_in_hours?: number;
+}) {
   return request<InviteSummary>("/v1/admin/invites", {
     body: JSON.stringify(body),
     method: "POST"
@@ -347,9 +393,12 @@ export async function listInvites() {
 }
 
 export async function deleteInvite(id: string) {
-  return request<{ status: string; message: string }>(`/v1/admin/invites/${encodeURIComponent(id)}`, {
-    method: "DELETE"
-  });
+  return request<{ status: string; message: string }>(
+    `/v1/admin/invites/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE"
+    }
+  );
 }
 
 // Admin - API Keys
