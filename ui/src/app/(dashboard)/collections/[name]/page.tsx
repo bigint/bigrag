@@ -160,7 +160,10 @@ const UploadTracker = ({
         <div className="border-t border-border bg-bg/50 px-4 py-2 max-h-48 overflow-y-auto">
           <div className="space-y-1">
             {upload.events.map((ev) => (
-              <div className="flex items-start gap-2 text-[11px]" key={`${ev.time}-${ev.step}`}>
+              <div
+                className="flex items-start gap-2 text-[11px]"
+                key={`${ev.time}-${ev.step}`}
+              >
                 <span className="shrink-0 font-mono text-text-dim">
                   {((ev.time - upload.startedAt) / 1000).toFixed(1)}s
                 </span>
