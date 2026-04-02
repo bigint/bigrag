@@ -18,38 +18,33 @@ const CollectionsPage = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedModel, setSelectedModel] = useState("");
+  const [selectedModel, setSelectedModel] = useState("openai/text-embedding-3-small");
   const [apiKey, setApiKey] = useState("");
   const [chunkSize, setChunkSize] = useState(512);
   const [chunkOverlap, setChunkOverlap] = useState(50);
   const [error, setError] = useState("");
 
-  const selectedProvider = modelsQuery.data?.models.find(
+  const selectedModelInfo = modelsQuery.data?.models.find(
     (m) => `${m.provider}/${m.model}` === selectedModel
-  )?.provider;
-  const needsApiKey =
-    selectedProvider === "openai" || selectedProvider === "cohere";
+  );
+  const selectedProvider = selectedModelInfo?.provider;
 
   const createMutation = useMutation({
-    mutationFn: () => {
-      const model = modelsQuery.data?.models.find(
-        (m) => `${m.provider}/${m.model}` === selectedModel
-      );
-      return createCollection({
-        description,
+    mutationFn: () =>
+      createCollection({
         name,
+        description,
         chunk_size: chunkSize,
         chunk_overlap: chunkOverlap,
-        ...(model
+        ...(selectedModelInfo
           ? {
-              dimension: model.dimension,
-              embedding_model: model.model,
-              embedding_provider: model.provider
+              dimension: selectedModelInfo.dimension,
+              embedding_model: selectedModelInfo.model,
+              embedding_provider: selectedModelInfo.provider
             }
           : {}),
         ...(apiKey ? { embedding_api_key: apiKey } : {})
-      });
-    },
+      }),
     onError: (err) => setError(err.message),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["collections"] });
@@ -109,7 +104,6 @@ const CollectionsPage = () => {
               onChange={(e) => setSelectedModel(e.target.value)}
               value={selectedModel}
             >
-              <option value="">Default embedding model</option>
               {models.map((m) => (
                 <option
                   key={`${m.provider}/${m.model}`}
@@ -119,28 +113,26 @@ const CollectionsPage = () => {
                 </option>
               ))}
             </select>
-            {needsApiKey && (
-              <div>
-                <label className="mb-1 block text-xs text-text-muted">
-                  API Key{" "}
-                  {selectedProvider === "openai"
-                    ? "(OpenAI)"
-                    : "(Cohere)"}
-                </label>
-                <input
-                  className="w-full rounded-md border border-border bg-bg-input px-3 py-2 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={
-                    selectedProvider === "openai" ? "sk-..." : "Enter Cohere API key"
-                  }
-                  type="password"
-                  value={apiKey}
-                />
-                <p className="mt-1 text-[11px] text-text-dim">
-                  Required. Stored securely per collection.
-                </p>
-              </div>
-            )}
+            <div>
+              <label className="mb-1 block text-xs text-text-muted">
+                API Key{" "}
+                {selectedProvider === "openai"
+                  ? "(OpenAI)"
+                  : "(Cohere)"}
+              </label>
+              <input
+                className="w-full rounded-md border border-border bg-bg-input px-3 py-2 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={
+                  selectedProvider === "openai" ? "sk-..." : "Enter Cohere API key"
+                }
+                type="password"
+                value={apiKey}
+              />
+              <p className="mt-1 text-[11px] text-text-dim">
+                Required. Stored securely per collection.
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-xs text-text-muted">
@@ -174,7 +166,7 @@ const CollectionsPage = () => {
               <button
                 className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent/90 disabled:opacity-50"
                 disabled={
-                  !name || createMutation.isPending || (needsApiKey && !apiKey)
+                  !name || !apiKey || createMutation.isPending
                 }
                 onClick={() => createMutation.mutate()}
                 type="button"
