@@ -172,4 +172,7 @@ async def delete_collection(name: str, _: dict = Depends(get_current_user)):
     await db.execute("DELETE FROM collections WHERE name = $1", name)
     logger.info(f"delete: postgres records removed name={name}")
 
+    from bigrag.routers import invalidate_collection_cache
+    invalidate_collection_cache(name)
+
     return {"status": "ok", "message": f"Collection '{name}' deleted"}
