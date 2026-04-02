@@ -111,6 +111,10 @@ services:
     volumes:
       - milvus_data:/var/lib/milvus
       - ./milvus.yaml:/milvus/configs/user.yaml:ro
+    deploy:
+      resources:
+        limits:
+          memory: 4g
     depends_on:
       milvus-etcd:
         condition: service_healthy
