@@ -41,6 +41,7 @@ services:
     ports:
       - "5432:5432"
     environment:
+      # Change these credentials for production deployments
       POSTGRES_USER: bigrag
       POSTGRES_PASSWORD: bigrag
       POSTGRES_DB: bigrag

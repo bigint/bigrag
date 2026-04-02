@@ -5,8 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
-  <a href="https://github.com/bigrag-io/bigrag/actions/workflows/ci.yml"><img src="https://github.com/bigrag-io/bigrag/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
 </p>
 
 ---
@@ -20,7 +19,7 @@
 - **Admin web UI** — manage collections, upload documents, query, and administer users
 - **Self-hostable** — Docker Compose, no external dependencies
 - **User auth** — session-based auth with invite system, API keys, and role-based access
-- **Apache 2.0** — run it anywhere, forever free
+- **MIT licensed** — run it anywhere, forever free
 
 ## Quick Start
 
@@ -247,7 +246,6 @@ Via Docling, bigRAG supports:
 | ---------- | ------------------------------------------ |
 | Python     | `pip install bigrag`                       |
 | TypeScript | `npm install @bigrag/client`               |
-| Go         | `go get github.com/bigrag-io/bigrag-go`    |
 
 ## Contributing
 
@@ -255,4 +253,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, 
 
 ## License
 
-[Apache License 2.0](LICENSE) — use it anywhere, forever free.
+[MIT License](LICENSE) — use it anywhere, forever free.
