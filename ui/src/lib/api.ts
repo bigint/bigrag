@@ -113,7 +113,6 @@ export interface CreateCollectionBody {
   embedding_provider?: string;
   embedding_model?: string;
   embedding_api_key?: string;
-  embedding_base_url?: string;
   dimension?: number;
   chunk_size?: number;
   chunk_overlap?: number;
