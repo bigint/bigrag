@@ -18,7 +18,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import type { ProgressEvent } from "@bigrag/client";
 import { getClient } from "@/lib/client";
 import { getBaseUrl, getSessionToken } from "@/lib/auth-store";
-import { collectionQueryOptions, documentsQueryOptions } from "@/lib/queries";
+import { analyticsQueryOptions, collectionQueryOptions, documentsQueryOptions } from "@/lib/queries";
 import { cn, formatBytes, timeAgo } from "@/lib/utils";
 import { match, P } from "ts-pattern";
 
@@ -168,6 +168,7 @@ const CollectionDetailPage = ({
 
   const collectionQuery = useQuery(collectionQueryOptions(name));
   const documentsQuery = useQuery(documentsQueryOptions(name));
+  const analyticsQuery = useQuery(analyticsQueryOptions(name));
 
   const deleteMutation = useMutation({
     mutationFn: (docId: string) => getClient().deleteDocument(name, docId),
@@ -469,6 +470,62 @@ const CollectionDetailPage = ({
               {collection.chunk_size}
             </p>
           </div>
+          {collection.reranking_enabled && (
+            <div className="rounded-lg border border-border bg-bg-card p-4">
+              <p className="text-[11px] uppercase text-text-dim">Reranking</p>
+              <p className="mt-1 font-mono text-sm">{collection.reranking_model}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Analytics */}
+      {analyticsQuery.data && (
+        <div className="mb-6">
+          <h2 className="mb-3 text-sm font-medium text-text">Query Analytics</h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="rounded-lg border border-border bg-bg-card p-4">
+              <p className="text-[11px] uppercase text-text-dim">Queries (24h)</p>
+              <p className="mt-1 font-mono text-lg font-semibold">
+                {analyticsQuery.data.period_24h.query_count}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border bg-bg-card p-4">
+              <p className="text-[11px] uppercase text-text-dim">Avg Latency</p>
+              <p className="mt-1 font-mono text-lg font-semibold">
+                {analyticsQuery.data.period_24h.avg_latency_ms.toFixed(0)}
+                <span className="text-sm text-text-muted">ms</span>
+              </p>
+            </div>
+            <div className="rounded-lg border border-border bg-bg-card p-4">
+              <p className="text-[11px] uppercase text-text-dim">Avg Score</p>
+              <p className="mt-1 font-mono text-lg font-semibold">
+                {(analyticsQuery.data.period_24h.avg_score * 100).toFixed(1)}
+                <span className="text-sm text-text-muted">%</span>
+              </p>
+            </div>
+            <div className="rounded-lg border border-border bg-bg-card p-4">
+              <p className="text-[11px] uppercase text-text-dim">Queries (7d)</p>
+              <p className="mt-1 font-mono text-lg font-semibold">
+                {analyticsQuery.data.period_7d.query_count}
+              </p>
+            </div>
+          </div>
+          {analyticsQuery.data.top_queries.length > 0 && (
+            <div className="mt-3 rounded-lg border border-border bg-bg-card">
+              <div className="border-b border-border px-4 py-2.5">
+                <p className="text-xs font-medium text-text-dim">Top Queries (7d)</p>
+              </div>
+              <div className="divide-y divide-border">
+                {analyticsQuery.data.top_queries.map((q, i) => (
+                  <div className="flex items-center justify-between px-4 py-2" key={i}>
+                    <span className="truncate text-sm text-text-muted">{q.query}</span>
+                    <span className="ml-2 shrink-0 font-mono text-xs text-text-dim">{q.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

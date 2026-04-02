@@ -22,6 +22,9 @@ const CollectionsPage = () => {
   const [apiKey, setApiKey] = useState("");
   const [chunkSize, setChunkSize] = useState(512);
   const [chunkOverlap, setChunkOverlap] = useState(50);
+  const [rerankEnabled, setRerankEnabled] = useState(false);
+  const [rerankModel, setRerankModel] = useState("rerank-v3.5");
+  const [rerankApiKey, setRerankApiKey] = useState("");
   const [error, setError] = useState("");
 
   const selectedModelInfo = modelsQuery.data?.models.find(
@@ -43,7 +46,12 @@ const CollectionsPage = () => {
               embedding_provider: selectedModelInfo.provider
             }
           : {}),
-        ...(apiKey ? { embedding_api_key: apiKey } : {})
+        ...(apiKey ? { embedding_api_key: apiKey } : {}),
+        ...(rerankEnabled ? {
+          reranking_enabled: true,
+          reranking_model: rerankModel,
+          ...(rerankApiKey ? { reranking_api_key: rerankApiKey } : {})
+        } : {})
       }),
     onError: (err) => setError(err.message),
     onSuccess: () => {
@@ -54,6 +62,9 @@ const CollectionsPage = () => {
       setApiKey("");
       setChunkSize(512);
       setChunkOverlap(50);
+      setRerankEnabled(false);
+      setRerankModel("rerank-v3.5");
+      setRerankApiKey("");
       setError("");
     }
   });
@@ -160,6 +171,45 @@ const CollectionsPage = () => {
                   value={chunkOverlap}
                 />
               </div>
+            </div>
+            <div className="space-y-2 rounded-md border border-border p-3">
+              <div className="flex items-center gap-2">
+                <input
+                  checked={rerankEnabled}
+                  id="rerank-toggle"
+                  onChange={(e) => setRerankEnabled(e.target.checked)}
+                  type="checkbox"
+                />
+                <label className="text-sm text-text-muted" htmlFor="rerank-toggle">
+                  Enable reranking (Cohere)
+                </label>
+              </div>
+              {rerankEnabled && (
+                <div className="space-y-2 pl-5">
+                  <div>
+                    <label className="mb-1 block text-xs text-text-muted">Reranking Model</label>
+                    <select
+                      className="w-full rounded-md border border-border bg-bg-input px-3 py-2 text-sm text-text focus:border-border-hover focus:outline-none"
+                      onChange={(e) => setRerankModel(e.target.value)}
+                      value={rerankModel}
+                    >
+                      <option value="rerank-v3.5">rerank-v3.5</option>
+                      <option value="rerank-english-v3.0">rerank-english-v3.0</option>
+                      <option value="rerank-multilingual-v3.0">rerank-multilingual-v3.0</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-text-muted">Cohere API Key (for reranking)</label>
+                    <input
+                      className="w-full rounded-md border border-border bg-bg-input px-3 py-2 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
+                      onChange={(e) => setRerankApiKey(e.target.value)}
+                      placeholder="Uses embedding key as fallback"
+                      type="password"
+                      value={rerankApiKey}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
             {error && <p className="text-sm text-danger">{error}</p>}
             <div className="flex gap-2">
