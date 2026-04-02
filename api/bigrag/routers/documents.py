@@ -14,6 +14,7 @@ from bigrag.routers import get_collection_or_404
 from bigrag.models.document import DocumentListResponse, DocumentResponse
 from bigrag.services.embedding import get_embedding_model
 from bigrag.services.queue import IngestionJob, event_bus, ingestion_queue
+from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
 
 router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["documents"])
@@ -90,16 +91,13 @@ async def upload_document(
             detail=f"File too large. Max size: {settings.max_upload_size_mb}MB",
         )
 
-    # Save file to disk
-    upload_dir = Path(settings.upload_dir) / collection_name
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
+    # Save file to storage
     doc_id = str(uuid.uuid4())
     file_ext = Path(file.filename or "document").suffix
-    file_path = upload_dir / f"{doc_id}{file_ext}"
+    storage_key = f"{collection_name}/{doc_id}{file_ext}"
 
-    with open(file_path, "wb") as f:
-        f.write(content)
+    storage = get_storage()
+    await storage.put(storage_key, content)
 
     # Parse metadata
     try:
@@ -116,17 +114,17 @@ async def upload_document(
             RETURNING *
             """,
             uuid.UUID(doc_id), collection["id"], file.filename or "document",
-            file_ext.lstrip("."), len(content), str(file_path), meta,
+            file_ext.lstrip("."), len(content), storage_key, meta,
         )
     except Exception:
         # Clean up the file if DB insert fails
-        file_path.unlink(missing_ok=True)
+        await storage.delete(storage_key)
         raise
 
     # Enqueue for background processing
     await ingestion_queue.enqueue(IngestionJob(
         document_id=doc_id,
-        file_path=str(file_path),
+        file_path=storage_key,
         collection_name=collection_name,
         embedding_provider=collection["embedding_provider"],
         embedding_model=collection["embedding_model"],
@@ -230,10 +228,8 @@ async def delete_document(
         collection["id"],
     )
 
-    # Delete file from disk last (irreversible)
-    file_path = Path(row["file_path"])
-    if file_path.exists():
-        file_path.unlink()
+    # Delete file from storage last (irreversible)
+    await get_storage().delete(row["file_path"])
 
     return {"status": "ok", "message": "Document deleted"}
 
@@ -255,10 +251,10 @@ async def reprocess_document(
     _validate_embedding_provider(collection)
 
     # Verify the source file still exists
-    if not Path(row["file_path"]).exists():
+    if not await get_storage().exists(row["file_path"]):
         raise HTTPException(
             status_code=400,
-            detail="Source file no longer exists on disk. Upload the document again.",
+            detail="Source file no longer exists. Upload the document again.",
         )
 
     # Delete existing vectors

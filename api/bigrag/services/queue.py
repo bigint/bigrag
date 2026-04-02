@@ -7,6 +7,7 @@ import logging
 import time
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import AsyncIterator
 
 import orjson
@@ -261,16 +262,29 @@ class IngestionQueue:
             self._emit(doc, "model_loaded", "processing", f"Loaded {job.embedding_model}", 0.10,
                        provider=job.embedding_provider, model=job.embedding_model, elapsed=round(elapsed, 2))
 
-            # Step 3: Convert with Docling (CPU-bound, run in thread)
+            # Step 3: Download file from storage and convert with Docling
             self._emit(doc, "converting", "processing", "Parsing document with Docling", 0.15)
             t0 = time.monotonic()
+
+            from bigrag.services.storage import get_storage
+            import tempfile
+
+            file_data = await get_storage().get(job.file_path)
+            suffix = Path(job.file_path).suffix
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+            tmp.write(file_data)
+            tmp.close()
+            tmp_path = tmp.name
 
             def _convert():
                 from docling.document_converter import DocumentConverter
                 converter = DocumentConverter()
-                return converter.convert(job.file_path)
+                return converter.convert(tmp_path)
 
-            result = await asyncio.to_thread(_convert)
+            try:
+                result = await asyncio.to_thread(_convert)
+            finally:
+                Path(tmp_path).unlink(missing_ok=True)
             elapsed = time.monotonic() - t0
             logger.info(f"{prefix} docling conversion elapsed={elapsed:.2f}s")
             self._emit(doc, "converted", "processing", f"Parsed in {elapsed:.1f}s", 0.35, elapsed=round(elapsed, 2))

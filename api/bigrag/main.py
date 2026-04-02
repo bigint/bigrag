@@ -14,6 +14,7 @@ from bigrag import __version__
 from bigrag.config import Settings, settings
 from bigrag.database import db
 from bigrag.services.queue import ingestion_queue
+from bigrag.services.storage import init_storage, get_storage
 from bigrag.services.vector_store import vector_store
 
 
@@ -36,12 +37,21 @@ async def lifespan(app: FastAPI):
     vector_store.configure(settings.milvus_uri)
     vector_store.connect()
 
+    # Storage
+    init_storage(
+        backend=settings.storage_backend,
+        upload_dir=settings.upload_dir,
+        s3_bucket=settings.s3_bucket,
+        s3_endpoint_url=settings.s3_endpoint_url,
+        s3_region=settings.s3_region,
+        s3_access_key=settings.s3_access_key,
+        s3_secret_key=settings.s3_secret_key,
+    )
+
     # Redis + ingestion queue
     ingestion_queue._num_workers = settings.ingestion_workers
     await ingestion_queue.connect(settings.redis_url)
     await ingestion_queue.start()
-
-    Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 
     # Clean up expired sessions on startup
     from bigrag.services.auth import cleanup_expired_sessions
@@ -53,6 +63,7 @@ async def lifespan(app: FastAPI):
     yield
 
     await ingestion_queue.stop()
+    await get_storage().close()
     vector_store.close()
     await db.close()
     logger.info("bigRAG shut down")

@@ -26,6 +26,7 @@ dependencies = [
 [project.optional-dependencies]
 openai = ["openai>=1.60.0"]
 cohere = ["cohere>=5.13.0"]
+s3 = ["aiobotocore>=2.18.0"]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.24.0", "ruff>=0.8.0"]
 
 [project.scripts]

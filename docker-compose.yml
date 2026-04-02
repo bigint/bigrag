@@ -82,21 +82,6 @@ services:
       timeout: 20s
       retries: 3
 
-  milvus-minio:
-    image: minio/minio:latest
-    container_name: bigrag-minio
-    command: server /data
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   milvus:
     image: milvusdb/milvus:v2.5.4
     container_name: bigrag-milvus
@@ -109,15 +94,11 @@ services:
       - "9091:9091"
     environment:
       ETCD_ENDPOINTS: milvus-etcd:2379
-      MINIO_ADDRESS: milvus-minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
+      MILVUS_STORAGE_TYPE: local
     volumes:
       - milvus_data:/var/lib/milvus
     depends_on:
       milvus-etcd:
-        condition: service_healthy
-      milvus-minio:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
@@ -130,5 +111,4 @@ volumes:
   postgres_data:
   redis_data:
   etcd_data:
-  minio_data:
   milvus_data:

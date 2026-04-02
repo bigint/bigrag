@@ -40,10 +40,18 @@ class Settings(BaseSettings):
     embedding_api_key: str | None = None
     embedding_base_url: str | None = None
 
+    # Storage
+    storage_backend: str = "local"
+    upload_dir: str = "./data/uploads"
+    s3_bucket: str | None = None
+    s3_endpoint_url: str | None = None
+    s3_region: str = "us-east-1"
+    s3_access_key: str | None = None
+    s3_secret_key: str | None = None
+
     # Ingestion
     chunk_size: int = 512
     chunk_overlap: int = 50
-    upload_dir: str = "./data/uploads"
     max_upload_size_mb: int = 500
     ingestion_workers: int = 4
     ingestion_batch_size: int = 128
