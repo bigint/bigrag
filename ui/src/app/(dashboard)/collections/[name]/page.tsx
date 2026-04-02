@@ -226,6 +226,13 @@ const CollectionDetailPage = ({
             updated.progress = 1;
             queryClient.invalidateQueries({ queryKey: ["documents", name] });
             queryClient.invalidateQueries({ queryKey: ["collection", name] });
+            setTimeout(() => {
+              setUploads((prev) => {
+                const n = new Map(prev);
+                n.delete(docId);
+                return n;
+              });
+            }, 2000);
           })
           .with("failed", () => {
             updated.phase = "failed";
