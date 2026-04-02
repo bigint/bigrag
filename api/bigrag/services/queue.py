@@ -103,10 +103,10 @@ class IngestionJob:
     embedding_model: str
     embedding_dimension: int
     embedding_api_key: str | None
-    embedding_base_url: str | None = None
     chunk_size: int
     chunk_overlap: int
     attempt: int = 0
+    embedding_base_url: str | None = None
     max_attempts: int = 3
     job_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
 
