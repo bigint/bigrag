@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -36,42 +37,58 @@ class LocalStorage(StorageBackend):
 
     async def put(self, key: str, data: bytes) -> None:
         path = self._base / key
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
+
+        def _write():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+
+        await asyncio.to_thread(_write)
         logger.info(f"local put: key={key} size={len(data)}")
 
     async def get(self, key: str) -> bytes:
         path = self._base / key
-        if not path.exists():
-            logger.warning(f"local get: not found key={key}")
-            raise FileNotFoundError(f"File not found: {key}")
-        data = path.read_bytes()
+
+        def _read():
+            if not path.exists():
+                raise FileNotFoundError(f"File not found: {key}")
+            return path.read_bytes()
+
+        data = await asyncio.to_thread(_read)
         logger.info(f"local get: key={key} size={len(data)}")
         return data
 
     async def delete(self, key: str) -> None:
         path = self._base / key
-        if path.exists():
-            path.unlink()
-            logger.info(f"local delete: key={key}")
+
+        def _delete():
+            if path.exists():
+                path.unlink()
+
+        await asyncio.to_thread(_delete)
+        logger.info(f"local delete: key={key}")
 
     async def delete_prefix(self, prefix: str) -> int:
         import shutil
 
         target = self._base / prefix
-        if not target.exists():
-            return 0
-        if target.is_dir():
-            count = sum(1 for _ in target.rglob("*") if _.is_file())
-            shutil.rmtree(target, ignore_errors=True)
+
+        def _delete_prefix():
+            if not target.exists():
+                return 0
+            if target.is_dir():
+                count = sum(1 for _ in target.rglob("*") if _.is_file())
+                shutil.rmtree(target, ignore_errors=True)
+                return count
+            target.unlink()
+            return 1
+
+        count = await asyncio.to_thread(_delete_prefix)
+        if count:
             logger.info(f"local delete_prefix: prefix={prefix} count={count}")
-            return count
-        target.unlink()
-        logger.info(f"local delete_prefix: prefix={prefix} count=1")
-        return 1
+        return count
 
     async def exists(self, key: str) -> bool:
-        return (self._base / key).exists()
+        return await asyncio.to_thread(lambda: (self._base / key).exists())
 
     async def close(self) -> None:
         pass

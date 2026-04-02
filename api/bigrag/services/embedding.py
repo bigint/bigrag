@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 
@@ -28,18 +29,25 @@ class EmbeddingModel(ABC):
 
 
 class SentenceTransformerEmbedding(EmbeddingModel):
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2", device: str | None = None) -> None:
         from sentence_transformers import SentenceTransformer
 
         self._model_name = model_name
+        # Auto-detect GPU if device not specified
+        if device is None or device == "auto":
+            try:
+                import torch
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+            except ImportError:
+                device = "cpu"
         try:
-            self._model = SentenceTransformer(model_name)
+            self._model = SentenceTransformer(model_name, device=device)
         except Exception as e:
             raise ValueError(
                 f"Failed to load sentence-transformers model '{model_name}': {e}"
             ) from e
         self._dimension = self._model.get_sentence_embedding_dimension()
-        logger.info(f"Loaded sentence-transformers model: {model_name} (dim={self._dimension})")
+        logger.info(f"Loaded sentence-transformers model: {model_name} (dim={self._dimension}, device={device})")
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         import asyncio
@@ -100,9 +108,11 @@ class OpenAIEmbedding(EmbeddingModel):
 
 
 class OllamaEmbedding(EmbeddingModel):
+    _semaphore: asyncio.Semaphore | None = None
+
     def __init__(
         self, model_name: str = "nomic-embed-text", base_url: str = "http://localhost:11434",
-        dimension: int = 768,
+        dimension: int = 768, max_concurrent: int = 8,
     ) -> None:
         import httpx
 
@@ -110,16 +120,23 @@ class OllamaEmbedding(EmbeddingModel):
         self._dimension = dimension
         self._base_url = base_url.rstrip("/")
         self._client = httpx.AsyncClient(timeout=120.0)
+        self._max_concurrent = max_concurrent
         logger.info(f"Initialized Ollama embedding: {model_name} (dim={dimension})")
 
+    def _get_semaphore(self) -> asyncio.Semaphore:
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(self._max_concurrent)
+        return self._semaphore
+
     async def _embed_single(self, text: str) -> list[float]:
-        resp = await self._client.post(
-            f"{self._base_url}/api/embed",
-            json={"model": self._model_name, "input": text},
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return data["embeddings"][0]
+        async with self._get_semaphore():
+            resp = await self._client.post(
+                f"{self._base_url}/api/embed",
+                json={"model": self._model_name, "input": text},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["embeddings"][0]
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         import asyncio
@@ -201,7 +218,8 @@ def get_embedding_model(
         return _models[cache_key]
 
     if provider == "sentence-transformers":
-        model = SentenceTransformerEmbedding(model_name)
+        from bigrag.config import settings
+        model = SentenceTransformerEmbedding(model_name, device=settings.embedding_device)
     elif provider == "openai":
         model = OpenAIEmbedding(model_name, api_key=api_key, dimension=dimension or 1536)
     elif provider == "ollama":

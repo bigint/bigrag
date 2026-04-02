@@ -15,6 +15,27 @@ import redis.asyncio as aioredis
 
 logger = logging.getLogger("bigrag.queue")
 
+# Singleton Docling converter — avoids reloading ML models on every job
+_docling_converter = None
+_docling_lock = asyncio.Lock()
+
+
+def _get_docling_converter():
+    """Get or create the singleton DocumentConverter (called inside to_thread)."""
+    global _docling_converter
+    if _docling_converter is None:
+        from docling.document_converter import DocumentConverter
+        _docling_converter = DocumentConverter()
+    return _docling_converter
+
+
+# Non-retryable error types — no point retrying these
+_PERMANENT_ERRORS = (
+    ValueError,  # "no extractable text", "no chunks"
+    UnicodeDecodeError,
+    KeyError,
+)
+
 QUEUE_KEY = "bigrag:ingestion:queue"
 PROCESSING_KEY = "bigrag:ingestion:processing"
 DEAD_LETTER_KEY = "bigrag:ingestion:dead"
@@ -275,18 +296,20 @@ class IngestionQueue:
 
             file_data = await get_storage().get(job.file_path)
             suffix = Path(job.file_path).suffix
-            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-            tmp.write(file_data)
-            tmp.close()
-            tmp_path = tmp.name
 
-            def _convert():
-                from docling.document_converter import DocumentConverter
-                converter = DocumentConverter()
-                return converter.convert(tmp_path)
+            def _write_and_convert():
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                try:
+                    tmp.write(file_data)
+                    tmp.close()
+                    converter = _get_docling_converter()
+                    return converter.convert(tmp.name), tmp.name
+                except Exception:
+                    tmp.close()
+                    raise
 
             try:
-                result = await asyncio.to_thread(_convert)
+                result, tmp_path = await asyncio.to_thread(_write_and_convert)
             finally:
                 Path(tmp_path).unlink(missing_ok=True)
             elapsed = time.monotonic() - t0
@@ -302,9 +325,9 @@ class IngestionQueue:
             logger.info(f"{prefix} text extracted chars={len(text)}")
             self._emit(doc, "text_extracted", "processing", f"Extracted {len(text):,} characters", 0.40, chars=len(text))
 
-            # Step 5: Chunk
+            # Step 5: Chunk (CPU-bound, run in thread)
             from bigrag.services.ingestion import _chunk_text
-            chunks = _chunk_text(text, job.chunk_size, job.chunk_overlap)
+            chunks = await asyncio.to_thread(_chunk_text, text, job.chunk_size, job.chunk_overlap)
             if not chunks:
                 raise ValueError("Document produced no chunks")
             logger.info(f"{prefix} chunked into {len(chunks)} chunks")
@@ -312,7 +335,8 @@ class IngestionQueue:
                        chunks=len(chunks), chunk_size=job.chunk_size)
 
             # Step 6: Embed + insert in batches
-            batch_size = 128
+            from bigrag.config import settings as _settings
+            batch_size = _settings.ingestion_batch_size
             total_inserted = 0
             total_batches = (len(chunks) + batch_size - 1) // batch_size
 
@@ -351,7 +375,7 @@ class IngestionQueue:
             )
             await db.execute(
                 """UPDATE collections SET
-                    document_count = (SELECT COUNT(*) FROM documents WHERE collection_id = collections.id AND status = 'ready'),
+                    document_count = document_count + 1,
                     updated_at = now()
                 WHERE name = $1""",
                 job.collection_name,
@@ -371,7 +395,15 @@ class IngestionQueue:
             await self._redis.hincrby(STATS_KEY, "processing", -1)
             logger.error(f"{prefix} failed attempt={job.attempt}/{job.max_attempts} error={e!r} elapsed={total_elapsed:.2f}s")
 
-            if job.attempt < job.max_attempts:
+            is_permanent = isinstance(e, _PERMANENT_ERRORS)
+
+            if not is_permanent and job.attempt < job.max_attempts:
+                # Clean up any partially inserted vectors before retry
+                try:
+                    await vector_store.delete_by_document(job.collection_name, doc)
+                except Exception as cleanup_err:
+                    logger.warning(f"{prefix} failed to clean up partial vectors: {cleanup_err!r}")
+
                 delay = min(2 ** job.attempt, 30)
                 self._emit(doc, "retrying", "processing",
                            f"Attempt {job.attempt} failed, retrying in {delay}s",
@@ -380,18 +412,19 @@ class IngestionQueue:
                     "UPDATE documents SET status = 'pending', error_message = $1, updated_at = now() WHERE id = $2",
                     f"Attempt {job.attempt} failed: {e}. Retrying...", uuid.UUID(doc),
                 )
-                await asyncio.sleep(delay)
+                # Schedule retry without blocking the worker
+                job._retry_after = time.monotonic() + delay
                 await self.enqueue(job)
             else:
+                reason = "permanent error" if is_permanent else f"{job.max_attempts} attempts exhausted"
                 await self._redis.hincrby(STATS_KEY, "failed", 1)
-                # Move to dead letter queue
                 await self._redis.lpush(DEAD_LETTER_KEY, job.serialize())
                 await db.execute(
                     "UPDATE documents SET status = 'failed', error_message = $1, updated_at = now() WHERE id = $2",
                     str(e), uuid.UUID(doc),
                 )
-                logger.error(f"{prefix} permanently failed after {job.max_attempts} attempts")
-                self._emit(doc, "failed", "failed", str(e), 0.0, attempts=job.max_attempts)
+                logger.error(f"{prefix} permanently failed: {reason}")
+                self._emit(doc, "failed", "failed", str(e), 0.0, attempts=job.attempt)
                 event_bus.complete(doc)
 
 

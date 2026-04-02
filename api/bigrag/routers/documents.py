@@ -5,7 +5,7 @@ import logging
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 
 from bigrag.config import settings
@@ -70,6 +70,7 @@ def _validate_embedding_provider(collection: dict) -> None:
 @router.post("", response_model=DocumentResponse, status_code=201)
 async def upload_document(
     collection_name: str,
+    request: Request,
     file: UploadFile = File(...),
     metadata: str = Form(default="{}"),
     _: dict = Depends(get_current_user),
@@ -86,14 +87,30 @@ async def upload_document(
             detail=f"Unsupported file type '{file_ext}'. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
         )
 
-    # Validate file size
+    # Early size check via Content-Length header (reject before reading body)
     max_size = settings.max_upload_size_mb * 1024 * 1024
-    content = await file.read()
-    if len(content) > max_size:
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > max_size:
         raise HTTPException(
             status_code=413,
             detail=f"File too large. Max size: {settings.max_upload_size_mb}MB",
         )
+
+    # Stream file into memory with a size guard
+    chunks = []
+    total_size = 0
+    while True:
+        chunk = await file.read(1024 * 1024)  # 1MB chunks
+        if not chunk:
+            break
+        total_size += len(chunk)
+        if total_size > max_size:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large. Max size: {settings.max_upload_size_mb}MB",
+            )
+        chunks.append(chunk)
+    content = b"".join(chunks)
 
     # Save file to storage
     doc_id = str(uuid.uuid4())
