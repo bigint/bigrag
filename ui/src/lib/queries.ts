@@ -1,28 +1,21 @@
 import { queryOptions } from "@tanstack/react-query";
-import {
-  getCollection,
-  getHealth,
-  getMetrics,
-  listCollections,
-  listDocuments,
-  listEmbeddingModels
-} from "@/lib/api";
+import { getClient } from "./client";
 
 export const healthQueryOptions = () =>
   queryOptions({
-    queryFn: () => getHealth(),
+    queryFn: () => getClient().health(),
     queryKey: ["health"]
   });
 
 export const collectionsQueryOptions = () =>
   queryOptions({
-    queryFn: () => listCollections(),
+    queryFn: () => getClient().listCollections(),
     queryKey: ["collections"]
   });
 
 export const collectionQueryOptions = (name: string) =>
   queryOptions({
-    queryFn: () => getCollection(name),
+    queryFn: () => getClient().getCollection(name),
     queryKey: ["collection", name]
   });
 
@@ -31,19 +24,19 @@ export const documentsQueryOptions = (
   status?: string
 ) =>
   queryOptions({
-    queryFn: () => listDocuments(collectionName, status),
+    queryFn: () => getClient().listDocuments(collectionName, status ? { status } : undefined),
     queryKey: ["documents", collectionName, status]
   });
 
 export const embeddingModelsQueryOptions = () =>
   queryOptions({
-    queryFn: () => listEmbeddingModels(),
+    queryFn: () => getClient().listEmbeddingModels(),
     queryKey: ["embedding-models"]
   });
 
 export const metricsQueryOptions = () =>
   queryOptions({
-    queryFn: () => getMetrics(),
+    queryFn: () => getClient().getMetrics(),
     queryKey: ["metrics"],
     refetchInterval: 10_000
   });

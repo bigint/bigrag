@@ -2,16 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import {
-  type CreateApiKeyRequest,
-  createApiKey,
-  listApiKeys,
-  revokeApiKey
-} from "@/lib/api";
+import type { CreateApiKeyBody } from "@bigrag/client";
+import { getClient } from "@/lib/client";
 import { timeAgo } from "@/lib/utils";
 
 const apiKeysQueryOptions = () => ({
-  queryFn: () => listApiKeys(),
+  queryFn: () => getClient().listApiKeys(),
   queryKey: ["api-keys"]
 });
 
@@ -28,7 +24,7 @@ const ApiKeysPage = () => {
   const [copied, setCopied] = useState(false);
 
   const createMutation = useMutation({
-    mutationFn: (body: CreateApiKeyRequest) => createApiKey(body),
+    mutationFn: (body: CreateApiKeyBody) => getClient().createApiKey(body),
     onSuccess: (res) => {
       setCreatedKey(res.key);
       setNewKeyName("");
@@ -39,7 +35,7 @@ const ApiKeysPage = () => {
   });
 
   const revokeMutation = useMutation({
-    mutationFn: (id: string) => revokeApiKey(id),
+    mutationFn: (id: string) => getClient().revokeApiKey(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
     }

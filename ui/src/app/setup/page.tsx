@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Logo } from "@/components/logo";
-import { setupAdmin } from "@/lib/api";
+import { getClient } from "@/lib/client";
 import { setSessionToken, setUser } from "@/lib/auth-store";
 
 const SetupPage = () => {
@@ -19,7 +19,7 @@ const SetupPage = () => {
     setError("");
     setLoading(true);
     try {
-      const res = await setupAdmin({ display_name: name, email, password });
+      const res = await getClient().setup({ display_name: name, email, password });
       setSessionToken(res.token);
       setUser(res.user as Parameters<typeof setUser>[0]);
       router.replace("/");

@@ -3,8 +3,8 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { FileText, Loader2, Search } from "lucide-react";
 import { useState } from "react";
-import type { QueryResponse } from "@/lib/api";
-import { queryCollection } from "@/lib/api";
+import type { QueryResponse } from "@bigrag/client";
+import { getClient } from "@/lib/client";
 import { collectionsQueryOptions } from "@/lib/queries";
 
 const QueryPage = () => {
@@ -17,7 +17,7 @@ const QueryPage = () => {
 
   const queryMutation = useMutation({
     mutationFn: () =>
-      queryCollection(selectedCollection, {
+      getClient().query(selectedCollection, {
         query,
         top_k: topK,
         ...(minScore > 0 ? { min_score: minScore / 100 } : {})

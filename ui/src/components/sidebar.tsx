@@ -12,7 +12,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/logo";
-import { logout } from "@/lib/api";
+import { getClient } from "@/lib/client";
 import { clearAuth, getUser } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +32,7 @@ export const Sidebar = () => {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await getClient().logout();
     } catch {
       // ignore errors
     }

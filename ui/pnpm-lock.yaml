@@ -11,6 +11,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.3.0
         version: 1.3.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@bigrag/client':
+        specifier: file:../sdks/typescript
+        version: file:../sdks/typescript
       '@tanstack/react-query':
         specifier: ^5.95.2
         version: 5.95.2(react@19.2.4)
@@ -94,6 +97,10 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  '@bigrag/client@file:../sdks/typescript':
+    resolution: {directory: ../sdks/typescript, type: directory}
+    engines: {node: '>=18'}
 
   '@biomejs/biome@2.4.10':
     resolution: {integrity: sha512-xxA3AphFQ1geij4JTHXv4EeSTda1IFn22ye9LdyVPoJU19fNVl0uzfEuhsfQ4Yue/0FaLs2/ccVi4UDiE7R30w==}
@@ -812,6 +819,8 @@ snapshots:
       use-sync-external-store: 1.6.0(react@19.2.4)
     optionalDependencies:
       '@types/react': 19.2.14
+
+  '@bigrag/client@file:../sdks/typescript': {}
 
   '@biomejs/biome@2.4.10':
     optionalDependencies:

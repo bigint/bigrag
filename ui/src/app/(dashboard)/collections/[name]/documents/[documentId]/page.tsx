@@ -11,12 +11,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { use } from "react";
-import {
-  type Document,
-  getDocument,
-  getDocumentChunks,
-  getDocumentFileUrl
-} from "@/lib/api";
+import type { Document } from "@bigrag/client";
+import { getClient } from "@/lib/client";
 import { cn, formatBytes, timeAgo } from "@/lib/utils";
 import { match } from "ts-pattern";
 
@@ -28,13 +24,13 @@ const DocumentDetailPage = ({
   const { name, documentId } = use(params);
 
   const docQuery = useQuery({
-    queryFn: () => getDocument(name, documentId),
+    queryFn: () => getClient().getDocument(name, documentId),
     queryKey: ["document", name, documentId]
   });
 
   const chunksQuery = useQuery({
     enabled: docQuery.data?.status === "ready",
-    queryFn: () => getDocumentChunks(name, documentId),
+    queryFn: () => getClient().getDocumentChunks(name, documentId),
     queryKey: ["chunks", name, documentId]
   });
 
@@ -71,7 +67,7 @@ const DocumentDetailPage = ({
             {doc.status === "ready" && (
               <a
                 className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-hover hover:text-text"
-                href={getDocumentFileUrl(name, doc.id)}
+                href={getClient().getDocumentFileUrl(name, doc.id)}
                 rel="noopener noreferrer"
                 target="_blank"
               >

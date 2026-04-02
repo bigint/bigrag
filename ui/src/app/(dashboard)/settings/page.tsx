@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { changePassword } from "@/lib/api";
+import { getClient } from "@/lib/client";
 import { getBaseUrl } from "@/lib/auth-store";
 import { healthQueryOptions } from "@/lib/queries";
 
@@ -19,7 +19,7 @@ const SettingsPage = () => {
 
   const passwordMutation = useMutation({
     mutationFn: () =>
-      changePassword({
+      getClient().changePassword({
         current_password: currentPassword,
         new_password: newPassword
       }),

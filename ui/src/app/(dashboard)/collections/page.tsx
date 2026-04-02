@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Database, Inbox, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { createCollection, deleteCollection } from "@/lib/api";
+import { getClient } from "@/lib/client";
 import {
   collectionsQueryOptions,
   embeddingModelsQueryOptions
@@ -31,7 +31,7 @@ const CollectionsPage = () => {
 
   const createMutation = useMutation({
     mutationFn: () =>
-      createCollection({
+      getClient().createCollection({
         name,
         description,
         chunk_size: chunkSize,
@@ -59,7 +59,7 @@ const CollectionsPage = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteCollection,
+    mutationFn: (name: string) => getClient().deleteCollection(name),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["collections"] })
   });

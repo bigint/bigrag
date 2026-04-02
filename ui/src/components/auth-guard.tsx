@@ -2,7 +2,8 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ApiError, getMe, getSetupStatus } from "@/lib/api";
+import { APIError } from "@bigrag/client";
+import { getClient } from "@/lib/client";
 import { clearAuth, isAuthenticated, setUser } from "@/lib/auth-store";
 
 const PUBLIC_PATHS = ["/login", "/setup"];
@@ -21,7 +22,7 @@ export const AuthGuard = ({
     const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
     try {
-      const { needs_setup } = await getSetupStatus();
+      const { needs_setup } = await getClient().getSetupStatus();
       if (needs_setup) {
         if (pathname !== "/setup") {
           router.replace("/setup");
@@ -30,7 +31,7 @@ export const AuthGuard = ({
         return;
       }
     } catch (err) {
-      if (err instanceof ApiError && err.status >= 500) {
+      if (err instanceof APIError && err.status >= 500) {
         // Server error — don't silently grant access, let the user see the problem
         setChecked(true);
         return;
@@ -57,7 +58,7 @@ export const AuthGuard = ({
     }
 
     try {
-      const { user } = await getMe();
+      const { user } = await getClient().getMe();
       setUser(user as Parameters<typeof setUser>[0]);
       setAuthorized(true);
     } catch {

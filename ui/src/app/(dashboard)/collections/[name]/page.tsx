@@ -15,12 +15,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { use, useCallback, useEffect, useRef, useState } from "react";
-import {
-  deleteDocument,
-  getDocumentFileUrl,
-  reprocessDocument,
-  uploadDocument
-} from "@/lib/api";
+import type { ProgressEvent } from "@bigrag/client";
+import { getClient } from "@/lib/client";
 import { getBaseUrl, getSessionToken } from "@/lib/auth-store";
 import { collectionQueryOptions, documentsQueryOptions } from "@/lib/queries";
 import { cn, formatBytes, timeAgo } from "@/lib/utils";
@@ -36,16 +32,12 @@ interface UploadProgress {
   step: string;
   message: string;
   progress: number;
-  events: ProgressEvent[];
+  events: ProgressEventWithTime[];
   startedAt: number;
 }
 
-interface ProgressEvent {
-  step: string;
-  message: string;
-  progress: number;
+interface ProgressEventWithTime extends ProgressEvent {
   time: number;
-  detail?: Record<string, unknown>;
 }
 
 // --- Status colors ---
@@ -178,7 +170,7 @@ const CollectionDetailPage = ({
   const documentsQuery = useQuery(documentsQueryOptions(name));
 
   const deleteMutation = useMutation({
-    mutationFn: (docId: string) => deleteDocument(name, docId),
+    mutationFn: (docId: string) => getClient().deleteDocument(name, docId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["documents", name] });
       queryClient.invalidateQueries({ queryKey: ["collection", name] });
@@ -186,7 +178,7 @@ const CollectionDetailPage = ({
   });
 
   const reprocessMutation = useMutation({
-    mutationFn: (docId: string) => reprocessDocument(name, docId),
+    mutationFn: (docId: string) => getClient().reprocessDocument(name, docId),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["documents", name] })
   });
@@ -204,7 +196,7 @@ const CollectionDetailPage = ({
         const upload = next.get(docId);
         if (!upload) return prev;
 
-        const event: ProgressEvent = {
+        const event: ProgressEventWithTime = {
           detail: data,
           message: String(data.message ?? ""),
           progress: Number(data.progress ?? 0),
@@ -340,7 +332,7 @@ const CollectionDetailPage = ({
         }
 
         try {
-          const doc = await uploadDocument(name, file);
+          const doc = await getClient().uploadDocument(name, file);
 
           setUploads((prev) => {
             const next = new Map(prev);
@@ -620,7 +612,7 @@ const CollectionDetailPage = ({
                         .with("ready", () => (
                           <a
                             className="rounded-md p-1 text-text-dim hover:bg-bg-hover hover:text-text"
-                            href={getDocumentFileUrl(name, doc.id)}
+                            href={getClient().getDocumentFileUrl(name, doc.id)}
                             rel="noopener noreferrer"
                             target="_blank"
                             title="View file"
