@@ -86,7 +86,8 @@ echo -e "${CYAN}Starting Python backend (auto-reload)...${NC}"
   BIGRAG_DATABASE_URL="$DATABASE_URL" \
   BIGRAG_MILVUS_URI="$MILVUS_URI" \
   BIGRAG_REDIS_URL="$REDIS_URL" \
-  python -m uvicorn bigrag.main:create_app --factory --host 0.0.0.0 --port 8080 --reload --reload-dir bigrag 2>&1 | sed "s/^/[backend] /") &
+  PYTHONUNBUFFERED=1 \
+  python -m uvicorn bigrag.main:create_app --factory --host 0.0.0.0 --port 8080 --reload --reload-dir bigrag 2>&1 | sed -u "s/^/[backend] /") &
 PIDS+=($!)
 
 # Wait for backend
