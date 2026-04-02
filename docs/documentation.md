@@ -31,8 +31,6 @@ Complete reference for the bigRAG open-source RAG platform — document ingestio
   - [Query & Search](#query--search)
   - [Vectors (Direct)](#vectors-direct)
   - [Embedding Models](#embedding-models)
-  - [Admin: Users](#admin-users)
-  - [Admin: Invites](#admin-invites)
   - [Admin: API Keys](#admin-api-keys)
   - [Queue](#queue)
 - [Embedding Providers](#embedding-providers)
@@ -540,35 +538,6 @@ Log in with email and password. Rate limited.
 **Errors:**
 
 - `401` — Invalid email or password
-- `429` — Rate limited
-
-#### `POST /v1/auth/signup`
-
-Register a new account with an invite code. Rate limited.
-
-**Request body:**
-
-```json
-{
-  "email": "newuser@example.com",
-  "password": "minimum8chars",
-  "display_name": "New User",
-  "invite_code": "inv_abc123"
-}
-```
-
-| Field | Type | Required | Constraints |
-|-------|------|----------|-------------|
-| `email` | string | yes | Valid email, unique |
-| `password` | string | yes | Minimum 8 characters |
-| `display_name` | string | yes | Display name |
-| `invite_code` | string | yes | Valid, unused invite code |
-
-**Response** `201`: Same as login response.
-
-**Errors:**
-
-- `400` — Invalid or expired invite code, email already taken
 - `429` — Rate limited
 
 #### `POST /v1/auth/logout`
