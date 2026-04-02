@@ -5,8 +5,11 @@ import {
 } from "./errors.js";
 import { parseSSEStream } from "./sse.js";
 import type {
+  AnalyticsResponse,
   ApiKeyListResponse,
   AuthResponse,
+  BatchQueryBody,
+  BatchQueryResponse,
   ChangePasswordBody,
   Collection,
   CollectionListResponse,
@@ -25,6 +28,8 @@ import type {
   HealthResponse,
   LoginBody,
   MeResponse,
+  MultiQueryBody,
+  MultiQueryResponse,
   ProgressEvent,
   QueryBody,
   QueryResponse,
@@ -573,6 +578,81 @@ export class BigRAG {
       "POST",
       `/v1/admin/webhooks/${encodeURIComponent(id)}/test`,
     );
+  }
+
+  // ---- Multi-Collection Query ----
+
+  multiQuery(body: MultiQueryBody): Promise<MultiQueryResponse> {
+    return this._request("POST", "/v1/query", { json: body });
+  }
+
+  // ---- Batch Query ----
+
+  batchQuery(body: BatchQueryBody): Promise<BatchQueryResponse> {
+    return this._request("POST", "/v1/batch/query", { json: body });
+  }
+
+  // ---- Analytics ----
+
+  getAnalytics(collection: string): Promise<AnalyticsResponse> {
+    return this._request(
+      "GET",
+      `/v1/collections/${encodeURIComponent(collection)}/analytics`,
+    );
+  }
+
+  // ---- Collection-Scoped Client ----
+
+  collection(name: string): CollectionClient {
+    return new CollectionClient(this, name);
+  }
+}
+
+export class CollectionClient {
+  constructor(
+    private readonly client: BigRAG,
+    private readonly name: string,
+  ) {}
+
+  upload(
+    file: FileInput,
+    metadata?: Record<string, unknown>,
+  ): Promise<Document> {
+    return this.client.uploadDocument(this.name, file, metadata);
+  }
+
+  listDocuments(options?: DocumentListOptions): Promise<DocumentListResponse> {
+    return this.client.listDocuments(this.name, options);
+  }
+
+  getDocument(documentId: string): Promise<Document> {
+    return this.client.getDocument(this.name, documentId);
+  }
+
+  deleteDocument(documentId: string): Promise<StatusResponse> {
+    return this.client.deleteDocument(this.name, documentId);
+  }
+
+  reprocessDocument(documentId: string): Promise<StatusResponse> {
+    return this.client.reprocessDocument(this.name, documentId);
+  }
+
+  getDocumentChunks(documentId: string): Promise<DocumentChunkListResponse> {
+    return this.client.getDocumentChunks(this.name, documentId);
+  }
+
+  query(body: QueryBody): Promise<QueryResponse> {
+    return this.client.query(this.name, body);
+  }
+
+  analytics(): Promise<AnalyticsResponse> {
+    return this.client.getAnalytics(this.name);
+  }
+
+  streamDocumentProgress(
+    documentId: string,
+  ): AsyncGenerator<ProgressEvent> {
+    return this.client.streamDocumentProgress(this.name, documentId);
   }
 }
 
