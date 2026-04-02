@@ -32,6 +32,7 @@ Complete reference for the bigRAG open-source RAG platform — document ingestio
   - [Vectors (Direct)](#vectors-direct)
   - [Embedding Models](#embedding-models)
   - [Admin: API Keys](#admin-api-keys)
+  - [Admin: Webhooks](#admin-webhooks)
   - [Queue](#queue)
 - [Embedding Providers](#embedding-providers)
 - [Document Ingestion Pipeline](#document-ingestion-pipeline)
@@ -1227,6 +1228,118 @@ Revoke an API key.
   "message": "API key deleted"
 }
 ```
+
+---
+
+### Admin: Webhooks
+
+Manage webhook registrations. Webhooks push notifications when document processing state changes. Admin access required.
+
+**Event types:** `document.processing`, `document.ready`, `document.failed`
+
+#### Register Webhook
+
+```
+POST /v1/admin/webhooks
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `url` | string | Yes | Delivery URL (must be HTTPS, HTTP allowed for localhost) |
+| `events` | string[] | Yes | Event types to subscribe to |
+| `collections` | string[] | No | Filter by collection names (null = all) |
+| `description` | string | No | Human-readable description |
+
+**Response (201):** Webhook object with `secret` field (shown once only). Store the secret — it's used to verify webhook signatures.
+
+```bash
+curl -X POST http://localhost:8080/v1/admin/webhooks \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/webhook","events":["document.ready","document.failed"]}'
+```
+
+#### List Webhooks
+
+```
+GET /v1/admin/webhooks?limit=50&offset=0
+```
+
+#### Get Webhook
+
+```
+GET /v1/admin/webhooks/{id}
+```
+
+#### Update Webhook
+
+```
+PUT /v1/admin/webhooks/{id}
+```
+
+Updatable fields: `url`, `events`, `collections`, `description`, `active`.
+
+#### Delete Webhook
+
+```
+DELETE /v1/admin/webhooks/{id}
+```
+
+#### List Deliveries
+
+```
+GET /v1/admin/webhooks/{id}/deliveries?limit=50&offset=0
+```
+
+Returns delivery history for a webhook, useful for debugging.
+
+#### Test Webhook
+
+```
+POST /v1/admin/webhooks/{id}/test
+```
+
+Sends a `webhook.test` event to verify the endpoint is reachable. Returns the delivery result inline.
+
+#### Webhook Payload
+
+```json
+{
+  "event": "document.ready",
+  "timestamp": "2026-04-02T12:34:56Z",
+  "collection": "docs",
+  "document_id": "abc-123",
+  "status": "ready",
+  "chunk_count": 42,
+  "error_message": null
+}
+```
+
+#### Signature Verification
+
+Each delivery includes an `X-BigRAG-Signature` header with an HMAC-SHA256 signature:
+
+```
+X-BigRAG-Signature: sha256=<hex digest>
+X-BigRAG-Event: document.ready
+X-BigRAG-Delivery: <delivery-uuid>
+```
+
+Verify by computing `HMAC-SHA256(webhook_secret, raw_body)` and comparing:
+
+```python
+import hmac, hashlib
+
+def verify(payload: bytes, secret: str, signature: str) -> bool:
+    expected = "sha256=" + hmac.new(
+        secret.encode(), payload, hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+```
+
+#### Retry Policy
+
+Failed deliveries retry 3 times with exponential backoff (~10s, ~30s, ~90s). After all retries, the delivery is marked as `failed`. Check delivery history for details.
 
 ---
 
