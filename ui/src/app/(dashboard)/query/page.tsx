@@ -12,11 +12,16 @@ const QueryPage = () => {
   const [selectedCollection, setSelectedCollection] = useState("");
   const [query, setQuery] = useState("");
   const [topK, setTopK] = useState(10);
+  const [minScore, setMinScore] = useState(0);
   const [results, setResults] = useState<QueryResponse | null>(null);
 
   const queryMutation = useMutation({
     mutationFn: () =>
-      queryCollection(selectedCollection, { query, top_k: topK }),
+      queryCollection(selectedCollection, {
+        query,
+        top_k: topK,
+        ...(minScore > 0 ? { min_score: minScore / 100 } : {})
+      }),
     onSuccess: setResults
   });
 
@@ -32,7 +37,7 @@ const QueryPage = () => {
       </div>
 
       <div className="mb-6 space-y-4 rounded-lg border border-border bg-bg-card p-5">
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
           <select
             className="w-64 rounded-md border border-border bg-bg-input px-3 py-2 text-sm text-text focus:border-border-hover focus:outline-none"
             onChange={(e) => setSelectedCollection(e.target.value)}
@@ -58,6 +63,21 @@ const QueryPage = () => {
               type="number"
               value={topK}
             />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-text-muted" htmlFor="minscore">
+              Min Score:
+            </label>
+            <input
+              className="w-20 rounded-md border border-border bg-bg-input px-3 py-2 text-sm text-text focus:border-border-hover focus:outline-none"
+              id="minscore"
+              max={100}
+              min={0}
+              onChange={(e) => setMinScore(Number(e.target.value))}
+              type="number"
+              value={minScore}
+            />
+            <span className="text-xs text-text-dim">%</span>
           </div>
         </div>
 

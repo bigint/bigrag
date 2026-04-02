@@ -51,19 +51,17 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
     model = body.embedding_model or settings.embedding_model
     dimension = body.dimension or settings.embedding_dimension
 
-    # Providers that require an API key
-    api_key = body.embedding_api_key or settings.embedding_api_key
-    base_url = body.embedding_base_url or settings.embedding_base_url
+    if provider not in ("openai", "cohere"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported embedding provider: '{provider}'. Supported: openai, cohere",
+        )
 
-    if provider in ("openai", "cohere", "custom") and not api_key:
+    api_key = body.embedding_api_key or settings.embedding_api_key
+    if not api_key:
         raise HTTPException(
             status_code=400,
             detail=f"API key is required for the '{provider}' embedding provider",
-        )
-    if provider in ("ollama", "custom") and not base_url:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Base URL is required for the '{provider}' embedding provider",
         )
 
     # Validate the embedding provider is available
@@ -71,7 +69,7 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
         from bigrag.services.embedding import get_embedding_model
         get_embedding_model(
             provider=provider, model_name=model, dimension=dimension,
-            api_key=api_key, base_url=base_url,
+            api_key=api_key,
         )
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -93,7 +91,7 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             body.name, body.description, provider, model,
             dimension, body.chunk_size, body.chunk_overlap, body.metadata,
             encrypt(body.embedding_api_key) if body.embedding_api_key else None,
-            body.embedding_base_url,
+            None,
         )
     except asyncpg.UniqueViolationError:
         raise HTTPException(status_code=409, detail="Collection already exists")

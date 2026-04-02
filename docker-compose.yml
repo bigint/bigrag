@@ -16,7 +16,6 @@ services:
       BIGRAG_INGESTION_WORKERS: "4"
       BIGRAG_DB_POOL_MIN: "5"
       BIGRAG_DB_POOL_MAX: "50"
-      BIGRAG_EMBEDDING_DEVICE: "auto"
     deploy:
       resources:
         limits:

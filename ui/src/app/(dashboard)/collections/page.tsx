@@ -20,18 +20,15 @@ const CollectionsPage = () => {
   const [description, setDescription] = useState("");
   const [selectedModel, setSelectedModel] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [baseUrl, setBaseUrl] = useState("");
+  const [chunkSize, setChunkSize] = useState(512);
+  const [chunkOverlap, setChunkOverlap] = useState(50);
   const [error, setError] = useState("");
 
   const selectedProvider = modelsQuery.data?.models.find(
     (m) => `${m.provider}/${m.model}` === selectedModel
   )?.provider;
   const needsApiKey =
-    selectedProvider === "openai" ||
-    selectedProvider === "cohere" ||
-    selectedProvider === "custom";
-  const needsBaseUrl =
-    selectedProvider === "ollama" || selectedProvider === "custom";
+    selectedProvider === "openai" || selectedProvider === "cohere";
 
   const createMutation = useMutation({
     mutationFn: () => {
@@ -41,6 +38,8 @@ const CollectionsPage = () => {
       return createCollection({
         description,
         name,
+        chunk_size: chunkSize,
+        chunk_overlap: chunkOverlap,
         ...(model
           ? {
               dimension: model.dimension,
@@ -48,8 +47,7 @@ const CollectionsPage = () => {
               embedding_provider: model.provider
             }
           : {}),
-        ...(apiKey ? { embedding_api_key: apiKey } : {}),
-        ...(baseUrl ? { embedding_base_url: baseUrl } : {})
+        ...(apiKey ? { embedding_api_key: apiKey } : {})
       });
     },
     onError: (err) => setError(err.message),
@@ -59,7 +57,8 @@ const CollectionsPage = () => {
       setName("");
       setDescription("");
       setApiKey("");
-      setBaseUrl("");
+      setChunkSize(512);
+      setChunkOverlap(50);
       setError("");
     }
   });
@@ -126,14 +125,14 @@ const CollectionsPage = () => {
                   API Key{" "}
                   {selectedProvider === "openai"
                     ? "(OpenAI)"
-                    : selectedProvider === "cohere"
-                      ? "(Cohere)"
-                      : ""}
+                    : "(Cohere)"}
                 </label>
                 <input
                   className="w-full rounded-md border border-border bg-bg-input px-3 py-2 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
                   onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-..."
+                  placeholder={
+                    selectedProvider === "openai" ? "sk-..." : "Enter Cohere API key"
+                  }
                   type="password"
                   value={apiKey}
                 />
@@ -142,27 +141,34 @@ const CollectionsPage = () => {
                 </p>
               </div>
             )}
-            {needsBaseUrl && (
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-xs text-text-muted">
-                  Base URL{" "}
-                  {selectedProvider === "ollama"
-                    ? "(Ollama)"
-                    : "(API endpoint)"}
+                  Chunk Size (tokens)
                 </label>
                 <input
-                  className="w-full rounded-md border border-border bg-bg-input px-3 py-2 font-mono text-sm text-text placeholder:text-text-dim focus:border-border-hover focus:outline-none"
-                  onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder={
-                    selectedProvider === "ollama"
-                      ? "http://localhost:11434"
-                      : "https://api.example.com/v1"
-                  }
-                  type="url"
-                  value={baseUrl}
+                  className="w-full rounded-md border border-border bg-bg-input px-3 py-2 text-sm text-text focus:border-border-hover focus:outline-none"
+                  max={10000}
+                  min={64}
+                  onChange={(e) => setChunkSize(Number(e.target.value))}
+                  type="number"
+                  value={chunkSize}
                 />
               </div>
-            )}
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">
+                  Chunk Overlap (tokens)
+                </label>
+                <input
+                  className="w-full rounded-md border border-border bg-bg-input px-3 py-2 text-sm text-text focus:border-border-hover focus:outline-none"
+                  max={5000}
+                  min={0}
+                  onChange={(e) => setChunkOverlap(Number(e.target.value))}
+                  type="number"
+                  value={chunkOverlap}
+                />
+              </div>
+            </div>
             {error && <p className="text-sm text-danger">{error}</p>}
             <div className="flex gap-2">
               <button

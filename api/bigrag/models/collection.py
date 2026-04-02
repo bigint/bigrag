@@ -10,7 +10,6 @@ class CreateCollectionRequest(BaseModel):
     embedding_provider: str | None = None
     embedding_model: str | None = None
     embedding_api_key: str | None = None
-    embedding_base_url: str | None = None
     dimension: int | None = None
     chunk_size: int = Field(default=512, ge=64, le=10000)
     chunk_overlap: int = Field(default=50, ge=0, le=5000)

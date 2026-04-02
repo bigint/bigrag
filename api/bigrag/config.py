@@ -34,12 +34,10 @@ class Settings(BaseSettings):
     session_expiry_hours: int = 168
 
     # Embedding defaults
-    embedding_provider: str = "sentence-transformers"
-    embedding_model: str = "all-MiniLM-L6-v2"
-    embedding_dimension: int = 384
+    embedding_provider: str = "openai"
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimension: int = 1536
     embedding_api_key: str | None = None
-    embedding_base_url: str | None = None
-    embedding_device: str = "auto"  # "auto", "cpu", "cuda", "mps"
 
     # Storage
     storage_backend: str = "local"

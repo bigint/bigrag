@@ -42,7 +42,6 @@ async def query_collection(
             model_name=collection["embedding_model"],
             dimension=collection["dimension"],
             api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
-            base_url=collection.get("embedding_base_url") or settings.embedding_base_url,
         )
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))

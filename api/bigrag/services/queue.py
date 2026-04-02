@@ -103,7 +103,7 @@ class IngestionJob:
     embedding_model: str
     embedding_dimension: int
     embedding_api_key: str | None
-    embedding_base_url: str | None
+    embedding_base_url: str | None = None
     chunk_size: int
     chunk_overlap: int
     attempt: int = 0
@@ -253,7 +253,6 @@ class IngestionQueue:
                 model_name=job.embedding_model,
                 dimension=job.embedding_dimension,
                 api_key=job.embedding_api_key,
-                base_url=job.embedding_base_url,
             )
             elapsed = time.monotonic() - t0
             logger.info(f"{prefix} model loaded provider={job.embedding_provider} model={job.embedding_model} elapsed={elapsed:.2f}s")

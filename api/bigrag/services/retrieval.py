@@ -21,7 +21,7 @@ async def retrieve(
 
     # Embed the query
     t0 = time.monotonic()
-    embeddings = await embedding_model.embed([query])
+    embeddings = await embedding_model.embed([query], input_type="query")
     query_embedding = embeddings[0]
     embed_ms = (time.monotonic() - t0) * 1000
     logger.info(f"retrieve: embedded query collection={collection_name} model={embedding_model.name} {embed_ms:.0f}ms")

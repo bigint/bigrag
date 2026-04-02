@@ -45,9 +45,8 @@ _get_collection = get_collection_or_404
 def _validate_embedding_provider(collection: dict) -> None:
     provider = collection["embedding_provider"]
     api_key = collection.get("embedding_api_key") or settings.embedding_api_key
-    base_url = collection.get("embedding_base_url") or settings.embedding_base_url
 
-    if provider in ("openai", "cohere", "custom") and not api_key:
+    if not api_key:
         raise HTTPException(
             status_code=400,
             detail=f"Collection '{collection['name']}' uses '{provider}' embeddings but no API key is configured. "
@@ -60,7 +59,6 @@ def _validate_embedding_provider(collection: dict) -> None:
             model_name=collection["embedding_model"],
             dimension=collection["dimension"],
             api_key=api_key,
-            base_url=base_url,
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -143,7 +141,6 @@ async def upload_document(
         embedding_model=collection["embedding_model"],
         embedding_dimension=collection["dimension"],
         embedding_api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
-        embedding_base_url=collection.get("embedding_base_url") or settings.embedding_base_url,
         chunk_size=collection["chunk_size"],
         chunk_overlap=collection["chunk_overlap"],
     ))
@@ -280,7 +277,6 @@ async def reprocess_document(
         embedding_model=collection["embedding_model"],
         embedding_dimension=collection["dimension"],
         embedding_api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
-        embedding_base_url=collection.get("embedding_base_url") or settings.embedding_base_url,
         chunk_size=collection["chunk_size"],
         chunk_overlap=collection["chunk_overlap"],
     ))

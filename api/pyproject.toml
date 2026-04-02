@@ -10,7 +10,8 @@ dependencies = [
     "asyncpg>=0.30.0",
     "pymilvus>=2.5.0",
     "docling>=2.25.0",
-    "sentence-transformers>=3.4.0",
+    "openai>=1.60.0",
+    "cohere>=5.13.0",
     "pydantic[email]>=2.10.0",
     "pydantic-settings>=2.7.0",
     "python-multipart>=0.0.18",
@@ -24,8 +25,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-openai = ["openai>=1.60.0"]
-cohere = ["cohere>=5.13.0"]
 s3 = ["aiobotocore>=2.18.0"]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.24.0", "ruff>=0.8.0"]
 
