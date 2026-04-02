@@ -189,6 +189,17 @@ export const deleteDocument = (collectionName: string, documentId: string) =>
     { method: "DELETE" }
   );
 
+export interface DocumentChunk {
+  id: string;
+  text: string;
+  chunk_index: number;
+}
+
+export const getDocumentChunks = (collectionName: string, documentId: string) =>
+  request<{ chunks: DocumentChunk[]; total: number }>(
+    `/v1/collections/${encodeURIComponent(collectionName)}/documents/${documentId}/chunks`
+  );
+
 export const getDocumentFileUrl = (
   collectionName: string,
   documentId: string

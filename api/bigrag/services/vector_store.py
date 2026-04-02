@@ -138,6 +138,24 @@ class VectorStore:
         logger.info(f"search: collection={col} top_k={top_k} hits={len(hits)} filter={filters}")
         return hits
 
+    async def get_chunks(
+        self,
+        collection: str,
+        document_id: str,
+        limit: int = 10000,
+    ) -> list[dict]:
+        col = self._col(collection)
+        results = await _run(
+            self.client.query,
+            collection_name=col,
+            filter=f'document_id == "{document_id}"',
+            output_fields=["text", "document_id", "chunk_index"],
+            limit=limit,
+        )
+        chunks = sorted(results, key=lambda r: r.get("chunk_index", 0))
+        logger.info(f"get_chunks: collection={col} document_id={document_id} count={len(chunks)}")
+        return [{"id": r["id"], "text": r.get("text", ""), "chunk_index": r.get("chunk_index", 0)} for r in chunks]
+
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         col = self._col(collection)
         await _run(self.client.delete, collection_name=col, filter=f'document_id == "{document_id}"')

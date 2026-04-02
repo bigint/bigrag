@@ -1,30 +1,26 @@
-export function StatusBadge({ status }: { status: string }) {
-  const isReady = status === "ready" || status === "indexed";
-  const isBuilding = status === "building" || status === "indexing";
+import { match, P } from "ts-pattern";
 
-  let colorClasses: string;
-  if (isReady) {
-    colorClasses = "bg-bg-hover text-text";
-  } else if (isBuilding) {
-    colorClasses = "bg-bg-hover text-text-muted";
-  } else {
-    colorClasses = "bg-bg-hover text-text-muted";
-  }
+export const StatusBadge = ({ status }: { status: string }) => {
+  const { color, dot } = match(status)
+    .with(P.union("ready", "indexed"), () => ({
+      color: "bg-bg-hover text-text",
+      dot: "bg-text"
+    }))
+    .with(P.union("building", "indexing"), () => ({
+      color: "bg-bg-hover text-text-muted",
+      dot: "bg-text-muted animate-pulse"
+    }))
+    .otherwise(() => ({
+      color: "bg-bg-hover text-text-muted",
+      dot: "bg-text-dim"
+    }));
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium shrink-0 ${colorClasses}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium shrink-0 ${color}`}
     >
-      <span
-        className={`size-1.5 rounded-full ${
-          isReady
-            ? "bg-text"
-            : isBuilding
-              ? "bg-text-muted animate-pulse"
-              : "bg-text-dim"
-        }`}
-      />
+      <span className={`size-1.5 rounded-full ${dot}`} />
       {status}
     </span>
   );
-}
+};

@@ -299,6 +299,25 @@ async def reprocess_document(
     return {"status": "ok", "message": "Document reprocessing started"}
 
 
+@router.get("/{document_id}/chunks")
+async def get_document_chunks(
+    collection_name: str,
+    document_id: str,
+    _: dict = Depends(get_current_user),
+):
+    collection = await _get_collection(collection_name)
+    row = await db.fetchrow(
+        "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
+        uuid.UUID(document_id), collection["id"],
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    logger.info(f"chunks: doc={document_id} collection={collection_name}")
+    chunks = await vector_store.get_chunks(collection_name, document_id)
+    return {"chunks": chunks, "total": len(chunks)}
+
+
 @router.get("/{document_id}/file")
 async def download_document_file(
     collection_name: str,

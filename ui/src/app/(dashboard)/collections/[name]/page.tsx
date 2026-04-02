@@ -24,6 +24,7 @@ import {
 import { getBaseUrl, getSessionToken } from "@/lib/auth-store";
 import { collectionQueryOptions, documentsQueryOptions } from "@/lib/queries";
 import { cn, formatBytes, timeAgo } from "@/lib/utils";
+import { match, P } from "ts-pattern";
 
 // --- Upload tracker types ---
 
@@ -103,18 +104,12 @@ const UploadTracker = ({
     >
       <div className="flex items-center gap-3 px-4 py-3">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-bg-hover">
-          {upload.phase === "uploading" && (
-            <Upload className="size-4 text-accent animate-pulse" />
-          )}
-          {upload.phase === "processing" && (
-            <Loader2 className="size-4 text-warning animate-spin" />
-          )}
-          {upload.phase === "complete" && (
-            <Check className="size-4 text-success" />
-          )}
-          {upload.phase === "failed" && (
-            <XCircle className="size-4 text-danger" />
-          )}
+          {match(upload.phase)
+            .with("uploading", () => <Upload className="size-4 text-accent animate-pulse" />)
+            .with("processing", () => <Loader2 className="size-4 text-warning animate-spin" />)
+            .with("complete", () => <Check className="size-4 text-success" />)
+            .with("failed", () => <XCircle className="size-4 text-danger" />)
+            .exhaustive()}
         </div>
 
         <div className="min-w-0 flex-1">
@@ -133,29 +128,33 @@ const UploadTracker = ({
 
         <div className="flex shrink-0 items-center gap-2">
           <span className="font-mono text-xs text-text-dim">{elapsed}s</span>
-          {upload.phase !== "complete" && upload.phase !== "failed" && (
-            <span className="font-mono text-xs text-text-dim">
-              {Math.round(upload.progress * 100)}%
-            </span>
-          )}
-          {(upload.phase === "complete" || upload.phase === "failed") && (
-            <button
-              className="rounded-md p-1 text-text-dim hover:bg-bg-hover hover:text-text"
-              onClick={onDismiss}
-              type="button"
-            >
-              <XCircle className="size-3.5" />
-            </button>
-          )}
+          {match(upload.phase)
+            .with(P.union("uploading", "processing"), () => (
+              <span className="font-mono text-xs text-text-dim">
+                {Math.round(upload.progress * 100)}%
+              </span>
+            ))
+            .with(P.union("complete", "failed"), () => (
+              <button
+                className="rounded-md p-1 text-text-dim hover:bg-bg-hover hover:text-text"
+                onClick={onDismiss}
+                type="button"
+              >
+                <XCircle className="size-3.5" />
+              </button>
+            ))
+            .exhaustive()}
         </div>
       </div>
 
       {/* Progress bar */}
-      {upload.phase !== "complete" && upload.phase !== "failed" && (
-        <div className="px-4 pb-3">
-          <ProgressBar value={upload.progress} />
-        </div>
-      )}
+      {match(upload.phase)
+        .with(P.union("uploading", "processing"), () => (
+          <div className="px-4 pb-3">
+            <ProgressBar value={upload.progress} />
+          </div>
+        ))
+        .otherwise(() => null)}
     </div>
   );
 };
@@ -221,14 +220,17 @@ const CollectionDetailPage = ({
           step: event.step
         };
 
-        if (data.status === "complete") {
-          updated.phase = "complete";
-          updated.progress = 1;
-          queryClient.invalidateQueries({ queryKey: ["documents", name] });
-          queryClient.invalidateQueries({ queryKey: ["collection", name] });
-        } else if (data.status === "failed") {
-          updated.phase = "failed";
-        }
+        match(data.status)
+          .with("complete", () => {
+            updated.phase = "complete";
+            updated.progress = 1;
+            queryClient.invalidateQueries({ queryKey: ["documents", name] });
+            queryClient.invalidateQueries({ queryKey: ["collection", name] });
+          })
+          .with("failed", () => {
+            updated.phase = "failed";
+          })
+          .otherwise(() => {});
 
         next.set(docId, updated);
         return next;
@@ -567,13 +569,11 @@ const CollectionDetailPage = ({
                         STATUS_COLORS[doc.status] ?? STATUS_COLORS.pending
                       )}
                     >
-                      {doc.status === "processing" && (
-                        <Loader2 className="size-3 animate-spin" />
-                      )}
-                      {doc.status === "failed" && (
-                        <XCircle className="size-3" />
-                      )}
-                      {doc.status === "ready" && <Check className="size-3" />}
+                      {match(doc.status)
+                        .with("processing", () => <Loader2 className="size-3 animate-spin" />)
+                        .with("failed", () => <XCircle className="size-3" />)
+                        .with("ready", () => <Check className="size-3" />)
+                        .otherwise(() => null)}
                       {doc.status}
                     </span>
                     {doc.error_message && (
@@ -587,27 +587,29 @@ const CollectionDetailPage = ({
                   </td>
                   <td className="px-5 py-3.5 text-right">
                     <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      {doc.status === "ready" && (
-                        <a
-                          className="rounded-md p-1 text-text-dim hover:bg-bg-hover hover:text-text"
-                          href={getDocumentFileUrl(name, doc.id)}
-                          rel="noopener noreferrer"
-                          target="_blank"
-                          title="View file"
-                        >
-                          <ExternalLink className="size-3.5" />
-                        </a>
-                      )}
-                      {doc.status === "failed" && (
-                        <button
-                          className="rounded-md p-1 text-text-dim hover:bg-bg-hover hover:text-text"
-                          onClick={() => reprocessMutation.mutate(doc.id)}
-                          title="Reprocess"
-                          type="button"
-                        >
-                          <RefreshCw className="size-3.5" />
-                        </button>
-                      )}
+                      {match(doc.status)
+                        .with("ready", () => (
+                          <a
+                            className="rounded-md p-1 text-text-dim hover:bg-bg-hover hover:text-text"
+                            href={getDocumentFileUrl(name, doc.id)}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                            title="View file"
+                          >
+                            <ExternalLink className="size-3.5" />
+                          </a>
+                        ))
+                        .with("failed", () => (
+                          <button
+                            className="rounded-md p-1 text-text-dim hover:bg-bg-hover hover:text-text"
+                            onClick={() => reprocessMutation.mutate(doc.id)}
+                            title="Reprocess"
+                            type="button"
+                          >
+                            <RefreshCw className="size-3.5" />
+                          </button>
+                        ))
+                        .otherwise(() => null)}
                       <button
                         className="rounded-md p-1 text-text-dim hover:bg-danger/10 hover:text-danger"
                         onClick={() => {
