@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError, getMe, getSetupStatus } from "@/lib/api";
 import { clearAuth, isAuthenticated, setUser } from "@/lib/auth-store";
 
-const PUBLIC_PATHS = ["/login", "/setup", "/signup"];
+const PUBLIC_PATHS = ["/login", "/setup"];
 
 export const AuthGuard = ({
   children

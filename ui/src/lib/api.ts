@@ -319,65 +319,6 @@ export const changePassword = (body: {
     method: "PUT"
   });
 
-// Admin - Users
-
-export interface UserSummary {
-  id: string;
-  email: string;
-  display_name: string;
-  role: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export const listUsers = () =>
-  request<{ users: UserSummary[] }>("/v1/admin/users");
-
-export const deleteUser = (id: string) =>
-  request<{ status: string; message: string }>(
-    `/v1/admin/users/${encodeURIComponent(id)}`,
-    { method: "DELETE" }
-  );
-
-export const updateUserRole = (id: string, role: string) =>
-  request<{ status: string }>(
-    `/v1/admin/users/${encodeURIComponent(id)}`,
-    {
-      body: JSON.stringify({ role }),
-      method: "PATCH"
-    }
-  );
-
-// Admin - Invites
-
-export interface InviteSummary {
-  id: string;
-  code: string;
-  role: string;
-  expires_at: string;
-  created_at: string;
-  used_by: string | null;
-  created_by_email: string;
-}
-
-export const createInvite = (body: {
-  role?: string;
-  expires_in_hours?: number;
-}) =>
-  request<InviteSummary>("/v1/admin/invites", {
-    body: JSON.stringify(body),
-    method: "POST"
-  });
-
-export const listInvites = () =>
-  request<{ invites: InviteSummary[] }>("/v1/admin/invites");
-
-export const deleteInvite = (id: string) =>
-  request<{ status: string; message: string }>(
-    `/v1/admin/invites/${encodeURIComponent(id)}`,
-    { method: "DELETE" }
-  );
-
 // Admin - API Keys
 
 export interface ApiKeyPermissions {
