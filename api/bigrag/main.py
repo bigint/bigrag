@@ -59,6 +59,10 @@ async def lifespan(app: FastAPI):
     await ingestion_queue.connect(settings.redis_url)
     await ingestion_queue.start()
 
+    # Webhook dispatcher
+    from bigrag.services.webhook import webhook_dispatcher
+    await webhook_dispatcher.start()
+
     # Clean up expired sessions on startup
     from bigrag.services.auth import cleanup_expired_sessions
     cleaned = await cleanup_expired_sessions()
@@ -69,6 +73,8 @@ async def lifespan(app: FastAPI):
     yield
 
     await ingestion_queue.stop()
+    from bigrag.services.webhook import webhook_dispatcher
+    await webhook_dispatcher.stop()
     await get_storage().close()
     vector_store.close()
     await db.close()
@@ -136,6 +142,9 @@ def create_app() -> FastAPI:
     app.include_router(collections_router)
     app.include_router(documents_router)
     app.include_router(query_router)
+
+    from bigrag.routers.webhooks import router as webhooks_router
+    app.include_router(webhooks_router)
 
     return app
 

@@ -245,7 +245,8 @@ class IngestionQueue:
                 "UPDATE documents SET status = 'processing', updated_at = now() WHERE id = $1",
                 uuid.UUID(doc),
             )
-            self._emit(doc, "processing", "processing", "Preparing document", 0.05)
+            self._emit(doc, "processing", "processing", "Preparing document", 0.05,
+                       collection=job.collection_name)
 
             t0 = time.monotonic()
             embedding_model = get_embedding_model(
@@ -354,7 +355,8 @@ class IngestionQueue:
             logger.info(f"{prefix} complete chunks={total_inserted} elapsed={total_elapsed:.2f}s")
             self._emit(doc, "complete", "complete",
                        f"Done — {total_inserted} chunks in {total_elapsed:.1f}s", 1.0,
-                       chunks=total_inserted, elapsed=round(total_elapsed, 2))
+                       chunks=total_inserted, elapsed=round(total_elapsed, 2),
+                       collection=job.collection_name)
             event_bus.complete(doc)
 
         except Exception as e:
@@ -388,7 +390,8 @@ class IngestionQueue:
                     str(e), uuid.UUID(doc),
                 )
                 logger.error(f"{prefix} permanently failed: {reason}")
-                self._emit(doc, "failed", "failed", str(e), 0.0, attempts=job.attempt)
+                self._emit(doc, "failed", "failed", str(e), 0.0,
+                           attempts=job.attempt, collection=job.collection_name)
                 event_bus.complete(doc)
 
 
