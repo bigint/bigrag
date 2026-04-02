@@ -75,3 +75,11 @@ class EmbeddingModelInfo(BaseModel):
     model: str
     dimension: int
     description: str = ""
+
+
+class AnalyticsResponse(BaseModel):
+    collection: str
+    period_24h: dict
+    period_7d: dict
+    period_30d: dict
+    top_queries: list[dict]

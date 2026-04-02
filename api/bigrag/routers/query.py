@@ -10,6 +10,7 @@ logger = logging.getLogger("bigrag.routers.query")
 from bigrag.middleware.auth import get_current_user
 from bigrag.routers import get_collection_or_404
 from bigrag.models.query import (
+    AnalyticsResponse,
     EmbeddingModelInfo,
     MultiQueryRequest,
     MultiQueryResponse,
@@ -166,6 +167,63 @@ async def delete_vectors(
 
 
 # Embedding model info
+
+
+@router.get("/v1/collections/{collection_name}/analytics", response_model=AnalyticsResponse)
+async def collection_analytics(
+    collection_name: str,
+    _: dict = Depends(get_current_user),
+):
+    await _get_collection(collection_name)
+
+    from bigrag.database import db
+
+    async def get_period_stats(interval: str) -> dict:
+        row = await db.fetchrow(
+            f"""
+            SELECT
+                COUNT(*) as query_count,
+                COALESCE(AVG(latency_ms), 0) as avg_latency_ms,
+                COALESCE(AVG(avg_score), 0) as avg_score,
+                COALESCE(AVG(result_count), 0) as avg_result_count
+            FROM query_log
+            WHERE collection_name = $1 AND created_at > now() - interval '{interval}'
+            """,
+            collection_name,
+        )
+        return {
+            "query_count": row["query_count"],
+            "avg_latency_ms": round(float(row["avg_latency_ms"]), 2),
+            "avg_score": round(float(row["avg_score"]), 4),
+            "avg_result_count": round(float(row["avg_result_count"]), 1),
+        }
+
+    top_queries_rows = await db.fetch(
+        """
+        SELECT query, COUNT(*) as count
+        FROM query_log
+        WHERE collection_name = $1 AND created_at > now() - interval '7 days'
+        GROUP BY query
+        ORDER BY count DESC
+        LIMIT 10
+        """,
+        collection_name,
+    )
+
+    import asyncio
+    stats_24h, stats_7d, stats_30d = await asyncio.gather(
+        get_period_stats("24 hours"),
+        get_period_stats("7 days"),
+        get_period_stats("30 days"),
+    )
+
+    return AnalyticsResponse(
+        collection=collection_name,
+        period_24h=stats_24h,
+        period_7d=stats_7d,
+        period_30d=stats_30d,
+        top_queries=[{"query": r["query"], "count": r["count"]} for r in top_queries_rows],
+    )
 
 
 @router.get("/v1/embeddings/models")

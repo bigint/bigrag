@@ -93,6 +93,29 @@ async def rerank_results(
         await client.close()
 
 
+async def _log_query(
+    collection_name: str,
+    query: str,
+    top_k: int,
+    result_count: int,
+    avg_score: float | None,
+    latency_ms: float,
+    search_mode: str,
+) -> None:
+    """Log a query for analytics. Fire-and-forget, errors are swallowed."""
+    try:
+        from bigrag.database import db
+        await db.execute(
+            """
+            INSERT INTO query_log (collection_name, query, top_k, result_count, avg_score, latency_ms, search_mode)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            """,
+            collection_name, query[:500], top_k, result_count, avg_score, latency_ms, search_mode,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to log query: {e!r}")
+
+
 async def retrieve(
     collection_name: str,
     query: str,
@@ -108,6 +131,7 @@ async def retrieve(
 
     search_mode: "semantic" (vector only), "keyword" (text match), "hybrid" (both + RRF).
     """
+    _retrieve_start = time.monotonic()
     filter_expr = _build_filter_expr(filters) if filters else None
     query_terms = _tokenize_query(query)
 
@@ -199,6 +223,19 @@ async def retrieve(
     # Apply minimum score filter
     if min_score is not None:
         results = [r for r in results if r.get("score", 0) >= min_score]
+
+    # Log query for analytics
+    total_ms = (time.monotonic() - _retrieve_start) * 1000
+    avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else None
+    asyncio.create_task(_log_query(
+        collection_name=collection_name,
+        query=query,
+        top_k=top_k,
+        result_count=len(results),
+        avg_score=avg_score,
+        latency_ms=round(total_ms, 2),
+        search_mode=search_mode,
+    ))
 
     return results
 

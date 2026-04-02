@@ -133,6 +133,21 @@ MIGRATIONS = [
     ALTER TABLE collections ADD COLUMN IF NOT EXISTS reranking_model TEXT NOT NULL DEFAULT 'rerank-v3.5';
     ALTER TABLE collections ADD COLUMN IF NOT EXISTS reranking_api_key TEXT;
     """,
+    """
+    CREATE TABLE IF NOT EXISTS query_log (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        collection_name TEXT NOT NULL,
+        query TEXT NOT NULL,
+        top_k INT NOT NULL,
+        result_count INT NOT NULL DEFAULT 0,
+        avg_score DOUBLE PRECISION,
+        latency_ms DOUBLE PRECISION,
+        search_mode TEXT NOT NULL DEFAULT 'semantic',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS idx_query_log_collection ON query_log(collection_name);
+    CREATE INDEX IF NOT EXISTS idx_query_log_created_at ON query_log(created_at);
+    """,
 ]
 
 
