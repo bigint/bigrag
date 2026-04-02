@@ -2002,9 +2002,9 @@ bigRAG includes a web-based admin dashboard at `http://localhost:3000`.
 - **Collections** — create, view, update, and delete collections
 - **Documents** — upload, list, view status, download, and manage documents
 - **Query** — interactive search interface for testing queries
-- **Users** — manage user accounts and roles (admin only)
-- **Invites** — create and manage invite codes (admin only)
 - **API Keys** — create and manage API keys (admin only)
+- **Metrics** — Prometheus metrics dashboard
+- **Settings** — server connection and account settings
 
 The UI communicates with the bigRAG API and requires the backend to be running.
 

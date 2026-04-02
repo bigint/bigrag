@@ -20,6 +20,10 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 - **Ingestion**: Docling (PDF, DOCX, PPTX, HTML, Markdown, images)
 - **Embedding**: OpenAI and Cohere
 
+## Documentation
+
+When introducing new features or changing existing APIs, update `docs/documentation.md` to reflect the changes. Keep SDK sections, API reference, and curl examples in sync with the actual codebase.
+
 ## Development
 
 ```bash
