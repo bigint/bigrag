@@ -166,6 +166,51 @@ class VectorStore:
         await _run(self.client.delete, collection_name=col, ids=ids)
         logger.info(f"delete_by_ids: collection={col} count={len(ids)}")
 
+    async def text_search(
+        self,
+        collection: str,
+        query_terms: list[str],
+        top_k: int = 10,
+        filters: str | None = None,
+    ) -> list[dict]:
+        """Search by text content using keyword matching."""
+        col = self._col(collection)
+
+        # Build a filter that matches any of the query terms in the text field
+        term_filters = []
+        for term in query_terms:
+            escaped = term.replace("\\", "\\\\").replace('"', '\\"').replace("%", "\\%")
+            term_filters.append(f'text like "%{escaped}%"')
+
+        text_filter = " or ".join(term_filters)
+        if filters:
+            combined_filter = f"({text_filter}) and ({filters})"
+        else:
+            combined_filter = text_filter
+
+        try:
+            results = await _run(
+                self.client.query,
+                collection_name=col,
+                filter=combined_filter,
+                output_fields=["text", "document_id", "chunk_index"],
+                limit=top_k * 3,  # Fetch more to allow scoring/ranking
+            )
+        except Exception as e:
+            logger.warning(f"text_search failed: {e!r}, returning empty results")
+            return []
+
+        logger.info(f"text_search: collection={col} terms={len(query_terms)} hits={len(results)}")
+        return [
+            {
+                "id": r["id"],
+                "text": r.get("text", ""),
+                "document_id": r.get("document_id"),
+                "chunk_index": r.get("chunk_index"),
+            }
+            for r in results
+        ]
+
     async def upsert(
         self,
         collection: str,

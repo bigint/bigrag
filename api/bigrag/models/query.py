@@ -8,6 +8,7 @@ class QueryRequest(BaseModel):
     top_k: int = Field(default=10, ge=1, le=1000)
     filters: dict | None = None
     min_score: float | None = None
+    search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
 
 
 class VectorEntry(BaseModel):
@@ -47,6 +48,7 @@ class MultiQueryRequest(BaseModel):
     top_k: int = Field(default=10, ge=1, le=1000)
     filters: dict | None = None
     min_score: float | None = None
+    search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
 
 
 class MultiQueryResult(BaseModel):

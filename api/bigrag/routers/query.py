@@ -56,6 +56,7 @@ async def query_collection(
         top_k=body.top_k,
         filters=body.filters,
         min_score=body.min_score,
+        search_mode=body.search_mode,
     )
 
     logger.info(f"query: collection={collection_name} results={len(results)}")
@@ -95,6 +96,7 @@ async def multi_collection_query(
         top_k=body.top_k,
         filters=body.filters,
         min_score=body.min_score,
+        search_mode=body.search_mode,
     )
 
     logger.info(f"multi-query: collections={body.collections} results={len(results)}")

@@ -1,11 +1,57 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
+import time
 
 from bigrag.services.embedding import EmbeddingModel
 from bigrag.services.vector_store import vector_store
 
 logger = logging.getLogger("bigrag.retrieval")
+
+
+def _tokenize_query(query: str) -> list[str]:
+    """Split query into lowercase search terms, filtering short words."""
+    return [w.lower() for w in re.split(r"\s+", query.strip()) if len(w) >= 2]
+
+
+def _keyword_score(text: str, query_terms: list[str]) -> float:
+    """Simple keyword relevance score based on term frequency."""
+    text_lower = text.lower()
+    if not query_terms:
+        return 0.0
+    matches = sum(1 for term in query_terms if term in text_lower)
+    return matches / len(query_terms)
+
+
+def _reciprocal_rank_fusion(
+    ranked_lists: list[list[dict]],
+    k: int = 60,
+) -> list[dict]:
+    """Merge multiple ranked result lists using Reciprocal Rank Fusion (RRF).
+
+    RRF score = sum(1 / (k + rank)) for each list where the item appears.
+    """
+    scores: dict[str, float] = {}
+    items: dict[str, dict] = {}
+
+    for ranked_list in ranked_lists:
+        for rank, item in enumerate(ranked_list):
+            item_id = item["id"]
+            scores[item_id] = scores.get(item_id, 0.0) + 1.0 / (k + rank + 1)
+            if item_id not in items:
+                items[item_id] = item
+
+    # Sort by RRF score descending
+    sorted_ids = sorted(scores, key=lambda x: scores[x], reverse=True)
+    result = []
+    for item_id in sorted_ids:
+        item = items[item_id].copy()
+        item["score"] = round(scores[item_id], 6)
+        result.append(item)
+
+    return result
 
 
 async def retrieve(
@@ -15,36 +61,90 @@ async def retrieve(
     top_k: int = 10,
     filters: dict | None = None,
     min_score: float | None = None,
+    search_mode: str = "semantic",
 ) -> list[dict]:
-    """Embed query and search Milvus for similar chunks."""
-    import time
+    """Embed query and search Milvus for similar chunks.
 
-    # Embed the query
-    t0 = time.monotonic()
-    embeddings = await embedding_model.embed([query], input_type="query")
-    query_embedding = embeddings[0]
-    embed_ms = (time.monotonic() - t0) * 1000
-    logger.info(f"retrieve: embedded query collection={collection_name} model={embedding_model.name} {embed_ms:.0f}ms")
-
-    # Build Milvus filter expression
+    search_mode: "semantic" (vector only), "keyword" (text match), "hybrid" (both + RRF).
+    """
     filter_expr = _build_filter_expr(filters) if filters else None
+    query_terms = _tokenize_query(query)
 
-    # Search
-    t0 = time.monotonic()
-    results = await vector_store.search(
-        collection=collection_name,
-        query_embedding=query_embedding,
-        top_k=top_k,
-        filters=filter_expr,
-    )
-    search_ms = (time.monotonic() - t0) * 1000
-    logger.info(f"retrieve: searched collection={collection_name} hits={len(results)} top_k={top_k} {search_ms:.0f}ms")
+    if search_mode == "keyword":
+        # Keyword-only search
+        raw_results = await vector_store.text_search(
+            collection=collection_name,
+            query_terms=query_terms,
+            top_k=top_k,
+            filters=filter_expr,
+        )
+        # Score by keyword relevance
+        results = []
+        for r in raw_results:
+            score = _keyword_score(r.get("text", ""), query_terms)
+            if score > 0:
+                r["score"] = round(score, 4)
+                results.append(r)
+        results.sort(key=lambda r: r["score"], reverse=True)
+        results = results[:top_k]
+
+    elif search_mode == "hybrid":
+        # Run both semantic and keyword in parallel
+        t0 = time.monotonic()
+        embeddings = await embedding_model.embed([query], input_type="query")
+        query_embedding = embeddings[0]
+        embed_ms = (time.monotonic() - t0) * 1000
+        logger.info(f"retrieve: embedded query collection={collection_name} {embed_ms:.0f}ms")
+
+        semantic_task = vector_store.search(
+            collection=collection_name,
+            query_embedding=query_embedding,
+            top_k=top_k,
+            filters=filter_expr,
+        )
+        keyword_task = vector_store.text_search(
+            collection=collection_name,
+            query_terms=query_terms,
+            top_k=top_k,
+            filters=filter_expr,
+        )
+
+        semantic_results, keyword_raw = await asyncio.gather(semantic_task, keyword_task)
+
+        # Score keyword results
+        keyword_results = []
+        for r in keyword_raw:
+            score = _keyword_score(r.get("text", ""), query_terms)
+            if score > 0:
+                r["score"] = round(score, 4)
+                keyword_results.append(r)
+        keyword_results.sort(key=lambda r: r["score"], reverse=True)
+
+        # Merge using RRF
+        results = _reciprocal_rank_fusion([semantic_results, keyword_results])
+        results = results[:top_k]
+
+    else:
+        # Default: semantic search (existing behavior)
+        t0 = time.monotonic()
+        embeddings = await embedding_model.embed([query], input_type="query")
+        query_embedding = embeddings[0]
+        embed_ms = (time.monotonic() - t0) * 1000
+        logger.info(f"retrieve: embedded query collection={collection_name} model={embedding_model.name} {embed_ms:.0f}ms")
+
+        t0 = time.monotonic()
+        results = await vector_store.search(
+            collection=collection_name,
+            query_embedding=query_embedding,
+            top_k=top_k,
+            filters=filter_expr,
+        )
+        search_ms = (time.monotonic() - t0) * 1000
+        logger.info(f"retrieve: searched collection={collection_name} hits={len(results)} top_k={top_k} {search_ms:.0f}ms")
 
     # Apply minimum score filter
     if min_score is not None:
-        before = len(results)
-        results = [r for r in results if r["score"] >= min_score]
-        logger.info(f"retrieve: score filter min={min_score} before={before} after={len(results)}")
+        results = [r for r in results if r.get("score", 0) >= min_score]
 
     return results
 
@@ -56,42 +156,19 @@ async def retrieve_multi(
     top_k: int = 10,
     filters: dict | None = None,
     min_score: float | None = None,
+    search_mode: str = "semantic",
 ) -> list[dict]:
     """Query multiple collections in parallel and merge results by score."""
-    import asyncio
 
-    filter_expr = _build_filter_expr(filters) if filters else None
-
-    # Group collections by their embedding model to embed once per unique model
-    unique_models: dict[str, EmbeddingModel] = {}
-    for col_name, model in embedding_models.items():
-        key = f"{model.provider}:{model.name}"
-        if key not in unique_models:
-            unique_models[key] = model
-
-    # Embed query once per unique model
-    embed_tasks = []
-    embed_keys = []
-    for key, model in unique_models.items():
-        embed_keys.append(key)
-        embed_tasks.append(model.embed([query], input_type="query"))
-
-    embed_results = await asyncio.gather(*embed_tasks)
-    model_embeddings: dict[str, list[float]] = {}
-    for key, result in zip(embed_keys, embed_results):
-        model_embeddings[key] = result[0]
-
-    # Search all collections in parallel
     async def search_one(col_name: str) -> list[dict]:
-        model = embedding_models[col_name]
-        key = f"{model.provider}:{model.name}"
-        query_embedding = model_embeddings[key]
-
-        results = await vector_store.search(
-            collection=col_name,
-            query_embedding=query_embedding,
+        results = await retrieve(
+            collection_name=col_name,
+            query=query,
+            embedding_model=embedding_models[col_name],
             top_k=top_k,
-            filters=filter_expr,
+            filters=filters,
+            min_score=min_score,
+            search_mode=search_mode,
         )
         for r in results:
             r["collection"] = col_name
@@ -99,22 +176,13 @@ async def retrieve_multi(
 
     all_results = await asyncio.gather(*[search_one(c) for c in collection_names])
 
-    # Merge and sort by score descending
     merged = []
     for results in all_results:
         merged.extend(results)
 
-    merged.sort(key=lambda r: r["score"], reverse=True)
-
-    # Apply min_score filter
-    if min_score is not None:
-        merged = [r for r in merged if r["score"] >= min_score]
-
-    # Return top_k across all collections
+    merged.sort(key=lambda r: r.get("score", 0), reverse=True)
     return merged[:top_k]
 
-
-import re
 
 _SAFE_FIELD_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 _ALLOWED_FIELDS = {"document_id", "chunk_index", "text"}
