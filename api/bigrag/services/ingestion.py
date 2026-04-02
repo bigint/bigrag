@@ -1,10 +1,7 @@
-"""Text chunking utilities for document ingestion."""
-
 from __future__ import annotations
 
 
 def _chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
-    """Split text into chunks on paragraph/sentence boundaries with overlap."""
     if not text.strip():
         return []
 
@@ -27,7 +24,6 @@ def _chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
                     else:
                         if current_chunk:
                             chunks.append(current_chunk.strip())
-                        # Split sentence further if it exceeds chunk_size
                         if len(sentence) > chunk_size:
                             for pos in range(0, len(sentence), chunk_size):
                                 part = sentence[pos:pos + chunk_size]
@@ -47,7 +43,6 @@ def _chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
         overlapped: list[str] = [chunks[0]]
         for i in range(1, len(chunks)):
             tail = chunks[i - 1][-chunk_overlap:]
-            # Align to word boundary to avoid cutting mid-word
             space_idx = tail.find(" ")
             if space_idx != -1:
                 tail = tail[space_idx + 1:]
