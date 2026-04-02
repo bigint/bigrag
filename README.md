@@ -15,7 +15,7 @@
 
 - **End-to-end RAG pipeline** — upload documents, auto-chunk, embed, search
 - **Any document format** — PDF, DOCX, PPTX, HTML, Markdown, images, and more via [Docling](https://github.com/DS4SD/docling)
-- **Any embedding model** — sentence-transformers (local), OpenAI, Ollama, or any OpenAI-compatible API
+- **Any embedding model** — OpenAI and Cohere
 - **Milvus vector database** — production-grade vector search with hybrid capabilities
 - **Admin web UI** — manage collections, upload documents, query, and administer users
 - **Self-hostable** — Docker Compose, no external dependencies
@@ -86,7 +86,8 @@ client = httpx.Client(base_url="http://localhost:8080")
 client.post("/v1/collections", json={
     "name": "research",
     "description": "Research papers",
-    "embedding_model": "all-MiniLM-L6-v2"
+    "embedding_provider": "openai",
+    "embedding_model": "text-embedding-3-small"
 })
 
 # Upload a document
@@ -152,15 +153,14 @@ Full interactive API docs available at `/docs` (Swagger) when running.
 
 ## Embedding Models
 
-| Provider             | Model                      | Dimensions | Notes                        |
-| -------------------- | -------------------------- | ---------- | ---------------------------- |
-| sentence-transformers | all-MiniLM-L6-v2 (default) | 384        | Fast, lightweight            |
-| sentence-transformers | all-mpnet-base-v2          | 768        | Higher quality               |
-| sentence-transformers | multilingual-e5-large      | 1024       | 100+ languages               |
-| openai               | text-embedding-3-small     | 1536       | Requires API key             |
-| openai               | text-embedding-3-large     | 3072       | Best quality (OpenAI)        |
-| ollama               | nomic-embed-text           | 768        | Local via Ollama             |
-| custom               | Any                        | Any        | OpenAI-compatible endpoint   |
+| Provider | Model                          | Dimensions | Notes                            |
+| -------- | ------------------------------ | ---------- | -------------------------------- |
+| openai   | text-embedding-3-small (default) | 1536     | OpenAI small model               |
+| openai   | text-embedding-3-large         | 3072       | OpenAI large model               |
+| cohere   | embed-english-v3.0             | 1024       | Cohere English model             |
+| cohere   | embed-multilingual-v3.0        | 1024       | Cohere multilingual (100+ langs) |
+| cohere   | embed-english-light-v3.0       | 384        | Cohere lightweight English       |
+| cohere   | embed-multilingual-light-v3.0  | 384        | Cohere lightweight multilingual  |
 
 Configure per collection or set defaults in `bigrag.toml`.
 
@@ -178,9 +178,9 @@ url = "postgres://bigrag:bigrag@localhost:5432/bigrag"
 uri = "http://localhost:19530"
 
 [embedding]
-provider = "sentence-transformers"
-model = "all-MiniLM-L6-v2"
-dimension = 384
+provider = "openai"
+model = "text-embedding-3-small"
+dimension = 1536
 
 [ingestion]
 chunk_size = 512
@@ -200,8 +200,8 @@ All config options use the `BIGRAG_` prefix:
 | `BIGRAG_PORT`             | Server port                        | `8080`                   |
 | `BIGRAG_MASTER_KEY`       | Admin master key                   | —                        |
 | `BIGRAG_API_KEYS`         | Comma-separated API keys           | —                        |
-| `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider       | `sentence-transformers`  |
-| `BIGRAG_EMBEDDING_MODEL`  | Default embedding model            | `all-MiniLM-L6-v2`      |
+| `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider       | `openai`                 |
+| `BIGRAG_EMBEDDING_MODEL`  | Default embedding model            | `text-embedding-3-small` |
 | `BIGRAG_EMBEDDING_API_KEY`| API key for OpenAI/Cohere          | —                        |
 | `BIGRAG_LOG_LEVEL`        | Log level                          | `info`                   |
 
@@ -218,8 +218,8 @@ All config options use the `BIGRAG_` prefix:
 │                                                        │
 │  ┌─────────┐  ┌──────────────┐  ┌──────────────────┐  │
 │  │Postgres │  │   Docling    │  │  Embedding Model │  │
-│  │(auth +  │  │ (document    │  │ (sentence-xfmr,  │  │
-│  │metadata)│  │  converter)  │  │  OpenAI, Ollama) │  │
+│  │(auth +  │  │ (document    │  │  (OpenAI,        │  │
+│  │metadata)│  │  converter)  │  │   Cohere)        │  │
 │  └─────────┘  └──────────────┘  └──────────────────┘  │
 │                                                        │
 │  ┌──────────────────────────────────────────────────┐  │

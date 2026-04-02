@@ -72,7 +72,7 @@ bigRAG is an open-source, self-hostable RAG (Retrieval-Augmented Generation) pla
 
 - **End-to-end RAG pipeline** — upload documents, auto-chunk, embed, and search in one platform
 - **Any document format** — PDF, DOCX, PPTX, HTML, Markdown, images (with OCR), and more via [Docling](https://github.com/DS4SD/docling)
-- **Any embedding model** — sentence-transformers (local), OpenAI, Ollama, Cohere, or any OpenAI-compatible API
+- **Any embedding model** — OpenAI and Cohere
 - **Milvus vector database** — production-grade vector search with hybrid capabilities
 - **Admin web UI** — manage collections, upload documents, query, and administer users
 - **Self-hostable** — Docker Compose, no external dependencies
@@ -94,8 +94,8 @@ bigRAG is an open-source, self-hostable RAG (Retrieval-Augmented Generation) pla
 │                                                            │
 │  ┌──────────┐  ┌───────────────┐  ┌───────────────────┐   │
 │  │ Postgres │  │    Docling    │  │  Embedding Model  │   │
-│  │ (auth +  │  │  (document    │  │ (sentence-xfmr,   │   │
-│  │ metadata)│  │   converter)  │  │  OpenAI, Ollama)  │   │
+│  │ (auth +  │  │  (document    │  │ (OpenAI,           │   │
+│  │ metadata)│  │   converter)  │  │  Cohere)           │   │
 │  └──────────┘  └───────────────┘  └───────────────────┘   │
 │                                                            │
 │  ┌──────────┐  ┌───────────────────────────────────────┐  │
@@ -333,11 +333,10 @@ jwt_secret = ""             # JWT secret for token signing
 session_expiry_hours = 168  # Session lifetime (7 days)
 
 [embedding]
-provider = "sentence-transformers"
-model = "all-MiniLM-L6-v2"
-dimension = 384
+provider = "openai"
+model = "text-embedding-3-small"
+dimension = 1536
 api_key = ""                # For OpenAI/Cohere providers
-base_url = ""               # For Ollama/custom providers
 
 [ingestion]
 workers = 4
@@ -385,11 +384,10 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | `BIGRAG_JWT_SECRET` | JWT secret for signing | — |
 | `BIGRAG_SESSION_EXPIRY_HOURS` | Session token lifetime | `168` |
 | **Embedding** | | |
-| `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider | `sentence-transformers` |
-| `BIGRAG_EMBEDDING_MODEL` | Default embedding model | `all-MiniLM-L6-v2` |
-| `BIGRAG_EMBEDDING_DIMENSION` | Default embedding dimension | `384` |
+| `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider | `openai` |
+| `BIGRAG_EMBEDDING_MODEL` | Default embedding model | `text-embedding-3-small` |
+| `BIGRAG_EMBEDDING_DIMENSION` | Default embedding dimension | `1536` |
 | `BIGRAG_EMBEDDING_API_KEY` | API key for OpenAI/Cohere | — |
-| `BIGRAG_EMBEDDING_BASE_URL` | Base URL for Ollama/custom | — |
 | **Ingestion** | | |
 | `BIGRAG_CHUNK_SIZE` | Default chunk size (tokens) | `512` |
 | `BIGRAG_CHUNK_OVERLAP` | Default chunk overlap (tokens) | `50` |
@@ -651,9 +649,9 @@ List all collections.
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "research_papers",
       "description": "Academic research papers",
-      "embedding_provider": "sentence-transformers",
-      "embedding_model": "all-MiniLM-L6-v2",
-      "dimension": 384,
+      "embedding_provider": "openai",
+      "embedding_model": "text-embedding-3-small",
+      "dimension": 1536,
       "chunk_size": 512,
       "chunk_overlap": 50,
       "document_count": 15,
@@ -676,9 +674,9 @@ Create a new collection.
 {
   "name": "research_papers",
   "description": "Academic research papers",
-  "embedding_provider": "sentence-transformers",
-  "embedding_model": "all-MiniLM-L6-v2",
-  "dimension": 384,
+  "embedding_provider": "openai",
+  "embedding_model": "text-embedding-3-small",
+  "dimension": 1536,
   "chunk_size": 512,
   "chunk_overlap": 50,
   "metadata": {
@@ -691,10 +689,9 @@ Create a new collection.
 |-------|------|----------|---------|-------------|
 | `name` | string | yes | — | 1-128 chars, must match `[a-zA-Z][a-zA-Z0-9_]*` |
 | `description` | string | no | `""` | — |
-| `embedding_provider` | string | no | Server default | `sentence-transformers`, `openai`, `ollama`, `cohere`, `custom` |
+| `embedding_provider` | string | no | Server default | `openai`, `cohere` |
 | `embedding_model` | string | no | Server default | Model name for the provider |
-| `embedding_api_key` | string | no | — | Required for `openai`, `cohere`, `custom` |
-| `embedding_base_url` | string | no | — | Required for `ollama`, `custom` |
+| `embedding_api_key` | string | no | — | Required for `openai`, `cohere` |
 | `dimension` | integer | no | Server default | Embedding vector dimension |
 | `chunk_size` | integer | no | `512` | 64–10,000 |
 | `chunk_overlap` | integer | no | `50` | 0–5,000 (must be < `chunk_size`) |
@@ -1125,24 +1122,6 @@ List all available embedding models and providers.
 {
   "models": [
     {
-      "provider": "sentence-transformers",
-      "model": "all-MiniLM-L6-v2",
-      "dimension": 384,
-      "description": "Fast, lightweight English model"
-    },
-    {
-      "provider": "sentence-transformers",
-      "model": "all-mpnet-base-v2",
-      "dimension": 768,
-      "description": "Higher quality English model"
-    },
-    {
-      "provider": "sentence-transformers",
-      "model": "multilingual-e5-large",
-      "dimension": 1024,
-      "description": "Multilingual model supporting 100+ languages"
-    },
-    {
       "provider": "openai",
       "model": "text-embedding-3-small",
       "dimension": 1536,
@@ -1155,10 +1134,28 @@ List all available embedding models and providers.
       "description": "OpenAI large embedding model"
     },
     {
-      "provider": "ollama",
-      "model": "nomic-embed-text",
-      "dimension": 768,
-      "description": "Local embedding via Ollama"
+      "provider": "cohere",
+      "model": "embed-english-v3.0",
+      "dimension": 1024,
+      "description": "Cohere English embedding model"
+    },
+    {
+      "provider": "cohere",
+      "model": "embed-multilingual-v3.0",
+      "dimension": 1024,
+      "description": "Cohere multilingual embedding model"
+    },
+    {
+      "provider": "cohere",
+      "model": "embed-english-light-v3.0",
+      "dimension": 384,
+      "description": "Cohere lightweight English model"
+    },
+    {
+      "provider": "cohere",
+      "model": "embed-multilingual-light-v3.0",
+      "dimension": 384,
+      "description": "Cohere lightweight multilingual model"
     }
   ]
 }
@@ -1450,15 +1447,12 @@ bigRAG supports multiple embedding providers. Each collection can use a differen
 
 | Provider | Model | Dimensions | Notes |
 |----------|-------|------------|-------|
-| **sentence-transformers** | `all-MiniLM-L6-v2` (default) | 384 | Fast, lightweight, local |
-| **sentence-transformers** | `all-mpnet-base-v2` | 768 | Higher quality, local |
-| **sentence-transformers** | `multilingual-e5-large` | 1024 | 100+ languages, local |
-| **openai** | `text-embedding-3-small` | 1536 | Requires `BIGRAG_EMBEDDING_API_KEY` |
+| **openai** | `text-embedding-3-small` (default) | 1536 | Requires `BIGRAG_EMBEDDING_API_KEY` |
 | **openai** | `text-embedding-3-large` | 3072 | Best quality (OpenAI) |
-| **ollama** | `nomic-embed-text` | 768 | Local via Ollama, requires `BIGRAG_EMBEDDING_BASE_URL` |
-| **cohere** | `embed-english-v3.0` | 1024 | Requires API key |
-| **cohere** | `embed-english-light-v3.0` | 384 | Lighter Cohere model |
-| **custom** | Any | Any | Any OpenAI-compatible endpoint |
+| **cohere** | `embed-english-v3.0` | 1024 | Requires `BIGRAG_EMBEDDING_API_KEY` |
+| **cohere** | `embed-multilingual-v3.0` | 1024 | Multilingual support |
+| **cohere** | `embed-english-light-v3.0` | 384 | Lightweight English model |
+| **cohere** | `embed-multilingual-light-v3.0` | 384 | Lightweight multilingual model |
 
 **Setting per collection:**
 
@@ -1468,9 +1462,9 @@ curl -X POST http://localhost:8080/v1/collections \
   -H "Content-Type: application/json" \
   -d '{
     "name": "multilingual_docs",
-    "embedding_provider": "sentence-transformers",
-    "embedding_model": "multilingual-e5-large",
-    "dimension": 1024
+    "embedding_provider": "openai",
+    "embedding_model": "text-embedding-3-small",
+    "dimension": 1536
   }'
 ```
 
@@ -1489,34 +1483,18 @@ curl -X POST http://localhost:8080/v1/collections \
   }'
 ```
 
-**Using Ollama (local):**
+**Using Cohere embeddings:**
 
 ```bash
 curl -X POST http://localhost:8080/v1/collections \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "ollama_collection",
-    "embedding_provider": "ollama",
-    "embedding_model": "nomic-embed-text",
-    "embedding_base_url": "http://localhost:11434",
-    "dimension": 768
-  }'
-```
-
-**Using a custom OpenAI-compatible endpoint:**
-
-```bash
-curl -X POST http://localhost:8080/v1/collections \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "custom_collection",
-    "embedding_provider": "custom",
-    "embedding_model": "my-model",
-    "embedding_api_key": "my-key",
-    "embedding_base_url": "https://my-api.example.com/v1",
-    "dimension": 768
+    "name": "cohere_collection",
+    "embedding_provider": "cohere",
+    "embedding_model": "embed-english-v3.0",
+    "embedding_api_key": "your-cohere-api-key",
+    "dimension": 1024
   }'
 ```
 
@@ -1679,7 +1657,7 @@ client = BigRAG(api_key="your-api-key", base_url="http://localhost:8080")
 collection = client.create_collection(
     name="research",
     description="Research papers",
-    embedding_model="all-MiniLM-L6-v2"
+    embedding_model="text-embedding-3-small"
 )
 
 # Upload a document
@@ -2160,8 +2138,8 @@ services:
       BIGRAG_MASTER_KEY: your-secret-master-key
       BIGRAG_LOG_LEVEL: info
       BIGRAG_LOG_FORMAT: json
-      BIGRAG_EMBEDDING_PROVIDER: sentence-transformers
-      BIGRAG_EMBEDDING_MODEL: all-MiniLM-L6-v2
+      BIGRAG_EMBEDDING_PROVIDER: openai
+      BIGRAG_EMBEDDING_MODEL: text-embedding-3-small
     depends_on:
       - postgres
       - milvus
@@ -2263,8 +2241,7 @@ The database may not be initialized. Ensure `BIGRAG_DATABASE_URL` is set and Pos
 
 **Slow embedding performance**
 
-- For local models (`sentence-transformers`), ensure your machine has adequate CPU/RAM
-- Consider using `openai` or `ollama` with GPU support for faster embedding
+- Ensure your `BIGRAG_EMBEDDING_API_KEY` is set for OpenAI or Cohere providers
 - Increase `BIGRAG_INGESTION_BATCH_SIZE` for better throughput
 
 ### Logs

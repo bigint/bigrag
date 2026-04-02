@@ -13,12 +13,12 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 
 ## Tech Stack
 
-- **Backend**: Python 3.12+, FastAPI, asyncpg, pymilvus, docling, sentence-transformers
+- **Backend**: Python 3.12+, FastAPI, asyncpg, pymilvus, docling, openai, cohere
 - **Vector DB**: Milvus (via Docker)
 - **Metadata DB**: PostgreSQL 17
 - **Frontend**: Next.js 16, React 19, TypeScript 6, Tailwind CSS 4, TanStack Query v5
 - **Ingestion**: Docling (PDF, DOCX, PPTX, HTML, Markdown, images)
-- **Embedding**: Pluggable (sentence-transformers, OpenAI, Ollama, custom)
+- **Embedding**: OpenAI and Cohere
 
 ## Development
 

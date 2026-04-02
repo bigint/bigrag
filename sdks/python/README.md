@@ -64,8 +64,8 @@ collections = client.list_collections()
 # Create with custom embedding model
 client.create_collection(
     "multilingual",
-    embedding_provider="sentence-transformers",
-    embedding_model="multilingual-e5-large",
+    embedding_provider="cohere",
+    embedding_model="embed-multilingual-v3.0",
     dimension=1024,
     chunk_size=1024,
 )

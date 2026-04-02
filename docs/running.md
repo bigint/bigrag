@@ -55,8 +55,8 @@ bigRAG reads from `bigrag.toml` or environment variables:
 | `BIGRAG_HOST` | Bind address | `0.0.0.0` |
 | `BIGRAG_MASTER_KEY` | Master key, bypasses all auth | - |
 | `BIGRAG_API_KEYS` | Comma-separated static API keys | - |
-| `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider | `sentence-transformers` |
-| `BIGRAG_EMBEDDING_MODEL` | Default embedding model | `all-MiniLM-L6-v2` |
+| `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider | `openai` |
+| `BIGRAG_EMBEDDING_MODEL` | Default embedding model | `text-embedding-3-small` |
 | `BIGRAG_EMBEDDING_API_KEY` | API key for OpenAI/Cohere embeddings | - |
 | `BIGRAG_LOG_LEVEL` | `debug`, `info`, `warning`, `error` | `info` |
 | `BIGRAG_UPLOAD_DIR` | Directory for uploaded documents | `./data/uploads` |
