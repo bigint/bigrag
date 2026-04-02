@@ -13,6 +13,8 @@ const QueryPage = () => {
   const [query, setQuery] = useState("");
   const [topK, setTopK] = useState(10);
   const [minScore, setMinScore] = useState(0);
+  const [searchMode, setSearchMode] = useState<"semantic" | "keyword" | "hybrid">("semantic");
+  const [rerank, setRerank] = useState(false);
   const [results, setResults] = useState<QueryResponse | null>(null);
 
   const queryMutation = useMutation({
@@ -20,7 +22,9 @@ const QueryPage = () => {
       getClient().query(selectedCollection, {
         query,
         top_k: topK,
-        ...(minScore > 0 ? { min_score: minScore / 100 } : {})
+        search_mode: searchMode,
+        ...(minScore > 0 ? { min_score: minScore / 100 } : {}),
+        ...(rerank ? { rerank: true } : {})
       }),
     onSuccess: setResults
   });
@@ -78,6 +82,30 @@ const QueryPage = () => {
               value={minScore}
             />
             <span className="text-xs text-text-dim">%</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-text-muted" htmlFor="search-mode">Mode:</label>
+            <select
+              className="rounded-md border border-border bg-bg-input px-3 py-2 text-sm text-text focus:border-border-hover focus:outline-none"
+              id="search-mode"
+              onChange={(e) => setSearchMode(e.target.value as "semantic" | "keyword" | "hybrid")}
+              value={searchMode}
+            >
+              <option value="semantic">Semantic</option>
+              <option value="keyword">Keyword</option>
+              <option value="hybrid">Hybrid</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              checked={rerank}
+              id="rerank"
+              onChange={(e) => setRerank(e.target.checked)}
+              type="checkbox"
+            />
+            <label className="text-sm text-text-muted" htmlFor="rerank">
+              Rerank
+            </label>
           </div>
         </div>
 
