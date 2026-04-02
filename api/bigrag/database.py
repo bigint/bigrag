@@ -128,6 +128,11 @@ MIGRATIONS = [
     CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook_id ON webhook_deliveries(webhook_id);
     CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries(status);
     """,
+    """
+    ALTER TABLE collections ADD COLUMN IF NOT EXISTS reranking_enabled BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE collections ADD COLUMN IF NOT EXISTS reranking_model TEXT NOT NULL DEFAULT 'rerank-v3.5';
+    ALTER TABLE collections ADD COLUMN IF NOT EXISTS reranking_api_key TEXT;
+    """,
 ]
 
 

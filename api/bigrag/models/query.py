@@ -9,6 +9,7 @@ class QueryRequest(BaseModel):
     filters: dict | None = None
     min_score: float | None = None
     search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
+    rerank: bool | None = None  # Override collection's reranking_enabled
 
 
 class VectorEntry(BaseModel):
@@ -49,6 +50,7 @@ class MultiQueryRequest(BaseModel):
     filters: dict | None = None
     min_score: float | None = None
     search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
+    rerank: bool | None = None  # Override collection's reranking_enabled
 
 
 class MultiQueryResult(BaseModel):

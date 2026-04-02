@@ -49,6 +49,12 @@ async def query_collection(
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    reranking_config = {
+        "enabled": collection.get("reranking_enabled", False),
+        "model": collection.get("reranking_model", "rerank-v3.5"),
+        "api_key": collection.get("reranking_api_key") or settings.embedding_api_key,
+    }
+
     results = await retrieve(
         collection_name=collection_name,
         query=body.query,
@@ -57,6 +63,8 @@ async def query_collection(
         filters=body.filters,
         min_score=body.min_score,
         search_mode=body.search_mode,
+        reranking_config=reranking_config,
+        rerank_override=body.rerank,
     )
 
     logger.info(f"query: collection={collection_name} results={len(results)}")
@@ -77,6 +85,7 @@ async def multi_collection_query(
 
     # Load all collections and their embedding models
     embedding_models = {}
+    reranking_configs = {}
     for col_name in body.collections:
         collection = await _get_collection(col_name)
         try:
@@ -88,6 +97,11 @@ async def multi_collection_query(
             )
         except (ImportError, ValueError) as e:
             raise HTTPException(status_code=400, detail=f"Collection '{col_name}': {e}")
+        reranking_configs[col_name] = {
+            "enabled": collection.get("reranking_enabled", False),
+            "model": collection.get("reranking_model", "rerank-v3.5"),
+            "api_key": collection.get("reranking_api_key") or settings.embedding_api_key,
+        }
 
     results = await retrieve_multi(
         collection_names=body.collections,
@@ -97,6 +111,8 @@ async def multi_collection_query(
         filters=body.filters,
         min_score=body.min_score,
         search_mode=body.search_mode,
+        reranking_configs=reranking_configs,
+        rerank_override=body.rerank,
     )
 
     logger.info(f"multi-query: collections={body.collections} results={len(results)}")

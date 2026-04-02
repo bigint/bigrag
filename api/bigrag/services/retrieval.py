@@ -54,6 +54,45 @@ def _reciprocal_rank_fusion(
     return result
 
 
+async def rerank_results(
+    results: list[dict],
+    query: str,
+    model: str = "rerank-v3.5",
+    api_key: str | None = None,
+) -> list[dict]:
+    """Rerank results using Cohere Rerank API."""
+    if not results:
+        return results
+
+    try:
+        import cohere
+    except ImportError:
+        logger.warning("cohere package not installed, skipping reranking")
+        return results
+
+    client = cohere.AsyncClient(api_key=api_key)
+    try:
+        texts = [r.get("text", "") for r in results]
+        response = await client.rerank(
+            query=query,
+            documents=texts,
+            model=model,
+            top_n=len(results),
+        )
+
+        reranked = []
+        for item in response.results:
+            result = results[item.index].copy()
+            result["score"] = round(item.relevance_score, 6)
+            reranked.append(result)
+        return reranked
+    except Exception as e:
+        logger.error(f"Reranking failed: {e!r}, returning original results")
+        return results
+    finally:
+        await client.close()
+
+
 async def retrieve(
     collection_name: str,
     query: str,
@@ -62,6 +101,8 @@ async def retrieve(
     filters: dict | None = None,
     min_score: float | None = None,
     search_mode: str = "semantic",
+    reranking_config: dict | None = None,
+    rerank_override: bool | None = None,
 ) -> list[dict]:
     """Embed query and search Milvus for similar chunks.
 
@@ -142,6 +183,19 @@ async def retrieve(
         search_ms = (time.monotonic() - t0) * 1000
         logger.info(f"retrieve: searched collection={collection_name} hits={len(results)} top_k={top_k} {search_ms:.0f}ms")
 
+    # Apply reranking if configured
+    if reranking_config and results:
+        should_rerank = reranking_config.get("enabled", False)
+        if rerank_override is not None:
+            should_rerank = rerank_override
+        if should_rerank:
+            results = await rerank_results(
+                results=results,
+                query=query,
+                model=reranking_config.get("model", "rerank-v3.5"),
+                api_key=reranking_config.get("api_key"),
+            )
+
     # Apply minimum score filter
     if min_score is not None:
         results = [r for r in results if r.get("score", 0) >= min_score]
@@ -157,10 +211,13 @@ async def retrieve_multi(
     filters: dict | None = None,
     min_score: float | None = None,
     search_mode: str = "semantic",
+    reranking_configs: dict[str, dict] | None = None,
+    rerank_override: bool | None = None,
 ) -> list[dict]:
     """Query multiple collections in parallel and merge results by score."""
 
     async def search_one(col_name: str) -> list[dict]:
+        col_reranking = (reranking_configs or {}).get(col_name)
         results = await retrieve(
             collection_name=col_name,
             query=query,
@@ -169,6 +226,8 @@ async def retrieve_multi(
             filters=filters,
             min_score=min_score,
             search_mode=search_mode,
+            reranking_config=col_reranking,
+            rerank_override=rerank_override,
         )
         for r in results:
             r["collection"] = col_name

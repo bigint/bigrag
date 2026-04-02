@@ -26,6 +26,7 @@ def _row_to_response(row: dict) -> CollectionResponse:
     data = {k: str(v) if isinstance(v, UUID) else v for k, v in row.items()}
     data["has_api_key"] = bool(data.pop("embedding_api_key", None))
     data.pop("embedding_base_url", None)
+    data["has_reranking_api_key"] = bool(data.pop("reranking_api_key", None))
     return CollectionResponse(**data)
 
 
@@ -84,14 +85,17 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             """
             INSERT INTO collections (name, description, embedding_provider, embedding_model,
                                       dimension, chunk_size, chunk_overlap, metadata,
-                                      embedding_api_key, embedding_base_url)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                                      embedding_api_key, embedding_base_url,
+                                      reranking_enabled, reranking_model, reranking_api_key)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING *
             """,
             body.name, body.description, provider, model,
             dimension, body.chunk_size, body.chunk_overlap, body.metadata,
             encrypt(body.embedding_api_key) if body.embedding_api_key else None,
             None,
+            body.reranking_enabled, body.reranking_model,
+            encrypt(body.reranking_api_key) if body.reranking_api_key else None,
         )
     except asyncpg.UniqueViolationError:
         raise HTTPException(status_code=409, detail="Collection already exists")
@@ -133,6 +137,18 @@ async def update_collection(
     if body.metadata is not None:
         updates.append(f"metadata = ${idx}")
         params.append(body.metadata)
+        idx += 1
+    if body.reranking_enabled is not None:
+        updates.append(f"reranking_enabled = ${idx}")
+        params.append(body.reranking_enabled)
+        idx += 1
+    if body.reranking_model is not None:
+        updates.append(f"reranking_model = ${idx}")
+        params.append(body.reranking_model)
+        idx += 1
+    if body.reranking_api_key is not None:
+        updates.append(f"reranking_api_key = ${idx}")
+        params.append(encrypt(body.reranking_api_key))
         idx += 1
 
     if not updates:
