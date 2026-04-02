@@ -13,6 +13,8 @@ import type {
   CreateApiKeyBody,
   CreateApiKeyResponse,
   CreateCollectionBody,
+  CreateWebhookBody,
+  CreateWebhookResponse,
   DeleteResponse,
   Document,
   DocumentChunkListResponse,
@@ -30,8 +32,13 @@ import type {
   SetupStatusResponse,
   StatusResponse,
   UpdateCollectionBody,
+  UpdateWebhookBody,
   UpsertResponse,
   VectorEntry,
+  Webhook,
+  WebhookDeliveryListResponse,
+  WebhookListResponse,
+  WebhookTestResponse,
 } from "./types.js";
 
 const DEFAULT_BASE_URL = "http://localhost:8080";
@@ -512,6 +519,59 @@ export class BigRAG {
     return this._request(
       "DELETE",
       `/v1/admin/api-keys/${encodeURIComponent(id)}`,
+    );
+  }
+
+  // ---- Webhooks ----
+
+  createWebhook(body: CreateWebhookBody): Promise<CreateWebhookResponse> {
+    return this._request("POST", "/v1/admin/webhooks", { json: body });
+  }
+
+  listWebhooks(): Promise<WebhookListResponse> {
+    return this._request("GET", "/v1/admin/webhooks");
+  }
+
+  getWebhook(id: string): Promise<Webhook> {
+    return this._request(
+      "GET",
+      `/v1/admin/webhooks/${encodeURIComponent(id)}`,
+    );
+  }
+
+  updateWebhook(id: string, body: UpdateWebhookBody): Promise<Webhook> {
+    return this._request(
+      "PUT",
+      `/v1/admin/webhooks/${encodeURIComponent(id)}`,
+      { json: body },
+    );
+  }
+
+  deleteWebhook(id: string): Promise<StatusResponse> {
+    return this._request(
+      "DELETE",
+      `/v1/admin/webhooks/${encodeURIComponent(id)}`,
+    );
+  }
+
+  listWebhookDeliveries(
+    id: string,
+    options?: { limit?: number; offset?: number },
+  ): Promise<WebhookDeliveryListResponse> {
+    const params: Record<string, string> = {};
+    if (options?.limit !== undefined) params.limit = String(options.limit);
+    if (options?.offset !== undefined) params.offset = String(options.offset);
+    return this._request(
+      "GET",
+      `/v1/admin/webhooks/${encodeURIComponent(id)}/deliveries`,
+      { params },
+    );
+  }
+
+  testWebhook(id: string): Promise<WebhookTestResponse> {
+    return this._request(
+      "POST",
+      `/v1/admin/webhooks/${encodeURIComponent(id)}/test`,
     );
   }
 }
