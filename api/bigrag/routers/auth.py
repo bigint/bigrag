@@ -100,7 +100,10 @@ async def logout_route(request: Request, user: dict = Depends(get_current_user))
     auth_header = request.headers.get("authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
+        token_hash = auth_service.hash_token(token)
         await auth_service.invalidate_session(token)
+        from bigrag.middleware.auth import invalidate_auth_cache
+        invalidate_auth_cache(token_hash)
     return {"status": "ok"}
 
 
