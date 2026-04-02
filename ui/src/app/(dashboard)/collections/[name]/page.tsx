@@ -279,21 +279,27 @@ const CollectionDetailPage = ({
     async (files: FileList | null) => {
       if (!files?.length) return;
 
-      for (const file of Array.from(files)) {
-        const tempId = crypto.randomUUID();
+      const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+      const SUPPORTED_EXTS = new Set([
+        ".pdf", ".docx", ".pptx", ".xlsx", ".html", ".htm",
+        ".md", ".txt", ".csv", ".tsv", ".xml", ".json",
+        ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif",
+      ]);
+      const MAX_CONCURRENT = 5;
 
-        // Add uploading tracker
-        setUploads((prev) => {
-          const next = new Map(prev);
+      const fileArray = Array.from(files);
+
+      // Create trackers for all files upfront
+      const fileMap = fileArray.map((file) => ({
+        file,
+        tempId: crypto.randomUUID()
+      }));
+
+      setUploads((prev) => {
+        const next = new Map(prev);
+        for (const { file, tempId } of fileMap) {
           next.set(tempId, {
-            events: [
-              {
-                message: "Starting upload",
-                progress: 0,
-                step: "upload",
-                time: Date.now()
-              }
-            ],
+            events: [{ message: "Starting upload", progress: 0, step: "upload", time: Date.now() }],
             filename: file.name,
             fileSize: file.size,
             id: tempId,
@@ -303,13 +309,39 @@ const CollectionDetailPage = ({
             startedAt: Date.now(),
             step: "uploading"
           });
-          return next;
-        });
+        }
+        return next;
+      });
+
+      // Process uploads with concurrency limit
+      let active = 0;
+      let index = 0;
+
+      const uploadOne = async ({ file, tempId }: { file: File; tempId: string }) => {
+        // Client-side validation
+        const ext = file.name.includes(".") ? `.${file.name.split(".").pop()?.toLowerCase()}` : "";
+        if (ext && !SUPPORTED_EXTS.has(ext)) {
+          setUploads((prev) => {
+            const next = new Map(prev);
+            const old = next.get(tempId);
+            if (old) next.set(tempId, { ...old, message: `Unsupported file type: ${ext}`, phase: "failed", step: "validation_failed" });
+            return next;
+          });
+          return;
+        }
+        if (file.size > MAX_FILE_SIZE) {
+          setUploads((prev) => {
+            const next = new Map(prev);
+            const old = next.get(tempId);
+            if (old) next.set(tempId, { ...old, message: `File too large (max ${formatBytes(MAX_FILE_SIZE)})`, phase: "failed", step: "validation_failed" });
+            return next;
+          });
+          return;
+        }
 
         try {
           const doc = await uploadDocument(name, file);
 
-          // Switch from temp ID to real doc ID, move to processing phase
           setUploads((prev) => {
             const next = new Map(prev);
             const old = next.get(tempId);
@@ -317,15 +349,7 @@ const CollectionDetailPage = ({
             if (old) {
               next.set(doc.id, {
                 ...old,
-                events: [
-                  ...old.events,
-                  {
-                    message: `File uploaded (${formatBytes(file.size)})`,
-                    progress: 0.05,
-                    step: "uploaded",
-                    time: Date.now()
-                  }
-                ],
+                events: [...old.events, { message: `File uploaded (${formatBytes(file.size)})`, progress: 0.05, step: "uploaded", time: Date.now() }],
                 id: doc.id,
                 message: "Queued for processing",
                 phase: "processing",
@@ -344,15 +368,7 @@ const CollectionDetailPage = ({
             if (old) {
               next.set(tempId, {
                 ...old,
-                events: [
-                  ...old.events,
-                  {
-                    message: String(err),
-                    progress: 0,
-                    step: "error",
-                    time: Date.now()
-                  }
-                ],
+                events: [...old.events, { message: String(err), progress: 0, step: "error", time: Date.now() }],
                 message: err instanceof Error ? err.message : "Upload failed",
                 phase: "failed",
                 step: "upload_failed"
@@ -361,7 +377,21 @@ const CollectionDetailPage = ({
             return next;
           });
         }
-      }
+      };
+
+      // Simple concurrency-limited parallel execution
+      await new Promise<void>((resolve) => {
+        const next = () => {
+          while (active < MAX_CONCURRENT && index < fileMap.length) {
+            active++;
+            const item = fileMap[index++];
+            uploadOne(item).finally(() => { active--; next(); });
+          }
+          if (active === 0 && index >= fileMap.length) resolve();
+        };
+        next();
+      });
+
       if (fileInputRef.current) fileInputRef.current.value = "";
     },
     [name, queryClient]

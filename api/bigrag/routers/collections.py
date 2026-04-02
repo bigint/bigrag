@@ -147,6 +147,8 @@ async def update_collection(
         f"UPDATE collections SET {', '.join(updates)} WHERE name = ${idx} RETURNING *",
         *params,
     )
+    from bigrag.routers import invalidate_collection_cache
+    invalidate_collection_cache(name)
     return _row_to_response(dict(row))
 
 
