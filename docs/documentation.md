@@ -1132,167 +1132,6 @@ List all available embedding models and providers.
 
 ---
 
-### Admin: Users
-
-Requires admin role.
-
-Base path: `/v1/admin`
-
-#### `GET /v1/admin/users`
-
-List all users.
-
-**Query parameters:**
-
-| Parameter | Type | Default | Constraints |
-|-----------|------|---------|-------------|
-| `limit` | integer | `100` | 1–1,000 |
-| `offset` | integer | `0` | 0+ |
-
-**Response** `200`:
-
-```json
-{
-  "users": [
-    {
-      "id": "...",
-      "email": "admin@example.com",
-      "display_name": "Admin",
-      "role": "admin",
-      "created_at": "...",
-      "updated_at": "..."
-    }
-  ]
-}
-```
-
-#### `DELETE /v1/admin/users/{user_id}`
-
-Delete a user and their sessions.
-
-**Response** `200`:
-
-```json
-{
-  "status": "ok",
-  "message": "User deleted"
-}
-```
-
-**Errors:**
-
-- `404` — User not found
-
-#### `PATCH /v1/admin/users/{user_id}`
-
-Update a user's role.
-
-**Request body:**
-
-```json
-{
-  "role": "admin"
-}
-```
-
-| Field | Type | Required | Values |
-|-------|------|----------|--------|
-| `role` | string | yes | `admin`, `member` |
-
-**Response** `200`:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-**Errors:**
-
-- `404` — User not found
-
----
-
-### Admin: Invites
-
-Requires admin role.
-
-#### `POST /v1/admin/invites`
-
-Create an invite code for new user registration.
-
-**Request body:**
-
-```json
-{
-  "role": "member",
-  "expires_in_hours": 72
-}
-```
-
-| Field | Type | Required | Default | Values |
-|-------|------|----------|---------|--------|
-| `role` | string | no | `member` | `admin`, `member` |
-| `expires_in_hours` | integer | no | `72` | Hours until expiry |
-
-**Response** `201`:
-
-```json
-{
-  "id": "...",
-  "code": "inv_abc123def456",
-  "role": "member",
-  "expires_at": "2026-04-04T00:00:00Z",
-  "created_at": "2026-04-01T00:00:00Z",
-  "used_by": null,
-  "created_by_email": "admin@example.com"
-}
-```
-
-#### `GET /v1/admin/invites`
-
-List all invite codes.
-
-**Query parameters:**
-
-| Parameter | Type | Default |
-|-----------|------|---------|
-| `limit` | integer | `100` |
-| `offset` | integer | `0` |
-
-**Response** `200`:
-
-```json
-{
-  "invites": [
-    {
-      "id": "...",
-      "code": "inv_abc123def456",
-      "role": "member",
-      "expires_at": "...",
-      "created_at": "...",
-      "used_by": null,
-      "created_by_email": "admin@example.com"
-    }
-  ]
-}
-```
-
-#### `DELETE /v1/admin/invites/{invite_id}`
-
-Delete an invite code.
-
-**Response** `200`:
-
-```json
-{
-  "status": "ok",
-  "message": "Invite deleted"
-}
-```
-
----
-
 ### Admin: API Keys
 
 Requires admin role.
@@ -1846,13 +1685,136 @@ The SDK automatically retries on transient failures:
 
 ## TypeScript SDK
 
-Install the TypeScript SDK:
+Zero dependencies. Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes.
+
+### Installation
 
 ```bash
 npm install @bigrag/client
 ```
 
-> Note: The TypeScript SDK is currently being rewritten for the collections-based API. Check the package repository for the latest version.
+### Quick Start
+
+```typescript
+import { BigRAG } from "@bigrag/client";
+
+const client = new BigRAG({
+  apiKey: "your-api-key",
+  baseUrl: "http://localhost:8080",
+});
+
+// Create a collection
+const collection = await client.createCollection({
+  name: "knowledge_base",
+  description: "Company docs",
+  chunk_size: 512,
+});
+
+// Upload a document
+const doc = await client.uploadDocument("knowledge_base", file);
+
+// Stream processing progress
+for await (const event of client.streamDocumentProgress("knowledge_base", doc.id)) {
+  console.log(event.step, event.progress);
+  if (event.status === "complete") break;
+}
+
+// Query
+const { results } = await client.query("knowledge_base", {
+  query: "What is the PTO policy?",
+  top_k: 5,
+});
+```
+
+### Configuration
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `apiKey` | `BIGRAG_API_KEY` env var | API key or session token |
+| `baseUrl` | `http://localhost:8080` | bigRAG server URL |
+| `timeout` | `120000` | Request timeout in milliseconds |
+| `maxRetries` | `2` | Max retries on 5xx, 429, and network errors |
+| `fetch` | `globalThis.fetch` | Custom fetch implementation |
+
+### SDK Reference
+
+#### Collections
+
+```typescript
+client.listCollections()
+client.createCollection({ name, description?, embedding_provider?, embedding_model?, dimension?, chunk_size?, chunk_overlap? })
+client.getCollection(name)
+client.updateCollection(name, { description?, metadata? })
+client.deleteCollection(name)
+```
+
+#### Documents
+
+```typescript
+client.uploadDocument(collection, file, metadata?)
+client.listDocuments(collection, { status?, limit?, offset? })
+client.getDocument(collection, documentId)
+client.deleteDocument(collection, documentId)
+client.reprocessDocument(collection, documentId)
+client.getDocumentChunks(collection, documentId)
+client.getDocumentFileUrl(collection, documentId)  // returns URL string
+client.streamDocumentProgress(collection, documentId)  // returns AsyncIterable<ProgressEvent>
+```
+
+File uploads accept `File`, `Blob`, `Buffer`, `Uint8Array`, or `{ path: string; name?: string }`.
+
+#### Query & Vectors
+
+```typescript
+client.query(collection, { query, top_k?, filters?, min_score? })
+client.upsertVectors(collection, vectors)
+client.deleteVectors(collection, ids)
+client.listEmbeddingModels()
+client.getMetrics()
+```
+
+#### Auth & Admin
+
+```typescript
+client.getSetupStatus()
+client.setup({ email, password, display_name })
+client.login({ email, password })
+client.logout()
+client.getMe()
+client.changePassword({ current_password, new_password })
+client.createApiKey({ name, collections?, operations?, admin?, expires_at? })
+client.listApiKeys()
+client.revokeApiKey(id)
+```
+
+### Error Handling
+
+```typescript
+import { BigRAG, AuthenticationError, NotFoundError, APIError } from "@bigrag/client";
+
+try {
+  await client.getCollection("missing");
+} catch (err) {
+  if (err instanceof NotFoundError) {
+    // 404
+  } else if (err instanceof AuthenticationError) {
+    // 401
+  } else if (err instanceof APIError) {
+    // any other API error — check err.status
+  }
+}
+```
+
+Error hierarchy: `BigRAGError` > `APIError` > `BadRequestError` (400), `AuthenticationError` (401), `NotFoundError` (404), `RateLimitError` (429), `InternalServerError` (500). Network failures throw `APIConnectionError` or `APITimeoutError`.
+
+### Retry Behavior
+
+Same as the Python SDK:
+
+- **Retried:** HTTP 500+, HTTP 429, connection errors, timeouts
+- **Not retried:** HTTP 400, 401, 403, 404
+- **Backoff:** `min(0.5 * 2^attempt, 4.0)` seconds
+- **Default retries:** 2 (configurable via `maxRetries`)
 
 ---
 
@@ -1951,15 +1913,6 @@ curl -X POST $BASE/v1/auth/logout -H "Authorization: Bearer $TOKEN"
 ### Admin Operations
 
 ```bash
-# Create an invite
-curl -X POST $BASE/v1/admin/invites \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"role": "member", "expires_in_hours": 48}'
-
-# List users
-curl $BASE/v1/admin/users -H "Authorization: Bearer $TOKEN"
-
 # Create an API key
 curl -X POST $BASE/v1/admin/api-keys \
   -H "Authorization: Bearer $TOKEN" \
@@ -1972,6 +1925,10 @@ curl -X POST $BASE/v1/admin/api-keys \
 
 # List API keys
 curl $BASE/v1/admin/api-keys -H "Authorization: Bearer $TOKEN"
+
+# Revoke an API key
+curl -X DELETE $BASE/v1/admin/api-keys/KEY_ID \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Document Management
