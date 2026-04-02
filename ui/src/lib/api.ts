@@ -304,17 +304,6 @@ export const login = (body: { email: string; password: string }) =>
     method: "POST"
   });
 
-export const signup = (body: {
-  email: string;
-  password: string;
-  display_name: string;
-  invite_code: string;
-}) =>
-  request<AuthResponse>("/v1/auth/signup", {
-    body: JSON.stringify(body),
-    method: "POST"
-  });
-
 export const getMe = () =>
   request<{ user: AuthResponse["user"] }>("/v1/auth/me");
 

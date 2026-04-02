@@ -14,7 +14,6 @@ from bigrag.models.auth import (
     LoginRequest,
     PasswordChangeRequest,
     SetupRequest,
-    SignupRequest,
     UserResponse,
 )
 from bigrag.services import auth as auth_service
@@ -65,35 +64,6 @@ async def login(body: LoginRequest):
     )
 
 
-@router.post("/signup", response_model=AuthResponse, dependencies=[Depends(auth_rate_limit)])
-async def signup(body: SignupRequest):
-    logger.info(f"signup: email={body.email}")
-    invite = await auth_service.redeem_invite(body.invite_code)
-    if not invite:
-        logger.warning(f"signup: invalid invite code email={body.email}")
-        raise HTTPException(status_code=400, detail="Invalid or expired invite code")
-
-    import asyncpg
-
-    try:
-        user = await auth_service.create_user(
-            email=body.email,
-            password=body.password,
-            display_name=body.display_name,
-            role=invite["role"],
-        )
-    except asyncpg.UniqueViolationError:
-        raise HTTPException(status_code=409, detail="Email already registered")
-
-    await auth_service.mark_invite_used(invite["id"], user["id"])
-    logger.info(f"signup: success email={body.email} role={invite['role']}")
-    token = await auth_service.create_session(user["id"])
-    return AuthResponse(
-        token=token,
-        user=UserResponse(**{k: str(v) if isinstance(v, UUID) else v for k, v in user.items() if k != "password_hash"}),
-    )
-
-
 @router.post("/logout")
 async def logout_route(request: Request, user: dict = Depends(get_current_user)):
     logger.info(f"logout: user={user.get('email')}")
@@ -114,7 +84,7 @@ async def me(user: dict = Depends(get_current_user)):
             "id": str(user["id"]) if user.get("id") else None,
             "email": user.get("email", ""),
             "display_name": user.get("display_name", ""),
-            "role": user.get("role", "member"),
+            "role": user.get("role", "admin"),
             "created_at": user.get("created_at"),
             "updated_at": user.get("updated_at"),
         }

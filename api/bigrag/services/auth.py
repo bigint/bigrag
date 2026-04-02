@@ -33,10 +33,6 @@ def generate_token() -> str:
     return secrets.token_urlsafe(48)
 
 
-def generate_invite_code() -> str:
-    return secrets.token_urlsafe(16)
-
-
 def generate_api_key() -> str:
     return f"br_{secrets.token_urlsafe(32)}"
 
@@ -47,7 +43,7 @@ async def needs_setup() -> bool:
 
 
 async def create_user(
-    email: str, password: str, display_name: str, role: str = "member"
+    email: str, password: str, display_name: str, role: str = "admin"
 ) -> dict:
     password_hash = hash_password(password)
     row = await db.fetchrow(
@@ -98,7 +94,6 @@ async def validate_session(token: str) -> dict | None:
 
 
 async def cleanup_expired_sessions() -> int:
-    """Delete expired sessions. Returns number of rows deleted."""
     result = await db.execute("DELETE FROM sessions WHERE expires_at <= now()")
     count = int(result.split()[-1]) if result else 0
     return count
@@ -127,79 +122,6 @@ async def get_user_by_id(user_id: UUID) -> dict | None:
         user_id,
     )
     return dict(row) if row else None
-
-
-async def list_users(limit: int = 100, offset: int = 0) -> list[dict]:
-    rows = await db.fetch(
-        "SELECT id, email, display_name, role, created_at, updated_at FROM users ORDER BY created_at LIMIT $1 OFFSET $2",
-        limit, offset,
-    )
-    return [dict(r) for r in rows]
-
-
-async def delete_user(user_id: UUID) -> bool:
-    result = await db.execute("DELETE FROM users WHERE id = $1", user_id)
-    return result == "DELETE 1"
-
-
-async def update_user_role(user_id: UUID, role: str) -> bool:
-    result = await db.execute(
-        "UPDATE users SET role = $1, updated_at = now() WHERE id = $2",
-        role, user_id,
-    )
-    return result == "UPDATE 1"
-
-
-async def create_invite(created_by: UUID, role: str = "member", expires_in_hours: int = 72) -> dict:
-    code = generate_invite_code()
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=expires_in_hours)
-    row = await db.fetchrow(
-        """
-        INSERT INTO invites (code, role, created_by, expires_at)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, code, role, created_by, used_by, expires_at, created_at
-        """,
-        code, role, created_by, expires_at,
-    )
-    return dict(row)
-
-
-async def list_invites(limit: int = 100, offset: int = 0) -> list[dict]:
-    rows = await db.fetch(
-        """
-        SELECT i.id, i.code, i.role, i.expires_at, i.created_at, i.used_by,
-               u.email as created_by_email
-        FROM invites i
-        LEFT JOIN users u ON i.created_by = u.id
-        ORDER BY i.created_at DESC
-        LIMIT $1 OFFSET $2
-        """,
-        limit, offset,
-    )
-    return [dict(r) for r in rows]
-
-
-async def delete_invite(invite_id: UUID) -> bool:
-    result = await db.execute("DELETE FROM invites WHERE id = $1", invite_id)
-    return result == "DELETE 1"
-
-
-async def redeem_invite(code: str) -> dict | None:
-    row = await db.fetchrow(
-        """
-        SELECT * FROM invites
-        WHERE code = $1 AND used_by IS NULL AND expires_at > now()
-        """,
-        code,
-    )
-    return dict(row) if row else None
-
-
-async def mark_invite_used(invite_id: UUID, user_id: UUID) -> None:
-    await db.execute(
-        "UPDATE invites SET used_by = $1 WHERE id = $2",
-        user_id, invite_id,
-    )
 
 
 async def create_api_key_record(

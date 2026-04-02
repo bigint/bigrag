@@ -7,8 +7,7 @@ import {
   LogOut,
   Search,
   Settings,
-  TrendingUp,
-  Users
+  TrendingUp
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -25,8 +24,6 @@ const nav = [
   { href: "/api-keys", icon: Key, label: "API Keys" },
   { href: "/settings", icon: Settings, label: "Settings" }
 ] as const;
-
-const ADMIN_ITEMS = [{ href: "/users", icon: Users, label: "Users" }] as const;
 
 export const Sidebar = () => {
   const pathname = usePathname();
@@ -70,30 +67,6 @@ export const Sidebar = () => {
             </Link>
           );
         })}
-
-        {user?.role === "admin" && (
-          <>
-            <div className="my-2 border-t border-border" />
-            {ADMIN_ITEMS.map(({ href, label, icon: Icon }) => {
-              const isActive = pathname.startsWith(href);
-              return (
-                <Link
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors",
-                    isActive
-                      ? "bg-bg-hover text-text"
-                      : "text-text-muted hover:bg-bg-hover hover:text-text"
-                  )}
-                  href={href}
-                  key={href}
-                >
-                  <Icon className="size-4 shrink-0" />
-                  {label}
-                </Link>
-              );
-            })}
-          </>
-        )}
       </nav>
 
       <div className="border-t border-border px-4 py-3">
@@ -101,9 +74,6 @@ export const Sidebar = () => {
           <div className="min-w-0">
             <p className="truncate text-[13px] font-medium text-text">
               {user?.display_name ?? "—"}
-            </p>
-            <p className="text-[11px] capitalize text-text-dim">
-              {user?.role ?? ""}
             </p>
           </div>
           <button

@@ -8,86 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from bigrag.middleware.auth import require_admin
 
 logger = logging.getLogger("bigrag.routers.admin")
-from bigrag.models.auth import (
-    CreateApiKeyRequest,
-    CreateInviteRequest,
-    UpdateRoleRequest,
-)
+from bigrag.models.auth import CreateApiKeyRequest
 from bigrag.services import auth as auth_service
 
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
-
-
-# --- Users ---
-
-
-@router.get("/users")
-async def list_users(limit: int = Query(default=100, ge=1, le=1000), offset: int = Query(default=0, ge=0), _: dict = Depends(require_admin)):
-    logger.info(f"list users: limit={limit} offset={offset}")
-    users = await auth_service.list_users(limit=limit, offset=offset)
-    return {
-        "users": [
-            {k: str(v) if isinstance(v, UUID) else v for k, v in u.items()}
-            for u in users
-        ]
-    }
-
-
-@router.delete("/users/{user_id}")
-async def delete_user(user_id: str, admin: dict = Depends(require_admin)):
-    logger.info(f"delete user: id={user_id} by={admin.get('email')}")
-    uid = UUID(user_id)
-    if admin.get("id") and uid == admin["id"]:
-        raise HTTPException(status_code=400, detail="Cannot delete yourself")
-    if not await auth_service.delete_user(uid):
-        raise HTTPException(status_code=404, detail="User not found")
-    logger.info(f"delete user: done id={user_id}")
-    return {"status": "ok", "message": "User deleted"}
-
-
-@router.patch("/users/{user_id}")
-async def update_user_role(user_id: str, body: UpdateRoleRequest, _: dict = Depends(require_admin)):
-    logger.info(f"update role: user={user_id} role={body.role}")
-    if not await auth_service.update_user_role(UUID(user_id), body.role):
-        raise HTTPException(status_code=404, detail="User not found")
-    return {"status": "ok"}
-
-
-# --- Invites ---
-
-
-@router.post("/invites")
-async def create_invite(body: CreateInviteRequest, admin: dict = Depends(require_admin)):
-    logger.info(f"create invite: role={body.role} expires_in={body.expires_in_hours}h by={admin.get('email')}")
-    invite = await auth_service.create_invite(
-        created_by=admin["id"],
-        role=body.role,
-        expires_in_hours=body.expires_in_hours,
-    )
-    logger.info(f"create invite: done code={invite['code']}")
-    return {k: str(v) if isinstance(v, UUID) else v for k, v in invite.items()}
-
-
-@router.get("/invites")
-async def list_invites(limit: int = Query(default=100, ge=1, le=1000), offset: int = Query(default=0, ge=0), _: dict = Depends(require_admin)):
-    invites = await auth_service.list_invites(limit=limit, offset=offset)
-    return {
-        "invites": [
-            {k: str(v) if isinstance(v, UUID) else v for k, v in inv.items()}
-            for inv in invites
-        ]
-    }
-
-
-@router.delete("/invites/{invite_id}")
-async def delete_invite(invite_id: str, _: dict = Depends(require_admin)):
-    logger.info(f"delete invite: id={invite_id}")
-    if not await auth_service.delete_invite(UUID(invite_id)):
-        raise HTTPException(status_code=404, detail="Invite not found")
-    return {"status": "ok", "message": "Invite deleted"}
-
-
-# --- API Keys ---
 
 
 @router.post("/api-keys")
