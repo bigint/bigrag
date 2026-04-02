@@ -15,6 +15,12 @@ async def get_current_user(request: Request) -> dict:
     auth_header = request.headers.get("authorization", "")
     path = request.url.path
 
+    # EventSource can't send headers — accept token as query param
+    if not auth_header.startswith("Bearer "):
+        query_token = request.query_params.get("token")
+        if query_token:
+            auth_header = f"Bearer {query_token}"
+
     if not auth_header.startswith("Bearer "):
         if not settings.master_key and not settings.api_keys:
             if await auth_service.needs_setup():

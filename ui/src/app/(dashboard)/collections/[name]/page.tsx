@@ -4,8 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Check,
-  ChevronDown,
-  ChevronUp,
   FileText,
   Inbox,
   Loader2,
@@ -17,7 +15,7 @@ import {
 import Link from "next/link";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { deleteDocument, reprocessDocument, uploadDocument } from "@/lib/api";
-import { getBaseUrl } from "@/lib/auth-store";
+import { getBaseUrl, getSessionToken } from "@/lib/auth-store";
 import { collectionQueryOptions, documentsQueryOptions } from "@/lib/queries";
 import { cn, formatBytes, timeAgo } from "@/lib/utils";
 
@@ -79,7 +77,15 @@ const UploadTracker = ({
   readonly upload: UploadProgress;
   readonly onDismiss: () => void;
 }) => {
-  const [expanded, setExpanded] = useState(true);
+  const [, setTick] = useState(0);
+
+  // Update elapsed time every second while active
+  useEffect(() => {
+    if (upload.phase === "complete" || upload.phase === "failed") return;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [upload.phase]);
+
   const elapsed = ((Date.now() - upload.startedAt) / 1000).toFixed(1);
 
   return (
@@ -89,7 +95,6 @@ const UploadTracker = ({
         upload.phase === "failed" ? "border-danger/30" : "border-border"
       )}
     >
-      {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-bg-hover">
           {upload.phase === "uploading" && (
@@ -115,13 +120,18 @@ const UploadTracker = ({
               {formatBytes(upload.fileSize)}
             </span>
           </div>
-          <p className={cn("text-xs", PHASE_COLORS[upload.phase])}>
+          <p className={cn("text-xs transition-all", PHASE_COLORS[upload.phase])}>
             {upload.message}
           </p>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
           <span className="font-mono text-xs text-text-dim">{elapsed}s</span>
+          {upload.phase !== "complete" && upload.phase !== "failed" && (
+            <span className="font-mono text-xs text-text-dim">
+              {Math.round(upload.progress * 100)}%
+            </span>
+          )}
           {(upload.phase === "complete" || upload.phase === "failed") && (
             <button
               className="rounded-md p-1 text-text-dim hover:bg-bg-hover hover:text-text"
@@ -131,49 +141,13 @@ const UploadTracker = ({
               <XCircle className="size-3.5" />
             </button>
           )}
-          <button
-            className="rounded-md p-1 text-text-dim hover:bg-bg-hover hover:text-text"
-            onClick={() => setExpanded(!expanded)}
-            type="button"
-          >
-            {expanded ? (
-              <ChevronUp className="size-3.5" />
-            ) : (
-              <ChevronDown className="size-3.5" />
-            )}
-          </button>
         </div>
       </div>
 
       {/* Progress bar */}
       {upload.phase !== "complete" && upload.phase !== "failed" && (
-        <div className="px-4 pb-2">
+        <div className="px-4 pb-3">
           <ProgressBar value={upload.progress} />
-          <p className="mt-1 text-right font-mono text-[11px] text-text-dim">
-            {Math.round(upload.progress * 100)}%
-          </p>
-        </div>
-      )}
-
-      {/* Event log */}
-      {expanded && upload.events.length > 0 && (
-        <div className="border-t border-border bg-bg/50 px-4 py-2 max-h-48 overflow-y-auto">
-          <div className="space-y-1">
-            {upload.events.map((ev) => (
-              <div
-                className="flex items-start gap-2 text-[11px]"
-                key={`${ev.time}-${ev.step}`}
-              >
-                <span className="shrink-0 font-mono text-text-dim">
-                  {((ev.time - upload.startedAt) / 1000).toFixed(1)}s
-                </span>
-                <span className="shrink-0 rounded bg-bg-hover px-1 py-0.5 font-mono text-text-dim">
-                  {ev.step}
-                </span>
-                <span className="text-text-muted">{ev.message}</span>
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>
@@ -264,7 +238,8 @@ const CollectionDetailPage = ({
     const sources: EventSource[] = [];
 
     for (const docId of activeDocIds) {
-      const url = `${getBaseUrl()}/v1/collections/${encodeURIComponent(name)}/documents/${docId}/progress`;
+      const token = getSessionToken();
+      const url = `${getBaseUrl()}/v1/collections/${encodeURIComponent(name)}/documents/${docId}/progress?token=${encodeURIComponent(token)}`;
       const es = new EventSource(url);
 
       es.onmessage = (e) => {
