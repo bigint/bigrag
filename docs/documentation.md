@@ -29,6 +29,11 @@ Complete reference for the bigRAG open-source RAG platform — document ingestio
   - [Collections](#collections)
   - [Documents](#documents)
   - [Query & Search](#query--search)
+  - [Multi-Collection Query](#multi-collection-query)
+  - [Hybrid Search](#hybrid-search)
+  - [Reranking](#reranking)
+  - [Batch Query](#batch-query)
+  - [Collection Analytics](#collection-analytics)
   - [Vectors (Direct)](#vectors-direct)
   - [Embedding Models](#embedding-models)
   - [Admin: API Keys](#admin-api-keys)
@@ -1006,6 +1011,121 @@ Perform semantic search against a collection. The query is embedded using the co
 
 ---
 
+### Multi-Collection Query
+
+Query multiple collections in a single request with merged, score-sorted results.
+
+```
+POST /v1/query
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `query` | string | Yes | Search query |
+| `collections` | string[] | Yes | Collection names to search |
+| `top_k` | number | No | Max results (default 10) |
+| `filters` | object | No | Metadata filters |
+| `min_score` | number | No | Minimum similarity score |
+| `search_mode` | string | No | `"semantic"`, `"keyword"`, or `"hybrid"` (default `"semantic"`) |
+
+Results are merged across collections and sorted by score. Each result includes a `collection` field.
+
+```bash
+curl -X POST http://localhost:8080/v1/query \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"machine learning","collections":["docs","papers"],"top_k":20}'
+```
+
+---
+
+### Hybrid Search
+
+All query endpoints support a `search_mode` parameter:
+
+| Mode | Description |
+|------|-------------|
+| `semantic` | Default. Cosine similarity vector search. |
+| `keyword` | Text-based keyword matching with term frequency scoring. |
+| `hybrid` | Runs both semantic and keyword search, merges results using Reciprocal Rank Fusion (RRF). |
+
+Hybrid mode is recommended when queries contain exact terms (product codes, IDs, names) that pure semantic search might miss.
+
+```bash
+curl -X POST http://localhost:8080/v1/collections/docs/query \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"error code ERR-4021","search_mode":"hybrid"}'
+```
+
+---
+
+### Reranking
+
+Collections can enable server-side reranking using the Cohere Rerank API. After initial vector search, results are re-scored by a cross-encoder model for improved relevance.
+
+**Configure per collection:**
+
+```bash
+curl -X POST http://localhost:8080/v1/collections \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"docs","reranking_enabled":true,"reranking_model":"rerank-v3.5","reranking_api_key":"your-cohere-key"}'
+```
+
+| Collection Field | Type | Default | Description |
+|-----------------|------|---------|-------------|
+| `reranking_enabled` | boolean | `false` | Enable reranking |
+| `reranking_model` | string | `"rerank-v3.5"` | Cohere reranking model |
+| `reranking_api_key` | string | null | Cohere API key (uses embedding key as fallback) |
+
+**Override per query:** Pass `"rerank": true` or `"rerank": false` in any query request to override the collection setting.
+
+---
+
+### Batch Query
+
+Run multiple independent queries in a single request. Queries execute in parallel.
+
+```
+POST /v1/batch/query
+```
+
+```json
+{
+  "queries": [
+    {"collection": "docs", "query": "authentication", "top_k": 5},
+    {"collection": "papers", "query": "neural networks", "top_k": 10, "search_mode": "hybrid"}
+  ]
+}
+```
+
+Maximum 20 queries per batch. Response contains an array of result sets matching the input order.
+
+---
+
+### Collection Analytics
+
+Query statistics for a collection. Requires query logging (automatic).
+
+```
+GET /v1/collections/{name}/analytics
+```
+
+Returns:
+
+```json
+{
+  "collection": "docs",
+  "period_24h": {"query_count": 142, "avg_latency_ms": 45.2, "avg_score": 0.82, "avg_result_count": 8.3},
+  "period_7d": {"query_count": 1203, "avg_latency_ms": 48.1, "avg_score": 0.79, "avg_result_count": 7.9},
+  "period_30d": {"query_count": 4521, "avg_latency_ms": 46.7, "avg_score": 0.80, "avg_result_count": 8.1},
+  "top_queries": [{"query": "authentication flow", "count": 23}]
+}
+```
+
+---
+
 ### Vectors (Direct)
 
 For advanced use cases, you can directly manage vectors without going through the document ingestion pipeline. This is useful for custom embeddings or integrating with external embedding services.
@@ -1879,11 +1999,30 @@ File uploads accept `File`, `Blob`, `Buffer`, `Uint8Array`, or `{ path: string; 
 #### Query & Vectors
 
 ```typescript
-client.query(collection, { query, top_k?, filters?, min_score? })
+client.query(collection, { query, top_k?, filters?, min_score?, search_mode?, rerank? })
+client.multiQuery({ query, collections, top_k?, filters?, min_score?, search_mode? })
+client.batchQuery({ queries: [{ collection, query, top_k?, search_mode? }, ...] })
 client.upsertVectors(collection, vectors)
 client.deleteVectors(collection, ids)
 client.listEmbeddingModels()
 client.getMetrics()
+```
+
+#### Analytics
+
+```typescript
+client.getAnalytics(collection)
+```
+
+#### Scoped Collection Client
+
+Use `client.collection(name)` to get a scoped client that omits the collection parameter from every call:
+
+```typescript
+const docs = client.collection("knowledge_base");
+await docs.query({ query: "PTO policy", top_k: 5 });
+await docs.uploadDocument(file);
+await docs.getAnalytics();
 ```
 
 #### Auth & Admin
