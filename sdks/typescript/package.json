@@ -1,6 +1,6 @@
 {
   "name": "@bigrag/client",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "TypeScript client for bigRAG — a self-hostable RAG platform",
   "license": "MIT",
   "type": "module",
