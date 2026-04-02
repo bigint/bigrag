@@ -412,8 +412,7 @@ class IngestionQueue:
                     "UPDATE documents SET status = 'pending', error_message = $1, updated_at = now() WHERE id = $2",
                     f"Attempt {job.attempt} failed: {e}. Retrying...", uuid.UUID(doc),
                 )
-                # Schedule retry without blocking the worker
-                job._retry_after = time.monotonic() + delay
+                # Re-enqueue immediately — no sleep blocking the worker
                 await self.enqueue(job)
             else:
                 reason = "permanent error" if is_permanent else f"{job.max_attempts} attempts exhausted"
