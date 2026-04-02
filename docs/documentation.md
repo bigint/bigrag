@@ -81,7 +81,7 @@ bigRAG is an open-source, self-hostable RAG (Retrieval-Augmented Generation) pla
 - **Admin web UI** — manage collections, upload documents, query, and administer users
 - **Self-hostable** — Docker Compose, no external dependencies
 - **User auth** — session-based auth with invite system, API keys, and role-based access
-- **Apache 2.0 licensed** — run it anywhere, forever free
+- **MIT licensed** — run it anywhere, forever free
 
 ---
 

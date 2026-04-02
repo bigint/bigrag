@@ -3,7 +3,7 @@ name = "bigrag"
 version = "0.2.0"
 description = "Python client for bigRAG RAG platform"
 readme = "README.md"
-license = "Apache-2.0"
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = ["httpx>=0.27,<1"]
 
