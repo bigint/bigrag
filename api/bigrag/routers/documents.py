@@ -4,6 +4,7 @@ import json
 import logging
 import uuid
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Form
 from fastapi.responses import Response, StreamingResponse
@@ -11,7 +12,7 @@ from fastapi.responses import Response, StreamingResponse
 from bigrag.config import settings
 from bigrag.database import db
 from bigrag.middleware.auth import get_current_user
-from bigrag.models.document import DocumentListResponse, DocumentResponse
+from bigrag.models.document import DocumentListResponse, DocumentResponse, UrlIngestionRequest
 from bigrag.routers import get_collection_or_404
 from bigrag.services.embedding import get_embedding_model
 from bigrag.services.queue import IngestionJob, event_bus, ingestion_queue
@@ -132,6 +133,82 @@ async def upload_document(
     except Exception:
         await storage.delete(storage_key)
         raise
+
+    await ingestion_queue.enqueue(IngestionJob(
+        document_id=doc_id,
+        file_path=storage_key,
+        collection_name=collection_name,
+        embedding_provider=collection["embedding_provider"],
+        embedding_model=collection["embedding_model"],
+        embedding_dimension=collection["dimension"],
+        embedding_api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
+        chunk_size=collection["chunk_size"],
+        chunk_overlap=collection["chunk_overlap"],
+    ))
+
+    return _row_to_response(dict(row))
+
+
+@router.post("/url", response_model=DocumentResponse, status_code=201)
+async def ingest_from_url(
+    collection_name: str,
+    body: UrlIngestionRequest,
+    _: dict = Depends(get_current_user),
+):
+    collection = await _get_collection(collection_name)
+    _validate_embedding_provider(collection)
+    logger.info(f"url-ingest: collection={collection_name} url={body.url}")
+
+    from bigrag.services.crawler import crawl
+
+    pages = await crawl(
+        url=body.url,
+        max_depth=body.crawl_depth,
+        max_pages=body.max_pages,
+    )
+
+    if not pages:
+        raise HTTPException(status_code=400, detail="Failed to fetch any content from URL")
+
+    # Store the first page as the primary document
+    # If multiple pages, concatenate all content into one document
+    if len(pages) == 1:
+        content = pages[0]["content"]
+        source_url = pages[0]["url"]
+        filename = urlparse(source_url).path.split("/")[-1] or "page.html"
+    else:
+        # Merge all pages into a single HTML document
+        parts = []
+        for page in pages:
+            parts.append(page["content"].decode("utf-8", errors="replace"))
+        merged = "\n\n---\n\n".join(parts)
+        content = merged.encode("utf-8")
+        source_url = body.url
+        filename = f"crawl_{urlparse(source_url).netloc}.html"
+
+    # Ensure .html extension
+    if not filename.endswith((".html", ".htm", ".md", ".txt")):
+        filename += ".html"
+
+    doc_id = str(uuid.uuid4())
+    file_ext = Path(filename).suffix
+    storage_key = f"{collection_name}/{doc_id}{file_ext}"
+
+    storage = get_storage()
+    await storage.put(storage_key, content)
+    logger.info(f"url-ingest: stored key={storage_key} size={len(content)} pages={len(pages)}")
+
+    meta = {**body.metadata, "source_url": source_url, "crawled_pages": len(pages)}
+
+    row = await db.fetchrow(
+        """
+        INSERT INTO documents (id, collection_id, filename, file_type, file_size, file_path, metadata)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+        """,
+        uuid.UUID(doc_id), collection["id"], filename,
+        file_ext.lstrip("."), len(content), storage_key, meta,
+    )
 
     await ingestion_queue.enqueue(IngestionJob(
         document_id=doc_id,

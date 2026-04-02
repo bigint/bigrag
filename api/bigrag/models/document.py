@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class DocumentResponse(BaseModel):
@@ -29,3 +29,10 @@ class DocumentChunkResponse(BaseModel):
     chunk_index: int
     text: str
     metadata: dict
+
+
+class UrlIngestionRequest(BaseModel):
+    url: str
+    crawl_depth: int = Field(default=0, ge=0, le=3)
+    max_pages: int = Field(default=1, ge=1, le=100)
+    metadata: dict = {}
