@@ -11,6 +11,10 @@ from bigrag.middleware.auth import get_current_user
 from bigrag.routers import get_collection_or_404
 from bigrag.models.query import (
     AnalyticsResponse,
+    BatchQueryItem,
+    BatchQueryRequest,
+    BatchQueryResponse,
+    BatchQueryResultItem,
     EmbeddingModelInfo,
     MultiQueryRequest,
     MultiQueryResponse,
@@ -123,6 +127,57 @@ async def multi_collection_query(
         collections=body.collections,
         total=len(results),
     )
+
+
+@router.post("/v1/batch/query", response_model=BatchQueryResponse)
+async def batch_query(
+    body: BatchQueryRequest,
+    _: dict = Depends(get_current_user),
+):
+    import asyncio
+
+    logger.info(f"batch-query: {len(body.queries)} queries")
+
+    async def run_one(item: BatchQueryItem) -> BatchQueryResultItem:
+        collection = await _get_collection(item.collection)
+        try:
+            embedding_model = get_embedding_model(
+                provider=collection["embedding_provider"],
+                model_name=collection["embedding_model"],
+                dimension=collection["dimension"],
+                api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
+            )
+        except (ImportError, ValueError) as e:
+            raise HTTPException(status_code=400, detail=f"Collection '{item.collection}': {e}")
+
+        reranking_config = {
+            "enabled": collection.get("reranking_enabled", False),
+            "model": collection.get("reranking_model", "rerank-v3.5"),
+            "api_key": collection.get("reranking_api_key") or settings.embedding_api_key,
+        }
+
+        results = await retrieve(
+            collection_name=item.collection,
+            query=item.query,
+            embedding_model=embedding_model,
+            top_k=item.top_k,
+            filters=item.filters,
+            min_score=item.min_score,
+            search_mode=item.search_mode,
+            reranking_config=reranking_config,
+            rerank_override=item.rerank,
+        )
+
+        return BatchQueryResultItem(
+            results=[QueryResult(**r) for r in results],
+            query=item.query,
+            collection=item.collection,
+            total=len(results),
+        )
+
+    results = await asyncio.gather(*[run_one(item) for item in body.queries])
+
+    return BatchQueryResponse(results=list(results))
 
 
 # Direct vector operations (for advanced users bringing their own embeddings)

@@ -70,6 +70,31 @@ class MultiQueryResponse(BaseModel):
     total: int
 
 
+class BatchQueryItem(BaseModel):
+    collection: str
+    query: str
+    top_k: int = Field(default=10, ge=1, le=1000)
+    filters: dict | None = None
+    min_score: float | None = None
+    search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
+    rerank: bool | None = None
+
+
+class BatchQueryRequest(BaseModel):
+    queries: list[BatchQueryItem] = Field(min_length=1, max_length=20)
+
+
+class BatchQueryResultItem(BaseModel):
+    results: list[QueryResult]
+    query: str
+    collection: str
+    total: int
+
+
+class BatchQueryResponse(BaseModel):
+    results: list[BatchQueryResultItem]
+
+
 class EmbeddingModelInfo(BaseModel):
     provider: str
     model: str
