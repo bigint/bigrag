@@ -7,7 +7,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: startsWith(github.event.release.tag_name, 'sdk-v')
+    if: startsWith(github.event.release.tag_name, 'v')
     defaults:
       run:
         working-directory: sdks/typescript
