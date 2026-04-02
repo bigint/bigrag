@@ -537,20 +537,12 @@ const CollectionDetailPage = ({
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
                       <FileText className="size-4 shrink-0 text-text-dim" />
-                      {doc.status === "ready" ? (
-                        <a
-                          className="truncate text-sm text-text hover:text-accent hover:underline"
-                          href={getDocumentFileUrl(name, doc.id)}
-                          rel="noopener noreferrer"
-                          target="_blank"
-                        >
-                          {doc.filename}
-                        </a>
-                      ) : (
-                        <span className="truncate text-sm text-text">
-                          {doc.filename}
-                        </span>
-                      )}
+                      <Link
+                        className="truncate text-sm text-text hover:text-accent hover:underline"
+                        href={`/collections/${encodeURIComponent(name)}/documents/${doc.id}`}
+                      >
+                        {doc.filename}
+                      </Link>
                     </div>
                   </td>
                   <td className="px-5 py-3.5 font-mono text-xs uppercase text-text-muted">
