@@ -157,7 +157,7 @@ const SettingsPage = () => {
                 <span className="text-sm font-medium text-text">bigRAG</span>
               </SettingsRow>
               <SettingsRow isLoading={false} label="License">
-                <span className="text-sm text-text">Apache 2.0</span>
+                <span className="text-sm text-text">MIT</span>
               </SettingsRow>
               <SettingsRow isLoading={false} label="Docs">
                 <a
@@ -167,6 +167,16 @@ const SettingsPage = () => {
                   target="_blank"
                 >
                   {getBaseUrl()}/docs
+                </a>
+              </SettingsRow>
+              <SettingsRow isLoading={false} label="Sponsor">
+                <a
+                  className="text-sm text-accent hover:underline"
+                  href="https://github.com/sponsors/bigint"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  github.com/sponsors/bigint
                 </a>
               </SettingsRow>
             </div>

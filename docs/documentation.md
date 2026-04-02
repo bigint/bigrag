@@ -2457,7 +2457,12 @@ bigRAG uses PostgreSQL for metadata and authentication. Tables are created and m
 | `api_keys` | API keys (key_hash, prefix, permissions, expires_at) |
 | `collections` | Collection metadata (name, embedding config, chunk config) |
 | `documents` | Document metadata (filename, status, chunk_count, file_path) |
+| `webhooks` | Webhook registrations (url, events, collections, secret) |
+| `webhook_deliveries` | Webhook delivery log (status, attempts, payload) |
+| `query_log` | Query analytics log (collection, query, latency, score) |
 
 ---
 
-*bigRAG is open-source under the [Apache License 2.0](../LICENSE). Contributions welcome.*
+*bigRAG is open-source under the [MIT License](../LICENSE). Contributions welcome.*
+
+*If bigRAG is useful to you, consider [sponsoring the project](https://github.com/sponsors/bigint).*

@@ -139,6 +139,11 @@ curl -X POST http://localhost:8080/v1/collections/docs/query \
 | `DELETE` | `/v1/collections/{name}/documents/{id}`           | Delete document                 |
 | `POST`   | `/v1/collections/{name}/documents/{id}/reprocess` | Reprocess document              |
 | `POST`   | `/v1/collections/{name}/query`                    | Query collection                |
+| `POST`   | `/v1/query`                                       | Multi-collection query          |
+| `POST`   | `/v1/batch/query`                                 | Batch query                     |
+| `GET`    | `/v1/collections/{name}/analytics`                | Collection analytics            |
+| `POST`   | `/v1/admin/webhooks`                              | Register webhook                |
+| `GET`    | `/v1/admin/webhooks`                              | List webhooks                   |
 | `POST`   | `/v1/collections/{name}/vectors/upsert`           | Upsert raw vectors              |
 | `POST`   | `/v1/collections/{name}/vectors/delete`           | Delete vectors by ID            |
 | `GET`    | `/v1/embeddings/models`                           | List embedding models           |
@@ -250,6 +255,10 @@ Via Docling, bigRAG supports:
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and the PR process.
+
+## Sponsor
+
+If bigRAG is useful to you, consider [sponsoring the project](https://github.com/sponsors/bigint).
 
 ## License
 
