@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from pathlib import Path
 
@@ -8,6 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, 
 from fastapi.responses import StreamingResponse
 
 from bigrag.config import settings
+
+logger = logging.getLogger("bigrag.routers.documents")
 from bigrag.database import db
 from bigrag.middleware.auth import get_current_user
 from bigrag.routers import get_collection_or_404
@@ -73,6 +76,7 @@ async def upload_document(
 ):
     collection = await _get_collection(collection_name)
     _validate_embedding_provider(collection)
+    logger.info(f"upload: collection={collection_name} file={file.filename}")
 
     # Validate file type
     file_ext = Path(file.filename or "").suffix.lower()
@@ -98,6 +102,7 @@ async def upload_document(
 
     storage = get_storage()
     await storage.put(storage_key, content)
+    logger.info(f"upload: stored key={storage_key} size={len(content)}")
 
     # Parse metadata
     try:
@@ -134,6 +139,7 @@ async def upload_document(
         chunk_size=collection["chunk_size"],
         chunk_overlap=collection["chunk_overlap"],
     ))
+    logger.info(f"upload: enqueued doc={doc_id} collection={collection_name}")
 
     return _row_to_response(dict(row))
 
@@ -147,6 +153,7 @@ async def list_documents(
     _: dict = Depends(get_current_user),
 ):
     collection = await _get_collection(collection_name)
+    logger.info(f"list: collection={collection_name} status={status} limit={limit} offset={offset}")
 
     if status:
         rows = await db.fetch(
@@ -188,6 +195,7 @@ async def get_document(
     _: dict = Depends(get_current_user),
 ):
     collection = await _get_collection(collection_name)
+    logger.info(f"get: doc={document_id} collection={collection_name}")
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
         uuid.UUID(document_id), collection["id"],
@@ -204,6 +212,7 @@ async def delete_document(
     _: dict = Depends(get_current_user),
 ):
     collection = await _get_collection(collection_name)
+    logger.info(f"delete: doc={document_id} collection={collection_name}")
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
         uuid.UUID(document_id), collection["id"],
@@ -213,9 +222,11 @@ async def delete_document(
 
     # Delete vectors from Milvus
     await vector_store.delete_by_document(collection_name, document_id)
+    logger.info(f"delete: vectors removed doc={document_id}")
 
     # Delete from Postgres first (reversible), before deleting file (irreversible)
     await db.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(document_id))
+    logger.info(f"delete: db record removed doc={document_id}")
 
     # Update collection count
     await db.execute(
@@ -230,6 +241,7 @@ async def delete_document(
 
     # Delete file from storage last (irreversible)
     await get_storage().delete(row["file_path"])
+    logger.info(f"delete: file removed key={row['file_path']}")
 
     return {"status": "ok", "message": "Document deleted"}
 
@@ -241,6 +253,7 @@ async def reprocess_document(
     _: dict = Depends(get_current_user),
 ):
     collection = await _get_collection(collection_name)
+    logger.info(f"reprocess: doc={document_id} collection={collection_name}")
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
         uuid.UUID(document_id), collection["id"],
@@ -252,6 +265,7 @@ async def reprocess_document(
 
     # Verify the source file still exists
     if not await get_storage().exists(row["file_path"]):
+        logger.warning(f"reprocess: source file missing key={row['file_path']}")
         raise HTTPException(
             status_code=400,
             detail="Source file no longer exists. Upload the document again.",
@@ -259,6 +273,7 @@ async def reprocess_document(
 
     # Delete existing vectors
     await vector_store.delete_by_document(collection_name, document_id)
+    logger.info(f"reprocess: old vectors removed doc={document_id}")
 
     # Reset status
     await db.execute(
@@ -279,6 +294,7 @@ async def reprocess_document(
         chunk_size=collection["chunk_size"],
         chunk_overlap=collection["chunk_overlap"],
     ))
+    logger.info(f"reprocess: enqueued doc={document_id}")
 
     return {"status": "ok", "message": "Document reprocessing started"}
 

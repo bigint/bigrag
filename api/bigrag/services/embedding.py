@@ -44,6 +44,7 @@ class SentenceTransformerEmbedding(EmbeddingModel):
     async def embed(self, texts: list[str]) -> list[list[float]]:
         import asyncio
 
+        logger.info(f"embed: provider=sentence-transformers model={self._model_name} texts={len(texts)}")
         embeddings = await asyncio.to_thread(
             self._model.encode, texts, normalize_embeddings=True
         )
@@ -81,6 +82,7 @@ class OpenAIEmbedding(EmbeddingModel):
         logger.info(f"Initialized OpenAI embedding: {model_name} (dim={dimension})")
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
+        logger.info(f"embed: provider=openai model={self._model_name} texts={len(texts)}")
         response = await self._client.embeddings.create(input=texts, model=self._model_name)
         return [item.embedding for item in response.data]
 
@@ -122,6 +124,7 @@ class OllamaEmbedding(EmbeddingModel):
     async def embed(self, texts: list[str]) -> list[list[float]]:
         import asyncio
 
+        logger.info(f"embed: provider=ollama model={self._model_name} texts={len(texts)}")
         tasks = [self._embed_single(text) for text in texts]
         return await asyncio.gather(*tasks)
 
@@ -162,6 +165,7 @@ class CustomEmbedding(EmbeddingModel):
         logger.info(f"Initialized custom embedding: {model_name} @ {base_url} (dim={dimension})")
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
+        logger.info(f"embed: provider=custom model={self._model_name} texts={len(texts)}")
         response = await self._client.embeddings.create(input=texts, model=self._model_name)
         return [item.embedding for item in response.data]
 

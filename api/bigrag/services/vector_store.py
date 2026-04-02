@@ -99,7 +99,9 @@ class VectorStore:
             data.append(entry)
 
         result = await _run(self.client.insert, collection_name=col, data=data)
-        return result.get("insert_count", len(ids))
+        count = result.get("insert_count", len(ids))
+        logger.info(f"insert: collection={col} count={count}")
+        return count
 
     async def search(
         self,
@@ -133,15 +135,18 @@ class VectorStore:
                     "document_id": hit["entity"].get("document_id"),
                     "chunk_index": hit["entity"].get("chunk_index"),
                 })
+        logger.info(f"search: collection={col} top_k={top_k} hits={len(hits)} filter={filters}")
         return hits
 
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         col = self._col(collection)
         await _run(self.client.delete, collection_name=col, filter=f'document_id == "{document_id}"')
+        logger.info(f"delete_by_document: collection={col} document_id={document_id}")
 
     async def delete_by_ids(self, collection: str, ids: list[str]) -> None:
         col = self._col(collection)
         await _run(self.client.delete, collection_name=col, ids=ids)
+        logger.info(f"delete_by_ids: collection={col} count={len(ids)}")
 
     async def upsert(
         self,
@@ -163,7 +168,9 @@ class VectorStore:
             data.append(entry)
 
         result = await _run(self.client.upsert, collection_name=col, data=data)
-        return result.get("upsert_count", len(ids))
+        count = result.get("upsert_count", len(ids))
+        logger.info(f"upsert: collection={col} count={count}")
+        return count
 
 
 vector_store = VectorStore()

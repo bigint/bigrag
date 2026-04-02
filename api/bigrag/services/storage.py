@@ -38,17 +38,22 @@ class LocalStorage(StorageBackend):
         path = self._base / key
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
+        logger.info(f"local put: key={key} size={len(data)}")
 
     async def get(self, key: str) -> bytes:
         path = self._base / key
         if not path.exists():
+            logger.warning(f"local get: not found key={key}")
             raise FileNotFoundError(f"File not found: {key}")
-        return path.read_bytes()
+        data = path.read_bytes()
+        logger.info(f"local get: key={key} size={len(data)}")
+        return data
 
     async def delete(self, key: str) -> None:
         path = self._base / key
         if path.exists():
             path.unlink()
+            logger.info(f"local delete: key={key}")
 
     async def delete_prefix(self, prefix: str) -> int:
         import shutil
@@ -59,8 +64,10 @@ class LocalStorage(StorageBackend):
         if target.is_dir():
             count = sum(1 for _ in target.rglob("*") if _.is_file())
             shutil.rmtree(target, ignore_errors=True)
+            logger.info(f"local delete_prefix: prefix={prefix} count={count}")
             return count
         target.unlink()
+        logger.info(f"local delete_prefix: prefix={prefix} count=1")
         return 1
 
     async def exists(self, key: str) -> bool:
@@ -108,16 +115,20 @@ class S3Storage(StorageBackend):
     async def put(self, key: str, data: bytes) -> None:
         client = await self._get_client()
         await client.put_object(Bucket=self._bucket, Key=key, Body=data)
+        logger.info(f"s3 put: bucket={self._bucket} key={key} size={len(data)}")
 
     async def get(self, key: str) -> bytes:
         client = await self._get_client()
         resp = await client.get_object(Bucket=self._bucket, Key=key)
         async with resp["Body"] as stream:
-            return await stream.read()
+            data = await stream.read()
+        logger.info(f"s3 get: bucket={self._bucket} key={key} size={len(data)}")
+        return data
 
     async def delete(self, key: str) -> None:
         client = await self._get_client()
         await client.delete_object(Bucket=self._bucket, Key=key)
+        logger.info(f"s3 delete: bucket={self._bucket} key={key}")
 
     async def delete_prefix(self, prefix: str) -> int:
         client = await self._get_client()
@@ -130,6 +141,7 @@ class S3Storage(StorageBackend):
             delete_req = {"Objects": [{"Key": obj["Key"]} for obj in objects]}
             await client.delete_objects(Bucket=self._bucket, Delete=delete_req)
             count += len(objects)
+        logger.info(f"s3 delete_prefix: bucket={self._bucket} prefix={prefix} count={count}")
         return count
 
     async def exists(self, key: str) -> bool:

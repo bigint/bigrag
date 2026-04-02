@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from bigrag.config import settings
 from bigrag.database import db
+
+logger = logging.getLogger("bigrag.routers.collections")
 from bigrag.middleware.auth import get_current_user
 from bigrag.services.crypto import decrypt, encrypt
 from bigrag.models.collection import (
@@ -28,7 +31,9 @@ def _row_to_response(row: dict) -> CollectionResponse:
 
 @router.get("", response_model=CollectionListResponse)
 async def list_collections(_: dict = Depends(get_current_user)):
+    logger.info("list: fetching all collections")
     rows = await db.fetch("SELECT * FROM collections ORDER BY created_at DESC")
+    logger.info(f"list: found {len(rows)} collections")
     return CollectionListResponse(
         collections=[_row_to_response(dict(r)) for r in rows]
     )
@@ -36,6 +41,7 @@ async def list_collections(_: dict = Depends(get_current_user)):
 
 @router.post("", response_model=CollectionResponse, status_code=201)
 async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get_current_user)):
+    logger.info(f"create: name={body.name} provider={body.embedding_provider} model={body.embedding_model}")
     # Check if collection already exists
     existing = await db.fetchrow("SELECT id FROM collections WHERE name = $1", body.name)
     if existing:
@@ -96,11 +102,13 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
         await vector_store.delete_collection(body.name)
         raise
 
+    logger.info(f"create: collection={body.name} created provider={provider} model={model} dim={dimension}")
     return _row_to_response(dict(row))
 
 
 @router.get("/{name}", response_model=CollectionResponse)
 async def get_collection(name: str, _: dict = Depends(get_current_user)):
+    logger.info(f"get: collection={name}")
     row = await db.fetchrow("SELECT * FROM collections WHERE name = $1", name)
     if not row:
         raise HTTPException(status_code=404, detail="Collection not found")
@@ -111,6 +119,7 @@ async def get_collection(name: str, _: dict = Depends(get_current_user)):
 async def update_collection(
     name: str, body: UpdateCollectionRequest, _: dict = Depends(get_current_user)
 ):
+    logger.info(f"update: collection={name}")
     row = await db.fetchrow("SELECT * FROM collections WHERE name = $1", name)
     if not row:
         raise HTTPException(status_code=404, detail="Collection not found")
@@ -143,18 +152,22 @@ async def update_collection(
 
 @router.delete("/{name}")
 async def delete_collection(name: str, _: dict = Depends(get_current_user)):
+    logger.info(f"delete: collection={name}")
     row = await db.fetchrow("SELECT id FROM collections WHERE name = $1", name)
     if not row:
         raise HTTPException(status_code=404, detail="Collection not found")
 
     # Delete from Milvus
     await vector_store.delete_collection(name)
+    logger.info(f"delete: milvus collection dropped name={name}")
 
     # Delete uploaded files from storage
     from bigrag.services.storage import get_storage
-    await get_storage().delete_prefix(f"{name}/")
+    deleted = await get_storage().delete_prefix(f"{name}/")
+    logger.info(f"delete: storage files removed name={name} count={deleted}")
 
     # Delete from Postgres (cascades to documents)
     await db.execute("DELETE FROM collections WHERE name = $1", name)
+    logger.info(f"delete: postgres records removed name={name}")
 
     return {"status": "ok", "message": f"Collection '{name}' deleted"}

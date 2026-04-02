@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import argparse
 import logging
+import time
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import uvicorn
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from bigrag import __version__
 from bigrag.config import Settings, settings
@@ -69,6 +70,25 @@ async def lifespan(app: FastAPI):
     logger.info("bigRAG shut down")
 
 
+request_logger = logging.getLogger("bigrag.http")
+
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next) -> Response:
+        start = time.monotonic()
+        method = request.method
+        path = request.url.path
+        client = request.client.host if request.client else "-"
+
+        request_logger.info(f"→ {method} {path} from {client}")
+
+        response = await call_next(request)
+
+        elapsed = (time.monotonic() - start) * 1000
+        request_logger.info(f"← {method} {path} {response.status_code} {elapsed:.0f}ms")
+        return response
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="bigRAG",
@@ -77,6 +97,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,

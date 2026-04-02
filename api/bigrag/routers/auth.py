@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from bigrag.middleware.auth import get_current_user
+
+logger = logging.getLogger("bigrag.routers.auth")
 from bigrag.middleware.rate_limit import auth_rate_limit
 from bigrag.models.auth import (
     AuthResponse,
@@ -22,11 +25,13 @@ router = APIRouter(prefix="/v1/auth", tags=["auth"])
 @router.get("/setup-status")
 async def setup_status():
     needs = await auth_service.needs_setup()
+    logger.info(f"setup-status: needs_setup={needs}")
     return {"needs_setup": needs}
 
 
 @router.post("/setup", response_model=AuthResponse, dependencies=[Depends(auth_rate_limit)])
 async def setup(body: SetupRequest):
+    logger.info(f"setup: email={body.email}")
     if not await auth_service.needs_setup():
         raise HTTPException(status_code=409, detail="Setup already completed")
 
@@ -36,6 +41,7 @@ async def setup(body: SetupRequest):
         display_name=body.display_name,
         role="admin",
     )
+    logger.info(f"setup: admin user created email={body.email}")
     token = await auth_service.create_session(user["id"])
     return AuthResponse(
         token=token,
@@ -45,10 +51,13 @@ async def setup(body: SetupRequest):
 
 @router.post("/login", response_model=AuthResponse, dependencies=[Depends(auth_rate_limit)])
 async def login(body: LoginRequest):
+    logger.info(f"login: email={body.email}")
     user = await auth_service.authenticate(body.email, body.password)
     if not user:
+        logger.warning(f"login: failed email={body.email}")
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
+    logger.info(f"login: success email={body.email}")
     token = await auth_service.create_session(user["id"])
     return AuthResponse(
         token=token,
@@ -58,8 +67,10 @@ async def login(body: LoginRequest):
 
 @router.post("/signup", response_model=AuthResponse, dependencies=[Depends(auth_rate_limit)])
 async def signup(body: SignupRequest):
+    logger.info(f"signup: email={body.email}")
     invite = await auth_service.redeem_invite(body.invite_code)
     if not invite:
+        logger.warning(f"signup: invalid invite code email={body.email}")
         raise HTTPException(status_code=400, detail="Invalid or expired invite code")
 
     import asyncpg
@@ -75,6 +86,7 @@ async def signup(body: SignupRequest):
         raise HTTPException(status_code=409, detail="Email already registered")
 
     await auth_service.mark_invite_used(invite["id"], user["id"])
+    logger.info(f"signup: success email={body.email} role={invite['role']}")
     token = await auth_service.create_session(user["id"])
     return AuthResponse(
         token=token,
@@ -84,6 +96,7 @@ async def signup(body: SignupRequest):
 
 @router.post("/logout")
 async def logout_route(request: Request, user: dict = Depends(get_current_user)):
+    logger.info(f"logout: user={user.get('email')}")
     auth_header = request.headers.get("authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
@@ -107,6 +120,7 @@ async def me(user: dict = Depends(get_current_user)):
 
 @router.put("/password")
 async def change_password(body: PasswordChangeRequest, user: dict = Depends(get_current_user)):
+    logger.info(f"password change: user={user.get('email')}")
     if not user.get("id"):
         raise HTTPException(status_code=400, detail="Cannot change password for this account type")
 
@@ -114,6 +128,8 @@ async def change_password(body: PasswordChangeRequest, user: dict = Depends(get_
         user["id"], body.current_password, body.new_password
     )
     if not success:
+        logger.warning(f"password change: wrong current password user={user.get('email')}")
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 
+    logger.info(f"password change: success user={user.get('email')}")
     return {"status": "ok"}

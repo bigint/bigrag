@@ -17,24 +17,34 @@ async def retrieve(
     min_score: float | None = None,
 ) -> list[dict]:
     """Embed query and search Milvus for similar chunks."""
+    import time
+
     # Embed the query
+    t0 = time.monotonic()
     embeddings = await embedding_model.embed([query])
     query_embedding = embeddings[0]
+    embed_ms = (time.monotonic() - t0) * 1000
+    logger.info(f"retrieve: embedded query collection={collection_name} model={embedding_model.name} {embed_ms:.0f}ms")
 
     # Build Milvus filter expression
     filter_expr = _build_filter_expr(filters) if filters else None
 
     # Search
+    t0 = time.monotonic()
     results = await vector_store.search(
         collection=collection_name,
         query_embedding=query_embedding,
         top_k=top_k,
         filters=filter_expr,
     )
+    search_ms = (time.monotonic() - t0) * 1000
+    logger.info(f"retrieve: searched collection={collection_name} hits={len(results)} top_k={top_k} {search_ms:.0f}ms")
 
     # Apply minimum score filter
     if min_score is not None:
+        before = len(results)
         results = [r for r in results if r["score"] >= min_score]
+        logger.info(f"retrieve: score filter min={min_score} before={before} after={len(results)}")
 
     return results
 

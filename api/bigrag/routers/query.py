@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from bigrag.config import settings
+
+logger = logging.getLogger("bigrag.routers.query")
 from bigrag.middleware.auth import get_current_user
 from bigrag.routers import get_collection_or_404
 from bigrag.models.query import (
@@ -30,6 +34,7 @@ async def query_collection(
     _: dict = Depends(get_current_user),
 ):
     collection = await _get_collection(collection_name)
+    logger.info(f"query: collection={collection_name} q={body.query!r:.80s} top_k={body.top_k} filters={body.filters}")
 
     try:
         embedding_model = get_embedding_model(
@@ -51,6 +56,7 @@ async def query_collection(
         min_score=body.min_score,
     )
 
+    logger.info(f"query: collection={collection_name} results={len(results)}")
     return QueryResponse(
         results=[QueryResult(**r) for r in results],
         query=body.query,
@@ -69,6 +75,7 @@ async def upsert_vectors(
     _: dict = Depends(get_current_user),
 ):
     await _get_collection(collection_name)
+    logger.info(f"upsert: collection={collection_name} vectors={len(body.vectors)}")
 
     ids = [v.id for v in body.vectors]
     embeddings = [v.embedding for v in body.vectors]
@@ -82,6 +89,7 @@ async def upsert_vectors(
         texts=texts,
         metadata=metadata,
     )
+    logger.info(f"upsert: collection={collection_name} upserted={count}")
 
     return {"status": "ok", "upserted": count}
 
@@ -93,6 +101,7 @@ async def delete_vectors(
     _: dict = Depends(get_current_user),
 ):
     await _get_collection(collection_name)
+    logger.info(f"vectors/delete: collection={collection_name} ids={len(body.ids)}")
     await vector_store.delete_by_ids(collection_name, body.ids)
     return {"status": "ok", "deleted": len(body.ids)}
 
