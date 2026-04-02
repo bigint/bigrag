@@ -247,7 +247,7 @@ export class BigRAG {
       const name = file instanceof File ? file.name : "document";
       form.append("file", file, name);
     } else if (file instanceof Uint8Array || (typeof Buffer !== "undefined" && Buffer.isBuffer(file))) {
-      form.append("file", new Blob([file]), "document");
+      form.append("file", new Blob([file as BlobPart]), "document");
     } else if (typeof file === "object" && "path" in file) {
       // Node.js file path — dynamic import to avoid breaking browser bundles
       const { readFile } = await import("node:fs/promises");
