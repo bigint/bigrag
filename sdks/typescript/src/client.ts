@@ -223,15 +223,48 @@ export class BigRAG {
     path: string,
   ): Promise<string> {
     const url = `${this.baseUrl}${path}`;
-    const response = await this._fetch(url, {
-      method: "GET",
-      headers: this._headers(),
-      signal: AbortSignal.timeout(this.timeout),
-    });
-    if (!response.ok) {
-      throw errorForStatus(response.status, response.statusText);
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      if (attempt > 0) {
+        await sleep(Math.min(0.5 * 2 ** attempt, 4) * 1000);
+      }
+
+      let response: Response;
+      try {
+        response = await this._fetch(url, {
+          method: "GET",
+          headers: this._headers(),
+          signal: AbortSignal.timeout(this.timeout),
+        });
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (lastError.name === "TimeoutError" || lastError.name === "AbortError") {
+          if (attempt < this.maxRetries) continue;
+          throw new APITimeoutError(lastError.message);
+        }
+        if (attempt < this.maxRetries) continue;
+        throw new APIConnectionError(lastError.message);
+      }
+
+      if (response.status >= 500 && attempt < this.maxRetries) {
+        lastError = new Error(await response.text().catch(() => "Server error"));
+        continue;
+      }
+
+      if (response.status === 429 && attempt < this.maxRetries) {
+        lastError = new Error("Rate limited");
+        continue;
+      }
+
+      if (!response.ok) {
+        throw errorForStatus(response.status, response.statusText);
+      }
+
+      return response.text();
     }
-    return response.text();
+
+    throw new APIConnectionError(lastError?.message ?? "Request failed");
   }
 
   // ---- Helpers for file input normalization ----
