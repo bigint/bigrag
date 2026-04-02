@@ -7,7 +7,8 @@ import {
   LogOut,
   Search,
   Settings,
-  TrendingUp
+  TrendingUp,
+  Webhook
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -22,6 +23,7 @@ const nav = [
   { href: "/query", icon: Search, label: "Query" },
   { href: "/metrics", icon: TrendingUp, label: "Metrics" },
   { href: "/api-keys", icon: Key, label: "API Keys" },
+  { href: "/webhooks", icon: Webhook, label: "Webhooks" },
   { href: "/settings", icon: Settings, label: "Settings" }
 ] as const;
 
