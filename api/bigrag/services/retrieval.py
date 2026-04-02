@@ -49,6 +49,71 @@ async def retrieve(
     return results
 
 
+async def retrieve_multi(
+    collection_names: list[str],
+    query: str,
+    embedding_models: dict[str, EmbeddingModel],
+    top_k: int = 10,
+    filters: dict | None = None,
+    min_score: float | None = None,
+) -> list[dict]:
+    """Query multiple collections in parallel and merge results by score."""
+    import asyncio
+
+    filter_expr = _build_filter_expr(filters) if filters else None
+
+    # Group collections by their embedding model to embed once per unique model
+    unique_models: dict[str, EmbeddingModel] = {}
+    for col_name, model in embedding_models.items():
+        key = f"{model.provider}:{model.name}"
+        if key not in unique_models:
+            unique_models[key] = model
+
+    # Embed query once per unique model
+    embed_tasks = []
+    embed_keys = []
+    for key, model in unique_models.items():
+        embed_keys.append(key)
+        embed_tasks.append(model.embed([query], input_type="query"))
+
+    embed_results = await asyncio.gather(*embed_tasks)
+    model_embeddings: dict[str, list[float]] = {}
+    for key, result in zip(embed_keys, embed_results):
+        model_embeddings[key] = result[0]
+
+    # Search all collections in parallel
+    async def search_one(col_name: str) -> list[dict]:
+        model = embedding_models[col_name]
+        key = f"{model.provider}:{model.name}"
+        query_embedding = model_embeddings[key]
+
+        results = await vector_store.search(
+            collection=col_name,
+            query_embedding=query_embedding,
+            top_k=top_k,
+            filters=filter_expr,
+        )
+        for r in results:
+            r["collection"] = col_name
+        return results
+
+    all_results = await asyncio.gather(*[search_one(c) for c in collection_names])
+
+    # Merge and sort by score descending
+    merged = []
+    for results in all_results:
+        merged.extend(results)
+
+    merged.sort(key=lambda r: r["score"], reverse=True)
+
+    # Apply min_score filter
+    if min_score is not None:
+        merged = [r for r in merged if r["score"] >= min_score]
+
+    # Return top_k across all collections
+    return merged[:top_k]
+
+
 import re
 
 _SAFE_FIELD_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")

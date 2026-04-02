@@ -11,6 +11,9 @@ from bigrag.middleware.auth import get_current_user
 from bigrag.routers import get_collection_or_404
 from bigrag.models.query import (
     EmbeddingModelInfo,
+    MultiQueryRequest,
+    MultiQueryResponse,
+    MultiQueryResult,
     QueryRequest,
     QueryResponse,
     QueryResult,
@@ -18,7 +21,7 @@ from bigrag.models.query import (
     VectorUpsertRequest,
 )
 from bigrag.services.embedding import AVAILABLE_MODELS, get_embedding_model
-from bigrag.services.retrieval import retrieve
+from bigrag.services.retrieval import retrieve, retrieve_multi
 from bigrag.services.vector_store import vector_store
 
 router = APIRouter(tags=["query"])
@@ -60,6 +63,45 @@ async def query_collection(
         results=[QueryResult(**r) for r in results],
         query=body.query,
         collection=collection_name,
+        total=len(results),
+    )
+
+
+@router.post("/v1/query", response_model=MultiQueryResponse)
+async def multi_collection_query(
+    body: MultiQueryRequest,
+    _: dict = Depends(get_current_user),
+):
+    logger.info(f"multi-query: collections={body.collections} q={body.query!r:.80s} top_k={body.top_k}")
+
+    # Load all collections and their embedding models
+    embedding_models = {}
+    for col_name in body.collections:
+        collection = await _get_collection(col_name)
+        try:
+            embedding_models[col_name] = get_embedding_model(
+                provider=collection["embedding_provider"],
+                model_name=collection["embedding_model"],
+                dimension=collection["dimension"],
+                api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
+            )
+        except (ImportError, ValueError) as e:
+            raise HTTPException(status_code=400, detail=f"Collection '{col_name}': {e}")
+
+    results = await retrieve_multi(
+        collection_names=body.collections,
+        query=body.query,
+        embedding_models=embedding_models,
+        top_k=body.top_k,
+        filters=body.filters,
+        min_score=body.min_score,
+    )
+
+    logger.info(f"multi-query: collections={body.collections} results={len(results)}")
+    return MultiQueryResponse(
+        results=[MultiQueryResult(**r) for r in results],
+        query=body.query,
+        collections=body.collections,
         total=len(results),
     )
 
