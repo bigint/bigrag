@@ -37,7 +37,7 @@ The following are in scope:
 
 - The bigRAG API server and all Python packages in this repository
 - Official Docker images
-- Official client SDKs (Python, TypeScript, Go)
+- Official client SDKs (Python, TypeScript)
 
 The following are out of scope:
 

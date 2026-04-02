@@ -14,7 +14,7 @@ Thank you for your interest in contributing to bigRAG. This guide will help you 
 
 ```bash
 # Clone the repository
-git clone https://github.com/bigrag-io/bigrag.git
+git clone https://github.com/bigint/bigrag.git
 cd bigrag
 
 # Start everything
@@ -52,7 +52,7 @@ bigrag/
 │   │   └── middleware/     # Auth middleware
 │   └── pyproject.toml
 ├── ui/                    # Next.js admin dashboard
-├── sdks/                  # Client SDKs (Python, TypeScript, Go)
+├── sdks/                  # Client SDKs (Python, TypeScript)
 ├── docs/                  # Documentation
 ├── docker-compose.yml     # Full stack (Postgres, Milvus, API)
 ├── dev.sh                 # One-command dev setup
