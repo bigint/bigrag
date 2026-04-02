@@ -1,5 +1,3 @@
-"""Redis-backed ingestion queue with async workers, SSE event bus, and structured logging."""
-
 from __future__ import annotations
 
 import asyncio
@@ -15,13 +13,10 @@ import redis.asyncio as aioredis
 
 logger = logging.getLogger("bigrag.queue")
 
-# Singleton Docling converter — avoids reloading ML models on every job
 _docling_converter = None
-_docling_lock = asyncio.Lock()
 
 
 def _get_docling_converter():
-    """Get or create the singleton DocumentConverter (called inside to_thread)."""
     global _docling_converter
     if _docling_converter is None:
         from docling.document_converter import DocumentConverter
@@ -29,20 +24,12 @@ def _get_docling_converter():
     return _docling_converter
 
 
-# Non-retryable error types — no point retrying these
-_PERMANENT_ERRORS = (
-    ValueError,  # "no extractable text", "no chunks"
-    UnicodeDecodeError,
-    KeyError,
-)
+_PERMANENT_ERRORS = (ValueError, UnicodeDecodeError, KeyError)
 
 QUEUE_KEY = "bigrag:ingestion:queue"
 PROCESSING_KEY = "bigrag:ingestion:processing"
 DEAD_LETTER_KEY = "bigrag:ingestion:dead"
 STATS_KEY = "bigrag:ingestion:stats"
-
-
-# --- SSE Event Bus (in-memory, per-process) ---
 
 
 @dataclass
@@ -107,9 +94,6 @@ class EventBus:
 event_bus = EventBus()
 
 
-# --- Job definition ---
-
-
 @dataclass
 class IngestionJob:
     document_id: str
@@ -145,11 +129,7 @@ class IngestionJob:
 
     @classmethod
     def deserialize(cls, data: bytes) -> IngestionJob:
-        d = orjson.loads(data)
-        return cls(**d)
-
-
-# --- Redis-backed queue ---
+        return cls(**orjson.loads(data))
 
 
 class IngestionQueue:
@@ -169,7 +149,6 @@ class IngestionQueue:
 
     async def start(self) -> None:
         self._running = True
-        # Recover any jobs stuck in processing (from previous crash)
         recovered = await self._recover_stuck_jobs()
         if recovered:
             logger.info(f"[queue] recovered {recovered} stuck jobs from previous run")
@@ -188,14 +167,12 @@ class IngestionQueue:
         logger.info("[queue] all workers stopped")
 
     async def _recover_stuck_jobs(self) -> int:
-        """Move jobs stuck in processing back to the queue (crash recovery)."""
         count = 0
         while True:
             data = await self._redis.lmove(PROCESSING_KEY, QUEUE_KEY, src="RIGHT", dest="LEFT")
             if data is None:
                 break
             count += 1
-        # Reset the processing counter since all stuck jobs have been recovered
         if count > 0:
             await self._redis.hset(STATS_KEY, "processing", 0)
         return count
@@ -226,7 +203,6 @@ class IngestionQueue:
         logger.info(f"[worker-{worker_id}] started")
         while self._running:
             try:
-                # BLMOVE: atomically pop from queue, push to processing (crash-safe)
                 data = await self._redis.blmove(QUEUE_KEY, PROCESSING_KEY, timeout=1, src="RIGHT", dest="LEFT")
                 if data is None:
                     continue
@@ -235,7 +211,6 @@ class IngestionQueue:
                 try:
                     await self._process_job(worker_id, job)
                 finally:
-                    # Remove from processing list
                     await self._redis.lrem(PROCESSING_KEY, 1, data)
             except Exception as e:
                 logger.error(f"[worker-{worker_id}] loop error: {e!r}")
@@ -266,14 +241,12 @@ class IngestionQueue:
         start_time = time.monotonic()
 
         try:
-            # Step 1: Mark processing
             await db.execute(
                 "UPDATE documents SET status = 'processing', updated_at = now() WHERE id = $1",
                 uuid.UUID(doc),
             )
             self._emit(doc, "processing", "processing", "Preparing document", 0.05)
 
-            # Step 2: Load embedding model
             t0 = time.monotonic()
             embedding_model = get_embedding_model(
                 provider=job.embedding_provider,
@@ -287,7 +260,6 @@ class IngestionQueue:
             self._emit(doc, "model_loaded", "processing", f"Loaded {job.embedding_model}", 0.10,
                        provider=job.embedding_provider, model=job.embedding_model, elapsed=round(elapsed, 2))
 
-            # Step 3: Download file from storage and convert with Docling
             self._emit(doc, "converting", "processing", "Parsing document with Docling", 0.15)
             t0 = time.monotonic()
 
@@ -316,7 +288,6 @@ class IngestionQueue:
             logger.info(f"{prefix} docling conversion elapsed={elapsed:.2f}s")
             self._emit(doc, "converted", "processing", f"Parsed in {elapsed:.1f}s", 0.35, elapsed=round(elapsed, 2))
 
-            # Step 4: Extract text
             text = result.document.export_to_markdown()
             if not text.strip():
                 text = result.document.export_to_text()
@@ -325,7 +296,6 @@ class IngestionQueue:
             logger.info(f"{prefix} text extracted chars={len(text)}")
             self._emit(doc, "text_extracted", "processing", f"Extracted {len(text):,} characters", 0.40, chars=len(text))
 
-            # Step 5: Chunk (CPU-bound, run in thread)
             from bigrag.services.ingestion import _chunk_text
             chunks = await asyncio.to_thread(_chunk_text, text, job.chunk_size, job.chunk_overlap)
             if not chunks:
@@ -334,7 +304,6 @@ class IngestionQueue:
             self._emit(doc, "chunked", "processing", f"Split into {len(chunks)} chunks", 0.45,
                        chunks=len(chunks), chunk_size=job.chunk_size)
 
-            # Step 6: Embed + insert in batches
             from bigrag.config import settings as _settings
             batch_size = _settings.ingestion_batch_size
             total_inserted = 0
@@ -368,7 +337,6 @@ class IngestionQueue:
                            progress, batch=batch_num, total_batches=total_batches,
                            inserted=total_inserted, embed_time=round(embed_elapsed, 2))
 
-            # Step 7: Finalize
             await db.execute(
                 "UPDATE documents SET status = 'ready', chunk_count = $1, error_message = NULL, updated_at = now() WHERE id = $2",
                 total_inserted, uuid.UUID(doc),
@@ -398,7 +366,6 @@ class IngestionQueue:
             is_permanent = isinstance(e, _PERMANENT_ERRORS)
 
             if not is_permanent and job.attempt < job.max_attempts:
-                # Clean up any partially inserted vectors before retry
                 try:
                     await vector_store.delete_by_document(job.collection_name, doc)
                 except Exception as cleanup_err:
@@ -412,7 +379,6 @@ class IngestionQueue:
                     "UPDATE documents SET status = 'pending', error_message = $1, updated_at = now() WHERE id = $2",
                     f"Attempt {job.attempt} failed: {e}. Retrying...", uuid.UUID(doc),
                 )
-                # Re-enqueue immediately — no sleep blocking the worker
                 await self.enqueue(job)
             else:
                 reason = "permanent error" if is_permanent else f"{job.max_attempts} attempts exhausted"
