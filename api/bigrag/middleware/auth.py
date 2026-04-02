@@ -10,8 +10,7 @@ from bigrag.services import auth as auth_service
 
 logger = logging.getLogger("bigrag.auth")
 
-# TTL cache for auth lookups — avoids hitting Postgres on every request
-_AUTH_CACHE_TTL = 60  # seconds
+_AUTH_CACHE_TTL = 60
 _session_cache: dict[str, tuple[dict, float]] = {}
 _api_key_cache: dict[str, tuple[dict | None, float]] = {}
 
@@ -32,7 +31,6 @@ def _cache_set(cache: dict, key: str, value) -> None:
 
 
 def invalidate_auth_cache(token_hash: str | None = None) -> None:
-    """Invalidate auth cache entries. Call on logout/key deletion."""
     if token_hash:
         _session_cache.pop(token_hash, None)
         _api_key_cache.pop(token_hash, None)
@@ -42,11 +40,9 @@ def invalidate_auth_cache(token_hash: str | None = None) -> None:
 
 
 async def get_current_user(request: Request) -> dict:
-    """Extract and validate auth from the request. Supports session tokens, API keys, master key."""
     auth_header = request.headers.get("authorization", "")
     path = request.url.path
 
-    # EventSource can't send headers — accept token as query param
     if not auth_header.startswith("Bearer "):
         query_token = request.query_params.get("token")
         if query_token:
@@ -55,22 +51,17 @@ async def get_current_user(request: Request) -> dict:
     if not auth_header.startswith("Bearer "):
         if not settings.master_key and not settings.api_keys:
             if await auth_service.needs_setup():
-                logger.info(f"auth: anonymous access (no setup) path={path}")
                 return {"id": None, "role": "admin", "email": "anonymous", "display_name": "Anonymous"}
-        logger.warning(f"auth: missing authorization header path={path}")
         raise HTTPException(status_code=401, detail="Missing authorization header")
 
     token = auth_header[7:]
 
-    # Master key check
     if settings.master_key and token == settings.master_key:
         return {"id": None, "role": "admin", "email": "master", "display_name": "Master Key"}
 
-    # Static API key check
     if token in settings.api_keys:
         return {"id": None, "role": "admin", "email": "api-key", "display_name": "API Key"}
 
-    # Session token check (cached)
     token_hash = auth_service.hash_token(token)
     cached_user = _cache_get(_session_cache, token_hash)
     if cached_user:
@@ -81,7 +72,6 @@ async def get_current_user(request: Request) -> dict:
         _cache_set(_session_cache, token_hash, user)
         return user
 
-    # Database API key check (cached)
     cached_key = _cache_get(_api_key_cache, token_hash)
     if cached_key:
         return cached_key
@@ -104,6 +94,5 @@ async def get_current_user(request: Request) -> dict:
 
 async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     if user.get("role") != "admin":
-        logger.warning(f"auth: admin required but role={user.get('role')} user={user.get('email')}")
         raise HTTPException(status_code=403, detail="Admin access required")
     return user

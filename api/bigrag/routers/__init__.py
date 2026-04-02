@@ -10,13 +10,11 @@ from bigrag.services.crypto import decrypt
 
 logger = logging.getLogger("bigrag.routers")
 
-# TTL cache for collection lookups — collections change rarely
-_COLLECTION_CACHE_TTL = 30  # seconds
+_COLLECTION_CACHE_TTL = 30
 _collection_cache: dict[str, tuple[dict, float]] = {}
 
 
 def invalidate_collection_cache(name: str | None = None) -> None:
-    """Invalidate collection cache. Call after collection updates."""
     if name:
         _collection_cache.pop(name, None)
     else:
@@ -24,8 +22,6 @@ def invalidate_collection_cache(name: str | None = None) -> None:
 
 
 async def get_collection_or_404(name: str) -> dict:
-    """Shared helper to fetch a collection by name or raise 404."""
-    # Check cache first
     entry = _collection_cache.get(name)
     if entry:
         data, expires_at = entry
@@ -37,7 +33,6 @@ async def get_collection_or_404(name: str) -> dict:
     if not row:
         raise HTTPException(status_code=404, detail="Collection not found")
     data = dict(row)
-    # Decrypt the embedding API key if stored encrypted
     if data.get("embedding_api_key"):
         try:
             data["embedding_api_key"] = decrypt(data["embedding_api_key"])

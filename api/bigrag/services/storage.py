@@ -1,5 +1,3 @@
-"""Pluggable file storage backends (local filesystem or S3-compatible)."""
-
 from __future__ import annotations
 
 import asyncio

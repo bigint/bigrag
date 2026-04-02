@@ -9,23 +9,19 @@ logger = logging.getLogger("bigrag.embedding")
 
 class EmbeddingModel(ABC):
     @abstractmethod
-    async def embed(self, texts: list[str]) -> list[list[float]]:
-        ...
+    async def embed(self, texts: list[str]) -> list[list[float]]: ...
 
     @property
     @abstractmethod
-    def dimension(self) -> int:
-        ...
+    def dimension(self) -> int: ...
 
     @property
     @abstractmethod
-    def name(self) -> str:
-        ...
+    def name(self) -> str: ...
 
     @property
     @abstractmethod
-    def provider(self) -> str:
-        ...
+    def provider(self) -> str: ...
 
 
 class SentenceTransformerEmbedding(EmbeddingModel):
@@ -33,7 +29,6 @@ class SentenceTransformerEmbedding(EmbeddingModel):
         from sentence_transformers import SentenceTransformer
 
         self._model_name = model_name
-        # Auto-detect GPU if device not specified
         if device is None or device == "auto":
             try:
                 import torch
@@ -50,9 +45,6 @@ class SentenceTransformerEmbedding(EmbeddingModel):
         logger.info(f"Loaded sentence-transformers model: {model_name} (dim={self._dimension}, device={device})")
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        import asyncio
-
-        logger.info(f"embed: provider=sentence-transformers model={self._model_name} texts={len(texts)}")
         embeddings = await asyncio.to_thread(
             self._model.encode, texts, normalize_embeddings=True
         )
@@ -90,7 +82,6 @@ class OpenAIEmbedding(EmbeddingModel):
         logger.info(f"Initialized OpenAI embedding: {model_name} (dim={dimension})")
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        logger.info(f"embed: provider=openai model={self._model_name} texts={len(texts)}")
         response = await self._client.embeddings.create(input=texts, model=self._model_name)
         return [item.embedding for item in response.data]
 
@@ -139,9 +130,6 @@ class OllamaEmbedding(EmbeddingModel):
             return data["embeddings"][0]
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        import asyncio
-
-        logger.info(f"embed: provider=ollama model={self._model_name} texts={len(texts)}")
         tasks = [self._embed_single(text) for text in texts]
         return await asyncio.gather(*tasks)
 
@@ -162,8 +150,6 @@ class OllamaEmbedding(EmbeddingModel):
 
 
 class CustomEmbedding(EmbeddingModel):
-    """OpenAI-compatible API embedding endpoint."""
-
     def __init__(
         self, model_name: str, base_url: str, api_key: str | None = None,
         dimension: int = 1536,
@@ -182,7 +168,6 @@ class CustomEmbedding(EmbeddingModel):
         logger.info(f"Initialized custom embedding: {model_name} @ {base_url} (dim={dimension})")
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        logger.info(f"embed: provider=custom model={self._model_name} texts={len(texts)}")
         response = await self._client.embeddings.create(input=texts, model=self._model_name)
         return [item.embedding for item in response.data]
 
@@ -199,7 +184,6 @@ class CustomEmbedding(EmbeddingModel):
         return "custom"
 
 
-# Model registry
 _models: dict[str, EmbeddingModel] = {}
 
 
@@ -242,46 +226,11 @@ def get_embedding_model(
 
 
 AVAILABLE_MODELS = [
-    {
-        "provider": "sentence-transformers",
-        "model": "all-MiniLM-L6-v2",
-        "dimension": 384,
-        "description": "Fast, lightweight English model (default)",
-    },
-    {
-        "provider": "sentence-transformers",
-        "model": "all-mpnet-base-v2",
-        "dimension": 768,
-        "description": "Higher quality English model",
-    },
-    {
-        "provider": "sentence-transformers",
-        "model": "intfloat/multilingual-e5-large",
-        "dimension": 1024,
-        "description": "Multilingual model supporting 100+ languages",
-    },
-    {
-        "provider": "openai",
-        "model": "text-embedding-3-small",
-        "dimension": 1536,
-        "description": "OpenAI small embedding model (requires API key)",
-    },
-    {
-        "provider": "openai",
-        "model": "text-embedding-3-large",
-        "dimension": 3072,
-        "description": "OpenAI large embedding model (requires API key)",
-    },
-    {
-        "provider": "ollama",
-        "model": "nomic-embed-text",
-        "dimension": 768,
-        "description": "Local Ollama model (requires Ollama running)",
-    },
-    {
-        "provider": "ollama",
-        "model": "mxbai-embed-large",
-        "dimension": 1024,
-        "description": "Local Ollama large model (requires Ollama running)",
-    },
+    {"provider": "sentence-transformers", "model": "all-MiniLM-L6-v2", "dimension": 384, "description": "Fast, lightweight English model (default)"},
+    {"provider": "sentence-transformers", "model": "all-mpnet-base-v2", "dimension": 768, "description": "Higher quality English model"},
+    {"provider": "sentence-transformers", "model": "intfloat/multilingual-e5-large", "dimension": 1024, "description": "Multilingual model supporting 100+ languages"},
+    {"provider": "openai", "model": "text-embedding-3-small", "dimension": 1536, "description": "OpenAI small embedding model (requires API key)"},
+    {"provider": "openai", "model": "text-embedding-3-large", "dimension": 3072, "description": "OpenAI large embedding model (requires API key)"},
+    {"provider": "ollama", "model": "nomic-embed-text", "dimension": 768, "description": "Local Ollama model (requires Ollama running)"},
+    {"provider": "ollama", "model": "mxbai-embed-large", "dimension": 1024, "description": "Local Ollama large model (requires Ollama running)"},
 ]

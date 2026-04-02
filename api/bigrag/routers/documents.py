@@ -6,19 +6,19 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Form
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 
 from bigrag.config import settings
-
-logger = logging.getLogger("bigrag.routers.documents")
 from bigrag.database import db
 from bigrag.middleware.auth import get_current_user
-from bigrag.routers import get_collection_or_404
 from bigrag.models.document import DocumentListResponse, DocumentResponse
+from bigrag.routers import get_collection_or_404
 from bigrag.services.embedding import get_embedding_model
 from bigrag.services.queue import IngestionJob, event_bus, ingestion_queue
 from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
+
+logger = logging.getLogger("bigrag.routers.documents")
 
 router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["documents"])
 
@@ -43,7 +43,6 @@ _get_collection = get_collection_or_404
 
 
 def _validate_embedding_provider(collection: dict) -> None:
-    """Validate the embedding provider is available before accepting the upload."""
     provider = collection["embedding_provider"]
     api_key = collection.get("embedding_api_key") or settings.embedding_api_key
     base_url = collection.get("embedding_base_url") or settings.embedding_base_url
@@ -79,7 +78,6 @@ async def upload_document(
     _validate_embedding_provider(collection)
     logger.info(f"upload: collection={collection_name} file={file.filename}")
 
-    # Validate file type
     file_ext = Path(file.filename or "").suffix.lower()
     if file_ext and file_ext not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
@@ -87,7 +85,6 @@ async def upload_document(
             detail=f"Unsupported file type '{file_ext}'. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
         )
 
-    # Early size check via Content-Length header (reject before reading body)
     max_size = settings.max_upload_size_mb * 1024 * 1024
     content_length = request.headers.get("content-length")
     if content_length and int(content_length) > max_size:
@@ -96,11 +93,10 @@ async def upload_document(
             detail=f"File too large. Max size: {settings.max_upload_size_mb}MB",
         )
 
-    # Stream file into memory with a size guard
     chunks = []
     total_size = 0
     while True:
-        chunk = await file.read(1024 * 1024)  # 1MB chunks
+        chunk = await file.read(1024 * 1024)
         if not chunk:
             break
         total_size += len(chunk)
@@ -112,7 +108,6 @@ async def upload_document(
         chunks.append(chunk)
     content = b"".join(chunks)
 
-    # Save file to storage
     doc_id = str(uuid.uuid4())
     file_ext = Path(file.filename or "document").suffix
     storage_key = f"{collection_name}/{doc_id}{file_ext}"
@@ -121,13 +116,11 @@ async def upload_document(
     await storage.put(storage_key, content)
     logger.info(f"upload: stored key={storage_key} size={len(content)}")
 
-    # Parse metadata
     try:
         meta = json.loads(metadata) if metadata else {}
     except json.JSONDecodeError:
         meta = {}
 
-    # Create document record
     try:
         row = await db.fetchrow(
             """
@@ -139,11 +132,9 @@ async def upload_document(
             file_ext.lstrip("."), len(content), storage_key, meta,
         )
     except Exception:
-        # Clean up the file if DB insert fails
         await storage.delete(storage_key)
         raise
 
-    # Enqueue for background processing
     await ingestion_queue.enqueue(IngestionJob(
         document_id=doc_id,
         file_path=storage_key,
@@ -156,7 +147,6 @@ async def upload_document(
         chunk_size=collection["chunk_size"],
         chunk_overlap=collection["chunk_overlap"],
     ))
-    logger.info(f"upload: enqueued doc={doc_id} collection={collection_name}")
 
     return _row_to_response(dict(row))
 
@@ -170,7 +160,6 @@ async def list_documents(
     _: dict = Depends(get_current_user),
 ):
     collection = await _get_collection(collection_name)
-    logger.info(f"list: collection={collection_name} status={status} limit={limit} offset={offset}")
 
     if status:
         rows = await db.fetch(
@@ -212,7 +201,6 @@ async def get_document(
     _: dict = Depends(get_current_user),
 ):
     collection = await _get_collection(collection_name)
-    logger.info(f"get: doc={document_id} collection={collection_name}")
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
         uuid.UUID(document_id), collection["id"],
@@ -229,7 +217,6 @@ async def delete_document(
     _: dict = Depends(get_current_user),
 ):
     collection = await _get_collection(collection_name)
-    logger.info(f"delete: doc={document_id} collection={collection_name}")
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
         uuid.UUID(document_id), collection["id"],
@@ -237,15 +224,10 @@ async def delete_document(
     if not row:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Delete vectors from Milvus
     await vector_store.delete_by_document(collection_name, document_id)
-    logger.info(f"delete: vectors removed doc={document_id}")
 
-    # Delete from Postgres first (reversible), before deleting file (irreversible)
     await db.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(document_id))
-    logger.info(f"delete: db record removed doc={document_id}")
 
-    # Update collection count
     await db.execute(
         """
         UPDATE collections SET
@@ -256,9 +238,7 @@ async def delete_document(
         collection["id"],
     )
 
-    # Delete file from storage last (irreversible)
     await get_storage().delete(row["file_path"])
-    logger.info(f"delete: file removed key={row['file_path']}")
 
     return {"status": "ok", "message": "Document deleted"}
 
@@ -270,7 +250,6 @@ async def reprocess_document(
     _: dict = Depends(get_current_user),
 ):
     collection = await _get_collection(collection_name)
-    logger.info(f"reprocess: doc={document_id} collection={collection_name}")
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
         uuid.UUID(document_id), collection["id"],
@@ -280,25 +259,19 @@ async def reprocess_document(
 
     _validate_embedding_provider(collection)
 
-    # Verify the source file still exists
     if not await get_storage().exists(row["file_path"]):
-        logger.warning(f"reprocess: source file missing key={row['file_path']}")
         raise HTTPException(
             status_code=400,
             detail="Source file no longer exists. Upload the document again.",
         )
 
-    # Delete existing vectors
     await vector_store.delete_by_document(collection_name, document_id)
-    logger.info(f"reprocess: old vectors removed doc={document_id}")
 
-    # Reset status
     await db.execute(
         "UPDATE documents SET status = 'pending', chunk_count = 0, error_message = NULL, updated_at = now() WHERE id = $1",
         uuid.UUID(document_id),
     )
 
-    # Enqueue for reprocessing
     await ingestion_queue.enqueue(IngestionJob(
         document_id=document_id,
         file_path=row["file_path"],
@@ -311,7 +284,6 @@ async def reprocess_document(
         chunk_size=collection["chunk_size"],
         chunk_overlap=collection["chunk_overlap"],
     ))
-    logger.info(f"reprocess: enqueued doc={document_id}")
 
     return {"status": "ok", "message": "Document reprocessing started"}
 
@@ -330,7 +302,6 @@ async def get_document_chunks(
     if not row:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    logger.info(f"chunks: doc={document_id} collection={collection_name}")
     chunks = await vector_store.get_chunks(collection_name, document_id)
     return {"chunks": chunks, "total": len(chunks)}
 
@@ -353,7 +324,6 @@ async def download_document_file(
     if not await storage.exists(row["file_path"]):
         raise HTTPException(status_code=404, detail="File not found in storage")
 
-    logger.info(f"download: doc={document_id} key={row['file_path']}")
     data = await storage.get(row["file_path"])
 
     content_type_map = {
@@ -371,7 +341,6 @@ async def download_document_file(
     ext = row["file_type"].lower()
     content_type = content_type_map.get(ext, "application/octet-stream")
 
-    from fastapi.responses import Response
     return Response(
         content=data,
         media_type=content_type,
@@ -385,8 +354,6 @@ async def document_progress_sse(
     document_id: str,
     _: dict = Depends(get_current_user),
 ):
-    """SSE stream of real-time ingestion progress for a document."""
-
     async def generate():
         yield "data: {\"step\":\"connected\",\"status\":\"connected\",\"message\":\"Listening for progress\",\"progress\":0}\n\n"
         async for event in event_bus.stream(document_id):
