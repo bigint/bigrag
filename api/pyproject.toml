@@ -1,6 +1,6 @@
 [project]
 name = "bigrag"
-version = "0.1.0"
+version = "0.0.2"
 description = "Self-hostable RAG platform with Docling ingestion and Milvus vector DB"
 license = "Apache-2.0"
 requires-python = ">=3.11"

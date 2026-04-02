@@ -23,6 +23,9 @@ export interface Collection {
   chunk_overlap: number;
   document_count: number;
   has_api_key: boolean;
+  reranking_enabled: boolean;
+  reranking_model: string;
+  has_reranking_api_key: boolean;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -41,11 +44,17 @@ export interface CreateCollectionBody {
   dimension?: number;
   chunk_size?: number;
   chunk_overlap?: number;
+  reranking_enabled?: boolean;
+  reranking_model?: string;
+  reranking_api_key?: string;
 }
 
 export interface UpdateCollectionBody {
   description?: string;
   metadata?: Record<string, unknown>;
+  reranking_enabled?: boolean;
+  reranking_model?: string;
+  reranking_api_key?: string;
 }
 
 // --- Documents ---
