@@ -21,6 +21,16 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
+# --- Kill stale processes on dev ports ---
+for port in 8080 3000; do
+  stale=$(lsof -ti:"$port" 2>/dev/null || true)
+  if [ -n "$stale" ]; then
+    echo -e "${YELLOW}Killing stale process(es) on port $port${NC}"
+    echo "$stale" | xargs kill -9 2>/dev/null || true
+    sleep 1
+  fi
+done
+
 # --- Preflight checks ---
 for cmd in docker python3 pnpm curl; do
   if ! command -v "$cmd" > /dev/null 2>&1; then
@@ -82,12 +92,14 @@ echo -e "${CYAN}Installing Python dependencies...${NC}"
 pip install -e "$ROOT_DIR/api" --quiet
 
 echo -e "${CYAN}Starting Python backend (auto-reload)...${NC}"
-(cd "$ROOT_DIR/api" && \
-  BIGRAG_DATABASE_URL="$DATABASE_URL" \
-  BIGRAG_MILVUS_URI="$MILVUS_URI" \
-  BIGRAG_REDIS_URL="$REDIS_URL" \
-  PYTHONUNBUFFERED=1 \
-  python -m uvicorn bigrag.main:create_app --factory --host 0.0.0.0 --port 8080 --reload --reload-dir bigrag 2>&1 | sed -u "s/^/[backend] /") &
+BIGRAG_DATABASE_URL="$DATABASE_URL" \
+BIGRAG_MILVUS_URI="$MILVUS_URI" \
+BIGRAG_REDIS_URL="$REDIS_URL" \
+PYTHONUNBUFFERED=1 \
+python -m uvicorn bigrag.main:create_app \
+  --factory --host 0.0.0.0 --port 8080 \
+  --reload --reload-dir "$ROOT_DIR/api/bigrag" \
+  --log-level info 2>&1 | while IFS= read -r line; do printf '[backend] %s\n' "$line"; done &
 PIDS+=($!)
 
 # Wait for backend
@@ -106,7 +118,7 @@ echo -e "${CYAN}Installing UI dependencies...${NC}"
 (cd "$ROOT_DIR/ui" && pnpm install --frozen-lockfile 2>&1 | tail -1)
 
 echo -e "${CYAN}Starting Next.js UI...${NC}"
-(cd "$ROOT_DIR/ui" && pnpm dev 2>&1 | sed "s/^/[ui] /") &
+(cd "$ROOT_DIR/ui" && pnpm dev 2>&1 | while IFS= read -r line; do printf '[ui] %s\n' "$line"; done) &
 PIDS+=($!)
 
 echo -e "${GREEN}All services started:${NC}"

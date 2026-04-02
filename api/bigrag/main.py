@@ -21,12 +21,17 @@ from bigrag.services.vector_store import vector_store
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logging.basicConfig(
-        level=getattr(logging, settings.log_level.upper(), logging.INFO),
-        format="%(asctime)s %(levelname)s %(name)s %(message)s"
+    import sys
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter(
+        "%(asctime)s %(levelname)s %(name)s %(message)s"
         if settings.log_format == "text"
-        else '{"time":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}',
-    )
+        else '{"time":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}'
+    ))
+    logging.root.handlers.clear()
+    logging.root.addHandler(handler)
+    logging.root.setLevel(getattr(logging, settings.log_level.upper(), logging.INFO))
     logger = logging.getLogger("bigrag")
     logger.info(f"bigRAG v{__version__} starting")
 
