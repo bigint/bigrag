@@ -11,9 +11,8 @@
     "types": ["node"],
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "sourceMap": true
+    "resolveJsonModule": true
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "tests"]
+  "exclude": ["node_modules", "dist"]
 }
