@@ -299,6 +299,50 @@ async def reprocess_document(
     return {"status": "ok", "message": "Document reprocessing started"}
 
 
+@router.get("/{document_id}/file")
+async def download_document_file(
+    collection_name: str,
+    document_id: str,
+    _: dict = Depends(get_current_user),
+):
+    collection = await _get_collection(collection_name)
+    row = await db.fetchrow(
+        "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
+        uuid.UUID(document_id), collection["id"],
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    storage = get_storage()
+    if not await storage.exists(row["file_path"]):
+        raise HTTPException(status_code=404, detail="File not found in storage")
+
+    logger.info(f"download: doc={document_id} key={row['file_path']}")
+    data = await storage.get(row["file_path"])
+
+    content_type_map = {
+        "pdf": "application/pdf",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "html": "text/html", "htm": "text/html",
+        "md": "text/markdown", "txt": "text/plain",
+        "csv": "text/csv", "tsv": "text/tab-separated-values",
+        "xml": "application/xml", "json": "application/json",
+        "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+        "gif": "image/gif", "tiff": "image/tiff", "bmp": "image/bmp",
+    }
+    ext = row["file_type"].lower()
+    content_type = content_type_map.get(ext, "application/octet-stream")
+
+    from fastapi.responses import Response
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={"Content-Disposition": f'inline; filename="{row["filename"]}"'},
+    )
+
+
 @router.get("/{document_id}/progress")
 async def document_progress_sse(
     collection_name: str,

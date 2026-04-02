@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Check,
+  ExternalLink,
   FileText,
   Inbox,
   Loader2,
@@ -14,7 +15,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { use, useCallback, useEffect, useRef, useState } from "react";
-import { deleteDocument, reprocessDocument, uploadDocument } from "@/lib/api";
+import {
+  deleteDocument,
+  getDocumentFileUrl,
+  reprocessDocument,
+  uploadDocument
+} from "@/lib/api";
 import { getBaseUrl, getSessionToken } from "@/lib/auth-store";
 import { collectionQueryOptions, documentsQueryOptions } from "@/lib/queries";
 import { cn, formatBytes, timeAgo } from "@/lib/utils";
@@ -529,9 +535,20 @@ const CollectionDetailPage = ({
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
                       <FileText className="size-4 shrink-0 text-text-dim" />
-                      <span className="truncate text-sm text-text">
-                        {doc.filename}
-                      </span>
+                      {doc.status === "ready" ? (
+                        <a
+                          className="truncate text-sm text-text hover:text-accent hover:underline"
+                          href={getDocumentFileUrl(name, doc.id)}
+                          rel="noopener noreferrer"
+                          target="_blank"
+                        >
+                          {doc.filename}
+                        </a>
+                      ) : (
+                        <span className="truncate text-sm text-text">
+                          {doc.filename}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-5 py-3.5 font-mono text-xs uppercase text-text-muted">
@@ -570,6 +587,17 @@ const CollectionDetailPage = ({
                   </td>
                   <td className="px-5 py-3.5 text-right">
                     <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      {doc.status === "ready" && (
+                        <a
+                          className="rounded-md p-1 text-text-dim hover:bg-bg-hover hover:text-text"
+                          href={getDocumentFileUrl(name, doc.id)}
+                          rel="noopener noreferrer"
+                          target="_blank"
+                          title="View file"
+                        >
+                          <ExternalLink className="size-3.5" />
+                        </a>
+                      )}
                       {doc.status === "failed" && (
                         <button
                           className="rounded-md p-1 text-text-dim hover:bg-bg-hover hover:text-text"

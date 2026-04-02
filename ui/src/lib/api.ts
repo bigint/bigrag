@@ -1,6 +1,9 @@
 import { clearAuth, getBaseUrl, getSessionToken } from "./auth-store";
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+const request = async <T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> => {
   const token = getSessionToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -33,12 +36,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   return res.json();
-}
+};
 
-async function requestFormData<T>(
+const requestFormData = async <T>(
   path: string,
   formData: FormData
-): Promise<T> {
+): Promise<T> => {
   const token = getSessionToken();
   const headers: Record<string, string> = {
     ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -62,7 +65,7 @@ async function requestFormData<T>(
   }
 
   return res.json();
-}
+};
 
 export class ApiError extends Error {
   constructor(
@@ -77,9 +80,8 @@ export class ApiError extends Error {
 
 // Health
 
-export async function getHealth() {
-  return request<{ status: string; version: string }>("/health");
-}
+export const getHealth = () =>
+  request<{ status: string; version: string }>("/health");
 
 // Collections
 
@@ -99,13 +101,11 @@ export interface Collection {
   updated_at: string;
 }
 
-export async function listCollections() {
-  return request<{ collections: Collection[] }>("/v1/collections");
-}
+export const listCollections = () =>
+  request<{ collections: Collection[] }>("/v1/collections");
 
-export async function getCollection(name: string) {
-  return request<Collection>(`/v1/collections/${encodeURIComponent(name)}`);
-}
+export const getCollection = (name: string) =>
+  request<Collection>(`/v1/collections/${encodeURIComponent(name)}`);
 
 export interface CreateCollectionBody {
   name: string;
@@ -119,31 +119,26 @@ export interface CreateCollectionBody {
   chunk_overlap?: number;
 }
 
-export async function createCollection(body: CreateCollectionBody) {
-  return request<Collection>("/v1/collections", {
+export const createCollection = (body: CreateCollectionBody) =>
+  request<Collection>("/v1/collections", {
     body: JSON.stringify(body),
     method: "POST"
   });
-}
 
-export async function updateCollection(
+export const updateCollection = (
   name: string,
   body: { description?: string; metadata?: Record<string, unknown> }
-) {
-  return request<Collection>(`/v1/collections/${encodeURIComponent(name)}`, {
+) =>
+  request<Collection>(`/v1/collections/${encodeURIComponent(name)}`, {
     body: JSON.stringify(body),
     method: "PUT"
   });
-}
 
-export async function deleteCollection(name: string) {
-  return request<{ status: string }>(
+export const deleteCollection = (name: string) =>
+  request<{ status: string }>(
     `/v1/collections/${encodeURIComponent(name)}`,
-    {
-      method: "DELETE"
-    }
+    { method: "DELETE" }
   );
-}
 
 // Documents
 
@@ -161,25 +156,24 @@ export interface Document {
   updated_at: string;
 }
 
-export async function getDocument(collectionName: string, documentId: string) {
-  return request<Document>(
+export const getDocument = (collectionName: string, documentId: string) =>
+  request<Document>(
     `/v1/collections/${encodeURIComponent(collectionName)}/documents/${documentId}`
   );
-}
 
-export async function listDocuments(collectionName: string, status?: string) {
+export const listDocuments = (collectionName: string, status?: string) => {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   return request<{ documents: Document[]; total: number }>(
     `/v1/collections/${encodeURIComponent(collectionName)}/documents?${params}`
   );
-}
+};
 
-export async function uploadDocument(
+export const uploadDocument = (
   collectionName: string,
   file: File,
   metadata?: Record<string, unknown>
-) {
+) => {
   const formData = new FormData();
   formData.append("file", file);
   if (metadata) formData.append("metadata", JSON.stringify(metadata));
@@ -187,27 +181,30 @@ export async function uploadDocument(
     `/v1/collections/${encodeURIComponent(collectionName)}/documents`,
     formData
   );
-}
+};
 
-export async function deleteDocument(
-  collectionName: string,
-  documentId: string
-) {
-  return request<{ status: string }>(
+export const deleteDocument = (collectionName: string, documentId: string) =>
+  request<{ status: string }>(
     `/v1/collections/${encodeURIComponent(collectionName)}/documents/${documentId}`,
     { method: "DELETE" }
   );
-}
 
-export async function reprocessDocument(
+export const getDocumentFileUrl = (
   collectionName: string,
   documentId: string
-) {
-  return request<{ status: string }>(
+): string => {
+  const token = getSessionToken();
+  return `${getBaseUrl()}/v1/collections/${encodeURIComponent(collectionName)}/documents/${documentId}/file?token=${encodeURIComponent(token)}`;
+};
+
+export const reprocessDocument = (
+  collectionName: string,
+  documentId: string
+) =>
+  request<{ status: string }>(
     `/v1/collections/${encodeURIComponent(collectionName)}/documents/${documentId}/reprocess`,
     { method: "POST" }
   );
-}
 
 // Query
 
@@ -227,7 +224,7 @@ export interface QueryResponse {
   total: number;
 }
 
-export async function queryCollection(
+export const queryCollection = (
   collectionName: string,
   body: {
     query: string;
@@ -235,12 +232,11 @@ export async function queryCollection(
     filters?: Record<string, unknown>;
     min_score?: number;
   }
-) {
-  return request<QueryResponse>(
+) =>
+  request<QueryResponse>(
     `/v1/collections/${encodeURIComponent(collectionName)}/query`,
     { body: JSON.stringify(body), method: "POST" }
   );
-}
 
 // Embeddings
 
@@ -251,20 +247,19 @@ export interface EmbeddingModelInfo {
   description: string;
 }
 
-export async function listEmbeddingModels() {
-  return request<{ models: EmbeddingModelInfo[] }>("/v1/embeddings/models");
-}
+export const listEmbeddingModels = () =>
+  request<{ models: EmbeddingModelInfo[] }>("/v1/embeddings/models");
 
 // Metrics
 
-export async function getMetrics() {
+export const getMetrics = async () => {
   const token = getSessionToken();
   const res = await fetch(`${getBaseUrl()}/v1/metrics`, {
     cache: "no-store",
     headers: token ? { Authorization: `Bearer ${token}` } : {}
   });
   return res.text();
-}
+};
 
 // Auth
 
@@ -280,57 +275,50 @@ export interface AuthResponse {
   };
 }
 
-export async function getSetupStatus() {
-  return request<{ needs_setup: boolean }>("/v1/auth/setup-status");
-}
+export const getSetupStatus = () =>
+  request<{ needs_setup: boolean }>("/v1/auth/setup-status");
 
-export async function setupAdmin(body: {
+export const setupAdmin = (body: {
   email: string;
   password: string;
   display_name: string;
-}) {
-  return request<AuthResponse>("/v1/auth/setup", {
+}) =>
+  request<AuthResponse>("/v1/auth/setup", {
     body: JSON.stringify(body),
     method: "POST"
   });
-}
 
-export async function login(body: { email: string; password: string }) {
-  return request<AuthResponse>("/v1/auth/login", {
+export const login = (body: { email: string; password: string }) =>
+  request<AuthResponse>("/v1/auth/login", {
     body: JSON.stringify(body),
     method: "POST"
   });
-}
 
-export async function signup(body: {
+export const signup = (body: {
   email: string;
   password: string;
   display_name: string;
   invite_code: string;
-}) {
-  return request<AuthResponse>("/v1/auth/signup", {
+}) =>
+  request<AuthResponse>("/v1/auth/signup", {
     body: JSON.stringify(body),
     method: "POST"
   });
-}
 
-export async function getMe() {
-  return request<{ user: AuthResponse["user"] }>("/v1/auth/me");
-}
+export const getMe = () =>
+  request<{ user: AuthResponse["user"] }>("/v1/auth/me");
 
-export async function logout() {
-  return request<{ status: string }>("/v1/auth/logout", { method: "POST" });
-}
+export const logout = () =>
+  request<{ status: string }>("/v1/auth/logout", { method: "POST" });
 
-export async function changePassword(body: {
+export const changePassword = (body: {
   current_password: string;
   new_password: string;
-}) {
-  return request<{ status: string }>("/v1/auth/password", {
+}) =>
+  request<{ status: string }>("/v1/auth/password", {
     body: JSON.stringify(body),
     method: "PUT"
   });
-}
 
 // Admin - Users
 
@@ -343,28 +331,23 @@ export interface UserSummary {
   updated_at: string;
 }
 
-export async function listUsers() {
-  return request<{ users: UserSummary[] }>("/v1/admin/users");
-}
+export const listUsers = () =>
+  request<{ users: UserSummary[] }>("/v1/admin/users");
 
-export async function deleteUser(id: string) {
-  return request<{ status: string; message: string }>(
+export const deleteUser = (id: string) =>
+  request<{ status: string; message: string }>(
     `/v1/admin/users/${encodeURIComponent(id)}`,
-    {
-      method: "DELETE"
-    }
+    { method: "DELETE" }
   );
-}
 
-export async function updateUserRole(id: string, role: string) {
-  return request<{ status: string }>(
+export const updateUserRole = (id: string, role: string) =>
+  request<{ status: string }>(
     `/v1/admin/users/${encodeURIComponent(id)}`,
     {
       body: JSON.stringify({ role }),
       method: "PATCH"
     }
   );
-}
 
 // Admin - Invites
 
@@ -378,28 +361,23 @@ export interface InviteSummary {
   created_by_email: string;
 }
 
-export async function createInvite(body: {
+export const createInvite = (body: {
   role?: string;
   expires_in_hours?: number;
-}) {
-  return request<InviteSummary>("/v1/admin/invites", {
+}) =>
+  request<InviteSummary>("/v1/admin/invites", {
     body: JSON.stringify(body),
     method: "POST"
   });
-}
 
-export async function listInvites() {
-  return request<{ invites: InviteSummary[] }>("/v1/admin/invites");
-}
+export const listInvites = () =>
+  request<{ invites: InviteSummary[] }>("/v1/admin/invites");
 
-export async function deleteInvite(id: string) {
-  return request<{ status: string; message: string }>(
+export const deleteInvite = (id: string) =>
+  request<{ status: string; message: string }>(
     `/v1/admin/invites/${encodeURIComponent(id)}`,
-    {
-      method: "DELETE"
-    }
+    { method: "DELETE" }
   );
-}
 
 // Admin - API Keys
 
@@ -437,20 +415,17 @@ export interface CreateApiKeyResponse {
   expires_at?: string;
 }
 
-export async function createApiKey(body: CreateApiKeyRequest) {
-  return request<CreateApiKeyResponse>("/v1/admin/api-keys", {
+export const createApiKey = (body: CreateApiKeyRequest) =>
+  request<CreateApiKeyResponse>("/v1/admin/api-keys", {
     body: JSON.stringify(body),
     method: "POST"
   });
-}
 
-export async function listApiKeys() {
-  return request<{ keys: ApiKeySummary[] }>("/v1/admin/api-keys");
-}
+export const listApiKeys = () =>
+  request<{ keys: ApiKeySummary[] }>("/v1/admin/api-keys");
 
-export async function revokeApiKey(id: string) {
-  return request<{ status: string; message: string }>(
+export const revokeApiKey = (id: string) =>
+  request<{ status: string; message: string }>(
     `/v1/admin/api-keys/${encodeURIComponent(id)}`,
     { method: "DELETE" }
   );
-}
