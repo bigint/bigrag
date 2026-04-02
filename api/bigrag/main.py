@@ -172,7 +172,11 @@ def cli():
     # Use factory=True so the app is created AFTER config overrides are applied.
     # Without this, module-level app creation uses default settings, ignoring
     # CLI/TOML config for CORS origins and other middleware settings.
-    uvicorn.run("bigrag.main:create_app", host=s.host, port=s.port, log_level=s.log_level, factory=True)
+    uvicorn.run(
+        "bigrag.main:create_app",
+        host=s.host, port=s.port, log_level=s.log_level,
+        workers=s.workers, factory=True,
+    )
 
 
 if __name__ == "__main__":

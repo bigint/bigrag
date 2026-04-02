@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     embedding_dimension: int = 384
     embedding_api_key: str | None = None
     embedding_base_url: str | None = None
+    embedding_device: str = "auto"  # "auto", "cpu", "cuda", "mps"
 
     # Storage
     storage_backend: str = "local"

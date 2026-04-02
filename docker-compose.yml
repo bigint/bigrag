@@ -16,6 +16,12 @@ services:
       BIGRAG_INGESTION_WORKERS: "4"
       BIGRAG_DB_POOL_MIN: "5"
       BIGRAG_DB_POOL_MAX: "50"
+      BIGRAG_EMBEDDING_DEVICE: "auto"
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+          cpus: "4"
     depends_on:
       postgres:
         condition: service_healthy
@@ -41,7 +47,11 @@ services:
       POSTGRES_DB: bigrag
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    command: postgres -c max_connections=200 -c shared_buffers=256MB -c work_mem=8MB
+    command: postgres -c max_connections=200 -c shared_buffers=256MB -c work_mem=8MB -c effective_cache_size=768MB
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bigrag"]
       interval: 10s
@@ -56,7 +66,7 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy noeviction
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

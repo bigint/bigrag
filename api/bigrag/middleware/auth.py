@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from fastapi import Depends, HTTPException, Request
 
@@ -8,6 +9,36 @@ from bigrag.config import settings
 from bigrag.services import auth as auth_service
 
 logger = logging.getLogger("bigrag.auth")
+
+# TTL cache for auth lookups — avoids hitting Postgres on every request
+_AUTH_CACHE_TTL = 60  # seconds
+_session_cache: dict[str, tuple[dict, float]] = {}
+_api_key_cache: dict[str, tuple[dict | None, float]] = {}
+
+
+def _cache_get(cache: dict, key: str) -> dict | None:
+    entry = cache.get(key)
+    if entry is None:
+        return None
+    value, expires_at = entry
+    if time.monotonic() > expires_at:
+        cache.pop(key, None)
+        return None
+    return value
+
+
+def _cache_set(cache: dict, key: str, value) -> None:
+    cache[key] = (value, time.monotonic() + _AUTH_CACHE_TTL)
+
+
+def invalidate_auth_cache(token_hash: str | None = None) -> None:
+    """Invalidate auth cache entries. Call on logout/key deletion."""
+    if token_hash:
+        _session_cache.pop(token_hash, None)
+        _api_key_cache.pop(token_hash, None)
+    else:
+        _session_cache.clear()
+        _api_key_cache.clear()
 
 
 async def get_current_user(request: Request) -> dict:
@@ -33,31 +64,39 @@ async def get_current_user(request: Request) -> dict:
 
     # Master key check
     if settings.master_key and token == settings.master_key:
-        logger.info(f"auth: master key path={path}")
         return {"id": None, "role": "admin", "email": "master", "display_name": "Master Key"}
 
     # Static API key check
     if token in settings.api_keys:
-        logger.info(f"auth: static api key path={path}")
         return {"id": None, "role": "admin", "email": "api-key", "display_name": "API Key"}
 
-    # Session token check
+    # Session token check (cached)
+    token_hash = auth_service.hash_token(token)
+    cached_user = _cache_get(_session_cache, token_hash)
+    if cached_user:
+        return cached_user
+
     user = await auth_service.validate_session(token)
     if user:
-        logger.info(f"auth: session user={user.get('email')} role={user.get('role')} path={path}")
+        _cache_set(_session_cache, token_hash, user)
         return user
 
-    # Database API key check
+    # Database API key check (cached)
+    cached_key = _cache_get(_api_key_cache, token_hash)
+    if cached_key:
+        return cached_key
+
     api_key = await auth_service.validate_api_key(token)
     if api_key:
-        logger.info(f"auth: db api key name={api_key['name']} path={path}")
-        return {
+        result = {
             "id": api_key.get("user_id"),
             "role": api_key.get("user_role", "member"),
             "email": "api-key",
             "display_name": api_key["name"],
             "permissions": api_key.get("permissions", {}),
         }
+        _cache_set(_api_key_cache, token_hash, result)
+        return result
 
     logger.warning(f"auth: invalid/expired token path={path}")
     raise HTTPException(status_code=401, detail="Invalid or expired token")
