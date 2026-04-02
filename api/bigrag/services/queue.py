@@ -170,7 +170,7 @@ class IngestionQueue:
         """Move jobs stuck in processing back to the queue (crash recovery)."""
         count = 0
         while True:
-            data = await self._redis.lmove(PROCESSING_KEY, QUEUE_KEY, "RIGHT", "LEFT")
+            data = await self._redis.lmove(PROCESSING_KEY, QUEUE_KEY, src="RIGHT", dest="LEFT")
             if data is None:
                 break
             count += 1
@@ -204,17 +204,21 @@ class IngestionQueue:
     async def _worker(self, worker_id: int) -> None:
         logger.info(f"[worker-{worker_id}] started")
         while self._running:
-            # BLMOVE: atomically pop from queue, push to processing (crash-safe)
-            data = await self._redis.blmove(QUEUE_KEY, PROCESSING_KEY, timeout=1, wherefrom="RIGHT", whereto="LEFT")
-            if data is None:
-                continue
-
-            job = IngestionJob.deserialize(data)
             try:
-                await self._process_job(worker_id, job)
-            finally:
-                # Remove from processing list
-                await self._redis.lrem(PROCESSING_KEY, 1, data)
+                # BLMOVE: atomically pop from queue, push to processing (crash-safe)
+                data = await self._redis.blmove(QUEUE_KEY, PROCESSING_KEY, timeout=1, src="RIGHT", dest="LEFT")
+                if data is None:
+                    continue
+
+                job = IngestionJob.deserialize(data)
+                try:
+                    await self._process_job(worker_id, job)
+                finally:
+                    # Remove from processing list
+                    await self._redis.lrem(PROCESSING_KEY, 1, data)
+            except Exception as e:
+                logger.error(f"[worker-{worker_id}] loop error: {e!r}")
+                await asyncio.sleep(1)
 
         logger.info(f"[worker-{worker_id}] stopped")
 

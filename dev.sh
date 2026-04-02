@@ -81,12 +81,12 @@ source "$ROOT_DIR/api/.venv/bin/activate"
 echo -e "${CYAN}Installing Python dependencies...${NC}"
 pip install -e "$ROOT_DIR/api" --quiet
 
-echo -e "${CYAN}Starting Python backend...${NC}"
+echo -e "${CYAN}Starting Python backend (auto-reload)...${NC}"
 (cd "$ROOT_DIR/api" && \
   BIGRAG_DATABASE_URL="$DATABASE_URL" \
   BIGRAG_MILVUS_URI="$MILVUS_URI" \
   BIGRAG_REDIS_URL="$REDIS_URL" \
-  python -m bigrag.main 2>&1 | sed "s/^/[backend] /") &
+  python -m uvicorn bigrag.main:create_app --factory --host 0.0.0.0 --port 8080 --reload --reload-dir bigrag 2>&1 | sed "s/^/[backend] /") &
 PIDS+=($!)
 
 # Wait for backend
