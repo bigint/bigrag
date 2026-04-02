@@ -65,6 +65,27 @@ try {
 }
 ```
 
+## Publishing
+
+The SDK is published to npm automatically via GitHub Actions when a release is created with a tag matching `sdk-v*` (e.g., `sdk-v0.1.0`).
+
+To publish manually:
+
+```bash
+cd sdks/typescript
+npm run build
+npm publish --access public
+```
+
+### Release steps
+
+1. Update `version` in `package.json`
+2. Commit: `git commit -m "chore: bump SDK to vX.Y.Z"`
+3. Create a GitHub release with tag `sdk-vX.Y.Z`
+4. The workflow builds and publishes to npm automatically
+
+Requires an `NPM_TOKEN` secret in the repository settings.
+
 ## License
 
 Apache-2.0
