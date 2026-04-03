@@ -23,7 +23,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install system deps for docling (poppler for PDF, tesseract for OCR)
+# Install Node.js for Next.js standalone server
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpoppler-cpp-dev \
@@ -31,6 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     libtesseract-dev \
     curl \
+    nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -39,13 +40,19 @@ COPY api/bigrag/ bigrag/
 RUN pip install --upgrade pip && \
     pip install .
 
-# Copy UI static build
-COPY --from=ui-build /ui/out /app/ui
+# Copy Next.js standalone build
+COPY --from=ui-build /ui/.next/standalone /app/ui
+COPY --from=ui-build /ui/.next/static /app/ui/.next/static
+COPY --from=ui-build /ui/public /app/ui/public
+
+# Entrypoint script to run both services
+COPY api/entrypoint.sh /app/entrypoint.sh
 
 # Create data directory
 RUN mkdir -p /data/uploads && \
     useradd -r -s /bin/false bigrag && \
-    chown -R bigrag:bigrag /data
+    chown -R bigrag:bigrag /data /app/ui && \
+    chmod +x /app/entrypoint.sh
 
 USER bigrag
 
@@ -56,5 +63,4 @@ VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
     CMD curl -f http://localhost:6000/health || exit 1
 
-ENTRYPOINT ["python", "-m", "bigrag.main"]
-CMD ["--host", "0.0.0.0", "--port", "6000"]
+ENTRYPOINT ["/app/entrypoint.sh"]
