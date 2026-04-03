@@ -30,7 +30,7 @@ When introducing new features or changing existing APIs, update `docs/documentat
 ./dev.sh  # starts Postgres, Milvus, Python backend, Next.js UI
 ```
 
-- Backend API: http://localhost:8080 (Swagger docs at /docs)
+- Backend API: http://localhost:6000 (Swagger docs at /docs)
 - Admin UI: http://localhost:3000
 - Milvus: localhost:19530
 - Postgres: localhost:5432

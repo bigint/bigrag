@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     # Server
     host: str = "0.0.0.0"
-    port: int = 8080
+    port: int = 6000
     workers: int = 1
     log_level: str = "info"
     log_format: str = "text"

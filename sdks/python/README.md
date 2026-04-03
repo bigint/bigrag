@@ -49,7 +49,7 @@ asyncio.run(main())
 ```python
 client = BigRAG(
     api_key="your-key",                  # or set BIGRAG_API_KEY env var
-    base_url="http://localhost:8080",
+    base_url="http://localhost:6000",
     timeout=120.0,
     max_retries=2,
 )

@@ -30,7 +30,7 @@ docker compose up -d
 ```
 
 This starts the full stack:
-- **bigRAG API** on port 8080 (with Swagger docs at `/docs`)
+- **bigRAG API** on port 6000 (with Swagger docs at `/docs`)
 - **Milvus** vector database on port 19530
 - **Postgres** for metadata and auth on port 5432
 
@@ -41,8 +41,8 @@ This starts the full stack:
 ```
 
 This starts all services and opens:
-- Backend API: http://localhost:8080
-- API Docs: http://localhost:8080/docs
+- Backend API: http://localhost:6000
+- API Docs: http://localhost:6000/docs
 - Admin UI: http://localhost:3000
 
 ### From Source
@@ -79,7 +79,7 @@ Query → Embed → Vector Search ───────────────�
 ```python
 import httpx
 
-client = httpx.Client(base_url="http://localhost:8080")
+client = httpx.Client(base_url="http://localhost:6000")
 
 # Create a collection
 client.post("/v1/collections", json={
@@ -108,19 +108,19 @@ for r in results["results"]:
 
 ```bash
 # Health check
-curl http://localhost:8080/health
+curl http://localhost:6000/health
 
 # Create collection
-curl -X POST http://localhost:8080/v1/collections \
+curl -X POST http://localhost:6000/v1/collections \
   -H "Content-Type: application/json" \
   -d '{"name": "docs", "description": "Documentation"}'
 
 # Upload document
-curl -X POST http://localhost:8080/v1/collections/docs/documents \
+curl -X POST http://localhost:6000/v1/collections/docs/documents \
   -F "file=@manual.pdf"
 
 # Query
-curl -X POST http://localhost:8080/v1/collections/docs/query \
+curl -X POST http://localhost:6000/v1/collections/docs/query \
   -H "Content-Type: application/json" \
   -d '{"query": "How do I configure logging?", "top_k": 5}'
 ```
@@ -172,7 +172,7 @@ Configure per collection or set defaults in `bigrag.toml`.
 ```toml
 [server]
 host = "0.0.0.0"
-port = 8080
+port = 6000
 
 [database]
 url = "postgres://bigrag:bigrag@localhost:5432/bigrag"
@@ -200,7 +200,7 @@ All config options use the `BIGRAG_` prefix:
 | ------------------------- | ---------------------------------- | ------------------------ |
 | `BIGRAG_DATABASE_URL`     | Postgres connection URL            | `postgres://...`         |
 | `BIGRAG_MILVUS_URI`       | Milvus connection URI              | `http://localhost:19530` |
-| `BIGRAG_PORT`             | Server port                        | `8080`                   |
+| `BIGRAG_PORT`             | Server port                        | `6000`                   |
 | `BIGRAG_AUTH_REQUIRED`    | Enable/disable authentication      | `true`                   |
 | `BIGRAG_SECRET_KEY`       | Encryption key for secrets at rest | —                        |
 | `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider       | `openai`                 |

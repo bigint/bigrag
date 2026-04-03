@@ -3,7 +3,7 @@ const STORAGE_KEY_SESSION = "bigrag_session_token";
 const STORAGE_KEY_USER = "bigrag_user";
 
 const DEFAULT_URL =
-  process.env.NEXT_PUBLIC_BIGRAG_URL || "http://localhost:8080";
+  process.env.NEXT_PUBLIC_BIGRAG_URL || "http://localhost:6000";
 
 export interface AuthUser {
   id: string;

@@ -29,12 +29,12 @@ RUN mkdir -p /data/uploads && \
 
 USER bigrag
 
-EXPOSE 8080
+EXPOSE 6000
 
 VOLUME ["/data"]
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+    CMD curl -f http://localhost:6000/health || exit 1
 
 ENTRYPOINT ["python", "-m", "bigrag.main"]
-CMD ["--host", "0.0.0.0", "--port", "8080"]
+CMD ["--host", "0.0.0.0", "--port", "6000"]

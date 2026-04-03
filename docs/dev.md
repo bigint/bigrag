@@ -45,7 +45,7 @@ BIGRAG_MILVUS_URI="http://localhost:19530" \
 python -m bigrag.main
 ```
 
-API: http://localhost:8080 | Swagger docs: http://localhost:8080/docs
+API: http://localhost:6000 | Swagger docs: http://localhost:6000/docs
 
 ### 3. Run the UI
 
@@ -62,14 +62,14 @@ On first visit, the UI redirects to `/setup` to create the initial admin account
 ## Verify
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:6000/health
 ```
 
 ## Services
 
 | Service  | URL                          | Notes                    |
 |----------|------------------------------|--------------------------|
-| API      | http://localhost:8080         | FastAPI + Swagger at /docs |
+| API      | http://localhost:6000         | FastAPI + Swagger at /docs |
 | UI       | http://localhost:3000         | Next.js admin dashboard  |
 | Postgres | localhost:5432               | User: bigrag / bigrag    |
 | Milvus   | localhost:19530              | Vector DB                |

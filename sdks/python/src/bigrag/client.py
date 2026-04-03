@@ -23,7 +23,7 @@ from bigrag.types import (
     QueryResponse,
 )
 
-_DEFAULT_BASE_URL = "http://localhost:8080"
+_DEFAULT_BASE_URL = "http://localhost:6000"
 _USER_AGENT = "bigrag-python/0.2.0"
 
 

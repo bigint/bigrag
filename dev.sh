@@ -22,7 +22,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # --- Kill stale processes on dev ports ---
-for port in 8080 3000; do
+for port in 6000 3000; do
   stale=$(lsof -ti:"$port" 2>/dev/null || true)
   if [ -n "$stale" ]; then
     echo -e "${YELLOW}Killing stale process(es) on port $port${NC}"
@@ -97,7 +97,7 @@ BIGRAG_MILVUS_URI="$MILVUS_URI" \
 BIGRAG_REDIS_URL="$REDIS_URL" \
 PYTHONUNBUFFERED=1 \
 python -m uvicorn bigrag.main:create_app \
-  --factory --host 0.0.0.0 --port 8080 \
+  --factory --host 0.0.0.0 --port 6000 \
   --reload --reload-dir "$ROOT_DIR/api/bigrag" \
   --log-level info 2>&1 | while IFS= read -r line; do printf '[backend] %s\n' "$line"; done &
 PIDS+=($!)
@@ -105,7 +105,7 @@ PIDS+=($!)
 # Wait for backend
 echo -e "${CYAN}Waiting for backend...${NC}"
 for i in $(seq 1 120); do
-  if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+  if curl -sf http://localhost:6000/health > /dev/null 2>&1; then
     echo -e "${GREEN}Backend is ready.${NC}"
     break
   fi
@@ -122,8 +122,8 @@ echo -e "${CYAN}Starting Next.js UI...${NC}"
 PIDS+=($!)
 
 echo -e "${GREEN}All services started:${NC}"
-echo -e "  Backend  → http://localhost:8080"
-echo -e "  API Docs → http://localhost:8080/docs"
+echo -e "  Backend  → http://localhost:6000"
+echo -e "  API Docs → http://localhost:6000/docs"
 echo -e "  UI       → http://localhost:3000"
 echo -e "  Postgres → localhost:5432"
 echo -e "  Redis    → localhost:6379"
