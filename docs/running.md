@@ -14,6 +14,7 @@ This starts the full stack:
 - Admin UI on port 5000
 - bigRAG API on port 6000
 - Postgres on port 5432
+- Redis on port 6379
 - Milvus on port 19530
 
 Open http://localhost:5000 for the admin UI, or use the API directly at http://localhost:6000/docs.
@@ -22,7 +23,7 @@ Open http://localhost:5000 for the admin UI, or use the API directly at http://l
 
 ```bash
 # 1. Start infrastructure
-docker compose up postgres milvus -d
+docker compose up postgres redis milvus -d
 
 # 2. Install and run the backend
 cd api
@@ -61,9 +62,13 @@ bigRAG reads from `bigrag.toml` or environment variables:
 | `BIGRAG_LOG_LEVEL` | `debug`, `info`, `warning`, `error` | `info` |
 | `BIGRAG_UPLOAD_DIR` | Directory for uploaded documents | `./data/uploads` |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size | `1024` |
+| `BIGRAG_WORKERS` | Uvicorn workers | `4` |
+| `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
+| `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
 
 ## Verify
 
 ```bash
 curl http://localhost:6000/health
+# → {"status":"ok","version":"0.x.x","postgres":true,"milvus":true,"redis":true}
 ```

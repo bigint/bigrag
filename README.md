@@ -109,6 +109,7 @@ for r in results["results"]:
 
 ```bash
 # Health check
+# → {"status":"ok","version":"0.x.x","postgres":true,"milvus":true,"redis":true}
 curl http://localhost:6000/health
 
 # Create collection
@@ -190,7 +191,8 @@ dimension = 1536
 chunk_size = 512
 chunk_overlap = 50
 upload_dir = "./data/uploads"
-max_upload_size_mb = 500
+max_upload_size_mb = 1024
+workers = 4
 ```
 
 ### Environment Variables
@@ -207,6 +209,9 @@ All config options use the `BIGRAG_` prefix:
 | `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider       | `openai`                 |
 | `BIGRAG_EMBEDDING_MODEL`  | Default embedding model            | `text-embedding-3-small` |
 | `BIGRAG_EMBEDDING_API_KEY`| API key for OpenAI/Cohere          | —                        |
+| `BIGRAG_WORKERS`          | Uvicorn workers                    | `4`                      |
+| `BIGRAG_REDIS_URL`        | Redis connection URL               | `redis://localhost:6379/0` |
+| `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size             | `1024`                   |
 | `BIGRAG_LOG_LEVEL`        | Log level                          | `info`                   |
 
 ## Architecture
@@ -220,11 +225,11 @@ All config options use the `BIGRAG_` prefix:
 │  Service │ Service   │   Service    │   Service       │
 ├──────────┴───────────┴──────────────┴─────────────────┤
 │                                                        │
-│  ┌─────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │Postgres │  │   Docling    │  │  Embedding Model │  │
-│  │(auth +  │  │ (document    │  │  (OpenAI,        │  │
-│  │metadata)│  │  converter)  │  │   Cohere)        │  │
-│  └─────────┘  └──────────────┘  └──────────────────┘  │
+│  ┌─────────┐  ┌─────────┐  ┌──────────┐  ┌────────────────┐  │
+│  │Postgres │  │  Redis  │  │ Docling  │  │ Embedding Model│  │
+│  │(auth +  │  │ (job    │  │(document │  │ (OpenAI,       │  │
+│  │metadata)│  │  queue) │  │ converter│  │  Cohere)       │  │
+│  └─────────┘  └─────────┘  └──────────┘  └────────────────┘  │
 │                                                        │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │              Milvus Vector DB                    │  │
@@ -250,7 +255,7 @@ Via Docling, bigRAG supports:
 | Language   | Install                                    |
 | ---------- | ------------------------------------------ |
 | Python     | `pip install bigrag`                       |
-| TypeScript | `npm install @bigrag/client`               |
+| TypeScript | `pnpm add @bigrag/client`                  |
 
 ## Contributing
 

@@ -27,10 +27,11 @@ When introducing new features or changing existing APIs, update `docs/documentat
 ## Development
 
 ```bash
-./dev.sh  # starts Postgres, Milvus, Python backend, Next.js UI
+./dev.sh  # starts Postgres, Redis, Milvus, Python backend, Next.js UI
 ```
 
 - Backend API: http://localhost:6000 (Swagger docs at /docs)
-- Admin UI: http://localhost:3000
-- Milvus: localhost:19530
+- Admin UI: http://localhost:3000 (dev) / http://localhost:5000 (Docker)
 - Postgres: localhost:5432
+- Redis: localhost:6379
+- Milvus: localhost:19530

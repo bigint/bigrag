@@ -4,7 +4,7 @@
 
 - Python 3.12+
 - Node.js 22+ and pnpm
-- Docker and Docker Compose (for Postgres, Milvus)
+- Docker and Docker Compose (for Postgres, Redis, Milvus)
 
 ## One-Command Start
 
@@ -12,14 +12,14 @@
 ./dev.sh
 ```
 
-This starts everything: Postgres, Milvus, the Python backend, and the Next.js UI.
+This starts everything: Postgres, Redis, Milvus, the Python backend, and the Next.js UI.
 
 ## Manual Setup
 
 ### 1. Start infrastructure
 
 ```bash
-docker compose up postgres milvus -d
+docker compose up postgres redis milvus -d
 ```
 
 Wait for services to be healthy:
@@ -30,6 +30,9 @@ docker exec bigrag-postgres pg_isready -U bigrag
 
 # Milvus
 curl -f http://localhost:9091/healthz
+
+# Redis
+docker exec bigrag-redis redis-cli ping
 ```
 
 ### 2. Run the backend
@@ -63,6 +66,7 @@ On first visit, the UI redirects to `/setup` to create the initial admin account
 
 ```bash
 curl http://localhost:6000/health
+# → {"status":"ok","version":"0.x.x","postgres":true,"milvus":true,"redis":true}
 ```
 
 ## Services
@@ -73,3 +77,4 @@ curl http://localhost:6000/health
 | UI       | http://localhost:3000         | Next.js admin dashboard  |
 | Postgres | localhost:5432               | User: bigrag / bigrag    |
 | Milvus   | localhost:19530              | Vector DB                |
+| Redis    | localhost:6379               | Ingestion job queue      |

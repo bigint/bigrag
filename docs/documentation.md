@@ -298,7 +298,7 @@ Create a `bigrag.toml` file in the project root:
 [server]
 host = "0.0.0.0"
 port = 6000
-workers = 1
+workers = 4
 log_level = "info"          # debug, info, warning, error
 log_format = "text"         # text, json
 cors_origins = ["*"]
@@ -353,7 +353,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | **Server** | | |
 | `BIGRAG_HOST` | Bind address | `0.0.0.0` |
 | `BIGRAG_PORT` | Server port | `6000` |
-| `BIGRAG_WORKERS` | Uvicorn workers | `1` |
+| `BIGRAG_WORKERS` | Uvicorn workers | `4` |
 | `BIGRAG_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`) | `info` |
 | `BIGRAG_LOG_FORMAT` | Log format (`text`, `json`) | `text` |
 | `BIGRAG_CORS_ORIGINS` | CORS allowed origins (JSON array) | `["*"]` |
@@ -410,9 +410,14 @@ Health check. No authentication required.
 ```json
 {
   "status": "ok",
-  "version": "0.1.0"
+  "version": "0.1.0",
+  "postgres": true,
+  "milvus": true,
+  "redis": true
 }
 ```
+
+Returns HTTP 503 with `"status": "degraded"` when any dependency is unhealthy.
 
 #### `GET /v1/metrics`
 
@@ -2229,7 +2234,7 @@ curl -X POST $BASE/v1/collections/custom/vectors/delete \
 
 ## Admin UI
 
-bigRAG includes a web-based admin dashboard at `http://localhost:3000`.
+bigRAG includes a web-based admin dashboard. In development it runs at `http://localhost:3000`; in Docker it runs at `http://localhost:5000`.
 
 **Features:**
 
@@ -2305,6 +2310,13 @@ services:
       - postgres
       - milvus
       - redis
+
+  bigrag-ui:
+    image: yoginth/bigrag-ui:latest
+    ports:
+      - "5000:5000"
+    depends_on:
+      - bigrag
 
   postgres:
     image: postgres:17
@@ -2420,10 +2432,10 @@ BIGRAG_LOG_FORMAT=json BIGRAG_LOG_LEVEL=info python -m bigrag.main
 
 ```bash
 curl http://localhost:6000/health
-# → {"status": "ok", "version": "0.x.x"}
+# → {"status":"ok","version":"0.x.x","postgres":true,"milvus":true,"redis":true}
 ```
 
-If the health check fails, the API server is not running or not accessible on the configured port.
+If the health check returns `"status": "degraded"` with HTTP 503, one or more dependencies (Postgres, Milvus, Redis) are unreachable.
 
 ---
 
