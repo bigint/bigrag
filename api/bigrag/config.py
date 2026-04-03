@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     # Ingestion
     chunk_size: int = 512
     chunk_overlap: int = 50
-    max_upload_size_mb: int = 500
+    max_upload_size_mb: int = 1024
     ingestion_workers: int = 4
     ingestion_batch_size: int = 128
 
