@@ -175,6 +175,7 @@ Configure per collection or set defaults in `bigrag.toml`.
 [server]
 host = "0.0.0.0"
 port = 6000
+workers = 4
 
 [database]
 url = "postgres://bigrag:bigrag@localhost:5432/bigrag"
@@ -182,37 +183,32 @@ url = "postgres://bigrag:bigrag@localhost:5432/bigrag"
 [milvus]
 uri = "http://localhost:19530"
 
-[embedding]
-provider = "openai"
-model = "text-embedding-3-small"
-dimension = 1536
+[redis]
+url = "redis://localhost:6379/0"
 
 [ingestion]
-chunk_size = 512
-chunk_overlap = 50
+workers = 4
 upload_dir = "./data/uploads"
 max_upload_size_mb = 1024
-workers = 4
 ```
 
 ### Environment Variables
 
 All config options use the `BIGRAG_` prefix:
 
-| Variable                  | Description                        | Default                  |
-| ------------------------- | ---------------------------------- | ------------------------ |
-| `BIGRAG_DATABASE_URL`     | Postgres connection URL            | `postgres://...`         |
-| `BIGRAG_MILVUS_URI`       | Milvus connection URI              | `http://localhost:19530` |
-| `BIGRAG_PORT`             | Server port                        | `6000`                   |
-| `BIGRAG_AUTH_REQUIRED`    | Enable/disable authentication      | `true`                   |
-| `BIGRAG_SECRET_KEY`       | Encryption key for secrets at rest | —                        |
-| `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider       | `openai`                 |
-| `BIGRAG_EMBEDDING_MODEL`  | Default embedding model            | `text-embedding-3-small` |
-| `BIGRAG_EMBEDDING_API_KEY`| API key for OpenAI/Cohere          | —                        |
-| `BIGRAG_WORKERS`          | Uvicorn workers                    | `4`                      |
-| `BIGRAG_REDIS_URL`        | Redis connection URL               | `redis://localhost:6379/0` |
-| `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size             | `1024`                   |
-| `BIGRAG_LOG_LEVEL`        | Log level                          | `info`                   |
+| Variable                    | Description                        | Default                    |
+| --------------------------- | ---------------------------------- | -------------------------- |
+| `BIGRAG_DATABASE_URL`       | Postgres connection URL            | `postgres://...`           |
+| `BIGRAG_MILVUS_URI`        | Milvus connection URI              | `http://localhost:19530`   |
+| `BIGRAG_REDIS_URL`         | Redis connection URL               | `redis://localhost:6379/0` |
+| `BIGRAG_PORT`              | Server port                        | `6000`                     |
+| `BIGRAG_WORKERS`           | Uvicorn workers                    | `4`                        |
+| `BIGRAG_AUTH_REQUIRED`     | Enable/disable authentication      | `true`                     |
+| `BIGRAG_SECRET_KEY`        | Encryption key for secrets at rest | —                          |
+| `BIGRAG_LOG_LEVEL`         | Log level                          | `info`                     |
+| `BIGRAG_MAX_UPLOAD_SIZE_MB`| Max upload file size               | `1024`                     |
+
+Embedding provider, model, and API key are configured per collection via the API or admin UI.
 
 ## Architecture
 

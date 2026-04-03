@@ -1,11 +1,10 @@
 [server]
 host = "0.0.0.0"
 port = 6000
+workers = 4
 
 [database]
 url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
-pool_min = 5
-pool_max = 50
 
 [milvus]
 uri = "http://localhost:19530"
@@ -13,15 +12,7 @@ uri = "http://localhost:19530"
 [redis]
 url = "redis://localhost:6379/0"
 
-[embedding]
-provider = "openai"
-model = "text-embedding-3-small"
-dimension = 1536
-
 [ingestion]
 workers = 4
-batch_size = 128
-chunk_size = 512
-chunk_overlap = 50
 upload_dir = "./data/uploads"
 max_upload_size_mb = 1024

@@ -319,17 +319,8 @@ auth_required = true        # Set to false to disable authentication
 secret_key = ""             # Encryption key for secrets at rest
 session_expiry_hours = 168  # Session lifetime (7 days)
 
-[embedding]
-provider = "openai"
-model = "text-embedding-3-small"
-dimension = 1536
-api_key = ""                # For OpenAI/Cohere providers
-
 [ingestion]
 workers = 4
-batch_size = 128
-chunk_size = 512
-chunk_overlap = 50
 upload_dir = "./data/uploads"
 max_upload_size_mb = 1024
 
@@ -351,43 +342,29 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | Variable | Description | Default |
 |----------|-------------|---------|
 | **Server** | | |
-| `BIGRAG_HOST` | Bind address | `0.0.0.0` |
 | `BIGRAG_PORT` | Server port | `6000` |
+| `BIGRAG_HOST` | Bind address | `0.0.0.0` |
 | `BIGRAG_WORKERS` | Uvicorn workers | `4` |
 | `BIGRAG_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`) | `info` |
 | `BIGRAG_LOG_FORMAT` | Log format (`text`, `json`) | `text` |
-| `BIGRAG_CORS_ORIGINS` | CORS allowed origins (JSON array) | `["*"]` |
-| **Database** | | |
+| **Infrastructure** | | |
 | `BIGRAG_DATABASE_URL` | Postgres connection URL | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
-| `BIGRAG_DB_POOL_MIN` | Min DB pool size | `5` |
-| `BIGRAG_DB_POOL_MAX` | Max DB pool size | `50` |
-| **Milvus** | | |
 | `BIGRAG_MILVUS_URI` | Milvus connection URI | `http://localhost:19530` |
-| **Redis** | | |
 | `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
 | **Auth** | | |
 | `BIGRAG_AUTH_REQUIRED` | Enable/disable authentication | `true` |
 | `BIGRAG_SECRET_KEY` | Encryption key for secrets at rest | — |
-| `BIGRAG_SESSION_EXPIRY_HOURS` | Session token lifetime | `168` |
-| **Embedding** | | |
-| `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider | `openai` |
-| `BIGRAG_EMBEDDING_MODEL` | Default embedding model | `text-embedding-3-small` |
-| `BIGRAG_EMBEDDING_DIMENSION` | Default embedding dimension | `1536` |
-| `BIGRAG_EMBEDDING_API_KEY` | API key for OpenAI/Cohere | — |
 | **Ingestion** | | |
-| `BIGRAG_CHUNK_SIZE` | Default chunk size (tokens) | `512` |
-| `BIGRAG_CHUNK_OVERLAP` | Default chunk overlap (tokens) | `50` |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size in MB | `1024` |
 | `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
-| `BIGRAG_INGESTION_BATCH_SIZE` | Embedding batch size | `128` |
 | **Storage** | | |
 | `BIGRAG_STORAGE_BACKEND` | Storage backend (`local`, `s3`) | `local` |
 | `BIGRAG_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
 | `BIGRAG_S3_BUCKET` | S3 bucket name | — |
 | `BIGRAG_S3_ENDPOINT_URL` | S3 endpoint URL | — |
 | `BIGRAG_S3_REGION` | S3 region | `us-east-1` |
-| `BIGRAG_S3_ACCESS_KEY` | S3 access key | — |
-| `BIGRAG_S3_SECRET_KEY` | S3 secret key | — |
+
+Embedding provider, model, API key, chunk size, and chunk overlap are configured per collection via the API or admin UI — not as server-level environment variables.
 
 ---
 
@@ -2350,21 +2327,17 @@ Key settings to configure for production:
 ```bash
 # Security
 BIGRAG_SECRET_KEY=strong-random-key       # Encryption key for secrets at rest
-BIGRAG_CORS_ORIGINS='["https://your-domain.com"]'  # Restrict CORS
 
-# Database
+# Infrastructure
 BIGRAG_DATABASE_URL=postgres://user:pass@host:5432/bigrag?sslmode=require
-BIGRAG_DB_POOL_MIN=10
-BIGRAG_DB_POOL_MAX=100
+BIGRAG_REDIS_URL=redis://redis:6379/0
 
 # Performance
-BIGRAG_WORKERS=4                          # Match CPU cores
+BIGRAG_WORKERS=8                          # Match CPU cores
 BIGRAG_INGESTION_WORKERS=8               # More workers for heavy ingestion
-BIGRAG_INGESTION_BATCH_SIZE=256          # Larger batches for throughput
 
 # Logging
 BIGRAG_LOG_FORMAT=json                    # Structured logging for production
-BIGRAG_LOG_LEVEL=info
 
 # Storage (S3 for production)
 BIGRAG_STORAGE_BACKEND=s3

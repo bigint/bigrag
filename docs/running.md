@@ -52,19 +52,16 @@ bigRAG reads from `bigrag.toml` or environment variables:
 |----------|-------------|---------|
 | `BIGRAG_DATABASE_URL` | Postgres connection URL | `postgres://bigrag:bigrag@localhost:5432/bigrag` |
 | `BIGRAG_MILVUS_URI` | Milvus connection URI | `http://localhost:19530` |
-| `BIGRAG_PORT` | Server port | `6000` |
-| `BIGRAG_HOST` | Bind address | `0.0.0.0` |
-| `BIGRAG_AUTH_REQUIRED` | Enable/disable authentication | `true` |
-| `BIGRAG_SECRET_KEY` | Encryption key for secrets at rest | - |
-| `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider | `openai` |
-| `BIGRAG_EMBEDDING_MODEL` | Default embedding model | `text-embedding-3-small` |
-| `BIGRAG_EMBEDDING_API_KEY` | API key for OpenAI/Cohere embeddings | - |
-| `BIGRAG_LOG_LEVEL` | `debug`, `info`, `warning`, `error` | `info` |
-| `BIGRAG_UPLOAD_DIR` | Directory for uploaded documents | `./data/uploads` |
-| `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size | `1024` |
-| `BIGRAG_WORKERS` | Uvicorn workers | `4` |
 | `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
+| `BIGRAG_PORT` | Server port | `6000` |
+| `BIGRAG_WORKERS` | Uvicorn workers | `4` |
+| `BIGRAG_AUTH_REQUIRED` | Enable/disable authentication | `true` |
+| `BIGRAG_SECRET_KEY` | Encryption key for secrets at rest | — |
+| `BIGRAG_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`) | `info` |
 | `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
+| `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size | `1024` |
+
+Embedding provider, model, and API key are configured per collection via the API or admin UI.
 
 ## Verify
 
