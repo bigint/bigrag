@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Install CPU-only PyTorch first (avoids pulling ~2GB CUDA bundles)
+RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
 COPY pyproject.toml .
 COPY bigrag/ bigrag/
 RUN pip install .
