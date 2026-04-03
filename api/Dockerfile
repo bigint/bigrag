@@ -1,9 +1,15 @@
 FROM node:22-alpine AS ui-build
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Build the TypeScript SDK
+WORKDIR /sdks/typescript
+COPY sdks/typescript/ .
+RUN pnpm install && pnpm build
+
+# Build the UI
 WORKDIR /ui
 COPY ui/package.json ui/pnpm-lock.yaml* ./
-COPY sdks/typescript /sdks/typescript
 RUN pnpm install --frozen-lockfile
 COPY ui/ .
 ENV NEXT_PUBLIC_BIGRAG_URL=""
