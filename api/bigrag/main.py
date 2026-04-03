@@ -6,7 +6,7 @@ import time
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import Depends, FastAPI, Request, Response
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -135,6 +135,10 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health():
+        return {"status": "ok", "version": __version__}
+
+    @app.get("/health/ready")
+    async def readiness():
         checks = {"version": __version__}
         healthy = True
 

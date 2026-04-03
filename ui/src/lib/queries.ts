@@ -63,9 +63,3 @@ export const analyticsQueryOptions = (collectionName: string) =>
     queryKey: ["analytics", collectionName],
     refetchInterval: 30_000
   });
-
-export const apiKeysQueryOptions = () =>
-  queryOptions({
-    queryFn: () => getClient().listApiKeys(),
-    queryKey: ["api-keys"]
-  });
