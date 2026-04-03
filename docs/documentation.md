@@ -219,7 +219,7 @@ curl http://localhost:8080/health
 
 ### Authentication Modes
 
-bigRAG supports three authentication modes:
+bigRAG supports two authentication modes:
 
 | Mode | Config | Behavior |
 |------|--------|----------|
@@ -228,7 +228,7 @@ bigRAG supports three authentication modes:
 
 ### Session Auth (Default)
 
-Session-based auth is enabled when a Postgres database is configured. Users authenticate via login/signup and receive a session token.
+Session-based auth is the default when `BIGRAG_AUTH_REQUIRED=true`. Users authenticate via login and receive a session token.
 
 ```bash
 # Login
@@ -314,6 +314,7 @@ uri = "http://localhost:19530"
 url = "redis://localhost:6379/0"
 
 [auth]
+auth_required = true        # Set to false to disable authentication
 secret_key = ""             # Encryption key for secrets at rest
 session_expiry_hours = 168  # Session lifetime (7 days)
 
@@ -447,7 +448,8 @@ Check whether initial setup is needed. No authentication required.
 
 ```json
 {
-  "needs_setup": true
+  "needs_setup": true,
+  "auth_required": true
 }
 ```
 
@@ -2271,7 +2273,7 @@ Rate limiting is applied to authentication endpoints to prevent brute-force atta
 
 | Endpoints | Limit | Window |
 |-----------|-------|--------|
-| `/v1/auth/setup`, `/v1/auth/login`, `/v1/auth/signup` | 10 requests | 60 seconds |
+| `/v1/auth/setup`, `/v1/auth/login` | 10 requests | 60 seconds |
 
 Rate limiting is per IP address. When rate limited, the API returns `429 Too Many Requests`.
 
