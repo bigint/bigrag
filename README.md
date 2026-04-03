@@ -201,8 +201,8 @@ All config options use the `BIGRAG_` prefix:
 | `BIGRAG_DATABASE_URL`     | Postgres connection URL            | `postgres://...`         |
 | `BIGRAG_MILVUS_URI`       | Milvus connection URI              | `http://localhost:19530` |
 | `BIGRAG_PORT`             | Server port                        | `8080`                   |
-| `BIGRAG_MASTER_KEY`       | Admin master key                   | —                        |
-| `BIGRAG_API_KEYS`         | Comma-separated API keys           | —                        |
+| `BIGRAG_AUTH_REQUIRED`    | Enable/disable authentication      | `true`                   |
+| `BIGRAG_SECRET_KEY`       | Encryption key for secrets at rest | —                        |
 | `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider       | `openai`                 |
 | `BIGRAG_EMBEDDING_MODEL`  | Default embedding model            | `text-embedding-3-small` |
 | `BIGRAG_EMBEDDING_API_KEY`| API key for OpenAI/Cohere          | —                        |

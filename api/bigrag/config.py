@@ -29,9 +29,7 @@ class Settings(BaseSettings):
 
     # Auth
     auth_required: bool = True
-    master_key: str | None = None
-    jwt_secret: str | None = None
-    api_keys: list[str] = []
+    secret_key: str | None = None
     session_expiry_hours: int = 168
 
     # Embedding defaults

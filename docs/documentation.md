@@ -18,7 +18,6 @@ Complete reference for the bigRAG open-source RAG platform — document ingestio
   - [Authentication Modes](#authentication-modes)
   - [Session Auth (Default)](#session-auth-default)
   - [API Key Auth](#api-key-auth)
-  - [Master Key](#master-key)
   - [Auth Priority](#auth-priority)
 - [Configuration](#configuration)
   - [TOML Configuration](#toml-configuration)
@@ -224,8 +223,7 @@ bigRAG supports three authentication modes:
 
 | Mode | Config | Behavior |
 |------|--------|----------|
-| **User auth** (default) | `BIGRAG_DATABASE_URL` set | Login required, roles (admin/member) |
-| **API key only** | `BIGRAG_API_KEYS` or `BIGRAG_MASTER_KEY` set | Bearer token auth, no UI login |
+| **User auth** (default) | `BIGRAG_AUTH_REQUIRED=true` | Login required, DB-managed API keys, roles (admin/member) |
 | **No auth** | `BIGRAG_AUTH_REQUIRED=false` | All requests allowed as anonymous admin (self-hosted) |
 
 ### Session Auth (Default)
@@ -275,28 +273,13 @@ API key permissions control:
 - **Admin**: Whether the key has admin privileges
 - **Expiry**: Optional expiration date
 
-### Master Key
-
-A master key bypasses all authentication and has full admin access. Set it via environment variable for programmatic access:
-
-```bash
-BIGRAG_MASTER_KEY=my-secret-key python -m bigrag.main
-```
-
-```bash
-curl http://localhost:8080/v1/collections \
-  -H "Authorization: Bearer my-secret-key"
-```
-
 ### Auth Priority
 
-When multiple auth methods are configured, bigRAG evaluates in this order:
+When auth is enabled, bigRAG evaluates tokens in this order:
 
-1. **Master key** — if set and matches, grants admin access
-2. **Static API keys** (`BIGRAG_API_KEYS`) — if matches, grants admin access
-3. **Session token** — validated against database
-4. **Database API key** — validated against database with scoped permissions
-5. **No auth** — allowed only during initial setup (before first user is created)
+1. **Session token** — validated against database
+2. **API key** — validated against database with scoped permissions
+3. **No token** — allowed only during initial setup (before first user is created)
 
 All authenticated requests use the `Authorization: Bearer <token>` header.
 
@@ -331,9 +314,7 @@ uri = "http://localhost:19530"
 url = "redis://localhost:6379/0"
 
 [auth]
-master_key = ""             # Master key (bypasses all auth)
-api_keys = []               # Static API keys
-jwt_secret = ""             # JWT secret for token signing
+secret_key = ""             # Encryption key for secrets at rest
 session_expiry_hours = 168  # Session lifetime (7 days)
 
 [embedding]
@@ -384,9 +365,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
 | **Auth** | | |
 | `BIGRAG_AUTH_REQUIRED` | Enable/disable authentication | `true` |
-| `BIGRAG_MASTER_KEY` | Master API key (bypasses all auth) | — |
-| `BIGRAG_API_KEYS` | Comma-separated static API keys | — |
-| `BIGRAG_JWT_SECRET` | JWT secret for signing | — |
+| `BIGRAG_SECRET_KEY` | Encryption key for secrets at rest | — |
 | `BIGRAG_SESSION_EXPIRY_HOURS` | Session token lifetime | `168` |
 | **Embedding** | | |
 | `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider | `openai` |
@@ -2314,7 +2293,7 @@ services:
       BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
       BIGRAG_MILVUS_URI: http://milvus:19530
       BIGRAG_REDIS_URL: redis://redis:6379/0
-      BIGRAG_MASTER_KEY: your-secret-master-key
+      BIGRAG_SECRET_KEY: your-secret-encryption-key
       BIGRAG_LOG_LEVEL: info
       BIGRAG_LOG_FORMAT: json
       BIGRAG_EMBEDDING_PROVIDER: openai
@@ -2355,8 +2334,7 @@ Key settings to configure for production:
 
 ```bash
 # Security
-BIGRAG_MASTER_KEY=strong-random-key       # Set a strong master key
-BIGRAG_JWT_SECRET=another-random-key      # Set a JWT secret
+BIGRAG_SECRET_KEY=strong-random-key       # Encryption key for secrets at rest
 BIGRAG_CORS_ORIGINS='["https://your-domain.com"]'  # Restrict CORS
 
 # Database

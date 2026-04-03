@@ -157,8 +157,7 @@ def cli():
     parser.add_argument("--database-url", help="Postgres connection URL")
     parser.add_argument("--milvus-uri", help="Milvus connection URI")
     parser.add_argument("--redis-url", help="Redis connection URL")
-    parser.add_argument("--master-key", help="Master key for admin access")
-    parser.add_argument("--api-keys", help="Comma-separated API keys")
+    parser.add_argument("--secret-key", help="Encryption key for secrets at rest")
     parser.add_argument("--log-level", help="Log level")
     parser.add_argument("--log-format", choices=["text", "json"], help="Log format")
     args = parser.parse_args()
@@ -171,8 +170,7 @@ def cli():
     if args.database_url: s.database_url = args.database_url
     if args.milvus_uri: s.milvus_uri = args.milvus_uri
     if args.redis_url: s.redis_url = args.redis_url
-    if args.master_key: s.master_key = args.master_key
-    if args.api_keys: s.api_keys = [k.strip() for k in args.api_keys.split(",")]
+    if args.secret_key: s.secret_key = args.secret_key
     if args.log_level: s.log_level = args.log_level
     if args.log_format: s.log_format = args.log_format
 

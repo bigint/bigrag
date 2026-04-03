@@ -52,19 +52,11 @@ async def get_current_user(request: Request) -> dict:
             auth_header = f"Bearer {query_token}"
 
     if not auth_header.startswith("Bearer "):
-        if not settings.master_key and not settings.api_keys:
-            if await auth_service.needs_setup():
-                return {"id": None, "role": "admin", "email": "anonymous", "display_name": "Anonymous"}
+        if await auth_service.needs_setup():
+            return {"id": None, "role": "admin", "email": "anonymous", "display_name": "Anonymous"}
         raise HTTPException(status_code=401, detail="Missing authorization header")
 
     token = auth_header[7:]
-
-    if settings.master_key and token == settings.master_key:
-        return {"id": None, "role": "admin", "email": "master", "display_name": "Master Key"}
-
-    if token in settings.api_keys:
-        return {"id": None, "role": "admin", "email": "api-key", "display_name": "API Key"}
-
     token_hash = auth_service.hash_token(token)
     cached_user = _cache_get(_session_cache, token_hash)
     if cached_user:

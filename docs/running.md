@@ -39,8 +39,7 @@ cd ui && pnpm install && pnpm dev
 
 | Mode | Config | Behavior |
 |------|--------|----------|
-| **User auth** (default) | `BIGRAG_DATABASE_URL` set | Login required, roles (admin/member) |
-| **API key only** | `BIGRAG_API_KEYS` or `BIGRAG_MASTER_KEY` set | Bearer token auth, no UI login |
+| **User auth** (default) | `BIGRAG_AUTH_REQUIRED=true` | Login required, DB-managed API keys, roles (admin/member) |
 | **No auth** | `BIGRAG_AUTH_REQUIRED=false` | All requests allowed as anonymous admin (self-hosted) |
 
 ## Configuration
@@ -53,8 +52,8 @@ bigRAG reads from `bigrag.toml` or environment variables:
 | `BIGRAG_MILVUS_URI` | Milvus connection URI | `http://localhost:19530` |
 | `BIGRAG_PORT` | Server port | `8080` |
 | `BIGRAG_HOST` | Bind address | `0.0.0.0` |
-| `BIGRAG_MASTER_KEY` | Master key, bypasses all auth | - |
-| `BIGRAG_API_KEYS` | Comma-separated static API keys | - |
+| `BIGRAG_AUTH_REQUIRED` | Enable/disable authentication | `true` |
+| `BIGRAG_SECRET_KEY` | Encryption key for secrets at rest | - |
 | `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider | `openai` |
 | `BIGRAG_EMBEDDING_MODEL` | Default embedding model | `text-embedding-3-small` |
 | `BIGRAG_EMBEDDING_API_KEY` | API key for OpenAI/Cohere embeddings | - |

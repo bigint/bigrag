@@ -23,10 +23,10 @@ def _get_fernet() -> Fernet:
     if _fernet is not None:
         return _fernet
 
-    secret = settings.master_key or settings.jwt_secret
+    secret = settings.secret_key
     if not secret:
         raise RuntimeError(
-            "No encryption key configured. Set BIGRAG_MASTER_KEY or BIGRAG_JWT_SECRET."
+            "No encryption key configured. Set BIGRAG_SECRET_KEY."
         )
     key = hashlib.pbkdf2_hmac("sha256", secret.encode(), b"bigrag-at-rest", 100_000)
     _fernet = Fernet(base64.urlsafe_b64encode(key))
