@@ -18,11 +18,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Python dependencies
 COPY pyproject.toml .
+COPY bigrag/ bigrag/
 RUN pip install --upgrade pip && \
     pip install .
-
-# Copy application code
-COPY bigrag/ bigrag/
 
 # Create data directory
 RUN mkdir -p /data/uploads && \
