@@ -57,7 +57,6 @@ Complete reference for the bigRAG open-source RAG platform — document ingestio
 - [TypeScript SDK](#typescript-sdk)
 - [Go SDK](#go-sdk)
 - [curl Examples](#curl-examples)
-- [Admin UI](#admin-ui)
 - [Error Codes](#error-codes)
 - [Rate Limiting](#rate-limiting)
 - [Deployment](#deployment)
@@ -77,7 +76,6 @@ bigRAG is an open-source, self-hostable RAG (Retrieval-Augmented Generation) pla
 - **Any document format** — PDF, DOCX, PPTX, HTML, Markdown, images (with OCR), and more via [Docling](https://github.com/DS4SD/docling)
 - **Any embedding model** — OpenAI and Cohere
 - **Milvus vector database** — production-grade vector search with hybrid capabilities
-- **Admin web UI** — manage collections, upload documents, query, and administer users
 - **Self-hostable** — Docker Compose, no external dependencies
 - **User auth** — session-based auth, API keys, and role-based access
 - **MIT licensed** — run it anywhere, forever free
@@ -123,7 +121,6 @@ Query → Embed → Vector Search ───────────────�
 | Component | Purpose | Default Address |
 |-----------|---------|-----------------|
 | **bigRAG API** | REST API server (FastAPI) | `http://localhost:6000` |
-| **Admin UI** | Web dashboard (Next.js) | `http://localhost:3000` |
 | **PostgreSQL** | User auth, metadata, sessions | `localhost:5432` |
 | **Milvus** | Vector storage and search | `localhost:19530` |
 | **Redis** | Ingestion job queue | `localhost:6379` |
@@ -136,7 +133,6 @@ Query → Embed → Vector Search ───────────────�
 
 - **Docker** and **Docker Compose** (recommended method)
 - **Python 3.12+** (for running from source)
-- **Node.js 22+** and **pnpm** (for the admin UI)
 
 ### Docker Compose (Recommended)
 
@@ -146,7 +142,6 @@ docker compose up -d
 
 This starts the full stack:
 
-- **Admin UI** on port 5000
 - **bigRAG API** on port 6000 (Swagger docs at `/docs`)
 - **Milvus** vector database on port 19530
 - **Postgres** for metadata and auth on port 5432
@@ -165,9 +160,6 @@ pip install -e .
 python -m bigrag.main \
   --database-url "postgres://bigrag:bigrag@localhost:5432/bigrag" \
   --milvus-uri "http://localhost:19530"
-
-# 3. Start the UI (in a separate terminal)
-cd ui && pnpm install && pnpm dev
 ```
 
 ### Development Mode
@@ -180,26 +172,18 @@ The easiest way to start everything for development:
 
 This script:
 
-1. Kills stale processes on ports 6000 and 3000
-2. Validates required commands (`docker`, `python3`, `pnpm`, `curl`)
+1. Kills stale processes on port 6000
+2. Validates required commands (`docker`, `python3`, `curl`)
 3. Starts Docker services (Postgres, Redis, Milvus) and waits for readiness
 4. Creates a Python virtualenv and installs dependencies
 5. Starts the backend with auto-reload
-6. Installs UI dependencies and starts the Next.js dev server
-7. Logs output with `[backend]` and `[ui]` prefixes
-8. Gracefully stops everything on Ctrl+C
+6. Gracefully stops everything on Ctrl+C
 
 ### First-Time Setup
 
 On first launch, bigRAG requires an initial admin account:
 
-1. Open `http://localhost:3000` — the UI redirects to `/setup`
-2. Enter an email, password (8+ characters), and display name
-3. This creates the first admin user
-
-After setup, users log in with email/password.
-
-Alternatively, via the API:
+Via the API:
 
 ```bash
 curl -X POST http://localhost:6000/v1/auth/setup \
@@ -364,7 +348,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | `BIGRAG_S3_ENDPOINT_URL` | S3 endpoint URL | — |
 | `BIGRAG_S3_REGION` | S3 region | `us-east-1` |
 
-Embedding provider, model, API key, chunk size, and chunk overlap are configured per collection via the API or admin UI — not as server-level environment variables.
+Embedding provider, model, API key, chunk size, and chunk overlap are configured per collection via the API — not as server-level environment variables.
 
 ---
 
@@ -2209,24 +2193,6 @@ curl -X POST $BASE/v1/collections/custom/vectors/delete \
 
 ---
 
-## Admin UI
-
-bigRAG includes a web-based admin dashboard. In development it runs at `http://localhost:3000`; in Docker it runs at `http://localhost:5000`.
-
-**Features:**
-
-- **Dashboard** — overview of collections, documents, and system status
-- **Collections** — create, view, update, and delete collections
-- **Documents** — upload, list, view status, download, and manage documents
-- **Query** — interactive search interface for testing queries
-- **API Keys** — create and manage API keys (admin only)
-- **Metrics** — Prometheus metrics dashboard
-- **Settings** — server connection and account settings
-
-The UI communicates with the bigRAG API and requires the backend to be running.
-
----
-
 ## Error Codes
 
 All API errors return a JSON body with a `detail` field:
@@ -2284,13 +2250,6 @@ services:
       - postgres
       - milvus
       - redis
-
-  bigrag-ui:
-    image: yoginth/bigrag-ui:latest
-    ports:
-      - "5000:5000"
-    depends_on:
-      - bigrag
 
   postgres:
     image: postgres:17

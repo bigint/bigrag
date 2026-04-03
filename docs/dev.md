@@ -3,7 +3,6 @@
 ## Prerequisites
 
 - Python 3.12+
-- Node.js 22+ and pnpm
 - Docker and Docker Compose (for Postgres, Redis, Milvus)
 
 ## One-Command Start
@@ -12,7 +11,7 @@
 ./dev.sh
 ```
 
-This starts everything: Postgres, Redis, Milvus, the Python backend, and the Next.js UI.
+This starts everything: Postgres, Redis, Milvus, and the Python backend.
 
 ## Manual Setup
 
@@ -50,18 +49,6 @@ python -m bigrag.main
 
 API: http://localhost:6000 | Swagger docs: http://localhost:6000/docs
 
-### 3. Run the UI
-
-```bash
-cd ui
-pnpm install
-pnpm dev
-```
-
-Dashboard: http://localhost:3000
-
-On first visit, the UI redirects to `/setup` to create the initial admin account. After that, users log in with email/password.
-
 ## Verify
 
 ```bash
@@ -74,7 +61,6 @@ curl http://localhost:6000/health
 | Service  | URL                          | Notes                    |
 |----------|------------------------------|--------------------------|
 | API      | http://localhost:6000         | FastAPI + Swagger at /docs |
-| UI       | http://localhost:3000         | Next.js admin dashboard  |
 | Postgres | localhost:5432               | User: bigrag / bigrag    |
 | Milvus   | localhost:19530              | Vector DB                |
 | Redis    | localhost:6379               | Ingestion job queue      |

@@ -16,7 +16,6 @@
 - **Any document format** — PDF, DOCX, PPTX, HTML, Markdown, images, and more via [Docling](https://github.com/DS4SD/docling)
 - **Any embedding model** — OpenAI and Cohere
 - **Milvus vector database** — production-grade vector search with hybrid capabilities
-- **Admin web UI** — manage collections, upload documents, query, and administer users
 - **Self-hostable** — Docker Compose, no external dependencies
 - **User auth** — session-based auth, API keys, and role-based access
 - **MIT licensed** — run it anywhere, forever free
@@ -30,7 +29,6 @@ docker compose up -d
 ```
 
 This starts the full stack:
-- **Admin UI** on port 5000
 - **bigRAG API** on port 6000 (with Swagger docs at `/docs`)
 - **Postgres** for metadata and auth on port 5432
 - **Redis** for the ingestion queue on port 6379
@@ -41,8 +39,7 @@ This starts the full stack:
 Pre-built images are published to Docker Hub on every push to `main`:
 
 ```bash
-docker pull yoginth/bigrag:latest      # API
-docker pull yoginth/bigrag-ui:latest   # Admin UI
+docker pull yoginth/bigrag:latest
 ```
 
 ### Development
@@ -54,7 +51,6 @@ docker pull yoginth/bigrag-ui:latest   # Admin UI
 This starts all services and opens:
 - Backend API: http://localhost:6000
 - API Docs: http://localhost:6000/docs
-- Admin UI: http://localhost:3000
 
 ### From Source
 
@@ -218,7 +214,7 @@ All config options use the `BIGRAG_` prefix:
 | `BIGRAG_LOG_LEVEL`         | Log level                          | `info`                     |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB`| Max upload file size               | `1024`                     |
 
-Embedding provider, model, and API key are configured per collection via the API or admin UI.
+Embedding provider, model, and API key are configured per collection via the API.
 
 ## Architecture
 
