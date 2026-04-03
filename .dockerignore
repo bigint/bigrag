@@ -1,5 +1,4 @@
 .git/
-api/
 docs/
 helm/
 data/
@@ -8,9 +7,4 @@ data/
 .env*
 docker-compose*.yml
 milvus.yaml
-ui/node_modules/
-ui/.next/
-ui/out/
-sdks/*/node_modules/
-sdks/*/dist/
-sdks/python/
+sdks/

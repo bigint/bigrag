@@ -3,8 +3,7 @@
 ## Project Structure
 
 - `api/` — Python/FastAPI backend (Docling ingestion + Milvus vector DB)
-- `ui/` — Next.js 16 admin dashboard (React 19 + TanStack Query + Tailwind 4)
-- `sdks/` — Client SDKs (Python, TypeScript, Go)
+- `sdks/` — Client SDKs (Python, TypeScript)
 - `docs/` — Documentation
 
 ## Style Guide
@@ -16,7 +15,6 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 - **Backend**: Python 3.12+, FastAPI, asyncpg, pymilvus, docling, openai, cohere
 - **Vector DB**: Milvus (via Docker)
 - **Metadata DB**: PostgreSQL 17
-- **Frontend**: Next.js 16, React 19, TypeScript 6, Tailwind CSS 4, TanStack Query v5
 - **Ingestion**: Docling (PDF, DOCX, PPTX, HTML, Markdown, images)
 - **Embedding**: OpenAI and Cohere
 
@@ -27,11 +25,10 @@ When introducing new features or changing existing APIs, update `docs/documentat
 ## Development
 
 ```bash
-./dev.sh  # starts Postgres, Redis, Milvus, Python backend, Next.js UI
+./dev.sh  # starts Postgres, Redis, Milvus, Python backend
 ```
 
 - Backend API: http://localhost:6000 (Swagger docs at /docs)
-- Admin UI: http://localhost:3000 (dev) / http://localhost:5000 (Docker)
 - Postgres: localhost:5432
 - Redis: localhost:6379
 - Milvus: localhost:19530

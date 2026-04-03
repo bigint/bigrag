@@ -22,7 +22,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # --- Kill stale processes on dev ports ---
-for port in 6000 3000; do
+for port in 6000; do
   stale=$(lsof -ti:"$port" 2>/dev/null || true)
   if [ -n "$stale" ]; then
     echo -e "${YELLOW}Killing stale process(es) on port $port${NC}"
@@ -32,7 +32,7 @@ for port in 6000 3000; do
 done
 
 # --- Preflight checks ---
-for cmd in docker python3 pnpm curl; do
+for cmd in docker python3 curl; do
   if ! command -v "$cmd" > /dev/null 2>&1; then
     echo -e "${RED}Required command not found: $cmd${NC}"
     exit 1
@@ -113,18 +113,9 @@ for i in $(seq 1 120); do
   sleep 1
 done
 
-# --- UI ---
-echo -e "${CYAN}Installing UI dependencies...${NC}"
-(cd "$ROOT_DIR/ui" && pnpm install --frozen-lockfile 2>&1 | tail -1)
-
-echo -e "${CYAN}Starting Next.js UI...${NC}"
-(cd "$ROOT_DIR/ui" && pnpm dev 2>&1 | while IFS= read -r line; do printf '[ui] %s\n' "$line"; done) &
-PIDS+=($!)
-
 echo -e "${GREEN}All services started:${NC}"
 echo -e "  Backend  → http://localhost:6000"
 echo -e "  API Docs → http://localhost:6000/docs"
-echo -e "  UI       → http://localhost:3000"
 echo -e "  Postgres → localhost:5432"
 echo -e "  Redis    → localhost:6379"
 echo -e "  Milvus   → localhost:19530"
