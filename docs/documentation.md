@@ -80,7 +80,7 @@ bigRAG is an open-source, self-hostable RAG (Retrieval-Augmented Generation) pla
 - **Milvus vector database** — production-grade vector search with hybrid capabilities
 - **Admin web UI** — manage collections, upload documents, query, and administer users
 - **Self-hostable** — Docker Compose, no external dependencies
-- **User auth** — session-based auth with invite system, API keys, and role-based access
+- **User auth** — session-based auth, API keys, and role-based access
 - **MIT licensed** — run it anywhere, forever free
 
 ---
@@ -197,7 +197,7 @@ On first launch, bigRAG requires an initial admin account:
 2. Enter an email, password (8+ characters), and display name
 3. This creates the first admin user
 
-After setup, users log in with email/password. Admins can invite new users from the Users page.
+After setup, users log in with email/password.
 
 Alternatively, via the API:
 
@@ -224,7 +224,7 @@ bigRAG supports three authentication modes:
 
 | Mode | Config | Behavior |
 |------|--------|----------|
-| **User auth** (default) | `BIGRAG_DATABASE_URL` set | Login required, invite-based signup, roles (admin/member) |
+| **User auth** (default) | `BIGRAG_DATABASE_URL` set | Login required, roles (admin/member) |
 | **API key only** | `BIGRAG_API_KEYS` or `BIGRAG_MASTER_KEY` set | Bearer token auth, no UI login |
 | **No auth** | `BIGRAG_AUTH_REQUIRED=false` | All requests allowed as anonymous admin (self-hosted) |
 
@@ -2454,7 +2454,6 @@ bigRAG uses PostgreSQL for metadata and authentication. Tables are created and m
 |-------|---------|
 | `users` | User accounts (id, email, password_hash, display_name, role) |
 | `sessions` | Active login sessions (token_hash, user_id, expires_at) |
-| `invites` | Invite codes for signup (code, role, expires_at, used_by) |
 | `api_keys` | API keys (key_hash, prefix, permissions, expires_at) |
 | `collections` | Collection metadata (name, embedding config, chunk config) |
 | `documents` | Document metadata (filename, status, chunk_count, file_path) |

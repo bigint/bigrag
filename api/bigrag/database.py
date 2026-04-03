@@ -34,15 +34,6 @@ MIGRATIONS = [
         expires_at TIMESTAMPTZ NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
-    CREATE TABLE IF NOT EXISTS invites (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        code TEXT UNIQUE NOT NULL,
-        role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
-        created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-        used_by UUID REFERENCES users(id) ON DELETE SET NULL,
-        expires_at TIMESTAMPTZ NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
     CREATE TABLE IF NOT EXISTS api_keys (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -147,6 +138,9 @@ MIGRATIONS = [
     );
     CREATE INDEX IF NOT EXISTS idx_query_log_collection ON query_log(collection_name);
     CREATE INDEX IF NOT EXISTS idx_query_log_created_at ON query_log(created_at);
+    """,
+    """
+    DROP TABLE IF EXISTS invites;
     """,
 ]
 

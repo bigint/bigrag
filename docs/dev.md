@@ -57,7 +57,7 @@ pnpm dev
 
 Dashboard: http://localhost:3000
 
-On first visit, the UI redirects to `/setup` to create the initial admin account. After that, users log in with email/password. Admins can invite new users from the Users page.
+On first visit, the UI redirects to `/setup` to create the initial admin account. After that, users log in with email/password.
 
 ## Verify
 

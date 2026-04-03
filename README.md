@@ -18,7 +18,7 @@
 - **Milvus vector database** — production-grade vector search with hybrid capabilities
 - **Admin web UI** — manage collections, upload documents, query, and administer users
 - **Self-hostable** — Docker Compose, no external dependencies
-- **User auth** — session-based auth with invite system, API keys, and role-based access
+- **User auth** — session-based auth, API keys, and role-based access
 - **MIT licensed** — run it anywhere, forever free
 
 ## Quick Start
@@ -150,7 +150,6 @@ curl -X POST http://localhost:8080/v1/collections/docs/query \
 | `GET`    | `/v1/metrics`                                     | Prometheus metrics              |
 | `POST`   | `/v1/auth/setup`                                  | Initial admin setup             |
 | `POST`   | `/v1/auth/login`                                  | Login                           |
-| `POST`   | `/v1/auth/signup`                                 | Signup with invite              |
 | `GET`    | `/v1/auth/me`                                     | Current user                    |
 
 Full interactive API docs available at `/docs` (Swagger) when running.

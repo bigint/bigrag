@@ -39,9 +39,9 @@ cd ui && pnpm install && pnpm dev
 
 | Mode | Config | Behavior |
 |------|--------|----------|
-| **User auth** | `BIGRAG_DATABASE_URL` set (default) | Login required, invite-based signup, roles (admin/member) |
+| **User auth** (default) | `BIGRAG_DATABASE_URL` set | Login required, roles (admin/member) |
 | **API key only** | `BIGRAG_API_KEYS` or `BIGRAG_MASTER_KEY` set | Bearer token auth, no UI login |
-| **Open** | No database, no keys, no master key | All requests allowed |
+| **No auth** | `BIGRAG_AUTH_REQUIRED=false` | All requests allowed as anonymous admin (self-hosted) |
 
 ## Configuration
 
