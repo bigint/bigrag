@@ -63,12 +63,6 @@ async def lifespan(app: FastAPI):
     from bigrag.services.webhook import webhook_dispatcher
     await webhook_dispatcher.start()
 
-    # Clean up expired sessions on startup
-    from bigrag.services.auth import cleanup_expired_sessions
-    cleaned = await cleanup_expired_sessions()
-    if cleaned:
-        logger.info(f"Cleaned up {cleaned} expired sessions")
-
     logger.info(f"Server ready on {settings.host}:{settings.port}")
     yield
 
@@ -168,14 +162,10 @@ def create_app() -> FastAPI:
     async def queue_stats(_: dict = Depends(get_current_user)):
         return await ingestion_queue.stats
 
-    from bigrag.routers.auth import router as auth_router
-    from bigrag.routers.admin import router as admin_router
     from bigrag.routers.collections import router as collections_router
     from bigrag.routers.documents import router as documents_router
     from bigrag.routers.query import router as query_router
 
-    app.include_router(auth_router)
-    app.include_router(admin_router)
     app.include_router(collections_router)
     app.include_router(documents_router)
     app.include_router(query_router)

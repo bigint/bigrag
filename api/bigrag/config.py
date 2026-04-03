@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # Auth
-    auth_required: bool = True
+    api_secret: str | None = None
     secret_key: str | None = None
     session_expiry_hours: int = 168
 
