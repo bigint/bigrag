@@ -1,12 +1,13 @@
 FROM node:22-alpine AS ui-build
 
+RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /ui
-COPY ui/package.json ui/package-lock.json* ./
+COPY ui/package.json ui/pnpm-lock.yaml* ./
 COPY sdks/typescript /sdks/typescript
-RUN npm install
+RUN pnpm install --frozen-lockfile
 COPY ui/ .
 ENV NEXT_PUBLIC_BIGRAG_URL=""
-RUN npm run build
+RUN pnpm build
 
 FROM python:3.12-slim
 
