@@ -32,8 +32,18 @@ docker compose up -d
 This starts the full stack:
 - **Admin UI** on port 5000
 - **bigRAG API** on port 6000 (with Swagger docs at `/docs`)
-- **Milvus** vector database on port 19530
 - **Postgres** for metadata and auth on port 5432
+- **Redis** for the ingestion queue on port 6379
+- **Milvus** vector database on port 19530
+
+### Docker Images
+
+Pre-built images are published to Docker Hub on every push to `main`:
+
+```bash
+docker pull yoginth/bigrag:latest      # API
+docker pull yoginth/bigrag-ui:latest   # Admin UI
+```
 
 ### Development
 

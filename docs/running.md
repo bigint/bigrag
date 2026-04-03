@@ -19,6 +19,15 @@ This starts the full stack:
 
 Open http://localhost:5000 for the admin UI, or use the API directly at http://localhost:6000/docs.
 
+### Docker Images
+
+Pre-built images are published to Docker Hub on every push to `main`:
+
+```bash
+docker pull yoginth/bigrag:latest      # API
+docker pull yoginth/bigrag-ui:latest   # Admin UI
+```
+
 ## From Source
 
 ```bash

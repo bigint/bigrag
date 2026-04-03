@@ -2271,7 +2271,7 @@ For production deployments, create a `docker-compose.prod.yml`:
 ```yaml
 services:
   bigrag:
-    image: bigrag/bigrag:latest
+    image: yoginth/bigrag:latest
     ports:
       - "6000:6000"
     environment:
@@ -2279,10 +2279,7 @@ services:
       BIGRAG_MILVUS_URI: http://milvus:19530
       BIGRAG_REDIS_URL: redis://redis:6379/0
       BIGRAG_SECRET_KEY: your-secret-encryption-key
-      BIGRAG_LOG_LEVEL: info
       BIGRAG_LOG_FORMAT: json
-      BIGRAG_EMBEDDING_PROVIDER: openai
-      BIGRAG_EMBEDDING_MODEL: text-embedding-3-small
     depends_on:
       - postgres
       - milvus
