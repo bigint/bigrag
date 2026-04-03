@@ -30,6 +30,7 @@ docker compose up -d
 ```
 
 This starts the full stack:
+- **Admin UI** on port 5000
 - **bigRAG API** on port 6000 (with Swagger docs at `/docs`)
 - **Milvus** vector database on port 19530
 - **Postgres** for metadata and auth on port 5432

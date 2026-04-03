@@ -1,66 +1,44 @@
-FROM node:22-alpine AS ui-build
-
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-# Build the TypeScript SDK
-WORKDIR /sdks/typescript
-COPY sdks/typescript/ .
-RUN pnpm install && pnpm build
-
-# Build the UI
-WORKDIR /ui
-COPY ui/package.json ui/pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile
-COPY ui/ .
-ENV NEXT_PUBLIC_BIGRAG_URL=""
-RUN pnpm build
-
-FROM python:3.12-slim
-
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
+FROM python:3.12-slim AS build
 
 WORKDIR /app
 
-# Install Node.js for Next.js standalone server
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpoppler-cpp-dev \
-    poppler-utils \
-    tesseract-ocr \
     libtesseract-dev \
-    curl \
-    nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY api/pyproject.toml .
-COPY api/bigrag/ bigrag/
-RUN pip install --upgrade pip && \
-    pip install .
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy Next.js standalone build
-COPY --from=ui-build /ui/.next/standalone /app/ui
-COPY --from=ui-build /ui/.next/static /app/ui/.next/static
-COPY --from=ui-build /ui/public /app/ui/public
+COPY pyproject.toml .
+COPY bigrag/ bigrag/
+RUN pip install .
 
-# Entrypoint script to run both services
-COPY api/entrypoint.sh /app/entrypoint.sh
+FROM python:3.12-slim
 
-# Create data directory
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    poppler-utils \
+    tesseract-ocr \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
 RUN mkdir -p /data/uploads && \
     useradd -r -s /bin/false bigrag && \
-    chown -R bigrag:bigrag /data /app/ui && \
-    chmod +x /app/entrypoint.sh
+    chown -R bigrag:bigrag /data
 
 USER bigrag
 
 EXPOSE 6000
-
 VOLUME ["/data"]
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
     CMD curl -f http://localhost:6000/health || exit 1
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["python", "-m", "bigrag.main"]
+CMD ["--host", "0.0.0.0", "--port", "6000"]

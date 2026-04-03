@@ -1,8 +1,6 @@
 services:
   bigrag:
-    build:
-      context: .
-      dockerfile: api/Dockerfile
+    build: ./api
     container_name: bigrag
     restart: unless-stopped
     ports:
@@ -33,6 +31,23 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  bigrag-ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+    container_name: bigrag-ui
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    depends_on:
+      bigrag:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5000"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -12,6 +12,15 @@ on:
 jobs:
   push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image: yoginth/bigrag
+            context: ./api
+            file: api/Dockerfile
+          - image: yoginth/bigrag-ui
+            context: .
+            file: ui/Dockerfile
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -31,12 +40,12 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: api/Dockerfile
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            yoginth/bigrag:latest
-            yoginth/bigrag:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ matrix.image }}:latest
+            ${{ matrix.image }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

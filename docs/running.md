@@ -11,11 +11,12 @@ docker compose up -d
 ```
 
 This starts the full stack:
+- Admin UI on port 5000
 - bigRAG API on port 6000
 - Postgres on port 5432
 - Milvus on port 19530
 
-Open http://localhost:3000 for the admin UI (after starting the UI separately), or use the API directly at http://localhost:6000/docs.
+Open http://localhost:5000 for the admin UI, or use the API directly at http://localhost:6000/docs.
 
 ## From Source
 
@@ -59,7 +60,7 @@ bigRAG reads from `bigrag.toml` or environment variables:
 | `BIGRAG_EMBEDDING_API_KEY` | API key for OpenAI/Cohere embeddings | - |
 | `BIGRAG_LOG_LEVEL` | `debug`, `info`, `warning`, `error` | `info` |
 | `BIGRAG_UPLOAD_DIR` | Directory for uploaded documents | `./data/uploads` |
-| `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size | `500` |
+| `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size | `1024` |
 
 ## Verify
 
