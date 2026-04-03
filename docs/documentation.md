@@ -226,7 +226,7 @@ bigRAG supports three authentication modes:
 |------|--------|----------|
 | **User auth** (default) | `BIGRAG_DATABASE_URL` set | Login required, invite-based signup, roles (admin/member) |
 | **API key only** | `BIGRAG_API_KEYS` or `BIGRAG_MASTER_KEY` set | Bearer token auth, no UI login |
-| **Open** | No database, no keys | All requests allowed (development only) |
+| **No auth** | `BIGRAG_AUTH_REQUIRED=false` | All requests allowed as anonymous admin (self-hosted) |
 
 ### Session Auth (Default)
 
@@ -383,6 +383,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | **Redis** | | |
 | `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
 | **Auth** | | |
+| `BIGRAG_AUTH_REQUIRED` | Enable/disable authentication | `true` |
 | `BIGRAG_MASTER_KEY` | Master API key (bypasses all auth) | — |
 | `BIGRAG_API_KEYS` | Comma-separated static API keys | — |
 | `BIGRAG_JWT_SECRET` | JWT secret for signing | — |

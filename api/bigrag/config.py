@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # Auth
+    auth_required: bool = True
     master_key: str | None = None
     jwt_secret: str | None = None
     api_keys: list[str] = []

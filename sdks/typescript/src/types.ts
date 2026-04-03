@@ -177,6 +177,7 @@ export interface ChangePasswordBody {
 
 export interface SetupStatusResponse {
   needs_setup: boolean;
+  auth_required: boolean;
 }
 
 export interface MeResponse {

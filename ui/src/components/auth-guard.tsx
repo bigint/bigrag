@@ -22,8 +22,18 @@ export const AuthGuard = ({
     const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
     try {
-      const { needs_setup } = await getClient().getSetupStatus();
-      if (needs_setup) {
+      const status = await getClient().getSetupStatus();
+      if (status.auth_required === false) {
+        if (isPublic) {
+          router.replace("/");
+          setChecked(true);
+          return;
+        }
+        setAuthorized(true);
+        setChecked(true);
+        return;
+      }
+      if (status.needs_setup) {
         if (pathname !== "/setup") {
           router.replace("/setup");
         }

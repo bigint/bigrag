@@ -40,6 +40,9 @@ def invalidate_auth_cache(token_hash: str | None = None) -> None:
 
 
 async def get_current_user(request: Request) -> dict:
+    if not settings.auth_required:
+        return {"id": None, "role": "admin", "email": "anonymous", "display_name": "Anonymous"}
+
     auth_header = request.headers.get("authorization", "")
     path = request.url.path
 

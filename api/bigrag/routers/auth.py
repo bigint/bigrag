@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from bigrag.config import settings
 from bigrag.middleware.auth import get_current_user
 
 logger = logging.getLogger("bigrag.routers.auth")
@@ -23,9 +24,12 @@ router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
 @router.get("/setup-status")
 async def setup_status():
+    if not settings.auth_required:
+        return {"needs_setup": False, "auth_required": False}
+
     needs = await auth_service.needs_setup()
     logger.info(f"setup-status: needs_setup={needs}")
-    return {"needs_setup": needs}
+    return {"needs_setup": needs, "auth_required": True}
 
 
 @router.post("/setup", response_model=AuthResponse, dependencies=[Depends(auth_rate_limit)])
