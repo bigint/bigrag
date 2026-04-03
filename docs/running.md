@@ -41,12 +41,9 @@ python -m bigrag.main \
   --milvus-uri "http://localhost:19530"
 ```
 
-## Authentication Modes
+## Authentication
 
-| Mode | Config | Behavior |
-|------|--------|----------|
-| **User auth** (default) | `BIGRAG_AUTH_REQUIRED=true` | Login required, DB-managed API keys, roles (admin/member) |
-| **No auth** | `BIGRAG_AUTH_REQUIRED=false` | All requests allowed as anonymous admin (self-hosted) |
+Set the `BIGRAG_API_SECRET` environment variable to protect the API with a shared secret. All requests must include `Authorization: Bearer <secret>`. If `BIGRAG_API_SECRET` is not set, the API is open to all requests.
 
 ## Configuration
 
@@ -59,8 +56,7 @@ bigRAG reads from `bigrag.toml` or environment variables:
 | `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
 | `BIGRAG_PORT` | Server port | `6000` |
 | `BIGRAG_WORKERS` | Uvicorn workers | `4` |
-| `BIGRAG_AUTH_REQUIRED` | Enable/disable authentication | `true` |
-| `BIGRAG_SECRET_KEY` | Encryption key for secrets at rest | — |
+| `BIGRAG_API_SECRET` | Shared API secret (open access if unset) | — |
 | `BIGRAG_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`) | `info` |
 | `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size | `1024` |

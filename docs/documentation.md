@@ -13,18 +13,12 @@ Complete reference for the bigRAG open-source RAG platform — document ingestio
   - [Docker Compose (Recommended)](#docker-compose-recommended)
   - [From Source](#from-source)
   - [Development Mode](#development-mode)
-  - [First-Time Setup](#first-time-setup)
 - [Authentication](#authentication)
-  - [Authentication Modes](#authentication-modes)
-  - [Session Auth (Default)](#session-auth-default)
-  - [API Key Auth](#api-key-auth)
-  - [Auth Priority](#auth-priority)
 - [Configuration](#configuration)
   - [TOML Configuration](#toml-configuration)
   - [Environment Variables](#environment-variables)
 - [API Reference](#api-reference)
   - [Health & Metrics](#health--metrics)
-  - [Auth Endpoints](#auth-endpoints)
   - [Collections](#collections)
   - [Documents](#documents)
   - [Query & Search](#query--search)
@@ -35,7 +29,6 @@ Complete reference for the bigRAG open-source RAG platform — document ingestio
   - [Collection Analytics](#collection-analytics)
   - [Vectors (Direct)](#vectors-direct)
   - [Embedding Models](#embedding-models)
-  - [Admin: API Keys](#admin-api-keys)
   - [Admin: Webhooks](#admin-webhooks)
   - [Queue](#queue)
 - [Embedding Providers](#embedding-providers)
@@ -46,14 +39,6 @@ Complete reference for the bigRAG open-source RAG platform — document ingestio
   - [Processing Status](#processing-status)
   - [Real-Time Progress (SSE)](#real-time-progress-sse)
 - [Storage Backends](#storage-backends)
-- [Python SDK](#python-sdk)
-  - [Installation](#installation)
-  - [Quick Start](#quick-start)
-  - [Synchronous Client](#synchronous-client)
-  - [Asynchronous Client](#asynchronous-client)
-  - [SDK Reference](#sdk-reference)
-  - [Error Handling](#error-handling)
-  - [Retry Behavior](#retry-behavior)
 - [TypeScript SDK](#typescript-sdk)
 - [Go SDK](#go-sdk)
 - [curl Examples](#curl-examples)
@@ -77,7 +62,7 @@ bigRAG is an open-source, self-hostable RAG (Retrieval-Augmented Generation) pla
 - **Any embedding model** — OpenAI and Cohere
 - **Milvus vector database** — production-grade vector search with hybrid capabilities
 - **Self-hostable** — Docker Compose, no external dependencies
-- **User auth** — session-based auth, API keys, and role-based access
+- **API secret auth** — protect your API with a shared secret
 - **MIT licensed** — run it anywhere, forever free
 
 ---
@@ -89,14 +74,14 @@ bigRAG is an open-source, self-hostable RAG (Retrieval-Augmented Generation) pla
 │                      bigRAG API                            │
 │                    (Python / FastAPI)                       │
 ├───────────┬────────────┬───────────────┬──────────────────┤
-│   Auth    │ Ingestion  │    Query      │     Admin        │
-│  Service  │  Service   │   Service     │    Service       │
+│           │ Ingestion  │    Query      │     Admin        │
+│           │  Service   │   Service     │    Service       │
 ├───────────┴────────────┴───────────────┴──────────────────┤
 │                                                            │
 │  ┌──────────┐  ┌───────────────┐  ┌───────────────────┐   │
 │  │ Postgres │  │    Docling    │  │  Embedding Model  │   │
-│  │ (auth +  │  │  (document    │  │ (OpenAI,           │   │
-│  │ metadata)│  │   converter)  │  │  Cohere)           │   │
+│  │(metadata)│  │  (document    │  │ (OpenAI,           │   │
+│  │          │  │   converter)  │  │  Cohere)           │   │
 │  └──────────┘  └───────────────┘  └───────────────────┘   │
 │                                                            │
 │  ┌──────────┐  ┌───────────────────────────────────────┐  │
@@ -121,7 +106,7 @@ Query → Embed → Vector Search ───────────────�
 | Component | Purpose | Default Address |
 |-----------|---------|-----------------|
 | **bigRAG API** | REST API server (FastAPI) | `http://localhost:6000` |
-| **PostgreSQL** | User auth, metadata, sessions | `localhost:5432` |
+| **PostgreSQL** | Metadata storage | `localhost:5432` |
 | **Milvus** | Vector storage and search | `localhost:19530` |
 | **Redis** | Ingestion job queue | `localhost:6379` |
 
@@ -179,18 +164,6 @@ This script:
 5. Starts the backend with auto-reload
 6. Gracefully stops everything on Ctrl+C
 
-### First-Time Setup
-
-On first launch, bigRAG requires an initial admin account:
-
-Via the API:
-
-```bash
-curl -X POST http://localhost:6000/v1/auth/setup \
-  -H "Content-Type: application/json" \
-  -d '{"email": "admin@example.com", "password": "secretpass", "display_name": "Admin"}'
-```
-
 ### Verify
 
 ```bash
@@ -202,71 +175,16 @@ curl http://localhost:6000/health
 
 ## Authentication
 
-### Authentication Modes
+bigRAG uses a simple shared secret for API protection. Set the `BIGRAG_API_SECRET` environment variable to require authentication. If the variable is not set, the API is open to all requests.
 
-bigRAG supports two authentication modes:
-
-| Mode | Config | Behavior |
-|------|--------|----------|
-| **User auth** (default) | `BIGRAG_AUTH_REQUIRED=true` | Login required, DB-managed API keys, roles (admin/member) |
-| **No auth** | `BIGRAG_AUTH_REQUIRED=false` | All requests allowed as anonymous admin (self-hosted) |
-
-### Session Auth (Default)
-
-Session-based auth is the default when `BIGRAG_AUTH_REQUIRED=true`. Users authenticate via login and receive a session token.
+When `BIGRAG_API_SECRET` is set, all requests must include the secret in the `Authorization` header:
 
 ```bash
-# Login
-curl -X POST http://localhost:6000/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "password"}'
-
-# Response
-{
-  "token": "ses_abc123...",
-  "user": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "email": "user@example.com",
-    "display_name": "User",
-    "role": "admin",
-    "created_at": "2026-04-01T00:00:00Z",
-    "updated_at": "2026-04-01T00:00:00Z"
-  }
-}
-
-# Use the token in subsequent requests
 curl http://localhost:6000/v1/collections \
-  -H "Authorization: Bearer ses_abc123..."
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
 ```
 
-Sessions expire after 168 hours (7 days) by default, configurable via `BIGRAG_SESSION_EXPIRY_HOURS`.
-
-### API Key Auth
-
-API keys provide scoped, long-lived access. They can be created by admins and have granular permissions.
-
-```bash
-# Use an API key
-curl http://localhost:6000/v1/collections \
-  -H "Authorization: Bearer bgr_abc123..."
-```
-
-API key permissions control:
-
-- **Collections**: Which collections the key can access (empty = all)
-- **Operations**: Which operations are allowed (empty = all)
-- **Admin**: Whether the key has admin privileges
-- **Expiry**: Optional expiration date
-
-### Auth Priority
-
-When auth is enabled, bigRAG evaluates tokens in this order:
-
-1. **Session token** — validated against database
-2. **API key** — validated against database with scoped permissions
-3. **No token** — allowed only during initial setup (before first user is created)
-
-All authenticated requests use the `Authorization: Bearer <token>` header.
+This is a simple, stateless auth model — there are no user accounts, sessions, or API key management.
 
 ---
 
@@ -299,9 +217,7 @@ uri = "http://localhost:19530"
 url = "redis://localhost:6379/0"
 
 [auth]
-auth_required = true        # Set to false to disable authentication
-secret_key = ""             # Encryption key for secrets at rest
-session_expiry_hours = 168  # Session lifetime (7 days)
+api_secret = ""             # Shared API secret (open access if empty)
 
 [ingestion]
 workers = 4
@@ -336,8 +252,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | `BIGRAG_MILVUS_URI` | Milvus connection URI | `http://localhost:19530` |
 | `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
 | **Auth** | | |
-| `BIGRAG_AUTH_REQUIRED` | Enable/disable authentication | `true` |
-| `BIGRAG_SECRET_KEY` | Encryption key for secrets at rest | — |
+| `BIGRAG_API_SECRET` | Shared API secret (open access if unset) | — |
 | **Ingestion** | | |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size in MB | `1024` |
 | `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
@@ -354,7 +269,7 @@ Embedding provider, model, API key, chunk size, and chunk overlap are configured
 
 ## API Reference
 
-All API endpoints are prefixed with `/v1` (except `/health`). Authentication is required for most endpoints — pass a Bearer token via the `Authorization` header.
+All API endpoints are prefixed with `/v1` (except `/health`). When `BIGRAG_API_SECRET` is set, pass the secret via the `Authorization: Bearer <secret>` header.
 
 Base URL: `http://localhost:6000`
 
@@ -400,157 +315,6 @@ Ingestion queue statistics. Requires authentication.
   "failed": 0
 }
 ```
-
----
-
-### Auth Endpoints
-
-Base path: `/v1/auth`
-
-#### `GET /v1/auth/setup-status`
-
-Check whether initial setup is needed. No authentication required.
-
-**Response:**
-
-```json
-{
-  "needs_setup": true,
-  "auth_required": true
-}
-```
-
-#### `POST /v1/auth/setup`
-
-Create the initial admin account. Only works when no users exist. Rate limited (10 requests per 60 seconds per IP).
-
-**Request body:**
-
-```json
-{
-  "email": "admin@example.com",
-  "password": "minimum8chars",
-  "display_name": "Admin User"
-}
-```
-
-| Field | Type | Required | Constraints |
-|-------|------|----------|-------------|
-| `email` | string | yes | Valid email address, unique |
-| `password` | string | yes | Minimum 8 characters |
-| `display_name` | string | yes | Display name |
-
-**Response** `201`:
-
-```json
-{
-  "token": "ses_abc123...",
-  "user": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "email": "admin@example.com",
-    "display_name": "Admin User",
-    "role": "admin",
-    "created_at": "2026-04-01T00:00:00Z",
-    "updated_at": "2026-04-01T00:00:00Z"
-  }
-}
-```
-
-**Errors:**
-
-- `400` — Setup already completed (users exist)
-- `429` — Rate limited
-
-#### `POST /v1/auth/login`
-
-Log in with email and password. Rate limited.
-
-**Request body:**
-
-```json
-{
-  "email": "user@example.com",
-  "password": "password"
-}
-```
-
-**Response** `200`:
-
-```json
-{
-  "token": "ses_abc123...",
-  "user": {
-    "id": "...",
-    "email": "user@example.com",
-    "display_name": "User",
-    "role": "member",
-    "created_at": "...",
-    "updated_at": "..."
-  }
-}
-```
-
-**Errors:**
-
-- `401` — Invalid email or password
-- `429` — Rate limited
-
-#### `POST /v1/auth/logout`
-
-Log out and invalidate the current session. Requires authentication.
-
-**Response** `200`:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-#### `GET /v1/auth/me`
-
-Get the current authenticated user's information.
-
-**Response** `200`:
-
-```json
-{
-  "user": {
-    "id": "...",
-    "email": "user@example.com",
-    "display_name": "User",
-    "role": "admin",
-    "created_at": "...",
-    "updated_at": "..."
-  }
-}
-```
-
-#### `PUT /v1/auth/password`
-
-Change the current user's password. Requires authentication.
-
-**Request body:**
-
-```json
-{
-  "current_password": "oldpassword",
-  "new_password": "newpassword8+"
-}
-```
-
-**Response** `200`:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-**Errors:**
-
-- `400` — New password too short (< 8 characters)
-- `401` — Current password incorrect
 
 ---
 
@@ -697,7 +461,7 @@ Upload a document for ingestion. Uses `multipart/form-data`.
 
 ```bash
 curl -X POST http://localhost:6000/v1/collections/research/documents \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -F "file=@paper.pdf" \
   -F 'metadata={"author": "Smith", "year": 2026}'
 ```
@@ -981,7 +745,7 @@ Results are merged across collections and sorted by score. Each result includes 
 
 ```bash
 curl -X POST http://localhost:6000/v1/query \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"query":"machine learning","collections":["docs","papers"],"top_k":20}'
 ```
@@ -1002,7 +766,7 @@ Hybrid mode is recommended when queries contain exact terms (product codes, IDs,
 
 ```bash
 curl -X POST http://localhost:6000/v1/collections/docs/query \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"query":"error code ERR-4021","search_mode":"hybrid"}'
 ```
@@ -1017,7 +781,7 @@ Collections can enable server-side reranking using the Cohere Rerank API. After 
 
 ```bash
 curl -X POST http://localhost:6000/v1/collections \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"name":"docs","reranking_enabled":true,"reranking_model":"rerank-v3.5","reranking_api_key":"your-cohere-key"}'
 ```
@@ -1202,104 +966,6 @@ List all available embedding models and providers.
 
 ---
 
-### Admin: API Keys
-
-Requires admin role.
-
-#### `POST /v1/admin/api-keys`
-
-Create a scoped API key.
-
-**Request body:**
-
-```json
-{
-  "name": "CI Pipeline Key",
-  "collections": ["research_papers", "documentation"],
-  "operations": ["query", "list_documents"],
-  "admin": false,
-  "expires_at": "2027-01-01T00:00:00Z"
-}
-```
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `name` | string | yes | — | Human-readable key name |
-| `collections` | array[string] | no | `[]` | Allowed collections (empty = all) |
-| `operations` | array[string] | no | `[]` | Allowed operations (empty = all) |
-| `admin` | boolean | no | `false` | Whether key has admin privileges |
-| `expires_at` | datetime | no | — | Optional expiration (ISO 8601) |
-
-**Response** `201`:
-
-```json
-{
-  "id": "...",
-  "name": "CI Pipeline Key",
-  "prefix": "bgr_abc",
-  "key": "bgr_abc123def456ghi789...",
-  "permissions": {
-    "collections": ["research_papers", "documentation"],
-    "operations": ["query", "list_documents"],
-    "admin": false
-  },
-  "created_at": "2026-04-01T00:00:00Z",
-  "last_used_at": null,
-  "expires_at": "2027-01-01T00:00:00Z"
-}
-```
-
-> **Important:** The `key` field is only returned once at creation time. Store it securely — it cannot be retrieved later.
-
-#### `GET /v1/admin/api-keys`
-
-List all API keys (keys are not included, only prefixes).
-
-**Query parameters:**
-
-| Parameter | Type | Default |
-|-----------|------|---------|
-| `limit` | integer | `100` |
-| `offset` | integer | `0` |
-
-**Response** `200`:
-
-```json
-{
-  "keys": [
-    {
-      "id": "...",
-      "name": "CI Pipeline Key",
-      "prefix": "bgr_abc",
-      "key": null,
-      "permissions": {
-        "collections": ["research_papers"],
-        "operations": [],
-        "admin": false
-      },
-      "created_at": "...",
-      "last_used_at": "2026-04-01T12:00:00Z",
-      "expires_at": null
-    }
-  ]
-}
-```
-
-#### `DELETE /v1/admin/api-keys/{key_id}`
-
-Revoke an API key.
-
-**Response** `200`:
-
-```json
-{
-  "status": "ok",
-  "message": "API key deleted"
-}
-```
-
----
-
 ### Admin: Webhooks
 
 Manage webhook registrations. Webhooks push notifications when document processing state changes. Admin access required.
@@ -1323,7 +989,7 @@ POST /v1/admin/webhooks
 
 ```bash
 curl -X POST http://localhost:6000/v1/admin/webhooks \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"url":"https://example.com/webhook","events":["document.ready","document.failed"]}'
 ```
@@ -1448,7 +1114,7 @@ bigRAG supports multiple embedding providers. Each collection can use a differen
 
 ```bash
 curl -X POST http://localhost:6000/v1/collections \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "multilingual_docs",
@@ -1462,7 +1128,7 @@ curl -X POST http://localhost:6000/v1/collections \
 
 ```bash
 curl -X POST http://localhost:6000/v1/collections \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "openai_collection",
@@ -1477,7 +1143,7 @@ curl -X POST http://localhost:6000/v1/collections \
 
 ```bash
 curl -X POST http://localhost:6000/v1/collections \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "cohere_collection",
@@ -1559,7 +1225,7 @@ Filter documents by status:
 ```bash
 # List only failed documents
 curl "http://localhost:6000/v1/collections/research/documents?status=failed" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
 ```
 
 ### Real-Time Progress (SSE)
@@ -1625,246 +1291,6 @@ BIGRAG_S3_SECRET_KEY=...
 
 ---
 
-## Python SDK
-
-The official Python SDK provides both synchronous and asynchronous clients.
-
-### Installation
-
-```bash
-pip install bigrag
-```
-
-### Quick Start
-
-```python
-from bigrag import BigRAG
-
-# Initialize client
-client = BigRAG(api_key="your-api-key", base_url="http://localhost:6000")
-
-# Create a collection
-collection = client.create_collection(
-    name="research",
-    description="Research papers",
-    embedding_model="text-embedding-3-small"
-)
-
-# Upload a document
-doc = client.upload_document("research", "paper.pdf", metadata={"year": 2026})
-
-# Query the collection
-results = client.query("research", "What are the main findings?", top_k=5)
-for result in results.results:
-    print(f"Score: {result.score:.3f} — {result.text[:100]}...")
-
-# Clean up
-client.close()
-```
-
-### Synchronous Client
-
-```python
-from bigrag import BigRAG
-
-# Using context manager (recommended)
-with BigRAG(api_key="...", base_url="http://localhost:6000") as client:
-    health = client.health()
-    collections = client.list_collections()
-```
-
-**Constructor parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `api_key` | str | `None` | API key (or set `BIGRAG_API_KEY` env var) |
-| `base_url` | str | `http://localhost:6000` | bigRAG server URL |
-| `timeout` | float | `120.0` | Request timeout in seconds |
-| `max_retries` | int | `2` | Maximum retry attempts |
-
-### Asynchronous Client
-
-```python
-from bigrag import AsyncBigRAG
-import asyncio
-
-async def main():
-    async with AsyncBigRAG(api_key="...", base_url="http://localhost:6000") as client:
-        # All methods are async
-        health = await client.health()
-        collections = await client.list_collections()
-
-        # Upload and query
-        doc = await client.upload_document("research", "paper.pdf")
-        results = await client.query("research", "key findings", top_k=5)
-
-asyncio.run(main())
-```
-
-### SDK Reference
-
-Both `BigRAG` and `AsyncBigRAG` expose identical methods (async versions use `await`).
-
-#### Health
-
-```python
-client.health() → dict
-# Returns: {"status": "ok", "version": "0.x.x"}
-```
-
-#### Collections
-
-```python
-# List all collections
-client.list_collections() → CollectionListResponse
-# Returns: CollectionListResponse(collections=[Collection, ...])
-
-# Create a collection
-client.create_collection(
-    name: str,
-    description: str = "",
-    embedding_provider: str | None = None,
-    embedding_model: str | None = None,
-    dimension: int | None = None,
-    chunk_size: int = 512,
-    chunk_overlap: int = 50,
-) → Collection
-
-# Get a collection
-client.get_collection(name: str) → Collection
-
-# Delete a collection
-client.delete_collection(name: str) → dict
-```
-
-#### Documents
-
-```python
-# Upload a document
-client.upload_document(
-    collection: str,
-    file_path: str | Path,
-    metadata: dict | None = None,
-) → Document
-
-# List documents
-client.list_documents(
-    collection: str,
-    status: str | None = None,
-) → DocumentListResponse
-
-# Get a document
-client.get_document(collection: str, document_id: str) → Document
-
-# Delete a document
-client.delete_document(collection: str, document_id: str) → dict
-
-# Reprocess a document
-client.reprocess_document(collection: str, document_id: str) → dict
-```
-
-#### Query
-
-```python
-# Search a collection
-client.query(
-    collection: str,
-    query: str,
-    top_k: int = 10,
-    filters: dict | None = None,
-    min_score: float | None = None,
-) → QueryResponse
-# Returns: QueryResponse(results=[QueryResult, ...], query, collection, total)
-```
-
-#### Vectors
-
-```python
-# Upsert raw vectors
-client.upsert_vectors(
-    collection: str,
-    vectors: list[dict],
-) → dict
-# Each vector: {"id": "...", "embedding": [...], "text": "...", "metadata": {...}}
-
-# Delete vectors by ID
-client.delete_vectors(collection: str, ids: list[str]) → dict
-```
-
-#### Connection Management
-
-```python
-# Explicit close
-client.close()
-
-# Context manager (recommended)
-with BigRAG(...) as client:
-    ...
-
-# Async context manager
-async with AsyncBigRAG(...) as client:
-    ...
-```
-
-### Error Handling
-
-The SDK raises typed exceptions for all error conditions:
-
-```python
-from bigrag import BigRAG
-from bigrag.errors import (
-    BigRAGError,         # Base exception
-    APIError,            # API returned an error (base)
-    BadRequestError,     # 400
-    AuthenticationError, # 401
-    NotFoundError,       # 404
-    RateLimitError,      # 429
-    InternalServerError, # 500
-    APIConnectionError,  # Connection failed
-    APITimeoutError,     # Request timed out
-)
-
-client = BigRAG(api_key="...")
-
-try:
-    collection = client.get_collection("nonexistent")
-except NotFoundError as e:
-    print(f"Not found: {e.message}")
-except AuthenticationError:
-    print("Invalid API key")
-except APIConnectionError:
-    print("Cannot connect to bigRAG server")
-except APITimeoutError:
-    print("Request timed out")
-except APIError as e:
-    print(f"API error {e.status_code}: {e.message}")
-```
-
-**Exception hierarchy:**
-
-```
-BigRAGError
-├── APIError
-│   ├── BadRequestError      (400)
-│   ├── AuthenticationError  (401)
-│   ├── NotFoundError        (404)
-│   ├── RateLimitError       (429)
-│   └── InternalServerError  (500)
-├── APIConnectionError
-└── APITimeoutError
-```
-
-### Retry Behavior
-
-The SDK automatically retries on transient failures:
-
-- **Retried:** HTTP 500+, HTTP 429 (rate limited), connection errors, timeouts
-- **Not retried:** HTTP 400, 401, 403, 404 (client errors)
-- **Backoff:** Exponential with formula `min(0.5 * 2^attempt, 4.0)` seconds
-- **Default retries:** 2 (configurable via `max_retries`)
-
----
-
 ## TypeScript SDK
 
 Zero dependencies. Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes.
@@ -1881,7 +1307,7 @@ npm install @bigrag/client
 import { BigRAG } from "@bigrag/client";
 
 const client = new BigRAG({
-  apiKey: "your-api-key",
+  apiSecret: "your-api-secret",  // omit if server has no BIGRAG_API_SECRET
   baseUrl: "http://localhost:6000",
 });
 
@@ -1912,7 +1338,7 @@ const { results } = await client.query("knowledge_base", {
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `apiKey` | `BIGRAG_API_KEY` env var | API key or session token |
+| `apiSecret` | `BIGRAG_API_SECRET` env var | Shared API secret (omit if server is open) |
 | `baseUrl` | `http://localhost:6000` | bigRAG server URL |
 | `timeout` | `120000` | Request timeout in milliseconds |
 | `maxRetries` | `2` | Max retries on 5xx, 429, and network errors |
@@ -1974,20 +1400,6 @@ await docs.uploadDocument(file);
 await docs.getAnalytics();
 ```
 
-#### Auth & Admin
-
-```typescript
-client.getSetupStatus()
-client.setup({ email, password, display_name })
-client.login({ email, password })
-client.logout()
-client.getMe()
-client.changePassword({ current_password, new_password })
-client.createApiKey({ name, collections?, operations?, admin?, expires_at? })
-client.listApiKeys()
-client.revokeApiKey(id)
-```
-
 ### Error Handling
 
 ```typescript
@@ -2009,8 +1421,6 @@ try {
 Error hierarchy: `BigRAGError` > `APIError` > `BadRequestError` (400), `AuthenticationError` (401), `NotFoundError` (404), `RateLimitError` (429), `InternalServerError` (500). Network failures throw `APIConnectionError` or `APITimeoutError`.
 
 ### Retry Behavior
-
-Same as the Python SDK:
 
 - **Retried:** HTTP 500+, HTTP 429, connection errors, timeouts
 - **Not retried:** HTTP 400, 401, 403, 404
@@ -2036,8 +1446,8 @@ go get github.com/bigrag-io/bigrag-go
 ### Complete Workflow
 
 ```bash
-# Set your auth token
-export TOKEN="your-api-key-or-session-token"
+# Set your API secret (skip if BIGRAG_API_SECRET is unset on the server)
+export BIGRAG_API_SECRET="your-api-secret"
 export BASE="http://localhost:6000"
 
 # 1. Check health
@@ -2045,7 +1455,7 @@ curl $BASE/health
 
 # 2. Create a collection
 curl -X POST $BASE/v1/collections \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "knowledge_base",
@@ -2056,17 +1466,17 @@ curl -X POST $BASE/v1/collections \
 
 # 3. Upload a document
 curl -X POST $BASE/v1/collections/knowledge_base/documents \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -F "file=@handbook.pdf" \
   -F 'metadata={"department": "engineering"}'
 
 # 4. Check document status
 curl $BASE/v1/collections/knowledge_base/documents \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
 
 # 5. Query the collection
 curl -X POST $BASE/v1/collections/knowledge_base/query \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "What is the PTO policy?",
@@ -2075,7 +1485,7 @@ curl -X POST $BASE/v1/collections/knowledge_base/query \
 
 # 6. Query with filters
 curl -X POST $BASE/v1/collections/knowledge_base/query \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "deployment process",
@@ -2085,85 +1495,38 @@ curl -X POST $BASE/v1/collections/knowledge_base/query \
   }'
 ```
 
-### Auth Operations
-
-```bash
-# Initial setup (first run only)
-curl -X POST $BASE/v1/auth/setup \
-  -H "Content-Type: application/json" \
-  -d '{"email": "admin@co.com", "password": "securepass", "display_name": "Admin"}'
-
-# Login
-curl -X POST $BASE/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "admin@co.com", "password": "securepass"}'
-
-# Get current user
-curl $BASE/v1/auth/me -H "Authorization: Bearer $TOKEN"
-
-# Change password
-curl -X PUT $BASE/v1/auth/password \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"current_password": "oldpass", "new_password": "newpass123"}'
-
-# Logout
-curl -X POST $BASE/v1/auth/logout -H "Authorization: Bearer $TOKEN"
-```
-
-### Admin Operations
-
-```bash
-# Create an API key
-curl -X POST $BASE/v1/admin/api-keys \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Read-only key",
-    "collections": ["knowledge_base"],
-    "operations": ["query"]
-  }'
-
-# List API keys
-curl $BASE/v1/admin/api-keys -H "Authorization: Bearer $TOKEN"
-
-# Revoke an API key
-curl -X DELETE $BASE/v1/admin/api-keys/KEY_ID \
-  -H "Authorization: Bearer $TOKEN"
-```
-
 ### Document Management
 
 ```bash
 # Upload multiple formats
 curl -X POST $BASE/v1/collections/docs/documents \
-  -H "Authorization: Bearer $TOKEN" -F "file=@report.pdf"
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" -F "file=@report.pdf"
 
 curl -X POST $BASE/v1/collections/docs/documents \
-  -H "Authorization: Bearer $TOKEN" -F "file=@notes.md"
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" -F "file=@notes.md"
 
 curl -X POST $BASE/v1/collections/docs/documents \
-  -H "Authorization: Bearer $TOKEN" -F "file=@data.csv"
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" -F "file=@data.csv"
 
 # List with status filter
 curl "$BASE/v1/collections/docs/documents?status=ready&limit=50" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
 
 # Get document chunks
 curl $BASE/v1/collections/docs/documents/DOC_ID/chunks \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
 
 # Download original file
 curl -O $BASE/v1/collections/docs/documents/DOC_ID/file \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
 
 # Reprocess a failed document
 curl -X POST $BASE/v1/collections/docs/documents/DOC_ID/reprocess \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
 
 # Delete a document
 curl -X DELETE $BASE/v1/collections/docs/documents/DOC_ID \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
 ```
 
 ### Direct Vector Operations
@@ -2171,7 +1534,7 @@ curl -X DELETE $BASE/v1/collections/docs/documents/DOC_ID \
 ```bash
 # Upsert custom vectors
 curl -X POST $BASE/v1/collections/custom/vectors/upsert \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "vectors": [
@@ -2186,7 +1549,7 @@ curl -X POST $BASE/v1/collections/custom/vectors/upsert \
 
 # Delete vectors
 curl -X POST $BASE/v1/collections/custom/vectors/delete \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"ids": ["vec_001"]}'
 ```
@@ -2218,12 +1581,6 @@ All API errors return a JSON body with a `detail` field:
 
 ## Rate Limiting
 
-Rate limiting is applied to authentication endpoints to prevent brute-force attacks:
-
-| Endpoints | Limit | Window |
-|-----------|-------|--------|
-| `/v1/auth/setup`, `/v1/auth/login` | 10 requests | 60 seconds |
-
 Rate limiting is per IP address. When rate limited, the API returns `429 Too Many Requests`.
 
 ---
@@ -2244,7 +1601,7 @@ services:
       BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
       BIGRAG_MILVUS_URI: http://milvus:19530
       BIGRAG_REDIS_URL: redis://redis:6379/0
-      BIGRAG_SECRET_KEY: your-secret-encryption-key
+      BIGRAG_API_SECRET: your-api-secret
       BIGRAG_LOG_FORMAT: json
     depends_on:
       - postgres
@@ -2282,7 +1639,7 @@ Key settings to configure for production:
 
 ```bash
 # Security
-BIGRAG_SECRET_KEY=strong-random-key       # Encryption key for secrets at rest
+BIGRAG_API_SECRET=your-api-secret         # Shared API secret (omit for open access)
 
 # Infrastructure
 BIGRAG_DATABASE_URL=postgres://user:pass@host:5432/bigrag?sslmode=require
@@ -2336,10 +1693,6 @@ The query embedding dimension doesn't match the collection's configured dimensio
 
 The file exceeds the max upload size. Increase `BIGRAG_MAX_UPLOAD_SIZE_MB` (default: 1024 MB).
 
-**"needs_setup" is always true**
-
-The database may not be initialized. Ensure `BIGRAG_DATABASE_URL` is set and Postgres is accessible. Tables are created automatically on startup.
-
 **Slow embedding performance**
 
 - Ensure your `BIGRAG_EMBEDDING_API_KEY` is set for OpenAI or Cohere providers
@@ -2370,13 +1723,10 @@ If the health check returns `"status": "degraded"` with HTTP 503, one or more de
 
 ## Database Schema
 
-bigRAG uses PostgreSQL for metadata and authentication. Tables are created and migrated automatically on startup.
+bigRAG uses PostgreSQL for metadata. Tables are created and migrated automatically on startup.
 
 | Table | Purpose |
 |-------|---------|
-| `users` | User accounts (id, email, password_hash, display_name, role) |
-| `sessions` | Active login sessions (token_hash, user_id, expires_at) |
-| `api_keys` | API keys (key_hash, prefix, permissions, expires_at) |
 | `collections` | Collection metadata (name, embedding config, chunk config) |
 | `documents` | Document metadata (filename, status, chunk_count, file_path) |
 | `webhooks` | Webhook registrations (url, events, collections, secret) |

@@ -17,7 +17,7 @@
 - **Any embedding model** — OpenAI and Cohere
 - **Milvus vector database** — production-grade vector search with hybrid capabilities
 - **Self-hostable** — Docker Compose, no external dependencies
-- **User auth** — session-based auth, API keys, and role-based access
+- **API secret auth** — protect your API with a shared secret
 - **MIT licensed** — run it anywhere, forever free
 
 ## Quick Start
@@ -156,10 +156,6 @@ curl -X POST http://localhost:6000/v1/collections/docs/query \
 | `POST`   | `/v1/collections/{name}/vectors/delete`           | Delete vectors by ID            |
 | `GET`    | `/v1/embeddings/models`                           | List embedding models           |
 | `GET`    | `/v1/metrics`                                     | Prometheus metrics              |
-| `POST`   | `/v1/auth/setup`                                  | Initial admin setup             |
-| `POST`   | `/v1/auth/login`                                  | Login                           |
-| `GET`    | `/v1/auth/me`                                     | Current user                    |
-
 Full interactive API docs available at `/docs` (Swagger) when running.
 
 ## Embedding Models
@@ -209,8 +205,7 @@ All config options use the `BIGRAG_` prefix:
 | `BIGRAG_REDIS_URL`         | Redis connection URL               | `redis://localhost:6379/0` |
 | `BIGRAG_PORT`              | Server port                        | `6000`                     |
 | `BIGRAG_WORKERS`           | Uvicorn workers                    | `4`                        |
-| `BIGRAG_AUTH_REQUIRED`     | Enable/disable authentication      | `true`                     |
-| `BIGRAG_SECRET_KEY`        | Encryption key for secrets at rest | —                          |
+| `BIGRAG_API_SECRET`        | Shared API secret (open access if unset) | —                    |
 | `BIGRAG_LOG_LEVEL`         | Log level                          | `info`                     |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB`| Max upload file size               | `1024`                     |
 
@@ -223,14 +218,14 @@ Embedding provider, model, and API key are configured per collection via the API
 │                     bigRAG API                         │
 │                   (Python/FastAPI)                      │
 ├──────────┬───────────┬──────────────┬─────────────────┤
-│  Auth    │ Ingestion │   Query      │   Admin         │
-│  Service │ Service   │   Service    │   Service       │
+│          │ Ingestion │   Query      │   Admin         │
+│          │ Service   │   Service    │   Service       │
 ├──────────┴───────────┴──────────────┴─────────────────┤
 │                                                        │
 │  ┌─────────┐  ┌─────────┐  ┌──────────┐  ┌────────────────┐  │
 │  │Postgres │  │  Redis  │  │ Docling  │  │ Embedding Model│  │
-│  │(auth +  │  │ (job    │  │(document │  │ (OpenAI,       │  │
-│  │metadata)│  │  queue) │  │ converter│  │  Cohere)       │  │
+│  │(metadata│  │ (job    │  │(document │  │ (OpenAI,       │  │
+│  │  store) │  │  queue) │  │ converter│  │  Cohere)       │  │
 │  └─────────┘  └─────────┘  └──────────┘  └────────────────┘  │
 │                                                        │
 │  ┌──────────────────────────────────────────────────┐  │
@@ -256,7 +251,6 @@ Via Docling, bigRAG supports:
 
 | Language   | Install                                    |
 | ---------- | ------------------------------------------ |
-| Python     | `pip install bigrag`                       |
 | TypeScript | `pnpm add @bigrag/client`                  |
 
 ## Contributing
