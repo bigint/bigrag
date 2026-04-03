@@ -1,4 +1,14 @@
-FROM python:3.12-slim AS base
+FROM node:22-alpine AS ui-build
+
+WORKDIR /ui
+COPY ui/package.json ui/package-lock.json* ./
+COPY sdks/typescript /sdks/typescript
+RUN npm install
+COPY ui/ .
+ENV NEXT_PUBLIC_BIGRAG_URL=""
+RUN npm run build
+
+FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -17,10 +27,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-COPY pyproject.toml .
-COPY bigrag/ bigrag/
+COPY api/pyproject.toml .
+COPY api/bigrag/ bigrag/
 RUN pip install --upgrade pip && \
     pip install .
+
+# Copy UI static build
+COPY --from=ui-build /ui/out /app/ui
 
 # Create data directory
 RUN mkdir -p /data/uploads && \

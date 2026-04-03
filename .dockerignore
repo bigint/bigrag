@@ -4,9 +4,10 @@ docs/
 .gitignore
 .env*
 docker-compose*.yml
-ui/
-sdks/
 helm/
 data/
 api/.venv/
 __pycache__/
+ui/node_modules/
+ui/.next/
+ui/out/

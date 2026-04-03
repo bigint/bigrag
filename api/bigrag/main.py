@@ -6,8 +6,10 @@ import time
 from contextlib import asynccontextmanager
 
 import uvicorn
+from pathlib import Path
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -145,6 +147,11 @@ def create_app() -> FastAPI:
 
     from bigrag.routers.webhooks import router as webhooks_router
     app.include_router(webhooks_router)
+
+    # Serve UI static files if the build exists
+    ui_dir = Path(__file__).resolve().parent.parent / "ui"
+    if ui_dir.is_dir():
+        app.mount("/", StaticFiles(directory=ui_dir, html=True), name="ui")
 
     return app
 
