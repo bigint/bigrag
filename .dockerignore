@@ -11,3 +11,4 @@ __pycache__/
 ui/node_modules/
 ui/.next/
 ui/out/
+sdks/*/node_modules/
