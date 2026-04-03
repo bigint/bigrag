@@ -1,3 +1,5 @@
+import { clearClientCache } from "./client";
+
 const STORAGE_KEY_URL = "bigrag_url";
 const STORAGE_KEY_SESSION = "bigrag_session_token";
 const STORAGE_KEY_USER = "bigrag_user";
@@ -58,6 +60,7 @@ export function clearAuth(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(STORAGE_KEY_SESSION);
   localStorage.removeItem(STORAGE_KEY_USER);
+  clearClientCache();
 }
 
 export function isAuthenticated(): boolean {

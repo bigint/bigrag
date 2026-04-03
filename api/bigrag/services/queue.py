@@ -156,15 +156,37 @@ class IngestionQueue:
         for i in range(self._num_workers):
             task = asyncio.create_task(self._worker(i))
             self._workers.append(task)
+        self._cleanup_task = asyncio.create_task(self._cleanup_old_data())
         logger.info(f"[queue] started {self._num_workers} workers")
 
     async def stop(self) -> None:
         self._running = False
+        if hasattr(self, '_cleanup_task'):
+            self._cleanup_task.cancel()
         await asyncio.gather(*self._workers, return_exceptions=True)
         self._workers.clear()
         if self._redis:
             await self._redis.aclose()
         logger.info("[queue] all workers stopped")
+
+    async def _cleanup_old_data(self) -> None:
+        """Periodically clean query_log and webhook_deliveries older than 90 days."""
+        from bigrag.database import db
+        while True:
+            try:
+                await asyncio.sleep(86400)  # Run daily
+                deleted = await db.execute(
+                    "DELETE FROM query_log WHERE created_at < now() - interval '90 days'"
+                )
+                logger.info(f"query_log cleanup: {deleted}")
+                deleted = await db.execute(
+                    "DELETE FROM webhook_deliveries WHERE created_at < now() - interval '90 days'"
+                )
+                logger.info(f"webhook_deliveries cleanup: {deleted}")
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.warning(f"Cleanup failed: {e!r}")
 
     async def _recover_stuck_jobs(self) -> int:
         count = 0
@@ -178,6 +200,9 @@ class IngestionQueue:
         return count
 
     async def enqueue(self, job: IngestionJob) -> None:
+        depth = await self._redis.llen(QUEUE_KEY)
+        if depth >= 10000:
+            raise ValueError("Ingestion queue is full. Try again later.")
         await self._redis.lpush(QUEUE_KEY, job.serialize())
         await self._redis.hincrby(STATS_KEY, "queued", 1)
         pending = await self._redis.llen(QUEUE_KEY)
@@ -280,10 +305,17 @@ class IngestionQueue:
                     tmp.close()
                     raise
 
+            tmp_path = None
             try:
-                result, tmp_path = await asyncio.to_thread(_write_and_convert)
+                result, tmp_path = await asyncio.wait_for(
+                    asyncio.to_thread(_write_and_convert),
+                    timeout=300,  # 5 minutes max per document
+                )
+            except asyncio.TimeoutError:
+                raise ValueError(f"Document conversion timed out after 300s")
             finally:
-                Path(tmp_path).unlink(missing_ok=True)
+                if tmp_path:
+                    Path(tmp_path).unlink(missing_ok=True)
             elapsed = time.monotonic() - t0
             logger.info(f"{prefix} docling conversion elapsed={elapsed:.2f}s")
             self._emit(doc, "converted", "processing", f"Parsed in {elapsed:.1f}s", 0.35, elapsed=round(elapsed, 2))

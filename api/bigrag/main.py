@@ -8,8 +8,8 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import ORJSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from bigrag import __version__
 from bigrag.config import Settings, settings
@@ -84,20 +84,29 @@ async def lifespan(app: FastAPI):
 request_logger = logging.getLogger("bigrag.http")
 
 
-class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next) -> Response:
+class RequestLoggingMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
         start = time.monotonic()
-        method = request.method
-        path = request.url.path
-        client = request.client.host if request.client else "-"
+        path = scope["path"]
+        method = scope["method"]
+        status_code = 0
 
-        request_logger.info(f"→ {method} {path} from {client}")
+        async def send_wrapper(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+            await send(message)
 
-        response = await call_next(request)
-
+        await self.app(scope, receive, send_wrapper)
         elapsed = (time.monotonic() - start) * 1000
-        request_logger.info(f"← {method} {path} {response.status_code} {elapsed:.0f}ms")
-        return response
+        request_logger.info(f"← {method} {path} {status_code} {elapsed:.0f}ms")
 
 
 def create_app() -> FastAPI:
@@ -106,6 +115,7 @@ def create_app() -> FastAPI:
         description="Self-hostable RAG platform with Docling + Milvus",
         version=__version__,
         lifespan=lifespan,
+        default_response_class=ORJSONResponse,
     )
 
     app.add_middleware(RequestLoggingMiddleware)
@@ -125,7 +135,30 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health():
-        return {"status": "ok", "version": __version__}
+        checks = {"version": __version__}
+        healthy = True
+
+        try:
+            await db.fetchrow("SELECT 1")
+            checks["postgres"] = True
+        except Exception:
+            checks["postgres"] = False
+            healthy = False
+
+        checks["milvus"] = vector_store.client is not None
+        if not checks["milvus"]:
+            healthy = False
+
+        try:
+            await ingestion_queue._redis.ping()
+            checks["redis"] = True
+        except Exception:
+            checks["redis"] = False
+            healthy = False
+
+        status = "ok" if healthy else "degraded"
+        checks["status"] = status
+        return ORJSONResponse(content=checks, status_code=200 if healthy else 503)
 
     @app.get("/v1/queue/stats")
     async def queue_stats(_: dict = Depends(get_current_user)):
@@ -183,6 +216,7 @@ def cli():
         "bigrag.main:create_app",
         host=s.host, port=s.port, log_level=s.log_level,
         workers=s.workers, factory=True,
+        timeout_graceful_shutdown=30,
     )
 
 

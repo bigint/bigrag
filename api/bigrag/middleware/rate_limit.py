@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 
 from fastapi import HTTPException, Request
 
@@ -14,7 +14,7 @@ class RateLimiter:
     def __init__(self, max_requests: int = 10, window_seconds: int = 60) -> None:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        self._requests: dict[str, list[float]] = defaultdict(list)
+        self._requests: dict[str, deque[float]] = defaultdict(deque)
 
     def _get_client_ip(self, request: Request) -> str:
         forwarded = request.headers.get("x-forwarded-for")
@@ -24,7 +24,8 @@ class RateLimiter:
 
     def _cleanup(self, key: str, now: float) -> None:
         cutoff = now - self.window_seconds
-        self._requests[key] = [t for t in self._requests[key] if t > cutoff]
+        while self._requests[key] and self._requests[key][0] <= cutoff:
+            self._requests[key].popleft()
 
     async def __call__(self, request: Request) -> None:
         ip = self._get_client_ip(request)

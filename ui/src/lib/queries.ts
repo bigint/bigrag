@@ -24,7 +24,11 @@ export const documentsQueryOptions = (
   status?: string
 ) =>
   queryOptions({
-    queryFn: () => getClient().listDocuments(collectionName, status ? { status } : undefined),
+    queryFn: () =>
+      getClient().listDocuments(
+        collectionName,
+        status ? { status } : undefined
+      ),
     queryKey: ["documents", collectionName, status]
   });
 
@@ -58,4 +62,10 @@ export const analyticsQueryOptions = (collectionName: string) =>
     queryFn: () => getClient().getAnalytics(collectionName),
     queryKey: ["analytics", collectionName],
     refetchInterval: 30_000
+  });
+
+export const apiKeysQueryOptions = () =>
+  queryOptions({
+    queryFn: () => getClient().listApiKeys(),
+    queryKey: ["api-keys"]
   });

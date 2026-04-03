@@ -12,7 +12,7 @@ from pymilvus import MilvusClient, DataType
 logger = logging.getLogger("bigrag.vector_store")
 
 # Dedicated thread pool for Milvus I/O so we never block the event loop
-_executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="milvus")
+_executor = ThreadPoolExecutor(max_workers=32, thread_name_prefix="milvus")
 
 
 async def _run(fn, *args, **kwargs):

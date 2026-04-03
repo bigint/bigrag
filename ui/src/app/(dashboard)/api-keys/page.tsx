@@ -1,15 +1,11 @@
 "use client";
 
+import type { CreateApiKeyBody } from "@bigrag/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import type { CreateApiKeyBody } from "@bigrag/client";
 import { getClient } from "@/lib/client";
+import { apiKeysQueryOptions } from "@/lib/queries";
 import { timeAgo } from "@/lib/utils";
-
-const apiKeysQueryOptions = () => ({
-  queryFn: () => getClient().listApiKeys(),
-  queryKey: ["api-keys"]
-});
 
 const ApiKeysPage = () => {
   const queryClient = useQueryClient();

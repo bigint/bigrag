@@ -142,6 +142,14 @@ MIGRATIONS = [
     """
     DROP TABLE IF EXISTS invites;
     """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_collections_name ON collections(name);
+    CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at);
+    CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_api_keys_expires_at ON api_keys(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+    """,
 ]
 
 
@@ -158,6 +166,7 @@ class Database:
             dsn, min_size=min_size, max_size=max_size, ssl=ssl,
             init=_init_connection,
             command_timeout=30,
+            max_inactive_connection_lifetime=300,
         )
         logger.info(f"Postgres pool ready (min={min_size}, max={max_size})")
 
