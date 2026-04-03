@@ -331,7 +331,7 @@ batch_size = 128
 chunk_size = 512
 chunk_overlap = 50
 upload_dir = "./data/uploads"
-max_upload_size_mb = 500
+max_upload_size_mb = 1024
 
 [storage]
 backend = "local"           # local, s3
@@ -377,7 +377,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | **Ingestion** | | |
 | `BIGRAG_CHUNK_SIZE` | Default chunk size (tokens) | `512` |
 | `BIGRAG_CHUNK_OVERLAP` | Default chunk overlap (tokens) | `50` |
-| `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size in MB | `500` |
+| `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size in MB | `1024` |
 | `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
 | `BIGRAG_INGESTION_BATCH_SIZE` | Embedding batch size | `128` |
 | **Storage** | | |
@@ -2393,7 +2393,7 @@ The query embedding dimension doesn't match the collection's configured dimensio
 
 **File upload returns 413**
 
-The file exceeds the max upload size. Increase `BIGRAG_MAX_UPLOAD_SIZE_MB` (default: 500 MB).
+The file exceeds the max upload size. Increase `BIGRAG_MAX_UPLOAD_SIZE_MB` (default: 1024 MB).
 
 **"needs_setup" is always true**
 
