@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from bigrag.config import settings
-
 logger = logging.getLogger("bigrag.routers.query")
 from bigrag.middleware.auth import get_current_user
-from bigrag.routers import get_collection_or_404
+from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
 from bigrag.models.query import (
     AnalyticsResponse,
     BatchQueryItem,
@@ -25,14 +24,11 @@ from bigrag.models.query import (
     VectorDeleteRequest,
     VectorUpsertRequest,
 )
-from bigrag.services.embedding import AVAILABLE_MODELS, get_embedding_model
+from bigrag.services.embedding import AVAILABLE_MODELS
 from bigrag.services.retrieval import retrieve, retrieve_multi
 from bigrag.services.vector_store import vector_store
 
 router = APIRouter(tags=["query"])
-
-
-_get_collection = get_collection_or_404
 
 
 @router.post("/v1/collections/{collection_name}/query", response_model=QueryResponse)
@@ -41,24 +37,13 @@ async def query_collection(
     body: QueryRequest,
     _: dict = Depends(get_current_user),
 ):
-    collection = await _get_collection(collection_name)
+    collection = await get_collection_or_404(collection_name)
     logger.info(f"query: collection={collection_name} q={body.query!r:.80s} top_k={body.top_k} filters={body.filters}")
 
     try:
-        embedding_model = get_embedding_model(
-            provider=collection["embedding_provider"],
-            model_name=collection["embedding_model"],
-            dimension=collection["dimension"],
-            api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
-        )
+        embedding_model = get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-    reranking_config = {
-        "enabled": collection.get("reranking_enabled", False),
-        "model": collection.get("reranking_model", "rerank-v3.5"),
-        "api_key": collection.get("reranking_api_key") or settings.embedding_api_key,
-    }
 
     results = await retrieve(
         collection_name=collection_name,
@@ -68,7 +53,7 @@ async def query_collection(
         filters=body.filters,
         min_score=body.min_score,
         search_mode=body.search_mode,
-        reranking_config=reranking_config,
+        reranking_config=get_reranking_config(collection),
         rerank_override=body.rerank,
     )
 
@@ -92,21 +77,12 @@ async def multi_collection_query(
     embedding_models = {}
     reranking_configs = {}
     for col_name in body.collections:
-        collection = await _get_collection(col_name)
+        collection = await get_collection_or_404(col_name)
         try:
-            embedding_models[col_name] = get_embedding_model(
-                provider=collection["embedding_provider"],
-                model_name=collection["embedding_model"],
-                dimension=collection["dimension"],
-                api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
-            )
+            embedding_models[col_name] = get_embedding_model_for(collection)
         except (ImportError, ValueError) as e:
             raise HTTPException(status_code=400, detail=f"Collection '{col_name}': {e}")
-        reranking_configs[col_name] = {
-            "enabled": collection.get("reranking_enabled", False),
-            "model": collection.get("reranking_model", "rerank-v3.5"),
-            "api_key": collection.get("reranking_api_key") or settings.embedding_api_key,
-        }
+        reranking_configs[col_name] = get_reranking_config(collection)
 
     results = await retrieve_multi(
         collection_names=body.collections,
@@ -134,27 +110,14 @@ async def batch_query(
     body: BatchQueryRequest,
     _: dict = Depends(get_current_user),
 ):
-    import asyncio
-
     logger.info(f"batch-query: {len(body.queries)} queries")
 
     async def run_one(item: BatchQueryItem) -> BatchQueryResultItem:
-        collection = await _get_collection(item.collection)
+        collection = await get_collection_or_404(item.collection)
         try:
-            embedding_model = get_embedding_model(
-                provider=collection["embedding_provider"],
-                model_name=collection["embedding_model"],
-                dimension=collection["dimension"],
-                api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
-            )
+            embedding_model = get_embedding_model_for(collection)
         except (ImportError, ValueError) as e:
             raise HTTPException(status_code=400, detail=f"Collection '{item.collection}': {e}")
-
-        reranking_config = {
-            "enabled": collection.get("reranking_enabled", False),
-            "model": collection.get("reranking_model", "rerank-v3.5"),
-            "api_key": collection.get("reranking_api_key") or settings.embedding_api_key,
-        }
 
         results = await retrieve(
             collection_name=item.collection,
@@ -164,7 +127,7 @@ async def batch_query(
             filters=item.filters,
             min_score=item.min_score,
             search_mode=item.search_mode,
-            reranking_config=reranking_config,
+            reranking_config=get_reranking_config(collection),
             rerank_override=item.rerank,
         )
 
@@ -189,7 +152,7 @@ async def upsert_vectors(
     body: VectorUpsertRequest,
     _: dict = Depends(get_current_user),
 ):
-    await _get_collection(collection_name)
+    await get_collection_or_404(collection_name)
     logger.info(f"upsert: collection={collection_name} vectors={len(body.vectors)}")
 
     ids = [v.id for v in body.vectors]
@@ -215,7 +178,7 @@ async def delete_vectors(
     body: VectorDeleteRequest,
     _: dict = Depends(get_current_user),
 ):
-    await _get_collection(collection_name)
+    await get_collection_or_404(collection_name)
     logger.info(f"vectors/delete: collection={collection_name} ids={len(body.ids)}")
     await vector_store.delete_by_ids(collection_name, body.ids)
     return {"status": "ok", "deleted": len(body.ids)}
@@ -229,7 +192,7 @@ async def collection_analytics(
     collection_name: str,
     _: dict = Depends(get_current_user),
 ):
-    await _get_collection(collection_name)
+    await get_collection_or_404(collection_name)
 
     from bigrag.database import db
 
@@ -265,7 +228,6 @@ async def collection_analytics(
         collection_name,
     )
 
-    import asyncio
     stats_24h, stats_7d, stats_30d = await asyncio.gather(
         get_period_stats("24 hours"),
         get_period_stats("7 days"),

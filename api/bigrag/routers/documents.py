@@ -12,8 +12,7 @@ from bigrag.config import settings
 from bigrag.database import db
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.document import DocumentListResponse, DocumentResponse
-from bigrag.routers import get_collection_or_404
-from bigrag.services.embedding import get_embedding_model
+from bigrag.routers import get_collection_or_404, get_embedding_model_for
 from bigrag.services.queue import IngestionJob, event_bus, ingestion_queue
 from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
@@ -39,31 +38,6 @@ def _row_to_response(row: dict) -> DocumentResponse:
     return DocumentResponse(**r)
 
 
-_get_collection = get_collection_or_404
-
-
-def _validate_embedding_provider(collection: dict) -> None:
-    provider = collection["embedding_provider"]
-    api_key = collection.get("embedding_api_key") or settings.embedding_api_key
-
-    if not api_key:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Collection '{collection['name']}' uses '{provider}' embeddings but no API key is configured. "
-                   f"Set BIGRAG_EMBEDDING_API_KEY or recreate the collection with an API key.",
-        )
-
-    try:
-        get_embedding_model(
-            provider=provider,
-            model_name=collection["embedding_model"],
-            dimension=collection["dimension"],
-            api_key=api_key,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
 @router.post("", response_model=DocumentResponse, status_code=201)
 async def upload_document(
     collection_name: str,
@@ -72,8 +46,11 @@ async def upload_document(
     metadata: str = Form(default="{}"),
     _: dict = Depends(get_current_user),
 ):
-    collection = await _get_collection(collection_name)
-    _validate_embedding_provider(collection)
+    collection = await get_collection_or_404(collection_name)
+    try:
+        get_embedding_model_for(collection)
+    except (ImportError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
     logger.info(f"upload: collection={collection_name} file={file.filename}")
 
     file_ext = Path(file.filename or "").suffix.lower()
@@ -156,7 +133,7 @@ async def list_documents(
     offset: int = Query(default=0, ge=0),
     _: dict = Depends(get_current_user),
 ):
-    collection = await _get_collection(collection_name)
+    collection = await get_collection_or_404(collection_name)
 
     if status:
         rows = await db.fetch(
@@ -197,7 +174,7 @@ async def get_document(
     document_id: str,
     _: dict = Depends(get_current_user),
 ):
-    collection = await _get_collection(collection_name)
+    collection = await get_collection_or_404(collection_name)
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
         uuid.UUID(document_id), collection["id"],
@@ -213,7 +190,7 @@ async def delete_document(
     document_id: str,
     _: dict = Depends(get_current_user),
 ):
-    collection = await _get_collection(collection_name)
+    collection = await get_collection_or_404(collection_name)
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
         uuid.UUID(document_id), collection["id"],
@@ -246,7 +223,7 @@ async def reprocess_document(
     document_id: str,
     _: dict = Depends(get_current_user),
 ):
-    collection = await _get_collection(collection_name)
+    collection = await get_collection_or_404(collection_name)
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
         uuid.UUID(document_id), collection["id"],
@@ -254,7 +231,10 @@ async def reprocess_document(
     if not row:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    _validate_embedding_provider(collection)
+    try:
+        get_embedding_model_for(collection)
+    except (ImportError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     if not await get_storage().exists(row["file_path"]):
         raise HTTPException(
@@ -290,7 +270,7 @@ async def get_document_chunks(
     document_id: str,
     _: dict = Depends(get_current_user),
 ):
-    collection = await _get_collection(collection_name)
+    collection = await get_collection_or_404(collection_name)
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
         uuid.UUID(document_id), collection["id"],
@@ -308,7 +288,7 @@ async def download_document_file(
     document_id: str,
     _: dict = Depends(get_current_user),
 ):
-    collection = await _get_collection(collection_name)
+    collection = await get_collection_or_404(collection_name)
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
         uuid.UUID(document_id), collection["id"],
