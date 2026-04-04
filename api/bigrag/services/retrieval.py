@@ -11,6 +11,21 @@ from bigrag.services.vector_store import vector_store
 logger = logging.getLogger("bigrag.retrieval")
 
 
+def _safe_create_task(coro, *, name: str = "background") -> asyncio.Task:
+    """Create a task that logs exceptions instead of silently swallowing them."""
+    task = asyncio.create_task(coro, name=name)
+
+    def _on_done(t: asyncio.Task) -> None:
+        if t.cancelled():
+            return
+        exc = t.exception()
+        if exc:
+            logger.warning(f"Background task '{name}' failed: {exc!r}")
+
+    task.add_done_callback(_on_done)
+    return task
+
+
 def _tokenize_query(query: str) -> list[str]:
     """Split query into lowercase search terms, filtering short words."""
     return [w.lower() for w in re.split(r"\s+", query.strip()) if len(w) >= 2]
@@ -227,7 +242,7 @@ async def retrieve(
     # Log query for analytics
     total_ms = (time.monotonic() - _retrieve_start) * 1000
     avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else None
-    asyncio.create_task(_log_query(
+    _safe_create_task(_log_query(
         collection_name=collection_name,
         query=query,
         top_k=top_k,
@@ -235,7 +250,7 @@ async def retrieve(
         avg_score=avg_score,
         latency_ms=round(total_ms, 2),
         search_mode=search_mode,
-    ))
+    ), name="log_query")
 
     return results
 
