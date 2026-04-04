@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     secret_key: str | None = None
     session_expiry_hours: int = 168
 
+    # Tuning
+    embedding_concurrency: int = 8
+    milvus_max_workers: int = 32
+    milvus_nprobe: int = 32
+    collection_cache_ttl: int = 30
+    queue_max_depth: int = 10000
+    conversion_timeout: int = 300
+    webhook_delivery_timeout: int = 10
+    webhook_retry_delays: list[int] = [10, 30, 90]
+    webhook_cache_ttl: int = 60
+
     # Embedding defaults
     embedding_provider: str = "openai"
     embedding_model: str = "text-embedding-3-small"
