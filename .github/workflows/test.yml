@@ -1,0 +1,48 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: api/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --dev
+        working-directory: api
+
+      - name: Ruff check
+        run: uv run ruff check .
+        working-directory: api
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+        working-directory: api
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: api/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --dev
+        working-directory: api
+
+      - name: Run tests
+        run: uv run pytest tests/ -v --tb=short
+        working-directory: api
