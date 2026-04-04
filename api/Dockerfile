@@ -12,11 +12,29 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Install CPU-only PyTorch first (avoids pulling ~2GB CUDA bundles)
-RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
 COPY pyproject.toml .
 COPY bigrag/ bigrag/
-RUN pip install .
+RUN pip install --no-cache-dir .
+
+# Strip heavy unnecessary files from the venv
+RUN SITE=/opt/venv/lib/python3.12/site-packages \
+    # Remove sympy/mpmath (torch dep only for symbolic tracing, not inference) \
+    && pip uninstall -y sympy mpmath \
+    # Remove test dirs, caches, bytecode \
+    && find /opt/venv -depth -type d \( -name "tests" -o -name "test" -o -name "__pycache__" \) -exec rm -rf {} + \
+    && find /opt/venv \( -name "*.pyc" -o -name "*.pyo" \) -delete \
+    # Torch: remove C++ headers and CMake files (not needed at runtime) \
+    && rm -rf $SITE/torch/include $SITE/torch/share \
+    # Torch: remove test .so files \
+    && rm -f $SITE/torch/lib/libtorchbind_test.so \
+             $SITE/torch/lib/libjitbackend_test.so \
+             $SITE/torch/lib/libbackend_with_compiler.so \
+             $SITE/torch/lib/libaoti_custom_ops.so \
+    # Strip debug symbols from shared libraries \
+    && find /opt/venv -name "*.so*" -exec strip --strip-unneeded {} + 2>/dev/null \
+    ; true
 
 FROM python:3.12-slim
 
