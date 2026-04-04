@@ -25,6 +25,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
     tesseract-ocr \
+    libgl1 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -32,8 +33,8 @@ COPY --from=build /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 RUN mkdir -p /data/uploads && \
-    useradd -r -s /bin/false bigrag && \
-    chown -R bigrag:bigrag /data
+    useradd -r -m -s /bin/false bigrag && \
+    chown -R bigrag:bigrag /data /home/bigrag
 
 USER bigrag
 

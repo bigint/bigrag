@@ -253,6 +253,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
 | **Auth** | | |
 | `BIGRAG_API_SECRET` | Shared API secret (open access if unset) | — |
+| `BIGRAG_SECRET_KEY` | Encryption key for secrets at rest (required for collections with API keys) | — |
 | **Ingestion** | | |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size in MB | `1024` |
 | `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
@@ -1640,6 +1641,7 @@ Key settings to configure for production:
 ```bash
 # Security
 BIGRAG_API_SECRET=your-api-secret         # Shared API secret (omit for open access)
+BIGRAG_SECRET_KEY=your-random-secret-key  # Encryption key for API keys stored in collections
 
 # Infrastructure
 BIGRAG_DATABASE_URL=postgres://user:pass@host:5432/bigrag?sslmode=require

@@ -35,6 +35,13 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger("bigrag")
     logger.info(f"bigRAG v{__version__} starting")
 
+    if not settings.secret_key:
+        logger.warning(
+            "BIGRAG_SECRET_KEY is not set. "
+            "Embedding API keys stored in collections will fail to encrypt. "
+            "Set BIGRAG_SECRET_KEY to a random string before creating collections."
+        )
+
     # Postgres
     await db.connect(settings.database_url, min_size=settings.db_pool_min, max_size=settings.db_pool_max)
     await db.migrate()
