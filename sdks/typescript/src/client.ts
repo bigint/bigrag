@@ -88,6 +88,78 @@ export class BigRAG {
     return h;
   }
 
+  private async _fetchWithRetry(
+    url: string,
+    init: RequestInit,
+  ): Promise<Response> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      if (attempt > 0) {
+        await sleep(Math.min(0.5 * 2 ** attempt, 4) * 1000);
+      }
+
+      let response: Response;
+      try {
+        response = await this._fetch(url, {
+          ...init,
+          signal: AbortSignal.timeout(this.timeout),
+        });
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (
+          lastError.name === "TimeoutError" ||
+          lastError.name === "AbortError"
+        ) {
+          if (attempt < this.maxRetries) continue;
+          throw new APITimeoutError(lastError.message);
+        }
+        if (attempt < this.maxRetries) continue;
+        throw new APIConnectionError(lastError.message);
+      }
+
+      if (response.status >= 500 && attempt < this.maxRetries) {
+        lastError = new Error(
+          await response.text().catch(() => "Server error"),
+        );
+        continue;
+      }
+
+      if (response.status === 429 && attempt < this.maxRetries) {
+        lastError = new Error("Rate limited");
+        continue;
+      }
+
+      if (response.status >= 400) {
+        await this._throwForStatus(response);
+      }
+
+      return response;
+    }
+
+    throw new APIConnectionError(lastError?.message ?? "Request failed");
+  }
+
+  private async _throwForStatus(response: Response): Promise<never> {
+    let errBody: {
+      detail?: string;
+      error?: { message?: string; code?: string };
+      message?: string;
+    };
+    try {
+      errBody = await response.json();
+    } catch {
+      errBody = {};
+    }
+    const message =
+      errBody.detail ??
+      errBody.error?.message ??
+      errBody.message ??
+      response.statusText;
+    const code = errBody.error?.code;
+    throw errorForStatus(response.status, message, code);
+  }
+
   private async _request<T>(
     method: string,
     path: string,
@@ -95,8 +167,7 @@ export class BigRAG {
   ): Promise<T> {
     let url = `${this.baseUrl}${path}`;
     if (opts?.params) {
-      const sp = new URLSearchParams(opts.params);
-      url += `?${sp}`;
+      url += `?${new URLSearchParams(opts.params)}`;
     }
 
     const headers: Record<string, string> = { ...this._headers() };
@@ -106,65 +177,12 @@ export class BigRAG {
       body = JSON.stringify(opts.json);
     }
 
-    let lastError: Error | undefined;
+    const response = await this._fetchWithRetry(url, { method, headers, body });
 
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      if (attempt > 0) {
-        await sleep(Math.min(0.5 * 2 ** attempt, 4) * 1000);
-      }
-
-      let response: Response;
-      try {
-        response = await this._fetch(url, {
-          method,
-          headers,
-          body,
-          signal: AbortSignal.timeout(this.timeout),
-        });
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        if (lastError.name === "TimeoutError" || lastError.name === "AbortError") {
-          if (attempt < this.maxRetries) continue;
-          throw new APITimeoutError(lastError.message);
-        }
-        if (attempt < this.maxRetries) continue;
-        throw new APIConnectionError(lastError.message);
-      }
-
-      if (response.status >= 500 && attempt < this.maxRetries) {
-        lastError = new Error(await response.text().catch(() => "Server error"));
-        continue;
-      }
-
-      if (response.status === 429 && attempt < this.maxRetries) {
-        lastError = new Error("Rate limited");
-        continue;
-      }
-
-      if (response.status >= 400) {
-        let errBody: { detail?: string; error?: { message?: string; code?: string }; message?: string };
-        try {
-          errBody = await response.json();
-        } catch {
-          errBody = {};
-        }
-        const message =
-          errBody.detail ??
-          errBody.error?.message ??
-          errBody.message ??
-          response.statusText;
-        const code = errBody.error?.code;
-        throw errorForStatus(response.status, message, code);
-      }
-
-      if (response.status === 204) return { status: "ok" } as T;
-
-      const text = await response.text();
-      if (!text) return { status: "ok" } as T;
-      return JSON.parse(text) as T;
-    }
-
-    throw new APIConnectionError(lastError?.message ?? "Request failed");
+    if (response.status === 204) return { status: "ok" } as T;
+    const text = await response.text();
+    if (!text) return { status: "ok" } as T;
+    return JSON.parse(text) as T;
   }
 
   private async _requestFormData<T>(
@@ -172,111 +190,21 @@ export class BigRAG {
     formData: FormData,
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    const headers: Record<string, string> = { ...this._headers() };
-    // Do not set Content-Type — fetch sets it with the multipart boundary
-
-    let lastError: Error | undefined;
-
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      if (attempt > 0) {
-        await sleep(Math.min(0.5 * 2 ** attempt, 4) * 1000);
-      }
-
-      let response: Response;
-      try {
-        response = await this._fetch(url, {
-          method: "POST",
-          headers,
-          body: formData,
-          signal: AbortSignal.timeout(this.timeout),
-        });
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        if (lastError.name === "TimeoutError" || lastError.name === "AbortError") {
-          if (attempt < this.maxRetries) continue;
-          throw new APITimeoutError(lastError.message);
-        }
-        if (attempt < this.maxRetries) continue;
-        throw new APIConnectionError(lastError.message);
-      }
-
-      if (response.status >= 500 && attempt < this.maxRetries) {
-        lastError = new Error(await response.text().catch(() => "Server error"));
-        continue;
-      }
-
-      if (response.status === 429 && attempt < this.maxRetries) {
-        lastError = new Error("Rate limited");
-        continue;
-      }
-
-      if (response.status >= 400) {
-        let errBody: { detail?: string; error?: { message?: string; code?: string }; message?: string };
-        try {
-          errBody = await response.json();
-        } catch {
-          errBody = {};
-        }
-        const message =
-          errBody.detail ??
-          errBody.error?.message ??
-          errBody.message ??
-          response.statusText;
-        throw errorForStatus(response.status, message);
-      }
-
-      return (await response.json()) as T;
-    }
-
-    throw new APIConnectionError(lastError?.message ?? "Request failed");
+    const response = await this._fetchWithRetry(url, {
+      method: "POST",
+      headers: this._headers(),
+      body: formData,
+    });
+    return (await response.json()) as T;
   }
 
-  private async _requestText(
-    path: string,
-  ): Promise<string> {
+  private async _requestText(path: string): Promise<string> {
     const url = `${this.baseUrl}${path}`;
-    let lastError: Error | undefined;
-
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      if (attempt > 0) {
-        await sleep(Math.min(0.5 * 2 ** attempt, 4) * 1000);
-      }
-
-      let response: Response;
-      try {
-        response = await this._fetch(url, {
-          method: "GET",
-          headers: this._headers(),
-          signal: AbortSignal.timeout(this.timeout),
-        });
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        if (lastError.name === "TimeoutError" || lastError.name === "AbortError") {
-          if (attempt < this.maxRetries) continue;
-          throw new APITimeoutError(lastError.message);
-        }
-        if (attempt < this.maxRetries) continue;
-        throw new APIConnectionError(lastError.message);
-      }
-
-      if (response.status >= 500 && attempt < this.maxRetries) {
-        lastError = new Error(await response.text().catch(() => "Server error"));
-        continue;
-      }
-
-      if (response.status === 429 && attempt < this.maxRetries) {
-        lastError = new Error("Rate limited");
-        continue;
-      }
-
-      if (!response.ok) {
-        throw errorForStatus(response.status, response.statusText);
-      }
-
-      return response.text();
-    }
-
-    throw new APIConnectionError(lastError?.message ?? "Request failed");
+    const response = await this._fetchWithRetry(url, {
+      method: "GET",
+      headers: this._headers(),
+    });
+    return response.text();
   }
 
   // ---- Helpers for file input normalization ----
