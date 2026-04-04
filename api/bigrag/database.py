@@ -153,6 +153,31 @@ MIGRATIONS = [
 ]
 
 
+def build_update(
+    table: str,
+    fields: dict,
+    where_col: str,
+    where_val,
+) -> tuple[str, list]:
+    """Build a parameterized UPDATE query.
+
+    Returns (sql, params) for use with db.fetchrow(sql, *params).
+    """
+    set_parts = []
+    params = []
+    idx = 1
+    for col, val in fields.items():
+        set_parts.append(f"{col} = ${idx}")
+        params.append(val)
+        idx += 1
+
+    set_parts.append("updated_at = now()")
+    params.append(where_val)
+
+    sql = f"UPDATE {table} SET {', '.join(set_parts)} WHERE {where_col} = ${idx} RETURNING *"
+    return sql, params
+
+
 class Database:
     def __init__(self) -> None:
         self.pool: asyncpg.Pool | None = None

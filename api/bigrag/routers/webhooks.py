@@ -108,37 +108,24 @@ async def update_webhook(
     if not row:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
-    updates = []
-    params = []
-    idx = 1
+    from bigrag.database import build_update
 
+    fields = {}
     if body.url is not None:
-        updates.append(f"url = ${idx}")
-        params.append(body.url)
-        idx += 1
+        fields["url"] = body.url
     if body.events is not None:
-        updates.append(f"events = ${idx}")
-        params.append(body.events)
-        idx += 1
+        fields["events"] = body.events
     if body.collections is not None:
-        updates.append(f"collections = ${idx}")
-        params.append(body.collections)
-        idx += 1
+        fields["collections"] = body.collections
     if body.description is not None:
-        updates.append(f"description = ${idx}")
-        params.append(body.description)
-        idx += 1
+        fields["description"] = body.description
     if body.active is not None:
-        updates.append(f"active = ${idx}")
-        params.append(body.active)
-        idx += 1
+        fields["active"] = body.active
 
-    if not updates:
+    if not fields:
         return _row_to_response(dict(row))
 
-    updates.append("updated_at = now()")
-    params.append(uuid.UUID(webhook_id))
-    sql = f"UPDATE webhooks SET {', '.join(updates)} WHERE id = ${idx} RETURNING *"
+    sql, params = build_update("webhooks", fields, "id", uuid.UUID(webhook_id))
     updated = await db.fetchrow(sql, *params)
 
     webhook_dispatcher.invalidate_cache()

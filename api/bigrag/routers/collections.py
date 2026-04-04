@@ -126,41 +126,25 @@ async def update_collection(
     if not row:
         raise HTTPException(status_code=404, detail="Collection not found")
 
-    updates = []
-    params = []
-    idx = 1
+    from bigrag.database import build_update
 
+    fields = {}
     if body.description is not None:
-        updates.append(f"description = ${idx}")
-        params.append(body.description)
-        idx += 1
+        fields["description"] = body.description
     if body.metadata is not None:
-        updates.append(f"metadata = ${idx}")
-        params.append(body.metadata)
-        idx += 1
+        fields["metadata"] = body.metadata
     if body.reranking_enabled is not None:
-        updates.append(f"reranking_enabled = ${idx}")
-        params.append(body.reranking_enabled)
-        idx += 1
+        fields["reranking_enabled"] = body.reranking_enabled
     if body.reranking_model is not None:
-        updates.append(f"reranking_model = ${idx}")
-        params.append(body.reranking_model)
-        idx += 1
+        fields["reranking_model"] = body.reranking_model
     if body.reranking_api_key is not None:
-        updates.append(f"reranking_api_key = ${idx}")
-        params.append(encrypt(body.reranking_api_key))
-        idx += 1
+        fields["reranking_api_key"] = encrypt(body.reranking_api_key)
 
-    if not updates:
+    if not fields:
         return _row_to_response(dict(row))
 
-    updates.append("updated_at = now()")
-    params.append(name)
-
-    row = await db.fetchrow(
-        f"UPDATE collections SET {', '.join(updates)} WHERE name = ${idx} RETURNING *",
-        *params,
-    )
+    sql, params = build_update("collections", fields, "name", name)
+    row = await db.fetchrow(sql, *params)
     from bigrag.routers import invalidate_collection_cache
     invalidate_collection_cache(name)
     return _row_to_response(dict(row))
