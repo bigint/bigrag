@@ -11,6 +11,21 @@ VALID_EVENTS = frozenset({"document.ready", "document.failed", "document.process
 MAX_WEBHOOKS = 50
 
 
+def _validate_webhook_url(url: str) -> None:
+    parsed = urlparse(url)
+    is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
+    if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
+        raise ValueError("Webhook URL must use HTTPS (HTTP allowed only for localhost)")
+
+
+def _validate_webhook_events(events: list[str]) -> None:
+    if not events:
+        raise ValueError("events must not be empty")
+    invalid = set(events) - VALID_EVENTS
+    if invalid:
+        raise ValueError(f"Invalid events: {invalid}. Valid: {sorted(VALID_EVENTS)}")
+
+
 class CreateWebhookRequest(BaseModel):
     url: str
     events: list[str] = Field(min_length=1)
@@ -19,13 +34,8 @@ class CreateWebhookRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_url_and_events(self):
-        parsed = urlparse(self.url)
-        is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
-        if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
-            raise ValueError("Webhook URL must use HTTPS (HTTP allowed only for localhost)")
-        invalid = set(self.events) - VALID_EVENTS
-        if invalid:
-            raise ValueError(f"Invalid events: {invalid}. Valid: {sorted(VALID_EVENTS)}")
+        _validate_webhook_url(self.url)
+        _validate_webhook_events(self.events)
         return self
 
 
@@ -39,16 +49,9 @@ class UpdateWebhookRequest(BaseModel):
     @model_validator(mode="after")
     def validate_fields(self):
         if self.url is not None:
-            parsed = urlparse(self.url)
-            is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
-            if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
-                raise ValueError("Webhook URL must use HTTPS (HTTP allowed only for localhost)")
+            _validate_webhook_url(self.url)
         if self.events is not None:
-            if not self.events:
-                raise ValueError("events must not be empty")
-            invalid = set(self.events) - VALID_EVENTS
-            if invalid:
-                raise ValueError(f"Invalid events: {invalid}. Valid: {sorted(VALID_EVENTS)}")
+            _validate_webhook_events(self.events)
         return self
 
 
