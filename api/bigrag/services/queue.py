@@ -200,8 +200,9 @@ class IngestionQueue:
         return count
 
     async def enqueue(self, job: IngestionJob) -> None:
+        from bigrag.config import settings as _settings
         depth = await self._redis.llen(QUEUE_KEY)
-        if depth >= 10000:
+        if depth >= _settings.queue_max_depth:
             raise ValueError("Ingestion queue is full. Try again later.")
         await self._redis.lpush(QUEUE_KEY, job.serialize())
         await self._redis.hincrby(STATS_KEY, "queued", 1)
@@ -249,9 +250,126 @@ class IngestionQueue:
             message=msg, progress=progress, detail=detail,
         ))
 
+    async def _convert_document(self, job: IngestionJob, prefix: str) -> str:
+        """Convert document to text via Docling. Returns extracted text."""
+        from bigrag.services.storage import get_storage
+        import tempfile
+
+        self._emit(job.document_id, "converting", "processing", "Parsing document with Docling", 0.15)
+        t0 = time.monotonic()
+
+        file_data = await get_storage().get(job.file_path)
+        suffix = Path(job.file_path).suffix
+
+        def _write_and_convert():
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+            try:
+                tmp.write(file_data)
+                tmp.close()
+                converter = _get_docling_converter()
+                return converter.convert(tmp.name), tmp.name
+            except Exception:
+                tmp.close()
+                raise
+
+        tmp_path = None
+        try:
+            from bigrag.config import settings as _settings
+            result, tmp_path = await asyncio.wait_for(
+                asyncio.to_thread(_write_and_convert),
+                timeout=_settings.conversion_timeout,
+            )
+        except asyncio.TimeoutError:
+            from bigrag.config import settings as _settings
+            raise ValueError(f"Document conversion timed out after {_settings.conversion_timeout}s")
+        finally:
+            if tmp_path:
+                Path(tmp_path).unlink(missing_ok=True)
+
+        elapsed = time.monotonic() - t0
+        logger.info(f"{prefix} docling conversion elapsed={elapsed:.2f}s")
+        self._emit(job.document_id, "converted", "processing", f"Parsed in {elapsed:.1f}s", 0.35,
+                   elapsed=round(elapsed, 2))
+
+        text = result.document.export_to_markdown()
+        if not text.strip():
+            text = result.document.export_to_text()
+        if not text.strip():
+            raise ValueError("Document produced no extractable text")
+
+        logger.info(f"{prefix} text extracted chars={len(text)}")
+        self._emit(job.document_id, "text_extracted", "processing",
+                   f"Extracted {len(text):,} characters", 0.40, chars=len(text))
+        return text
+
+    async def _chunk_and_embed(self, job: IngestionJob, text: str, prefix: str) -> int:
+        """Chunk text, embed, and insert into vector store. Returns total inserted count."""
+        from bigrag.services.embedding import get_embedding_model
+        from bigrag.services.ingestion import _chunk_text
+        from bigrag.services.vector_store import vector_store
+        from bigrag.config import settings as _settings
+
+        t0 = time.monotonic()
+        embedding_model = get_embedding_model(
+            provider=job.embedding_provider,
+            model_name=job.embedding_model,
+            dimension=job.embedding_dimension,
+            api_key=job.embedding_api_key,
+        )
+        elapsed = time.monotonic() - t0
+        logger.info(f"{prefix} model loaded provider={job.embedding_provider} "
+                     f"model={job.embedding_model} elapsed={elapsed:.2f}s")
+        self._emit(job.document_id, "model_loaded", "processing",
+                   f"Loaded {job.embedding_model}", 0.10,
+                   provider=job.embedding_provider, model=job.embedding_model,
+                   elapsed=round(elapsed, 2))
+
+        chunks = await asyncio.to_thread(_chunk_text, text, job.chunk_size, job.chunk_overlap)
+        if not chunks:
+            raise ValueError("Document produced no chunks")
+        logger.info(f"{prefix} chunked into {len(chunks)} chunks")
+        self._emit(job.document_id, "chunked", "processing",
+                   f"Split into {len(chunks)} chunks", 0.45,
+                   chunks=len(chunks), chunk_size=job.chunk_size)
+
+        batch_size = _settings.ingestion_batch_size
+        total_inserted = 0
+        total_batches = (len(chunks) + batch_size - 1) // batch_size
+        doc = job.document_id
+
+        for batch_start in range(0, len(chunks), batch_size):
+            batch_end = min(batch_start + batch_size, len(chunks))
+            batch_texts = chunks[batch_start:batch_end]
+            batch_num = batch_start // batch_size + 1
+
+            t0 = time.monotonic()
+            embeddings = await embedding_model.embed(batch_texts)
+            embed_elapsed = time.monotonic() - t0
+
+            t1 = time.monotonic()
+            ids = [f"{doc}_{i}" for i in range(batch_start, batch_end)]
+            doc_ids = [doc] * len(batch_texts)
+            indices = list(range(batch_start, batch_end))
+            count = await vector_store.insert(
+                collection=job.collection_name,
+                ids=ids, document_ids=doc_ids, chunk_indices=indices,
+                texts=batch_texts, embeddings=embeddings,
+            )
+            insert_elapsed = time.monotonic() - t1
+            total_inserted += count
+
+            progress = 0.45 + (0.45 * batch_num / total_batches)
+            logger.info(f"{prefix} batch {batch_num}/{total_batches} inserted={count} "
+                        f"embed={embed_elapsed:.2f}s insert={insert_elapsed:.2f}s")
+            self._emit(doc, "embedding", "processing",
+                       f"Batch {batch_num}/{total_batches} — {total_inserted} vectors",
+                       progress, batch=batch_num, total_batches=total_batches,
+                       inserted=total_inserted, embed_time=round(embed_elapsed, 2))
+
+        return total_inserted
+
     async def _process_job(self, worker_id: int, job: IngestionJob) -> None:
         from bigrag.database import db
-        from bigrag.services.embedding import get_embedding_model
         from bigrag.services.vector_store import vector_store
 
         job.attempt += 1
@@ -273,101 +391,8 @@ class IngestionQueue:
             self._emit(doc, "processing", "processing", "Preparing document", 0.05,
                        collection=job.collection_name)
 
-            t0 = time.monotonic()
-            embedding_model = get_embedding_model(
-                provider=job.embedding_provider,
-                model_name=job.embedding_model,
-                dimension=job.embedding_dimension,
-                api_key=job.embedding_api_key,
-            )
-            elapsed = time.monotonic() - t0
-            logger.info(f"{prefix} model loaded provider={job.embedding_provider} model={job.embedding_model} elapsed={elapsed:.2f}s")
-            self._emit(doc, "model_loaded", "processing", f"Loaded {job.embedding_model}", 0.10,
-                       provider=job.embedding_provider, model=job.embedding_model, elapsed=round(elapsed, 2))
-
-            self._emit(doc, "converting", "processing", "Parsing document with Docling", 0.15)
-            t0 = time.monotonic()
-
-            from bigrag.services.storage import get_storage
-            import tempfile
-
-            file_data = await get_storage().get(job.file_path)
-            suffix = Path(job.file_path).suffix
-
-            def _write_and_convert():
-                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-                try:
-                    tmp.write(file_data)
-                    tmp.close()
-                    converter = _get_docling_converter()
-                    return converter.convert(tmp.name), tmp.name
-                except Exception:
-                    tmp.close()
-                    raise
-
-            tmp_path = None
-            try:
-                result, tmp_path = await asyncio.wait_for(
-                    asyncio.to_thread(_write_and_convert),
-                    timeout=300,  # 5 minutes max per document
-                )
-            except asyncio.TimeoutError:
-                raise ValueError(f"Document conversion timed out after 300s")
-            finally:
-                if tmp_path:
-                    Path(tmp_path).unlink(missing_ok=True)
-            elapsed = time.monotonic() - t0
-            logger.info(f"{prefix} docling conversion elapsed={elapsed:.2f}s")
-            self._emit(doc, "converted", "processing", f"Parsed in {elapsed:.1f}s", 0.35, elapsed=round(elapsed, 2))
-
-            text = result.document.export_to_markdown()
-            if not text.strip():
-                text = result.document.export_to_text()
-            if not text.strip():
-                raise ValueError("Document produced no extractable text")
-            logger.info(f"{prefix} text extracted chars={len(text)}")
-            self._emit(doc, "text_extracted", "processing", f"Extracted {len(text):,} characters", 0.40, chars=len(text))
-
-            from bigrag.services.ingestion import _chunk_text
-            chunks = await asyncio.to_thread(_chunk_text, text, job.chunk_size, job.chunk_overlap)
-            if not chunks:
-                raise ValueError("Document produced no chunks")
-            logger.info(f"{prefix} chunked into {len(chunks)} chunks")
-            self._emit(doc, "chunked", "processing", f"Split into {len(chunks)} chunks", 0.45,
-                       chunks=len(chunks), chunk_size=job.chunk_size)
-
-            from bigrag.config import settings as _settings
-            batch_size = _settings.ingestion_batch_size
-            total_inserted = 0
-            total_batches = (len(chunks) + batch_size - 1) // batch_size
-
-            for batch_start in range(0, len(chunks), batch_size):
-                batch_end = min(batch_start + batch_size, len(chunks))
-                batch_texts = chunks[batch_start:batch_end]
-                batch_num = batch_start // batch_size + 1
-
-                t0 = time.monotonic()
-                embeddings = await embedding_model.embed(batch_texts)
-                embed_elapsed = time.monotonic() - t0
-
-                t1 = time.monotonic()
-                ids = [f"{doc}_{i}" for i in range(batch_start, batch_end)]
-                doc_ids = [doc] * len(batch_texts)
-                indices = list(range(batch_start, batch_end))
-                count = await vector_store.insert(
-                    collection=job.collection_name,
-                    ids=ids, document_ids=doc_ids, chunk_indices=indices,
-                    texts=batch_texts, embeddings=embeddings,
-                )
-                insert_elapsed = time.monotonic() - t1
-                total_inserted += count
-
-                progress = 0.45 + (0.45 * batch_num / total_batches)
-                logger.info(f"{prefix} batch {batch_num}/{total_batches} inserted={count} embed={embed_elapsed:.2f}s insert={insert_elapsed:.2f}s")
-                self._emit(doc, "embedding", "processing",
-                           f"Batch {batch_num}/{total_batches} — {total_inserted} vectors",
-                           progress, batch=batch_num, total_batches=total_batches,
-                           inserted=total_inserted, embed_time=round(embed_elapsed, 2))
+            text = await self._convert_document(job, prefix)
+            total_inserted = await self._chunk_and_embed(job, text, prefix)
 
             await db.execute(
                 "UPDATE documents SET status = 'ready', chunk_count = $1, error_message = NULL, updated_at = now() WHERE id = $2",
@@ -394,7 +419,8 @@ class IngestionQueue:
         except Exception as e:
             total_elapsed = time.monotonic() - start_time
             await self._redis.hincrby(STATS_KEY, "processing", -1)
-            logger.error(f"{prefix} failed attempt={job.attempt}/{job.max_attempts} error={e!r} elapsed={total_elapsed:.2f}s")
+            logger.error(f"{prefix} failed attempt={job.attempt}/{job.max_attempts} "
+                         f"error={e!r} elapsed={total_elapsed:.2f}s")
 
             is_permanent = isinstance(e, _PERMANENT_ERRORS)
 
