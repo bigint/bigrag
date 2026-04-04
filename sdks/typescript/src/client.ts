@@ -6,15 +6,10 @@ import {
 import { parseSSEStream } from "./sse.js";
 import type {
   AnalyticsResponse,
-  ApiKeyListResponse,
-  AuthResponse,
   BatchQueryBody,
   BatchQueryResponse,
-  ChangePasswordBody,
   Collection,
   CollectionListResponse,
-  CreateApiKeyBody,
-  CreateApiKeyResponse,
   CreateCollectionBody,
   CreateWebhookBody,
   CreateWebhookResponse,
@@ -26,15 +21,13 @@ import type {
   EmbeddingModelListResponse,
   FileInput,
   HealthResponse,
-  LoginBody,
-  MeResponse,
   MultiQueryBody,
   MultiQueryResponse,
   ProgressEvent,
   QueryBody,
   QueryResponse,
-  SetupBody,
-  SetupStatusResponse,
+  QueueStatsResponse,
+  ReadinessResponse,
   StatusResponse,
   UpdateCollectionBody,
   UpdateWebhookBody,
@@ -243,6 +236,10 @@ export class BigRAG {
     return this._request("GET", "/health");
   }
 
+  readiness(): Promise<ReadinessResponse> {
+    return this._request("GET", "/health/ready");
+  }
+
   // ---- Collections ----
 
   listCollections(): Promise<CollectionListResponse> {
@@ -412,47 +409,10 @@ export class BigRAG {
     return this._requestText("/v1/metrics");
   }
 
-  // ---- Auth ----
+  // ---- Queue ----
 
-  getSetupStatus(): Promise<SetupStatusResponse> {
-    return this._request("GET", "/v1/auth/setup-status");
-  }
-
-  setup(body: SetupBody): Promise<AuthResponse> {
-    return this._request("POST", "/v1/auth/setup", { json: body });
-  }
-
-  login(body: LoginBody): Promise<AuthResponse> {
-    return this._request("POST", "/v1/auth/login", { json: body });
-  }
-
-  logout(): Promise<StatusResponse> {
-    return this._request("POST", "/v1/auth/logout");
-  }
-
-  getMe(): Promise<MeResponse> {
-    return this._request("GET", "/v1/auth/me");
-  }
-
-  changePassword(body: ChangePasswordBody): Promise<StatusResponse> {
-    return this._request("PUT", "/v1/auth/password", { json: body });
-  }
-
-  // ---- Admin ----
-
-  createApiKey(body: CreateApiKeyBody): Promise<CreateApiKeyResponse> {
-    return this._request("POST", "/v1/admin/api-keys", { json: body });
-  }
-
-  listApiKeys(): Promise<ApiKeyListResponse> {
-    return this._request("GET", "/v1/admin/api-keys");
-  }
-
-  revokeApiKey(id: string): Promise<StatusResponse> {
-    return this._request(
-      "DELETE",
-      `/v1/admin/api-keys/${encodeURIComponent(id)}`,
-    );
+  getQueueStats(): Promise<QueueStatsResponse> {
+    return this._request("GET", "/v1/queue/stats");
   }
 
   // ---- Webhooks ----

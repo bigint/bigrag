@@ -10,6 +10,22 @@ export interface HealthResponse {
   version: string;
 }
 
+export interface ReadinessResponse {
+  status: string;
+  version: string;
+  postgres: boolean;
+  milvus: boolean;
+  redis: boolean;
+}
+
+export interface QueueStatsResponse {
+  queued: number;
+  completed: number;
+  failed: number;
+  pending: number;
+  processing: number;
+}
+
 // --- Collections ---
 
 export interface Collection {
@@ -141,87 +157,6 @@ export interface UpsertResponse {
 export interface DeleteResponse {
   status: string;
   deleted: number;
-}
-
-// --- Auth ---
-
-export interface User {
-  id: string;
-  email: string;
-  display_name: string;
-  role: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  user: User;
-}
-
-export interface SetupBody {
-  email: string;
-  password: string;
-  display_name: string;
-}
-
-export interface LoginBody {
-  email: string;
-  password: string;
-}
-
-export interface ChangePasswordBody {
-  current_password: string;
-  new_password: string;
-}
-
-export interface SetupStatusResponse {
-  needs_setup: boolean;
-  auth_required: boolean;
-}
-
-export interface MeResponse {
-  user: User;
-}
-
-// --- Admin ---
-
-export interface ApiKeyPermissions {
-  collections: string[];
-  operations: string[];
-  admin: boolean;
-}
-
-export interface ApiKeySummary {
-  id: string;
-  name: string;
-  prefix: string;
-  permissions: ApiKeyPermissions;
-  created_at: string;
-  last_used_at?: string;
-  expires_at?: string;
-}
-
-export interface CreateApiKeyBody {
-  name: string;
-  collections?: string[];
-  operations?: string[];
-  admin?: boolean;
-  expires_at?: string;
-}
-
-export interface CreateApiKeyResponse {
-  key: string;
-  id: string;
-  name: string;
-  prefix: string;
-  permissions: ApiKeyPermissions;
-  created_at: string;
-  expires_at?: string;
-}
-
-export interface ApiKeyListResponse {
-  keys: ApiKeySummary[];
 }
 
 // --- Embeddings ---
