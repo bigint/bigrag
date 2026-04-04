@@ -5,7 +5,6 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, model_validator
 
-
 VALID_EVENTS = frozenset({"document.ready", "document.failed", "document.processing"})
 
 MAX_WEBHOOKS = 50

@@ -5,7 +5,7 @@ import logging
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Form
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 
 from bigrag.config import settings
@@ -22,9 +22,24 @@ logger = logging.getLogger("bigrag.routers.documents")
 router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["documents"])
 
 SUPPORTED_EXTENSIONS = {
-    ".pdf", ".docx", ".pptx", ".xlsx", ".html", ".htm",
-    ".md", ".txt", ".csv", ".tsv", ".xml", ".json",
-    ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif",
+    ".pdf",
+    ".docx",
+    ".pptx",
+    ".xlsx",
+    ".html",
+    ".htm",
+    ".md",
+    ".txt",
+    ".csv",
+    ".tsv",
+    ".xml",
+    ".json",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".tiff",
+    ".bmp",
+    ".gif",
 }
 
 
@@ -57,7 +72,10 @@ async def upload_document(
     if file_ext and file_ext not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type '{file_ext}'. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
+            detail=(
+                f"Unsupported file type '{file_ext}'. "
+                f"Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
+            ),
         )
 
     max_size = settings.max_upload_size_mb * 1024 * 1024
@@ -99,28 +117,36 @@ async def upload_document(
     try:
         row = await db.fetchrow(
             """
-            INSERT INTO documents (id, collection_id, filename, file_type, file_size, file_path, metadata)
+            INSERT INTO documents
+                (id, collection_id, filename, file_type, file_size, file_path, metadata)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
             """,
-            uuid.UUID(doc_id), collection["id"], file.filename or "document",
-            file_ext.lstrip("."), len(content), storage_key, meta,
+            uuid.UUID(doc_id),
+            collection["id"],
+            file.filename or "document",
+            file_ext.lstrip("."),
+            len(content),
+            storage_key,
+            meta,
         )
     except Exception:
         await storage.delete(storage_key)
         raise
 
-    await ingestion_queue.enqueue(IngestionJob(
-        document_id=doc_id,
-        file_path=storage_key,
-        collection_name=collection_name,
-        embedding_provider=collection["embedding_provider"],
-        embedding_model=collection["embedding_model"],
-        embedding_dimension=collection["dimension"],
-        embedding_api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
-        chunk_size=collection["chunk_size"],
-        chunk_overlap=collection["chunk_overlap"],
-    ))
+    await ingestion_queue.enqueue(
+        IngestionJob(
+            document_id=doc_id,
+            file_path=storage_key,
+            collection_name=collection_name,
+            embedding_provider=collection["embedding_provider"],
+            embedding_model=collection["embedding_model"],
+            embedding_dimension=collection["dimension"],
+            embedding_api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
+            chunk_size=collection["chunk_size"],
+            chunk_overlap=collection["chunk_overlap"],
+        )
+    )
 
     return _row_to_response(dict(row))
 
@@ -142,11 +168,15 @@ async def list_documents(
             WHERE collection_id = $1 AND status = $2
             ORDER BY created_at DESC LIMIT $3 OFFSET $4
             """,
-            collection["id"], status, limit, offset,
+            collection["id"],
+            status,
+            limit,
+            offset,
         )
         count_row = await db.fetchrow(
             "SELECT COUNT(*) as cnt FROM documents WHERE collection_id = $1 AND status = $2",
-            collection["id"], status,
+            collection["id"],
+            status,
         )
     else:
         rows = await db.fetch(
@@ -155,7 +185,9 @@ async def list_documents(
             WHERE collection_id = $1
             ORDER BY created_at DESC LIMIT $2 OFFSET $3
             """,
-            collection["id"], limit, offset,
+            collection["id"],
+            limit,
+            offset,
         )
         count_row = await db.fetchrow(
             "SELECT COUNT(*) as cnt FROM documents WHERE collection_id = $1",
@@ -177,7 +209,8 @@ async def get_document(
     collection = await get_collection_or_404(collection_name)
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
-        uuid.UUID(document_id), collection["id"],
+        uuid.UUID(document_id),
+        collection["id"],
     )
     if not row:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -193,7 +226,8 @@ async def delete_document(
     collection = await get_collection_or_404(collection_name)
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
-        uuid.UUID(document_id), collection["id"],
+        uuid.UUID(document_id),
+        collection["id"],
     )
     if not row:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -205,7 +239,9 @@ async def delete_document(
     await db.execute(
         """
         UPDATE collections SET
-            document_count = (SELECT COUNT(*) FROM documents WHERE collection_id = $1 AND status = 'ready'),
+            document_count = (
+                SELECT COUNT(*) FROM documents WHERE collection_id = $1 AND status = 'ready'
+            ),
             updated_at = now()
         WHERE id = $1
         """,
@@ -226,7 +262,8 @@ async def reprocess_document(
     collection = await get_collection_or_404(collection_name)
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
-        uuid.UUID(document_id), collection["id"],
+        uuid.UUID(document_id),
+        collection["id"],
     )
     if not row:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -245,21 +282,24 @@ async def reprocess_document(
     await vector_store.delete_by_document(collection_name, document_id)
 
     await db.execute(
-        "UPDATE documents SET status = 'pending', chunk_count = 0, error_message = NULL, updated_at = now() WHERE id = $1",
+        "UPDATE documents SET status = 'pending', chunk_count = 0, "
+        "error_message = NULL, updated_at = now() WHERE id = $1",
         uuid.UUID(document_id),
     )
 
-    await ingestion_queue.enqueue(IngestionJob(
-        document_id=document_id,
-        file_path=row["file_path"],
-        collection_name=collection_name,
-        embedding_provider=collection["embedding_provider"],
-        embedding_model=collection["embedding_model"],
-        embedding_dimension=collection["dimension"],
-        embedding_api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
-        chunk_size=collection["chunk_size"],
-        chunk_overlap=collection["chunk_overlap"],
-    ))
+    await ingestion_queue.enqueue(
+        IngestionJob(
+            document_id=document_id,
+            file_path=row["file_path"],
+            collection_name=collection_name,
+            embedding_provider=collection["embedding_provider"],
+            embedding_model=collection["embedding_model"],
+            embedding_dimension=collection["dimension"],
+            embedding_api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
+            chunk_size=collection["chunk_size"],
+            chunk_overlap=collection["chunk_overlap"],
+        )
+    )
 
     return {"status": "ok", "message": "Document reprocessing started"}
 
@@ -273,7 +313,8 @@ async def get_document_chunks(
     collection = await get_collection_or_404(collection_name)
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
-        uuid.UUID(document_id), collection["id"],
+        uuid.UUID(document_id),
+        collection["id"],
     )
     if not row:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -291,7 +332,8 @@ async def download_document_file(
     collection = await get_collection_or_404(collection_name)
     row = await db.fetchrow(
         "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
-        uuid.UUID(document_id), collection["id"],
+        uuid.UUID(document_id),
+        collection["id"],
     )
     if not row:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -307,12 +349,20 @@ async def download_document_file(
         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "html": "text/html", "htm": "text/html",
-        "md": "text/markdown", "txt": "text/plain",
-        "csv": "text/csv", "tsv": "text/tab-separated-values",
-        "xml": "application/xml", "json": "application/json",
-        "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
-        "gif": "image/gif", "tiff": "image/tiff", "bmp": "image/bmp",
+        "html": "text/html",
+        "htm": "text/html",
+        "md": "text/markdown",
+        "txt": "text/plain",
+        "csv": "text/csv",
+        "tsv": "text/tab-separated-values",
+        "xml": "application/xml",
+        "json": "application/json",
+        "png": "image/png",
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "gif": "image/gif",
+        "tiff": "image/tiff",
+        "bmp": "image/bmp",
     }
     ext = row["file_type"].lower()
     content_type = content_type_map.get(ext, "application/octet-stream")
@@ -331,7 +381,10 @@ async def document_progress_sse(
     _: dict = Depends(get_current_user),
 ):
     async def generate():
-        yield "data: {\"step\":\"connected\",\"status\":\"connected\",\"message\":\"Listening for progress\",\"progress\":0}\n\n"
+        yield (
+            'data: {"step":"connected","status":"connected",'
+            '"message":"Listening for progress","progress":0}\n\n'
+        )
         async for event in event_bus.stream(document_id):
             yield event.to_sse()
 

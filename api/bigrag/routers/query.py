@@ -5,9 +5,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
-logger = logging.getLogger("bigrag.routers.query")
 from bigrag.middleware.auth import get_current_user
-from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
 from bigrag.models.query import (
     AnalyticsResponse,
     BatchQueryItem,
@@ -24,9 +22,12 @@ from bigrag.models.query import (
     VectorDeleteRequest,
     VectorUpsertRequest,
 )
+from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
 from bigrag.services.embedding import AVAILABLE_MODELS
 from bigrag.services.retrieval import retrieve, retrieve_multi
 from bigrag.services.vector_store import vector_store
+
+logger = logging.getLogger("bigrag.routers.query")
 
 router = APIRouter(tags=["query"])
 
@@ -38,7 +39,10 @@ async def query_collection(
     _: dict = Depends(get_current_user),
 ):
     collection = await get_collection_or_404(collection_name)
-    logger.info(f"query: collection={collection_name} q={body.query!r:.80s} top_k={body.top_k} filters={body.filters}")
+    logger.info(
+        f"query: collection={collection_name} q={body.query!r:.80s} "
+        f"top_k={body.top_k} filters={body.filters}"
+    )
 
     try:
         embedding_model = get_embedding_model_for(collection)
@@ -71,7 +75,9 @@ async def multi_collection_query(
     body: MultiQueryRequest,
     _: dict = Depends(get_current_user),
 ):
-    logger.info(f"multi-query: collections={body.collections} q={body.query!r:.80s} top_k={body.top_k}")
+    logger.info(
+        f"multi-query: collections={body.collections} q={body.query!r:.80s} top_k={body.top_k}"
+    )
 
     # Load all collections and their embedding models
     embedding_models = {}
@@ -245,8 +251,4 @@ async def collection_analytics(
 
 @router.get("/v1/embeddings/models")
 async def list_embedding_models(_: dict = Depends(get_current_user)):
-    return {
-        "models": [
-            EmbeddingModelInfo(**m).model_dump() for m in AVAILABLE_MODELS
-        ]
-    }
+    return {"models": [EmbeddingModelInfo(**m).model_dump() for m in AVAILABLE_MODELS]}

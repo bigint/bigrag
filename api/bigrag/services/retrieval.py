@@ -120,12 +120,20 @@ async def _log_query(
     """Log a query for analytics. Fire-and-forget, errors are swallowed."""
     try:
         from bigrag.database import db
+
         await db.execute(
             """
-            INSERT INTO query_log (collection_name, query, top_k, result_count, avg_score, latency_ms, search_mode)
+            INSERT INTO query_log
+                (collection_name, query, top_k, result_count, avg_score, latency_ms, search_mode)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             """,
-            collection_name, query[:500], top_k, result_count, avg_score, latency_ms, search_mode,
+            collection_name,
+            query[:500],
+            top_k,
+            result_count,
+            avg_score,
+            latency_ms,
+            search_mode,
         )
     except Exception as e:
         logger.warning(f"Failed to log query: {e!r}")
@@ -210,7 +218,10 @@ async def retrieve(
         embeddings = await embedding_model.embed([query], input_type="query")
         query_embedding = embeddings[0]
         embed_ms = (time.monotonic() - t0) * 1000
-        logger.info(f"retrieve: embedded query collection={collection_name} model={embedding_model.name} {embed_ms:.0f}ms")
+        logger.info(
+            f"retrieve: embedded query collection={collection_name} "
+            f"model={embedding_model.name} {embed_ms:.0f}ms"
+        )
 
         t0 = time.monotonic()
         results = await vector_store.search(
@@ -220,7 +231,10 @@ async def retrieve(
             filters=filter_expr,
         )
         search_ms = (time.monotonic() - t0) * 1000
-        logger.info(f"retrieve: searched collection={collection_name} hits={len(results)} top_k={top_k} {search_ms:.0f}ms")
+        logger.info(
+            f"retrieve: searched collection={collection_name} "
+            f"hits={len(results)} top_k={top_k} {search_ms:.0f}ms"
+        )
 
     # Apply reranking if configured
     if reranking_config and results:
@@ -242,15 +256,18 @@ async def retrieve(
     # Log query for analytics
     total_ms = (time.monotonic() - _retrieve_start) * 1000
     avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else None
-    _safe_create_task(_log_query(
-        collection_name=collection_name,
-        query=query,
-        top_k=top_k,
-        result_count=len(results),
-        avg_score=avg_score,
-        latency_ms=round(total_ms, 2),
-        search_mode=search_mode,
-    ), name="log_query")
+    _safe_create_task(
+        _log_query(
+            collection_name=collection_name,
+            query=query,
+            top_k=top_k,
+            result_count=len(results),
+            avg_score=avg_score,
+            latency_ms=round(total_ms, 2),
+            search_mode=search_mode,
+        ),
+        name="log_query",
+    )
 
     return results
 
@@ -343,8 +360,7 @@ def _build_filter_expr(filters: dict) -> str | None:
                     expressions.append(f"{field} <= {val}")
                 elif op == "$in":
                     vals = ", ".join(
-                        f'"{_escape_string(v)}"' if isinstance(v, str) else str(v)
-                        for v in val
+                        f'"{_escape_string(v)}"' if isinstance(v, str) else str(v) for v in val
                     )
                     expressions.append(f"{field} in [{vals}]")
 

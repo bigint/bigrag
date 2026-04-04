@@ -1,19 +1,16 @@
 from __future__ import annotations
 
 import json
-import asyncpg
 import logging
+
+import asyncpg
 
 logger = logging.getLogger("bigrag.database")
 
 
 async def _init_connection(conn: asyncpg.Connection) -> None:
-    await conn.set_type_codec(
-        "jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
-    )
-    await conn.set_type_codec(
-        "json", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
-    )
+    await conn.set_type_codec("jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog")
+    await conn.set_type_codec("json", encoder=json.dumps, decoder=json.loads, schema="pg_catalog")
 
 
 MIGRATIONS = [
@@ -120,8 +117,10 @@ MIGRATIONS = [
     CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries(status);
     """,
     """
-    ALTER TABLE collections ADD COLUMN IF NOT EXISTS reranking_enabled BOOLEAN NOT NULL DEFAULT false;
-    ALTER TABLE collections ADD COLUMN IF NOT EXISTS reranking_model TEXT NOT NULL DEFAULT 'rerank-v3.5';
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS reranking_enabled BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS reranking_model TEXT NOT NULL DEFAULT 'rerank-v3.5';
     ALTER TABLE collections ADD COLUMN IF NOT EXISTS reranking_api_key TEXT;
     """,
     """
@@ -188,7 +187,10 @@ class Database:
             dsn = dsn.replace("?sslmode=disable", "").replace("&sslmode=disable", "")
             ssl = False
         self.pool = await asyncpg.create_pool(
-            dsn, min_size=min_size, max_size=max_size, ssl=ssl,
+            dsn,
+            min_size=min_size,
+            max_size=max_size,
+            ssl=ssl,
             init=_init_connection,
             command_timeout=30,
             max_inactive_connection_lifetime=300,
@@ -210,8 +212,7 @@ class Database:
                 )
             """)
             applied = {
-                row["version"]
-                for row in await conn.fetch("SELECT version FROM _migrations")
+                row["version"] for row in await conn.fetch("SELECT version FROM _migrations")
             }
             for i, sql in enumerate(MIGRATIONS):
                 if i in applied:

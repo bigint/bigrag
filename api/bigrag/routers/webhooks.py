@@ -63,8 +63,12 @@ async def create_webhook(body: CreateWebhookRequest, admin: dict = Depends(requi
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
         """,
-        webhook_id, body.url, encrypted_secret, body.events,
-        body.collections, body.description,
+        webhook_id,
+        body.url,
+        encrypted_secret,
+        body.events,
+        body.collections,
+        body.description,
         uuid.UUID(admin["id"]) if admin.get("id") else None,
     )
 
@@ -85,7 +89,8 @@ async def list_webhooks(
 ):
     rows = await db.fetch(
         "SELECT * FROM webhooks ORDER BY created_at DESC LIMIT $1 OFFSET $2",
-        limit, offset,
+        limit,
+        offset,
     )
     return {"webhooks": [_row_to_response(dict(r)) for r in rows]}
 
@@ -162,7 +167,9 @@ async def list_deliveries(
         WHERE webhook_id = $1
         ORDER BY created_at DESC LIMIT $2 OFFSET $3
         """,
-        uuid.UUID(webhook_id), limit, offset,
+        uuid.UUID(webhook_id),
+        limit,
+        offset,
     )
     count_row = await db.fetchrow(
         "SELECT COUNT(*) as cnt FROM webhook_deliveries WHERE webhook_id = $1",

@@ -13,13 +13,16 @@ def _get_semaphore() -> asyncio.Semaphore:
     global _embed_semaphore
     if _embed_semaphore is None:
         from bigrag.config import settings
+
         _embed_semaphore = asyncio.Semaphore(settings.embedding_concurrency)
     return _embed_semaphore
 
 
 class EmbeddingModel(ABC):
     @abstractmethod
-    async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]: ...
+    async def embed(
+        self, texts: list[str], *, input_type: str = "document"
+    ) -> list[list[float]]: ...
 
     @property
     @abstractmethod
@@ -36,7 +39,9 @@ class EmbeddingModel(ABC):
 
 class OpenAIEmbedding(EmbeddingModel):
     def __init__(
-        self, model_name: str = "text-embedding-3-small", api_key: str | None = None,
+        self,
+        model_name: str = "text-embedding-3-small",
+        api_key: str | None = None,
         dimension: int = 1536,
     ) -> None:
         try:
@@ -77,7 +82,9 @@ class CohereEmbedding(EmbeddingModel):
     }
 
     def __init__(
-        self, model_name: str = "embed-english-v3.0", api_key: str | None = None,
+        self,
+        model_name: str = "embed-english-v3.0",
+        api_key: str | None = None,
         dimension: int = 1024,
     ) -> None:
         try:
@@ -148,10 +155,40 @@ def get_embedding_model(
 
 
 AVAILABLE_MODELS = [
-    {"provider": "openai", "model": "text-embedding-3-small", "dimension": 1536, "description": "OpenAI small embedding model"},
-    {"provider": "openai", "model": "text-embedding-3-large", "dimension": 3072, "description": "OpenAI large embedding model"},
-    {"provider": "cohere", "model": "embed-english-v3.0", "dimension": 1024, "description": "Cohere English embedding model"},
-    {"provider": "cohere", "model": "embed-multilingual-v3.0", "dimension": 1024, "description": "Cohere multilingual model (100+ languages)"},
-    {"provider": "cohere", "model": "embed-english-light-v3.0", "dimension": 384, "description": "Cohere lightweight English model"},
-    {"provider": "cohere", "model": "embed-multilingual-light-v3.0", "dimension": 384, "description": "Cohere lightweight multilingual model"},
+    {
+        "provider": "openai",
+        "model": "text-embedding-3-small",
+        "dimension": 1536,
+        "description": "OpenAI small embedding model",
+    },
+    {
+        "provider": "openai",
+        "model": "text-embedding-3-large",
+        "dimension": 3072,
+        "description": "OpenAI large embedding model",
+    },
+    {
+        "provider": "cohere",
+        "model": "embed-english-v3.0",
+        "dimension": 1024,
+        "description": "Cohere English embedding model",
+    },
+    {
+        "provider": "cohere",
+        "model": "embed-multilingual-v3.0",
+        "dimension": 1024,
+        "description": "Cohere multilingual model (100+ languages)",
+    },
+    {
+        "provider": "cohere",
+        "model": "embed-english-light-v3.0",
+        "dimension": 384,
+        "description": "Cohere lightweight English model",
+    },
+    {
+        "provider": "cohere",
+        "model": "embed-multilingual-light-v3.0",
+        "dimension": 384,
+        "description": "Cohere lightweight multilingual model",
+    },
 ]

@@ -7,7 +7,7 @@ import logging
 import secrets
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import orjson
@@ -34,16 +34,19 @@ def _safe_create_task(coro, *, name: str = "background") -> asyncio.Task:
 
 def _retry_delays() -> list[int]:
     from bigrag.config import settings
+
     return settings.webhook_retry_delays
 
 
 def _delivery_timeout() -> int:
     from bigrag.config import settings
+
     return settings.webhook_delivery_timeout
 
 
 def _cache_ttl() -> int:
     from bigrag.config import settings
+
     return settings.webhook_cache_ttl
 
 
@@ -115,9 +118,7 @@ class WebhookDispatcher:
 
         from bigrag.database import db
 
-        rows = await db.fetch(
-            "SELECT * FROM webhooks WHERE active = true"
-        )
+        rows = await db.fetch("SELECT * FROM webhooks WHERE active = true")
         self._cache = [dict(r) for r in rows]
         self._cache_time = now
         return self._cache
@@ -176,13 +177,11 @@ class WebhookDispatcher:
         )
         return row["name"] if row else None
 
-    def _build_payload(
-        self, webhook_event: str, event: IngestionEvent, collection: str
-    ) -> str:
+    def _build_payload(self, webhook_event: str, event: IngestionEvent, collection: str) -> str:
         """Build the JSON payload for a webhook delivery."""
         data = {
             "event": webhook_event,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "collection": collection,
             "document_id": event.document_id,
             "status": event.status,
@@ -308,7 +307,7 @@ class WebhookDispatcher:
         payload = orjson.dumps(
             {
                 "event": "webhook.test",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
         ).decode()
 
@@ -323,13 +322,9 @@ class WebhookDispatcher:
 
         try:
             async with httpx.AsyncClient(timeout=_delivery_timeout()) as client:
-                response = await client.post(
-                    webhook["url"], content=payload, headers=headers
-                )
+                response = await client.post(webhook["url"], content=payload, headers=headers)
             return {
-                "status": "delivered"
-                if 200 <= response.status_code < 300
-                else "failed",
+                "status": "delivered" if 200 <= response.status_code < 300 else "failed",
                 "status_code": response.status_code,
                 "error": None
                 if 200 <= response.status_code < 300

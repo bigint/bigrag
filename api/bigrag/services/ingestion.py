@@ -26,7 +26,7 @@ def _chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
                             chunks.append(current_chunk.strip())
                         if len(sentence) > chunk_size:
                             for pos in range(0, len(sentence), chunk_size):
-                                part = sentence[pos:pos + chunk_size]
+                                part = sentence[pos : pos + chunk_size]
                                 if pos + chunk_size < len(sentence):
                                     chunks.append(part.strip())
                                 else:
@@ -45,7 +45,7 @@ def _chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
             tail = chunks[i - 1][-chunk_overlap:]
             space_idx = tail.find(" ")
             if space_idx != -1:
-                tail = tail[space_idx + 1:]
+                tail = tail[space_idx + 1 :]
             overlapped.append(f"{tail} {chunks[i]}")
         chunks = overlapped
 

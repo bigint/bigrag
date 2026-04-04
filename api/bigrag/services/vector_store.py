@@ -7,7 +7,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
-from pymilvus import MilvusClient, DataType
+from pymilvus import DataType, MilvusClient
 
 logger = logging.getLogger("bigrag.vector_store")
 
@@ -19,7 +19,10 @@ def _get_executor() -> ThreadPoolExecutor:
     global _executor
     if _executor is None:
         from bigrag.config import settings
-        _executor = ThreadPoolExecutor(max_workers=settings.milvus_max_workers, thread_name_prefix="milvus")
+
+        _executor = ThreadPoolExecutor(
+            max_workers=settings.milvus_max_workers, thread_name_prefix="milvus"
+        )
     return _executor
 
 
@@ -58,7 +61,9 @@ class VectorStore:
             return
 
         schema = self.client.create_schema(auto_id=False, enable_dynamic_field=True)
-        schema.add_field(field_name="id", datatype=DataType.VARCHAR, is_primary=True, max_length=128)
+        schema.add_field(
+            field_name="id", datatype=DataType.VARCHAR, is_primary=True, max_length=128
+        )
         schema.add_field(field_name="document_id", datatype=DataType.VARCHAR, max_length=128)
         schema.add_field(field_name="chunk_index", datatype=DataType.INT64)
         schema.add_field(field_name="text", datatype=DataType.VARCHAR, max_length=65535)
@@ -74,7 +79,9 @@ class VectorStore:
 
         await _run(
             self.client.create_collection,
-            collection_name=col, schema=schema, index_params=index_params,
+            collection_name=col,
+            schema=schema,
+            index_params=index_params,
         )
         logger.info(f"Created Milvus collection: {col} (dim={dimension})")
 
@@ -138,13 +145,15 @@ class VectorStore:
         hits = []
         if results and len(results) > 0:
             for hit in results[0]:
-                hits.append({
-                    "id": hit["id"],
-                    "score": hit["distance"],
-                    "text": hit["entity"].get("text", ""),
-                    "document_id": hit["entity"].get("document_id"),
-                    "chunk_index": hit["entity"].get("chunk_index"),
-                })
+                hits.append(
+                    {
+                        "id": hit["id"],
+                        "score": hit["distance"],
+                        "text": hit["entity"].get("text", ""),
+                        "document_id": hit["entity"].get("document_id"),
+                        "chunk_index": hit["entity"].get("chunk_index"),
+                    }
+                )
         logger.info(f"search: collection={col} top_k={top_k} hits={len(hits)} filter={filters}")
         return hits
 
@@ -164,11 +173,16 @@ class VectorStore:
         )
         chunks = sorted(results, key=lambda r: r.get("chunk_index", 0))
         logger.info(f"get_chunks: collection={col} document_id={document_id} count={len(chunks)}")
-        return [{"id": r["id"], "text": r.get("text", ""), "chunk_index": r.get("chunk_index", 0)} for r in chunks]
+        return [
+            {"id": r["id"], "text": r.get("text", ""), "chunk_index": r.get("chunk_index", 0)}
+            for r in chunks
+        ]
 
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         col = self._col(collection)
-        await _run(self.client.delete, collection_name=col, filter=f'document_id == "{document_id}"')
+        await _run(
+            self.client.delete, collection_name=col, filter=f'document_id == "{document_id}"'
+        )
         logger.info(f"delete_by_document: collection={col} document_id={document_id}")
 
     async def delete_by_ids(self, collection: str, ids: list[str]) -> None:
@@ -233,8 +247,11 @@ class VectorStore:
         data = []
         for i in range(len(ids)):
             entry = {
-                "id": ids[i], "document_id": "", "chunk_index": 0,
-                "text": texts[i], "embedding": embeddings[i],
+                "id": ids[i],
+                "document_id": "",
+                "chunk_index": 0,
+                "text": texts[i],
+                "embedding": embeddings[i],
             }
             if metadata and metadata[i]:
                 entry.update(metadata[i])

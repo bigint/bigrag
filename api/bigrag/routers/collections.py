@@ -7,17 +7,17 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from bigrag.config import settings
 from bigrag.database import db
-
-logger = logging.getLogger("bigrag.routers.collections")
 from bigrag.middleware.auth import get_current_user
-from bigrag.services.crypto import decrypt, encrypt
 from bigrag.models.collection import (
     CollectionListResponse,
     CollectionResponse,
     CreateCollectionRequest,
     UpdateCollectionRequest,
 )
+from bigrag.services.crypto import encrypt
 from bigrag.services.vector_store import vector_store
+
+logger = logging.getLogger("bigrag.routers.collections")
 
 router = APIRouter(prefix="/v1/collections", tags=["collections"])
 
@@ -35,14 +35,14 @@ async def list_collections(_: dict = Depends(get_current_user)):
     logger.info("list: fetching all collections")
     rows = await db.fetch("SELECT * FROM collections ORDER BY created_at DESC")
     logger.info(f"list: found {len(rows)} collections")
-    return CollectionListResponse(
-        collections=[_row_to_response(dict(r)) for r in rows]
-    )
+    return CollectionListResponse(collections=[_row_to_response(dict(r)) for r in rows])
 
 
 @router.post("", response_model=CollectionResponse, status_code=201)
 async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get_current_user)):
-    logger.info(f"create: name={body.name} provider={body.embedding_provider} model={body.embedding_model}")
+    logger.info(
+        f"create: name={body.name} provider={body.embedding_provider} model={body.embedding_model}"
+    )
     # Check if collection already exists
     existing = await db.fetchrow("SELECT id FROM collections WHERE name = $1", body.name)
     if existing:
@@ -68,8 +68,11 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
     # Validate the embedding provider is available
     try:
         from bigrag.services.embedding import get_embedding_model
+
         get_embedding_model(
-            provider=provider, model_name=model, dimension=dimension,
+            provider=provider,
+            model_name=model,
+            dimension=dimension,
             api_key=api_key,
         )
     except (ImportError, ValueError) as e:
@@ -90,11 +93,18 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING *
             """,
-            body.name, body.description, provider, model,
-            dimension, body.chunk_size, body.chunk_overlap, body.metadata,
+            body.name,
+            body.description,
+            provider,
+            model,
+            dimension,
+            body.chunk_size,
+            body.chunk_overlap,
+            body.metadata,
             encrypt(body.embedding_api_key) if body.embedding_api_key else None,
             None,
-            body.reranking_enabled, body.reranking_model,
+            body.reranking_enabled,
+            body.reranking_model,
             encrypt(body.reranking_api_key) if body.reranking_api_key else None,
         )
     except asyncpg.UniqueViolationError:
@@ -104,7 +114,9 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
         await vector_store.delete_collection(body.name)
         raise
 
-    logger.info(f"create: collection={body.name} created provider={provider} model={model} dim={dimension}")
+    logger.info(
+        f"create: collection={body.name} created provider={provider} model={model} dim={dimension}"
+    )
     return _row_to_response(dict(row))
 
 
@@ -146,6 +158,7 @@ async def update_collection(
     sql, params = build_update("collections", fields, "name", name)
     row = await db.fetchrow(sql, *params)
     from bigrag.routers import invalidate_collection_cache
+
     invalidate_collection_cache(name)
     return _row_to_response(dict(row))
 
@@ -163,6 +176,7 @@ async def delete_collection(name: str, _: dict = Depends(get_current_user)):
 
     # Delete uploaded files from storage
     from bigrag.services.storage import get_storage
+
     deleted = await get_storage().delete_prefix(f"{name}/")
     logger.info(f"delete: storage files removed name={name} count={deleted}")
 
@@ -171,6 +185,7 @@ async def delete_collection(name: str, _: dict = Depends(get_current_user)):
     logger.info(f"delete: postgres records removed name={name}")
 
     from bigrag.routers import invalidate_collection_cache
+
     invalidate_collection_cache(name)
 
     return {"status": "ok", "message": f"Collection '{name}' deleted"}

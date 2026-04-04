@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import tomli
 from pathlib import Path
+
+import tomli
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

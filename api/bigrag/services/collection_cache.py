@@ -52,8 +52,11 @@ def get_embedding_model_for(collection: dict):
     if not api_key:
         raise HTTPException(
             status_code=400,
-            detail=f"Collection '{collection['name']}' uses '{collection['embedding_provider']}' embeddings "
-                   f"but no API key is configured. Set BIGRAG_EMBEDDING_API_KEY or recreate the collection with an API key.",
+            detail=(
+                f"Collection '{collection['name']}' uses "
+                f"'{collection['embedding_provider']}' embeddings but no API key is configured. "
+                "Set BIGRAG_EMBEDDING_API_KEY or recreate the collection with an API key."
+            ),
         )
 
     return get_embedding_model(

@@ -25,9 +25,7 @@ def _get_fernet() -> Fernet:
 
     secret = settings.secret_key
     if not secret:
-        raise RuntimeError(
-            "No encryption key configured. Set BIGRAG_SECRET_KEY."
-        )
+        raise RuntimeError("No encryption key configured. Set BIGRAG_SECRET_KEY.")
     key = hashlib.pbkdf2_hmac("sha256", secret.encode(), b"bigrag-at-rest", 100_000)
     _fernet = Fernet(base64.urlsafe_b64encode(key))
     return _fernet
@@ -48,6 +46,6 @@ def decrypt(value: str) -> str:
     if not value.startswith(_ENC_PREFIX):
         return value  # Legacy plaintext — return as-is
     try:
-        return _get_fernet().decrypt(value[len(_ENC_PREFIX):].encode()).decode()
+        return _get_fernet().decrypt(value[len(_ENC_PREFIX) :].encode()).decode()
     except InvalidToken:
         return value  # Decryption key changed — return raw (will fail at provider)

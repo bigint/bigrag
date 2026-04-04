@@ -105,8 +105,7 @@ class S3Storage(StorageBackend):
             from aiobotocore.session import get_session
         except ImportError:
             raise ImportError(
-                "aiobotocore is required for S3 storage. "
-                "Install it with: pip install 'bigrag[s3]'"
+                "aiobotocore is required for S3 storage. Install it with: pip install 'bigrag[s3]'"
             )
         self._bucket = bucket
         self._session = get_session()
@@ -204,7 +203,9 @@ def init_storage(
             access_key=s3_access_key,
             secret_key=s3_secret_key,
         )
-        logger.info(f"S3 storage initialized bucket={s3_bucket} endpoint={s3_endpoint_url or 'AWS'}")
+        logger.info(
+            f"S3 storage initialized bucket={s3_bucket} endpoint={s3_endpoint_url or 'AWS'}"
+        )
     else:
         _storage = LocalStorage(upload_dir)
         logger.info(f"Local storage initialized dir={upload_dir}")

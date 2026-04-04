@@ -4,9 +4,9 @@ import asyncio
 import logging
 import time
 import uuid
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import AsyncIterator
 
 import orjson
 import redis.asyncio as aioredis
@@ -20,6 +20,7 @@ def _get_docling_converter():
     global _docling_converter
     if _docling_converter is None:
         from docling.document_converter import DocumentConverter
+
         _docling_converter = DocumentConverter()
     return _docling_converter
 
@@ -111,21 +112,23 @@ class IngestionJob:
     job_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
 
     def serialize(self) -> bytes:
-        return orjson.dumps({
-            "document_id": self.document_id,
-            "file_path": self.file_path,
-            "collection_name": self.collection_name,
-            "embedding_provider": self.embedding_provider,
-            "embedding_model": self.embedding_model,
-            "embedding_dimension": self.embedding_dimension,
-            "embedding_api_key": self.embedding_api_key,
-            "embedding_base_url": self.embedding_base_url,
-            "chunk_size": self.chunk_size,
-            "chunk_overlap": self.chunk_overlap,
-            "attempt": self.attempt,
-            "max_attempts": self.max_attempts,
-            "job_id": self.job_id,
-        })
+        return orjson.dumps(
+            {
+                "document_id": self.document_id,
+                "file_path": self.file_path,
+                "collection_name": self.collection_name,
+                "embedding_provider": self.embedding_provider,
+                "embedding_model": self.embedding_model,
+                "embedding_dimension": self.embedding_dimension,
+                "embedding_api_key": self.embedding_api_key,
+                "embedding_base_url": self.embedding_base_url,
+                "chunk_size": self.chunk_size,
+                "chunk_overlap": self.chunk_overlap,
+                "attempt": self.attempt,
+                "max_attempts": self.max_attempts,
+                "job_id": self.job_id,
+            }
+        )
 
     @classmethod
     def deserialize(cls, data: bytes) -> IngestionJob:
@@ -141,7 +144,8 @@ class IngestionQueue:
 
     async def connect(self, redis_url: str) -> None:
         self._redis = aioredis.from_url(
-            redis_url, decode_responses=False,
+            redis_url,
+            decode_responses=False,
             max_connections=self._num_workers + 4,
         )
         await self._redis.ping()
@@ -161,7 +165,7 @@ class IngestionQueue:
 
     async def stop(self) -> None:
         self._running = False
-        if hasattr(self, '_cleanup_task'):
+        if hasattr(self, "_cleanup_task"):
             self._cleanup_task.cancel()
         await asyncio.gather(*self._workers, return_exceptions=True)
         self._workers.clear()
@@ -172,6 +176,7 @@ class IngestionQueue:
     async def _cleanup_old_data(self) -> None:
         """Periodically clean query_log and webhook_deliveries older than 90 days."""
         from bigrag.database import db
+
         while True:
             try:
                 await asyncio.sleep(86400)  # Run daily
@@ -201,6 +206,7 @@ class IngestionQueue:
 
     async def enqueue(self, job: IngestionJob) -> None:
         from bigrag.config import settings as _settings
+
         depth = await self._redis.llen(QUEUE_KEY)
         if depth >= _settings.queue_max_depth:
             raise ValueError("Ingestion queue is full. Try again later.")
@@ -229,7 +235,9 @@ class IngestionQueue:
         logger.info(f"[worker-{worker_id}] started")
         while self._running:
             try:
-                data = await self._redis.blmove(QUEUE_KEY, PROCESSING_KEY, timeout=1, src="RIGHT", dest="LEFT")
+                data = await self._redis.blmove(
+                    QUEUE_KEY, PROCESSING_KEY, timeout=1, src="RIGHT", dest="LEFT"
+                )
                 if data is None:
                     continue
 
@@ -244,18 +252,29 @@ class IngestionQueue:
 
         logger.info(f"[worker-{worker_id}] stopped")
 
-    def _emit(self, doc_id: str, step: str, status: str, msg: str, progress: float = 0.0, **detail) -> None:
-        event_bus.publish(IngestionEvent(
-            document_id=doc_id, step=step, status=status,
-            message=msg, progress=progress, detail=detail,
-        ))
+    def _emit(
+        self, doc_id: str, step: str, status: str, msg: str, progress: float = 0.0, **detail
+    ) -> None:
+        event_bus.publish(
+            IngestionEvent(
+                document_id=doc_id,
+                step=step,
+                status=status,
+                message=msg,
+                progress=progress,
+                detail=detail,
+            )
+        )
 
     async def _convert_document(self, job: IngestionJob, prefix: str) -> str:
         """Convert document to text via Docling. Returns extracted text."""
-        from bigrag.services.storage import get_storage
         import tempfile
 
-        self._emit(job.document_id, "converting", "processing", "Parsing document with Docling", 0.15)
+        from bigrag.services.storage import get_storage
+
+        self._emit(
+            job.document_id, "converting", "processing", "Parsing document with Docling", 0.15
+        )
         t0 = time.monotonic()
 
         file_data = await get_storage().get(job.file_path)
@@ -275,12 +294,14 @@ class IngestionQueue:
         tmp_path = None
         try:
             from bigrag.config import settings as _settings
+
             result, tmp_path = await asyncio.wait_for(
                 asyncio.to_thread(_write_and_convert),
                 timeout=_settings.conversion_timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             from bigrag.config import settings as _settings
+
             raise ValueError(f"Document conversion timed out after {_settings.conversion_timeout}s")
         finally:
             if tmp_path:
@@ -288,8 +309,14 @@ class IngestionQueue:
 
         elapsed = time.monotonic() - t0
         logger.info(f"{prefix} docling conversion elapsed={elapsed:.2f}s")
-        self._emit(job.document_id, "converted", "processing", f"Parsed in {elapsed:.1f}s", 0.35,
-                   elapsed=round(elapsed, 2))
+        self._emit(
+            job.document_id,
+            "converted",
+            "processing",
+            f"Parsed in {elapsed:.1f}s",
+            0.35,
+            elapsed=round(elapsed, 2),
+        )
 
         text = result.document.export_to_markdown()
         if not text.strip():
@@ -298,16 +325,22 @@ class IngestionQueue:
             raise ValueError("Document produced no extractable text")
 
         logger.info(f"{prefix} text extracted chars={len(text)}")
-        self._emit(job.document_id, "text_extracted", "processing",
-                   f"Extracted {len(text):,} characters", 0.40, chars=len(text))
+        self._emit(
+            job.document_id,
+            "text_extracted",
+            "processing",
+            f"Extracted {len(text):,} characters",
+            0.40,
+            chars=len(text),
+        )
         return text
 
     async def _chunk_and_embed(self, job: IngestionJob, text: str, prefix: str) -> int:
         """Chunk text, embed, and insert into vector store. Returns total inserted count."""
+        from bigrag.config import settings as _settings
         from bigrag.services.embedding import get_embedding_model
         from bigrag.services.ingestion import _chunk_text
         from bigrag.services.vector_store import vector_store
-        from bigrag.config import settings as _settings
 
         t0 = time.monotonic()
         embedding_model = get_embedding_model(
@@ -317,20 +350,34 @@ class IngestionQueue:
             api_key=job.embedding_api_key,
         )
         elapsed = time.monotonic() - t0
-        logger.info(f"{prefix} model loaded provider={job.embedding_provider} "
-                     f"model={job.embedding_model} elapsed={elapsed:.2f}s")
-        self._emit(job.document_id, "model_loaded", "processing",
-                   f"Loaded {job.embedding_model}", 0.10,
-                   provider=job.embedding_provider, model=job.embedding_model,
-                   elapsed=round(elapsed, 2))
+        logger.info(
+            f"{prefix} model loaded provider={job.embedding_provider} "
+            f"model={job.embedding_model} elapsed={elapsed:.2f}s"
+        )
+        self._emit(
+            job.document_id,
+            "model_loaded",
+            "processing",
+            f"Loaded {job.embedding_model}",
+            0.10,
+            provider=job.embedding_provider,
+            model=job.embedding_model,
+            elapsed=round(elapsed, 2),
+        )
 
         chunks = await asyncio.to_thread(_chunk_text, text, job.chunk_size, job.chunk_overlap)
         if not chunks:
             raise ValueError("Document produced no chunks")
         logger.info(f"{prefix} chunked into {len(chunks)} chunks")
-        self._emit(job.document_id, "chunked", "processing",
-                   f"Split into {len(chunks)} chunks", 0.45,
-                   chunks=len(chunks), chunk_size=job.chunk_size)
+        self._emit(
+            job.document_id,
+            "chunked",
+            "processing",
+            f"Split into {len(chunks)} chunks",
+            0.45,
+            chunks=len(chunks),
+            chunk_size=job.chunk_size,
+        )
 
         batch_size = _settings.ingestion_batch_size
         total_inserted = 0
@@ -352,19 +399,31 @@ class IngestionQueue:
             indices = list(range(batch_start, batch_end))
             count = await vector_store.insert(
                 collection=job.collection_name,
-                ids=ids, document_ids=doc_ids, chunk_indices=indices,
-                texts=batch_texts, embeddings=embeddings,
+                ids=ids,
+                document_ids=doc_ids,
+                chunk_indices=indices,
+                texts=batch_texts,
+                embeddings=embeddings,
             )
             insert_elapsed = time.monotonic() - t1
             total_inserted += count
 
             progress = 0.45 + (0.45 * batch_num / total_batches)
-            logger.info(f"{prefix} batch {batch_num}/{total_batches} inserted={count} "
-                        f"embed={embed_elapsed:.2f}s insert={insert_elapsed:.2f}s")
-            self._emit(doc, "embedding", "processing",
-                       f"Batch {batch_num}/{total_batches} — {total_inserted} vectors",
-                       progress, batch=batch_num, total_batches=total_batches,
-                       inserted=total_inserted, embed_time=round(embed_elapsed, 2))
+            logger.info(
+                f"{prefix} batch {batch_num}/{total_batches} inserted={count} "
+                f"embed={embed_elapsed:.2f}s insert={insert_elapsed:.2f}s"
+            )
+            self._emit(
+                doc,
+                "embedding",
+                "processing",
+                f"Batch {batch_num}/{total_batches} — {total_inserted} vectors",
+                progress,
+                batch=batch_num,
+                total_batches=total_batches,
+                inserted=total_inserted,
+                embed_time=round(embed_elapsed, 2),
+            )
 
         return total_inserted
 
@@ -378,8 +437,15 @@ class IngestionQueue:
 
         await self._redis.hincrby(STATS_KEY, "processing", 1)
         logger.info(f"{prefix} starting attempt={job.attempt}/{job.max_attempts}")
-        self._emit(doc, "queued", "processing", "Starting ingestion", 0.0,
-                   attempt=job.attempt, max_attempts=job.max_attempts)
+        self._emit(
+            doc,
+            "queued",
+            "processing",
+            "Starting ingestion",
+            0.0,
+            attempt=job.attempt,
+            max_attempts=job.max_attempts,
+        )
 
         start_time = time.monotonic()
 
@@ -388,15 +454,23 @@ class IngestionQueue:
                 "UPDATE documents SET status = 'processing', updated_at = now() WHERE id = $1",
                 uuid.UUID(doc),
             )
-            self._emit(doc, "processing", "processing", "Preparing document", 0.05,
-                       collection=job.collection_name)
+            self._emit(
+                doc,
+                "processing",
+                "processing",
+                "Preparing document",
+                0.05,
+                collection=job.collection_name,
+            )
 
             text = await self._convert_document(job, prefix)
             total_inserted = await self._chunk_and_embed(job, text, prefix)
 
             await db.execute(
-                "UPDATE documents SET status = 'ready', chunk_count = $1, error_message = NULL, updated_at = now() WHERE id = $2",
-                total_inserted, uuid.UUID(doc),
+                "UPDATE documents SET status = 'ready', chunk_count = $1, "
+                "error_message = NULL, updated_at = now() WHERE id = $2",
+                total_inserted,
+                uuid.UUID(doc),
             )
             await db.execute(
                 """UPDATE collections SET
@@ -410,17 +484,25 @@ class IngestionQueue:
             await self._redis.hincrby(STATS_KEY, "completed", 1)
             await self._redis.hincrby(STATS_KEY, "processing", -1)
             logger.info(f"{prefix} complete chunks={total_inserted} elapsed={total_elapsed:.2f}s")
-            self._emit(doc, "complete", "complete",
-                       f"Done — {total_inserted} chunks in {total_elapsed:.1f}s", 1.0,
-                       chunks=total_inserted, elapsed=round(total_elapsed, 2),
-                       collection=job.collection_name)
+            self._emit(
+                doc,
+                "complete",
+                "complete",
+                f"Done — {total_inserted} chunks in {total_elapsed:.1f}s",
+                1.0,
+                chunks=total_inserted,
+                elapsed=round(total_elapsed, 2),
+                collection=job.collection_name,
+            )
             event_bus.complete(doc)
 
         except Exception as e:
             total_elapsed = time.monotonic() - start_time
             await self._redis.hincrby(STATS_KEY, "processing", -1)
-            logger.error(f"{prefix} failed attempt={job.attempt}/{job.max_attempts} "
-                         f"error={e!r} elapsed={total_elapsed:.2f}s")
+            logger.error(
+                f"{prefix} failed attempt={job.attempt}/{job.max_attempts} "
+                f"error={e!r} elapsed={total_elapsed:.2f}s"
+            )
 
             is_permanent = isinstance(e, _PERMANENT_ERRORS)
 
@@ -430,26 +512,46 @@ class IngestionQueue:
                 except Exception as cleanup_err:
                     logger.warning(f"{prefix} failed to clean up partial vectors: {cleanup_err!r}")
 
-                delay = min(2 ** job.attempt, 30)
-                self._emit(doc, "retrying", "processing",
-                           f"Attempt {job.attempt} failed, retrying in {delay}s",
-                           0.0, error=str(e), attempt=job.attempt, delay=delay)
+                delay = min(2**job.attempt, 30)
+                self._emit(
+                    doc,
+                    "retrying",
+                    "processing",
+                    f"Attempt {job.attempt} failed, retrying in {delay}s",
+                    0.0,
+                    error=str(e),
+                    attempt=job.attempt,
+                    delay=delay,
+                )
                 await db.execute(
-                    "UPDATE documents SET status = 'pending', error_message = $1, updated_at = now() WHERE id = $2",
-                    f"Attempt {job.attempt} failed: {e}. Retrying...", uuid.UUID(doc),
+                    "UPDATE documents SET status = 'pending', "
+                    "error_message = $1, updated_at = now() WHERE id = $2",
+                    f"Attempt {job.attempt} failed: {e}. Retrying...",
+                    uuid.UUID(doc),
                 )
                 await self.enqueue(job)
             else:
-                reason = "permanent error" if is_permanent else f"{job.max_attempts} attempts exhausted"
+                reason = (
+                    "permanent error" if is_permanent else f"{job.max_attempts} attempts exhausted"
+                )
                 await self._redis.hincrby(STATS_KEY, "failed", 1)
                 await self._redis.lpush(DEAD_LETTER_KEY, job.serialize())
                 await db.execute(
-                    "UPDATE documents SET status = 'failed', error_message = $1, updated_at = now() WHERE id = $2",
-                    str(e), uuid.UUID(doc),
+                    "UPDATE documents SET status = 'failed', "
+                    "error_message = $1, updated_at = now() WHERE id = $2",
+                    str(e),
+                    uuid.UUID(doc),
                 )
                 logger.error(f"{prefix} permanently failed: {reason}")
-                self._emit(doc, "failed", "failed", str(e), 0.0,
-                           attempts=job.attempt, collection=job.collection_name)
+                self._emit(
+                    doc,
+                    "failed",
+                    "failed",
+                    str(e),
+                    0.0,
+                    attempts=job.attempt,
+                    collection=job.collection_name,
+                )
                 event_bus.complete(doc)
 
 

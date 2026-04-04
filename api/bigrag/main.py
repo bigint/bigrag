@@ -15,7 +15,7 @@ from bigrag import __version__
 from bigrag.config import Settings, settings
 from bigrag.database import db
 from bigrag.services.queue import ingestion_queue
-from bigrag.services.storage import init_storage, get_storage
+from bigrag.services.storage import get_storage, init_storage
 from bigrag.services.vector_store import vector_store
 
 
@@ -24,11 +24,16 @@ async def lifespan(app: FastAPI):
     import sys
 
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter(
-        "%(asctime)s %(levelname)s %(name)s %(message)s"
-        if settings.log_format == "text"
-        else '{"time":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}'
-    ))
+    handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s %(levelname)s %(name)s %(message)s"
+            if settings.log_format == "text"
+            else (
+                '{"time":"%(asctime)s","level":"%(levelname)s",'
+                '"logger":"%(name)s","msg":"%(message)s"}'
+            )
+        )
+    )
     logging.root.handlers.clear()
     logging.root.addHandler(handler)
     logging.root.setLevel(getattr(logging, settings.log_level.upper(), logging.INFO))
@@ -43,7 +48,11 @@ async def lifespan(app: FastAPI):
         )
 
     # Postgres
-    await db.connect(settings.database_url, min_size=settings.db_pool_min, max_size=settings.db_pool_max)
+    await db.connect(
+        settings.database_url,
+        min_size=settings.db_pool_min,
+        max_size=settings.db_pool_max,
+    )
     await db.migrate()
 
     # Milvus
@@ -68,6 +77,7 @@ async def lifespan(app: FastAPI):
 
     # Webhook dispatcher
     from bigrag.services.webhook import webhook_dispatcher
+
     await webhook_dispatcher.start()
 
     logger.info(f"Server ready on {settings.host}:{settings.port}")
@@ -75,6 +85,7 @@ async def lifespan(app: FastAPI):
 
     await ingestion_queue.stop()
     from bigrag.services.webhook import webhook_dispatcher
+
     await webhook_dispatcher.stop()
     await get_storage().close()
     vector_store.close()
@@ -178,6 +189,7 @@ def create_app() -> FastAPI:
     app.include_router(query_router)
 
     from bigrag.routers.webhooks import router as webhooks_router
+
     app.include_router(webhooks_router)
 
     return app
@@ -197,16 +209,25 @@ def cli():
     args = parser.parse_args()
 
     from bigrag import config
+
     s = Settings.from_toml(args.config)
 
-    if args.host: s.host = args.host
-    if args.port: s.port = args.port
-    if args.database_url: s.database_url = args.database_url
-    if args.milvus_uri: s.milvus_uri = args.milvus_uri
-    if args.redis_url: s.redis_url = args.redis_url
-    if args.secret_key: s.secret_key = args.secret_key
-    if args.log_level: s.log_level = args.log_level
-    if args.log_format: s.log_format = args.log_format
+    if args.host:
+        s.host = args.host
+    if args.port:
+        s.port = args.port
+    if args.database_url:
+        s.database_url = args.database_url
+    if args.milvus_uri:
+        s.milvus_uri = args.milvus_uri
+    if args.redis_url:
+        s.redis_url = args.redis_url
+    if args.secret_key:
+        s.secret_key = args.secret_key
+    if args.log_level:
+        s.log_level = args.log_level
+    if args.log_format:
+        s.log_format = args.log_format
 
     config.settings = s
 
@@ -215,8 +236,11 @@ def cli():
     # CLI/TOML config for CORS origins and other middleware settings.
     uvicorn.run(
         "bigrag.main:create_app",
-        host=s.host, port=s.port, log_level=s.log_level,
-        workers=s.workers, factory=True,
+        host=s.host,
+        port=s.port,
+        log_level=s.log_level,
+        workers=s.workers,
+        factory=True,
         timeout_graceful_shutdown=30,
     )
 
