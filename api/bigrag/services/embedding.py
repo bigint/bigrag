@@ -6,7 +6,15 @@ from abc import ABC, abstractmethod
 
 logger = logging.getLogger("bigrag.embedding")
 
-_embed_semaphore = asyncio.Semaphore(8)
+_embed_semaphore: asyncio.Semaphore | None = None
+
+
+def _get_semaphore() -> asyncio.Semaphore:
+    global _embed_semaphore
+    if _embed_semaphore is None:
+        from bigrag.config import settings
+        _embed_semaphore = asyncio.Semaphore(settings.embedding_concurrency)
+    return _embed_semaphore
 
 
 class EmbeddingModel(ABC):
@@ -45,7 +53,7 @@ class OpenAIEmbedding(EmbeddingModel):
         logger.info(f"Initialized OpenAI embedding: {model_name} (dim={dimension})")
 
     async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
-        async with _embed_semaphore:
+        async with _get_semaphore():
             response = await self._client.embeddings.create(input=texts, model=self._model_name)
         return [item.embedding for item in response.data]
 
@@ -87,7 +95,7 @@ class CohereEmbedding(EmbeddingModel):
 
     async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
         cohere_input_type = self._INPUT_TYPE_MAP.get(input_type, "search_document")
-        async with _embed_semaphore:
+        async with _get_semaphore():
             response = await self._client.embed(
                 texts=texts,
                 model=self._model_name,

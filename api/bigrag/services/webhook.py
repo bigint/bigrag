@@ -16,10 +16,20 @@ from bigrag.services.queue import IngestionEvent, event_bus
 
 logger = logging.getLogger("bigrag.webhook")
 
-# Retry delays in seconds (exponential backoff)
-_RETRY_DELAYS = [10, 30, 90]
-_DELIVERY_TIMEOUT = 10
-_CACHE_TTL = 60
+def _retry_delays() -> list[int]:
+    from bigrag.config import settings
+    return settings.webhook_retry_delays
+
+
+def _delivery_timeout() -> int:
+    from bigrag.config import settings
+    return settings.webhook_delivery_timeout
+
+
+def _cache_ttl() -> int:
+    from bigrag.config import settings
+    return settings.webhook_cache_ttl
+
 
 # Map ingestion event steps to webhook event names
 _STEP_TO_EVENT = {
@@ -62,7 +72,7 @@ class WebhookDispatcher:
         self._cache_time: float = 0
 
     async def start(self) -> None:
-        self._client = httpx.AsyncClient(timeout=_DELIVERY_TIMEOUT)
+        self._client = httpx.AsyncClient(timeout=_delivery_timeout())
         self._task = asyncio.create_task(self._listen())
         logger.info("WebhookDispatcher started")
 
@@ -84,7 +94,7 @@ class WebhookDispatcher:
     async def _get_webhooks(self) -> list[dict]:
         """Fetch active webhooks with 60s in-memory cache."""
         now = time.monotonic()
-        if self._cache is not None and (now - self._cache_time) < _CACHE_TTL:
+        if self._cache is not None and (now - self._cache_time) < _cache_ttl():
             return self._cache
 
         from bigrag.database import db
@@ -196,7 +206,8 @@ class WebhookDispatcher:
         last_error = None
         last_status_code = None
 
-        for attempt in range(1, len(_RETRY_DELAYS) + 2):  # 1 initial + 3 retries
+        retry_delays = _retry_delays()
+        for attempt in range(1, len(retry_delays) + 2):  # 1 initial + 3 retries
             try:
                 response = await self._client.post(
                     webhook["url"],
@@ -230,8 +241,8 @@ class WebhookDispatcher:
 
             # Update attempt count and schedule retry
             retry_index = attempt - 1
-            if retry_index < len(_RETRY_DELAYS):
-                delay = _RETRY_DELAYS[retry_index]
+            if retry_index < len(retry_delays):
+                delay = retry_delays[retry_index]
                 logger.warning(
                     f"Webhook delivery failed: webhook={webhook_id} event={event} "
                     f"delivery={delivery_id} attempt={attempt} error={last_error} "
@@ -262,7 +273,7 @@ class WebhookDispatcher:
                 last_status_code = $2, last_error = $3, completed_at = now()
             WHERE id = $4
             """,
-            len(_RETRY_DELAYS) + 1,
+            len(retry_delays) + 1,
             last_status_code,
             last_error,
             delivery_id,
@@ -294,7 +305,7 @@ class WebhookDispatcher:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=_DELIVERY_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=_delivery_timeout()) as client:
                 response = await client.post(
                     webhook["url"], content=payload, headers=headers
                 )

@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
     await db.migrate()
 
     # Milvus
-    vector_store.configure(settings.milvus_uri)
+    vector_store.configure(settings.milvus_uri, nprobe=settings.milvus_nprobe)
     vector_store.connect()
 
     # Storage

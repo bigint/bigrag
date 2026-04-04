@@ -12,22 +12,32 @@ from pymilvus import MilvusClient, DataType
 logger = logging.getLogger("bigrag.vector_store")
 
 # Dedicated thread pool for Milvus I/O so we never block the event loop
-_executor = ThreadPoolExecutor(max_workers=32, thread_name_prefix="milvus")
+_executor: ThreadPoolExecutor | None = None
+
+
+def _get_executor() -> ThreadPoolExecutor:
+    global _executor
+    if _executor is None:
+        from bigrag.config import settings
+        _executor = ThreadPoolExecutor(max_workers=settings.milvus_max_workers, thread_name_prefix="milvus")
+    return _executor
 
 
 async def _run(fn, *args, **kwargs):
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(_executor, partial(fn, *args, **kwargs))
+    return await loop.run_in_executor(_get_executor(), partial(fn, *args, **kwargs))
 
 
 class VectorStore:
     def __init__(self, uri: str = "http://localhost:19530") -> None:
         self.uri = uri
         self.client: MilvusClient | None = None
+        self._nprobe: int = 32
 
-    def configure(self, uri: str) -> None:
+    def configure(self, uri: str, nprobe: int = 32) -> None:
         """Update the URI before connecting. Use instead of calling __init__ directly."""
         self.uri = uri
+        self._nprobe = nprobe
 
     def connect(self) -> None:
         self.client = MilvusClient(uri=self.uri)
@@ -121,7 +131,7 @@ class VectorStore:
             data=[query_embedding],
             limit=top_k,
             output_fields=output_fields,
-            search_params={"metric_type": "COSINE", "params": {"nprobe": 32}},
+            search_params={"metric_type": "COSINE", "params": {"nprobe": self._nprobe}},
             filter=filters,
         )
 
