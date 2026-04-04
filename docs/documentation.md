@@ -254,17 +254,34 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | **Auth** | | |
 | `BIGRAG_API_SECRET` | Shared API secret (open access if unset) | — |
 | `BIGRAG_SECRET_KEY` | Encryption key for secrets at rest (required for collections with API keys) | — |
+| **Database** | | |
+| `BIGRAG_DB_POOL_MIN` | Minimum connection pool size | `5` |
+| `BIGRAG_DB_POOL_MAX` | Maximum connection pool size | `50` |
 | **Ingestion** | | |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size in MB | `1024` |
 | `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
+| `BIGRAG_INGESTION_BATCH_SIZE` | Vectors per embedding batch | `128` |
+| `BIGRAG_CHUNK_SIZE` | Default chunk size (characters) | `512` |
+| `BIGRAG_CHUNK_OVERLAP` | Default chunk overlap (characters) | `50` |
 | **Storage** | | |
 | `BIGRAG_STORAGE_BACKEND` | Storage backend (`local`, `s3`) | `local` |
 | `BIGRAG_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
 | `BIGRAG_S3_BUCKET` | S3 bucket name | — |
 | `BIGRAG_S3_ENDPOINT_URL` | S3 endpoint URL | — |
 | `BIGRAG_S3_REGION` | S3 region | `us-east-1` |
+| **Tuning** | | |
+| `BIGRAG_EMBEDDING_CONCURRENCY` | Max concurrent embedding requests | `8` |
+| `BIGRAG_MILVUS_MAX_WORKERS` | Milvus thread pool size | `32` |
+| `BIGRAG_MILVUS_NPROBE` | Milvus search nprobe parameter | `32` |
+| `BIGRAG_COLLECTION_CACHE_TTL` | Collection cache TTL in seconds | `30` |
+| `BIGRAG_QUEUE_MAX_DEPTH` | Max ingestion queue depth | `10000` |
+| `BIGRAG_CONVERSION_TIMEOUT` | Document conversion timeout (seconds) | `300` |
+| `BIGRAG_WEBHOOK_DELIVERY_TIMEOUT` | Webhook HTTP timeout (seconds) | `10` |
+| `BIGRAG_WEBHOOK_CACHE_TTL` | Webhook cache TTL in seconds | `60` |
+| `BIGRAG_CORS_ORIGINS` | Allowed CORS origins | `["*"]` |
+| `BIGRAG_SESSION_EXPIRY_HOURS` | Session expiry in hours | `168` |
 
-Embedding provider, model, API key, chunk size, and chunk overlap are configured per collection via the API — not as server-level environment variables.
+Embedding provider, model, API key, chunk size, and chunk overlap are configured per collection via the API. The `CHUNK_SIZE` and `CHUNK_OVERLAP` settings above are server-level defaults used when not specified per-collection.
 
 ---
 
@@ -280,14 +297,27 @@ Interactive Swagger docs: `http://localhost:6000/docs`
 
 #### `GET /health`
 
-Health check. No authentication required.
+Liveness check. No authentication required. Always returns 200 if the server is running.
 
 **Response:**
 
 ```json
 {
   "status": "ok",
-  "version": "0.1.0",
+  "version": "0.0.2"
+}
+```
+
+#### `GET /health/ready`
+
+Readiness check. Tests connectivity to Postgres, Milvus, and Redis. No authentication required.
+
+**Response (200):**
+
+```json
+{
+  "status": "ok",
+  "version": "0.0.2",
   "postgres": true,
   "milvus": true,
   "redis": true
@@ -1650,6 +1680,9 @@ BIGRAG_REDIS_URL=redis://redis:6379/0
 # Performance
 BIGRAG_WORKERS=8                          # Match CPU cores
 BIGRAG_INGESTION_WORKERS=8               # More workers for heavy ingestion
+BIGRAG_DB_POOL_MAX=100                   # Increase for high concurrency
+BIGRAG_EMBEDDING_CONCURRENCY=16          # Parallel embedding requests
+BIGRAG_MILVUS_MAX_WORKERS=64            # Milvus thread pool
 
 # Logging
 BIGRAG_LOG_FORMAT=json                    # Structured logging for production
