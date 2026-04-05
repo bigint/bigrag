@@ -113,6 +113,16 @@ export interface DocumentChunkListResponse {
   total: number;
 }
 
+export interface BatchDeleteBody {
+  document_ids: string[];
+}
+
+export interface BatchDeleteDocumentsResponse {
+  status: string;
+  deleted: number;
+  errors: Array<{ document_id: string; error: string }>;
+}
+
 // --- Query ---
 
 export interface QueryBody {

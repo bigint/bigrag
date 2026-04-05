@@ -11,7 +11,12 @@ from fastapi.responses import Response, StreamingResponse
 from bigrag.config import settings
 from bigrag.database import db
 from bigrag.middleware.auth import get_current_user
-from bigrag.models.document import DocumentListResponse, DocumentResponse
+from bigrag.models.document import (
+    BatchDeleteRequest,
+    BatchDeleteResponse,
+    DocumentListResponse,
+    DocumentResponse,
+)
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
 from bigrag.services.queue import IngestionJob, event_bus, ingestion_queue
 from bigrag.services.storage import get_storage
@@ -372,6 +377,153 @@ async def download_document_file(
         media_type=content_type,
         headers={"Content-Disposition": f'inline; filename="{row["filename"]}"'},
     )
+
+
+@router.post("/batch/upload", response_model=DocumentListResponse, status_code=201)
+async def batch_upload_documents(
+    collection_name: str,
+    request: Request,
+    files: list[UploadFile] = File(...),
+    metadata: str = Form(default="{}"),
+    _: dict = Depends(get_current_user),
+):
+    collection = await get_collection_or_404(collection_name)
+    try:
+        get_embedding_model_for(collection)
+    except (ImportError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if len(files) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 files per batch upload")
+
+    try:
+        shared_meta = json.loads(metadata) if metadata else {}
+    except json.JSONDecodeError:
+        shared_meta = {}
+
+    max_size = settings.max_upload_size_mb * 1024 * 1024
+    results = []
+
+    for file in files:
+        file_ext = Path(file.filename or "").suffix.lower()
+        if file_ext and file_ext not in SUPPORTED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Unsupported file type '{file_ext}' for file '{file.filename}'. "
+                    f"Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
+                ),
+            )
+
+        chunks = []
+        total_size = 0
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            total_size += len(chunk)
+            if total_size > max_size:
+                raise HTTPException(
+                    status_code=413,
+                    detail=(
+                        f"File '{file.filename}' too large. "
+                        f"Max size: {settings.max_upload_size_mb}MB"
+                    ),
+                )
+            chunks.append(chunk)
+        content = b"".join(chunks)
+
+        doc_id = str(uuid.uuid4())
+        ext = Path(file.filename or "document").suffix
+        storage_key = f"{collection_name}/{doc_id}{ext}"
+
+        storage = get_storage()
+        await storage.put(storage_key, content)
+
+        row = await db.fetchrow(
+            """
+            INSERT INTO documents
+                (id, collection_id, filename, file_type, file_size, file_path, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+            """,
+            uuid.UUID(doc_id),
+            collection["id"],
+            file.filename or "document",
+            ext.lstrip("."),
+            len(content),
+            storage_key,
+            shared_meta,
+        )
+
+        await ingestion_queue.enqueue(
+            IngestionJob(
+                document_id=doc_id,
+                file_path=storage_key,
+                collection_name=collection_name,
+                embedding_provider=collection["embedding_provider"],
+                embedding_model=collection["embedding_model"],
+                embedding_dimension=collection["dimension"],
+                embedding_api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
+                chunk_size=collection["chunk_size"],
+                chunk_overlap=collection["chunk_overlap"],
+            )
+        )
+        results.append(_row_to_response(dict(row)))
+
+    logger.info(f"batch_upload: collection={collection_name} files={len(results)}")
+    return DocumentListResponse(documents=results, total=len(results))
+
+
+@router.post("/batch/delete", response_model=BatchDeleteResponse)
+async def batch_delete_documents(
+    collection_name: str,
+    body: BatchDeleteRequest,
+    _: dict = Depends(get_current_user),
+):
+    collection = await get_collection_or_404(collection_name)
+
+    if len(body.document_ids) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 documents per batch delete")
+
+    deleted = 0
+    errors = []
+
+    for doc_id in body.document_ids:
+        row = await db.fetchrow(
+            "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
+            uuid.UUID(doc_id),
+            collection["id"],
+        )
+        if not row:
+            errors.append({"document_id": doc_id, "error": "Document not found"})
+            continue
+
+        try:
+            await vector_store.delete_by_document(collection_name, doc_id)
+            await db.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(doc_id))
+            await get_storage().delete(row["file_path"])
+            deleted += 1
+        except Exception as e:
+            logger.error(f"batch_delete: failed to delete doc={doc_id}: {e!r}")
+            errors.append({"document_id": doc_id, "error": str(e)})
+
+    await db.execute(
+        """
+        UPDATE collections SET
+            document_count = (
+                SELECT COUNT(*) FROM documents WHERE collection_id = $1 AND status = 'ready'
+            ),
+            updated_at = now()
+        WHERE id = $1
+        """,
+        collection["id"],
+    )
+
+    logger.info(
+        f"batch_delete: collection={collection_name} deleted={deleted} errors={len(errors)}"
+    )
+    return BatchDeleteResponse(status="ok", deleted=deleted, errors=errors)
 
 
 @router.get("/{document_id}/progress")

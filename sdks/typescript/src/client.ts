@@ -6,6 +6,8 @@ import {
 import { parseSSEStream } from "./sse.js";
 import type {
   AnalyticsResponse,
+  BatchDeleteBody,
+  BatchDeleteDocumentsResponse,
   BatchQueryBody,
   BatchQueryResponse,
   Collection,
@@ -313,6 +315,49 @@ export class BigRAG {
     );
   }
 
+  async batchUploadDocuments(
+    collection: string,
+    files: FileInput[],
+    metadata?: Record<string, unknown>,
+  ): Promise<DocumentListResponse> {
+    const form = new FormData();
+
+    for (const file of files) {
+      if (file instanceof Blob) {
+        const name = file instanceof File ? file.name : "document";
+        form.append("files", file, name);
+      } else if (file instanceof Uint8Array || (typeof Buffer !== "undefined" && Buffer.isBuffer(file))) {
+        form.append("files", new Blob([file as BlobPart]), "document");
+      } else if (typeof file === "object" && "path" in file) {
+        const { readFile } = await import("node:fs/promises");
+        const { basename } = await import("node:path");
+        const data = await readFile(file.path);
+        const name = file.name ?? basename(file.path);
+        form.append("files", new Blob([data]), name);
+      }
+    }
+
+    if (metadata) {
+      form.append("metadata", JSON.stringify(metadata));
+    }
+
+    return this._requestFormData(
+      `/v1/collections/${encodeURIComponent(collection)}/documents/batch/upload`,
+      form,
+    );
+  }
+
+  batchDeleteDocuments(
+    collection: string,
+    documentIds: string[],
+  ): Promise<BatchDeleteDocumentsResponse> {
+    return this._request(
+      "POST",
+      `/v1/collections/${encodeURIComponent(collection)}/documents/batch/delete`,
+      { json: { document_ids: documentIds } },
+    );
+  }
+
   reprocessDocument(
     collection: string,
     documentId: string,
@@ -519,6 +564,17 @@ export class CollectionClient {
 
   deleteDocument(documentId: string): Promise<StatusResponse> {
     return this.client.deleteDocument(this.name, documentId);
+  }
+
+  batchUpload(
+    files: FileInput[],
+    metadata?: Record<string, unknown>,
+  ): Promise<DocumentListResponse> {
+    return this.client.batchUploadDocuments(this.name, files, metadata);
+  }
+
+  batchDelete(documentIds: string[]): Promise<BatchDeleteDocumentsResponse> {
+    return this.client.batchDeleteDocuments(this.name, documentIds);
   }
 
   reprocessDocument(documentId: string): Promise<StatusResponse> {

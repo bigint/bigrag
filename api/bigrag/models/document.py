@@ -30,3 +30,13 @@ class DocumentChunkResponse(BaseModel):
     chunk_index: int
     text: str
     metadata: dict
+
+
+class BatchDeleteRequest(BaseModel):
+    document_ids: list[str]
+
+
+class BatchDeleteResponse(BaseModel):
+    status: str
+    deleted: int
+    errors: list[dict] = []
