@@ -113,6 +113,22 @@ export interface DocumentChunkListResponse {
   total: number;
 }
 
+export interface BatchStatusBody {
+  document_ids: string[];
+}
+
+export interface DocumentStatus {
+  id: string;
+  status: string;
+  error_message: string | null;
+  chunk_count: number;
+}
+
+export interface BatchStatusResponse {
+  documents: DocumentStatus[];
+  total: number;
+}
+
 export interface BatchDeleteBody {
   document_ids: string[];
 }

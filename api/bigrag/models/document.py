@@ -32,6 +32,22 @@ class DocumentChunkResponse(BaseModel):
     metadata: dict
 
 
+class BatchStatusRequest(BaseModel):
+    document_ids: list[str]
+
+
+class DocumentStatusResponse(BaseModel):
+    id: str
+    status: str
+    error_message: str | None = None
+    chunk_count: int
+
+
+class BatchStatusResponse(BaseModel):
+    documents: list[DocumentStatusResponse]
+    total: int
+
+
 class BatchDeleteRequest(BaseModel):
     document_ids: list[str]
 

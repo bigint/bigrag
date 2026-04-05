@@ -9,6 +9,7 @@ import type {
   BatchDeleteBody,
   BatchDeleteDocumentsResponse,
   BatchQueryBody,
+  BatchStatusResponse,
   BatchQueryResponse,
   Collection,
   CollectionListResponse,
@@ -347,6 +348,17 @@ export class BigRAG {
     );
   }
 
+  batchGetStatus(
+    collection: string,
+    documentIds: string[],
+  ): Promise<BatchStatusResponse> {
+    return this._request(
+      "POST",
+      `/v1/collections/${encodeURIComponent(collection)}/documents/batch/status`,
+      { json: { document_ids: documentIds } },
+    );
+  }
+
   batchDeleteDocuments(
     collection: string,
     documentIds: string[],
@@ -571,6 +583,10 @@ export class CollectionClient {
     metadata?: Record<string, unknown>,
   ): Promise<DocumentListResponse> {
     return this.client.batchUploadDocuments(this.name, files, metadata);
+  }
+
+  batchGetStatus(documentIds: string[]): Promise<BatchStatusResponse> {
+    return this.client.batchGetStatus(this.name, documentIds);
   }
 
   batchDelete(documentIds: string[]): Promise<BatchDeleteDocumentsResponse> {

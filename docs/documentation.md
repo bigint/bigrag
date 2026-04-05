@@ -660,6 +660,47 @@ curl -X POST http://localhost:6100/v1/collections/research/documents/batch/uploa
 - `404` — Collection not found
 - `413` — File too large
 
+#### `POST /v1/collections/{collection_name}/documents/batch/status`
+
+Get the processing status of multiple documents in a single request.
+
+**Request:**
+
+```json
+{
+  "document_ids": ["doc-id-1", "doc-id-2", "doc-id-3"]
+}
+```
+
+**Response** `200`:
+
+```json
+{
+  "documents": [
+    {
+      "id": "doc-id-1",
+      "status": "ready",
+      "error_message": null,
+      "chunk_count": 24
+    },
+    {
+      "id": "doc-id-2",
+      "status": "processing",
+      "error_message": null,
+      "chunk_count": 0
+    }
+  ],
+  "total": 2
+}
+```
+
+Documents not found in the collection are omitted from the response.
+
+**Errors:**
+
+- `400` — More than 100 document IDs
+- `404` — Collection not found
+
 #### `POST /v1/collections/{collection_name}/documents/batch/delete`
 
 Delete multiple documents in a single request.
@@ -1479,6 +1520,7 @@ client.batchUploadDocuments(collection, files, metadata?)
 client.listDocuments(collection, { status?, limit?, offset? })
 client.getDocument(collection, documentId)
 client.deleteDocument(collection, documentId)
+client.batchGetStatus(collection, documentIds)
 client.batchDeleteDocuments(collection, documentIds)
 client.reprocessDocument(collection, documentId)
 client.getDocumentChunks(collection, documentId)
@@ -1515,6 +1557,7 @@ const docs = client.collection("knowledge_base");
 await docs.query({ query: "PTO policy", top_k: 5 });
 await docs.upload(file);
 await docs.batchUpload([file1, file2, file3]);
+await docs.batchGetStatus(["doc-id-1", "doc-id-2"]);
 await docs.batchDelete(["doc-id-1", "doc-id-2"]);
 await docs.analytics();
 ```
@@ -1642,6 +1685,12 @@ curl -X POST $BASE/v1/collections/docs/documents/batch/upload \
 # Delete a document
 curl -X DELETE $BASE/v1/collections/docs/documents/DOC_ID \
   -H "Authorization: Bearer $BIGRAG_API_SECRET"
+
+# Batch check status of multiple documents
+curl -X POST $BASE/v1/collections/docs/documents/batch/status \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"document_ids": ["DOC_ID_1", "DOC_ID_2"]}'
 
 # Batch delete multiple documents
 curl -X POST $BASE/v1/collections/docs/documents/batch/delete \

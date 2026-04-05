@@ -14,8 +14,11 @@ from bigrag.middleware.auth import get_current_user
 from bigrag.models.document import (
     BatchDeleteRequest,
     BatchDeleteResponse,
+    BatchStatusRequest,
+    BatchStatusResponse,
     DocumentListResponse,
     DocumentResponse,
+    DocumentStatusResponse,
 )
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
 from bigrag.services.queue import IngestionJob, event_bus, ingestion_queue
@@ -473,6 +476,39 @@ async def batch_upload_documents(
 
     logger.info(f"batch_upload: collection={collection_name} files={len(results)}")
     return DocumentListResponse(documents=results, total=len(results))
+
+
+@router.post("/batch/status", response_model=BatchStatusResponse)
+async def batch_get_status(
+    collection_name: str,
+    body: BatchStatusRequest,
+    _: dict = Depends(get_current_user),
+):
+    collection = await get_collection_or_404(collection_name)
+
+    if len(body.document_ids) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 documents per batch status")
+
+    uuids = [uuid.UUID(d) for d in body.document_ids]
+    placeholders = ", ".join(f"${i + 2}" for i in range(len(uuids)))
+    rows = await db.fetch(
+        f"SELECT id, status, error_message, chunk_count FROM documents "
+        f"WHERE collection_id = $1 AND id IN ({placeholders})",
+        collection["id"],
+        *uuids,
+    )
+
+    documents = [
+        DocumentStatusResponse(
+            id=str(r["id"]),
+            status=r["status"],
+            error_message=r["error_message"],
+            chunk_count=r["chunk_count"],
+        )
+        for r in rows
+    ]
+
+    return BatchStatusResponse(documents=documents, total=len(documents))
 
 
 @router.post("/batch/delete", response_model=BatchDeleteResponse)
