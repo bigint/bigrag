@@ -517,32 +517,48 @@ async def batch_delete_documents(
     body: BatchDeleteRequest,
     _: dict = Depends(get_current_user),
 ):
+    import asyncio
+
     collection = await get_collection_or_404(collection_name)
 
     if len(body.document_ids) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 documents per batch delete")
 
-    deleted = 0
+    # Fetch all document rows in one query
+    uuids = [uuid.UUID(d) for d in body.document_ids]
+    placeholders = ", ".join(f"${i + 2}" for i in range(len(uuids)))
+    rows = await db.fetch(
+        f"SELECT * FROM documents WHERE collection_id = $1 AND id IN ({placeholders})",
+        collection["id"],
+        *uuids,
+    )
+    rows_by_id = {str(r["id"]): r for r in rows}
+
     errors = []
+    not_found = [
+        {"document_id": d, "error": "Document not found"}
+        for d in body.document_ids
+        if d not in rows_by_id
+    ]
+    errors.extend(not_found)
 
-    for doc_id in body.document_ids:
-        row = await db.fetchrow(
-            "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
-            uuid.UUID(doc_id),
-            collection["id"],
-        )
-        if not row:
-            errors.append({"document_id": doc_id, "error": "Document not found"})
-            continue
-
+    async def _delete_one(doc_id: str, row: dict) -> bool:
         try:
-            await vector_store.delete_by_document(collection_name, doc_id)
-            await db.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(doc_id))
-            await get_storage().delete(row["file_path"])
-            deleted += 1
+            await asyncio.gather(
+                vector_store.delete_by_document(collection_name, doc_id),
+                db.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(doc_id)),
+                get_storage().delete(row["file_path"]),
+            )
+            return True
         except Exception as e:
             logger.error(f"batch_delete: failed to delete doc={doc_id}: {e!r}")
             errors.append({"document_id": doc_id, "error": str(e)})
+            return False
+
+    results = await asyncio.gather(
+        *[_delete_one(doc_id, row) for doc_id, row in rows_by_id.items()]
+    )
+    deleted = sum(1 for r in results if r)
 
     await db.execute(
         """
