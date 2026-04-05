@@ -145,6 +145,8 @@ curl -X POST http://localhost:6100/v1/collections/docs/query \
 | `POST`   | `/v1/collections/{name}/documents`                | Upload document                 |
 | `GET`    | `/v1/collections/{name}/documents`                | List documents                  |
 | `DELETE` | `/v1/collections/{name}/documents/{id}`           | Delete document                 |
+| `POST`   | `/v1/collections/{name}/documents/batch/upload`   | Batch upload documents          |
+| `POST`   | `/v1/collections/{name}/documents/batch/delete`   | Batch delete documents          |
 | `POST`   | `/v1/collections/{name}/documents/{id}/reprocess` | Reprocess document              |
 | `POST`   | `/v1/collections/{name}/query`                    | Query collection                |
 | `POST`   | `/v1/query`                                       | Multi-collection query          |

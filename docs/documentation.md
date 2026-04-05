@@ -613,6 +613,92 @@ Reprocess a document — re-parse, re-chunk, and re-embed it. Useful after chang
 
 - `404` — Document or collection not found
 
+#### `POST /v1/collections/{collection_name}/documents/batch/upload`
+
+Upload multiple documents in a single request. Uses `multipart/form-data` with multiple `files` fields.
+
+**Request:**
+
+```bash
+curl -X POST http://localhost:6100/v1/collections/research/documents/batch/upload \
+  -H "Authorization: Bearer YOUR_API_SECRET" \
+  -F "files=@paper1.pdf" \
+  -F "files=@paper2.pdf" \
+  -F "files=@notes.md" \
+  -F 'metadata={"source": "batch-import"}'
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `files` | file[] | Yes | Up to 100 files per request |
+| `metadata` | JSON string | No | Shared metadata applied to all documents |
+
+**Response** `201`:
+
+```json
+{
+  "documents": [
+    {
+      "id": "...",
+      "filename": "paper1.pdf",
+      "status": "pending",
+      ...
+    },
+    {
+      "id": "...",
+      "filename": "paper2.pdf",
+      "status": "pending",
+      ...
+    }
+  ],
+  "total": 2
+}
+```
+
+**Errors:**
+
+- `400` — Unsupported file type, more than 100 files, or invalid collection
+- `404` — Collection not found
+- `413` — File too large
+
+#### `POST /v1/collections/{collection_name}/documents/batch/delete`
+
+Delete multiple documents in a single request.
+
+**Request:**
+
+```json
+{
+  "document_ids": [
+    "doc-id-1",
+    "doc-id-2",
+    "doc-id-3"
+  ]
+}
+```
+
+**Response** `200`:
+
+```json
+{
+  "status": "ok",
+  "deleted": 2,
+  "errors": [
+    {
+      "document_id": "doc-id-3",
+      "error": "Document not found"
+    }
+  ]
+}
+```
+
+Partial success is supported — documents that don't exist or fail to delete are reported in the `errors` array.
+
+**Errors:**
+
+- `400` — More than 100 document IDs
+- `404` — Collection not found
+
 #### `GET /v1/collections/{collection_name}/documents/{document_id}/chunks`
 
 Get all chunks for a processed document.
@@ -1390,9 +1476,11 @@ client.deleteCollection(name)
 
 ```typescript
 client.uploadDocument(collection, file, metadata?)
+client.batchUploadDocuments(collection, files, metadata?)
 client.listDocuments(collection, { status?, limit?, offset? })
 client.getDocument(collection, documentId)
 client.deleteDocument(collection, documentId)
+client.batchDeleteDocuments(collection, documentIds)
 client.reprocessDocument(collection, documentId)
 client.getDocumentChunks(collection, documentId)
 client.getDocumentFileUrl(collection, documentId)  // returns URL string
@@ -1426,8 +1514,10 @@ Use `client.collection(name)` to get a scoped client that omits the collection p
 ```typescript
 const docs = client.collection("knowledge_base");
 await docs.query({ query: "PTO policy", top_k: 5 });
-await docs.uploadDocument(file);
-await docs.getAnalytics();
+await docs.upload(file);
+await docs.batchUpload([file1, file2, file3]);
+await docs.batchDelete(["doc-id-1", "doc-id-2"]);
+await docs.analytics();
 ```
 
 ### Error Handling
@@ -1542,9 +1632,23 @@ curl -O $BASE/v1/collections/docs/documents/DOC_ID/file \
 curl -X POST $BASE/v1/collections/docs/documents/DOC_ID/reprocess \
   -H "Authorization: Bearer $BIGRAG_API_SECRET"
 
+# Batch upload multiple documents
+curl -X POST $BASE/v1/collections/docs/documents/batch/upload \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -F "files=@report.pdf" \
+  -F "files=@notes.md" \
+  -F "files=@data.csv" \
+  -F 'metadata={"source": "batch-import"}'
+
 # Delete a document
 curl -X DELETE $BASE/v1/collections/docs/documents/DOC_ID \
   -H "Authorization: Bearer $BIGRAG_API_SECRET"
+
+# Batch delete multiple documents
+curl -X POST $BASE/v1/collections/docs/documents/batch/delete \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"document_ids": ["DOC_ID_1", "DOC_ID_2", "DOC_ID_3"]}'
 ```
 
 ### Direct Vector Operations
