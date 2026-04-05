@@ -46,3 +46,24 @@ jobs:
       - name: Run tests
         run: uv run pytest tests/ -v --tb=short
         working-directory: api
+
+  sdk-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: sdks/typescript
+
+      - name: Type check
+        run: npx tsc --noEmit
+        working-directory: sdks/typescript
+
+      - name: Run tests
+        run: npm test
+        working-directory: sdks/typescript
