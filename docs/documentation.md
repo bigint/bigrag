@@ -105,7 +105,7 @@ Query → Embed → Vector Search ───────────────�
 
 | Component | Purpose | Default Address |
 |-----------|---------|-----------------|
-| **bigRAG API** | REST API server (FastAPI) | `http://localhost:6000` |
+| **bigRAG API** | REST API server (FastAPI) | `http://localhost:6100` |
 | **PostgreSQL** | Metadata storage | `localhost:5432` |
 | **Milvus** | Vector storage and search | `localhost:19530` |
 | **Redis** | Ingestion job queue | `localhost:6379` |
@@ -127,7 +127,7 @@ docker compose up -d
 
 This starts the full stack:
 
-- **bigRAG API** on port 6000 (Swagger docs at `/docs`)
+- **bigRAG API** on port 6100 (Swagger docs at `/docs`)
 - **Milvus** vector database on port 19530
 - **Postgres** for metadata and auth on port 5432
 - **Redis** for the ingestion queue on port 6379
@@ -157,7 +157,7 @@ The easiest way to start everything for development:
 
 This script:
 
-1. Kills stale processes on port 6000
+1. Kills stale processes on port 6100
 2. Validates required commands (`docker`, `python3`, `curl`)
 3. Starts Docker services (Postgres, Redis, Milvus) and waits for readiness
 4. Creates a Python virtualenv and installs dependencies
@@ -167,7 +167,7 @@ This script:
 ### Verify
 
 ```bash
-curl http://localhost:6000/health
+curl http://localhost:6100/health
 # → {"status": "ok", "version": "0.x.x"}
 ```
 
@@ -180,7 +180,7 @@ bigRAG uses a simple shared secret for API protection. Set the `BIGRAG_API_SECRE
 When `BIGRAG_API_SECRET` is set, all requests must include the secret in the `Authorization` header:
 
 ```bash
-curl http://localhost:6000/v1/collections \
+curl http://localhost:6100/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_SECRET"
 ```
 
@@ -199,7 +199,7 @@ Create a `bigrag.toml` file in the project root:
 ```toml
 [server]
 host = "0.0.0.0"
-port = 6000
+port = 6100
 workers = 4
 log_level = "info"          # debug, info, warning, error
 log_format = "text"         # text, json
@@ -242,7 +242,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | Variable | Description | Default |
 |----------|-------------|---------|
 | **Server** | | |
-| `BIGRAG_PORT` | Server port | `6000` |
+| `BIGRAG_PORT` | Server port | `6100` |
 | `BIGRAG_HOST` | Bind address | `0.0.0.0` |
 | `BIGRAG_WORKERS` | Uvicorn workers | `4` |
 | `BIGRAG_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`) | `info` |
@@ -289,9 +289,9 @@ Embedding provider, model, API key, chunk size, and chunk overlap are configured
 
 All API endpoints are prefixed with `/v1` (except `/health`). When `BIGRAG_API_SECRET` is set, pass the secret via the `Authorization: Bearer <secret>` header.
 
-Base URL: `http://localhost:6000`
+Base URL: `http://localhost:6100`
 
-Interactive Swagger docs: `http://localhost:6000/docs`
+Interactive Swagger docs: `http://localhost:6100/docs`
 
 ### Health & Metrics
 
@@ -491,7 +491,7 @@ Upload a document for ingestion. Uses `multipart/form-data`.
 **Request:**
 
 ```bash
-curl -X POST http://localhost:6000/v1/collections/research/documents \
+curl -X POST http://localhost:6100/v1/collections/research/documents \
   -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -F "file=@paper.pdf" \
   -F 'metadata={"author": "Smith", "year": 2026}'
@@ -775,7 +775,7 @@ POST /v1/query
 Results are merged across collections and sorted by score. Each result includes a `collection` field.
 
 ```bash
-curl -X POST http://localhost:6000/v1/query \
+curl -X POST http://localhost:6100/v1/query \
   -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"query":"machine learning","collections":["docs","papers"],"top_k":20}'
@@ -796,7 +796,7 @@ All query endpoints support a `search_mode` parameter:
 Hybrid mode is recommended when queries contain exact terms (product codes, IDs, names) that pure semantic search might miss.
 
 ```bash
-curl -X POST http://localhost:6000/v1/collections/docs/query \
+curl -X POST http://localhost:6100/v1/collections/docs/query \
   -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"query":"error code ERR-4021","search_mode":"hybrid"}'
@@ -811,7 +811,7 @@ Collections can enable server-side reranking using the Cohere Rerank API. After 
 **Configure per collection:**
 
 ```bash
-curl -X POST http://localhost:6000/v1/collections \
+curl -X POST http://localhost:6100/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"name":"docs","reranking_enabled":true,"reranking_model":"rerank-v3.5","reranking_api_key":"your-cohere-key"}'
@@ -1019,7 +1019,7 @@ POST /v1/admin/webhooks
 **Response (201):** Webhook object with `secret` field (shown once only). Store the secret — it's used to verify webhook signatures.
 
 ```bash
-curl -X POST http://localhost:6000/v1/admin/webhooks \
+curl -X POST http://localhost:6100/v1/admin/webhooks \
   -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"url":"https://example.com/webhook","events":["document.ready","document.failed"]}'
@@ -1144,7 +1144,7 @@ bigRAG supports multiple embedding providers. Each collection can use a differen
 **Setting per collection:**
 
 ```bash
-curl -X POST http://localhost:6000/v1/collections \
+curl -X POST http://localhost:6100/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1158,7 +1158,7 @@ curl -X POST http://localhost:6000/v1/collections \
 **Using OpenAI embeddings:**
 
 ```bash
-curl -X POST http://localhost:6000/v1/collections \
+curl -X POST http://localhost:6100/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1173,7 +1173,7 @@ curl -X POST http://localhost:6000/v1/collections \
 **Using Cohere embeddings:**
 
 ```bash
-curl -X POST http://localhost:6000/v1/collections \
+curl -X POST http://localhost:6100/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1255,7 +1255,7 @@ Filter documents by status:
 
 ```bash
 # List only failed documents
-curl "http://localhost:6000/v1/collections/research/documents?status=failed" \
+curl "http://localhost:6100/v1/collections/research/documents?status=failed" \
   -H "Authorization: Bearer $BIGRAG_API_SECRET"
 ```
 
@@ -1265,7 +1265,7 @@ Monitor document processing in real time via Server-Sent Events:
 
 ```javascript
 const eventSource = new EventSource(
-  'http://localhost:6000/v1/collections/research/documents/DOC_ID/progress',
+  'http://localhost:6100/v1/collections/research/documents/DOC_ID/progress',
   { headers: { 'Authorization': 'Bearer TOKEN' } }
 );
 
@@ -1339,7 +1339,7 @@ import { BigRAG } from "@bigrag/client";
 
 const client = new BigRAG({
   apiSecret: "your-api-secret",  // omit if server has no BIGRAG_API_SECRET
-  baseUrl: "http://localhost:6000",
+  baseUrl: "http://localhost:6100",
 });
 
 // Create a collection
@@ -1370,7 +1370,7 @@ const { results } = await client.query("knowledge_base", {
 | Option | Default | Description |
 | --- | --- | --- |
 | `apiSecret` | `BIGRAG_API_SECRET` env var | Shared API secret (omit if server is open) |
-| `baseUrl` | `http://localhost:6000` | bigRAG server URL |
+| `baseUrl` | `http://localhost:6100` | bigRAG server URL |
 | `timeout` | `120000` | Request timeout in milliseconds |
 | `maxRetries` | `2` | Max retries on 5xx, 429, and network errors |
 | `fetch` | `globalThis.fetch` | Custom fetch implementation |
@@ -1479,7 +1479,7 @@ go get github.com/bigrag-io/bigrag-go
 ```bash
 # Set your API secret (skip if BIGRAG_API_SECRET is unset on the server)
 export BIGRAG_API_SECRET="your-api-secret"
-export BASE="http://localhost:6000"
+export BASE="http://localhost:6100"
 
 # 1. Check health
 curl $BASE/health
@@ -1627,7 +1627,7 @@ services:
   bigrag:
     image: yoginth/bigrag:latest
     ports:
-      - "6000:6000"
+      - "6100:6100"
     environment:
       BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
       BIGRAG_MILVUS_URI: http://milvus:19530
@@ -1748,7 +1748,7 @@ BIGRAG_LOG_FORMAT=json BIGRAG_LOG_LEVEL=info python -m bigrag.main
 ### Health Check
 
 ```bash
-curl http://localhost:6000/health
+curl http://localhost:6100/health
 # → {"status":"ok","version":"0.x.x","postgres":true,"milvus":true,"redis":true}
 ```
 

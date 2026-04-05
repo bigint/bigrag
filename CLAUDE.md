@@ -28,7 +28,7 @@ When introducing new features or changing existing APIs, update `docs/documentat
 ./dev.sh  # starts Postgres, Redis, Milvus, Python backend
 ```
 
-- Backend API: http://localhost:6000 (Swagger docs at /docs)
+- Backend API: http://localhost:6100 (Swagger docs at /docs)
 - Postgres: localhost:5432
 - Redis: localhost:6379
 - Milvus: localhost:19530

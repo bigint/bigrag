@@ -47,12 +47,12 @@ BIGRAG_MILVUS_URI="http://localhost:19530" \
 python -m bigrag.main
 ```
 
-API: http://localhost:6000 | Swagger docs: http://localhost:6000/docs
+API: http://localhost:6100 | Swagger docs: http://localhost:6100/docs
 
 ## Verify
 
 ```bash
-curl http://localhost:6000/health
+curl http://localhost:6100/health
 # → {"status":"ok","version":"0.x.x","postgres":true,"milvus":true,"redis":true}
 ```
 
@@ -60,7 +60,7 @@ curl http://localhost:6000/health
 
 | Service  | URL                          | Notes                    |
 |----------|------------------------------|--------------------------|
-| API      | http://localhost:6000         | FastAPI + Swagger at /docs |
+| API      | http://localhost:6100         | FastAPI + Swagger at /docs |
 | Postgres | localhost:5432               | User: bigrag / bigrag    |
 | Milvus   | localhost:19530              | Vector DB                |
 | Redis    | localhost:6379               | Ingestion job queue      |

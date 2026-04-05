@@ -29,7 +29,7 @@ docker compose up -d
 ```
 
 This starts the full stack:
-- **bigRAG API** on port 6000 (with Swagger docs at `/docs`)
+- **bigRAG API** on port 6100 (with Swagger docs at `/docs`)
 - **Postgres** for metadata and auth on port 5432
 - **Redis** for the ingestion queue on port 6379
 - **Milvus** vector database on port 19530
@@ -49,8 +49,8 @@ docker pull yoginth/bigrag:latest
 ```
 
 This starts all services and opens:
-- Backend API: http://localhost:6000
-- API Docs: http://localhost:6000/docs
+- Backend API: http://localhost:6100
+- API Docs: http://localhost:6100/docs
 
 ### From Source
 
@@ -86,7 +86,7 @@ Query → Embed → Vector Search ───────────────�
 ```python
 import httpx
 
-client = httpx.Client(base_url="http://localhost:6000")
+client = httpx.Client(base_url="http://localhost:6100")
 
 # Create a collection
 client.post("/v1/collections", json={
@@ -116,19 +116,19 @@ for r in results["results"]:
 ```bash
 # Health check
 # → {"status":"ok","version":"0.x.x","postgres":true,"milvus":true,"redis":true}
-curl http://localhost:6000/health
+curl http://localhost:6100/health
 
 # Create collection
-curl -X POST http://localhost:6000/v1/collections \
+curl -X POST http://localhost:6100/v1/collections \
   -H "Content-Type: application/json" \
   -d '{"name": "docs", "description": "Documentation"}'
 
 # Upload document
-curl -X POST http://localhost:6000/v1/collections/docs/documents \
+curl -X POST http://localhost:6100/v1/collections/docs/documents \
   -F "file=@manual.pdf"
 
 # Query
-curl -X POST http://localhost:6000/v1/collections/docs/query \
+curl -X POST http://localhost:6100/v1/collections/docs/query \
   -H "Content-Type: application/json" \
   -d '{"query": "How do I configure logging?", "top_k": 5}'
 ```
@@ -176,7 +176,7 @@ Configure per collection or set defaults in `bigrag.toml`.
 ```toml
 [server]
 host = "0.0.0.0"
-port = 6000
+port = 6100
 workers = 4
 
 [database]
@@ -203,7 +203,7 @@ All config options use the `BIGRAG_` prefix:
 | `BIGRAG_DATABASE_URL`       | Postgres connection URL            | `postgres://...`           |
 | `BIGRAG_MILVUS_URI`        | Milvus connection URI              | `http://localhost:19530`   |
 | `BIGRAG_REDIS_URL`         | Redis connection URL               | `redis://localhost:6379/0` |
-| `BIGRAG_PORT`              | Server port                        | `6000`                     |
+| `BIGRAG_PORT`              | Server port                        | `6100`                     |
 | `BIGRAG_WORKERS`           | Uvicorn workers                    | `4`                        |
 | `BIGRAG_API_SECRET`        | Shared API secret (open access if unset) | —                    |
 | `BIGRAG_SECRET_KEY`        | Encryption key for secrets at rest (required for collections with API keys) | — |

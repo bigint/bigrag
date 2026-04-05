@@ -22,7 +22,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # --- Kill stale processes on dev ports ---
-for port in 6000; do
+for port in 6100; do
   stale=$(lsof -ti:"$port" 2>/dev/null || true)
   if [ -n "$stale" ]; then
     echo -e "${YELLOW}Killing stale process(es) on port $port${NC}"
@@ -32,7 +32,7 @@ for port in 6000; do
 done
 
 # --- Preflight checks ---
-for cmd in docker python3 curl; do
+for cmd in docker uv curl; do
   if ! command -v "$cmd" > /dev/null 2>&1; then
     echo -e "${RED}Required command not found: $cmd${NC}"
     exit 1
@@ -82,22 +82,17 @@ REDIS_URL="redis://localhost:6379/0"
 
 # --- Python backend ---
 echo -e "${CYAN}Setting up Python backend...${NC}"
-if [ ! -d "$ROOT_DIR/api/.venv" ]; then
-  echo -e "${CYAN}Creating virtual environment...${NC}"
-  python3 -m venv "$ROOT_DIR/api/.venv"
-fi
-source "$ROOT_DIR/api/.venv/bin/activate"
 
 echo -e "${CYAN}Installing Python dependencies...${NC}"
-pip install -e "$ROOT_DIR/api" --quiet
+uv sync --directory "$ROOT_DIR/api" --quiet
 
 echo -e "${CYAN}Starting Python backend (auto-reload)...${NC}"
 BIGRAG_DATABASE_URL="$DATABASE_URL" \
 BIGRAG_MILVUS_URI="$MILVUS_URI" \
 BIGRAG_REDIS_URL="$REDIS_URL" \
 PYTHONUNBUFFERED=1 \
-python -m uvicorn bigrag.main:create_app \
-  --factory --host 0.0.0.0 --port 6000 \
+uv run --directory "$ROOT_DIR/api" uvicorn bigrag.main:create_app \
+  --factory --host 0.0.0.0 --port 6100 \
   --reload --reload-dir "$ROOT_DIR/api/bigrag" \
   --log-level info 2>&1 | while IFS= read -r line; do printf '[backend] %s\n' "$line"; done &
 PIDS+=($!)
@@ -105,7 +100,7 @@ PIDS+=($!)
 # Wait for backend
 echo -e "${CYAN}Waiting for backend...${NC}"
 for i in $(seq 1 120); do
-  if curl -sf http://localhost:6000/health > /dev/null 2>&1; then
+  if curl -sf http://localhost:6100/health > /dev/null 2>&1; then
     echo -e "${GREEN}Backend is ready.${NC}"
     break
   fi
@@ -114,8 +109,8 @@ for i in $(seq 1 120); do
 done
 
 echo -e "${GREEN}All services started:${NC}"
-echo -e "  Backend  → http://localhost:6000"
-echo -e "  API Docs → http://localhost:6000/docs"
+echo -e "  Backend  → http://localhost:6100"
+echo -e "  API Docs → http://localhost:6100/docs"
 echo -e "  Postgres → localhost:5432"
 echo -e "  Redis    → localhost:6379"
 echo -e "  Milvus   → localhost:19530"

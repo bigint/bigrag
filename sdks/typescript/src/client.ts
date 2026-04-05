@@ -39,7 +39,7 @@ import type {
   WebhookTestResponse,
 } from "./types.js";
 
-const DEFAULT_BASE_URL = "http://localhost:6000";
+const DEFAULT_BASE_URL = "http://localhost:6100";
 const DEFAULT_TIMEOUT = 120_000;
 const DEFAULT_MAX_RETRIES = 2;
 const USER_AGENT = "bigrag-typescript/0.1.0";
