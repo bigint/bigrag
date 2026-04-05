@@ -26,6 +26,7 @@ import type {
   HealthResponse,
   MultiQueryBody,
   MultiQueryResponse,
+  PlatformStatsResponse,
   ProgressEvent,
   QueryBody,
   QueryResponse,
@@ -470,6 +471,10 @@ export class BigRAG {
 
   getQueueStats(): Promise<QueueStatsResponse> {
     return this._request("GET", "/v1/queue/stats");
+  }
+
+  getStats(): Promise<PlatformStatsResponse> {
+    return this._request("GET", "/v1/stats");
   }
 
   // ---- Webhooks ----

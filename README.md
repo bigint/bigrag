@@ -158,6 +158,7 @@ curl -X POST http://localhost:6100/v1/collections/docs/query \
 | `POST`   | `/v1/collections/{name}/vectors/upsert`           | Upsert raw vectors              |
 | `POST`   | `/v1/collections/{name}/vectors/delete`           | Delete vectors by ID            |
 | `GET`    | `/v1/embeddings/models`                           | List embedding models           |
+| `GET`    | `/v1/stats`                                       | Platform stats                  |
 | `GET`    | `/v1/metrics`                                     | Prometheus metrics              |
 Full interactive API docs available at `/docs` (Swagger) when running.
 

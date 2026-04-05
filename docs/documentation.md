@@ -31,6 +31,7 @@ Complete reference for the bigRAG open-source RAG platform — document ingestio
   - [Embedding Models](#embedding-models)
   - [Admin: Webhooks](#admin-webhooks)
   - [Queue](#queue)
+  - [Platform Stats](#platform-stats)
 - [Embedding Providers](#embedding-providers)
 - [Document Ingestion Pipeline](#document-ingestion-pipeline)
   - [Supported Formats](#supported-formats)
@@ -1251,6 +1252,37 @@ Get ingestion queue statistics.
 }
 ```
 
+### Platform Stats
+
+#### `GET /v1/stats`
+
+Get platform-wide statistics including collections, documents, and queue.
+
+**Response** `200`:
+
+```json
+{
+  "collections": 5,
+  "documents": {
+    "total": 128,
+    "ready": 120,
+    "pending": 3,
+    "processing": 2,
+    "failed": 3,
+    "total_chunks": 4850,
+    "total_size_bytes": 524288000
+  },
+  "webhooks": 2,
+  "queue": {
+    "queued": 150,
+    "completed": 120,
+    "failed": 5,
+    "pending": 3,
+    "processing": 2
+  }
+}
+```
+
 ---
 
 ## Embedding Providers
@@ -1539,6 +1571,8 @@ client.batchQuery({ queries: [{ collection, query, top_k?, search_mode? }, ...] 
 client.upsertVectors(collection, vectors)
 client.deleteVectors(collection, ids)
 client.listEmbeddingModels()
+client.getStats()
+client.getQueueStats()
 client.getMetrics()
 ```
 

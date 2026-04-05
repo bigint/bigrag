@@ -173,6 +173,45 @@ def create_app() -> FastAPI:
     async def queue_stats(_: dict = Depends(get_current_user)):
         return await ingestion_queue.stats
 
+    @app.get("/v1/stats")
+    async def platform_stats(_: dict = Depends(get_current_user)):
+        import asyncio
+
+        async def _db_stats():
+            cols = await db.fetchrow("SELECT COUNT(*) as cnt FROM collections")
+            docs = await db.fetchrow(
+                "SELECT COUNT(*) as total, "
+                "COALESCE(SUM(file_size), 0) as total_size, "
+                "COALESCE(SUM(chunk_count), 0) as total_chunks, "
+                "COUNT(*) FILTER (WHERE status = 'ready') as ready, "
+                "COUNT(*) FILTER (WHERE status = 'pending') as pending, "
+                "COUNT(*) FILTER (WHERE status = 'processing') as processing, "
+                "COUNT(*) FILTER (WHERE status = 'failed') as failed "
+                "FROM documents"
+            )
+            webhooks = await db.fetchrow("SELECT COUNT(*) as cnt FROM webhooks")
+            return cols, docs, webhooks
+
+        async def _queue_stats():
+            return await ingestion_queue.stats
+
+        (cols, docs, webhooks), queue = await asyncio.gather(_db_stats(), _queue_stats())
+
+        return {
+            "collections": cols["cnt"],
+            "documents": {
+                "total": docs["total"],
+                "ready": docs["ready"],
+                "pending": docs["pending"],
+                "processing": docs["processing"],
+                "failed": docs["failed"],
+                "total_chunks": int(docs["total_chunks"]),
+                "total_size_bytes": int(docs["total_size"]),
+            },
+            "webhooks": webhooks["cnt"],
+            "queue": queue,
+        }
+
     from bigrag.routers.collections import router as collections_router
     from bigrag.routers.documents import router as documents_router
     from bigrag.routers.query import router as query_router

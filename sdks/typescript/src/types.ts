@@ -26,6 +26,23 @@ export interface QueueStatsResponse {
   processing: number;
 }
 
+export interface DocumentStats {
+  total: number;
+  ready: number;
+  pending: number;
+  processing: number;
+  failed: number;
+  total_chunks: number;
+  total_size_bytes: number;
+}
+
+export interface PlatformStatsResponse {
+  collections: number;
+  documents: DocumentStats;
+  webhooks: number;
+  queue: QueueStatsResponse;
+}
+
 // --- Collections ---
 
 export interface Collection {
