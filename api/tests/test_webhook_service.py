@@ -15,7 +15,7 @@ def test_compute_signature():
     payload = json.dumps({"event": "document.ready", "document_id": "abc"})
     sig = compute_signature(payload, secret)
     assert sig.startswith("sha256=")
-    digest = sig[len("sha256="):]
+    digest = sig[len("sha256=") :]
     expected = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
     assert digest == expected
 

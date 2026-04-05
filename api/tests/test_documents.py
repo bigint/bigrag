@@ -16,6 +16,7 @@ from tests.conftest import make_collection_row, make_document_row
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _setup_fetchrow(mock_db, col_row, doc_row):
     """Wire mock_db.fetchrow to route queries to the right row."""
 
@@ -168,9 +169,7 @@ async def test_delete_document(client, auth_headers, mock_db, mock_vector_store,
 
 
 @pytest.mark.asyncio
-async def test_reprocess_document(
-    client, auth_headers, mock_db, mock_vector_store, mock_storage
-):
+async def test_reprocess_document(client, auth_headers, mock_db, mock_vector_store, mock_storage):
     col_row = make_collection_row("test_col")
     doc_row = make_document_row(collection_id=str(col_row["id"]))
     _setup_fetchrow(mock_db, col_row, doc_row)
@@ -199,9 +198,7 @@ async def test_reprocess_document(
 
 
 @pytest.mark.asyncio
-async def test_get_document_chunks(
-    client, auth_headers, mock_db, mock_vector_store
-):
+async def test_get_document_chunks(client, auth_headers, mock_db, mock_vector_store):
     col_row = make_collection_row("test_col")
     doc_row = make_document_row(collection_id=str(col_row["id"]))
     _setup_fetchrow(mock_db, col_row, doc_row)
@@ -231,9 +228,7 @@ async def test_get_document_chunks(
 
 
 @pytest.mark.asyncio
-async def test_download_document_file(
-    client, auth_headers, mock_db, mock_storage
-):
+async def test_download_document_file(client, auth_headers, mock_db, mock_storage):
     col_row = make_collection_row("test_col")
     doc_row = make_document_row(collection_id=str(col_row["id"]))
     _setup_fetchrow(mock_db, col_row, doc_row)

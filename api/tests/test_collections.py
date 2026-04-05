@@ -40,9 +40,7 @@ async def test_create_collection(_mock_emb, client, mock_db, auth_headers):
     "bigrag.services.embedding.get_embedding_model",
     return_value=MagicMock(),
 )
-async def test_create_duplicate_collection_returns_409(
-    _mock_emb, client, mock_db, auth_headers
-):
+async def test_create_duplicate_collection_returns_409(_mock_emb, client, mock_db, auth_headers):
     existing = make_collection_row("test_col")
 
     # The duplicate-check fetchrow returns a row → 409

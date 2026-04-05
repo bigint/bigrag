@@ -264,19 +264,27 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
         stack.enter_context(patch("bigrag.main.ingestion_queue", mock_queue))
         stack.enter_context(patch("bigrag.routers.documents.ingestion_queue", mock_queue))
         stack.enter_context(patch("bigrag.services.storage._storage", mock_storage))
-        stack.enter_context(patch(
-            "bigrag.routers.webhooks.webhook_dispatcher", mock_webhook_dispatcher,
-        ))
+        stack.enter_context(
+            patch(
+                "bigrag.routers.webhooks.webhook_dispatcher",
+                mock_webhook_dispatcher,
+            )
+        )
         stack.enter_context(patch("bigrag.main.db", mock_db))
         stack.enter_context(patch("bigrag.routers.collections.encrypt", return_value="encrypted"))
         stack.enter_context(patch("bigrag.routers.webhooks.encrypt", return_value="encrypted"))
-        stack.enter_context(patch(
-            "bigrag.routers.webhooks.generate_secret", return_value="whsec_test123",
-        ))
-        stack.enter_context(patch(
-            "bigrag.services.collection_cache.decrypt",
-            side_effect=lambda v: v,
-        ))
+        stack.enter_context(
+            patch(
+                "bigrag.routers.webhooks.generate_secret",
+                return_value="whsec_test123",
+            )
+        )
+        stack.enter_context(
+            patch(
+                "bigrag.services.collection_cache.decrypt",
+                side_effect=lambda v: v,
+            )
+        )
         stack.enter_context(patch("bigrag.services.collection_cache.settings", mock_settings))
         stack.enter_context(patch("bigrag.middleware.auth.settings", mock_settings))
 
