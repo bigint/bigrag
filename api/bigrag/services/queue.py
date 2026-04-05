@@ -348,16 +348,19 @@ class IngestionQueue:
     async def _chunk_and_embed(self, job: IngestionJob, text: str, prefix: str) -> int:
         """Chunk text, embed, and insert into vector store. Returns total inserted count."""
         from bigrag.config import settings as _settings
+        from bigrag.services.crypto import decrypt
         from bigrag.services.embedding import get_embedding_model
         from bigrag.services.ingestion import _chunk_text
         from bigrag.services.vector_store import vector_store
+
+        api_key = decrypt(job.embedding_api_key) if job.embedding_api_key else None
 
         t0 = time.monotonic()
         embedding_model = get_embedding_model(
             provider=job.embedding_provider,
             model_name=job.embedding_model,
             dimension=job.embedding_dimension,
-            api_key=job.embedding_api_key,
+            api_key=api_key,
         )
         elapsed = time.monotonic() - t0
         logger.info(
