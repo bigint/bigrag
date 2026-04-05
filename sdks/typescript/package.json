@@ -22,7 +22,7 @@
     "prepublishOnly": "tsc"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.5.2",
     "typescript": "^6.0.2"
   }
 }
