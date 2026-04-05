@@ -119,7 +119,6 @@ class IngestionJob:
     chunk_size: int
     chunk_overlap: int
     attempt: int = 0
-    embedding_base_url: str | None = None
     max_attempts: int = 3
     job_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
 
@@ -133,7 +132,6 @@ class IngestionJob:
                 "embedding_model": self.embedding_model,
                 "embedding_dimension": self.embedding_dimension,
                 "embedding_api_key": self.embedding_api_key,
-                "embedding_base_url": self.embedding_base_url,
                 "chunk_size": self.chunk_size,
                 "chunk_overlap": self.chunk_overlap,
                 "attempt": self.attempt,

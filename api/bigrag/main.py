@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import ORJSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from bigrag import __version__
@@ -127,7 +126,6 @@ def create_app() -> FastAPI:
         description="Self-hostable RAG platform with Docling + Milvus",
         version=__version__,
         lifespan=lifespan,
-        default_response_class=ORJSONResponse,
     )
 
     app.add_middleware(RequestLoggingMiddleware)
@@ -174,7 +172,9 @@ def create_app() -> FastAPI:
 
         status = "ok" if healthy else "degraded"
         checks["status"] = status
-        return ORJSONResponse(content=checks, status_code=200 if healthy else 503)
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(content=checks, status_code=200 if healthy else 503)
 
     @app.get("/v1/queue/stats")
     async def queue_stats(_: dict = Depends(get_current_user)):

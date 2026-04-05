@@ -7,23 +7,9 @@ import time
 
 from bigrag.services.embedding import EmbeddingModel
 from bigrag.services.vector_store import vector_store
+from bigrag.utils import safe_create_task
 
 logger = logging.getLogger("bigrag.retrieval")
-
-
-def _safe_create_task(coro, *, name: str = "background") -> asyncio.Task:
-    """Create a task that logs exceptions instead of silently swallowing them."""
-    task = asyncio.create_task(coro, name=name)
-
-    def _on_done(t: asyncio.Task) -> None:
-        if t.cancelled():
-            return
-        exc = t.exception()
-        if exc:
-            logger.warning(f"Background task '{name}' failed: {exc!r}")
-
-    task.add_done_callback(_on_done)
-    return task
 
 
 def _tokenize_query(query: str) -> list[str]:
@@ -256,7 +242,7 @@ async def retrieve(
     # Log query for analytics
     total_ms = (time.monotonic() - _retrieve_start) * 1000
     avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else None
-    _safe_create_task(
+    safe_create_task(
         _log_query(
             collection_name=collection_name,
             query=query,
@@ -313,7 +299,6 @@ async def retrieve_multi(
 
 
 _SAFE_FIELD_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
-_ALLOWED_FIELDS = {"document_id", "chunk_index", "text"}
 
 
 def _validate_field(key: str) -> str:

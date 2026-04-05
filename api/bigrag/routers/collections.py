@@ -25,7 +25,7 @@ router = APIRouter(prefix="/v1/collections", tags=["collections"])
 def _row_to_response(row: dict) -> CollectionResponse:
     data = {k: str(v) if isinstance(v, UUID) else v for k, v in row.items()}
     data["has_api_key"] = bool(data.pop("embedding_api_key", None))
-    data.pop("embedding_base_url", None)
+    data.pop("embedding_base_url", None)  # unused DB column, hide from response
     data["has_reranking_api_key"] = bool(data.pop("reranking_api_key", None))
     return CollectionResponse(**data)
 
@@ -102,9 +102,9 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             """
             INSERT INTO collections (name, description, embedding_provider, embedding_model,
                                       dimension, chunk_size, chunk_overlap, metadata,
-                                      embedding_api_key, embedding_base_url,
+                                      embedding_api_key,
                                       reranking_enabled, reranking_model, reranking_api_key)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING *
             """,
             body.name,
@@ -116,7 +116,6 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             body.chunk_overlap,
             body.metadata,
             encrypted_embedding_key,
-            None,
             body.reranking_enabled,
             body.reranking_model,
             encrypted_reranking_key,

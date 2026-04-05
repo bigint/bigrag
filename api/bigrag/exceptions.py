@@ -40,17 +40,3 @@ class IngestionError(BigRAGError):
     def __init__(self, message: str, *, permanent: bool = False) -> None:
         self.permanent = permanent
         super().__init__(message)
-
-
-class EncryptionError(BigRAGError):
-    """Encryption/decryption operation failed."""
-
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
-
-
-class QueueFullError(BigRAGError):
-    """Ingestion queue is at capacity."""
-
-    def __init__(self) -> None:
-        super().__init__("Ingestion queue is full. Try again later.")

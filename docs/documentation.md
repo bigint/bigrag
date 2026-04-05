@@ -40,7 +40,6 @@ Complete reference for the bigRAG open-source RAG platform — document ingestio
   - [Real-Time Progress (SSE)](#real-time-progress-sse)
 - [Storage Backends](#storage-backends)
 - [TypeScript SDK](#typescript-sdk)
-- [Go SDK](#go-sdk)
 - [curl Examples](#curl-examples)
 - [Error Codes](#error-codes)
 - [Rate Limiting](#rate-limiting)
@@ -1457,18 +1456,6 @@ Error hierarchy: `BigRAGError` > `APIError` > `BadRequestError` (400), `Authenti
 - **Not retried:** HTTP 400, 401, 403, 404
 - **Backoff:** `min(0.5 * 2^attempt, 4.0)` seconds
 - **Default retries:** 2 (configurable via `maxRetries`)
-
----
-
-## Go SDK
-
-Install the Go SDK:
-
-```bash
-go get github.com/bigrag-io/bigrag-go
-```
-
-> Note: The Go SDK is under development. Check the repository for availability.
 
 ---
 

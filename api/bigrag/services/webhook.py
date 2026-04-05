@@ -13,23 +13,9 @@ import httpx
 import orjson
 
 from bigrag.services.queue import IngestionEvent, event_bus
+from bigrag.utils import safe_create_task
 
 logger = logging.getLogger("bigrag.webhook")
-
-
-def _safe_create_task(coro, *, name: str = "background") -> asyncio.Task:
-    """Create a task that logs exceptions instead of silently swallowing them."""
-    task = asyncio.create_task(coro, name=name)
-
-    def _on_done(t: asyncio.Task) -> None:
-        if t.cancelled():
-            return
-        exc = t.exception()
-        if exc:
-            logger.warning(f"Background task '{name}' failed: {exc!r}")
-
-    task.add_done_callback(_on_done)
-    return task
 
 
 def _retry_delays() -> list[int]:
@@ -158,7 +144,7 @@ class WebhookDispatcher:
 
         for webhook in webhooks:
             if _matches_webhook(webhook, webhook_event, collection):
-                _safe_create_task(
+                safe_create_task(
                     self._deliver(webhook, webhook_event, payload),
                     name=f"webhook-deliver-{webhook['id']}",
                 )
