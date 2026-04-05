@@ -6,7 +6,6 @@ import asyncio
 
 from httpx import AsyncClient
 
-
 EXPECTED_STATS = {
     "queued": 10,
     "completed": 5,

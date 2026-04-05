@@ -8,11 +8,9 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
 from httpx import AsyncClient
 
 from tests.conftest import make_delivery_row, make_webhook_row
-
 
 # ---------------------------------------------------------------------------
 # Helpers

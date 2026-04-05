@@ -4,10 +4,9 @@ import hashlib
 import hmac
 import json
 
-import pytest
 from bigrag.services.webhook import (
-    compute_signature,
     _matches_webhook,
+    compute_signature,
 )
 
 

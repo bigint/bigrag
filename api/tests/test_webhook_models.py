@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import pytest
+
 from bigrag.models.webhook import (
+    VALID_EVENTS,
     CreateWebhookRequest,
     UpdateWebhookRequest,
-    VALID_EVENTS,
 )
 
 

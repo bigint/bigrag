@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 from httpx import AsyncClient
 
 from bigrag import __version__
-
 
 # ---------------------------------------------------------------------------
 # GET /health — basic liveness
