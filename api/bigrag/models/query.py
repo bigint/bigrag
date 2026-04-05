@@ -5,10 +5,10 @@ from pydantic import BaseModel, Field
 
 class QueryRequest(BaseModel):
     query: str
-    top_k: int = Field(default=10, ge=1, le=1000)
+    top_k: int | None = Field(default=None, ge=1, le=1000)
     filters: dict | None = None
     min_score: float | None = None
-    search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
+    search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
     rerank: bool | None = None  # Override collection's reranking_enabled
 
 

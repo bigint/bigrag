@@ -49,14 +49,20 @@ async def query_collection(
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    top_k = body.top_k or collection.get("default_top_k", 10)
+    min_score = (
+        body.min_score if body.min_score is not None else collection.get("default_min_score")
+    )
+    search_mode = body.search_mode or collection.get("default_search_mode", "semantic")
+
     results = await retrieve(
         collection_name=collection_name,
         query=body.query,
         embedding_model=embedding_model,
-        top_k=body.top_k,
+        top_k=top_k,
         filters=body.filters,
-        min_score=body.min_score,
-        search_mode=body.search_mode,
+        min_score=min_score,
+        search_mode=search_mode,
         reranking_config=get_reranking_config(collection),
         rerank_override=body.rerank,
     )

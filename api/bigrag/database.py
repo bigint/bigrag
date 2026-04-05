@@ -152,6 +152,12 @@ MIGRATIONS = [
     """
     ALTER TABLE documents ADD COLUMN IF NOT EXISTS token_count INT NOT NULL DEFAULT 0;
     """,
+    """
+    ALTER TABLE collections ADD COLUMN IF NOT EXISTS default_top_k INT NOT NULL DEFAULT 10;
+    ALTER TABLE collections ADD COLUMN IF NOT EXISTS default_min_score DOUBLE PRECISION;
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS default_search_mode TEXT NOT NULL DEFAULT 'semantic';
+    """,
 ]
 
 

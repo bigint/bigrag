@@ -88,8 +88,9 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             INSERT INTO collections (name, description, embedding_provider, embedding_model,
                                       dimension, chunk_size, chunk_overlap, metadata,
                                       embedding_api_key,
-                                      reranking_enabled, reranking_model, reranking_api_key)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                                      reranking_enabled, reranking_model, reranking_api_key,
+                                      default_top_k, default_min_score, default_search_mode)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
             RETURNING *
             """,
             body.name,
@@ -104,6 +105,9 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             body.reranking_enabled,
             body.reranking_model,
             body.reranking_api_key,
+            body.default_top_k,
+            body.default_min_score,
+            body.default_search_mode,
         )
     except asyncpg.UniqueViolationError:
         raise HTTPException(status_code=409, detail="Collection already exists")
@@ -149,6 +153,12 @@ async def update_collection(
         fields["reranking_model"] = body.reranking_model
     if body.reranking_api_key is not None:
         fields["reranking_api_key"] = body.reranking_api_key
+    if body.default_top_k is not None:
+        fields["default_top_k"] = body.default_top_k
+    if body.default_min_score is not None:
+        fields["default_min_score"] = body.default_min_score
+    if body.default_search_mode is not None:
+        fields["default_search_mode"] = body.default_search_mode
 
     if not fields:
         return _row_to_response(dict(row))

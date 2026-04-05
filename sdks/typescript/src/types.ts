@@ -60,6 +60,9 @@ export interface Collection {
   reranking_enabled: boolean;
   reranking_model: string;
   has_reranking_api_key: boolean;
+  default_top_k: number;
+  default_min_score: number | null;
+  default_search_mode: string;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -81,6 +84,9 @@ export interface CreateCollectionBody {
   reranking_enabled?: boolean;
   reranking_model?: string;
   reranking_api_key?: string;
+  default_top_k?: number;
+  default_min_score?: number;
+  default_search_mode?: "semantic" | "keyword" | "hybrid";
 }
 
 export interface UpdateCollectionBody {
@@ -89,6 +95,9 @@ export interface UpdateCollectionBody {
   reranking_enabled?: boolean;
   reranking_model?: string;
   reranking_api_key?: string;
+  default_top_k?: number;
+  default_min_score?: number;
+  default_search_mode?: "semantic" | "keyword" | "hybrid";
 }
 
 // --- Documents ---

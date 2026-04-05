@@ -352,6 +352,9 @@ List all collections.
       "chunk_overlap": 50,
       "document_count": 15,
       "has_api_key": false,
+      "default_top_k": 10,
+      "default_min_score": null,
+      "default_search_mode": "semantic",
       "metadata": {},
       "created_at": "2026-04-01T00:00:00Z",
       "updated_at": "2026-04-01T12:00:00Z"
@@ -375,6 +378,9 @@ Create a new collection.
   "dimension": 1536,
   "chunk_size": 512,
   "chunk_overlap": 50,
+  "default_top_k": 10,
+  "default_min_score": 0.3,
+  "default_search_mode": "semantic",
   "metadata": {
     "team": "research"
   }
@@ -391,6 +397,9 @@ Create a new collection.
 | `dimension` | integer | no | Server default | Embedding vector dimension |
 | `chunk_size` | integer | no | `512` | 64–10,000 |
 | `chunk_overlap` | integer | no | `50` | 0–5,000 (must be < `chunk_size`) |
+| `default_top_k` | integer | no | `10` | 1–1,000 |
+| `default_min_score` | float | no | `null` | Minimum similarity score filter |
+| `default_search_mode` | string | no | `"semantic"` | `semantic`, `keyword`, `hybrid` |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
 
 **Response** `201`: Full `CollectionResponse` object (see list response).
@@ -871,12 +880,14 @@ POST /v1/query
 |-------|------|----------|-------------|
 | `query` | string | Yes | Search query |
 | `collections` | string[] | Yes | Collection names to search |
-| `top_k` | number | No | Max results (default 10) |
+| `top_k` | number | No | Max results (uses collection default if omitted) |
 | `filters` | object | No | Metadata filters |
-| `min_score` | number | No | Minimum similarity score |
-| `search_mode` | string | No | `"semantic"`, `"keyword"`, or `"hybrid"` (default `"semantic"`) |
+| `min_score` | number | No | Minimum similarity score (uses collection default if omitted) |
+| `search_mode` | string | No | `"semantic"`, `"keyword"`, or `"hybrid"` (uses collection default if omitted) |
 
 Results are merged across collections and sorted by score. Each result includes a `collection` field.
+
+> **Note:** When `top_k`, `min_score`, or `search_mode` are omitted, the collection's `default_top_k`, `default_min_score`, and `default_search_mode` are used as fallbacks.
 
 ```bash
 curl -X POST http://localhost:6100/v1/query \
