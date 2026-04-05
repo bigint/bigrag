@@ -208,7 +208,6 @@ All config options use the `BIGRAG_` prefix:
 | `BIGRAG_PORT`              | Server port                        | `6100`                     |
 | `BIGRAG_WORKERS`           | Uvicorn workers                    | `4`                        |
 | `BIGRAG_API_SECRET`        | Shared API secret (open access if unset) | —                    |
-| `BIGRAG_SECRET_KEY`        | Encryption key for secrets at rest (required for collections with API keys) | — |
 | `BIGRAG_LOG_LEVEL`         | Log level                          | `info`                     |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB`| Max upload file size               | `1024`                     |
 | `BIGRAG_INGESTION_WORKERS` | Background processing workers      | `4`                        |

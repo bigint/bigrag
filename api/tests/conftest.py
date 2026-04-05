@@ -20,8 +20,6 @@ from httpx import ASGITransport, AsyncClient
 # ---------------------------------------------------------------------------
 
 TEST_API_SECRET = "test-secret-key-12345"
-TEST_SECRET_KEY = "test-encryption-key"
-
 SAMPLE_COLLECTION_ID = str(uuid.uuid4())
 SAMPLE_DOCUMENT_ID = str(uuid.uuid4())
 SAMPLE_WEBHOOK_ID = str(uuid.uuid4())
@@ -271,25 +269,16 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
             )
         )
         stack.enter_context(patch("bigrag.main.db", mock_db))
-        stack.enter_context(patch("bigrag.routers.collections.encrypt", return_value="encrypted"))
-        stack.enter_context(patch("bigrag.routers.webhooks.encrypt", return_value="encrypted"))
         stack.enter_context(
             patch(
                 "bigrag.routers.webhooks.generate_secret",
                 return_value="whsec_test123",
             )
         )
-        stack.enter_context(
-            patch(
-                "bigrag.services.collection_cache.decrypt",
-                side_effect=lambda v: v,
-            )
-        )
         stack.enter_context(patch("bigrag.services.collection_cache.settings", mock_settings))
         stack.enter_context(patch("bigrag.middleware.auth.settings", mock_settings))
 
         mock_settings.api_secret = TEST_API_SECRET
-        mock_settings.secret_key = TEST_SECRET_KEY
         mock_settings.cors_origins = ["*"]
         mock_settings.embedding_provider = "openai"
         mock_settings.embedding_model = "text-embedding-3-small"

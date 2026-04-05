@@ -179,11 +179,10 @@ class WebhookDispatcher:
     async def _deliver(self, webhook: dict, event: str, payload: str) -> None:
         """Deliver a webhook with retries. Creates delivery record in DB."""
         from bigrag.database import db
-        from bigrag.services.crypto import decrypt
 
         delivery_id = uuid.uuid4()
         webhook_id = webhook["id"]
-        secret = decrypt(webhook["secret"])
+        secret = webhook["secret"]
 
         await db.execute(
             """
@@ -287,9 +286,7 @@ class WebhookDispatcher:
 
     async def deliver_test(self, webhook: dict) -> dict:
         """Send a test event to a webhook. Returns result inline (no retries)."""
-        from bigrag.services.crypto import decrypt
-
-        secret = decrypt(webhook["secret"])
+        secret = webhook["secret"]
         payload = orjson.dumps(
             {
                 "event": "webhook.test",

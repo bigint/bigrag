@@ -79,7 +79,6 @@ done
 DATABASE_URL="postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable"
 MILVUS_URI="http://localhost:19530"
 REDIS_URL="redis://localhost:6380/0"
-SECRET_KEY="${BIGRAG_SECRET_KEY:-dev-secret-$(openssl rand -hex 16)}"
 
 # --- Python backend ---
 echo -e "${CYAN}Setting up Python backend...${NC}"
@@ -91,7 +90,6 @@ echo -e "${CYAN}Starting Python backend (auto-reload)...${NC}"
 BIGRAG_DATABASE_URL="$DATABASE_URL" \
 BIGRAG_MILVUS_URI="$MILVUS_URI" \
 BIGRAG_REDIS_URL="$REDIS_URL" \
-BIGRAG_SECRET_KEY="$SECRET_KEY" \
 PYTHONUNBUFFERED=1 \
 uv run --directory "$ROOT_DIR/api" uvicorn bigrag.main:create_app \
   --factory --host 0.0.0.0 --port 6100 \

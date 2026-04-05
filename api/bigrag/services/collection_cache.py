@@ -7,7 +7,6 @@ from fastapi import HTTPException
 
 from bigrag.config import settings
 from bigrag.database import db
-from bigrag.services.crypto import decrypt
 
 logger = logging.getLogger("bigrag.collection_cache")
 
@@ -33,13 +32,6 @@ async def get_or_404(name: str) -> dict:
     if not row:
         raise HTTPException(status_code=404, detail="Collection not found")
     data = dict(row)
-    if data.get("embedding_api_key"):
-        try:
-            data["embedding_api_key"] = decrypt(data["embedding_api_key"])
-        except Exception as e:
-            logger.error(f"Failed to decrypt API key for collection '{name}': {e}")
-            data["embedding_api_key"] = None
-
     _cache[name] = (data, time.monotonic() + settings.collection_cache_ttl)
     return data
 

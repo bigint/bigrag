@@ -1,6 +1,6 @@
 """Edge case and unit tests for bigRAG.
 
-Covers crypto, filter expressions, webhook matching, collection creation
+Covers filter expressions, webhook matching, collection creation
 edge cases, auth boundary conditions, and utility functions.
 """
 
@@ -12,76 +12,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from tests.conftest import make_collection_row, make_webhook_row
-
-# ---------------------------------------------------------------------------
-# Crypto: encrypt / decrypt
-# ---------------------------------------------------------------------------
-
-
-class TestCrypto:
-    def test_encrypt_decrypt_roundtrip(self):
-        with patch("bigrag.services.crypto.settings") as mock_settings:
-            mock_settings.secret_key = "test-secret-key-for-crypto"
-            # Reset cached fernet
-            import bigrag.services.crypto as crypto_mod
-            from bigrag.services.crypto import _ENC_PREFIX
-
-            crypto_mod._fernet = None
-
-            ct = crypto_mod.encrypt("my-api-key-123")
-            assert ct.startswith(_ENC_PREFIX)
-            assert ct != "my-api-key-123"
-
-            pt = crypto_mod.decrypt(ct)
-            assert pt == "my-api-key-123"
-
-            crypto_mod._fernet = None
-
-    def test_encrypt_empty_string_returns_empty(self):
-        from bigrag.services.crypto import encrypt
-
-        assert encrypt("") == ""
-
-    def test_decrypt_empty_string_returns_empty(self):
-        from bigrag.services.crypto import decrypt
-
-        assert decrypt("") == ""
-
-    def test_decrypt_plaintext_returns_as_is(self):
-        from bigrag.services.crypto import decrypt
-
-        assert decrypt("sk-plain-key") == "sk-plain-key"
-
-    def test_encrypt_raises_without_secret_key(self):
-        with patch("bigrag.services.crypto.settings") as mock_settings:
-            mock_settings.secret_key = None
-            import bigrag.services.crypto as crypto_mod
-
-            crypto_mod._fernet = None
-
-            with pytest.raises(RuntimeError, match="No encryption key configured"):
-                crypto_mod.encrypt("some-key")
-
-            crypto_mod._fernet = None
-
-    def test_decrypt_with_wrong_key_returns_raw(self):
-        """If the key changes, decrypt should return raw value (not crash)."""
-        with patch("bigrag.services.crypto.settings") as mock_settings:
-            mock_settings.secret_key = "key-one"
-            import bigrag.services.crypto as crypto_mod
-
-            crypto_mod._fernet = None
-            ct = crypto_mod.encrypt("secret")
-
-            # Change key
-            mock_settings.secret_key = "key-two"
-            crypto_mod._fernet = None
-            result = crypto_mod.decrypt(ct)
-            # Should return raw (not crash), starts with enc: prefix
-            assert result is not None
-
-            crypto_mod._fernet = None
-
 
 # ---------------------------------------------------------------------------
 # Filter expression building

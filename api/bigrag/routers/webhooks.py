@@ -17,7 +17,6 @@ from bigrag.models.webhook import (
     WebhookResponse,
     WebhookTestResponse,
 )
-from bigrag.services.crypto import encrypt
 from bigrag.services.webhook import generate_secret, webhook_dispatcher
 
 logger = logging.getLogger("bigrag.routers.webhooks")
@@ -54,13 +53,6 @@ async def create_webhook(body: CreateWebhookRequest, admin: dict = Depends(requi
         raise HTTPException(status_code=400, detail=f"Maximum of {MAX_WEBHOOKS} webhooks reached")
 
     secret = generate_secret()
-    try:
-        encrypted_secret = encrypt(secret)
-    except RuntimeError:
-        raise HTTPException(
-            status_code=400,
-            detail="BIGRAG_SECRET_KEY is not configured. Set it to encrypt webhook secrets.",
-        )
     webhook_id = uuid.uuid4()
 
     row = await db.fetchrow(
@@ -71,7 +63,7 @@ async def create_webhook(body: CreateWebhookRequest, admin: dict = Depends(requi
         """,
         webhook_id,
         body.url,
-        encrypted_secret,
+        secret,
         body.events,
         body.collections,
         body.description,

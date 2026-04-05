@@ -39,13 +39,6 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger("bigrag")
     logger.info(f"bigRAG v{__version__} starting")
 
-    if not settings.secret_key:
-        logger.warning(
-            "BIGRAG_SECRET_KEY is not set. "
-            "Embedding API keys stored in collections will fail to encrypt. "
-            "Set BIGRAG_SECRET_KEY to a random string before creating collections."
-        )
-
     # Postgres
     await db.connect(
         settings.database_url,
@@ -203,7 +196,6 @@ def cli():
     parser.add_argument("--database-url", help="Postgres connection URL")
     parser.add_argument("--milvus-uri", help="Milvus connection URI")
     parser.add_argument("--redis-url", help="Redis connection URL")
-    parser.add_argument("--secret-key", help="Encryption key for secrets at rest")
     parser.add_argument("--log-level", help="Log level")
     parser.add_argument("--log-format", choices=["text", "json"], help="Log format")
     args = parser.parse_args()
@@ -222,8 +214,6 @@ def cli():
         s.milvus_uri = args.milvus_uri
     if args.redis_url:
         s.redis_url = args.redis_url
-    if args.secret_key:
-        s.secret_key = args.secret_key
     if args.log_level:
         s.log_level = args.log_level
     if args.log_format:
