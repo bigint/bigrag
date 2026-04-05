@@ -19,9 +19,21 @@ _docling_converter = None
 def _get_docling_converter():
     global _docling_converter
     if _docling_converter is None:
-        from docling.document_converter import DocumentConverter
+        from docling.datamodel.pipeline_options import PdfPipelineOptions
+        from docling.document_converter import DocumentConverter, InputFormat, PdfFormatOption
+        from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
 
-        _docling_converter = DocumentConverter()
+        pdf_opts = PdfPipelineOptions()
+        pdf_opts.do_ocr = True
+
+        _docling_converter = DocumentConverter(
+            format_options={
+                InputFormat.PDF: PdfFormatOption(
+                    pipeline_cls=StandardPdfPipeline,
+                    pipeline_options=pdf_opts,
+                )
+            }
+        )
     return _docling_converter
 
 

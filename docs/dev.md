@@ -42,7 +42,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e .
 
-BIGRAG_DATABASE_URL="postgres://bigrag:bigrag@localhost:5432/bigrag" \
+BIGRAG_DATABASE_URL="postgres://bigrag:bigrag@localhost:5433/bigrag" \
 BIGRAG_MILVUS_URI="http://localhost:19530" \
 python -m bigrag.main
 ```
@@ -61,6 +61,6 @@ curl http://localhost:6100/health
 | Service  | URL                          | Notes                    |
 |----------|------------------------------|--------------------------|
 | API      | http://localhost:6100         | FastAPI + Swagger at /docs |
-| Postgres | localhost:5432               | User: bigrag / bigrag    |
+| Postgres | localhost:5433               | User: bigrag / bigrag    |
 | Milvus   | localhost:19530              | Vector DB                |
-| Redis    | localhost:6379               | Ingestion job queue      |
+| Redis    | localhost:6380               | Ingestion job queue      |

@@ -59,7 +59,7 @@ cd api
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
-python -m bigrag.main --database-url postgres://bigrag:bigrag@localhost:5432/bigrag
+python -m bigrag.main --database-url postgres://bigrag:bigrag@localhost:5433/bigrag
 ```
 
 ## How It Works
@@ -180,13 +180,13 @@ port = 6100
 workers = 4
 
 [database]
-url = "postgres://bigrag:bigrag@localhost:5432/bigrag"
+url = "postgres://bigrag:bigrag@localhost:5433/bigrag"
 
 [milvus]
 uri = "http://localhost:19530"
 
 [redis]
-url = "redis://localhost:6379/0"
+url = "redis://localhost:6380/0"
 
 [ingestion]
 workers = 4
@@ -202,7 +202,7 @@ All config options use the `BIGRAG_` prefix:
 | --------------------------- | ---------------------------------- | -------------------------- |
 | `BIGRAG_DATABASE_URL`       | Postgres connection URL            | `postgres://...`           |
 | `BIGRAG_MILVUS_URI`        | Milvus connection URI              | `http://localhost:19530`   |
-| `BIGRAG_REDIS_URL`         | Redis connection URL               | `redis://localhost:6379/0` |
+| `BIGRAG_REDIS_URL`         | Redis connection URL               | `redis://localhost:6380/0` |
 | `BIGRAG_PORT`              | Server port                        | `6100`                     |
 | `BIGRAG_WORKERS`           | Uvicorn workers                    | `4`                        |
 | `BIGRAG_API_SECRET`        | Shared API secret (open access if unset) | —                    |

@@ -29,6 +29,6 @@ When introducing new features or changing existing APIs, update `docs/documentat
 ```
 
 - Backend API: http://localhost:6100 (Swagger docs at /docs)
-- Postgres: localhost:5432
-- Redis: localhost:6379
+- Postgres: localhost:5433
+- Redis: localhost:6380
 - Milvus: localhost:19530

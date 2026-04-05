@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["*"]
 
     # Postgres
-    database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
+    database_url: str = "postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable"
     db_pool_min: int = 5
     db_pool_max: int = 50
 
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     milvus_uri: str = "http://localhost:19530"
 
     # Redis
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str = "redis://localhost:6380/0"
 
     # Auth
     api_secret: str | None = None

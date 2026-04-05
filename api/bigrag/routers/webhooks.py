@@ -54,7 +54,13 @@ async def create_webhook(body: CreateWebhookRequest, admin: dict = Depends(requi
         raise HTTPException(status_code=400, detail=f"Maximum of {MAX_WEBHOOKS} webhooks reached")
 
     secret = generate_secret()
-    encrypted_secret = encrypt(secret)
+    try:
+        encrypted_secret = encrypt(secret)
+    except RuntimeError:
+        raise HTTPException(
+            status_code=400,
+            detail="BIGRAG_SECRET_KEY is not configured. Set it to encrypt webhook secrets.",
+        )
     webhook_id = uuid.uuid4()
 
     row = await db.fetchrow(

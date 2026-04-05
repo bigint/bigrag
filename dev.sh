@@ -76,9 +76,10 @@ for i in $(seq 1 60); do
   sleep 1
 done
 
-DATABASE_URL="postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
+DATABASE_URL="postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable"
 MILVUS_URI="http://localhost:19530"
-REDIS_URL="redis://localhost:6379/0"
+REDIS_URL="redis://localhost:6380/0"
+SECRET_KEY="${BIGRAG_SECRET_KEY:-dev-secret-$(openssl rand -hex 16)}"
 
 # --- Python backend ---
 echo -e "${CYAN}Setting up Python backend...${NC}"
@@ -90,6 +91,7 @@ echo -e "${CYAN}Starting Python backend (auto-reload)...${NC}"
 BIGRAG_DATABASE_URL="$DATABASE_URL" \
 BIGRAG_MILVUS_URI="$MILVUS_URI" \
 BIGRAG_REDIS_URL="$REDIS_URL" \
+BIGRAG_SECRET_KEY="$SECRET_KEY" \
 PYTHONUNBUFFERED=1 \
 uv run --directory "$ROOT_DIR/api" uvicorn bigrag.main:create_app \
   --factory --host 0.0.0.0 --port 6100 \
@@ -111,8 +113,8 @@ done
 echo -e "${GREEN}All services started:${NC}"
 echo -e "  Backend  → http://localhost:6100"
 echo -e "  API Docs → http://localhost:6100/docs"
-echo -e "  Postgres → localhost:5432"
-echo -e "  Redis    → localhost:6379"
+echo -e "  Postgres → localhost:5433"
+echo -e "  Redis    → localhost:6380"
 echo -e "  Milvus   → localhost:19530"
 echo -e "\n${YELLOW}Press Ctrl+C to stop all services.${NC}"
 

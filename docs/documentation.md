@@ -106,9 +106,9 @@ Query → Embed → Vector Search ───────────────�
 | Component | Purpose | Default Address |
 |-----------|---------|-----------------|
 | **bigRAG API** | REST API server (FastAPI) | `http://localhost:6100` |
-| **PostgreSQL** | Metadata storage | `localhost:5432` |
+| **PostgreSQL** | Metadata storage | `localhost:5433` |
 | **Milvus** | Vector storage and search | `localhost:19530` |
-| **Redis** | Ingestion job queue | `localhost:6379` |
+| **Redis** | Ingestion job queue | `localhost:6380` |
 
 ---
 
@@ -143,7 +143,7 @@ cd api
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
 python -m bigrag.main \
-  --database-url "postgres://bigrag:bigrag@localhost:5432/bigrag" \
+  --database-url "postgres://bigrag:bigrag@localhost:5433/bigrag" \
   --milvus-uri "http://localhost:19530"
 ```
 
@@ -206,7 +206,7 @@ log_format = "text"         # text, json
 cors_origins = ["*"]
 
 [database]
-url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
+url = "postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable"
 pool_min = 5
 pool_max = 50
 
@@ -214,7 +214,7 @@ pool_max = 50
 uri = "http://localhost:19530"
 
 [redis]
-url = "redis://localhost:6379/0"
+url = "redis://localhost:6380/0"
 
 [auth]
 api_secret = ""             # Shared API secret (open access if empty)
@@ -248,9 +248,9 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | `BIGRAG_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`) | `info` |
 | `BIGRAG_LOG_FORMAT` | Log format (`text`, `json`) | `text` |
 | **Infrastructure** | | |
-| `BIGRAG_DATABASE_URL` | Postgres connection URL | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
+| `BIGRAG_DATABASE_URL` | Postgres connection URL | `postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable` |
 | `BIGRAG_MILVUS_URI` | Milvus connection URI | `http://localhost:19530` |
-| `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
+| `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6380/0` |
 | **Auth** | | |
 | `BIGRAG_API_SECRET` | Shared API secret (open access if unset) | — |
 | `BIGRAG_SECRET_KEY` | Encryption key for secrets at rest (required for collections with API keys) | — |

@@ -40,7 +40,7 @@ services:
     container_name: bigrag-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       # Change these credentials for production deployments
       POSTGRES_USER: bigrag
@@ -64,7 +64,7 @@ services:
     container_name: bigrag-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy noeviction

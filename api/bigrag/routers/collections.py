@@ -78,6 +78,20 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # Encrypt API keys early so we fail fast with a clear error
+    try:
+        encrypted_embedding_key = (
+            encrypt(body.embedding_api_key) if body.embedding_api_key else None
+        )
+        encrypted_reranking_key = (
+            encrypt(body.reranking_api_key) if body.reranking_api_key else None
+        )
+    except RuntimeError:
+        raise HTTPException(
+            status_code=400,
+            detail="BIGRAG_SECRET_KEY is not configured. Set it to encrypt API keys.",
+        )
+
     # Create in Milvus first (idempotent — skips if exists)
     await vector_store.create_collection(body.name, dimension)
 
@@ -101,11 +115,11 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             body.chunk_size,
             body.chunk_overlap,
             body.metadata,
-            encrypt(body.embedding_api_key) if body.embedding_api_key else None,
+            encrypted_embedding_key,
             None,
             body.reranking_enabled,
             body.reranking_model,
-            encrypt(body.reranking_api_key) if body.reranking_api_key else None,
+            encrypted_reranking_key,
         )
     except asyncpg.UniqueViolationError:
         raise HTTPException(status_code=409, detail="Collection already exists")
@@ -150,7 +164,13 @@ async def update_collection(
     if body.reranking_model is not None:
         fields["reranking_model"] = body.reranking_model
     if body.reranking_api_key is not None:
-        fields["reranking_api_key"] = encrypt(body.reranking_api_key)
+        try:
+            fields["reranking_api_key"] = encrypt(body.reranking_api_key)
+        except RuntimeError:
+            raise HTTPException(
+                status_code=400,
+                detail="BIGRAG_SECRET_KEY is not configured. Set it to encrypt API keys.",
+            )
 
     if not fields:
         return _row_to_response(dict(row))
