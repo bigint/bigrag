@@ -18,7 +18,7 @@ Complete reference for the bigRAG open-source RAG platform — document ingestio
   - [TOML Configuration](#toml-configuration)
   - [Environment Variables](#environment-variables)
 - [API Reference](#api-reference)
-  - [Health & Metrics](#health--metrics)
+  - [Health](#health)
   - [Collections](#collections)
   - [Documents](#documents)
   - [Query & Search](#query--search)
@@ -30,7 +30,6 @@ Complete reference for the bigRAG open-source RAG platform — document ingestio
   - [Vectors (Direct)](#vectors-direct)
   - [Embedding Models](#embedding-models)
   - [Admin: Webhooks](#admin-webhooks)
-  - [Queue](#queue)
   - [Platform Stats](#platform-stats)
 - [Embedding Providers](#embedding-providers)
 - [Document Ingestion Pipeline](#document-ingestion-pipeline)
@@ -292,7 +291,7 @@ Base URL: `http://localhost:6100`
 
 Interactive Swagger docs: `http://localhost:6100/docs`
 
-### Health & Metrics
+### Health
 
 #### `GET /health`
 
@@ -324,27 +323,6 @@ Readiness check. Tests connectivity to Postgres, Milvus, and Redis. No authentic
 ```
 
 Returns HTTP 503 with `"status": "degraded"` when any dependency is unhealthy.
-
-#### `GET /v1/metrics`
-
-Prometheus-format metrics. Requires admin authentication.
-
-**Response:** Prometheus text format with request counts, latencies, etc.
-
-#### `GET /v1/queue/stats`
-
-Ingestion queue statistics. Requires authentication.
-
-**Response:**
-
-```json
-{
-  "pending": 3,
-  "processing": 1,
-  "completed": 42,
-  "failed": 0
-}
-```
 
 ---
 
@@ -1235,23 +1213,6 @@ Failed deliveries retry 3 times with exponential backoff (~10s, ~30s, ~90s). Aft
 
 ---
 
-### Queue
-
-#### `GET /v1/queue/stats`
-
-Get ingestion queue statistics.
-
-**Response** `200`:
-
-```json
-{
-  "pending": 3,
-  "processing": 1,
-  "completed": 42,
-  "failed": 0
-}
-```
-
 ### Platform Stats
 
 #### `GET /v1/stats`
@@ -1270,6 +1231,7 @@ Get platform-wide statistics including collections, documents, and queue.
     "processing": 2,
     "failed": 3,
     "total_chunks": 4850,
+    "total_tokens": 285000,
     "total_size_bytes": 524288000
   },
   "webhooks": 2,
@@ -1572,8 +1534,6 @@ client.upsertVectors(collection, vectors)
 client.deleteVectors(collection, ids)
 client.listEmbeddingModels()
 client.getStats()
-client.getQueueStats()
-client.getMetrics()
 ```
 
 #### Analytics

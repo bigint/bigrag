@@ -33,6 +33,7 @@ export interface DocumentStats {
   processing: number;
   failed: number;
   total_chunks: number;
+  total_tokens: number;
   total_size_bytes: number;
 }
 

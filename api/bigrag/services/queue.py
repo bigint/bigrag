@@ -475,11 +475,13 @@ class IngestionQueue:
 
             text = await self._convert_document(job, prefix)
             total_inserted = await self._chunk_and_embed(job, text, prefix)
+            token_count = len(text) // 4  # approximate tokens
 
             await db.execute(
                 "UPDATE documents SET status = 'ready', chunk_count = $1, "
-                "error_message = NULL, updated_at = now() WHERE id = $2",
+                "token_count = $2, error_message = NULL, updated_at = now() WHERE id = $3",
                 total_inserted,
+                token_count,
                 uuid.UUID(doc),
             )
             await db.execute(

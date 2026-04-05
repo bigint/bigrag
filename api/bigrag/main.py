@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from prometheus_fastapi_instrumentator import Instrumentator
 
 from bigrag import __version__
 from bigrag.config import Settings, settings
@@ -132,10 +131,6 @@ def create_app() -> FastAPI:
 
     from bigrag.middleware.auth import get_current_user
 
-    Instrumentator().instrument(app).expose(
-        app, endpoint="/v1/metrics", dependencies=[Depends(get_current_user)]
-    )
-
     @app.get("/health")
     async def health():
         return {"status": "ok", "version": __version__}
@@ -169,10 +164,6 @@ def create_app() -> FastAPI:
 
         return JSONResponse(content=checks, status_code=200 if healthy else 503)
 
-    @app.get("/v1/queue/stats")
-    async def queue_stats(_: dict = Depends(get_current_user)):
-        return await ingestion_queue.stats
-
     @app.get("/v1/stats")
     async def platform_stats(_: dict = Depends(get_current_user)):
         import asyncio
@@ -183,6 +174,7 @@ def create_app() -> FastAPI:
                 "SELECT COUNT(*) as total, "
                 "COALESCE(SUM(file_size), 0) as total_size, "
                 "COALESCE(SUM(chunk_count), 0) as total_chunks, "
+                "COALESCE(SUM(token_count), 0) as total_tokens, "
                 "COUNT(*) FILTER (WHERE status = 'ready') as ready, "
                 "COUNT(*) FILTER (WHERE status = 'pending') as pending, "
                 "COUNT(*) FILTER (WHERE status = 'processing') as processing, "
@@ -206,6 +198,7 @@ def create_app() -> FastAPI:
                 "processing": docs["processing"],
                 "failed": docs["failed"],
                 "total_chunks": int(docs["total_chunks"]),
+                "total_tokens": int(docs["total_tokens"]),
                 "total_size_bytes": int(docs["total_size"]),
             },
             "webhooks": webhooks["cnt"],

@@ -30,7 +30,6 @@ import type {
   ProgressEvent,
   QueryBody,
   QueryResponse,
-  QueueStatsResponse,
   ReadinessResponse,
   StatusResponse,
   UpdateCollectionBody,
@@ -193,15 +192,6 @@ export class BigRAG {
       body: formData,
     });
     return (await response.json()) as T;
-  }
-
-  private async _requestText(path: string): Promise<string> {
-    const url = `${this.baseUrl}${path}`;
-    const response = await this._fetchWithRetry(url, {
-      method: "GET",
-      headers: this._headers(),
-    });
-    return response.text();
   }
 
   // ---- Helpers for file input normalization ----
@@ -461,17 +451,7 @@ export class BigRAG {
     return this._request("GET", "/v1/embeddings/models");
   }
 
-  // ---- Metrics ----
-
-  getMetrics(): Promise<string> {
-    return this._requestText("/v1/metrics");
-  }
-
-  // ---- Queue ----
-
-  getQueueStats(): Promise<QueueStatsResponse> {
-    return this._request("GET", "/v1/queue/stats");
-  }
+  // ---- Stats ----
 
   getStats(): Promise<PlatformStatsResponse> {
     return this._request("GET", "/v1/stats");

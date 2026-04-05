@@ -625,16 +625,6 @@ class TestRetrievalHelpers:
 
 
 # ---------------------------------------------------------------------------
-# Queue stats endpoint
-# ---------------------------------------------------------------------------
-
-
-async def test_queue_stats_requires_auth(client):
-    resp = await client.get("/v1/queue/stats")
-    assert resp.status_code == 401
-
-
-# ---------------------------------------------------------------------------
 # Embedding models endpoint
 # ---------------------------------------------------------------------------
 
