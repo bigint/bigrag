@@ -76,7 +76,6 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
 
     provider = body.embedding_provider or settings.embedding_provider
     model = body.embedding_model or settings.embedding_model
-    dimension = body.dimension or settings.embedding_dimension
 
     if provider not in ("openai", "cohere"):
         raise HTTPException(
@@ -94,12 +93,13 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
     try:
         from bigrag.services.embedding import get_embedding_model
 
-        get_embedding_model(
+        emb = get_embedding_model(
             provider=provider,
             model_name=model,
-            dimension=dimension,
+            dimension=body.dimension,
             api_key=api_key,
         )
+        dimension = body.dimension or emb.dimension
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
