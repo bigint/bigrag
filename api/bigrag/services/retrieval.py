@@ -335,7 +335,8 @@ def _build_filter_expr(filters: dict) -> str | None:
                 elif op in ("$gt", "$gte", "$lt", "$lte"):
                     if not isinstance(val, (int, float)):
                         raise ValueError(
-                            f"Filter operator {op} requires a numeric value, got {type(val).__name__}"
+                            f"Filter operator {op} requires a numeric value, "
+                            f"got {type(val).__name__}"
                         )
                     op_map = {"$gt": ">", "$gte": ">=", "$lt": "<", "$lte": "<="}
                     expressions.append(f"{field} {op_map[op]} {val}")
