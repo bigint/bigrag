@@ -212,7 +212,8 @@ class Database:
             logger.info("Postgres connection closed")
 
     async def migrate(self) -> None:
-        assert self.pool is not None
+        if self.pool is None:
+            raise RuntimeError("Database not connected — call connect() before migrate()")
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS _migrations (
@@ -220,29 +221,37 @@ class Database:
                     applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
                 )
             """)
-            applied = {
-                row["version"] for row in await conn.fetch("SELECT version FROM _migrations")
-            }
-            for i, sql in enumerate(MIGRATIONS):
-                if i in applied:
-                    continue
-                logger.info(f"Applying migration {i}")
-                await conn.execute(sql)
-                await conn.execute(
-                    "INSERT INTO _migrations (version) VALUES ($1) ON CONFLICT DO NOTHING", i
-                )
+            # Advisory lock prevents concurrent migration from multiple instances
+            await conn.execute("SELECT pg_advisory_lock(8675309)")
+            try:
+                applied = {
+                    row["version"]
+                    for row in await conn.fetch("SELECT version FROM _migrations")
+                }
+                for i, sql in enumerate(MIGRATIONS):
+                    if i in applied:
+                        continue
+                    logger.info(f"Applying migration {i}")
+                    await conn.execute(sql)
+                    await conn.execute(
+                        "INSERT INTO _migrations (version) VALUES ($1)"
+                        " ON CONFLICT DO NOTHING",
+                        i,
+                    )
+            finally:
+                await conn.execute("SELECT pg_advisory_unlock(8675309)")
             logger.info("Migrations complete")
 
     async def fetchrow(self, query: str, *args) -> asyncpg.Record | None:
-        async with self.pool.acquire() as conn:
+        async with self.pool.acquire(timeout=10) as conn:
             return await conn.fetchrow(query, *args)
 
     async def fetch(self, query: str, *args) -> list[asyncpg.Record]:
-        async with self.pool.acquire() as conn:
+        async with self.pool.acquire(timeout=10) as conn:
             return await conn.fetch(query, *args)
 
     async def execute(self, query: str, *args) -> str:
-        async with self.pool.acquire() as conn:
+        async with self.pool.acquire(timeout=10) as conn:
             return await conn.execute(query, *args)
 
 

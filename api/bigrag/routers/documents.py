@@ -111,6 +111,9 @@ async def upload_document(
         chunks.append(chunk)
     content = b"".join(chunks)
 
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="File is empty")
+
     doc_id = str(uuid.uuid4())
     file_ext = Path(file.filename or "document").suffix
     storage_key = f"{collection_name}/{doc_id}{file_ext}"
@@ -407,8 +410,9 @@ async def batch_upload_documents(
         shared_meta = {}
 
     max_size = settings.max_upload_size_mb * 1024 * 1024
-    results = []
 
+    # Pre-validate and read all files before committing any
+    validated: list[tuple[UploadFile, bytes]] = []
     for file in files:
         file_ext = Path(file.filename or "").suffix.lower()
         if file_ext and file_ext not in SUPPORTED_EXTENSIONS:
@@ -437,7 +441,15 @@ async def batch_upload_documents(
                 )
             chunks.append(chunk)
         content = b"".join(chunks)
+        if len(content) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File '{file.filename}' is empty",
+            )
+        validated.append((file, content))
 
+    results = []
+    for file, content in validated:
         doc_id = str(uuid.uuid4())
         ext = Path(file.filename or "document").suffix
         storage_key = f"{collection_name}/{doc_id}{ext}"
@@ -611,13 +623,22 @@ async def document_progress_sse(
     document_id: str,
     _: dict = Depends(get_current_user),
 ):
+    import asyncio
+
     async def generate():
         yield (
             'data: {"step":"connected","status":"connected",'
             '"message":"Listening for progress","progress":0}\n\n'
         )
-        async for event in event_bus.stream(document_id):
-            yield event.to_sse()
+        try:
+            async with asyncio.timeout(600):  # 10 min max
+                async for event in event_bus.stream(document_id):
+                    yield event.to_sse()
+        except TimeoutError:
+            yield (
+                'data: {"step":"timeout","status":"timeout",'
+                '"message":"Stream timed out after 10 minutes","progress":0}\n\n'
+            )
 
     return StreamingResponse(
         generate(),

@@ -30,11 +30,18 @@ class StorageBackend(ABC):
 
 class LocalStorage(StorageBackend):
     def __init__(self, base_dir: str) -> None:
-        self._base = Path(base_dir)
+        self._base = Path(base_dir).resolve()
         self._base.mkdir(parents=True, exist_ok=True)
 
+    def _safe_path(self, key: str) -> Path:
+        """Resolve key to a path guaranteed to be under base directory."""
+        resolved = (self._base / key).resolve()
+        if not str(resolved).startswith(str(self._base)):
+            raise ValueError(f"Invalid storage key: {key}")
+        return resolved
+
     async def put(self, key: str, data: bytes) -> None:
-        path = self._base / key
+        path = self._safe_path(key)
 
         def _write():
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -44,7 +51,7 @@ class LocalStorage(StorageBackend):
         logger.info(f"local put: key={key} size={len(data)}")
 
     async def get(self, key: str) -> bytes:
-        path = self._base / key
+        path = self._safe_path(key)
 
         def _read():
             if not path.exists():
@@ -56,7 +63,7 @@ class LocalStorage(StorageBackend):
         return data
 
     async def delete(self, key: str) -> None:
-        path = self._base / key
+        path = self._safe_path(key)
 
         def _delete():
             if path.exists():
@@ -68,7 +75,7 @@ class LocalStorage(StorageBackend):
     async def delete_prefix(self, prefix: str) -> int:
         import shutil
 
-        target = self._base / prefix
+        target = self._safe_path(prefix)
 
         def _delete_prefix():
             if not target.exists():
@@ -86,7 +93,8 @@ class LocalStorage(StorageBackend):
         return count
 
     async def exists(self, key: str) -> bool:
-        return await asyncio.to_thread(lambda: (self._base / key).exists())
+        path = self._safe_path(key)
+        return await asyncio.to_thread(path.exists)
 
     async def close(self) -> None:
         pass

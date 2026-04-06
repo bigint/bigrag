@@ -46,6 +46,17 @@ class VectorStore:
         self.client = MilvusClient(uri=self.uri)
         logger.info(f"Connected to Milvus at {self.uri}")
 
+    def reconnect(self) -> None:
+        """Reconnect to Milvus if the connection was lost."""
+        logger.warning(f"Reconnecting to Milvus at {self.uri}")
+        try:
+            if self.client:
+                self.client.close()
+        except Exception:
+            pass
+        self.client = MilvusClient(uri=self.uri)
+        logger.info(f"Reconnected to Milvus at {self.uri}")
+
     def close(self) -> None:
         if self.client:
             self.client.close()
@@ -53,6 +64,11 @@ class VectorStore:
 
     def _col(self, name: str) -> str:
         return f"bigrag_{name}"
+
+    @staticmethod
+    def _safe_id(value: str) -> str:
+        """Escape a string for safe use in Milvus filter expressions."""
+        return value.replace("\\", "\\\\").replace('"', '\\"')
 
     async def create_collection(self, name: str, dimension: int) -> None:
         col = self._col(name)
@@ -164,10 +180,11 @@ class VectorStore:
         limit: int = 10000,
     ) -> list[dict]:
         col = self._col(collection)
+        safe_doc_id = self._safe_id(document_id)
         results = await _run(
             self.client.query,
             collection_name=col,
-            filter=f'document_id == "{document_id}"',
+            filter=f'document_id == "{safe_doc_id}"',
             output_fields=["text", "document_id", "chunk_index"],
             limit=limit,
         )
@@ -180,8 +197,9 @@ class VectorStore:
 
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         col = self._col(collection)
+        safe_doc_id = self._safe_id(document_id)
         await _run(
-            self.client.delete, collection_name=col, filter=f'document_id == "{document_id}"'
+            self.client.delete, collection_name=col, filter=f'document_id == "{safe_doc_id}"'
         )
         logger.info(f"delete_by_document: collection={col} document_id={document_id}")
 

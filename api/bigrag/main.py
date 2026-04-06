@@ -63,6 +63,15 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger("bigrag")
     logger.info(f"bigRAG v{__version__} starting")
 
+    if not settings.api_secret:
+        logger.warning(
+            "BIGRAG_API_SECRET is not set — all endpoints are open without authentication"
+        )
+    if settings.cors_origins == ["*"]:
+        logger.warning(
+            "CORS allows all origins (BIGRAG_CORS_ORIGINS='*') — restrict in production"
+        )
+
     # Postgres
     await db.connect(
         settings.database_url,
@@ -172,8 +181,18 @@ def create_app() -> FastAPI:
             checks["postgres"] = False
             healthy = False
 
-        checks["milvus"] = vector_store.client is not None
-        if not checks["milvus"]:
+        try:
+            if vector_store.client:
+                from pymilvus import MilvusClient
+
+                if isinstance(vector_store.client, MilvusClient):
+                    vector_store.client.list_collections()
+                checks["milvus"] = True
+            else:
+                checks["milvus"] = False
+                healthy = False
+        except Exception:
+            checks["milvus"] = False
             healthy = False
 
         try:

@@ -59,7 +59,10 @@ class OpenAIEmbedding(EmbeddingModel):
 
     async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
         async with _get_semaphore():
-            response = await self._client.embeddings.create(input=texts, model=self._model_name)
+            response = await asyncio.wait_for(
+                self._client.embeddings.create(input=texts, model=self._model_name),
+                timeout=60,
+            )
         return [item.embedding for item in response.data]
 
     @property
@@ -103,11 +106,14 @@ class CohereEmbedding(EmbeddingModel):
     async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
         cohere_input_type = self._INPUT_TYPE_MAP.get(input_type, "search_document")
         async with _get_semaphore():
-            response = await self._client.embed(
-                texts=texts,
-                model=self._model_name,
-                input_type=cohere_input_type,
-                embedding_types=["float"],
+            response = await asyncio.wait_for(
+                self._client.embed(
+                    texts=texts,
+                    model=self._model_name,
+                    input_type=cohere_input_type,
+                    embedding_types=["float"],
+                ),
+                timeout=60,
             )
         return [list(e) for e in response.embeddings.float_]
 

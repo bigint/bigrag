@@ -73,11 +73,14 @@ async def rerank_results(
     client = cohere.AsyncClient(api_key=api_key)
     try:
         texts = [r.get("text", "") for r in results]
-        response = await client.rerank(
-            query=query,
-            documents=texts,
-            model=model,
-            top_n=len(results),
+        response = await asyncio.wait_for(
+            client.rerank(
+                query=query,
+                documents=texts,
+                model=model,
+                top_n=len(results),
+            ),
+            timeout=30,
         )
 
         reranked = []
@@ -278,7 +281,10 @@ async def retrieve_multi(
             r["collection"] = col_name
         return results
 
-    all_results = await asyncio.gather(*[search_one(c) for c in collection_names])
+    all_results = await asyncio.wait_for(
+        asyncio.gather(*[search_one(c) for c in collection_names]),
+        timeout=120,
+    )
 
     merged = []
     for results in all_results:

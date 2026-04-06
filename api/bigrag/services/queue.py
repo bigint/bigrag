@@ -21,8 +21,20 @@ def _get_docling_converter():
     if _docling_converter is None:
         import os
 
-        # Skip HuggingFace API calls when models are already cached locally
-        os.environ.setdefault("HF_HUB_OFFLINE", "1")
+        # Use HF cache if models are already downloaded, otherwise allow download
+        if os.environ.get("HF_HUB_OFFLINE") is None:
+            from huggingface_hub import scan_cache_dir
+
+            try:
+                cache = scan_cache_dir()
+                cached_repos = {r.repo_id for r in cache.repos}
+                if "docling-project/docling-layout-heron" in cached_repos:
+                    os.environ["HF_HUB_OFFLINE"] = "1"
+                    logger.info("Docling models cached — using HF offline mode")
+                else:
+                    logger.info("Docling models not cached — will download from HF")
+            except Exception:
+                pass  # scan_cache_dir failed, let HF decide
 
         from docling.datamodel.pipeline_options import PdfPipelineOptions
         from docling.document_converter import DocumentConverter, InputFormat, PdfFormatOption
@@ -235,6 +247,8 @@ class IngestionQueue:
 
     async def flush_collection(self, collection_name: str) -> int:
         """Remove all queued jobs for a collection. Returns count removed."""
+        if not self._redis:
+            return 0
         removed = 0
         items = await self._redis.lrange(QUEUE_KEY, 0, -1)
         for item in items:
@@ -571,6 +585,7 @@ class IngestionQueue:
                 )
                 await self._redis.hincrby(STATS_KEY, "failed", 1)
                 await self._redis.lpush(DEAD_LETTER_KEY, job.serialize())
+                await self._redis.ltrim(DEAD_LETTER_KEY, 0, 999)  # cap at 1000
                 await db.execute(
                     "UPDATE documents SET status = 'failed', "
                     "error_message = $1, updated_at = now() WHERE id = $2",
