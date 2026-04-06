@@ -74,23 +74,27 @@ async def test_create_collection_invalid_name_returns_422(client, mock_db, auth_
 async def test_list_collections(client, mock_db, auth_headers):
     rows = [make_collection_row("col_a"), make_collection_row("col_b")]
     mock_db.fetch.return_value = rows
+    mock_db.fetchrow.return_value = {"cnt": 2}
 
     resp = await client.get("/v1/collections", headers=auth_headers)
 
     assert resp.status_code == 200
     data = resp.json()
     assert len(data["collections"]) == 2
+    assert data["total"] == 2
     names = {c["name"] for c in data["collections"]}
     assert names == {"col_a", "col_b"}
 
 
 async def test_list_collections_empty(client, mock_db, auth_headers):
     mock_db.fetch.return_value = []
+    mock_db.fetchrow.return_value = {"cnt": 0}
 
     resp = await client.get("/v1/collections", headers=auth_headers)
 
     assert resp.status_code == 200
     assert resp.json()["collections"] == []
+    assert resp.json()["total"] == 0
 
 
 # ---------------------------------------------------------------------------

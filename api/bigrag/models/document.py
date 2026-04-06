@@ -24,14 +24,6 @@ class DocumentListResponse(BaseModel):
     total: int
 
 
-class DocumentChunkResponse(BaseModel):
-    id: str
-    document_id: str
-    chunk_index: int
-    text: str
-    metadata: dict
-
-
 class BatchStatusRequest(BaseModel):
     document_ids: list[str]
 

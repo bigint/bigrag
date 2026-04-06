@@ -6,7 +6,6 @@ import {
 import { parseSSEStream } from "./sse.js";
 import type {
   AnalyticsResponse,
-  BatchDeleteBody,
   BatchDeleteDocumentsResponse,
   BatchGetDocumentsResponse,
   BatchQueryBody,

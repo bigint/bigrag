@@ -29,6 +29,7 @@ async def test_invalid_token_returns_401(client, bad_auth_headers):
 async def test_valid_bearer_token(client, auth_headers, mock_db):
     """Request with the correct Bearer token should succeed."""
     mock_db.fetch.return_value = []
+    mock_db.fetchrow.return_value = {"cnt": 0}
     resp = await client.get("/v1/collections", headers=auth_headers)
     assert resp.status_code == 200
 
@@ -37,6 +38,7 @@ async def test_valid_bearer_token(client, auth_headers, mock_db):
 async def test_query_param_token(client, mock_db):
     """Token passed as a query parameter should be accepted."""
     mock_db.fetch.return_value = []
+    mock_db.fetchrow.return_value = {"cnt": 0}
     resp = await client.get(f"/v1/collections?token={TEST_API_SECRET}")
     assert resp.status_code == 200
 
