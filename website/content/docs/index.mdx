@@ -18,23 +18,23 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 
 ## Architecture
 
-<Mermaid chart="graph TD
-  Client[Your App]:::input --> API[bigRAG API]:::gateway
-  API --> Ingestion[Ingestion Service]:::service
-  API --> Query[Query Service]:::service
-  API --> Admin[Admin Service]:::service
-  Ingestion --> Docling[Docling]:::infra
-  Ingestion --> Embedding[Embedding Model]:::infra
-  Ingestion --> Redis[Redis Queue]:::infra
-  Ingestion --> Milvus[Milvus Vector DB]:::infra
-  Query --> Embedding
-  Query --> Milvus
-  Admin --> Postgres[PostgreSQL]:::infra
-  Ingestion --> Postgres
-  classDef input stroke-width:2px
-  classDef gateway stroke-width:2px
-  classDef service stroke-width:1px
-  classDef infra stroke-width:1px" />
+<Mermaid chart='graph TD
+    Client([Client]) -->|REST API| API[bigRAG API<br/>Python / FastAPI]
+    API --> Collections[Collections]
+    API --> Documents[Documents]
+    API --> Query[Query]
+    API --> Webhooks[Webhooks]
+    Documents -->|store files| Storage[(Storage<br/>Local / S3)]
+    Documents -->|enqueue| Redis[(Redis<br/>Job Queue)]
+    Redis -->|process| Worker[Ingestion Worker]
+    Worker -->|parse| Docling[Docling<br/>PDF, DOCX, HTML, Images]
+    Worker -->|embed| Embedding[Embedding Provider<br/>OpenAI / Cohere]
+    Worker -->|store vectors| Milvus[(Milvus<br/>Vector DB)]
+    Query -->|search| Milvus
+    Query -->|embed query| Embedding
+    Collections --> Postgres[(Postgres<br/>Metadata)]
+    Documents --> Postgres
+    Webhooks --> Postgres' />
 
 | Component | Purpose | Default Address |
 |-----------|---------|-----------------|
@@ -42,21 +42,6 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 | **PostgreSQL** | Metadata storage | `localhost:5433` |
 | **Milvus** | Vector storage and search | `localhost:19530` |
 | **Redis** | Ingestion job queue | `localhost:6380` |
-
-## Data Flow
-
-<Mermaid chart="graph LR
-  Upload[Document Upload]:::input --> Parse[Docling Parse]:::service
-  Parse --> Chunk[Chunking]:::service
-  Chunk --> Embed[Embedding]:::service
-  Embed --> Store[Milvus Store]:::service
-  SearchQuery[Query]:::input --> QEmbed[Embed Query]:::service
-  QEmbed --> Search[Vector Search]:::service
-  Search --> Store
-  Search --> Results[Results + Context]:::output
-  classDef input stroke-width:2px
-  classDef service stroke-width:1px
-  classDef output stroke-width:2px" />
 
 ## Explore
 
