@@ -19,6 +19,11 @@ _docling_converter = None
 def _get_docling_converter():
     global _docling_converter
     if _docling_converter is None:
+        import os
+
+        # Skip HuggingFace API calls when models are already cached locally
+        os.environ.setdefault("HF_HUB_OFFLINE", "1")
+
         from docling.datamodel.pipeline_options import PdfPipelineOptions
         from docling.document_converter import DocumentConverter, InputFormat, PdfFormatOption
         from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
