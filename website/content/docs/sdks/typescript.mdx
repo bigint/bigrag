@@ -60,13 +60,15 @@ const { results } = await client.query("knowledge_base", {
 ## Collections
 
 ```typescript
-client.listCollections()
+client.listCollections({ name?, limit?, offset? })
 client.createCollection({
   name, description?, embedding_provider?, embedding_model?,
-  dimension?, chunk_size?, chunk_overlap?
+  dimension?, chunk_size?, chunk_overlap?, is_default?
 })
 client.getCollection(name)
-client.updateCollection(name, { description?, metadata? })
+client.getDefaultCollection()
+client.getCollectionStats(name)
+client.updateCollection(name, { description?, metadata?, is_default? })
 client.deleteCollection(name)
 ```
 
@@ -79,6 +81,7 @@ client.listDocuments(collection, { status?, limit?, offset? })
 client.getDocument(collection, documentId)
 client.deleteDocument(collection, documentId)
 client.batchGetStatus(collection, documentIds)
+client.batchGetDocuments(collection, documentIds)
 client.batchDeleteDocuments(collection, documentIds)
 client.reprocessDocument(collection, documentId)
 client.getDocumentChunks(collection, documentId)
@@ -122,7 +125,9 @@ await docs.query({ query: "PTO policy", top_k: 5 });
 await docs.upload(file);
 await docs.batchUpload([file1, file2, file3]);
 await docs.batchGetStatus(["doc-id-1", "doc-id-2"]);
+await docs.batchGetDocuments(["doc-id-1", "doc-id-2"]);
 await docs.batchDelete(["doc-id-1", "doc-id-2"]);
+await docs.stats();
 await docs.analytics();
 ```
 

@@ -198,6 +198,43 @@ Check status of up to 100 documents.
 { "document_ids": ["doc-id-1", "doc-id-2"] }
 ```
 
+## Batch Get Documents
+
+```
+POST /v1/collections/{collection_name}/documents/batch/get
+```
+
+Fetch full metadata for up to 100 documents by ID.
+
+```json
+{ "document_ids": ["doc-id-1", "doc-id-2"] }
+```
+
+**Response** `200`:
+
+```json
+{
+  "documents": [
+    {
+      "id": "doc-id-1",
+      "collection_id": "...",
+      "filename": "paper.pdf",
+      "file_type": "pdf",
+      "file_size": 1048576,
+      "chunk_count": 24,
+      "status": "ready",
+      "error_message": null,
+      "metadata": {},
+      "created_at": "...",
+      "updated_at": "..."
+    }
+  ],
+  "total": 1
+}
+```
+
+Unlike Batch Status (which returns only `id`, `status`, `error_message`, `chunk_count`), this endpoint returns the complete document object including `filename`, `file_size`, `file_type`, and `metadata`.
+
 ## Batch Delete
 
 ```

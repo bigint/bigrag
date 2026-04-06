@@ -48,6 +48,15 @@ class BatchStatusResponse(BaseModel):
     total: int
 
 
+class BatchGetRequest(BaseModel):
+    document_ids: list[str]
+
+
+class BatchGetResponse(BaseModel):
+    documents: list[DocumentResponse]
+    total: int
+
+
 class BatchDeleteRequest(BaseModel):
     document_ids: list[str]
 

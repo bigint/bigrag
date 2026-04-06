@@ -11,6 +11,14 @@ Base path: `/v1/collections`
 GET /v1/collections
 ```
 
+**Query parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | — | Filter by name prefix (case-insensitive) |
+| `limit` | integer | `100` | Results per page (1–1,000) |
+| `offset` | integer | `0` | Pagination offset |
+
 **Response** `200`:
 
 ```json
@@ -33,13 +41,27 @@ GET /v1/collections
       "default_top_k": 10,
       "default_min_score": null,
       "default_search_mode": "semantic",
+      "is_default": false,
       "metadata": {},
       "created_at": "2026-04-01T00:00:00Z",
       "updated_at": "2026-04-01T12:00:00Z"
     }
-  ]
+  ],
+  "total": 1
 }
 ```
+
+## Get Default Collection
+
+```
+GET /v1/collections/default
+```
+
+Returns the collection marked as the default.
+
+**Response** `200`: Full collection object.
+
+**Errors:** `404` — No default collection set
 
 ## Create Collection
 
@@ -61,6 +83,7 @@ POST /v1/collections
   "default_top_k": 10,
   "default_min_score": 0.3,
   "default_search_mode": "semantic",
+  "is_default": true,
   "metadata": { "team": "research" }
 }
 ```
@@ -81,7 +104,10 @@ POST /v1/collections
 | `reranking_enabled` | boolean | no | `false` | Enable reranking |
 | `reranking_model` | string | no | `"rerank-v3.5"` | Cohere reranking model |
 | `reranking_api_key` | string | no | — | Cohere API key |
+| `is_default` | boolean | no | `false` | Mark as default collection |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
+
+Setting `is_default: true` clears the flag on any previously default collection.
 
 **Response** `201`: Full collection object.
 
@@ -100,6 +126,34 @@ GET /v1/collections/{name}
 
 **Errors:** `404` — Collection not found
 
+## Get Collection Stats
+
+```
+GET /v1/collections/{name}/stats
+```
+
+Lightweight endpoint returning document and chunk counts for a single collection.
+
+**Response** `200`:
+
+```json
+{
+  "collection": "research_papers",
+  "document_count": 15,
+  "total_chunks": 482,
+  "total_tokens": 125000,
+  "total_size_bytes": 52428800,
+  "status_counts": {
+    "ready": 12,
+    "pending": 2,
+    "processing": 1,
+    "failed": 0
+  }
+}
+```
+
+**Errors:** `404` — Collection not found
+
 ## Update Collection
 
 ```
@@ -114,7 +168,8 @@ PUT /v1/collections/{name}
   "metadata": { "team": "engineering" },
   "reranking_enabled": true,
   "default_top_k": 20,
-  "default_search_mode": "hybrid"
+  "default_search_mode": "hybrid",
+  "is_default": true
 }
 ```
 
@@ -128,6 +183,9 @@ PUT /v1/collections/{name}
 | `default_top_k` | integer | no | Default results count (1–1,000) |
 | `default_min_score` | float | no | Default minimum similarity score |
 | `default_search_mode` | string | no | `semantic`, `keyword`, `hybrid` |
+| `is_default` | boolean | no | Mark as default collection |
+
+Setting `is_default: true` clears the flag on any other collection.
 
 **Response** `200`: Updated collection object.
 

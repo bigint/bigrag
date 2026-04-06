@@ -8,11 +8,14 @@ import type {
   AnalyticsResponse,
   BatchDeleteBody,
   BatchDeleteDocumentsResponse,
+  BatchGetDocumentsResponse,
   BatchQueryBody,
   BatchStatusResponse,
   BatchQueryResponse,
   Collection,
+  CollectionListOptions,
   CollectionListResponse,
+  CollectionStatsResponse,
   CreateCollectionBody,
   CreateWebhookBody,
   CreateWebhookResponse,
@@ -236,8 +239,23 @@ export class BigRAG {
 
   // ---- Collections ----
 
-  listCollections(): Promise<CollectionListResponse> {
-    return this._request("GET", "/v1/collections");
+  listCollections(options?: CollectionListOptions): Promise<CollectionListResponse> {
+    const params: Record<string, string> = {};
+    if (options?.name) params.name = options.name;
+    if (options?.limit !== undefined) params.limit = String(options.limit);
+    if (options?.offset !== undefined) params.offset = String(options.offset);
+    return this._request("GET", "/v1/collections", { params });
+  }
+
+  getDefaultCollection(): Promise<Collection> {
+    return this._request("GET", "/v1/collections/default");
+  }
+
+  getCollectionStats(name: string): Promise<CollectionStatsResponse> {
+    return this._request(
+      "GET",
+      `/v1/collections/${encodeURIComponent(name)}/stats`,
+    );
   }
 
   createCollection(body: CreateCollectionBody): Promise<Collection> {
@@ -346,6 +364,17 @@ export class BigRAG {
     return this._request(
       "POST",
       `/v1/collections/${encodeURIComponent(collection)}/documents/batch/status`,
+      { json: { document_ids: documentIds } },
+    );
+  }
+
+  batchGetDocuments(
+    collection: string,
+    documentIds: string[],
+  ): Promise<BatchGetDocumentsResponse> {
+    return this._request(
+      "POST",
+      `/v1/collections/${encodeURIComponent(collection)}/documents/batch/get`,
       { json: { document_ids: documentIds } },
     );
   }
@@ -572,6 +601,14 @@ export class CollectionClient {
 
   batchGetStatus(documentIds: string[]): Promise<BatchStatusResponse> {
     return this.client.batchGetStatus(this.name, documentIds);
+  }
+
+  batchGetDocuments(documentIds: string[]): Promise<BatchGetDocumentsResponse> {
+    return this.client.batchGetDocuments(this.name, documentIds);
+  }
+
+  stats(): Promise<CollectionStatsResponse> {
+    return this.client.getCollectionStats(this.name);
   }
 
   batchDelete(documentIds: string[]): Promise<BatchDeleteDocumentsResponse> {

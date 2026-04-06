@@ -110,6 +110,12 @@ curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/status \
   -H "Content-Type: application/json" \
   -d '{"document_ids": ["doc-id-1", "doc-id-2"]}'
 
+# Batch get full document metadata
+curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/get \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"document_ids": ["doc-id-1", "doc-id-2"]}'
+
 # Batch delete
 curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/delete \
   -H "Authorization: Bearer $BIGRAG_API_SECRET" \

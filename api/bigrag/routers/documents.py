@@ -14,6 +14,8 @@ from bigrag.middleware.auth import get_current_user
 from bigrag.models.document import (
     BatchDeleteRequest,
     BatchDeleteResponse,
+    BatchGetRequest,
+    BatchGetResponse,
     BatchStatusRequest,
     BatchStatusResponse,
     DocumentListResponse,
@@ -509,6 +511,32 @@ async def batch_get_status(
     ]
 
     return BatchStatusResponse(documents=documents, total=len(documents))
+
+
+@router.post("/batch/get", response_model=BatchGetResponse)
+async def batch_get_documents(
+    collection_name: str,
+    body: BatchGetRequest,
+    _: dict = Depends(get_current_user),
+):
+    collection = await get_collection_or_404(collection_name)
+
+    if len(body.document_ids) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 documents per batch get")
+
+    uuids = [uuid.UUID(d) for d in body.document_ids]
+    placeholders = ", ".join(f"${i + 2}" for i in range(len(uuids)))
+    rows = await db.fetch(
+        f"SELECT * FROM documents WHERE collection_id = $1 AND id IN ({placeholders})",
+        collection["id"],
+        *uuids,
+    )
+
+    documents = [_row_to_response(dict(r)) for r in rows]
+    logger.info(
+        f"batch_get: collection={collection_name} requested={len(uuids)} found={len(documents)}"
+    )
+    return BatchGetResponse(documents=documents, total=len(documents))
 
 
 @router.post("/batch/delete", response_model=BatchDeleteResponse)

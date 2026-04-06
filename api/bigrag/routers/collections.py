@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from bigrag.config import settings
 from bigrag.database import db
@@ -11,6 +11,7 @@ from bigrag.middleware.auth import get_current_user
 from bigrag.models.collection import (
     CollectionListResponse,
     CollectionResponse,
+    CollectionStatsResponse,
     CreateCollectionRequest,
     UpdateCollectionRequest,
 )
@@ -30,11 +31,47 @@ def _row_to_response(row: dict) -> CollectionResponse:
 
 
 @router.get("", response_model=CollectionListResponse)
-async def list_collections(_: dict = Depends(get_current_user)):
-    logger.info("list: fetching all collections")
-    rows = await db.fetch("SELECT * FROM collections ORDER BY created_at DESC")
+async def list_collections(
+    name: str | None = Query(default=None, description="Filter by name prefix"),
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    _: dict = Depends(get_current_user),
+):
+    logger.info(f"list: fetching collections name={name} limit={limit} offset={offset}")
+    if name:
+        rows = await db.fetch(
+            "SELECT * FROM collections WHERE name ILIKE $1"
+            " ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+            f"{name}%",
+            limit,
+            offset,
+        )
+        count_row = await db.fetchrow(
+            "SELECT COUNT(*) as cnt FROM collections WHERE name ILIKE $1",
+            f"{name}%",
+        )
+    else:
+        rows = await db.fetch(
+            "SELECT * FROM collections ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+            limit,
+            offset,
+        )
+        count_row = await db.fetchrow("SELECT COUNT(*) as cnt FROM collections")
+
     logger.info(f"list: found {len(rows)} collections")
-    return CollectionListResponse(collections=[_row_to_response(dict(r)) for r in rows])
+    return CollectionListResponse(
+        collections=[_row_to_response(dict(r)) for r in rows],
+        total=count_row["cnt"],
+    )
+
+
+@router.get("/default", response_model=CollectionResponse)
+async def get_default_collection(_: dict = Depends(get_current_user)):
+    logger.info("get_default: fetching default collection")
+    row = await db.fetchrow("SELECT * FROM collections WHERE is_default = true")
+    if not row:
+        raise HTTPException(status_code=404, detail="No default collection set")
+    return _row_to_response(dict(row))
 
 
 @router.post("", response_model=CollectionResponse, status_code=201)
@@ -78,6 +115,9 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
     # Create in Milvus first (idempotent — skips if exists)
     await vector_store.create_collection(body.name, dimension)
 
+    if body.is_default:
+        await db.execute("UPDATE collections SET is_default = false WHERE is_default = true")
+
     import asyncpg
 
     try:
@@ -87,8 +127,9 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
                                       dimension, chunk_size, chunk_overlap, metadata,
                                       embedding_api_key,
                                       reranking_enabled, reranking_model, reranking_api_key,
-                                      default_top_k, default_min_score, default_search_mode)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                                      default_top_k, default_min_score, default_search_mode,
+                                      is_default)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             RETURNING *
             """,
             body.name,
@@ -106,6 +147,7 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             body.default_top_k,
             body.default_min_score,
             body.default_search_mode,
+            body.is_default,
         )
     except asyncpg.UniqueViolationError:
         raise HTTPException(status_code=409, detail="Collection already exists")
@@ -127,6 +169,44 @@ async def get_collection(name: str, _: dict = Depends(get_current_user)):
     if not row:
         raise HTTPException(status_code=404, detail="Collection not found")
     return _row_to_response(dict(row))
+
+
+@router.get("/{name}/stats", response_model=CollectionStatsResponse)
+async def get_collection_stats(name: str, _: dict = Depends(get_current_user)):
+    logger.info(f"stats: collection={name}")
+    row = await db.fetchrow("SELECT id FROM collections WHERE name = $1", name)
+    if not row:
+        raise HTTPException(status_code=404, detail="Collection not found")
+
+    stats = await db.fetchrow(
+        """
+        SELECT
+            COALESCE(SUM(chunk_count), 0) as total_chunks,
+            COALESCE(SUM(token_count), 0) as total_tokens,
+            COALESCE(SUM(file_size), 0) as total_size_bytes,
+            COUNT(*) as document_count,
+            COUNT(*) FILTER (WHERE status = 'ready') as ready,
+            COUNT(*) FILTER (WHERE status = 'pending') as pending,
+            COUNT(*) FILTER (WHERE status = 'processing') as processing,
+            COUNT(*) FILTER (WHERE status = 'failed') as failed
+        FROM documents WHERE collection_id = $1
+        """,
+        row["id"],
+    )
+
+    return CollectionStatsResponse(
+        collection=name,
+        document_count=stats["document_count"],
+        total_chunks=int(stats["total_chunks"]),
+        total_tokens=int(stats["total_tokens"]),
+        total_size_bytes=int(stats["total_size_bytes"]),
+        status_counts={
+            "ready": stats["ready"],
+            "pending": stats["pending"],
+            "processing": stats["processing"],
+            "failed": stats["failed"],
+        },
+    )
 
 
 @router.put("/{name}", response_model=CollectionResponse)
@@ -157,9 +237,17 @@ async def update_collection(
         fields["default_min_score"] = body.default_min_score
     if body.default_search_mode is not None:
         fields["default_search_mode"] = body.default_search_mode
+    if body.is_default is not None:
+        fields["is_default"] = body.is_default
 
     if not fields:
         return _row_to_response(dict(row))
+
+    if body.is_default:
+        await db.execute(
+            "UPDATE collections SET is_default = false WHERE is_default = true AND name != $1",
+            name,
+        )
 
     sql, params = build_update("collections", fields, "name", name)
     row = await db.fetchrow(sql, *params)
