@@ -28,7 +28,7 @@ Perform semantic search against a collection. The query is embedded using the co
 |-------|------|----------|---------|-------------|
 | `query` | string | yes | — | Natural language query text |
 | `top_k` | integer | no | Collection default | 1–1,000 |
-| `filters` | object | no | — | Metadata filters (exact match) |
+| `filters` | object | no | — | Metadata filters ([operators](/docs/concepts/search#filters)) |
 | `min_score` | float | no | Collection default | Minimum similarity score |
 | `search_mode` | string | no | Collection default | `semantic`, `keyword`, `hybrid` |
 | `rerank` | boolean | no | Collection setting | Override reranking |
@@ -88,9 +88,10 @@ Search across multiple collections. Results are merged and sorted by score.
 | `query` | string | yes | Search query |
 | `collections` | string[] | yes | Collection names to search |
 | `top_k` | number | no | Max results per collection |
-| `filters` | object | no | Metadata filters |
+| `filters` | object | no | Metadata filters ([operators](/docs/concepts/search#filters)) |
 | `min_score` | number | no | Minimum similarity score |
 | `search_mode` | string | no | `semantic`, `keyword`, `hybrid` |
+| `rerank` | boolean | no | Override collection reranking |
 
 Each result includes a `collection` field indicating its source.
 
@@ -113,10 +114,12 @@ Run up to 20 independent queries in parallel.
 {
   "queries": [
     {"collection": "docs", "query": "authentication", "top_k": 5},
-    {"collection": "papers", "query": "neural networks", "top_k": 10, "search_mode": "hybrid"}
+    {"collection": "papers", "query": "neural networks", "top_k": 10, "search_mode": "hybrid", "filters": {"year": {"$gte": 2024}}}
   ]
 }
 ```
+
+Each query item supports: `collection`, `query`, `top_k`, `filters`, `min_score`, `search_mode`, and `rerank`.
 
 Response contains an array of result sets matching the input order.
 

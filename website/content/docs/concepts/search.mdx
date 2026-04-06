@@ -60,10 +60,44 @@ curl -X POST http://localhost:6100/v1/collections/docs/query \
 |-------|------|----------|---------|-------------|
 | `query` | string | yes | — | Natural language query text |
 | `top_k` | integer | no | Collection default (10) | Number of results (1–1,000) |
-| `filters` | object | no | — | Metadata filters (exact match) |
+| `filters` | object | no | — | Metadata filters (see operators below) |
 | `min_score` | float | no | Collection default | Minimum similarity score threshold |
 | `search_mode` | string | no | Collection default | `semantic`, `keyword`, or `hybrid` |
 | `rerank` | boolean | no | Collection setting | Override collection reranking |
+
+## Filters
+
+Filters narrow results by metadata fields. Pass a plain value for exact match, or use operators for more control.
+
+### Exact Match
+
+```json
+{ "filters": { "author": "Smith", "year": 2026 } }
+```
+
+### Comparison Operators
+
+| Operator | Description | Value Type |
+|----------|-------------|------------|
+| `$eq` | Equal | string, number, boolean |
+| `$ne` | Not equal | string, number, boolean |
+| `$gt` | Greater than | number |
+| `$gte` | Greater than or equal | number |
+| `$lt` | Less than | number |
+| `$lte` | Less than or equal | number |
+| `$in` | In list | array of strings or numbers |
+
+```json
+{
+  "filters": {
+    "year": { "$gte": 2024 },
+    "status": { "$in": ["published", "preprint"] },
+    "score": { "$gt": 0.8 }
+  }
+}
+```
+
+Multiple filters are combined with AND.
 
 ## Multi-Collection Query
 

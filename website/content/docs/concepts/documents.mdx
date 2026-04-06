@@ -98,20 +98,20 @@ Upload, check status, or delete multiple documents in a single request:
 
 ```bash
 # Batch upload (up to 100 files)
-curl -X POST $BASE/v1/collections/docs/documents/batch/upload \
+curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/upload \
   -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -F "files=@paper1.pdf" \
   -F "files=@paper2.pdf" \
   -F 'metadata={"source": "batch-import"}'
 
 # Batch status check
-curl -X POST $BASE/v1/collections/docs/documents/batch/status \
+curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/status \
   -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"document_ids": ["doc-id-1", "doc-id-2"]}'
 
 # Batch delete
-curl -X POST $BASE/v1/collections/docs/documents/batch/delete \
+curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/delete \
   -H "Authorization: Bearer $BIGRAG_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"document_ids": ["doc-id-1", "doc-id-2"]}'
@@ -126,6 +126,6 @@ curl -X POST $BASE/v1/collections/docs/documents/batch/delete \
 Reprocess a document to re-parse, re-chunk, and re-embed it. Useful after changing collection settings or if processing previously failed:
 
 ```bash
-curl -X POST $BASE/v1/collections/docs/documents/DOC_ID/reprocess \
+curl -X POST http://localhost:6100/v1/collections/docs/documents/DOC_ID/reprocess \
   -H "Authorization: Bearer $BIGRAG_API_SECRET"
 ```

@@ -44,7 +44,6 @@ def _reciprocal_rank_fusion(
             if item_id not in items:
                 items[item_id] = item
 
-    # Sort by RRF score descending
     sorted_ids = sorted(scores, key=lambda x: scores[x], reverse=True)
     result = []
     for item_id in sorted_ids:
@@ -145,14 +144,12 @@ async def retrieve(
     query_terms = _tokenize_query(query)
 
     if search_mode == "keyword":
-        # Keyword-only search
         raw_results = await vector_store.text_search(
             collection=collection_name,
             query_terms=query_terms,
             top_k=top_k,
             filters=filter_expr,
         )
-        # Score by keyword relevance
         results = []
         for r in raw_results:
             score = _keyword_score(r.get("text", ""), query_terms)
@@ -163,7 +160,6 @@ async def retrieve(
         results = results[:top_k]
 
     elif search_mode == "hybrid":
-        # Run both semantic and keyword in parallel
         t0 = time.monotonic()
         embeddings = await embedding_model.embed([query], input_type="query")
         query_embedding = embeddings[0]
@@ -185,7 +181,6 @@ async def retrieve(
 
         semantic_results, keyword_raw = await asyncio.gather(semantic_task, keyword_task)
 
-        # Score keyword results
         keyword_results = []
         for r in keyword_raw:
             score = _keyword_score(r.get("text", ""), query_terms)
@@ -194,12 +189,10 @@ async def retrieve(
                 keyword_results.append(r)
         keyword_results.sort(key=lambda r: r["score"], reverse=True)
 
-        # Merge using RRF
         results = _reciprocal_rank_fusion([semantic_results, keyword_results])
         results = results[:top_k]
 
     else:
-        # Default: semantic search (existing behavior)
         t0 = time.monotonic()
         embeddings = await embedding_model.embed([query], input_type="query")
         query_embedding = embeddings[0]
@@ -222,7 +215,6 @@ async def retrieve(
             f"hits={len(results)} top_k={top_k} {search_ms:.0f}ms"
         )
 
-    # Apply reranking if configured
     if reranking_config and results:
         should_rerank = reranking_config.get("enabled", False)
         if rerank_override is not None:
@@ -235,11 +227,9 @@ async def retrieve(
                 api_key=reranking_config.get("api_key"),
             )
 
-    # Apply minimum score filter
     if min_score is not None:
         results = [r for r in results if r.get("score", 0) >= min_score]
 
-    # Log query for analytics
     total_ms = (time.monotonic() - _retrieve_start) * 1000
     avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else None
     safe_create_task(

@@ -67,10 +67,11 @@ X-BigRAG-Delivery: <delivery-uuid>
 Verify by computing `HMAC-SHA256(webhook_secret, raw_body)`:
 
 ```python
-import hmac, hashlib
+import hashlib
+import hmac
 
 def verify(payload: bytes, secret: str, signature: str) -> bool:
-    expected = "sha256=" + hmac.new(
+    expected = "sha256=" + hmac.HMAC(
         secret.encode(), payload, hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(expected, signature)

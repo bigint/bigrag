@@ -42,7 +42,6 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
     logger.info(
         f"create: name={body.name} provider={body.embedding_provider} model={body.embedding_model}"
     )
-    # Check if collection already exists
     existing = await db.fetchrow("SELECT id FROM collections WHERE name = $1", body.name)
     if existing:
         raise HTTPException(status_code=409, detail="Collection already exists")
@@ -64,7 +63,6 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             detail=f"API key is required for the '{provider}' embedding provider",
         )
 
-    # Validate the embedding provider is available
     try:
         from bigrag.services.embedding import get_embedding_model
 
@@ -178,11 +176,9 @@ async def delete_collection(name: str, _: dict = Depends(get_current_user)):
     if not row:
         raise HTTPException(status_code=404, detail="Collection not found")
 
-    # Delete from Milvus
     await vector_store.delete_collection(name)
     logger.info(f"delete: milvus collection dropped name={name}")
 
-    # Delete uploaded files from storage
     from bigrag.services.storage import get_storage
 
     deleted = await get_storage().delete_prefix(f"{name}/")

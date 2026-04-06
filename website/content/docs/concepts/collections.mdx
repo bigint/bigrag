@@ -50,6 +50,9 @@ curl -X POST http://localhost:6100/v1/collections \
 | `default_top_k` | integer | no | `10` | Default number of results (1–1,000) |
 | `default_min_score` | float | no | `null` | Default minimum similarity score |
 | `default_search_mode` | string | no | `"semantic"` | `semantic`, `keyword`, or `hybrid` |
+| `reranking_enabled` | boolean | no | `false` | Enable reranking for this collection |
+| `reranking_model` | string | no | `"rerank-v3.5"` | Cohere reranking model |
+| `reranking_api_key` | string | no | `null` | Cohere API key |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
 
 ## Default Query Settings
@@ -96,7 +99,7 @@ You can override reranking per query by passing `"rerank": true` or `"rerank": f
 
 ## Updating a Collection
 
-You can update a collection's description and metadata:
+You can update a collection's description, metadata, reranking settings, and default query settings:
 
 ```bash
 curl -X PUT http://localhost:6100/v1/collections/research_papers \
@@ -104,9 +107,27 @@ curl -X PUT http://localhost:6100/v1/collections/research_papers \
   -H "Content-Type: application/json" \
   -d '{
     "description": "Updated description",
-    "metadata": { "team": "engineering" }
+    "metadata": { "team": "engineering" },
+    "reranking_enabled": true,
+    "reranking_model": "rerank-v3.5",
+    "default_top_k": 20,
+    "default_min_score": 0.3,
+    "default_search_mode": "hybrid"
   }'
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `description` | string | Human-readable description |
+| `metadata` | object | Arbitrary key-value pairs |
+| `reranking_enabled` | boolean | Enable/disable reranking |
+| `reranking_model` | string | Cohere reranking model |
+| `reranking_api_key` | string | Cohere API key |
+| `default_top_k` | integer | Default number of results (1–1,000) |
+| `default_min_score` | float | Default minimum similarity score |
+| `default_search_mode` | string | `semantic`, `keyword`, or `hybrid` |
+
+All fields are optional — only provided fields are updated.
 
 <Callout type="warn">
   Embedding configuration (provider, model, dimension) and chunk settings cannot be changed after creation. To change these, delete the collection and create a new one.

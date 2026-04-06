@@ -85,7 +85,6 @@ async def multi_collection_query(
         f"multi-query: collections={body.collections} q={body.query!r:.80s} top_k={body.top_k}"
     )
 
-    # Load all collections and their embedding models
     embedding_models = {}
     reranking_configs = {}
     for col_name in body.collections:
@@ -194,9 +193,6 @@ async def delete_vectors(
     logger.info(f"vectors/delete: collection={collection_name} ids={len(body.ids)}")
     await vector_store.delete_by_ids(collection_name, body.ids)
     return {"status": "ok", "deleted": len(body.ids)}
-
-
-# Embedding model info
 
 
 @router.get("/v1/collections/{collection_name}/analytics", response_model=AnalyticsResponse)

@@ -27,6 +27,9 @@ GET /v1/collections
       "chunk_overlap": 50,
       "document_count": 15,
       "has_api_key": false,
+      "reranking_enabled": false,
+      "reranking_model": "rerank-v3.5",
+      "has_reranking_api_key": false,
       "default_top_k": 10,
       "default_min_score": null,
       "default_search_mode": "semantic",
@@ -75,6 +78,9 @@ POST /v1/collections
 | `default_top_k` | integer | no | `10` | 1–1,000 |
 | `default_min_score` | float | no | `null` | Minimum similarity score |
 | `default_search_mode` | string | no | `"semantic"` | `semantic`, `keyword`, `hybrid` |
+| `reranking_enabled` | boolean | no | `false` | Enable reranking |
+| `reranking_model` | string | no | `"rerank-v3.5"` | Cohere reranking model |
+| `reranking_api_key` | string | no | — | Cohere API key |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
 
 **Response** `201`: Full collection object.
@@ -105,7 +111,10 @@ PUT /v1/collections/{name}
 ```json
 {
   "description": "Updated description",
-  "metadata": { "team": "engineering" }
+  "metadata": { "team": "engineering" },
+  "reranking_enabled": true,
+  "default_top_k": 20,
+  "default_search_mode": "hybrid"
 }
 ```
 
@@ -113,6 +122,12 @@ PUT /v1/collections/{name}
 |-------|------|----------|-------|
 | `description` | string | no | Pass `null` to keep current |
 | `metadata` | object | no | Pass `null` to keep current |
+| `reranking_enabled` | boolean | no | Enable/disable reranking |
+| `reranking_model` | string | no | Cohere reranking model |
+| `reranking_api_key` | string | no | Cohere API key |
+| `default_top_k` | integer | no | Default results count (1–1,000) |
+| `default_min_score` | float | no | Default minimum similarity score |
+| `default_search_mode` | string | no | `semantic`, `keyword`, `hybrid` |
 
 **Response** `200`: Updated collection object.
 

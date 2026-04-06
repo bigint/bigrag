@@ -48,6 +48,6 @@ Missing or invalid tokens return HTTP 401:
 
 ## Security Notes
 
-- Tokens are compared using HMAC for timing-safe validation
+- Tokens are compared using constant-time comparison to prevent timing attacks
 - Always use HTTPS in production to protect the token in transit
 - The `BIGRAG_API_SECRET` is a shared secret — all clients use the same token

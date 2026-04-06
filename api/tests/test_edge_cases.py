@@ -94,6 +94,69 @@ class TestFilterExpressions:
         expr = _build_filter_expr({})
         assert expr is None
 
+    # -- Security: injection rejection tests --
+
+    def test_comparison_rejects_string_value(self):
+        """String values in $gt/$gte/$lt/$lte are the primary injection vector."""
+        from bigrag.services.retrieval import _build_filter_expr
+
+        for op in ("$gt", "$gte", "$lt", "$lte"):
+            with pytest.raises(ValueError, match="requires a numeric value"):
+                _build_filter_expr({"score": {op: "0 or 1==1"}})
+
+    def test_eq_ne_rejects_non_scalar(self):
+        from bigrag.services.retrieval import _build_filter_expr
+
+        for op in ("$eq", "$ne"):
+            with pytest.raises(ValueError, match="requires a scalar value"):
+                _build_filter_expr({"field": {op: {"nested": "dict"}}})
+            with pytest.raises(ValueError, match="requires a scalar value"):
+                _build_filter_expr({"field": {op: [1, 2]}})
+            with pytest.raises(ValueError, match="requires a scalar value"):
+                _build_filter_expr({"field": {op: None}})
+
+    def test_in_rejects_non_list(self):
+        from bigrag.services.retrieval import _build_filter_expr
+
+        with pytest.raises(ValueError, match="requires a list value"):
+            _build_filter_expr({"field": {"$in": "not_a_list"}})
+
+    def test_in_rejects_non_scalar_elements(self):
+        from bigrag.services.retrieval import _build_filter_expr
+
+        with pytest.raises(ValueError, match="requires a scalar value"):
+            _build_filter_expr({"field": {"$in": [{"nested": "dict"}]}})
+        with pytest.raises(ValueError, match="requires a scalar value"):
+            _build_filter_expr({"field": {"$in": [None]}})
+
+    # -- Happy path gaps --
+
+    def test_operator_gte_lte(self):
+        from bigrag.services.retrieval import _build_filter_expr
+
+        assert _build_filter_expr({"x": {"$gte": 1}}) == "x >= 1"
+        assert _build_filter_expr({"x": {"$lte": 10}}) == "x <= 10"
+
+    def test_boolean_filter(self):
+        from bigrag.services.retrieval import _build_filter_expr
+
+        assert _build_filter_expr({"active": True}) == "active == true"
+        assert _build_filter_expr({"active": {"$eq": False}}) == "active == false"
+
+    def test_in_with_numeric_values(self):
+        from bigrag.services.retrieval import _build_filter_expr
+
+        expr = _build_filter_expr({"idx": {"$in": [1, 2, 3]}})
+        assert expr == "idx in [1, 2, 3]"
+
+    def test_in_with_mixed_types(self):
+        from bigrag.services.retrieval import _build_filter_expr
+
+        expr = _build_filter_expr({"tag": {"$in": ["a", 1, True]}})
+        assert '"a"' in expr
+        assert "1" in expr
+        assert "true" in expr
+
 
 # ---------------------------------------------------------------------------
 # Webhook matching edge cases

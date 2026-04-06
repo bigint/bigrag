@@ -524,7 +524,6 @@ async def batch_delete_documents(
     if len(body.document_ids) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 documents per batch delete")
 
-    # Fetch all document rows in one query
     uuids = [uuid.UUID(d) for d in body.document_ids]
     placeholders = ", ".join(f"${i + 2}" for i in range(len(uuids)))
     rows = await db.fetch(
