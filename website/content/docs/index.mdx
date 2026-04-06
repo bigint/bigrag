@@ -19,20 +19,20 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 ## Architecture
 
 <Mermaid chart='graph TD
-    Client([Client]) -->|REST API| API[bigRAG API<br/>Python / FastAPI]
+    Client([Client]) -->|REST API| API[bigRAG API]
     API --> Collections[Collections]
     API --> Documents[Documents]
     API --> Query[Query]
     API --> Webhooks[Webhooks]
-    Documents -->|store files| Storage[(Storage<br/>Local / S3)]
-    Documents -->|enqueue| Redis[(Redis<br/>Job Queue)]
+    Documents -->|store files| Storage[(Storage)]
+    Documents -->|enqueue| Redis[(Redis)]
     Redis -->|process| Worker[Ingestion Worker]
-    Worker -->|parse| Docling[Docling<br/>PDF, DOCX, HTML, Images]
-    Worker -->|embed| Embedding[Embedding Provider<br/>OpenAI / Cohere]
-    Worker -->|store vectors| Milvus[(Milvus<br/>Vector DB)]
+    Worker -->|parse| Docling[Docling]
+    Worker -->|embed| Embedding[Embedding Provider]
+    Worker -->|store vectors| Milvus[(Milvus)]
     Query -->|search| Milvus
     Query -->|embed query| Embedding
-    Collections --> Postgres[(Postgres<br/>Metadata)]
+    Collections --> Postgres[(Postgres)]
     Documents --> Postgres
     Webhooks --> Postgres' />
 
