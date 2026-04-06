@@ -9,9 +9,10 @@ function BigRAGLogo() {
       viewBox="0 0 32 32"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect fill="#000000" height="32" rx="8" width="32" />
-      <path d="M8 10L16 6L24 10V16L16 12L8 16V10Z" fill="white" />
-      <path d="M8 16L16 12L24 16V22L16 26L8 22V16Z" fill="white" opacity="0.9" />
+      <path d="M10 2H22L30 10V22L22 30H10L2 22V10L10 2Z" fill="#000000" />
+      <path d="M10 10H22V14H10V10Z" fill="white" />
+      <path d="M10 17H18V21H10V17Z" fill="white" opacity="0.7" />
+      <circle cx="22" cy="21" r="3" fill="white" opacity="0.9" />
     </svg>
   );
 }
