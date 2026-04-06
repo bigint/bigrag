@@ -228,6 +228,24 @@ class IngestionQueue:
             f"collection={job.collection_name} pending={pending}"
         )
 
+    async def flush_collection(self, collection_name: str) -> int:
+        """Remove all queued jobs for a collection. Returns count removed."""
+        removed = 0
+        items = await self._redis.lrange(QUEUE_KEY, 0, -1)
+        for item in items:
+            try:
+                job = IngestionJob.deserialize(item)
+                if job.collection_name == collection_name:
+                    await self._redis.lrem(QUEUE_KEY, 1, item)
+                    removed += 1
+            except Exception:
+                continue
+        if removed:
+            logger.info(
+                f"[queue] flushed {removed} jobs for collection={collection_name}"
+            )
+        return removed
+
     @property
     async def stats(self) -> dict:
         raw = await self._redis.hgetall(STATS_KEY)

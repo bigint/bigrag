@@ -241,6 +241,11 @@ async def delete_collection(name: str, _: dict = Depends(get_current_user)):
     if not row:
         raise HTTPException(status_code=404, detail="Collection not found")
 
+    from bigrag.services.queue import ingestion_queue
+
+    flushed = await ingestion_queue.flush_collection(name)
+    logger.info(f"delete: flushed {flushed} queued jobs name={name}")
+
     await vector_store.delete_collection(name)
     logger.info(f"delete: milvus collection dropped name={name}")
 
