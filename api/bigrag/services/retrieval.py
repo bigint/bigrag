@@ -313,40 +313,49 @@ def _escape_string(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
+def _validate_scalar(val: object, op: str) -> None:
+    """Ensure a filter value is a safe scalar (str, int, float, or bool)."""
+    if not isinstance(val, (str, int, float, bool)):
+        raise ValueError(f"Filter operator {op} requires a scalar value, got {type(val).__name__}")
+
+
+def _format_value(val: str | int | float | bool) -> str:
+    """Format a validated scalar for use in a Milvus filter expression."""
+    if isinstance(val, str):
+        return f'"{_escape_string(val)}"'
+    if isinstance(val, bool):
+        return "true" if val else "false"
+    return str(val)
+
+
 def _build_filter_expr(filters: dict) -> str | None:
     """Convert filter dict to Milvus filter expression."""
     expressions = []
 
     for key, value in filters.items():
         field = _validate_field(key)
-        if isinstance(value, str):
-            expressions.append(f'{field} == "{_escape_string(value)}"')
-        elif isinstance(value, (int, float)):
-            expressions.append(f"{field} == {value}")
+        if isinstance(value, (str, int, float, bool)):
+            expressions.append(f"{field} == {_format_value(value)}")
         elif isinstance(value, dict):
             for op, val in value.items():
-                if op == "$eq":
-                    if isinstance(val, str):
-                        expressions.append(f'{field} == "{_escape_string(val)}"')
-                    else:
-                        expressions.append(f"{field} == {val}")
-                elif op == "$ne":
-                    if isinstance(val, str):
-                        expressions.append(f'{field} != "{_escape_string(val)}"')
-                    else:
-                        expressions.append(f"{field} != {val}")
-                elif op == "$gt":
-                    expressions.append(f"{field} > {val}")
-                elif op == "$gte":
-                    expressions.append(f"{field} >= {val}")
-                elif op == "$lt":
-                    expressions.append(f"{field} < {val}")
-                elif op == "$lte":
-                    expressions.append(f"{field} <= {val}")
+                if op in ("$eq", "$ne"):
+                    _validate_scalar(val, op)
+                    sym = "==" if op == "$eq" else "!="
+                    expressions.append(f"{field} {sym} {_format_value(val)}")
+                elif op in ("$gt", "$gte", "$lt", "$lte"):
+                    if not isinstance(val, (int, float)):
+                        raise ValueError(
+                            f"Filter operator {op} requires a numeric value, got {type(val).__name__}"
+                        )
+                    op_map = {"$gt": ">", "$gte": ">=", "$lt": "<", "$lte": "<="}
+                    expressions.append(f"{field} {op_map[op]} {val}")
                 elif op == "$in":
-                    vals = ", ".join(
-                        f'"{_escape_string(v)}"' if isinstance(v, str) else str(v) for v in val
-                    )
-                    expressions.append(f"{field} in [{vals}]")
+                    if not isinstance(val, list):
+                        raise ValueError("Filter operator $in requires a list value")
+                    safe_vals = []
+                    for v in val:
+                        _validate_scalar(v, "$in")
+                        safe_vals.append(_format_value(v))
+                    expressions.append(f"{field} in [{', '.join(safe_vals)}]")
 
     return " and ".join(expressions) if expressions else None
