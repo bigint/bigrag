@@ -18,27 +18,23 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 
 ## Architecture
 
-```
-┌────────────────────────────────────────────────────────────┐
-│                      bigRAG API                            │
-│                    (Python / FastAPI)                       │
-├───────────┬────────────┬───────────────┬──────────────────┤
-│           │ Ingestion  │    Query      │     Admin        │
-│           │  Service   │   Service     │    Service       │
-├───────────┴────────────┴───────────────┴──────────────────┤
-│                                                            │
-│  ┌──────────┐  ┌───────────────┐  ┌───────────────────┐   │
-│  │ Postgres │  │    Docling    │  │  Embedding Model  │   │
-│  │(metadata)│  │  (document    │  │ (OpenAI, Cohere)  │   │
-│  │          │  │   converter)  │  │                   │   │
-│  └──────────┘  └───────────────┘  └───────────────────┘   │
-│                                                            │
-│  ┌──────────┐  ┌───────────────────────────────────────┐  │
-│  │  Redis   │  │          Milvus Vector DB             │  │
-│  │ (queue)  │  │   (vector storage, indexing, search)  │  │
-│  └──────────┘  └───────────────────────────────────────┘  │
-└────────────────────────────────────────────────────────────┘
-```
+<Mermaid chart="graph TD
+  Client[Your App]:::input --> API[bigRAG API]:::gateway
+  API --> Ingestion[Ingestion Service]:::service
+  API --> Query[Query Service]:::service
+  API --> Admin[Admin Service]:::service
+  Ingestion --> Docling[Docling]:::infra
+  Ingestion --> Embedding[Embedding Model]:::infra
+  Ingestion --> Redis[Redis Queue]:::infra
+  Ingestion --> Milvus[Milvus Vector DB]:::infra
+  Query --> Embedding
+  Query --> Milvus
+  Admin --> Postgres[PostgreSQL]:::infra
+  Ingestion --> Postgres
+  classDef input stroke-width:2px
+  classDef gateway stroke-width:2px
+  classDef service stroke-width:1px
+  classDef infra stroke-width:1px" />
 
 | Component | Purpose | Default Address |
 |-----------|---------|-----------------|
@@ -49,13 +45,18 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 
 ## Data Flow
 
-```
-Document Upload → Docling (parse) → Chunking → Embedding → Milvus
-                                                              ↑
-Query → Embed → Vector Search ──────────────────────────────→ │
-                                                              ↓
-                                                   Results + Context
-```
+<Mermaid chart="graph LR
+  Upload[Document Upload]:::input --> Parse[Docling Parse]:::service
+  Parse --> Chunk[Chunking]:::service
+  Chunk --> Embed[Embedding]:::service
+  Embed --> Store[Milvus Store]:::service
+  SearchQuery[Query]:::input --> QEmbed[Embed Query]:::service
+  QEmbed --> Search[Vector Search]:::service
+  Search --> Store
+  Search --> Results[Results + Context]:::output
+  classDef input stroke-width:2px
+  classDef service stroke-width:1px
+  classDef output stroke-width:2px" />
 
 ## Explore
 
