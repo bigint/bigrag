@@ -53,32 +53,7 @@ curl -X POST http://localhost:6100/v1/collections \
 | `reranking_enabled` | boolean | no | `false` | Enable reranking for this collection |
 | `reranking_model` | string | no | `"rerank-v3.5"` | Cohere reranking model |
 | `reranking_api_key` | string | no | `null` | Cohere API key |
-| `is_default` | boolean | no | `false` | Mark as the default collection |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
-
-## Default Collection
-
-You can mark one collection as the **default**. This is useful when your application has a primary collection for RAG injection and you want to resolve it without hardcoding the name.
-
-```bash
-# Set a collection as default on creation
-curl -X POST http://localhost:6100/v1/collections \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "main_kb", "is_default": true}'
-
-# Or update an existing collection
-curl -X PUT http://localhost:6100/v1/collections/main_kb \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"is_default": true}'
-
-# Fetch the default collection
-curl http://localhost:6100/v1/collections/default \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET"
-```
-
-Only one collection can be the default at a time. Setting `is_default: true` on one collection automatically clears the flag on any other.
 
 ## Collection Stats
 

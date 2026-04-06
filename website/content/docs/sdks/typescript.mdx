@@ -63,12 +63,11 @@ const { results } = await client.query("knowledge_base", {
 client.listCollections({ name?, limit?, offset? })
 client.createCollection({
   name, description?, embedding_provider?, embedding_model?,
-  dimension?, chunk_size?, chunk_overlap?, is_default?
+  dimension?, chunk_size?, chunk_overlap?
 })
 client.getCollection(name)
-client.getDefaultCollection()
 client.getCollectionStats(name)
-client.updateCollection(name, { description?, metadata?, is_default? })
+client.updateCollection(name, { description?, metadata? })
 client.deleteCollection(name)
 ```
 

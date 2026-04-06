@@ -63,7 +63,6 @@ export interface Collection {
   default_top_k: number;
   default_min_score: number | null;
   default_search_mode: string;
-  is_default: boolean;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -104,7 +103,6 @@ export interface CreateCollectionBody {
   default_top_k?: number;
   default_min_score?: number;
   default_search_mode?: "semantic" | "keyword" | "hybrid";
-  is_default?: boolean;
 }
 
 export interface UpdateCollectionBody {
@@ -116,7 +114,6 @@ export interface UpdateCollectionBody {
   default_top_k?: number;
   default_min_score?: number;
   default_search_mode?: "semantic" | "keyword" | "hybrid";
-  is_default?: boolean;
 }
 
 // --- Documents ---

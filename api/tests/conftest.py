@@ -49,7 +49,6 @@ def make_collection_row(
     default_top_k: int = 10,
     default_min_score: float | None = None,
     default_search_mode: str = "semantic",
-    is_default: bool = False,
     metadata: dict | None = None,
 ) -> dict:
     return {
@@ -70,7 +69,6 @@ def make_collection_row(
         "default_top_k": default_top_k,
         "default_min_score": default_min_score,
         "default_search_mode": default_search_mode,
-        "is_default": is_default,
         "metadata": metadata or {},
         "created_at": datetime.now(UTC),
         "updated_at": datetime.now(UTC),

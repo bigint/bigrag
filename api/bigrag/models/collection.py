@@ -21,7 +21,6 @@ class CreateCollectionRequest(BaseModel):
     default_top_k: int = Field(default=10, ge=1, le=1000)
     default_min_score: float | None = None
     default_search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
-    is_default: bool = False
 
     @model_validator(mode="after")
     def validate_overlap_less_than_size(self):
@@ -39,7 +38,6 @@ class UpdateCollectionRequest(BaseModel):
     default_top_k: int | None = Field(default=None, ge=1, le=1000)
     default_min_score: float | None = None
     default_search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
-    is_default: bool | None = None
 
 
 class CollectionResponse(BaseModel):
@@ -59,7 +57,6 @@ class CollectionResponse(BaseModel):
     default_top_k: int = 10
     default_min_score: float | None = None
     default_search_mode: str = "semantic"
-    is_default: bool = False
     metadata: dict
     created_at: datetime
     updated_at: datetime

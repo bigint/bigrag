@@ -65,15 +65,6 @@ async def list_collections(
     )
 
 
-@router.get("/default", response_model=CollectionResponse)
-async def get_default_collection(_: dict = Depends(get_current_user)):
-    logger.info("get_default: fetching default collection")
-    row = await db.fetchrow("SELECT * FROM collections WHERE is_default = true")
-    if not row:
-        raise HTTPException(status_code=404, detail="No default collection set")
-    return _row_to_response(dict(row))
-
-
 @router.post("", response_model=CollectionResponse, status_code=201)
 async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get_current_user)):
     logger.info(
@@ -115,9 +106,6 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
     # Create in Milvus first (idempotent — skips if exists)
     await vector_store.create_collection(body.name, dimension)
 
-    if body.is_default:
-        await db.execute("UPDATE collections SET is_default = false WHERE is_default = true")
-
     import asyncpg
 
     try:
@@ -127,9 +115,8 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
                                       dimension, chunk_size, chunk_overlap, metadata,
                                       embedding_api_key,
                                       reranking_enabled, reranking_model, reranking_api_key,
-                                      default_top_k, default_min_score, default_search_mode,
-                                      is_default)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                                      default_top_k, default_min_score, default_search_mode)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
             RETURNING *
             """,
             body.name,
@@ -147,7 +134,6 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             body.default_top_k,
             body.default_min_score,
             body.default_search_mode,
-            body.is_default,
         )
     except asyncpg.UniqueViolationError:
         raise HTTPException(status_code=409, detail="Collection already exists")
@@ -237,17 +223,8 @@ async def update_collection(
         fields["default_min_score"] = body.default_min_score
     if body.default_search_mode is not None:
         fields["default_search_mode"] = body.default_search_mode
-    if body.is_default is not None:
-        fields["is_default"] = body.is_default
-
     if not fields:
         return _row_to_response(dict(row))
-
-    if body.is_default:
-        await db.execute(
-            "UPDATE collections SET is_default = false WHERE is_default = true AND name != $1",
-            name,
-        )
 
     sql, params = build_update("collections", fields, "name", name)
     row = await db.fetchrow(sql, *params)

@@ -246,10 +246,6 @@ export class BigRAG {
     return this._request("GET", "/v1/collections", { params });
   }
 
-  getDefaultCollection(): Promise<Collection> {
-    return this._request("GET", "/v1/collections/default");
-  }
-
   getCollectionStats(name: string): Promise<CollectionStatsResponse> {
     return this._request(
       "GET",
