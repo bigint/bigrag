@@ -3,8 +3,8 @@
 ## Project Structure
 
 - `api/` — Python/FastAPI backend (Docling ingestion + Milvus vector DB)
-- `sdks/` — Client SDKs (Python, TypeScript)
-- `docs/` — Documentation
+- `sdks/typescript/` — TypeScript SDK
+- `website/` — Documentation site (Next.js + Fumadocs, content in `website/content/docs/`)
 
 ## Style Guide
 
@@ -20,7 +20,18 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 
 ## Documentation
 
-When introducing new features or changing existing APIs, update `docs/documentation.md` to reflect the changes. Keep SDK sections, API reference, and curl examples in sync with the actual codebase.
+**Always update the docs site when making any code change.** This includes adding, updating, or removing features, endpoints, models, config options, SDK methods, or CLI flags. The docs live in `website/content/docs/` as `.mdx` files.
+
+Pages to keep in sync:
+
+- `api-reference/` — endpoint signatures, request/response schemas, error codes
+- `concepts/` — feature explanations, examples, and curl snippets
+- `sdks/typescript.mdx` — SDK method signatures and usage
+- `getting-started/configuration.mdx` — environment variables and TOML options
+- `deployment/` — Docker Compose snippets and production settings
+- `comparison.mdx` — if a new feature is a differentiator vs competitors
+
+If a feature is removed, remove it from the docs too. Never leave stale references.
 
 ## Development
 
