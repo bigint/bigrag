@@ -1,0 +1,151 @@
+---
+title: Production
+description: Configuration and best practices for production deployments.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+## Production Docker Compose
+
+```yaml
+services:
+  bigrag:
+    image: yoginth/bigrag:latest
+    ports:
+      - "6100:6100"
+    environment:
+      BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
+      BIGRAG_MILVUS_URI: http://milvus:19530
+      BIGRAG_REDIS_URL: redis://redis:6379/0
+      BIGRAG_API_SECRET: your-api-secret
+      BIGRAG_LOG_FORMAT: json
+    depends_on:
+      - postgres
+      - milvus
+      - redis
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: bigrag
+      POSTGRES_PASSWORD: strongpassword
+      POSTGRES_DB: bigrag
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  milvus:
+    image: milvusdb/milvus:latest
+    volumes:
+      - milvusdata:/var/lib/milvus
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  milvusdata:
+  redisdata:
+```
+
+## Recommended Settings
+
+```bash
+# Security
+BIGRAG_API_SECRET=your-api-secret
+
+# Infrastructure
+BIGRAG_DATABASE_URL=postgres://user:pass@host:5432/bigrag?sslmode=require
+BIGRAG_REDIS_URL=redis://redis:6379/0
+
+# Performance
+BIGRAG_WORKERS=8                    # Match CPU cores
+BIGRAG_INGESTION_WORKERS=8          # More workers for heavy ingestion
+BIGRAG_DB_POOL_MAX=100              # Increase for high concurrency
+BIGRAG_EMBEDDING_CONCURRENCY=16     # Parallel embedding requests
+BIGRAG_MILVUS_MAX_WORKERS=64        # Milvus thread pool
+
+# Logging
+BIGRAG_LOG_FORMAT=json              # Structured logging
+
+# Storage (S3 for production)
+BIGRAG_STORAGE_BACKEND=s3
+BIGRAG_S3_BUCKET=your-bucket
+BIGRAG_S3_REGION=us-east-1
+```
+
+## Storage Backends
+
+### Local Storage (default)
+
+Files stored on the local filesystem:
+
+```toml
+[storage]
+backend = "local"
+
+[ingestion]
+upload_dir = "./data/uploads"
+```
+
+### S3 Storage
+
+Files stored in an S3-compatible bucket (AWS S3, MinIO, etc.):
+
+```toml
+[storage]
+backend = "s3"
+
+[s3]
+bucket = "my-bigrag-bucket"
+endpoint_url = "https://s3.amazonaws.com"
+region = "us-east-1"
+access_key = "AKIA..."
+secret_key = "..."
+```
+
+<Callout type="info">
+  For production, use S3 storage to separate compute from storage and enable horizontal scaling.
+</Callout>
+
+## Logging
+
+```bash
+# Development (colorized text)
+BIGRAG_LOG_LEVEL=debug BIGRAG_LOG_FORMAT=text
+
+# Production (structured JSON)
+BIGRAG_LOG_LEVEL=info BIGRAG_LOG_FORMAT=json
+```
+
+## Troubleshooting
+
+### Connection refused on startup
+
+Ensure all infrastructure services are running and healthy:
+
+```bash
+docker exec bigrag-postgres pg_isready -U bigrag
+curl -f http://localhost:9091/healthz
+docker exec bigrag-redis redis-cli ping
+```
+
+### Documents stuck in "pending"
+
+- Verify Redis is running and accessible
+- Check backend logs for worker errors
+- Ensure `BIGRAG_INGESTION_WORKERS` is > 0
+
+### Dimension mismatch on query
+
+The query embedding dimension doesn't match the collection's configured dimension. Ensure you're querying with the same embedding model.
+
+### File upload returns 413
+
+File exceeds the max upload size. Increase `BIGRAG_MAX_UPLOAD_SIZE_MB`.
+
+### Slow embedding performance
+
+- Increase `BIGRAG_INGESTION_BATCH_SIZE` for better throughput
+- Increase `BIGRAG_EMBEDDING_CONCURRENCY` for more parallelism

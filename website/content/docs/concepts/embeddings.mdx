@@ -1,0 +1,81 @@
+---
+title: Embeddings
+description: Supported embedding providers and models for vector search.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+bigRAG supports multiple embedding providers. Each collection can use a different provider and model.
+
+## Supported Models
+
+| Provider | Model | Dimensions | Notes |
+|----------|-------|------------|-------|
+| **OpenAI** | `text-embedding-3-small` | 1536 | Default model |
+| **OpenAI** | `text-embedding-3-large` | 3072 | Best quality (OpenAI) |
+| **Cohere** | `embed-english-v3.0` | 1024 | English-optimized |
+| **Cohere** | `embed-multilingual-v3.0` | 1024 | Multilingual support |
+| **Cohere** | `embed-english-light-v3.0` | 384 | Lightweight English model |
+| **Cohere** | `embed-multilingual-light-v3.0` | 384 | Lightweight multilingual model |
+
+## Listing Available Models
+
+```bash
+curl http://localhost:6100/v1/embeddings/models \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+```
+
+Returns all available embedding models with their dimensions and descriptions.
+
+## Configuring per Collection
+
+Embedding configuration is set when creating a collection. Each collection can use a different provider and model.
+
+### OpenAI
+
+```bash
+curl -X POST http://localhost:6100/v1/collections \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "openai_collection",
+    "embedding_provider": "openai",
+    "embedding_model": "text-embedding-3-small",
+    "embedding_api_key": "sk-...",
+    "dimension": 1536
+  }'
+```
+
+### Cohere
+
+```bash
+curl -X POST http://localhost:6100/v1/collections \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "cohere_collection",
+    "embedding_provider": "cohere",
+    "embedding_model": "embed-english-v3.0",
+    "embedding_api_key": "your-cohere-api-key",
+    "dimension": 1024
+  }'
+```
+
+## How Embedding Works
+
+1. When a document is processed, its text is split into chunks
+2. Each chunk is sent to the configured embedding provider's API
+3. The resulting vector is stored in Milvus alongside the chunk text
+4. Queries are embedded using the same model for consistent similarity comparison
+
+## Concurrency
+
+Embedding requests are rate-limited by a semaphore to avoid overwhelming the provider API. Configure the concurrency limit:
+
+```bash
+BIGRAG_EMBEDDING_CONCURRENCY=8  # Max concurrent embedding requests (default)
+```
+
+<Callout type="warn">
+  The embedding model and dimension cannot be changed after a collection is created. All documents in a collection must use the same embedding model for consistent vector search.
+</Callout>

@@ -1,0 +1,93 @@
+---
+title: Installation
+description: Install and run bigRAG using Docker Compose or from source.
+---
+
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+## Prerequisites
+
+- **Docker** and **Docker Compose** (recommended)
+- **Python 3.12+** (for running from source)
+
+## Install
+
+<Tabs items={["Docker Compose", "From Source"]}>
+<Tab value="Docker Compose">
+
+The fastest way to get started. One command starts the full stack:
+
+```bash
+docker compose up -d
+```
+
+This starts:
+
+- **bigRAG API** on port `6100` (Swagger docs at `/docs`)
+- **Milvus** vector database on port `19530`
+- **PostgreSQL** for metadata on port `5433`
+- **Redis** for the ingestion queue on port `6380`
+
+Pre-built images are published to Docker Hub:
+
+```bash
+docker pull yoginth/bigrag:latest
+```
+
+</Tab>
+<Tab value="From Source">
+
+<Steps>
+<Step>
+### Start infrastructure services
+
+```bash
+docker compose up postgres redis milvus -d
+```
+</Step>
+<Step>
+### Install and run the backend
+
+```bash
+cd api
+python -m venv .venv && source .venv/bin/activate
+pip install -e .
+python -m bigrag.main \
+  --database-url "postgres://bigrag:bigrag@localhost:5433/bigrag" \
+  --milvus-uri "http://localhost:19530"
+```
+</Step>
+</Steps>
+
+</Tab>
+</Tabs>
+
+## Development Mode
+
+The easiest way to start everything for development:
+
+```bash
+./dev.sh
+```
+
+This script:
+
+1. Kills stale processes on port 6100
+2. Validates required commands (`docker`, `python3`, `curl`)
+3. Starts Docker services (Postgres, Redis, Milvus) and waits for readiness
+4. Creates a Python virtualenv and installs dependencies
+5. Starts the backend with auto-reload
+6. Gracefully stops everything on Ctrl+C
+
+## Verify
+
+```bash
+curl http://localhost:6100/health
+# → {"status": "ok", "version": "0.x.x"}
+```
+
+<Callout type="info">
+  Interactive Swagger docs are available at [http://localhost:6100/docs](http://localhost:6100/docs) once the server is running.
+</Callout>

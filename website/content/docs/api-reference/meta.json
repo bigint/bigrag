@@ -1,0 +1,12 @@
+{
+  "title": "API Reference",
+  "pages": [
+    "authentication",
+    "collections",
+    "documents",
+    "query",
+    "vectors",
+    "webhooks",
+    "health"
+  ]
+}

@@ -1,0 +1,142 @@
+---
+title: Health & Stats
+description: Health checks and platform statistics endpoints.
+---
+
+## Liveness Check
+
+```
+GET /health
+```
+
+No authentication required. Returns 200 if the server is running.
+
+```json
+{ "status": "ok", "version": "0.0.2" }
+```
+
+## Readiness Check
+
+```
+GET /health/ready
+```
+
+No authentication required. Tests connectivity to Postgres, Milvus, and Redis.
+
+**Response** `200`:
+
+```json
+{
+  "status": "ok",
+  "version": "0.0.2",
+  "postgres": true,
+  "milvus": true,
+  "redis": true
+}
+```
+
+Returns HTTP `503` with `"status": "degraded"` when any dependency is unhealthy.
+
+## Platform Stats
+
+```
+GET /v1/stats
+```
+
+Platform-wide statistics including collections, documents, and queue status.
+
+**Response** `200`:
+
+```json
+{
+  "collections": 5,
+  "documents": {
+    "total": 128,
+    "ready": 120,
+    "pending": 3,
+    "processing": 2,
+    "failed": 3,
+    "total_chunks": 4850,
+    "total_tokens": 285000,
+    "total_size_bytes": 524288000
+  },
+  "webhooks": 2,
+  "queue": {
+    "queued": 150,
+    "completed": 120,
+    "failed": 5,
+    "pending": 3,
+    "processing": 2
+  }
+}
+```
+
+## Embedding Models
+
+```
+GET /v1/embeddings/models
+```
+
+List all available embedding models and providers.
+
+```json
+{
+  "models": [
+    {
+      "provider": "openai",
+      "model": "text-embedding-3-small",
+      "dimension": 1536,
+      "description": "OpenAI small embedding model"
+    },
+    {
+      "provider": "openai",
+      "model": "text-embedding-3-large",
+      "dimension": 3072,
+      "description": "OpenAI large embedding model"
+    },
+    {
+      "provider": "cohere",
+      "model": "embed-english-v3.0",
+      "dimension": 1024,
+      "description": "Cohere English embedding model"
+    },
+    {
+      "provider": "cohere",
+      "model": "embed-multilingual-v3.0",
+      "dimension": 1024,
+      "description": "Cohere multilingual embedding model"
+    },
+    {
+      "provider": "cohere",
+      "model": "embed-english-light-v3.0",
+      "dimension": 384,
+      "description": "Cohere lightweight English model"
+    },
+    {
+      "provider": "cohere",
+      "model": "embed-multilingual-light-v3.0",
+      "dimension": 384,
+      "description": "Cohere lightweight multilingual model"
+    }
+  ]
+}
+```
+
+## Error Codes
+
+All API errors return a JSON body with a `detail` field:
+
+```json
+{ "detail": "Error description" }
+```
+
+| HTTP Status | Meaning | Common Causes |
+|-------------|---------|---------------|
+| `400` | Bad Request | Invalid input, missing required fields |
+| `401` | Unauthorized | Missing or invalid authentication token |
+| `403` | Forbidden | Insufficient permissions |
+| `404` | Not Found | Resource doesn't exist |
+| `409` | Conflict | Duplicate name |
+| `413` | Payload Too Large | File exceeds `BIGRAG_MAX_UPLOAD_SIZE_MB` |
+| `429` | Too Many Requests | Rate limited |
+| `500` | Internal Server Error | Server-side error |

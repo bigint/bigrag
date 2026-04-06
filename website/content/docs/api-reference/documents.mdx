@@ -1,0 +1,223 @@
+---
+title: Documents
+description: API endpoints for uploading, managing, and monitoring documents.
+---
+
+Base path: `/v1/collections/{collection_name}/documents`
+
+## Upload Document
+
+```
+POST /v1/collections/{collection_name}/documents
+```
+
+Upload a document for ingestion. Uses `multipart/form-data`.
+
+```bash
+curl -X POST http://localhost:6100/v1/collections/research/documents \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -F "file=@paper.pdf" \
+  -F 'metadata={"author": "Smith", "year": 2026}'
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `file` | file | yes | The document file |
+| `metadata` | string (JSON) | no | JSON string of metadata to attach |
+
+**Supported file types:** `.pdf`, `.docx`, `.pptx`, `.xlsx`, `.html`, `.htm`, `.md`, `.txt`, `.csv`, `.tsv`, `.xml`, `.json`, `.png`, `.jpg`, `.jpeg`, `.tiff`, `.bmp`, `.gif`
+
+**Max file size:** 1024 MB (configurable via `BIGRAG_MAX_UPLOAD_SIZE_MB`)
+
+**Response** `201`:
+
+```json
+{
+  "id": "660e8400-e29b-41d4-a716-446655440000",
+  "collection_id": "550e8400-e29b-41d4-a716-446655440000",
+  "filename": "paper.pdf",
+  "file_type": "pdf",
+  "file_size": 1048576,
+  "chunk_count": 0,
+  "status": "pending",
+  "error_message": null,
+  "metadata": { "author": "Smith", "year": 2026 },
+  "created_at": "2026-04-01T00:00:00Z",
+  "updated_at": "2026-04-01T00:00:00Z"
+}
+```
+
+**Errors:** `400` — Unsupported file type, `404` — Collection not found, `413` — File too large
+
+## List Documents
+
+```
+GET /v1/collections/{collection_name}/documents
+```
+
+| Parameter | Type | Default | Constraints |
+|-----------|------|---------|-------------|
+| `status` | string | — | `pending`, `processing`, `ready`, `failed` |
+| `limit` | integer | `100` | 1–1,000 |
+| `offset` | integer | `0` | 0+ |
+
+**Response** `200`:
+
+```json
+{
+  "documents": [
+    {
+      "id": "...",
+      "filename": "paper.pdf",
+      "file_type": "pdf",
+      "file_size": 1048576,
+      "chunk_count": 24,
+      "status": "ready",
+      "error_message": null,
+      "metadata": {},
+      "created_at": "...",
+      "updated_at": "..."
+    }
+  ],
+  "total": 15
+}
+```
+
+## Get Document
+
+```
+GET /v1/collections/{collection_name}/documents/{document_id}
+```
+
+**Response** `200`: Full document object.
+
+**Errors:** `404` — Document or collection not found
+
+## Delete Document
+
+```
+DELETE /v1/collections/{collection_name}/documents/{document_id}
+```
+
+Deletes the document and its associated vectors.
+
+**Response** `200`:
+
+```json
+{ "status": "ok", "message": "Document deleted" }
+```
+
+**Errors:** `404` — Document or collection not found
+
+## Reprocess Document
+
+```
+POST /v1/collections/{collection_name}/documents/{document_id}/reprocess
+```
+
+Re-parse, re-chunk, and re-embed a document.
+
+**Response** `200`:
+
+```json
+{ "status": "ok", "message": "Document queued for reprocessing" }
+```
+
+## Get Chunks
+
+```
+GET /v1/collections/{collection_name}/documents/{document_id}/chunks
+```
+
+Get all chunks for a processed document.
+
+**Response** `200`:
+
+```json
+{
+  "chunks": [
+    {
+      "id": "chunk_001",
+      "text": "This is the first chunk of text...",
+      "chunk_index": 0,
+      "metadata": { "document_id": "...", "page": 1 }
+    }
+  ],
+  "total": 24
+}
+```
+
+## Download File
+
+```
+GET /v1/collections/{collection_name}/documents/{document_id}/file
+```
+
+Download the original uploaded file. Returns binary content with appropriate `Content-Type`.
+
+## Stream Progress
+
+```
+GET /v1/collections/{collection_name}/documents/{document_id}/progress
+```
+
+Stream real-time processing progress via Server-Sent Events (SSE).
+
+```
+data: {"step": "parsing", "status": "in_progress", "message": "Parsing document with Docling", "progress": 25.0}
+data: {"step": "chunking", "status": "in_progress", "message": "Splitting into 24 chunks", "progress": 50.0}
+data: {"step": "embedding", "status": "in_progress", "message": "Generating embeddings", "progress": 75.0}
+data: {"step": "complete", "status": "completed", "message": "Document ready", "progress": 100.0}
+```
+
+## Batch Upload
+
+```
+POST /v1/collections/{collection_name}/documents/batch/upload
+```
+
+Upload up to 100 documents in a single request.
+
+```bash
+curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/upload \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -F "files=@paper1.pdf" \
+  -F "files=@paper2.pdf" \
+  -F 'metadata={"source": "batch-import"}'
+```
+
+## Batch Status
+
+```
+POST /v1/collections/{collection_name}/documents/batch/status
+```
+
+Check status of up to 100 documents.
+
+```json
+{ "document_ids": ["doc-id-1", "doc-id-2"] }
+```
+
+## Batch Delete
+
+```
+POST /v1/collections/{collection_name}/documents/batch/delete
+```
+
+Delete up to 100 documents. Partial success is supported.
+
+```json
+{ "document_ids": ["doc-id-1", "doc-id-2"] }
+```
+
+**Response** `200`:
+
+```json
+{
+  "status": "ok",
+  "deleted": 2,
+  "errors": [
+    { "document_id": "doc-id-3", "error": "Document not found" }
+  ]
+}
+```

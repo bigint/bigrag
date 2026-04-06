@@ -1,0 +1,131 @@
+---
+title: Documents
+description: How bigRAG ingests, parses, chunks, and embeds documents for vector search.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Documents are files uploaded to a collection. When uploaded, they are automatically parsed, chunked, embedded, and stored for vector search.
+
+## Supported Formats
+
+bigRAG uses [Docling](https://github.com/DS4SD/docling) for document parsing:
+
+| Format | Extensions | Notes |
+|--------|------------|-------|
+| PDF | `.pdf` | With OCR for scanned documents |
+| Microsoft Word | `.docx` | Full layout support |
+| Microsoft PowerPoint | `.pptx` | Slide content extraction |
+| Microsoft Excel | `.xlsx` | Table data extraction |
+| HTML | `.html`, `.htm` | Web page content |
+| Markdown | `.md` | Native support |
+| Plain Text | `.txt` | Direct ingestion |
+| CSV / TSV | `.csv`, `.tsv` | Tabular data |
+| XML | `.xml` | Structured data |
+| JSON | `.json` | Structured data |
+| Images | `.png`, `.jpg`, `.jpeg`, `.tiff`, `.bmp`, `.gif` | OCR text extraction |
+
+## Ingestion Pipeline
+
+When you upload a document, it goes through this pipeline:
+
+1. **Upload** — file is stored on the configured storage backend (local disk or S3)
+2. **Queue** — document is added to the Redis ingestion queue with status `pending`
+3. **Parse** — a background worker picks up the document and parses it with Docling
+4. **Chunk** — extracted text is split into chunks based on the collection's `chunk_size` and `chunk_overlap`
+5. **Embed** — each chunk is embedded using the collection's configured embedding model
+6. **Store** — embeddings are batch-inserted into the Milvus collection
+7. **Ready** — document status is updated to `ready` with the chunk count
+
+## Processing Status
+
+Documents transition through these states:
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Queued, waiting for a worker |
+| `processing` | Being parsed, chunked, and embedded |
+| `ready` | Successfully processed, searchable |
+| `failed` | Processing failed (see `error_message`) |
+
+Filter documents by status:
+
+```bash
+curl "http://localhost:6100/v1/collections/research/documents?status=failed" \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+```
+
+## Chunking Strategy
+
+Chunking splits document text into overlapping segments for embedding and retrieval.
+
+| Setting | Default | Range | Description |
+|---------|---------|-------|-------------|
+| `chunk_size` | 512 | 64–10,000 | Maximum characters per chunk |
+| `chunk_overlap` | 50 | 0–5,000 | Overlap characters between adjacent chunks |
+
+- **Smaller chunks** (256–512) are better for precise answers and factual retrieval
+- **Larger chunks** (1,000–2,000) provide more context per result
+- **Overlap** ensures important content at chunk boundaries is not lost
+
+## Real-Time Progress (SSE)
+
+Monitor document processing in real time via Server-Sent Events:
+
+```javascript
+const eventSource = new EventSource(
+  "http://localhost:6100/v1/collections/research/documents/DOC_ID/progress"
+);
+
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log(`${data.step}: ${data.progress}% — ${data.message}`);
+};
+```
+
+Progress events include:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `step` | string | Current step (`parsing`, `chunking`, `embedding`, `complete`) |
+| `status` | string | Step status |
+| `message` | string | Human-readable progress message |
+| `progress` | float | Overall progress percentage (0–100) |
+
+## Batch Operations
+
+Upload, check status, or delete multiple documents in a single request:
+
+```bash
+# Batch upload (up to 100 files)
+curl -X POST $BASE/v1/collections/docs/documents/batch/upload \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -F "files=@paper1.pdf" \
+  -F "files=@paper2.pdf" \
+  -F 'metadata={"source": "batch-import"}'
+
+# Batch status check
+curl -X POST $BASE/v1/collections/docs/documents/batch/status \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"document_ids": ["doc-id-1", "doc-id-2"]}'
+
+# Batch delete
+curl -X POST $BASE/v1/collections/docs/documents/batch/delete \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"document_ids": ["doc-id-1", "doc-id-2"]}'
+```
+
+<Callout type="info">
+  Batch operations support up to 100 items per request. Partial success is supported for batch delete — failed items are reported in the `errors` array.
+</Callout>
+
+## Reprocessing
+
+Reprocess a document to re-parse, re-chunk, and re-embed it. Useful after changing collection settings or if processing previously failed:
+
+```bash
+curl -X POST $BASE/v1/collections/docs/documents/DOC_ID/reprocess \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+```

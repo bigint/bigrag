@@ -1,0 +1,75 @@
+---
+title: Introduction
+description: bigRAG is an open-source, self-hostable RAG platform for document ingestion, vector search, and retrieval-augmented generation.
+---
+
+import { Cards, Card } from "fumadocs-ui/components/card";
+
+bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provides a complete pipeline for document ingestion, chunking, embedding, and vector search — all behind a simple REST API.
+
+## Key Features
+
+- **End-to-end RAG pipeline** — upload documents, auto-chunk, embed, and search in one platform
+- **Any document format** — PDF, DOCX, PPTX, HTML, Markdown, images (with OCR), and more via [Docling](https://github.com/DS4SD/docling)
+- **Any embedding model** — OpenAI and Cohere providers with per-collection configuration
+- **Milvus vector database** — production-grade vector search with hybrid capabilities
+- **Self-hostable** — Docker Compose, no external dependencies
+- **MIT licensed** — run it anywhere, forever free
+
+## Architecture
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                      bigRAG API                            │
+│                    (Python / FastAPI)                       │
+├───────────┬────────────┬───────────────┬──────────────────┤
+│           │ Ingestion  │    Query      │     Admin        │
+│           │  Service   │   Service     │    Service       │
+├───────────┴────────────┴───────────────┴──────────────────┤
+│                                                            │
+│  ┌──────────┐  ┌───────────────┐  ┌───────────────────┐   │
+│  │ Postgres │  │    Docling    │  │  Embedding Model  │   │
+│  │(metadata)│  │  (document    │  │ (OpenAI, Cohere)  │   │
+│  │          │  │   converter)  │  │                   │   │
+│  └──────────┘  └───────────────┘  └───────────────────┘   │
+│                                                            │
+│  ┌──────────┐  ┌───────────────────────────────────────┐  │
+│  │  Redis   │  │          Milvus Vector DB             │  │
+│  │ (queue)  │  │   (vector storage, indexing, search)  │  │
+│  └──────────┘  └───────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────┘
+```
+
+| Component | Purpose | Default Address |
+|-----------|---------|-----------------|
+| **bigRAG API** | REST API server (FastAPI) | `http://localhost:6100` |
+| **PostgreSQL** | Metadata storage | `localhost:5433` |
+| **Milvus** | Vector storage and search | `localhost:19530` |
+| **Redis** | Ingestion job queue | `localhost:6380` |
+
+## Data Flow
+
+```
+Document Upload → Docling (parse) → Chunking → Embedding → Milvus
+                                                              ↑
+Query → Embed → Vector Search ──────────────────────────────→ │
+                                                              ↓
+                                                   Results + Context
+```
+
+## Explore
+
+<Cards>
+  <Card title="Installation" href="/docs/getting-started/installation">
+    Set up bigRAG on your machine
+  </Card>
+  <Card title="Quickstart" href="/docs/getting-started/quickstart">
+    Upload and search your first document in minutes
+  </Card>
+  <Card title="API Reference" href="/docs/api-reference/collections">
+    Complete REST API documentation
+  </Card>
+  <Card title="TypeScript SDK" href="/docs/sdks/typescript">
+    Zero-dependency client with full type safety
+  </Card>
+</Cards>

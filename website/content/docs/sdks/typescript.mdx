@@ -1,0 +1,183 @@
+---
+title: TypeScript SDK
+description: Zero-dependency TypeScript client for Node.js, browsers, Deno, Bun, and edge runtimes.
+---
+
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Callout } from "fumadocs-ui/components/callout";
+
+## Installation
+
+```bash
+npm install @bigrag/client
+```
+
+Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes with zero dependencies.
+
+## Quick Start
+
+```typescript
+import { BigRAG } from "@bigrag/client";
+
+const client = new BigRAG({
+  apiSecret: "your-api-secret",
+  baseUrl: "http://localhost:6100",
+});
+
+// Create a collection
+const collection = await client.createCollection({
+  name: "knowledge_base",
+  description: "Company docs",
+  chunk_size: 512,
+});
+
+// Upload a document
+const doc = await client.uploadDocument("knowledge_base", file);
+
+// Stream processing progress
+for await (const event of client.streamDocumentProgress("knowledge_base", doc.id)) {
+  console.log(event.step, event.progress);
+  if (event.status === "complete") break;
+}
+
+// Query
+const { results } = await client.query("knowledge_base", {
+  query: "What is the PTO policy?",
+  top_k: 5,
+});
+```
+
+## Configuration
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `apiSecret` | `BIGRAG_API_SECRET` env var | Shared API secret (omit if open) |
+| `baseUrl` | `http://localhost:6100` | bigRAG server URL |
+| `timeout` | `120000` | Request timeout in ms |
+| `maxRetries` | `2` | Max retries on 5xx, 429, network errors |
+| `fetch` | `globalThis.fetch` | Custom fetch implementation |
+
+## Collections
+
+```typescript
+client.listCollections()
+client.createCollection({
+  name, description?, embedding_provider?, embedding_model?,
+  dimension?, chunk_size?, chunk_overlap?
+})
+client.getCollection(name)
+client.updateCollection(name, { description?, metadata? })
+client.deleteCollection(name)
+```
+
+## Documents
+
+```typescript
+client.uploadDocument(collection, file, metadata?)
+client.batchUploadDocuments(collection, files, metadata?)
+client.listDocuments(collection, { status?, limit?, offset? })
+client.getDocument(collection, documentId)
+client.deleteDocument(collection, documentId)
+client.batchGetStatus(collection, documentIds)
+client.batchDeleteDocuments(collection, documentIds)
+client.reprocessDocument(collection, documentId)
+client.getDocumentChunks(collection, documentId)
+client.getDocumentFileUrl(collection, documentId)  // returns URL string
+client.streamDocumentProgress(collection, documentId)  // returns AsyncIterable
+```
+
+File uploads accept `File`, `Blob`, `Buffer`, `Uint8Array`, or `{ path: string; name?: string }`.
+
+## Query & Vectors
+
+```typescript
+client.query(collection, {
+  query, top_k?, filters?, min_score?, search_mode?, rerank?
+})
+client.multiQuery({
+  query, collections, top_k?, filters?, min_score?, search_mode?
+})
+client.batchQuery({
+  queries: [{ collection, query, top_k?, search_mode? }, ...]
+})
+client.upsertVectors(collection, vectors)
+client.deleteVectors(collection, ids)
+client.listEmbeddingModels()
+client.getStats()
+```
+
+## Analytics
+
+```typescript
+client.getAnalytics(collection)
+```
+
+## Scoped Collection Client
+
+Use `client.collection(name)` to get a scoped client that omits the collection parameter:
+
+```typescript
+const docs = client.collection("knowledge_base");
+await docs.query({ query: "PTO policy", top_k: 5 });
+await docs.upload(file);
+await docs.batchUpload([file1, file2, file3]);
+await docs.batchGetStatus(["doc-id-1", "doc-id-2"]);
+await docs.batchDelete(["doc-id-1", "doc-id-2"]);
+await docs.analytics();
+```
+
+## Webhooks
+
+```typescript
+client.createWebhook({ url, events, collections?, description? })
+client.listWebhooks()
+client.getWebhook(id)
+client.updateWebhook(id, { url?, events?, collections?, description?, active? })
+client.deleteWebhook(id)
+client.listWebhookDeliveries(id, { limit?, offset? })
+client.testWebhook(id)
+```
+
+## Error Handling
+
+```typescript
+import {
+  BigRAG,
+  AuthenticationError,
+  NotFoundError,
+  APIError,
+} from "@bigrag/client";
+
+try {
+  await client.getCollection("missing");
+} catch (err) {
+  if (err instanceof NotFoundError) {
+    // 404
+  } else if (err instanceof AuthenticationError) {
+    // 401
+  } else if (err instanceof APIError) {
+    // any other API error — check err.status
+  }
+}
+```
+
+### Error Hierarchy
+
+`BigRAGError` > `APIError` > specific errors:
+
+| Error Class | HTTP Status |
+|-------------|-------------|
+| `BadRequestError` | 400 |
+| `AuthenticationError` | 401 |
+| `NotFoundError` | 404 |
+| `RateLimitError` | 429 |
+| `InternalServerError` | 500 |
+| `APIConnectionError` | Network failure |
+| `APITimeoutError` | Request timeout |
+
+## Retry Behavior
+
+- **Retried:** HTTP 500+, HTTP 429, connection errors, timeouts
+- **Not retried:** HTTP 400, 401, 403, 404
+- **Backoff:** `min(0.5 * 2^attempt, 4.0)` seconds
+- **Default retries:** 2 (configurable via `maxRetries`)

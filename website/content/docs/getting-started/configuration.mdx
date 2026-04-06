@@ -1,0 +1,125 @@
+---
+title: Configuration
+description: Configure bigRAG with TOML files and environment variables.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+bigRAG reads configuration from a `bigrag.toml` file and/or environment variables. Environment variables take precedence over TOML values.
+
+## TOML Configuration
+
+Create a `bigrag.toml` file in the project root:
+
+```toml
+[server]
+host = "0.0.0.0"
+port = 6100
+workers = 4
+log_level = "info"          # debug, info, warning, error
+log_format = "text"         # text, json
+cors_origins = ["*"]
+
+[database]
+url = "postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable"
+pool_min = 5
+pool_max = 50
+
+[milvus]
+uri = "http://localhost:19530"
+
+[redis]
+url = "redis://localhost:6380/0"
+
+[auth]
+api_secret = ""             # Shared API secret (open access if empty)
+
+[ingestion]
+workers = 4
+upload_dir = "./data/uploads"
+max_upload_size_mb = 1024
+
+[storage]
+backend = "local"           # local, s3
+
+[s3]
+bucket = ""
+endpoint_url = ""
+region = "us-east-1"
+access_key = ""
+secret_key = ""
+```
+
+## Environment Variables
+
+All settings use the `BIGRAG_` prefix. Environment variables override TOML values.
+
+### Server
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BIGRAG_PORT` | Server port | `6100` |
+| `BIGRAG_HOST` | Bind address | `0.0.0.0` |
+| `BIGRAG_WORKERS` | Uvicorn workers | `4` |
+| `BIGRAG_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`) | `info` |
+| `BIGRAG_LOG_FORMAT` | Log format (`text`, `json`) | `text` |
+| `BIGRAG_CORS_ORIGINS` | Allowed CORS origins | `["*"]` |
+
+### Infrastructure
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BIGRAG_DATABASE_URL` | Postgres connection URL | `postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable` |
+| `BIGRAG_MILVUS_URI` | Milvus connection URI | `http://localhost:19530` |
+| `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6380/0` |
+
+### Authentication
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BIGRAG_API_SECRET` | Shared API secret (open access if unset) | — |
+| `BIGRAG_SESSION_EXPIRY_HOURS` | Session expiry in hours | `168` |
+
+### Database
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BIGRAG_DB_POOL_MIN` | Minimum connection pool size | `5` |
+| `BIGRAG_DB_POOL_MAX` | Maximum connection pool size | `50` |
+
+### Ingestion
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size in MB | `1024` |
+| `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
+| `BIGRAG_INGESTION_BATCH_SIZE` | Vectors per embedding batch | `128` |
+| `BIGRAG_CHUNK_SIZE` | Default chunk size (characters) | `512` |
+| `BIGRAG_CHUNK_OVERLAP` | Default chunk overlap (characters) | `50` |
+| `BIGRAG_CONVERSION_TIMEOUT` | Document conversion timeout (seconds) | `300` |
+
+### Storage
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BIGRAG_STORAGE_BACKEND` | Storage backend (`local`, `s3`) | `local` |
+| `BIGRAG_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
+| `BIGRAG_S3_BUCKET` | S3 bucket name | — |
+| `BIGRAG_S3_ENDPOINT_URL` | S3 endpoint URL | — |
+| `BIGRAG_S3_REGION` | S3 region | `us-east-1` |
+
+### Tuning
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BIGRAG_EMBEDDING_CONCURRENCY` | Max concurrent embedding requests | `8` |
+| `BIGRAG_MILVUS_MAX_WORKERS` | Milvus thread pool size | `32` |
+| `BIGRAG_MILVUS_NPROBE` | Milvus search nprobe parameter | `32` |
+| `BIGRAG_COLLECTION_CACHE_TTL` | Collection cache TTL in seconds | `30` |
+| `BIGRAG_QUEUE_MAX_DEPTH` | Max ingestion queue depth | `10000` |
+| `BIGRAG_WEBHOOK_DELIVERY_TIMEOUT` | Webhook HTTP timeout (seconds) | `10` |
+| `BIGRAG_WEBHOOK_CACHE_TTL` | Webhook cache TTL in seconds | `60` |
+
+<Callout type="info">
+  Embedding provider, model, API key, chunk size, and chunk overlap are configured per collection via the API. The `CHUNK_SIZE` and `CHUNK_OVERLAP` settings above are server-level defaults used when not specified per-collection.
+</Callout>

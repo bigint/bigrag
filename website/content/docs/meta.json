@@ -1,0 +1,10 @@
+{
+  "pages": [
+    "index",
+    "getting-started",
+    "concepts",
+    "api-reference",
+    "sdks",
+    "deployment"
+  ]
+}

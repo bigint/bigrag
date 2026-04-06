@@ -1,0 +1,163 @@
+---
+title: Quickstart
+description: Upload and search your first document with bigRAG in under 5 minutes.
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Callout } from "fumadocs-ui/components/callout";
+
+Follow these steps to go from zero to searching your documents.
+
+<Steps>
+<Step>
+### Start bigRAG
+
+```bash
+docker compose up -d
+```
+
+Wait for all services to be healthy, then verify:
+
+```bash
+curl http://localhost:6100/health
+```
+</Step>
+
+<Step>
+### Set up authentication (optional)
+
+If you set `BIGRAG_API_SECRET`, include it in all requests:
+
+```bash
+export BIGRAG_API_SECRET="your-api-secret"
+export BASE="http://localhost:6100"
+```
+</Step>
+
+<Step>
+### Create a collection
+
+A collection groups documents that share the same embedding configuration.
+
+<Tabs items={["curl", "TypeScript SDK"]}>
+<Tab value="curl">
+```bash
+curl -X POST $BASE/v1/collections \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "knowledge_base",
+    "description": "Company knowledge base",
+    "chunk_size": 512,
+    "chunk_overlap": 50
+  }'
+```
+</Tab>
+<Tab value="TypeScript SDK">
+```typescript
+import { BigRAG } from "@bigrag/client";
+
+const client = new BigRAG({
+  apiSecret: "your-api-secret",
+  baseUrl: "http://localhost:6100",
+});
+
+const collection = await client.createCollection({
+  name: "knowledge_base",
+  description: "Company knowledge base",
+  chunk_size: 512,
+  chunk_overlap: 50,
+});
+```
+</Tab>
+</Tabs>
+</Step>
+
+<Step>
+### Upload a document
+
+<Tabs items={["curl", "TypeScript SDK"]}>
+<Tab value="curl">
+```bash
+curl -X POST $BASE/v1/collections/knowledge_base/documents \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -F "file=@handbook.pdf" \
+  -F 'metadata={"department": "engineering"}'
+```
+</Tab>
+<Tab value="TypeScript SDK">
+```typescript
+const doc = await client.uploadDocument(
+  "knowledge_base",
+  new File([buffer], "handbook.pdf"),
+  { department: "engineering" }
+);
+```
+</Tab>
+</Tabs>
+
+The document starts as `pending` and transitions to `processing` then `ready`.
+</Step>
+
+<Step>
+### Check document status
+
+<Tabs items={["curl", "TypeScript SDK"]}>
+<Tab value="curl">
+```bash
+curl $BASE/v1/collections/knowledge_base/documents \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+```
+</Tab>
+<Tab value="TypeScript SDK">
+```typescript
+// Stream real-time progress
+for await (const event of client.streamDocumentProgress("knowledge_base", doc.id)) {
+  console.log(`${event.step}: ${event.progress}%`);
+  if (event.status === "complete") break;
+}
+```
+</Tab>
+</Tabs>
+</Step>
+
+<Step>
+### Query the collection
+
+Once documents are `ready`, you can search:
+
+<Tabs items={["curl", "TypeScript SDK"]}>
+<Tab value="curl">
+```bash
+curl -X POST $BASE/v1/collections/knowledge_base/query \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What is the PTO policy?",
+    "top_k": 5
+  }'
+```
+</Tab>
+<Tab value="TypeScript SDK">
+```typescript
+const { results } = await client.query("knowledge_base", {
+  query: "What is the PTO policy?",
+  top_k: 5,
+});
+
+for (const result of results) {
+  console.log(`[${result.score.toFixed(3)}] ${result.text}`);
+}
+```
+</Tab>
+</Tabs>
+</Step>
+</Steps>
+
+## Next Steps
+
+- Learn about [Collections](/docs/concepts/collections) and how to configure them
+- Explore [Search modes](/docs/concepts/search) — semantic, keyword, and hybrid
+- Set up [Webhooks](/docs/concepts/webhooks) for processing notifications
+- Read the full [API Reference](/docs/api-reference/collections)

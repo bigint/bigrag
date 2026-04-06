@@ -1,0 +1,110 @@
+---
+title: Docker
+description: Deploy bigRAG with Docker Compose.
+---
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+## Quick Start
+
+<Steps>
+<Step>
+### Pull the image
+
+```bash
+docker pull yoginth/bigrag:latest
+```
+</Step>
+<Step>
+### Start the stack
+
+```bash
+docker compose up -d
+```
+
+This starts bigRAG API, Postgres, Redis, and Milvus.
+</Step>
+<Step>
+### Verify
+
+```bash
+curl http://localhost:6100/health
+```
+</Step>
+</Steps>
+
+## Docker Compose
+
+The default `docker-compose.yml` runs the full stack:
+
+```yaml
+services:
+  bigrag:
+    image: yoginth/bigrag:latest
+    ports:
+      - "6100:6100"
+    environment:
+      BIGRAG_DATABASE_URL: postgres://bigrag:bigrag@postgres:5432/bigrag
+      BIGRAG_MILVUS_URI: http://milvus:19530
+      BIGRAG_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - milvus
+      - redis
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: bigrag
+      POSTGRES_PASSWORD: bigrag
+      POSTGRES_DB: bigrag
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  milvus:
+    image: milvusdb/milvus:latest
+    volumes:
+      - milvusdata:/var/lib/milvus
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  milvusdata:
+  redisdata:
+```
+
+## Service Ports
+
+| Service | Default Port |
+|---------|-------------|
+| bigRAG API | 6100 |
+| PostgreSQL | 5432 (5433 in dev) |
+| Milvus | 19530 |
+| Redis | 6379 (6380 in dev) |
+
+## Health Checks
+
+Monitor service health:
+
+```bash
+# bigRAG
+curl http://localhost:6100/health/ready
+
+# Postgres
+docker exec bigrag-postgres pg_isready -U bigrag
+
+# Milvus
+curl -f http://localhost:9091/healthz
+
+# Redis
+docker exec bigrag-redis redis-cli ping
+```
+
+<Callout type="info">
+  The `/health/ready` endpoint checks connectivity to all dependencies and returns `503` with `"status": "degraded"` if any are unhealthy.
+</Callout>

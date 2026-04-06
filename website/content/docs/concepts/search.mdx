@@ -1,0 +1,133 @@
+---
+title: Search
+description: Semantic, keyword, and hybrid search modes with reranking.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+bigRAG supports three search modes that can be configured per collection or per query.
+
+## Search Modes
+
+| Mode | Description |
+|------|-------------|
+| `semantic` | Default. Cosine similarity vector search using embeddings. |
+| `keyword` | Text-based keyword matching with term frequency scoring. |
+| `hybrid` | Runs both semantic and keyword search, merges results using Reciprocal Rank Fusion (RRF). |
+
+### Semantic Search
+
+The default mode. Your query is embedded using the collection's configured model and compared against stored vectors using cosine similarity.
+
+Best for: natural language questions, conceptual queries, finding related content.
+
+```bash
+curl -X POST http://localhost:6100/v1/collections/docs/query \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What are the main findings about climate change?"}'
+```
+
+### Keyword Search
+
+Text-based matching using term frequency. No embedding is involved.
+
+Best for: exact terms, product codes, IDs, proper nouns.
+
+```bash
+curl -X POST http://localhost:6100/v1/collections/docs/query \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "ERR-4021", "search_mode": "keyword"}'
+```
+
+### Hybrid Search
+
+Combines both semantic and keyword search, then merges results using Reciprocal Rank Fusion (RRF). This gives the best of both worlds.
+
+Best for: queries that mix natural language with specific terms.
+
+```bash
+curl -X POST http://localhost:6100/v1/collections/docs/query \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "error code ERR-4021 authentication", "search_mode": "hybrid"}'
+```
+
+## Query Parameters
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `query` | string | yes | — | Natural language query text |
+| `top_k` | integer | no | Collection default (10) | Number of results (1–1,000) |
+| `filters` | object | no | — | Metadata filters (exact match) |
+| `min_score` | float | no | Collection default | Minimum similarity score threshold |
+| `search_mode` | string | no | Collection default | `semantic`, `keyword`, or `hybrid` |
+| `rerank` | boolean | no | Collection setting | Override collection reranking |
+
+## Multi-Collection Query
+
+Search across multiple collections in a single request. Results are merged and sorted by score.
+
+```bash
+curl -X POST http://localhost:6100/v1/query \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "machine learning",
+    "collections": ["docs", "papers"],
+    "top_k": 20
+  }'
+```
+
+Each result includes a `collection` field indicating which collection it came from.
+
+## Batch Query
+
+Run up to 20 independent queries in a single request. Queries execute in parallel.
+
+```bash
+curl -X POST http://localhost:6100/v1/batch/query \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "queries": [
+      {"collection": "docs", "query": "authentication", "top_k": 5},
+      {"collection": "papers", "query": "neural networks", "top_k": 10, "search_mode": "hybrid"}
+    ]
+  }'
+```
+
+## Reranking
+
+When enabled on a collection, results are re-scored by a Cohere cross-encoder model after initial retrieval:
+
+```bash
+# Enable on a collection
+curl -X POST http://localhost:6100/v1/collections \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "docs",
+    "reranking_enabled": true,
+    "reranking_model": "rerank-v3.5",
+    "reranking_api_key": "your-cohere-key"
+  }'
+
+# Override per query
+curl -X POST http://localhost:6100/v1/collections/docs/query \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "...", "rerank": false}'
+```
+
+## Analytics
+
+Each collection tracks query statistics automatically:
+
+```bash
+curl http://localhost:6100/v1/collections/docs/analytics \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+```
+
+Returns 24h, 7d, and 30d aggregates including query count, average latency, average score, and top queries.

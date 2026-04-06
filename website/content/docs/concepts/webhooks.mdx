@@ -1,0 +1,102 @@
+---
+title: Webhooks
+description: Get notified when documents are processed with HMAC-signed webhook payloads.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Webhooks push notifications when document processing state changes. They're useful for triggering downstream workflows when documents are ready for search.
+
+## Events
+
+| Event | Description |
+|-------|-------------|
+| `document.processing` | Document processing has started |
+| `document.ready` | Document successfully processed, now searchable |
+| `document.failed` | Document processing failed |
+
+## Registering a Webhook
+
+```bash
+curl -X POST http://localhost:6100/v1/admin/webhooks \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/webhook",
+    "events": ["document.ready", "document.failed"],
+    "collections": ["knowledge_base"],
+    "description": "Notify on document processing"
+  }'
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `url` | string | yes | Delivery URL (HTTPS required, HTTP allowed for localhost) |
+| `events` | string[] | yes | Event types to subscribe to |
+| `collections` | string[] | no | Filter by collection names (`null` = all) |
+| `description` | string | no | Human-readable description |
+
+<Callout type="warn">
+  The response includes a `secret` field that is shown only once. Store it — it's used to verify webhook signatures.
+</Callout>
+
+## Payload Format
+
+```json
+{
+  "event": "document.ready",
+  "timestamp": "2026-04-02T12:34:56Z",
+  "collection": "docs",
+  "document_id": "abc-123",
+  "status": "ready",
+  "chunk_count": 42,
+  "error_message": null
+}
+```
+
+## Signature Verification
+
+Each delivery includes an `X-BigRAG-Signature` header with an HMAC-SHA256 signature:
+
+```
+X-BigRAG-Signature: sha256=<hex digest>
+X-BigRAG-Event: document.ready
+X-BigRAG-Delivery: <delivery-uuid>
+```
+
+Verify by computing `HMAC-SHA256(webhook_secret, raw_body)`:
+
+```python
+import hmac, hashlib
+
+def verify(payload: bytes, secret: str, signature: str) -> bool:
+    expected = "sha256=" + hmac.new(
+        secret.encode(), payload, hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+```
+
+## Retry Policy
+
+Failed deliveries retry 3 times with exponential backoff (~10s, ~30s, ~90s). After all retries, the delivery is marked as `failed`.
+
+Check delivery history:
+
+```bash
+curl http://localhost:6100/v1/admin/webhooks/{id}/deliveries \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+```
+
+## Testing
+
+Send a `webhook.test` event to verify your endpoint is reachable:
+
+```bash
+curl -X POST http://localhost:6100/v1/admin/webhooks/{id}/test \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+```
+
+## Limits
+
+- Maximum 50 webhooks per instance
+- Delivery timeout: 10 seconds (configurable via `BIGRAG_WEBHOOK_DELIVERY_TIMEOUT`)

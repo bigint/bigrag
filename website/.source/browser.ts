@@ -1,0 +1,12 @@
+// @ts-nocheck
+import { browser } from 'fumadocs-mdx/runtime/browser';
+import type * as Config from '../source.config';
+
+const create = browser<typeof Config, import("fumadocs-mdx/runtime/types").InternalTypeConfig & {
+  DocData: {
+  }
+}>();
+const browserCollections = {
+  docs: create.doc("docs", {"index.mdx": () => import("../content/docs/index.mdx?collection=docs"), "api-reference/authentication.mdx": () => import("../content/docs/api-reference/authentication.mdx?collection=docs"), "api-reference/collections.mdx": () => import("../content/docs/api-reference/collections.mdx?collection=docs"), "api-reference/documents.mdx": () => import("../content/docs/api-reference/documents.mdx?collection=docs"), "api-reference/health.mdx": () => import("../content/docs/api-reference/health.mdx?collection=docs"), "api-reference/query.mdx": () => import("../content/docs/api-reference/query.mdx?collection=docs"), "api-reference/vectors.mdx": () => import("../content/docs/api-reference/vectors.mdx?collection=docs"), "api-reference/webhooks.mdx": () => import("../content/docs/api-reference/webhooks.mdx?collection=docs"), "concepts/collections.mdx": () => import("../content/docs/concepts/collections.mdx?collection=docs"), "concepts/documents.mdx": () => import("../content/docs/concepts/documents.mdx?collection=docs"), "concepts/embeddings.mdx": () => import("../content/docs/concepts/embeddings.mdx?collection=docs"), "concepts/search.mdx": () => import("../content/docs/concepts/search.mdx?collection=docs"), "concepts/webhooks.mdx": () => import("../content/docs/concepts/webhooks.mdx?collection=docs"), "deployment/docker.mdx": () => import("../content/docs/deployment/docker.mdx?collection=docs"), "deployment/production.mdx": () => import("../content/docs/deployment/production.mdx?collection=docs"), "getting-started/configuration.mdx": () => import("../content/docs/getting-started/configuration.mdx?collection=docs"), "getting-started/installation.mdx": () => import("../content/docs/getting-started/installation.mdx?collection=docs"), "getting-started/quickstart.mdx": () => import("../content/docs/getting-started/quickstart.mdx?collection=docs"), "sdks/python.mdx": () => import("../content/docs/sdks/python.mdx?collection=docs"), "sdks/typescript.mdx": () => import("../content/docs/sdks/typescript.mdx?collection=docs"), }),
+};
+export default browserCollections;

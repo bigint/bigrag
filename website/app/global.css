@@ -1,0 +1,75 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+@theme {
+  --color-fd-background: hsl(0, 0%, 99%);
+  --color-fd-foreground: hsl(0, 0%, 5%);
+  --color-fd-muted: hsl(0, 0%, 96%);
+  --color-fd-muted-foreground: hsl(0, 0%, 42%);
+  --color-fd-popover: hsl(0, 0%, 100%);
+  --color-fd-popover-foreground: hsl(0, 0%, 12%);
+  --color-fd-card: hsl(0, 0%, 98%);
+  --color-fd-card-foreground: hsl(0, 0%, 5%);
+  --color-fd-border: hsl(0, 0%, 90%);
+  --color-fd-primary: hsl(0, 0%, 9%);
+  --color-fd-primary-foreground: hsl(0, 0%, 98%);
+  --color-fd-secondary: hsl(0, 0%, 96%);
+  --color-fd-secondary-foreground: hsl(0, 0%, 9%);
+  --color-fd-accent: hsl(0, 0%, 94%);
+  --color-fd-accent-foreground: hsl(0, 0%, 9%);
+  --color-fd-ring: hsl(0, 0%, 63%);
+}
+
+.dark {
+  --color-fd-background: hsl(0, 0%, 4%);
+  --color-fd-foreground: hsl(0, 0%, 95%);
+  --color-fd-muted: hsl(0, 0%, 10%);
+  --color-fd-muted-foreground: hsl(0, 0%, 55%);
+  --color-fd-popover: hsl(0, 0%, 6%);
+  --color-fd-popover-foreground: hsl(0, 0%, 95%);
+  --color-fd-card: hsl(0, 0%, 7%);
+  --color-fd-card-foreground: hsl(0, 0%, 95%);
+  --color-fd-border: hsl(0, 0%, 14%);
+  --color-fd-primary: hsl(0, 0%, 98%);
+  --color-fd-primary-foreground: hsl(0, 0%, 5%);
+  --color-fd-secondary: hsl(0, 0%, 12%);
+  --color-fd-secondary-foreground: hsl(0, 0%, 95%);
+  --color-fd-accent: hsl(0, 0%, 14%);
+  --color-fd-accent-foreground: hsl(0, 0%, 95%);
+  --color-fd-ring: hsl(0, 0%, 30%);
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+html > body[data-scroll-locked] {
+  margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
+
+.dark body {
+  background-image: radial-gradient(
+    ellipse 80% 50% at 50% -20%,
+    hsla(0, 0%, 30%, 0.15),
+    transparent
+  );
+  background-repeat: no-repeat;
+}
+
+.hero-gradient {
+  background: radial-gradient(
+    ellipse 60% 50% at 50% -10%,
+    hsla(0, 0%, 50%, 0.08),
+    transparent
+  );
+}
+
+.dark .hero-gradient {
+  background: radial-gradient(
+    ellipse 60% 50% at 50% -10%,
+    hsla(0, 0%, 100%, 0.04),
+    transparent
+  );
+}

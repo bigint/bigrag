@@ -1,0 +1,53 @@
+---
+title: Authentication
+description: Secure bigRAG API with a shared secret token.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+bigRAG uses a simple shared secret for API protection.
+
+## Setup
+
+Set the `BIGRAG_API_SECRET` environment variable to require authentication:
+
+```bash
+BIGRAG_API_SECRET=your-secret-token
+```
+
+If `BIGRAG_API_SECRET` is **not set**, the API is open to all requests — no authentication required.
+
+## Making Requests
+
+When authentication is enabled, include the secret in the `Authorization` header:
+
+```bash
+curl http://localhost:6100/v1/collections \
+  -H "Authorization: Bearer your-secret-token"
+```
+
+For SSE endpoints (like document progress), the token can be passed as a query parameter:
+
+```bash
+curl "http://localhost:6100/v1/collections/docs/documents/DOC_ID/progress?token=your-secret-token"
+```
+
+## Error Response
+
+Missing or invalid tokens return HTTP 401:
+
+```json
+{
+  "detail": "Unauthorized"
+}
+```
+
+<Callout type="info">
+  Health endpoints (`/health` and `/health/ready`) do not require authentication and are always accessible.
+</Callout>
+
+## Security Notes
+
+- Tokens are compared using HMAC for timing-safe validation
+- Always use HTTPS in production to protect the token in transit
+- The `BIGRAG_API_SECRET` is a shared secret — all clients use the same token

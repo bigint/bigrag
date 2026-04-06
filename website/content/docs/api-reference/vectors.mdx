@@ -1,0 +1,101 @@
+---
+title: Vectors
+description: API endpoints for direct vector operations.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+For advanced use cases, you can directly manage vectors without going through the document ingestion pipeline. This is useful for custom embeddings or integrating with external embedding services.
+
+## Upsert Vectors
+
+```
+POST /v1/collections/{collection_name}/vectors/upsert
+```
+
+Insert or update vectors directly.
+
+**Request body:**
+
+```json
+{
+  "vectors": [
+    {
+      "id": "custom_001",
+      "embedding": [0.1, 0.2, 0.3],
+      "text": "Custom text content",
+      "metadata": { "source": "external" }
+    }
+  ]
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `vectors` | array | yes | List of vector entries |
+| `vectors[].id` | string | yes | Unique vector ID |
+| `vectors[].embedding` | array[float] | yes | Must match collection dimension |
+| `vectors[].text` | string | no | Associated text content |
+| `vectors[].metadata` | object | no | Arbitrary metadata |
+
+**Response** `200`:
+
+```json
+{ "status": "ok", "upserted": 1 }
+```
+
+**Errors:**
+
+- `400` — Dimension mismatch, invalid vectors
+- `404` — Collection not found
+
+## Delete Vectors
+
+```
+POST /v1/collections/{collection_name}/vectors/delete
+```
+
+Delete vectors by their IDs.
+
+**Request body:**
+
+```json
+{ "ids": ["custom_001", "custom_002"] }
+```
+
+**Response** `200`:
+
+```json
+{ "status": "ok", "deleted": 2 }
+```
+
+**Errors:** `404` — Collection not found
+
+## Example: Custom Embeddings
+
+```bash
+# Upsert vectors with your own embeddings
+curl -X POST http://localhost:6100/v1/collections/custom/vectors/upsert \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "vectors": [
+      {
+        "id": "vec_001",
+        "embedding": [0.1, 0.2, 0.3],
+        "text": "Custom content",
+        "metadata": {"source": "external"}
+      }
+    ]
+  }'
+
+# Delete vectors
+curl -X POST http://localhost:6100/v1/collections/custom/vectors/delete \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"ids": ["vec_001"]}'
+```
+
+<Callout type="warn">
+  The embedding dimension must match the collection's configured dimension. A dimension mismatch will return a 400 error.
+</Callout>
