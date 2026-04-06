@@ -1,1 +1,1 @@
-/// <reference types="fumadocs-mdx/env" />
+declare module "*.css" {}
