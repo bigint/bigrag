@@ -17,21 +17,46 @@ from bigrag.services.storage import get_storage, init_storage
 from bigrag.services.vector_store import vector_store
 
 
+class ColorFormatter(logging.Formatter):
+    RESET = "\033[0m"
+    COLORS = {
+        logging.DEBUG: "\033[36m",     # cyan
+        logging.INFO: "\033[32m",      # green
+        logging.WARNING: "\033[33m",   # yellow
+        logging.ERROR: "\033[31m",     # red
+        logging.CRITICAL: "\033[1;31m",  # bold red
+    }
+    LEVEL_SHORT = {
+        logging.DEBUG: "DBG",
+        logging.INFO: "INF",
+        logging.WARNING: "WRN",
+        logging.ERROR: "ERR",
+        logging.CRITICAL: "CRT",
+    }
+
+    def format(self, record: logging.LogRecord) -> str:
+        c = self.COLORS.get(record.levelno, "")
+        r = self.RESET
+        lvl = self.LEVEL_SHORT.get(record.levelno, record.levelname)
+        ts = self.formatTime(record, "%H:%M:%S")
+        name = record.name.removeprefix("bigrag.")
+        return f"\033[90m{ts}{r} {c}{lvl}{r} \033[1m{name}{r} {record.getMessage()}"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import sys
 
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s %(levelname)s %(name)s %(message)s"
-            if settings.log_format == "text"
-            else (
+    if settings.log_format == "json":
+        handler.setFormatter(
+            logging.Formatter(
                 '{"time":"%(asctime)s","level":"%(levelname)s",'
                 '"logger":"%(name)s","msg":"%(message)s"}'
             )
         )
-    )
+    else:
+        handler.setFormatter(ColorFormatter())
     logging.root.handlers.clear()
     logging.root.addHandler(handler)
     logging.root.setLevel(getattr(logging, settings.log_level.upper(), logging.INFO))
