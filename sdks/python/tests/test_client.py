@@ -42,6 +42,8 @@ class MockTransport(httpx.AsyncBaseTransport):
         self._index = 0
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        # Read streaming content so it can be inspected later via req.content
+        await request.aread()
         self.calls.append(request)
         if self._index < len(self._responses):
             resp = self._responses[self._index]
@@ -486,3 +488,400 @@ class TestContextManager:
         async with BigRAG(api_key="k", http_client=http_client) as client:
             result = await client.health()
             assert result["status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Retry logic
+# ---------------------------------------------------------------------------
+
+
+class TestRetryLogic:
+    @pytest.mark.anyio
+    async def test_retry_on_429(self):
+        transport = MockTransport([
+            _mock_response(429, {"detail": "Rate limited"}),
+            _mock_response(200, {"status": "ok", "version": "1.0"}),
+        ])
+        http_client = httpx.AsyncClient(transport=transport)
+        client = BigRAG(api_key="k", http_client=http_client, max_retries=1)
+        result = await client.health()
+        assert result["status"] == "ok"
+        assert len(transport.calls) == 2
+
+    @pytest.mark.anyio
+    async def test_retry_on_500(self):
+        transport = MockTransport([
+            _mock_response(500, {"detail": "Server error"}),
+            _mock_response(200, {"status": "ok", "version": "1.0"}),
+        ])
+        http_client = httpx.AsyncClient(transport=transport)
+        client = BigRAG(api_key="k", http_client=http_client, max_retries=1)
+        result = await client.health()
+        assert result["status"] == "ok"
+        assert len(transport.calls) == 2
+
+    @pytest.mark.anyio
+    async def test_204_returns_ok(self):
+        client, _ = _make_client([_mock_response(204)])
+        result = await client.collections.delete("docs")
+        assert result["status"] == "ok"
+
+    @pytest.mark.anyio
+    async def test_connection_error(self):
+        class FailTransport(httpx.AsyncBaseTransport):
+            async def handle_async_request(self, request):
+                raise httpx.ConnectError("Connection refused")
+        http_client = httpx.AsyncClient(transport=FailTransport())
+        client = BigRAG(api_key="k", http_client=http_client, max_retries=0)
+        with pytest.raises(APIConnectionError):
+            await client.health()
+
+    @pytest.mark.anyio
+    async def test_timeout_error(self):
+        class TimeoutTransport(httpx.AsyncBaseTransport):
+            async def handle_async_request(self, request):
+                raise httpx.ReadTimeout("Read timed out")
+        http_client = httpx.AsyncClient(transport=TimeoutTransport())
+        client = BigRAG(api_key="k", http_client=http_client, max_retries=0)
+        with pytest.raises(APITimeoutError):
+            await client.health()
+
+
+# ---------------------------------------------------------------------------
+# File upload
+# ---------------------------------------------------------------------------
+
+
+class TestFileUpload:
+    @pytest.mark.anyio
+    async def test_upload_bytes(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"id": "doc1", "filename": "document"})]
+        )
+        await client.documents.upload("docs", b"PDF content")
+        req = transport.calls[0]
+        assert req.method == "POST"
+        assert "/v1/collections/docs/documents" in str(req.url)
+        assert b"PDF content" in req.content
+
+    @pytest.mark.anyio
+    async def test_upload_with_metadata(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"id": "doc1"})]
+        )
+        await client.documents.upload("docs", b"data", metadata={"source": "test"})
+        req = transport.calls[0]
+        assert b"source" in req.content
+
+    @pytest.mark.anyio
+    async def test_upload_file_path(self, tmp_path):
+        p = tmp_path / "report.pdf"
+        p.write_bytes(b"PDF bytes")
+        client, transport = _make_client(
+            [_mock_response(200, {"id": "doc1", "filename": "report.pdf"})]
+        )
+        await client.documents.upload("docs", str(p))
+        req = transport.calls[0]
+        assert b"PDF bytes" in req.content
+        assert b"report.pdf" in req.content
+
+
+# ---------------------------------------------------------------------------
+# SSE streaming
+# ---------------------------------------------------------------------------
+
+
+class TestSSEStreaming:
+    @pytest.mark.anyio
+    async def test_parse_sse_stream(self):
+        from bigrag._sse import parse_sse_stream
+
+        sse_data = (
+            'data: {"step": "parsing", "message": "Parsing document", "progress": 0.5}\n'
+            "\n"
+            'data: {"step": "complete", "message": "Done", "progress": 1.0}\n'
+            "\n"
+        )
+
+        class FakeResponse:
+            """Mimics httpx.Response.aiter_lines()."""
+            async def aiter_lines(self):
+                for line in sse_data.split("\n"):
+                    yield line
+
+        events = []
+        async for event in parse_sse_stream(FakeResponse()):
+            events.append(event)
+
+        assert len(events) == 2
+        assert events[0]["step"] == "parsing"
+        assert events[0]["progress"] == 0.5
+        assert events[1]["step"] == "complete"
+        assert events[1]["progress"] == 1.0
+
+    @pytest.mark.anyio
+    async def test_parse_sse_skips_malformed(self):
+        from bigrag._sse import parse_sse_stream
+
+        sse_data = (
+            "data: not-json\n"
+            "\n"
+            'data: {"step": "ok", "message": "fine", "progress": 1.0}\n'
+            "\n"
+        )
+
+        class FakeResponse:
+            async def aiter_lines(self):
+                for line in sse_data.split("\n"):
+                    yield line
+
+        events = []
+        async for event in parse_sse_stream(FakeResponse()):
+            events.append(event)
+
+        assert len(events) == 1
+        assert events[0]["step"] == "ok"
+
+    @pytest.mark.anyio
+    async def test_parse_sse_skips_non_data_lines(self):
+        from bigrag._sse import parse_sse_stream
+
+        sse_data = (
+            "event: progress\n"
+            ": comment\n"
+            'data: {"step": "done", "message": "Done", "progress": 1.0}\n'
+            "\n"
+        )
+
+        class FakeResponse:
+            async def aiter_lines(self):
+                for line in sse_data.split("\n"):
+                    yield line
+
+        events = []
+        async for event in parse_sse_stream(FakeResponse()):
+            events.append(event)
+
+        assert len(events) == 1
+
+
+# ---------------------------------------------------------------------------
+# Additional Document operations
+# ---------------------------------------------------------------------------
+
+
+class TestDocumentsBatchOps:
+    @pytest.mark.anyio
+    async def test_batch_get(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"documents": [], "total": 0})]
+        )
+        await client.documents.batch_get("docs", ["a", "b"])
+        body = json.loads(transport.calls[0].content)
+        assert body["document_ids"] == ["a", "b"]
+        assert "/batch/get" in str(transport.calls[0].url)
+
+    @pytest.mark.anyio
+    async def test_batch_delete(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"status": "ok", "deleted": 2, "errors": []})]
+        )
+        result = await client.documents.batch_delete("docs", ["a", "b"])
+        assert result["deleted"] == 2
+
+    @pytest.mark.anyio
+    async def test_get_chunks(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"chunks": [{"id": "c1"}], "total": 1})]
+        )
+        result = await client.documents.get_chunks("docs", "doc1")
+        assert result["total"] == 1
+        assert "/chunks" in str(transport.calls[0].url)
+
+
+# ---------------------------------------------------------------------------
+# Additional Webhook operations
+# ---------------------------------------------------------------------------
+
+
+class TestWebhooksExtended:
+    @pytest.mark.anyio
+    async def test_get_webhook(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"id": "wh1", "url": "https://example.com"})]
+        )
+        result = await client.webhooks.get("wh1")
+        assert result["id"] == "wh1"
+
+    @pytest.mark.anyio
+    async def test_update_webhook(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"id": "wh1", "description": "updated"})]
+        )
+        await client.webhooks.update("wh1", {"description": "updated"})
+        assert transport.calls[0].method == "PUT"
+        assert json.loads(transport.calls[0].content)["description"] == "updated"
+
+    @pytest.mark.anyio
+    async def test_delete_webhook(self):
+        client, transport = _make_client([_mock_response(204)])
+        await client.webhooks.delete("wh1")
+        assert transport.calls[0].method == "DELETE"
+
+    @pytest.mark.anyio
+    async def test_list_deliveries(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"deliveries": [], "total": 0})]
+        )
+        await client.webhooks.list_deliveries("wh1", limit=10, offset=20)
+        url = str(transport.calls[0].url)
+        assert "limit=10" in url
+        assert "offset=20" in url
+
+
+# ---------------------------------------------------------------------------
+# CollectionClient extended
+# ---------------------------------------------------------------------------
+
+
+class TestCollectionClientExtended:
+    @pytest.mark.anyio
+    async def test_scoped_list_documents(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"documents": [], "total": 0})]
+        )
+        col = client.collection("mydata")
+        await col.list_documents(limit=5)
+        url = str(transport.calls[0].url)
+        assert "/v1/collections/mydata/documents" in url
+        assert "limit=5" in url
+
+    @pytest.mark.anyio
+    async def test_scoped_get_document(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"id": "doc1"})]
+        )
+        col = client.collection("mydata")
+        await col.get_document("doc1")
+        assert "/v1/collections/mydata/documents/doc1" in str(transport.calls[0].url)
+
+    @pytest.mark.anyio
+    async def test_scoped_delete_document(self):
+        client, transport = _make_client([_mock_response(204)])
+        col = client.collection("mydata")
+        await col.delete_document("doc1")
+        assert transport.calls[0].method == "DELETE"
+
+    @pytest.mark.anyio
+    async def test_scoped_reprocess(self):
+        client, transport = _make_client([_mock_response(200, {"status": "ok"})])
+        col = client.collection("mydata")
+        await col.reprocess_document("doc1")
+        assert "/reprocess" in str(transport.calls[0].url)
+
+    @pytest.mark.anyio
+    async def test_scoped_batch_get_status(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"documents": [], "total": 0})]
+        )
+        col = client.collection("mydata")
+        await col.batch_get_status(["id1"])
+        assert "/batch/status" in str(transport.calls[0].url)
+
+    @pytest.mark.anyio
+    async def test_scoped_batch_delete(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"status": "ok", "deleted": 1, "errors": []})]
+        )
+        col = client.collection("mydata")
+        await col.batch_delete(["id1"])
+        assert "/batch/delete" in str(transport.calls[0].url)
+
+    @pytest.mark.anyio
+    async def test_scoped_analytics(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"collection": "mydata"})]
+        )
+        col = client.collection("mydata")
+        await col.analytics()
+        assert "/v1/collections/mydata/analytics" in str(transport.calls[0].url)
+
+    @pytest.mark.anyio
+    async def test_scoped_get_chunks(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"chunks": [], "total": 0})]
+        )
+        col = client.collection("mydata")
+        await col.get_document_chunks("doc1")
+        assert "/chunks" in str(transport.calls[0].url)
+
+
+# ---------------------------------------------------------------------------
+# Embedding models & analytics
+# ---------------------------------------------------------------------------
+
+
+class TestEmbeddingModels:
+    @pytest.mark.anyio
+    async def test_list_embedding_models(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"models": [{"provider": "openai", "model": "text-embedding-3-small"}]})]
+        )
+        result = await client.list_embedding_models()
+        assert len(result["models"]) == 1
+        assert "/v1/embeddings/models" in str(transport.calls[0].url)
+
+    @pytest.mark.anyio
+    async def test_get_analytics(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"collection": "docs", "period_24h": {"query_count": 10}})]
+        )
+        result = await client.get_analytics("docs")
+        assert result["collection"] == "docs"
+        assert "/v1/collections/docs/analytics" in str(transport.calls[0].url)
+
+
+# ---------------------------------------------------------------------------
+# Environment variable for API key
+# ---------------------------------------------------------------------------
+
+
+class TestEnvApiKey:
+    def test_reads_from_env(self, monkeypatch):
+        monkeypatch.setenv("BIGRAG_API_KEY", "from-env")
+        client = BigRAG()
+        assert client.api_key == "from-env"
+
+    def test_option_overrides_env(self, monkeypatch):
+        monkeypatch.setenv("BIGRAG_API_KEY", "from-env")
+        client = BigRAG(api_key="from-option")
+        assert client.api_key == "from-option"
+
+    def test_defaults_to_empty(self, monkeypatch):
+        monkeypatch.delenv("BIGRAG_API_KEY", raising=False)
+        client = BigRAG()
+        assert client.api_key == ""
+
+
+# ---------------------------------------------------------------------------
+# URL encoding
+# ---------------------------------------------------------------------------
+
+
+class TestURLEncoding:
+    @pytest.mark.anyio
+    async def test_encodes_spaces_in_collection_name(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"id": "1", "name": "my collection"})]
+        )
+        await client.collections.get("my collection")
+        assert "my%20collection" in str(transport.calls[0].url)
+
+    @pytest.mark.anyio
+    async def test_encodes_slashes_in_name(self):
+        client, transport = _make_client(
+            [_mock_response(200, {"id": "1", "name": "a/b"})]
+        )
+        await client.collections.get("a/b")
+        url = str(transport.calls[0].url)
+        assert "a%2Fb" in url
