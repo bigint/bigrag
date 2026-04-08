@@ -23,7 +23,9 @@ from bigrag.models.document import (
     DocumentStatusResponse,
 )
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
-from bigrag.services.queue import IngestionJob, event_bus, ingestion_queue
+from bigrag.services.event_bus import event_bus
+from bigrag.services.ingestion_job import IngestionJob, create_ingestion_job
+from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
 
@@ -148,16 +150,12 @@ async def upload_document(
         raise
 
     await ingestion_queue.enqueue(
-        IngestionJob(
+        create_ingestion_job(
             document_id=doc_id,
             file_path=storage_key,
             collection_name=collection_name,
-            embedding_provider=collection["embedding_provider"],
-            embedding_model=collection["embedding_model"],
-            embedding_dimension=collection["dimension"],
-            embedding_api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
-            chunk_size=collection["chunk_size"],
-            chunk_overlap=collection["chunk_overlap"],
+            collection=collection,
+            fallback_api_key=settings.embedding_api_key,
         )
     )
 
@@ -301,16 +299,12 @@ async def reprocess_document(
     )
 
     await ingestion_queue.enqueue(
-        IngestionJob(
+        create_ingestion_job(
             document_id=document_id,
             file_path=row["file_path"],
             collection_name=collection_name,
-            embedding_provider=collection["embedding_provider"],
-            embedding_model=collection["embedding_model"],
-            embedding_dimension=collection["dimension"],
-            embedding_api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
-            chunk_size=collection["chunk_size"],
-            chunk_overlap=collection["chunk_overlap"],
+            collection=collection,
+            fallback_api_key=settings.embedding_api_key,
         )
     )
 
@@ -474,16 +468,12 @@ async def batch_upload_documents(
         )
 
         await ingestion_queue.enqueue(
-            IngestionJob(
+            create_ingestion_job(
                 document_id=doc_id,
                 file_path=storage_key,
                 collection_name=collection_name,
-                embedding_provider=collection["embedding_provider"],
-                embedding_model=collection["embedding_model"],
-                embedding_dimension=collection["dimension"],
-                embedding_api_key=collection.get("embedding_api_key") or settings.embedding_api_key,
-                chunk_size=collection["chunk_size"],
-                chunk_overlap=collection["chunk_overlap"],
+                collection=collection,
+                fallback_api_key=settings.embedding_api_key,
             )
         )
         results.append(_row_to_response(dict(row)))

@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import hmac
 import logging
+import random
 import secrets
 import time
 import uuid
@@ -12,7 +13,7 @@ from datetime import UTC, datetime
 import httpx
 import orjson
 
-from bigrag.services.queue import IngestionEvent, event_bus
+from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.utils import safe_create_task
 
 logger = logging.getLogger("bigrag.webhook")
@@ -67,6 +68,46 @@ def _matches_webhook(webhook: dict, event: str, collection: str) -> bool:
     return True
 
 
+def _jittered_delay(base_delay: int, jitter_factor: float = 0.25) -> float:
+    """Add ±25% jitter to a delay to avoid thundering herd."""
+    jitter = base_delay * jitter_factor
+    return base_delay + random.uniform(-jitter, jitter)
+
+
+class CircuitBreaker:
+    """Per-webhook circuit breaker to avoid retry storms against a down endpoint."""
+
+    def __init__(self, failure_threshold: int = 5, cooldown_seconds: int = 300) -> None:
+        self._failure_threshold = failure_threshold
+        self._cooldown = cooldown_seconds
+        # webhook_id -> (consecutive_failures, last_failure_time)
+        self._state: dict[str, tuple[int, float]] = {}
+
+    def is_open(self, webhook_id: str) -> bool:
+        """Return True if circuit is open (should NOT deliver)."""
+        state = self._state.get(webhook_id)
+        if state is None:
+            return False
+        failures, last_failure = state
+        if failures >= self._failure_threshold:
+            if time.monotonic() - last_failure < self._cooldown:
+                return True
+            # Cooldown expired, allow one attempt (half-open)
+            return False
+        return False
+
+    def record_success(self, webhook_id: str) -> None:
+        self._state.pop(webhook_id, None)
+
+    def record_failure(self, webhook_id: str) -> None:
+        state = self._state.get(webhook_id)
+        if state:
+            failures, _ = state
+            self._state[webhook_id] = (failures + 1, time.monotonic())
+        else:
+            self._state[webhook_id] = (1, time.monotonic())
+
+
 class WebhookDispatcher:
     """Subscribes to EventBus and dispatches webhooks for document state changes."""
 
@@ -75,6 +116,14 @@ class WebhookDispatcher:
         self._task: asyncio.Task | None = None
         self._cache: list[dict] | None = None
         self._cache_time: float = 0
+        self._circuit_breaker = CircuitBreaker()
+        # Per-webhook concurrency limiter (max 5 concurrent deliveries per webhook)
+        self._semaphores: dict[str, asyncio.Semaphore] = {}
+
+    def _get_semaphore(self, webhook_id: str) -> asyncio.Semaphore:
+        if webhook_id not in self._semaphores:
+            self._semaphores[webhook_id] = asyncio.Semaphore(5)
+        return self._semaphores[webhook_id]
 
     async def start(self) -> None:
         self._client = httpx.AsyncClient(timeout=_delivery_timeout())
@@ -144,9 +193,18 @@ class WebhookDispatcher:
 
         for webhook in webhooks:
             if _matches_webhook(webhook, webhook_event, collection):
+                wh_id = str(webhook["id"])
+
+                # Check circuit breaker before dispatching
+                if self._circuit_breaker.is_open(wh_id):
+                    logger.warning(
+                        f"Circuit open for webhook={wh_id}, skipping delivery for {webhook_event}"
+                    )
+                    continue
+
                 safe_create_task(
                     self._deliver(webhook, webhook_event, payload),
-                    name=f"webhook-deliver-{webhook['id']}",
+                    name=f"webhook-deliver-{wh_id}",
                 )
 
     async def _get_collection_for_document(self, document_id: str) -> str | None:
@@ -177,112 +235,118 @@ class WebhookDispatcher:
         return orjson.dumps(data).decode()
 
     async def _deliver(self, webhook: dict, event: str, payload: str) -> None:
-        """Deliver a webhook with retries. Creates delivery record in DB."""
+        """Deliver a webhook with retries, circuit breaker, and jitter."""
         from bigrag.database import db
 
-        delivery_id = uuid.uuid4()
         webhook_id = webhook["id"]
-        secret = webhook["secret"]
+        wh_id_str = str(webhook_id)
+        sem = self._get_semaphore(wh_id_str)
 
-        await db.execute(
-            """
-            INSERT INTO webhook_deliveries (id, webhook_id, event, payload, status)
-            VALUES ($1, $2, $3, $4, 'pending')
-            """,
-            delivery_id,
-            webhook_id,
-            event,
-            orjson.loads(payload),
-        )
+        async with sem:
+            delivery_id = uuid.uuid4()
+            secret = webhook["secret"]
 
-        signature = compute_signature(payload, secret)
-        headers = {
-            "Content-Type": "application/json",
-            "X-BigRAG-Signature": signature,
-            "X-BigRAG-Event": event,
-            "X-BigRAG-Delivery": str(delivery_id),
-            "User-Agent": "bigrag-webhooks/1.0",
-        }
+            await db.execute(
+                """
+                INSERT INTO webhook_deliveries (id, webhook_id, event, payload, status)
+                VALUES ($1, $2, $3, $4, 'pending')
+                """,
+                delivery_id,
+                webhook_id,
+                event,
+                orjson.loads(payload),
+            )
 
-        last_error = None
-        last_status_code = None
+            signature = compute_signature(payload, secret)
+            headers = {
+                "Content-Type": "application/json",
+                "X-BigRAG-Signature": signature,
+                "X-BigRAG-Event": event,
+                "X-BigRAG-Delivery": str(delivery_id),
+                "User-Agent": "bigrag-webhooks/1.0",
+            }
 
-        retry_delays = _retry_delays()
-        for attempt in range(1, len(retry_delays) + 2):  # 1 initial + 3 retries
-            try:
-                response = await self._client.post(
-                    webhook["url"],
-                    content=payload,
-                    headers=headers,
-                )
-                last_status_code = response.status_code
+            last_error = None
+            last_status_code = None
 
-                if 200 <= response.status_code < 300:
+            retry_delays = _retry_delays()
+            for attempt in range(1, len(retry_delays) + 2):  # 1 initial + N retries
+                try:
+                    response = await self._client.post(
+                        webhook["url"],
+                        content=payload,
+                        headers=headers,
+                    )
+                    last_status_code = response.status_code
+
+                    if 200 <= response.status_code < 300:
+                        await db.execute(
+                            """
+                            UPDATE webhook_deliveries
+                            SET status = 'delivered', attempts = $1,
+                                last_status_code = $2, completed_at = now()
+                            WHERE id = $3
+                            """,
+                            attempt,
+                            last_status_code,
+                            delivery_id,
+                        )
+                        self._circuit_breaker.record_success(wh_id_str)
+                        logger.info(
+                            f"Webhook delivered: webhook={webhook_id} event={event} "
+                            f"delivery={delivery_id} attempt={attempt} status={last_status_code}"
+                        )
+                        return
+
+                    last_error = f"HTTP {response.status_code}"
+
+                except Exception as e:
+                    last_error = str(e)
+
+                # Update attempt count and schedule retry with jitter
+                retry_index = attempt - 1
+                if retry_index < len(retry_delays):
+                    delay = _jittered_delay(retry_delays[retry_index])
+                    logger.warning(
+                        f"Webhook delivery failed: webhook={webhook_id} event={event} "
+                        f"delivery={delivery_id} attempt={attempt} error={last_error} "
+                        f"retrying_in={delay:.1f}s"
+                    )
                     await db.execute(
                         """
                         UPDATE webhook_deliveries
-                        SET status = 'delivered', attempts = $1,
-                            last_status_code = $2, completed_at = now()
-                        WHERE id = $3
+                        SET attempts = $1, last_status_code = $2, last_error = $3,
+                            next_retry_at = now() + interval '1 second' * $4
+                        WHERE id = $5
                         """,
                         attempt,
                         last_status_code,
+                        last_error,
+                        int(delay),
                         delivery_id,
                     )
-                    logger.info(
-                        f"Webhook delivered: webhook={webhook_id} event={event} "
-                        f"delivery={delivery_id} attempt={attempt} status={last_status_code}"
-                    )
-                    return
+                    await asyncio.sleep(delay)
+                else:
+                    break
 
-                last_error = f"HTTP {response.status_code}"
-
-            except Exception as e:
-                last_error = str(e)
-
-            # Update attempt count and schedule retry
-            retry_index = attempt - 1
-            if retry_index < len(retry_delays):
-                delay = retry_delays[retry_index]
-                logger.warning(
-                    f"Webhook delivery failed: webhook={webhook_id} event={event} "
-                    f"delivery={delivery_id} attempt={attempt} error={last_error} "
-                    f"retrying_in={delay}s"
-                )
-                await db.execute(
-                    """
-                    UPDATE webhook_deliveries
-                    SET attempts = $1, last_status_code = $2, last_error = $3,
-                        next_retry_at = now() + interval '1 second' * $4
-                    WHERE id = $5
-                    """,
-                    attempt,
-                    last_status_code,
-                    last_error,
-                    delay,
-                    delivery_id,
-                )
-                await asyncio.sleep(delay)
-            else:
-                break
-
-        # All retries exhausted
-        await db.execute(
-            """
-            UPDATE webhook_deliveries
-            SET status = 'failed', attempts = $1,
-                last_status_code = $2, last_error = $3, completed_at = now()
-            WHERE id = $4
-            """,
-            len(retry_delays) + 1,
-            last_status_code,
-            last_error,
-            delivery_id,
-        )
-        logger.error(
-            f"Webhook delivery permanently failed: webhook={webhook_id} event={event} "
-            f"delivery={delivery_id} error={last_error}"
-        )
+            # All retries exhausted
+            self._circuit_breaker.record_failure(wh_id_str)
+            await db.execute(
+                """
+                UPDATE webhook_deliveries
+                SET status = 'failed', attempts = $1,
+                    last_status_code = $2, last_error = $3, completed_at = now()
+                WHERE id = $4
+                """,
+                len(retry_delays) + 1,
+                last_status_code,
+                last_error,
+                delivery_id,
+            )
+            logger.error(
+                f"Webhook delivery permanently failed: webhook={webhook_id} event={event} "
+                f"delivery={delivery_id} error={last_error}"
+            )
 
     async def deliver_test(self, webhook: dict) -> dict:
         """Send a test event to a webhook. Returns result inline (no retries)."""

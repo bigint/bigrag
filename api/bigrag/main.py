@@ -2,53 +2,31 @@ from __future__ import annotations
 
 import argparse
 import logging
-import time
+import sys
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from bigrag import __version__
 from bigrag.config import Settings, settings
-from bigrag.database import db
-from bigrag.services.queue import ingestion_queue
-from bigrag.services.storage import get_storage, init_storage
-from bigrag.services.vector_store import vector_store
-
-
-class ColorFormatter(logging.Formatter):
-    RESET = "\033[0m"
-    COLORS = {
-        logging.DEBUG: "\033[36m",     # cyan
-        logging.INFO: "\033[32m",      # green
-        logging.WARNING: "\033[33m",   # yellow
-        logging.ERROR: "\033[31m",     # red
-        logging.CRITICAL: "\033[1;31m",  # bold red
-    }
-    LEVEL_SHORT = {
-        logging.DEBUG: "DBG",
-        logging.INFO: "INF",
-        logging.WARNING: "WRN",
-        logging.ERROR: "ERR",
-        logging.CRITICAL: "CRT",
-    }
-
-    def format(self, record: logging.LogRecord) -> str:
-        c = self.COLORS.get(record.levelno, "")
-        r = self.RESET
-        lvl = self.LEVEL_SHORT.get(record.levelno, record.levelname)
-        ts = self.formatTime(record, "%H:%M:%S")
-        name = record.name.removeprefix("bigrag.")
-        return f"\033[90m{ts}{r} {c}{lvl}{r} \033[1m{name}{r} {record.getMessage()}"
+from bigrag.database import Database
+from bigrag.exceptions import ConflictError, NotFoundError, ValidationError
+from bigrag.logging import ColorFormatter, RequestLoggingMiddleware
+from bigrag.services.queue import IngestionQueue
+from bigrag.services.storage import StorageBackend, init_storage
+from bigrag.services.vector_store import VectorStore
+from bigrag.services.webhook import WebhookDispatcher
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    import sys
+    s: Settings = app.state.settings
 
     handler = logging.StreamHandler(sys.stdout)
-    if settings.log_format == "json":
+    if s.log_format == "json":
         handler.setFormatter(
             logging.Formatter(
                 '{"time":"%(asctime)s","level":"%(levelname)s",'
@@ -59,206 +37,116 @@ async def lifespan(app: FastAPI):
         handler.setFormatter(ColorFormatter())
     logging.root.handlers.clear()
     logging.root.addHandler(handler)
-    logging.root.setLevel(getattr(logging, settings.log_level.upper(), logging.INFO))
+    logging.root.setLevel(getattr(logging, s.log_level.upper(), logging.INFO))
     logger = logging.getLogger("bigrag")
     logger.info(f"bigRAG v{__version__} starting")
 
-    if not settings.api_secret:
+    if not s.api_secret:
         logger.warning(
             "BIGRAG_API_SECRET is not set — all endpoints are open without authentication"
         )
-    if settings.cors_origins == ["*"]:
+    if s.cors_origins == ["*"]:
         logger.warning(
             "CORS allows all origins (BIGRAG_CORS_ORIGINS='*') — restrict in production"
         )
 
     # Postgres
-    await db.connect(
-        settings.database_url,
-        min_size=settings.db_pool_min,
-        max_size=settings.db_pool_max,
-    )
+    db = Database()
+    await db.connect(s.database_url, min_size=s.db_pool_min, max_size=s.db_pool_max)
     await db.migrate()
+    app.state.db = db
 
     # Milvus
-    vector_store.configure(settings.milvus_uri, nprobe=settings.milvus_nprobe)
-    vector_store.connect()
+    vs = VectorStore()
+    vs.configure(s.milvus_uri, nprobe=s.milvus_nprobe)
+    vs.connect()
+    app.state.vector_store = vs
 
     # Storage
-    init_storage(
-        backend=settings.storage_backend,
-        upload_dir=settings.upload_dir,
-        s3_bucket=settings.s3_bucket,
-        s3_endpoint_url=settings.s3_endpoint_url,
-        s3_region=settings.s3_region,
-        s3_access_key=settings.s3_access_key,
-        s3_secret_key=settings.s3_secret_key,
+    storage = init_storage(
+        backend=s.storage_backend,
+        upload_dir=s.upload_dir,
+        s3_bucket=s.s3_bucket,
+        s3_endpoint_url=s.s3_endpoint_url,
+        s3_region=s.s3_region,
+        s3_access_key=s.s3_access_key,
+        s3_secret_key=s.s3_secret_key,
     )
+    app.state.storage = storage
 
     # Redis + ingestion queue
-    ingestion_queue._num_workers = settings.ingestion_workers
-    await ingestion_queue.connect(settings.redis_url)
-    await ingestion_queue.start()
+    queue = IngestionQueue(num_workers=s.ingestion_workers)
+    await queue.connect(s.redis_url)
+    await queue.start(db=db, vector_store=vs)
+    app.state.queue = queue
 
     # Webhook dispatcher
-    from bigrag.services.webhook import webhook_dispatcher
+    dispatcher = WebhookDispatcher()
+    await dispatcher.start()
+    app.state.webhook_dispatcher = dispatcher
 
-    await webhook_dispatcher.start()
+    # Cleanup task
+    import asyncio
 
-    logger.info(f"Server ready on {settings.host}:{settings.port}")
+    from bigrag.services.cleanup import cleanup_old_data
+
+    cleanup_task = asyncio.create_task(cleanup_old_data(db))
+
+    logger.info(f"Server ready on {s.host}:{s.port}")
     yield
 
-    await ingestion_queue.stop()
-    from bigrag.services.webhook import webhook_dispatcher
-
-    await webhook_dispatcher.stop()
-    await get_storage().close()
-    vector_store.close()
+    cleanup_task.cancel()
+    await queue.stop()
+    await dispatcher.stop()
+    await storage.close()
+    vs.close()
     await db.close()
     logger.info("bigRAG shut down")
 
 
-request_logger = logging.getLogger("bigrag.http")
+def create_app(settings_override: Settings | None = None) -> FastAPI:
+    s = settings_override or settings
 
-
-class RequestLoggingMiddleware:
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        start = time.monotonic()
-        path = scope["path"]
-        method = scope["method"]
-        status_code = 0
-
-        async def send_wrapper(message):
-            nonlocal status_code
-            if message["type"] == "http.response.start":
-                status_code = message["status"]
-            await send(message)
-
-        await self.app(scope, receive, send_wrapper)
-        elapsed = (time.monotonic() - start) * 1000
-        request_logger.info(f"← {method} {path} {status_code} {elapsed:.0f}ms")
-
-
-def create_app() -> FastAPI:
     app = FastAPI(
         title="bigRAG",
         description="Self-hostable RAG platform with Docling + Milvus",
         version=__version__,
         lifespan=lifespan,
     )
+    app.state.settings = s
 
     app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origins=s.cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
-    from bigrag.middleware.auth import get_current_user
+    # Global exception handlers for domain exceptions
+    @app.exception_handler(NotFoundError)
+    async def not_found_handler(request, exc: NotFoundError):
+        return JSONResponse(status_code=404, content={"detail": str(exc)})
 
-    @app.get("/health")
-    async def health():
-        return {"status": "ok", "version": __version__}
+    @app.exception_handler(ConflictError)
+    async def conflict_handler(request, exc: ConflictError):
+        return JSONResponse(status_code=409, content={"detail": str(exc)})
 
-    @app.get("/health/ready")
-    async def readiness():
-        checks = {"version": __version__}
-        healthy = True
-
-        try:
-            await db.fetchrow("SELECT 1")
-            checks["postgres"] = True
-        except Exception:
-            checks["postgres"] = False
-            healthy = False
-
-        try:
-            if vector_store.client:
-                from pymilvus import MilvusClient
-
-                if isinstance(vector_store.client, MilvusClient):
-                    vector_store.client.list_collections()
-                checks["milvus"] = True
-            else:
-                checks["milvus"] = False
-                healthy = False
-        except Exception:
-            checks["milvus"] = False
-            healthy = False
-
-        try:
-            await ingestion_queue._redis.ping()
-            checks["redis"] = True
-        except Exception:
-            checks["redis"] = False
-            healthy = False
-
-        status = "ok" if healthy else "degraded"
-        checks["status"] = status
-        from fastapi.responses import JSONResponse
-
-        return JSONResponse(content=checks, status_code=200 if healthy else 503)
-
-    @app.get("/v1/stats")
-    async def platform_stats(_: dict = Depends(get_current_user)):
-        import asyncio
-
-        async def _db_stats():
-            cols = await db.fetchrow("SELECT COUNT(*) as cnt FROM collections")
-            docs = await db.fetchrow(
-                "SELECT COUNT(*) as total, "
-                "COALESCE(SUM(file_size), 0) as total_size, "
-                "COALESCE(SUM(chunk_count), 0) as total_chunks, "
-                "COALESCE(SUM(token_count), 0) as total_tokens, "
-                "COUNT(*) FILTER (WHERE status = 'ready') as ready, "
-                "COUNT(*) FILTER (WHERE status = 'pending') as pending, "
-                "COUNT(*) FILTER (WHERE status = 'processing') as processing, "
-                "COUNT(*) FILTER (WHERE status = 'failed') as failed "
-                "FROM documents"
-            )
-            webhooks = await db.fetchrow("SELECT COUNT(*) as cnt FROM webhooks")
-            return cols, docs, webhooks
-
-        async def _queue_stats():
-            return await ingestion_queue.stats
-
-        (cols, docs, webhooks), queue = await asyncio.gather(_db_stats(), _queue_stats())
-
-        return {
-            "collections": cols["cnt"],
-            "documents": {
-                "total": docs["total"],
-                "ready": docs["ready"],
-                "pending": docs["pending"],
-                "processing": docs["processing"],
-                "failed": docs["failed"],
-                "total_chunks": int(docs["total_chunks"]),
-                "total_tokens": int(docs["total_tokens"]),
-                "total_size_bytes": int(docs["total_size"]),
-            },
-            "webhooks": webhooks["cnt"],
-            "queue": queue,
-        }
+    @app.exception_handler(ValidationError)
+    async def validation_handler(request, exc: ValidationError):
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
 
     from bigrag.routers.collections import router as collections_router
     from bigrag.routers.documents import router as documents_router
+    from bigrag.routers.health import router as health_router
     from bigrag.routers.query import router as query_router
+    from bigrag.routers.webhooks import router as webhooks_router
 
+    app.include_router(health_router)
     app.include_router(collections_router)
     app.include_router(documents_router)
     app.include_router(query_router)
-
-    from bigrag.routers.webhooks import router as webhooks_router
-
     app.include_router(webhooks_router)
 
     return app
@@ -297,9 +185,6 @@ def cli():
 
     config.settings = s
 
-    # Use factory=True so the app is created AFTER config overrides are applied.
-    # Without this, module-level app creation uses default settings, ignoring
-    # CLI/TOML config for CORS origins and other middleware settings.
     uvicorn.run(
         "bigrag.main:create_app",
         host=s.host,

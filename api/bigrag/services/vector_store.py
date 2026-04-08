@@ -31,11 +31,16 @@ async def _run(fn, *args, **kwargs):
     return await loop.run_in_executor(_get_executor(), partial(fn, *args, **kwargs))
 
 
+# Pymilvus exceptions that indicate a transient connection issue
+_TRANSIENT_ERRORS = (ConnectionError, TimeoutError, OSError)
+
+
 class VectorStore:
     def __init__(self, uri: str = "http://localhost:19530") -> None:
         self.uri = uri
         self.client: MilvusClient | None = None
         self._nprobe: int = 32
+        self._max_retries: int = 2
 
     def configure(self, uri: str, nprobe: int = 32) -> None:
         """Update the URI before connecting. Use instead of calling __init__ directly."""
@@ -57,6 +62,39 @@ class VectorStore:
         self.client = MilvusClient(uri=self.uri)
         logger.info(f"Reconnected to Milvus at {self.uri}")
 
+    async def _run_with_retry(self, fn, *args, **kwargs):
+        """Run a Milvus operation with retry and auto-reconnect on transient failures."""
+        last_error = None
+        for attempt in range(self._max_retries + 1):
+            try:
+                return await _run(fn, *args, **kwargs)
+            except _TRANSIENT_ERRORS as e:
+                last_error = e
+                if attempt < self._max_retries:
+                    logger.warning(
+                        f"Milvus transient error (attempt {attempt + 1}/{self._max_retries + 1}): "
+                        f"{e!r}, reconnecting..."
+                    )
+                    await asyncio.to_thread(self.reconnect)
+                else:
+                    raise
+            except Exception as e:
+                # Check if pymilvus wrapped a transient error
+                err_str = str(e).lower()
+                if any(kw in err_str for kw in ("connect", "timeout", "unavailable", "reset")):
+                    last_error = e
+                    if attempt < self._max_retries:
+                        logger.warning(
+                            f"Milvus likely transient error (attempt {attempt + 1}/"
+                            f"{self._max_retries + 1}): {e!r}, reconnecting..."
+                        )
+                        await asyncio.to_thread(self.reconnect)
+                    else:
+                        raise
+                else:
+                    raise
+        raise last_error  # Should not reach here
+
     def close(self) -> None:
         if self.client:
             self.client.close()
@@ -73,7 +111,7 @@ class VectorStore:
     async def create_collection(self, name: str, dimension: int) -> None:
         col = self._col(name)
 
-        if await _run(self.client.has_collection, col):
+        if await self._run_with_retry(self.client.has_collection, col):
             return
 
         schema = self.client.create_schema(auto_id=False, enable_dynamic_field=True)
@@ -93,7 +131,7 @@ class VectorStore:
             params={"nlist": 256},
         )
 
-        await _run(
+        await self._run_with_retry(
             self.client.create_collection,
             collection_name=col,
             schema=schema,
@@ -103,8 +141,8 @@ class VectorStore:
 
     async def delete_collection(self, name: str) -> None:
         col = self._col(name)
-        if await _run(self.client.has_collection, col):
-            await _run(self.client.drop_collection, col)
+        if await self._run_with_retry(self.client.has_collection, col):
+            await self._run_with_retry(self.client.drop_collection, col)
             logger.info(f"Dropped Milvus collection: {col}")
 
     async def insert(
@@ -131,7 +169,7 @@ class VectorStore:
                 entry.update(metadata[i])
             data.append(entry)
 
-        result = await _run(self.client.insert, collection_name=col, data=data)
+        result = await self._run_with_retry(self.client.insert, collection_name=col, data=data)
         count = result.get("insert_count", len(ids))
         logger.info(f"insert: collection={col} count={count}")
         return count
@@ -148,7 +186,7 @@ class VectorStore:
         if output_fields is None:
             output_fields = ["text", "document_id", "chunk_index"]
 
-        results = await _run(
+        results = await self._run_with_retry(
             self.client.search,
             collection_name=col,
             data=[query_embedding],
@@ -181,7 +219,7 @@ class VectorStore:
     ) -> list[dict]:
         col = self._col(collection)
         safe_doc_id = self._safe_id(document_id)
-        results = await _run(
+        results = await self._run_with_retry(
             self.client.query,
             collection_name=col,
             filter=f'document_id == "{safe_doc_id}"',
@@ -198,14 +236,14 @@ class VectorStore:
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         col = self._col(collection)
         safe_doc_id = self._safe_id(document_id)
-        await _run(
+        await self._run_with_retry(
             self.client.delete, collection_name=col, filter=f'document_id == "{safe_doc_id}"'
         )
         logger.info(f"delete_by_document: collection={col} document_id={document_id}")
 
     async def delete_by_ids(self, collection: str, ids: list[str]) -> None:
         col = self._col(collection)
-        await _run(self.client.delete, collection_name=col, ids=ids)
+        await self._run_with_retry(self.client.delete, collection_name=col, ids=ids)
         logger.info(f"delete_by_ids: collection={col} count={len(ids)}")
 
     async def text_search(
@@ -231,15 +269,17 @@ class VectorStore:
             combined_filter = text_filter
 
         try:
-            results = await _run(
+            results = await self._run_with_retry(
                 self.client.query,
                 collection_name=col,
                 filter=combined_filter,
                 output_fields=["text", "document_id", "chunk_index"],
                 limit=top_k * 3,  # Fetch more to allow scoring/ranking
             )
+        except _TRANSIENT_ERRORS:
+            raise  # Let transient errors propagate for retry at a higher level
         except Exception as e:
-            logger.warning(f"text_search failed: {e!r}, returning empty results")
+            logger.warning(f"text_search query failed: {e!r}, returning empty results")
             return []
 
         logger.info(f"text_search: collection={col} terms={len(query_terms)} hits={len(results)}")
@@ -275,7 +315,7 @@ class VectorStore:
                 entry.update(metadata[i])
             data.append(entry)
 
-        result = await _run(self.client.upsert, collection_name=col, data=data)
+        result = await self._run_with_retry(self.client.upsert, collection_name=col, data=data)
         count = result.get("upsert_count", len(ids))
         logger.info(f"upsert: collection={col} count={count}")
         return count

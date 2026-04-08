@@ -3,10 +3,9 @@ from __future__ import annotations
 import logging
 import time
 
-from fastapi import HTTPException
-
 from bigrag.config import settings
 from bigrag.database import db
+from bigrag.exceptions import NotFoundError, ValidationError
 
 logger = logging.getLogger("bigrag.collection_cache")
 
@@ -30,7 +29,7 @@ async def get_or_404(name: str) -> dict:
 
     row = await db.fetchrow("SELECT * FROM collections WHERE name = $1", name)
     if not row:
-        raise HTTPException(status_code=404, detail="Collection not found")
+        raise NotFoundError("Collection", name)
     data = dict(row)
     _cache[name] = (data, time.monotonic() + settings.collection_cache_ttl)
     return data
@@ -42,13 +41,10 @@ def get_embedding_model_for(collection: dict):
 
     api_key = collection.get("embedding_api_key") or settings.embedding_api_key
     if not api_key:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Collection '{collection['name']}' uses "
-                f"'{collection['embedding_provider']}' embeddings but no API key is configured. "
-                "Set BIGRAG_EMBEDDING_API_KEY or recreate the collection with an API key."
-            ),
+        raise ValidationError(
+            f"Collection '{collection['name']}' uses "
+            f"'{collection['embedding_provider']}' embeddings but no API key is configured. "
+            "Set BIGRAG_EMBEDDING_API_KEY or recreate the collection with an API key."
         )
 
     return get_embedding_model(

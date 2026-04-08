@@ -4,55 +4,15 @@ import asyncio
 import logging
 import time
 import uuid
-from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
 from pathlib import Path
 
-import orjson
 import redis.asyncio as aioredis
 
+from bigrag.services.conversion import _get_docling_converter
+from bigrag.services.event_bus import IngestionEvent, event_bus
+from bigrag.services.ingestion_job import IngestionJob
+
 logger = logging.getLogger("bigrag.queue")
-
-_docling_converter = None
-
-
-def _get_docling_converter():
-    global _docling_converter
-    if _docling_converter is None:
-        import os
-
-        # Use HF cache if models are already downloaded, otherwise allow download
-        if os.environ.get("HF_HUB_OFFLINE") is None:
-            from huggingface_hub import scan_cache_dir
-
-            try:
-                cache = scan_cache_dir()
-                cached_repos = {r.repo_id for r in cache.repos}
-                if "docling-project/docling-layout-heron" in cached_repos:
-                    os.environ["HF_HUB_OFFLINE"] = "1"
-                    logger.info("Docling models cached — using HF offline mode")
-                else:
-                    logger.info("Docling models not cached — will download from HF")
-            except Exception:
-                pass  # scan_cache_dir failed, let HF decide
-
-        from docling.datamodel.pipeline_options import PdfPipelineOptions
-        from docling.document_converter import DocumentConverter, InputFormat, PdfFormatOption
-        from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
-
-        pdf_opts = PdfPipelineOptions()
-        pdf_opts.do_ocr = True
-
-        _docling_converter = DocumentConverter(
-            format_options={
-                InputFormat.PDF: PdfFormatOption(
-                    pipeline_cls=StandardPdfPipeline,
-                    pipeline_options=pdf_opts,
-                )
-            }
-        )
-    return _docling_converter
-
 
 _PERMANENT_ERRORS = (ValueError, UnicodeDecodeError, KeyError)
 
@@ -62,112 +22,14 @@ DEAD_LETTER_KEY = "bigrag:ingestion:dead"
 STATS_KEY = "bigrag:ingestion:stats"
 
 
-@dataclass
-class IngestionEvent:
-    document_id: str
-    step: str
-    status: str
-    message: str
-    progress: float = 0.0
-    detail: dict = field(default_factory=dict)
-
-    def to_sse(self) -> str:
-        data = {
-            "document_id": self.document_id,
-            "step": self.step,
-            "status": self.status,
-            "message": self.message,
-            "progress": self.progress,
-            **self.detail,
-        }
-        return f"data: {orjson.dumps(data).decode()}\n\n"
-
-
-class EventBus:
-    def __init__(self) -> None:
-        self._subs: dict[str, list[asyncio.Queue[IngestionEvent | None]]] = {}
-
-    def subscribe(self, document_id: str) -> asyncio.Queue[IngestionEvent | None]:
-        q: asyncio.Queue[IngestionEvent | None] = asyncio.Queue()
-        self._subs.setdefault(document_id, []).append(q)
-        return q
-
-    def unsubscribe(self, document_id: str, q: asyncio.Queue) -> None:
-        subs = self._subs.get(document_id, [])
-        if q in subs:
-            subs.remove(q)
-        if not subs:
-            self._subs.pop(document_id, None)
-
-    def publish(self, event: IngestionEvent) -> None:
-        for q in self._subs.get(event.document_id, []):
-            q.put_nowait(event)
-        for q in self._subs.get("*", []):
-            q.put_nowait(event)
-
-    def complete(self, document_id: str) -> None:
-        for q in self._subs.get(document_id, []):
-            q.put_nowait(None)
-
-    async def stream(self, document_id: str) -> AsyncIterator[IngestionEvent]:
-        q = self.subscribe(document_id)
-        try:
-            while True:
-                event = await q.get()
-                if event is None:
-                    break
-                yield event
-        finally:
-            self.unsubscribe(document_id, q)
-
-
-event_bus = EventBus()
-
-
-@dataclass
-class IngestionJob:
-    document_id: str
-    file_path: str
-    collection_name: str
-    embedding_provider: str
-    embedding_model: str
-    embedding_dimension: int
-    embedding_api_key: str | None
-    chunk_size: int
-    chunk_overlap: int
-    attempt: int = 0
-    max_attempts: int = 3
-    job_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
-
-    def serialize(self) -> bytes:
-        return orjson.dumps(
-            {
-                "document_id": self.document_id,
-                "file_path": self.file_path,
-                "collection_name": self.collection_name,
-                "embedding_provider": self.embedding_provider,
-                "embedding_model": self.embedding_model,
-                "embedding_dimension": self.embedding_dimension,
-                "embedding_api_key": self.embedding_api_key,
-                "chunk_size": self.chunk_size,
-                "chunk_overlap": self.chunk_overlap,
-                "attempt": self.attempt,
-                "max_attempts": self.max_attempts,
-                "job_id": self.job_id,
-            }
-        )
-
-    @classmethod
-    def deserialize(cls, data: bytes) -> IngestionJob:
-        return cls(**orjson.loads(data))
-
-
 class IngestionQueue:
     def __init__(self, num_workers: int = 4) -> None:
         self._num_workers = num_workers
         self._workers: list[asyncio.Task] = []
         self._running = False
         self._redis: aioredis.Redis | None = None
+        self._db = None
+        self._vector_store = None
 
     async def connect(self, redis_url: str) -> None:
         self._redis = aioredis.from_url(
@@ -178,7 +40,12 @@ class IngestionQueue:
         await self._redis.ping()
         logger.info(f"Queue connected to Redis at {redis_url}")
 
-    async def start(self) -> None:
+    async def start(self, db=None, vector_store=None) -> None:
+        if db is not None:
+            self._db = db
+        if vector_store is not None:
+            self._vector_store = vector_store
+
         self._running = True
         recovered = await self._recover_stuck_jobs()
         if recovered:
@@ -187,38 +54,15 @@ class IngestionQueue:
         for i in range(self._num_workers):
             task = asyncio.create_task(self._worker(i))
             self._workers.append(task)
-        self._cleanup_task = asyncio.create_task(self._cleanup_old_data())
         logger.info(f"[queue] started {self._num_workers} workers")
 
     async def stop(self) -> None:
         self._running = False
-        if hasattr(self, "_cleanup_task"):
-            self._cleanup_task.cancel()
         await asyncio.gather(*self._workers, return_exceptions=True)
         self._workers.clear()
         if self._redis:
             await self._redis.aclose()
         logger.info("[queue] all workers stopped")
-
-    async def _cleanup_old_data(self) -> None:
-        """Periodically clean query_log and webhook_deliveries older than 90 days."""
-        from bigrag.database import db
-
-        while True:
-            try:
-                await asyncio.sleep(86400)  # Run daily
-                deleted = await db.execute(
-                    "DELETE FROM query_log WHERE created_at < now() - interval '90 days'"
-                )
-                logger.info(f"query_log cleanup: {deleted}")
-                deleted = await db.execute(
-                    "DELETE FROM webhook_deliveries WHERE created_at < now() - interval '90 days'"
-                )
-                logger.info(f"webhook_deliveries cleanup: {deleted}")
-            except asyncio.CancelledError:
-                return
-            except Exception as e:
-                logger.warning(f"Cleanup failed: {e!r}")
 
     async def _recover_stuck_jobs(self) -> int:
         count = 0
@@ -387,7 +231,10 @@ class IngestionQueue:
         from bigrag.config import settings as _settings
         from bigrag.services.embedding import get_embedding_model
         from bigrag.services.ingestion import _chunk_text
-        from bigrag.services.vector_store import vector_store
+
+        vector_store = self._vector_store
+        if vector_store is None:
+            from bigrag.services.vector_store import vector_store
 
         t0 = time.monotonic()
         embedding_model = get_embedding_model(
@@ -475,8 +322,13 @@ class IngestionQueue:
         return total_inserted
 
     async def _process_job(self, worker_id: int, job: IngestionJob) -> None:
-        from bigrag.database import db
-        from bigrag.services.vector_store import vector_store
+        db = self._db
+        if db is None:
+            from bigrag.database import db
+
+        vector_store = self._vector_store
+        if vector_store is None:
+            from bigrag.services.vector_store import vector_store
 
         job.attempt += 1
         prefix = f"[worker-{worker_id}] [job={job.job_id}] [doc={job.document_id}]"
@@ -605,4 +457,5 @@ class IngestionQueue:
                 event_bus.complete(doc)
 
 
+# Keep backward-compatible module-level singleton for imports that haven't migrated
 ingestion_queue = IngestionQueue()
