@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { BigRAG } from "../src/client.js";
 import { createMockClient } from "./helpers.js";
 
@@ -102,7 +102,11 @@ describe("collections", () => {
 
   it("sends default_top_k in create body", async () => {
     const { client, calls } = createMockClient({ id: "1" });
-    await client.createCollection({ name: "docs", default_top_k: 20, default_search_mode: "hybrid" });
+    await client.createCollection({
+      name: "docs",
+      default_top_k: 20,
+      default_search_mode: "hybrid",
+    });
     const body = JSON.parse(calls[0].body!);
     expect(body.default_top_k).toBe(20);
     expect(body.default_search_mode).toBe("hybrid");
@@ -230,9 +234,7 @@ describe("query", () => {
 describe("vectors", () => {
   it("POST .../vectors/upsert", async () => {
     const { client, calls } = createMockClient({ status: "ok", upserted: 1 });
-    await client.upsertVectors("docs", [
-      { id: "v1", embedding: [0.1, 0.2], text: "hello" },
-    ]);
+    await client.upsertVectors("docs", [{ id: "v1", embedding: [0.1, 0.2], text: "hello" }]);
     expect(calls[0].method).toBe("POST");
     expect(calls[0].url).toContain("/vectors/upsert");
     const body = JSON.parse(calls[0].body!);

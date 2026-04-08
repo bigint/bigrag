@@ -16,10 +16,7 @@ export function mockFetch(
 ): { fetch: typeof globalThis.fetch; calls: CapturedRequest[] } {
   const calls: CapturedRequest[] = [];
 
-  const fetch = (async (
-    input: string | URL | Request,
-    init?: RequestInit,
-  ): Promise<Response> => {
+  const fetch = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = typeof input === "string" ? input : input.toString();
     const method = init?.method ?? "GET";
     const headers: Record<string, string> = {};

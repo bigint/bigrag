@@ -1,8 +1,6 @@
-import type { ProgressEvent } from "./types.js";
+import type { ProgressEvent } from "./types/sse.js";
 
-export async function* parseSSEStream(
-  response: Response,
-): AsyncGenerator<ProgressEvent> {
+export async function* parseSSEStream(response: Response): AsyncGenerator<ProgressEvent> {
   const body = response.body;
   if (!body) return;
 

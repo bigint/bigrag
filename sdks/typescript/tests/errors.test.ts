@@ -1,18 +1,18 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { BigRAG } from "../src/client.js";
 import {
+  APIConnectionError,
   APIError,
+  APITimeoutError,
   AuthenticationError,
   BadRequestError,
-  NotFoundError,
-  RateLimitError,
-  InternalServerError,
-  APIConnectionError,
-  APITimeoutError,
   BigRAGError,
   errorForStatus,
+  InternalServerError,
+  NotFoundError,
+  RateLimitError,
 } from "../src/errors.js";
 import { createMockClient } from "./helpers.js";
-import { BigRAG } from "../src/client.js";
 
 // ---------------------------------------------------------------------------
 // Error classes
