@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
 from pymilvus import DataType, MilvusClient
 
-logger = logging.getLogger("bigrag.vector_store")
+from bigrag.logging import get_logger
+
+logger = get_logger("bigrag.vector_store")
 
 # Dedicated thread pool for Milvus I/O so we never block the event loop
 _executor: ThreadPoolExecutor | None = None

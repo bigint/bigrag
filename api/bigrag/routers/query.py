@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.query import (
     AnalyticsResponse,
@@ -27,7 +27,7 @@ from bigrag.services.embedding import AVAILABLE_MODELS
 from bigrag.services.retrieval import retrieve, retrieve_multi
 from bigrag.services.vector_store import vector_store
 
-logger = logging.getLogger("bigrag.routers.query")
+logger = get_logger("bigrag.routers.query")
 
 router = APIRouter(tags=["query"])
 

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import logging
-import sys
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -14,7 +12,7 @@ from bigrag import __version__
 from bigrag.config import Settings, settings
 from bigrag.database import Database
 from bigrag.exceptions import ConflictError, NotFoundError, ValidationError
-from bigrag.logging import ColorFormatter, RequestLoggingMiddleware
+from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
 from bigrag.services.queue import IngestionQueue
 from bigrag.services.storage import StorageBackend, init_storage
 from bigrag.services.vector_store import VectorStore
@@ -25,30 +23,14 @@ from bigrag.services.webhook import WebhookDispatcher
 async def lifespan(app: FastAPI):
     s: Settings = app.state.settings
 
-    handler = logging.StreamHandler(sys.stdout)
-    if s.log_format == "json":
-        handler.setFormatter(
-            logging.Formatter(
-                '{"time":"%(asctime)s","level":"%(levelname)s",'
-                '"logger":"%(name)s","msg":"%(message)s"}'
-            )
-        )
-    else:
-        handler.setFormatter(ColorFormatter())
-    logging.root.handlers.clear()
-    logging.root.addHandler(handler)
-    logging.root.setLevel(getattr(logging, s.log_level.upper(), logging.INFO))
-    logger = logging.getLogger("bigrag")
-    logger.info(f"bigRAG v{__version__} starting")
+    configure_logging(log_level=s.log_level, log_format=s.log_format)
+    logger = get_logger("bigrag")
+    logger.info("starting", version=__version__)
 
     if not s.api_secret:
-        logger.warning(
-            "BIGRAG_API_SECRET is not set — all endpoints are open without authentication"
-        )
+        logger.warning("api_secret not set, all endpoints are open")
     if s.cors_origins == ["*"]:
-        logger.warning(
-            "CORS allows all origins (BIGRAG_CORS_ORIGINS='*') — restrict in production"
-        )
+        logger.warning("CORS allows all origins, restrict in production")
 
     # Postgres
     db = Database()
@@ -92,7 +74,7 @@ async def lifespan(app: FastAPI):
 
     cleanup_task = asyncio.create_task(cleanup_old_data(db))
 
-    logger.info(f"Server ready on {s.host}:{s.port}")
+    logger.info("server ready", host=s.host, port=s.port)
     yield
 
     cleanup_task.cancel()
@@ -101,7 +83,7 @@ async def lifespan(app: FastAPI):
     await storage.close()
     vs.close()
     await db.close()
-    logger.info("bigRAG shut down")
+    logger.info("shut down")
 
 
 def create_app(settings_override: Settings | None = None) -> FastAPI:

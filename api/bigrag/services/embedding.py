@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from abc import ABC, abstractmethod
 
-logger = logging.getLogger("bigrag.embedding")
+from bigrag.logging import get_logger
+
+logger = get_logger("bigrag.embedding")
 
 _embed_semaphore: asyncio.Semaphore | None = None
 

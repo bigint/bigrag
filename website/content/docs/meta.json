@@ -6,6 +6,7 @@
     "api-reference",
     "sdks",
     "deployment",
-    "comparison"
+    "comparison",
+    "openrag-gap-analysis"
   ]
 }

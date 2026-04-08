@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
-import logging
 
 import asyncpg
 
-logger = logging.getLogger("bigrag.database")
+from bigrag.logging import get_logger
+
+logger = get_logger("bigrag.database")
 
 
 async def _init_connection(conn: asyncpg.Connection) -> None:

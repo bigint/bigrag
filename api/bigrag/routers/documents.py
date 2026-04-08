@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import uuid
 from pathlib import Path
 
@@ -10,6 +9,7 @@ from fastapi.responses import Response, StreamingResponse
 
 from bigrag.config import settings
 from bigrag.database import db
+from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.document import (
     BatchDeleteRequest,
@@ -29,7 +29,7 @@ from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
 
-logger = logging.getLogger("bigrag.routers.documents")
+logger = get_logger("bigrag.routers.documents")
 
 router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["documents"])
 

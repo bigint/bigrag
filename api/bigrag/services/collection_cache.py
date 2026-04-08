@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import logging
 import time
 
 from bigrag.config import settings
 from bigrag.database import db
 from bigrag.exceptions import NotFoundError, ValidationError
+from bigrag.logging import get_logger
 
-logger = logging.getLogger("bigrag.collection_cache")
+logger = get_logger("bigrag.collection_cache")
 
 _cache: dict[str, tuple[dict, float]] = {}
 

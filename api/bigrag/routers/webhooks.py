@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from bigrag.database import db
+from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_admin
 from bigrag.models.webhook import (
     MAX_WEBHOOKS,
@@ -19,7 +19,7 @@ from bigrag.models.webhook import (
 )
 from bigrag.services.webhook import generate_secret, webhook_dispatcher
 
-logger = logging.getLogger("bigrag.routers.webhooks")
+logger = get_logger("bigrag.routers.webhooks")
 
 router = APIRouter(prefix="/v1/admin/webhooks", tags=["webhooks"])
 

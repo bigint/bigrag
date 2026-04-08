@@ -1,0 +1,81 @@
+"""Webhook management resource."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+from urllib.parse import quote
+
+from bigrag._types import (
+    CreateWebhookBody,
+    CreateWebhookResponse,
+    StatusResponse,
+    UpdateWebhookBody,
+    Webhook,
+    WebhookDeliveryListResponse,
+    WebhookListResponse,
+    WebhookTestResponse,
+)
+
+if TYPE_CHECKING:
+    from bigrag._core import BigRAGCore
+
+
+class WebhooksResource:
+    """Resource namespace for webhook management.
+
+    Access via ``client.webhooks``.
+    """
+
+    def __init__(self, client: BigRAGCore) -> None:
+        self._client = client
+
+    async def create(self, body: CreateWebhookBody) -> CreateWebhookResponse:
+        """Register a new webhook."""
+        return await self._client._request("POST", "/v1/admin/webhooks", json=body)
+
+    async def list(self) -> WebhookListResponse:
+        """List all registered webhooks."""
+        return await self._client._request("GET", "/v1/admin/webhooks")
+
+    async def get(self, id: str) -> Webhook:
+        """Retrieve a single webhook by ID."""
+        return await self._client._request(
+            "GET", f"/v1/admin/webhooks/{quote(id, safe='')}"
+        )
+
+    async def update(self, id: str, body: UpdateWebhookBody) -> Webhook:
+        """Update an existing webhook."""
+        return await self._client._request(
+            "PUT", f"/v1/admin/webhooks/{quote(id, safe='')}", json=body
+        )
+
+    async def delete(self, id: str) -> StatusResponse:
+        """Delete a webhook."""
+        return await self._client._request(
+            "DELETE", f"/v1/admin/webhooks/{quote(id, safe='')}"
+        )
+
+    async def list_deliveries(
+        self,
+        id: str,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> WebhookDeliveryListResponse:
+        """List delivery attempts for a webhook."""
+        params: dict[str, str] = {}
+        if limit is not None:
+            params["limit"] = str(limit)
+        if offset is not None:
+            params["offset"] = str(offset)
+        return await self._client._request(
+            "GET",
+            f"/v1/admin/webhooks/{quote(id, safe='')}/deliveries",
+            params=params,
+        )
+
+    async def test(self, id: str) -> WebhookTestResponse:
+        """Send a test payload to a webhook endpoint."""
+        return await self._client._request(
+            "POST", f"/v1/admin/webhooks/{quote(id, safe='')}/test"
+        )

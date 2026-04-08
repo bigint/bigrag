@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import logging
+from bigrag.logging import get_logger
 
-logger = logging.getLogger("bigrag.conversion")
+logger = get_logger("bigrag.conversion")
 
 _docling_converter = None
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
-import logging
 import random
 import secrets
 import time
@@ -13,10 +12,11 @@ from datetime import UTC, datetime
 import httpx
 import orjson
 
+from bigrag.logging import get_logger
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.utils import safe_create_task
 
-logger = logging.getLogger("bigrag.webhook")
+logger = get_logger("bigrag.webhook")
 
 
 def _retry_delays() -> list[int]:

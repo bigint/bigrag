@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bigrag"
+version = "0.1.0"
+description = "Python SDK for the bigRAG platform"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "bigRAG", email = "dev@bigrag.dev" }]
+keywords = ["bigrag", "rag", "vector", "search", "embeddings"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = [
+    "httpx>=0.28.0",
+    "httpx-sse>=0.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-httpx>=0.34.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bigrag"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

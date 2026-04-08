@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import re
 import time
 
+from bigrag.logging import get_logger
 from bigrag.services.embedding import EmbeddingModel
 from bigrag.services.vector_store import vector_store
 from bigrag.utils import safe_create_task
 
-logger = logging.getLogger("bigrag.retrieval")
+logger = get_logger("bigrag.retrieval")
 
 
 def _tokenize_query(query: str) -> list[str]:

@@ -1,41 +1,75 @@
 from __future__ import annotations
 
 import logging
+import sys
 import time
 
-
-class ColorFormatter(logging.Formatter):
-    RESET = "\033[0m"
-    COLORS = {
-        logging.DEBUG: "\033[36m",  # cyan
-        logging.INFO: "\033[32m",  # green
-        logging.WARNING: "\033[33m",  # yellow
-        logging.ERROR: "\033[31m",  # red
-        logging.CRITICAL: "\033[1;31m",  # bold red
-    }
-    LEVEL_SHORT = {
-        logging.DEBUG: "DBG",
-        logging.INFO: "INF",
-        logging.WARNING: "WRN",
-        logging.ERROR: "ERR",
-        logging.CRITICAL: "CRT",
-    }
-
-    def format(self, record: logging.LogRecord) -> str:
-        c = self.COLORS.get(record.levelno, "")
-        r = self.RESET
-        lvl = self.LEVEL_SHORT.get(record.levelno, record.levelname)
-        ts = self.formatTime(record, "%H:%M:%S")
-        name = record.name.removeprefix("bigrag.")
-        return f"\033[90m{ts}{r} {c}{lvl}{r} \033[1m{name}{r} {record.getMessage()}"
+import structlog
 
 
-request_logger = logging.getLogger("bigrag.http")
+def configure_logging(log_level: str = "info", log_format: str = "text") -> None:
+    """Configure structlog + stdlib logging for the entire application."""
+    level = getattr(logging, log_level.upper(), logging.INFO)
+
+    shared_processors: list[structlog.types.Processor] = [
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.add_logger_name,
+        structlog.processors.TimeStamper(fmt="%H:%M:%S" if log_format == "text" else "iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.UnicodeDecoder(),
+    ]
+
+    if log_format == "json":
+        renderer: structlog.types.Processor = structlog.processors.JSONRenderer()
+    else:
+        renderer = structlog.dev.ConsoleRenderer(
+            colors=sys.stderr.isatty(),
+            pad_event=32,
+        )
+
+    structlog.configure(
+        processors=[
+            *shared_processors,
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+        ],
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+
+    formatter = structlog.stdlib.ProcessorFormatter(
+        processors=[
+            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+            renderer,
+        ],
+        foreign_pre_chain=shared_processors,
+    )
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(formatter)
+
+    root = logging.getLogger()
+    root.handlers.clear()
+    root.addHandler(handler)
+    root.setLevel(level)
+
+    # Silence noisy third-party loggers
+    for name in ("pymilvus", "httpx", "httpcore", "hpack", "uvicorn.access"):
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+
+def get_logger(name: str) -> structlog.stdlib.BoundLogger:
+    """Get a structlog logger. Pass module name like 'bigrag.queue'."""
+    return structlog.get_logger(name)
 
 
 class RequestLoggingMiddleware:
+    """ASGI middleware that logs HTTP requests with structured fields."""
+
     def __init__(self, app):
         self.app = app
+        self._logger = get_logger("bigrag.http")
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -43,8 +77,8 @@ class RequestLoggingMiddleware:
             return
 
         start = time.monotonic()
-        path = scope["path"]
         method = scope["method"]
+        path = scope["path"]
         status_code = 0
 
         async def send_wrapper(message):
@@ -54,5 +88,12 @@ class RequestLoggingMiddleware:
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
-        elapsed = (time.monotonic() - start) * 1000
-        request_logger.info(f"← {method} {path} {status_code} {elapsed:.0f}ms")
+        elapsed_ms = (time.monotonic() - start) * 1000
+
+        self._logger.info(
+            "request",
+            method=method,
+            path=path,
+            status=status_code,
+            elapsed_ms=round(elapsed_ms, 1),
+        )

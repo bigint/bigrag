@@ -17,6 +17,8 @@ export interface ReadinessResponse {
   postgres: boolean;
   milvus: boolean;
   redis: boolean;
+  embedding?: boolean;
+  embedding_error?: string;
 }
 
 /** Aggregated queue statistics. */

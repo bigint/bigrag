@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 
-logger = logging.getLogger("bigrag.cleanup")
+from bigrag.logging import get_logger
+
+logger = get_logger("bigrag.cleanup")
 
 
 async def cleanup_old_data(db) -> None:

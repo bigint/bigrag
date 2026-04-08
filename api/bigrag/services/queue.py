@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
 import uuid
 from pathlib import Path
 
 import redis.asyncio as aioredis
 
+from bigrag.logging import get_logger
 from bigrag.services.conversion import _get_docling_converter
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import IngestionJob
 
-logger = logging.getLogger("bigrag.queue")
+logger = get_logger("bigrag.queue")
 
 _PERMANENT_ERRORS = (ValueError, UnicodeDecodeError, KeyError)
 

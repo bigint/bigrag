@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import hmac
-import logging
 
 from fastapi import Depends, HTTPException, Request
 
 from bigrag.config import settings
+from bigrag.logging import get_logger
 
-logger = logging.getLogger("bigrag.auth")
+logger = get_logger("bigrag.auth")
 
 
 async def get_current_user(request: Request) -> dict:

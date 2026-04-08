@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-logger = logging.getLogger("bigrag.storage")
+from bigrag.logging import get_logger
+
+logger = get_logger("bigrag.storage")
 
 
 class StorageBackend(ABC):

@@ -21,7 +21,7 @@ No authentication required. Returns 200 if the server is running.
 GET /health/ready
 ```
 
-No authentication required. Tests connectivity to Postgres, Milvus, and Redis.
+No authentication required. Tests connectivity to Postgres, Milvus, Redis, and the configured embedding provider.
 
 **Response** `200`:
 
@@ -31,11 +31,26 @@ No authentication required. Tests connectivity to Postgres, Milvus, and Redis.
   "version": "0.0.2",
   "postgres": true,
   "milvus": true,
-  "redis": true
+  "redis": true,
+  "embedding": true
 }
 ```
 
-Returns HTTP `503` with `"status": "degraded"` when any dependency is unhealthy.
+When the embedding provider is unreachable or misconfigured:
+
+```json
+{
+  "status": "degraded",
+  "version": "0.0.2",
+  "postgres": true,
+  "milvus": true,
+  "redis": true,
+  "embedding": false,
+  "embedding_error": "Invalid API key"
+}
+```
+
+Returns HTTP `503` with `"status": "degraded"` when any dependency is unhealthy. The embedding health check result is cached for 60 seconds.
 
 ## Platform Stats
 
