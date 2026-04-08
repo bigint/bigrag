@@ -66,7 +66,7 @@ The SDK follows a resource namespace pattern:
 | Namespace | Description |
 |---|---|
 | `client.collections` | Collection CRUD and stats |
-| `client.documents` | Document upload, list, delete, batch ops |
+| `client.documents` | Document upload, URL/S3 ingestion, list, delete, batch ops |
 | `client.queries` | Single, multi-collection, and batch queries |
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
@@ -119,6 +119,24 @@ result = await client.documents.batch_upload("docs", [
     "/path/to/a.pdf",
     "/path/to/b.docx",
 ])
+
+# Ingest from URL
+doc = await client.documents.ingest_url(
+    "docs", "https://example.com/report.pdf",
+    metadata={"source": "web"},
+)
+
+# Ingest from S3 bucket
+result = await client.documents.ingest_s3(
+    "docs",
+    bucket="my-docs-bucket",
+    prefix="reports/2026/",
+    region="us-east-1",
+    access_key="AKIA...",
+    secret_key="...",
+)
+# result["documents"] = list of ingested docs
+# result["skipped"] = list of unsupported files
 
 # List documents
 docs = await client.documents.list("docs", status="ready", limit=20)
@@ -206,8 +224,18 @@ deliveries = await client.webhooks.list_deliveries("webhook-id", limit=10)
 Track document processing in real-time:
 
 ```python
+# Single document progress
 async for event in client.documents.stream_progress("docs", "doc-id"):
     print(f"[{event['progress']:.0%}] {event['step']}: {event['message']}")
+
+# Batch progress (e.g., after S3 ingestion)
+doc_ids = [d["id"] for d in result["documents"]]
+async for event in client.documents.stream_batch_progress("docs", doc_ids):
+    print(
+        f"[{event['progress']:.0%}] "
+        f"{event['completed']}/{event['total']} done, "
+        f"{event['failed']} failed"
+    )
 ```
 
 ## Collection-Scoped Client

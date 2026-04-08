@@ -78,6 +78,31 @@ export interface BatchDeleteDocumentsResponse {
   errors: Array<{ document_id: string; error: string }>;
 }
 
+/** Request body for URL ingestion. */
+export interface UrlIngestBody {
+  url: string;
+  metadata?: Record<string, unknown>;
+}
+
+/** Request body for S3 bucket ingestion. */
+export interface S3IngestBody {
+  bucket: string;
+  prefix?: string;
+  region?: string;
+  endpoint_url?: string;
+  access_key?: string;
+  secret_key?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/** Response for S3 bucket ingestion. */
+export interface S3IngestResponse {
+  status: string;
+  documents: Document[];
+  total: number;
+  skipped: string[];
+}
+
 /**
  * Accepted file input types for document upload.
  *

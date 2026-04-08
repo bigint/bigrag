@@ -13,7 +13,10 @@ import type {
   DocumentListResponse,
   FileInput,
   ProgressEvent,
+  S3IngestBody,
+  S3IngestResponse,
   StatusResponse,
+  UrlIngestBody,
 } from "../types.js";
 
 /**
@@ -203,6 +206,60 @@ export class DocumentsResource {
       `/v1/collections/${encodeURIComponent(collection)}/documents/batch/delete`,
       { json: { document_ids: documentIds } },
     );
+  }
+
+  /**
+   * Fetch a URL and ingest its content as a document.
+   *
+   * @param collection - The target collection name.
+   * @param body - URL and optional metadata.
+   */
+  ingestUrl(collection: string, body: UrlIngestBody): Promise<Document> {
+    return this._client._request("POST", `/v1/collections/${encodeURIComponent(collection)}/documents/url`, {
+      json: body,
+    });
+  }
+
+  /**
+   * List objects in an S3 bucket and ingest supported files.
+   *
+   * @param collection - The target collection name.
+   * @param body - S3 bucket, prefix, credentials, and optional metadata.
+   */
+  ingestS3(collection: string, body: S3IngestBody): Promise<S3IngestResponse> {
+    return this._client._request("POST", `/v1/collections/${encodeURIComponent(collection)}/documents/s3`, {
+      json: body,
+    });
+  }
+
+  /**
+   * Stream aggregated progress for multiple documents via SSE.
+   *
+   * @param collection - The collection name.
+   * @param documentIds - Array of document IDs to track.
+   * @yields {@link ProgressEvent} objects with batch-level summary.
+   */
+  async *streamBatchProgress(
+    collection: string,
+    documentIds: string[],
+  ): AsyncGenerator<ProgressEvent> {
+    const ids = documentIds.join(",");
+    const path = `/v1/collections/${encodeURIComponent(collection)}/documents/batch/progress?ids=${encodeURIComponent(ids)}`;
+    const tokenParam = this._client.apiKey
+      ? `&token=${encodeURIComponent(this._client.apiKey)}`
+      : "";
+    const url = `${this._client.baseUrl}${path}${tokenParam}`;
+
+    const response = await this._client._fetch(url, {
+      method: "GET",
+      headers: { "User-Agent": USER_AGENT },
+    });
+
+    if (!response.ok) {
+      throw errorForStatus(response.status, response.statusText);
+    }
+
+    yield* parseSSEStream(response);
   }
 
   /**

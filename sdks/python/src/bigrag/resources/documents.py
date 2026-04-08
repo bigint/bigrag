@@ -165,6 +165,82 @@ class DocumentsResource:
             json={"document_ids": document_ids},
         )
 
+    async def ingest_url(
+        self,
+        collection: str,
+        url: str,
+        *,
+        metadata: dict[str, Any] | None = None,
+    ) -> Document:
+        """Fetch a URL and ingest its content as a document."""
+        body: dict[str, Any] = {"url": url}
+        if metadata is not None:
+            body["metadata"] = metadata
+        return await self._client._request(
+            "POST",
+            f"/v1/collections/{quote(collection, safe='')}/documents/url",
+            json=body,
+        )
+
+    async def ingest_s3(
+        self,
+        collection: str,
+        *,
+        bucket: str,
+        prefix: str = "",
+        region: str = "us-east-1",
+        endpoint_url: str | None = None,
+        access_key: str | None = None,
+        secret_key: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Any:
+        """List objects in an S3 bucket and ingest supported files."""
+        body: dict[str, Any] = {
+            "bucket": bucket,
+            "prefix": prefix,
+            "region": region,
+        }
+        if endpoint_url is not None:
+            body["endpoint_url"] = endpoint_url
+        if access_key is not None:
+            body["access_key"] = access_key
+        if secret_key is not None:
+            body["secret_key"] = secret_key
+        if metadata is not None:
+            body["metadata"] = metadata
+        return await self._client._request(
+            "POST",
+            f"/v1/collections/{quote(collection, safe='')}/documents/s3",
+            json=body,
+        )
+
+    async def stream_batch_progress(
+        self, collection: str, document_ids: list[str]
+    ) -> AsyncGenerator[ProgressEvent, None]:
+        """Stream aggregated progress for multiple documents via SSE."""
+        ids_param = ",".join(document_ids)
+        path = f"/v1/collections/{quote(collection, safe='')}/documents/batch/progress"
+        token_param = (
+            f"&token={quote(self._client.api_key, safe='')}"
+            if self._client.api_key
+            else ""
+        )
+        url = f"{self._client.base_url}{path}?ids={quote(ids_param, safe='')}{token_param}"
+
+        request = self._client._client.build_request(
+            "GET",
+            url,
+            headers={"User-Agent": "bigrag-python/0.1.0"},
+        )
+        response = await self._client._client.send(request, stream=True)
+
+        if response.status_code >= 400:
+            await response.aread()
+            raise error_for_status(response.status_code, response.reason_phrase or "Unknown error")
+
+        async for event in parse_sse_stream(response):
+            yield event
+
     async def stream_progress(
         self, collection: str, document_id: str
     ) -> AsyncGenerator[ProgressEvent, None]:

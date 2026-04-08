@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from bigrag import __version__
-from bigrag.deps import get_db, get_queue, get_vector_store
 from bigrag.middleware.auth import get_current_user
 
 router = APIRouter(tags=["health"])

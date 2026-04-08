@@ -216,11 +216,9 @@ OpenRAG allows users to customize the system prompt / agent instructions via the
 
 ### 2.8 URL Ingestion
 
-**Severity: High**
+**Severity: ~~High~~ Resolved**
 
-OpenRAG can ingest web pages by URL via a dedicated Langflow flow (`openrag_url_mcp.json`). Users paste a URL, and the content is fetched, parsed, and indexed.
-
-**bigRAG gap:** bigRAG only accepts file uploads. There is no URL/web page ingestion capability.
+OpenRAG can ingest web pages by URL. bigRAG now also supports URL ingestion via `POST /v1/collections/{name}/documents/url` — content is fetched, saved, and processed through the full Docling pipeline with SSE progress tracking.
 
 ### 2.9 Chat-Context File Upload
 
@@ -657,7 +655,7 @@ A complete feature-by-feature comparison:
 | Document reprocessing | Yes | No | bigRAG ahead |
 | Chunk retrieval per document | Yes | No | bigRAG ahead |
 | Original file download | Yes | No | bigRAG ahead |
-| URL ingestion | No | Yes | Medium |
+| URL ingestion | Yes | Yes | Resolved |
 | Cloud storage connectors | No | Yes (5 providers) | High |
 | **Search** | | | |
 | Semantic search | Yes | Yes | -- |

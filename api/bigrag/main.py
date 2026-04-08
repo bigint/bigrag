@@ -14,7 +14,7 @@ from bigrag.database import Database
 from bigrag.exceptions import ConflictError, NotFoundError, ValidationError
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
 from bigrag.services.queue import IngestionQueue
-from bigrag.services.storage import StorageBackend, init_storage
+from bigrag.services.storage import init_storage
 from bigrag.services.vector_store import VectorStore
 from bigrag.services.webhook import WebhookDispatcher
 

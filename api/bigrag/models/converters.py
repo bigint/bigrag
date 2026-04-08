@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from typing import TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel
 
+T = TypeVar("T", bound=BaseModel)
 
-def row_to_model[T: BaseModel](
+
+def row_to_model(
     row: dict,
     model_class: type[T],
     *,

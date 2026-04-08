@@ -180,11 +180,32 @@ class CollectionClient:
         """Get analytics for this collection."""
         return await self._client.get_analytics(self._name)
 
+    async def ingest_url(
+        self, url: str, *, metadata: dict[str, Any] | None = None
+    ) -> Document:
+        """Fetch a URL and ingest its content into this collection."""
+        return await self._client.documents.ingest_url(
+            self._name, url, metadata=metadata
+        )
+
+    async def ingest_s3(self, **kwargs: Any) -> Any:
+        """Ingest files from an S3 bucket into this collection."""
+        return await self._client.documents.ingest_s3(self._name, **kwargs)
+
     async def stream_document_progress(
         self, document_id: str
     ) -> AsyncGenerator[ProgressEvent, None]:
         """Stream real-time processing progress for a document."""
         async for event in self._client.documents.stream_progress(
             self._name, document_id
+        ):
+            yield event
+
+    async def stream_batch_progress(
+        self, document_ids: list[str]
+    ) -> AsyncGenerator[ProgressEvent, None]:
+        """Stream aggregated progress for multiple documents."""
+        async for event in self._client.documents.stream_batch_progress(
+            self._name, document_ids
         ):
             yield event

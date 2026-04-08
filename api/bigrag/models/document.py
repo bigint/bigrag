@@ -57,3 +57,25 @@ class BatchDeleteResponse(BaseModel):
     status: str
     deleted: int
     errors: list[dict] = []
+
+
+class UrlIngestRequest(BaseModel):
+    url: str
+    metadata: dict = {}
+
+
+class S3IngestRequest(BaseModel):
+    bucket: str
+    prefix: str = ""
+    region: str = "us-east-1"
+    endpoint_url: str | None = None
+    access_key: str | None = None
+    secret_key: str | None = None
+    metadata: dict = {}
+
+
+class S3IngestResponse(BaseModel):
+    status: str
+    documents: list[DocumentResponse]
+    total: int
+    skipped: list[str] = []

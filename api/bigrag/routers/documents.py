@@ -21,10 +21,13 @@ from bigrag.models.document import (
     DocumentListResponse,
     DocumentResponse,
     DocumentStatusResponse,
+    S3IngestRequest,
+    S3IngestResponse,
+    UrlIngestRequest,
 )
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
 from bigrag.services.event_bus import event_bus
-from bigrag.services.ingestion_job import IngestionJob, create_ingestion_job
+from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
@@ -605,6 +608,413 @@ async def batch_delete_documents(
         f"batch_delete: collection={collection_name} deleted={deleted} errors={len(errors)}"
     )
     return BatchDeleteResponse(status="ok", deleted=deleted, errors=errors)
+
+
+# ---------------------------------------------------------------------------
+# URL Ingestion
+# ---------------------------------------------------------------------------
+
+_CONTENT_TYPE_EXT = {
+    "application/pdf": ".pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    "text/html": ".html",
+    "text/markdown": ".md",
+    "text/plain": ".txt",
+    "text/csv": ".csv",
+    "text/tab-separated-values": ".tsv",
+    "application/xml": ".xml",
+    "text/xml": ".xml",
+    "application/json": ".json",
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/tiff": ".tiff",
+    "image/bmp": ".bmp",
+    "image/gif": ".gif",
+}
+
+
+def _ext_from_url(url: str, content_type: str | None) -> str:
+    """Derive a file extension from URL path or Content-Type header."""
+    from urllib.parse import urlparse
+
+    # Try URL path first
+    path_ext = Path(urlparse(url).path).suffix.lower()
+    if path_ext in SUPPORTED_EXTENSIONS:
+        return path_ext
+
+    # Fall back to Content-Type
+    if content_type:
+        ct = content_type.split(";")[0].strip().lower()
+        ext = _CONTENT_TYPE_EXT.get(ct)
+        if ext:
+            return ext
+
+    return ".html"  # default for web pages
+
+
+@router.post("/url", response_model=DocumentResponse, status_code=201)
+async def ingest_from_url(
+    collection_name: str,
+    body: UrlIngestRequest,
+    _: dict = Depends(get_current_user),
+):
+    """Fetch a URL and ingest its content as a document."""
+    from urllib.parse import urlparse
+
+    import httpx as _httpx
+
+    collection = await get_collection_or_404(collection_name)
+    try:
+        get_embedding_model_for(collection)
+    except (ImportError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    url = body.url.strip()
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(status_code=400, detail="URL must use http or https")
+
+    logger.info("url_ingest: fetching", collection=collection_name, url=url)
+
+    max_size = settings.max_upload_size_mb * 1024 * 1024
+    try:
+        async with _httpx.AsyncClient(
+            follow_redirects=True, timeout=_httpx.Timeout(60.0)
+        ) as client:
+            response = await client.get(url, headers={"User-Agent": "bigRAG/0.1"})
+            response.raise_for_status()
+    except _httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=400, detail=f"URL returned HTTP {e.response.status_code}"
+        )
+    except (_httpx.ConnectError, _httpx.TimeoutException) as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {e}")
+
+    content = response.content
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="URL returned empty content")
+    if len(content) > max_size:
+        raise HTTPException(
+            status_code=413, detail=f"Content too large. Max: {settings.max_upload_size_mb}MB"
+        )
+
+    content_type = response.headers.get("content-type")
+    file_ext = _ext_from_url(url, content_type)
+    filename = Path(parsed.path).name or "page"
+    if not Path(filename).suffix:
+        filename = f"{filename}{file_ext}"
+
+    doc_id = str(uuid.uuid4())
+    storage_key = f"{collection_name}/{doc_id}{file_ext}"
+
+    storage = get_storage()
+    await storage.put(storage_key, content)
+
+    meta = {**body.metadata, "source": "url", "source_url": url}
+
+    try:
+        row = await db.fetchrow(
+            """
+            INSERT INTO documents
+                (id, collection_id, filename, file_type, file_size, file_path, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+            """,
+            uuid.UUID(doc_id),
+            collection["id"],
+            filename,
+            file_ext.lstrip("."),
+            len(content),
+            storage_key,
+            meta,
+        )
+    except Exception:
+        await storage.delete(storage_key)
+        raise
+
+    await ingestion_queue.enqueue(
+        create_ingestion_job(
+            document_id=doc_id,
+            file_path=storage_key,
+            collection_name=collection_name,
+            collection=collection,
+            fallback_api_key=settings.embedding_api_key,
+        )
+    )
+
+    logger.info(
+        "url_ingest: queued",
+        collection=collection_name,
+        doc_id=doc_id,
+        url=url,
+        size=len(content),
+    )
+    return _row_to_response(dict(row))
+
+
+# ---------------------------------------------------------------------------
+# S3 Bucket Ingestion
+# ---------------------------------------------------------------------------
+
+
+@router.post("/s3", response_model=S3IngestResponse, status_code=201)
+async def ingest_from_s3(
+    collection_name: str,
+    body: S3IngestRequest,
+    _: dict = Depends(get_current_user),
+):
+    """List objects in an S3 bucket and ingest supported files."""
+
+    try:
+        import aiobotocore.session
+    except ImportError:
+        raise HTTPException(
+            status_code=400,
+            detail="S3 ingestion requires aiobotocore. Install with: pip install 'bigrag[s3]'",
+        )
+
+    collection = await get_collection_or_404(collection_name)
+    try:
+        get_embedding_model_for(collection)
+    except (ImportError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Build S3 client config
+    s3_kwargs: dict = {
+        "region_name": body.region,
+    }
+    if body.endpoint_url:
+        s3_kwargs["endpoint_url"] = body.endpoint_url
+    if body.access_key and body.secret_key:
+        s3_kwargs["aws_access_key_id"] = body.access_key
+        s3_kwargs["aws_secret_access_key"] = body.secret_key
+
+    logger.info(
+        "s3_ingest: listing objects",
+        collection=collection_name,
+        bucket=body.bucket,
+        prefix=body.prefix,
+    )
+
+    # List objects from S3
+    session = aiobotocore.session.get_session()
+    objects: list[dict] = []
+    skipped: list[str] = []
+
+    try:
+        async with session.create_client("s3", **s3_kwargs) as s3:
+            paginator = s3.get_paginator("list_objects_v2")
+            list_kwargs = {"Bucket": body.bucket}
+            if body.prefix:
+                list_kwargs["Prefix"] = body.prefix
+
+            async for page in paginator.paginate(**list_kwargs):
+                for obj in page.get("Contents", []):
+                    key = obj["Key"]
+                    if key.endswith("/"):
+                        continue  # skip directory markers
+                    ext = Path(key).suffix.lower()
+                    if ext not in SUPPORTED_EXTENSIONS:
+                        skipped.append(key)
+                        continue
+                    objects.append(obj)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"S3 error: {e}")
+
+    if not objects:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No supported files found in s3://{body.bucket}/{body.prefix}",
+        )
+
+    if len(objects) > 100:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Too many files ({len(objects)}). "
+                "Max 100 per request. Use a more specific prefix."
+            ),
+        )
+
+    logger.info(
+        "s3_ingest: found files",
+        count=len(objects),
+        skipped=len(skipped),
+        bucket=body.bucket,
+    )
+
+    # Download and ingest each object
+    storage = get_storage()
+    documents = []
+
+    async with session.create_client("s3", **s3_kwargs) as s3:
+        for obj in objects:
+            key = obj["Key"]
+            filename = Path(key).name
+            file_ext = Path(key).suffix.lower()
+            doc_id = str(uuid.uuid4())
+            storage_key = f"{collection_name}/{doc_id}{file_ext}"
+
+            try:
+                resp = await s3.get_object(Bucket=body.bucket, Key=key)
+                content = await resp["Body"].read()
+            except Exception as e:
+                logger.warning("s3_ingest: download failed", key=key, error=str(e))
+                skipped.append(key)
+                continue
+
+            if len(content) == 0:
+                skipped.append(key)
+                continue
+
+            await storage.put(storage_key, content)
+
+            meta = {
+                **body.metadata,
+                "source": "s3",
+                "s3_bucket": body.bucket,
+                "s3_key": key,
+            }
+
+            try:
+                row = await db.fetchrow(
+                    """
+                    INSERT INTO documents
+                        (id, collection_id, filename, file_type, file_size, file_path, metadata)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    RETURNING *
+                    """,
+                    uuid.UUID(doc_id),
+                    collection["id"],
+                    filename,
+                    file_ext.lstrip("."),
+                    len(content),
+                    storage_key,
+                    meta,
+                )
+            except Exception:
+                await storage.delete(storage_key)
+                skipped.append(key)
+                continue
+
+            await ingestion_queue.enqueue(
+                create_ingestion_job(
+                    document_id=doc_id,
+                    file_path=storage_key,
+                    collection_name=collection_name,
+                    collection=collection,
+                    fallback_api_key=settings.embedding_api_key,
+                )
+            )
+
+            documents.append(_row_to_response(dict(row)))
+
+    logger.info(
+        "s3_ingest: complete",
+        collection=collection_name,
+        ingested=len(documents),
+        skipped=len(skipped),
+    )
+    return S3IngestResponse(
+        status="ok",
+        documents=documents,
+        total=len(documents),
+        skipped=skipped,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Batch Progress SSE
+# ---------------------------------------------------------------------------
+
+
+@router.get("/batch/progress")
+async def batch_progress_sse(
+    collection_name: str,
+    ids: str = Query(..., description="Comma-separated document IDs"),
+    _: dict = Depends(get_current_user),
+):
+    """Stream aggregated progress for multiple documents via SSE."""
+    import asyncio
+
+    import orjson
+
+    doc_ids = [d.strip() for d in ids.split(",") if d.strip()]
+    if not doc_ids:
+        raise HTTPException(status_code=400, detail="No document IDs provided")
+    if len(doc_ids) > 100:
+        raise HTTPException(status_code=400, detail="Max 100 document IDs per stream")
+
+    async def generate():
+        yield (
+            f'data: {{"step":"connected","status":"connected",'
+            f'"message":"Tracking {len(doc_ids)} documents","progress":0,'
+            f'"total":{len(doc_ids)},"completed":0,"failed":0}}\n\n'
+        )
+
+        progress_map: dict[str, dict] = {
+            d: {"progress": 0.0, "status": "pending", "step": "pending"}
+            for d in doc_ids
+        }
+        completed_set: set[str] = set()
+
+        q = event_bus.subscribe("*")
+        try:
+            async with asyncio.timeout(600):
+                while len(completed_set) < len(doc_ids):
+                    event = await q.get()
+                    if event is None:
+                        break
+                    if event.document_id not in progress_map:
+                        continue
+
+                    progress_map[event.document_id] = {
+                        "progress": event.progress,
+                        "status": event.status,
+                        "step": event.step,
+                        "message": event.message,
+                    }
+
+                    if event.status in ("complete", "failed"):
+                        completed_set.add(event.document_id)
+
+                    done = len(completed_set)
+                    failed = sum(
+                        1 for d in progress_map.values() if d["status"] == "failed"
+                    )
+                    avg_progress = sum(
+                        d["progress"] for d in progress_map.values()
+                    ) / len(doc_ids)
+
+                    summary = {
+                        "step": "batch_progress",
+                        "status": "complete" if done == len(doc_ids) else "processing",
+                        "message": f"{done}/{len(doc_ids)} documents done",
+                        "progress": round(avg_progress, 3),
+                        "total": len(doc_ids),
+                        "completed": done - failed,
+                        "failed": failed,
+                        "document_id": event.document_id,
+                        "document_status": event.status,
+                        "document_step": event.step,
+                        "document_progress": event.progress,
+                    }
+                    yield f"data: {orjson.dumps(summary).decode()}\n\n"
+        except TimeoutError:
+            yield (
+                'data: {"step":"timeout","status":"timeout",'
+                '"message":"Stream timed out after 10 minutes","progress":0}\n\n'
+            )
+        finally:
+            event_bus.unsubscribe("*", q)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/{document_id}/progress")

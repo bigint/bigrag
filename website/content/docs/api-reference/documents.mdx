@@ -170,6 +170,101 @@ data: {"step": "embedding", "status": "in_progress", "message": "Generating embe
 data: {"step": "complete", "status": "completed", "message": "Document ready", "progress": 100.0}
 ```
 
+## Ingest from URL
+
+```
+POST /v1/collections/{collection_name}/documents/url
+```
+
+Fetch a URL and ingest its content as a document. Supports HTML pages, PDFs, and any other supported file type served over HTTP.
+
+```bash
+curl -X POST http://localhost:6100/v1/collections/research/documents/url \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/report.pdf", "metadata": {"source": "web"}}'
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `url` | string | yes | HTTP or HTTPS URL to fetch |
+| `metadata` | object | no | Additional metadata (merged with `source` and `source_url`) |
+
+The file extension is inferred from the URL path or the response `Content-Type` header. The document's metadata will include `source: "url"` and `source_url` automatically.
+
+**Response** `201`: Document object (same as file upload).
+
+**Errors:** `400` — Invalid URL, fetch failed, or empty content. `413` — Content too large.
+
+## Ingest from S3 Bucket
+
+```
+POST /v1/collections/{collection_name}/documents/s3
+```
+
+List objects in an S3 bucket (optionally filtered by prefix) and ingest all supported files. Max 100 files per request.
+
+```bash
+curl -X POST http://localhost:6100/v1/collections/research/documents/s3 \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bucket": "my-docs-bucket",
+    "prefix": "reports/2026/",
+    "region": "us-east-1",
+    "access_key": "AKIA...",
+    "secret_key": "...",
+    "metadata": {"source": "s3-import"}
+  }'
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `bucket` | string | yes | S3 bucket name |
+| `prefix` | string | no | Filter objects by key prefix |
+| `region` | string | no | AWS region (default: `us-east-1`) |
+| `endpoint_url` | string | no | Custom S3 endpoint (for S3-compatible services like MinIO) |
+| `access_key` | string | no | AWS access key ID |
+| `secret_key` | string | no | AWS secret access key |
+| `metadata` | object | no | Additional metadata for all ingested documents |
+
+Each document's metadata will include `source: "s3"`, `s3_bucket`, and `s3_key` automatically.
+
+**Response** `201`:
+
+```json
+{
+  "status": "ok",
+  "documents": [
+    { "id": "...", "filename": "report.pdf", "status": "pending", "..." : "..." }
+  ],
+  "total": 5,
+  "skipped": ["reports/2026/readme.txt.bak"]
+}
+```
+
+**Errors:** `400` — S3 connection failed, no supported files found, or too many files (>100).
+
+## Stream Batch Progress
+
+```
+GET /v1/collections/{collection_name}/documents/batch/progress?ids=id1,id2,id3
+```
+
+Stream aggregated progress for multiple documents via SSE. Useful after URL or S3 ingestion to track all documents in a single stream.
+
+| Parameter | Type | Required | Notes |
+|-----------|------|----------|-------|
+| `ids` | string | yes | Comma-separated document IDs (max 100) |
+
+Each SSE event includes both per-document and batch-level progress:
+
+```
+data: {"step":"batch_progress","status":"processing","message":"2/5 documents done","progress":0.45,"total":5,"completed":2,"failed":0,"document_id":"abc","document_status":"complete","document_step":"complete","document_progress":1.0}
+```
+
+The stream completes when all documents reach `complete` or `failed` status.
+
 ## Batch Upload
 
 ```
