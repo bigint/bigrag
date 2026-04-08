@@ -417,6 +417,33 @@ class EmbeddingModelListResponse(TypedDict):
 
 
 # ---------------------------------------------------------------------------
+# Ingestion Sources
+# ---------------------------------------------------------------------------
+
+
+class UrlIngestBody(TypedDict):
+    url: str
+    metadata: NotRequired[dict[str, Any]]
+
+
+class S3IngestBody(TypedDict):
+    bucket: str
+    prefix: NotRequired[str]
+    region: NotRequired[str]
+    endpoint_url: NotRequired[str]
+    access_key: NotRequired[str]
+    secret_key: NotRequired[str]
+    metadata: NotRequired[dict[str, Any]]
+
+
+class S3IngestResponse(TypedDict):
+    status: str
+    documents: list[Document]
+    total: int
+    skipped: list[str]
+
+
+# ---------------------------------------------------------------------------
 # SSE
 # ---------------------------------------------------------------------------
 

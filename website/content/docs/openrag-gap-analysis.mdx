@@ -258,11 +258,9 @@ OpenRAG integrates with Microsoft Graph API for:
 
 ### 3.3 AWS S3 Connector
 
-**Severity: Medium**
+**Severity: ~~Medium~~ Resolved**
 
-OpenRAG (added in v0.4.0) can sync documents from S3 buckets with configurable bucket selection.
-
-**bigRAG gap:** bigRAG supports S3 as a **storage backend** (for persisting uploaded files) but not as a **document source** for ingestion. Users cannot point bigRAG at an S3 bucket and say "ingest everything in here."
+OpenRAG (added in v0.4.0) can sync documents from S3 buckets. bigRAG now supports S3 bucket ingestion via `POST /v1/collections/{name}/documents/s3` — list objects by prefix, download, and ingest all supported files with batch progress tracking via SSE.
 
 ### 3.4 IBM Cloud Object Storage Connector
 
@@ -656,7 +654,7 @@ A complete feature-by-feature comparison:
 | Chunk retrieval per document | Yes | No | bigRAG ahead |
 | Original file download | Yes | No | bigRAG ahead |
 | URL ingestion | Yes | Yes | Resolved |
-| Cloud storage connectors | No | Yes (5 providers) | High |
+| Cloud storage connectors | S3 | Yes (5 providers) | Partial |
 | **Search** | | | |
 | Semantic search | Yes | Yes | -- |
 | Keyword search | Yes | Yes | -- |

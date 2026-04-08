@@ -55,11 +55,14 @@ from bigrag._types import (
     QueryResult,
     QueueStatsResponse,
     ReadinessResponse,
+    S3IngestBody,
+    S3IngestResponse,
     StatusResponse,
     TopQuery,
     UpdateCollectionBody,
     UpdateWebhookBody,
     UpsertResponse,
+    UrlIngestBody,
     VectorEntry,
     Webhook,
     WebhookDelivery,
@@ -156,6 +159,10 @@ __all__ = [
     # Types - Embeddings
     "EmbeddingModelInfo",
     "EmbeddingModelListResponse",
+    # Types - Ingestion Sources
+    "UrlIngestBody",
+    "S3IngestBody",
+    "S3IngestResponse",
     # Types - SSE
     "ProgressEvent",
 ]
