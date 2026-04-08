@@ -78,11 +78,9 @@ export class WebhooksResource {
     const params: Record<string, string> = {};
     if (options?.limit !== undefined) params.limit = String(options.limit);
     if (options?.offset !== undefined) params.offset = String(options.offset);
-    return this._client._request(
-      "GET",
-      `/v1/admin/webhooks/${encodeURIComponent(id)}/deliveries`,
-      { params },
-    );
+    return this._client._request("GET", `/v1/admin/webhooks/${encodeURIComponent(id)}/deliveries`, {
+      params,
+    });
   }
 
   /**

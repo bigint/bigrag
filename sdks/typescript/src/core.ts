@@ -75,7 +75,7 @@ export class BigRAGCore implements RequestClient {
     const h: Record<string, string> = {
       "User-Agent": USER_AGENT,
     };
-    if (this.apiKey) h["Authorization"] = `Bearer ${this.apiKey}`;
+    if (this.apiKey) h.Authorization = `Bearer ${this.apiKey}`;
     return h;
   }
 

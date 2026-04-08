@@ -290,10 +290,14 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
         mock_settings.log_format = "text"
         mock_settings.log_level = "info"
 
-        # Clear the collection cache between tests
+        # Clear caches between tests
         from bigrag.services.collection_cache import _cache
 
         _cache.clear()
+
+        from bigrag.routers.health import _embedding_health_cache
+
+        _embedding_health_cache.clear()
 
         from bigrag.main import create_app
 

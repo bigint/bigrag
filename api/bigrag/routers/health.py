@@ -11,11 +11,11 @@ from bigrag.middleware.auth import get_current_user
 
 router = APIRouter(tags=["health"])
 
-_embedding_health_cache: dict[str, tuple[bool, float]] = {}
+_embedding_health_cache: dict[str, tuple[bool, str | None, float]] = {}
 _EMBEDDING_HEALTH_TTL = 60  # seconds
 
 
-async def _check_embedding_provider(settings) -> dict[str, bool]:
+async def _check_embedding_provider(settings) -> dict[str, object]:
     """Validate embedding provider connectivity by embedding a test string."""
     provider = settings.embedding_provider
     api_key = settings.embedding_api_key
@@ -25,8 +25,11 @@ async def _check_embedding_provider(settings) -> dict[str, bool]:
 
     now = time.monotonic()
     cached = _embedding_health_cache.get(provider)
-    if cached and (now - cached[1]) < _EMBEDDING_HEALTH_TTL:
-        return {"embedding": cached[0]}
+    if cached and (now - cached[2]) < _EMBEDDING_HEALTH_TTL:
+        result: dict[str, object] = {"embedding": cached[0]}
+        if cached[1]:
+            result["embedding_error"] = cached[1]
+        return result
 
     try:
         from bigrag.services.embedding import get_embedding_model
@@ -38,11 +41,12 @@ async def _check_embedding_provider(settings) -> dict[str, bool]:
             api_key=api_key,
         )
         await asyncio.wait_for(model.embed(["health check"], input_type="query"), timeout=10)
-        _embedding_health_cache[provider] = (True, now)
+        _embedding_health_cache[provider] = (True, None, now)
         return {"embedding": True}
     except Exception as exc:
-        _embedding_health_cache[provider] = (False, now)
-        return {"embedding": False, "embedding_error": str(exc)[:200]}
+        error_msg = str(exc)[:200]
+        _embedding_health_cache[provider] = (False, error_msg, now)
+        return {"embedding": False, "embedding_error": error_msg}
 
 
 @router.get("/health")

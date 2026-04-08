@@ -197,10 +197,7 @@ export class DocumentsResource {
    * @param collection - The collection name.
    * @param documentIds - Array of document IDs.
    */
-  batchDelete(
-    collection: string,
-    documentIds: string[],
-  ): Promise<BatchDeleteDocumentsResponse> {
+  batchDelete(collection: string, documentIds: string[]): Promise<BatchDeleteDocumentsResponse> {
     return this._client._request(
       "POST",
       `/v1/collections/${encodeURIComponent(collection)}/documents/batch/delete`,
@@ -215,9 +212,13 @@ export class DocumentsResource {
    * @param body - URL and optional metadata.
    */
   ingestUrl(collection: string, body: UrlIngestBody): Promise<Document> {
-    return this._client._request("POST", `/v1/collections/${encodeURIComponent(collection)}/documents/url`, {
-      json: body,
-    });
+    return this._client._request(
+      "POST",
+      `/v1/collections/${encodeURIComponent(collection)}/documents/url`,
+      {
+        json: body,
+      },
+    );
   }
 
   /**
@@ -227,9 +228,13 @@ export class DocumentsResource {
    * @param body - S3 bucket, prefix, credentials, and optional metadata.
    */
   ingestS3(collection: string, body: S3IngestBody): Promise<S3IngestResponse> {
-    return this._client._request("POST", `/v1/collections/${encodeURIComponent(collection)}/documents/s3`, {
-      json: body,
-    });
+    return this._client._request(
+      "POST",
+      `/v1/collections/${encodeURIComponent(collection)}/documents/s3`,
+      {
+        json: body,
+      },
+    );
   }
 
   /**
@@ -269,10 +274,7 @@ export class DocumentsResource {
    * @param documentId - The document ID.
    * @yields {@link ProgressEvent} objects as they arrive.
    */
-  async *streamProgress(
-    collection: string,
-    documentId: string,
-  ): AsyncGenerator<ProgressEvent> {
+  async *streamProgress(collection: string, documentId: string): AsyncGenerator<ProgressEvent> {
     const path = `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/progress`;
     const tokenParam = this._client.apiKey
       ? `?token=${encodeURIComponent(this._client.apiKey)}`

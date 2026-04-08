@@ -1,5 +1,5 @@
-import { BigRAGCore } from "./core.js";
 import type { BigRAGOptions } from "./core.js";
+import { BigRAGCore } from "./core.js";
 import {
   CollectionsResource,
   DocumentsResource,
@@ -186,10 +186,7 @@ export class BigRAG extends BigRAGCore {
   /**
    * @deprecated Use `client.documents.list(collection, options)` instead.
    */
-  listDocuments(
-    collection: string,
-    options?: DocumentListOptions,
-  ): Promise<DocumentListResponse> {
+  listDocuments(collection: string, options?: DocumentListOptions): Promise<DocumentListResponse> {
     return this.documents.list(collection, options);
   }
 
@@ -228,10 +225,7 @@ export class BigRAG extends BigRAGCore {
   /**
    * @deprecated Use `client.documents.batchGet(collection, documentIds)` instead.
    */
-  batchGetDocuments(
-    collection: string,
-    documentIds: string[],
-  ): Promise<BatchGetDocumentsResponse> {
+  batchGetDocuments(collection: string, documentIds: string[]): Promise<BatchGetDocumentsResponse> {
     return this.documents.batchGet(collection, documentIds);
   }
 
@@ -255,10 +249,7 @@ export class BigRAG extends BigRAGCore {
   /**
    * @deprecated Use `client.documents.getChunks(collection, documentId)` instead.
    */
-  getDocumentChunks(
-    collection: string,
-    documentId: string,
-  ): Promise<DocumentChunkListResponse> {
+  getDocumentChunks(collection: string, documentId: string): Promise<DocumentChunkListResponse> {
     return this.documents.getChunks(collection, documentId);
   }
 
@@ -272,10 +263,7 @@ export class BigRAG extends BigRAGCore {
   /**
    * @deprecated Use `client.documents.streamProgress(collection, documentId)` instead.
    */
-  streamDocumentProgress(
-    collection: string,
-    documentId: string,
-  ): AsyncGenerator<ProgressEvent> {
+  streamDocumentProgress(collection: string, documentId: string): AsyncGenerator<ProgressEvent> {
     return this.documents.streamProgress(collection, documentId);
   }
 
