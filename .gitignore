@@ -1,4 +1,6 @@
 # Environment
+.env
+.env.local
 .env*.local
 
 # Data
@@ -16,13 +18,15 @@ build/
 api/.venv/
 .venv/
 
-# Node / UI
+# Node
 node_modules/
-ui/.next/
-ui/out/
-ui/dist/
-ui/*.tsbuildinfo
-ui/next-env.d.ts
+
+# Next.js
+.next/
+.source/
+out/
+*.tsbuildinfo
+next-env.d.ts
 
 # Docker
 .docker/
@@ -33,3 +37,6 @@ Thumbs.db
 
 # Models cache
 .cache/
+
+# Build output
+target/

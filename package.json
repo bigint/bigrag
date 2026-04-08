@@ -1,0 +1,20 @@
+{
+  "name": "bigrag",
+  "private": true,
+  "packageManager": "pnpm@10.12.4",
+  "scripts": {
+    "dev": "./dev.sh",
+    "dev:website": "pnpm --filter @bigrag/docs dev",
+    "build:sdk": "pnpm --filter @bigrag/client build",
+    "build:website": "pnpm --filter @bigrag/docs build",
+    "test:sdk": "pnpm --filter @bigrag/client test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "lint:api": "cd api && uv run ruff check . && uv run ruff format --check .",
+    "test:api": "cd api && uv run pytest tests/ -v --tb=short"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0"
+  }
+}
