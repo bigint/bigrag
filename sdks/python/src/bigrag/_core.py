@@ -56,15 +56,11 @@ class BigRAGCore:
             self._client = httpx.AsyncClient(timeout=httpx.Timeout(timeout))
             self._owns_client = True
 
-    # -- Headers -------------------------------------------------------------
-
     def _headers(self) -> dict[str, str]:
         headers: dict[str, str] = {"User-Agent": USER_AGENT}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
-
-    # -- Request helpers -----------------------------------------------------
 
     async def _request(
         self,
@@ -161,8 +157,6 @@ class BigRAGCore:
 
         return response.json()
 
-    # -- Error handling ------------------------------------------------------
-
     @staticmethod
     async def _throw_for_status(response: httpx.Response) -> None:
         """Parse an error body and raise the appropriate exception."""
@@ -180,8 +174,6 @@ class BigRAGCore:
         )
         code = (body.get("error", {}) or {}).get("code")
         raise error_for_status(response.status_code, message, code)
-
-    # -- Lifecycle -----------------------------------------------------------
 
     async def aclose(self) -> None:
         """Close the underlying HTTP client."""

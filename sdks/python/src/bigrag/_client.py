@@ -63,8 +63,6 @@ class BigRAG(BigRAGCore):
         self.vectors = VectorsResource(self)
         self.webhooks = WebhooksResource(self)
 
-    # ---- Platform-level endpoints ------------------------------------------
-
     async def health(self) -> HealthResponse:
         """Check whether the API server is running."""
         return await self._request("GET", "/health")
@@ -86,8 +84,6 @@ class BigRAG(BigRAGCore):
         return await self._request(
             "GET", f"/v1/collections/{quote(collection, safe='')}/analytics"
         )
-
-    # ---- Collection-Scoped Client ------------------------------------------
 
     def collection(self, name: str) -> CollectionClient:
         """Create a scoped client for a specific collection."""

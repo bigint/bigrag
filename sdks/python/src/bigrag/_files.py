@@ -40,7 +40,6 @@ def normalize_file_input(file: FileInput) -> tuple[str, bytes | BinaryIO]:
     if isinstance(file, bytes):
         return ("document", file)
 
-    # BinaryIO (file-like object)
     name = getattr(file, "name", None)
     if isinstance(name, str):
         name = os.path.basename(name)

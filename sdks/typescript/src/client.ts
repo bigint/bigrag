@@ -80,8 +80,6 @@ export class BigRAG extends BigRAGCore {
     this.webhooks = new WebhooksResource(this);
   }
 
-  // ---- Platform-level endpoints (not scoped to a resource) ----
-
   /**
    * Check whether the API server is running.
    *
@@ -127,8 +125,6 @@ export class BigRAG extends BigRAGCore {
   getAnalytics(collection: string): Promise<AnalyticsResponse> {
     return this._request("GET", `/v1/collections/${encodeURIComponent(collection)}/analytics`);
   }
-
-  // ---- Backward-compatible flat methods ----
 
   /**
    * @deprecated Use `client.collections.list()` instead.
@@ -353,8 +349,6 @@ export class BigRAG extends BigRAGCore {
   batchQuery(body: BatchQueryBody): Promise<BatchQueryResponse> {
     return this.queries.batchQuery(body);
   }
-
-  // ---- Collection-Scoped Client ----
 
   /**
    * Create a scoped client for a specific collection.

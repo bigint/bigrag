@@ -13,10 +13,6 @@ import pytest
 
 from tests.conftest import make_collection_row, make_webhook_row
 
-# ---------------------------------------------------------------------------
-# Filter expression building
-# ---------------------------------------------------------------------------
-
 
 class TestFilterExpressions:
     def test_simple_string_filter(self):
@@ -158,9 +154,6 @@ class TestFilterExpressions:
         assert "true" in expr
 
 
-# ---------------------------------------------------------------------------
-# Webhook matching edge cases
-# ---------------------------------------------------------------------------
 
 
 class TestWebhookMatching:
@@ -214,9 +207,6 @@ class TestWebhookMatching:
         assert sig.startswith("sha256=")
 
 
-# ---------------------------------------------------------------------------
-# Collection creation edge cases (E2E)
-# ---------------------------------------------------------------------------
 
 
 @patch("bigrag.services.embedding.get_embedding_model", return_value=MagicMock())
@@ -281,9 +271,6 @@ async def test_update_collection_not_found(client, mock_db, auth_headers):
     assert resp.status_code == 404
 
 
-# ---------------------------------------------------------------------------
-# Document edge cases
-# ---------------------------------------------------------------------------
 
 
 async def test_upload_to_nonexistent_collection(client, auth_headers, mock_db):
@@ -321,9 +308,6 @@ async def test_list_documents_nonexistent_collection(client, auth_headers, mock_
     assert resp.status_code == 404
 
 
-# ---------------------------------------------------------------------------
-# Query edge cases
-# ---------------------------------------------------------------------------
 
 
 async def test_query_negative_top_k(client, auth_headers, mock_db):
@@ -388,9 +372,6 @@ async def test_multi_query_empty_collections(client, auth_headers):
     assert resp.status_code == 422
 
 
-# ---------------------------------------------------------------------------
-# Auth edge cases
-# ---------------------------------------------------------------------------
 
 
 async def test_auth_bearer_case_insensitive_prefix(client):
@@ -426,9 +407,6 @@ async def test_auth_empty_bearer_token(client):
     assert resp.status_code == 401
 
 
-# ---------------------------------------------------------------------------
-# Webhook admin edge cases
-# ---------------------------------------------------------------------------
 
 
 async def test_create_webhook_max_limit(client, auth_headers, mock_db):
@@ -506,9 +484,6 @@ async def test_create_webhook_with_collections_filter(client, auth_headers, mock
     assert resp.json()["collections"] == ["docs", "reports"]
 
 
-# ---------------------------------------------------------------------------
-# Health edge cases
-# ---------------------------------------------------------------------------
 
 
 async def test_health_returns_version(client):
@@ -531,9 +506,6 @@ async def test_readiness_all_down_returns_503(client, mock_db, mock_vector_store
     assert body["redis"] is False
 
 
-# ---------------------------------------------------------------------------
-# Webhook model validation edge cases
-# ---------------------------------------------------------------------------
 
 
 class TestWebhookModelValidation:
@@ -567,9 +539,6 @@ class TestWebhookModelValidation:
         assert req.collections is None
 
 
-# ---------------------------------------------------------------------------
-# Utils: safe_create_task
-# ---------------------------------------------------------------------------
 
 
 class TestSafeCreateTask:
@@ -600,9 +569,6 @@ class TestSafeCreateTask:
         assert task.exception() is not None
 
 
-# ---------------------------------------------------------------------------
-# Retrieval helper functions
-# ---------------------------------------------------------------------------
 
 
 class TestRetrievalHelpers:
@@ -687,9 +653,6 @@ class TestRetrievalHelpers:
         assert ids == {"a", "b"}
 
 
-# ---------------------------------------------------------------------------
-# Embedding models endpoint
-# ---------------------------------------------------------------------------
 
 
 async def test_embedding_models_requires_auth(client):

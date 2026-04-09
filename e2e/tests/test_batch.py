@@ -5,7 +5,6 @@ from helpers import COLLECTION, fail, ok
 async def test_batch(c: httpx.AsyncClient) -> None:
     print("\n── Batch Operations ──")
 
-    # Upload
     r = await c.post(
         f"/v1/collections/{COLLECTION}/documents/batch/upload",
         files=[
@@ -20,7 +19,6 @@ async def test_batch(c: httpx.AsyncClient) -> None:
         fail("Batch upload", f"{r.status_code}")
         return
 
-    # Status
     r = await c.post(
         f"/v1/collections/{COLLECTION}/documents/batch/status",
         json={"document_ids": ids},
@@ -30,7 +28,6 @@ async def test_batch(c: httpx.AsyncClient) -> None:
     else:
         fail("Batch status", f"{r.status_code}")
 
-    # Get
     r = await c.post(
         f"/v1/collections/{COLLECTION}/documents/batch/get",
         json={"document_ids": ids},
@@ -40,7 +37,6 @@ async def test_batch(c: httpx.AsyncClient) -> None:
     else:
         fail("Batch get", f"{r.status_code}")
 
-    # Delete
     r = await c.post(
         f"/v1/collections/{COLLECTION}/documents/batch/delete",
         json={"document_ids": ids},

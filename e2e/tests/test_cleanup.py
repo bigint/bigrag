@@ -5,7 +5,6 @@ from helpers import COLLECTION, fail, ok
 async def test_cleanup(c: httpx.AsyncClient) -> None:
     print("\n── Cleanup ──")
 
-    # Delete a single document
     r = await c.post(
         f"/v1/collections/{COLLECTION}/documents",
         files={"file": ("del.txt", b"Delete me " * 10)},
@@ -18,14 +17,12 @@ async def test_cleanup(c: httpx.AsyncClient) -> None:
         else:
             fail("Delete document", f"{r.status_code}")
 
-    # Delete collection
     r = await c.delete(f"/v1/collections/{COLLECTION}")
     if r.status_code == 200:
         ok("Delete collection")
     else:
         fail("Delete collection", f"{r.status_code}")
 
-    # Verify gone
     r = await c.get(f"/v1/collections/{COLLECTION}")
     if r.status_code == 404:
         ok("Collection → 404")

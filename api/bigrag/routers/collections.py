@@ -25,7 +25,7 @@ router = APIRouter(prefix="/v1/collections", tags=["collections"])
 def _row_to_response(row: dict) -> CollectionResponse:
     data = {k: str(v) if isinstance(v, UUID) else v for k, v in row.items()}
     data["has_api_key"] = bool(data.pop("embedding_api_key", None))
-    data.pop("embedding_base_url", None)  # unused DB column, hide from response
+    data.pop("embedding_base_url", None)
     data["has_reranking_api_key"] = bool(data.pop("reranking_api_key", None))
     return CollectionResponse(**data)
 
@@ -283,7 +283,7 @@ async def truncate_collection(name: str, _: dict = Depends(get_current_user)):
         collection_id,
     )
     for j in s3_jobs:
-        cancel_job(str(j["id"]))
+        await cancel_job(str(j["id"]))
     logger.info(f"truncate: cancelled {len(s3_jobs)} running S3 jobs name={name}")
 
     # Flush queued ingestion jobs

@@ -20,9 +20,6 @@ class S3IngestRequest(BaseModel):
 class S3IngestResponse(BaseModel):
     status: str
     message: str
-    documents: list = []
-    total: int = 0
-    skipped: list[str] = []
 
 
 class S3JobResponse(BaseModel):

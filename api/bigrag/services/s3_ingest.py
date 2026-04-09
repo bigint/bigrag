@@ -84,11 +84,15 @@ def _start_job(job: dict) -> None:
     task.add_done_callback(lambda _: _tasks.pop(job_id, None))
 
 
-def cancel_job(job_id: str) -> bool:
-    """Cancel a running S3 ingest job. Returns True if cancelled."""
+async def cancel_job(job_id: str) -> bool:
+    """Cancel a running S3 ingest job and wait for it to stop."""
     task = _tasks.get(job_id)
     if task and not task.done():
         task.cancel()
+        try:
+            await task
+        except (asyncio.CancelledError, Exception):
+            pass
         logger.info("s3_job: cancelled", job_id=job_id)
         return True
     return False
@@ -110,7 +114,6 @@ async def _run_job(job: dict) -> None:
     prefix = job["prefix"]
     meta_template = job["metadata"] or {}
 
-    # Build the effective extension filter
     raw_file_types: list[str] = job.get("file_types") or []
     if raw_file_types:
         extensions = {f".{ft.lstrip('.').lower()}" for ft in raw_file_types}
@@ -123,7 +126,6 @@ async def _run_job(job: dict) -> None:
         job_id=job_id, bucket=bucket, prefix=prefix,
     )
 
-    # --- Update status helper ---
     async def _update(status: str, **fields: Any) -> None:
         parts = ["status = $2", "updated_at = now()"]
         vals: list[Any] = [uuid.UUID(job_id), status]
@@ -136,15 +138,17 @@ async def _run_job(job: dict) -> None:
             f"UPDATE s3_ingest_jobs SET {', '.join(parts)} WHERE id = $1", *vals
         )
 
-    # --- List objects ---
     await _update("listing")
     s3_kwargs = build_s3_kwargs(job)
 
     def _on_listing_progress(count: int) -> None:
-        # Schedule the async DB update without blocking the listing loop
-        asyncio.ensure_future(
-            _update("listing", total_found=count)
-        )
+        async def _safe_update() -> None:
+            try:
+                await _update("listing", total_found=count)
+            except Exception as e:
+                logger.warning("s3_job: progress update failed", error=str(e))
+
+        asyncio.ensure_future(_safe_update())
         logger.info(
             "s3_job: listing", job_id=job_id, found=count,
         )
@@ -173,7 +177,6 @@ async def _run_job(job: dict) -> None:
     await _update("ingesting", total_found=len(objects))
     logger.info("s3_job: found files", count=len(objects), job_id=job_id)
 
-    # --- Get collection for ingestion job creation ---
     from bigrag.config import settings
     from bigrag.routers import get_collection_or_404
 
@@ -183,7 +186,6 @@ async def _run_job(job: dict) -> None:
         await _update("failed", error_message="Collection not found")
         return
 
-    # --- Check already-ingested keys (for resume) ---
     existing_rows = await db.fetch(
         "SELECT metadata->>'s3_key' AS s3_key FROM documents WHERE collection_id = $1 "
         "AND metadata->>'source' = 's3' AND metadata->>'s3_bucket' = $2",
@@ -191,7 +193,6 @@ async def _run_job(job: dict) -> None:
     )
     existing_keys = {r["s3_key"] for r in existing_rows if r["s3_key"]}
 
-    # --- Download, extract, ingest ---
     storage = get_storage()
     ingested = 0
     skipped = 0
@@ -230,19 +231,25 @@ async def _run_job(job: dict) -> None:
             skipped += 1
             return
 
-        await ingestion_queue.enqueue(
-            create_ingestion_job(
-                document_id=doc_id,
-                file_path=storage_key,
-                collection_name=collection_name,
-                collection=collection,
-                fallback_api_key=settings.embedding_api_key,
+        try:
+            await ingestion_queue.enqueue(
+                create_ingestion_job(
+                    document_id=doc_id,
+                    file_path=storage_key,
+                    collection_name=collection_name,
+                    collection=collection,
+                    fallback_api_key=settings.embedding_api_key,
+                )
             )
-        )
+        except Exception:
+            await db.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(doc_id))
+            await storage.delete(storage_key)
+            skipped += 1
+            return
+
         existing_keys.add(s3_key)
         ingested += 1
 
-        # Update progress in DB
         await _update("ingesting", total_ingested=ingested, total_skipped=skipped)
         if ingested % 10 == 0:
             logger.info(

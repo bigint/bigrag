@@ -23,21 +23,16 @@ export async function* parseSSEStream(response: Response): AsyncGenerator<Progre
         if (!json) continue;
         try {
           yield JSON.parse(json) as ProgressEvent;
-        } catch {
-          // skip malformed JSON
-        }
+        } catch {}
       }
     }
 
-    // flush remaining buffer
     if (buffer.startsWith("data: ")) {
       const json = buffer.slice(6).trim();
       if (json) {
         try {
           yield JSON.parse(json) as ProgressEvent;
-        } catch {
-          // skip
-        }
+        } catch {}
       }
     }
   } finally {

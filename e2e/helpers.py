@@ -7,7 +7,6 @@ import os
 
 import httpx
 
-# --- Config (populated by load_env) ---
 BASE = ""
 COLLECTION = "e2e_test_collection"
 OPENAI_KEY = ""
@@ -16,7 +15,6 @@ S3_ENDPOINT = ""
 S3_ACCESS_KEY = ""
 S3_SECRET_KEY = ""
 
-# --- Results ---
 passed = 0
 failed = 0
 errors: list[str] = []

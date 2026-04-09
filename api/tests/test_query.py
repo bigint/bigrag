@@ -8,10 +8,6 @@ import pytest
 
 from tests.conftest import make_collection_row
 
-# ---------------------------------------------------------------------------
-# Sample data returned by mocked retrieve / retrieve_multi
-# ---------------------------------------------------------------------------
-
 SAMPLE_RESULTS = [
     {
         "id": "chunk_1",
@@ -49,9 +45,6 @@ ANALYTICS_PERIOD_ROW = {
 }
 
 
-# ---------------------------------------------------------------------------
-# POST /v1/collections/{name}/query
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -93,9 +86,6 @@ async def test_query_collection(client, auth_headers, mock_db):
     assert body["results"][0]["score"] == 0.95
 
 
-# ---------------------------------------------------------------------------
-# POST /v1/query  (multi-collection)
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -136,9 +126,6 @@ async def test_multi_collection_query(client, auth_headers, mock_db):
     assert body["results"][0]["collection"] == "col1"
 
 
-# ---------------------------------------------------------------------------
-# POST /v1/batch/query
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -179,9 +166,6 @@ async def test_batch_query(client, auth_headers, mock_db):
     assert body["results"][0]["results"][0]["id"] == "chunk_1"
 
 
-# ---------------------------------------------------------------------------
-# POST /v1/collections/{name}/vectors/upsert
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -210,9 +194,6 @@ async def test_vector_upsert(client, auth_headers, mock_db, mock_vector_store):
     assert body["upserted"] == 1
 
 
-# ---------------------------------------------------------------------------
-# POST /v1/collections/{name}/vectors/delete
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -236,9 +217,6 @@ async def test_vector_delete(client, auth_headers, mock_db, mock_vector_store):
     assert body["deleted"] == 2
 
 
-# ---------------------------------------------------------------------------
-# GET /v1/collections/{name}/analytics
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -269,9 +247,6 @@ async def test_analytics(client, auth_headers, mock_db):
     assert body["top_queries"][0]["query"] == "what is RAG"
 
 
-# ---------------------------------------------------------------------------
-# GET /v1/embeddings/models
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -287,9 +262,6 @@ async def test_list_embedding_models(client, auth_headers):
     assert "dimension" in body["models"][0]
 
 
-# ---------------------------------------------------------------------------
-# POST /v1/collections/{name}/query — collection not found
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio

@@ -20,7 +20,6 @@ async def test_s3(c: httpx.AsyncClient) -> None:
         skip("E2E_S3_* env vars not set")
         return
 
-    # Ingest
     r = await c.post(f"/v1/collections/{COLLECTION}/documents/s3", json={
         "bucket": S3_BUCKET,
         "endpoint_url": S3_ENDPOINT or None,
@@ -33,7 +32,6 @@ async def test_s3(c: httpx.AsyncClient) -> None:
     else:
         fail("Ingest", f"{r.status_code} {r.text}")
 
-    # Ingest with file_types
     r = await c.post(f"/v1/collections/{COLLECTION}/documents/s3", json={
         "bucket": S3_BUCKET,
         "endpoint_url": S3_ENDPOINT or None,
@@ -49,7 +47,6 @@ async def test_s3(c: httpx.AsyncClient) -> None:
 
     await asyncio.sleep(2)
 
-    # List jobs
     r = await c.get(f"/v1/collections/{COLLECTION}/s3-jobs")
     if r.status_code == 200 and "jobs" in r.json():
         ok("List jobs")
@@ -63,14 +60,12 @@ async def test_s3(c: httpx.AsyncClient) -> None:
         fail("No jobs found", "empty list")
         return
 
-    # Get job
     r = await c.get(f"/v1/collections/{COLLECTION}/s3-jobs/{job_id}")
     if r.status_code == 200:
         ok("Get job")
     else:
         fail("Get job", f"{r.status_code}")
 
-    # Wait for completion
     for _ in range(30):
         r = await c.get(f"/v1/collections/{COLLECTION}/s3-jobs/{job_id}")
         jst = r.json()["status"]
@@ -79,7 +74,6 @@ async def test_s3(c: httpx.AsyncClient) -> None:
         await asyncio.sleep(2)
     ok(f"Job finished (status={jst})")
 
-    # Resync
     r = await c.post(f"/v1/collections/{COLLECTION}/s3-jobs/{job_id}/resync")
     if r.status_code == 200:
         ok("Resync")
@@ -93,14 +87,12 @@ async def test_s3(c: httpx.AsyncClient) -> None:
             break
         await asyncio.sleep(2)
 
-    # Delete
     r = await c.delete(f"/v1/collections/{COLLECTION}/s3-jobs/{job_id}")
     if r.status_code == 200:
         ok("Delete job")
     else:
         fail("Delete job", f"{r.status_code}")
 
-    # 404
     r = await c.get(f"/v1/collections/{COLLECTION}/s3-jobs/{job_id}")
     if r.status_code == 404:
         ok("Deleted → 404")

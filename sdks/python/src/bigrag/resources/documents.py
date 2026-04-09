@@ -47,8 +47,6 @@ class DocumentsResource:
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 
-    # --- Upload ---
-
     async def upload(
         self,
         collection: str,
@@ -88,8 +86,6 @@ class DocumentsResource:
             files=dict(file_list) if len(file_list) == 1 else file_list,  # type: ignore[arg-type]
             data=form_data,
         )
-
-    # --- CRUD ---
 
     async def list(
         self,
@@ -157,8 +153,6 @@ class DocumentsResource:
             )
         return f"{self._client.base_url}{path}"
 
-    # --- Batch ---
-
     async def batch_get_status(
         self, collection: str, document_ids: list[str],
     ) -> BatchStatusResponse:
@@ -188,8 +182,6 @@ class DocumentsResource:
             f"{_col_path(collection)}/documents/batch/delete",
             json={"document_ids": document_ids},
         )
-
-    # --- S3 ingestion ---
 
     async def ingest_s3(
         self,
@@ -244,8 +236,6 @@ class DocumentsResource:
             "POST",
             f"{_col_path(collection)}/s3-jobs/{quote(job_id, safe='')}/resync",
         )
-
-    # --- SSE streaming ---
 
     async def stream_batch_progress(
         self, collection: str, document_ids: list[str],

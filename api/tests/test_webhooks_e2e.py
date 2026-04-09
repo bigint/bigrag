@@ -12,10 +12,6 @@ from httpx import AsyncClient
 
 from tests.conftest import make_delivery_row, make_webhook_row
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 WEBHOOK_URL = "https://example.com/hook"
 WEBHOOK_EVENTS = ["document.ready"]
 
@@ -32,9 +28,6 @@ def _create_body(
     }
 
 
-# ---------------------------------------------------------------------------
-# POST /v1/admin/webhooks — create
-# ---------------------------------------------------------------------------
 
 
 async def test_create_webhook(
@@ -92,9 +85,6 @@ async def test_create_webhook_invalid_events(
     assert resp.status_code == 422
 
 
-# ---------------------------------------------------------------------------
-# GET /v1/admin/webhooks — list
-# ---------------------------------------------------------------------------
 
 
 async def test_list_webhooks(
@@ -112,9 +102,6 @@ async def test_list_webhooks(
     assert len(body["webhooks"]) == 2
 
 
-# ---------------------------------------------------------------------------
-# GET /v1/admin/webhooks/{id} — get single
-# ---------------------------------------------------------------------------
 
 
 async def test_get_webhook(
@@ -145,9 +132,6 @@ async def test_get_webhook_not_found(
     assert resp.status_code == 404
 
 
-# ---------------------------------------------------------------------------
-# PUT /v1/admin/webhooks/{id} — update
-# ---------------------------------------------------------------------------
 
 
 async def test_update_webhook(
@@ -182,9 +166,6 @@ async def test_update_webhook(
     assert body["description"] == "updated"
 
 
-# ---------------------------------------------------------------------------
-# DELETE /v1/admin/webhooks/{id}
-# ---------------------------------------------------------------------------
 
 
 async def test_delete_webhook(
@@ -208,9 +189,6 @@ async def test_delete_webhook(
     assert body["status"] == "ok"
 
 
-# ---------------------------------------------------------------------------
-# GET /v1/admin/webhooks/{id}/deliveries — list deliveries
-# ---------------------------------------------------------------------------
 
 
 async def test_list_deliveries(
@@ -243,9 +221,6 @@ async def test_list_deliveries(
     assert len(body["deliveries"]) == 1
 
 
-# ---------------------------------------------------------------------------
-# POST /v1/admin/webhooks/{id}/test — test delivery
-# ---------------------------------------------------------------------------
 
 
 async def test_test_webhook(
@@ -270,9 +245,6 @@ async def test_test_webhook(
     mock_webhook_dispatcher.deliver_test.assert_awaited_once()
 
 
-# ---------------------------------------------------------------------------
-# Auth enforcement
-# ---------------------------------------------------------------------------
 
 
 async def test_webhooks_require_auth(client: AsyncClient):

@@ -68,8 +68,6 @@ export class BigRAGCore implements RequestClient {
     this._fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   }
 
-  // ---- Internal request helpers ----
-
   /** @internal Build standard request headers including auth. */
   _headers(): Record<string, string> {
     const h: Record<string, string> = {

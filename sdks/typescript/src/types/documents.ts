@@ -95,9 +95,6 @@ export interface S3IngestBody {
 export interface S3IngestResponse {
   status: string;
   message: string;
-  documents: Document[];
-  total: number;
-  skipped: string[];
 }
 
 /** An S3 ingest job. */

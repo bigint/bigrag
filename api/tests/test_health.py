@@ -6,10 +6,6 @@ from httpx import AsyncClient
 
 from bigrag import __version__
 
-# ---------------------------------------------------------------------------
-# GET /health — basic liveness
-# ---------------------------------------------------------------------------
-
 
 async def test_health_returns_ok(client: AsyncClient):
     resp = await client.get("/health")
@@ -25,9 +21,6 @@ async def test_health_requires_no_auth(client: AsyncClient):
     assert resp.status_code == 200
 
 
-# ---------------------------------------------------------------------------
-# GET /health/ready — readiness (all services healthy)
-# ---------------------------------------------------------------------------
 
 
 async def test_readiness_all_healthy(client: AsyncClient):
@@ -49,9 +42,6 @@ async def test_readiness_requires_no_auth(client: AsyncClient):
     assert resp.status_code in (200, 503)
 
 
-# ---------------------------------------------------------------------------
-# GET /health/ready — embedding provider check
-# ---------------------------------------------------------------------------
 
 
 async def test_readiness_includes_embedding_error_when_no_key(client: AsyncClient):
@@ -64,9 +54,6 @@ async def test_readiness_includes_embedding_error_when_no_key(client: AsyncClien
         assert "embedding_error" in body
 
 
-# ---------------------------------------------------------------------------
-# GET /health/ready — degraded (postgres down)
-# ---------------------------------------------------------------------------
 
 
 async def test_readiness_degraded_when_postgres_down(
@@ -85,9 +72,6 @@ async def test_readiness_degraded_when_postgres_down(
     assert body["redis"] is True
 
 
-# ---------------------------------------------------------------------------
-# GET /health/ready — degraded (milvus down)
-# ---------------------------------------------------------------------------
 
 
 async def test_readiness_degraded_when_milvus_down(
@@ -105,9 +89,6 @@ async def test_readiness_degraded_when_milvus_down(
     assert body["redis"] is True
 
 
-# ---------------------------------------------------------------------------
-# GET /health/ready — degraded (redis down)
-# ---------------------------------------------------------------------------
 
 
 async def test_readiness_degraded_when_redis_down(
@@ -125,9 +106,6 @@ async def test_readiness_degraded_when_redis_down(
     assert body["milvus"] is True
 
 
-# ---------------------------------------------------------------------------
-# GET /health/ready — degraded (all services down)
-# ---------------------------------------------------------------------------
 
 
 async def test_readiness_degraded_when_all_services_down(

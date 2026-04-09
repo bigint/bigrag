@@ -15,19 +15,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-# ---------------------------------------------------------------------------
-# Test constants
-# ---------------------------------------------------------------------------
-
 TEST_API_SECRET = "test-secret-key-12345"
 SAMPLE_COLLECTION_ID = str(uuid.uuid4())
 SAMPLE_DOCUMENT_ID = str(uuid.uuid4())
 SAMPLE_WEBHOOK_ID = str(uuid.uuid4())
 
 
-# ---------------------------------------------------------------------------
-# Row factories (mimic asyncpg.Record-like dicts)
-# ---------------------------------------------------------------------------
 
 
 def make_collection_row(
@@ -154,9 +147,6 @@ def make_delivery_row(
     }
 
 
-# ---------------------------------------------------------------------------
-# Mock services
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -239,9 +229,6 @@ def mock_webhook_dispatcher():
     return m
 
 
-# ---------------------------------------------------------------------------
-# App + client fixture
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture()

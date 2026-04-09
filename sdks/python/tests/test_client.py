@@ -19,9 +19,6 @@ from bigrag import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _mock_response(
@@ -62,9 +59,6 @@ def _make_client(
     return client, transport
 
 
-# ---------------------------------------------------------------------------
-# Initialization
-# ---------------------------------------------------------------------------
 
 
 class TestInit:
@@ -96,9 +90,6 @@ class TestInit:
         assert client.webhooks is not None
 
 
-# ---------------------------------------------------------------------------
-# Platform endpoints
-# ---------------------------------------------------------------------------
 
 
 class TestPlatformEndpoints:
@@ -131,9 +122,6 @@ class TestPlatformEndpoints:
         assert "Authorization" in transport.calls[0].headers
 
 
-# ---------------------------------------------------------------------------
-# Collections
-# ---------------------------------------------------------------------------
 
 
 class TestCollections:
@@ -201,9 +189,6 @@ class TestCollections:
         assert result["document_count"] == 5
 
 
-# ---------------------------------------------------------------------------
-# Documents
-# ---------------------------------------------------------------------------
 
 
 class TestDocuments:
@@ -259,9 +244,6 @@ class TestDocuments:
         assert "/reprocess" in str(transport.calls[0].url)
 
 
-# ---------------------------------------------------------------------------
-# Queries
-# ---------------------------------------------------------------------------
 
 
 class TestQueries:
@@ -292,9 +274,6 @@ class TestQueries:
         assert str(transport.calls[0].url).endswith("/v1/batch/query")
 
 
-# ---------------------------------------------------------------------------
-# Vectors
-# ---------------------------------------------------------------------------
 
 
 class TestVectors:
@@ -318,9 +297,6 @@ class TestVectors:
         assert result["deleted"] == 1
 
 
-# ---------------------------------------------------------------------------
-# Webhooks
-# ---------------------------------------------------------------------------
 
 
 class TestWebhooks:
@@ -351,9 +327,6 @@ class TestWebhooks:
         assert "/test" in str(transport.calls[0].url)
 
 
-# ---------------------------------------------------------------------------
-# Error handling
-# ---------------------------------------------------------------------------
 
 
 class TestErrors:
@@ -397,9 +370,6 @@ class TestErrors:
         assert exc_info.value.status == 400
 
 
-# ---------------------------------------------------------------------------
-# Auth headers
-# ---------------------------------------------------------------------------
 
 
 class TestAuth:
@@ -422,9 +392,6 @@ class TestAuth:
         assert "bigrag-python" in transport.calls[0].headers["user-agent"]
 
 
-# ---------------------------------------------------------------------------
-# CollectionClient (scoped)
-# ---------------------------------------------------------------------------
 
 
 class TestCollectionClient:
@@ -448,9 +415,6 @@ class TestCollectionClient:
         assert result["document_count"] == 10
 
 
-# ---------------------------------------------------------------------------
-# File input normalization
-# ---------------------------------------------------------------------------
 
 
 class TestFileInput:
@@ -475,9 +439,6 @@ class TestFileInput:
         assert data == b"hello"
 
 
-# ---------------------------------------------------------------------------
-# Context manager
-# ---------------------------------------------------------------------------
 
 
 class TestContextManager:
@@ -490,9 +451,6 @@ class TestContextManager:
             assert result["status"] == "ok"
 
 
-# ---------------------------------------------------------------------------
-# Retry logic
-# ---------------------------------------------------------------------------
 
 
 class TestRetryLogic:
@@ -547,9 +505,6 @@ class TestRetryLogic:
             await client.health()
 
 
-# ---------------------------------------------------------------------------
-# File upload
-# ---------------------------------------------------------------------------
 
 
 class TestFileUpload:
@@ -586,9 +541,6 @@ class TestFileUpload:
         assert b"report.pdf" in req.content
 
 
-# ---------------------------------------------------------------------------
-# SSE streaming
-# ---------------------------------------------------------------------------
 
 
 class TestSSEStreaming:
@@ -665,9 +617,6 @@ class TestSSEStreaming:
         assert len(events) == 1
 
 
-# ---------------------------------------------------------------------------
-# Additional Document operations
-# ---------------------------------------------------------------------------
 
 
 class TestDocumentsBatchOps:
@@ -699,9 +648,6 @@ class TestDocumentsBatchOps:
         assert "/chunks" in str(transport.calls[0].url)
 
 
-# ---------------------------------------------------------------------------
-# Additional Webhook operations
-# ---------------------------------------------------------------------------
 
 
 class TestWebhooksExtended:
@@ -739,9 +685,6 @@ class TestWebhooksExtended:
         assert "offset=20" in url
 
 
-# ---------------------------------------------------------------------------
-# CollectionClient extended
-# ---------------------------------------------------------------------------
 
 
 class TestCollectionClientExtended:
@@ -816,9 +759,6 @@ class TestCollectionClientExtended:
         assert "/chunks" in str(transport.calls[0].url)
 
 
-# ---------------------------------------------------------------------------
-# Embedding models & analytics
-# ---------------------------------------------------------------------------
 
 
 class TestEmbeddingModels:
@@ -841,9 +781,6 @@ class TestEmbeddingModels:
         assert "/v1/collections/docs/analytics" in str(transport.calls[0].url)
 
 
-# ---------------------------------------------------------------------------
-# Environment variable for API key
-# ---------------------------------------------------------------------------
 
 
 class TestEnvApiKey:
@@ -863,9 +800,6 @@ class TestEnvApiKey:
         assert client.api_key == ""
 
 
-# ---------------------------------------------------------------------------
-# URL encoding
-# ---------------------------------------------------------------------------
 
 
 class TestURLEncoding:

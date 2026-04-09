@@ -12,10 +12,6 @@ import pytest
 
 from tests.conftest import make_collection_row, make_document_row
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 
 def _setup_fetchrow(mock_db, col_row, doc_row):
     """Wire mock_db.fetchrow to route queries to the right row."""
@@ -34,9 +30,6 @@ def _setup_fetchrow(mock_db, col_row, doc_row):
     mock_db.fetchrow = AsyncMock(side_effect=fetchrow_router)
 
 
-# ---------------------------------------------------------------------------
-# Upload
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -82,9 +75,6 @@ async def test_upload_unsupported_file_type(client, auth_headers, mock_db):
     assert "Unsupported file type" in resp.json()["detail"]
 
 
-# ---------------------------------------------------------------------------
-# List
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -106,9 +96,6 @@ async def test_list_documents(client, auth_headers, mock_db):
     assert body["documents"][0]["filename"] == "test.pdf"
 
 
-# ---------------------------------------------------------------------------
-# Get single document
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -141,9 +128,6 @@ async def test_get_document_not_found(client, auth_headers, mock_db):
     assert "not found" in resp.json()["detail"].lower()
 
 
-# ---------------------------------------------------------------------------
-# Delete
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -163,9 +147,6 @@ async def test_delete_document(client, auth_headers, mock_db, mock_vector_store,
     assert resp.json()["status"] == "ok"
 
 
-# ---------------------------------------------------------------------------
-# Reprocess
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -192,9 +173,6 @@ async def test_reprocess_document(client, auth_headers, mock_db, mock_vector_sto
     assert resp.json()["status"] == "ok"
 
 
-# ---------------------------------------------------------------------------
-# Chunks
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -222,9 +200,6 @@ async def test_get_document_chunks(client, auth_headers, mock_db, mock_vector_st
     assert len(body["chunks"]) == 2
 
 
-# ---------------------------------------------------------------------------
-# Download file
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio

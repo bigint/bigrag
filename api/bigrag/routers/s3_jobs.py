@@ -99,7 +99,7 @@ async def resync_s3_job(
 
     from bigrag.services.s3_ingest import _start_job, cancel_job
 
-    cancel_job(job_id)  # cancel if still running
+    await cancel_job(job_id)  # cancel and wait before restarting
 
     updated_row = await db.fetchrow(
         "SELECT * FROM s3_ingest_jobs WHERE id = $1", uuid.UUID(job_id)
@@ -127,7 +127,7 @@ async def delete_s3_job(
 
     from bigrag.services.s3_ingest import cancel_job
 
-    cancel_job(job_id)
+    await cancel_job(job_id)
     await db.execute("DELETE FROM s3_ingest_jobs WHERE id = $1", uuid.UUID(job_id))
 
     return {"status": "ok", "message": "S3 ingest job deleted"}

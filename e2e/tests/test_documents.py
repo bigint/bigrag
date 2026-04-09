@@ -7,7 +7,6 @@ from helpers import COLLECTION, fail, ok
 async def test_documents(c: httpx.AsyncClient) -> tuple[str | None, str | None]:
     print("\n── Documents ──")
 
-    # Upload txt
     r = await c.post(
         f"/v1/collections/{COLLECTION}/documents",
         files={"file": ("test.txt", b"Test document for E2E testing. " * 20)},
@@ -20,7 +19,6 @@ async def test_documents(c: httpx.AsyncClient) -> tuple[str | None, str | None]:
     else:
         fail("Upload txt", f"{r.status_code} {r.text}")
 
-    # Upload markdown
     r = await c.post(
         f"/v1/collections/{COLLECTION}/documents",
         files={"file": ("test.md", b"# Test\n\nMarkdown.\n" * 10)},
@@ -31,7 +29,6 @@ async def test_documents(c: httpx.AsyncClient) -> tuple[str | None, str | None]:
     else:
         fail("Upload markdown", f"{r.status_code}")
 
-    # Reject unsupported
     r = await c.post(
         f"/v1/collections/{COLLECTION}/documents",
         files={"file": ("bad.xyz", b"nope")},
@@ -41,7 +38,6 @@ async def test_documents(c: httpx.AsyncClient) -> tuple[str | None, str | None]:
     else:
         fail("Reject unsupported", f"expected 400, got {r.status_code}")
 
-    # Reject empty
     r = await c.post(
         f"/v1/collections/{COLLECTION}/documents",
         files={"file": ("empty.txt", b"")},
@@ -51,28 +47,24 @@ async def test_documents(c: httpx.AsyncClient) -> tuple[str | None, str | None]:
     else:
         fail("Reject empty", f"expected 400, got {r.status_code}")
 
-    # List
     r = await c.get(f"/v1/collections/{COLLECTION}/documents")
     if r.status_code == 200 and r.json()["total"] >= 2:
         ok("List")
     else:
         fail("List", f"total={r.json().get('total')}")
 
-    # Pagination
     r = await c.get(f"/v1/collections/{COLLECTION}/documents?limit=1&offset=0")
     if r.status_code == 200 and len(r.json()["documents"]) == 1:
         ok("List (pagination)")
     else:
         fail("List (pagination)", f"{r.status_code}")
 
-    # Status filter
     r = await c.get(f"/v1/collections/{COLLECTION}/documents?status=pending")
     if r.status_code == 200:
         ok("List (status filter)")
     else:
         fail("List (status filter)", f"{r.status_code}")
 
-    # Get (scoped)
     if doc_id:
         r = await c.get(f"/v1/collections/{COLLECTION}/documents/{doc_id}")
         if r.status_code == 200:
@@ -80,7 +72,6 @@ async def test_documents(c: httpx.AsyncClient) -> tuple[str | None, str | None]:
         else:
             fail("Get (scoped)", f"{r.status_code}")
 
-    # Get (global)
     if doc_id:
         r = await c.get(f"/v1/documents/{doc_id}")
         if r.status_code == 200:
@@ -88,7 +79,6 @@ async def test_documents(c: httpx.AsyncClient) -> tuple[str | None, str | None]:
         else:
             fail("Get (global)", f"{r.status_code} {r.text}")
 
-    # 404
     r = await c.get(
         f"/v1/collections/{COLLECTION}/documents/00000000-0000-0000-0000-000000000000"
     )

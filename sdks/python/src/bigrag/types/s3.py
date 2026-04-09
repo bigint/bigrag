@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from bigrag.types._compat import Any, NotRequired, TypedDict
-from bigrag.types.documents import Document
 
 
 class S3IngestBody(TypedDict):
@@ -21,6 +20,3 @@ class S3IngestBody(TypedDict):
 class S3IngestResponse(TypedDict):
     status: str
     message: str
-    documents: list[Document]
-    total: int
-    skipped: list[str]

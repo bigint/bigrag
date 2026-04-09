@@ -6,10 +6,6 @@ from unittest.mock import MagicMock, patch
 
 from tests.conftest import make_collection_row
 
-# ---------------------------------------------------------------------------
-# POST /v1/collections
-# ---------------------------------------------------------------------------
-
 
 @patch(
     "bigrag.services.embedding.get_embedding_model",
@@ -66,9 +62,6 @@ async def test_create_collection_invalid_name_returns_422(client, mock_db, auth_
     assert resp.status_code == 422
 
 
-# ---------------------------------------------------------------------------
-# GET /v1/collections
-# ---------------------------------------------------------------------------
 
 
 async def test_list_collections(client, mock_db, auth_headers):
@@ -97,9 +90,6 @@ async def test_list_collections_empty(client, mock_db, auth_headers):
     assert resp.json()["total"] == 0
 
 
-# ---------------------------------------------------------------------------
-# GET /v1/collections/{name}
-# ---------------------------------------------------------------------------
 
 
 async def test_get_collection(client, mock_db, auth_headers):
@@ -124,9 +114,6 @@ async def test_get_collection_not_found(client, mock_db, auth_headers):
     assert "not found" in resp.json()["detail"].lower()
 
 
-# ---------------------------------------------------------------------------
-# PUT /v1/collections/{name}
-# ---------------------------------------------------------------------------
 
 
 async def test_update_collection(client, mock_db, auth_headers):
@@ -149,9 +136,6 @@ async def test_update_collection(client, mock_db, auth_headers):
     assert data["description"] == "new desc"
 
 
-# ---------------------------------------------------------------------------
-# DELETE /v1/collections/{name}
-# ---------------------------------------------------------------------------
 
 
 async def test_delete_collection(client, mock_db, mock_vector_store, auth_headers):

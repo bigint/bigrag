@@ -608,10 +608,6 @@ async def batch_delete_documents(
     return BatchDeleteResponse(status="ok", deleted=deleted, errors=errors)
 
 
-# ---------------------------------------------------------------------------
-# Global document lookup (without collection name)
-# ---------------------------------------------------------------------------
-
 global_router = APIRouter(prefix="/v1/documents", tags=["documents"])
 
 
@@ -648,10 +644,6 @@ async def get_document_chunks_global(
     chunks = await vector_store.get_chunks(collection["name"], document_id)
     return {"chunks": chunks, "total": len(chunks)}
 
-
-# ---------------------------------------------------------------------------
-# S3 Bucket Ingestion
-# ---------------------------------------------------------------------------
 
 @router.post("/s3", response_model=S3IngestResponse, status_code=202)
 async def ingest_from_s3(
@@ -690,11 +682,6 @@ async def ingest_from_s3(
         status="accepted",
         message="S3 ingestion started in background",
     )
-
-
-# ---------------------------------------------------------------------------
-# Batch Progress SSE
-# ---------------------------------------------------------------------------
 
 
 @router.get("/batch/progress")

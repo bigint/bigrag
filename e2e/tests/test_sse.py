@@ -15,7 +15,6 @@ async def test_sse(c: httpx.AsyncClient) -> None:
 
     doc_id = r.json()["id"]
 
-    # Single document progress
     async with c.stream(
         "GET", f"/v1/collections/{COLLECTION}/documents/{doc_id}/progress",
     ) as resp:
@@ -24,7 +23,6 @@ async def test_sse(c: httpx.AsyncClient) -> None:
         else:
             fail("Document progress", f"{resp.status_code}")
 
-    # Batch progress
     async with c.stream(
         "GET", f"/v1/collections/{COLLECTION}/documents/batch/progress?ids={doc_id}",
     ) as resp:
