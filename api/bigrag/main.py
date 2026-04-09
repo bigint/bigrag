@@ -10,12 +10,12 @@ from fastapi.responses import JSONResponse
 
 from bigrag import __version__
 from bigrag.config import Settings, settings
-from bigrag.database import Database
+from bigrag.database import db
 from bigrag.exceptions import ConflictError, NotFoundError, ValidationError
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
-from bigrag.services.queue import IngestionQueue
+from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import init_storage
-from bigrag.services.vector_store import VectorStore
+from bigrag.services.vector_store import vector_store
 from bigrag.services.webhook import WebhookDispatcher
 
 
@@ -33,16 +33,14 @@ async def lifespan(app: FastAPI):
         logger.warning("CORS allows all origins, restrict in production")
 
     # Postgres
-    db = Database()
     await db.connect(s.database_url, min_size=s.db_pool_min, max_size=s.db_pool_max)
     await db.migrate()
     app.state.db = db
 
     # Milvus
-    vs = VectorStore()
-    vs.configure(s.milvus_uri, nprobe=s.milvus_nprobe)
-    vs.connect()
-    app.state.vector_store = vs
+    vector_store.configure(s.milvus_uri, nprobe=s.milvus_nprobe)
+    vector_store.connect()
+    app.state.vector_store = vector_store
 
     # Storage
     storage = init_storage(
@@ -57,10 +55,10 @@ async def lifespan(app: FastAPI):
     app.state.storage = storage
 
     # Redis + ingestion queue
-    queue = IngestionQueue(num_workers=s.ingestion_workers)
-    await queue.connect(s.redis_url)
-    await queue.start(db=db, vector_store=vs)
-    app.state.queue = queue
+    ingestion_queue._num_workers = s.ingestion_workers
+    await ingestion_queue.connect(s.redis_url)
+    await ingestion_queue.start(db=db, vector_store=vector_store)
+    app.state.queue = ingestion_queue
 
     # Webhook dispatcher
     dispatcher = WebhookDispatcher()
@@ -78,10 +76,10 @@ async def lifespan(app: FastAPI):
     yield
 
     cleanup_task.cancel()
-    await queue.stop()
+    await ingestion_queue.stop()
     await dispatcher.stop()
     await storage.close()
-    vs.close()
+    vector_store.close()
     await db.close()
     logger.info("shut down")
 
