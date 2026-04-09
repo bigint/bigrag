@@ -222,8 +222,6 @@ Each document's metadata will include `source: "s3"`, `s3_bucket`, and `s3_key` 
 
 The endpoint returns immediately after listing. Files are downloaded and ingested in the background — documents appear with `pending` status as they are processed.
 
-`.tar` archives are automatically extracted and all supported files inside are ingested individually. When `file_types` is set, only matching files inside tars are extracted.
-
 **Response** `202`:
 
 ```json

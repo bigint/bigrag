@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from bigrag.database import db
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
-from bigrag.models.document import S3JobListResponse, S3JobResponse
+from bigrag.models.s3 import S3JobListResponse, S3JobResponse
 from bigrag.routers import get_collection_or_404
 
 logger = get_logger("bigrag.routers.s3_jobs")

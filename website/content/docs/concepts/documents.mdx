@@ -33,7 +33,7 @@ Upload documents directly via the API or SDKs. Accepts single files or batch upl
 
 ### S3 Bucket Ingestion
 
-Ingest files directly from an S3 bucket (or S3-compatible services like MinIO). Provide a bucket name and optional prefix to filter objects — all supported file types are ingested automatically, unsupported files are skipped, and `.tar` archives are extracted with each supported file inside ingested individually.
+Ingest files directly from an S3 bucket (or S3-compatible services like MinIO). Provide a bucket name and optional prefix to filter objects — all supported file types are ingested automatically and unsupported files are skipped.
 
 ```bash
 curl -X POST http://localhost:6100/v1/collections/docs/documents/s3 \

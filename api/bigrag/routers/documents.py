@@ -22,9 +22,8 @@ from bigrag.models.document import (
     DocumentListResponse,
     DocumentResponse,
     DocumentStatusResponse,
-    S3IngestRequest,
-    S3IngestResponse,
 )
+from bigrag.models.s3 import S3IngestRequest, S3IngestResponse
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
 from bigrag.services.event_bus import event_bus
 from bigrag.services.ingestion_job import create_ingestion_job

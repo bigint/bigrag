@@ -3,22 +3,18 @@
 from __future__ import annotations
 
 import asyncio
-import io
-import tarfile
 import uuid
 from pathlib import Path
 from typing import Any
 
 from bigrag.logging import get_logger
+from bigrag.services.s3_client import (
+    SUPPORTED_EXTENSIONS,
+    build_s3_kwargs,
+    list_s3_objects,
+)
 
 logger = get_logger("bigrag.s3_ingest")
-
-SUPPORTED_EXTENSIONS = {
-    ".pdf", ".docx", ".pptx", ".xlsx", ".html", ".htm", ".md", ".txt",
-    ".csv", ".tsv", ".xml", ".json", ".png", ".jpg", ".jpeg", ".tiff",
-    ".bmp", ".gif",
-}
-S3_INGESTABLE = SUPPORTED_EXTENSIONS | {".tar"}
 
 _tasks: dict[str, asyncio.Task] = {}  # job_id → task
 
@@ -101,9 +97,6 @@ def cancel_job(job_id: str) -> bool:
 async def _run_job(job: dict) -> None:
     """Full lifecycle: list → download → extract → ingest."""
     import aiobotocore.session
-    from botocore import UNSIGNED
-    from botocore.config import Config
-    from botocore.exceptions import NoCredentialsError
 
     from bigrag.database import db
     from bigrag.services.ingestion_job import create_ingestion_job
@@ -120,33 +113,15 @@ async def _run_job(job: dict) -> None:
     # Build the effective extension filter
     raw_file_types: list[str] = job.get("file_types") or []
     if raw_file_types:
-        allowed_extensions = {
-            f".{ft.lstrip('.').lower()}" for ft in raw_file_types
-        }
-        # Only keep extensions that are actually supported
-        allowed_extensions &= SUPPORTED_EXTENSIONS
-        # Include .tar if any of the allowed types could be inside tars
-        ingestable_extensions = allowed_extensions | ({".tar"} if allowed_extensions else set())
+        extensions = {f".{ft.lstrip('.').lower()}" for ft in raw_file_types}
+        extensions &= SUPPORTED_EXTENSIONS
     else:
-        allowed_extensions = SUPPORTED_EXTENSIONS
-        ingestable_extensions = S3_INGESTABLE
+        extensions = SUPPORTED_EXTENSIONS
 
     logger.info(
         "s3_job: starting",
         job_id=job_id, bucket=bucket, prefix=prefix,
     )
-
-    # Build S3 client config
-    s3_kwargs: dict[str, Any] = {"region_name": job["region"]}
-    if job["endpoint_url"]:
-        s3_kwargs["endpoint_url"] = job["endpoint_url"]
-    if job["no_sign_request"]:
-        s3_kwargs["config"] = Config(signature_version=UNSIGNED)
-    elif job["access_key"] and job["secret_key"]:
-        s3_kwargs["aws_access_key_id"] = job["access_key"]
-        s3_kwargs["aws_secret_access_key"] = job["secret_key"]
-
-    session = aiobotocore.session.get_session()
 
     # --- Update status helper ---
     async def _update(status: str, **fields: Any) -> None:
@@ -163,100 +138,25 @@ async def _run_job(job: dict) -> None:
 
     # --- List objects ---
     await _update("listing")
-    objects: list[dict] = []
+    s3_kwargs = build_s3_kwargs(job)
 
-    async def _list_objects(kwargs: dict) -> None:
-        pages = 0
-        async with session.create_client("s3", **kwargs) as s3:
-            paginator = s3.get_paginator("list_objects_v2")
-            list_kw: dict = {"Bucket": bucket}
-            if prefix:
-                list_kw["Prefix"] = prefix
-            async for page in paginator.paginate(**list_kw):
-                pages += 1
-                for obj in page.get("Contents", []):
-                    key = obj["Key"]
-                    if key.endswith("/"):
-                        continue
-                    ext = Path(key).suffix.lower()
-                    if ext in ingestable_extensions:
-                        objects.append(obj)
-                if pages % 5 == 0:
-                    await _update(
-                        "listing", total_found=len(objects),
-                    )
-                    logger.info(
-                        "s3_job: listing",
-                        job_id=job_id, found=len(objects), pages=pages,
-                    )
-
-    async def _resolve_region() -> str | None:
-        # Try GetBucketLocation first
-        try:
-            kw: dict = {
-                "region_name": "us-east-1",
-                "config": Config(signature_version=UNSIGNED),
-            }
-            async with session.create_client("s3", **kw) as s3:
-                r = await asyncio.wait_for(
-                    s3.get_bucket_location(Bucket=bucket), timeout=15,
-                )
-                return r.get("LocationConstraint") or "us-east-1"
-        except Exception:
-            pass
-
-        # Fallback: HEAD request to bucket URL — region is in the response header
-        try:
-            import httpx
-
-            async with httpx.AsyncClient(timeout=10, follow_redirects=False) as http:
-                r = await http.head(f"https://{bucket}.s3.amazonaws.com")
-                region = r.headers.get("x-amz-bucket-region")
-                if region:
-                    logger.info("s3_job: region from HEAD", region=region)
-                    return region
-        except Exception:
-            pass
-
-        logger.warning("s3_job: could not detect region, using user-supplied")
-        return None
-
-    def _is_redirect(exc: Exception) -> bool:
-        s = str(exc)
-        return "PermanentRedirect" in s or "specified endpoint" in s
-
-    async def _list_with_fallback() -> None:
-        """List with automatic credential + region fallback."""
-        # 1. Try as-is
-        try:
-            await _list_objects(s3_kwargs)
-            return
-        except NoCredentialsError:
-            logger.info("s3_job: no credentials, switching to unsigned")
-            s3_kwargs["config"] = Config(signature_version=UNSIGNED)
-        except Exception as e:
-            if not _is_redirect(e):
-                raise
-            if "config" not in s3_kwargs:
-                s3_kwargs["config"] = Config(signature_version=UNSIGNED)
-
-        # 2. Try to detect correct region before listing
-        region = await _resolve_region()
-        if region and region != s3_kwargs.get("region_name"):
-            logger.info("s3_job: detected region", actual=region)
-            s3_kwargs["region_name"] = region
-            s3_kwargs.pop("endpoint_url", None)
-
-        # 3. List with resolved config
-        logger.info(
-            "s3_job: listing",
-            region=s3_kwargs.get("region_name"),
-            unsigned=True,
+    def _on_listing_progress(count: int) -> None:
+        # Schedule the async DB update without blocking the listing loop
+        asyncio.ensure_future(
+            _update("listing", total_found=count)
         )
-        await _list_objects(s3_kwargs)
+        logger.info(
+            "s3_job: listing", job_id=job_id, found=count,
+        )
 
     try:
-        await _list_with_fallback()
+        objects = await list_s3_objects(
+            bucket=bucket,
+            prefix=prefix,
+            s3_kwargs=s3_kwargs,
+            extensions=extensions,
+            on_progress=_on_listing_progress,
+        )
     except asyncio.CancelledError:
         logger.info("s3_job: cancelled during listing", job_id=job_id)
         return
@@ -353,6 +253,8 @@ async def _run_job(job: dict) -> None:
 
     max_object_bytes = 2 * 1024 * 1024 * 1024  # 2GB per object
     obj_count = len(objects)
+    session = aiobotocore.session.get_session()
+
     try:
         async with session.create_client("s3", **s3_kwargs) as s3:
             for idx, obj in enumerate(objects):
@@ -389,37 +291,7 @@ async def _run_job(job: dict) -> None:
                     skipped += 1
                     continue
 
-                if file_ext == ".tar":
-                    try:
-                        with tarfile.open(fileobj=io.BytesIO(content)) as tar:
-                            members = [
-                                m for m in tar.getmembers()
-                                if m.isfile()
-                                and Path(m.name).suffix.lower() in allowed_extensions
-                            ]
-                            logger.info(
-                                "s3_job: extracting tar",
-                                key=key,
-                                files=len(members),
-                            )
-                            for member in members:
-                                f = tar.extractfile(member)
-                                if f is None:
-                                    continue
-                                data = f.read()
-                                if len(data) == 0:
-                                    continue
-                                await _ingest_file(
-                                    Path(member.name).name,
-                                    Path(member.name).suffix.lower(),
-                                    data,
-                                    f"{key}:{member.name}",
-                                )
-                    except Exception as e:
-                        logger.warning("s3_job: tar failed", key=key, error=str(e))
-                        skipped += 1
-                else:
-                    await _ingest_file(Path(key).name, file_ext, content, key)
+                await _ingest_file(Path(key).name, file_ext, content, key)
 
     except asyncio.CancelledError:
         logger.info("s3_job: cancelled during ingestion", job_id=job_id)
