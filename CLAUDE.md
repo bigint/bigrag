@@ -52,13 +52,29 @@ If a feature is removed, remove it from the docs too. Never leave stale referenc
 ## Development
 
 ```bash
-./dev.sh            # starts everything (Postgres, Redis, Milvus, backend, website)
-./dev.sh --backend  # backend + infrastructure only
+./dev.sh            # starts infra + backend
 ./dev.sh --website  # docs site only
 ```
 
 - Backend API: http://localhost:6100 (Swagger docs at /docs)
-- Website: http://localhost:3100
 - Postgres: localhost:5433
 - Redis: localhost:6380
 - Milvus: localhost:19530
+
+## E2E Tests
+
+After any significant API change (new endpoints, modified request/response shapes, new features, bug fixes), **run and update the E2E tests**.
+
+```bash
+cd e2e && uv run --with httpx python run.py
+```
+
+- Tests live in `e2e/tests/` — one file per feature area
+- Config is in `e2e/.env` (gitignored) — copy from `e2e/.env.example`
+- Tests hit the live server at `BIGRAG_URL` (default `localhost:6100`)
+- All tests are real (no mocks) — they use actual Postgres, Redis, Milvus, and OpenAI
+
+When adding or changing an endpoint:
+1. Add test cases to the relevant `e2e/tests/test_*.py` file (or create a new one)
+2. Run the full suite and fix any failures before committing
+3. If a response shape changes, update both the test assertions and the SDK types
