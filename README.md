@@ -7,12 +7,17 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 ## Features
 
 - **Document ingestion** — PDF, DOCX, PPTX, HTML, Markdown, images, and more via [Docling](https://github.com/DS4SD/docling)
+- **S3 bucket ingestion** — ingest from S3 or any S3-compatible service (MinIO, R2, Spaces, etc.), including public buckets
 - **Embedding providers** — OpenAI and Cohere, configurable per collection
 - **Vector search** — semantic, keyword, and hybrid search modes via [Milvus](https://milvus.io)
-- **Batch operations** — bulk upload, delete, and status checks
+- **Reranking** — Cohere reranking for improved result relevance
+- **Multi-collection queries** — search across collections in a single request
+- **Batch operations** — bulk upload, delete, status checks, and queries
+- **Real-time progress** — SSE streaming for document processing status
+- **Analytics** — per-collection query analytics and platform-wide stats
 - **Webhooks** — get notified when documents are processed
 - **Self-hostable** — single `docker compose up` to run everything
-- **TypeScript SDK** — zero-dependency client for Node.js, browsers, and edge runtimes
+- **SDKs** — [TypeScript](sdks/typescript) and [Python](sdks/python) clients
 
 ## Quick Start
 
@@ -31,6 +36,11 @@ curl -X POST http://localhost:6100/v1/collections \
 # Upload a document
 curl -X POST http://localhost:6100/v1/collections/docs/documents \
   -F "file=@paper.pdf"
+
+# Ingest from a public S3 bucket
+curl -X POST http://localhost:6100/v1/collections/docs/documents/s3 \
+  -H "Content-Type: application/json" \
+  -d '{"bucket": "indian-supreme-court-judgments", "prefix": "judgments/2025/", "region": "ap-south-1", "no_sign_request": true}'
 
 # Query
 curl -X POST http://localhost:6100/v1/collections/docs/query \
@@ -71,6 +81,7 @@ graph TD
 
     Query -->|search| Milvus
     Query -->|embed query| Embedding
+    Query -->|rerank| Reranker[Cohere Rerank]
 
     Collections --> Postgres[(Postgres<br/>Metadata)]
     Documents --> Postgres
@@ -90,15 +101,22 @@ graph TD
 | `GET` | `/v1/collections/{name}` | Get collection |
 | `PUT` | `/v1/collections/{name}` | Update collection |
 | `DELETE` | `/v1/collections/{name}` | Delete collection |
+| `GET` | `/v1/collections/{name}/stats` | Collection stats |
 | **Documents** | | |
 | `POST` | `/v1/collections/{name}/documents` | Upload document |
 | `GET` | `/v1/collections/{name}/documents` | List documents |
 | `GET` | `/v1/collections/{name}/documents/{id}` | Get document |
 | `DELETE` | `/v1/collections/{name}/documents/{id}` | Delete document |
 | `POST` | `/v1/collections/{name}/documents/{id}/reprocess` | Reprocess document |
+| `GET` | `/v1/collections/{name}/documents/{id}/chunks` | Get document chunks |
+| `GET` | `/v1/collections/{name}/documents/{id}/file` | Download original file |
+| `GET` | `/v1/collections/{name}/documents/{id}/progress` | Stream processing progress (SSE) |
+| `POST` | `/v1/collections/{name}/documents/s3` | Ingest from S3 bucket |
 | `POST` | `/v1/collections/{name}/documents/batch/upload` | Batch upload (up to 100) |
 | `POST` | `/v1/collections/{name}/documents/batch/status` | Batch status check |
+| `POST` | `/v1/collections/{name}/documents/batch/get` | Batch get documents |
 | `POST` | `/v1/collections/{name}/documents/batch/delete` | Batch delete |
+| `GET` | `/v1/collections/{name}/documents/batch/progress` | Stream batch progress (SSE) |
 | **Query** | | |
 | `POST` | `/v1/collections/{name}/query` | Query collection |
 | `POST` | `/v1/query` | Multi-collection query |
@@ -106,9 +124,10 @@ graph TD
 | **Vectors** | | |
 | `POST` | `/v1/collections/{name}/vectors/upsert` | Upsert raw vectors |
 | `POST` | `/v1/collections/{name}/vectors/delete` | Delete vectors by ID |
-| **Admin** | | |
+| **Webhooks** | | |
 | `POST` | `/v1/admin/webhooks` | Create webhook |
 | `GET` | `/v1/admin/webhooks` | List webhooks |
+| **Admin** | | |
 | `GET` | `/v1/stats` | Platform stats |
 | `GET` | `/v1/embeddings/models` | List embedding models |
 | `GET` | `/v1/collections/{name}/analytics` | Collection analytics |
@@ -126,7 +145,9 @@ Full interactive docs at `/docs` (Swagger UI) when running.
 | cohere | `embed-english-light-v3.0` | 384 |
 | cohere | `embed-multilingual-light-v3.0` | 384 |
 
-## TypeScript SDK
+## SDKs
+
+### TypeScript
 
 ```bash
 npm install @bigrag/client
@@ -137,22 +158,49 @@ import { BigRAG } from "@bigrag/client";
 
 const client = new BigRAG({ apiKey: "your-key", baseUrl: "http://localhost:6100" });
 
-// Create a collection
-await client.createCollection({ name: "docs" });
-
-// Upload documents
+// Upload a document
 const doc = await client.uploadDocument("docs", new File([pdf], "paper.pdf"));
+
+// Stream processing progress
+for await (const event of client.streamDocumentProgress("docs", doc.id)) {
+  console.log(event.step, event.progress);
+}
 
 // Query
 const { results } = await client.query("docs", { query: "What is RAG?" });
 
-// Batch operations
-await client.batchUploadDocuments("docs", [file1, file2, file3]);
-await client.batchGetStatus("docs", [doc1.id, doc2.id]);
-await client.batchDeleteDocuments("docs", [doc1.id]);
+// Ingest from S3
+await client.documents.ingestS3("docs", {
+  bucket: "my-bucket",
+  prefix: "reports/",
+  no_sign_request: true,
+});
+```
 
-// Platform stats
-const stats = await client.getStats();
+### Python
+
+```bash
+pip install bigrag
+```
+
+```python
+from bigrag import BigRAG
+
+client = BigRAG(api_key="your-key", base_url="http://localhost:6100")
+
+# Upload a document
+doc = await client.documents.upload("docs", "/path/to/paper.pdf")
+
+# Query
+result = await client.queries.query("docs", {"query": "What is RAG?"})
+
+# Ingest from S3
+result = await client.documents.ingest_s3(
+    "docs",
+    bucket="my-bucket",
+    prefix="reports/",
+    no_sign_request=True,
+)
 ```
 
 ## Configuration
@@ -169,8 +217,6 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 | `BIGRAG_EMBEDDING_API_KEY` | Default embedding API key | — |
 | `BIGRAG_INGESTION_WORKERS` | Background workers | `4` |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload size | `1024` |
-
-See [full documentation](docs/documentation.md) for all options.
 
 ## Supported Formats
 
