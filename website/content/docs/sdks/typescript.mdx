@@ -92,6 +92,9 @@ client.documents.ingestS3(collection, {
   bucket, prefix?, region?, endpoint_url?, access_key?, secret_key?,
   no_sign_request?, metadata?, file_types?
 })
+client.documents.listS3Jobs(collection)
+client.documents.resyncS3Job(collection, jobId)
+client.documents.deleteS3Job(collection, jobId)
 client.documents.streamBatchProgress(collection, documentIds)  // AsyncIterable
 ```
 

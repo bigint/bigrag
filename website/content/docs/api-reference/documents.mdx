@@ -233,6 +233,65 @@ The endpoint returns immediately after listing. Files are downloaded and ingeste
 
 **Errors:** `400` — S3 connection failed or no supported files found.
 
+## List S3 Jobs
+
+```
+GET /v1/collections/{collection_name}/s3-jobs
+```
+
+List all S3 ingest jobs for a collection.
+
+| Parameter | Type | Default | Constraints |
+|-----------|------|---------|-------------|
+| `limit` | integer | `100` | 1–1,000 |
+| `offset` | integer | `0` | 0+ |
+
+**Response** `200`:
+
+```json
+{
+  "jobs": [
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440000",
+      "collection_name": "research",
+      "bucket": "my-docs-bucket",
+      "prefix": "reports/2026/",
+      "region": "us-east-1",
+      "status": "complete",
+      "total_found": 42,
+      "total_ingested": 40,
+      "total_skipped": 2,
+      "error_message": null,
+      "created_at": "2026-04-01T00:00:00Z",
+      "updated_at": "2026-04-01T00:05:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+### Job Statuses
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Job created, waiting to start |
+| `listing` | Listing objects in the S3 bucket |
+| `ingesting` | Downloading and ingesting files |
+| `complete` | All files processed |
+| `failed` | Job failed (see `error_message`) |
+
+## Get S3 Job
+
+```
+GET /v1/collections/{collection_name}/s3-jobs/{job_id}
+```
+
+Get details for a single S3 ingest job.
+
+**Response** `200`: Full job object (same schema as list items above).
+
+**Errors:** `404` — Job not found.
+
 ## Resync S3 Ingest Job
 
 ```
@@ -252,6 +311,30 @@ curl -X POST http://localhost:6100/v1/collections/research/s3-jobs/{job_id}/resy
 {
   "status": "ok",
   "message": "S3 ingest job re-syncing"
+}
+```
+
+**Errors:** `404` — Job not found.
+
+## Delete S3 Job
+
+```
+DELETE /v1/collections/{collection_name}/s3-jobs/{job_id}
+```
+
+Delete an S3 ingest job. Cancels the job if it is currently running.
+
+```bash
+curl -X DELETE http://localhost:6100/v1/collections/research/s3-jobs/{job_id} \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+```
+
+**Response** `200`:
+
+```json
+{
+  "status": "ok",
+  "message": "S3 ingest job deleted"
 }
 ```
 

@@ -130,8 +130,8 @@ result = await client.documents.ingest_s3(
     secret_key="...",
     file_types=["pdf", "docx"],
 )
-# result["documents"] = list of ingested docs
-# result["skipped"] = list of unsupported files
+# result["status"] = "accepted"
+# result["message"] = "S3 ingestion started in background"
 
 # Ingest from a public bucket (no credentials needed)
 result = await client.documents.ingest_s3(
@@ -141,6 +141,11 @@ result = await client.documents.ingest_s3(
     region="ap-south-1",
     no_sign_request=True,
 )
+
+# S3 job management
+jobs = await client.documents.list_s3_jobs("docs")
+await client.documents.resync_s3_job("docs", "job-id")
+await client.documents.delete_s3_job("docs", "job-id")
 
 # List documents
 docs = await client.documents.list("docs", status="ready", limit=20)
@@ -232,7 +237,7 @@ Track document processing in real-time:
 async for event in client.documents.stream_progress("docs", "doc-id"):
     print(f"[{event['progress']:.0%}] {event['step']}: {event['message']}")
 
-# Batch progress (e.g., after S3 ingestion)
+# Batch progress (e.g., after batch upload)
 doc_ids = [d["id"] for d in result["documents"]]
 async for event in client.documents.stream_batch_progress("docs", doc_ids):
     print(
