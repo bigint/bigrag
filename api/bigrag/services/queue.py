@@ -273,6 +273,10 @@ class IngestionQueue:
             chunk_size=job.chunk_size,
         )
 
+        # Ensure Milvus collection exists (may have been dropped by truncate or
+        # missed during creation if Milvus was unavailable)
+        await vector_store.create_collection(job.collection_name, job.embedding_dimension)
+
         batch_size = _settings.ingestion_batch_size
         total_inserted = 0
         total_batches = (len(chunks) + batch_size - 1) // batch_size

@@ -120,7 +120,7 @@ result = await client.documents.batch_upload("docs", [
     "/path/to/b.docx",
 ])
 
-# Ingest from S3 bucket
+# Ingest from S3 bucket (only PDFs and DOCX files)
 result = await client.documents.ingest_s3(
     "docs",
     bucket="my-docs-bucket",
@@ -128,6 +128,7 @@ result = await client.documents.ingest_s3(
     region="us-east-1",
     access_key="AKIA...",
     secret_key="...",
+    file_types=["pdf", "docx"],
 )
 # result["documents"] = list of ingested docs
 # result["skipped"] = list of unsupported files

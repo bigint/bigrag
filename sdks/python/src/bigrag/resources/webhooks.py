@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
-from bigrag._types import (
+from bigrag.types.common import StatusResponse
+from bigrag.types.webhooks import (
     CreateWebhookBody,
     CreateWebhookResponse,
-    StatusResponse,
     UpdateWebhookBody,
     Webhook,
     WebhookDeliveryListResponse,

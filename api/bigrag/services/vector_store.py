@@ -219,6 +219,8 @@ class VectorStore:
         limit: int = 10000,
     ) -> list[dict]:
         col = self._col(collection)
+        if not self.client.has_collection(col):
+            return []
         safe_doc_id = self._safe_id(document_id)
         results = await self._run_with_retry(
             self.client.query,
@@ -236,6 +238,8 @@ class VectorStore:
 
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         col = self._col(collection)
+        if not self.client.has_collection(col):
+            return
         safe_doc_id = self._safe_id(document_id)
         await self._run_with_retry(
             self.client.delete, collection_name=col, filter=f'document_id == "{safe_doc_id}"'

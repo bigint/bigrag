@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
-from bigrag._types import DeleteResponse, UpsertResponse, VectorEntry
+from bigrag.types.vectors import DeleteResponse, UpsertResponse, VectorEntry
 
 if TYPE_CHECKING:
     from bigrag._core import BigRAGCore

@@ -88,14 +88,38 @@ export interface S3IngestBody {
   secret_key?: string;
   no_sign_request?: boolean;
   metadata?: Record<string, unknown>;
+  file_types?: string[];
 }
 
 /** Response for S3 bucket ingestion. */
 export interface S3IngestResponse {
   status: string;
+  message: string;
   documents: Document[];
   total: number;
   skipped: string[];
+}
+
+/** An S3 ingest job. */
+export interface S3Job {
+  id: string;
+  collection_name: string;
+  bucket: string;
+  prefix: string;
+  region: string;
+  status: string;
+  total_found: number;
+  total_ingested: number;
+  total_skipped: number;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Paginated list of S3 ingest jobs. */
+export interface S3JobListResponse {
+  jobs: S3Job[];
+  total: number;
 }
 
 /**

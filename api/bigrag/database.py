@@ -159,6 +159,34 @@ MIGRATIONS = [
     ALTER TABLE collections
         ADD COLUMN IF NOT EXISTS default_search_mode TEXT NOT NULL DEFAULT 'semantic';
     """,
+    """
+    CREATE TABLE IF NOT EXISTS s3_ingest_jobs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        collection_id UUID NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+        collection_name TEXT NOT NULL,
+        bucket TEXT NOT NULL,
+        prefix TEXT NOT NULL DEFAULT '',
+        region TEXT NOT NULL DEFAULT 'us-east-1',
+        endpoint_url TEXT,
+        access_key TEXT,
+        secret_key TEXT,
+        no_sign_request BOOLEAN NOT NULL DEFAULT false,
+        metadata JSONB NOT NULL DEFAULT '{}',
+        file_types JSONB NOT NULL DEFAULT '[]',
+        status TEXT NOT NULL DEFAULT 'pending'
+            CHECK (status IN ('pending', 'listing', 'ingesting', 'complete', 'failed')),
+        total_found INT NOT NULL DEFAULT 0,
+        total_ingested INT NOT NULL DEFAULT 0,
+        total_skipped INT NOT NULL DEFAULT 0,
+        error_message TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS idx_s3_ingest_jobs_status ON s3_ingest_jobs(status);
+    """,
+    """
+    ALTER TABLE s3_ingest_jobs ADD COLUMN IF NOT EXISTS file_types JSONB NOT NULL DEFAULT '[]';
+    """,
 ]
 
 

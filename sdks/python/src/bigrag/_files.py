@@ -4,16 +4,11 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import BinaryIO, Union
+from typing import BinaryIO
 
-FileInput = Union[
-    str,
-    Path,
-    bytes,
-    BinaryIO,
-    tuple[str, bytes],
-    tuple[str, BinaryIO],
-]
+FileInput = (
+    str | Path | bytes | BinaryIO | tuple[str, bytes] | tuple[str, BinaryIO]
+)
 """Accepted file input types for document upload.
 
 - ``str`` / :class:`~pathlib.Path` -- a filesystem path; the file is read

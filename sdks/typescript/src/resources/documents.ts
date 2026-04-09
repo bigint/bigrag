@@ -15,6 +15,7 @@ import type {
   ProgressEvent,
   S3IngestBody,
   S3IngestResponse,
+  S3JobListResponse,
   StatusResponse,
 } from "../types.js";
 
@@ -217,6 +218,62 @@ export class DocumentsResource {
       {
         json: body,
       },
+    );
+  }
+
+  /**
+   * Retrieve a document by ID (without specifying collection).
+   *
+   * @param documentId - The document ID.
+   */
+  getById(documentId: string): Promise<Document> {
+    return this._client._request("GET", `/v1/documents/${encodeURIComponent(documentId)}`);
+  }
+
+  /**
+   * Get chunks for a document by ID (without specifying collection).
+   *
+   * @param documentId - The document ID.
+   */
+  getChunksById(documentId: string): Promise<DocumentChunkListResponse> {
+    return this._client._request("GET", `/v1/documents/${encodeURIComponent(documentId)}/chunks`);
+  }
+
+  /**
+   * List S3 ingest jobs for a collection.
+   *
+   * @param collection - The collection name.
+   */
+  listS3Jobs(collection: string): Promise<S3JobListResponse> {
+    return this._client._request(
+      "GET",
+      `/v1/collections/${encodeURIComponent(collection)}/s3-jobs`,
+    );
+  }
+
+  /**
+   * Delete an S3 ingest job.
+   *
+   * @param collection - The collection name.
+   * @param jobId - The job ID.
+   */
+  deleteS3Job(collection: string, jobId: string): Promise<StatusResponse> {
+    return this._client._request(
+      "DELETE",
+      `/v1/collections/${encodeURIComponent(collection)}/s3-jobs/${encodeURIComponent(jobId)}`,
+    );
+  }
+
+  /**
+   * Re-sync an S3 ingest job. Restarts ingestion, skipping already-ingested files.
+   *
+   * @param collection - The collection name.
+   * @param jobId - The job ID.
+   */
+  resyncS3Job(collection: string, jobId: string): Promise<StatusResponse> {
+    return this._client._request(
+      "POST",
+      `/v1/collections/${encodeURIComponent(collection)}/s3-jobs/${encodeURIComponent(jobId)}/resync`,
     );
   }
 

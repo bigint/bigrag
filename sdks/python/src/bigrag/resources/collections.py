@@ -5,14 +5,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
-from bigrag._types import (
+from bigrag.types.collections import (
     Collection,
     CollectionListResponse,
     CollectionStatsResponse,
     CreateCollectionBody,
-    StatusResponse,
     UpdateCollectionBody,
 )
+from bigrag.types.common import StatusResponse
 
 if TYPE_CHECKING:
     from bigrag._core import BigRAGCore
@@ -70,4 +70,10 @@ class CollectionsResource:
         """Get statistics for a collection."""
         return await self._client._request(
             "GET", f"/v1/collections/{quote(name, safe='')}/stats"
+        )
+
+    async def truncate(self, name: str) -> StatusResponse:
+        """Truncate a collection — delete all documents, vectors, and S3 jobs."""
+        return await self._client._request(
+            "POST", f"/v1/collections/{quote(name, safe='')}/truncate"
         )

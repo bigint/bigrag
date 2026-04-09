@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from pathlib import Path
@@ -549,7 +550,6 @@ async def batch_delete_documents(
     body: BatchDeleteRequest,
     _: dict = Depends(get_current_user),
 ):
-    import asyncio
 
     collection = await get_collection_or_404(collection_name)
 
@@ -610,18 +610,62 @@ async def batch_delete_documents(
 
 
 # ---------------------------------------------------------------------------
+# Global document lookup (without collection name)
+# ---------------------------------------------------------------------------
+
+global_router = APIRouter(prefix="/v1/documents", tags=["documents"])
+
+
+@global_router.get("/{document_id}", response_model=DocumentResponse)
+async def get_document_global(
+    document_id: str,
+    _: dict = Depends(get_current_user),
+):
+    row = await db.fetchrow(
+        "SELECT * FROM documents WHERE id = $1",
+        uuid.UUID(document_id),
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return _row_to_response(dict(row))
+
+
+@global_router.get("/{document_id}/chunks")
+async def get_document_chunks_global(
+    document_id: str,
+    _: dict = Depends(get_current_user),
+):
+    row = await db.fetchrow(
+        "SELECT * FROM documents WHERE id = $1",
+        uuid.UUID(document_id),
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Document not found")
+    collection = await db.fetchrow(
+        "SELECT name FROM collections WHERE id = $1", row["collection_id"],
+    )
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    chunks = await vector_store.get_chunks(collection["name"], document_id)
+    return {"chunks": chunks, "total": len(chunks)}
+
+
+# ---------------------------------------------------------------------------
 # S3 Bucket Ingestion
 # ---------------------------------------------------------------------------
 
-
-@router.post("/s3", response_model=S3IngestResponse, status_code=201)
+@router.post("/s3", response_model=S3IngestResponse, status_code=202)
 async def ingest_from_s3(
     collection_name: str,
     body: S3IngestRequest,
     _: dict = Depends(get_current_user),
 ):
-    """List objects in an S3 bucket and ingest supported files."""
-    import aiobotocore.session
+    """List objects in an S3 bucket and ingest supported files.
+
+    Returns immediately. Listing, downloading, and ingestion all happen
+    in the background and persist across server restarts.
+    """
+    from bigrag.services.s3_ingest import create_job
 
     collection = await get_collection_or_404(collection_name)
     try:
@@ -629,152 +673,23 @@ async def ingest_from_s3(
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Build S3 client config
-    s3_kwargs: dict = {
-        "region_name": body.region,
-    }
-    if body.endpoint_url:
-        s3_kwargs["endpoint_url"] = body.endpoint_url
-    if body.no_sign_request:
-        from botocore import UNSIGNED
-        from botocore.config import Config
-
-        s3_kwargs["config"] = Config(signature_version=UNSIGNED)
-    elif body.access_key and body.secret_key:
-        s3_kwargs["aws_access_key_id"] = body.access_key
-        s3_kwargs["aws_secret_access_key"] = body.secret_key
-
-    logger.info(
-        "s3_ingest: listing objects",
-        collection=collection_name,
+    await create_job(
+        collection_id=str(collection["id"]),
+        collection_name=collection_name,
         bucket=body.bucket,
         prefix=body.prefix,
+        region=body.region,
+        endpoint_url=body.endpoint_url,
+        access_key=body.access_key,
+        secret_key=body.secret_key,
+        no_sign_request=body.no_sign_request,
+        metadata=body.metadata,
+        file_types=body.file_types,
     )
 
-    # List objects from S3
-    session = aiobotocore.session.get_session()
-    objects: list[dict] = []
-    skipped: list[str] = []
-
-    try:
-        async with session.create_client("s3", **s3_kwargs) as s3:
-            paginator = s3.get_paginator("list_objects_v2")
-            list_kwargs = {"Bucket": body.bucket}
-            if body.prefix:
-                list_kwargs["Prefix"] = body.prefix
-
-            async for page in paginator.paginate(**list_kwargs):
-                for obj in page.get("Contents", []):
-                    key = obj["Key"]
-                    if key.endswith("/"):
-                        continue  # skip directory markers
-                    ext = Path(key).suffix.lower()
-                    if ext not in SUPPORTED_EXTENSIONS:
-                        skipped.append(key)
-                        continue
-                    objects.append(obj)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"S3 error: {e}")
-
-    if not objects:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No supported files found in s3://{body.bucket}/{body.prefix}",
-        )
-
-    if len(objects) > 100:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Too many files ({len(objects)}). "
-                "Max 100 per request. Use a more specific prefix."
-            ),
-        )
-
-    logger.info(
-        "s3_ingest: found files",
-        count=len(objects),
-        skipped=len(skipped),
-        bucket=body.bucket,
-    )
-
-    # Download and ingest each object
-    storage = get_storage()
-    documents = []
-
-    async with session.create_client("s3", **s3_kwargs) as s3:
-        for obj in objects:
-            key = obj["Key"]
-            filename = Path(key).name
-            file_ext = Path(key).suffix.lower()
-            doc_id = str(uuid.uuid4())
-            storage_key = f"{collection_name}/{doc_id}{file_ext}"
-
-            try:
-                resp = await s3.get_object(Bucket=body.bucket, Key=key)
-                content = await resp["Body"].read()
-            except Exception as e:
-                logger.warning("s3_ingest: download failed", key=key, error=str(e))
-                skipped.append(key)
-                continue
-
-            if len(content) == 0:
-                skipped.append(key)
-                continue
-
-            await storage.put(storage_key, content)
-
-            meta = {
-                **body.metadata,
-                "source": "s3",
-                "s3_bucket": body.bucket,
-                "s3_key": key,
-            }
-
-            try:
-                row = await db.fetchrow(
-                    """
-                    INSERT INTO documents
-                        (id, collection_id, filename, file_type, file_size, file_path, metadata)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
-                    RETURNING *
-                    """,
-                    uuid.UUID(doc_id),
-                    collection["id"],
-                    filename,
-                    file_ext.lstrip("."),
-                    len(content),
-                    storage_key,
-                    meta,
-                )
-            except Exception:
-                await storage.delete(storage_key)
-                skipped.append(key)
-                continue
-
-            await ingestion_queue.enqueue(
-                create_ingestion_job(
-                    document_id=doc_id,
-                    file_path=storage_key,
-                    collection_name=collection_name,
-                    collection=collection,
-                    fallback_api_key=settings.embedding_api_key,
-                )
-            )
-
-            documents.append(_row_to_response(dict(row)))
-
-    logger.info(
-        "s3_ingest: complete",
-        collection=collection_name,
-        ingested=len(documents),
-        skipped=len(skipped),
-    )
     return S3IngestResponse(
-        status="ok",
-        documents=documents,
-        total=len(documents),
-        skipped=skipped,
+        status="accepted",
+        message="S3 ingestion started in background",
     )
 
 
@@ -790,7 +705,6 @@ async def batch_progress_sse(
     _: dict = Depends(get_current_user),
 ):
     """Stream aggregated progress for multiple documents via SSE."""
-    import asyncio
 
     import orjson
 
@@ -876,7 +790,6 @@ async def document_progress_sse(
     document_id: str,
     _: dict = Depends(get_current_user),
 ):
-    import asyncio
 
     async def generate():
         yield (

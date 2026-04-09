@@ -90,7 +90,7 @@ client.streamDocumentProgress(collection, documentId)  // returns AsyncIterable
 // S3 ingestion
 client.documents.ingestS3(collection, {
   bucket, prefix?, region?, endpoint_url?, access_key?, secret_key?,
-  no_sign_request?, metadata?
+  no_sign_request?, metadata?, file_types?
 })
 client.documents.streamBatchProgress(collection, documentIds)  // AsyncIterable
 ```

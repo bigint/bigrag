@@ -65,6 +65,11 @@ async def lifespan(app: FastAPI):
     await dispatcher.start()
     app.state.webhook_dispatcher = dispatcher
 
+    # Resume incomplete S3 ingest jobs
+    from bigrag.services.s3_ingest import resume_incomplete_jobs
+
+    await resume_incomplete_jobs()
+
     # Cleanup task
     import asyncio
 
@@ -118,15 +123,19 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
     from bigrag.routers.collections import router as collections_router
+    from bigrag.routers.documents import global_router as documents_global_router
     from bigrag.routers.documents import router as documents_router
     from bigrag.routers.health import router as health_router
     from bigrag.routers.query import router as query_router
+    from bigrag.routers.s3_jobs import router as s3_jobs_router
     from bigrag.routers.webhooks import router as webhooks_router
 
     app.include_router(health_router)
     app.include_router(collections_router)
     app.include_router(documents_router)
+    app.include_router(documents_global_router)
     app.include_router(query_router)
+    app.include_router(s3_jobs_router)
     app.include_router(webhooks_router)
 
     return app

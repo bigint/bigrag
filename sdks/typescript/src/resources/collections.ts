@@ -79,4 +79,13 @@ export class CollectionsResource {
   stats(name: string): Promise<CollectionStatsResponse> {
     return this._client._request("GET", `/v1/collections/${encodeURIComponent(name)}/stats`);
   }
+
+  /**
+   * Truncate a collection — delete all documents, vectors, and S3 jobs but keep the collection.
+   *
+   * @param name - The collection name.
+   */
+  truncate(name: string): Promise<StatusResponse> {
+    return this._client._request("POST", `/v1/collections/${encodeURIComponent(name)}/truncate`);
+  }
 }

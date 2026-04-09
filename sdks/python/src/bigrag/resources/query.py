@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
-from bigrag._types import (
+from bigrag.types.query import (
     BatchQueryBody,
     BatchQueryResponse,
     MultiQueryBody,

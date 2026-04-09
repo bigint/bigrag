@@ -176,7 +176,7 @@ data: {"step": "complete", "status": "completed", "message": "Document ready", "
 POST /v1/collections/{collection_name}/documents/s3
 ```
 
-List objects in an S3 bucket (optionally filtered by prefix) and ingest all supported files. Max 100 files per request.
+List objects in an S3 bucket (optionally filtered by prefix) and ingest all supported files.
 
 ```bash
 curl -X POST http://localhost:6100/v1/collections/research/documents/s3 \
@@ -216,23 +216,48 @@ curl -X POST http://localhost:6100/v1/collections/legal/documents/s3 \
 | `secret_key` | string | no | AWS secret access key |
 | `no_sign_request` | boolean | no | Skip request signing for public buckets (default: `false`) |
 | `metadata` | object | no | Additional metadata for all ingested documents |
+| `file_types` | string[] | no | Filter by file extensions (e.g. `["pdf", "docx"]`). Empty means all supported types. |
 
 Each document's metadata will include `source: "s3"`, `s3_bucket`, and `s3_key` automatically.
 
-**Response** `201`:
+The endpoint returns immediately after listing. Files are downloaded and ingested in the background — documents appear with `pending` status as they are processed.
+
+`.tar` archives are automatically extracted and all supported files inside are ingested individually. When `file_types` is set, only matching files inside tars are extracted.
+
+**Response** `202`:
+
+```json
+{
+  "status": "accepted",
+  "message": "S3 ingestion started in background"
+}
+```
+
+**Errors:** `400` — S3 connection failed or no supported files found.
+
+## Resync S3 Ingest Job
+
+```
+POST /v1/collections/{collection_name}/s3-jobs/{job_id}/resync
+```
+
+Reset and re-run an existing S3 ingest job. Cancels the job if it is currently running, resets all counters, and starts a fresh ingestion pass. Already-ingested documents are skipped automatically.
+
+```bash
+curl -X POST http://localhost:6100/v1/collections/research/s3-jobs/{job_id}/resync \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+```
+
+**Response** `200`:
 
 ```json
 {
   "status": "ok",
-  "documents": [
-    { "id": "...", "filename": "report.pdf", "status": "pending", "..." : "..." }
-  ],
-  "total": 5,
-  "skipped": ["reports/2026/readme.txt.bak"]
+  "message": "S3 ingest job re-syncing"
 }
 ```
 
-**Errors:** `400` — S3 connection failed, no supported files found, or too many files (>100).
+**Errors:** `404` — Job not found.
 
 ## Stream Batch Progress
 

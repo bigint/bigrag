@@ -7,28 +7,6 @@ from typing import Any
 from urllib.parse import quote
 
 from bigrag._core import BigRAGCore
-from bigrag._types import (
-    AnalyticsResponse,
-    BatchDeleteDocumentsResponse,
-    BatchGetDocumentsResponse,
-    BatchQueryBody,
-    BatchQueryResponse,
-    BatchStatusResponse,
-    CollectionStatsResponse,
-    Document,
-    DocumentChunkListResponse,
-    DocumentListResponse,
-    EmbeddingModelListResponse,
-    HealthResponse,
-    MultiQueryBody,
-    MultiQueryResponse,
-    PlatformStatsResponse,
-    ProgressEvent,
-    QueryBody,
-    QueryResponse,
-    ReadinessResponse,
-    StatusResponse,
-)
 from bigrag._files import FileInput
 from bigrag.resources import (
     CollectionsResource,
@@ -37,6 +15,28 @@ from bigrag.resources import (
     VectorsResource,
     WebhooksResource,
 )
+from bigrag.types.analytics import AnalyticsResponse
+from bigrag.types.collections import CollectionStatsResponse
+from bigrag.types.common import (
+    HealthResponse,
+    PlatformStatsResponse,
+    ReadinessResponse,
+    StatusResponse,
+)
+from bigrag.types.documents import (
+    BatchDeleteDocumentsResponse,
+    BatchGetDocumentsResponse,
+    BatchStatusResponse,
+    Document,
+    DocumentChunkListResponse,
+    DocumentListResponse,
+)
+from bigrag.types.embeddings import EmbeddingModelListResponse
+from bigrag.types.query import (
+    QueryBody,
+    QueryResponse,
+)
+from bigrag.types.sse import ProgressEvent
 
 
 class BigRAG(BigRAGCore):

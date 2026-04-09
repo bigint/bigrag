@@ -263,3 +263,52 @@ async def delete_collection(name: str, _: dict = Depends(get_current_user)):
     invalidate_collection_cache(name)
 
     return {"status": "ok", "message": f"Collection '{name}' deleted"}
+
+
+@router.post("/{name}/truncate")
+async def truncate_collection(name: str, _: dict = Depends(get_current_user)):
+    """Delete all documents, vectors, storage files, and S3 jobs in a collection."""
+    logger.info(f"truncate: collection={name}")
+    row = await db.fetchrow("SELECT id FROM collections WHERE name = $1", name)
+    if not row:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    collection_id = row["id"]
+
+    # Cancel all running S3 ingest jobs
+    from bigrag.services.s3_ingest import cancel_job
+
+    s3_jobs = await db.fetch(
+        "SELECT id FROM s3_ingest_jobs WHERE collection_id = $1 "
+        "AND status IN ('pending', 'listing', 'ingesting')",
+        collection_id,
+    )
+    for j in s3_jobs:
+        cancel_job(str(j["id"]))
+    await db.execute("DELETE FROM s3_ingest_jobs WHERE collection_id = $1", collection_id)
+    logger.info(f"truncate: cancelled {len(s3_jobs)} S3 jobs name={name}")
+
+    # Flush queued ingestion jobs
+    from bigrag.services.queue import ingestion_queue
+
+    flushed = await ingestion_queue.flush_collection(name)
+    logger.info(f"truncate: flushed {flushed} queued jobs name={name}")
+
+    # Drop all vectors (collection gets recreated on next insert)
+    await vector_store.delete_collection(name)
+    logger.info(f"truncate: vectors cleared name={name}")
+
+    # Delete storage files
+    from bigrag.services.storage import get_storage
+
+    deleted = await get_storage().delete_prefix(f"{name}/")
+    logger.info(f"truncate: storage files removed name={name} count={deleted}")
+
+    # Delete all documents
+    await db.execute("DELETE FROM documents WHERE collection_id = $1", collection_id)
+    await db.execute(
+        "UPDATE collections SET document_count = 0, updated_at = now() WHERE id = $1",
+        collection_id,
+    )
+    logger.info(f"truncate: documents removed name={name}")
+
+    return {"status": "ok", "message": f"Collection '{name}' truncated"}
