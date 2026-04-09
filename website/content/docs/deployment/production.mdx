@@ -16,12 +16,17 @@ services:
     volumes:
       - bigrag_data:/data
     environment:
-      BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag?sslmode=disable
+      BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
       BIGRAG_MILVUS_URI: http://milvus:19530
       BIGRAG_REDIS_URL: redis://redis:6379/0
-      BIGRAG_API_SECRET: your-api-secret
+      BIGRAG_API_SECRET: ${BIGRAG_API_SECRET}
       BIGRAG_LOG_FORMAT: json
       BIGRAG_UPLOAD_DIR: /data/uploads
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+          cpus: "4"
     depends_on:
       postgres:
         condition: service_healthy
@@ -38,6 +43,10 @@ services:
       POSTGRES_DB: bigrag
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bigrag"]
       interval: 10s
@@ -69,6 +78,10 @@ services:
       - milvus_data:/var/lib/milvus
     depends_on:
       - milvus-etcd
+    deploy:
+      resources:
+        limits:
+          memory: 4g
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
       interval: 30s
@@ -80,6 +93,10 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 1536m
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -118,7 +135,13 @@ BIGRAG_LOG_FORMAT=json              # Structured logging
 BIGRAG_STORAGE_BACKEND=s3
 BIGRAG_S3_BUCKET=your-bucket
 BIGRAG_S3_REGION=us-east-1
+BIGRAG_S3_ACCESS_KEY=AKIA...
+BIGRAG_S3_SECRET_KEY=...
 ```
+
+<Callout type="warn">
+  Never commit secrets (API keys, database passwords, S3 credentials) to version control. Use a `.env` file, Docker secrets, or a secrets manager like AWS Secrets Manager or HashiCorp Vault.
+</Callout>
 
 ## Storage Backends
 
@@ -189,6 +212,14 @@ The query embedding dimension doesn't match the collection's configured dimensio
 ### File upload returns 413
 
 File exceeds the max upload size. Increase `BIGRAG_MAX_UPLOAD_SIZE_MB`.
+
+### `/health/ready` returns 503 but services are running
+
+The readiness endpoint also checks the embedding provider. If no collection has an `embedding_api_key` configured, it reports degraded status. Check `/health` first to confirm the server itself is running, then create a collection with a valid embedding key.
+
+### Document uploads fail with embedding errors
+
+Ensure the collection has a valid `embedding_api_key` set. You can provide it when creating the collection or set `BIGRAG_EMBEDDING_API_KEY` as a server-wide default.
 
 ### Slow embedding performance
 

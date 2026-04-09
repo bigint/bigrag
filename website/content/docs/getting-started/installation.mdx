@@ -10,7 +10,8 @@ import { Callout } from "fumadocs-ui/components/callout";
 ## Prerequisites
 
 - **Docker** and **Docker Compose** (recommended)
-- **Python 3.12+** (for running from source)
+- **Python 3.11+** and [**uv**](https://docs.astral.sh/uv/) (for running from source)
+- An **OpenAI** or **Cohere** API key for embeddings
 
 ## Install
 
@@ -52,11 +53,17 @@ docker compose up postgres redis milvus -d
 
 ```bash
 cd api
+uv sync
+uv run python -m bigrag.main
+```
+
+Or with pip:
+
+```bash
+cd api
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
-python -m bigrag.main \
-  --database-url "postgres://bigrag:bigrag@localhost:5433/bigrag" \
-  --milvus-uri "http://localhost:19530"
+python -m bigrag.main
 ```
 </Step>
 </Steps>
@@ -89,5 +96,5 @@ curl http://localhost:6100/health
 ```
 
 <Callout type="info">
-  Interactive Swagger docs are available at [http://localhost:6100/docs](http://localhost:6100/docs) once the server is running.
+  Interactive Swagger docs are available at [http://localhost:6100/docs](http://localhost:6100/docs) once the server is running. Database migrations run automatically on startup.
 </Callout>

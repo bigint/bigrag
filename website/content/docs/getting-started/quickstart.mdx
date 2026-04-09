@@ -25,14 +25,19 @@ curl http://localhost:6100/health
 </Step>
 
 <Step>
-### Set up authentication (optional)
+### Configure environment
 
-If you set `BIGRAG_API_SECRET`, include it in all requests:
+Set your embedding provider key and (optionally) an API secret:
 
 ```bash
+export OPENAI_API_KEY="sk-..."
 export BIGRAG_API_SECRET="your-api-secret"
 export BASE="http://localhost:6100"
 ```
+
+<Callout type="warn">
+  An embedding API key (OpenAI or Cohere) is required to process documents. You can set it globally via `BIGRAG_EMBEDDING_API_KEY` or per-collection when creating one.
+</Callout>
 </Step>
 
 <Step>
@@ -49,6 +54,7 @@ curl -X POST $BASE/v1/collections \
   -d '{
     "name": "knowledge_base",
     "description": "Company knowledge base",
+    "embedding_api_key": "'"$OPENAI_API_KEY"'",
     "chunk_size": 512,
     "chunk_overlap": 50
   }'
@@ -66,6 +72,7 @@ const client = new BigRAG({
 const collection = await client.createCollection({
   name: "knowledge_base",
   description: "Company knowledge base",
+  embedding_api_key: process.env.OPENAI_API_KEY,
   chunk_size: 512,
   chunk_overlap: 50,
 });

@@ -78,6 +78,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_API_SECRET` | Shared API secret (open access if unset) | — |
+| `BIGRAG_SESSION_EXPIRY_HOURS` | Session token expiry in hours | `168` |
 
 ### Database
 
@@ -119,6 +120,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | `BIGRAG_COLLECTION_CACHE_TTL` | Collection cache TTL in seconds | `30` |
 | `BIGRAG_QUEUE_MAX_DEPTH` | Max ingestion queue depth | `10000` |
 | `BIGRAG_WEBHOOK_DELIVERY_TIMEOUT` | Webhook HTTP timeout (seconds) | `10` |
+| `BIGRAG_WEBHOOK_RETRY_DELAYS` | Webhook retry delays in seconds (JSON array) | `[10, 30, 90]` |
 | `BIGRAG_WEBHOOK_CACHE_TTL` | Webhook cache TTL in seconds | `60` |
 
 <Callout type="info">

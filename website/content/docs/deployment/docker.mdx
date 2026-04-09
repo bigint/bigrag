@@ -134,22 +134,26 @@ volumes:
 
 ## Health Checks
 
-Monitor service health:
+bigRAG exposes two health endpoints:
+
+| Endpoint | Purpose | Notes |
+|----------|---------|-------|
+| `/health` | Liveness check | Always returns `200` if the server is running |
+| `/health/ready` | Readiness check | Returns `503` if Postgres, Redis, Milvus, or the embedding provider is unreachable |
 
 ```bash
-# bigRAG
+# Quick liveness check
+curl http://localhost:6100/health
+
+# Full readiness (checks all dependencies)
 curl http://localhost:6100/health/ready
 
-# Postgres
+# Infrastructure services
 docker exec bigrag-postgres pg_isready -U bigrag
-
-# Milvus
 curl -f http://localhost:9091/healthz
-
-# Redis
 docker exec bigrag-redis redis-cli ping
 ```
 
-<Callout type="info">
-  The `/health/ready` endpoint checks connectivity to all dependencies and returns `503` with `"status": "degraded"` if any are unhealthy.
+<Callout type="warn">
+  `/health/ready` also validates the embedding provider. If no collection has an `embedding_api_key` configured, it returns `503`. Use `/health` if you just need to check the server is running.
 </Callout>
