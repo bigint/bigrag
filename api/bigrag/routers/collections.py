@@ -267,14 +267,14 @@ async def delete_collection(name: str, _: dict = Depends(get_current_user)):
 
 @router.post("/{name}/truncate")
 async def truncate_collection(name: str, _: dict = Depends(get_current_user)):
-    """Delete all documents, vectors, storage files, and S3 jobs in a collection."""
+    """Delete all documents, vectors, and storage files in a collection."""
     logger.info(f"truncate: collection={name}")
     row = await db.fetchrow("SELECT id FROM collections WHERE name = $1", name)
     if not row:
         raise HTTPException(status_code=404, detail="Collection not found")
     collection_id = row["id"]
 
-    # Cancel all running S3 ingest jobs
+    # Cancel running S3 ingest jobs (but keep the records)
     from bigrag.services.s3_ingest import cancel_job
 
     s3_jobs = await db.fetch(
@@ -284,8 +284,7 @@ async def truncate_collection(name: str, _: dict = Depends(get_current_user)):
     )
     for j in s3_jobs:
         cancel_job(str(j["id"]))
-    await db.execute("DELETE FROM s3_ingest_jobs WHERE collection_id = $1", collection_id)
-    logger.info(f"truncate: cancelled {len(s3_jobs)} S3 jobs name={name}")
+    logger.info(f"truncate: cancelled {len(s3_jobs)} running S3 jobs name={name}")
 
     # Flush queued ingestion jobs
     from bigrag.services.queue import ingestion_queue

@@ -157,20 +157,36 @@ class IngestionQueue:
             )
         )
 
+    _PLAIN_TEXT_EXTS = {".txt", ".csv", ".tsv", ".md", ".json", ".xml"}
+
     async def _convert_document(self, job: IngestionJob, prefix: str) -> str:
-        """Convert document to text via Docling. Returns extracted text."""
+        """Convert document to text via Docling (or read directly for plain text)."""
         import tempfile
 
         from bigrag.services.storage import get_storage
 
         self._emit(
-            job.document_id, "converting", "processing", "Parsing document with Docling", 0.15
+            job.document_id, "converting", "processing", "Parsing document", 0.15
         )
         t0 = time.monotonic()
 
         file_data = await get_storage().get(job.file_path)
-        suffix = Path(job.file_path).suffix
+        suffix = Path(job.file_path).suffix.lower()
 
+        # Plain text formats: skip Docling, use content directly
+        if suffix in self._PLAIN_TEXT_EXTS:
+            text = file_data.decode("utf-8", errors="replace")
+            if not text.strip():
+                raise ValueError("Document produced no extractable text")
+            elapsed = time.monotonic() - t0
+            logger.info(f"{prefix} plain text read elapsed={elapsed:.2f}s")
+            self._emit(
+                job.document_id, "text_extracted", "processing",
+                f"Extracted {len(text):,} characters", 0.40, chars=len(text),
+            )
+            return text
+
+        # All other formats: use Docling
         def _write_and_convert():
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
             try:
@@ -201,12 +217,8 @@ class IngestionQueue:
         elapsed = time.monotonic() - t0
         logger.info(f"{prefix} docling conversion elapsed={elapsed:.2f}s")
         self._emit(
-            job.document_id,
-            "converted",
-            "processing",
-            f"Parsed in {elapsed:.1f}s",
-            0.35,
-            elapsed=round(elapsed, 2),
+            job.document_id, "converted", "processing",
+            f"Parsed in {elapsed:.1f}s", 0.35, elapsed=round(elapsed, 2),
         )
 
         text = result.document.export_to_markdown()
@@ -217,12 +229,8 @@ class IngestionQueue:
 
         logger.info(f"{prefix} text extracted chars={len(text)}")
         self._emit(
-            job.document_id,
-            "text_extracted",
-            "processing",
-            f"Extracted {len(text):,} characters",
-            0.40,
-            chars=len(text),
+            job.document_id, "text_extracted", "processing",
+            f"Extracted {len(text):,} characters", 0.40, chars=len(text),
         )
         return text
 
