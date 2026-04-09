@@ -192,6 +192,20 @@ curl -X POST http://localhost:6100/v1/collections/research/documents/s3 \
   }'
 ```
 
+For public buckets (like [AWS Open Data](https://registry.opendata.aws/)), use `no_sign_request` instead of credentials:
+
+```bash
+curl -X POST http://localhost:6100/v1/collections/legal/documents/s3 \
+  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bucket": "indian-supreme-court-judgments",
+    "prefix": "judgments/2025/",
+    "region": "ap-south-1",
+    "no_sign_request": true
+  }'
+```
+
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `bucket` | string | yes | S3 bucket name |
@@ -200,6 +214,7 @@ curl -X POST http://localhost:6100/v1/collections/research/documents/s3 \
 | `endpoint_url` | string | no | Custom S3 endpoint (for S3-compatible services like MinIO) |
 | `access_key` | string | no | AWS access key ID |
 | `secret_key` | string | no | AWS secret access key |
+| `no_sign_request` | boolean | no | Skip request signing for public buckets (default: `false`) |
 | `metadata` | object | no | Additional metadata for all ingested documents |
 
 Each document's metadata will include `source: "s3"`, `s3_bucket`, and `s3_key` automatically.

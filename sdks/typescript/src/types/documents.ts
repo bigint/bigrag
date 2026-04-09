@@ -86,6 +86,7 @@ export interface S3IngestBody {
   endpoint_url?: string;
   access_key?: string;
   secret_key?: string;
+  no_sign_request?: boolean;
   metadata?: Record<string, unknown>;
 }
 

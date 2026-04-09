@@ -642,7 +642,12 @@ async def ingest_from_s3(
     }
     if body.endpoint_url:
         s3_kwargs["endpoint_url"] = body.endpoint_url
-    if body.access_key and body.secret_key:
+    if body.no_sign_request:
+        from botocore import UNSIGNED
+        from botocore.config import Config
+
+        s3_kwargs["config"] = Config(signature_version=UNSIGNED)
+    elif body.access_key and body.secret_key:
         s3_kwargs["aws_access_key_id"] = body.access_key
         s3_kwargs["aws_secret_access_key"] = body.secret_key
 

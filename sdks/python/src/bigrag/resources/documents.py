@@ -175,6 +175,7 @@ class DocumentsResource:
         endpoint_url: str | None = None,
         access_key: str | None = None,
         secret_key: str | None = None,
+        no_sign_request: bool = False,
         metadata: dict[str, Any] | None = None,
     ) -> Any:
         """List objects in an S3 bucket and ingest supported files."""
@@ -189,6 +190,8 @@ class DocumentsResource:
             body["access_key"] = access_key
         if secret_key is not None:
             body["secret_key"] = secret_key
+        if no_sign_request:
+            body["no_sign_request"] = True
         if metadata is not None:
             body["metadata"] = metadata
         return await self._client._request(

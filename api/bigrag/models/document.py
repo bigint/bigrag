@@ -66,6 +66,7 @@ class S3IngestRequest(BaseModel):
     endpoint_url: str | None = None
     access_key: str | None = None
     secret_key: str | None = None
+    no_sign_request: bool = False
     metadata: dict = {}
 
 

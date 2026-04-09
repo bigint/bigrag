@@ -428,6 +428,7 @@ class S3IngestBody(TypedDict):
     endpoint_url: NotRequired[str]
     access_key: NotRequired[str]
     secret_key: NotRequired[str]
+    no_sign_request: NotRequired[bool]
     metadata: NotRequired[dict[str, Any]]
 
 

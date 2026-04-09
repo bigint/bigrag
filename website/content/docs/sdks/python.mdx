@@ -132,6 +132,15 @@ result = await client.documents.ingest_s3(
 # result["documents"] = list of ingested docs
 # result["skipped"] = list of unsupported files
 
+# Ingest from a public bucket (no credentials needed)
+result = await client.documents.ingest_s3(
+    "legal",
+    bucket="indian-supreme-court-judgments",
+    prefix="judgments/2025/",
+    region="ap-south-1",
+    no_sign_request=True,
+)
+
 # List documents
 docs = await client.documents.list("docs", status="ready", limit=20)
 
