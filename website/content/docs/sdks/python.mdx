@@ -66,7 +66,7 @@ The SDK follows a resource namespace pattern:
 | Namespace | Description |
 |---|---|
 | `client.collections` | Collection CRUD and stats |
-| `client.documents` | Document upload, URL/S3 ingestion, list, delete, batch ops |
+| `client.documents` | Document upload, S3 ingestion, list, delete, batch ops |
 | `client.queries` | Single, multi-collection, and batch queries |
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
@@ -119,12 +119,6 @@ result = await client.documents.batch_upload("docs", [
     "/path/to/a.pdf",
     "/path/to/b.docx",
 ])
-
-# Ingest from URL
-doc = await client.documents.ingest_url(
-    "docs", "https://example.com/report.pdf",
-    metadata={"source": "web"},
-)
 
 # Ingest from S3 bucket
 result = await client.documents.ingest_s3(

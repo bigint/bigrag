@@ -180,14 +180,6 @@ class CollectionClient:
         """Get analytics for this collection."""
         return await self._client.get_analytics(self._name)
 
-    async def ingest_url(
-        self, url: str, *, metadata: dict[str, Any] | None = None
-    ) -> Document:
-        """Fetch a URL and ingest its content into this collection."""
-        return await self._client.documents.ingest_url(
-            self._name, url, metadata=metadata
-        )
-
     async def ingest_s3(self, **kwargs: Any) -> Any:
         """Ingest files from an S3 bucket into this collection."""
         return await self._client.documents.ingest_s3(self._name, **kwargs)

@@ -216,9 +216,11 @@ OpenRAG allows users to customize the system prompt / agent instructions via the
 
 ### 2.8 URL Ingestion
 
-**Severity: ~~High~~ Resolved**
+**Severity: High**
 
-OpenRAG can ingest web pages by URL. bigRAG now also supports URL ingestion via `POST /v1/collections/{name}/documents/url` — content is fetched, saved, and processed through the full Docling pipeline with SSE progress tracking.
+OpenRAG can ingest web pages by URL — paste a link and the content is fetched and added to the knowledge base.
+
+**bigRAG gap:** No URL ingestion support. Documents must be uploaded as files or ingested from S3.
 
 ### 2.9 Chat-Context File Upload
 
@@ -653,7 +655,7 @@ A complete feature-by-feature comparison:
 | Document reprocessing | Yes | No | bigRAG ahead |
 | Chunk retrieval per document | Yes | No | bigRAG ahead |
 | Original file download | Yes | No | bigRAG ahead |
-| URL ingestion | Yes | Yes | Resolved |
+| URL ingestion | No | Yes | High |
 | Cloud storage connectors | S3 | Yes (5 providers) | Partial |
 | **Search** | | | |
 | Semantic search | Yes | Yes | -- |
@@ -791,7 +793,7 @@ Based on this analysis, here are the recommended priorities for closing the most
 
 ### Tier 3 — Medium (nice-to-have improvements)
 
-11. **URL Ingestion** — Accept URLs as document sources, fetch and parse the content.
+11. **URL Ingestion** — Accept URLs as document sources, fetch and parse the content. Currently not supported.
 12. **Encryption at Rest** — Add application-level encryption for sensitive document content.
 13. **Document-Level ACL** — Add `allowed_users` / `allowed_groups` metadata filtering.
 14. **Prefix/Autocomplete Search** — Add partial-match query support.

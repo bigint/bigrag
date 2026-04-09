@@ -59,11 +59,6 @@ class BatchDeleteResponse(BaseModel):
     errors: list[dict] = []
 
 
-class UrlIngestRequest(BaseModel):
-    url: str
-    metadata: dict = {}
-
-
 class S3IngestRequest(BaseModel):
     bucket: str
     prefix: str = ""

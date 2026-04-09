@@ -62,7 +62,6 @@ from bigrag._types import (
     UpdateCollectionBody,
     UpdateWebhookBody,
     UpsertResponse,
-    UrlIngestBody,
     VectorEntry,
     Webhook,
     WebhookDelivery,
@@ -160,7 +159,6 @@ __all__ = [
     "EmbeddingModelInfo",
     "EmbeddingModelListResponse",
     # Types - Ingestion Sources
-    "UrlIngestBody",
     "S3IngestBody",
     "S3IngestResponse",
     # Types - SSE

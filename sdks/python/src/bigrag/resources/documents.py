@@ -165,23 +165,6 @@ class DocumentsResource:
             json={"document_ids": document_ids},
         )
 
-    async def ingest_url(
-        self,
-        collection: str,
-        url: str,
-        *,
-        metadata: dict[str, Any] | None = None,
-    ) -> Document:
-        """Fetch a URL and ingest its content as a document."""
-        body: dict[str, Any] = {"url": url}
-        if metadata is not None:
-            body["metadata"] = metadata
-        return await self._client._request(
-            "POST",
-            f"/v1/collections/{quote(collection, safe='')}/documents/url",
-            json=body,
-        )
-
     async def ingest_s3(
         self,
         collection: str,

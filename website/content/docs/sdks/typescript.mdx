@@ -87,8 +87,7 @@ client.getDocumentChunks(collection, documentId)
 client.getDocumentFileUrl(collection, documentId)  // returns URL string
 client.streamDocumentProgress(collection, documentId)  // returns AsyncIterable
 
-// URL & S3 ingestion
-client.documents.ingestUrl(collection, { url, metadata? })
+// S3 ingestion
 client.documents.ingestS3(collection, {
   bucket, prefix?, region?, endpoint_url?, access_key?, secret_key?, metadata?
 })

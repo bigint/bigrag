@@ -421,11 +421,6 @@ class EmbeddingModelListResponse(TypedDict):
 # ---------------------------------------------------------------------------
 
 
-class UrlIngestBody(TypedDict):
-    url: str
-    metadata: NotRequired[dict[str, Any]]
-
-
 class S3IngestBody(TypedDict):
     bucket: str
     prefix: NotRequired[str]

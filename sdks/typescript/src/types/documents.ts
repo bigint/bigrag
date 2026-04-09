@@ -78,12 +78,6 @@ export interface BatchDeleteDocumentsResponse {
   errors: Array<{ document_id: string; error: string }>;
 }
 
-/** Request body for URL ingestion. */
-export interface UrlIngestBody {
-  url: string;
-  metadata?: Record<string, unknown>;
-}
-
 /** Request body for S3 bucket ingestion. */
 export interface S3IngestBody {
   bucket: string;

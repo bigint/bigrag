@@ -16,7 +16,6 @@ import type {
   S3IngestBody,
   S3IngestResponse,
   StatusResponse,
-  UrlIngestBody,
 } from "../types.js";
 
 /**
@@ -202,22 +201,6 @@ export class DocumentsResource {
       "POST",
       `/v1/collections/${encodeURIComponent(collection)}/documents/batch/delete`,
       { json: { document_ids: documentIds } },
-    );
-  }
-
-  /**
-   * Fetch a URL and ingest its content as a document.
-   *
-   * @param collection - The target collection name.
-   * @param body - URL and optional metadata.
-   */
-  ingestUrl(collection: string, body: UrlIngestBody): Promise<Document> {
-    return this._client._request(
-      "POST",
-      `/v1/collections/${encodeURIComponent(collection)}/documents/url`,
-      {
-        json: body,
-      },
     );
   }
 
