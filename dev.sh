@@ -19,7 +19,6 @@ NO_INSTALL=false
 if [ $# -eq 0 ]; then
   START_INFRA=true
   START_BACKEND=true
-  START_WEBSITE=true
 else
   for arg in "$@"; do
     case "$arg" in
@@ -29,7 +28,7 @@ else
       --no-install) NO_INSTALL=true ;;
       --help|-h)
         echo "Usage: ./dev.sh [flags]"
-        echo "  (no flags)    Start everything (infra + backend + website)"
+        echo "  (no flags)    Start infra + backend"
         echo "  --infra       Start only Docker services"
         echo "  --backend     Start Docker services + Python backend"
         echo "  --website     Start only the docs website"
