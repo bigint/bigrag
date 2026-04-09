@@ -21,10 +21,8 @@ dependencies = [
     "redis[hiredis]>=5.2.0",
     "orjson>=3.10.0",
     "structlog>=24.4.0",
+    "aiobotocore>=2.18.0",
 ]
-
-[project.optional-dependencies]
-s3 = ["aiobotocore>=2.18.0"]
 
 [dependency-groups]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.24.0", "ruff>=0.8.0"]

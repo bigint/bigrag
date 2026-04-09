@@ -621,14 +621,7 @@ async def ingest_from_s3(
     _: dict = Depends(get_current_user),
 ):
     """List objects in an S3 bucket and ingest supported files."""
-
-    try:
-        import aiobotocore.session
-    except ImportError:
-        raise HTTPException(
-            status_code=400,
-            detail="S3 ingestion requires aiobotocore. Install with: pip install 'bigrag[s3]'",
-        )
+    import aiobotocore.session
 
     collection = await get_collection_or_404(collection_name)
     try:

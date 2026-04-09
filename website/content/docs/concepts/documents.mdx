@@ -53,10 +53,6 @@ curl -X POST http://localhost:6100/v1/collections/legal/documents/s3 \
   -d '{"bucket": "indian-supreme-court-judgments", "prefix": "judgments/2025/", "region": "ap-south-1", "no_sign_request": true}'
 ```
 
-<Callout type="info">
-  S3 ingestion requires the `aiobotocore` dependency. Install with: `pip install 'bigrag[s3]'`
-</Callout>
-
 ## Ingestion Pipeline
 
 Regardless of ingestion method, every document goes through the same pipeline:
