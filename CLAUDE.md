@@ -3,7 +3,7 @@
 ## Project Structure
 
 - `api/` — Python/FastAPI backend (Docling ingestion + Milvus vector DB)
-- `sdks/typescript/` — TypeScript SDK
+- `sdks/typescript/` — TypeScript SDK (`@bigrag/client`)
 - `website/` — Documentation site (Next.js + Fumadocs, content in `website/content/docs/`)
 
 ## Style Guide
@@ -17,6 +17,22 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 - **Metadata DB**: PostgreSQL 17
 - **Ingestion**: Docling (PDF, DOCX, PPTX, HTML, Markdown, images)
 - **Embedding**: OpenAI and Cohere
+
+## Package Management
+
+- **Python backend**: `uv` (lockfile at `api/uv.lock`)
+- **TypeScript SDK + Website**: `pnpm` workspaces (root `pnpm-workspace.yaml`)
+
+## Linting
+
+- **Python**: `ruff` (config in `api/pyproject.toml`)
+- **TypeScript/JS**: `biome` (config in `biome.jsonc`)
+
+## Architecture Notes
+
+- Backend uses FastAPI dependency injection via `bigrag/deps.py` and `app.state`
+- Services: `event_bus.py` (SSE), `ingestion_job.py` (job model), `conversion.py` (Docling), `cleanup.py` (periodic), `queue.py` (Redis workers)
+- SDK uses resource namespaces: `client.collections.list()`, `client.documents.upload()`, etc.
 
 ## Documentation
 
@@ -36,10 +52,13 @@ If a feature is removed, remove it from the docs too. Never leave stale referenc
 ## Development
 
 ```bash
-./dev.sh  # starts Postgres, Redis, Milvus, Python backend
+./dev.sh            # starts everything (Postgres, Redis, Milvus, backend, website)
+./dev.sh --backend  # backend + infrastructure only
+./dev.sh --website  # docs site only
 ```
 
 - Backend API: http://localhost:6100 (Swagger docs at /docs)
+- Website: http://localhost:3100
 - Postgres: localhost:5433
 - Redis: localhost:6380
 - Milvus: localhost:19530

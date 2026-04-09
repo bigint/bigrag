@@ -86,6 +86,12 @@ client.reprocessDocument(collection, documentId)
 client.getDocumentChunks(collection, documentId)
 client.getDocumentFileUrl(collection, documentId)  // returns URL string
 client.streamDocumentProgress(collection, documentId)  // returns AsyncIterable
+
+// S3 ingestion
+client.documents.ingestS3(collection, {
+  bucket, prefix?, region?, endpoint_url?, access_key?, secret_key?, metadata?
+})
+client.documents.streamBatchProgress(collection, documentIds)  // AsyncIterable
 ```
 
 File uploads accept `File`, `Blob`, `Buffer`, `Uint8Array`, or `{ path: string; name?: string }`.

@@ -1,16 +1,19 @@
+import type { BigRAGOptions } from "./core.js";
+import { BigRAGCore } from "./core.js";
 import {
-  APIConnectionError,
-  APITimeoutError,
-  errorForStatus,
-} from "./errors.js";
-import { parseSSEStream } from "./sse.js";
+  CollectionsResource,
+  DocumentsResource,
+  QueryResource,
+  VectorsResource,
+  WebhooksResource,
+} from "./resources/index.js";
 import type {
   AnalyticsResponse,
   BatchDeleteDocumentsResponse,
   BatchGetDocumentsResponse,
   BatchQueryBody,
-  BatchStatusResponse,
   BatchQueryResponse,
+  BatchStatusResponse,
   Collection,
   CollectionListOptions,
   CollectionListResponse,
@@ -44,595 +47,406 @@ import type {
   WebhookTestResponse,
 } from "./types.js";
 
-const DEFAULT_BASE_URL = "http://localhost:6100";
-const DEFAULT_TIMEOUT = 120_000;
-const DEFAULT_MAX_RETRIES = 2;
-const USER_AGENT = "bigrag-typescript/0.1.0";
+export type { BigRAGOptions };
 
-export interface BigRAGOptions {
-  apiKey?: string;
-  baseUrl?: string;
-  timeout?: number;
-  maxRetries?: number;
-  fetch?: typeof globalThis.fetch;
-}
-
-export class BigRAG {
-  readonly apiKey: string;
-  readonly baseUrl: string;
-  readonly timeout: number;
-  readonly maxRetries: number;
-  private readonly _fetch: typeof globalThis.fetch;
+/**
+ * Main bigRAG client.
+ *
+ * Exposes **resource namespaces** (`collections`, `documents`, `queries`,
+ * `vectors`, `webhooks`) following the Stripe SDK pattern, as well as
+ * backward-compatible flat methods (marked `@deprecated`).
+ *
+ * Platform-level endpoints (`health`, `readiness`, `getStats`,
+ * `listEmbeddingModels`) remain directly on this class.
+ */
+export class BigRAG extends BigRAGCore {
+  /** Collection management resource. */
+  readonly collections: CollectionsResource;
+  /** Document management resource. */
+  readonly documents: DocumentsResource;
+  /** Query resource (single, multi, and batch). */
+  readonly queries: QueryResource;
+  /** Raw vector operations resource. */
+  readonly vectors: VectorsResource;
+  /** Webhook management resource. */
+  readonly webhooks: WebhooksResource;
 
   constructor(options: BigRAGOptions = {}) {
-    this.apiKey =
-      options.apiKey ??
-      (typeof process !== "undefined"
-        ? (process.env as Record<string, string | undefined>).BIGRAG_API_KEY ?? ""
-        : "");
-    this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
-    this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
-    this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
-    this._fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+    super(options);
+    this.collections = new CollectionsResource(this);
+    this.documents = new DocumentsResource(this);
+    this.queries = new QueryResource(this);
+    this.vectors = new VectorsResource(this);
+    this.webhooks = new WebhooksResource(this);
   }
 
-  // ---- Internal request helpers ----
+  // ---- Platform-level endpoints (not scoped to a resource) ----
 
-  private _headers(): Record<string, string> {
-    const h: Record<string, string> = {
-      "User-Agent": USER_AGENT,
-    };
-    if (this.apiKey) h["Authorization"] = `Bearer ${this.apiKey}`;
-    return h;
-  }
-
-  private async _fetchWithRetry(
-    url: string,
-    init: RequestInit,
-  ): Promise<Response> {
-    let lastError: Error | undefined;
-
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      if (attempt > 0) {
-        await sleep(Math.min(0.5 * 2 ** attempt, 4) * 1000);
-      }
-
-      let response: Response;
-      try {
-        response = await this._fetch(url, {
-          ...init,
-          signal: AbortSignal.timeout(this.timeout),
-        });
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        if (
-          lastError.name === "TimeoutError" ||
-          lastError.name === "AbortError"
-        ) {
-          if (attempt < this.maxRetries) continue;
-          throw new APITimeoutError(lastError.message);
-        }
-        if (attempt < this.maxRetries) continue;
-        throw new APIConnectionError(lastError.message);
-      }
-
-      if (response.status >= 500 && attempt < this.maxRetries) {
-        lastError = new Error(
-          await response.text().catch(() => "Server error"),
-        );
-        continue;
-      }
-
-      if (response.status === 429 && attempt < this.maxRetries) {
-        lastError = new Error("Rate limited");
-        continue;
-      }
-
-      if (response.status >= 400) {
-        await this._throwForStatus(response);
-      }
-
-      return response;
-    }
-
-    throw new APIConnectionError(lastError?.message ?? "Request failed");
-  }
-
-  private async _throwForStatus(response: Response): Promise<never> {
-    let errBody: {
-      detail?: string;
-      error?: { message?: string; code?: string };
-      message?: string;
-    };
-    try {
-      errBody = await response.json();
-    } catch {
-      errBody = {};
-    }
-    const message =
-      errBody.detail ??
-      errBody.error?.message ??
-      errBody.message ??
-      response.statusText;
-    const code = errBody.error?.code;
-    throw errorForStatus(response.status, message, code);
-  }
-
-  private async _request<T>(
-    method: string,
-    path: string,
-    opts?: { json?: unknown; params?: Record<string, string> },
-  ): Promise<T> {
-    let url = `${this.baseUrl}${path}`;
-    if (opts?.params) {
-      url += `?${new URLSearchParams(opts.params)}`;
-    }
-
-    const headers: Record<string, string> = { ...this._headers() };
-    let body: string | undefined;
-    if (opts?.json !== undefined) {
-      headers["Content-Type"] = "application/json";
-      body = JSON.stringify(opts.json);
-    }
-
-    const response = await this._fetchWithRetry(url, { method, headers, body });
-
-    if (response.status === 204) return { status: "ok" } as T;
-    const text = await response.text();
-    if (!text) return { status: "ok" } as T;
-    return JSON.parse(text) as T;
-  }
-
-  private async _requestFormData<T>(
-    path: string,
-    formData: FormData,
-  ): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
-    const response = await this._fetchWithRetry(url, {
-      method: "POST",
-      headers: this._headers(),
-      body: formData,
-    });
-    return (await response.json()) as T;
-  }
-
-  // ---- Helpers for file input normalization ----
-
-  private async _buildUploadForm(
-    file: FileInput,
-    metadata?: Record<string, unknown>,
-  ): Promise<FormData> {
-    const form = new FormData();
-
-    if (file instanceof Blob) {
-      // File extends Blob, so this handles both File and Blob
-      const name = file instanceof File ? file.name : "document";
-      form.append("file", file, name);
-    } else if (file instanceof Uint8Array || (typeof Buffer !== "undefined" && Buffer.isBuffer(file))) {
-      form.append("file", new Blob([file as BlobPart]), "document");
-    } else if (typeof file === "object" && "path" in file) {
-      // Node.js file path — dynamic import to avoid breaking browser bundles
-      const { readFile } = await import("node:fs/promises");
-      const { basename } = await import("node:path");
-      const data = await readFile(file.path);
-      const name = file.name ?? basename(file.path);
-      form.append("file", new Blob([data]), name);
-    }
-
-    if (metadata) {
-      form.append("metadata", JSON.stringify(metadata));
-    }
-
-    return form;
-  }
-
-  // ---- Health ----
-
+  /**
+   * Check whether the API server is running.
+   *
+   * @returns Health status and version.
+   */
   health(): Promise<HealthResponse> {
     return this._request("GET", "/health");
   }
 
+  /**
+   * Check whether all backing services (Postgres, Milvus, Redis) are reachable.
+   *
+   * @returns Readiness status for each dependency.
+   */
   readiness(): Promise<ReadinessResponse> {
     return this._request("GET", "/health/ready");
   }
 
-  // ---- Collections ----
-
-  listCollections(options?: CollectionListOptions): Promise<CollectionListResponse> {
-    const params: Record<string, string> = {};
-    if (options?.name) params.name = options.name;
-    if (options?.limit !== undefined) params.limit = String(options.limit);
-    if (options?.offset !== undefined) params.offset = String(options.offset);
-    return this._request("GET", "/v1/collections", { params });
-  }
-
-  getCollectionStats(name: string): Promise<CollectionStatsResponse> {
-    return this._request(
-      "GET",
-      `/v1/collections/${encodeURIComponent(name)}/stats`,
-    );
-  }
-
-  createCollection(body: CreateCollectionBody): Promise<Collection> {
-    return this._request("POST", "/v1/collections", { json: body });
-  }
-
-  getCollection(name: string): Promise<Collection> {
-    return this._request("GET", `/v1/collections/${encodeURIComponent(name)}`);
-  }
-
-  updateCollection(
-    name: string,
-    body: UpdateCollectionBody,
-  ): Promise<Collection> {
-    return this._request("PUT", `/v1/collections/${encodeURIComponent(name)}`, {
-      json: body,
-    });
-  }
-
-  deleteCollection(name: string): Promise<StatusResponse> {
-    return this._request("DELETE", `/v1/collections/${encodeURIComponent(name)}`);
-  }
-
-  // ---- Documents ----
-
-  async uploadDocument(
-    collection: string,
-    file: FileInput,
-    metadata?: Record<string, unknown>,
-  ): Promise<Document> {
-    const form = await this._buildUploadForm(file, metadata);
-    return this._requestFormData(
-      `/v1/collections/${encodeURIComponent(collection)}/documents`,
-      form,
-    );
-  }
-
-  listDocuments(
-    collection: string,
-    options?: DocumentListOptions,
-  ): Promise<DocumentListResponse> {
-    const params: Record<string, string> = {};
-    if (options?.status) params.status = options.status;
-    if (options?.limit !== undefined) params.limit = String(options.limit);
-    if (options?.offset !== undefined) params.offset = String(options.offset);
-    return this._request(
-      "GET",
-      `/v1/collections/${encodeURIComponent(collection)}/documents`,
-      { params },
-    );
-  }
-
-  getDocument(collection: string, documentId: string): Promise<Document> {
-    return this._request(
-      "GET",
-      `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}`,
-    );
-  }
-
-  deleteDocument(
-    collection: string,
-    documentId: string,
-  ): Promise<StatusResponse> {
-    return this._request(
-      "DELETE",
-      `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}`,
-    );
-  }
-
-  async batchUploadDocuments(
-    collection: string,
-    files: FileInput[],
-    metadata?: Record<string, unknown>,
-  ): Promise<DocumentListResponse> {
-    const form = new FormData();
-
-    for (const file of files) {
-      if (file instanceof Blob) {
-        const name = file instanceof File ? file.name : "document";
-        form.append("files", file, name);
-      } else if (file instanceof Uint8Array || (typeof Buffer !== "undefined" && Buffer.isBuffer(file))) {
-        form.append("files", new Blob([file as BlobPart]), "document");
-      } else if (typeof file === "object" && "path" in file) {
-        const { readFile } = await import("node:fs/promises");
-        const { basename } = await import("node:path");
-        const data = await readFile(file.path);
-        const name = file.name ?? basename(file.path);
-        form.append("files", new Blob([data]), name);
-      }
-    }
-
-    if (metadata) {
-      form.append("metadata", JSON.stringify(metadata));
-    }
-
-    return this._requestFormData(
-      `/v1/collections/${encodeURIComponent(collection)}/documents/batch/upload`,
-      form,
-    );
-  }
-
-  batchGetStatus(
-    collection: string,
-    documentIds: string[],
-  ): Promise<BatchStatusResponse> {
-    return this._request(
-      "POST",
-      `/v1/collections/${encodeURIComponent(collection)}/documents/batch/status`,
-      { json: { document_ids: documentIds } },
-    );
-  }
-
-  batchGetDocuments(
-    collection: string,
-    documentIds: string[],
-  ): Promise<BatchGetDocumentsResponse> {
-    return this._request(
-      "POST",
-      `/v1/collections/${encodeURIComponent(collection)}/documents/batch/get`,
-      { json: { document_ids: documentIds } },
-    );
-  }
-
-  batchDeleteDocuments(
-    collection: string,
-    documentIds: string[],
-  ): Promise<BatchDeleteDocumentsResponse> {
-    return this._request(
-      "POST",
-      `/v1/collections/${encodeURIComponent(collection)}/documents/batch/delete`,
-      { json: { document_ids: documentIds } },
-    );
-  }
-
-  reprocessDocument(
-    collection: string,
-    documentId: string,
-  ): Promise<StatusResponse> {
-    return this._request(
-      "POST",
-      `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/reprocess`,
-    );
-  }
-
-  getDocumentChunks(
-    collection: string,
-    documentId: string,
-  ): Promise<DocumentChunkListResponse> {
-    return this._request(
-      "GET",
-      `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/chunks`,
-    );
-  }
-
-  getDocumentFileUrl(collection: string, documentId: string): string {
-    const path = `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/file`;
-    if (this.apiKey) {
-      return `${this.baseUrl}${path}?token=${encodeURIComponent(this.apiKey)}`;
-    }
-    return `${this.baseUrl}${path}`;
-  }
-
-  async *streamDocumentProgress(
-    collection: string,
-    documentId: string,
-  ): AsyncGenerator<ProgressEvent> {
-    const path = `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/progress`;
-    const tokenParam = this.apiKey
-      ? `?token=${encodeURIComponent(this.apiKey)}`
-      : "";
-    const url = `${this.baseUrl}${path}${tokenParam}`;
-
-    const response = await this._fetch(url, {
-      method: "GET",
-      headers: { "User-Agent": USER_AGENT },
-    });
-
-    if (!response.ok) {
-      throw errorForStatus(response.status, response.statusText);
-    }
-
-    yield* parseSSEStream(response);
-  }
-
-  // ---- Query ----
-
-  query(collection: string, body: QueryBody): Promise<QueryResponse> {
-    return this._request(
-      "POST",
-      `/v1/collections/${encodeURIComponent(collection)}/query`,
-      { json: body },
-    );
-  }
-
-  // ---- Vectors ----
-
-  upsertVectors(
-    collection: string,
-    vectors: VectorEntry[],
-  ): Promise<UpsertResponse> {
-    return this._request(
-      "POST",
-      `/v1/collections/${encodeURIComponent(collection)}/vectors/upsert`,
-      { json: { vectors } },
-    );
-  }
-
-  deleteVectors(
-    collection: string,
-    ids: string[],
-  ): Promise<DeleteResponse> {
-    return this._request(
-      "POST",
-      `/v1/collections/${encodeURIComponent(collection)}/vectors/delete`,
-      { json: { ids } },
-    );
-  }
-
-  // ---- Embeddings ----
-
-  listEmbeddingModels(): Promise<EmbeddingModelListResponse> {
-    return this._request("GET", "/v1/embeddings/models");
-  }
-
-  // ---- Stats ----
-
+  /**
+   * Retrieve platform-wide statistics.
+   *
+   * @returns Collection, document, webhook, and queue counts.
+   */
   getStats(): Promise<PlatformStatsResponse> {
     return this._request("GET", "/v1/stats");
   }
 
-  // ---- Webhooks ----
+  /**
+   * List all available embedding models.
+   *
+   * @returns Array of embedding model information.
+   */
+  listEmbeddingModels(): Promise<EmbeddingModelListResponse> {
+    return this._request("GET", "/v1/embeddings/models");
+  }
 
+  /**
+   * Retrieve analytics for a specific collection.
+   *
+   * @param collection - The collection name.
+   * @returns Analytics data including query stats and top queries.
+   */
+  getAnalytics(collection: string): Promise<AnalyticsResponse> {
+    return this._request("GET", `/v1/collections/${encodeURIComponent(collection)}/analytics`);
+  }
+
+  // ---- Backward-compatible flat methods ----
+
+  /**
+   * @deprecated Use `client.collections.list()` instead.
+   */
+  listCollections(options?: CollectionListOptions): Promise<CollectionListResponse> {
+    return this.collections.list(options);
+  }
+
+  /**
+   * @deprecated Use `client.collections.stats(name)` instead.
+   */
+  getCollectionStats(name: string): Promise<CollectionStatsResponse> {
+    return this.collections.stats(name);
+  }
+
+  /**
+   * @deprecated Use `client.collections.create(body)` instead.
+   */
+  createCollection(body: CreateCollectionBody): Promise<Collection> {
+    return this.collections.create(body);
+  }
+
+  /**
+   * @deprecated Use `client.collections.get(name)` instead.
+   */
+  getCollection(name: string): Promise<Collection> {
+    return this.collections.get(name);
+  }
+
+  /**
+   * @deprecated Use `client.collections.update(name, body)` instead.
+   */
+  updateCollection(name: string, body: UpdateCollectionBody): Promise<Collection> {
+    return this.collections.update(name, body);
+  }
+
+  /**
+   * @deprecated Use `client.collections.delete(name)` instead.
+   */
+  deleteCollection(name: string): Promise<StatusResponse> {
+    return this.collections.delete(name);
+  }
+
+  /**
+   * @deprecated Use `client.documents.upload(collection, file, metadata)` instead.
+   */
+  uploadDocument(
+    collection: string,
+    file: FileInput,
+    metadata?: Record<string, unknown>,
+  ): Promise<Document> {
+    return this.documents.upload(collection, file, metadata);
+  }
+
+  /**
+   * @deprecated Use `client.documents.list(collection, options)` instead.
+   */
+  listDocuments(collection: string, options?: DocumentListOptions): Promise<DocumentListResponse> {
+    return this.documents.list(collection, options);
+  }
+
+  /**
+   * @deprecated Use `client.documents.get(collection, documentId)` instead.
+   */
+  getDocument(collection: string, documentId: string): Promise<Document> {
+    return this.documents.get(collection, documentId);
+  }
+
+  /**
+   * @deprecated Use `client.documents.delete(collection, documentId)` instead.
+   */
+  deleteDocument(collection: string, documentId: string): Promise<StatusResponse> {
+    return this.documents.delete(collection, documentId);
+  }
+
+  /**
+   * @deprecated Use `client.documents.batchUpload(collection, files, metadata)` instead.
+   */
+  batchUploadDocuments(
+    collection: string,
+    files: FileInput[],
+    metadata?: Record<string, unknown>,
+  ): Promise<DocumentListResponse> {
+    return this.documents.batchUpload(collection, files, metadata);
+  }
+
+  /**
+   * @deprecated Use `client.documents.batchGetStatus(collection, documentIds)` instead.
+   */
+  batchGetStatus(collection: string, documentIds: string[]): Promise<BatchStatusResponse> {
+    return this.documents.batchGetStatus(collection, documentIds);
+  }
+
+  /**
+   * @deprecated Use `client.documents.batchGet(collection, documentIds)` instead.
+   */
+  batchGetDocuments(collection: string, documentIds: string[]): Promise<BatchGetDocumentsResponse> {
+    return this.documents.batchGet(collection, documentIds);
+  }
+
+  /**
+   * @deprecated Use `client.documents.batchDelete(collection, documentIds)` instead.
+   */
+  batchDeleteDocuments(
+    collection: string,
+    documentIds: string[],
+  ): Promise<BatchDeleteDocumentsResponse> {
+    return this.documents.batchDelete(collection, documentIds);
+  }
+
+  /**
+   * @deprecated Use `client.documents.reprocess(collection, documentId)` instead.
+   */
+  reprocessDocument(collection: string, documentId: string): Promise<StatusResponse> {
+    return this.documents.reprocess(collection, documentId);
+  }
+
+  /**
+   * @deprecated Use `client.documents.getChunks(collection, documentId)` instead.
+   */
+  getDocumentChunks(collection: string, documentId: string): Promise<DocumentChunkListResponse> {
+    return this.documents.getChunks(collection, documentId);
+  }
+
+  /**
+   * @deprecated Use `client.documents.getFileUrl(collection, documentId)` instead.
+   */
+  getDocumentFileUrl(collection: string, documentId: string): string {
+    return this.documents.getFileUrl(collection, documentId);
+  }
+
+  /**
+   * @deprecated Use `client.documents.streamProgress(collection, documentId)` instead.
+   */
+  streamDocumentProgress(collection: string, documentId: string): AsyncGenerator<ProgressEvent> {
+    return this.documents.streamProgress(collection, documentId);
+  }
+
+  /**
+   * @deprecated Use `client.queries.query(collection, body)` instead.
+   */
+  query(collection: string, body: QueryBody): Promise<QueryResponse> {
+    return this.queries.query(collection, body);
+  }
+
+  /**
+   * @deprecated Use `client.vectors.upsert(collection, vectors)` instead.
+   */
+  upsertVectors(collection: string, vectors: VectorEntry[]): Promise<UpsertResponse> {
+    return this.vectors.upsert(collection, vectors);
+  }
+
+  /**
+   * @deprecated Use `client.vectors.delete(collection, ids)` instead.
+   */
+  deleteVectors(collection: string, ids: string[]): Promise<DeleteResponse> {
+    return this.vectors.delete(collection, ids);
+  }
+
+  /**
+   * @deprecated Use `client.webhooks.create(body)` instead.
+   */
   createWebhook(body: CreateWebhookBody): Promise<CreateWebhookResponse> {
-    return this._request("POST", "/v1/admin/webhooks", { json: body });
+    return this.webhooks.create(body);
   }
 
+  /**
+   * @deprecated Use `client.webhooks.list()` instead.
+   */
   listWebhooks(): Promise<WebhookListResponse> {
-    return this._request("GET", "/v1/admin/webhooks");
+    return this.webhooks.list();
   }
 
+  /**
+   * @deprecated Use `client.webhooks.get(id)` instead.
+   */
   getWebhook(id: string): Promise<Webhook> {
-    return this._request(
-      "GET",
-      `/v1/admin/webhooks/${encodeURIComponent(id)}`,
-    );
+    return this.webhooks.get(id);
   }
 
+  /**
+   * @deprecated Use `client.webhooks.update(id, body)` instead.
+   */
   updateWebhook(id: string, body: UpdateWebhookBody): Promise<Webhook> {
-    return this._request(
-      "PUT",
-      `/v1/admin/webhooks/${encodeURIComponent(id)}`,
-      { json: body },
-    );
+    return this.webhooks.update(id, body);
   }
 
+  /**
+   * @deprecated Use `client.webhooks.delete(id)` instead.
+   */
   deleteWebhook(id: string): Promise<StatusResponse> {
-    return this._request(
-      "DELETE",
-      `/v1/admin/webhooks/${encodeURIComponent(id)}`,
-    );
+    return this.webhooks.delete(id);
   }
 
+  /**
+   * @deprecated Use `client.webhooks.listDeliveries(id, options)` instead.
+   */
   listWebhookDeliveries(
     id: string,
     options?: { limit?: number; offset?: number },
   ): Promise<WebhookDeliveryListResponse> {
-    const params: Record<string, string> = {};
-    if (options?.limit !== undefined) params.limit = String(options.limit);
-    if (options?.offset !== undefined) params.offset = String(options.offset);
-    return this._request(
-      "GET",
-      `/v1/admin/webhooks/${encodeURIComponent(id)}/deliveries`,
-      { params },
-    );
+    return this.webhooks.listDeliveries(id, options);
   }
 
+  /**
+   * @deprecated Use `client.webhooks.test(id)` instead.
+   */
   testWebhook(id: string): Promise<WebhookTestResponse> {
-    return this._request(
-      "POST",
-      `/v1/admin/webhooks/${encodeURIComponent(id)}/test`,
-    );
+    return this.webhooks.test(id);
   }
 
-  // ---- Multi-Collection Query ----
-
+  /**
+   * @deprecated Use `client.queries.multiQuery(body)` instead.
+   */
   multiQuery(body: MultiQueryBody): Promise<MultiQueryResponse> {
-    return this._request("POST", "/v1/query", { json: body });
+    return this.queries.multiQuery(body);
   }
 
-  // ---- Batch Query ----
-
+  /**
+   * @deprecated Use `client.queries.batchQuery(body)` instead.
+   */
   batchQuery(body: BatchQueryBody): Promise<BatchQueryResponse> {
-    return this._request("POST", "/v1/batch/query", { json: body });
-  }
-
-  // ---- Analytics ----
-
-  getAnalytics(collection: string): Promise<AnalyticsResponse> {
-    return this._request(
-      "GET",
-      `/v1/collections/${encodeURIComponent(collection)}/analytics`,
-    );
+    return this.queries.batchQuery(body);
   }
 
   // ---- Collection-Scoped Client ----
 
+  /**
+   * Create a scoped client for a specific collection.
+   *
+   * @param name - The collection name.
+   * @returns A {@link CollectionClient} pre-bound to the given collection.
+   */
   collection(name: string): CollectionClient {
     return new CollectionClient(this, name);
   }
 }
 
+/**
+ * A convenience wrapper that scopes all operations to a single collection,
+ * delegating to the resource namespaces on the parent {@link BigRAG} client.
+ */
 export class CollectionClient {
   constructor(
     private readonly client: BigRAG,
     private readonly name: string,
   ) {}
 
-  upload(
-    file: FileInput,
-    metadata?: Record<string, unknown>,
-  ): Promise<Document> {
-    return this.client.uploadDocument(this.name, file, metadata);
+  /** Upload a document to this collection. */
+  upload(file: FileInput, metadata?: Record<string, unknown>): Promise<Document> {
+    return this.client.documents.upload(this.name, file, metadata);
   }
 
+  /** List documents in this collection. */
   listDocuments(options?: DocumentListOptions): Promise<DocumentListResponse> {
-    return this.client.listDocuments(this.name, options);
+    return this.client.documents.list(this.name, options);
   }
 
+  /** Get a document by ID from this collection. */
   getDocument(documentId: string): Promise<Document> {
-    return this.client.getDocument(this.name, documentId);
+    return this.client.documents.get(this.name, documentId);
   }
 
+  /** Delete a document by ID from this collection. */
   deleteDocument(documentId: string): Promise<StatusResponse> {
-    return this.client.deleteDocument(this.name, documentId);
+    return this.client.documents.delete(this.name, documentId);
   }
 
+  /** Upload multiple documents to this collection. */
   batchUpload(
     files: FileInput[],
     metadata?: Record<string, unknown>,
   ): Promise<DocumentListResponse> {
-    return this.client.batchUploadDocuments(this.name, files, metadata);
+    return this.client.documents.batchUpload(this.name, files, metadata);
   }
 
+  /** Get the processing status of multiple documents. */
   batchGetStatus(documentIds: string[]): Promise<BatchStatusResponse> {
-    return this.client.batchGetStatus(this.name, documentIds);
+    return this.client.documents.batchGetStatus(this.name, documentIds);
   }
 
+  /** Retrieve multiple documents by ID. */
   batchGetDocuments(documentIds: string[]): Promise<BatchGetDocumentsResponse> {
-    return this.client.batchGetDocuments(this.name, documentIds);
+    return this.client.documents.batchGet(this.name, documentIds);
   }
 
+  /** Get statistics for this collection. */
   stats(): Promise<CollectionStatsResponse> {
-    return this.client.getCollectionStats(this.name);
+    return this.client.collections.stats(this.name);
   }
 
+  /** Delete multiple documents from this collection. */
   batchDelete(documentIds: string[]): Promise<BatchDeleteDocumentsResponse> {
-    return this.client.batchDeleteDocuments(this.name, documentIds);
+    return this.client.documents.batchDelete(this.name, documentIds);
   }
 
+  /** Trigger reprocessing of a document. */
   reprocessDocument(documentId: string): Promise<StatusResponse> {
-    return this.client.reprocessDocument(this.name, documentId);
+    return this.client.documents.reprocess(this.name, documentId);
   }
 
+  /** Get all chunks for a document. */
   getDocumentChunks(documentId: string): Promise<DocumentChunkListResponse> {
-    return this.client.getDocumentChunks(this.name, documentId);
+    return this.client.documents.getChunks(this.name, documentId);
   }
 
+  /** Query this collection. */
   query(body: QueryBody): Promise<QueryResponse> {
-    return this.client.query(this.name, body);
+    return this.client.queries.query(this.name, body);
   }
 
+  /** Get analytics for this collection. */
   analytics(): Promise<AnalyticsResponse> {
     return this.client.getAnalytics(this.name);
   }
 
-  streamDocumentProgress(
-    documentId: string,
-  ): AsyncGenerator<ProgressEvent> {
-    return this.client.streamDocumentProgress(this.name, documentId);
+  /** Stream real-time processing progress for a document. */
+  streamDocumentProgress(documentId: string): AsyncGenerator<ProgressEvent> {
+    return this.client.documents.streamProgress(this.name, documentId);
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

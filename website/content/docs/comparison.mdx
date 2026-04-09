@@ -9,23 +9,55 @@ There are many ways to build a RAG pipeline. This page compares bigRAG to popula
 
 ## At a Glance
 
-| | bigRAG | RAGFlow | AnythingLLM | PrivateGPT | Haystack | LangChain | LlamaIndex | Vectara |
-|---|---|---|---|---|---|---|---|---|
-| **Type** | Platform | Platform | Platform | Platform | Framework | Framework | Framework | Managed SaaS |
-| **Self-hostable** | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Enterprise only |
-| **Open source** | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No |
-| **License** | MIT | Apache-2.0 | MIT | Apache-2.0 | Apache-2.0 | MIT | MIT | Proprietary |
-| **REST API** | Built-in | Built-in | Built-in | Built-in | Via Hayhooks | Via LangServe | No | Built-in |
-| **Document parsing** | Docling | deepdoc | Basic | LlamaIndex | File converters | Loaders | LlamaHub | Built-in |
-| **Webhooks** | Yes | No | No | No | No | No | No | No |
-| **TypeScript SDK** | Yes | No | No | No | No | Yes | Yes | Yes |
-| **Web UI** | No | Yes | Yes | Yes | No | No | No | Yes |
-| **Vector DB** | Milvus | Elasticsearch | 9 options | Qdrant/Milvus | Integrations | Integrations | Integrations | Proprietary |
-| **Setup complexity** | Low | Medium | Low | Medium | High | High | High | None |
+| | bigRAG | OpenRAG | RAGFlow | AnythingLLM | PrivateGPT | Haystack | LangChain | LlamaIndex | Vectara |
+|---|---|---|---|---|---|---|---|---|---|
+| **Type** | Platform | Platform | Platform | Platform | Platform | Framework | Framework | Framework | Managed SaaS |
+| **Self-hostable** | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Enterprise only |
+| **Open source** | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No |
+| **License** | MIT | Apache-2.0 | Apache-2.0 | MIT | Apache-2.0 | Apache-2.0 | MIT | MIT | Proprietary |
+| **REST API** | Built-in | Built-in | Built-in | Built-in | Built-in | Via Hayhooks | Via LangServe | No | Built-in |
+| **Document parsing** | Docling | Docling | deepdoc | Basic | LlamaIndex | File converters | Loaders | LlamaHub | Built-in |
+| **Webhooks** | Yes | Partial | No | No | No | No | No | No | No |
+| **TypeScript SDK** | Yes | Yes | No | No | No | No | Yes | Yes | Yes |
+| **Python SDK** | Yes | Yes | No | No | No | Yes | Yes | Yes | Yes |
+| **Web UI** | No | Yes | Yes | Yes | Yes | No | No | No | Yes |
+| **LLM generation** | No | Yes | Yes | Yes | Yes | Via code | Via code | Via code | Yes |
+| **Vector DB** | Milvus | OpenSearch | Elasticsearch | 9 options | Qdrant/Milvus | Integrations | Integrations | Integrations | Proprietary |
+| **Multi-collection** | Yes | No | Yes | Yes | No | N/A | N/A | N/A | Yes |
+| **Setup complexity** | Low | Low | Medium | Low | Medium | High | High | High | None |
 
 ## RAG Platforms
 
 These are the closest alternatives to bigRAG — self-hostable platforms that handle the full RAG pipeline.
+
+### OpenRAG
+
+[OpenRAG](https://github.com/langflow-ai/openrag) is an IBM-backed RAG platform that bundles Langflow (agentic workflows), OpenSearch (hybrid search), and Docling (document parsing) into a single deployable package.
+
+**Where OpenRAG shines:**
+- Full-stack platform with web UI, chat interface, and visual workflow builder (Langflow)
+- Built-in LLM generation with OpenAI, Anthropic, Ollama, and watsonx support
+- Cloud storage connectors (Google Drive, SharePoint, OneDrive, S3, IBM COS)
+- MCP server for AI coding assistant integration (Claude Desktop, Cursor)
+- OAuth/OIDC authentication with per-user document ownership
+- Single-command install via `uvx openrag`
+
+**Where bigRAG is a better fit:**
+- Multi-collection architecture with per-collection embedding configuration (OpenRAG uses a single index)
+- Mature webhook system with HMAC signatures, retry logic, and delivery tracking
+- Batch operations — 100-file upload, 20-query batch, bulk status/delete
+- Query analytics with 24h/7d/30d windows and top queries per collection
+- Raw vector upsert API for bring-your-own-embeddings workflows
+- Broader file format support (18+ formats including XLSX, CSV, TSV, XML, JSON)
+- Dedicated PostgreSQL metadata layer for transactional consistency
+- Robust Redis-based queue with dead letter handling and job recovery
+- Native Cohere reranking with per-collection and per-query configuration
+
+**Choose OpenRAG** if you need an end-to-end platform with chat UI, LLM generation, and cloud connectors for non-technical users. **Choose bigRAG** if you need a powerful headless retrieval API with multi-collection support, batch operations, and webhook-driven workflows.
+
+<Callout type="info">
+  For a comprehensive feature-by-feature gap analysis, see [OpenRAG Gap Analysis](/docs/openrag-gap-analysis).
+</Callout>
 
 ### RAGFlow
 

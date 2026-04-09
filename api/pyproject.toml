@@ -20,6 +20,7 @@ dependencies = [
     "tomli>=2.2.0",
     "redis[hiredis]>=5.2.0",
     "orjson>=3.10.0",
+    "structlog>=24.4.0",
 ]
 
 [project.optional-dependencies]

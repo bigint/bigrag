@@ -1,0 +1,303 @@
+---
+title: Python SDK
+description: Async Python client for the bigRAG API with full type hints and zero config.
+---
+
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Callout } from "fumadocs-ui/components/callout";
+
+## Installation
+
+```bash
+pip install bigrag
+```
+
+Requires Python 3.10+. The only runtime dependencies are `httpx` and `httpx-sse`.
+
+## Quick Start
+
+```python
+import asyncio
+from bigrag import BigRAG
+
+async def main():
+    async with BigRAG(api_key="your-api-secret") as client:
+        # Create a collection
+        collection = await client.collections.create({
+            "name": "knowledge_base",
+            "description": "Company docs",
+        })
+
+        # Upload a document
+        doc = await client.documents.upload(
+            "knowledge_base",
+            "/path/to/report.pdf",
+        )
+
+        # Query the collection
+        results = await client.queries.query("knowledge_base", {
+            "query": "What is our revenue?",
+            "top_k": 5,
+        })
+
+        for r in results["results"]:
+            print(f"[{r['score']:.3f}] {r['text'][:100]}")
+
+asyncio.run(main())
+```
+
+## Client Options
+
+```python
+client = BigRAG(
+    api_key="...",                  # or set BIGRAG_API_KEY env var
+    base_url="http://localhost:6100",  # API server URL
+    timeout=120.0,                  # request timeout in seconds
+    max_retries=2,                  # retries on 429/5xx/connection errors
+)
+```
+
+The client reads `BIGRAG_API_KEY` from the environment if `api_key` is not passed.
+
+## Resource Namespaces
+
+The SDK follows a resource namespace pattern:
+
+| Namespace | Description |
+|---|---|
+| `client.collections` | Collection CRUD and stats |
+| `client.documents` | Document upload, S3 ingestion, list, delete, batch ops |
+| `client.queries` | Single, multi-collection, and batch queries |
+| `client.vectors` | Raw vector upsert and delete |
+| `client.webhooks` | Webhook management |
+
+## Collections
+
+```python
+# List collections
+result = await client.collections.list(name="prefix", limit=10)
+
+# Create
+collection = await client.collections.create({
+    "name": "docs",
+    "embedding_provider": "openai",
+    "embedding_model": "text-embedding-3-small",
+})
+
+# Get
+collection = await client.collections.get("docs")
+
+# Update
+await client.collections.update("docs", {
+    "description": "Updated description",
+    "default_search_mode": "hybrid",
+})
+
+# Delete
+await client.collections.delete("docs")
+
+# Stats
+stats = await client.collections.stats("docs")
+```
+
+## Documents
+
+```python
+# Upload a file (accepts str, Path, bytes, BinaryIO, or (name, data) tuple)
+doc = await client.documents.upload("docs", "/path/to/file.pdf")
+doc = await client.documents.upload("docs", b"raw content")
+doc = await client.documents.upload("docs", ("custom.txt", b"hello"))
+
+# Upload with metadata
+doc = await client.documents.upload(
+    "docs", "/path/to/file.pdf",
+    metadata={"department": "engineering"},
+)
+
+# Batch upload
+result = await client.documents.batch_upload("docs", [
+    "/path/to/a.pdf",
+    "/path/to/b.docx",
+])
+
+# Ingest from S3 bucket
+result = await client.documents.ingest_s3(
+    "docs",
+    bucket="my-docs-bucket",
+    prefix="reports/2026/",
+    region="us-east-1",
+    access_key="AKIA...",
+    secret_key="...",
+)
+# result["documents"] = list of ingested docs
+# result["skipped"] = list of unsupported files
+
+# List documents
+docs = await client.documents.list("docs", status="ready", limit=20)
+
+# Get, delete, reprocess
+doc = await client.documents.get("docs", "doc-id")
+await client.documents.delete("docs", "doc-id")
+await client.documents.reprocess("docs", "doc-id")
+
+# Get chunks
+chunks = await client.documents.get_chunks("docs", "doc-id")
+
+# Batch operations
+statuses = await client.documents.batch_get_status("docs", ["id1", "id2"])
+docs = await client.documents.batch_get("docs", ["id1", "id2"])
+result = await client.documents.batch_delete("docs", ["id1", "id2"])
+```
+
+## Queries
+
+```python
+# Single collection query
+result = await client.queries.query("docs", {
+    "query": "search terms",
+    "top_k": 10,
+    "search_mode": "hybrid",  # "semantic", "keyword", or "hybrid"
+    "min_score": 0.5,
+    "rerank": True,
+})
+
+# Multi-collection query
+result = await client.queries.multi_query({
+    "query": "search terms",
+    "collections": ["docs", "articles"],
+    "top_k": 10,
+})
+
+# Batch query (up to 20)
+result = await client.queries.batch_query({
+    "queries": [
+        {"collection": "docs", "query": "first query"},
+        {"collection": "articles", "query": "second query"},
+    ]
+})
+```
+
+## Vectors
+
+```python
+# Upsert custom embeddings
+result = await client.vectors.upsert("docs", [
+    {"id": "v1", "embedding": [0.1, 0.2, ...], "text": "chunk text"},
+    {"id": "v2", "embedding": [0.3, 0.4, ...], "metadata": {"source": "api"}},
+])
+
+# Delete vectors
+result = await client.vectors.delete("docs", ["v1", "v2"])
+```
+
+## Webhooks
+
+```python
+# Create
+webhook = await client.webhooks.create({
+    "url": "https://example.com/webhook",
+    "events": ["document.ready", "document.failed"],
+})
+print(webhook["secret"])  # save this for verification
+
+# List, get, update, delete
+webhooks = await client.webhooks.list()
+wh = await client.webhooks.get("webhook-id")
+await client.webhooks.update("webhook-id", {"active": False})
+await client.webhooks.delete("webhook-id")
+
+# Test
+result = await client.webhooks.test("webhook-id")
+
+# Delivery history
+deliveries = await client.webhooks.list_deliveries("webhook-id", limit=10)
+```
+
+## SSE Progress Streaming
+
+Track document processing in real-time:
+
+```python
+# Single document progress
+async for event in client.documents.stream_progress("docs", "doc-id"):
+    print(f"[{event['progress']:.0%}] {event['step']}: {event['message']}")
+
+# Batch progress (e.g., after S3 ingestion)
+doc_ids = [d["id"] for d in result["documents"]]
+async for event in client.documents.stream_batch_progress("docs", doc_ids):
+    print(
+        f"[{event['progress']:.0%}] "
+        f"{event['completed']}/{event['total']} done, "
+        f"{event['failed']} failed"
+    )
+```
+
+## Collection-Scoped Client
+
+For repeated operations on the same collection:
+
+```python
+col = client.collection("docs")
+
+doc = await col.upload("/path/to/file.pdf")
+results = await col.query({"query": "search terms"})
+stats = await col.stats()
+analytics = await col.analytics()
+```
+
+## Error Handling
+
+```python
+from bigrag import (
+    BigRAGError,        # base for all errors
+    APIError,           # any HTTP error
+    BadRequestError,    # 400
+    AuthenticationError, # 401
+    NotFoundError,      # 404
+    RateLimitError,     # 429
+    InternalServerError, # 500
+    APIConnectionError, # network errors
+    APITimeoutError,    # timeout
+)
+
+try:
+    await client.collections.get("missing")
+except NotFoundError as e:
+    print(f"Not found: {e} (status={e.status})")
+except APIConnectionError:
+    print("Cannot reach the API server")
+except APITimeoutError:
+    print("Request timed out")
+```
+
+## Platform Endpoints
+
+```python
+# Health check
+health = await client.health()
+
+# Readiness (checks Postgres, Milvus, Redis, embedding provider)
+ready = await client.readiness()
+
+# Platform stats
+stats = await client.get_stats()
+
+# Available embedding models
+models = await client.list_embedding_models()
+
+# Collection analytics
+analytics = await client.get_analytics("docs")
+```
+
+## Retry Behavior
+
+The SDK automatically retries on:
+- HTTP 429 (rate limited)
+- HTTP 5xx (server errors)
+- Connection errors and timeouts
+
+Retries use exponential backoff: `min(0.5 * 2^attempt, 4)` seconds. Configure with `max_retries` (default: 2).
+
+<Callout type="info">
+  The Python SDK is fully typed with `py.typed` support. Use it with mypy or pyright for full type checking.
+</Callout>

@@ -6,7 +6,7 @@ export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
     Mermaid,
-    ...components
+    ...components,
   } satisfies MDXComponents;
 }
 

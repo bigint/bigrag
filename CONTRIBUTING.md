@@ -6,8 +6,9 @@ Thank you for your interest in contributing to bigRAG. This guide will help you 
 
 ### Prerequisites
 
-- **Python 3.12+**
-- **Docker** and **Docker Compose** — for Postgres, Milvus, and integration tests
+- **Python 3.12+** with [uv](https://docs.astral.sh/uv/)
+- **Node.js 20+** with [pnpm](https://pnpm.io/) (via corepack)
+- **Docker** and **Docker Compose** — for Postgres, Redis, Milvus
 
 ### Development Setup
 
@@ -16,15 +17,21 @@ Thank you for your interest in contributing to bigRAG. This guide will help you 
 git clone https://github.com/bigint/bigrag.git
 cd bigrag
 
-# Start everything
+# Start everything (backend + website + infrastructure)
 ./dev.sh
+
+# Or start only specific services
+./dev.sh --backend     # Docker infra + Python API
+./dev.sh --website     # Docs site only
+./dev.sh --infra       # Docker services only
+./dev.sh --no-install  # Skip dependency installation (faster restart)
 ```
 
 Or manually:
 
 ```bash
 # Start infrastructure
-docker compose up postgres milvus -d
+docker compose up postgres redis milvus-etcd milvus -d
 
 # Set up the Python backend
 cd api
@@ -38,19 +45,22 @@ uv run python -m bigrag.main
 bigrag/
 ├── api/                   # Python/FastAPI backend
 │   ├── bigrag/
-│   │   ├── main.py        # App entry point
-│   │   ├─�� config.py      # Settings
+│   │   ├── main.py        # App factory + lifespan
+│   │   ├── deps.py        # FastAPI dependency injection
+│   │   ├── config.py      # Settings
 │   │   ├── database.py    # Postgres pool + migrations
 │   │   ├── models/        # Pydantic request/response models
-│   │   ├── services/      # Business logic (auth, embedding, ingestion, retrieval)
+│   │   ├── services/      # Business logic (embedding, ingestion, retrieval, webhooks)
 │   │   ├── routers/       # API route handlers
 │   │   └── middleware/     # Auth middleware
 │   └── pyproject.toml
-├── sdks/                  # Client SDKs (TypeScript)
-├── docs/                  # Documentation
-├── docker-compose.yml     # Full stack (Postgres, Milvus, API)
+├── sdks/typescript/       # TypeScript SDK (@bigrag/client)
+├── website/               # Docs site (Next.js + Fumadocs)
+├── docker-compose.yml     # Full stack (Postgres, Redis, Milvus, API)
+├── biome.jsonc            # Biome linting config for TypeScript
+├── pnpm-workspace.yaml    # pnpm workspace config
 ├── dev.sh                 # One-command dev setup
-└── bigrag.toml            # Configuration
+└── bigrag.toml            # Backend configuration
 ```
 
 ## Making Changes
@@ -62,9 +72,27 @@ bigrag/
 
 ### Coding Standards
 
-- **Format/Lint**: Run `ruff check . && ruff format .` before committing
+- **Python**: Run `ruff check . && ruff format .` before committing
+- **TypeScript**: Run `pnpm lint` from the root (uses Biome)
 - **Type hints**: Use type annotations on all public functions
 - **Tests**: Add tests for new functionality in `api/tests/`
+
+### Running Tests
+
+```bash
+# Python API tests
+cd api && uv run pytest tests/ -v
+
+# TypeScript SDK tests
+pnpm --filter @bigrag/client test
+
+# Website build check
+pnpm --filter @bigrag/docs build
+
+# Lint everything
+pnpm lint          # TypeScript (Biome)
+cd api && uv run ruff check . && uv run ruff format --check .  # Python
+```
 
 ### Commit Messages
 
@@ -84,16 +112,13 @@ test: add ingestion pipeline tests
 2. **Create a branch** from `main` with a descriptive name
 3. **Make your changes** following the coding standards above
 4. **Add tests** covering your changes
-5. **Run the full check suite** locally:
-   ```bash
-   cd api && ruff check . && ruff format --check .
-   ```
+5. **Run the full check suite** locally
 6. **Push your branch** and open a pull request against `main`
 7. **Address review feedback** promptly
 
 ### PR Requirements
 
-- All CI checks must pass
+- All CI checks must pass (lint, test, sdk-test, website-build, biome)
 - At least one maintainer approval
 - No merge conflicts with `main`
 

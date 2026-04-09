@@ -62,7 +62,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | `BIGRAG_HOST` | Bind address | `0.0.0.0` |
 | `BIGRAG_WORKERS` | Uvicorn workers | `4` |
 | `BIGRAG_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`) | `info` |
-| `BIGRAG_LOG_FORMAT` | Log format (`text`, `json`) | `text` |
+| `BIGRAG_LOG_FORMAT` | Log format — `text` for colored console output, `json` for structured JSON (use `json` in production for log aggregation pipelines like ELK, Datadog, etc.) | `text` |
 | `BIGRAG_CORS_ORIGINS` | Allowed CORS origins | `["*"]` |
 
 ### Infrastructure

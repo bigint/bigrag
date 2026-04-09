@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 
-logger = logging.getLogger("bigrag.utils")
+from bigrag.logging import get_logger
+
+logger = get_logger("bigrag.utils")
 
 
 def safe_create_task(coro, *, name: str = "background") -> asyncio.Task:

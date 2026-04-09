@@ -1,4 +1,13 @@
 export { BigRAG, CollectionClient } from "./client.js";
-export type { BigRAGOptions } from "./client.js";
-export * from "./types.js";
+export type { BigRAGOptions, RequestClient } from "./core.js";
+export { BigRAGCore } from "./core.js";
 export * from "./errors.js";
+export { normalizeFileInput } from "./files.js";
+export {
+  CollectionsResource,
+  DocumentsResource,
+  QueryResource,
+  VectorsResource,
+  WebhooksResource,
+} from "./resources/index.js";
+export * from "./types.js";

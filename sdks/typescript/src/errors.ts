@@ -74,11 +74,7 @@ const STATUS_MAP: Record<number, new (message: string, code?: string) => APIErro
   500: InternalServerError,
 };
 
-export function errorForStatus(
-  status: number,
-  message: string,
-  code?: string,
-): APIError {
+export function errorForStatus(status: number, message: string, code?: string): APIError {
   const Cls = STATUS_MAP[status];
   if (Cls) return new Cls(message, code);
   return new APIError(status, message, code);

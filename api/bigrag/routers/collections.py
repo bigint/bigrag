@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from bigrag.config import settings
 from bigrag.database import db
+from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.collection import (
     CollectionListResponse,
@@ -17,7 +17,7 @@ from bigrag.models.collection import (
 )
 from bigrag.services.vector_store import vector_store
 
-logger = logging.getLogger("bigrag.routers.collections")
+logger = get_logger("bigrag.routers.collections")
 
 router = APIRouter(prefix="/v1/collections", tags=["collections"])
 

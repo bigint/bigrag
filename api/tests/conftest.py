@@ -253,8 +253,11 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
         yield
 
     with contextlib.ExitStack() as stack:
+        # Bypass the real lifespan
         stack.enter_context(patch("bigrag.main.lifespan", _test_lifespan))
-        mock_settings = stack.enter_context(patch("bigrag.main.settings"))
+
+        # Patch module-level singletons still used by routers/services
+        mock_settings = MagicMock()
         stack.enter_context(patch("bigrag.database.db", mock_db))
         stack.enter_context(patch("bigrag.routers.collections.db", mock_db))
         stack.enter_context(patch("bigrag.routers.documents.db", mock_db))
@@ -262,27 +265,19 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
         stack.enter_context(patch("bigrag.services.collection_cache.db", mock_db))
         stack.enter_context(patch("bigrag.routers.collections.vector_store", mock_vector_store))
         stack.enter_context(patch("bigrag.routers.query.vector_store", mock_vector_store))
-        stack.enter_context(patch("bigrag.services.vector_store.vector_store", mock_vector_store))
         stack.enter_context(patch("bigrag.services.retrieval.vector_store", mock_vector_store))
-        stack.enter_context(patch("bigrag.main.vector_store", mock_vector_store))
-        stack.enter_context(patch("bigrag.main.ingestion_queue", mock_queue))
         stack.enter_context(patch("bigrag.routers.documents.ingestion_queue", mock_queue))
         stack.enter_context(patch("bigrag.services.storage._storage", mock_storage))
         stack.enter_context(
-            patch(
-                "bigrag.routers.webhooks.webhook_dispatcher",
-                mock_webhook_dispatcher,
-            )
+            patch("bigrag.routers.webhooks.webhook_dispatcher", mock_webhook_dispatcher)
         )
-        stack.enter_context(patch("bigrag.main.db", mock_db))
         stack.enter_context(
-            patch(
-                "bigrag.routers.webhooks.generate_secret",
-                return_value="whsec_test123",
-            )
+            patch("bigrag.routers.webhooks.generate_secret", return_value="whsec_test123")
         )
         stack.enter_context(patch("bigrag.services.collection_cache.settings", mock_settings))
         stack.enter_context(patch("bigrag.middleware.auth.settings", mock_settings))
+        stack.enter_context(patch("bigrag.routers.collections.settings", mock_settings))
+        stack.enter_context(patch("bigrag.routers.documents.settings", mock_settings))
 
         mock_settings.api_secret = TEST_API_SECRET
         mock_settings.cors_origins = ["*"]
@@ -295,14 +290,25 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
         mock_settings.log_format = "text"
         mock_settings.log_level = "info"
 
-        # Clear the collection cache between tests
+        # Clear caches between tests
         from bigrag.services.collection_cache import _cache
 
         _cache.clear()
 
+        from bigrag.routers.health import _embedding_health_cache
+
+        _embedding_health_cache.clear()
+
         from bigrag.main import create_app
 
-        app = create_app()
+        app = create_app(settings_override=mock_settings)
+
+        # Set services on app.state for DI-based endpoints (health, stats)
+        app.state.db = mock_db
+        app.state.vector_store = mock_vector_store
+        app.state.queue = mock_queue
+        app.state.storage = mock_storage
+        app.state.webhook_dispatcher = mock_webhook_dispatcher
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:

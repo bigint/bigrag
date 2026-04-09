@@ -10,8 +10,8 @@ export const metadata: Metadata = {
     "The open-source RAG platform you can self-host. Document ingestion, vector search, and retrieval-augmented generation on your own infrastructure.",
   title: {
     default: "bigRAG Docs",
-    template: "%s — bigRAG"
-  }
+    template: "%s — bigRAG",
+  },
 };
 
 export default function Layout({ children }: { children: ReactNode }) {
