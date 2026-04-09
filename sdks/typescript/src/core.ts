@@ -5,7 +5,7 @@ const DEFAULT_TIMEOUT = 120_000;
 const DEFAULT_MAX_RETRIES = 2;
 
 /** @internal */
-export const USER_AGENT = "bigrag-typescript/0.1.0";
+export const USER_AGENT = "bigrag-typescript/0.0.1";
 
 /** Options accepted by the {@link BigRAGCore} constructor. */
 export interface BigRAGOptions {

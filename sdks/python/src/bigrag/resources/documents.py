@@ -216,7 +216,7 @@ class DocumentsResource:
         request = self._client._client.build_request(
             "GET",
             url,
-            headers={"User-Agent": "bigrag-python/0.1.0"},
+            headers={"User-Agent": "bigrag-python/0.0.1"},
         )
         response = await self._client._client.send(request, stream=True)
 
@@ -245,7 +245,7 @@ class DocumentsResource:
         request = self._client._client.build_request(
             "GET",
             url,
-            headers={"User-Agent": "bigrag-python/0.1.0"},
+            headers={"User-Agent": "bigrag-python/0.0.1"},
         )
         response = await self._client._client.send(request, stream=True)
 

@@ -14,7 +14,7 @@ from bigrag._errors import (
     error_for_status,
 )
 
-USER_AGENT = "bigrag-python/0.1.0"
+USER_AGENT = "bigrag-python/0.0.1"
 
 _DEFAULT_BASE_URL = "http://localhost:6100"
 _DEFAULT_TIMEOUT = 120.0
