@@ -29,8 +29,7 @@ impl SseParser {
             self.buffer = self.buffer[pos + 2..].to_string();
 
             for line in block.lines() {
-                if line.starts_with("data: ") {
-                    let json_str = &line[6..];
+                if let Some(json_str) = line.strip_prefix("data: ") {
                     if let Ok(event) = serde_json::from_str::<ProgressEvent>(json_str) {
                         events.push(event);
                     }
