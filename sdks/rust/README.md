@@ -1,6 +1,6 @@
 # bigrag
 
-Rust client for [bigRAG](https://github.com/bigrag/bigrag) — a self-hostable RAG platform.
+Rust client for [bigRAG](https://github.com/bigint/bigrag) — a self-hostable RAG platform.
 
 ## Installation
 
