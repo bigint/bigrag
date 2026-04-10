@@ -74,6 +74,14 @@ async def test_s3(c: httpx.AsyncClient) -> None:
         await asyncio.sleep(2)
     ok(f"Job finished (status={jst})")
 
+    r = await c.patch(f"/v1/collections/{COLLECTION}/s3-jobs/{job_id}", json={
+        "file_types": ["pdf", "docx"],
+    })
+    if r.status_code == 200 and r.json().get("file_types") == ["pdf", "docx"]:
+        ok("Update file_types")
+    else:
+        fail("Update file_types", f"{r.status_code} {r.text}")
+
     r = await c.post(f"/v1/collections/{COLLECTION}/s3-jobs/{job_id}/resync")
     if r.status_code == 200:
         ok("Resync")

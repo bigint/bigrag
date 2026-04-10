@@ -130,16 +130,17 @@ class EventBus:
         if not self._redis:
             return
         data = event.serialize()
-        # Publish to document-specific channel
-        asyncio.ensure_future(
-            self._redis.publish(f"{CHANNEL_PREFIX}{event.document_id}", data)
-        )
-        # Publish to collection channel (collection subscribers pick this up)
+
+        async def _safe_publish(channel: str) -> None:
+            try:
+                await self._redis.publish(channel, data)
+            except Exception as e:
+                logger.warning("event bus: publish failed", channel=channel, error=str(e))
+
+        asyncio.ensure_future(_safe_publish(f"{CHANNEL_PREFIX}{event.document_id}"))
         if event.collection_name:
             asyncio.ensure_future(
-                self._redis.publish(
-                    f"{CHANNEL_PREFIX}collection:{event.collection_name}", data
-                )
+                _safe_publish(f"{CHANNEL_PREFIX}collection:{event.collection_name}")
             )
 
     def complete(self, document_id: str) -> None:

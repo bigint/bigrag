@@ -254,6 +254,19 @@ export class DocumentsResource {
   }
 
   /**
+   * Get a single S3 ingest job by ID.
+   *
+   * @param collection - The collection name.
+   * @param jobId - The job ID.
+   */
+  getS3Job(collection: string, jobId: string): Promise<S3Job> {
+    return this._client._request(
+      "GET",
+      `/v1/collections/${encodeURIComponent(collection)}/s3-jobs/${encodeURIComponent(jobId)}`,
+    );
+  }
+
+  /**
    * Delete an S3 ingest job.
    *
    * @param collection - The collection name.

@@ -157,6 +157,14 @@ async def test_edge_cases(c: httpx.AsyncClient, doc_id: str | None) -> None:
     else:
         fail("Get non-existent S3 job", f"expected 404, got {r.status_code}")
 
+    r = await c.patch(f"/v1/collections/{COLLECTION}/s3-jobs/{fake_uuid}", json={
+        "file_types": ["pdf"],
+    })
+    if r.status_code == 404:
+        ok("Update non-existent S3 job → 404")
+    else:
+        fail("Update non-existent S3 job", f"expected 404, got {r.status_code}")
+
     r = await c.post(f"/v1/collections/{COLLECTION}/s3-jobs/{fake_uuid}/resync")
     if r.status_code == 404:
         ok("Resync non-existent S3 job → 404")
@@ -168,3 +176,12 @@ async def test_edge_cases(c: httpx.AsyncClient, doc_id: str | None) -> None:
         ok("Delete non-existent S3 job → 404")
     else:
         fail("Delete non-existent S3 job", f"expected 404, got {r.status_code}")
+
+    # --- Analytics positive path ---
+
+    r = await c.get(f"/v1/collections/{COLLECTION}/analytics")
+    data = r.json()
+    if r.status_code == 200 and "period_24h" in data and "top_queries" in data:
+        ok("Collection analytics")
+    else:
+        fail("Collection analytics", f"{r.status_code}")

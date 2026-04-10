@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 
 from bigrag.config import settings
@@ -21,6 +22,8 @@ async def invalidate(name: str | None = None) -> None:
 async def get_or_404(name: str) -> dict:
     cached = await redis_cache.get(f"collection:{name}")
     if cached:
+        if "id" in cached and isinstance(cached["id"], str):
+            cached["id"] = uuid.UUID(cached["id"])
         return cached
 
     row = await db.fetchrow("SELECT * FROM collections WHERE name = $1", name)
