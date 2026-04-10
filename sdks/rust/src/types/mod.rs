@@ -1,0 +1,9 @@
+pub mod analytics;
+pub mod collections;
+pub mod common;
+pub mod documents;
+pub mod embeddings;
+pub mod query;
+pub mod sse;
+pub mod vectors;
+pub mod webhooks;
