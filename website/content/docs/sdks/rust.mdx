@@ -1,0 +1,288 @@
+---
+title: Rust SDK
+description: Install and use the bigRAG Rust client
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+
+## Installation
+
+Add `bigrag` to your `Cargo.toml`:
+
+```toml
+[dependencies]
+bigrag = "0.1"
+tokio = { version = "1", features = ["full"] }
+```
+
+<Callout type="info">
+  Requires Rust 1.75+ and Tokio async runtime.
+</Callout>
+
+## Quick Start
+
+```rust
+use bigrag::BigRag;
+use bigrag::types::{CreateCollectionBody, QueryBody};
+
+#[tokio::main]
+async fn main() -> Result<(), bigrag::BigRagError> {
+    let client = BigRag::new("http://localhost:6100", "your-api-key");
+
+    // Create a collection
+    let col = client.collections().create(CreateCollectionBody {
+        name: "my-docs".into(),
+        ..Default::default()
+    }).await?;
+
+    // Upload a document
+    let doc = client.documents().upload("my-docs", "/path/to/file.pdf", None).await?;
+
+    // Query
+    let results = client.queries().query("my-docs", QueryBody {
+        query: "How does it work?".into(),
+        ..Default::default()
+    }).await?;
+
+    for r in &results.results {
+        println!("[{:.2}] {}", r.score, r.text);
+    }
+
+    Ok(())
+}
+```
+
+## Configuration
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `base_url` | `http://localhost:6100` | bigRAG API URL |
+| `api_key` | `BIGRAG_API_KEY` env var | API key for authentication |
+| `timeout` | `120s` | Request timeout |
+| `max_retries` | `2` | Max retries for transient errors |
+
+```rust
+use std::time::Duration;
+use bigrag::BigRag;
+
+// From environment variables
+let client = BigRag::from_env()?;
+
+// Builder pattern
+let client = BigRag::builder()
+    .base_url("https://bigrag.example.com")
+    .api_key("sk-...")
+    .timeout(Duration::from_secs(60))
+    .max_retries(3)
+    .build()?;
+```
+
+## Collections
+
+```rust
+use bigrag::types::*;
+
+// List
+let cols = client.collections().list(None).await?;
+
+// Create
+let col = client.collections().create(CreateCollectionBody {
+    name: "docs".into(),
+    embedding_provider: Some("openai".into()),
+    ..Default::default()
+}).await?;
+
+// Get
+let col = client.collections().get("docs").await?;
+
+// Update
+client.collections().update("docs", UpdateCollectionBody {
+    description: Some("Updated".into()),
+    ..Default::default()
+}).await?;
+
+// Stats
+let stats = client.collections().stats("docs").await?;
+
+// Delete
+client.collections().delete("docs").await?;
+```
+
+## Documents
+
+```rust
+// Upload a file
+let doc = client.documents().upload("docs", "/path/to/file.pdf", None).await?;
+
+// Upload with metadata
+let meta = serde_json::json!({"department": "engineering"});
+let doc = client.documents().upload("docs", "/path/to/file.pdf", Some(meta)).await?;
+
+// Upload from bytes
+let doc = client.documents().upload("docs", (pdf_bytes, "report.pdf"), None).await?;
+
+// Batch upload
+let files = vec![
+    FileInput::from("/path/to/a.pdf"),
+    FileInput::from("/path/to/b.docx"),
+];
+let docs = client.documents().batch_upload("docs", files, None).await?;
+
+// List documents
+let docs = client.documents().list("docs", None).await?;
+
+// Get document chunks
+let chunks = client.documents().get_chunks("docs", "doc-id").await?;
+
+// Reprocess
+client.documents().reprocess("docs", "doc-id").await?;
+
+// S3 Ingestion
+let resp = client.documents().ingest_s3("docs", S3IngestBody {
+    bucket: "my-bucket".into(),
+    prefix: Some("documents/".into()),
+    ..Default::default()
+}).await?;
+```
+
+File uploads accept `&str` / `String` paths, `Vec<u8>` bytes with a name tuple, `PathBuf`, or a `FileInput` enum value directly.
+
+## Query & Search
+
+```rust
+use bigrag::types::*;
+
+// Single collection query
+let results = client.queries().query("docs", QueryBody {
+    query: "search terms".into(),
+    top_k: Some(5),
+    search_mode: Some(SearchMode::Hybrid),
+    ..Default::default()
+}).await?;
+
+// Multi-collection query
+let results = client.queries().multi_query(MultiQueryBody {
+    query: "search terms".into(),
+    collections: vec!["docs".into(), "notes".into()],
+    top_k: Some(10),
+    ..Default::default()
+}).await?;
+
+// Batch queries
+let results = client.queries().batch_query(BatchQueryBody {
+    queries: vec![
+        BatchQueryItem { collection: "docs".into(), query: "first query".into(), ..Default::default() },
+        BatchQueryItem { collection: "docs".into(), query: "second query".into(), ..Default::default() },
+    ],
+}).await?;
+```
+
+## Vectors
+
+```rust
+use bigrag::types::VectorEntry;
+
+// Upsert pre-computed vectors
+let resp = client.vectors().upsert("docs", vec![
+    VectorEntry {
+        id: "v1".into(),
+        embedding: vec![0.1, 0.2, 0.3],
+        text: Some("hello".into()),
+        metadata: None,
+    },
+]).await?;
+
+// Delete vectors
+client.vectors().delete("docs", &["v1", "v2"]).await?;
+```
+
+## Scoped Collection Client
+
+Use `client.collection(name)` to get a scoped client that omits the collection parameter:
+
+```rust
+let col = client.collection("my-docs");
+
+// All methods are scoped — no need to pass the collection name
+col.upload("/path/to/file.pdf", None).await?;
+let docs = col.list_documents(None).await?;
+let results = col.query(QueryBody { query: "search".into(), ..Default::default() }).await?;
+let stats = col.stats().await?;
+```
+
+## Webhooks
+
+```rust
+use bigrag::types::*;
+
+// Create
+let resp = client.webhooks().create(CreateWebhookBody {
+    url: "https://example.com/webhook".into(),
+    events: vec!["document.ready".into()],
+    collections: None, // all collections
+    description: Some("Notify on doc ready".into()),
+}).await?;
+println!("Secret: {}", resp.secret); // save this!
+
+// List
+let hooks = client.webhooks().list().await?;
+
+// Test
+let test = client.webhooks().test("webhook-id").await?;
+```
+
+## SSE Streaming
+
+```rust
+use futures_util::StreamExt;
+
+// Stream document processing progress
+let mut stream = client.documents().stream_progress("docs", "doc-id").await?;
+while let Some(event) = stream.next().await {
+    let event = event?;
+    println!("[{}] {} — {}%", event.step, event.message, event.progress);
+}
+
+// Stream collection events
+let mut events = client.collections().stream_events("docs").await?;
+while let Some(event) = events.next().await {
+    let event = event?;
+    println!("Event: {:?}", event);
+}
+```
+
+## Error Handling
+
+All methods return `Result<T, BigRagError>`. Use pattern matching for specific errors:
+
+```rust
+use bigrag::BigRagError;
+
+match client.collections().get("my-col").await {
+    Ok(col) => println!("Found: {}", col.name),
+    Err(BigRagError::NotFound { .. }) => println!("Collection not found"),
+    Err(BigRagError::Authentication { .. }) => println!("Invalid API key"),
+    Err(e) if e.is_retryable() => println!("Transient error, retry later"),
+    Err(e) => eprintln!("Error: {e}"),
+}
+```
+
+| Error Variant | HTTP Status | Retryable |
+|---------------|-------------|-----------|
+| `BadRequest` | 400 | No |
+| `Authentication` | 401/403 | No |
+| `NotFound` | 404 | No |
+| `Conflict` | 409 | No |
+| `RateLimited` | 429 | Yes |
+| `ServerError` | 5xx | Yes |
+| `Timeout` | — | Yes |
+| `Connection` | — | Yes |
+
+## Retry Behavior
+
+The SDK automatically retries on transient errors (429, 5xx, timeouts, connection failures) with exponential backoff:
+
+- **Backoff**: 500ms, 1s, 2s, 4s (capped)
+- **Default retries**: 2
+- **Not retried**: File uploads, SSE streams, 4xx client errors
