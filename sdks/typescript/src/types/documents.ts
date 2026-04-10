@@ -104,6 +104,8 @@ export interface S3Job {
   bucket: string;
   prefix: string;
   region: string;
+  endpoint_url: string | null;
+  file_types: string[];
   status: string;
   total_found: number;
   total_ingested: number;
@@ -111,6 +113,11 @@ export interface S3Job {
   error_message: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Body for updating an S3 ingest job. */
+export interface UpdateS3JobBody {
+  file_types?: string[];
 }
 
 /** Paginated list of S3 ingest jobs. */

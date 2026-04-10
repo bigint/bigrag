@@ -8,7 +8,7 @@ from bigrag.database import db
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.common import StatusResponse
-from bigrag.models.s3 import S3JobListResponse, S3JobResponse
+from bigrag.models.s3 import S3JobListResponse, S3JobResponse, UpdateS3JobRequest
 from bigrag.routers import get_collection_or_404
 
 logger = get_logger("bigrag.routers.s3_jobs")
@@ -73,6 +73,35 @@ async def get_s3_job(
         raise HTTPException(status_code=404, detail="S3 ingest job not found")
 
     return _row_to_response(dict(row))
+
+
+@router.patch("/{job_id}", response_model=S3JobResponse)
+async def update_s3_job(
+    collection_name: str,
+    job_id: str,
+    body: UpdateS3JobRequest,
+    _: dict = Depends(get_current_user),
+):
+    collection = await get_collection_or_404(collection_name)
+    row = await db.fetchrow(
+        "SELECT * FROM s3_ingest_jobs WHERE id = $1 AND collection_id = $2",
+        uuid.UUID(job_id),
+        collection["id"],
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="S3 ingest job not found")
+
+    if body.file_types is not None:
+        await db.execute(
+            "UPDATE s3_ingest_jobs SET file_types = $1, updated_at = now() WHERE id = $2",
+            body.file_types,
+            uuid.UUID(job_id),
+        )
+
+    updated = await db.fetchrow(
+        "SELECT * FROM s3_ingest_jobs WHERE id = $1", uuid.UUID(job_id)
+    )
+    return _row_to_response(dict(updated))
 
 
 @router.post("/{job_id}/resync", response_model=StatusResponse)

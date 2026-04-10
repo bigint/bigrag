@@ -15,8 +15,10 @@ import type {
   ProgressEvent,
   S3IngestBody,
   S3IngestResponse,
+  S3Job,
   S3JobListResponse,
   StatusResponse,
+  UpdateS3JobBody,
 } from "../types.js";
 
 /**
@@ -261,6 +263,21 @@ export class DocumentsResource {
     return this._client._request(
       "DELETE",
       `/v1/collections/${encodeURIComponent(collection)}/s3-jobs/${encodeURIComponent(jobId)}`,
+    );
+  }
+
+  /**
+   * Update an S3 ingest job (e.g., change file_types).
+   *
+   * @param collection - The collection name.
+   * @param jobId - The job ID.
+   * @param body - Fields to update.
+   */
+  updateS3Job(collection: string, jobId: string, body: UpdateS3JobBody): Promise<S3Job> {
+    return this._client._request(
+      "PATCH",
+      `/v1/collections/${encodeURIComponent(collection)}/s3-jobs/${encodeURIComponent(jobId)}`,
+      { json: body },
     );
   }
 

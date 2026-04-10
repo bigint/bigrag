@@ -28,6 +28,8 @@ class S3JobResponse(BaseModel):
     bucket: str
     prefix: str
     region: str
+    endpoint_url: str | None = None
+    file_types: list[str] = []
     status: str
     total_found: int
     total_ingested: int
@@ -35,6 +37,10 @@ class S3JobResponse(BaseModel):
     error_message: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class UpdateS3JobRequest(BaseModel):
+    file_types: list[str] | None = None
 
 
 class S3JobListResponse(BaseModel):
