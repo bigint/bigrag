@@ -139,13 +139,20 @@ impl Documents<'_> {
     }
 
     /// Get the download URL for a document's original file.
+    ///
+    /// Appends `?token=<api_key>` when an API key is configured, matching
+    /// the TypeScript SDK behaviour.
     pub fn get_file_url(&self, collection: &str, document_id: &str) -> String {
-        format!(
+        let base = format!(
             "{}/v1/collections/{}/documents/{}/file",
             self.client.config.base_url,
             urlencode(collection),
             urlencode(document_id)
-        )
+        );
+        match &self.client.config.api_key {
+            Some(key) => format!("{}?token={}", base, urlencode(key)),
+            None => base,
+        }
     }
 
     /// Get processing status for multiple documents.
@@ -282,7 +289,7 @@ impl Documents<'_> {
         collection: &str,
         document_ids: &[&str],
     ) -> Result<SseStream, BigRagError> {
-        let ids = document_ids.join(",");
+        let ids = document_ids.iter().map(|id| urlencode(id)).collect::<Vec<_>>().join(",");
         let path = format!(
             "/v1/collections/{}/documents/batch/progress?ids={}",
             urlencode(collection),

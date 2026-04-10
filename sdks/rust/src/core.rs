@@ -116,7 +116,7 @@ impl Transport {
             response
                 .json()
                 .await
-                .map_err(|e| BigRagError::Connection(e.to_string()))
+                .map_err(|e| BigRagError::Api { status: 0, message: format!("response deserialization failed: {}", e) })
         } else {
             Err(parse_error_response(response).await)
         }
@@ -212,7 +212,7 @@ impl Transport {
             response
                 .json()
                 .await
-                .map_err(|e| BigRagError::Connection(e.to_string()))
+                .map_err(|e| BigRagError::Api { status: 0, message: format!("response deserialization failed: {}", e) })
         } else {
             Err(parse_error_response(response).await)
         }

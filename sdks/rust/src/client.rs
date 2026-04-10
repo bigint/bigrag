@@ -153,6 +153,12 @@ impl BigRag {
     pub async fn embedding_models(&self) -> Result<EmbeddingModelListResponse, BigRagError> {
         self.transport.get("/v1/embeddings/models", vec![]).await
     }
+
+    /// Get analytics for a collection.
+    pub async fn analytics(&self, collection: &str) -> Result<AnalyticsResponse, BigRagError> {
+        let path = format!("/v1/collections/{}/analytics", crate::core::urlencode(collection));
+        self.transport.get(&path, vec![]).await
+    }
 }
 
 /// Builder for creating a [`BigRag`] client with custom configuration.
@@ -351,10 +357,6 @@ impl CollectionClient<'_> {
         self.client.documents().stream_progress(&self.name, document_id).await
     }
 
-    /// Get the collection list options (not used directly but kept for completeness).
-    pub async fn list_collections(&self) -> Result<crate::types::collections::CollectionListResponse, BigRagError> {
-        self.client.collections().list(None).await
-    }
 }
 
 #[cfg(test)]
