@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import asyncio
-import time
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from bigrag import __version__
 from bigrag.middleware.auth import get_current_user
+from bigrag.services import redis_cache
 
 router = APIRouter(tags=["health"])
 
-_embedding_health_cache: dict[str, tuple[bool, str | None, float]] = {}
 _EMBEDDING_HEALTH_TTL = 60  # seconds
 
 
@@ -23,12 +22,11 @@ async def _check_embedding_provider(settings) -> dict[str, object]:
     if not api_key:
         return {"embedding": False, "embedding_error": "no API key configured"}
 
-    now = time.monotonic()
-    cached = _embedding_health_cache.get(provider)
-    if cached and (now - cached[2]) < _EMBEDDING_HEALTH_TTL:
-        result: dict[str, object] = {"embedding": cached[0]}
-        if cached[1]:
-            result["embedding_error"] = cached[1]
+    cached = await redis_cache.get(f"health:embedding:{provider}")
+    if cached:
+        result: dict[str, object] = {"embedding": cached["ok"]}
+        if cached.get("error"):
+            result["embedding_error"] = cached["error"]
         return result
 
     try:
@@ -41,11 +39,17 @@ async def _check_embedding_provider(settings) -> dict[str, object]:
             api_key=api_key,
         )
         await asyncio.wait_for(model.embed(["health check"], input_type="query"), timeout=10)
-        _embedding_health_cache[provider] = (True, None, now)
+        await redis_cache.set(
+            f"health:embedding:{provider}", {"ok": True}, ttl=_EMBEDDING_HEALTH_TTL,
+        )
         return {"embedding": True}
     except Exception as exc:
         error_msg = str(exc)[:200]
-        _embedding_health_cache[provider] = (False, error_msg, now)
+        await redis_cache.set(
+            f"health:embedding:{provider}",
+            {"ok": False, "error": error_msg},
+            ttl=_EMBEDDING_HEALTH_TTL,
+        )
         return {"embedding": False, "embedding_error": error_msg}
 
 
@@ -111,6 +115,10 @@ async def platform_stats(
     request: Request,
     _: dict = Depends(get_current_user),
 ):
+    cached = await redis_cache.get("stats:platform")
+    if cached:
+        return cached
+
     db = request.app.state.db
     queue = request.app.state.queue
 
@@ -135,7 +143,7 @@ async def platform_stats(
 
     (cols, docs, webhooks), queue_stats = await asyncio.gather(_db_stats(), _queue_stats())
 
-    return {
+    result = {
         "collections": cols["cnt"],
         "documents": {
             "total": docs["total"],
@@ -150,3 +158,5 @@ async def platform_stats(
         "webhooks": webhooks["cnt"],
         "queue": queue_stats,
     }
+    await redis_cache.set("stats:platform", result, ttl=15)
+    return result

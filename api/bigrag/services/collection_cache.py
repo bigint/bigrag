@@ -1,37 +1,38 @@
 from __future__ import annotations
 
-import time
+from datetime import datetime
 
 from bigrag.config import settings
 from bigrag.database import db
 from bigrag.exceptions import NotFoundError, ValidationError
 from bigrag.logging import get_logger
+from bigrag.services import redis_cache
 
 logger = get_logger("bigrag.collection_cache")
 
-_cache: dict[str, tuple[dict, float]] = {}
 
-
-def invalidate(name: str | None = None) -> None:
+async def invalidate(name: str | None = None) -> None:
     if name:
-        _cache.pop(name, None)
+        await redis_cache.delete(f"collection:{name}")
     else:
-        _cache.clear()
+        await redis_cache.delete_pattern("collection:*")
 
 
 async def get_or_404(name: str) -> dict:
-    entry = _cache.get(name)
-    if entry:
-        data, expires_at = entry
-        if time.monotonic() < expires_at:
-            return data
-        _cache.pop(name, None)
+    cached = await redis_cache.get(f"collection:{name}")
+    if cached:
+        return cached
 
     row = await db.fetchrow("SELECT * FROM collections WHERE name = $1", name)
     if not row:
         raise NotFoundError("Collection", name)
-    data = dict(row)
-    _cache[name] = (data, time.monotonic() + settings.collection_cache_ttl)
+    data = {
+        k: str(v) if hasattr(v, "hex") else v.isoformat() if isinstance(v, datetime) else v
+        for k, v in dict(row).items()
+    }
+    await redis_cache.set(
+        f"collection:{name}", data, ttl=settings.collection_cache_ttl,
+    )
     return data
 
 

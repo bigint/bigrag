@@ -232,7 +232,7 @@ async def update_collection(
     row = await db.fetchrow(sql, *params)
     from bigrag.routers import invalidate_collection_cache
 
-    invalidate_collection_cache(name)
+    await invalidate_collection_cache(name)
     return _row_to_response(dict(row))
 
 
@@ -262,7 +262,7 @@ async def delete_collection(name: str, _: dict = Depends(get_current_user)):
 
     from bigrag.routers import invalidate_collection_cache
 
-    invalidate_collection_cache(name)
+    await invalidate_collection_cache(name)
 
     return {"status": "ok", "message": f"Collection '{name}' deleted"}
 

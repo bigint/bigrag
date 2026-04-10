@@ -202,6 +202,13 @@ async def collection_analytics(
 ):
     await get_collection_or_404(collection_name)
 
+    from bigrag.services import redis_cache
+
+    cache_key = f"analytics:{collection_name}"
+    cached = await redis_cache.get(cache_key)
+    if cached:
+        return AnalyticsResponse(**cached)
+
     from bigrag.database import db
 
     async def get_period_stats(interval: str) -> dict:
@@ -242,13 +249,16 @@ async def collection_analytics(
         get_period_stats("30 days"),
     )
 
-    return AnalyticsResponse(
-        collection=collection_name,
-        period_24h=stats_24h,
-        period_7d=stats_7d,
-        period_30d=stats_30d,
-        top_queries=[{"query": r["query"], "count": r["count"]} for r in top_queries_rows],
-    )
+    result = {
+        "collection": collection_name,
+        "period_24h": stats_24h,
+        "period_7d": stats_7d,
+        "period_30d": stats_30d,
+        "top_queries": [{"query": r["query"], "count": r["count"]} for r in top_queries_rows],
+    }
+    await redis_cache.set(cache_key, result, ttl=300)
+
+    return AnalyticsResponse(**result)
 
 
 @router.get("/v1/embeddings/models")

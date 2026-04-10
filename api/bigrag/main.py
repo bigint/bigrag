@@ -13,6 +13,8 @@ from bigrag.config import Settings, settings
 from bigrag.database import db
 from bigrag.exceptions import ConflictError, NotFoundError, ValidationError
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
+from bigrag.services import redis_cache
+from bigrag.services.event_bus import event_bus
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import init_storage
 from bigrag.services.vector_store import vector_store
@@ -54,6 +56,10 @@ async def lifespan(app: FastAPI):
     )
     app.state.storage = storage
 
+    # Redis cache + event bus
+    await redis_cache.connect(s.redis_url)
+    await event_bus.connect(s.redis_url)
+
     # Redis + ingestion queue
     ingestion_queue._num_workers = s.ingestion_workers
     await ingestion_queue.connect(s.redis_url)
@@ -83,6 +89,8 @@ async def lifespan(app: FastAPI):
     cleanup_task.cancel()
     await ingestion_queue.stop()
     await dispatcher.stop()
+    await event_bus.close()
+    await redis_cache.close()
     await storage.close()
     vector_store.close()
     await db.close()

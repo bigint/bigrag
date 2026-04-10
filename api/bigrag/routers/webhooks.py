@@ -70,7 +70,7 @@ async def create_webhook(body: CreateWebhookRequest, admin: dict = Depends(requi
         uuid.UUID(admin["id"]) if admin.get("id") else None,
     )
 
-    webhook_dispatcher.invalidate_cache()
+    await webhook_dispatcher.invalidate_cache()
     logger.info(f"Webhook created: id={webhook_id} url={body.url} events={body.events}")
 
     r = {k: str(v) if isinstance(v, uuid.UUID) else v for k, v in dict(row).items()}
@@ -131,7 +131,7 @@ async def update_webhook(
     sql, params = build_update("webhooks", fields, "id", uuid.UUID(webhook_id))
     updated = await db.fetchrow(sql, *params)
 
-    webhook_dispatcher.invalidate_cache()
+    await webhook_dispatcher.invalidate_cache()
     logger.info(f"Webhook updated: id={webhook_id}")
     return _row_to_response(dict(updated))
 
@@ -143,7 +143,7 @@ async def delete_webhook(webhook_id: str, _: dict = Depends(require_admin)):
         raise HTTPException(status_code=404, detail="Webhook not found")
 
     await db.execute("DELETE FROM webhooks WHERE id = $1", uuid.UUID(webhook_id))
-    webhook_dispatcher.invalidate_cache()
+    await webhook_dispatcher.invalidate_cache()
     logger.info(f"Webhook deleted: id={webhook_id}")
     return {"status": "ok", "message": "Webhook deleted"}
 

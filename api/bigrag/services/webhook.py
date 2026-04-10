@@ -114,8 +114,6 @@ class WebhookDispatcher:
     def __init__(self) -> None:
         self._client: httpx.AsyncClient | None = None
         self._task: asyncio.Task | None = None
-        self._cache: list[dict] | None = None
-        self._cache_time: float = 0
         self._circuit_breaker = CircuitBreaker()
         # Per-webhook concurrency limiter (max 5 concurrent deliveries per webhook)
         self._semaphores: dict[str, asyncio.Semaphore] = {}
@@ -141,22 +139,29 @@ class WebhookDispatcher:
             await self._client.aclose()
         logger.info("WebhookDispatcher stopped")
 
-    def invalidate_cache(self) -> None:
-        self._cache = None
-        self._cache_time = 0
+    async def invalidate_cache(self) -> None:
+        from bigrag.services import redis_cache
+
+        await redis_cache.delete("webhooks:active")
 
     async def _get_webhooks(self) -> list[dict]:
-        """Fetch active webhooks with 60s in-memory cache."""
-        now = time.monotonic()
-        if self._cache is not None and (now - self._cache_time) < _cache_ttl():
-            return self._cache
+        """Fetch active webhooks, cached in Redis."""
+        from bigrag.services import redis_cache
+
+        cached = await redis_cache.get("webhooks:active")
+        if cached is not None:
+            return cached
 
         from bigrag.database import db
 
         rows = await db.fetch("SELECT * FROM webhooks WHERE active = true")
-        self._cache = [dict(r) for r in rows]
-        self._cache_time = now
-        return self._cache
+        webhooks = [
+            {k: str(v) if hasattr(v, "hex") else v.isoformat() if hasattr(v, "isoformat") else v
+             for k, v in dict(r).items()}
+            for r in rows
+        ]
+        await redis_cache.set("webhooks:active", webhooks, ttl=_cache_ttl())
+        return webhooks
 
     async def _listen(self) -> None:
         """Subscribe to all EventBus events and dispatch matching webhooks."""
