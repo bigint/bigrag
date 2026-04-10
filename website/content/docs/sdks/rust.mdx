@@ -105,6 +105,9 @@ client.collections().update("docs", UpdateCollectionBody {
 // Stats
 let stats = client.collections().stats("docs").await?;
 
+// Truncate (delete all documents, keep the collection)
+client.collections().truncate("docs").await?;
+
 // Delete
 client.collections().delete("docs").await?;
 ```
@@ -138,12 +141,43 @@ let chunks = client.documents().get_chunks("docs", "doc-id").await?;
 // Reprocess
 client.documents().reprocess("docs", "doc-id").await?;
 
+// Get a single document
+let doc = client.documents().get("docs", "doc-id").await?;
+
+// Delete a document
+client.documents().delete("docs", "doc-id").await?;
+
+// Get file download URL
+let url = client.documents().get_file_url("docs", "doc-id").await?;
+
+// Global document access (without collection scope)
+let doc = client.documents().get_by_id("doc-id").await?;
+let chunks = client.documents().get_chunks_by_id("doc-id").await?;
+
+// Batch operations
+let statuses = client.documents().batch_get_status("docs", &["id1", "id2"]).await?;
+let docs = client.documents().batch_get("docs", &["id1", "id2"]).await?;
+let result = client.documents().batch_delete("docs", &["id1", "id2"]).await?;
+
 // S3 Ingestion
 let resp = client.documents().ingest_s3("docs", S3IngestBody {
     bucket: "my-bucket".into(),
     prefix: Some("documents/".into()),
     ..Default::default()
 }).await?;
+
+// S3 job management
+let jobs = client.documents().list_s3_jobs("docs").await?;
+client.documents().resync_s3_job("docs", "job-id").await?;
+client.documents().delete_s3_job("docs", "job-id").await?;
+
+// Stream batch processing progress
+use futures_util::StreamExt;
+let mut stream = client.documents().stream_batch_progress("docs", &["id1", "id2"]).await?;
+while let Some(event) = stream.next().await {
+    let event = event?;
+    println!("[{}/{}] {} failed", event.completed, event.total, event.failed);
+}
 ```
 
 File uploads accept `&str` / `String` paths, `Vec<u8>` bytes with a name tuple, `PathBuf`, or a `FileInput` enum value directly.
@@ -209,6 +243,26 @@ col.upload("/path/to/file.pdf", None).await?;
 let docs = col.list_documents(None).await?;
 let results = col.query(QueryBody { query: "search".into(), ..Default::default() }).await?;
 let stats = col.stats().await?;
+let analytics = col.analytics().await?;
+
+// Batch operations
+let files = vec![FileInput::from("/path/to/a.pdf"), FileInput::from("/path/to/b.pdf")];
+let batch = col.batch_upload(files, None).await?;
+let statuses = col.batch_get_status(&["id1", "id2"]).await?;
+let batch_docs = col.batch_get(&["id1", "id2"]).await?;
+col.batch_delete(&["id1", "id2"]).await?;
+
+// S3 ingestion
+col.ingest_s3(S3IngestBody { bucket: "my-bucket".into(), ..Default::default() }).await?;
+let jobs = col.list_s3_jobs().await?;
+col.resync_s3_job("job-id").await?;
+col.delete_s3_job("job-id").await?;
+
+// SSE streaming
+let mut stream = col.stream_events().await?;
+while let Some(event) = stream.next().await {
+    println!("Event: {:?}", event?);
+}
 ```
 
 ## Webhooks
@@ -228,8 +282,47 @@ println!("Secret: {}", resp.secret); // save this!
 // List
 let hooks = client.webhooks().list().await?;
 
+// Get
+let hook = client.webhooks().get("webhook-id").await?;
+
+// Update
+client.webhooks().update("webhook-id", UpdateWebhookBody {
+    active: Some(false),
+    ..Default::default()
+}).await?;
+
+// Delete
+client.webhooks().delete("webhook-id").await?;
+
+// List deliveries
+let deliveries = client.webhooks().list_deliveries("webhook-id", None).await?;
+// with pagination
+let deliveries = client.webhooks().list_deliveries("webhook-id", Some(ListDeliveriesOptions {
+    limit: Some(20),
+    offset: Some(0),
+})).await?;
+
 // Test
 let test = client.webhooks().test("webhook-id").await?;
+```
+
+## Platform
+
+```rust
+// Health check
+let health = client.health().await?;
+
+// Readiness (checks Postgres, Milvus, Redis, embedding provider)
+let ready = client.readiness().await?;
+
+// Platform-wide stats
+let stats = client.stats().await?;
+
+// Available embedding models
+let models = client.embedding_models().await?;
+
+// Collection analytics
+let analytics = client.analytics("docs").await?;
 ```
 
 ## SSE Streaming

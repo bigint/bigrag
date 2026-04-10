@@ -98,6 +98,13 @@ await client.collections.delete("docs")
 
 # Stats
 stats = await client.collections.stats("docs")
+
+# Truncate (delete all documents, keep the collection)
+await client.collections.truncate("docs")
+
+# Stream collection events (SSE)
+async for event in client.collections.stream_events("docs"):
+    print(event)
 ```
 
 ## Documents
@@ -158,10 +165,17 @@ await client.documents.reprocess("docs", "doc-id")
 # Get chunks
 chunks = await client.documents.get_chunks("docs", "doc-id")
 
+# Get file download URL
+url = await client.documents.get_file_url("docs", "doc-id")
+
 # Batch operations
 statuses = await client.documents.batch_get_status("docs", ["id1", "id2"])
 docs = await client.documents.batch_get("docs", ["id1", "id2"])
 result = await client.documents.batch_delete("docs", ["id1", "id2"])
+
+# Global document access (without collection scope)
+doc = await client.documents.get_by_id("doc-id")
+chunks = await client.documents.get_chunks_by_id("doc-id")
 ```
 
 ## Queries

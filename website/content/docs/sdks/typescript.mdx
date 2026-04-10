@@ -69,6 +69,8 @@ client.getCollection(name)
 client.getCollectionStats(name)
 client.updateCollection(name, { description?, metadata? })
 client.deleteCollection(name)
+client.truncateCollection(name)  // delete all documents, keep the collection
+client.collections.streamEvents(name)  // AsyncIterable of collection events (SSE)
 ```
 
 ## Documents
@@ -96,6 +98,10 @@ client.documents.listS3Jobs(collection)
 client.documents.resyncS3Job(collection, jobId)
 client.documents.deleteS3Job(collection, jobId)
 client.documents.streamBatchProgress(collection, documentIds)  // AsyncIterable
+
+// Global document access (without collection scope)
+client.documents.getById(documentId)
+client.documents.getChunksById(documentId)
 ```
 
 File uploads accept `File`, `Blob`, `Buffer`, `Uint8Array`, or `{ path: string; name?: string }`.
