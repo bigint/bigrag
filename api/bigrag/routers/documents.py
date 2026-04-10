@@ -79,7 +79,7 @@ async def upload_document(
     try:
         get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     logger.info(f"upload: collection={collection_name} file={file.filename}")
 
     file_ext = Path(file.filename or "").suffix.lower()
@@ -284,7 +284,7 @@ async def reprocess_document(
     try:
         get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     if not await get_storage().exists(row["file_path"]):
         raise HTTPException(
@@ -395,7 +395,7 @@ async def batch_upload_documents(
     try:
         get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     if len(files) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 files per batch upload")
@@ -662,7 +662,7 @@ async def ingest_from_s3(
     try:
         get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     await create_job(
         collection_id=str(collection["id"]),

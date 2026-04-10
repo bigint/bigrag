@@ -216,10 +216,12 @@ class IngestionQueue:
                 asyncio.to_thread(_write_and_convert),
                 timeout=_settings.conversion_timeout,
             )
-        except TimeoutError:
+        except TimeoutError as e:
             from bigrag.config import settings as _settings
 
-            raise ValueError(f"Document conversion timed out after {_settings.conversion_timeout}s")
+            raise ValueError(
+                f"Document conversion timed out after {_settings.conversion_timeout}s"
+            ) from e
         finally:
             if tmp_path:
                 Path(tmp_path).unlink(missing_ok=True)

@@ -112,10 +112,10 @@ class S3Storage(StorageBackend):
     ) -> None:
         try:
             from aiobotocore.session import get_session
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
                 "aiobotocore is required for S3 storage. Install it with: pip install 'bigrag[s3]'"
-            )
+            ) from e
         self._bucket = bucket
         self._session = get_session()
         self._config = {

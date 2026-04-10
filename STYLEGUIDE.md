@@ -44,6 +44,12 @@ function processLargeDataset(data: any) {
 - [Accessibility](#accessibility)
 - [General TypeScript/JavaScript Coding Guidelines](#general-typescriptjavascript-coding-guidelines)
 - [Code Formatting \& Linting with Biome](#code-formatting--linting-with-biome)
+- [Python Backend](#python-backend)
+- [FastAPI Patterns](#fastapi-patterns)
+- [Database \& Async Patterns](#database--async-patterns)
+- [Caching with Redis](#caching-with-redis)
+- [TypeScript SDK Design](#typescript-sdk-design)
+- [Testing](#testing)
 - [Summary](#summary)
 - [References](#references)
 
@@ -2021,6 +2027,607 @@ Ask yourself these questions when writing code:
 8. **Custom error classes** - Typed errors for pattern matching
 9. **Dependency injection** - Pass dependencies as parameters
 
+## Python Backend
+
+Rules for the `api/` codebase. Python 3.12+, FastAPI, asyncpg, Pydantic v2.
+
+### File-Level Rules
+
+Every Python file must start with future annotations:
+
+```python
+from __future__ import annotations
+```
+
+Every module with public exports defines `__all__`:
+
+```python
+__all__ = ["EventBus", "IngestionEvent", "event_bus"]
+```
+
+Never use `print()` in production code. Use structlog:
+
+```python
+from bigrag.logging import get_logger
+
+logger = get_logger("bigrag.services.queue")
+
+# Structured key-value pairs, not f-strings in logger calls
+logger.info("job complete", job_id=job_id, chunks=total, elapsed=round(elapsed, 2))
+```
+
+### Naming
+
+| Element | Convention | Example |
+|---------|-----------|---------|
+| Functions, variables | `snake_case` | `get_collection`, `total_chunks` |
+| Classes | `PascalCase` | `EventBus`, `IngestionJob` |
+| Constants | `UPPER_SNAKE_CASE` | `QUEUE_KEY`, `DEFAULT_TIMEOUT` |
+| Private | `_leading_underscore` | `_cache`, `_process_job` |
+| Files | `snake_case.py` | `event_bus.py`, `redis_cache.py` |
+| Pydantic request models | `*Request` | `CreateCollectionRequest` |
+| Pydantic response models | `*Response` | `CollectionResponse` |
+
+### Type Annotations
+
+All function signatures must have type annotations on parameters and return values:
+
+```python
+# GOOD
+async def get_or_404(name: str) -> dict:
+    ...
+
+def build_s3_kwargs(job: dict) -> dict[str, Any]:
+    ...
+
+# BAD - missing return type
+async def get_or_404(name: str):
+    ...
+```
+
+Use modern union syntax:
+
+```python
+# GOOD
+def connect(url: str | None = None) -> None: ...
+endpoint_url: str | None
+
+# BAD
+from typing import Optional
+def connect(url: Optional[str] = None) -> None: ...
+```
+
+Use lowercase generics:
+
+```python
+# GOOD
+items: list[str]
+config: dict[str, Any]
+ids: set[int]
+
+# BAD
+from typing import List, Dict, Set
+items: List[str]
+```
+
+### Imports
+
+Order: stdlib, third-party, local. Enforced by ruff `I` rule.
+
+```python
+from __future__ import annotations
+
+import asyncio
+import uuid
+from pathlib import Path
+
+import orjson
+from fastapi import APIRouter, Depends, HTTPException
+
+from bigrag.config import settings
+from bigrag.database import db
+from bigrag.services.event_bus import event_bus
+```
+
+Prefer deferred imports for heavy or circular dependencies:
+
+```python
+async def _process_job(self, worker_id: int, job: IngestionJob) -> None:
+    # Import at use-site to avoid circular imports and speed up module loading
+    from bigrag.services.vector_store import vector_store
+```
+
+### Error Handling
+
+Domain exceptions live in `exceptions.py`. Services raise domain exceptions, never `HTTPException`:
+
+```python
+# exceptions.py
+class BigRAGError(Exception): ...
+class NotFoundError(BigRAGError):
+    def __init__(self, resource: str, identifier: str): ...
+class ConflictError(BigRAGError): ...
+class ValidationError(BigRAGError): ...
+class IngestionError(BigRAGError):
+    def __init__(self, message: str, *, permanent: bool = False): ...
+```
+
+Exception handlers in `main.py` translate domain errors to HTTP:
+
+```python
+# main.py
+@app.exception_handler(NotFoundError)
+async def not_found_handler(request, exc):
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+```
+
+Routers may raise `HTTPException` directly for HTTP-specific concerns (auth, content-type), but services must never import it:
+
+```python
+# GOOD - router layer
+@router.post("")
+async def create_collection(body: CreateCollectionRequest):
+    existing = await db.fetchrow("SELECT id FROM collections WHERE name = $1", body.name)
+    if existing:
+        raise HTTPException(status_code=409, detail="Collection already exists")
+
+# BAD - service layer raising HTTPException
+class IngestionQueue:
+    async def enqueue(self, job):
+        if depth >= max_depth:
+            raise HTTPException(status_code=429)  # Don't do this
+```
+
+### Pydantic Models
+
+Use `Field()` with constraints aggressively:
+
+```python
+class CreateCollectionRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=128, pattern=r"^[a-zA-Z][a-zA-Z0-9_]*$")
+    description: str = ""
+    chunk_size: int = Field(default=512, ge=64, le=10000)
+    chunk_overlap: int = Field(default=50, ge=0, le=5000)
+
+    @model_validator(mode="after")
+    def validate_overlap(self):
+        if self.chunk_overlap >= self.chunk_size:
+            raise ValueError("chunk_overlap must be less than chunk_size")
+        return self
+```
+
+Keep request and response models separate. Never reuse the same model for both directions:
+
+```python
+# GOOD - separate models
+class CreateCollectionRequest(BaseModel):
+    name: str
+    description: str = ""
+
+class CollectionResponse(BaseModel):
+    id: str
+    name: str
+    document_count: int
+    created_at: datetime
+```
+
+### Service Layer Architecture
+
+Use the Strategy pattern with abstract base classes for pluggable implementations:
+
+```python
+class EmbeddingModel(ABC):
+    @abstractmethod
+    async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]: ...
+
+    @property
+    @abstractmethod
+    def dimension(self) -> int: ...
+
+class OpenAIEmbedding(EmbeddingModel): ...
+class CohereEmbedding(EmbeddingModel): ...
+```
+
+Use the Factory pattern with caching for model selection:
+
+```python
+_models: dict[str, EmbeddingModel] = {}
+
+def get_embedding_model(provider: str, model_name: str, ...) -> EmbeddingModel:
+    cache_key = f"{provider}:{model_name}:{key_hash}"
+    if cache_key in _models:
+        return _models[cache_key]
+    model = _create_model(provider, model_name, ...)
+    _models[cache_key] = model
+    return model
+```
+
+## FastAPI Patterns
+
+### Route Handlers
+
+Always use `async def`. Always set `response_model`. Use `Depends()` for shared concerns:
+
+```python
+@router.get("", response_model=CollectionListResponse)
+async def list_collections(
+    name: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    _: dict = Depends(get_current_user),
+):
+    ...
+```
+
+Path parameters for resource identity, query parameters for filtering:
+
+```python
+# GOOD
+GET /v1/collections/{name}/documents?status=ready&limit=50
+
+# BAD
+GET /v1/collections?name=mydata&action=list_documents&status=ready
+```
+
+### Lifespan Management
+
+Use the FastAPI lifespan context manager for startup/shutdown. Initialize services in order of dependency:
+
+```python
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: connect in dependency order
+    await db.connect(s.database_url)
+    await redis_cache.connect(s.redis_url)
+    await event_bus.connect(s.redis_url)
+    await ingestion_queue.connect(s.redis_url)
+    await ingestion_queue.start(db=db)
+
+    yield
+
+    # Shutdown: close in reverse order
+    await ingestion_queue.stop()
+    await event_bus.close()
+    await redis_cache.close()
+    await db.close()
+```
+
+### Dependency Injection
+
+Store service instances on `app.state` during lifespan. Access via `Request`:
+
+```python
+# deps.py
+def get_db(request: Request) -> Database:
+    return request.app.state.db
+
+# router
+@router.get("/health/ready")
+async def readiness(request: Request):
+    db = request.app.state.db
+```
+
+For cross-cutting concerns (auth, validation), use `Depends()`:
+
+```python
+from bigrag.middleware.auth import get_current_user
+
+@router.post("", response_model=CollectionResponse)
+async def create_collection(
+    body: CreateCollectionRequest,
+    _: dict = Depends(get_current_user),
+):
+    ...
+```
+
+## Database & Async Patterns
+
+### Never Block the Event Loop
+
+Never call blocking I/O inside `async def`. Use `asyncio.to_thread()` for blocking libraries:
+
+```python
+# GOOD - offload blocking pymilvus call
+result = await asyncio.to_thread(self.client.search, collection_name, data, ...)
+
+# GOOD - offload blocking Docling conversion
+result = await asyncio.to_thread(_write_and_convert)
+
+# BAD - blocking call in async function
+result = self.client.search(collection_name, data, ...)  # blocks event loop
+```
+
+### Timeouts on All External Calls
+
+Every external call (HTTP, database, Redis, embeddings) must have a timeout:
+
+```python
+# GOOD
+result = await asyncio.wait_for(model.embed(texts), timeout=30)
+resp = await asyncio.wait_for(s3.get_object(Bucket=bucket, Key=key), timeout=120)
+
+# BAD - no timeout, can hang forever
+result = await model.embed(texts)
+```
+
+### Concurrency Control
+
+Use `asyncio.Semaphore` to limit concurrent operations:
+
+```python
+sem = asyncio.Semaphore(10)
+
+async def _download_and_ingest(obj: dict) -> None:
+    async with sem:
+        resp = await s3.get_object(Bucket=bucket, Key=key)
+        content = await resp["Body"].read()
+        await _ingest_file(content)
+```
+
+Use `asyncio.gather()` for parallel I/O, but always handle per-task errors:
+
+```python
+async def _download(obj: dict) -> None:
+    try:
+        ...
+    except asyncio.CancelledError:
+        raise  # let cancellation propagate
+    except Exception as e:
+        logger.warning("download failed", key=obj["Key"], error=str(e))
+        skipped += 1
+
+await asyncio.gather(*(_download(o) for o in objects))
+```
+
+### SQL Safety
+
+Always use parameterized queries. Never interpolate user input into SQL:
+
+```python
+# GOOD
+row = await db.fetchrow("SELECT * FROM collections WHERE name = $1", name)
+
+# BAD - SQL injection risk
+row = await db.fetchrow(f"SELECT * FROM collections WHERE name = '{name}'")
+```
+
+Exception: trusted internal values like interval strings can be interpolated with f-strings if validated:
+
+```python
+# OK - interval is from a hardcoded list, not user input
+interval = "24 hours"  # from ["24 hours", "7 days", "30 days"]
+await db.fetchrow(f"... AND created_at > now() - interval '{interval}'", collection_name)
+```
+
+### Background Tasks
+
+Use `asyncio.create_task()` for fire-and-forget work. Always store the task reference:
+
+```python
+# GOOD
+task = asyncio.create_task(_run_job(job))
+_tasks[job_id] = task
+task.add_done_callback(lambda _: _tasks.pop(job_id, None))
+
+# BAD - task can be garbage collected
+asyncio.create_task(_run_job(job))  # no reference stored
+```
+
+## Caching with Redis
+
+All caches go through `redis_cache` module. Never use in-memory dicts for caching:
+
+```python
+from bigrag.services import redis_cache
+
+# Read
+cached = await redis_cache.get("collection:mydata")
+
+# Write with TTL
+await redis_cache.set("collection:mydata", data, ttl=30)
+
+# Invalidate
+await redis_cache.delete("collection:mydata")
+await redis_cache.delete_pattern("analytics:*")
+```
+
+Key naming convention: `{domain}:{identifier}`. Examples:
+
+| Key | TTL | Purpose |
+|-----|-----|---------|
+| `collection:{name}` | 30s | Collection metadata |
+| `health:embedding:{provider}` | 60s | Embedding provider health |
+| `webhooks:active` | 60s | Active webhook list |
+| `stats:platform` | 15s | Platform-wide stats |
+| `analytics:{collection}` | 5min | Collection query analytics |
+
+Always invalidate on mutations:
+
+```python
+async def update_collection(name: str, body: UpdateCollectionRequest):
+    row = await db.fetchrow(sql, *params)
+    await invalidate_collection_cache(name)  # invalidate after write
+    return row
+```
+
+For event streaming, use Redis pub/sub (not in-memory queues):
+
+```python
+# Publishing
+event_bus.publish(IngestionEvent(
+    document_id=doc_id,
+    step="complete",
+    status="complete",
+    message="Done",
+    collection_name=collection_name,
+))
+
+# Subscribing (collection-level)
+q = event_bus.subscribe(f"collection:{name}")
+```
+
+## TypeScript SDK Design
+
+The SDK follows the resource namespace pattern (like Stripe, Anthropic):
+
+### Client Architecture
+
+```typescript
+// Transport layer (handles HTTP, retries, auth)
+export class BigRAGCore implements RequestClient {
+  readonly apiKey: string;
+  readonly baseUrl: string;
+  readonly timeout: number;
+  readonly maxRetries: number;
+}
+
+// Client with resource namespaces
+export class BigRAG extends BigRAGCore {
+  readonly collections: CollectionsResource;
+  readonly documents: DocumentsResource;
+  readonly queries: QueryResource;
+}
+```
+
+### Resource Classes
+
+Resources receive a `RequestClient` interface, not the concrete class. Every public method has JSDoc:
+
+```typescript
+export class CollectionsResource {
+  constructor(private readonly _client: RequestClient) {}
+
+  /**
+   * List collections with optional filtering and pagination.
+   *
+   * @param options - Optional filters such as `name`, `limit`, and `offset`.
+   * @returns A paginated list of collections.
+   */
+  list(options?: CollectionListOptions): Promise<CollectionListResponse> {
+    return this._client._request("GET", "/v1/collections", { params });
+  }
+}
+```
+
+### Error Hierarchy
+
+Map HTTP status codes to typed error classes:
+
+```typescript
+export class BigRAGError extends Error {}
+export class APIError extends BigRAGError {
+  readonly status: number;
+  readonly code: string | undefined;
+}
+export class BadRequestError extends APIError {}     // 400
+export class AuthenticationError extends APIError {}  // 401
+export class NotFoundError extends APIError {}        // 404
+export class RateLimitError extends APIError {}       // 429
+export class InternalServerError extends APIError {}  // 500
+
+// Connection-level errors (no HTTP status)
+export class APIConnectionError extends BigRAGError {}
+export class APITimeoutError extends BigRAGError {}
+```
+
+### Retry Policy
+
+Retry on connection errors and 5xx/429 responses. Never retry timeouts:
+
+```typescript
+// Retryable
+if (response.status >= 500 && attempt < this.maxRetries) continue;
+if (response.status === 429 && attempt < this.maxRetries) continue;
+
+// Not retryable - fail immediately
+if (lastError.name === "TimeoutError" || lastError.name === "AbortError") {
+  throw new APITimeoutError(lastError.message);
+}
+```
+
+### SSE Streaming
+
+Use async generators for SSE endpoints:
+
+```typescript
+async *streamEvents(name: string): AsyncGenerator<ProgressEvent> {
+  const response = await this._client._fetch(url, { method: "GET", headers });
+  if (!response.ok) throw errorForStatus(response.status, response.statusText);
+  yield* parseSSEStream(response);
+}
+```
+
+### Deprecation
+
+Old flat methods delegate to resource namespaces with `@deprecated` JSDoc:
+
+```typescript
+/**
+ * @deprecated Use `client.collections.list()` instead.
+ */
+listCollections(options?: CollectionListOptions): Promise<CollectionListResponse> {
+  return this.collections.list(options);
+}
+```
+
+## Testing
+
+### E2E Tests
+
+Tests live in `e2e/tests/`. They hit real infrastructure (Postgres, Redis, Milvus, OpenAI). No mocks:
+
+```bash
+cd e2e && uv run --with httpx python run.py
+```
+
+One file per feature area. Name files `test_*.py`:
+
+```
+e2e/tests/
+  test_collections.py
+  test_documents.py
+  test_query.py
+  test_s3_ingest.py
+  test_webhooks.py
+```
+
+### Test Structure
+
+Each test is a standalone async function. Use descriptive names:
+
+```python
+async def test_create_collection_returns_201():
+    resp = await client.post("/v1/collections", json={"name": "test_coll"})
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == "test_coll"
+
+async def test_duplicate_collection_returns_409():
+    await client.post("/v1/collections", json={"name": "dupe"})
+    resp = await client.post("/v1/collections", json={"name": "dupe"})
+    assert resp.status_code == 409
+```
+
+### Unit Tests
+
+Unit tests use pytest-asyncio with mocked dependencies:
+
+```python
+@pytest.mark.asyncio
+async def test_valid_bearer_token(client, auth_headers, mock_db):
+    mock_db.fetch.return_value = []
+    mock_db.fetchrow.return_value = {"cnt": 0}
+    resp = await client.get("/v1/collections", headers=auth_headers)
+    assert resp.status_code == 200
+```
+
+### When to Add Tests
+
+After any significant API change:
+1. Add test cases to the relevant `e2e/tests/test_*.py`
+2. Run the full suite and fix failures before committing
+3. If a response shape changes, update both test assertions and SDK types
+
 ## References
 
 ### Core Concepts
@@ -2031,18 +2638,18 @@ Ask yourself these questions when writing code:
 
 ### Libraries & Tools
 
+- **FastAPI**: [fastapi.tiangolo.com](https://fastapi.tiangolo.com/)
+- **Pydantic v2**: [docs.pydantic.dev](https://docs.pydantic.dev/)
+- **asyncpg**: [magicstack.github.io/asyncpg](https://magicstack.github.io/asyncpg/)
+- **structlog**: [structlog.org](https://www.structlog.org/)
+- **Ruff**: [docs.astral.sh/ruff](https://docs.astral.sh/ruff/)
 - **React 19**: [react.dev](https://react.dev)
 - **TypeScript**: [typescriptlang.org](https://www.typescriptlang.org/)
 - **Next.js 15**: [nextjs.org](https://nextjs.org/)
-- **FastAPI**: [fastapi.tiangolo.com](https://fastapi.tiangolo.com/)
 - **TanStack Query**: [tanstack.com/query](https://tanstack.com/query/latest)
-- **Drizzle ORM**: [orm.drizzle.team](https://orm.drizzle.team/)
-- **Zod**: [zod.dev](https://zod.dev/)
-- **XState**: [stately.ai/docs/xstate](https://stately.ai/docs/xstate)
 - **Tailwind CSS**: [tailwindcss.com](https://tailwindcss.com/)
 - **Base UI**: [base-ui.com](https://base-ui.com/)
 - **Biome**: [biomejs.dev](https://biomejs.dev/)
-- **Vitest**: [vitest.dev](https://vitest.dev/)
 
 ### Internal Documentation
 

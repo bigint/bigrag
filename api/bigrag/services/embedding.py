@@ -47,11 +47,11 @@ class OpenAIEmbedding(EmbeddingModel):
     ) -> None:
         try:
             import openai
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
                 "openai package is required for OpenAI embeddings. "
                 "Install it with: pip install 'bigrag[openai]'"
-            )
+            ) from e
 
         self._model_name = model_name
         self._dimension = dimension
@@ -93,11 +93,11 @@ class CohereEmbedding(EmbeddingModel):
     ) -> None:
         try:
             import cohere
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
                 "cohere package is required for Cohere embeddings. "
                 "Install it with: pip install 'bigrag[cohere]'"
-            )
+            ) from e
 
         self._model_name = model_name
         self._dimension = dimension

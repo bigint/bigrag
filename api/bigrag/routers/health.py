@@ -94,7 +94,7 @@ async def readiness(request: Request):
         return_exceptions=True,
     )
 
-    for name, result in zip(infra_checks.keys(), results):
+    for name, result in zip(infra_checks.keys(), results, strict=False):
         if isinstance(result, Exception):
             checks[name] = False
             healthy = False

@@ -103,7 +103,7 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
         )
         dimension = body.dimension or emb.dimension
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     # Create in Milvus first (idempotent — skips if exists)
     await vector_store.create_collection(body.name, dimension)
@@ -137,8 +137,8 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             body.default_min_score,
             body.default_search_mode,
         )
-    except asyncpg.UniqueViolationError:
-        raise HTTPException(status_code=409, detail="Collection already exists")
+    except asyncpg.UniqueViolationError as e:
+        raise HTTPException(status_code=409, detail="Collection already exists") from e
     except Exception:
         # Roll back Milvus collection if Postgres insert fails
         await vector_store.delete_collection(body.name)

@@ -47,7 +47,7 @@ async def query_collection(
     try:
         embedding_model = get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     top_k = body.top_k or collection.get("default_top_k", 10)
     min_score = (
@@ -92,7 +92,7 @@ async def multi_collection_query(
         try:
             embedding_models[col_name] = get_embedding_model_for(collection)
         except (ImportError, ValueError) as e:
-            raise HTTPException(status_code=400, detail=f"Collection '{col_name}': {e}")
+            raise HTTPException(status_code=400, detail=f"Collection '{col_name}': {e}") from e
         reranking_configs[col_name] = get_reranking_config(collection)
 
     results = await retrieve_multi(
@@ -128,7 +128,8 @@ async def batch_query(
         try:
             embedding_model = get_embedding_model_for(collection)
         except (ImportError, ValueError) as e:
-            raise HTTPException(status_code=400, detail=f"Collection '{item.collection}': {e}")
+            msg = f"Collection '{item.collection}': {e}"
+            raise HTTPException(status_code=400, detail=msg) from e
 
         results = await retrieve(
             collection_name=item.collection,
