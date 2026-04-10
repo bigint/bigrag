@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from starlette.responses import StreamingResponse
 
 from bigrag.config import settings
 from bigrag.database import db
@@ -263,6 +265,53 @@ async def delete_collection(name: str, _: dict = Depends(get_current_user)):
     invalidate_collection_cache(name)
 
     return {"status": "ok", "message": f"Collection '{name}' deleted"}
+
+
+@router.get("/{name}/events")
+async def collection_events_sse(name: str, _: dict = Depends(get_current_user)):
+    """Stream real-time events for all activity in a collection via SSE."""
+    from bigrag.services.event_bus import event_bus
+
+    row = await db.fetchrow("SELECT id FROM collections WHERE name = $1", name)
+    if not row:
+        raise HTTPException(status_code=404, detail="Collection not found")
+
+    import orjson
+
+    async def generate():
+        yield (
+            f'data: {{"step":"connected","status":"connected",'
+            f'"message":"Listening for events on {name}","progress":0}}\n\n'
+        )
+
+        key = f"collection:{name}"
+        q = event_bus.subscribe(key)
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(q.get(), timeout=30)
+                except TimeoutError:
+                    yield ": heartbeat\n\n"
+                    continue
+                if event is None:
+                    break
+                data = {
+                    "document_id": event.document_id,
+                    "step": event.step,
+                    "status": event.status,
+                    "message": event.message,
+                    "progress": event.progress,
+                    **event.detail,
+                }
+                yield f"data: {orjson.dumps(data).decode()}\n\n"
+        finally:
+            event_bus.unsubscribe(key, q)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/{name}/truncate")

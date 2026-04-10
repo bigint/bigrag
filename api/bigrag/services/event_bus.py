@@ -15,10 +15,12 @@ class IngestionEvent:
     message: str
     progress: float = 0.0
     detail: dict = field(default_factory=dict)
+    collection_name: str = ""
 
     def to_sse(self) -> str:
         data = {
             "document_id": self.document_id,
+            "collection_name": self.collection_name,
             "step": self.step,
             "status": self.status,
             "message": self.message,
@@ -49,6 +51,10 @@ class EventBus:
             q.put_nowait(event)
         for q in self._subs.get("*", []):
             q.put_nowait(event)
+        if event.collection_name:
+            key = f"collection:{event.collection_name}"
+            for q in self._subs.get(key, []):
+                q.put_nowait(event)
 
     def complete(self, document_id: str) -> None:
         for q in self._subs.get(document_id, []):

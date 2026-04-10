@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from bigrag.logging import get_logger
+from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.s3_client import (
     SUPPORTED_EXTENSIONS,
     build_s3_kwargs,
@@ -139,6 +140,17 @@ async def _run_job(job: dict) -> None:
             f"UPDATE s3_ingest_jobs SET {', '.join(parts)} WHERE id = $1", *vals
         )
 
+    def _emit(step: str, status: str, msg: str, **detail: Any) -> None:
+        event_bus.publish(IngestionEvent(
+            document_id=f"s3:{job_id}",
+            step=step,
+            status=status,
+            message=msg,
+            detail=detail,
+            collection_name=collection_name,
+        ))
+
+    _emit("s3_started", "processing", f"S3 import from s3://{bucket}/{prefix}")
     await _update("listing")
     s3_kwargs = build_s3_kwargs(job)
 
@@ -179,6 +191,7 @@ async def _run_job(job: dict) -> None:
 
     def _on_listing_progress(count: int) -> None:
         asyncio.ensure_future(_update("ingesting", total_found=count))
+        _emit("s3_listing", "processing", f"Found {count} files so far", found=count)
         logger.info("s3_job: listing", job_id=job_id, found=count)
 
     session = aiobotocore.session.get_session()
@@ -264,6 +277,11 @@ async def _run_job(job: dict) -> None:
                         return
 
                     ingested += 1
+                    _emit(
+                        "s3_ingested", "processing",
+                        f"Ingested {Path(key).name}",
+                        ingested=ingested, skipped=skipped, found=total_found,
+                    )
                     if ingested % 10 == 0:
                         await _update(
                             "ingesting", total_found=total_found,
@@ -288,14 +306,23 @@ async def _run_job(job: dict) -> None:
                 on_progress=_on_listing_progress,
             ):
                 new_objects: list[dict] = []
+                page_skipped = 0
                 for obj in page:
                     key = obj["Key"]
                     total_found += 1
                     if key in existing_keys:
                         skipped += 1
+                        page_skipped += 1
                     else:
                         existing_keys.add(key)
                         new_objects.append(obj)
+
+                if page_skipped:
+                    _emit(
+                        "s3_skipped", "processing",
+                        f"Skipped {page_skipped} already-ingested files",
+                        skipped=skipped, found=total_found,
+                    )
 
                 if new_objects:
                     await asyncio.gather(
@@ -303,9 +330,11 @@ async def _run_job(job: dict) -> None:
                     )
 
     except asyncio.CancelledError:
+        _emit("s3_cancelled", "failed", "S3 import cancelled")
         logger.info("s3_job: cancelled during ingestion", job_id=job_id)
         return
     except Exception as e:
+        _emit("s3_failed", "failed", f"S3 import failed: {e}")
         logger.error(f"s3_job: failed: {e!r}")
         await _update(
             "failed", total_ingested=ingested, total_skipped=skipped,
@@ -316,6 +345,11 @@ async def _run_job(job: dict) -> None:
     if total_found == 0:
         logger.warning("s3_job: no supported files found", bucket=bucket, prefix=prefix)
 
+    _emit(
+        "s3_complete", "complete",
+        f"S3 import done — {ingested} ingested, {skipped} skipped",
+        ingested=ingested, skipped=skipped, found=total_found,
+    )
     await _update(
         "complete", total_found=total_found,
         total_ingested=ingested, total_skipped=skipped,

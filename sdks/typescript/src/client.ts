@@ -443,4 +443,9 @@ export class CollectionClient {
   streamDocumentProgress(documentId: string): AsyncGenerator<ProgressEvent> {
     return this.client.documents.streamProgress(this.name, documentId);
   }
+
+  /** Stream real-time events for all activity in this collection. */
+  streamEvents(): AsyncGenerator<ProgressEvent> {
+    return this.client.collections.streamEvents(this.name);
+  }
 }

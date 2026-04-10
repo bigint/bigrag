@@ -1,10 +1,14 @@
 import type { RequestClient } from "../core.js";
+import { USER_AGENT } from "../core.js";
+import { errorForStatus } from "../errors.js";
+import { parseSSEStream } from "../sse.js";
 import type {
   Collection,
   CollectionListOptions,
   CollectionListResponse,
   CollectionStatsResponse,
   CreateCollectionBody,
+  ProgressEvent,
   StatusResponse,
   UpdateCollectionBody,
 } from "../types.js";
@@ -87,5 +91,30 @@ export class CollectionsResource {
    */
   truncate(name: string): Promise<StatusResponse> {
     return this._client._request("POST", `/v1/collections/${encodeURIComponent(name)}/truncate`);
+  }
+
+  /**
+   * Stream real-time events for all activity in a collection via SSE.
+   *
+   * @param name - The collection name.
+   * @yields {@link ProgressEvent} objects as they arrive (document ingestion, S3 imports, etc.).
+   */
+  async *streamEvents(name: string): AsyncGenerator<ProgressEvent> {
+    const path = `/v1/collections/${encodeURIComponent(name)}/events`;
+    const tokenParam = this._client.apiKey
+      ? `?token=${encodeURIComponent(this._client.apiKey)}`
+      : "";
+    const url = `${this._client.baseUrl}${path}${tokenParam}`;
+
+    const response = await this._client._fetch(url, {
+      method: "GET",
+      headers: { "User-Agent": USER_AGENT },
+    });
+
+    if (!response.ok) {
+      throw errorForStatus(response.status, response.statusText);
+    }
+
+    yield* parseSSEStream(response);
   }
 }

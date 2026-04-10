@@ -144,7 +144,14 @@ class IngestionQueue:
         logger.info(f"[worker-{worker_id}] stopped")
 
     def _emit(
-        self, doc_id: str, step: str, status: str, msg: str, progress: float = 0.0, **detail
+        self,
+        doc_id: str,
+        step: str,
+        status: str,
+        msg: str,
+        progress: float = 0.0,
+        collection_name: str = "",
+        **detail,
     ) -> None:
         event_bus.publish(
             IngestionEvent(
@@ -154,6 +161,7 @@ class IngestionQueue:
                 message=msg,
                 progress=progress,
                 detail=detail,
+                collection_name=collection_name,
             )
         )
 
@@ -166,7 +174,8 @@ class IngestionQueue:
         from bigrag.services.storage import get_storage
 
         self._emit(
-            job.document_id, "converting", "processing", "Parsing document", 0.15
+            job.document_id, "converting", "processing", "Parsing document", 0.15,
+            collection_name=job.collection_name,
         )
         t0 = time.monotonic()
 
@@ -182,7 +191,8 @@ class IngestionQueue:
             logger.info(f"{prefix} plain text read elapsed={elapsed:.2f}s")
             self._emit(
                 job.document_id, "text_extracted", "processing",
-                f"Extracted {len(text):,} characters", 0.40, chars=len(text),
+                f"Extracted {len(text):,} characters", 0.40,
+                collection_name=job.collection_name, chars=len(text),
             )
             return text
 
@@ -218,7 +228,8 @@ class IngestionQueue:
         logger.info(f"{prefix} docling conversion elapsed={elapsed:.2f}s")
         self._emit(
             job.document_id, "converted", "processing",
-            f"Parsed in {elapsed:.1f}s", 0.35, elapsed=round(elapsed, 2),
+            f"Parsed in {elapsed:.1f}s", 0.35,
+            collection_name=job.collection_name, elapsed=round(elapsed, 2),
         )
 
         text = result.document.export_to_markdown()
@@ -230,7 +241,8 @@ class IngestionQueue:
         logger.info(f"{prefix} text extracted chars={len(text)}")
         self._emit(
             job.document_id, "text_extracted", "processing",
-            f"Extracted {len(text):,} characters", 0.40, chars=len(text),
+            f"Extracted {len(text):,} characters", 0.40,
+            collection_name=job.collection_name, chars=len(text),
         )
         return text
 
@@ -262,6 +274,7 @@ class IngestionQueue:
             "processing",
             f"Loaded {job.embedding_model}",
             0.10,
+            collection_name=job.collection_name,
             provider=job.embedding_provider,
             model=job.embedding_model,
             elapsed=round(elapsed, 2),
@@ -277,6 +290,7 @@ class IngestionQueue:
             "processing",
             f"Split into {len(chunks)} chunks",
             0.45,
+            collection_name=job.collection_name,
             chunks=len(chunks),
             chunk_size=job.chunk_size,
         )
@@ -325,6 +339,7 @@ class IngestionQueue:
                 "processing",
                 f"Batch {batch_num}/{total_batches} — {total_inserted} vectors",
                 progress,
+                collection_name=job.collection_name,
                 batch=batch_num,
                 total_batches=total_batches,
                 inserted=total_inserted,
@@ -354,6 +369,7 @@ class IngestionQueue:
             "processing",
             "Starting ingestion",
             0.0,
+            collection_name=job.collection_name,
             attempt=job.attempt,
             max_attempts=job.max_attempts,
         )
@@ -371,7 +387,7 @@ class IngestionQueue:
                 "processing",
                 "Preparing document",
                 0.05,
-                collection=job.collection_name,
+                collection_name=job.collection_name,
             )
 
             text = await self._convert_document(job, prefix)
@@ -403,9 +419,9 @@ class IngestionQueue:
                 "complete",
                 f"Done — {total_inserted} chunks in {total_elapsed:.1f}s",
                 1.0,
+                collection_name=job.collection_name,
                 chunks=total_inserted,
                 elapsed=round(total_elapsed, 2),
-                collection=job.collection_name,
             )
             event_bus.complete(doc)
 
@@ -432,6 +448,7 @@ class IngestionQueue:
                     "processing",
                     f"Attempt {job.attempt} failed, retrying in {delay}s",
                     0.0,
+                    collection_name=job.collection_name,
                     error=str(e),
                     attempt=job.attempt,
                     delay=delay,
@@ -463,8 +480,8 @@ class IngestionQueue:
                     "failed",
                     str(e),
                     0.0,
+                    collection_name=job.collection_name,
                     attempts=job.attempt,
-                    collection=job.collection_name,
                 )
                 event_bus.complete(doc)
 
