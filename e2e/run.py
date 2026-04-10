@@ -26,6 +26,7 @@ from tests.test_webhooks import test_webhooks  # noqa: E402
 from tests.test_vectors import test_vectors  # noqa: E402
 from tests.test_sse import test_sse  # noqa: E402
 from tests.test_s3 import test_s3  # noqa: E402
+from tests.test_edge_cases import test_edge_cases  # noqa: E402
 from tests.test_truncate import test_truncate  # noqa: E402
 from tests.test_cleanup import test_cleanup  # noqa: E402
 
@@ -55,6 +56,7 @@ async def main():
         await test_vectors(c)
         await test_sse(c)
         await test_s3(c)
+        await test_edge_cases(c, doc_id)
         await test_truncate(c)
         await test_cleanup(c)
 

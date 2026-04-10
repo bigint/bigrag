@@ -31,4 +31,18 @@ async def test_sse(c: httpx.AsyncClient) -> None:
         else:
             fail("Batch progress", f"{resp.status_code}")
 
+    async with c.stream(
+        "GET", f"/v1/collections/{COLLECTION}/events",
+    ) as resp:
+        if resp.status_code == 200:
+            ok("Collection events (connected)")
+        else:
+            fail("Collection events", f"{resp.status_code}")
+
+    r = await c.get("/v1/collections/nonexistent_xyz_99999/events")
+    if r.status_code == 404:
+        ok("Collection events non-existent → 404")
+    else:
+        fail("Collection events non-existent", f"expected 404, got {r.status_code}")
+
     await wait_doc(c, doc_id)
