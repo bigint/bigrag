@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from bigrag.database import db
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_admin
+from bigrag.models.common import StatusResponse
 from bigrag.models.webhook import (
     MAX_WEBHOOKS,
     CreateWebhookRequest,
@@ -136,7 +137,7 @@ async def update_webhook(
     return _row_to_response(dict(updated))
 
 
-@router.delete("/{webhook_id}")
+@router.delete("/{webhook_id}", response_model=StatusResponse)
 async def delete_webhook(webhook_id: str, _: dict = Depends(require_admin)):
     row = await db.fetchrow("SELECT id FROM webhooks WHERE id = $1", uuid.UUID(webhook_id))
     if not row:

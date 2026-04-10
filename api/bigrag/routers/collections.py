@@ -17,6 +17,7 @@ from bigrag.models.collection import (
     CreateCollectionRequest,
     UpdateCollectionRequest,
 )
+from bigrag.models.common import StatusResponse
 from bigrag.services.vector_store import vector_store
 
 logger = get_logger("bigrag.routers.collections")
@@ -236,7 +237,7 @@ async def update_collection(
     return _row_to_response(dict(row))
 
 
-@router.delete("/{name}")
+@router.delete("/{name}", response_model=StatusResponse)
 async def delete_collection(name: str, _: dict = Depends(get_current_user)):
     logger.info(f"delete: collection={name}")
     row = await db.fetchrow("SELECT id FROM collections WHERE name = $1", name)
@@ -314,7 +315,7 @@ async def collection_events_sse(name: str, _: dict = Depends(get_current_user)):
     )
 
 
-@router.post("/{name}/truncate")
+@router.post("/{name}/truncate", response_model=StatusResponse)
 async def truncate_collection(name: str, _: dict = Depends(get_current_user)):
     """Delete all documents, vectors, and storage files in a collection."""
     logger.info(f"truncate: collection={name}")

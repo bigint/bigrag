@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from bigrag.database import db
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
+from bigrag.models.common import StatusResponse
 from bigrag.models.s3 import S3JobListResponse, S3JobResponse
 from bigrag.routers import get_collection_or_404
 
@@ -74,7 +75,7 @@ async def get_s3_job(
     return _row_to_response(dict(row))
 
 
-@router.post("/{job_id}/resync")
+@router.post("/{job_id}/resync", response_model=StatusResponse)
 async def resync_s3_job(
     collection_name: str,
     job_id: str,
@@ -109,7 +110,7 @@ async def resync_s3_job(
     return {"status": "ok", "message": "S3 ingest job re-syncing"}
 
 
-@router.delete("/{job_id}")
+@router.delete("/{job_id}", response_model=StatusResponse)
 async def delete_s3_job(
     collection_name: str,
     job_id: str,

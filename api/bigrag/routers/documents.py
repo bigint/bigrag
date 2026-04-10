@@ -12,6 +12,7 @@ from bigrag.config import settings
 from bigrag.database import db
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
+from bigrag.models.common import StatusResponse
 from bigrag.models.document import (
     BatchDeleteRequest,
     BatchDeleteResponse,
@@ -230,7 +231,7 @@ async def get_document(
     return _row_to_response(dict(row))
 
 
-@router.delete("/{document_id}")
+@router.delete("/{document_id}", response_model=StatusResponse)
 async def delete_document(
     collection_name: str,
     document_id: str,
@@ -266,7 +267,7 @@ async def delete_document(
     return {"status": "ok", "message": "Document deleted"}
 
 
-@router.post("/{document_id}/reprocess")
+@router.post("/{document_id}/reprocess", response_model=StatusResponse)
 async def reprocess_document(
     collection_name: str,
     document_id: str,

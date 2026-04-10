@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
+from bigrag.models.common import StatusResponse
 from bigrag.models.query import (
     AnalyticsResponse,
     BatchQueryItem,
@@ -158,7 +159,7 @@ async def batch_query(
 # Direct vector operations (for advanced users bringing their own embeddings)
 
 
-@router.post("/v1/collections/{collection_name}/vectors/upsert")
+@router.post("/v1/collections/{collection_name}/vectors/upsert", response_model=StatusResponse)
 async def upsert_vectors(
     collection_name: str,
     body: VectorUpsertRequest,
@@ -184,7 +185,7 @@ async def upsert_vectors(
     return {"status": "ok", "upserted": count}
 
 
-@router.post("/v1/collections/{collection_name}/vectors/delete")
+@router.post("/v1/collections/{collection_name}/vectors/delete", response_model=StatusResponse)
 async def delete_vectors(
     collection_name: str,
     body: VectorDeleteRequest,

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from bigrag.services.collection_cache import get_embedding_model_for, get_reranking_config
 from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
 from bigrag.services.collection_cache import invalidate as invalidate_collection_cache
