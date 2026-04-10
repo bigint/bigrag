@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import Any
 
@@ -77,16 +77,14 @@ async def resolve_bucket_region(bucket: str) -> str | None:
     return None
 
 
-async def list_s3_objects(
+async def resolve_s3_config(
     bucket: str,
     prefix: str,
     s3_kwargs: dict[str, Any],
-    extensions: set[str],
-    on_progress: Callable[[int], Any] | None = None,
-) -> list[dict]:
-    """List and filter objects in an S3 bucket with automatic credential/region fallback.
+) -> dict[str, Any]:
+    """Test S3 access and resolve correct credentials/region via fallback.
 
-    *on_progress* is called every 5 pages with the current object count.
+    Returns the (possibly modified) *s3_kwargs* that successfully listed.
     """
     import aiobotocore.session
     from botocore import UNSIGNED
@@ -94,26 +92,13 @@ async def list_s3_objects(
     from botocore.exceptions import NoCredentialsError
 
     session = aiobotocore.session.get_session()
-    objects: list[dict] = []
 
-    async def _list(kwargs: dict[str, Any]) -> None:
-        pages = 0
+    async def _probe(kwargs: dict[str, Any]) -> None:
         async with session.create_client("s3", **kwargs) as s3:
-            paginator = s3.get_paginator("list_objects_v2")
-            list_kw: dict[str, Any] = {"Bucket": bucket}
+            list_kw: dict[str, Any] = {"Bucket": bucket, "MaxKeys": 1}
             if prefix:
                 list_kw["Prefix"] = prefix
-            async for page in paginator.paginate(**list_kw):
-                pages += 1
-                for obj in page.get("Contents", []):
-                    key = obj["Key"]
-                    if key.endswith("/"):
-                        continue
-                    ext = Path(key).suffix.lower()
-                    if ext in extensions:
-                        objects.append(obj)
-                if pages % 5 == 0 and on_progress:
-                    on_progress(len(objects))
+            await s3.list_objects_v2(**list_kw)
 
     def _is_redirect(exc: Exception) -> bool:
         s = str(exc)
@@ -121,8 +106,8 @@ async def list_s3_objects(
 
     # 1. Try as-is
     try:
-        await _list(s3_kwargs)
-        return objects
+        await _probe(s3_kwargs)
+        return s3_kwargs
     except NoCredentialsError:
         logger.info("no credentials, switching to unsigned")
         s3_kwargs["config"] = Config(signature_version=UNSIGNED)
@@ -132,20 +117,59 @@ async def list_s3_objects(
         if "config" not in s3_kwargs:
             s3_kwargs["config"] = Config(signature_version=UNSIGNED)
 
-    # 2. Try to detect correct region before listing
+    # 2. Try to detect correct region
     region = await resolve_bucket_region(bucket)
     if region and region != s3_kwargs.get("region_name"):
         logger.info("detected region", actual=region)
         s3_kwargs["region_name"] = region
         s3_kwargs.pop("endpoint_url", None)
 
-    # 3. List with resolved config
+    # 3. Verify resolved config works
     logger.info(
-        "listing with resolved config",
+        "resolved s3 config",
         region=s3_kwargs.get("region_name"),
         unsigned=True,
     )
-    await _list(s3_kwargs)
-    return objects
+    await _probe(s3_kwargs)
+    return s3_kwargs
+
+
+async def iter_s3_pages(
+    bucket: str,
+    prefix: str,
+    s3_kwargs: dict[str, Any],
+    extensions: set[str],
+    on_progress: Callable[[int], Any] | None = None,
+) -> AsyncIterator[list[dict]]:
+    """Yield pages of filtered S3 objects.
+
+    Each page contains up to 1000 objects (S3 default) filtered by extension.
+    *on_progress* is called every 5 pages with the running total.
+    """
+    import aiobotocore.session
+
+    session = aiobotocore.session.get_session()
+    total = 0
+    pages = 0
+
+    async with session.create_client("s3", **s3_kwargs) as s3:
+        paginator = s3.get_paginator("list_objects_v2")
+        list_kw: dict[str, Any] = {"Bucket": bucket}
+        if prefix:
+            list_kw["Prefix"] = prefix
+        async for page in paginator.paginate(**list_kw):
+            pages += 1
+            filtered: list[dict] = []
+            for obj in page.get("Contents", []):
+                key = obj["Key"]
+                if key.endswith("/"):
+                    continue
+                if Path(key).suffix.lower() in extensions:
+                    filtered.append(obj)
+            total += len(filtered)
+            if pages % 5 == 0 and on_progress:
+                on_progress(total)
+            if filtered:
+                yield filtered
 
 

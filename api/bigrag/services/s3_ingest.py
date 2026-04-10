@@ -11,7 +11,8 @@ from bigrag.logging import get_logger
 from bigrag.services.s3_client import (
     SUPPORTED_EXTENSIONS,
     build_s3_kwargs,
-    list_s3_objects,
+    iter_s3_pages,
+    resolve_s3_config,
 )
 
 logger = get_logger("bigrag.s3_ingest")
@@ -141,41 +142,15 @@ async def _run_job(job: dict) -> None:
     await _update("listing")
     s3_kwargs = build_s3_kwargs(job)
 
-    def _on_listing_progress(count: int) -> None:
-        async def _safe_update() -> None:
-            try:
-                await _update("listing", total_found=count)
-            except Exception as e:
-                logger.warning("s3_job: progress update failed", error=str(e))
-
-        asyncio.ensure_future(_safe_update())
-        logger.info(
-            "s3_job: listing", job_id=job_id, found=count,
-        )
-
     try:
-        objects = await list_s3_objects(
-            bucket=bucket,
-            prefix=prefix,
-            s3_kwargs=s3_kwargs,
-            extensions=extensions,
-            on_progress=_on_listing_progress,
-        )
+        s3_kwargs = await resolve_s3_config(bucket, prefix, s3_kwargs)
     except asyncio.CancelledError:
-        logger.info("s3_job: cancelled during listing", job_id=job_id)
+        logger.info("s3_job: cancelled during config resolve", job_id=job_id)
         return
     except Exception as e:
-        logger.error(f"s3_job: listing failed: {e!r}")
+        logger.error(f"s3_job: s3 access failed: {e!r}")
         await _update("failed", error_message=str(e))
         return
-
-    if not objects:
-        logger.warning("s3_job: no supported files found", bucket=bucket, prefix=prefix)
-        await _update("complete", total_found=0)
-        return
-
-    await _update("ingesting", total_found=len(objects))
-    logger.info("s3_job: found files", count=len(objects), job_id=job_id)
 
     from bigrag.config import settings
     from bigrag.routers import get_collection_or_404
@@ -196,109 +171,136 @@ async def _run_job(job: dict) -> None:
     storage = get_storage()
     ingested = 0
     skipped = 0
-
-    async def _ingest_file(
-        filename: str, file_ext: str, content: bytes, s3_key: str,
-    ) -> None:
-        nonlocal ingested, skipped
-        if s3_key in existing_keys:
-            skipped += 1
-            return
-
-        doc_id = str(uuid.uuid4())
-        storage_key = f"{collection_name}/{doc_id}{file_ext}"
-        await storage.put(storage_key, content)
-
-        try:
-            await db.fetchrow(
-                """
-                INSERT INTO documents
-                    (id, collection_id, filename, file_type,
-                     file_size, file_path, metadata)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                RETURNING id
-                """,
-                uuid.UUID(doc_id),
-                collection_id,
-                filename,
-                file_ext.lstrip("."),
-                len(content),
-                storage_key,
-                {**meta_template, "source": "s3", "s3_bucket": bucket, "s3_key": s3_key},
-            )
-        except Exception:
-            await storage.delete(storage_key)
-            skipped += 1
-            return
-
-        try:
-            await ingestion_queue.enqueue(
-                create_ingestion_job(
-                    document_id=doc_id,
-                    file_path=storage_key,
-                    collection_name=collection_name,
-                    collection=collection,
-                    fallback_api_key=settings.embedding_api_key,
-                )
-            )
-        except Exception:
-            await db.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(doc_id))
-            await storage.delete(storage_key)
-            skipped += 1
-            return
-
-        existing_keys.add(s3_key)
-        ingested += 1
-
-        await _update("ingesting", total_ingested=ingested, total_skipped=skipped)
-        if ingested % 10 == 0:
-            logger.info(
-                "s3_job: ingesting",
-                job_id=job_id, ingested=ingested, skipped=skipped,
-                total=len(objects),
-            )
-
+    total_found = 0
+    sem = asyncio.Semaphore(10)
     max_object_bytes = 2 * 1024 * 1024 * 1024  # 2GB per object
-    obj_count = len(objects)
+
+    await _update("ingesting")
+
+    def _on_listing_progress(count: int) -> None:
+        asyncio.ensure_future(_update("ingesting", total_found=count))
+        logger.info("s3_job: listing", job_id=job_id, found=count)
+
     session = aiobotocore.session.get_session()
 
     try:
         async with session.create_client("s3", **s3_kwargs) as s3:
-            for idx, obj in enumerate(objects):
+
+            async def _download_and_ingest(obj: dict) -> None:
+                nonlocal ingested, skipped
                 key = obj["Key"]
-                file_ext = Path(key).suffix.lower()
-                size_bytes = obj.get("Size", 0)
-                size_mb = size_bytes / (1024 * 1024)
-
-                if size_bytes > max_object_bytes:
-                    logger.warning(
-                        "s3_job: skipping oversized object",
-                        key=key, size_mb=round(size_mb, 1),
-                    )
-                    skipped += 1
-                    continue
-
-                logger.info(
-                    "s3_job: downloading",
-                    job_id=job_id,
-                    key=key,
-                    size_mb=round(size_mb, 1),
-                    progress=f"{idx + 1}/{obj_count}",
-                )
-
                 try:
-                    resp = await s3.get_object(Bucket=bucket, Key=key)
-                    content = await resp["Body"].read()
+                    file_ext = Path(key).suffix.lower()
+                    size_bytes = obj.get("Size", 0)
+                    size_mb = size_bytes / (1024 * 1024)
+
+                    if size_bytes > max_object_bytes:
+                        logger.warning(
+                            "s3_job: skipping oversized object",
+                            key=key, size_mb=round(size_mb, 1),
+                        )
+                        skipped += 1
+                        return
+
+                    async with sem:
+                        logger.info(
+                            "s3_job: downloading",
+                            job_id=job_id, key=key,
+                            size_mb=round(size_mb, 1),
+                        )
+
+                        try:
+                            resp = await s3.get_object(Bucket=bucket, Key=key)
+                            content = await resp["Body"].read()
+                        except Exception as e:
+                            logger.warning("s3_job: download failed", key=key, error=str(e))
+                            skipped += 1
+                            return
+
+                        if len(content) == 0:
+                            skipped += 1
+                            return
+
+                        doc_id = str(uuid.uuid4())
+                        storage_key = f"{collection_name}/{doc_id}{file_ext}"
+                        await storage.put(storage_key, content)
+
+                    try:
+                        await db.fetchrow(
+                            """
+                            INSERT INTO documents
+                                (id, collection_id, filename, file_type,
+                                 file_size, file_path, metadata)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7)
+                            RETURNING id
+                            """,
+                            uuid.UUID(doc_id),
+                            collection_id,
+                            Path(key).name,
+                            file_ext.lstrip("."),
+                            len(content),
+                            storage_key,
+                            {**meta_template, "source": "s3", "s3_bucket": bucket, "s3_key": key},
+                        )
+                    except Exception:
+                        await storage.delete(storage_key)
+                        skipped += 1
+                        return
+
+                    try:
+                        await ingestion_queue.enqueue(
+                            create_ingestion_job(
+                                document_id=doc_id,
+                                file_path=storage_key,
+                                collection_name=collection_name,
+                                collection=collection,
+                                fallback_api_key=settings.embedding_api_key,
+                            )
+                        )
+                    except Exception:
+                        await db.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(doc_id))
+                        await storage.delete(storage_key)
+                        skipped += 1
+                        return
+
+                    ingested += 1
+                    if ingested % 10 == 0:
+                        await _update(
+                            "ingesting", total_found=total_found,
+                            total_ingested=ingested, total_skipped=skipped,
+                        )
+                        logger.info(
+                            "s3_job: ingesting",
+                            job_id=job_id, ingested=ingested,
+                            skipped=skipped, found=total_found,
+                        )
+                except asyncio.CancelledError:
+                    raise
                 except Exception as e:
-                    logger.warning("s3_job: download failed", key=key, error=str(e))
+                    logger.warning("s3_job: failed to process", key=key, error=str(e))
                     skipped += 1
-                    continue
 
-                if len(content) == 0:
-                    skipped += 1
-                    continue
+            async for page in iter_s3_pages(
+                bucket=bucket,
+                prefix=prefix,
+                s3_kwargs=s3_kwargs,
+                extensions=extensions,
+                on_progress=_on_listing_progress,
+            ):
+                new_objects: list[dict] = []
+                for obj in page:
+                    key = obj["Key"]
+                    total_found += 1
+                    if key in existing_keys:
+                        skipped += 1
+                    else:
+                        existing_keys.add(key)
+                        new_objects.append(obj)
 
-                await _ingest_file(Path(key).name, file_ext, content, key)
+                if new_objects:
+                    await asyncio.gather(
+                        *(_download_and_ingest(o) for o in new_objects)
+                    )
 
     except asyncio.CancelledError:
         logger.info("s3_job: cancelled during ingestion", job_id=job_id)
@@ -311,8 +313,14 @@ async def _run_job(job: dict) -> None:
         )
         return
 
-    await _update("complete", total_ingested=ingested, total_skipped=skipped)
+    if total_found == 0:
+        logger.warning("s3_job: no supported files found", bucket=bucket, prefix=prefix)
+
+    await _update(
+        "complete", total_found=total_found,
+        total_ingested=ingested, total_skipped=skipped,
+    )
     logger.info(
         "s3_job: complete",
-        job_id=job_id, ingested=ingested, skipped=skipped,
+        job_id=job_id, ingested=ingested, skipped=skipped, found=total_found,
     )
