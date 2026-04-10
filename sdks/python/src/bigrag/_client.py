@@ -197,3 +197,8 @@ class CollectionClient:
             self._name, document_ids
         ):
             yield event
+
+    async def stream_events(self) -> AsyncGenerator[ProgressEvent, None]:
+        """Stream real-time events for this collection via SSE."""
+        async for event in self._client.collections.stream_events(self._name):
+            yield event

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
+from bigrag._errors import error_for_status
+from bigrag._sse import parse_sse_stream
 from bigrag.types.collections import (
     Collection,
     CollectionListResponse,
@@ -13,9 +16,12 @@ from bigrag.types.collections import (
     UpdateCollectionBody,
 )
 from bigrag.types.common import StatusResponse
+from bigrag.types.sse import ProgressEvent
 
 if TYPE_CHECKING:
     from bigrag._core import BigRAGCore
+
+_UA = "bigrag-python/0.0.1"
 
 
 class CollectionsResource:
@@ -77,3 +83,24 @@ class CollectionsResource:
         return await self._client._request(
             "POST", f"/v1/collections/{quote(name, safe='')}/truncate"
         )
+
+    async def stream_events(self, name: str) -> AsyncGenerator[ProgressEvent, None]:
+        """Stream real-time events for a collection via SSE."""
+        path = f"/v1/collections/{quote(name, safe='')}/events"
+        token = (
+            f"?token={quote(self._client.api_key, safe='')}"
+            if self._client.api_key else ""
+        )
+        url = f"{self._client.base_url}{path}{token}"
+        request = self._client._client.build_request(
+            "GET", url, headers={"User-Agent": _UA},
+        )
+        response = await self._client._client.send(request, stream=True)
+        if response.status_code >= 400:
+            await response.aread()
+            raise error_for_status(
+                response.status_code,
+                response.reason_phrase or "Unknown error",
+            )
+        async for event in parse_sse_stream(response):
+            yield event
