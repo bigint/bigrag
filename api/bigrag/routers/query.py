@@ -159,7 +159,7 @@ async def batch_query(
 # Direct vector operations (for advanced users bringing their own embeddings)
 
 
-@router.post("/v1/collections/{collection_name}/vectors/upsert", response_model=StatusResponse)
+@router.post("/v1/collections/{collection_name}/vectors/upsert")
 async def upsert_vectors(
     collection_name: str,
     body: VectorUpsertRequest,
@@ -185,7 +185,7 @@ async def upsert_vectors(
     return {"status": "ok", "upserted": count}
 
 
-@router.post("/v1/collections/{collection_name}/vectors/delete", response_model=StatusResponse)
+@router.post("/v1/collections/{collection_name}/vectors/delete")
 async def delete_vectors(
     collection_name: str,
     body: VectorDeleteRequest,
