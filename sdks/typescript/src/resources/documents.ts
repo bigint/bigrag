@@ -138,15 +138,24 @@ export class DocumentsResource {
   }
 
   /**
-   * Get all chunks for a document.
+   * Get chunks for a document with pagination.
    *
    * @param collection - The collection name.
    * @param documentId - The document ID.
+   * @param options - Optional limit and offset for pagination.
    */
-  getChunks(collection: string, documentId: string): Promise<DocumentChunkListResponse> {
+  getChunks(
+    collection: string,
+    documentId: string,
+    options?: { limit?: number; offset?: number },
+  ): Promise<DocumentChunkListResponse> {
+    const params: Record<string, string> = {};
+    if (options?.limit !== undefined) params.limit = String(options.limit);
+    if (options?.offset !== undefined) params.offset = String(options.offset);
     return this._client._request(
       "GET",
       `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/chunks`,
+      { params },
     );
   }
 
@@ -237,8 +246,18 @@ export class DocumentsResource {
    *
    * @param documentId - The document ID.
    */
-  getChunksById(documentId: string): Promise<DocumentChunkListResponse> {
-    return this._client._request("GET", `/v1/documents/${encodeURIComponent(documentId)}/chunks`);
+  getChunksById(
+    documentId: string,
+    options?: { limit?: number; offset?: number },
+  ): Promise<DocumentChunkListResponse> {
+    const params: Record<string, string> = {};
+    if (options?.limit !== undefined) params.limit = String(options.limit);
+    if (options?.offset !== undefined) params.offset = String(options.offset);
+    return this._client._request(
+      "GET",
+      `/v1/documents/${encodeURIComponent(documentId)}/chunks`,
+      { params },
+    );
   }
 
   /**

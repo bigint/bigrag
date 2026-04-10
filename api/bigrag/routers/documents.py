@@ -318,6 +318,8 @@ async def reprocess_document(
 async def get_document_chunks(
     collection_name: str,
     document_id: str,
+    limit: int = Query(default=50, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
     _: dict = Depends(get_current_user),
 ):
     collection = await get_collection_or_404(collection_name)
@@ -329,8 +331,10 @@ async def get_document_chunks(
     if not row:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    chunks = await vector_store.get_chunks(collection_name, document_id)
-    return {"chunks": chunks, "total": len(chunks)}
+    chunks, total = await vector_store.get_chunks(
+        collection_name, document_id, limit=limit, offset=offset,
+    )
+    return {"chunks": chunks, "total": total}
 
 
 @router.get("/{document_id}/file")
@@ -629,6 +633,8 @@ async def get_document_global(
 @global_router.get("/{document_id}/chunks")
 async def get_document_chunks_global(
     document_id: str,
+    limit: int = Query(default=50, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
     _: dict = Depends(get_current_user),
 ):
     row = await db.fetchrow(
@@ -642,8 +648,10 @@ async def get_document_chunks_global(
     )
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
-    chunks = await vector_store.get_chunks(collection["name"], document_id)
-    return {"chunks": chunks, "total": len(chunks)}
+    chunks, total = await vector_store.get_chunks(
+        collection["name"], document_id, limit=limit, offset=offset,
+    )
+    return {"chunks": chunks, "total": total}
 
 
 @router.post("/s3", response_model=S3IngestResponse, status_code=202)

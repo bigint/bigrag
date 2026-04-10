@@ -217,24 +217,31 @@ class VectorStore:
         collection: str,
         document_id: str,
         limit: int = 10000,
-    ) -> list[dict]:
+        offset: int = 0,
+    ) -> tuple[list[dict], int]:
+        """Return (chunks, total_count) for a document with pagination."""
         col = self._col(collection)
         if not self.client.has_collection(col):
-            return []
+            return [], 0
         safe_doc_id = self._safe_id(document_id)
         results = await self._run_with_retry(
             self.client.query,
             collection_name=col,
             filter=f'document_id == "{safe_doc_id}"',
             output_fields=["text", "document_id", "chunk_index"],
-            limit=limit,
+            limit=10000,
         )
-        chunks = sorted(results, key=lambda r: r.get("chunk_index", 0))
-        logger.info(f"get_chunks: collection={col} document_id={document_id} count={len(chunks)}")
+        all_chunks = sorted(results, key=lambda r: r.get("chunk_index", 0))
+        total = len(all_chunks)
+        page = all_chunks[offset:offset + limit]
+        logger.info(
+            f"get_chunks: collection={col} document_id={document_id} "
+            f"total={total} offset={offset} limit={limit} returned={len(page)}"
+        )
         return [
             {"id": r["id"], "text": r.get("text", ""), "chunk_index": r.get("chunk_index", 0)}
-            for r in chunks
-        ]
+            for r in page
+        ], total
 
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         col = self._col(collection)
