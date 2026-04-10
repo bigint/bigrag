@@ -6,6 +6,7 @@ import time
 
 from bigrag.logging import get_logger
 from bigrag.services.embedding import EmbeddingModel
+from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.vector_store import vector_store
 from bigrag.utils import safe_create_task
 
@@ -143,6 +144,14 @@ async def retrieve(
     search_mode: "semantic" (vector only), "keyword" (text match), "hybrid" (both + RRF).
     """
     _retrieve_start = time.monotonic()
+    event_bus.publish(IngestionEvent(
+        document_id="",
+        step="search",
+        status="processing",
+        message=f"Searching: {query[:80]}",
+        detail={"top_k": top_k, "mode": search_mode},
+        collection_name=collection_name,
+    ))
     filter_expr = _build_filter_expr(filters) if filters else None
     query_terms = _tokenize_query(query)
 
@@ -235,6 +244,19 @@ async def retrieve(
 
     total_ms = (time.monotonic() - _retrieve_start) * 1000
     avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else None
+    event_bus.publish(IngestionEvent(
+        document_id="",
+        step="search_complete",
+        status="complete",
+        message=f"{len(results)} results in {total_ms:.0f}ms",
+        detail={
+            "results": len(results),
+            "latency_ms": round(total_ms, 1),
+            "avg_score": round(avg_score, 4) if avg_score else 0,
+            "mode": search_mode,
+        },
+        collection_name=collection_name,
+    ))
     safe_create_task(
         _log_query(
             collection_name=collection_name,
