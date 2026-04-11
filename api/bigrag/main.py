@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
 
     if not s.api_secret:
         logger.warning("api_secret not set, all endpoints are open")
-    if s.cors_origins == ["*"]:
+    if "*" in s.cors_origins:
         logger.warning("CORS allows all origins, restrict in production")
 
     # Postgres

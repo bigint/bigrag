@@ -363,8 +363,8 @@ async def download_document_file(
         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "html": "text/html",
-        "htm": "text/html",
+        "html": "application/octet-stream",
+        "htm": "application/octet-stream",
         "md": "text/markdown",
         "txt": "text/plain",
         "csv": "text/csv",
@@ -381,10 +381,11 @@ async def download_document_file(
     ext = row["file_type"].lower()
     content_type = content_type_map.get(ext, "application/octet-stream")
 
+    filename = row["filename"].replace('"', '\\"')
     return Response(
         content=data,
         media_type=content_type,
-        headers={"Content-Disposition": f'inline; filename="{row["filename"]}"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

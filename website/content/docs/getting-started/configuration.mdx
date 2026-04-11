@@ -18,7 +18,7 @@ port = 6100
 workers = 4
 log_level = "info"          # debug, info, warning, error
 log_format = "text"         # text, json
-cors_origins = ["*"]
+cors_origins = ["https://app.example.com"]
 
 [database]
 url = "postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable"
@@ -32,7 +32,7 @@ uri = "http://localhost:19530"
 url = "redis://localhost:6380/0"
 
 [auth]
-api_secret = ""             # Shared API secret (open access if empty)
+api_secret = "your-secret"  # Required — server refuses to start without it
 
 [ingestion]
 workers = 4
@@ -63,7 +63,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | `BIGRAG_WORKERS` | Uvicorn workers | `4` |
 | `BIGRAG_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`) | `info` |
 | `BIGRAG_LOG_FORMAT` | Log format — `text` for colored console output, `json` for structured JSON (use `json` in production for log aggregation pipelines like ELK, Datadog, etc.) | `text` |
-| `BIGRAG_CORS_ORIGINS` | Allowed CORS origins | `["*"]` |
+| `BIGRAG_CORS_ORIGINS` | Allowed CORS origins (JSON array) | `[]` |
 
 ### Infrastructure
 
@@ -77,7 +77,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BIGRAG_API_SECRET` | Shared API secret (open access if unset) | — |
+| `BIGRAG_API_SECRET` | **Required.** Shared API secret for authenticating requests | — |
 | `BIGRAG_SESSION_EXPIRY_HOURS` | Session token expiry in hours | `168` |
 
 ### Database

@@ -45,7 +45,7 @@ class QueryResponse(BaseModel):
 
 class MultiQueryRequest(BaseModel):
     query: str
-    collections: list[str] = Field(min_length=1)
+    collections: list[str] = Field(min_length=1, max_length=20)
     top_k: int = Field(default=10, ge=1, le=1000)
     filters: dict | None = None
     min_score: float | None = None

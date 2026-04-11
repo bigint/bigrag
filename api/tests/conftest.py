@@ -222,7 +222,7 @@ def mock_webhook_dispatcher():
     m = AsyncMock()
     m.start = AsyncMock()
     m.stop = AsyncMock()
-    m.invalidate_cache = MagicMock()
+    m.invalidate_cache = AsyncMock()
     m.deliver_test = AsyncMock(
         return_value={"status": "delivered", "status_code": 200, "error": None}
     )
@@ -276,15 +276,6 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
         mock_settings.collection_cache_ttl = 0
         mock_settings.log_format = "text"
         mock_settings.log_level = "info"
-
-        # Clear caches between tests
-        from bigrag.services.collection_cache import _cache
-
-        _cache.clear()
-
-        from bigrag.routers.health import _embedding_health_cache
-
-        _embedding_health_cache.clear()
 
         from bigrag.main import create_app
 

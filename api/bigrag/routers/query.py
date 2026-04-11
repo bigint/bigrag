@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
-from bigrag.models.common import StatusResponse
 from bigrag.models.query import (
     AnalyticsResponse,
     BatchQueryItem,

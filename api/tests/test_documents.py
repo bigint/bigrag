@@ -185,7 +185,7 @@ async def test_get_document_chunks(client, auth_headers, mock_db, mock_vector_st
         {"id": "chunk-1", "text": "Hello world", "metadata": {}},
         {"id": "chunk-2", "text": "Foo bar", "metadata": {}},
     ]
-    mock_vector_store.get_chunks = AsyncMock(return_value=sample_chunks)
+    mock_vector_store.get_chunks = AsyncMock(return_value=(sample_chunks, 2))
 
     with patch("bigrag.routers.documents.vector_store", mock_vector_store):
         doc_id = str(doc_row["id"])

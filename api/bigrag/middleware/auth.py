@@ -12,7 +12,10 @@ logger = get_logger("bigrag.auth")
 
 async def get_current_user(request: Request) -> dict:
     if not settings.api_secret:
-        return {"id": None, "role": "admin", "email": "anonymous", "display_name": "Anonymous"}
+        raise HTTPException(
+            status_code=500,
+            detail="Server misconfigured: BIGRAG_API_SECRET is not set",
+        )
 
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):

@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     workers: int = 4
     log_level: str = "info"
     log_format: str = "text"
-    cors_origins: list[str] = ["*"]
+    cors_origins: list[str] = []
 
     # Postgres
     database_url: str = "postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable"
