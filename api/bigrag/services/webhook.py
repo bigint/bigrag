@@ -274,6 +274,27 @@ class WebhookDispatcher:
             last_error = None
             last_status_code = None
 
+            # Re-validate URL target at delivery time to prevent DNS rebinding
+            try:
+                from bigrag.models.webhook import resolve_and_validate_url
+
+                resolve_and_validate_url(webhook["url"])
+            except ValueError as e:
+                logger.warning(
+                    f"Webhook blocked: webhook={webhook_id} url={webhook['url']} reason={e}"
+                )
+                await db.execute(
+                    """
+                    UPDATE webhook_deliveries
+                    SET status = 'failed', attempts = 1,
+                        last_error = $1, completed_at = now()
+                    WHERE id = $2
+                    """,
+                    "Blocked: URL targets a private or internal network",
+                    delivery_id,
+                )
+                return
+
             retry_delays = _retry_delays()
             for attempt in range(1, len(retry_delays) + 2):  # 1 initial + N retries
                 try:
@@ -355,6 +376,18 @@ class WebhookDispatcher:
 
     async def deliver_test(self, webhook: dict) -> dict:
         """Send a test event to a webhook. Returns result inline (no retries)."""
+        # Re-validate URL target at delivery time to prevent DNS rebinding
+        try:
+            from bigrag.models.webhook import resolve_and_validate_url
+
+            resolve_and_validate_url(webhook["url"])
+        except ValueError:
+            return {
+                "status": "failed",
+                "status_code": None,
+                "error": "Blocked: URL targets a private or internal network",
+            }
+
         secret = webhook["secret"]
         payload = orjson.dumps(
             {
@@ -382,8 +415,8 @@ class WebhookDispatcher:
                 if 200 <= response.status_code < 300
                 else f"HTTP {response.status_code}",
             }
-        except Exception as e:
-            return {"status": "failed", "status_code": None, "error": str(e)}
+        except Exception:
+            return {"status": "failed", "status_code": None, "error": "Connection failed"}
 
 
 webhook_dispatcher = WebhookDispatcher()

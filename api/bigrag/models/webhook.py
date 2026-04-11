@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ipaddress
+import socket
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -10,11 +12,42 @@ VALID_EVENTS = frozenset({"document.ready", "document.failed", "document.process
 MAX_WEBHOOKS = 50
 
 
+def _is_blocked_ip(ip_str: str) -> bool:
+    """Return True if the IP targets a private/internal network (loopback is allowed)."""
+    try:
+        addr = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return True
+    if addr.is_loopback:
+        return False
+    return addr.is_private or addr.is_reserved or addr.is_link_local or addr.is_multicast
+
+
+def resolve_and_validate_url(url: str) -> None:
+    """Resolve a webhook URL and reject private/internal network targets.
+
+    Loopback addresses (127.0.0.0/8, ::1) are allowed for local development.
+    """
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("Webhook URL must have a hostname")
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    try:
+        addrinfo = socket.getaddrinfo(hostname, port)
+    except socket.gaierror as exc:
+        raise ValueError("Cannot resolve webhook URL hostname") from exc
+    for _, _, _, _, sockaddr in addrinfo:
+        if _is_blocked_ip(sockaddr[0]):
+            raise ValueError("Webhook URL must not target private or internal networks")
+
+
 def _validate_webhook_url(url: str) -> None:
     parsed = urlparse(url)
     is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
     if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
         raise ValueError("Webhook URL must use HTTPS (HTTP allowed only for localhost)")
+    resolve_and_validate_url(url)
 
 
 def _validate_webhook_events(events: list[str]) -> None:
