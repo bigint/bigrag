@@ -1,4 +1,4 @@
-"""Tests for P1-V2 HNSW index option and P1-V3 partition-per-tenant."""
+"""Tests for HNSW index option and partition-per-tenant."""
 
 from __future__ import annotations
 
@@ -15,10 +15,9 @@ def store_with_mock_client():
     client = MagicMock()
     client.has_collection.return_value = False
     client.has_partition.return_value = False
-    # create_schema returns a mock with add_field
     schema = MagicMock()
     client.create_schema.return_value = schema
-    # prepare_index_params returns a mock that tracks add_index
+
     class _IndexParams:
         def __init__(self):
             self.calls = []

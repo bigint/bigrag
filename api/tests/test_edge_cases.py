@@ -90,8 +90,6 @@ class TestFilterExpressions:
         expr = _build_filter_expr({})
         assert expr is None
 
-    # -- Security: injection rejection tests --
-
     def test_comparison_rejects_string_value(self):
         """String values in $gt/$gte/$lt/$lte are the primary injection vector."""
         from bigrag.services.retrieval import _build_filter_expr
@@ -124,8 +122,6 @@ class TestFilterExpressions:
             _build_filter_expr({"field": {"$in": [{"nested": "dict"}]}})
         with pytest.raises(ValueError, match="requires a scalar value"):
             _build_filter_expr({"field": {"$in": [None]}})
-
-    # -- Happy path gaps --
 
     def test_operator_gte_lte(self):
         from bigrag.services.retrieval import _build_filter_expr

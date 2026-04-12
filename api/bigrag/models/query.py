@@ -10,7 +10,6 @@ class QueryRequest(BaseModel):
     min_score: float | None = None
     search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
     rerank: bool | None = None  # Override collection's reranking_enabled
-    # Retrieval-quality knobs
     diversity: float | None = Field(
         default=None,
         ge=0.0,

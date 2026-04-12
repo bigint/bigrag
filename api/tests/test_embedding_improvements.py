@@ -1,5 +1,5 @@
-"""Tests for P1-E1 (BYO endpoint), P1-E2 (persistent cache), P1-E3
-(token truncation), and P1-E4 (/v1/usage)."""
+"""Tests for BYO endpoint, persistent cache, token truncation, and
+/v1/usage."""
 
 from __future__ import annotations
 

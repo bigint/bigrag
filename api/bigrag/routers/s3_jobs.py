@@ -119,7 +119,6 @@ async def resync_s3_job(
     if not row:
         raise HTTPException(status_code=404, detail="S3 ingest job not found")
 
-    # Reset the job status and re-start it
     await db.execute(
         "UPDATE s3_ingest_jobs SET status = 'pending', total_found = 0, "
         "total_ingested = 0, total_skipped = 0, error_message = NULL, "

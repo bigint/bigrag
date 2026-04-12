@@ -80,7 +80,6 @@ def test_validate_upload_composes_both_checks():
     with pytest.raises(InvalidFileContent):
         validate_upload(b"PK\x03\x04truncated", ".docx")
 
-    # Legitimate tiny docx
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr("word/document.xml", "<w:document/>")

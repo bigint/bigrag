@@ -1,5 +1,5 @@
-"""Tests for P1-I1 (chunk strategy), P1-I3 (content-hash dedup), and the
-plumbing of chunk offsets into citation metadata."""
+"""Tests for chunk strategy, content-hash dedup, and the plumbing of
+chunk offsets into citation metadata."""
 
 from __future__ import annotations
 
