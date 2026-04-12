@@ -1,169 +1,58 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
-import { useChangePassword, useLogout, useLogoutAll, useSession } from "@/hooks/use-auth";
-import { useReadiness } from "@/hooks/use-platform";
-import { formatRelative } from "@/lib/format";
+import { Tabs } from "@/components/ui/tabs";
+import { AccountTab } from "./tabs/account-tab";
+import { AuditTab } from "./tabs/audit-tab";
+import { EvalTab } from "./tabs/eval-tab";
+import { GdprTab } from "./tabs/gdpr-tab";
+import { ServerTab } from "./tabs/server-tab";
+import { UsageTab } from "./tabs/usage-tab";
+
+const TABS = [
+  { label: "Account", value: "account" },
+  { label: "Server", value: "server" },
+  { label: "Usage & cost", value: "usage" },
+  { label: "Audit log", value: "audit" },
+  { label: "Evaluation", value: "eval" },
+  { label: "GDPR", value: "gdpr" },
+];
+
+const COMPONENTS: Record<string, React.FC> = {
+  account: AccountTab,
+  server: ServerTab,
+  usage: UsageTab,
+  audit: AuditTab,
+  eval: EvalTab,
+  gdpr: GdprTab,
+};
 
 const SettingsPage = () => {
   const router = useRouter();
-  const { data: session } = useSession();
-  const changePassword = useChangePassword();
-  const logout = useLogout();
-  const logoutAll = useLogoutAll();
-  const { data: readiness } = useReadiness();
+  const params = useSearchParams();
+  const tab = params.get("tab") ?? "account";
 
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
-  const [confirm, setConfirm] = useState("");
-
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (next !== confirm) {
-      toast.error("Passwords do not match");
-      return;
-    }
-    try {
-      await changePassword.mutateAsync({ current_password: current, new_password: next });
-      toast.success("Password updated");
-      await logout.mutateAsync();
-      router.replace("/login");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
-    }
+  const setTab = (value: string) => {
+    const next = new URLSearchParams(params.toString());
+    next.set("tab", value);
+    router.replace(`?${next.toString()}`);
   };
 
+  const Active = COMPONENTS[tab] ?? AccountTab;
+
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Settings" description="Manage your account and inspect server health." />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Your account</CardTitle>
-          <CardDescription>Signed in as {session?.user.email}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <Input label="Display name" defaultValue={session?.user.display_name} disabled />
-          <Input
-            label="Last sign-in"
-            value={session?.user.last_login_at ? formatRelative(session.user.last_login_at) : "—"}
-            disabled
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Change password</CardTitle>
-          <CardDescription>You'll be signed out of all sessions after changing it.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={save} className="flex flex-col gap-3">
-            <Input
-              label="Current password"
-              type="password"
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
-              required
-            />
-            <Input
-              label="New password"
-              type="password"
-              minLength={8}
-              value={next}
-              onChange={(e) => setNext(e.target.value)}
-              required
-            />
-            <Input
-              label="Confirm new password"
-              type="password"
-              minLength={8}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              required
-            />
-            <div className="flex justify-end">
-              <Button type="submit" disabled={changePassword.isPending}>
-                {changePassword.isPending ? "Updating…" : "Change password"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Active sessions</CardTitle>
-          <CardDescription>
-            Sign out of every browser or device where your account is logged in.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-start">
-          <Button
-            variant="outline"
-            disabled={logoutAll.isPending}
-            onClick={async () => {
-              if (
-                !window.confirm(
-                  "Sign out of every device? You'll need to log in again everywhere.",
-                )
-              ) {
-                return;
-              }
-              try {
-                await logoutAll.mutateAsync();
-                router.replace("/login");
-              } catch (err) {
-                toast.error(err instanceof Error ? err.message : "Failed");
-              }
-            }}
-          >
-            {logoutAll.isPending ? "Signing out…" : "Sign out of all devices"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Server</CardTitle>
-          <CardDescription>
-            {readiness
-              ? `Running bigRAG v${readiness.version} — ${readiness.status}`
-              : "Checking readiness…"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2">
-          <Row label="Postgres" ok={readiness?.postgres} />
-          <Row label="Milvus" ok={readiness?.milvus} />
-          <Row label="Redis" ok={readiness?.redis} />
-          <Row label="Embeddings" ok={readiness?.embedding} />
-        </CardContent>
-      </Card>
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Instance settings"
+        description="Manage your account, inspect infrastructure health, review audit trails, measure retrieval quality, and run GDPR-style erasures."
+      />
+      <Tabs tabs={TABS} value={tab} onChange={setTab} />
+      <div>
+        <Active />
+      </div>
     </div>
   );
 };
-
-const Row = ({ label, ok }: { label: string; ok: boolean | undefined }) => (
-  <div className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
-    <span>{label}</span>
-    <span
-      className={
-        ok === undefined
-          ? "text-muted-foreground"
-          : ok
-            ? "font-medium text-success"
-            : "font-medium text-destructive"
-      }
-    >
-      {ok === undefined ? "—" : ok ? "operational" : "down"}
-    </span>
-  </div>
-);
 
 export default SettingsPage;
