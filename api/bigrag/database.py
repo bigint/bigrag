@@ -209,6 +209,13 @@ MIGRATIONS = [
     );
     CREATE INDEX IF NOT EXISTS idx_embedding_presets_name ON embedding_presets(name);
     """,
+    """
+    CREATE TABLE IF NOT EXISTS user_preferences (
+        user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        data JSONB NOT NULL DEFAULT '{}',
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    """,
 ]
 
 

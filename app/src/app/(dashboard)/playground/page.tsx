@@ -2,17 +2,17 @@
 
 import { BookOpen, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { useCollections } from "@/hooks/use-collections";
+import { usePreferences, useUpdatePreferences } from "@/hooks/use-preferences";
 import { apiClient } from "@/lib/api";
 import { streamOpenAI } from "@/lib/openai-stream";
-import { usePlaygroundStore } from "@/stores/playground";
 import type { QueryResult } from "@/types/bigrag";
-import { ChatInput } from "./components/chat-input";
+import { ChatInput, type PlaygroundState } from "./components/chat-input";
 import type { ChatMessage } from "./components/chat-messages";
 import { ChatMessages } from "./components/chat-messages";
 import { EmptyPrompts } from "./components/empty-prompts";
@@ -22,21 +22,54 @@ const newId = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
+const DEFAULT_SYSTEM =
+  "You are a helpful assistant. Answer the user's question using ONLY the context below. " +
+  "If the answer isn't in the context, say you don't know — don't make things up. " +
+  "Cite chunk numbers like [1], [2] when you use them.";
+
+const DEFAULT_STATE: PlaygroundState = {
+  openaiKey: "",
+  model: "gpt-4o-mini",
+  topK: 5,
+  temperature: 0.2,
+  systemPrompt: DEFAULT_SYSTEM,
+};
+
 const PlaygroundPage = () => {
-  const { openaiKey, model, topK, temperature, systemPrompt } = usePlaygroundStore();
-  const { data, isPending } = useCollections();
-  const collections = data?.collections ?? [];
+  const prefsQuery = usePreferences();
+  const updatePrefs = useUpdatePreferences();
+  const { data: collectionsData, isPending: collectionsLoading } = useCollections();
+  const collections = useMemo(() => collectionsData?.collections ?? [], [collectionsData]);
+
+  const state: PlaygroundState = useMemo(() => {
+    const p = prefsQuery.data?.data.playground ?? {};
+    return {
+      openaiKey: p.openai_key ?? DEFAULT_STATE.openaiKey,
+      model: p.model ?? DEFAULT_STATE.model,
+      topK: typeof p.top_k === "number" ? p.top_k : DEFAULT_STATE.topK,
+      temperature: typeof p.temperature === "number" ? p.temperature : DEFAULT_STATE.temperature,
+      systemPrompt: p.system_prompt ?? DEFAULT_STATE.systemPrompt,
+    };
+  }, [prefsQuery.data]);
+
+  const patchState = (patch: Partial<PlaygroundState>) => {
+    const mapped: Record<string, unknown> = {};
+    if (patch.openaiKey !== undefined) mapped.openai_key = patch.openaiKey;
+    if (patch.model !== undefined) mapped.model = patch.model;
+    if (patch.topK !== undefined) mapped.top_k = patch.topK;
+    if (patch.temperature !== undefined) mapped.temperature = patch.temperature;
+    if (patch.systemPrompt !== undefined) mapped.system_prompt = patch.systemPrompt;
+    updatePrefs.mutate({ playground: mapped });
+  };
 
   const [collection, setCollection] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Auto-pick the first collection once available.
   useEffect(() => {
-    if (!collection && collections.length > 0 && collections[0]) {
-      setCollection(collections[0].name);
-    }
+    const first = collections[0];
+    if (!collection && first) setCollection(first.name);
   }, [collections, collection]);
 
   const stopStreaming = () => {
@@ -46,8 +79,8 @@ const PlaygroundPage = () => {
   };
 
   const handleSend = async (text: string) => {
-    if (!openaiKey) {
-      toast.error("Paste your OpenAI API key first");
+    if (!state.openaiKey) {
+      toast.error("Add your OpenAI API key first");
       return;
     }
     if (!collection) {
@@ -65,7 +98,7 @@ const PlaygroundPage = () => {
     try {
       const res = await apiClient.post<{ results: QueryResult[] }>(
         `v1/collections/${encodeURIComponent(collection)}/query`,
-        { query: text, top_k: topK },
+        { query: text, top_k: state.topK },
       );
       chunks = res.results;
     } catch (err) {
@@ -95,12 +128,12 @@ const PlaygroundPage = () => {
 
     try {
       await streamOpenAI({
-        apiKey: openaiKey,
-        model,
-        temperature,
+        apiKey: state.openaiKey,
+        model: state.model,
+        temperature: state.temperature,
         signal: controller.signal,
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: state.systemPrompt },
           {
             role: "system",
             content: `Context from collection "${collection}":\n\n${contextBlock}`,
@@ -115,7 +148,7 @@ const PlaygroundPage = () => {
       });
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        // User pressed stop — leave partial response in place.
+        // user pressed stop — keep partial response
       } else {
         const message = err instanceof Error ? err.message : "OpenAI request failed";
         setMessages((prev) =>
@@ -153,7 +186,7 @@ const PlaygroundPage = () => {
         )}
       </div>
 
-      {isPending ? (
+      {collectionsLoading || prefsQuery.isPending ? (
         <div className="flex flex-1 items-center justify-center rounded-xl border border-border">
           <Spinner size="lg" />
         </div>
@@ -177,18 +210,21 @@ const PlaygroundPage = () => {
       ) : (
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border">
           {messages.length === 0 ? (
-            <EmptyPrompts onSelect={handleSend} disabled={!openaiKey || !collection} />
+            <EmptyPrompts onSelect={handleSend} disabled={!state.openaiKey || !collection} />
           ) : (
             <ChatMessages isStreaming={isStreaming} messages={messages} />
           )}
           <ChatInput
             collection={collection}
             collections={collections}
-            disabled={!openaiKey || !collection}
+            disabled={!state.openaiKey || !collection}
             isStreaming={isStreaming}
             onCollectionChange={setCollection}
+            onPatch={patchState}
             onSend={handleSend}
             onStop={stopStreaming}
+            saving={updatePrefs.isPending}
+            state={state}
           />
         </div>
       )}

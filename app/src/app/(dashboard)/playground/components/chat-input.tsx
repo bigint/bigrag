@@ -4,12 +4,30 @@ import { ArrowUp, ChevronDown, KeyRound, type Settings2, Square, Thermometer } f
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import { OPENAI_MODELS, usePlaygroundStore } from "@/stores/playground";
 import type { Collection } from "@/types/bigrag";
+
+export const OPENAI_MODELS = [
+  { value: "gpt-4o-mini", label: "GPT-4o mini" },
+  { value: "gpt-4o", label: "GPT-4o" },
+  { value: "gpt-4.1-mini", label: "GPT-4.1 mini" },
+  { value: "gpt-4.1", label: "GPT-4.1" },
+  { value: "gpt-3.5-turbo", label: "GPT-3.5 turbo" },
+];
+
+export type PlaygroundState = {
+  openaiKey: string;
+  model: string;
+  topK: number;
+  temperature: number;
+  systemPrompt: string;
+};
 
 type PopoverName = "model" | "collection" | "settings" | "key" | null;
 
 interface Props {
+  state: PlaygroundState;
+  onPatch: (patch: Partial<PlaygroundState>) => void;
+  saving: boolean;
   collections: Collection[];
   collection: string;
   onCollectionChange: (name: string) => void;
@@ -20,6 +38,9 @@ interface Props {
 }
 
 export const ChatInput = ({
+  state,
+  onPatch,
+  saving,
   collections,
   collection,
   onCollectionChange,
@@ -28,13 +49,12 @@ export const ChatInput = ({
   onStop,
   disabled,
 }: Props) => {
-  const { openaiKey, model, topK, temperature, systemPrompt, update } = usePlaygroundStore();
   const [value, setValue] = useState("");
   const [open, setOpen] = useState<PopoverName>(null);
-  const [keyDraft, setKeyDraft] = useState(openaiKey);
+  const [keyDraft, setKeyDraft] = useState(state.openaiKey);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => setKeyDraft(openaiKey), [openaiKey]);
+  useEffect(() => setKeyDraft(state.openaiKey), [state.openaiKey]);
 
   const toggle = (p: PopoverName) => setOpen((cur) => (cur === p ? null : p));
 
@@ -59,8 +79,9 @@ export const ChatInput = ({
     }
   };
 
-  const selectedModelLabel = OPENAI_MODELS.find((m) => m.value === model)?.label ?? model;
-  const keyIsSet = openaiKey.length > 8;
+  const selectedModelLabel =
+    OPENAI_MODELS.find((m) => m.value === state.model)?.label ?? state.model;
+  const keyIsSet = state.openaiKey.length > 8;
 
   return (
     <div className="px-4 py-3 md:px-6">
@@ -80,7 +101,7 @@ export const ChatInput = ({
               ? collection
                 ? "Ask a question of your collection…"
                 : "Pick a collection below to start"
-              : "Paste your OpenAI API key to start"
+              : "Add your OpenAI API key to start"
           }
           rows={1}
           style={{ maxHeight: 200 }}
@@ -92,7 +113,7 @@ export const ChatInput = ({
             <div className="relative">
               <PopoverButton
                 icon={KeyRound}
-                label={keyIsSet ? "OpenAI key set" : "Add OpenAI key"}
+                label={keyIsSet ? `OpenAI key …${state.openaiKey.slice(-4)}` : "Add OpenAI key"}
                 active={open === "key"}
                 missing={!keyIsSet}
                 onClick={() => toggle("key")}
@@ -103,8 +124,8 @@ export const ChatInput = ({
                     <div>
                       <div className="text-xs font-medium">OpenAI API key</div>
                       <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        Stored in your browser only. Calls go from this tab directly to
-                        api.openai.com.
+                        Saved on the server so it follows you across devices. Only used to call
+                        api.openai.com from your browser.
                       </p>
                     </div>
                     <input
@@ -116,29 +137,34 @@ export const ChatInput = ({
                       type="password"
                       value={keyDraft}
                     />
-                    <div className="flex justify-end gap-1.5">
-                      {keyIsSet && (
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-[11px] text-muted-foreground">
+                        {saving ? "Saving…" : keyIsSet ? "Saved" : ""}
+                      </span>
+                      <div className="flex gap-1.5">
+                        {keyIsSet && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              onPatch({ openaiKey: "" });
+                              setKeyDraft("");
+                            }}
+                          >
+                            Clear
+                          </Button>
+                        )}
                         <Button
                           size="sm"
-                          variant="ghost"
+                          disabled={!keyDraft.trim() || keyDraft === state.openaiKey}
                           onClick={() => {
-                            update("openaiKey", "");
-                            setKeyDraft("");
+                            onPatch({ openaiKey: keyDraft.trim() });
+                            setOpen(null);
                           }}
                         >
-                          Clear
+                          Save
                         </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        disabled={!keyDraft.trim()}
-                        onClick={() => {
-                          update("openaiKey", keyDraft.trim());
-                          setOpen(null);
-                        }}
-                      >
-                        Save
-                      </Button>
+                      </div>
                     </div>
                   </div>
                 </Dropdown>
@@ -149,9 +175,9 @@ export const ChatInput = ({
 
             <ModelMenu
               selectedLabel={selectedModelLabel}
-              value={model}
+              value={state.model}
               onChange={(v) => {
-                update("model", v);
+                onPatch({ model: v });
                 setOpen(null);
               }}
               open={open === "model"}
@@ -182,9 +208,9 @@ export const ChatInput = ({
                 variant="ghost"
               >
                 <Thermometer className="size-3" />
-                {temperature.toFixed(1)}
+                {state.temperature.toFixed(1)}
                 <span className="mx-1 opacity-50">·</span>
-                top-{topK}
+                top-{state.topK}
               </Button>
               {open === "settings" && (
                 <Dropdown onClose={() => setOpen(null)}>
@@ -193,7 +219,7 @@ export const ChatInput = ({
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium">Temperature</span>
                         <span className="font-mono text-xs text-muted-foreground">
-                          {temperature.toFixed(1)}
+                          {state.temperature.toFixed(1)}
                         </span>
                       </div>
                       <input
@@ -203,15 +229,19 @@ export const ChatInput = ({
                         min="0"
                         step="0.1"
                         type="range"
-                        value={temperature}
-                        onChange={(e) => update("temperature", Number.parseFloat(e.target.value))}
+                        value={state.temperature}
+                        onChange={(e) =>
+                          onPatch({ temperature: Number.parseFloat(e.target.value) })
+                        }
                       />
                     </div>
 
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium">Top K chunks</span>
-                        <span className="font-mono text-xs text-muted-foreground">{topK}</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {state.topK}
+                        </span>
                       </div>
                       <input
                         aria-label="Top K"
@@ -220,8 +250,8 @@ export const ChatInput = ({
                         min="1"
                         step="1"
                         type="range"
-                        value={topK}
-                        onChange={(e) => update("topK", Number.parseInt(e.target.value, 10))}
+                        value={state.topK}
+                        onChange={(e) => onPatch({ topK: Number.parseInt(e.target.value, 10) })}
                       />
                     </div>
 
@@ -230,11 +260,12 @@ export const ChatInput = ({
                       <textarea
                         aria-label="System prompt"
                         className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        onChange={(e) => update("systemPrompt", e.target.value)}
+                        onChange={(e) => onPatch({ systemPrompt: e.target.value })}
                         rows={4}
-                        value={systemPrompt}
+                        value={state.systemPrompt}
                       />
                     </div>
+                    {saving && <div className="text-[11px] text-muted-foreground">Saving…</div>}
                   </div>
                 </Dropdown>
               )}
