@@ -16,6 +16,11 @@ class CreateCollectionRequest(BaseModel):
     dimension: int | None = None
     chunk_size: int = Field(default=512, ge=64, le=10000)
     chunk_overlap: int = Field(default=50, ge=0, le=5000)
+    chunk_strategy: str = Field(
+        default="paragraph",
+        pattern=r"^(paragraph|recursive)$",
+        description="Chunking algorithm: paragraph (default) or recursive.",
+    )
     metadata: dict = {}
     reranking_enabled: bool = False
     reranking_model: str = "rerank-v3.5"
@@ -40,6 +45,7 @@ class UpdateCollectionRequest(BaseModel):
     default_top_k: int | None = Field(default=None, ge=1, le=1000)
     default_min_score: float | None = None
     default_search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
+    chunk_strategy: str | None = Field(default=None, pattern=r"^(paragraph|recursive)$")
 
 
 class CollectionResponse(BaseModel):
@@ -51,6 +57,7 @@ class CollectionResponse(BaseModel):
     dimension: int
     chunk_size: int
     chunk_overlap: int
+    chunk_strategy: str = "paragraph"
     document_count: int
     has_api_key: bool = False
     reranking_enabled: bool = False

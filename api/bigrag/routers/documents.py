@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import uuid
 from pathlib import Path
@@ -125,6 +126,27 @@ async def upload_document(
     except InvalidFileContent as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    # P1-I3: content-hash dedup. If the exact same bytes are already
+    # ingested into this collection we return the existing doc with
+    # deduped=True rather than creating a second copy and paying to
+    # re-embed it.
+    content_hash = hashlib.sha256(content).hexdigest()
+    existing = await db.fetchrow(
+        "SELECT * FROM documents WHERE collection_id = $1 AND content_hash = $2 LIMIT 1",
+        collection["id"],
+        content_hash,
+    )
+    if existing:
+        logger.info(
+            "upload: dedup hit — returning existing doc",
+            content_hash=content_hash[:12],
+            doc_id=str(existing["id"]),
+        )
+        response = _row_to_response(dict(existing))
+        response_body = response.model_dump()
+        response_body["deduped"] = True
+        return response_body
+
     doc_id = str(uuid.uuid4())
     file_ext = Path(file.filename or "document").suffix
     storage_key = f"{collection_name}/{doc_id}{file_ext}"
@@ -142,8 +164,9 @@ async def upload_document(
         row = await db.fetchrow(
             """
             INSERT INTO documents
-                (id, collection_id, filename, file_type, file_size, file_path, metadata)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+                (id, collection_id, filename, file_type, file_size, file_path,
+                 content_hash, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
             """,
             uuid.UUID(doc_id),
@@ -152,6 +175,7 @@ async def upload_document(
             file_ext.lstrip("."),
             len(content),
             storage_key,
+            content_hash,
             meta,
         )
     except Exception:

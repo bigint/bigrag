@@ -216,6 +216,62 @@ MIGRATIONS = [
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     """,
+    """
+    -- P1-I1: per-collection chunking strategy
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS chunk_strategy TEXT NOT NULL DEFAULT 'paragraph';
+    -- P1-I3: content-hash dedup (sha256 hex = 64 chars)
+    ALTER TABLE documents ADD COLUMN IF NOT EXISTS content_hash TEXT;
+    CREATE INDEX IF NOT EXISTS idx_documents_collection_hash
+        ON documents(collection_id, content_hash);
+    """,
+    """
+    -- P1-A2: audit log for admin actions
+    CREATE TABLE IF NOT EXISTS audit_log (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        actor_email TEXT,
+        api_key_id UUID REFERENCES api_keys(id) ON DELETE SET NULL,
+        action TEXT NOT NULL,
+        resource_type TEXT NOT NULL,
+        resource_id TEXT,
+        metadata JSONB NOT NULL DEFAULT '{}',
+        ip TEXT,
+        user_agent TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actor_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
+    CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_log(created_at DESC);
+    """,
+    """
+    -- P1-E2: persistent embedding cache (content_hash + model -> vector)
+    CREATE TABLE IF NOT EXISTS embedding_cache (
+        content_hash TEXT NOT NULL,
+        model_key TEXT NOT NULL,
+        vector BYTEA NOT NULL,
+        dimension INT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_hit_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (content_hash, model_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_embedding_cache_last_hit
+        ON embedding_cache(last_hit_at);
+    """,
+    """
+    -- P2-E9: metadata schemas validated on upload
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS metadata_schema JSONB;
+    -- P2-E10: per-key quotas
+    ALTER TABLE api_keys
+        ADD COLUMN IF NOT EXISTS rate_limits JSONB NOT NULL DEFAULT '{}';
+    -- P2-E5: PII redaction flag per collection
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS redact_pii BOOLEAN NOT NULL DEFAULT false;
+    -- P2-E6: content moderation flag per collection
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS moderation_enabled BOOLEAN NOT NULL DEFAULT false;
+    """,
 ]
 
 

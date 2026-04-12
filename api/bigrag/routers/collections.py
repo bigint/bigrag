@@ -142,11 +142,12 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
         row = await db.fetchrow(
             """
             INSERT INTO collections (name, description, embedding_provider, embedding_model,
-                                      dimension, chunk_size, chunk_overlap, metadata,
+                                      dimension, chunk_size, chunk_overlap, chunk_strategy,
+                                      metadata,
                                       embedding_api_key, embedding_base_url,
                                       reranking_enabled, reranking_model, reranking_api_key,
                                       default_top_k, default_min_score, default_search_mode)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
             RETURNING *
             """,
             body.name,
@@ -156,6 +157,7 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             dimension,
             body.chunk_size,
             body.chunk_overlap,
+            body.chunk_strategy,
             body.metadata,
             api_key,
             base_url,

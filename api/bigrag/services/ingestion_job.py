@@ -17,6 +17,8 @@ class IngestionJob:
     embedding_api_key: str | None
     chunk_size: int
     chunk_overlap: int
+    chunk_strategy: str = "paragraph"
+    embedding_base_url: str | None = None
     attempt: int = 0
     max_attempts: int = 3
     job_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
@@ -31,8 +33,10 @@ class IngestionJob:
                 "embedding_model": self.embedding_model,
                 "embedding_dimension": self.embedding_dimension,
                 "embedding_api_key": self.embedding_api_key,
+                "embedding_base_url": self.embedding_base_url,
                 "chunk_size": self.chunk_size,
                 "chunk_overlap": self.chunk_overlap,
+                "chunk_strategy": self.chunk_strategy,
                 "attempt": self.attempt,
                 "max_attempts": self.max_attempts,
                 "job_id": self.job_id,
@@ -41,7 +45,12 @@ class IngestionJob:
 
     @classmethod
     def deserialize(cls, data: bytes) -> IngestionJob:
-        return cls(**orjson.loads(data))
+        payload = orjson.loads(data)
+        # Drop unknown keys so old queue entries deserialise cleanly
+        # after the dataclass grows new fields.
+        known = {f.name for f in cls.__dataclass_fields__.values()}
+        clean = {k: v for k, v in payload.items() if k in known}
+        return cls(**clean)
 
 
 def create_ingestion_job(
@@ -61,6 +70,8 @@ def create_ingestion_job(
         embedding_model=collection["embedding_model"],
         embedding_dimension=collection["dimension"],
         embedding_api_key=collection.get("embedding_api_key") or fallback_api_key,
+        embedding_base_url=collection.get("embedding_base_url"),
         chunk_size=collection["chunk_size"],
         chunk_overlap=collection["chunk_overlap"],
+        chunk_strategy=collection.get("chunk_strategy") or "paragraph",
     )

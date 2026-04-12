@@ -315,34 +315,69 @@ class IngestionQueue:
         total_batches = (len(chunks) + batch_size - 1) // batch_size
         doc = job.document_id
 
+        # P1-I4: chunk-level retry. A flaky embedding call or a single
+        # oversized chunk in the middle of a large doc used to fail the
+        # whole document. We now retry each batch up to MAX_BATCH_RETRIES
+        # with exponential backoff; on exhaustion the batch's chunks are
+        # skipped (logged) and the doc still completes for whatever did
+        # embed — better than hours of re-ingest because one chunk was
+        # bad.
+        MAX_BATCH_RETRIES = 3
+        batch_backoff_base = 2
+
         for batch_start in range(0, len(chunks), batch_size):
             batch_end = min(batch_start + batch_size, len(chunks))
             batch_chunks = chunks[batch_start:batch_end]
             batch_texts = [c.text for c in batch_chunks]
             batch_num = batch_start // batch_size + 1
 
-            t0 = time.monotonic()
-            embeddings = await embedding_model.embed(batch_texts)
-            embed_elapsed = time.monotonic() - t0
+            embed_elapsed = 0.0
+            insert_elapsed = 0.0
+            count = 0
+            attempt = 0
+            while True:
+                attempt += 1
+                try:
+                    t0 = time.monotonic()
+                    embeddings = await embedding_model.embed(batch_texts)
+                    embed_elapsed = time.monotonic() - t0
 
-            t1 = time.monotonic()
-            ids = [f"{doc}_{i}" for i in range(batch_start, batch_end)]
-            doc_ids = [doc] * len(batch_texts)
-            indices = list(range(batch_start, batch_end))
-            metadata = [
-                {"char_start": c.char_start, "char_end": c.char_end}
-                for c in batch_chunks
-            ]
-            count = await vector_store.insert(
-                collection=job.collection_name,
-                ids=ids,
-                document_ids=doc_ids,
-                chunk_indices=indices,
-                texts=batch_texts,
-                embeddings=embeddings,
-                metadata=metadata,
-            )
-            insert_elapsed = time.monotonic() - t1
+                    t1 = time.monotonic()
+                    ids = [f"{doc}_{i}" for i in range(batch_start, batch_end)]
+                    doc_ids = [doc] * len(batch_texts)
+                    indices = list(range(batch_start, batch_end))
+                    metadata = [
+                        {"char_start": c.char_start, "char_end": c.char_end}
+                        for c in batch_chunks
+                    ]
+                    count = await vector_store.insert(
+                        collection=job.collection_name,
+                        ids=ids,
+                        document_ids=doc_ids,
+                        chunk_indices=indices,
+                        texts=batch_texts,
+                        embeddings=embeddings,
+                        metadata=metadata,
+                    )
+                    insert_elapsed = time.monotonic() - t1
+                    break
+                except _PERMANENT_ERRORS:
+                    raise
+                except Exception as exc:  # noqa: BLE001 — retry on anything transient
+                    if attempt >= MAX_BATCH_RETRIES:
+                        logger.error(
+                            f"{prefix} batch {batch_num}/{total_batches} exhausted "
+                            f"retries, skipping {len(batch_texts)} chunks: {exc!r}"
+                        )
+                        count = 0
+                        break
+                    delay = batch_backoff_base**attempt
+                    logger.warning(
+                        f"{prefix} batch {batch_num}/{total_batches} attempt "
+                        f"{attempt}/{MAX_BATCH_RETRIES} failed ({exc!r}), "
+                        f"retrying in {delay}s"
+                    )
+                    await asyncio.sleep(delay)
             total_inserted += count
 
             progress = 0.45 + (0.45 * batch_num / total_batches)

@@ -82,6 +82,7 @@ def make_collection_row(
     dimension: int = 1536,
     chunk_size: int = 512,
     chunk_overlap: int = 50,
+    chunk_strategy: str = "paragraph",
     document_count: int = 0,
     embedding_api_key: str | None = "sk-test",
     embedding_base_url: str | None = None,
@@ -92,6 +93,9 @@ def make_collection_row(
     default_min_score: float | None = None,
     default_search_mode: str = "semantic",
     metadata: dict | None = None,
+    metadata_schema: dict | None = None,
+    redact_pii: bool = False,
+    moderation_enabled: bool = False,
 ) -> dict:
     return {
         "id": uuid.UUID(collection_id) if collection_id else uuid.uuid4(),
@@ -102,6 +106,7 @@ def make_collection_row(
         "dimension": dimension,
         "chunk_size": chunk_size,
         "chunk_overlap": chunk_overlap,
+        "chunk_strategy": chunk_strategy,
         "document_count": document_count,
         "embedding_api_key": embedding_api_key,
         "embedding_base_url": embedding_base_url,
@@ -112,6 +117,9 @@ def make_collection_row(
         "default_min_score": default_min_score,
         "default_search_mode": default_search_mode,
         "metadata": metadata or {},
+        "metadata_schema": metadata_schema,
+        "redact_pii": redact_pii,
+        "moderation_enabled": moderation_enabled,
         "created_at": datetime.now(UTC),
         "updated_at": datetime.now(UTC),
     }
@@ -129,6 +137,7 @@ def make_document_row(
     status: str = "ready",
     error_message: str | None = None,
     metadata: dict | None = None,
+    content_hash: str | None = None,
 ) -> dict:
     return {
         "id": uuid.UUID(document_id) if document_id else uuid.uuid4(),
@@ -141,6 +150,7 @@ def make_document_row(
         "status": status,
         "error_message": error_message,
         "metadata": metadata or {},
+        "content_hash": content_hash,
         "created_at": datetime.now(UTC),
         "updated_at": datetime.now(UTC),
     }
