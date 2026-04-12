@@ -57,11 +57,29 @@ class UserListResponse(BaseModel):
     total: int
 
 
+class ApiKeyScope(BaseModel):
+    """A granular permission. Scopes resolve to ``resource:action``
+    strings (e.g. ``collection:read``, ``document:upload``). Wildcards
+    allowed: ``*:read``, ``collection:*``, ``*:*``.
+    """
+
+    resource: str = Field(min_length=1, max_length=40)
+    action: str = Field(min_length=1, max_length=40)
+
+
+VALID_RESOURCES = frozenset(
+    {"*", "collection", "document", "query", "webhook", "api_key", "user", "audit"}
+)
+VALID_ACTIONS = frozenset({"*", "read", "write", "upload", "delete", "admin"})
+
+
 class ApiKeyResponse(BaseModel):
     id: str
     name: str
     prefix: str
     active: bool
+    scopes: list[str] = Field(default_factory=list)
+    rate_limits: dict | None = None
     last_used_at: datetime | None = None
     expires_at: datetime | None = None
     created_at: datetime
@@ -71,6 +89,21 @@ class ApiKeyResponse(BaseModel):
 class CreateApiKeyRequest(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     expires_at: datetime | None = None
+    scopes: list[str] | None = Field(
+        default=None,
+        description=(
+            "List of 'resource:action' strings. Omit for a legacy "
+            "full-access key. Examples: ['collection:read', "
+            "'document:upload'] — or ['*:*'] for unrestricted."
+        ),
+    )
+    rate_limits: dict | None = Field(
+        default=None,
+        description=(
+            "Optional per-bucket overrides, e.g. "
+            "{'POST:/v1/query': 300, 'POST:/v1/documents': 30}."
+        ),
+    )
 
 
 class CreateApiKeyResponse(ApiKeyResponse):
@@ -80,8 +113,39 @@ class CreateApiKeyResponse(ApiKeyResponse):
 class UpdateApiKeyRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     active: bool | None = None
+    scopes: list[str] | None = None
+    rate_limits: dict | None = None
 
 
 class ApiKeyListResponse(BaseModel):
     keys: list[ApiKeyResponse]
     total: int
+
+
+class AuditLogEntry(BaseModel):
+    id: str
+    actor_id: str | None = None
+    actor_email: str | None = None
+    api_key_id: str | None = None
+    action: str
+    resource_type: str
+    resource_id: str | None = None
+    metadata: dict
+    ip: str | None = None
+    user_agent: str | None = None
+    created_at: datetime
+
+
+class AuditLogListResponse(BaseModel):
+    entries: list[AuditLogEntry]
+    total: int
+
+
+class GdprDeleteResponse(BaseModel):
+    user_id: str
+    deleted_sessions: int
+    deleted_api_keys: int
+    deleted_collections: int
+    deleted_documents: int
+    deleted_at: datetime
+    certificate: str  # opaque hash of the above for paper-trail purposes

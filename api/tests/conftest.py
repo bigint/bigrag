@@ -376,6 +376,8 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
         stack.enter_context(patch("bigrag.routers.auth.db", mock_db))
         stack.enter_context(patch("bigrag.routers.admin_users.db", mock_db))
         stack.enter_context(patch("bigrag.routers.admin_api_keys.db", mock_db))
+        stack.enter_context(patch("bigrag.routers.admin_audit.db", mock_db))
+        stack.enter_context(patch("bigrag.services.audit.db", mock_db))
         stack.enter_context(patch("bigrag.routers.collections.db", mock_db))
         stack.enter_context(patch("bigrag.routers.documents.db", mock_db))
         stack.enter_context(patch("bigrag.routers.webhooks.db", mock_db))

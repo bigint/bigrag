@@ -137,6 +137,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
     from bigrag.routers.admin_api_keys import router as admin_api_keys_router
+    from bigrag.routers.admin_audit import router as admin_audit_router
     from bigrag.routers.admin_users import router as admin_users_router
     from bigrag.routers.auth import router as auth_router
     from bigrag.routers.collections import router as collections_router
@@ -155,6 +156,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(preferences_router)
     app.include_router(admin_users_router)
     app.include_router(admin_api_keys_router)
+    app.include_router(admin_audit_router)
     app.include_router(embedding_presets_router)
     app.include_router(collections_router)
     app.include_router(documents_router)
