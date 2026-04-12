@@ -6,6 +6,49 @@ import time
 
 import structlog
 
+_SENSITIVE_KEYS = frozenset(
+    {
+        "api_key",
+        "embedding_api_key",
+        "rerank_api_key",
+        "reranking_api_key",
+        "s3_access_key",
+        "s3_secret_key",
+        "aws_access_key_id",
+        "aws_secret_access_key",
+        "password",
+        "password_hash",
+        "session_token",
+        "token",
+        "access_token",
+        "refresh_token",
+        "authorization",
+        "cookie",
+        "set-cookie",
+        "x-api-key",
+        "signing_secret",
+        "webhook_secret",
+    }
+)
+
+
+def _redact(value: object) -> object:
+    if isinstance(value, dict):
+        return {
+            k: ("[REDACTED]" if isinstance(k, str) and k.lower() in _SENSITIVE_KEYS else _redact(v))
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_redact(v) for v in value)
+    return value
+
+
+def redact_secrets(logger, method_name, event_dict):  # noqa: ARG001 - structlog signature
+    """Structlog processor that redacts sensitive fields recursively."""
+    return _redact(event_dict)
+
 
 def configure_logging(log_level: str = "info", log_format: str = "text") -> None:
     """Configure structlog + stdlib logging for the entire application."""
@@ -15,6 +58,7 @@ def configure_logging(log_level: str = "info", log_format: str = "text") -> None
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
+        redact_secrets,
         structlog.processors.TimeStamper(fmt="%H:%M:%S" if log_format == "text" else "iso"),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.UnicodeDecoder(),
