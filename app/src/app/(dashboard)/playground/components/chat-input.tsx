@@ -89,59 +89,61 @@ export const ChatInput = ({
 
         <div className="flex items-center justify-between gap-1 px-3 pb-2">
           <div className="flex flex-wrap items-center gap-0.5">
-            <PopoverButton
-              icon={KeyRound}
-              label={keyIsSet ? "OpenAI key set" : "Add OpenAI key"}
-              active={open === "key"}
-              missing={!keyIsSet}
-              onClick={() => toggle("key")}
-            />
-            {open === "key" && (
-              <Dropdown onClose={() => setOpen(null)}>
-                <div className="w-80 space-y-3 p-3">
-                  <div>
-                    <div className="text-xs font-medium">OpenAI API key</div>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Stored in your browser only. Calls go from this tab directly to
-                      api.openai.com.
-                    </p>
-                  </div>
-                  <input
-                    aria-label="OpenAI API key"
-                    autoComplete="off"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onChange={(e) => setKeyDraft(e.target.value)}
-                    placeholder="sk-..."
-                    type="password"
-                    value={keyDraft}
-                  />
-                  <div className="flex justify-end gap-1.5">
-                    {keyIsSet && (
+            <div className="relative">
+              <PopoverButton
+                icon={KeyRound}
+                label={keyIsSet ? "OpenAI key set" : "Add OpenAI key"}
+                active={open === "key"}
+                missing={!keyIsSet}
+                onClick={() => toggle("key")}
+              />
+              {open === "key" && (
+                <Dropdown onClose={() => setOpen(null)}>
+                  <div className="w-80 space-y-3 p-3">
+                    <div>
+                      <div className="text-xs font-medium">OpenAI API key</div>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        Stored in your browser only. Calls go from this tab directly to
+                        api.openai.com.
+                      </p>
+                    </div>
+                    <input
+                      aria-label="OpenAI API key"
+                      autoComplete="off"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      onChange={(e) => setKeyDraft(e.target.value)}
+                      placeholder="sk-..."
+                      type="password"
+                      value={keyDraft}
+                    />
+                    <div className="flex justify-end gap-1.5">
+                      {keyIsSet && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            update("openaiKey", "");
+                            setKeyDraft("");
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      )}
                       <Button
                         size="sm"
-                        variant="ghost"
+                        disabled={!keyDraft.trim()}
                         onClick={() => {
-                          update("openaiKey", "");
-                          setKeyDraft("");
+                          update("openaiKey", keyDraft.trim());
+                          setOpen(null);
                         }}
                       >
-                        Clear
+                        Save
                       </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      disabled={!keyDraft.trim()}
-                      onClick={() => {
-                        update("openaiKey", keyDraft.trim());
-                        setOpen(null);
-                      }}
-                    >
-                      Save
-                    </Button>
+                    </div>
                   </div>
-                </div>
-              </Dropdown>
-            )}
+                </Dropdown>
+              )}
+            </div>
 
             <Sep />
 
@@ -173,68 +175,70 @@ export const ChatInput = ({
 
             <Sep />
 
-            <Button
-              className="h-auto px-2 py-1 text-[11px]"
-              onClick={() => toggle("settings")}
-              variant="ghost"
-            >
-              <Thermometer className="size-3" />
-              {temperature.toFixed(1)}
-              <span className="mx-1 opacity-50">·</span>
-              top-{topK}
-            </Button>
-            {open === "settings" && (
-              <Dropdown onClose={() => setOpen(null)}>
-                <div className="w-64 space-y-3 p-3">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium">Temperature</span>
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {temperature.toFixed(1)}
-                      </span>
+            <div className="relative">
+              <Button
+                className="h-auto px-2 py-1 text-[11px]"
+                onClick={() => toggle("settings")}
+                variant="ghost"
+              >
+                <Thermometer className="size-3" />
+                {temperature.toFixed(1)}
+                <span className="mx-1 opacity-50">·</span>
+                top-{topK}
+              </Button>
+              {open === "settings" && (
+                <Dropdown onClose={() => setOpen(null)}>
+                  <div className="w-64 space-y-3 p-3">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium">Temperature</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {temperature.toFixed(1)}
+                        </span>
+                      </div>
+                      <input
+                        aria-label="Temperature"
+                        className="w-full accent-primary"
+                        max="1"
+                        min="0"
+                        step="0.1"
+                        type="range"
+                        value={temperature}
+                        onChange={(e) => update("temperature", Number.parseFloat(e.target.value))}
+                      />
                     </div>
-                    <input
-                      aria-label="Temperature"
-                      className="w-full accent-primary"
-                      max="1"
-                      min="0"
-                      step="0.1"
-                      type="range"
-                      value={temperature}
-                      onChange={(e) => update("temperature", Number.parseFloat(e.target.value))}
-                    />
-                  </div>
 
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium">Top K chunks</span>
-                      <span className="font-mono text-xs text-muted-foreground">{topK}</span>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium">Top K chunks</span>
+                        <span className="font-mono text-xs text-muted-foreground">{topK}</span>
+                      </div>
+                      <input
+                        aria-label="Top K"
+                        className="w-full accent-primary"
+                        max="20"
+                        min="1"
+                        step="1"
+                        type="range"
+                        value={topK}
+                        onChange={(e) => update("topK", Number.parseInt(e.target.value, 10))}
+                      />
                     </div>
-                    <input
-                      aria-label="Top K"
-                      className="w-full accent-primary"
-                      max="20"
-                      min="1"
-                      step="1"
-                      type="range"
-                      value={topK}
-                      onChange={(e) => update("topK", Number.parseInt(e.target.value, 10))}
-                    />
-                  </div>
 
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-medium">System prompt</span>
-                    <textarea
-                      aria-label="System prompt"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      onChange={(e) => update("systemPrompt", e.target.value)}
-                      rows={4}
-                      value={systemPrompt}
-                    />
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-medium">System prompt</span>
+                      <textarea
+                        aria-label="System prompt"
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onChange={(e) => update("systemPrompt", e.target.value)}
+                        rows={4}
+                        value={systemPrompt}
+                      />
+                    </div>
                   </div>
-                </div>
-              </Dropdown>
-            )}
+                </Dropdown>
+              )}
+            </div>
           </div>
 
           {isStreaming ? (
