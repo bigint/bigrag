@@ -157,11 +157,7 @@ class WebhookDispatcher:
         from bigrag.db.models import Webhook
 
         async with session_factory()() as session:
-            rows = (
-                await session.scalars(
-                    sa.select(Webhook).where(Webhook.active.is_(True))
-                )
-            ).all()
+            rows = (await session.scalars(sa.select(Webhook).where(Webhook.active.is_(True)))).all()
         webhooks = [
             {
                 "id": str(w.id),

@@ -172,9 +172,7 @@ async def logout_all(
     a device or session is compromised. The current browser cookie is also
     cleared so the caller lands on the login page.
     """
-    await session.execute(
-        sa.delete(DbSession).where(DbSession.user_id == uuid.UUID(user["id"]))
-    )
+    await session.execute(sa.delete(DbSession).where(DbSession.user_id == uuid.UUID(user["id"])))
     await session.commit()
     _clear_session_cookie(response)
     return StatusResponse(status="ok", message="Signed out of all devices")
@@ -202,8 +200,6 @@ async def change_password(
         raise HTTPException(status_code=401, detail="Current password is incorrect")
 
     target.password_hash = hash_password(body.new_password)
-    await session.execute(
-        sa.delete(DbSession).where(DbSession.user_id == target.id)
-    )
+    await session.execute(sa.delete(DbSession).where(DbSession.user_id == target.id))
     await session.commit()
     return StatusResponse(status="ok", message="Password updated — please sign in again")

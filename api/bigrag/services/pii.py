@@ -15,9 +15,7 @@ import re
 
 _EMAIL = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 # E.164 or NANP: +1-555-555-5555, (555) 555-5555, 555.555.5555, etc.
-_PHONE = re.compile(
-    r"(?<!\w)(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}(?!\w)"
-)
+_PHONE = re.compile(r"(?<!\w)(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}(?!\w)")
 _SSN = re.compile(r"(?<!\d)\d{3}-\d{2}-\d{4}(?!\d)")
 # Cards: 13-19 digits with optional hyphens/spaces. Passes Luhn to
 # reduce false positives on long random numbers.

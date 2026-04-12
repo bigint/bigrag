@@ -53,9 +53,7 @@ async def update_preferences(
     if not isinstance(incoming, dict):
         incoming = {}
 
-    stmt = pg_insert(UserPreference).values(
-        user_id=uuid.UUID(user["id"]), data=incoming
-    )
+    stmt = pg_insert(UserPreference).values(user_id=uuid.UUID(user["id"]), data=incoming)
     stmt = stmt.on_conflict_do_update(
         index_elements=[UserPreference.user_id],
         set_={

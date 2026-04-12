@@ -43,9 +43,24 @@ logger = get_logger("bigrag.routers.documents")
 router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["documents"])
 
 SUPPORTED_EXTENSIONS = {
-    ".pdf", ".docx", ".pptx", ".xlsx",
-    ".html", ".htm", ".md", ".txt", ".csv", ".tsv", ".xml", ".json",
-    ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif",
+    ".pdf",
+    ".docx",
+    ".pptx",
+    ".xlsx",
+    ".html",
+    ".htm",
+    ".md",
+    ".txt",
+    ".csv",
+    ".tsv",
+    ".xml",
+    ".json",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".tiff",
+    ".bmp",
+    ".gif",
 }
 
 
@@ -79,9 +94,7 @@ async def _recount_ready_documents(
         .scalar_subquery()
     )
     await session.execute(
-        sa.update(Collection)
-        .where(Collection.id == collection_id)
-        .values(document_count=subq)
+        sa.update(Collection).where(Collection.id == collection_id).values(document_count=subq)
     )
 
 
@@ -245,9 +258,7 @@ async def upload_document(
         await session.commit()
         raise HTTPException(
             status_code=503,
-            detail=(
-                "Ingestion queue unavailable — document saved as failed, retry later."
-            ),
+            detail=("Ingestion queue unavailable — document saved as failed, retry later."),
         ) from exc
 
     return _document_response(doc)
@@ -399,7 +410,10 @@ async def get_document_chunks(
         raise HTTPException(status_code=404, detail="Document not found")
 
     chunks, total = await vector_store.get_chunks(
-        collection_name, document_id, limit=limit, offset=offset,
+        collection_name,
+        document_id,
+        limit=limit,
+        offset=offset,
     )
     return {"chunks": chunks, "total": total}
 
@@ -626,8 +640,7 @@ async def batch_get_documents(
 
     documents = [_document_response(d) for d in docs]
     logger.info(
-        f"batch_get: collection={collection_name} "
-        f"requested={len(uuids)} found={len(documents)}"
+        f"batch_get: collection={collection_name} requested={len(uuids)} found={len(documents)}"
     )
     return BatchGetResponse(documents=documents, total=len(documents))
 
@@ -670,9 +683,7 @@ async def batch_delete_documents(
             errors.append({"document_id": doc_id, "error": str(e)})
             return False
 
-    results = await asyncio.gather(
-        *[_delete_one(doc_id, doc) for doc_id, doc in by_id.items()]
-    )
+    results = await asyncio.gather(*[_delete_one(doc_id, doc) for doc_id, doc in by_id.items()])
     deleted = sum(1 for r in results if r)
 
     # Remove the Postgres rows in one statement now that side effects
@@ -684,8 +695,7 @@ async def batch_delete_documents(
     await session.commit()
 
     logger.info(
-        f"batch_delete: collection={collection_name} "
-        f"deleted={deleted} errors={len(errors)}"
+        f"batch_delete: collection={collection_name} deleted={deleted} errors={len(errors)}"
     )
     return BatchDeleteResponse(status="ok", deleted=deleted, errors=errors)
 
@@ -722,7 +732,10 @@ async def get_document_chunks_global(
     if collection_name is None:
         raise HTTPException(status_code=404, detail="Collection not found")
     chunks, total = await vector_store.get_chunks(
-        collection_name, document_id, limit=limit, offset=offset,
+        collection_name,
+        document_id,
+        limit=limit,
+        offset=offset,
     )
     return {"chunks": chunks, "total": total}
 
@@ -790,8 +803,7 @@ async def batch_progress_sse(
         )
 
         progress_map: dict[str, dict] = {
-            d: {"progress": 0.0, "status": "pending", "step": "pending"}
-            for d in doc_ids
+            d: {"progress": 0.0, "status": "pending", "step": "pending"} for d in doc_ids
         }
         completed_set: set[str] = set()
 
@@ -816,12 +828,8 @@ async def batch_progress_sse(
                         completed_set.add(event.document_id)
 
                     done = len(completed_set)
-                    failed = sum(
-                        1 for d in progress_map.values() if d["status"] == "failed"
-                    )
-                    avg_progress = sum(
-                        d["progress"] for d in progress_map.values()
-                    ) / len(doc_ids)
+                    failed = sum(1 for d in progress_map.values() if d["status"] == "failed")
+                    avg_progress = sum(d["progress"] for d in progress_map.values()) / len(doc_ids)
 
                     summary = {
                         "step": "batch_progress",

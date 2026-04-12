@@ -100,8 +100,7 @@ class CreateApiKeyRequest(BaseModel):
     rate_limits: dict | None = Field(
         default=None,
         description=(
-            "Optional per-bucket overrides, e.g. "
-            "{'POST:/v1/query': 300, 'POST:/v1/documents': 30}."
+            "Optional per-bucket overrides, e.g. {'POST:/v1/query': 300, 'POST:/v1/documents': 30}."
         ),
     )
 

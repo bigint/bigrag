@@ -65,8 +65,7 @@ def check_production_safety(s: Settings) -> None:
     for i, line in enumerate(problems, 1):
         logger.error(f"  {i}. {line}")
     logger.error(
-        "Set BIGRAG_ENV=dev if you really intend to run in this state, "
-        "or fix the items above.",
+        "Set BIGRAG_ENV=dev if you really intend to run in this state, or fix the items above.",
     )
     # SystemExit is catchable by the caller (useful for tests) but
     # will terminate the process at the module boundary otherwise.

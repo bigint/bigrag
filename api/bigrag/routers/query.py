@@ -294,10 +294,7 @@ async def collection_analytics(
             await session.execute(
                 sa.select(QueryLog.query, sa.func.count().label("count"))
                 .where(QueryLog.collection_name == collection_name)
-                .where(
-                    QueryLog.created_at
-                    > sa.func.now() - sa.text("make_interval(days => 7)")
-                )
+                .where(QueryLog.created_at > sa.func.now() - sa.text("make_interval(days => 7)"))
                 .group_by(QueryLog.query)
                 .order_by(sa.desc("count"))
                 .limit(10)

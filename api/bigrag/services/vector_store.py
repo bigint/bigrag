@@ -159,9 +159,7 @@ class VectorStore:
             schema=schema,
             index_params=index_params,
         )
-        logger.info(
-            f"Created Milvus collection: {col} (dim={dimension}, index={index_type})"
-        )
+        logger.info(f"Created Milvus collection: {col} (dim={dimension}, index={index_type})")
 
     async def ensure_partition(self, name: str, partition: str) -> None:
         """Create a Milvus partition if it doesn't exist.
@@ -265,9 +263,7 @@ class VectorStore:
             for hit in results[0]:
                 entity = hit["entity"]
                 metadata = {
-                    k: v
-                    for k, v in dict(entity).items()
-                    if k not in fixed and v is not None
+                    k: v for k, v in dict(entity).items() if k not in fixed and v is not None
                 }
                 hits.append(
                     {
@@ -303,7 +299,7 @@ class VectorStore:
         )
         all_chunks = sorted(results, key=lambda r: r.get("chunk_index", 0))
         total = len(all_chunks)
-        page = all_chunks[offset:offset + limit]
+        page = all_chunks[offset : offset + limit]
         logger.info(
             f"get_chunks: collection={col} document_id={document_id} "
             f"total={total} offset={offset} limit={limit} returned={len(page)}"

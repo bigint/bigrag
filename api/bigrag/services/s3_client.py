@@ -12,9 +12,24 @@ from bigrag.logging import get_logger
 logger = get_logger("bigrag.s3_client")
 
 SUPPORTED_EXTENSIONS = {
-    ".pdf", ".docx", ".pptx", ".xlsx", ".html", ".htm", ".md", ".txt",
-    ".csv", ".tsv", ".xml", ".json", ".png", ".jpg", ".jpeg", ".tiff",
-    ".bmp", ".gif",
+    ".pdf",
+    ".docx",
+    ".pptx",
+    ".xlsx",
+    ".html",
+    ".htm",
+    ".md",
+    ".txt",
+    ".csv",
+    ".tsv",
+    ".xml",
+    ".json",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".tiff",
+    ".bmp",
+    ".gif",
 }
 
 
@@ -55,7 +70,8 @@ async def resolve_bucket_region(bucket: str) -> str | None:
         }
         async with session.create_client("s3", **kw) as s3:
             r = await asyncio.wait_for(
-                s3.get_bucket_location(Bucket=bucket), timeout=15,
+                s3.get_bucket_location(Bucket=bucket),
+                timeout=15,
             )
             return r.get("LocationConstraint") or "us-east-1"
     except (BotoCoreError, ClientError, TimeoutError) as exc:
@@ -180,5 +196,3 @@ async def iter_s3_pages(
                 on_progress(total)
             if filtered:
                 yield filtered
-
-

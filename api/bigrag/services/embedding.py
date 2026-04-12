@@ -42,8 +42,10 @@ def count_tokens(text: str, model: str | None = None) -> int:
         import tiktoken
 
         try:
-            enc = tiktoken.encoding_for_model(model) if model else tiktoken.get_encoding(
-                "cl100k_base"
+            enc = (
+                tiktoken.encoding_for_model(model)
+                if model
+                else tiktoken.get_encoding("cl100k_base")
             )
         except KeyError:
             enc = tiktoken.get_encoding("cl100k_base")
@@ -72,8 +74,10 @@ def truncate_to_tokens(
         import tiktoken
 
         try:
-            enc = tiktoken.encoding_for_model(model) if model else tiktoken.get_encoding(
-                "cl100k_base"
+            enc = (
+                tiktoken.encoding_for_model(model)
+                if model
+                else tiktoken.get_encoding("cl100k_base")
             )
         except KeyError:
             enc = tiktoken.get_encoding("cl100k_base")
@@ -269,8 +273,7 @@ def get_embedding_model(
         model = CohereEmbedding(model_name, api_key=api_key, dimension=dimension or 1024)
     else:
         raise ValueError(
-            f"Unknown embedding provider: {provider}. "
-            f"Supported: openai, openai_compatible, cohere"
+            f"Unknown embedding provider: {provider}. Supported: openai, openai_compatible, cohere"
         )
 
     _models[cache_key] = model

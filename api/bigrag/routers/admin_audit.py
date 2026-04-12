@@ -67,9 +67,7 @@ async def list_audit_log(
             .offset(offset)
         )
     ).all()
-    total = await session.scalar(
-        sa.select(sa.func.count()).select_from(AuditLog).where(*filters)
-    )
+    total = await session.scalar(sa.select(sa.func.count()).select_from(AuditLog).where(*filters))
     return AuditLogListResponse(
         entries=[_audit_row(e) for e in entries],
         total=total or 0,

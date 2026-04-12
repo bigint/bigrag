@@ -264,7 +264,9 @@ async def replay_delivery(
 
     payload_str = orjson.dumps(delivery.payload).decode()
     result = await webhook_dispatcher.deliver_once(
-        _webhook_to_dict(wh), delivery.event, payload_str,
+        _webhook_to_dict(wh),
+        delivery.event,
+        payload_str,
     )
     logger.info(
         "Webhook delivery replayed",

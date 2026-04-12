@@ -92,9 +92,7 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
         return None
 
     api_key, user = row
-    await session.execute(
-        update(ApiKey).where(ApiKey.id == api_key.id).values(last_used_at=now)
-    )
+    await session.execute(update(ApiKey).where(ApiKey.id == api_key.id).values(last_used_at=now))
     await session.commit()
 
     permissions = api_key.permissions or {}

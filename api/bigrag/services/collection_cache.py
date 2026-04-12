@@ -61,9 +61,7 @@ async def get_or_404(name: str) -> dict:
         return cached
 
     async with session_factory()() as session:
-        collection = await session.scalar(
-            sa.select(Collection).where(Collection.name == name)
-        )
+        collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
     if collection is None:
         raise NotFoundError("Collection", name)
     data = _serialize(collection)
@@ -72,7 +70,9 @@ async def get_or_404(name: str) -> dict:
         for k, v in data.items()
     }
     await redis_cache.set(
-        f"collection:{name}", cacheable, ttl=settings.collection_cache_ttl,
+        f"collection:{name}",
+        cacheable,
+        ttl=settings.collection_cache_ttl,
     )
     return data
 

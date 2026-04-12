@@ -187,11 +187,13 @@ def mmr_rerank(
                 # No peers yet — pure relevance, or no embedding to compare.
                 mmr = lambda_ * relevance - (1 - lambda_) * 0.0
             else:
-                max_sim = max(
-                    _cosine(emb, p.get("embedding") or [])
-                    for p in picked
-                    if p.get("embedding")
-                ) if any(p.get("embedding") for p in picked) else 0.0
+                max_sim = (
+                    max(
+                        _cosine(emb, p.get("embedding") or []) for p in picked if p.get("embedding")
+                    )
+                    if any(p.get("embedding") for p in picked)
+                    else 0.0
+                )
                 mmr = lambda_ * relevance - (1 - lambda_) * max_sim
             if mmr > best_score:
                 best_score = mmr
@@ -363,14 +365,16 @@ async def retrieve(
     _retrieve_start = time.monotonic()
     timings = {"embed_ms": 0.0, "search_ms": 0.0, "rerank_ms": 0.0, "hyde_ms": 0.0, "mmr_ms": 0.0}
 
-    event_bus.publish(IngestionEvent(
-        document_id="",
-        step="search",
-        status="processing",
-        message=f"Searching: {query[:80]}",
-        detail={"top_k": top_k, "mode": search_mode},
-        collection_name=collection_name,
-    ))
+    event_bus.publish(
+        IngestionEvent(
+            document_id="",
+            step="search",
+            status="processing",
+            message=f"Searching: {query[:80]}",
+            detail={"top_k": top_k, "mode": search_mode},
+            collection_name=collection_name,
+        )
+    )
     filter_expr = _build_filter_expr(filters) if filters else None
     query_terms = _tokenize_query(query)
 
@@ -488,19 +492,21 @@ async def retrieve(
 
     facet_counts = compute_facets(results, facets) if facets else None
 
-    event_bus.publish(IngestionEvent(
-        document_id="",
-        step="search_complete",
-        status="complete",
-        message=f"{len(results)} results in {total_ms:.0f}ms",
-        detail={
-            "results": len(results),
-            "latency_ms": round(total_ms, 1),
-            "avg_score": round(avg_score, 4) if avg_score else 0,
-            "mode": search_mode,
-        },
-        collection_name=collection_name,
-    ))
+    event_bus.publish(
+        IngestionEvent(
+            document_id="",
+            step="search_complete",
+            status="complete",
+            message=f"{len(results)} results in {total_ms:.0f}ms",
+            detail={
+                "results": len(results),
+                "latency_ms": round(total_ms, 1),
+                "avg_score": round(avg_score, 4) if avg_score else 0,
+                "mode": search_mode,
+            },
+            collection_name=collection_name,
+        )
+    )
     safe_create_task(
         _log_query(
             collection_name=collection_name,

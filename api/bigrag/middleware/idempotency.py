@@ -124,7 +124,5 @@ async def _send_cached(send, cached: dict) -> None:
     headers.append((b"idempotency-key-replayed", b"true"))
     headers.append((b"content-length", str(len(body)).encode("ascii")))
 
-    await send(
-        {"type": "http.response.start", "status": cached["status"], "headers": headers}
-    )
+    await send({"type": "http.response.start", "status": cached["status"], "headers": headers})
     await send({"type": "http.response.body", "body": body})

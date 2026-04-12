@@ -93,12 +93,9 @@ async def create_collection(
     session: AsyncSession = Depends(get_session),
 ):
     logger.info(
-        f"create: name={body.name} provider={body.embedding_provider} "
-        f"model={body.embedding_model}"
+        f"create: name={body.name} provider={body.embedding_provider} model={body.embedding_model}"
     )
-    existing = await session.scalar(
-        sa.select(Collection.id).where(Collection.name == body.name)
-    )
+    existing = await session.scalar(sa.select(Collection.id).where(Collection.name == body.name))
     if existing is not None:
         raise HTTPException(status_code=409, detail="Collection already exists")
 
@@ -117,11 +114,7 @@ async def create_collection(
         or (preset.provider if preset else None)
         or settings.embedding_provider
     )
-    model = (
-        body.embedding_model
-        or (preset.model if preset else None)
-        or settings.embedding_model
-    )
+    model = body.embedding_model or (preset.model if preset else None) or settings.embedding_model
 
     if provider not in ("openai", "openai_compatible", "cohere"):
         raise HTTPException(
@@ -135,10 +128,7 @@ async def create_collection(
         if not body.embedding_base_url and not (preset and preset.base_url):
             raise HTTPException(
                 status_code=400,
-                detail=(
-                    "embedding_base_url is required when provider="
-                    "'openai_compatible'"
-                ),
+                detail=("embedding_base_url is required when provider='openai_compatible'"),
             )
         if body.dimension is None and not (preset and preset.dimension):
             raise HTTPException(
@@ -150,9 +140,7 @@ async def create_collection(
             )
 
     api_key = (
-        body.embedding_api_key
-        or (preset.api_key if preset else None)
-        or settings.embedding_api_key
+        body.embedding_api_key or (preset.api_key if preset else None) or settings.embedding_api_key
     )
     if not api_key:
         raise HTTPException(
@@ -219,8 +207,7 @@ async def create_collection(
     await session.refresh(collection)
 
     logger.info(
-        f"create: collection={body.name} created provider={provider} "
-        f"model={model} dim={dimension}"
+        f"create: collection={body.name} created provider={provider} model={model} dim={dimension}"
     )
     return _collection_response(collection)
 
@@ -238,9 +225,7 @@ async def reembed_collection(
     that haven't actually changed get their new vectors essentially for
     free, so this scales well even for large collections.
     """
-    collection = await session.scalar(
-        sa.select(Collection).where(Collection.name == name)
-    )
+    collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
@@ -291,9 +276,7 @@ async def get_collection(
     session: AsyncSession = Depends(get_session),
 ):
     logger.info(f"get: collection={name}")
-    collection = await session.scalar(
-        sa.select(Collection).where(Collection.name == name)
-    )
+    collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
     return _collection_response(collection)
@@ -306,9 +289,7 @@ async def get_collection_stats(
     session: AsyncSession = Depends(get_session),
 ):
     logger.info(f"stats: collection={name}")
-    collection_id = await session.scalar(
-        sa.select(Collection.id).where(Collection.name == name)
-    )
+    collection_id = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
     if collection_id is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
@@ -350,9 +331,7 @@ async def update_collection(
     session: AsyncSession = Depends(get_session),
 ):
     logger.info(f"update: collection={name}")
-    collection = await session.scalar(
-        sa.select(Collection).where(Collection.name == name)
-    )
+    collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
@@ -389,9 +368,7 @@ async def delete_collection(
     session: AsyncSession = Depends(get_session),
 ):
     logger.info(f"delete: collection={name}")
-    collection = await session.scalar(
-        sa.select(Collection).where(Collection.name == name)
-    )
+    collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
@@ -427,9 +404,7 @@ async def collection_events_sse(
     """Stream real-time events for all activity in a collection via SSE."""
     from bigrag.services.event_bus import event_bus
 
-    exists = await session.scalar(
-        sa.select(Collection.id).where(Collection.name == name)
-    )
+    exists = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
     if exists is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
@@ -479,9 +454,7 @@ async def truncate_collection(
 ):
     """Delete all documents, vectors, and storage files in a collection."""
     logger.info(f"truncate: collection={name}")
-    collection_id = await session.scalar(
-        sa.select(Collection.id).where(Collection.name == name)
-    )
+    collection_id = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
     if collection_id is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 

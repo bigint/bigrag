@@ -53,28 +53,18 @@ def _validate_property(key: str, value: Any, spec: dict) -> None:
         if check is None:
             raise ValueError(f"Unknown schema type {type_!r} for field {key!r}")
         if not check(value):
-            raise ValueError(
-                f"Metadata field {key!r} must be {type_}, got {type(value).__name__}"
-            )
+            raise ValueError(f"Metadata field {key!r} must be {type_}, got {type(value).__name__}")
     if "enum" in spec and value not in spec["enum"]:
-        raise ValueError(
-            f"Metadata field {key!r} must be one of {spec['enum']}, got {value!r}"
-        )
+        raise ValueError(f"Metadata field {key!r} must be one of {spec['enum']}, got {value!r}")
     if "pattern" in spec and isinstance(value, str):
         if not re.fullmatch(spec["pattern"], value):
-            raise ValueError(
-                f"Metadata field {key!r} must match pattern {spec['pattern']!r}"
-            )
+            raise ValueError(f"Metadata field {key!r} must match pattern {spec['pattern']!r}")
     if "minLength" in spec and isinstance(value, str):
         if len(value) < spec["minLength"]:
-            raise ValueError(
-                f"Metadata field {key!r} must be at least {spec['minLength']} chars"
-            )
+            raise ValueError(f"Metadata field {key!r} must be at least {spec['minLength']} chars")
     if "maxLength" in spec and isinstance(value, str):
         if len(value) > spec["maxLength"]:
-            raise ValueError(
-                f"Metadata field {key!r} must be at most {spec['maxLength']} chars"
-            )
+            raise ValueError(f"Metadata field {key!r} must be at most {spec['maxLength']} chars")
     if "minimum" in spec and isinstance(value, (int, float)) and not isinstance(value, bool):
         if value < spec["minimum"]:
             raise ValueError(f"Metadata field {key!r} must be >= {spec['minimum']}")

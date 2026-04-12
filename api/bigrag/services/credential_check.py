@@ -93,9 +93,7 @@ async def verify_provider_credentials(
             "credential_check endpoint missing",
             extra={"provider": provider, "base_url": base_url},
         )
-        raise CredentialCheckError(
-            "NOT_FOUND", "Provider endpoint did not recognize /models."
-        )
+        raise CredentialCheckError("NOT_FOUND", "Provider endpoint did not recognize /models.")
     logger.warning(
         "credential_check provider error",
         extra={"provider": provider, "base_url": base_url, "status": status},

@@ -150,7 +150,9 @@ async def _run_job(job: dict) -> None:
 
     logger.info(
         "s3_job: starting",
-        job_id=job_id, bucket=bucket, prefix=prefix,
+        job_id=job_id,
+        bucket=bucket,
+        prefix=prefix,
     )
 
     async def _update(status: str, **fields: Any) -> None:
@@ -166,14 +168,16 @@ async def _run_job(job: dict) -> None:
             await session.commit()
 
     def _emit(step: str, status: str, msg: str, **detail: Any) -> None:
-        event_bus.publish(IngestionEvent(
-            document_id=f"s3:{job_id}",
-            step=step,
-            status=status,
-            message=msg,
-            detail=detail,
-            collection_name=collection_name,
-        ))
+        event_bus.publish(
+            IngestionEvent(
+                document_id=f"s3:{job_id}",
+                step=step,
+                status=status,
+                message=msg,
+                detail=detail,
+                collection_name=collection_name,
+            )
+        )
 
     _emit("s3_started", "processing", f"S3 import from s3://{bucket}/{prefix}")
     await _update("listing")
@@ -239,7 +243,8 @@ async def _run_job(job: dict) -> None:
                     if size_bytes > max_object_bytes:
                         logger.warning(
                             "s3_job: skipping oversized object",
-                            key=key, size_mb=round(size_mb, 1),
+                            key=key,
+                            size_mb=round(size_mb, 1),
                         )
                         skipped += 1
                         return
@@ -247,7 +252,8 @@ async def _run_job(job: dict) -> None:
                     async with sem:
                         logger.info(
                             "s3_job: downloading",
-                            job_id=job_id, key=key,
+                            job_id=job_id,
+                            key=key,
                             size_mb=round(size_mb, 1),
                         )
 
@@ -303,9 +309,7 @@ async def _run_job(job: dict) -> None:
                         )
                     except Exception:
                         async with session_factory()() as session:
-                            await session.execute(
-                                sa.delete(Document).where(Document.id == doc_id)
-                            )
+                            await session.execute(sa.delete(Document).where(Document.id == doc_id))
                             await session.commit()
                         await storage.delete(storage_key)
                         skipped += 1
@@ -313,19 +317,26 @@ async def _run_job(job: dict) -> None:
 
                     ingested += 1
                     _emit(
-                        "s3_ingested", "processing",
+                        "s3_ingested",
+                        "processing",
                         f"Ingested {Path(key).name}",
-                        ingested=ingested, skipped=skipped, found=total_found,
+                        ingested=ingested,
+                        skipped=skipped,
+                        found=total_found,
                     )
                     if ingested % 10 == 0:
                         await _update(
-                            "ingesting", total_found=total_found,
-                            total_ingested=ingested, total_skipped=skipped,
+                            "ingesting",
+                            total_found=total_found,
+                            total_ingested=ingested,
+                            total_skipped=skipped,
                         )
                         logger.info(
                             "s3_job: ingesting",
-                            job_id=job_id, ingested=ingested,
-                            skipped=skipped, found=total_found,
+                            job_id=job_id,
+                            ingested=ingested,
+                            skipped=skipped,
+                            found=total_found,
                         )
                 except asyncio.CancelledError:
                     raise
@@ -354,15 +365,15 @@ async def _run_job(job: dict) -> None:
 
                 if page_skipped:
                     _emit(
-                        "s3_skipped", "processing",
+                        "s3_skipped",
+                        "processing",
                         f"Skipped {page_skipped} already-ingested files",
-                        skipped=skipped, found=total_found,
+                        skipped=skipped,
+                        found=total_found,
                     )
 
                 if new_objects:
-                    await asyncio.gather(
-                        *(_download_and_ingest(o) for o in new_objects)
-                    )
+                    await asyncio.gather(*(_download_and_ingest(o) for o in new_objects))
 
     except asyncio.CancelledError:
         _emit("s3_cancelled", "failed", "S3 import cancelled")
@@ -372,7 +383,9 @@ async def _run_job(job: dict) -> None:
         _emit("s3_failed", "failed", f"S3 import failed: {e}")
         logger.error(f"s3_job: failed: {e!r}")
         await _update(
-            "failed", total_ingested=ingested, total_skipped=skipped,
+            "failed",
+            total_ingested=ingested,
+            total_skipped=skipped,
             error_message=str(e),
         )
         return
@@ -381,17 +394,25 @@ async def _run_job(job: dict) -> None:
         logger.warning("s3_job: no supported files found", bucket=bucket, prefix=prefix)
 
     _emit(
-        "s3_complete", "complete",
+        "s3_complete",
+        "complete",
         f"S3 import done — {ingested} ingested, {skipped} skipped",
-        ingested=ingested, skipped=skipped, found=total_found,
+        ingested=ingested,
+        skipped=skipped,
+        found=total_found,
     )
     await _update(
-        "complete", total_found=total_found,
-        total_ingested=ingested, total_skipped=skipped,
+        "complete",
+        total_found=total_found,
+        total_ingested=ingested,
+        total_skipped=skipped,
     )
     logger.info(
         "s3_job: complete",
-        job_id=job_id, ingested=ingested, skipped=skipped, found=total_found,
+        job_id=job_id,
+        ingested=ingested,
+        skipped=skipped,
+        found=total_found,
     )
 
 

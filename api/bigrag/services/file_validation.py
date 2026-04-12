@@ -76,9 +76,7 @@ def validate_zip_bomb(content: bytes, extension: str) -> None:
     try:
         zf = zipfile.ZipFile(io.BytesIO(content))
     except zipfile.BadZipFile as exc:
-        raise InvalidFileContentError(
-            f"Not a valid {extension} archive."
-        ) from exc
+        raise InvalidFileContentError(f"Not a valid {extension} archive.") from exc
     total = sum(info.file_size for info in zf.infolist())
     if total > MAX_DECOMPRESSED_BYTES:
         raise InvalidFileContentError(
