@@ -18,10 +18,15 @@ single active key.
 
 from __future__ import annotations
 
+import logging
+
 from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy.types import Text, TypeDecorator
 
 _fernet: Fernet | None = None
+_FERNET_PREFIX = "gAAAA"  # Fernet tokens always start with this after base64.
+
+logger = logging.getLogger("bigrag.crypto")
 
 
 class CryptoNotConfiguredError(RuntimeError):
@@ -83,4 +88,14 @@ class EncryptedString(TypeDecorator):
     def process_result_value(self, value, dialect):  # type: ignore[override]
         if value is None:
             return None
+        # Tolerate legacy plaintext rows written before the column became
+        # EncryptedString. They'll be re-written as Fernet ciphertext on the
+        # next update. Warn once so operators know there's still plaintext
+        # on disk.
+        if not value.startswith(_FERNET_PREFIX):
+            logger.warning(
+                "crypto: read a plaintext value in an encrypted column — "
+                "it will be encrypted on the next write"
+            )
+            return value
         return decrypt(value)

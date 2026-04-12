@@ -60,7 +60,12 @@ const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: str
     }
   });
 
-  return new Response(upstream.body, {
+  // SSE / event-stream endpoints must stream — buffering would break the
+  // document-progress and collection-events routes.
+  const isStream = (upstream.headers.get("content-type") ?? "").includes("text/event-stream");
+  const body = isStream ? upstream.body : await upstream.arrayBuffer();
+
+  return new Response(body, {
     status: upstream.status,
     statusText: upstream.statusText,
     headers: responseHeaders,
