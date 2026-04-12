@@ -10,7 +10,7 @@ import uuid
 
 from httpx import AsyncClient
 
-from tests.conftest import make_delivery_row, make_webhook_row
+from tests.conftest import install_fetchrow_router, make_delivery_row, make_webhook_row
 
 WEBHOOK_URL = "https://example.com/hook"
 WEBHOOK_EVENTS = ["document.ready"]
@@ -45,7 +45,7 @@ async def test_create_webhook(
             return row
         return None
 
-    mock_db.fetchrow.side_effect = fetchrow_router
+    install_fetchrow_router(mock_db, fetchrow_router)
 
     resp = await client.post(
         "/v1/admin/webhooks",
@@ -154,7 +154,7 @@ async def test_update_webhook(
             return updated_row
         return None
 
-    mock_db.fetchrow.side_effect = fetchrow_router
+    install_fetchrow_router(mock_db, fetchrow_router)
 
     resp = await client.put(
         f"/v1/admin/webhooks/{wh_id}",
@@ -181,7 +181,7 @@ async def test_delete_webhook(
             return row
         return None
 
-    mock_db.fetchrow.side_effect = fetchrow_router
+    install_fetchrow_router(mock_db, fetchrow_router)
 
     resp = await client.delete(f"/v1/admin/webhooks/{wh_id}", headers=auth_headers)
     assert resp.status_code == 200
@@ -207,7 +207,7 @@ async def test_list_deliveries(
             return {"cnt": 1}
         return None
 
-    mock_db.fetchrow.side_effect = fetchrow_router
+    install_fetchrow_router(mock_db, fetchrow_router)
     mock_db.fetch.return_value = [delivery]
 
     resp = await client.get(
@@ -248,6 +248,10 @@ async def test_test_webhook(
 
 
 async def test_webhooks_require_auth(client: AsyncClient):
+    # The client fixture pre-attaches a valid session cookie so most
+    # tests don't have to. This one needs the opposite — verify the
+    # endpoints reject unauthenticated requests.
+    client.cookies.clear()
     endpoints = [
         ("POST", "/v1/admin/webhooks"),
         ("GET", "/v1/admin/webhooks"),

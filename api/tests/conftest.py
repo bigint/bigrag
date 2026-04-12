@@ -197,16 +197,21 @@ def make_delivery_row(
 
 
 def _install_auth_fetchrow(mock_db: AsyncMock) -> None:
-    """Wrap mock_db.fetchrow so session + API key lookups return the test user."""
+    """Wrap mock_db.fetchrow so session + API key lookups return the test user.
+
+    Safe to call repeatedly: downstream tests that reassign
+    ``mock_db.fetchrow`` or its ``side_effect`` can re-install this
+    wrapper afterwards (directly, or via :func:`install_fetchrow_router`)
+    and auth will keep working.
+    """
+    import asyncio
+    import inspect
+
     session_hash = hash_session_token(TEST_SESSION_TOKEN)
     api_key_hash = hash_api_key(TEST_API_KEY)
 
     test_user = make_user_row(user_id=TEST_USER_ID)
-
-    # Session JOIN returns a row shaped like a user (the middleware selects u.*).
     session_row = dict(test_user)
-
-    # API-key JOIN returns user columns plus `api_key_id`.
     api_key_row = dict(test_user)
     api_key_row["api_key_id"] = uuid.UUID(TEST_API_KEY_ID)
 
@@ -219,11 +224,46 @@ def _install_auth_fetchrow(mock_db: AsyncMock) -> None:
             if args and args[0] == api_key_hash:
                 return api_key_row
             return None
+
+        # If a router was installed, trust it — return whatever it said,
+        # even None. The test explicitly wired the response.
         if callable(original):
-            return await original(query, *args)
-        return mock_db.fetchrow.return_value
+            result = original(query, *args)
+            if inspect.isawaitable(result) or asyncio.iscoroutine(result):
+                result = await result
+            return result
+        if original is not None:
+            return original
+
+        # No router installed — honor an explicit return_value. If the
+        # caller never set one (mock's default None), special-case the
+        # narrow ``SELECT COUNT(*) as cnt`` pattern so endpoints that
+        # need a count to build their response don't crash under the
+        # default mock wiring. Any query with a differently-named
+        # aggregate (``as query_count``, ``as total``) falls through
+        # and the test must wire it up explicitly.
+        rv = mock_db.fetchrow.return_value
+        if rv is None and "COUNT(*) as cnt" in query:
+            return {"cnt": 0}
+        return rv
+
 
     mock_db.fetchrow.side_effect = fetchrow
+
+
+def install_fetchrow_router(mock_db: AsyncMock, router) -> None:
+    """Wire ``mock_db.fetchrow`` to ``router`` *and* keep auth working.
+
+    Use this instead of ``mock_db.fetchrow.side_effect = router`` or
+    ``mock_db.fetchrow = AsyncMock(side_effect=router)`` — those drop
+    the auth wrapper installed by the ``mock_db`` fixture.
+
+    ``router`` may be a sync or async callable taking ``(query, *args)``.
+    """
+    # Explicit return_value=None so when the router returns None, the mock
+    # doesn't fall back to a sentinel MagicMock via ``return_value``.
+    mock_db.fetchrow = AsyncMock(side_effect=router, return_value=None)
+    _install_auth_fetchrow(mock_db)
 
 
 @pytest.fixture()
