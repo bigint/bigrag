@@ -149,9 +149,7 @@ def create_server(base_url: str, api_key: str | None) -> FastMCP:
         document_id: Annotated[str, Field(description="Document UUID")],
     ) -> dict[str, Any]:
         """Return every chunk of a document in order, with its text and metadata."""
-        r = await client.get(
-            f"/v1/collections/{collection}/documents/{document_id}/chunks"
-        )
+        r = await client.get(f"/v1/collections/{collection}/documents/{document_id}/chunks")
         _raise_for_status(r)
         return r.json()
 
