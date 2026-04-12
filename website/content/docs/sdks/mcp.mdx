@@ -1,0 +1,97 @@
+---
+title: MCP Server
+description: Expose a bigRAG instance over the Model Context Protocol so Claude Desktop, Cursor, and other MCP clients can retrieve from your collections natively.
+---
+
+bigRAG ships an [MCP](https://modelcontextprotocol.io) server that wraps
+the REST API as tool calls. Point it at a running bigRAG instance and any
+MCP-aware runtime can list collections, query them, and fetch individual
+documents — no HTTP plumbing on the client side.
+
+## Install
+
+The `bigrag-mcp` command is bundled with the `bigrag` Python package.
+
+```bash
+pip install bigrag
+# or (preferred): uv tool install bigrag
+```
+
+## Run
+
+```bash
+BIGRAG_URL=https://bigrag.example.com \
+BIGRAG_API_KEY=bigrag_sk_... \
+bigrag-mcp
+```
+
+Defaults:
+
+| Flag | Default | Notes |
+|------|---------|-------|
+| `--base-url` | `http://localhost:6100` | also read from `BIGRAG_URL` |
+| `--api-key` | _(none)_ | also read from `BIGRAG_API_KEY`; required for protected endpoints |
+| `--transport` | `stdio` | alt: `streamable-http` |
+| `--port` | `6101` | for streamable-http only |
+
+## Claude Desktop
+
+Add this to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "bigrag": {
+      "command": "bigrag-mcp",
+      "env": {
+        "BIGRAG_URL": "https://bigrag.example.com",
+        "BIGRAG_API_KEY": "bigrag_sk_..."
+      }
+    }
+  }
+}
+```
+
+Restart Claude Desktop. The `bigrag` server appears under the tools icon
+with six tools registered.
+
+## Cursor / Windsurf / other MCP clients
+
+Any client that speaks MCP over stdio works identically. Consult the
+client's docs for where to register the server command; the command and
+env vars are the same as above.
+
+## Tools
+
+All tools are thin wrappers around `/v1/*` endpoints. They honor the
+same auth, scopes, and rate limits as any other API client.
+
+| Tool | Calls | Purpose |
+|------|-------|---------|
+| `list_collections` | `GET /v1/collections` | Discover what's available. |
+| `get_collection` | `GET /v1/collections/{name}` | Read embedding/chunking config and counts. |
+| `query` | `POST /v1/collections/{name}/query` | **The main tool** — retrieve top-k chunks for a natural-language question. |
+| `list_documents` | `GET /v1/collections/{name}/documents` | Paginate through a collection's documents. |
+| `get_document` | `GET /v1/collections/{name}/documents/{id}` | Fetch one document's metadata. |
+| `get_document_chunks` | `GET /v1/collections/{name}/documents/{id}/chunks` | Read every chunk of a document in order. |
+
+## Example interaction
+
+Once configured, the client can call tools directly:
+
+> **User:** What does our runbook say about Postgres failover?
+>
+> **Model:** _(invokes `query` with `collection: runbooks`,_
+> _`query: "Postgres failover procedure"`, `top_k: 5`)_
+>
+> _(receives top-5 chunks; synthesises an answer citing `document_id`s)_
+
+## Limitations
+
+- Ingestion (upload, S3 jobs, webhooks) is intentionally not exposed —
+  MCP tools target retrieval workflows. Use the HTTP API, a language
+  SDK, or the Studio UI for writes.
+- Streaming SSE endpoints (document progress, collection events) are
+  not wrapped — MCP tools are request/response only.
+- The server is a client of the bigRAG HTTP API; it does not connect to
+  Postgres or Milvus directly.

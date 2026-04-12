@@ -67,6 +67,15 @@ pnpm dev:app        # Studio admin UI on localhost:3100
 - Redis: localhost:6380
 - Milvus: localhost:19530
 
+## MCP server
+
+The `bigrag-mcp` entry point (`api/bigrag/mcp_server.py`) wraps the REST
+API as MCP tools for Claude Desktop / Cursor / etc. It's an HTTP client,
+not an in-process bolt-on — auth is via `BIGRAG_API_KEY`. When adding or
+renaming an API endpoint that retrieval clients care about, update the
+matching tool in `mcp_server.py` and the docs at
+`website/content/docs/sdks/mcp.mdx`.
+
 ## Auth model
 
 Auth is admin-account + session cookie (Studio UI) or minted API keys
