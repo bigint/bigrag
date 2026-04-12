@@ -55,11 +55,16 @@ class VectorStore:
     def reconnect(self) -> None:
         """Reconnect to Milvus if the connection was lost."""
         logger.warning(f"Reconnecting to Milvus at {self.uri}")
-        try:
-            if self.client:
+        if self.client:
+            try:
                 self.client.close()
-        except Exception:
-            pass
+            except (ConnectionError, OSError, TimeoutError) as exc:
+                # Old client already half-dead — best-effort close is fine,
+                # but we still want the error on record.
+                logger.warning(
+                    "vector_store: disconnect during reconnect failed",
+                    error=f"{exc.__class__.__name__}: {exc}",
+                )
         self.client = MilvusClient(uri=self.uri)
         logger.info(f"Reconnected to Milvus at {self.uri}")
 

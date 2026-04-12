@@ -98,11 +98,15 @@ class IngestionQueue:
         for item in items:
             try:
                 job = IngestionJob.deserialize(item)
-                if job.collection_name == collection_name:
-                    await self._redis.lrem(QUEUE_KEY, 1, item)
-                    removed += 1
-            except Exception:
+            except (ValueError, TypeError, KeyError) as exc:
+                logger.warning(
+                    "queue: malformed job payload, skipping",
+                    error=f"{exc.__class__.__name__}: {exc}",
+                )
                 continue
+            if job.collection_name == collection_name:
+                await self._redis.lrem(QUEUE_KEY, 1, item)
+                removed += 1
         if removed:
             logger.info(
                 f"[queue] flushed {removed} jobs for collection={collection_name}"
