@@ -27,6 +27,7 @@ from bigrag.models.document import (
 from bigrag.models.s3 import S3IngestRequest, S3IngestResponse
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
 from bigrag.services.event_bus import event_bus
+from bigrag.services.file_validation import InvalidFileContent, validate_upload
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import get_storage
@@ -118,6 +119,11 @@ async def upload_document(
 
     if len(content) == 0:
         raise HTTPException(status_code=400, detail="File is empty")
+
+    try:
+        validate_upload(content, file_ext)
+    except InvalidFileContent as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     doc_id = str(uuid.uuid4())
     file_ext = Path(file.filename or "document").suffix
@@ -467,6 +473,13 @@ async def batch_upload_documents(
                 status_code=400,
                 detail=f"File '{file.filename}' is empty",
             )
+        try:
+            validate_upload(content, file_ext)
+        except InvalidFileContent as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File '{file.filename}': {exc}",
+            ) from exc
         validated.append((file, content))
 
     results = []

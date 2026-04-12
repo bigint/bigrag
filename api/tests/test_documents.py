@@ -50,7 +50,7 @@ async def test_upload_document(client, auth_headers, mock_db, mock_storage):
         resp = await client.post(
             "/v1/collections/test_col/documents",
             headers=auth_headers,
-            files={"file": ("test.pdf", b"fake pdf content", "application/pdf")},
+            files={"file": ("test.pdf", b"%PDF-1.4\nfake pdf content", "application/pdf")},
             data={"metadata": "{}"},
         )
 
@@ -79,7 +79,7 @@ async def test_upload_marks_failed_when_enqueue_errors(
         resp = await client.post(
             "/v1/collections/test_col/documents",
             headers=auth_headers,
-            files={"file": ("zombie.pdf", b"fake pdf", "application/pdf")},
+            files={"file": ("zombie.pdf", b"%PDF-1.4\nfake pdf", "application/pdf")},
             data={"metadata": "{}"},
         )
 
