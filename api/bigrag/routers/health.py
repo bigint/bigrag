@@ -45,7 +45,9 @@ async def _check_embedding_provider(settings) -> dict[str, object]:
         )
         await asyncio.wait_for(model.embed(["health check"], input_type="query"), timeout=10)
         await redis_cache.set(
-            f"health:embedding:{provider}", {"ok": True}, ttl=_EMBEDDING_HEALTH_TTL,
+            f"health:embedding:{provider}",
+            {"ok": True},
+            ttl=_EMBEDDING_HEALTH_TTL,
         )
         return {"embedding": True}
     except Exception as exc:

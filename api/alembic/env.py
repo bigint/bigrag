@@ -53,9 +53,7 @@ def do_run_migrations(connection: Connection) -> None:
         with context.begin_transaction():
             context.run_migrations()
     finally:
-        connection.execute(
-            text("SELECT pg_advisory_unlock(:k)").bindparams(k=ADVISORY_LOCK_KEY)
-        )
+        connection.execute(text("SELECT pg_advisory_unlock(:k)").bindparams(k=ADVISORY_LOCK_KEY))
 
 
 async def run_async_migrations() -> None:

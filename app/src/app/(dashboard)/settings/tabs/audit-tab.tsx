@@ -38,9 +38,8 @@ export const AuditTab = () => {
       <CardHeader>
         <CardTitle>Audit log</CardTitle>
         <CardDescription>
-          Privileged admin actions are recorded here with actor, resource, and IP. Used
-          for compliance trails (SOC2 / similar) — retained indefinitely until manually
-          purged.
+          Privileged admin actions are recorded here with actor, resource, and IP. Used for
+          compliance trails (SOC2 / similar) — retained indefinitely until manually purged.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -77,18 +76,14 @@ export const AuditTab = () => {
                       {formatRelative(e.created_at)}
                     </td>
                     <td className="px-3 py-2 text-xs">
-                      <div className="font-medium text-foreground">
-                        {e.actor_email ?? "—"}
-                      </div>
+                      <div className="font-medium text-foreground">{e.actor_email ?? "—"}</div>
                       {e.api_key_id && (
                         <div className="font-mono text-[10px] text-muted-foreground">
                           key {e.api_key_id.slice(0, 8)}
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2 font-mono text-xs text-foreground">
-                      {e.action}
-                    </td>
+                    <td className="px-3 py-2 font-mono text-xs text-foreground">{e.action}</td>
                     <td className="px-3 py-2 text-xs">
                       <div className="text-foreground">{e.resource_type}</div>
                       {e.resource_id && (

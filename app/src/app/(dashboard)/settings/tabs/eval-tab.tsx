@@ -54,9 +54,7 @@ export const EvalTab = () => {
     }) => apiClient.post<EvalResponse>("v1/evaluation", body),
     onSuccess: (r) => {
       setResult(r);
-      toast.success(
-        `Evaluated ${r.total_cases} cases — recall@k ${r.recall_at_k_avg}`,
-      );
+      toast.success(`Evaluated ${r.total_cases} cases — recall@k ${r.recall_at_k_avg}`);
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Failed");
@@ -72,9 +70,7 @@ export const EvalTab = () => {
         throw new Error("Expected a non-empty JSON array of cases");
       }
     } catch (err) {
-      toast.error(
-        err instanceof Error ? `Invalid JSON: ${err.message}` : "Invalid JSON",
-      );
+      toast.error(err instanceof Error ? `Invalid JSON: ${err.message}` : "Invalid JSON");
       return;
     }
     mutation.mutate({ collection, cases: parsed, top_k: topK, search_mode: "semantic" });
@@ -86,10 +82,9 @@ export const EvalTab = () => {
         <CardHeader>
           <CardTitle>Retrieval evaluation</CardTitle>
           <CardDescription>
-            Upload a batch of{" "}
-            <code className="text-xs">{"{query, relevant_ids}"}</code> cases and
-            compute recall@k, MRR, and nDCG@k. Useful for catching regressions when
-            you change chunking or re-embed a collection.
+            Upload a batch of <code className="text-xs">{"{query, relevant_ids}"}</code> cases and
+            compute recall@k, MRR, and nDCG@k. Useful for catching regressions when you change
+            chunking or re-embed a collection.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -126,8 +121,11 @@ export const EvalTab = () => {
             />
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-foreground">Cases (JSON)</label>
+              <label htmlFor="eval-cases" className="text-sm font-medium text-foreground">
+                Cases (JSON)
+              </label>
               <Textarea
+                id="eval-cases"
                 rows={8}
                 value={cases}
                 onChange={(e) => setCases(e.target.value)}
@@ -163,15 +161,13 @@ export const EvalTab = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {result.per_case.map((c, i) => (
-                      <tr key={i} className="border-t border-border">
+                    {result.per_case.map((c) => (
+                      <tr key={c.query} className="border-t border-border">
                         <td className="px-3 py-2 text-xs text-foreground">
                           <div className="line-clamp-2">{c.query}</div>
                         </td>
                         <td className="px-3 py-2 text-right text-xs">{c.recall_at_k}</td>
-                        <td className="px-3 py-2 text-right text-xs">
-                          {c.reciprocal_rank}
-                        </td>
+                        <td className="px-3 py-2 text-right text-xs">{c.reciprocal_rank}</td>
                         <td className="px-3 py-2 text-right text-xs">{c.ndcg_at_k}</td>
                       </tr>
                     ))}

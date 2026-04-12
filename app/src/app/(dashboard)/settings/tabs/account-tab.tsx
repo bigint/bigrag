@@ -50,9 +50,7 @@ export const AccountTab = () => {
       <Card>
         <CardHeader>
           <CardTitle>Change password</CardTitle>
-          <CardDescription>
-            You'll be signed out of all sessions after changing it.
-          </CardDescription>
+          <CardDescription>You'll be signed out of all sessions after changing it.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={save} className="flex flex-col gap-3">
@@ -101,9 +99,7 @@ export const AccountTab = () => {
             disabled={logoutAll.isPending}
             onClick={async () => {
               if (
-                !window.confirm(
-                  "Sign out of every device? You'll need to log in again everywhere.",
-                )
+                !window.confirm("Sign out of every device? You'll need to log in again everywhere.")
               ) {
                 return;
               }

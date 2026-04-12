@@ -97,11 +97,6 @@ def validate_scope_string(s: str) -> None:
         raise ValueError(f"Scope must be 'resource:action', got {s!r}")
     resource, action = parts
     if resource not in VALID_RESOURCES:
-        raise ValueError(
-            f"Unknown scope resource {resource!r}. "
-            f"Valid: {sorted(VALID_RESOURCES)}"
-        )
+        raise ValueError(f"Unknown scope resource {resource!r}. Valid: {sorted(VALID_RESOURCES)}")
     if action not in VALID_ACTIONS:
-        raise ValueError(
-            f"Unknown scope action {action!r}. Valid: {sorted(VALID_ACTIONS)}"
-        )
+        raise ValueError(f"Unknown scope action {action!r}. Valid: {sorted(VALID_ACTIONS)}")

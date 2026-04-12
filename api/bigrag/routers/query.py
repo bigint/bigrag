@@ -274,7 +274,9 @@ async def collection_analytics(
                     sa.func.count().label("query_count"),
                     sa.func.coalesce(sa.func.avg(QueryLog.latency_ms), 0).label("avg_latency_ms"),
                     sa.func.coalesce(sa.func.avg(QueryLog.avg_score), 0).label("avg_score"),
-                    sa.func.coalesce(sa.func.avg(QueryLog.result_count), 0).label("avg_result_count"),
+                    sa.func.coalesce(sa.func.avg(QueryLog.result_count), 0).label(
+                        "avg_result_count"
+                    ),
                 )
                 .where(QueryLog.collection_name == collection_name)
                 .where(QueryLog.created_at > since)
@@ -292,10 +294,7 @@ async def collection_analytics(
             await session.execute(
                 sa.select(QueryLog.query, sa.func.count().label("count"))
                 .where(QueryLog.collection_name == collection_name)
-                .where(
-                    QueryLog.created_at
-                    > sa.func.now() - sa.text("make_interval(days => 7)")
-                )
+                .where(QueryLog.created_at > sa.func.now() - sa.text("make_interval(days => 7)"))
                 .group_by(QueryLog.query)
                 .order_by(sa.desc("count"))
                 .limit(10)

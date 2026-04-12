@@ -40,8 +40,7 @@ def configure(master_key: str | None) -> None:
         _fernet = Fernet(key_bytes)
     except Exception as exc:
         raise ValueError(
-            "BIGRAG_MASTER_KEY is not a valid Fernet key "
-            "(expected 32-byte urlsafe-base64)."
+            "BIGRAG_MASTER_KEY is not a valid Fernet key (expected 32-byte urlsafe-base64)."
         ) from exc
 
 
@@ -67,9 +66,7 @@ def decrypt(ciphertext: str) -> str:
     try:
         return _require().decrypt(ciphertext.encode()).decode()
     except InvalidToken as exc:
-        raise ValueError(
-            "Encrypted column failed to decrypt — wrong BIGRAG_MASTER_KEY?"
-        ) from exc
+        raise ValueError("Encrypted column failed to decrypt — wrong BIGRAG_MASTER_KEY?") from exc
 
 
 class EncryptedString(TypeDecorator):

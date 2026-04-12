@@ -30,13 +30,13 @@ async def _embed_with_cache(
         fresh = await model.embed(missing_texts)
         if len(fresh) != len(missing_texts):
             raise ValueError(
-                f"embedding provider returned {len(fresh)} vectors for "
-                f"{len(missing_texts)} inputs"
+                f"embedding provider returned {len(fresh)} vectors for {len(missing_texts)} inputs"
             )
         await embedding_cache.put_many(missing_texts, fresh, provider, model_name, dimension)
         for idx, vec in zip(missing_idx, fresh, strict=False):
             cached[idx] = vec
     return [cached[i] for i in range(len(texts))]
+
 
 logger = get_logger("bigrag.queue")
 
@@ -131,9 +131,7 @@ class IngestionQueue:
                 await self._redis.lrem(QUEUE_KEY, 1, item)
                 removed += 1
         if removed:
-            logger.info(
-                f"[queue] flushed {removed} jobs for collection={collection_name}"
-            )
+            logger.info(f"[queue] flushed {removed} jobs for collection={collection_name}")
         return removed
 
     @property
@@ -201,7 +199,11 @@ class IngestionQueue:
         from bigrag.services.storage import get_storage
 
         self._emit(
-            job.document_id, "converting", "processing", "Parsing document", 0.15,
+            job.document_id,
+            "converting",
+            "processing",
+            "Parsing document",
+            0.15,
             collection_name=job.collection_name,
         )
         t0 = time.monotonic()
@@ -216,9 +218,13 @@ class IngestionQueue:
             elapsed = time.monotonic() - t0
             logger.info(f"{prefix} plain text read elapsed={elapsed:.2f}s")
             self._emit(
-                job.document_id, "text_extracted", "processing",
-                f"Extracted {len(text):,} characters", 0.40,
-                collection_name=job.collection_name, chars=len(text),
+                job.document_id,
+                "text_extracted",
+                "processing",
+                f"Extracted {len(text):,} characters",
+                0.40,
+                collection_name=job.collection_name,
+                chars=len(text),
             )
             return text
 
@@ -254,9 +260,13 @@ class IngestionQueue:
         elapsed = time.monotonic() - t0
         logger.info(f"{prefix} docling conversion elapsed={elapsed:.2f}s")
         self._emit(
-            job.document_id, "converted", "processing",
-            f"Parsed in {elapsed:.1f}s", 0.35,
-            collection_name=job.collection_name, elapsed=round(elapsed, 2),
+            job.document_id,
+            "converted",
+            "processing",
+            f"Parsed in {elapsed:.1f}s",
+            0.35,
+            collection_name=job.collection_name,
+            elapsed=round(elapsed, 2),
         )
 
         text = result.document.export_to_markdown()
@@ -267,9 +277,13 @@ class IngestionQueue:
 
         logger.info(f"{prefix} text extracted chars={len(text)}")
         self._emit(
-            job.document_id, "text_extracted", "processing",
-            f"Extracted {len(text):,} characters", 0.40,
-            collection_name=job.collection_name, chars=len(text),
+            job.document_id,
+            "text_extracted",
+            "processing",
+            f"Extracted {len(text):,} characters",
+            0.40,
+            collection_name=job.collection_name,
+            chars=len(text),
         )
         return text
 
@@ -310,13 +324,15 @@ class IngestionQueue:
 
         strategy = getattr(job, "chunk_strategy", "paragraph") or "paragraph"
         chunks = await asyncio.to_thread(
-            chunk_document, text, job.chunk_size, job.chunk_overlap, strategy,
+            chunk_document,
+            text,
+            job.chunk_size,
+            job.chunk_overlap,
+            strategy,
         )
         if not chunks:
             raise ValueError("Document produced no chunks")
-        logger.info(
-            f"{prefix} chunked into {len(chunks)} chunks (strategy={strategy})"
-        )
+        logger.info(f"{prefix} chunked into {len(chunks)} chunks (strategy={strategy})")
         self._emit(
             job.document_id,
             "chunked",
@@ -339,12 +355,12 @@ class IngestionQueue:
 
         # Chunk-level retry: a flaky embedding call or a single oversized
         # chunk in the middle of a large doc used to fail the whole
-        # document. Retry each batch up to MAX_BATCH_RETRIES with
+        # document. Retry each batch up to max_batch_retries with
         # exponential backoff; on exhaustion the batch's chunks are
         # skipped (logged) and the doc still completes for whatever did
         # embed — better than hours of re-ingest because one chunk was
         # bad.
-        MAX_BATCH_RETRIES = 3
+        max_batch_retries = 3
         batch_backoff_base = 2
 
         for batch_start in range(0, len(chunks), batch_size):
@@ -375,8 +391,7 @@ class IngestionQueue:
                     doc_ids = [doc] * len(batch_texts)
                     indices = list(range(batch_start, batch_end))
                     metadata = [
-                        {"char_start": c.char_start, "char_end": c.char_end}
-                        for c in batch_chunks
+                        {"char_start": c.char_start, "char_end": c.char_end} for c in batch_chunks
                     ]
                     count = await vector_store.insert(
                         collection=job.collection_name,
@@ -392,7 +407,7 @@ class IngestionQueue:
                 except _PERMANENT_ERRORS:
                     raise
                 except Exception as exc:  # noqa: BLE001 — retry on anything transient
-                    if attempt >= MAX_BATCH_RETRIES:
+                    if attempt >= max_batch_retries:
                         logger.error(
                             f"{prefix} batch {batch_num}/{total_batches} exhausted "
                             f"retries, skipping {len(batch_texts)} chunks: {exc!r}"
@@ -402,7 +417,7 @@ class IngestionQueue:
                     delay = batch_backoff_base**attempt
                     logger.warning(
                         f"{prefix} batch {batch_num}/{total_batches} attempt "
-                        f"{attempt}/{MAX_BATCH_RETRIES} failed ({exc!r}), "
+                        f"{attempt}/{max_batch_retries} failed ({exc!r}), "
                         f"retrying in {delay}s"
                     )
                     await asyncio.sleep(delay)

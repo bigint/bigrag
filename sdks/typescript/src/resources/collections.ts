@@ -40,9 +40,7 @@ export class CollectionsResource {
    * Auto-paginate every collection. Useful for batch operations across
    * all collections without manual offset tracking.
    */
-  async *listAll(
-    options?: Omit<CollectionListOptions, "offset">,
-  ): AsyncGenerator<Collection> {
+  async *listAll(options?: Omit<CollectionListOptions, "offset">): AsyncGenerator<Collection> {
     const pageSize = options?.limit ?? 100;
     let offset = 0;
     while (true) {

@@ -15,23 +15,23 @@ export const ThemeToggle = () => {
   };
 
   const label =
-    theme === "light" ? "Switch to dark theme" :
-    theme === "dark" ? "Switch to system theme" :
-    "Switch to light theme";
+    theme === "light"
+      ? "Switch to dark theme"
+      : theme === "dark"
+        ? "Switch to system theme"
+        : "Switch to light theme";
 
   const icon =
-    theme === "light" ? <Sun aria-hidden className="size-4" /> :
-    theme === "dark" ? <Moon aria-hidden className="size-4" /> :
-    <Monitor aria-hidden className="size-4" />;
+    theme === "light" ? (
+      <Sun aria-hidden className="size-4" />
+    ) : theme === "dark" ? (
+      <Moon aria-hidden className="size-4" />
+    ) : (
+      <Monitor aria-hidden className="size-4" />
+    );
 
   return (
-    <Button
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      size="sm"
-      variant="ghost"
-    >
+    <Button aria-label={label} title={label} onClick={onClick} size="sm" variant="ghost">
       {icon}
     </Button>
   );

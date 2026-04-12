@@ -109,9 +109,7 @@ async def update_user(
         password_changed = True
 
     if password_changed:
-        await session.execute(
-            sa.delete(DbSession).where(DbSession.user_id == target_id)
-        )
+        await session.execute(sa.delete(DbSession).where(DbSession.user_id == target_id))
     await session.commit()
     await session.refresh(target)
 
