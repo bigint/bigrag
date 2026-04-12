@@ -4,9 +4,11 @@
 
 **Goal:** Reject `POST /v1/admin/embedding-presets` when the supplied API key cannot authenticate against the provider's `/models` endpoint, so bad keys never reach the database.
 
-**Architecture:** New `verify_provider_credentials()` helper in `bigrag.services.credential_check` runs inside the `create_preset` handler before the INSERT. On failure, the handler raises a 422 with a typed `{code, message}` body. Studio's preset form turns the submit button into "Verifying…" during the call and shows an inline error on the API Key field when the server returns `code=INVALID_KEY`.
+**Architecture:** New `verify_provider_credentials()` helper in `bigrag.services.credential_check` runs inside the `create_preset` handler before `session.add(preset)` / `session.commit()`. On failure the handler raises a 422 with a typed `{code, message}` body. Studio's preset form turns the submit button into "Verifying…" during the call and shows an inline error on the API Key field when the server returns `code=INVALID_KEY`.
 
-**Tech Stack:** Python 3.11 / FastAPI / httpx (`httpx.MockTransport` for tests, no new deps) / pytest-asyncio. Next.js 16 / React / `ky` HTTP client / Sonner toasts.
+**Tech Stack:** Python 3.12+ / FastAPI / SQLAlchemy 2 async + asyncpg / httpx (`httpx.MockTransport` for unit tests, no new deps) / pytest-asyncio. Next.js 16 / React / `ky` HTTP client / Sonner toasts.
+
+**Testing note:** `api/tests/conftest.py`'s shared `client` fixture was built against the legacy `bigrag.database.db` singleton and is now a documented no-op for SQLAlchemy-era code (see the module docstring at lines 1-12). Rather than port the whole harness as part of this feature, Task 2's router tests call `create_preset()` (and `update_preset()`) directly with an in-memory mock `AsyncSession`. This exercises the exact code path we care about (verify → add → commit → refresh → respond) without going through the ASGI stack.
 
 ---
 
@@ -15,11 +17,10 @@
 **Create:**
 - `api/bigrag/services/credential_check.py` — module with `CredentialCheckError` + `verify_provider_credentials()`
 - `api/tests/test_credential_check.py` — unit tests using `httpx.MockTransport`
-- `api/tests/test_embedding_presets.py` — router integration tests
+- `api/tests/test_embedding_presets.py` — direct-handler tests for `create_preset` / `update_preset`
 
 **Modify:**
-- `api/bigrag/routers/embedding_presets.py:62-86` — call `verify_provider_credentials()` before INSERT
-- `api/tests/conftest.py:382-383` — patch `bigrag.routers.embedding_presets.db` in the `client` fixture
+- `api/bigrag/routers/embedding_presets.py:74-101` — call `verify_provider_credentials()` before `session.add(preset)`
 - `app/src/lib/api.ts:10-26` — extract `detail.code` when error `detail` is an object
 - `app/src/app/(dashboard)/models/components/preset-form.tsx` — "Verifying…" label + inline INVALID_KEY error
 - `website/content/docs/api-reference/embedding-presets.mdx` — document the new 422 error codes
@@ -355,173 +356,211 @@ git commit -m "feat: add verify_provider_credentials helper for model API keys"
 ## Task 2: Wire credential check into the preset router (TDD)
 
 **Files:**
-- Modify: `api/bigrag/routers/embedding_presets.py:62-86`
-- Modify: `api/tests/conftest.py` (add `bigrag.routers.embedding_presets.db` to the patch list)
+- Modify: `api/bigrag/routers/embedding_presets.py:74-101` (the `create_preset` handler)
 - Test: `api/tests/test_embedding_presets.py`
 
-- [ ] **Step 1: Wire the router's db into the test fixture**
+Tests call the `create_preset` / `update_preset` async functions directly with a mock `AsyncSession` rather than going through the ASGI fixture — see the "Testing note" at the top of this plan for why.
 
-Open `api/tests/conftest.py`. Find the block that patches router modules (around line 379-383) and add one line for `embedding_presets`:
+- [ ] **Step 1: Write the failing tests**
 
-```python
-stack.enter_context(patch("bigrag.routers.collections.db", mock_db))
-stack.enter_context(patch("bigrag.routers.documents.db", mock_db))
-stack.enter_context(patch("bigrag.routers.embedding_presets.db", mock_db))  # NEW
-stack.enter_context(patch("bigrag.routers.webhooks.db", mock_db))
-```
-
-- [ ] **Step 2: Write the failing router tests**
-
-Create `api/tests/test_embedding_presets.py`. Note the pattern: set `mock_db.fetchrow.return_value = <row>` rather than replacing `mock_db.fetchrow` itself — the `_install_auth_fetchrow` wrapper in conftest falls through to `return_value` for any query it does not recognize (see `conftest.py:230-258`), so auth keeps working for free.
+Create `api/tests/test_embedding_presets.py`:
 
 ```python
-"""Tests for the POST /v1/admin/embedding-presets credential check."""
+"""Direct-handler tests for the embedding-presets credential check.
+
+These tests invoke ``create_preset`` / ``update_preset`` as plain async
+functions, bypassing the in-process ASGI fixture. The fixture's asyncpg
+mocks no longer match the SQLAlchemy implementation (see
+``api/tests/conftest.py`` docstring).
+"""
 
 from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
-from httpx import AsyncClient
+import pytest
+from fastapi import HTTPException
 
+from bigrag.models.embedding_preset import (
+    CreateEmbeddingPresetRequest,
+    UpdateEmbeddingPresetRequest,
+)
+from bigrag.routers.embedding_presets import create_preset, update_preset
 from bigrag.services.credential_check import CredentialCheckError
 
 
-def _preset_row(name: str) -> dict:
-    now = datetime.now(UTC)
-    return {
-        "id": uuid.uuid4(),
-        "name": name,
-        "provider": "openai",
-        "model": "text-embedding-3-small",
-        "api_key": "sk-xxx",
-        "base_url": None,
-        "dimension": 1536,
-        "created_at": now,
-        "updated_at": now,
-    }
+def _body(**overrides) -> CreateEmbeddingPresetRequest:
+    fields = dict(
+        name="Test",
+        provider="openai",
+        model="text-embedding-3-small",
+        api_key="sk-test",
+        base_url=None,
+        dimension=1536,
+    )
+    fields.update(overrides)
+    return CreateEmbeddingPresetRequest(**fields)
 
 
-async def test_create_preset_rejects_invalid_key(
-    client: AsyncClient, mock_db, monkeypatch
-):
-    async def fail_verify(**kwargs):
+def _admin() -> dict:
+    return {"id": str(uuid.uuid4()), "email": "admin@example.com", "role": "admin"}
+
+
+def _fake_session() -> MagicMock:
+    """MagicMock shaped like SQLAlchemy's AsyncSession.
+
+    ``add`` is sync on AsyncSession so we leave it as a MagicMock. ``commit``,
+    ``rollback``, ``refresh``, and ``get`` are awaitable, so they are
+    ``AsyncMock`` instances.
+    """
+    s = MagicMock()
+    s.commit = AsyncMock()
+    s.rollback = AsyncMock()
+
+    async def refresh(preset):
+        now = datetime.now(UTC)
+        preset.created_at = now
+        preset.updated_at = now
+
+    s.refresh = AsyncMock(side_effect=refresh)
+    s.get = AsyncMock(return_value=None)
+    return s
+
+
+async def test_create_rejects_invalid_key(monkeypatch):
+    async def fail(**_):
         raise CredentialCheckError("INVALID_KEY", "Invalid API key.")
 
     monkeypatch.setattr(
         "bigrag.routers.embedding_presets.verify_provider_credentials",
-        fail_verify,
+        fail,
     )
-    mock_db.fetchrow.return_value = _preset_row("ShouldNotInsert")
+    session = _fake_session()
 
-    resp = await client.post(
-        "/v1/admin/embedding-presets",
-        json={
-            "name": "Bad",
-            "provider": "openai",
-            "model": "text-embedding-3-small",
-            "api_key": "sk-bad",
-            "dimension": 1536,
-        },
-    )
-    assert resp.status_code == 422
-    body = resp.json()
-    assert body["detail"]["code"] == "INVALID_KEY"
-    assert body["detail"]["message"] == "Invalid API key."
+    with pytest.raises(HTTPException) as exc:
+        await create_preset(body=_body(), admin=_admin(), session=session)
 
-    inserts = [
-        c
-        for c in mock_db.fetchrow.await_args_list
-        if c.args and "INSERT INTO embedding_presets" in c.args[0]
-    ]
-    assert inserts == [], "INSERT must not run when verification fails"
+    assert exc.value.status_code == 422
+    assert exc.value.detail == {"code": "INVALID_KEY", "message": "Invalid API key."}
+    session.add.assert_not_called()
+    session.commit.assert_not_awaited()
 
 
-async def test_create_preset_accepts_valid_key(
-    client: AsyncClient, mock_db, monkeypatch
-):
-    async def ok_verify(**kwargs):
-        return None
-
-    monkeypatch.setattr(
-        "bigrag.routers.embedding_presets.verify_provider_credentials",
-        ok_verify,
-    )
-    mock_db.fetchrow.return_value = _preset_row("Good")
-
-    resp = await client.post(
-        "/v1/admin/embedding-presets",
-        json={
-            "name": "Good",
-            "provider": "openai",
-            "model": "text-embedding-3-small",
-            "api_key": "sk-good",
-            "dimension": 1536,
-        },
-    )
-    assert resp.status_code == 201
-    body = resp.json()
-    assert body["name"] == "Good"
-    assert body["has_api_key"] is True
-
-
-async def test_create_preset_surfaces_timeout_code(
-    client: AsyncClient, mock_db, monkeypatch
-):
-    async def slow_verify(**kwargs):
+async def test_create_surfaces_timeout_code(monkeypatch):
+    async def slow(**_):
         raise CredentialCheckError("TIMEOUT", "Provider did not respond within 5s.")
 
     monkeypatch.setattr(
         "bigrag.routers.embedding_presets.verify_provider_credentials",
-        slow_verify,
+        slow,
+    )
+    session = _fake_session()
+
+    with pytest.raises(HTTPException) as exc:
+        await create_preset(body=_body(), admin=_admin(), session=session)
+
+    assert exc.value.status_code == 422
+    assert exc.value.detail["code"] == "TIMEOUT"
+    session.commit.assert_not_awaited()
+
+
+async def test_create_accepts_valid_key(monkeypatch):
+    async def ok(**_):
+        return None
+
+    monkeypatch.setattr(
+        "bigrag.routers.embedding_presets.verify_provider_credentials",
+        ok,
+    )
+    session = _fake_session()
+
+    result = await create_preset(
+        body=_body(name="Good"), admin=_admin(), session=session
     )
 
-    resp = await client.post(
-        "/v1/admin/embedding-presets",
-        json={
-            "name": "Slow",
-            "provider": "openai",
-            "model": "text-embedding-3-small",
-            "api_key": "sk-any",
-            "dimension": 1536,
-        },
+    assert result.name == "Good"
+    assert result.has_api_key is True
+    session.add.assert_called_once()
+    session.commit.assert_awaited_once()
+
+
+async def test_create_passes_verify_args(monkeypatch):
+    seen: dict = {}
+
+    async def capture(**kwargs):
+        seen.update(kwargs)
+
+    monkeypatch.setattr(
+        "bigrag.routers.embedding_presets.verify_provider_credentials",
+        capture,
     )
-    assert resp.status_code == 422
-    assert resp.json()["detail"]["code"] == "TIMEOUT"
+    session = _fake_session()
+
+    await create_preset(
+        body=_body(
+            provider="cohere",
+            model="embed-english-v3.0",
+            api_key="co-real",
+            base_url="https://custom.example.com/v1",
+            dimension=1024,
+        ),
+        admin=_admin(),
+        session=session,
+    )
+
+    assert seen == {
+        "provider": "cohere",
+        "api_key": "co-real",
+        "base_url": "https://custom.example.com/v1",
+    }
 
 
-async def test_patch_preset_does_not_verify(
-    client: AsyncClient, mock_db, monkeypatch
-):
+async def test_patch_does_not_verify(monkeypatch):
     """PATCH must not call verify_provider_credentials (scope decision)."""
     verify_mock = AsyncMock()
     monkeypatch.setattr(
         "bigrag.routers.embedding_presets.verify_provider_credentials",
         verify_mock,
     )
-    preset_id = str(uuid.uuid4())
-    mock_db.fetchrow.return_value = _preset_row("Existing")
 
-    resp = await client.patch(
-        f"/v1/admin/embedding-presets/{preset_id}",
-        json={"api_key": "sk-new-value"},
+    existing = MagicMock()
+    existing.id = uuid.uuid4()
+    existing.name = "Existing"
+    existing.provider = "openai"
+    existing.model = "text-embedding-3-small"
+    existing.api_key = "sk-old"
+    existing.base_url = None
+    existing.dimension = 1536
+    existing.created_at = datetime.now(UTC)
+    existing.updated_at = datetime.now(UTC)
+
+    session = _fake_session()
+    session.get = AsyncMock(return_value=existing)
+
+    result = await update_preset(
+        preset_id=str(existing.id),
+        body=UpdateEmbeddingPresetRequest(api_key="sk-new-value"),
+        _={"role": "admin"},
+        session=session,
     )
-    assert resp.status_code == 200
+
+    assert result.name == "Existing"
     verify_mock.assert_not_called()
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
 cd /Users/yoginth/bigrag/api && uv run pytest tests/test_embedding_presets.py -v
 ```
 
-Expected: all four tests fail. Either `AttributeError` on `verify_provider_credentials` (not yet imported in the router) or the 422 assertion fails (validation not wired).
+Expected: tests fail because `bigrag.routers.embedding_presets.verify_provider_credentials` is not yet imported. `monkeypatch.setattr(..., raising=True)` (the default) will raise `AttributeError`.
 
-- [ ] **Step 4: Wire credential check into the router**
+- [ ] **Step 3: Wire credential check into the router**
 
-Open `api/bigrag/routers/embedding_presets.py`. Add the import near the top (line 14-23 area):
+Open `api/bigrag/routers/embedding_presets.py`. In the import block (after line 21 `from bigrag.models.common import StatusResponse`), add:
 
 ```python
 from bigrag.services.credential_check import (
@@ -530,43 +569,47 @@ from bigrag.services.credential_check import (
 )
 ```
 
-Replace the `create_preset` body (lines 62-86). The current body is:
+Replace the `create_preset` handler body (current lines 74-101). The current code is:
 
 ```python
 @router.post("", response_model=EmbeddingPresetResponse, status_code=201)
 async def create_preset(
     body: CreateEmbeddingPresetRequest,
     admin: dict = Depends(require_session),
+    session: AsyncSession = Depends(get_session),
 ) -> EmbeddingPresetResponse:
+    preset = EmbeddingPreset(
+        id=uuid.uuid4(),
+        name=body.name,
+        provider=body.provider,
+        model=body.model,
+        api_key=body.api_key,
+        base_url=body.base_url,
+        dimension=body.dimension,
+    )
+    session.add(preset)
     try:
-        row = await db.fetchrow(
-            """
-            INSERT INTO embedding_presets
-                (id, name, provider, model, api_key, base_url, dimension)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING *
-            """,
-            uuid.uuid4(),
-            body.name,
-            body.provider,
-            body.model,
-            body.api_key,
-            body.base_url,
-            body.dimension,
-        )
-    except UniqueViolationError as e:
-        raise HTTPException(status_code=409, detail="A preset with that name already exists") from e
+        await session.commit()
+    except IntegrityError as e:
+        await session.rollback()
+        if _is_unique_violation(e):
+            raise HTTPException(
+                status_code=409, detail="A preset with that name already exists"
+            ) from e
+        raise
+    await session.refresh(preset)
     logger.info(f"Embedding preset created: name={body.name} by={admin['email']}")
-    return _row_to_response(dict(row))
+    return _preset_response(preset)
 ```
 
-Change to:
+Replace it with (verification added at the top, everything else unchanged):
 
 ```python
 @router.post("", response_model=EmbeddingPresetResponse, status_code=201)
 async def create_preset(
     body: CreateEmbeddingPresetRequest,
     admin: dict = Depends(require_session),
+    session: AsyncSession = Depends(get_session),
 ) -> EmbeddingPresetResponse:
     try:
         await verify_provider_credentials(
@@ -580,52 +623,45 @@ async def create_preset(
             detail={"code": e.code, "message": e.message},
         ) from e
 
+    preset = EmbeddingPreset(
+        id=uuid.uuid4(),
+        name=body.name,
+        provider=body.provider,
+        model=body.model,
+        api_key=body.api_key,
+        base_url=body.base_url,
+        dimension=body.dimension,
+    )
+    session.add(preset)
     try:
-        row = await db.fetchrow(
-            """
-            INSERT INTO embedding_presets
-                (id, name, provider, model, api_key, base_url, dimension)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING *
-            """,
-            uuid.uuid4(),
-            body.name,
-            body.provider,
-            body.model,
-            body.api_key,
-            body.base_url,
-            body.dimension,
-        )
-    except UniqueViolationError as e:
-        raise HTTPException(
-            status_code=409,
-            detail="A preset with that name already exists",
-        ) from e
+        await session.commit()
+    except IntegrityError as e:
+        await session.rollback()
+        if _is_unique_violation(e):
+            raise HTTPException(
+                status_code=409, detail="A preset with that name already exists"
+            ) from e
+        raise
+    await session.refresh(preset)
     logger.info(f"Embedding preset created: name={body.name} by={admin['email']}")
-    return _row_to_response(dict(row))
+    return _preset_response(preset)
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+`update_preset` is intentionally unchanged — that's the scope decision (option A from brainstorming).
+
+- [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
 cd /Users/yoginth/bigrag/api && uv run pytest tests/test_embedding_presets.py tests/test_credential_check.py -v
 ```
 
-Expected: all tests pass.
+Expected: all tests pass (5 in `test_embedding_presets.py` + 10 in `test_credential_check.py`).
 
-- [ ] **Step 6: Run the full backend test suite to check nothing else broke**
-
-```bash
-cd /Users/yoginth/bigrag/api && uv run pytest -q
-```
-
-Expected: green.
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 cd /Users/yoginth/bigrag
-git add api/bigrag/routers/embedding_presets.py api/tests/conftest.py api/tests/test_embedding_presets.py
+git add api/bigrag/routers/embedding_presets.py api/tests/test_embedding_presets.py
 git commit -m "feat: verify provider API key before creating embedding preset"
 ```
 
@@ -920,13 +956,15 @@ git commit -m "docs: document credential verification on POST embedding-presets"
 
 ## Task 6: Final verification
 
-- [ ] **Step 1: Re-run backend tests**
+- [ ] **Step 1: Re-run our two new test files**
+
+The broader `api/tests/` pytest suite is stale (see `api/tests/conftest.py:1-12`); running `pytest -q` across the whole directory is likely to produce failures unrelated to this feature. Keep the gate narrow:
 
 ```bash
-cd /Users/yoginth/bigrag/api && uv run pytest -q
+cd /Users/yoginth/bigrag/api && uv run pytest tests/test_credential_check.py tests/test_embedding_presets.py -v
 ```
 
-Expected: green.
+Expected: all tests pass.
 
 - [ ] **Step 2: Re-run app typecheck + lint**
 
@@ -936,16 +974,31 @@ cd /Users/yoginth/bigrag && pnpm --filter @bigrag/app typecheck && pnpm biome ch
 
 Expected: green.
 
-- [ ] **Step 3: Verify the spec's acceptance criteria**
+- [ ] **Step 3: Live smoke against the running backend**
+
+With `./dev.sh` up and the Studio logged in, hit the endpoint with a bogus key via curl to prove the 422 path end-to-end (the earlier Task 4 smoke covered the UI path; this one covers the plain HTTP response shape):
+
+```bash
+curl -i -X POST http://localhost:6100/v1/admin/embedding-presets \
+  -H "Cookie: bigrag_session=$YOUR_SESSION_COOKIE" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"smoke-bad","provider":"openai","model":"text-embedding-3-small","api_key":"sk-obviously-invalid","dimension":1536}'
+```
+
+Expected: `HTTP/1.1 422` and body `{"detail":{"code":"INVALID_KEY","message":"Invalid API key."}}`.
+
+Then repeat with the real key and expect `201` with a preset row. Clean up: `DELETE /v1/admin/embedding-presets/{id}`.
+
+- [ ] **Step 4: Verify the spec's acceptance criteria**
 
 Read `docs/superpowers/specs/2026-04-12-verify-model-api-key-before-save-design.md` and confirm each of the following:
 
-- `POST` with a bogus key → 422, no DB row. (covered by `test_create_preset_rejects_invalid_key`)
-- `POST` with a real key → 201. (covered by `test_create_preset_accepts_valid_key`)
-- `PATCH` behavior unchanged. (covered by `test_patch_preset_does_not_verify`)
+- `POST` with a bogus key → 422, no DB row. (covered by `test_create_rejects_invalid_key` + live smoke)
+- `POST` with a real key → 201. (covered by `test_create_accepts_valid_key` + live smoke)
+- `PATCH` behavior unchanged. (covered by `test_patch_does_not_verify`)
 - All five error codes raise-able. (covered by `test_credential_check.py`)
 - API key never logged. (covered by `test_api_key_not_in_logs`)
 - UI surfaces INVALID_KEY inline and other codes via toast. (covered by manual smoke in Task 4 Step 6)
 - Docs reflect the new 422 payload shape.
 
-- [ ] **Step 4: Nothing to commit here** — this is a verification gate only.
+- [ ] **Step 5: Nothing to commit here** — this is a verification gate only.
