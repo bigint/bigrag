@@ -14,6 +14,7 @@ from bigrag.database import db
 from bigrag.exceptions import ConflictError, NotFoundError, ValidationError
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
 from bigrag.middleware.idempotency import IdempotencyMiddleware
+from bigrag.middleware.rate_limit import RateLimitMiddleware
 from bigrag.services import redis_cache
 from bigrag.services.event_bus import event_bus
 from bigrag.services.queue import ingestion_queue
@@ -108,6 +109,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.state.settings = s
 
     app.add_middleware(RequestLoggingMiddleware)
+    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(IdempotencyMiddleware)
     app.add_middleware(
         CORSMiddleware,
