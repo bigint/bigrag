@@ -25,8 +25,8 @@ export function Hero() {
 
         <p className="mb-10 max-w-2xl text-base text-fd-muted-foreground md:text-lg md:leading-relaxed">
           bigRAG is a complete RAG pipeline — upload documents, auto-chunk, embed, and search. One
-          API for your entire retrieval-augmented generation stack. Deploy on your infrastructure
-          in minutes.
+          API for your entire retrieval-augmented generation stack. Deploy on your infrastructure in
+          minutes.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-3">

@@ -339,12 +339,12 @@ class IngestionQueue:
 
         # Chunk-level retry: a flaky embedding call or a single oversized
         # chunk in the middle of a large doc used to fail the whole
-        # document. Retry each batch up to MAX_BATCH_RETRIES with
+        # document. Retry each batch up to max_batch_retries with
         # exponential backoff; on exhaustion the batch's chunks are
         # skipped (logged) and the doc still completes for whatever did
         # embed — better than hours of re-ingest because one chunk was
         # bad.
-        MAX_BATCH_RETRIES = 3
+        max_batch_retries = 3
         batch_backoff_base = 2
 
         for batch_start in range(0, len(chunks), batch_size):
@@ -392,7 +392,7 @@ class IngestionQueue:
                 except _PERMANENT_ERRORS:
                     raise
                 except Exception as exc:  # noqa: BLE001 — retry on anything transient
-                    if attempt >= MAX_BATCH_RETRIES:
+                    if attempt >= max_batch_retries:
                         logger.error(
                             f"{prefix} batch {batch_num}/{total_batches} exhausted "
                             f"retries, skipping {len(batch_texts)} chunks: {exc!r}"
@@ -402,7 +402,7 @@ class IngestionQueue:
                     delay = batch_backoff_base**attempt
                     logger.warning(
                         f"{prefix} batch {batch_num}/{total_batches} attempt "
-                        f"{attempt}/{MAX_BATCH_RETRIES} failed ({exc!r}), "
+                        f"{attempt}/{max_batch_retries} failed ({exc!r}), "
                         f"retrying in {delay}s"
                     )
                     await asyncio.sleep(delay)

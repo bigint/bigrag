@@ -21,11 +21,7 @@ const StatusRow = ({
     <span
       className={cn(
         "shrink-0 text-sm font-medium",
-        ok === undefined
-          ? "text-muted-foreground"
-          : ok
-            ? "text-success"
-            : "text-destructive",
+        ok === undefined ? "text-muted-foreground" : ok ? "text-success" : "text-destructive",
       )}
     >
       {ok === undefined ? "—" : ok ? "operational" : "down"}
@@ -66,8 +62,7 @@ export const ServerTab = () => {
         <CardHeader>
           <CardTitle>Environment</CardTitle>
           <CardDescription>
-            Server-side configuration toggles. Change these via env vars and restart the
-            backend.
+            Server-side configuration toggles. Change these via env vars and restart the backend.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm sm:grid-cols-2">

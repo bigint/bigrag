@@ -48,12 +48,12 @@ _ZIP_EXTS = frozenset({".docx", ".pptx", ".xlsx", ".epub"})
 MAX_DECOMPRESSED_BYTES = 500 * 1024 * 1024
 
 
-class InvalidFileContent(Exception):
+class InvalidFileContentError(Exception):
     """Raised when an upload fails content-aware validation."""
 
 
 def validate_magic_bytes(content: bytes, extension: str) -> None:
-    """Raise :class:`InvalidFileContent` if the declared extension has a
+    """Raise :class:`InvalidFileContentError` if the declared extension has a
     known magic-number prefix and the content doesn't start with any of
     them. Extensions not in the map pass silently.
     """
@@ -62,7 +62,7 @@ def validate_magic_bytes(content: bytes, extension: str) -> None:
         return
     head = content[: max(len(p) for p in prefixes)]
     if not any(head.startswith(p) for p in prefixes):
-        raise InvalidFileContent(
+        raise InvalidFileContentError(
             f"File content does not match declared extension {extension!r}."
         )
 
@@ -76,12 +76,12 @@ def validate_zip_bomb(content: bytes, extension: str) -> None:
     try:
         zf = zipfile.ZipFile(io.BytesIO(content))
     except zipfile.BadZipFile as exc:
-        raise InvalidFileContent(
+        raise InvalidFileContentError(
             f"Not a valid {extension} archive."
         ) from exc
     total = sum(info.file_size for info in zf.infolist())
     if total > MAX_DECOMPRESSED_BYTES:
-        raise InvalidFileContent(
+        raise InvalidFileContentError(
             f"Archive too large when decompressed "
             f"({total:,} bytes > {MAX_DECOMPRESSED_BYTES:,} limit)."
         )
@@ -89,7 +89,7 @@ def validate_zip_bomb(content: bytes, extension: str) -> None:
 
 def validate_upload(content: bytes, extension: str) -> None:
     """Run all content-aware upload checks for ``extension`` against
-    ``content``. Raises :class:`InvalidFileContent` on failure.
+    ``content``. Raises :class:`InvalidFileContentError` on failure.
     """
     validate_magic_bytes(content, extension)
     validate_zip_bomb(content, extension)

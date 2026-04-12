@@ -251,7 +251,7 @@ async def reembed_collection(
             .where(Document.status.in_(("ready", "failed")))
         )
     ).all()
-    for doc_id, file_path in docs:
+    for doc_id, _file_path in docs:
         await session.execute(
             sa.update(Document)
             .where(Document.id == doc_id)

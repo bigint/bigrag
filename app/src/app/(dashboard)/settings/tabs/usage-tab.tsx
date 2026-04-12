@@ -51,9 +51,9 @@ export const UsageTab = () => {
         <CardHeader>
           <CardTitle>Usage and cost</CardTitle>
           <CardDescription>
-            Per-collection document, chunk, query, and embedding-cost totals. Cost is an
-            estimate from a local rate card; cross-check with your provider's dashboard
-            for the source of truth.
+            Per-collection document, chunk, query, and embedding-cost totals. Cost is an estimate
+            from a local rate card; cross-check with your provider's dashboard for the source of
+            truth.
           </CardDescription>
         </CardHeader>
         <CardContent>

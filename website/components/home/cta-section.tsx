@@ -11,8 +11,8 @@ export function CtaSection() {
             Deploy on your infrastructure
           </h2>
           <p className="mb-8 max-w-lg text-fd-muted-foreground md:text-lg">
-            Your documents, embeddings, and search data never leave your servers. One command to
-            get started.
+            Your documents, embeddings, and search data never leave your servers. One command to get
+            started.
           </p>
           <div className="mb-8 w-full max-w-md overflow-hidden rounded-xl border border-fd-border bg-fd-background shadow-sm">
             <pre className="px-5 py-4 text-left text-sm">

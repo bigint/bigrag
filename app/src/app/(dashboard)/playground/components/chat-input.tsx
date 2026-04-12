@@ -418,7 +418,6 @@ const CollectionMenu = ({
 
 const Dropdown = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => (
   <>
-    {/* biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismiss */}
     <div aria-hidden="true" className="fixed inset-0 z-40" onClick={onClose} />
     <div className="absolute bottom-full left-0 z-50 mb-1 rounded-lg border border-border bg-popover shadow-md">
       {children}

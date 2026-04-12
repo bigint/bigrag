@@ -322,11 +322,9 @@ export class DocumentsResource {
     const params: Record<string, string> = {};
     if (options?.limit !== undefined) params.limit = String(options.limit);
     if (options?.offset !== undefined) params.offset = String(options.offset);
-    return this._client._request(
-      "GET",
-      `/v1/documents/${encodeURIComponent(documentId)}/chunks`,
-      { params },
-    );
+    return this._client._request("GET", `/v1/documents/${encodeURIComponent(documentId)}/chunks`, {
+      params,
+    });
   }
 
   /**
