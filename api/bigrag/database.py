@@ -278,6 +278,58 @@ MIGRATIONS = [
     ALTER TABLE collections
         ADD COLUMN IF NOT EXISTS tenant_field TEXT;
     """,
+    """
+    -- Safety net: re-assert every column the 2026-04-12 audit-fixes
+    -- pass added. Needed because earlier commits extended an existing
+    -- migration string in-place instead of appending a new version,
+    -- so databases that applied the earlier form never picked up the
+    -- later additions. Every statement is IF NOT EXISTS so this is
+    -- idempotent on fresh DBs too.
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS chunk_strategy TEXT NOT NULL DEFAULT 'paragraph';
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS index_type TEXT NOT NULL DEFAULT 'IVF_FLAT';
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS tenant_field TEXT;
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS metadata_schema JSONB;
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS redact_pii BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS moderation_enabled BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE documents ADD COLUMN IF NOT EXISTS content_hash TEXT;
+    CREATE INDEX IF NOT EXISTS idx_documents_collection_hash
+        ON documents(collection_id, content_hash);
+    ALTER TABLE api_keys
+        ADD COLUMN IF NOT EXISTS rate_limits JSONB NOT NULL DEFAULT '{}';
+    CREATE TABLE IF NOT EXISTS audit_log (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        actor_email TEXT,
+        api_key_id UUID REFERENCES api_keys(id) ON DELETE SET NULL,
+        action TEXT NOT NULL,
+        resource_type TEXT NOT NULL,
+        resource_id TEXT,
+        metadata JSONB NOT NULL DEFAULT '{}',
+        ip TEXT,
+        user_agent TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actor_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
+    CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_log(created_at DESC);
+    CREATE TABLE IF NOT EXISTS embedding_cache (
+        content_hash TEXT NOT NULL,
+        model_key TEXT NOT NULL,
+        vector BYTEA NOT NULL,
+        dimension INT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_hit_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (content_hash, model_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_embedding_cache_last_hit
+        ON embedding_cache(last_hit_at);
+    """,
 ]
 
 
