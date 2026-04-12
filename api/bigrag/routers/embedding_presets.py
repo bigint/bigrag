@@ -25,6 +25,10 @@ from bigrag.models.embedding_preset import (
     EmbeddingPresetResponse,
     UpdateEmbeddingPresetRequest,
 )
+from bigrag.services.credential_check import (
+    CredentialCheckError,
+    verify_provider_credentials,
+)
 
 logger = get_logger("bigrag.routers.embedding_presets")
 
@@ -77,6 +81,15 @@ async def create_preset(
     admin: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> EmbeddingPresetResponse:
+    try:
+        await verify_provider_credentials(
+            provider=body.provider,
+            api_key=body.api_key,
+            base_url=body.base_url,
+        )
+    except CredentialCheckError as e:
+        raise HTTPException(status_code=422, detail=e.message) from e
+
     preset = EmbeddingPreset(
         id=uuid.uuid4(),
         name=body.name,
