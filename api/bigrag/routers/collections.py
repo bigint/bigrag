@@ -30,6 +30,7 @@ def _row_to_response(row: dict) -> CollectionResponse:
     data["has_api_key"] = bool(data.pop("embedding_api_key", None))
     data.pop("embedding_base_url", None)
     data["has_reranking_api_key"] = bool(data.pop("reranking_api_key", None))
+    data["has_metadata_schema"] = bool(data.pop("metadata_schema", None))
     return CollectionResponse(**data)
 
 
@@ -153,8 +154,10 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    # Create in Milvus first (idempotent — skips if exists)
-    await vector_store.create_collection(body.name, dimension)
+    # Create in Milvus first (idempotent — skips if exists). index_type
+    # is honored on first create only; changing it later requires
+    # re-index via a dedicated admin endpoint (TODO).
+    await vector_store.create_collection(body.name, dimension, index_type=body.index_type)
 
     import asyncpg
 
@@ -163,11 +166,13 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             """
             INSERT INTO collections (name, description, embedding_provider, embedding_model,
                                       dimension, chunk_size, chunk_overlap, chunk_strategy,
-                                      metadata,
+                                      index_type, tenant_field, metadata, metadata_schema,
+                                      redact_pii, moderation_enabled,
                                       embedding_api_key, embedding_base_url,
                                       reranking_enabled, reranking_model, reranking_api_key,
                                       default_top_k, default_min_score, default_search_mode)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+                    $15, $16, $17, $18, $19, $20, $21, $22)
             RETURNING *
             """,
             body.name,
@@ -178,7 +183,12 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             body.chunk_size,
             body.chunk_overlap,
             body.chunk_strategy,
+            body.index_type,
+            body.tenant_field,
             body.metadata,
+            body.metadata_schema,
+            body.redact_pii,
+            body.moderation_enabled,
             api_key,
             base_url,
             body.reranking_enabled,

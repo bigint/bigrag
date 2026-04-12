@@ -271,6 +271,12 @@ MIGRATIONS = [
     -- P2-E6: content moderation flag per collection
     ALTER TABLE collections
         ADD COLUMN IF NOT EXISTS moderation_enabled BOOLEAN NOT NULL DEFAULT false;
+    -- P1-V2: HNSW index option
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS index_type TEXT NOT NULL DEFAULT 'IVF_FLAT';
+    -- P1-V3: tenant_id convention for partition-by-tenant
+    ALTER TABLE collections
+        ADD COLUMN IF NOT EXISTS tenant_field TEXT;
     """,
 ]
 

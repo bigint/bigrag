@@ -21,6 +21,33 @@ class CreateCollectionRequest(BaseModel):
         pattern=r"^(paragraph|recursive)$",
         description="Chunking algorithm: paragraph (default) or recursive.",
     )
+    index_type: str = Field(
+        default="IVF_FLAT",
+        pattern=r"^(IVF_FLAT|HNSW)$",
+        description=(
+            "Milvus index. IVF_FLAT (default) is fine below ~1M vectors; "
+            "HNSW is a better recall/latency tradeoff above that."
+        ),
+    )
+    tenant_field: str | None = Field(
+        default=None,
+        max_length=64,
+        description=(
+            "Optional metadata field name used as the Milvus partition "
+            "key. When set, uploads land in a per-tenant partition for "
+            "10-50x faster filtered search in multi-tenant deployments."
+        ),
+    )
+    metadata_schema: dict | None = Field(
+        default=None,
+        description=(
+            "Optional JSON Schema (draft 2020-12 subset) — uploads with "
+            "a metadata dict that fails validation are rejected before "
+            "ingestion."
+        ),
+    )
+    redact_pii: bool = False
+    moderation_enabled: bool = False
     metadata: dict = {}
     reranking_enabled: bool = False
     reranking_model: str = "rerank-v3.5"
@@ -46,6 +73,9 @@ class UpdateCollectionRequest(BaseModel):
     default_min_score: float | None = None
     default_search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
     chunk_strategy: str | None = Field(default=None, pattern=r"^(paragraph|recursive)$")
+    metadata_schema: dict | None = None
+    redact_pii: bool | None = None
+    moderation_enabled: bool | None = None
 
 
 class CollectionResponse(BaseModel):
@@ -58,6 +88,11 @@ class CollectionResponse(BaseModel):
     chunk_size: int
     chunk_overlap: int
     chunk_strategy: str = "paragraph"
+    index_type: str = "IVF_FLAT"
+    tenant_field: str | None = None
+    redact_pii: bool = False
+    moderation_enabled: bool = False
+    has_metadata_schema: bool = False
     document_count: int
     has_api_key: bool = False
     reranking_enabled: bool = False

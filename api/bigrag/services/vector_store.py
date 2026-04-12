@@ -114,7 +114,12 @@ class VectorStore:
         """Escape a string for safe use in Milvus filter expressions."""
         return value.replace("\\", "\\\\").replace('"', '\\"')
 
-    async def create_collection(self, name: str, dimension: int) -> None:
+    async def create_collection(
+        self,
+        name: str,
+        dimension: int,
+        index_type: str = "IVF_FLAT",
+    ) -> None:
         col = self._col(name)
 
         if await self._run_with_retry(self.client.has_collection, col):
@@ -130,12 +135,24 @@ class VectorStore:
         schema.add_field(field_name="embedding", datatype=DataType.FLOAT_VECTOR, dim=dimension)
 
         index_params = self.client.prepare_index_params()
-        index_params.add_index(
-            field_name="embedding",
-            index_type="IVF_FLAT",
-            metric_type="COSINE",
-            params={"nlist": 256},
-        )
+        if index_type.upper() == "HNSW":
+            # HNSW — better recall vs latency tradeoff for >1M vectors.
+            # M controls graph degree; efConstruction trades build time
+            # for quality. These defaults match Milvus's recommended
+            # starting point.
+            index_params.add_index(
+                field_name="embedding",
+                index_type="HNSW",
+                metric_type="COSINE",
+                params={"M": 16, "efConstruction": 200},
+            )
+        else:
+            index_params.add_index(
+                field_name="embedding",
+                index_type="IVF_FLAT",
+                metric_type="COSINE",
+                params={"nlist": 256},
+            )
 
         await self._run_with_retry(
             self.client.create_collection,
@@ -143,7 +160,39 @@ class VectorStore:
             schema=schema,
             index_params=index_params,
         )
-        logger.info(f"Created Milvus collection: {col} (dim={dimension})")
+        logger.info(
+            f"Created Milvus collection: {col} (dim={dimension}, index={index_type})"
+        )
+
+    async def ensure_partition(self, name: str, partition: str) -> None:
+        """Create a Milvus partition if it doesn't exist.
+
+        Used for partition-per-tenant isolation — filtering by partition
+        name is 10-50× faster than scalar-filter-then-scan at scale.
+        """
+        col = self._col(name)
+        # Milvus partition names must match [a-zA-Z_][a-zA-Z0-9_]{0,254}
+        safe = "".join(c if c.isalnum() or c == "_" else "_" for c in partition)[:64]
+        if not safe:
+            return
+        try:
+            has = await self._run_with_retry(
+                self.client.has_partition, collection_name=col, partition_name=safe
+            )
+            if not has:
+                await self._run_with_retry(
+                    self.client.create_partition,
+                    collection_name=col,
+                    partition_name=safe,
+                )
+                logger.info(f"Created partition: {col}/{safe}")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "vector_store: ensure_partition failed",
+                collection=col,
+                partition=safe,
+                error=str(exc),
+            )
 
     async def delete_collection(self, name: str) -> None:
         col = self._col(name)
