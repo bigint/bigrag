@@ -58,7 +58,7 @@ async def resolve_bucket_region(bucket: str) -> str | None:
                 s3.get_bucket_location(Bucket=bucket), timeout=15,
             )
             return r.get("LocationConstraint") or "us-east-1"
-    except (BotoCoreError, ClientError, TimeoutError, asyncio.TimeoutError) as exc:
+    except (BotoCoreError, ClientError, TimeoutError) as exc:
         logger.debug(
             "GetBucketLocation failed, falling back to HEAD",
             bucket=bucket,

@@ -18,12 +18,12 @@ from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logg
 from bigrag.middleware.idempotency import IdempotencyMiddleware
 from bigrag.middleware.rate_limit import RateLimitMiddleware
 from bigrag.services import redis_cache
-from bigrag.startup_guard import check_production_safety
 from bigrag.services.event_bus import event_bus
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import init_storage
 from bigrag.services.vector_store import vector_store
 from bigrag.services.webhook import WebhookDispatcher
+from bigrag.startup_guard import check_production_safety
 
 
 @asynccontextmanager
@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):
 
     from bigrag.services.cleanup import cleanup_old_data
 
-    cleanup_task = asyncio.create_task(cleanup_old_data(db))
+    cleanup_task = asyncio.create_task(cleanup_old_data())
 
     logger.info("server ready", host=s.host, port=s.port)
     yield
@@ -141,10 +141,10 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     from bigrag.routers.documents import global_router as documents_global_router
     from bigrag.routers.documents import router as documents_router
     from bigrag.routers.embedding_presets import router as embedding_presets_router
+    from bigrag.routers.evaluation import router as evaluation_router
     from bigrag.routers.health import router as health_router
     from bigrag.routers.preferences import router as preferences_router
     from bigrag.routers.query import router as query_router
-    from bigrag.routers.evaluation import router as evaluation_router
     from bigrag.routers.s3_jobs import router as s3_jobs_router
     from bigrag.routers.usage import router as usage_router
     from bigrag.routers.webhooks import router as webhooks_router

@@ -276,22 +276,22 @@ async def _log_query(
 ) -> None:
     """Log a query for analytics. Fire-and-forget, errors are swallowed."""
     try:
-        from bigrag.database import db
+        from bigrag.db.engine import session_factory
+        from bigrag.db.models import QueryLog
 
-        await db.execute(
-            """
-            INSERT INTO query_log
-                (collection_name, query, top_k, result_count, avg_score, latency_ms, search_mode)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            """,
-            collection_name,
-            query[:500],
-            top_k,
-            result_count,
-            avg_score,
-            latency_ms,
-            search_mode,
-        )
+        async with session_factory()() as session:
+            session.add(
+                QueryLog(
+                    collection_name=collection_name,
+                    query=query[:500],
+                    top_k=top_k,
+                    result_count=result_count,
+                    avg_score=avg_score,
+                    latency_ms=latency_ms,
+                    search_mode=search_mode,
+                )
+            )
+            await session.commit()
     except Exception as e:
         logger.warning(f"Failed to log query: {e!r}")
 

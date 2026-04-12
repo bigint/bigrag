@@ -7,6 +7,10 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+import sqlalchemy as sa
+
+from bigrag.db.engine import session_factory
+from bigrag.db.models import Collection, Document, S3IngestJob
 from bigrag.logging import get_logger
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.s3_client import (
@@ -19,6 +23,23 @@ from bigrag.services.s3_client import (
 logger = get_logger("bigrag.s3_ingest")
 
 _tasks: dict[str, asyncio.Task] = {}  # job_id → task
+
+
+def _job_to_dict(job: S3IngestJob) -> dict:
+    return {
+        "id": job.id,
+        "collection_id": job.collection_id,
+        "collection_name": job.collection_name,
+        "bucket": job.bucket,
+        "prefix": job.prefix,
+        "region": job.region,
+        "endpoint_url": job.endpoint_url,
+        "access_key": job.access_key,
+        "secret_key": job.secret_key,
+        "no_sign_request": job.no_sign_request,
+        "metadata": job.meta or {},
+        "file_types": list(job.file_types or []),
+    }
 
 
 async def create_job(
@@ -35,48 +56,44 @@ async def create_job(
     file_types: list[str] | None = None,
 ) -> dict:
     """Create a persistent S3 ingest job and start processing."""
-    from bigrag.database import db
-
-    job_id = str(uuid.uuid4())
-    row = await db.fetchrow(
-        """
-        INSERT INTO s3_ingest_jobs
-            (id, collection_id, collection_name, bucket, prefix, region,
-             endpoint_url, access_key, secret_key, no_sign_request, metadata,
-             file_types)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        RETURNING *
-        """,
-        uuid.UUID(job_id),
-        uuid.UUID(collection_id),
-        collection_name,
-        bucket,
-        prefix,
-        region,
-        endpoint_url,
-        access_key,
-        secret_key,
-        no_sign_request,
-        metadata,
-        file_types or [],
+    job = S3IngestJob(
+        id=uuid.uuid4(),
+        collection_id=uuid.UUID(collection_id),
+        collection_name=collection_name,
+        bucket=bucket,
+        prefix=prefix,
+        region=region,
+        endpoint_url=endpoint_url,
+        access_key=access_key,
+        secret_key=secret_key,
+        no_sign_request=no_sign_request,
+        meta=metadata,
+        file_types=file_types or [],
     )
-    _start_job(dict(row))
-    return dict(row)
+    async with session_factory()() as session:
+        session.add(job)
+        await session.commit()
+        await session.refresh(job)
+    job_dict = _job_to_dict(job)
+    _start_job(job_dict)
+    return job_dict
 
 
 async def resume_incomplete_jobs() -> None:
     """Resume any jobs that were interrupted by a server restart."""
-    from bigrag.database import db
-
-    rows = await db.fetch(
-        "SELECT * FROM s3_ingest_jobs WHERE status IN ('pending', 'listing', 'ingesting') "
-        "ORDER BY created_at"
-    )
-    if not rows:
+    async with session_factory()() as session:
+        jobs = (
+            await session.scalars(
+                sa.select(S3IngestJob)
+                .where(S3IngestJob.status.in_(("pending", "listing", "ingesting")))
+                .order_by(S3IngestJob.created_at.asc())
+            )
+        ).all()
+    if not jobs:
         return
-    logger.info(f"resuming {len(rows)} incomplete S3 ingest jobs")
-    for row in rows:
-        _start_job(dict(row))
+    logger.info(f"resuming {len(jobs)} incomplete S3 ingest jobs")
+    for job in jobs:
+        _start_job(_job_to_dict(job))
 
 
 def _start_job(job: dict) -> None:
@@ -100,11 +117,19 @@ async def cancel_job(job_id: str) -> bool:
     return False
 
 
+# Allowlist of columns _update is permitted to touch. Adding a new field?
+# Add it here first — otherwise _update raises. Keeps a stray caller from
+# smuggling attacker-controlled field names into the SQL even if a future
+# refactor makes them user-reachable.
+_ALLOWED_UPDATE_FIELDS = frozenset(
+    {"error_message", "total_found", "total_ingested", "total_skipped"}
+)
+
+
 async def _run_job(job: dict) -> None:
     """Full lifecycle: list → download → extract → ingest."""
     import aiobotocore.session
 
-    from bigrag.database import db
     from bigrag.services.ingestion_job import create_ingestion_job
     from bigrag.services.queue import ingestion_queue
     from bigrag.services.storage import get_storage
@@ -128,28 +153,17 @@ async def _run_job(job: dict) -> None:
         job_id=job_id, bucket=bucket, prefix=prefix,
     )
 
-    # Allowlist of columns this helper is permitted to update. Adding
-    # a new field? Add it here first — otherwise _update raises. Keeps
-    # a stray caller from smuggling attacker-controlled field names
-    # into the SQL even if a future refactor makes them user-reachable.
-    _ALLOWED_UPDATE_FIELDS = frozenset(
-        {"error_message", "total_found", "total_ingested", "total_skipped"}
-    )
-
     async def _update(status: str, **fields: Any) -> None:
         unknown = set(fields) - _ALLOWED_UPDATE_FIELDS
         if unknown:
             raise ValueError(f"_update: unknown fields {sorted(unknown)}")
-        parts = ["status = $2", "updated_at = now()"]
-        vals: list[Any] = [uuid.UUID(job_id), status]
-        idx = 3
-        for k, v in fields.items():
-            parts.append(f"{k} = ${idx}")
-            vals.append(v)
-            idx += 1
-        await db.execute(
-            f"UPDATE s3_ingest_jobs SET {', '.join(parts)} WHERE id = $1", *vals
-        )
+        async with session_factory()() as session:
+            await session.execute(
+                sa.update(S3IngestJob)
+                .where(S3IngestJob.id == uuid.UUID(job_id))
+                .values(status=status, **fields)
+            )
+            await session.commit()
 
     def _emit(step: str, status: str, msg: str, **detail: Any) -> None:
         event_bus.publish(IngestionEvent(
@@ -184,12 +198,16 @@ async def _run_job(job: dict) -> None:
         await _update("failed", error_message="Collection not found")
         return
 
-    existing_rows = await db.fetch(
-        "SELECT metadata->>'s3_key' AS s3_key FROM documents WHERE collection_id = $1 "
-        "AND metadata->>'source' = 's3' AND metadata->>'s3_bucket' = $2",
-        collection_id, bucket,
-    )
-    existing_keys = {r["s3_key"] for r in existing_rows if r["s3_key"]}
+    async with session_factory()() as session:
+        existing_rows = (
+            await session.execute(
+                sa.select(Document.meta["s3_key"].astext.label("s3_key"))
+                .where(Document.collection_id == collection_id)
+                .where(Document.meta["source"].astext == "s3")
+                .where(Document.meta["s3_bucket"].astext == bucket)
+            )
+        ).all()
+    existing_keys = {r.s3_key for r in existing_rows if r.s3_key}
 
     storage = get_storage()
     ingested = 0
@@ -205,10 +223,10 @@ async def _run_job(job: dict) -> None:
         _emit("s3_listing", "processing", f"Found {count} files so far", found=count)
         logger.info("s3_job: listing", job_id=job_id, found=count)
 
-    session = aiobotocore.session.get_session()
+    s3_session = aiobotocore.session.get_session()
 
     try:
-        async with session.create_client("s3", **s3_kwargs) as s3:
+        async with s3_session.create_client("s3", **s3_kwargs) as s3:
 
             async def _download_and_ingest(obj: dict) -> None:
                 nonlocal ingested, skipped
@@ -245,27 +263,29 @@ async def _run_job(job: dict) -> None:
                             skipped += 1
                             return
 
-                        doc_id = str(uuid.uuid4())
+                        doc_id = uuid.uuid4()
                         storage_key = f"{collection_name}/{doc_id}{file_ext}"
                         await storage.put(storage_key, content)
 
                     try:
-                        await db.fetchrow(
-                            """
-                            INSERT INTO documents
-                                (id, collection_id, filename, file_type,
-                                 file_size, file_path, metadata)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7)
-                            RETURNING id
-                            """,
-                            uuid.UUID(doc_id),
-                            collection_id,
-                            Path(key).name,
-                            file_ext.lstrip("."),
-                            len(content),
-                            storage_key,
-                            {**meta_template, "source": "s3", "s3_bucket": bucket, "s3_key": key},
-                        )
+                        async with session_factory()() as session:
+                            session.add(
+                                Document(
+                                    id=doc_id,
+                                    collection_id=collection_id,
+                                    filename=Path(key).name,
+                                    file_type=file_ext.lstrip("."),
+                                    file_size=len(content),
+                                    file_path=storage_key,
+                                    meta={
+                                        **meta_template,
+                                        "source": "s3",
+                                        "s3_bucket": bucket,
+                                        "s3_key": key,
+                                    },
+                                )
+                            )
+                            await session.commit()
                     except Exception:
                         await storage.delete(storage_key)
                         skipped += 1
@@ -274,7 +294,7 @@ async def _run_job(job: dict) -> None:
                     try:
                         await ingestion_queue.enqueue(
                             create_ingestion_job(
-                                document_id=doc_id,
+                                document_id=str(doc_id),
                                 file_path=storage_key,
                                 collection_name=collection_name,
                                 collection=collection,
@@ -282,7 +302,11 @@ async def _run_job(job: dict) -> None:
                             )
                         )
                     except Exception:
-                        await db.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(doc_id))
+                        async with session_factory()() as session:
+                            await session.execute(
+                                sa.delete(Document).where(Document.id == doc_id)
+                            )
+                            await session.commit()
                         await storage.delete(storage_key)
                         skipped += 1
                         return
@@ -369,3 +393,7 @@ async def _run_job(job: dict) -> None:
         "s3_job: complete",
         job_id=job_id, ingested=ingested, skipped=skipped, found=total_found,
     )
+
+
+# keep module imports referenced — alembic/migrations hook introspection
+_ = Collection

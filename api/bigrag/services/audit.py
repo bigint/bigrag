@@ -1,8 +1,8 @@
 """Audit log service.
 
-Records privileged actions with actor, resource, metadata, and
-request provenance so SOC2-style auditors have a trail. Writes are
-fire-and-forget so a logging blip never fails a user request.
+Records privileged actions with actor, resource, metadata, and request
+provenance so SOC2-style auditors have a trail. Writes are fire-and-forget
+so a logging blip never fails a user request.
 """
 
 from __future__ import annotations
@@ -12,7 +12,8 @@ from typing import Any
 
 from fastapi import Request
 
-from bigrag.database import db
+from bigrag.db.engine import session_factory
+from bigrag.db.models import AuditLog
 from bigrag.logging import get_logger
 from bigrag.utils import safe_create_task
 
@@ -32,23 +33,21 @@ async def _insert(
     user_agent: str | None,
 ) -> None:
     try:
-        await db.execute(
-            """
-            INSERT INTO audit_log
-                (actor_id, actor_email, api_key_id, action, resource_type,
-                 resource_id, metadata, ip, user_agent)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            """,
-            uuid.UUID(actor_id) if actor_id else None,
-            actor_email,
-            uuid.UUID(api_key_id) if api_key_id else None,
-            action,
-            resource_type,
-            resource_id,
-            metadata,
-            ip,
-            user_agent,
-        )
+        async with session_factory()() as session:
+            session.add(
+                AuditLog(
+                    actor_id=uuid.UUID(actor_id) if actor_id else None,
+                    actor_email=actor_email,
+                    api_key_id=uuid.UUID(api_key_id) if api_key_id else None,
+                    action=action,
+                    resource_type=resource_type,
+                    resource_id=resource_id,
+                    meta=metadata,
+                    ip=ip,
+                    user_agent=user_agent,
+                )
+            )
+            await session.commit()
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "audit: insert failed — falling back to stderr",

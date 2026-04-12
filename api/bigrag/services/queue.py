@@ -67,8 +67,6 @@ class IngestionQueue:
         logger.info(f"Queue connected to Redis at {redis_url}")
 
     async def start(self, db=None, vector_store=None) -> None:
-        if db is not None:
-            self._db = db
         if vector_store is not None:
             self._vector_store = vector_store
 
@@ -432,13 +430,23 @@ class IngestionQueue:
         return total_inserted
 
     async def _process_job(self, worker_id: int, job: IngestionJob) -> None:
-        db = self._db
-        if db is None:
-            from bigrag.database import db
+        import sqlalchemy as sa
+
+        from bigrag.db.engine import session_factory
+        from bigrag.db.models import Collection, Document
 
         vector_store = self._vector_store
         if vector_store is None:
             from bigrag.services.vector_store import vector_store
+
+        doc_uuid = uuid.UUID(job.document_id)
+
+        async def _update_doc(**values) -> None:
+            async with session_factory()() as session:
+                await session.execute(
+                    sa.update(Document).where(Document.id == doc_uuid).values(**values)
+                )
+                await session.commit()
 
         job.attempt += 1
         prefix = f"[worker-{worker_id}] [job={job.job_id}] [doc={job.document_id}]"
@@ -460,10 +468,7 @@ class IngestionQueue:
         start_time = time.monotonic()
 
         try:
-            await db.execute(
-                "UPDATE documents SET status = 'processing', updated_at = now() WHERE id = $1",
-                uuid.UUID(doc),
-            )
+            await _update_doc(status="processing")
             self._emit(
                 doc,
                 "processing",
@@ -477,20 +482,23 @@ class IngestionQueue:
             total_inserted = await self._chunk_and_embed(job, text, prefix)
             token_count = len(text) // 4  # approximate tokens
 
-            await db.execute(
-                "UPDATE documents SET status = 'ready', chunk_count = $1, "
-                "token_count = $2, error_message = NULL, updated_at = now() WHERE id = $3",
-                total_inserted,
-                token_count,
-                uuid.UUID(doc),
-            )
-            await db.execute(
-                """UPDATE collections SET
-                    document_count = document_count + 1,
-                    updated_at = now()
-                WHERE name = $1""",
-                job.collection_name,
-            )
+            async with session_factory()() as session:
+                await session.execute(
+                    sa.update(Document)
+                    .where(Document.id == doc_uuid)
+                    .values(
+                        status="ready",
+                        chunk_count=total_inserted,
+                        token_count=token_count,
+                        error_message=None,
+                    )
+                )
+                await session.execute(
+                    sa.update(Collection)
+                    .where(Collection.name == job.collection_name)
+                    .values(document_count=Collection.document_count + 1)
+                )
+                await session.commit()
 
             total_elapsed = time.monotonic() - start_time
             await self._redis.hincrby(STATS_KEY, "completed", 1)
@@ -536,11 +544,9 @@ class IngestionQueue:
                     attempt=job.attempt,
                     delay=delay,
                 )
-                await db.execute(
-                    "UPDATE documents SET status = 'pending', "
-                    "error_message = $1, updated_at = now() WHERE id = $2",
-                    f"Attempt {job.attempt} failed: {e}. Retrying...",
-                    uuid.UUID(doc),
+                await _update_doc(
+                    status="pending",
+                    error_message=f"Attempt {job.attempt} failed: {e}. Retrying...",
                 )
                 await self.enqueue(job)
             else:
@@ -550,12 +556,7 @@ class IngestionQueue:
                 await self._redis.hincrby(STATS_KEY, "failed", 1)
                 await self._redis.lpush(DEAD_LETTER_KEY, job.serialize())
                 await self._redis.ltrim(DEAD_LETTER_KEY, 0, 999)
-                await db.execute(
-                    "UPDATE documents SET status = 'failed', "
-                    "error_message = $1, updated_at = now() WHERE id = $2",
-                    str(e),
-                    uuid.UUID(doc),
-                )
+                await _update_doc(status="failed", error_message=str(e))
                 logger.error(f"{prefix} permanently failed: {reason}")
                 self._emit(
                     doc,

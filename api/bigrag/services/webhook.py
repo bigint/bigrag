@@ -151,13 +151,31 @@ class WebhookDispatcher:
         if cached is not None:
             return cached
 
-        from bigrag.database import db
+        import sqlalchemy as sa
 
-        rows = await db.fetch("SELECT * FROM webhooks WHERE active = true")
+        from bigrag.db.engine import session_factory
+        from bigrag.db.models import Webhook
+
+        async with session_factory()() as session:
+            rows = (
+                await session.scalars(
+                    sa.select(Webhook).where(Webhook.active.is_(True))
+                )
+            ).all()
         webhooks = [
-            {k: str(v) if hasattr(v, "hex") else v.isoformat() if hasattr(v, "isoformat") else v
-             for k, v in dict(r).items()}
-            for r in rows
+            {
+                "id": str(w.id),
+                "url": w.url,
+                "secret": w.secret,
+                "events": list(w.events),
+                "collections": list(w.collections) if w.collections else None,
+                "description": w.description,
+                "active": w.active,
+                "created_by": str(w.created_by) if w.created_by else None,
+                "created_at": w.created_at.isoformat(),
+                "updated_at": w.updated_at.isoformat(),
+            }
+            for w in rows
         ]
         await redis_cache.set("webhooks:active", webhooks, ttl=_cache_ttl())
         return webhooks
@@ -211,17 +229,18 @@ class WebhookDispatcher:
 
     async def _get_collection_for_document(self, document_id: str) -> str | None:
         """Look up the collection name for a document."""
-        from bigrag.database import db
+        import sqlalchemy as sa
 
-        row = await db.fetchrow(
-            """
-            SELECT c.name FROM documents d
-            JOIN collections c ON c.id = d.collection_id
-            WHERE d.id = $1
-            """,
-            uuid.UUID(document_id),
-        )
-        return row["name"] if row else None
+        from bigrag.db.engine import session_factory
+        from bigrag.db.models import Collection, Document
+
+        async with session_factory()() as session:
+            name = await session.scalar(
+                sa.select(Collection.name)
+                .join(Document, Document.collection_id == Collection.id)
+                .where(Document.id == uuid.UUID(document_id))
+            )
+        return name
 
     def _build_payload(self, webhook_event: str, event: IngestionEvent, collection: str) -> str:
         """Build the JSON payload for a webhook delivery."""
@@ -238,9 +257,13 @@ class WebhookDispatcher:
 
     async def _deliver(self, webhook: dict, event: str, payload: str) -> None:
         """Deliver a webhook with retries, circuit breaker, and jitter."""
-        from bigrag.database import db
+        import sqlalchemy as sa
+
+        from bigrag.db.engine import session_factory
+        from bigrag.db.models import WebhookDelivery
 
         webhook_id = webhook["id"]
+        wh_id_uuid = uuid.UUID(webhook_id) if isinstance(webhook_id, str) else webhook_id
         wh_id_str = str(webhook_id)
         sem = self._get_semaphore(wh_id_str)
 
@@ -248,16 +271,17 @@ class WebhookDispatcher:
             delivery_id = uuid.uuid4()
             secret = webhook["secret"]
 
-            await db.execute(
-                """
-                INSERT INTO webhook_deliveries (id, webhook_id, event, payload, status)
-                VALUES ($1, $2, $3, $4, 'pending')
-                """,
-                delivery_id,
-                webhook_id,
-                event,
-                orjson.loads(payload),
-            )
+            async with session_factory()() as session:
+                session.add(
+                    WebhookDelivery(
+                        id=delivery_id,
+                        webhook_id=wh_id_uuid,
+                        event=event,
+                        payload=orjson.loads(payload),
+                        status="pending",
+                    )
+                )
+                await session.commit()
 
             signature = compute_signature(payload, secret)
             headers = {
@@ -280,16 +304,18 @@ class WebhookDispatcher:
                 logger.warning(
                     f"Webhook blocked: webhook={webhook_id} url={webhook['url']} reason={e}"
                 )
-                await db.execute(
-                    """
-                    UPDATE webhook_deliveries
-                    SET status = 'failed', attempts = 1,
-                        last_error = $1, completed_at = now()
-                    WHERE id = $2
-                    """,
-                    "Blocked: URL targets a private or internal network",
-                    delivery_id,
-                )
+                async with session_factory()() as session:
+                    await session.execute(
+                        sa.update(WebhookDelivery)
+                        .where(WebhookDelivery.id == delivery_id)
+                        .values(
+                            status="failed",
+                            attempts=1,
+                            last_error="Blocked: URL targets a private or internal network",
+                            completed_at=sa.func.now(),
+                        )
+                    )
+                    await session.commit()
                 return
 
             retry_delays = _retry_delays()
@@ -303,17 +329,18 @@ class WebhookDispatcher:
                     last_status_code = response.status_code
 
                     if 200 <= response.status_code < 300:
-                        await db.execute(
-                            """
-                            UPDATE webhook_deliveries
-                            SET status = 'delivered', attempts = $1,
-                                last_status_code = $2, completed_at = now()
-                            WHERE id = $3
-                            """,
-                            attempt,
-                            last_status_code,
-                            delivery_id,
-                        )
+                        async with session_factory()() as session:
+                            await session.execute(
+                                sa.update(WebhookDelivery)
+                                .where(WebhookDelivery.id == delivery_id)
+                                .values(
+                                    status="delivered",
+                                    attempts=attempt,
+                                    last_status_code=last_status_code,
+                                    completed_at=sa.func.now(),
+                                )
+                            )
+                            await session.commit()
                         self._circuit_breaker.record_success(wh_id_str)
                         logger.info(
                             f"Webhook delivered: webhook={webhook_id} event={event} "
@@ -334,36 +361,37 @@ class WebhookDispatcher:
                         f"delivery={delivery_id} attempt={attempt} error={last_error} "
                         f"retrying_in={delay:.1f}s"
                     )
-                    await db.execute(
-                        """
-                        UPDATE webhook_deliveries
-                        SET attempts = $1, last_status_code = $2, last_error = $3,
-                            next_retry_at = now() + interval '1 second' * $4
-                        WHERE id = $5
-                        """,
-                        attempt,
-                        last_status_code,
-                        last_error,
-                        int(delay),
-                        delivery_id,
-                    )
+                    async with session_factory()() as session:
+                        await session.execute(
+                            sa.update(WebhookDelivery)
+                            .where(WebhookDelivery.id == delivery_id)
+                            .values(
+                                attempts=attempt,
+                                last_status_code=last_status_code,
+                                last_error=last_error,
+                                next_retry_at=sa.func.now()
+                                + sa.text("make_interval(secs => :s)").bindparams(s=int(delay)),
+                            )
+                        )
+                        await session.commit()
                     await asyncio.sleep(delay)
                 else:
                     break
 
             self._circuit_breaker.record_failure(wh_id_str)
-            await db.execute(
-                """
-                UPDATE webhook_deliveries
-                SET status = 'failed', attempts = $1,
-                    last_status_code = $2, last_error = $3, completed_at = now()
-                WHERE id = $4
-                """,
-                len(retry_delays) + 1,
-                last_status_code,
-                last_error,
-                delivery_id,
-            )
+            async with session_factory()() as session:
+                await session.execute(
+                    sa.update(WebhookDelivery)
+                    .where(WebhookDelivery.id == delivery_id)
+                    .values(
+                        status="failed",
+                        attempts=len(retry_delays) + 1,
+                        last_status_code=last_status_code,
+                        last_error=last_error,
+                        completed_at=sa.func.now(),
+                    )
+                )
+                await session.commit()
             logger.error(
                 f"Webhook delivery permanently failed: webhook={webhook_id} event={event} "
                 f"delivery={delivery_id} error={last_error}"

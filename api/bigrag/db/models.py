@@ -12,14 +12,13 @@ The column name in Postgres remains ``metadata``.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ARRAY, BYTEA, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from bigrag.db.base import TS, TSupd, Base, UUIDpk
+from bigrag.db.base import TS, Base, TSupd, UUIDpk
 
 
 class User(Base):
@@ -35,7 +34,7 @@ class User(Base):
         nullable=False,
         server_default="member",
     )
-    last_login_at: Mapped[Optional[datetime]] = mapped_column(sa.DateTime(timezone=True))
+    last_login_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
     created_at: Mapped[TS]
     updated_at: Mapped[TSupd]
 
@@ -66,7 +65,7 @@ class ApiKey(Base):
     )
 
     id: Mapped[UUIDpk]
-    user_id: Mapped[Optional[UUID]] = mapped_column(
+    user_id: Mapped[UUID | None] = mapped_column(
         sa.ForeignKey("users.id", ondelete="CASCADE")
     )
     name: Mapped[str] = mapped_column(sa.Text, nullable=False)
@@ -79,8 +78,8 @@ class ApiKey(Base):
         JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
     )
     active: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default=sa.true())
-    expires_at: Mapped[Optional[datetime]] = mapped_column(sa.DateTime(timezone=True))
-    last_used_at: Mapped[Optional[datetime]] = mapped_column(sa.DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
     created_at: Mapped[TS]
     updated_at: Mapped[TSupd]
 
@@ -98,8 +97,8 @@ class Collection(Base):
     embedding_model: Mapped[str] = mapped_column(
         sa.Text, nullable=False, server_default="text-embedding-3-small"
     )
-    embedding_api_key: Mapped[Optional[str]] = mapped_column(sa.Text)
-    embedding_base_url: Mapped[Optional[str]] = mapped_column(sa.Text)
+    embedding_api_key: Mapped[str | None] = mapped_column(sa.Text)
+    embedding_base_url: Mapped[str | None] = mapped_column(sa.Text)
     dimension: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("1536")
     )
@@ -118,7 +117,7 @@ class Collection(Base):
     default_top_k: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("10")
     )
-    default_min_score: Mapped[Optional[float]] = mapped_column(sa.Double)
+    default_min_score: Mapped[float | None] = mapped_column(sa.Double)
     default_search_mode: Mapped[str] = mapped_column(
         sa.Text, nullable=False, server_default="semantic"
     )
@@ -128,12 +127,12 @@ class Collection(Base):
     reranking_model: Mapped[str] = mapped_column(
         sa.Text, nullable=False, server_default="rerank-v3.5"
     )
-    reranking_api_key: Mapped[Optional[str]] = mapped_column(sa.Text)
+    reranking_api_key: Mapped[str | None] = mapped_column(sa.Text)
     index_type: Mapped[str] = mapped_column(
         sa.Text, nullable=False, server_default="IVF_FLAT"
     )
-    tenant_field: Mapped[Optional[str]] = mapped_column(sa.Text)
-    metadata_schema: Mapped[Optional[dict]] = mapped_column(JSONB)
+    tenant_field: Mapped[str | None] = mapped_column(sa.Text)
+    metadata_schema: Mapped[dict | None] = mapped_column(JSONB)
     redact_pii: Mapped[bool] = mapped_column(
         sa.Boolean, nullable=False, server_default=sa.false()
     )
@@ -172,7 +171,7 @@ class Document(Base):
     token_count: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("0")
     )
-    content_hash: Mapped[Optional[str]] = mapped_column(sa.Text)
+    content_hash: Mapped[str | None] = mapped_column(sa.Text)
     status: Mapped[str] = mapped_column(
         sa.Text,
         sa.CheckConstraint(
@@ -182,7 +181,7 @@ class Document(Base):
         nullable=False,
         server_default="pending",
     )
-    error_message: Mapped[Optional[str]] = mapped_column(sa.Text)
+    error_message: Mapped[str | None] = mapped_column(sa.Text)
     meta: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
     )
@@ -197,10 +196,10 @@ class Webhook(Base):
     url: Mapped[str] = mapped_column(sa.Text, nullable=False)
     secret: Mapped[str] = mapped_column(sa.Text, nullable=False)
     events: Mapped[list[str]] = mapped_column(ARRAY(sa.Text), nullable=False)
-    collections: Mapped[Optional[list[str]]] = mapped_column(ARRAY(sa.Text))
+    collections: Mapped[list[str] | None] = mapped_column(ARRAY(sa.Text))
     description: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
     active: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default=sa.true())
-    created_by: Mapped[Optional[UUID]] = mapped_column(
+    created_by: Mapped[UUID | None] = mapped_column(
         sa.ForeignKey("users.id", ondelete="SET NULL")
     )
     created_at: Mapped[TS]
@@ -232,11 +231,11 @@ class WebhookDelivery(Base):
     attempts: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("0")
     )
-    last_status_code: Mapped[Optional[int]] = mapped_column(sa.Integer)
-    last_error: Mapped[Optional[str]] = mapped_column(sa.Text)
-    next_retry_at: Mapped[Optional[datetime]] = mapped_column(sa.DateTime(timezone=True))
+    last_status_code: Mapped[int | None] = mapped_column(sa.Integer)
+    last_error: Mapped[str | None] = mapped_column(sa.Text)
+    next_retry_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
     created_at: Mapped[TS]
-    completed_at: Mapped[Optional[datetime]] = mapped_column(sa.DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
 
 
 class QueryLog(Base):
@@ -253,8 +252,8 @@ class QueryLog(Base):
     result_count: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("0")
     )
-    avg_score: Mapped[Optional[float]] = mapped_column(sa.Double)
-    latency_ms: Mapped[Optional[float]] = mapped_column(sa.Double)
+    avg_score: Mapped[float | None] = mapped_column(sa.Double)
+    latency_ms: Mapped[float | None] = mapped_column(sa.Double)
     search_mode: Mapped[str] = mapped_column(
         sa.Text, nullable=False, server_default="semantic"
     )
@@ -273,9 +272,9 @@ class S3IngestJob(Base):
     bucket: Mapped[str] = mapped_column(sa.Text, nullable=False)
     prefix: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
     region: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="us-east-1")
-    endpoint_url: Mapped[Optional[str]] = mapped_column(sa.Text)
-    access_key: Mapped[Optional[str]] = mapped_column(sa.Text)
-    secret_key: Mapped[Optional[str]] = mapped_column(sa.Text)
+    endpoint_url: Mapped[str | None] = mapped_column(sa.Text)
+    access_key: Mapped[str | None] = mapped_column(sa.Text)
+    secret_key: Mapped[str | None] = mapped_column(sa.Text)
     no_sign_request: Mapped[bool] = mapped_column(
         sa.Boolean, nullable=False, server_default=sa.false()
     )
@@ -303,7 +302,7 @@ class S3IngestJob(Base):
     total_skipped: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("0")
     )
-    error_message: Mapped[Optional[str]] = mapped_column(sa.Text)
+    error_message: Mapped[str | None] = mapped_column(sa.Text)
     created_at: Mapped[TS]
     updated_at: Mapped[TSupd]
 
@@ -324,7 +323,7 @@ class EmbeddingPreset(Base):
     )
     model: Mapped[str] = mapped_column(sa.Text, nullable=False)
     api_key: Mapped[str] = mapped_column(sa.Text, nullable=False)
-    base_url: Mapped[Optional[str]] = mapped_column(sa.Text)
+    base_url: Mapped[str | None] = mapped_column(sa.Text)
     dimension: Mapped[int] = mapped_column(sa.Integer, nullable=False)
     created_at: Mapped[TS]
     updated_at: Mapped[TSupd]
@@ -351,21 +350,21 @@ class AuditLog(Base):
     )
 
     id: Mapped[UUIDpk]
-    actor_id: Mapped[Optional[UUID]] = mapped_column(
+    actor_id: Mapped[UUID | None] = mapped_column(
         sa.ForeignKey("users.id", ondelete="SET NULL")
     )
-    actor_email: Mapped[Optional[str]] = mapped_column(sa.Text)
-    api_key_id: Mapped[Optional[UUID]] = mapped_column(
+    actor_email: Mapped[str | None] = mapped_column(sa.Text)
+    api_key_id: Mapped[UUID | None] = mapped_column(
         sa.ForeignKey("api_keys.id", ondelete="SET NULL")
     )
     action: Mapped[str] = mapped_column(sa.Text, nullable=False)
     resource_type: Mapped[str] = mapped_column(sa.Text, nullable=False)
-    resource_id: Mapped[Optional[str]] = mapped_column(sa.Text)
+    resource_id: Mapped[str | None] = mapped_column(sa.Text)
     meta: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
     )
-    ip: Mapped[Optional[str]] = mapped_column(sa.Text)
-    user_agent: Mapped[Optional[str]] = mapped_column(sa.Text)
+    ip: Mapped[str | None] = mapped_column(sa.Text)
+    user_agent: Mapped[str | None] = mapped_column(sa.Text)
     created_at: Mapped[TS]
 
 

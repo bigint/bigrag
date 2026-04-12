@@ -11,10 +11,10 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from alembic import command
 from alembic.config import Config
 from sqlalchemy import text
 
+from alembic import command
 from bigrag.db.engine import engine
 from bigrag.logging import get_logger
 
