@@ -56,10 +56,12 @@ services:
     volumes:
       - bigrag_data:/data
     environment:
+      BIGRAG_ENV: prod
       BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
       BIGRAG_MILVUS_URI: http://milvus:19530
       BIGRAG_REDIS_URL: redis://redis:6379/0
-      BIGRAG_API_SECRET: ${BIGRAG_API_SECRET}
+      BIGRAG_SESSION_COOKIE_SECURE: "true"
+      BIGRAG_CORS_ORIGINS: '["https://studio.example.com"]'
       BIGRAG_LOG_FORMAT: json
       BIGRAG_UPLOAD_DIR: /data/uploads
     deploy:
@@ -154,8 +156,16 @@ volumes:
 ## Recommended Settings
 
 ```bash
-# Security
-BIGRAG_API_SECRET=your-api-secret
+# Mode
+BIGRAG_ENV=prod                     # refuses to boot with insecure defaults
+
+# Sessions
+BIGRAG_SESSION_COOKIE_SECURE=true   # HTTPS-only
+BIGRAG_SESSION_COOKIE_SAMESITE=lax
+BIGRAG_CORS_ORIGINS=["https://studio.example.com"]
+
+# Auth is admin accounts + minted bigrag_sk_ keys — no shared secret.
+# Bootstrap with POST /v1/auth/setup, then mint service keys at /v1/admin/api-keys.
 
 # Infrastructure
 BIGRAG_DATABASE_URL=postgres://user:pass@host:5432/bigrag?sslmode=require

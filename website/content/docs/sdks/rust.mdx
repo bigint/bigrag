@@ -72,7 +72,7 @@ let client = BigRag::from_env()?;
 // Builder pattern
 let client = BigRag::builder()
     .base_url("https://bigrag.example.com")
-    .api_key("sk-...")
+    .api_key("bigrag_sk_…") // minted at /v1/admin/api-keys
     .timeout(Duration::from_secs(60))
     .max_retries(3)
     .build()?;

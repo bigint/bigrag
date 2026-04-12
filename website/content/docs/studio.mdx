@@ -1,0 +1,64 @@
+---
+title: Studio UI
+description: The bigRAG admin UI — setup, collections, playground, API keys, webhooks, settings.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Studio is the Next.js admin UI packaged with bigRAG. Every control is also a REST API, so Studio is optional — you can run bigRAG headless — but it's the fastest way to bootstrap, prototype, and operate the platform.
+
+## Running Studio
+
+```bash
+pnpm dev:app        # Studio on http://localhost:3100
+```
+
+Studio proxies every request through `/api/bigrag/[...path]` onto the backend (default `http://localhost:6100`). Session cookies are forwarded automatically.
+
+## Route map
+
+| Path | Purpose |
+|------|---------|
+| `/setup` | One-time page to create the first admin account. Disappears once `needs_setup: false`. |
+| `/login` | Email + password login for admins and members. |
+| `/overview` | Platform-wide stats — collection count, document states, queue depth, readiness. |
+| `/collections` | List, create, delete, and search collections. |
+| `/collections/[name]` | Single-collection dashboard — counts, status breakdown, recent activity. |
+| `/collections/[name]/documents` | Upload (drag & drop or batch), list, filter, download, reprocess, delete documents. |
+| `/collections/[name]/documents/[docId]` | Document detail — chunks viewer, file preview, metadata editor, reprocess. |
+| `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, filters, rerank, HyDE, diversity, facets. |
+| `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, PII and moderation flags, default query params. |
+| `/playground` | Multi-collection chat-like query tester; pick collections, run queries, inspect timings / cache hits. |
+| `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets) — reusable provider + model + key tuples. |
+| `/api-keys` | Mint, scope, rate-limit, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
+| `/webhooks` | Register webhooks, test deliveries, replay failed attempts, view delivery history. |
+| `/settings` | Tabs: Account · Server · Usage · Audit · Eval · GDPR. |
+
+## Settings tabs
+
+| Tab | Reads from | Writes to |
+|-----|-----------|-----------|
+| **Account** | `GET /v1/auth/me` | `POST /v1/auth/password`, `POST /v1/auth/logout-all` |
+| **Server** | `GET /health/ready`, `GET /v1/stats` | — |
+| **Usage** | `GET /v1/admin/usage` | — |
+| **Audit** | `GET /v1/admin/audit` | — |
+| **Eval** | — | `POST /v1/admin/eval` |
+| **GDPR** | `GET /v1/admin/users` | `DELETE /v1/admin/audit/{user_id}` |
+
+## Real-time progress
+
+Studio subscribes to `GET /v1/collections/{name}/events` for collection-wide document activity and `GET /v1/collections/{name}/documents/{doc_id}/progress` for per-document drill-down. Both are Server-Sent Events using the session cookie for auth.
+
+## Playground specifics
+
+The playground sends full query bodies to `POST /v1/query` (multi-collection) or `POST /v1/collections/{name}/query` (single) and renders the `timings`, `cached` flag, and `facets` inline so you can tune performance directly against production data. Preferences (last-used mode, default collection, theme) persist via `/v1/preferences`.
+
+<Callout type="info">
+Studio uses session cookies exclusively. To automate anything Studio does, mint an API key at `/api-keys` and use it with one of the [SDKs](/docs/sdks/typescript) — or with raw HTTP using the same REST endpoints.
+</Callout>
+
+## When to skip Studio
+
+- **Pure backend deployment** — no Studio process, everything via API keys and SDKs. Set `BIGRAG_ENV=prod` and use [`POST /v1/auth/setup`](/docs/api-reference/authentication) from an admin workstation to bootstrap.
+- **Embedded experiences** — if you're surfacing search inside your own app, skip Studio and build against the [query API](/docs/api-reference/query).
+- **Read-only operators** — create a `member` account; they get `/overview`, `/collections` (read), and `/playground` but can't mutate.

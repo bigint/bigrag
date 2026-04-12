@@ -1,81 +1,75 @@
 ---
 title: Search
-description: Semantic, keyword, and hybrid search modes with reranking.
+description: Semantic, keyword, and hybrid search with HyDE, MMR, facets, and caching.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-bigRAG supports three search modes that can be configured per collection or per query.
+bigRAG exposes three base search modes plus four query-time modifiers. The modifiers compose: you can hybrid-search with MMR diversity, facets, and reranking all in the same call.
 
-## Search Modes
+## Modes
 
 | Mode | Description |
 |------|-------------|
-| `semantic` | Default. Cosine similarity vector search using embeddings. |
-| `keyword` | Text-based keyword matching with term frequency scoring. |
-| `hybrid` | Runs both semantic and keyword search, merges results using Reciprocal Rank Fusion (RRF). |
+| `semantic` | Default. Cosine similarity against stored vectors. |
+| `keyword` | Text-based matching using term frequency. No embedding involved. |
+| `hybrid` | Runs semantic and keyword in parallel; merges with Reciprocal Rank Fusion (RRF). |
 
-### Semantic Search
-
-The default mode. Your query is embedded using the collection's configured model and compared against stored vectors using cosine similarity.
-
-Best for: natural language questions, conceptual queries, finding related content.
+### Semantic
 
 ```bash
 curl -X POST http://localhost:6100/v1/collections/docs/query \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query": "What are the main findings about climate change?"}'
 ```
 
-### Keyword Search
+Best for natural language questions and conceptual queries.
 
-Text-based matching using term frequency. No embedding is involved.
-
-Best for: exact terms, product codes, IDs, proper nouns.
+### Keyword
 
 ```bash
 curl -X POST http://localhost:6100/v1/collections/docs/query \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query": "ERR-4021", "search_mode": "keyword"}'
 ```
 
-### Hybrid Search
+Best for exact terms, product codes, IDs, proper nouns.
 
-Combines both semantic and keyword search, then merges results using Reciprocal Rank Fusion (RRF). This gives the best of both worlds.
-
-Best for: queries that mix natural language with specific terms.
+### Hybrid
 
 ```bash
 curl -X POST http://localhost:6100/v1/collections/docs/query \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query": "error code ERR-4021 authentication", "search_mode": "hybrid"}'
 ```
 
-## Query Parameters
+Best for queries that mix natural language with specific terms.
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `query` | string | yes | — | Natural language query text |
-| `top_k` | integer | no | Collection default (10) | Number of results (1–1,000) |
-| `filters` | object | no | — | Metadata filters (see operators below) |
-| `min_score` | float | no | Collection default | Minimum similarity score threshold |
-| `search_mode` | string | no | Collection default | `semantic`, `keyword`, or `hybrid` |
-| `rerank` | boolean | no | Collection setting | Override collection reranking |
+## Query parameters
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `query` | string | — | Required query text |
+| `top_k` | integer | Collection default | 1–1,000 |
+| `filters` | object | — | Metadata filters — see below |
+| `min_score` | float | Collection default | Drop hits below this score |
+| `search_mode` | string | Collection default | `semantic`, `keyword`, `hybrid` |
+| `rerank` | boolean | Collection setting | Force Cohere rerank on/off |
+| `diversity` | float (0–1) | — | MMR diversity weight |
+| `hyde` | boolean | `false` | Generate a HyDE hypothetical document |
+| `facets` | string[] | — | Metadata keys to aggregate |
+| `use_semantic_cache` | boolean | `true` | Replay near-duplicate queries |
 
 ## Filters
 
-Filters narrow results by metadata fields. Pass a plain value for exact match, or use operators for more control.
-
-### Exact Match
+Pass a plain value for exact match, or use operators for more control.
 
 ```json
 { "filters": { "author": "Smith", "year": 2026 } }
 ```
-
-### Comparison Operators
 
 | Operator | Description | Value Type |
 |----------|-------------|------------|
@@ -97,32 +91,90 @@ Filters narrow results by metadata fields. Pass a plain value for exact match, o
 }
 ```
 
-Multiple filters are combined with AND.
+Multiple filters are combined with AND. When a collection was created with `tenant_field`, setting that field in `filters` routes the query to a Milvus partition — 10–50× faster than scalar filtering at scale.
+
+## Reranking
+
+When `reranking_enabled` is set on a collection, retrieved hits are re-scored by a Cohere cross-encoder (`rerank-v3.5` by default). Override per query with `"rerank": false` to measure lift, or `"rerank": true` on a collection that has it disabled.
+
+## MMR diversity
+
+`diversity` turns on Maximal Marginal Relevance re-ranking, a cheap local pass that avoids near-duplicate hits:
+
+```json
+{ "query": "error handling patterns", "top_k": 20, "diversity": 0.4 }
+```
+
+- `0.0` — pure relevance (default hit order)
+- `1.0` — pure diversity (minimally overlapping snippets)
+- `0.3–0.5` — useful middle ground for most Q&A
+
+MMR runs after reranking but before the cache write.
+
+## HyDE (Hypothetical Document Embeddings)
+
+Set `"hyde": true` to generate a short hypothetical answer, embed **that**, and search. Improves recall on sparse / keyword-poor questions where the raw query is far from any stored chunk. Adds one LLM call of latency (`hyde_ms` in the response `timings`).
+
+```json
+{ "query": "Why does HNSW recall collapse at high dimensions?", "hyde": true }
+```
+
+## Facets
+
+Pass metadata keys you want aggregated alongside the hits:
+
+```json
+{ "query": "climate change", "facets": ["author", "year"] }
+```
+
+Response includes:
+
+```json
+"facets": {
+  "author": [{"value": "Smith", "count": 8}, {"value": "Jones", "count": 2}],
+  "year":   [{"value": 2024, "count": 6}, {"value": 2025, "count": 4}]
+}
+```
+
+Facet counts are scoped to the current result set, **not** the whole collection — so applying a filter tightens them.
+
+## Semantic cache
+
+Identical / near-duplicate queries within the cache window replay the stored response. The response reports `"cached": true`. Turn it off with `"use_semantic_cache": false` when benchmarking or when you really want a fresh embed (e.g., right after a reprocess).
+
+## Timings
+
+Every response includes a `timings` breakdown — stages that didn't run report `0`:
+
+```json
+"timings": {
+  "embed_ms": 18.2,
+  "search_ms": 12.4,
+  "rerank_ms": 31.5,
+  "hyde_ms": 0,
+  "mmr_ms": 0.4,
+  "total_ms": 62.8
+}
+```
 
 ## Multi-Collection Query
 
-Search across multiple collections in a single request. Results are merged and sorted by score.
-
 ```bash
 curl -X POST http://localhost:6100/v1/query \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "query": "machine learning",
-    "collections": ["docs", "papers"],
-    "top_k": 20
-  }'
+  -d '{"query":"machine learning","collections":["docs","papers"],"top_k":20}'
 ```
 
-Each result includes a `collection` field indicating which collection it came from.
+Each result includes a `collection` field. Useful when you've split content across collections by domain, tenant, or embedding model and want one unified answer.
 
 ## Batch Query
 
-Run up to 20 independent queries in a single request. Queries execute in parallel.
+Up to 20 independent queries, executed in parallel:
 
 ```bash
 curl -X POST http://localhost:6100/v1/batch/query \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "queries": [
@@ -132,36 +184,11 @@ curl -X POST http://localhost:6100/v1/batch/query \
   }'
 ```
 
-## Reranking
-
-When enabled on a collection, results are re-scored by a Cohere cross-encoder model after initial retrieval:
-
-```bash
-# Enable on a collection
-curl -X POST http://localhost:6100/v1/collections \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "docs",
-    "reranking_enabled": true,
-    "reranking_model": "rerank-v3.5",
-    "reranking_api_key": "your-cohere-key"
-  }'
-
-# Override per query
-curl -X POST http://localhost:6100/v1/collections/docs/query \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "...", "rerank": false}'
-```
-
 ## Analytics
-
-Each collection tracks query statistics automatically:
 
 ```bash
 curl http://localhost:6100/v1/collections/docs/analytics \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+  -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 
-Returns 24h, 7d, and 30d aggregates including query count, average latency, average score, and top queries.
+Returns 24h / 7d / 30d aggregates — query count, average latency, average score, top queries. Cached for five minutes.

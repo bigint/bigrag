@@ -76,7 +76,7 @@ Delete vectors by their IDs.
 ```bash
 # Upsert vectors with your own embeddings
 curl -X POST http://localhost:6100/v1/collections/custom/vectors/upsert \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "vectors": [
@@ -91,7 +91,7 @@ curl -X POST http://localhost:6100/v1/collections/custom/vectors/upsert \
 
 # Delete vectors
 curl -X POST http://localhost:6100/v1/collections/custom/vectors/delete \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"ids": ["vec_001"]}'
 ```

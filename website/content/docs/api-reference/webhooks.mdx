@@ -22,7 +22,7 @@ POST /v1/admin/webhooks
 
 ```bash
 curl -X POST http://localhost:6100/v1/admin/webhooks \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com/webhook",

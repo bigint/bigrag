@@ -386,9 +386,9 @@ OpenRAG supports:
 - OIDC discovery endpoint (`/.well-known/openid-configuration`)
 - Token introspection endpoint
 
-**bigRAG gap:** bigRAG uses a single shared API secret (`BIGRAG_API_SECRET`) for all authentication. There is no OAuth, no OIDC, no user identity, and no login flow. All API consumers share the same credential.
+**bigRAG gap (narrower):** bigRAG now has admin accounts, session cookies, per-user passwords (Argon2id), and minted `bigrag_sk_` API keys with scopes + rate limits — but it does **not** yet support OAuth/OIDC, external IdP login, or JWT token introspection. Integrations with Google / Okta / Microsoft / IBM still have to happen at a reverse proxy in front of bigRAG.
 
-**Impact:** This blocks bigRAG from any multi-user deployment. Every request looks identical from an auth perspective.
+**Impact:** Multi-user deployments work today via bigRAG-native accounts; OAuth-backed SSO still requires fronting bigRAG with an auth proxy.
 
 ### 5.2 Per-User Document Ownership
 
@@ -420,7 +420,7 @@ OpenRAG's API key system includes:
 - Create, list, revoke operations via API and UI
 - Separate auth tier: API keys access the public `/v1/*` endpoints
 
-**bigRAG gap:** bigRAG's auth is a single shared secret. There are no per-user API keys, no key rotation, no usage tracking, and no key revocation.
+**bigRAG parity (resolved):** bigRAG ships `bigrag_sk_…` prefixed keys, SHA-256 hashed at rest, with `last_used_at` usage tracking, create/list/update/revoke through [`/v1/admin/api-keys`](/docs/api-reference/api-keys) and the Studio UI. Scopes and per-endpoint rate limits attach to each key.
 
 ### 5.5 Session Management
 
@@ -431,7 +431,7 @@ OpenRAG tracks user sessions with:
 - Session-based JWT tokens with configurable expiry
 - Session secrets auto-generated per deployment
 
-**bigRAG gap:** No sessions. bigRAG's auth is stateless — the API secret is validated on every request with no session context.
+**bigRAG parity (resolved):** bigRAG tracks `sessions` in Postgres with configurable expiry (`BIGRAG_SESSION_EXPIRY_HOURS`), `Secure`/`SameSite`/`Domain` cookie flags, `/v1/auth/logout-all` for bulk revocation, and a periodic cleanup sweep for expired rows.
 
 ### 5.6 Tenant Isolation
 
@@ -610,7 +610,7 @@ OpenRAG supports AES-256-GCM encryption for OpenSearch index payloads via the `O
 
 OpenRAG validates password strength using the `zxcvbn` library, preventing weak passwords for the admin account and OpenSearch.
 
-**bigRAG gap:** bigRAG's API secret is a plain string with no complexity requirements. Users can set `BIGRAG_API_SECRET=password` without any warning.
+**bigRAG gap:** bigRAG enforces a minimum password length of 8 characters and hashes with Argon2id, but there is no `zxcvbn`-style complexity scoring or dictionary-attack resistance warning on `/v1/auth/setup` and user-create flows.
 
 ### 8.3 JWT Key Management
 
@@ -618,7 +618,7 @@ OpenRAG validates password strength using the `zxcvbn` library, preventing weak 
 
 OpenRAG auto-generates RSA key pairs for JWT signing and stores them in `~/.openrag/keys/`. Keys are EC curve-based with automatic algorithm selection.
 
-**bigRAG gap:** bigRAG uses HMAC-based token validation (comparing the API secret), not asymmetric JWT signing. No key management system.
+**bigRAG gap:** bigRAG uses SHA-256 hashed API keys (`bigrag_sk_…`) and session cookies, not asymmetric JWT signing. There is no asymmetric key management system.
 
 ### 8.4 Secret Auto-Generation
 
@@ -630,7 +630,7 @@ OpenRAG auto-generates secrets for:
 - OpenSearch admin password (with complexity validation)
 - JWT signing keys
 
-**bigRAG gap:** bigRAG requires manual configuration of the API secret. No auto-generation of credentials.
+**bigRAG gap:** bigRAG auto-generates session tokens and API key material, but the first admin password is still operator-supplied via `/v1/auth/setup`. No auto-generation of Langflow-style superuser credentials (bigRAG does not bundle Langflow).
 
 ### 8.5 Audit Trail
 

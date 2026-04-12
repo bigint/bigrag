@@ -1,53 +1,172 @@
 ---
 title: Authentication
-description: Secure bigRAG API with a shared secret token.
+description: Admin accounts with session cookies and minted API keys.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 
-bigRAG uses a simple shared secret for API protection.
+bigRAG does **not** use a shared secret. Every request is authenticated as either:
 
-## Setup
+- **An admin account** via a session cookie (used by the Studio UI and browser-based flows), or
+- **An API key** (`bigrag_sk_…`) minted by an admin (used by backend services, SDKs, and automation).
 
-Set the `BIGRAG_API_SECRET` environment variable to require authentication:
+There is no `BIGRAG_API_SECRET` — if you see references to it in older clients, upgrade them.
+
+## First-run setup
+
+A fresh install has no users. The first admin is created via the one-time setup endpoint, which is the only admin-capable endpoint that works without authentication.
 
 ```bash
-BIGRAG_API_SECRET=your-secret-token
+# Check whether setup is still required
+curl http://localhost:6100/v1/auth/setup-status
+# → {"needs_setup": true}
+
+# Create the first admin (works exactly once)
+curl -X POST http://localhost:6100/v1/auth/setup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "a-strong-password",
+    "display_name": "Admin"
+  }'
 ```
 
-If `BIGRAG_API_SECRET` is **not set**, the API is open to all requests — no authentication required.
+Once at least one admin exists, `setup-status` returns `{"needs_setup": false}` and `/v1/auth/setup` returns `409`.
 
-## Making Requests
+The Studio UI exposes the same flow at `http://localhost:3100/setup`.
 
-When authentication is enabled, include the secret in the `Authorization` header:
+## Session auth (Studio UI, browser)
 
+Logging in returns a `bigrag_session` cookie (configurable via `BIGRAG_SESSION_COOKIE_NAME`). All subsequent requests from that browser are authenticated by the cookie.
+
+```bash
+curl -X POST http://localhost:6100/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"email": "admin@example.com", "password": "a-strong-password"}'
+
+curl http://localhost:6100/v1/auth/me -b cookies.txt
+```
+
+Session endpoints:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/v1/auth/login` | Email + password → session cookie |
+| `POST` | `/v1/auth/logout` | Clear current session |
+| `POST` | `/v1/auth/logout-all` | Revoke every session for the current user |
+| `GET`  | `/v1/auth/me` | Return the current user |
+| `POST` | `/v1/auth/password` | Change password; revokes all other sessions |
+
+Session cookie attributes are controlled by `BIGRAG_SESSION_COOKIE_*` (see [Configuration](/docs/getting-started/configuration)). In production you must set `BIGRAG_SESSION_COOKIE_SECURE=true` and serve over HTTPS.
+
+<Callout type="info">
+Some endpoints (create user, manage API keys, change passwords, GDPR delete) require a **session** and cannot be invoked with an API key — this keeps long-lived keys from being able to self-replicate or escalate.
+</Callout>
+
+## API key auth (SDKs, services)
+
+API keys are minted by an admin at `/v1/admin/api-keys` (or via Studio → **API keys**). The plaintext key is shown **once**:
+
+```bash
+curl -X POST http://localhost:6100/v1/admin/api-keys \
+  -b cookies.txt \
+  -H "Content-Type: application/json" \
+  -d '{"name": "ingestion-worker", "scopes": ["collection:read", "document:*"]}'
+# → {"id": "...", "name": "ingestion-worker", "prefix": "bigrag_sk_abcd", ...,
+#     "key": "bigrag_sk_abcd…_XXXXXXXXXXXXXXXXXXXXXXXX"}
+```
+
+Send the key as a bearer token:
+
+<Tabs items={["Header", "Query (SSE only)"]}>
+<Tab value="Header">
 ```bash
 curl http://localhost:6100/v1/collections \
-  -H "Authorization: Bearer your-secret-token"
+  -H "Authorization: Bearer bigrag_sk_…"
 ```
-
-For SSE endpoints (like document progress), the token can be passed as a query parameter:
-
+</Tab>
+<Tab value="Query (SSE only)">
 ```bash
-curl "http://localhost:6100/v1/collections/docs/documents/DOC_ID/progress?token=your-secret-token"
+# For EventSource / SSE clients that can't set headers
+curl "http://localhost:6100/v1/collections/docs/events?token=bigrag_sk_…"
 ```
+</Tab>
+</Tabs>
 
-## Error Response
+### Key fields
 
-Missing or invalid tokens return HTTP 401:
+| Field | Notes |
+|-------|-------|
+| `name` | Human-readable label |
+| `prefix` | First 12 chars; safe to display |
+| `scopes` | `["resource:action", …]` — omit / empty = full access |
+| `rate_limits` | Per-endpoint overrides, e.g. `{"POST:/v1/query": 300}` |
+| `expires_at` | RFC3339; `null` = never |
+| `active` | Disable without deleting |
+| `last_used_at` | Updated on each successful auth |
+
+### Scopes
+
+Scopes use `resource:action` with `*` as a wildcard. Common shapes:
+
+| Scope | Grants |
+|-------|--------|
+| `collection:read` | List / get collections |
+| `collection:write` | Create / update / delete collections |
+| `document:upload` | Upload and ingest documents |
+| `document:read` | List / get / download documents |
+| `document:delete` | Delete documents |
+| `query:read` | Run queries |
+| `vector:write` | Direct `/vectors/upsert` and `/vectors/delete` |
+| `webhook:*` | Manage webhooks |
+| `*:*` | Full access (equivalent to no `scopes`) |
+
+A key missing a required scope returns `403` with `{"detail": "API key missing required scope: <scope>"}`.
+
+### Rate limits
+
+Rate limits map `METHOD:PATH` to an integer request-per-minute ceiling for that key:
 
 ```json
 {
-  "detail": "Unauthorized"
+  "rate_limits": {
+    "POST:/v1/collections/{name}/query": 600,
+    "POST:/v1/collections/{name}/documents": 60
+  }
 }
 ```
 
-<Callout type="info">
-  Health endpoints (`/health` and `/health/ready`) do not require authentication and are always accessible.
+Hits above the ceiling return `429 Too Many Requests`.
+
+## Which endpoints accept which auth
+
+| Endpoint group | Session | API key | No auth |
+|----------------|:-------:|:-------:|:-------:|
+| `GET /health`, `GET /health/ready` | ✓ | ✓ | ✓ |
+| `GET /v1/auth/setup-status`, `POST /v1/auth/setup` (first run only) | — | — | ✓ |
+| `POST /v1/auth/login` | — | — | ✓ |
+| `/v1/auth/*` (logout, me, password) | ✓ | ✓* | — |
+| `/v1/collections`, `/v1/collections/**`, `/v1/query`, `/v1/batch/query`, `/v1/stats`, `/v1/embeddings/models` | ✓ | ✓ | — |
+| `/v1/admin/api-keys`, `/v1/admin/users`, `/v1/admin/audit`, `/v1/admin/webhooks`, `/v1/admin/embedding-presets`, `/v1/preferences` | ✓ | — | — |
+
+\* Read-only auth endpoints (`/me`) accept either; state-changing ones (`/password`, `/logout-all`) require a session.
+
+## Password policy
+
+- Argon2id hashed at rest
+- Minimum 8 characters (enforced on `/setup`, user create, and password change)
+- Changing a password revokes every existing session for that user
+
+## Error responses
+
+| Status | Meaning |
+|--------|---------|
+| `401 Unauthorized` | No session cookie and no bearer token |
+| `403 Forbidden` | Authenticated but role or scope is insufficient |
+| `409 Conflict` | `/v1/auth/setup` called after initial admin exists |
+
+<Callout type="warn">
+Always run the API behind TLS in production. Session cookies are `Secure`-flagged only when `BIGRAG_SESSION_COOKIE_SECURE=true`, and API keys are bearer credentials that anyone holding them can use.
 </Callout>
-
-## Security Notes
-
-- Tokens are compared using constant-time comparison to prevent timing attacks
-- Always use HTTPS in production to protect the token in transit
-- The `BIGRAG_API_SECRET` is a shared secret — all clients use the same token

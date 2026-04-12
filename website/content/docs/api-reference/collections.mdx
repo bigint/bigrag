@@ -5,6 +5,8 @@ description: API endpoints for managing collections.
 
 Base path: `/v1/collections`
 
+All endpoints require [authentication](/docs/api-reference/authentication) — a session cookie or an API key with `collection:read` (for reads) or `collection:write` (for create / update / delete).
+
 ## List Collections
 
 ```
@@ -30,9 +32,16 @@ GET /v1/collections
       "description": "Academic research papers",
       "embedding_provider": "openai",
       "embedding_model": "text-embedding-3-small",
+      "embedding_base_url": null,
       "dimension": 1536,
       "chunk_size": 512,
       "chunk_overlap": 50,
+      "chunk_strategy": "paragraph",
+      "index_type": "IVF_FLAT",
+      "tenant_field": null,
+      "metadata_schema": null,
+      "redact_pii": false,
+      "moderation_enabled": false,
       "document_count": 15,
       "has_api_key": false,
       "reranking_enabled": false,
@@ -67,27 +76,45 @@ POST /v1/collections
   "dimension": 1536,
   "chunk_size": 512,
   "chunk_overlap": 50,
+  "chunk_strategy": "paragraph",
+  "index_type": "IVF_FLAT",
+  "tenant_field": "tenant_id",
+  "metadata_schema": {
+    "type": "object",
+    "properties": { "tenant_id": { "type": "string" } },
+    "required": ["tenant_id"]
+  },
+  "redact_pii": true,
+  "moderation_enabled": false,
+  "reranking_enabled": true,
   "default_top_k": 10,
   "default_min_score": 0.3,
-  "default_search_mode": "semantic",
+  "default_search_mode": "hybrid",
   "metadata": { "team": "research" }
 }
 ```
 
 | Field | Type | Required | Default | Constraints |
 |-------|------|----------|---------|-------------|
-| `name` | string | yes | — | 1-128 chars, `[a-zA-Z][a-zA-Z0-9_]*` |
+| `name` | string | yes | — | 1–128 chars, `[a-zA-Z][a-zA-Z0-9_]*` |
 | `description` | string | no | `""` | — |
-| `embedding_provider` | string | no | Server default | `openai`, `cohere` |
+| `embedding_provider` | string | no | Server default | `openai`, `cohere`, `openai_compatible` |
 | `embedding_model` | string | no | Server default | Model name |
-| `embedding_api_key` | string | no | — | Required for `openai`, `cohere` |
-| `dimension` | integer | no | Server default | Embedding vector dimension |
+| `embedding_api_key` | string | no | — | Required for `openai` and `cohere` |
+| `embedding_base_url` | string | no | — | Required for `openai_compatible` (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) |
+| `dimension` | integer | no | Provider default | Must match the model |
 | `chunk_size` | integer | no | `512` | 64–10,000 |
-| `chunk_overlap` | integer | no | `50` | 0–5,000, must be < `chunk_size` |
+| `chunk_overlap` | integer | no | `50` | 0–5,000, must be `< chunk_size` |
+| `chunk_strategy` | string | no | `"paragraph"` | `paragraph` (split on blank lines) or `recursive` (hierarchical) |
+| `index_type` | string | no | `"IVF_FLAT"` | `IVF_FLAT` (≤1M vectors) or `HNSW` (large / high-recall) |
+| `tenant_field` | string | no | — | Metadata key whose value partitions the Milvus collection — enables 10–50× faster multi-tenant filtering |
+| `metadata_schema` | object | no | — | JSON Schema validated on every upload / upsert |
+| `redact_pii` | boolean | no | `false` | Strip PII from text before embedding (original bytes retained on storage) |
+| `moderation_enabled` | boolean | no | `false` | Reject uploads whose extracted text violates content moderation |
 | `default_top_k` | integer | no | `10` | 1–1,000 |
 | `default_min_score` | float | no | `null` | Minimum similarity score |
 | `default_search_mode` | string | no | `"semantic"` | `semantic`, `keyword`, `hybrid` |
-| `reranking_enabled` | boolean | no | `false` | Enable reranking |
+| `reranking_enabled` | boolean | no | `false` | Re-rank results with Cohere cross-encoder |
 | `reranking_model` | string | no | `"rerank-v3.5"` | Cohere reranking model |
 | `reranking_api_key` | string | no | — | Cohere API key |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
@@ -96,7 +123,7 @@ POST /v1/collections
 
 **Errors:**
 
-- `400` — Invalid name format, invalid chunk config
+- `400` — Invalid name, chunk config, or dimension mismatch
 - `409` — Collection name already exists
 
 ## Get Collection
@@ -105,9 +132,7 @@ POST /v1/collections
 GET /v1/collections/{name}
 ```
 
-**Response** `200`: Full collection object.
-
-**Errors:** `404` — Collection not found
+**Response** `200`: Full collection object. **Errors:** `404`.
 
 ## Get Collection Stats
 
@@ -115,7 +140,7 @@ GET /v1/collections/{name}
 GET /v1/collections/{name}/stats
 ```
 
-Lightweight endpoint returning document and chunk counts for a single collection.
+Lightweight endpoint returning document and chunk counts.
 
 **Response** `200`:
 
@@ -126,16 +151,9 @@ Lightweight endpoint returning document and chunk counts for a single collection
   "total_chunks": 482,
   "total_tokens": 125000,
   "total_size_bytes": 52428800,
-  "status_counts": {
-    "ready": 12,
-    "pending": 2,
-    "processing": 1,
-    "failed": 0
-  }
+  "status_counts": { "ready": 12, "pending": 2, "processing": 1, "failed": 0 }
 }
 ```
-
-**Errors:** `404` — Collection not found
 
 ## Update Collection
 
@@ -143,32 +161,23 @@ Lightweight endpoint returning document and chunk counts for a single collection
 PUT /v1/collections/{name}
 ```
 
-**Request body:**
+Only the fields below are mutable. Embedding config, chunk size / overlap, `index_type`, and `tenant_field` are fixed at creation — changing them would invalidate existing vectors.
 
-```json
-{
-  "description": "Updated description",
-  "metadata": { "team": "engineering" },
-  "reranking_enabled": true,
-  "default_top_k": 20,
-  "default_search_mode": "hybrid",
-}
-```
+| Field | Type | Notes |
+|-------|------|-------|
+| `description` | string | — |
+| `metadata` | object | Replaces entire metadata object |
+| `metadata_schema` | object | Updates JSON Schema validation |
+| `redact_pii` | boolean | Applies to new uploads only |
+| `moderation_enabled` | boolean | Applies to new uploads only |
+| `reranking_enabled` | boolean | — |
+| `reranking_model` | string | — |
+| `reranking_api_key` | string | — |
+| `default_top_k` | integer | 1–1,000 |
+| `default_min_score` | float | — |
+| `default_search_mode` | string | `semantic`, `keyword`, `hybrid` |
 
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `description` | string | no | Pass `null` to keep current |
-| `metadata` | object | no | Pass `null` to keep current |
-| `reranking_enabled` | boolean | no | Enable/disable reranking |
-| `reranking_model` | string | no | Cohere reranking model |
-| `reranking_api_key` | string | no | Cohere API key |
-| `default_top_k` | integer | no | Default results count (1–1,000) |
-| `default_min_score` | float | no | Default minimum similarity score |
-| `default_search_mode` | string | no | `semantic`, `keyword`, `hybrid` |
-
-**Response** `200`: Updated collection object.
-
-**Errors:** `404` — Collection not found
+**Response** `200`: Updated collection object. **Errors:** `404`.
 
 ## Delete Collection
 
@@ -176,15 +185,69 @@ PUT /v1/collections/{name}
 DELETE /v1/collections/{name}
 ```
 
-Deletes the collection and all its documents and vectors.
+Deletes the collection, every document, every vector, and every stored file.
 
 **Response** `200`:
 
 ```json
+{ "status": "ok", "message": "Collection 'research_papers' deleted" }
+```
+
+**Errors:** `404`.
+
+## Truncate Collection
+
+```
+POST /v1/collections/{name}/truncate
+```
+
+Deletes every document, vector, and file in the collection but keeps the collection configuration.
+
+**Response** `200`:
+
+```json
+{ "status": "ok", "message": "Collection 'research_papers' truncated" }
+```
+
+**Errors:** `404`.
+
+## Re-embed Collection
+
+```
+POST /v1/collections/{name}/reembed
+```
+
+Re-queues every `ready` document for embedding — typically used after changing the embedding model or reprocessing logic. Vectors already cached by `content_hash + model_key` are reused automatically.
+
+**Response** `200`:
+
+```json
+{ "status": "ok", "message": "Re-embed started for 482 chunks" }
+```
+
+**Errors:** `404`.
+
+## Stream Collection Events (SSE)
+
+```
+GET /v1/collections/{name}/events
+```
+
+Server-Sent Events stream for **every** document event in the collection — useful for Studio UI, dashboards, and multi-document progress bars.
+
+SSE clients that can't set headers can pass the API key as `?token=bigrag_sk_…`.
+
+**Event shape:**
+
+```json
 {
-  "status": "ok",
-  "message": "Collection 'research_papers' deleted"
+  "document_id": "abc-123",
+  "step": "embedded",
+  "status": "in_progress",
+  "message": "Embedded 128/482 chunks",
+  "progress": 26,
+  "detail": {}
 }
 ```
 
-**Errors:** `404` — Collection not found
+`step` values: `received`, `converted`, `embedded`, `indexed`, `completed`, `failed`.

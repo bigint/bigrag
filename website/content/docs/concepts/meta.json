@@ -1,4 +1,13 @@
 {
   "title": "Concepts",
-  "pages": ["architecture", "collections", "documents", "embeddings", "search", "webhooks"]
+  "pages": [
+    "architecture",
+    "collections",
+    "documents",
+    "embeddings",
+    "search",
+    "security",
+    "pii-and-moderation",
+    "webhooks"
+  ]
 }

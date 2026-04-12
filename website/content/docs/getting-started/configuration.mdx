@@ -5,19 +5,25 @@ description: Configure bigRAG with TOML files and environment variables.
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-bigRAG reads configuration from a `bigrag.toml` file and/or environment variables. Environment variables take precedence over TOML values.
+bigRAG reads configuration from a `bigrag.toml` file and/or environment variables. Environment variables take precedence over TOML values, and CLI flags passed to `python -m bigrag.main` override both.
 
-## TOML Configuration
+<Callout type="warn">
+There is no `BIGRAG_API_SECRET`. Auth is admin accounts + session cookies and minted `bigrag_sk_…` API keys. See [Authentication](/docs/api-reference/authentication).
+</Callout>
+
+## TOML configuration
 
 Create a `bigrag.toml` file in the project root:
 
 ```toml
+env = "prod"                  # "dev" (default) or "prod" — prod enables startup safety checks
+
 [server]
 host = "0.0.0.0"
 port = 6100
 workers = 4
-log_level = "info"          # debug, info, warning, error
-log_format = "text"         # text, json
+log_level = "info"            # debug, info, warning, error
+log_format = "json"           # text or json
 cors_origins = ["https://app.example.com"]
 
 [database]
@@ -31,16 +37,30 @@ uri = "http://localhost:19530"
 [redis]
 url = "redis://localhost:6380/0"
 
-[auth]
-api_secret = "your-secret"  # Required — server refuses to start without it
+[session]
+expiry_hours = 168
+cookie_name = "bigrag_session"
+cookie_secure = true          # must be true in production
+cookie_samesite = "lax"       # lax, strict, none
+# cookie_domain = ".example.com"
+
+[embedding]
+provider = "openai"           # openai, cohere, openai_compatible
+model = "text-embedding-3-small"
+dimension = 1536
+# api_key = "sk-..."          # Optional server default; usually set per collection
 
 [ingestion]
 workers = 4
-upload_dir = "./data/uploads"
+batch_size = 128
+chunk_size = 512
+chunk_overlap = 50
+conversion_timeout = 300
 max_upload_size_mb = 1024
 
 [storage]
-backend = "local"           # local, s3
+backend = "local"             # local, s3
+upload_dir = "./data/uploads"
 
 [s3]
 bucket = ""
@@ -48,9 +68,15 @@ endpoint_url = ""
 region = "us-east-1"
 access_key = ""
 secret_key = ""
+
+[webhooks]
+delivery_timeout = 10
+retry_delays = [10, 30, 90]
+cache_ttl = 60
+max_count = 50
 ```
 
-## Environment Variables
+## Environment variables
 
 All settings use the `BIGRAG_` prefix. Environment variables override TOML values.
 
@@ -58,12 +84,13 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `BIGRAG_ENV` | `dev` or `prod`. Production mode refuses to start if CORS is `*`, cookies aren't `Secure`, or Postgres still uses the shipped default password | `dev` |
 | `BIGRAG_PORT` | Server port | `6100` |
 | `BIGRAG_HOST` | Bind address | `0.0.0.0` |
 | `BIGRAG_WORKERS` | Uvicorn workers | `4` |
 | `BIGRAG_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`) | `info` |
-| `BIGRAG_LOG_FORMAT` | Log format — `text` for colored console output, `json` for structured JSON (use `json` in production for log aggregation pipelines like ELK, Datadog, etc.) | `text` |
-| `BIGRAG_CORS_ORIGINS` | Allowed CORS origins (JSON array) | `[]` |
+| `BIGRAG_LOG_FORMAT` | `text` for colored console, `json` for structured logs | `text` |
+| `BIGRAG_CORS_ORIGINS` | Allowed CORS origins (JSON array; `["*"]` rejected in `prod`) | `[]` |
 
 ### Infrastructure
 
@@ -72,20 +99,31 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | `BIGRAG_DATABASE_URL` | Postgres connection URL | `postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable` |
 | `BIGRAG_MILVUS_URI` | Milvus connection URI | `http://localhost:19530` |
 | `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6380/0` |
+| `BIGRAG_DB_POOL_MIN` | Min Postgres pool size | `5` |
+| `BIGRAG_DB_POOL_MAX` | Max Postgres pool size | `50` |
 
-### Authentication
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BIGRAG_API_SECRET` | **Required.** Shared API secret for authenticating requests | — |
-| `BIGRAG_SESSION_EXPIRY_HOURS` | Session token expiry in hours | `168` |
-
-### Database
+### Sessions & auth
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BIGRAG_DB_POOL_MIN` | Minimum connection pool size | `5` |
-| `BIGRAG_DB_POOL_MAX` | Maximum connection pool size | `50` |
+| `BIGRAG_SESSION_EXPIRY_HOURS` | Session cookie lifetime | `168` (7 days) |
+| `BIGRAG_SESSION_COOKIE_NAME` | Cookie name | `bigrag_session` |
+| `BIGRAG_SESSION_COOKIE_SECURE` | Set `Secure` flag. Must be `true` in production | `false` |
+| `BIGRAG_SESSION_COOKIE_SAMESITE` | `lax`, `strict`, or `none` | `lax` |
+| `BIGRAG_SESSION_COOKIE_DOMAIN` | Optional cookie scope | — |
+
+There is no shared API secret. Admins are created via [`POST /v1/auth/setup`](/docs/api-reference/authentication) and API keys are minted via [`POST /v1/admin/api-keys`](/docs/api-reference/api-keys).
+
+### Embedding (server defaults)
+
+Embedding provider, model, and key are normally configured per collection. These server-level defaults are used only when a collection is created without them (for example by the `/setup` flow or the first Studio run).
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BIGRAG_EMBEDDING_PROVIDER` | `openai`, `cohere`, or `openai_compatible` | `openai` |
+| `BIGRAG_EMBEDDING_MODEL` | Default model name | `text-embedding-3-small` |
+| `BIGRAG_EMBEDDING_DIMENSION` | Default vector dimension | `1536` |
+| `BIGRAG_EMBEDDING_API_KEY` | Default provider API key | — |
 
 ### Ingestion
 
@@ -94,21 +132,30 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size in MB | `1024` |
 | `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
 | `BIGRAG_INGESTION_BATCH_SIZE` | Vectors per embedding batch | `128` |
-| `BIGRAG_CHUNK_SIZE` | Default chunk size (characters) | `512` |
-| `BIGRAG_CHUNK_OVERLAP` | Default chunk overlap (characters) | `50` |
-| `BIGRAG_CONVERSION_TIMEOUT` | Document conversion timeout (seconds) | `300` |
+| `BIGRAG_CHUNK_SIZE` | Default chunk size (tokens) | `512` |
+| `BIGRAG_CHUNK_OVERLAP` | Default chunk overlap (tokens) | `50` |
+| `BIGRAG_CONVERSION_TIMEOUT` | Docling conversion timeout (seconds) | `300` |
 
 ### Storage
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BIGRAG_STORAGE_BACKEND` | Storage backend (`local`, `s3`) | `local` |
+| `BIGRAG_STORAGE_BACKEND` | `local` or `s3` | `local` |
 | `BIGRAG_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
 | `BIGRAG_S3_BUCKET` | S3 bucket name | — |
-| `BIGRAG_S3_ENDPOINT_URL` | S3 endpoint URL | — |
+| `BIGRAG_S3_ENDPOINT_URL` | S3 endpoint URL (for MinIO/R2/etc.) | — |
 | `BIGRAG_S3_REGION` | S3 region | `us-east-1` |
 | `BIGRAG_S3_ACCESS_KEY` | S3 access key ID | — |
 | `BIGRAG_S3_SECRET_KEY` | S3 secret access key | — |
+
+### Webhooks
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BIGRAG_WEBHOOK_DELIVERY_TIMEOUT` | Per-request HTTP timeout (seconds) | `10` |
+| `BIGRAG_WEBHOOK_RETRY_DELAYS` | Exponential retry delays, seconds (JSON array) | `[10, 30, 90]` |
+| `BIGRAG_WEBHOOK_CACHE_TTL` | Webhook config cache TTL (seconds) | `60` |
+| `BIGRAG_WEBHOOK_MAX_COUNT` | Max webhooks per instance | `50` |
 
 ### Tuning
 
@@ -116,13 +163,25 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 |----------|-------------|---------|
 | `BIGRAG_EMBEDDING_CONCURRENCY` | Max concurrent embedding requests | `8` |
 | `BIGRAG_MILVUS_MAX_WORKERS` | Milvus thread pool size | `32` |
-| `BIGRAG_MILVUS_NPROBE` | Milvus search nprobe parameter | `32` |
-| `BIGRAG_COLLECTION_CACHE_TTL` | Collection cache TTL in seconds | `30` |
-| `BIGRAG_QUEUE_MAX_DEPTH` | Max ingestion queue depth | `10000` |
-| `BIGRAG_WEBHOOK_DELIVERY_TIMEOUT` | Webhook HTTP timeout (seconds) | `10` |
-| `BIGRAG_WEBHOOK_RETRY_DELAYS` | Webhook retry delays in seconds (JSON array) | `[10, 30, 90]` |
-| `BIGRAG_WEBHOOK_CACHE_TTL` | Webhook cache TTL in seconds | `60` |
+| `BIGRAG_MILVUS_NPROBE` | Milvus search `nprobe` (recall/latency tradeoff) | `32` |
+| `BIGRAG_COLLECTION_CACHE_TTL` | Collection metadata cache TTL (seconds) | `30` |
+| `BIGRAG_QUEUE_MAX_DEPTH` | Max pending jobs in the ingestion queue | `10000` |
+
+## CLI flags
+
+`python -m bigrag.main` accepts overrides that take precedence over TOML and env:
+
+```
+--config PATH            Path to bigrag.toml (default: bigrag.toml)
+--host HOST              Override server host
+--port PORT              Override server port
+--database-url URL       Override Postgres URL
+--milvus-uri URI         Override Milvus URI
+--redis-url URL          Override Redis URL
+--log-level LEVEL        Override log level
+--log-format FORMAT      text | json
+```
 
 <Callout type="info">
-  Embedding provider, model, API key, chunk size, and chunk overlap are configured per collection via the API. The `CHUNK_SIZE` and `CHUNK_OVERLAP` settings above are server-level defaults used when not specified per-collection.
+Embedding provider, model, dimension, chunk size, and chunk overlap are normally configured **per collection** via the API. The server-level values above are only used as defaults when a collection is created without them.
 </Callout>

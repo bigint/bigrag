@@ -1,0 +1,97 @@
+---
+title: Users
+description: Admin endpoints for managing accounts.
+---
+
+Base path: `/v1/admin/users`
+
+All endpoints require a **session** (they reject API keys) and the caller must be an admin. The first admin is created via [`POST /v1/auth/setup`](/docs/api-reference/authentication); this resource mints every admin after that.
+
+## List Users
+
+```
+GET /v1/admin/users
+```
+
+**Query parameters:**
+
+| Parameter | Type | Default | Notes |
+|-----------|------|---------|-------|
+| `limit` | integer | `50` | 1–200 |
+| `offset` | integer | `0` | — |
+
+**Response** `200`:
+
+```json
+{
+  "users": [
+    {
+      "id": "c71f71c7-bfc5-46a8-a7f4-e36e7fd6b9f3",
+      "email": "admin@example.com",
+      "display_name": "Admin",
+      "role": "admin",
+      "last_login_at": "2026-04-12T10:22:00Z",
+      "created_at": "2026-04-01T00:00:00Z",
+      "updated_at": "2026-04-01T00:00:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+## Create User
+
+```
+POST /v1/admin/users
+```
+
+```json
+{
+  "email": "member@example.com",
+  "password": "at-least-8-chars",
+  "display_name": "Jane",
+  "role": "member"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `email` | string | yes | Unique |
+| `password` | string | yes | Argon2id hashed, ≥8 chars |
+| `display_name` | string | no | — |
+| `role` | string | yes | `admin` or `member` |
+
+**Response** `201`: full user object.
+
+**Errors:** `400` (short password), `409` (email taken).
+
+## Update User
+
+```
+PATCH /v1/admin/users/{user_id}
+```
+
+```json
+{ "display_name": "Jane D.", "role": "admin", "password": "new-password" }
+```
+
+Changing `password` revokes every existing session for that user.
+
+**Response** `200`: updated user.
+
+**Errors:** `404`.
+
+## Delete User
+
+```
+DELETE /v1/admin/users/{user_id}
+```
+
+Deletes a user along with their sessions, API keys, and audit footprint. Rejected when:
+
+- The caller is trying to delete themselves
+- The target is the only remaining admin
+
+**Response** `200`: `{"status": "ok", "message": "..."}`.
+
+**Errors:** `403` (last-admin / self-delete), `404`.

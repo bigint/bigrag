@@ -20,7 +20,7 @@ Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes with zero dependenc
 import { BigRAG } from "@bigrag/client";
 
 const client = new BigRAG({
-  apiSecret: "your-api-secret",
+  apiKey: process.env.BIGRAG_API_KEY!, // bigrag_sk_... minted via /v1/admin/api-keys
   baseUrl: "http://localhost:6100",
 });
 
@@ -51,7 +51,7 @@ const { results } = await client.query("knowledge_base", {
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `apiSecret` | `BIGRAG_API_SECRET` env var | Shared API secret (omit if open) |
+| `apiKey` | `BIGRAG_API_KEY` env var | `bigrag_sk_…` key minted at [`/v1/admin/api-keys`](/docs/api-reference/api-keys). Omit for session-cookie auth (browser contexts). |
 | `baseUrl` | `http://localhost:6100` | bigRAG server URL |
 | `timeout` | `120000` | Request timeout in ms |
 | `maxRetries` | `2` | Max retries on 5xx, 429, network errors |
@@ -62,8 +62,22 @@ const { results } = await client.query("knowledge_base", {
 ```typescript
 client.listCollections({ name?, limit?, offset? })
 client.createCollection({
-  name, description?, embedding_provider?, embedding_model?,
-  dimension?, chunk_size?, chunk_overlap?
+  name,
+  description?,
+  embedding_provider?,      // "openai" | "cohere" | "openai_compatible"
+  embedding_model?,
+  embedding_api_key?,
+  embedding_base_url?,      // required for openai_compatible (Ollama, vLLM, TEI, ...)
+  dimension?,
+  chunk_size?, chunk_overlap?, chunk_strategy?,    // "paragraph" | "recursive"
+  index_type?,              // "IVF_FLAT" | "HNSW"
+  tenant_field?,            // metadata key for Milvus partitioning
+  metadata_schema?,         // JSON Schema
+  redact_pii?,
+  moderation_enabled?,
+  reranking_enabled?, reranking_model?, reranking_api_key?,
+  default_top_k?, default_min_score?, default_search_mode?,
+  metadata?,
 })
 client.getCollection(name)
 client.getCollectionStats(name)
@@ -110,8 +124,15 @@ File uploads accept `File`, `Blob`, `Buffer`, `Uint8Array`, or `{ path: string; 
 
 ```typescript
 client.query(collection, {
-  query, top_k?, filters?, min_score?, search_mode?, rerank?
+  query,
+  top_k?, filters?, min_score?,
+  search_mode?, rerank?,
+  diversity?,               // MMR weight 0–1
+  hyde?,                    // Hypothetical Document Embeddings
+  facets?,                  // metadata keys to aggregate
+  use_semantic_cache?,      // default true
 })
+// Response exposes: results, query, collection, total, timings, cached, facets?
 client.multiQuery({
   query, collections, top_k?, filters?, min_score?, search_mode?, rerank?
 })
@@ -122,7 +143,13 @@ client.upsertVectors(collection, vectors)
 client.deleteVectors(collection, ids)
 client.listEmbeddingModels()
 client.getStats()
+client.health()           // GET /health
+client.readiness()        // GET /health/ready
 ```
+
+<Callout type="info">
+Admin endpoints (`/v1/admin/*`, `/v1/auth/*`, `/v1/preferences`) are session-only — mint an API key for read/query/ingest workloads, and use the browser / a Studio-authenticated session for mutating admin calls.
+</Callout>
 
 ## Analytics
 

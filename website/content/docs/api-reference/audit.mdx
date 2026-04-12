@@ -1,0 +1,93 @@
+---
+title: Audit Log & GDPR
+description: Read the audit trail and cascade-delete user data for GDPR compliance.
+---
+
+Base path: `/v1/admin`
+
+Session-only. Audit records are immutable; they can only be removed indirectly via GDPR cascade delete.
+
+## List Audit Entries
+
+```
+GET /v1/admin/audit
+```
+
+**Query parameters:**
+
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| `actor` | string | Filter by `actor_id` (user UUID) or `actor_email` |
+| `action` | string | Exact match, e.g. `api_key.create` |
+| `resource_type` | string | e.g. `collection`, `document`, `api_key`, `user`, `webhook` |
+| `start_date` | RFC3339 | Inclusive |
+| `end_date` | RFC3339 | Inclusive |
+| `limit` | integer | 1–500, default 100 |
+| `offset` | integer | Default 0 |
+
+**Response** `200`:
+
+```json
+{
+  "entries": [
+    {
+      "id": "9f2a…",
+      "actor_id": "c71f…",
+      "actor_email": "admin@example.com",
+      "api_key_id": null,
+      "action": "api_key.create",
+      "resource_type": "api_key",
+      "resource_id": "b0f8…",
+      "metadata": { "name": "ingestion-worker", "scopes": ["document:*"] },
+      "ip": "203.0.113.5",
+      "user_agent": "Mozilla/5.0 …",
+      "created_at": "2026-04-12T10:21:44Z"
+    }
+  ],
+  "total": 42
+}
+```
+
+### Common actions
+
+| Action | Emitted by |
+|--------|-----------|
+| `user.create`, `user.update`, `user.delete` | `/v1/admin/users` |
+| `api_key.create`, `api_key.update`, `api_key.delete` | `/v1/admin/api-keys` |
+| `collection.create`, `collection.update`, `collection.delete`, `collection.truncate`, `collection.reembed` | `/v1/collections` |
+| `document.upload`, `document.delete`, `document.reprocess` | `/v1/collections/{name}/documents` |
+| `webhook.create`, `webhook.update`, `webhook.delete` | `/v1/admin/webhooks` |
+| `gdpr.delete` | `DELETE /v1/admin/audit/{user_id}` |
+
+## GDPR Cascade Delete
+
+```
+DELETE /v1/admin/audit/{user_id}
+```
+
+Permanently deletes a user and every record tied to them:
+
+- sessions
+- API keys (and their rate-limit overrides)
+- collections owned by that user (and all documents, vectors, and stored files within)
+- the user's audit entries
+
+Returns a signed **deletion certificate** you can hand to the user as proof.
+
+**Response** `200`:
+
+```json
+{
+  "user_id": "c71f…",
+  "deleted_sessions": 3,
+  "deleted_api_keys": 4,
+  "deleted_collections": 2,
+  "deleted_documents": 187,
+  "deleted_at": "2026-04-12T10:40:00Z",
+  "certificate": "eyJhbGciOi…"
+}
+```
+
+The action itself is audited as `gdpr.delete` for the operator who performed it, with the deleted user's email in `metadata`.
+
+**Errors:** `403` (last-admin protection applies here too), `404`.

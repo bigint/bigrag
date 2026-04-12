@@ -1,0 +1,94 @@
+---
+title: S3 Jobs
+description: Track and control S3 bucket ingestion jobs.
+---
+
+Base path: `/v1/admin/s3-jobs`
+
+Use [`POST /v1/collections/{name}/documents/batch/s3`](/docs/api-reference/documents#ingest-from-s3) to kick off an S3 ingest. This resource surfaces the job metadata, lets you resume stalled jobs, and lets you clean up completed ones. On app restart, incomplete jobs (`pending`, `listing`, `ingesting`) are automatically re-enqueued.
+
+Session-only.
+
+## List Jobs
+
+```
+GET /v1/admin/s3-jobs?status=ingesting&limit=50&offset=0
+```
+
+**Query parameters:**
+
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| `status` | string | `pending`, `listing`, `ingesting`, `complete`, `failed` |
+| `limit` | integer | 1–200, default 50 |
+| `offset` | integer | Default 0 |
+
+**Response** `200`:
+
+```json
+{
+  "jobs": [
+    {
+      "id": "job-9f…",
+      "collection_id": "550e…",
+      "collection_name": "research_papers",
+      "bucket": "papers",
+      "prefix": "2026/",
+      "region": "us-east-1",
+      "endpoint_url": null,
+      "file_types": [".pdf", ".docx"],
+      "status": "ingesting",
+      "total_found": 4321,
+      "total_ingested": 982,
+      "total_skipped": 12,
+      "error_message": null,
+      "metadata": { "source_campaign": "q2-ingest" },
+      "created_at": "2026-04-12T10:00:00Z",
+      "updated_at": "2026-04-12T10:21:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+Credentials (`access_key`, `secret_key`) are never returned.
+
+## Get Job
+
+```
+GET /v1/admin/s3-jobs/{job_id}
+```
+
+**Response** `200`: full job object.
+
+## Update Job
+
+```
+PATCH /v1/admin/s3-jobs/{job_id}
+```
+
+Only `metadata` is mutable — use it to attach tags or tenant IDs after the fact.
+
+```json
+{ "metadata": { "tenant": "acme", "reviewed_by": "jane" } }
+```
+
+## Resync Job
+
+```
+POST /v1/admin/s3-jobs/{job_id}/resync
+```
+
+Resumes an incomplete job: lists the bucket again, skips already-ingested keys (matched by `s3_bucket + s3_key`), and enqueues the rest. Safe to call on a `complete` or `failed` job to pick up newly uploaded objects.
+
+**Response** `200`: `{"status": "ok", "message": "Resync started"}`.
+
+## Delete Job
+
+```
+DELETE /v1/admin/s3-jobs/{job_id}
+```
+
+Deletes the job record only. Documents that were already ingested stay in the collection. If the job is still running it is cancelled first.
+
+**Response** `200`: `{"status": "ok", "message": "S3 job deleted"}`.

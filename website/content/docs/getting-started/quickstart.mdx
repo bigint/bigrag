@@ -25,19 +25,42 @@ curl http://localhost:6100/health
 </Step>
 
 <Step>
-### Configure environment
+### Create the first admin
 
-Set your embedding provider key and (optionally) an API secret:
+A fresh install has no users. Create the first admin — this endpoint is only available while `needs_setup: true`.
 
 ```bash
-export OPENAI_API_KEY="sk-..."
-export BIGRAG_API_SECRET="your-api-secret"
 export BASE="http://localhost:6100"
+
+curl -X POST $BASE/v1/auth/setup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "a-strong-password",
+    "display_name": "Admin"
+  }' \
+  -c cookies.txt
 ```
 
-<Callout type="warn">
-  An embedding API key (OpenAI or Cohere) is required to process documents. You can set it globally via `BIGRAG_EMBEDDING_API_KEY` or per-collection when creating one.
-</Callout>
+The response sets a `bigrag_session` cookie. The Studio UI exposes the same flow at `http://localhost:3100/setup`.
+</Step>
+
+<Step>
+### Mint an API key
+
+For SDKs, CI jobs, and backend services, mint a long-lived API key. The plaintext key is returned **once**:
+
+```bash
+curl -X POST $BASE/v1/admin/api-keys \
+  -b cookies.txt \
+  -H "Content-Type: application/json" \
+  -d '{"name": "quickstart"}' \
+  | tee /tmp/api-key.json
+
+export BIGRAG_API_KEY=$(jq -r .key /tmp/api-key.json)
+```
+
+All further examples use `$BIGRAG_API_KEY` as a bearer token. See [Authentication](/docs/api-reference/authentication) for scopes and rate limits.
 </Step>
 
 <Step>
@@ -49,11 +72,13 @@ A collection groups documents that share the same embedding configuration.
 <Tab value="curl">
 ```bash
 curl -X POST $BASE/v1/collections \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "knowledge_base",
     "description": "Company knowledge base",
+    "embedding_provider": "openai",
+    "embedding_model": "text-embedding-3-small",
     "embedding_api_key": "'"$OPENAI_API_KEY"'",
     "chunk_size": 512,
     "chunk_overlap": 50
@@ -65,13 +90,15 @@ curl -X POST $BASE/v1/collections \
 import { BigRAG } from "@bigrag/client";
 
 const client = new BigRAG({
-  apiSecret: "your-api-secret",
+  apiKey: process.env.BIGRAG_API_KEY!,
   baseUrl: "http://localhost:6100",
 });
 
 const collection = await client.createCollection({
   name: "knowledge_base",
   description: "Company knowledge base",
+  embedding_provider: "openai",
+  embedding_model: "text-embedding-3-small",
   embedding_api_key: process.env.OPENAI_API_KEY,
   chunk_size: 512,
   chunk_overlap: 50,
@@ -79,6 +106,10 @@ const collection = await client.createCollection({
 ```
 </Tab>
 </Tabs>
+
+<Callout type="info">
+No embedding key handy? Use `embedding_provider: "openai_compatible"` with `embedding_base_url` pointing at Ollama, vLLM, TEI, or any OpenAI-compatible endpoint. See [Embeddings](/docs/concepts/embeddings).
+</Callout>
 </Step>
 
 <Step>
@@ -88,7 +119,7 @@ const collection = await client.createCollection({
 <Tab value="curl">
 ```bash
 curl -X POST $BASE/v1/collections/knowledge_base/documents \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -F "file=@handbook.pdf" \
   -F 'metadata={"department": "engineering"}'
 ```
@@ -108,21 +139,20 @@ The document starts as `pending` and transitions to `processing` then `ready`.
 </Step>
 
 <Step>
-### Check document status
+### Watch ingestion progress
 
-<Tabs items={["curl", "TypeScript SDK"]}>
-<Tab value="curl">
+<Tabs items={["curl (SSE)", "TypeScript SDK"]}>
+<Tab value="curl (SSE)">
 ```bash
-curl $BASE/v1/collections/knowledge_base/documents \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+# SSE clients can't set Authorization, so pass the key as ?token=
+curl -N "$BASE/v1/collections/knowledge_base/documents/$DOC_ID/progress?token=$BIGRAG_API_KEY"
 ```
 </Tab>
 <Tab value="TypeScript SDK">
 ```typescript
-// Stream real-time progress
 for await (const event of client.streamDocumentProgress("knowledge_base", doc.id)) {
   console.log(`${event.step}: ${event.progress}%`);
-  if (event.status === "complete") break;
+  if (event.status === "completed") break;
 }
 ```
 </Tab>
@@ -138,7 +168,7 @@ Once documents are `ready`, you can search:
 <Tab value="curl">
 ```bash
 curl -X POST $BASE/v1/collections/knowledge_base/query \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "What is the PTO policy?",
@@ -148,7 +178,7 @@ curl -X POST $BASE/v1/collections/knowledge_base/query \
 </Tab>
 <Tab value="TypeScript SDK">
 ```typescript
-const { results } = await client.query("knowledge_base", {
+const { results, timings, cached } = await client.query("knowledge_base", {
   query: "What is the PTO policy?",
   top_k: 5,
 });
@@ -156,6 +186,7 @@ const { results } = await client.query("knowledge_base", {
 for (const result of results) {
   console.log(`[${result.score.toFixed(3)}] ${result.text}`);
 }
+console.log(`embed=${timings.embed_ms}ms search=${timings.search_ms}ms total=${timings.total_ms}ms cached=${cached}`);
 ```
 </Tab>
 </Tabs>
@@ -164,7 +195,8 @@ for (const result of results) {
 
 ## Next Steps
 
-- Learn about [Collections](/docs/concepts/collections) and how to configure them
-- Explore [Search modes](/docs/concepts/search) — semantic, keyword, and hybrid
-- Set up [Webhooks](/docs/concepts/webhooks) for processing notifications
-- Read the full [API Reference](/docs/api-reference/collections)
+- Open the [Studio UI](/docs/studio) at `http://localhost:3100` for a visual view of collections, documents, and query analytics.
+- Learn about [Collections](/docs/concepts/collections) and per-collection chunking, reranking, PII redaction, and partitioning.
+- Explore [Search modes](/docs/concepts/search) — semantic, keyword, hybrid, HyDE, and MMR diversity.
+- Set up [Webhooks](/docs/concepts/webhooks) for ingestion notifications.
+- Read the full [API Reference](/docs/api-reference/collections).

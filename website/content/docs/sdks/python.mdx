@@ -21,7 +21,7 @@ import asyncio
 from bigrag import BigRAG
 
 async def main():
-    async with BigRAG(api_key="your-api-secret") as client:
+    async with BigRAG(api_key="bigrag_sk_…") as client:  # minted at /v1/admin/api-keys
         # Create a collection
         collection = await client.collections.create({
             "name": "knowledge_base",
