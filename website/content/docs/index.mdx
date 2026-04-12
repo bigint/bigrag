@@ -5,26 +5,31 @@ description: bigRAG is an open-source, self-hostable RAG platform for document i
 
 import { Cards, Card } from "fumadocs-ui/components/card";
 
-bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provides a complete pipeline for document ingestion, chunking, embedding, and vector search — all behind a simple REST API.
+bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provides a complete pipeline for document ingestion, chunking, embedding, and vector search — behind a REST API, a TypeScript/Python/Rust SDK, and a Studio admin UI.
 
 ## Key Features
 
-- **End-to-end RAG pipeline** — upload documents, auto-chunk, embed, and search in one platform
-- **Any document format** — PDF, DOCX, PPTX, HTML, Markdown, images (with OCR), and more via [Docling](https://github.com/DS4SD/docling)
-- **Any embedding model** — OpenAI and Cohere providers with per-collection configuration
-- **Milvus vector database** — production-grade vector search with hybrid capabilities
+- **End-to-end RAG pipeline** — upload documents, auto-chunk, embed, search, and rerank in one platform
+- **Any document format** — PDF, DOCX, PPTX, XLSX, HTML, Markdown, CSV/TSV/XML/JSON, and scanned images (OCR) via [Docling](https://github.com/DS4SD/docling)
+- **Any embedding model** — OpenAI, Cohere, or `openai_compatible` gateways (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) configured per collection
+- **Three search modes** plus HyDE, MMR diversity, metadata facets, and a semantic result cache
+- **Milvus vector database** — tenant-aware partitions, IVF_FLAT or HNSW indexes
+- **First-class auth** — admin accounts, session cookies, `bigrag_sk_…` API keys with scopes and rate limits, and a full audit log
+- **Operational features** — S3 bulk ingestion, webhooks with HMAC signatures, per-collection PII redaction and content moderation, an evaluation runner, and per-collection query analytics
+- **Studio admin UI** — first-run setup, collection browser, query playground, API-key minter, webhook manager
 - **Self-hostable** — Docker Compose, no external dependencies
 - **MIT licensed** — run it anywhere, forever free
 
 ## Architecture
 
 <Mermaid chart='graph TD
-    Client([Client]) -->|REST API| API[bigRAG API]
+    Client([Client / SDK / Studio]) -->|REST API| API[bigRAG API]
+    API --> Auth[Auth & Audit]
     API --> Collections[Collections]
     API --> Documents[Documents]
     API --> Query[Query]
     API --> Webhooks[Webhooks]
-    Documents -->|store files| Storage[(Storage)]
+    Documents -->|store files| Storage[(Local / S3)]
     Documents -->|enqueue| Redis[(Redis)]
     Redis -->|process| Worker[Ingestion Worker]
     Worker -->|parse| Docling[Docling]
@@ -34,14 +39,16 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
     Query -->|embed query| Embedding
     Collections --> Postgres[(Postgres)]
     Documents --> Postgres
-    Webhooks --> Postgres' />
+    Webhooks --> Postgres
+    Auth --> Postgres' />
 
 | Component | Purpose | Default Address |
 |-----------|---------|-----------------|
 | **bigRAG API** | REST API server (FastAPI) | `http://localhost:6100` |
-| **PostgreSQL** | Metadata storage | `localhost:5433` |
+| **Studio UI** | Admin web app | `http://localhost:3100` |
+| **PostgreSQL** | Users, sessions, API keys, metadata, audit | `localhost:5433` |
 | **Milvus** | Vector storage and search | `localhost:19530` |
-| **Redis** | Ingestion job queue | `localhost:6380` |
+| **Redis** | Ingestion + event bus | `localhost:6380` |
 
 ## Explore
 
@@ -51,6 +58,12 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
   </Card>
   <Card title="Quickstart" href="/docs/getting-started/quickstart">
     Upload and search your first document in minutes
+  </Card>
+  <Card title="Studio UI" href="/docs/studio">
+    The admin UI tour — setup, playground, keys, webhooks
+  </Card>
+  <Card title="Security & Auth" href="/docs/concepts/security">
+    Admin accounts, sessions, API keys, audit
   </Card>
   <Card title="API Reference" href="/docs/api-reference/collections">
     Complete REST API documentation

@@ -1,0 +1,65 @@
+---
+title: Audit Log
+description: Read the immutable audit trail of admin actions.
+---
+
+Base path: `/v1/admin`
+
+Session-only. Audit records are immutable.
+
+## List Audit Entries
+
+```
+GET /v1/admin/audit
+```
+
+**Query parameters:**
+
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| `actor` | string | Filter by `actor_id` (user UUID) or `actor_email` |
+| `action` | string | Exact match, e.g. `api_key.create` |
+| `resource_type` | string | e.g. `collection`, `document`, `api_key`, `user`, `webhook` |
+| `start_date` | RFC3339 | Inclusive |
+| `end_date` | RFC3339 | Inclusive |
+| `limit` | integer | 1–500, default 100 |
+| `offset` | integer | Default 0 |
+
+**Response** `200`:
+
+```json
+{
+  "entries": [
+    {
+      "id": "9f2a…",
+      "actor_id": "c71f…",
+      "actor_email": "admin@example.com",
+      "api_key_id": null,
+      "action": "api_key.create",
+      "resource_type": "api_key",
+      "resource_id": "b0f8…",
+      "metadata": { "name": "ingestion-worker", "scopes": ["document:*"] },
+      "ip": "203.0.113.5",
+      "user_agent": "Mozilla/5.0 …",
+      "created_at": "2026-04-12T10:21:44Z"
+    }
+  ],
+  "total": 42
+}
+```
+
+### Field notes
+
+- `actor_id` / `actor_email` identify the admin account that performed the action. Both are `null` for system-initiated events (e.g. cleanup workers).
+- `api_key_id` is populated when the action was performed via an API key — the field holds the key's UUID, and `actor_id` is the admin who owns the key. For session-cookie (Studio) calls, `api_key_id` is `null`.
+- `metadata` is per-action context (never credentials or document content). Shape varies by `action` — e.g. `api_key.create` includes `name` and `scopes`.
+
+### Common actions
+
+| Action | Emitted by |
+|--------|-----------|
+| `user.create`, `user.update`, `user.delete` | `/v1/admin/users` |
+| `api_key.create`, `api_key.update`, `api_key.delete` | `/v1/admin/api-keys` |
+| `collection.create`, `collection.update`, `collection.delete`, `collection.truncate`, `collection.reembed` | `/v1/collections` |
+| `document.upload`, `document.delete`, `document.reprocess` | `/v1/collections/{name}/documents` |
+| `webhook.create`, `webhook.update`, `webhook.delete` | `/v1/admin/webhooks` |

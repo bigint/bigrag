@@ -19,10 +19,12 @@ from bigrag.models.query import (
     QueryRequest,
     QueryResponse,
     QueryResult,
+    QueryTimings,
     VectorDeleteRequest,
     VectorUpsertRequest,
 )
 from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
+from bigrag.services import semantic_cache
 from bigrag.services.embedding import AVAILABLE_MODELS
 from bigrag.services.retrieval import retrieve, retrieve_multi
 from bigrag.services.vector_store import vector_store
@@ -55,7 +57,7 @@ async def query_collection(
     )
     search_mode = body.search_mode or collection.get("default_search_mode", "semantic")
 
-    results = await retrieve(
+    outcome = await retrieve(
         collection_name=collection_name,
         query=body.query,
         embedding_model=embedding_model,
@@ -65,15 +67,64 @@ async def query_collection(
         search_mode=search_mode,
         reranking_config=get_reranking_config(collection),
         rerank_override=body.rerank,
+        diversity=body.diversity,
+        hybrid_strategy=body.hybrid_strategy or "rrf",
+        hyde=bool(body.hyde),
+        hyde_api_key=collection.get("embedding_api_key"),
+        facets=body.facets,
     )
 
-    logger.info(f"query: collection={collection_name} results={len(results)}")
-    return QueryResponse(
-        results=[QueryResult(**r) for r in results],
+    # Semantic cache: if an embedding was computed and caching isn't
+    # bypassed, check for a near-duplicate recent query and replay its
+    # response. Otherwise cache ours.
+    use_semcache = body.use_semantic_cache if body.use_semantic_cache is not None else True
+    if use_semcache and outcome.query_embedding is not None:
+        cached = await semantic_cache.lookup(collection_name, outcome.query_embedding)
+        if cached:
+            cached_copy = {**cached, "cached": True}
+            return QueryResponse(**cached_copy)
+
+    logger.info(
+        f"query: collection={collection_name} results={len(outcome.results)} "
+        f"total_ms={outcome.total_ms}"
+    )
+    response = QueryResponse(
+        results=[QueryResult(**_result_to_dict(r)) for r in outcome.results],
         query=body.query,
         collection=collection_name,
-        total=len(results),
+        total=len(outcome.results),
+        timings=QueryTimings(
+            embed_ms=outcome.embed_ms,
+            search_ms=outcome.search_ms,
+            rerank_ms=outcome.rerank_ms,
+            hyde_ms=outcome.hyde_ms,
+            mmr_ms=outcome.mmr_ms,
+            total_ms=outcome.total_ms,
+        ),
+        facets=outcome.facets,
+        cached=outcome.cached,
     )
+
+    if use_semcache and outcome.query_embedding is not None and outcome.results:
+        # Store a deep-copy dict so future hits don't leak mutable state.
+        await semantic_cache.store(
+            collection_name,
+            outcome.query_embedding,
+            response.model_dump(),
+        )
+
+    return response
+
+
+def _result_to_dict(row: dict) -> dict:
+    """Drop internal-only keys (``embedding``) before serialization and
+    lift provenance fields out of ``metadata`` so they're first-class."""
+    cleaned = {k: v for k, v in row.items() if k != "embedding"}
+    metadata = cleaned.get("metadata") or {}
+    for field_name in ("page_no", "char_start", "char_end"):
+        if field_name in metadata and field_name not in cleaned:
+            cleaned[field_name] = metadata[field_name]
+    return cleaned
 
 
 @router.post("/v1/query", response_model=MultiQueryResponse)
@@ -131,7 +182,7 @@ async def batch_query(
             msg = f"Collection '{item.collection}': {e}"
             raise HTTPException(status_code=400, detail=msg) from e
 
-        results = await retrieve(
+        outcome = await retrieve(
             collection_name=item.collection,
             query=item.query,
             embedding_model=embedding_model,
@@ -144,10 +195,10 @@ async def batch_query(
         )
 
         return BatchQueryResultItem(
-            results=[QueryResult(**r) for r in results],
+            results=[QueryResult(**_result_to_dict(r)) for r in outcome.results],
             query=item.query,
             collection=item.collection,
-            total=len(results),
+            total=len(outcome.results),
         )
 
     results = await asyncio.gather(*[run_one(item) for item in body.queries])
@@ -210,52 +261,59 @@ async def collection_analytics(
     if cached:
         return AnalyticsResponse(**cached)
 
-    from bigrag.database import db
+    import sqlalchemy as sa
 
-    async def get_period_stats(interval: str) -> dict:
-        row = await db.fetchrow(
-            f"""
-            SELECT
-                COUNT(*) as query_count,
-                COALESCE(AVG(latency_ms), 0) as avg_latency_ms,
-                COALESCE(AVG(avg_score), 0) as avg_score,
-                COALESCE(AVG(result_count), 0) as avg_result_count
-            FROM query_log
-            WHERE collection_name = $1 AND created_at > now() - interval '{interval}'
-            """,
-            collection_name,
-        )
+    from bigrag.db.engine import session_factory
+    from bigrag.db.models import QueryLog
+
+    async def get_period_stats(session, days: int) -> dict:
+        since = sa.func.now() - sa.text("make_interval(days => :d)").bindparams(d=days)
+        row = (
+            await session.execute(
+                sa.select(
+                    sa.func.count().label("query_count"),
+                    sa.func.coalesce(sa.func.avg(QueryLog.latency_ms), 0).label("avg_latency_ms"),
+                    sa.func.coalesce(sa.func.avg(QueryLog.avg_score), 0).label("avg_score"),
+                    sa.func.coalesce(sa.func.avg(QueryLog.result_count), 0).label("avg_result_count"),
+                )
+                .where(QueryLog.collection_name == collection_name)
+                .where(QueryLog.created_at > since)
+            )
+        ).one()
         return {
-            "query_count": row["query_count"],
-            "avg_latency_ms": round(float(row["avg_latency_ms"]), 2),
-            "avg_score": round(float(row["avg_score"]), 4),
-            "avg_result_count": round(float(row["avg_result_count"]), 1),
+            "query_count": row.query_count,
+            "avg_latency_ms": round(float(row.avg_latency_ms), 2),
+            "avg_score": round(float(row.avg_score), 4),
+            "avg_result_count": round(float(row.avg_result_count), 1),
         }
 
-    top_queries_rows = await db.fetch(
-        """
-        SELECT query, COUNT(*) as count
-        FROM query_log
-        WHERE collection_name = $1 AND created_at > now() - interval '7 days'
-        GROUP BY query
-        ORDER BY count DESC
-        LIMIT 10
-        """,
-        collection_name,
-    )
+    async with session_factory()() as session:
+        top_queries_rows = (
+            await session.execute(
+                sa.select(QueryLog.query, sa.func.count().label("count"))
+                .where(QueryLog.collection_name == collection_name)
+                .where(
+                    QueryLog.created_at
+                    > sa.func.now() - sa.text("make_interval(days => 7)")
+                )
+                .group_by(QueryLog.query)
+                .order_by(sa.desc("count"))
+                .limit(10)
+            )
+        ).all()
 
-    stats_24h, stats_7d, stats_30d = await asyncio.gather(
-        get_period_stats("24 hours"),
-        get_period_stats("7 days"),
-        get_period_stats("30 days"),
-    )
+        stats_24h, stats_7d, stats_30d = await asyncio.gather(
+            get_period_stats(session, 1),
+            get_period_stats(session, 7),
+            get_period_stats(session, 30),
+        )
 
     result = {
         "collection": collection_name,
         "period_24h": stats_24h,
         "period_7d": stats_7d,
         "period_30d": stats_30d,
-        "top_queries": [{"query": r["query"], "count": r["count"]} for r in top_queries_rows],
+        "top_queries": [{"query": r.query, "count": r.count} for r in top_queries_rows],
     }
     await redis_cache.set(cache_key, result, ttl=300)
 

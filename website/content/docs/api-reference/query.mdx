@@ -3,13 +3,15 @@ title: Query & Search
 description: API endpoints for semantic, keyword, and hybrid search.
 ---
 
+All endpoints require [authentication](/docs/api-reference/authentication) — a session cookie or an API key with `query:read`.
+
 ## Single Collection Query
 
 ```
 POST /v1/collections/{collection_name}/query
 ```
 
-Perform semantic search against a collection. The query is embedded using the collection's configured embedding model.
+Perform a search against a collection. The query is embedded with the collection's configured embedding model.
 
 **Request body:**
 
@@ -17,21 +19,29 @@ Perform semantic search against a collection. The query is embedded using the co
 {
   "query": "What are the main findings about climate change?",
   "top_k": 10,
-  "filters": { "author": "Smith" },
+  "filters": { "author": "Smith", "year": { "$gte": 2024 } },
   "min_score": 0.5,
-  "search_mode": "semantic",
-  "rerank": true
+  "search_mode": "hybrid",
+  "rerank": true,
+  "diversity": 0.3,
+  "hyde": false,
+  "facets": ["author", "year"],
+  "use_semantic_cache": true
 }
 ```
 
 | Field | Type | Required | Default | Constraints |
 |-------|------|----------|---------|-------------|
-| `query` | string | yes | — | Natural language query text |
+| `query` | string | yes | — | Natural language or keyword query |
 | `top_k` | integer | no | Collection default | 1–1,000 |
-| `filters` | object | no | — | Metadata filters ([operators](/docs/concepts/search#filters)) |
-| `min_score` | float | no | Collection default | Minimum similarity score |
-| `search_mode` | string | no | Collection default | `semantic`, `keyword`, `hybrid` |
-| `rerank` | boolean | no | Collection setting | Override reranking |
+| `filters` | object | no | — | Metadata filters — see [operators](/docs/concepts/search#filters) |
+| `min_score` | float | no | Collection default | Drop results below this score |
+| `search_mode` | string | no | Collection default | `semantic`, `keyword`, or `hybrid` |
+| `rerank` | boolean | no | Collection setting | Force Cohere reranking on/off for this query |
+| `diversity` | float | no | — | MMR diversity weight `0.0–1.0` (0 = pure relevance, 1 = pure diversity) |
+| `hyde` | boolean | no | `false` | Generate a HyDE hypothetical document to improve recall on sparse queries |
+| `facets` | string[] | no | — | Metadata keys to aggregate alongside the hits |
+| `use_semantic_cache` | boolean | no | `true` | Replay recent near-duplicate queries; disable for benchmarking |
 
 **Response** `200`:
 
@@ -39,7 +49,7 @@ Perform semantic search against a collection. The query is embedded using the co
 {
   "results": [
     {
-      "id": "chunk_abc123",
+      "id": "doc-abc-123#3",
       "text": "The study found significant increases in global temperatures...",
       "score": 0.892,
       "document_id": "660e8400-e29b-41d4-a716-446655440000",
@@ -49,22 +59,39 @@ Perform semantic search against a collection. The query is embedded using the co
   ],
   "query": "What are the main findings about climate change?",
   "collection": "research_papers",
-  "total": 2
+  "total": 1,
+  "timings": {
+    "embed_ms": 18.2,
+    "search_ms": 12.4,
+    "rerank_ms": 31.5,
+    "hyde_ms": 0,
+    "mmr_ms": 0.4,
+    "total_ms": 62.8
+  },
+  "cached": false,
+  "facets": {
+    "author": [{ "value": "Smith", "count": 8 }, { "value": "Jones", "count": 2 }],
+    "year": [{ "value": 2024, "count": 6 }, { "value": 2025, "count": 4 }]
+  }
 }
 ```
 
-### Result Fields
+### Response fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Chunk/vector ID |
-| `text` | string | The chunk text content |
-| `score` | float | Similarity score (higher = more relevant) |
-| `document_id` | string | Source document UUID |
-| `chunk_index` | integer | Position within the source document |
-| `metadata` | object | Chunk and document metadata |
+| Field | Type | Notes |
+|-------|------|-------|
+| `results[]` | array | Hits ordered by final score (post-rerank and MMR) |
+| `results[].id` | string | Chunk ID (`{document_id}#{chunk_index}`) |
+| `results[].text` | string | Chunk text |
+| `results[].score` | float | Similarity / fused score (0–1) |
+| `results[].document_id` | string | Source document UUID |
+| `results[].chunk_index` | integer | Position within the source document |
+| `results[].metadata` | object | Chunk + document metadata merged |
+| `timings` | object | Per-stage latency in milliseconds; stages that didn't run report `0` |
+| `cached` | boolean | `true` when the result came from the semantic cache |
+| `facets` | object | Only present when `facets` was requested; each key maps to an array of `{value, count}` |
 
-**Errors:** `404` — Collection not found
+**Errors:** `404` — collection not found.
 
 ## Multi-Collection Query
 
@@ -72,14 +99,15 @@ Perform semantic search against a collection. The query is embedded using the co
 POST /v1/query
 ```
 
-Search across multiple collections. Results are merged and sorted by score.
+Search across multiple collections and merge the results by score.
 
 ```json
 {
   "query": "machine learning",
   "collections": ["docs", "papers"],
   "top_k": 20,
-  "search_mode": "hybrid"
+  "search_mode": "hybrid",
+  "rerank": true
 }
 ```
 
@@ -87,17 +115,17 @@ Search across multiple collections. Results are merged and sorted by score.
 |-------|------|----------|-------------|
 | `query` | string | yes | Search query |
 | `collections` | string[] | yes | Collection names to search |
-| `top_k` | number | no | Max results per collection |
-| `filters` | object | no | Metadata filters ([operators](/docs/concepts/search#filters)) |
-| `min_score` | number | no | Minimum similarity score |
+| `top_k` | integer | no | Max results per collection |
+| `filters` | object | no | Metadata filters |
+| `min_score` | float | no | Minimum score |
 | `search_mode` | string | no | `semantic`, `keyword`, `hybrid` |
-| `rerank` | boolean | no | Override collection reranking |
+| `rerank` | boolean | no | Override per-collection reranking |
 
-Each result includes a `collection` field indicating its source.
+Each result includes a `collection` field.
 
 ```bash
 curl -X POST http://localhost:6100/v1/query \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query":"machine learning","collections":["docs","papers"],"top_k":20}'
 ```
@@ -108,20 +136,19 @@ curl -X POST http://localhost:6100/v1/query \
 POST /v1/batch/query
 ```
 
-Run up to 20 independent queries in parallel.
+Run up to 20 independent queries in parallel. Each query item accepts the full single-collection body.
 
 ```json
 {
   "queries": [
     {"collection": "docs", "query": "authentication", "top_k": 5},
-    {"collection": "papers", "query": "neural networks", "top_k": 10, "search_mode": "hybrid", "filters": {"year": {"$gte": 2024}}}
+    {"collection": "papers", "query": "neural networks", "top_k": 10,
+     "search_mode": "hybrid", "filters": {"year": {"$gte": 2024}}}
   ]
 }
 ```
 
-Each query item supports: `collection`, `query`, `top_k`, `filters`, `min_score`, `search_mode`, and `rerank`.
-
-Response contains an array of result sets matching the input order.
+Response: `{"results": [...]}` — an array of query responses in the same order as the input.
 
 ## Collection Analytics
 
@@ -129,31 +156,16 @@ Response contains an array of result sets matching the input order.
 GET /v1/collections/{name}/analytics
 ```
 
-Query statistics for a collection.
+Rolling 24-hour, 7-day, and 30-day query statistics, cached for five minutes.
 
 **Response** `200`:
 
 ```json
 {
   "collection": "docs",
-  "period_24h": {
-    "query_count": 142,
-    "avg_latency_ms": 45.2,
-    "avg_score": 0.82,
-    "avg_result_count": 8.3
-  },
-  "period_7d": {
-    "query_count": 1203,
-    "avg_latency_ms": 48.1,
-    "avg_score": 0.79,
-    "avg_result_count": 7.9
-  },
-  "period_30d": {
-    "query_count": 4521,
-    "avg_latency_ms": 46.7,
-    "avg_score": 0.80,
-    "avg_result_count": 8.1
-  },
+  "period_24h": { "query_count": 142, "avg_latency_ms": 45.2, "avg_score": 0.82, "avg_result_count": 8.3 },
+  "period_7d":  { "query_count": 1203, "avg_latency_ms": 48.1, "avg_score": 0.79, "avg_result_count": 7.9 },
+  "period_30d": { "query_count": 4521, "avg_latency_ms": 46.7, "avg_score": 0.80, "avg_result_count": 8.1 },
   "top_queries": [
     { "query": "authentication flow", "count": 23 }
   ]

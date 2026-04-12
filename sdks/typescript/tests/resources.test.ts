@@ -10,8 +10,6 @@ import {
 } from "../src/resources/index.js";
 import { createMockClient } from "./helpers.js";
 
-// Resource namespaces exist on the client
-
 describe("resource namespace wiring", () => {
   it("client exposes all resource namespaces", () => {
     const { client } = createMockClient();
@@ -27,8 +25,6 @@ describe("resource namespace wiring", () => {
     expect(client).toBeInstanceOf(BigRAGCore);
   });
 });
-
-// CollectionsResource
 
 describe("CollectionsResource", () => {
   it("list() calls GET /v1/collections", async () => {
@@ -85,8 +81,6 @@ describe("CollectionsResource", () => {
     expect(calls[0].url).toContain("my%20collection");
   });
 });
-
-// DocumentsResource
 
 describe("DocumentsResource", () => {
   it("list() calls GET /v1/collections/{name}/documents", async () => {
@@ -167,8 +161,6 @@ describe("DocumentsResource", () => {
   });
 });
 
-// QueryResource
-
 describe("QueryResource", () => {
   it("query() calls POST /v1/collections/{name}/query", async () => {
     const { client, calls } = createMockClient({ results: [], total: 0 });
@@ -196,8 +188,6 @@ describe("QueryResource", () => {
   });
 });
 
-// VectorsResource
-
 describe("VectorsResource", () => {
   it("upsert() calls POST .../vectors/upsert", async () => {
     const { client, calls } = createMockClient({ status: "ok", upserted: 1 });
@@ -216,8 +206,6 @@ describe("VectorsResource", () => {
     expect(JSON.parse(calls[0].body!).ids).toEqual(["v1", "v2"]);
   });
 });
-
-// WebhooksResource
 
 describe("WebhooksResource", () => {
   it("create() calls POST /v1/admin/webhooks", async () => {
@@ -273,8 +261,6 @@ describe("WebhooksResource", () => {
   });
 });
 
-// CollectionClient delegates through resources
-
 describe("CollectionClient via resources", () => {
   it("query delegates to queries resource", async () => {
     const { client, calls } = createMockClient({ results: [], total: 0 });
@@ -326,8 +312,6 @@ describe("CollectionClient via resources", () => {
     expect(calls[0].url).toContain("/v1/collections/mydata/analytics");
   });
 });
-
-// Backward-compatible flat methods delegate to resources
 
 describe("backward-compat flat methods", () => {
   it("listCollections delegates to collections.list", async () => {

@@ -8,12 +8,46 @@ from pydantic import BaseModel, Field, model_validator
 class CreateCollectionRequest(BaseModel):
     name: str = Field(min_length=1, max_length=128, pattern=r"^[a-zA-Z][a-zA-Z0-9_]*$")
     description: str = ""
+    embedding_preset_id: str | None = None
     embedding_provider: str | None = None
     embedding_model: str | None = None
     embedding_api_key: str | None = None
+    embedding_base_url: str | None = None
     dimension: int | None = None
     chunk_size: int = Field(default=512, ge=64, le=10000)
     chunk_overlap: int = Field(default=50, ge=0, le=5000)
+    chunk_strategy: str = Field(
+        default="paragraph",
+        pattern=r"^(paragraph|recursive)$",
+        description="Chunking algorithm: paragraph (default) or recursive.",
+    )
+    index_type: str = Field(
+        default="IVF_FLAT",
+        pattern=r"^(IVF_FLAT|HNSW)$",
+        description=(
+            "Milvus index. IVF_FLAT (default) is fine below ~1M vectors; "
+            "HNSW is a better recall/latency tradeoff above that."
+        ),
+    )
+    tenant_field: str | None = Field(
+        default=None,
+        max_length=64,
+        description=(
+            "Optional metadata field name used as the Milvus partition "
+            "key. When set, uploads land in a per-tenant partition for "
+            "10-50x faster filtered search in multi-tenant deployments."
+        ),
+    )
+    metadata_schema: dict | None = Field(
+        default=None,
+        description=(
+            "Optional JSON Schema (draft 2020-12 subset) — uploads with "
+            "a metadata dict that fails validation are rejected before "
+            "ingestion."
+        ),
+    )
+    redact_pii: bool = False
+    moderation_enabled: bool = False
     metadata: dict = {}
     reranking_enabled: bool = False
     reranking_model: str = "rerank-v3.5"
@@ -38,6 +72,10 @@ class UpdateCollectionRequest(BaseModel):
     default_top_k: int | None = Field(default=None, ge=1, le=1000)
     default_min_score: float | None = None
     default_search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
+    chunk_strategy: str | None = Field(default=None, pattern=r"^(paragraph|recursive)$")
+    metadata_schema: dict | None = None
+    redact_pii: bool | None = None
+    moderation_enabled: bool | None = None
 
 
 class CollectionResponse(BaseModel):
@@ -49,6 +87,12 @@ class CollectionResponse(BaseModel):
     dimension: int
     chunk_size: int
     chunk_overlap: int
+    chunk_strategy: str = "paragraph"
+    index_type: str = "IVF_FLAT"
+    tenant_field: str | None = None
+    redact_pii: bool = False
+    moderation_enabled: bool = False
+    has_metadata_schema: bool = False
     document_count: int
     has_api_key: bool = False
     reranking_enabled: bool = False

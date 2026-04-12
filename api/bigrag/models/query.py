@@ -10,6 +10,40 @@ class QueryRequest(BaseModel):
     min_score: float | None = None
     search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
     rerank: bool | None = None  # Override collection's reranking_enabled
+    diversity: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "0 = pure relevance (default). 1 = maximum novelty. Applied as "
+            "MMR over the top_k*3 candidates before trimming to top_k."
+        ),
+    )
+    hybrid_strategy: str | None = Field(
+        default=None,
+        pattern=r"^(rrf|weighted|normalized)$",
+        description="Fusion strategy when search_mode=hybrid.",
+    )
+    hyde: bool | None = Field(
+        default=None,
+        description=(
+            "Generate a hypothetical answer with an LLM, embed THAT, and "
+            "retrieve against it. Boosts recall on underspecified queries."
+        ),
+    )
+    facets: list[str] | None = Field(
+        default=None,
+        max_length=10,
+        description="Metadata fields to aggregate counts over in the response.",
+    )
+    use_semantic_cache: bool | None = Field(
+        default=None,
+        description=(
+            "When true (default), the server may return a cached response "
+            "for a near-duplicate recent query. Set false to always hit "
+            "Milvus fresh — useful for eval runs."
+        ),
+    )
 
 
 class VectorEntry(BaseModel):
@@ -33,7 +67,23 @@ class QueryResult(BaseModel):
     score: float
     document_id: str | None = None
     chunk_index: int | None = None
+    # Citation provenance (populated when Docling surfaces them during
+    # ingestion). Useful for inline LLM citations.
+    page_no: int | None = None
+    char_start: int | None = None
+    char_end: int | None = None
     metadata: dict = {}
+
+
+class QueryTimings(BaseModel):
+    """Per-phase latency breakdown so clients / Studio can show a debugger."""
+
+    embed_ms: float = 0.0
+    search_ms: float = 0.0
+    rerank_ms: float = 0.0
+    hyde_ms: float = 0.0
+    mmr_ms: float = 0.0
+    total_ms: float = 0.0
 
 
 class QueryResponse(BaseModel):
@@ -41,6 +91,9 @@ class QueryResponse(BaseModel):
     query: str
     collection: str
     total: int
+    timings: QueryTimings | None = None
+    facets: dict[str, dict[str, int]] | None = None
+    cached: bool = False  # set true when the semantic cache served this
 
 
 class MultiQueryRequest(BaseModel):

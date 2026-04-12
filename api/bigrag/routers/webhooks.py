@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import uuid
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.database import db
+from bigrag.config import settings
+from bigrag.db.models import Webhook, WebhookDelivery
+from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_admin
 from bigrag.models.common import StatusResponse
 from bigrag.models.webhook import (
-    MAX_WEBHOOKS,
     CreateWebhookRequest,
     CreateWebhookResponse,
     UpdateWebhookRequest,
@@ -25,59 +28,83 @@ logger = get_logger("bigrag.routers.webhooks")
 router = APIRouter(prefix="/v1/admin/webhooks", tags=["webhooks"])
 
 
-def _row_to_response(row: dict) -> WebhookResponse:
-    r = {}
-    for k, v in row.items():
-        if k == "secret":
-            continue
-        elif isinstance(v, uuid.UUID):
-            r[k] = str(v)
-        else:
-            r[k] = v
-    return WebhookResponse(**r)
+def _webhook_response(wh: Webhook) -> WebhookResponse:
+    return WebhookResponse(
+        id=str(wh.id),
+        url=wh.url,
+        events=list(wh.events),
+        collections=list(wh.collections) if wh.collections else None,
+        description=wh.description,
+        active=wh.active,
+        created_by=str(wh.created_by) if wh.created_by else None,
+        created_at=wh.created_at,
+        updated_at=wh.updated_at,
+    )
 
 
-def _delivery_row_to_response(row: dict) -> WebhookDeliveryResponse:
-    r = {}
-    for k, v in row.items():
-        if isinstance(v, uuid.UUID):
-            r[k] = str(v)
-        else:
-            r[k] = v
-    return WebhookDeliveryResponse(**r)
+def _webhook_to_dict(wh: Webhook) -> dict:
+    return {
+        "id": wh.id,
+        "url": wh.url,
+        "secret": wh.secret,
+        "events": list(wh.events),
+        "collections": list(wh.collections) if wh.collections else None,
+        "description": wh.description,
+        "active": wh.active,
+        "created_by": wh.created_by,
+        "created_at": wh.created_at,
+        "updated_at": wh.updated_at,
+    }
+
+
+def _delivery_response(d: WebhookDelivery) -> WebhookDeliveryResponse:
+    return WebhookDeliveryResponse(
+        id=str(d.id),
+        webhook_id=str(d.webhook_id),
+        event=d.event,
+        payload=d.payload,
+        status=d.status,
+        attempts=d.attempts,
+        last_status_code=d.last_status_code,
+        last_error=d.last_error,
+        created_at=d.created_at,
+        completed_at=d.completed_at,
+    )
 
 
 @router.post("", response_model=CreateWebhookResponse, status_code=201)
-async def create_webhook(body: CreateWebhookRequest, admin: dict = Depends(require_admin)):
-    count_row = await db.fetchrow("SELECT COUNT(*) as cnt FROM webhooks")
-    if count_row["cnt"] >= MAX_WEBHOOKS:
-        raise HTTPException(status_code=400, detail=f"Maximum of {MAX_WEBHOOKS} webhooks reached")
+async def create_webhook(
+    body: CreateWebhookRequest,
+    admin: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    count = await session.scalar(sa.select(sa.func.count()).select_from(Webhook))
+    max_count = settings.webhook_max_count
+    if (count or 0) >= max_count:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum of {max_count} webhooks reached",
+        )
 
     secret = generate_secret()
-    webhook_id = uuid.uuid4()
-
-    row = await db.fetchrow(
-        """
-        INSERT INTO webhooks (id, url, secret, events, collections, description, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING *
-        """,
-        webhook_id,
-        body.url,
-        secret,
-        body.events,
-        body.collections,
-        body.description,
-        uuid.UUID(admin["id"]) if admin.get("id") else None,
+    wh = Webhook(
+        id=uuid.uuid4(),
+        url=body.url,
+        secret=secret,
+        events=body.events,
+        collections=body.collections,
+        description=body.description,
+        created_by=uuid.UUID(admin["id"]) if admin.get("id") else None,
     )
+    session.add(wh)
+    await session.commit()
+    await session.refresh(wh)
 
     await webhook_dispatcher.invalidate_cache()
-    logger.info(f"Webhook created: id={webhook_id} url={body.url} events={body.events}")
+    logger.info(f"Webhook created: id={wh.id} url={body.url} events={body.events}")
 
-    r = {k: str(v) if isinstance(v, uuid.UUID) else v for k, v in dict(row).items()}
-    r.pop("secret")
-    r["secret"] = secret
-    return CreateWebhookResponse(**r)
+    base = _webhook_response(wh)
+    return CreateWebhookResponse(**base.model_dump(), secret=secret)
 
 
 @router.get("")
@@ -85,21 +112,26 @@ async def list_webhooks(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     _: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
 ):
-    rows = await db.fetch(
-        "SELECT * FROM webhooks ORDER BY created_at DESC LIMIT $1 OFFSET $2",
-        limit,
-        offset,
-    )
-    return {"webhooks": [_row_to_response(dict(r)) for r in rows]}
+    webhooks = (
+        await session.scalars(
+            sa.select(Webhook).order_by(Webhook.created_at.desc()).limit(limit).offset(offset)
+        )
+    ).all()
+    return {"webhooks": [_webhook_response(w) for w in webhooks]}
 
 
 @router.get("/{webhook_id}", response_model=WebhookResponse)
-async def get_webhook(webhook_id: str, _: dict = Depends(require_admin)):
-    row = await db.fetchrow("SELECT * FROM webhooks WHERE id = $1", uuid.UUID(webhook_id))
-    if not row:
+async def get_webhook(
+    webhook_id: str,
+    _: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    wh = await session.get(Webhook, uuid.UUID(webhook_id))
+    if wh is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
-    return _row_to_response(dict(row))
+    return _webhook_response(wh)
 
 
 @router.put("/{webhook_id}", response_model=WebhookResponse)
@@ -107,46 +139,46 @@ async def update_webhook(
     webhook_id: str,
     body: UpdateWebhookRequest,
     _: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
 ):
-    row = await db.fetchrow("SELECT * FROM webhooks WHERE id = $1", uuid.UUID(webhook_id))
-    if not row:
+    wh = await session.get(Webhook, uuid.UUID(webhook_id))
+    if wh is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
-    from bigrag.database import build_update
-
-    fields = {}
     if body.url is not None:
-        fields["url"] = body.url
+        wh.url = body.url
     if body.events is not None:
-        fields["events"] = body.events
+        wh.events = body.events
     if body.collections is not None:
-        fields["collections"] = body.collections
+        wh.collections = body.collections
     if body.description is not None:
-        fields["description"] = body.description
+        wh.description = body.description
     if body.active is not None:
-        fields["active"] = body.active
+        wh.active = body.active
 
-    if not fields:
-        return _row_to_response(dict(row))
-
-    sql, params = build_update("webhooks", fields, "id", uuid.UUID(webhook_id))
-    updated = await db.fetchrow(sql, *params)
+    await session.commit()
+    await session.refresh(wh)
 
     await webhook_dispatcher.invalidate_cache()
     logger.info(f"Webhook updated: id={webhook_id}")
-    return _row_to_response(dict(updated))
+    return _webhook_response(wh)
 
 
 @router.delete("/{webhook_id}", response_model=StatusResponse)
-async def delete_webhook(webhook_id: str, _: dict = Depends(require_admin)):
-    row = await db.fetchrow("SELECT id FROM webhooks WHERE id = $1", uuid.UUID(webhook_id))
-    if not row:
+async def delete_webhook(
+    webhook_id: str,
+    _: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    wh = await session.get(Webhook, uuid.UUID(webhook_id))
+    if wh is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
-    await db.execute("DELETE FROM webhooks WHERE id = $1", uuid.UUID(webhook_id))
+    await session.delete(wh)
+    await session.commit()
     await webhook_dispatcher.invalidate_cache()
     logger.info(f"Webhook deleted: id={webhook_id}")
-    return {"status": "ok", "message": "Webhook deleted"}
+    return StatusResponse(status="ok", message="Webhook deleted")
 
 
 @router.get("/{webhook_id}/deliveries", response_model=WebhookDeliveryListResponse)
@@ -155,36 +187,89 @@ async def list_deliveries(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     _: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
 ):
-    wh = await db.fetchrow("SELECT id FROM webhooks WHERE id = $1", uuid.UUID(webhook_id))
-    if not wh:
+    wh_uuid = uuid.UUID(webhook_id)
+    wh_exists = await session.scalar(sa.select(Webhook.id).where(Webhook.id == wh_uuid))
+    if wh_exists is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
-    rows = await db.fetch(
-        """
-        SELECT * FROM webhook_deliveries
-        WHERE webhook_id = $1
-        ORDER BY created_at DESC LIMIT $2 OFFSET $3
-        """,
-        uuid.UUID(webhook_id),
-        limit,
-        offset,
-    )
-    count_row = await db.fetchrow(
-        "SELECT COUNT(*) as cnt FROM webhook_deliveries WHERE webhook_id = $1",
-        uuid.UUID(webhook_id),
+    deliveries = (
+        await session.scalars(
+            sa.select(WebhookDelivery)
+            .where(WebhookDelivery.webhook_id == wh_uuid)
+            .order_by(WebhookDelivery.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+    ).all()
+    total = await session.scalar(
+        sa.select(sa.func.count())
+        .select_from(WebhookDelivery)
+        .where(WebhookDelivery.webhook_id == wh_uuid)
     )
     return WebhookDeliveryListResponse(
-        deliveries=[_delivery_row_to_response(dict(r)) for r in rows],
-        total=count_row["cnt"],
+        deliveries=[_delivery_response(d) for d in deliveries],
+        total=total or 0,
     )
 
 
 @router.post("/{webhook_id}/test", response_model=WebhookTestResponse)
-async def test_webhook(webhook_id: str, _: dict = Depends(require_admin)):
-    row = await db.fetchrow("SELECT * FROM webhooks WHERE id = $1", uuid.UUID(webhook_id))
-    if not row:
+async def test_webhook(
+    webhook_id: str,
+    _: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    wh = await session.get(Webhook, uuid.UUID(webhook_id))
+    if wh is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
-    result = await webhook_dispatcher.deliver_test(dict(row))
+    result = await webhook_dispatcher.deliver_test(_webhook_to_dict(wh))
+    return WebhookTestResponse(**result)
+
+
+@router.post(
+    "/{webhook_id}/deliveries/{delivery_id}/replay",
+    response_model=WebhookTestResponse,
+)
+async def replay_delivery(
+    webhook_id: str,
+    delivery_id: str,
+    _: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> WebhookTestResponse:
+    """Re-fire a failed (or successful) delivery using the original payload
+    and event. Doesn't touch the circuit breaker or retry counters — it's
+    explicitly a one-off.
+    """
+    try:
+        wh_uuid = uuid.UUID(webhook_id)
+        del_uuid = uuid.UUID(delivery_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="Not found") from e
+
+    wh = await session.get(Webhook, wh_uuid)
+    if wh is None:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+
+    delivery = await session.scalar(
+        sa.select(WebhookDelivery)
+        .where(WebhookDelivery.id == del_uuid)
+        .where(WebhookDelivery.webhook_id == wh_uuid)
+    )
+    if delivery is None:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+
+    import orjson
+
+    payload_str = orjson.dumps(delivery.payload).decode()
+    result = await webhook_dispatcher.deliver_once(
+        _webhook_to_dict(wh), delivery.event, payload_str,
+    )
+    logger.info(
+        "Webhook delivery replayed",
+        webhook_id=webhook_id,
+        delivery_id=delivery_id,
+        status=result["status"],
+    )
     return WebhookTestResponse(**result)

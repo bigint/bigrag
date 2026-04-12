@@ -24,8 +24,9 @@ def _get_docling_converter():
                     logger.info("Docling models cached — using HF offline mode")
                 else:
                     logger.info("Docling models not cached — will download from HF")
-            except Exception:
-                pass  # scan_cache_dir failed, let HF decide
+            except (OSError, PermissionError) as exc:
+                # HF cache unreadable (no disk perms, missing dir) — let HF decide at call time.
+                logger.debug("hf cache scan failed, deferring to HF", error=str(exc))
 
         from docling.datamodel.pipeline_options import PdfPipelineOptions
         from docling.document_converter import DocumentConverter, InputFormat, PdfFormatOption

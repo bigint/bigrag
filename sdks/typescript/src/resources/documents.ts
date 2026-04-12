@@ -41,6 +41,7 @@ export class DocumentsResource {
     collection: string,
     file: FileInput,
     metadata?: Record<string, unknown>,
+    options?: { onUploadProgress?: (ev: { loaded: number; total: number }) => void },
   ): Promise<Document> {
     const form = new FormData();
     const { blob, name } = await normalizeFileInput(file);
@@ -48,10 +49,47 @@ export class DocumentsResource {
     if (metadata) {
       form.append("metadata", JSON.stringify(metadata));
     }
+    if (options?.onUploadProgress && typeof XMLHttpRequest !== "undefined") {
+      return this._uploadWithProgress(collection, form, options.onUploadProgress);
+    }
     return this._client._requestFormData(
       `/v1/collections/${encodeURIComponent(collection)}/documents`,
       form,
     );
+  }
+
+  /** @internal Upload via XHR so we can report per-chunk progress. */
+  private _uploadWithProgress(
+    collection: string,
+    form: FormData,
+    onProgress: (ev: { loaded: number; total: number }) => void,
+  ): Promise<Document> {
+    return new Promise<Document>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const url = `${this._client.baseUrl}/v1/collections/${encodeURIComponent(collection)}/documents`;
+      xhr.open("POST", url);
+      if (this._client.apiKey) {
+        xhr.setRequestHeader("Authorization", `Bearer ${this._client.apiKey}`);
+      }
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable) {
+          onProgress({ loaded: ev.loaded, total: ev.total });
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText) as Document);
+          } catch (err) {
+            reject(err instanceof Error ? err : new Error(String(err)));
+          }
+        } else {
+          reject(errorForStatus(xhr.status, xhr.responseText || xhr.statusText));
+        }
+      };
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.send(form);
+    });
   }
 
   /**
@@ -96,6 +134,37 @@ export class DocumentsResource {
       `/v1/collections/${encodeURIComponent(collection)}/documents`,
       { params },
     );
+  }
+
+  /**
+   * Auto-paginate through every document in a collection. Yields one
+   * {@link Document} at a time so callers can stream-process large
+   * collections without buffering everything in memory.
+   *
+   * @example
+   * ```ts
+   * for await (const doc of client.documents.listAll("docs")) {
+   *   console.log(doc.filename);
+   * }
+   * ```
+   */
+  async *listAll(
+    collection: string,
+    options?: Omit<DocumentListOptions, "offset">,
+  ): AsyncGenerator<Document> {
+    const pageSize = options?.limit ?? 100;
+    let offset = 0;
+    while (true) {
+      const page = await this.list(collection, {
+        ...options,
+        limit: pageSize,
+        offset,
+      });
+      for (const doc of page.documents) yield doc;
+      if (page.documents.length < pageSize) return;
+      offset += page.documents.length;
+      if (offset >= page.total) return;
+    }
   }
 
   /**

@@ -1,0 +1,106 @@
+---
+title: Security & Auth Model
+description: Admin accounts, sessions, API keys, scopes, and audit.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+bigRAG's auth model has two credential types, one scope system, and an immutable audit log. This page is the high-level map; the API shapes live under [API Reference → Authentication](/docs/api-reference/authentication).
+
+## The two credentials
+
+| Credential | Used by | Lifetime | Revocation |
+|------------|---------|----------|-----------|
+| **Session cookie** | Studio UI, browser flows | `BIGRAG_SESSION_EXPIRY_HOURS` (default 7 days) | `/v1/auth/logout`, `/v1/auth/logout-all`, or cleanup sweeper |
+| **API key** (`bigrag_sk_…`) | SDKs, backend services, CI | Indefinite unless `expires_at` set | `DELETE /v1/admin/api-keys/{id}` or `active: false` |
+
+## First-run setup
+
+A fresh install has no users. The server exposes exactly one unauthenticated admin-capable endpoint: `POST /v1/auth/setup`. It works once. After the first admin exists, subsequent calls return `409` and every admin endpoint requires auth.
+
+The Studio UI walks through this at `http://localhost:3100/setup`.
+
+## Roles
+
+Two roles only. RBAC is intentionally coarse — fine-grained control lives on API keys via scopes.
+
+| Role | Can |
+|------|-----|
+| `admin` | Everything: users, keys, collections, webhooks, audit |
+| `member` | Read `/v1/auth/me`, read/write own `/v1/preferences`, log out |
+
+`member` accounts are useful for Studio users who need a read-only pane of glass.
+
+## Session-only endpoints
+
+A session cookie is strictly stronger than an API key. The following endpoints refuse API keys (even admin-scoped ones) to prevent a compromised key from escalating:
+
+- `/v1/admin/users/**`
+- `/v1/admin/api-keys/**`
+- `/v1/admin/audit/**`
+- `/v1/admin/webhooks/**`
+- `/v1/admin/embedding-presets/**`
+- `/v1/preferences`
+- `POST /v1/auth/password`
+- `POST /v1/auth/logout-all`
+
+If you need to automate any of these, proxy through a trusted service that holds a dedicated admin account and uses session auth internally.
+
+## Scopes on API keys
+
+Scopes are `resource:action` pairs. A key without `scopes` has full access; a key **with** `scopes` is restricted to the union of those patterns. `*` is a wildcard.
+
+```
+collection:read          # GET /v1/collections, GET /v1/collections/{name}, stats
+collection:write         # POST, PUT, DELETE collections, reembed, truncate
+document:upload          # POST /v1/collections/{name}/documents
+document:read            # GET documents, chunks, download file
+document:delete          # DELETE documents
+query:read               # POST /query, /batch/query, /collections/{name}/query
+vector:write             # /vectors/upsert, /vectors/delete
+webhook:*                # (session-only anyway, but included for completeness)
+*:*                      # equivalent to no scopes
+```
+
+Missing-scope calls return `403` with `{"detail": "API key missing required scope: <scope>"}`.
+
+## Rate limits on API keys
+
+Per-endpoint request-per-minute caps attach to a key:
+
+```json
+{ "rate_limits": { "POST:/v1/collections/{name}/query": 600 } }
+```
+
+Use `{name}` as a literal — the matcher normalizes path parameters. Over-budget requests return `429`.
+
+## Audit log
+
+Every state-changing admin action writes a row to `audit_log` with actor, IP, user-agent, resource, and metadata. Reads don't. Entries are immutable.
+
+- **Read**: `GET /v1/admin/audit`
+- **Filter**: `actor`, `action`, `resource_type`, `start_date`, `end_date`
+- **Pipe to SIEM**: scrape on a schedule or run `logout-all` + audit export on the `session.*` events
+
+The [Audit API Reference](/docs/api-reference/audit) lists the full action vocabulary.
+
+## Passwords
+
+- Argon2id hashed at rest, re-hashed transparently on login when older params are detected
+- Minimum 8 characters (enforced at `/setup`, user create, and password change)
+- Changing a password calls `logout-all` for that user
+- The server refuses to return any hash or key — only `has_password` / `has_api_key` flags where relevant
+
+## Production posture
+
+Run with `BIGRAG_ENV=prod` — the server refuses to boot if:
+
+- `BIGRAG_CORS_ORIGINS` contains `*`
+- `BIGRAG_SESSION_COOKIE_SECURE` is `false`
+- Postgres is still using the shipped `bigrag:bigrag` default password
+
+See [Production](/docs/deployment/production) for the full hardening checklist.
+
+<Callout type="warn">
+Anything holding an API key — CI runner, laptop, container image layer — can act as that key until you revoke it. Mint a key per service, set `expires_at`, and rotate on any suspicion.
+</Callout>

@@ -9,16 +9,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from bigrag import __version__
+from bigrag import db as db_module
 from bigrag.config import Settings, settings
-from bigrag.database import db
+from bigrag.db.bootstrap import run_migrations
 from bigrag.exceptions import ConflictError, NotFoundError, ValidationError
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
-from bigrag.services import redis_cache
+from bigrag.middleware.idempotency import IdempotencyMiddleware
+from bigrag.middleware.rate_limit import RateLimitMiddleware
+from bigrag.services import crypto, redis_cache
 from bigrag.services.event_bus import event_bus
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import init_storage
 from bigrag.services.vector_store import vector_store
 from bigrag.services.webhook import WebhookDispatcher
+from bigrag.startup_guard import check_production_safety
 
 
 @asynccontextmanager
@@ -27,24 +31,30 @@ async def lifespan(app: FastAPI):
 
     configure_logging(log_level=s.log_level, log_format=s.log_format)
     logger = get_logger("bigrag")
-    logger.info("starting", version=__version__)
+    logger.info("starting", version=__version__, env=s.env)
 
-    if not s.api_secret:
-        logger.warning("api_secret not set, all endpoints are open")
+    # Refuse to boot in prod mode with default/insecure config.
+    check_production_safety(s)
+
     if "*" in s.cors_origins:
         logger.warning("CORS allows all origins, restrict in production")
 
-    # Postgres
-    await db.connect(s.database_url, min_size=s.db_pool_min, max_size=s.db_pool_max)
-    await db.migrate()
-    app.state.db = db
+    # Install the master key before any ORM access — the EncryptedString
+    # type decorator calls into crypto on every read/write of a secret column.
+    crypto.configure(s.master_key)
+    if not crypto.is_configured():
+        logger.warning(
+            "BIGRAG_MASTER_KEY not set — provider credentials will be stored "
+            "in plaintext. Set it before promoting this instance to prod."
+        )
 
-    # Milvus
+    await db_module.configure(s.database_url, pool_min=s.db_pool_min, pool_max=s.db_pool_max)
+    await run_migrations()
+
     vector_store.configure(s.milvus_uri, nprobe=s.milvus_nprobe)
     vector_store.connect()
     app.state.vector_store = vector_store
 
-    # Storage
     storage = init_storage(
         backend=s.storage_backend,
         upload_dir=s.upload_dir,
@@ -56,32 +66,27 @@ async def lifespan(app: FastAPI):
     )
     app.state.storage = storage
 
-    # Redis cache + event bus
     await redis_cache.connect(s.redis_url)
     await event_bus.connect(s.redis_url)
 
-    # Redis + ingestion queue
     ingestion_queue._num_workers = s.ingestion_workers
     await ingestion_queue.connect(s.redis_url)
-    await ingestion_queue.start(db=db, vector_store=vector_store)
+    await ingestion_queue.start(vector_store=vector_store)
     app.state.queue = ingestion_queue
 
-    # Webhook dispatcher
     dispatcher = WebhookDispatcher()
     await dispatcher.start()
     app.state.webhook_dispatcher = dispatcher
 
-    # Resume incomplete S3 ingest jobs
     from bigrag.services.s3_ingest import resume_incomplete_jobs
 
     await resume_incomplete_jobs()
 
-    # Cleanup task
     import asyncio
 
     from bigrag.services.cleanup import cleanup_old_data
 
-    cleanup_task = asyncio.create_task(cleanup_old_data(db))
+    cleanup_task = asyncio.create_task(cleanup_old_data())
 
     logger.info("server ready", host=s.host, port=s.port)
     yield
@@ -93,7 +98,7 @@ async def lifespan(app: FastAPI):
     await redis_cache.close()
     await storage.close()
     vector_store.close()
-    await db.close()
+    await db_module.close()
     logger.info("shut down")
 
 
@@ -109,6 +114,8 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.state.settings = s
 
     app.add_middleware(RequestLoggingMiddleware)
+    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(IdempotencyMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=s.cors_origins,
@@ -117,7 +124,6 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Global exception handlers for domain exceptions
     @app.exception_handler(NotFoundError)
     async def not_found_handler(request, exc: NotFoundError):
         return JSONResponse(status_code=404, content={"detail": str(exc)})
@@ -130,20 +136,36 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     async def validation_handler(request, exc: ValidationError):
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
+    from bigrag.routers.admin_api_keys import router as admin_api_keys_router
+    from bigrag.routers.admin_audit import router as admin_audit_router
+    from bigrag.routers.admin_users import router as admin_users_router
+    from bigrag.routers.auth import router as auth_router
     from bigrag.routers.collections import router as collections_router
     from bigrag.routers.documents import global_router as documents_global_router
     from bigrag.routers.documents import router as documents_router
+    from bigrag.routers.embedding_presets import router as embedding_presets_router
+    from bigrag.routers.evaluation import router as evaluation_router
     from bigrag.routers.health import router as health_router
+    from bigrag.routers.preferences import router as preferences_router
     from bigrag.routers.query import router as query_router
     from bigrag.routers.s3_jobs import router as s3_jobs_router
+    from bigrag.routers.usage import router as usage_router
     from bigrag.routers.webhooks import router as webhooks_router
 
     app.include_router(health_router)
+    app.include_router(auth_router)
+    app.include_router(preferences_router)
+    app.include_router(admin_users_router)
+    app.include_router(admin_api_keys_router)
+    app.include_router(admin_audit_router)
+    app.include_router(embedding_presets_router)
     app.include_router(collections_router)
     app.include_router(documents_router)
     app.include_router(documents_global_router)
     app.include_router(query_router)
     app.include_router(s3_jobs_router)
+    app.include_router(evaluation_router)
+    app.include_router(usage_router)
     app.include_router(webhooks_router)
 
     return app

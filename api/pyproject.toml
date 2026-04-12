@@ -8,6 +8,8 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.34.0",
     "asyncpg>=0.30.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "alembic>=1.14.0",
     "pymilvus>=2.5.0",
     "docling>=2.25.0",
     "openai>=1.60.0",
@@ -22,6 +24,8 @@ dependencies = [
     "orjson>=3.10.0",
     "structlog>=24.4.0",
     "aiobotocore>=2.18.0",
+    "argon2-cffi>=23.1.0",
+    "cryptography>=44.0.0",
 ]
 
 [dependency-groups]

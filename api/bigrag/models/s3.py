@@ -30,6 +30,7 @@ class S3JobResponse(BaseModel):
     region: str
     endpoint_url: str | None = None
     file_types: list[str] = []
+    metadata: dict = {}
     status: str
     total_found: int
     total_ingested: int
@@ -41,6 +42,7 @@ class S3JobResponse(BaseModel):
 
 class UpdateS3JobRequest(BaseModel):
     file_types: list[str] | None = None
+    metadata: dict | None = None
 
 
 class S3JobListResponse(BaseModel):

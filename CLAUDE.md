@@ -4,6 +4,7 @@
 
 - `api/` — Python/FastAPI backend (Docling ingestion + Milvus vector DB)
 - `sdks/typescript/` — TypeScript SDK (`@bigrag/client`)
+- `app/` — Studio admin UI (Next.js 16 + Tailwind v4 + Base UI, `@bigrag/app`)
 - `website/` — Documentation site (Next.js + Fumadocs, content in `website/content/docs/`)
 
 ## Style Guide
@@ -12,7 +13,7 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 
 ## Tech Stack
 
-- **Backend**: Python 3.12+, FastAPI, asyncpg, pymilvus, docling, openai, cohere
+- **Backend**: Python 3.12+, FastAPI, SQLAlchemy 2 (async) + asyncpg, Alembic, pymilvus, docling, openai, cohere, cryptography (Fernet for at-rest encryption of provider secrets)
 - **Vector DB**: Milvus (via Docker)
 - **Metadata DB**: PostgreSQL 17
 - **Ingestion**: Docling (PDF, DOCX, PPTX, HTML, Markdown, images)
@@ -31,6 +32,9 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 ## Architecture Notes
 
 - Backend uses FastAPI dependency injection via `bigrag/deps.py` and `app.state`
+- Database layer lives in `bigrag/db/`: `engine.py` (async engine), `session.py`
+  (FastAPI `get_session` dependency), `models.py` (all 13 ORM models), `bootstrap.py`
+  (stamp-or-upgrade on startup). Schema changes go through Alembic (`api/alembic/`)
 - Services: `event_bus.py` (SSE), `ingestion_job.py` (job model), `conversion.py` (Docling), `cleanup.py` (periodic), `queue.py` (Redis workers)
 - SDK uses resource namespaces: `client.collections.list()`, `client.documents.upload()`, etc.
 
@@ -54,12 +58,21 @@ If a feature is removed, remove it from the docs too. Never leave stale referenc
 ```bash
 ./dev.sh            # starts infra + backend
 ./dev.sh --website  # docs site only
+pnpm dev:app        # Studio admin UI on localhost:3100
 ```
 
+- Studio UI: http://localhost:3100 (first run → `/setup` to create admin)
 - Backend API: http://localhost:6100 (Swagger docs at /docs)
 - Postgres: localhost:5433
 - Redis: localhost:6380
 - Milvus: localhost:19530
+
+## Auth model
+
+Auth is admin-account + session cookie (Studio UI) or minted API keys
+(`bigrag_sk_...`, external clients). First admin is created via the Studio's
+`/setup` page; subsequent admins via `/users`; API keys via `/api-keys`. There
+is no shared-secret env var — do not introduce one.
 
 ## E2E Tests
 

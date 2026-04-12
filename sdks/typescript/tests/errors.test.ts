@@ -14,8 +14,6 @@ import {
 } from "../src/errors.js";
 import { createMockClient } from "./helpers.js";
 
-// Error classes
-
 describe("error classes", () => {
   it("BigRAGError is instanceof Error", () => {
     const err = new BigRAGError("test");
@@ -67,7 +65,6 @@ describe("error classes", () => {
   });
 });
 
-
 describe("errorForStatus", () => {
   it("returns BadRequestError for 400", () => {
     expect(errorForStatus(400, "bad")).toBeInstanceOf(BadRequestError);
@@ -100,8 +97,6 @@ describe("errorForStatus", () => {
     expect(errorForStatus(400, "bad", "VALIDATION").code).toBe("VALIDATION");
   });
 });
-
-// HTTP error handling in client
 
 describe("HTTP error responses", () => {
   it("throws NotFoundError on 404", async () => {

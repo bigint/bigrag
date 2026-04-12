@@ -1,7 +1,14 @@
-"""Shared fixtures for bigRAG E2E tests.
+"""Shared fixtures for bigRAG in-process tests.
 
-Uses FastAPI's TestClient (httpx AsyncClient + ASGITransport) with mocked
-service singletons so tests run without Postgres, Milvus, or Redis.
+Status (2026-04-12): these fixtures were designed against the legacy
+asyncpg ``Database`` singleton and patch ``bigrag.database.db`` directly.
+That module has been replaced by ``bigrag.db`` (SQLAlchemy 2 async), so
+the old patches are no-ops and any test that relied on them will skip /
+fail until this harness is ported to mock the ``AsyncSession`` dependency.
+
+The canonical test suite is ``e2e/`` (live server, real DB). Keep this
+file around for data-builder helpers (``make_user_row`` etc.) that unit
+tests can reuse when they're rewritten.
 """
 
 from __future__ import annotations
@@ -9,18 +16,67 @@ from __future__ import annotations
 import contextlib
 import uuid
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-TEST_API_SECRET = "test-secret-key-12345"
+from bigrag.services.auth import hash_api_key, hash_session_token
+
+TEST_API_KEY = "bigrag_sk_test-external-key-aBcDeFgHiJkLmNoPq"
+TEST_SESSION_TOKEN = "test-session-token-abc123"
+TEST_USER_ID = str(uuid.uuid4())
+TEST_API_KEY_ID = str(uuid.uuid4())
 SAMPLE_COLLECTION_ID = str(uuid.uuid4())
 SAMPLE_DOCUMENT_ID = str(uuid.uuid4())
 SAMPLE_WEBHOOK_ID = str(uuid.uuid4())
 
 
+def make_user_row(
+    user_id: str | None = None,
+    *,
+    email: str = "admin@example.com",
+    display_name: str = "Admin",
+    role: str = "admin",
+    password_hash: str = "$argon2id$dummy",
+) -> dict:
+    now = datetime.now(UTC)
+    return {
+        "id": uuid.UUID(user_id) if user_id else uuid.uuid4(),
+        "email": email,
+        "password_hash": password_hash,
+        "display_name": display_name,
+        "role": role,
+        "last_login_at": now,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
+def make_api_key_row(
+    key_id: str | None = None,
+    user_id: str | None = None,
+    *,
+    name: str = "default",
+    prefix: str = "bigrag_sk_test",
+    key_hash: str = "",
+    active: bool = True,
+) -> dict:
+    now = datetime.now(UTC)
+    return {
+        "id": uuid.UUID(key_id) if key_id else uuid.uuid4(),
+        "user_id": uuid.UUID(user_id) if user_id else uuid.uuid4(),
+        "name": name,
+        "key_hash": key_hash,
+        "prefix": prefix,
+        "permissions": {},
+        "active": active,
+        "expires_at": None,
+        "last_used_at": None,
+        "created_at": now,
+        "updated_at": now,
+    }
 
 
 def make_collection_row(
@@ -33,6 +89,7 @@ def make_collection_row(
     dimension: int = 1536,
     chunk_size: int = 512,
     chunk_overlap: int = 50,
+    chunk_strategy: str = "paragraph",
     document_count: int = 0,
     embedding_api_key: str | None = "sk-test",
     embedding_base_url: str | None = None,
@@ -43,6 +100,9 @@ def make_collection_row(
     default_min_score: float | None = None,
     default_search_mode: str = "semantic",
     metadata: dict | None = None,
+    metadata_schema: dict | None = None,
+    redact_pii: bool = False,
+    moderation_enabled: bool = False,
 ) -> dict:
     return {
         "id": uuid.UUID(collection_id) if collection_id else uuid.uuid4(),
@@ -53,6 +113,7 @@ def make_collection_row(
         "dimension": dimension,
         "chunk_size": chunk_size,
         "chunk_overlap": chunk_overlap,
+        "chunk_strategy": chunk_strategy,
         "document_count": document_count,
         "embedding_api_key": embedding_api_key,
         "embedding_base_url": embedding_base_url,
@@ -63,6 +124,9 @@ def make_collection_row(
         "default_min_score": default_min_score,
         "default_search_mode": default_search_mode,
         "metadata": metadata or {},
+        "metadata_schema": metadata_schema,
+        "redact_pii": redact_pii,
+        "moderation_enabled": moderation_enabled,
         "created_at": datetime.now(UTC),
         "updated_at": datetime.now(UTC),
     }
@@ -80,6 +144,7 @@ def make_document_row(
     status: str = "ready",
     error_message: str | None = None,
     metadata: dict | None = None,
+    content_hash: str | None = None,
 ) -> dict:
     return {
         "id": uuid.UUID(document_id) if document_id else uuid.uuid4(),
@@ -92,6 +157,7 @@ def make_document_row(
         "status": status,
         "error_message": error_message,
         "metadata": metadata or {},
+        "content_hash": content_hash,
         "created_at": datetime.now(UTC),
         "updated_at": datetime.now(UTC),
     }
@@ -147,6 +213,74 @@ def make_delivery_row(
     }
 
 
+def _install_auth_fetchrow(mock_db: AsyncMock) -> None:
+    """Wrap mock_db.fetchrow so session + API key lookups return the test user.
+
+    Safe to call repeatedly: downstream tests that reassign
+    ``mock_db.fetchrow`` or its ``side_effect`` can re-install this
+    wrapper afterwards (directly, or via :func:`install_fetchrow_router`)
+    and auth will keep working.
+    """
+    import asyncio
+    import inspect
+
+    session_hash = hash_session_token(TEST_SESSION_TOKEN)
+    api_key_hash = hash_api_key(TEST_API_KEY)
+
+    test_user = make_user_row(user_id=TEST_USER_ID)
+    session_row = dict(test_user)
+    api_key_row = dict(test_user)
+    api_key_row["api_key_id"] = uuid.UUID(TEST_API_KEY_ID)
+
+    original = mock_db.fetchrow.side_effect
+
+    async def fetchrow(query: str, *args):  # type: ignore[no-untyped-def]
+        if "FROM sessions" in query and args and args[0] == session_hash:
+            return session_row
+        if "FROM api_keys" in query and "JOIN users" in query:
+            if args and args[0] == api_key_hash:
+                return api_key_row
+            return None
+
+        # If a router was installed, trust it — return whatever it said,
+        # even None. The test explicitly wired the response.
+        if callable(original):
+            result = original(query, *args)
+            if inspect.isawaitable(result) or asyncio.iscoroutine(result):
+                result = await result
+            return result
+        if original is not None:
+            return original
+
+        # No router installed — honor an explicit return_value. If the
+        # caller never set one (mock's default None), special-case the
+        # narrow ``SELECT COUNT(*) as cnt`` pattern so endpoints that
+        # need a count to build their response don't crash under the
+        # default mock wiring. Any query with a differently-named
+        # aggregate (``as query_count``, ``as total``) falls through
+        # and the test must wire it up explicitly.
+        rv = mock_db.fetchrow.return_value
+        if rv is None and "COUNT(*) as cnt" in query:
+            return {"cnt": 0}
+        return rv
+
+
+    mock_db.fetchrow.side_effect = fetchrow
+
+
+def install_fetchrow_router(mock_db: AsyncMock, router) -> None:
+    """Wire ``mock_db.fetchrow`` to ``router`` *and* keep auth working.
+
+    Use this instead of ``mock_db.fetchrow.side_effect = router`` or
+    ``mock_db.fetchrow = AsyncMock(side_effect=router)`` — those drop
+    the auth wrapper installed by the ``mock_db`` fixture.
+
+    ``router`` may be a sync or async callable taking ``(query, *args)``.
+    """
+    # Explicit return_value=None so when the router returns None, the mock
+    # doesn't fall back to a sentinel MagicMock via ``return_value``.
+    mock_db.fetchrow = AsyncMock(side_effect=router, return_value=None)
+    _install_auth_fetchrow(mock_db)
 
 
 @pytest.fixture()
@@ -159,6 +293,7 @@ def mock_db():
     m.fetchrow = AsyncMock(return_value=None)
     m.fetch = AsyncMock(return_value=[])
     m.execute = AsyncMock(return_value="DELETE 0")
+    _install_auth_fetchrow(m)
     return m
 
 
@@ -229,8 +364,6 @@ def mock_webhook_dispatcher():
     return m
 
 
-
-
 @pytest.fixture()
 async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webhook_dispatcher):
     """Async HTTP client talking to the FastAPI app with all services mocked."""
@@ -240,16 +373,12 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
         yield
 
     with contextlib.ExitStack() as stack:
-        # Bypass the real lifespan
         stack.enter_context(patch("bigrag.main.lifespan", _test_lifespan))
 
-        # Patch module-level singletons still used by routers/services
         mock_settings = MagicMock()
-        stack.enter_context(patch("bigrag.database.db", mock_db))
-        stack.enter_context(patch("bigrag.routers.collections.db", mock_db))
-        stack.enter_context(patch("bigrag.routers.documents.db", mock_db))
-        stack.enter_context(patch("bigrag.routers.webhooks.db", mock_db))
-        stack.enter_context(patch("bigrag.services.collection_cache.db", mock_db))
+        # NOTE: the previous legacy-db patches were removed with the
+        # SQLAlchemy migration; in-process unit tests need re-wiring to
+        # mock the AsyncSession factory. See this file's module docstring.
         stack.enter_context(patch("bigrag.routers.collections.vector_store", mock_vector_store))
         stack.enter_context(patch("bigrag.routers.query.vector_store", mock_vector_store))
         stack.enter_context(patch("bigrag.services.retrieval.vector_store", mock_vector_store))
@@ -263,11 +392,16 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
         )
         stack.enter_context(patch("bigrag.services.collection_cache.settings", mock_settings))
         stack.enter_context(patch("bigrag.middleware.auth.settings", mock_settings))
+        stack.enter_context(patch("bigrag.routers.auth.settings", mock_settings))
         stack.enter_context(patch("bigrag.routers.collections.settings", mock_settings))
         stack.enter_context(patch("bigrag.routers.documents.settings", mock_settings))
 
-        mock_settings.api_secret = TEST_API_SECRET
         mock_settings.cors_origins = ["*"]
+        mock_settings.session_cookie_name = "bigrag_session"
+        mock_settings.session_cookie_secure = False
+        mock_settings.session_cookie_samesite = "lax"
+        mock_settings.session_cookie_domain = None
+        mock_settings.session_expiry_hours = 168
         mock_settings.embedding_provider = "openai"
         mock_settings.embedding_model = "text-embedding-3-small"
         mock_settings.embedding_dimension = 1536
@@ -290,13 +424,14 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            ac.cookies.set("bigrag_session", TEST_SESSION_TOKEN)
             yield ac
 
 
 @pytest.fixture()
 def auth_headers() -> dict[str, str]:
-    """Headers with a valid Bearer token."""
-    return {"Authorization": f"Bearer {TEST_API_SECRET}"}
+    """Headers with a valid API key (Bearer)."""
+    return {"Authorization": f"Bearer {TEST_API_KEY}"}
 
 
 @pytest.fixture()
@@ -308,4 +443,9 @@ def no_auth_headers() -> dict[str, str]:
 @pytest.fixture()
 def bad_auth_headers() -> dict[str, str]:
     """Headers with an invalid Bearer token."""
-    return {"Authorization": "Bearer wrong-token"}
+    return {"Authorization": "Bearer bigrag_sk_wrong-token-nope-nope-nope-nope"}
+
+
+TEST_API_SECRET = TEST_API_KEY
+
+_ = timedelta  # retained for callers that import timedelta from conftest

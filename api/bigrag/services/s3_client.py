@@ -46,7 +46,8 @@ async def resolve_bucket_region(bucket: str) -> str | None:
 
     session = aiobotocore.session.get_session()
 
-    # Try GetBucketLocation first
+    from botocore.exceptions import BotoCoreError, ClientError
+
     try:
         kw: dict[str, Any] = {
             "region_name": "us-east-1",
@@ -57,8 +58,12 @@ async def resolve_bucket_region(bucket: str) -> str | None:
                 s3.get_bucket_location(Bucket=bucket), timeout=15,
             )
             return r.get("LocationConstraint") or "us-east-1"
-    except Exception:
-        pass
+    except (BotoCoreError, ClientError, TimeoutError) as exc:
+        logger.debug(
+            "GetBucketLocation failed, falling back to HEAD",
+            bucket=bucket,
+            error=f"{exc.__class__.__name__}: {exc}",
+        )
 
     # Fallback: HEAD request — region is in the response header
     try:
@@ -70,8 +75,12 @@ async def resolve_bucket_region(bucket: str) -> str | None:
             if region:
                 logger.info("resolved region from HEAD", region=region)
                 return region
-    except Exception:
-        pass
+    except (httpx.HTTPError, OSError) as exc:
+        logger.debug(
+            "HEAD bucket region probe failed",
+            bucket=bucket,
+            error=f"{exc.__class__.__name__}: {exc}",
+        )
 
     logger.warning("could not detect region, using user-supplied")
     return None

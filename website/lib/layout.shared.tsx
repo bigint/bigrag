@@ -5,14 +5,14 @@ function BigRAGLogo() {
   return (
     <svg
       aria-hidden="true"
-      className="size-6"
+      className="size-6 text-primary"
       fill="none"
       viewBox="0 0 32 32"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect fill="#000000" height="32" rx="8" width="32" />
-      <path d="M12 6H20L26 12V20L20 26H12L6 20V12L12 6Z" fill="white" opacity="0.9" />
-      <path d="M12 6H20L26 12L20 18H12L6 12L12 6Z" fill="white" />
+      <rect fill="currentColor" height="32" rx="8" width="32" />
+      <path d="M8 12L16 6L24 12V20L16 26L8 20V12Z" fill="white" opacity="0.9" />
+      <path d="M16 6L24 12L16 18L8 12L16 6Z" fill="white" />
     </svg>
   );
 }

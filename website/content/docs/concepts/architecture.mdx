@@ -1,0 +1,132 @@
+---
+title: Architecture deep-dive
+description: Why Milvus + Postgres + Redis + Docling, how requests flow end-to-end, and where the ingestion pipeline actually does its work.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+## Four-store design
+
+bigRAG intentionally keeps four distinct stores instead of shoving
+everything into Postgres with pgvector. Each one earns its keep:
+
+- **Milvus** — the vector index. Purpose-built ANN structures (IVF,
+  HNSW) with per-collection partitions so multi-tenant filtered search
+  stays fast at 10M+ vectors.
+- **Postgres** — metadata and control plane. Collections, documents,
+  users, API keys, webhooks, query logs, audit trail, embedding cache.
+  Transactions keep ingestion consistent across stores.
+- **Redis** — the ingestion queue (`BLPOP/BLMOVE` semantics), webhook
+  delivery queue, idempotency-key cache, rate-limit counters,
+  semantic query cache. All in-flight / TTL'd work.
+- **Local disk or S3** — raw uploaded documents. Needed to produce
+  citations back into source files and to support re-embedding without
+  re-uploading.
+
+<Callout type="info">
+bigRAG can run entirely from `docker compose up` on a single machine
+for up to ~10M vectors. Past that, Milvus wants its distributed mode
+and you'll want Postgres replicas.
+</Callout>
+
+## Request flow — `POST /v1/collections/{name}/documents`
+
+```
+Client
+  │ multipart POST (file, metadata)
+  ▼
+FastAPI
+  │ 1. auth — session cookie or API key; enforces scoped-key permissions
+  │ 2. rate limit — Redis token bucket keyed by api-key hash
+  │ 3. idempotency — replay cached response if Idempotency-Key hits
+  │ 4. content-hash dedup — sha256 of bytes; if a dupe exists, return it
+  │ 5. validate — extension, magic bytes, zip-bomb guard, metadata schema
+  │ 6. optional moderation — OpenAI moderations on a preview slice
+  │ 7. INSERT documents row → commit
+  ▼
+Redis queue (LPUSH)
+  ▼
+Ingestion worker (4 by default)
+  │ a. Docling parse — OCR + layout analysis, export to markdown
+  │ b. chunk_document — paragraph or recursive strategy; tracks char offsets
+  │ c. embedding_cache.get_many — skip chunks we've embedded before
+  │ d. embed the misses — batched, with tiktoken truncation
+  │ e. vector_store.insert — Milvus upsert with dynamic metadata
+  │ f. UPDATE documents status = 'ready', emit SSE progress events
+  ▼
+Webhook dispatcher
+  │ document.ready fan-out with retries, circuit breaker, jitter
+```
+
+Failure at any step marks the document `failed` with a typed error
+message — no silent zombies. Queue failures bounce through chunk-level
+retry (3 attempts, exponential backoff) before permanently failing.
+
+## Request flow — `POST /v1/collections/{name}/query`
+
+```
+Client → FastAPI
+  │ 1. auth → scope check (query:read)
+  │ 2. rate limit
+  │ 3. semantic cache lookup — if cosine ≥ 0.97 vs a recent query, replay
+  │ 4. optional HyDE — generate hypothetical answer, embed THAT instead
+  │ 5. embed query (tiktoken-aware truncation)
+  │ 6. Milvus search (with metadata filter expression)
+  │ 7. optional hybrid fusion — keyword search + fuse (rrf/weighted/normalized)
+  │ 8. optional rerank — Cohere Rerank v3.5
+  │ 9. optional MMR diversity — over-fetched pool, lambda = 1 - diversity
+  │ 10. facets aggregation, attach timings (embed/search/rerank/mmr/total)
+  │ 11. semantic cache put — so the next paraphrase is free
+  ▼
+Response JSON with results, timings, facets, cached flag
+```
+
+Every phase is optional — a vanilla `POST /query` with just `{query}`
+skips HyDE, MMR, facets, and hybrid, returning the same shape as the
+rest.
+
+## Why Docling
+
+Alternatives considered and why we didn't pick them:
+
+- **Unstructured.io** — great coverage but requires network calls and
+  a hosted inference server by default. bigRAG needs to run offline.
+- **PyMuPDF + LangChain** — OK for PDFs but nothing else, and loses
+  layout structure.
+- **LlamaParse** — hosted only.
+
+Docling runs entirely locally, handles PDF / DOCX / PPTX / HTML /
+Markdown / images via a single API, and exposes layout provenance we
+can thread into citation metadata (`page_no`, `bbox`). OCR is on by
+default for scanned PDFs.
+
+## Why Milvus, not pgvector
+
+pgvector is tempting — one less store, one less deploy. But at scale
+the gap widens:
+
+- **Index options**: Milvus ships IVF_FLAT, HNSW, IVF_SQ8, composite.
+  pgvector has IVFFlat and HNSW. Close but Milvus is 2-3× faster on
+  HNSW with similar recall.
+- **Partitioning**: Milvus partitions are a first-class concept —
+  10-50× faster filtered search at multi-tenant scale. pgvector would
+  need separate tables or schemas.
+- **Dedicated memory management**: Milvus won't blow out Postgres's
+  shared buffers during a large ANN scan.
+
+For single-tenant deployments under ~1M vectors, pgvector would work
+— and the `VectorStore` abstraction in bigRAG leaves a door open for
+a future pgvector backend.
+
+## Scaling notes
+
+- **Horizontal API workers**: FastAPI is stateless past the lifespan.
+  Run N replicas behind a load balancer; they share Postgres, Redis,
+  and Milvus.
+- **Milvus cluster mode**: ship to `milvus-cluster` when you hit
+  ~10M vectors or need multi-AZ resilience.
+- **Postgres replication**: the control plane is read-light; a
+  warm-standby suffices for failover.
+- **Redis persistence**: enable `appendonly yes` (already set in the
+  shipped compose file). The ingestion queue loses less than a second
+  of in-flight work on crash.

@@ -29,7 +29,9 @@
       "sdks/**/*.ts",
       "website/**/*.ts",
       "website/**/*.tsx",
-      "website/**/*.mjs"
+      "website/**/*.mjs",
+      "app/src/**/*.ts",
+      "app/src/**/*.tsx"
     ]
   }
 }

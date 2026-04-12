@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from tests.conftest import make_collection_row
+from tests.conftest import install_fetchrow_router, make_collection_row
 
 
 @patch(
@@ -16,7 +16,14 @@ async def test_create_collection(_mock_emb, client, mock_db, auth_headers):
 
     # First fetchrow: duplicate check → None (no conflict)
     # Second fetchrow: INSERT RETURNING * → the new row
-    mock_db.fetchrow.side_effect = [None, row]
+    def router(query, *args):
+        if "SELECT id FROM collections WHERE name" in query:
+            return None
+        if "INSERT INTO collections" in query:
+            return row
+        return None
+
+    install_fetchrow_router(mock_db, router)
 
     resp = await client.post(
         "/v1/collections",
@@ -120,9 +127,14 @@ async def test_update_collection(client, mock_db, auth_headers):
     original = make_collection_row("upd_col")
     updated = make_collection_row("upd_col", description="new desc")
 
-    # First fetchrow: find existing row
-    # Second fetchrow: UPDATE RETURNING *
-    mock_db.fetchrow.side_effect = [original, updated]
+    def router(query, *args):
+        if "UPDATE collections" in query and "RETURNING" in query:
+            return updated
+        if "SELECT" in query and "FROM collections" in query:
+            return original
+        return None
+
+    install_fetchrow_router(mock_db, router)
 
     resp = await client.put(
         "/v1/collections/upd_col",

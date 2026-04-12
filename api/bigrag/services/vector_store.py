@@ -53,13 +53,17 @@ class VectorStore:
         logger.info(f"Connected to Milvus at {self.uri}")
 
     def reconnect(self) -> None:
-        """Reconnect to Milvus if the connection was lost."""
         logger.warning(f"Reconnecting to Milvus at {self.uri}")
-        try:
-            if self.client:
+        if self.client:
+            try:
                 self.client.close()
-        except Exception:
-            pass
+            except (ConnectionError, OSError, TimeoutError) as exc:
+                # Old client already half-dead — best-effort close is fine,
+                # but we still want the error on record.
+                logger.warning(
+                    "vector_store: disconnect during reconnect failed",
+                    error=f"{exc.__class__.__name__}: {exc}",
+                )
         self.client = MilvusClient(uri=self.uri)
         logger.info(f"Reconnected to Milvus at {self.uri}")
 
@@ -94,7 +98,7 @@ class VectorStore:
                         raise
                 else:
                     raise
-        raise last_error  # Should not reach here
+        raise last_error
 
     def close(self) -> None:
         if self.client:
@@ -109,7 +113,12 @@ class VectorStore:
         """Escape a string for safe use in Milvus filter expressions."""
         return value.replace("\\", "\\\\").replace('"', '\\"')
 
-    async def create_collection(self, name: str, dimension: int) -> None:
+    async def create_collection(
+        self,
+        name: str,
+        dimension: int,
+        index_type: str = "IVF_FLAT",
+    ) -> None:
         col = self._col(name)
 
         if await self._run_with_retry(self.client.has_collection, col):
@@ -125,12 +134,24 @@ class VectorStore:
         schema.add_field(field_name="embedding", datatype=DataType.FLOAT_VECTOR, dim=dimension)
 
         index_params = self.client.prepare_index_params()
-        index_params.add_index(
-            field_name="embedding",
-            index_type="IVF_FLAT",
-            metric_type="COSINE",
-            params={"nlist": 256},
-        )
+        if index_type.upper() == "HNSW":
+            # HNSW — better recall vs latency tradeoff for >1M vectors.
+            # M controls graph degree; efConstruction trades build time
+            # for quality. These defaults match Milvus's recommended
+            # starting point.
+            index_params.add_index(
+                field_name="embedding",
+                index_type="HNSW",
+                metric_type="COSINE",
+                params={"M": 16, "efConstruction": 200},
+            )
+        else:
+            index_params.add_index(
+                field_name="embedding",
+                index_type="IVF_FLAT",
+                metric_type="COSINE",
+                params={"nlist": 256},
+            )
 
         await self._run_with_retry(
             self.client.create_collection,
@@ -138,7 +159,39 @@ class VectorStore:
             schema=schema,
             index_params=index_params,
         )
-        logger.info(f"Created Milvus collection: {col} (dim={dimension})")
+        logger.info(
+            f"Created Milvus collection: {col} (dim={dimension}, index={index_type})"
+        )
+
+    async def ensure_partition(self, name: str, partition: str) -> None:
+        """Create a Milvus partition if it doesn't exist.
+
+        Used for partition-per-tenant isolation — filtering by partition
+        name is 10-50× faster than scalar-filter-then-scan at scale.
+        """
+        col = self._col(name)
+        # Milvus partition names must match [a-zA-Z_][a-zA-Z0-9_]{0,254}
+        safe = "".join(c if c.isalnum() or c == "_" else "_" for c in partition)[:64]
+        if not safe:
+            return
+        try:
+            has = await self._run_with_retry(
+                self.client.has_partition, collection_name=col, partition_name=safe
+            )
+            if not has:
+                await self._run_with_retry(
+                    self.client.create_partition,
+                    collection_name=col,
+                    partition_name=safe,
+                )
+                logger.info(f"Created partition: {col}/{safe}")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "vector_store: ensure_partition failed",
+                collection=col,
+                partition=safe,
+                error=str(exc),
+            )
 
     async def delete_collection(self, name: str) -> None:
         col = self._col(name)
@@ -185,7 +238,16 @@ class VectorStore:
     ) -> list[dict]:
         col = self._col(collection)
         if output_fields is None:
-            output_fields = ["text", "document_id", "chunk_index"]
+            # Include the dynamic fields used for citation provenance so
+            # callers can render page/char references inline.
+            output_fields = [
+                "text",
+                "document_id",
+                "chunk_index",
+                "char_start",
+                "char_end",
+                "page_no",
+            ]
 
         results = await self._run_with_retry(
             self.client.search,
@@ -198,15 +260,23 @@ class VectorStore:
         )
 
         hits = []
+        fixed = {"text", "document_id", "chunk_index", "embedding"}
         if results and len(results) > 0:
             for hit in results[0]:
+                entity = hit["entity"]
+                metadata = {
+                    k: v
+                    for k, v in dict(entity).items()
+                    if k not in fixed and v is not None
+                }
                 hits.append(
                     {
                         "id": hit["id"],
                         "score": hit["distance"],
-                        "text": hit["entity"].get("text", ""),
-                        "document_id": hit["entity"].get("document_id"),
-                        "chunk_index": hit["entity"].get("chunk_index"),
+                        "text": entity.get("text", ""),
+                        "document_id": entity.get("document_id"),
+                        "chunk_index": entity.get("chunk_index"),
+                        "metadata": metadata,
                     }
                 )
         logger.info(f"search: collection={col} top_k={top_k} hits={len(hits)} filter={filters}")
@@ -268,7 +338,6 @@ class VectorStore:
         """Search by text content using keyword matching."""
         col = self._col(collection)
 
-        # Build a filter that matches any of the query terms in the text field
         term_filters = []
         for term in query_terms:
             escaped = term.replace("\\", "\\\\").replace('"', '\\"').replace("%", "\\%")

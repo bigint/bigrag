@@ -1,0 +1,73 @@
+---
+title: Evaluation
+description: Measure retrieval quality against a labelled query set.
+---
+
+```
+POST /v1/admin/eval
+```
+
+Runs a batch of queries against a collection and scores the retrieved chunks against a labelled set of expected chunk IDs. Used to catch regressions when tweaking chunk size, embedding model, reranking, or search mode.
+
+Session-only.
+
+## Request
+
+```json
+{
+  "collection": "knowledge_base",
+  "search_mode": "hybrid",
+  "top_k": 10,
+  "rerank": true,
+  "queries": [
+    {
+      "query": "how do I rotate an API key?",
+      "expected_chunk_ids": ["doc-abc-123#4", "doc-abc-123#5"]
+    },
+    {
+      "query": "what's the PTO policy?",
+      "expected_chunk_ids": ["doc-def-456#12"]
+    }
+  ]
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `collection` | string | yes | Target collection |
+| `queries[]` | array | yes | 1–100 labelled queries |
+| `queries[].query` | string | yes | — |
+| `queries[].expected_chunk_ids` | string[] | yes | At least one; order doesn't matter |
+| `search_mode` | string | no | Overrides collection default |
+| `top_k` | integer | no | 1–1,000 |
+| `rerank` | boolean | no | Overrides collection default |
+
+## Response
+
+```json
+{
+  "collection": "knowledge_base",
+  "top_k": 10,
+  "results": {
+    "recall_at_1": 0.60,
+    "recall_at_5": 0.85,
+    "recall_at_10": 0.92,
+    "reciprocal_rank": 0.73,
+    "ndcg_at_10": 0.81
+  },
+  "per_query": [
+    {
+      "query": "how do I rotate an API key?",
+      "expected_chunk_ids": ["doc-abc-123#4", "doc-abc-123#5"],
+      "hit_ranks": [1, 4],
+      "recall_at_10": 1.0
+    }
+  ]
+}
+```
+
+- **Recall@k** — fraction of expected chunks that appear in the top-k hits
+- **Reciprocal Rank** — `1 / rank` of the first relevant hit, averaged across queries
+- **nDCG@k** — rank-discounted relevance, averaged across queries
+
+The Studio UI exposes the same runner under **Settings → Eval**.

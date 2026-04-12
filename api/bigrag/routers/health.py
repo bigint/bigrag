@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import asyncio
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag import __version__
+from bigrag.db.engine import session_factory
+from bigrag.db.models import Collection, Document, Webhook
+from bigrag.db.session import get_session
 from bigrag.middleware.auth import get_current_user
 from bigrag.services import redis_cache
 
@@ -60,7 +65,6 @@ async def health():
 
 @router.get("/health/ready")
 async def readiness(request: Request):
-    db = request.app.state.db
     vs = request.app.state.vector_store
     queue = request.app.state.queue
     s = request.app.state.settings
@@ -69,7 +73,8 @@ async def readiness(request: Request):
     healthy = True
 
     async def _check_postgres():
-        await db.fetchrow("SELECT 1")
+        async with session_factory()() as session:
+            await session.execute(sa.text("SELECT 1"))
 
     async def _check_milvus():
         if vs.client:
@@ -114,29 +119,32 @@ async def readiness(request: Request):
 async def platform_stats(
     request: Request,
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     cached = await redis_cache.get("stats:platform")
     if cached:
         return cached
 
-    db = request.app.state.db
     queue = request.app.state.queue
 
     async def _db_stats():
-        cols = await db.fetchrow("SELECT COUNT(*) as cnt FROM collections")
-        docs = await db.fetchrow(
-            "SELECT COUNT(*) as total, "
-            "COALESCE(SUM(file_size), 0) as total_size, "
-            "COALESCE(SUM(chunk_count), 0) as total_chunks, "
-            "COALESCE(SUM(token_count), 0) as total_tokens, "
-            "COUNT(*) FILTER (WHERE status = 'ready') as ready, "
-            "COUNT(*) FILTER (WHERE status = 'pending') as pending, "
-            "COUNT(*) FILTER (WHERE status = 'processing') as processing, "
-            "COUNT(*) FILTER (WHERE status = 'failed') as failed "
-            "FROM documents"
-        )
-        webhooks = await db.fetchrow("SELECT COUNT(*) as cnt FROM webhooks")
-        return cols, docs, webhooks
+        cols = await session.scalar(sa.select(sa.func.count()).select_from(Collection))
+        doc_row = (
+            await session.execute(
+                sa.select(
+                    sa.func.count().label("total"),
+                    sa.func.coalesce(sa.func.sum(Document.file_size), 0).label("total_size"),
+                    sa.func.coalesce(sa.func.sum(Document.chunk_count), 0).label("total_chunks"),
+                    sa.func.coalesce(sa.func.sum(Document.token_count), 0).label("total_tokens"),
+                    sa.func.count().filter(Document.status == "ready").label("ready"),
+                    sa.func.count().filter(Document.status == "pending").label("pending"),
+                    sa.func.count().filter(Document.status == "processing").label("processing"),
+                    sa.func.count().filter(Document.status == "failed").label("failed"),
+                )
+            )
+        ).one()
+        webhooks = await session.scalar(sa.select(sa.func.count()).select_from(Webhook))
+        return cols or 0, doc_row, webhooks or 0
 
     async def _queue_stats():
         return await queue.stats
@@ -144,18 +152,18 @@ async def platform_stats(
     (cols, docs, webhooks), queue_stats = await asyncio.gather(_db_stats(), _queue_stats())
 
     result = {
-        "collections": cols["cnt"],
+        "collections": cols,
         "documents": {
-            "total": docs["total"],
-            "ready": docs["ready"],
-            "pending": docs["pending"],
-            "processing": docs["processing"],
-            "failed": docs["failed"],
-            "total_chunks": int(docs["total_chunks"]),
-            "total_tokens": int(docs["total_tokens"]),
-            "total_size_bytes": int(docs["total_size"]),
+            "total": docs.total,
+            "ready": docs.ready,
+            "pending": docs.pending,
+            "processing": docs.processing,
+            "failed": docs.failed,
+            "total_chunks": int(docs.total_chunks),
+            "total_tokens": int(docs.total_tokens),
+            "total_size_bytes": int(docs.total_size),
         },
-        "webhooks": webhooks["cnt"],
+        "webhooks": webhooks,
         "queue": queue_stats,
     }
     await redis_cache.set("stats:platform", result, ttl=15)

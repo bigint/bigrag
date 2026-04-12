@@ -10,13 +10,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from tests.conftest import make_collection_row, make_document_row
+from tests.conftest import _install_auth_fetchrow, make_collection_row, make_document_row
 
 
 def _setup_fetchrow(mock_db, col_row, doc_row):
-    """Wire mock_db.fetchrow to route queries to the right row."""
+    """Wire mock_db.fetchrow to route queries to the right row.
 
-    def fetchrow_router(query, *args):
+    Reassigning ``mock_db.fetchrow`` drops the auth wrapper installed by
+    ``_install_auth_fetchrow``, so we re-install it after swapping.
+    """
+
+    async def fetchrow_router(query, *args):
         if "collections WHERE name" in query:
             return col_row
         if "documents WHERE id" in query:
@@ -28,6 +32,7 @@ def _setup_fetchrow(mock_db, col_row, doc_row):
         return None
 
     mock_db.fetchrow = AsyncMock(side_effect=fetchrow_router)
+    _install_auth_fetchrow(mock_db)
 
 
 
@@ -45,7 +50,7 @@ async def test_upload_document(client, auth_headers, mock_db, mock_storage):
         resp = await client.post(
             "/v1/collections/test_col/documents",
             headers=auth_headers,
-            files={"file": ("test.pdf", b"fake pdf content", "application/pdf")},
+            files={"file": ("test.pdf", b"%PDF-1.4\nfake pdf content", "application/pdf")},
             data={"metadata": "{}"},
         )
 
@@ -53,6 +58,42 @@ async def test_upload_document(client, auth_headers, mock_db, mock_storage):
     body = resp.json()
     assert body["filename"] == "test.pdf"
     assert body["status"] == "ready"
+
+
+@pytest.mark.asyncio
+async def test_upload_marks_failed_when_enqueue_errors(
+    client, auth_headers, mock_db, mock_storage, mock_queue
+):
+    """If Redis enqueue fails after DB insert, the document must be
+    marked status=failed and the endpoint must return 503 (not leave a
+    zombie pending row)."""
+    col_row = make_collection_row("test_col")
+    doc_row = make_document_row(collection_id=str(col_row["id"]))
+    _setup_fetchrow(mock_db, col_row, doc_row)
+    mock_queue.enqueue = AsyncMock(side_effect=RuntimeError("redis unreachable"))
+
+    with patch(
+        "bigrag.routers.documents.get_embedding_model_for",
+        return_value=MagicMock(),
+    ):
+        resp = await client.post(
+            "/v1/collections/test_col/documents",
+            headers=auth_headers,
+            files={"file": ("zombie.pdf", b"%PDF-1.4\nfake pdf", "application/pdf")},
+            data={"metadata": "{}"},
+        )
+
+    assert resp.status_code == 503, resp.text
+    # The router must have issued an UPDATE to mark the doc failed.
+    update_calls = [
+        call for call in mock_db.execute.await_args_list
+        if call.args and "UPDATE documents" in call.args[0]
+           and "status = 'failed'" in call.args[0]
+    ]
+    assert update_calls, (
+        f"Expected UPDATE documents SET status='failed' after enqueue failure. "
+        f"Got execute calls: {[c.args[:1] for c in mock_db.execute.await_args_list]}"
+    )
 
 
 @pytest.mark.asyncio

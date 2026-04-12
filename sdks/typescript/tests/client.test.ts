@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import { BigRAG } from "../src/client.js";
 import { createMockClient } from "./helpers.js";
 
-// Constructor
-
 describe("BigRAG constructor", () => {
   it("uses default baseUrl", () => {
     const { client } = createMockClient();
@@ -29,8 +27,6 @@ describe("BigRAG constructor", () => {
   });
 });
 
-// Health
-
 describe("health", () => {
   it("GET /health", async () => {
     const { client, calls } = createMockClient({ status: "ok", version: "0.0.2" });
@@ -49,8 +45,6 @@ describe("health", () => {
     expect(result.postgres).toBe(true);
   });
 });
-
-// Collections
 
 describe("collections", () => {
   it("POST /v1/collections", async () => {
@@ -106,8 +100,6 @@ describe("collections", () => {
     expect(body.default_search_mode).toBe("hybrid");
   });
 });
-
-// Documents
 
 describe("documents", () => {
   it("GET /v1/collections/{name}/documents", async () => {
@@ -166,8 +158,6 @@ describe("documents", () => {
   });
 });
 
-// Batch operations
-
 describe("batch operations", () => {
   it("POST .../documents/batch/status", async () => {
     const { client, calls } = createMockClient({ documents: [], total: 0 });
@@ -185,8 +175,6 @@ describe("batch operations", () => {
     expect(JSON.parse(calls[0].body!).document_ids).toEqual(["id1", "id2"]);
   });
 });
-
-// Query
 
 describe("query", () => {
   it("POST /v1/collections/{name}/query", async () => {
@@ -215,8 +203,6 @@ describe("query", () => {
   });
 });
 
-// Vectors
-
 describe("vectors", () => {
   it("POST .../vectors/upsert", async () => {
     const { client, calls } = createMockClient({ status: "ok", upserted: 1 });
@@ -235,8 +221,6 @@ describe("vectors", () => {
     expect(JSON.parse(calls[0].body!).ids).toEqual(["v1", "v2"]);
   });
 });
-
-// Stats & Embeddings
 
 describe("stats and embeddings", () => {
   it("GET /v1/stats", async () => {
@@ -257,8 +241,6 @@ describe("stats and embeddings", () => {
     expect(calls[0].url).toContain("/v1/collections/docs/analytics");
   });
 });
-
-// Webhooks
 
 describe("webhooks", () => {
   it("POST /v1/admin/webhooks", async () => {
@@ -314,8 +296,6 @@ describe("webhooks", () => {
   });
 });
 
-// Auth headers
-
 describe("auth headers", () => {
   it("sends Bearer token when apiKey is set", async () => {
     const { client, calls } = createMockClient({}, 200, { apiKey: "secret" });
@@ -341,8 +321,6 @@ describe("auth headers", () => {
     expect(calls[0].headers["Content-Type"]).toBeUndefined();
   });
 });
-
-// CollectionClient (scoped)
 
 describe("CollectionClient", () => {
   it("delegates query with collection name", async () => {

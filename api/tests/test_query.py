@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from bigrag.services.retrieval import RetrievalOutcome
 from tests.conftest import make_collection_row
 
 SAMPLE_RESULTS = [
@@ -17,6 +18,16 @@ SAMPLE_RESULTS = [
         "chunk_index": 0,
     }
 ]
+
+
+def _outcome(results):
+    """Wrap a plain result list in a RetrievalOutcome for router tests."""
+    return RetrievalOutcome(
+        results=results,
+        embed_ms=5.0,
+        search_ms=12.0,
+        total_ms=20.0,
+    )
 
 SAMPLE_MULTI_RESULTS = [
     {
@@ -48,6 +59,118 @@ ANALYTICS_PERIOD_ROW = {
 
 
 @pytest.mark.asyncio
+async def test_query_response_surfaces_timings_and_facets(
+    client, auth_headers, mock_db
+):
+    mock_db.fetchrow.return_value = make_collection_row("fc")
+
+    facet_results = [
+        {
+            "id": "c1",
+            "text": "a",
+            "score": 0.9,
+            "document_id": "d1",
+            "chunk_index": 0,
+            "metadata": {"source": "s3"},
+        },
+        {
+            "id": "c2",
+            "text": "b",
+            "score": 0.8,
+            "document_id": "d2",
+            "chunk_index": 0,
+            "metadata": {"source": "local"},
+        },
+    ]
+    outcome = RetrievalOutcome(
+        results=facet_results,
+        embed_ms=2.1,
+        search_ms=8.4,
+        rerank_ms=0.0,
+        total_ms=11.0,
+        facets={"source": {"s3": 1, "local": 1}},
+    )
+
+    with (
+        patch(
+            "bigrag.routers.query.get_collection_or_404",
+            new_callable=AsyncMock,
+            return_value=make_collection_row("fc"),
+        ),
+        patch("bigrag.routers.query.get_embedding_model_for", return_value=MagicMock()),
+        patch(
+            "bigrag.routers.query.get_reranking_config",
+            return_value={"enabled": False, "model": "rerank-v3.5", "api_key": None},
+        ),
+        patch(
+            "bigrag.routers.query.retrieve",
+            new_callable=AsyncMock,
+            return_value=outcome,
+        ),
+    ):
+        resp = await client.post(
+            "/v1/collections/fc/query",
+            json={"query": "test", "facets": ["source"]},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["timings"]["embed_ms"] == 2.1
+    assert body["timings"]["search_ms"] == 8.4
+    assert body["timings"]["total_ms"] == 11.0
+    assert body["facets"] == {"source": {"s3": 1, "local": 1}}
+
+
+@pytest.mark.asyncio
+async def test_query_result_lifts_provenance_from_metadata(
+    client, auth_headers, mock_db
+):
+    """page_no/char_start/char_end set in chunk metadata must surface as
+    first-class QueryResult fields for inline citations."""
+    mock_db.fetchrow.return_value = make_collection_row("prov")
+
+    results = [
+        {
+            "id": "c1",
+            "text": "cite me",
+            "score": 0.9,
+            "document_id": "d1",
+            "chunk_index": 0,
+            "metadata": {"page_no": 7, "char_start": 120, "char_end": 160},
+        }
+    ]
+    with (
+        patch(
+            "bigrag.routers.query.get_collection_or_404",
+            new_callable=AsyncMock,
+            return_value=make_collection_row("prov"),
+        ),
+        patch("bigrag.routers.query.get_embedding_model_for", return_value=MagicMock()),
+        patch(
+            "bigrag.routers.query.get_reranking_config",
+            return_value={"enabled": False, "model": "rerank-v3.5", "api_key": None},
+        ),
+        patch(
+            "bigrag.routers.query.retrieve",
+            new_callable=AsyncMock,
+            return_value=_outcome(results),
+        ),
+    ):
+        resp = await client.post(
+            "/v1/collections/prov/query",
+            json={"query": "test"},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    row = resp.json()["results"][0]
+    assert row["page_no"] == 7
+    assert row["char_start"] == 120
+    assert row["char_end"] == 160
+
+
+@pytest.mark.asyncio
 async def test_query_collection(client, auth_headers, mock_db):
     mock_db.fetchrow.return_value = make_collection_row("test_col")
 
@@ -68,7 +191,7 @@ async def test_query_collection(client, auth_headers, mock_db):
         patch(
             "bigrag.routers.query.retrieve",
             new_callable=AsyncMock,
-            return_value=SAMPLE_RESULTS,
+            return_value=_outcome(SAMPLE_RESULTS),
         ),
     ):
         resp = await client.post(
@@ -149,7 +272,7 @@ async def test_batch_query(client, auth_headers, mock_db):
         patch(
             "bigrag.routers.query.retrieve",
             new_callable=AsyncMock,
-            return_value=SAMPLE_RESULTS,
+            return_value=_outcome(SAMPLE_RESULTS),
         ),
     ):
         resp = await client.post(

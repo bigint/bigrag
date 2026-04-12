@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "./dev.sh",
     "dev:website": "pnpm --filter @bigrag/docs dev",
+    "dev:app": "pnpm --filter @bigrag/app dev",
+    "build:app": "pnpm --filter @bigrag/app build",
     "build:sdk": "pnpm --filter @bigrag/client build",
     "build:website": "pnpm --filter @bigrag/docs build",
     "test:sdk": "pnpm --filter @bigrag/client test",

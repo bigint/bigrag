@@ -15,7 +15,7 @@ Upload a document for ingestion. Uses `multipart/form-data`.
 
 ```bash
 curl -X POST http://localhost:6100/v1/collections/research/documents \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -F "file=@paper.pdf" \
   -F 'metadata={"author": "Smith", "year": 2026}'
 ```
@@ -42,12 +42,16 @@ curl -X POST http://localhost:6100/v1/collections/research/documents \
   "status": "pending",
   "error_message": null,
   "metadata": { "author": "Smith", "year": 2026 },
+  "content_hash": "sha256:7f3c…",
+  "deduped": false,
   "created_at": "2026-04-01T00:00:00Z",
   "updated_at": "2026-04-01T00:00:00Z"
 }
 ```
 
-**Errors:** `400` — Unsupported file type, `404` — Collection not found, `413` — File too large
+`content_hash` is a SHA-256 of the uploaded bytes used for deduplication — if a collection already has a document with the same hash, the new upload is rejected as a duplicate and `deduped` is `true` on the returned record. See [Collections → `content_hash` dedup](/docs/concepts/collections).
+
+**Errors:** `400` — Unsupported file type, `404` — Collection not found, `409` — Duplicate content (same `content_hash` already ingested), `413` — File too large
 
 ## List Documents
 
@@ -75,6 +79,8 @@ GET /v1/collections/{collection_name}/documents
       "status": "ready",
       "error_message": null,
       "metadata": {},
+      "content_hash": "sha256:7f3c…",
+      "deduped": false,
       "created_at": "...",
       "updated_at": "..."
     }
@@ -180,7 +186,7 @@ List objects in an S3 bucket (optionally filtered by prefix) and ingest all supp
 
 ```bash
 curl -X POST http://localhost:6100/v1/collections/research/documents/s3 \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "bucket": "my-docs-bucket",
@@ -196,7 +202,7 @@ For public buckets (like [AWS Open Data](https://registry.opendata.aws/)), use `
 
 ```bash
 curl -X POST http://localhost:6100/v1/collections/legal/documents/s3 \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "bucket": "indian-supreme-court-judgments",
@@ -302,7 +308,7 @@ Reset and re-run an existing S3 ingest job. Cancels the job if it is currently r
 
 ```bash
 curl -X POST http://localhost:6100/v1/collections/research/s3-jobs/{job_id}/resync \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+  -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 
 **Response** `200`:
@@ -326,7 +332,7 @@ Delete an S3 ingest job. Cancels the job if it is currently running.
 
 ```bash
 curl -X DELETE http://localhost:6100/v1/collections/research/s3-jobs/{job_id} \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+  -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 
 **Response** `200`:
@@ -370,7 +376,7 @@ Upload up to 100 documents in a single request.
 
 ```bash
 curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/upload \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -F "files=@paper1.pdf" \
   -F "files=@paper2.pdf" \
   -F 'metadata={"source": "batch-import"}'
@@ -415,6 +421,8 @@ Fetch full metadata for up to 100 documents by ID.
       "status": "ready",
       "error_message": null,
       "metadata": {},
+      "content_hash": "sha256:7f3c…",
+      "deduped": false,
       "created_at": "...",
       "updated_at": "..."
     }

@@ -4,38 +4,40 @@ description: Supported embedding providers and models for vector search.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 
-bigRAG supports multiple embedding providers. Each collection can use a different provider and model.
+bigRAG supports three provider families. Each collection picks one at creation time and stores its own copy of the config, so different collections on the same instance can use different models.
 
-## Supported Models
+## Providers
+
+- **`openai`** — the OpenAI API
+- **`cohere`** — the Cohere Embed API
+- **`openai_compatible`** — any HTTP endpoint that implements the OpenAI `/embeddings` shape (Ollama, vLLM, TEI / HuggingFace Text Embedding Inference, Infinity, LiteLLM, Azure OpenAI, Bedrock via LiteLLM, self-hosted models, …)
+
+## Managed models
 
 | Provider | Model | Dimensions | Notes |
 |----------|-------|------------|-------|
-| **OpenAI** | `text-embedding-3-small` | 1536 | Default model |
-| **OpenAI** | `text-embedding-3-large` | 3072 | Best quality (OpenAI) |
+| **OpenAI** | `text-embedding-3-small` | 1536 | Default |
+| **OpenAI** | `text-embedding-3-large` | 3072 | Best OpenAI quality |
+| **OpenAI** | `text-embedding-ada-002` | 1536 | Legacy |
 | **Cohere** | `embed-english-v3.0` | 1024 | English-optimized |
-| **Cohere** | `embed-multilingual-v3.0` | 1024 | Multilingual support |
-| **Cohere** | `embed-english-light-v3.0` | 384 | Lightweight English model |
-| **Cohere** | `embed-multilingual-light-v3.0` | 384 | Lightweight multilingual model |
-
-## Listing Available Models
+| **Cohere** | `embed-multilingual-v3.0` | 1024 | 100+ languages |
+| **Cohere** | `embed-english-light-v3.0` | 384 | Cheap, lightweight |
+| **Cohere** | `embed-multilingual-light-v3.0` | 384 | Cheap, multilingual |
 
 ```bash
 curl http://localhost:6100/v1/embeddings/models \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+  -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 
-Returns all available embedding models with their dimensions and descriptions.
+## Configuring a collection
 
-## Configuring per Collection
-
-Embedding configuration is set when creating a collection. Each collection can use a different provider and model.
-
-### OpenAI
-
+<Tabs items={["OpenAI", "Cohere", "Ollama (openai_compatible)", "vLLM / TEI / LiteLLM"]}>
+<Tab value="OpenAI">
 ```bash
 curl -X POST http://localhost:6100/v1/collections \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "openai_collection",
@@ -45,37 +47,87 @@ curl -X POST http://localhost:6100/v1/collections \
     "dimension": 1536
   }'
 ```
-
-### Cohere
-
+</Tab>
+<Tab value="Cohere">
 ```bash
 curl -X POST http://localhost:6100/v1/collections \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "cohere_collection",
     "embedding_provider": "cohere",
     "embedding_model": "embed-english-v3.0",
-    "embedding_api_key": "your-cohere-api-key",
+    "embedding_api_key": "co-...",
     "dimension": 1024
   }'
 ```
-
-## How Embedding Works
-
-1. When a document is processed, its text is split into chunks
-2. Each chunk is sent to the configured embedding provider's API
-3. The resulting vector is stored in Milvus alongside the chunk text
-4. Queries are embedded using the same model for consistent similarity comparison
-
-## Concurrency
-
-Embedding requests are rate-limited by a semaphore to avoid overwhelming the provider API. Configure the concurrency limit:
-
+</Tab>
+<Tab value="Ollama (openai_compatible)">
 ```bash
-BIGRAG_EMBEDDING_CONCURRENCY=8  # Max concurrent embedding requests (default)
+curl -X POST http://localhost:6100/v1/collections \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "local_collection",
+    "embedding_provider": "openai_compatible",
+    "embedding_model": "nomic-embed-text",
+    "embedding_base_url": "http://ollama.internal:11434/v1",
+    "embedding_api_key": "ollama",
+    "dimension": 768
+  }'
 ```
+</Tab>
+<Tab value="vLLM / TEI / LiteLLM">
+```bash
+curl -X POST http://localhost:6100/v1/collections \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "vllm_collection",
+    "embedding_provider": "openai_compatible",
+    "embedding_model": "BAAI/bge-large-en-v1.5",
+    "embedding_base_url": "http://vllm.internal:8000/v1",
+    "embedding_api_key": "dummy",
+    "dimension": 1024
+  }'
+```
+</Tab>
+</Tabs>
+
+`embedding_api_key` is always required — for self-hosted gateways that don't authenticate, pass any non-empty string.
+
+### OpenAI-compatible endpoints in practice
+
+Any gateway that speaks the OpenAI `/embeddings` shape works. Common choices:
+
+| Tool | Typical `embedding_base_url` |
+|------|------------------------------|
+| Ollama | `http://ollama:11434/v1` |
+| vLLM | `http://vllm:8000/v1` |
+| TEI (HuggingFace) | `http://tei:80/v1` |
+| Infinity | `http://infinity:7997/v1` |
+| LiteLLM proxy | `http://litellm:4000/v1` |
+| Azure OpenAI (via LiteLLM) | `http://litellm:4000/v1` |
+| Bedrock (via LiteLLM) | `http://litellm:4000/v1` |
+
+## How embedding works
+
+1. Text extraction (via Docling) splits the document into pages and paragraphs.
+2. The chunker produces chunks according to the collection's `chunk_size`, `chunk_overlap`, and `chunk_strategy`.
+3. Each chunk's SHA-256 content hash is looked up in the persistent `embedding_cache`. Hits are reused; misses are sent to the provider.
+4. New vectors are batched at `BIGRAG_INGESTION_BATCH_SIZE` and written to Milvus.
+5. Queries embed the same way, so the cache also accelerates re-running identical queries.
+
+The cache key is `(content_hash, provider, model, dimension)`. Switching a collection's model invalidates cache hits automatically — on re-embed, unchanged chunks under the **new** model still start cold, but if you switch back they're hot again.
+
+## Concurrency & throughput
+
+Embedding requests are guarded by a semaphore (`BIGRAG_EMBEDDING_CONCURRENCY`, default 8). Raise it for high-QPS providers; lower it if you're hitting rate limits. Token counting uses `tiktoken` where the provider ships a tokenizer and falls back to a 4-character-per-token heuristic otherwise.
+
+## Reranking
+
+Reranking is a separate concern: enable `reranking_enabled` on a collection to add a Cohere cross-encoder pass after retrieval. It's configured independently (different key, different model) because it often makes sense to embed with a cheap local model and rerank with a strong managed one.
 
 <Callout type="warn">
-  The embedding model and dimension cannot be changed after a collection is created. All documents in a collection must use the same embedding model for consistent vector search.
+The embedding provider, model, dimension, and `embedding_base_url` **cannot** be changed after a collection is created — chunk vectors are only meaningful under the model that produced them. If you need to switch models, create a new collection, trigger [`POST /v1/collections/{name}/reembed`](/docs/api-reference/collections#re-embed-collection) after updating, or run a re-ingest.
 </Callout>

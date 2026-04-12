@@ -213,7 +213,8 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 | `BIGRAG_DATABASE_URL` | Postgres URL | `postgres://bigrag:bigrag@localhost:5433/bigrag` |
 | `BIGRAG_MILVUS_URI` | Milvus URI | `http://localhost:19530` |
 | `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6380/0` |
-| `BIGRAG_API_SECRET` | API auth secret (open if unset) | — |
+| `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
+| `BIGRAG_SESSION_COOKIE_SECURE` | HTTPS-only session cookies | `false` |
 | `BIGRAG_EMBEDDING_API_KEY` | Default embedding API key | — |
 | `BIGRAG_INGESTION_WORKERS` | Background workers | `4` |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload size | `1024` |

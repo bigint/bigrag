@@ -37,6 +37,24 @@ export class CollectionsResource {
   }
 
   /**
+   * Auto-paginate every collection. Useful for batch operations across
+   * all collections without manual offset tracking.
+   */
+  async *listAll(
+    options?: Omit<CollectionListOptions, "offset">,
+  ): AsyncGenerator<Collection> {
+    const pageSize = options?.limit ?? 100;
+    let offset = 0;
+    while (true) {
+      const page = await this.list({ ...options, limit: pageSize, offset });
+      for (const c of page.collections) yield c;
+      if (page.collections.length < pageSize) return;
+      offset += page.collections.length;
+      if (offset >= page.total) return;
+    }
+  }
+
+  /**
    * Retrieve a single collection by name.
    *
    * @param name - The collection name.

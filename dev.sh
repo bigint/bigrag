@@ -145,10 +145,15 @@ if [ "$START_BACKEND" = true ]; then
     uv sync --directory "$ROOT_DIR/api" --quiet
   fi
 
+  # Fixed dev Fernet key so contributor setups are one-command. DO NOT reuse
+  # in prod — the production startup guard requires an operator-supplied key.
+  DEV_MASTER_KEY="${BIGRAG_MASTER_KEY:-Zm5VZ4vO8r0y3rVsT0xz7nxV_wP7u6-n5tB1GAlHZIw=}"
+
   echo -e "${CYAN}Starting Python backend (auto-reload)...${NC}"
   BIGRAG_DATABASE_URL="$DATABASE_URL" \
   BIGRAG_MILVUS_URI="$MILVUS_URI" \
   BIGRAG_REDIS_URL="$REDIS_URL" \
+  BIGRAG_MASTER_KEY="$DEV_MASTER_KEY" \
   PYTHONUNBUFFERED=1 \
   uv run --directory "$ROOT_DIR/api" uvicorn bigrag.main:create_app \
     --factory --host 0.0.0.0 --port 6100 \

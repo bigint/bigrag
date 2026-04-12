@@ -1,0 +1,103 @@
+---
+title: API Keys
+description: Mint, list, update, and revoke bigrag_sk_ keys.
+---
+
+Base path: `/v1/admin/api-keys`
+
+API keys are the credential that SDKs and backend services use against bigRAG. Plaintext values are returned **once** on creation and then never re-retrievable; only the prefix and a SHA-256 hash are persisted.
+
+Session-only: every endpoint below requires a session cookie. You cannot mint new keys using an existing key.
+
+## List Keys
+
+```
+GET /v1/admin/api-keys?limit=50&offset=0
+```
+
+**Response** `200`:
+
+```json
+{
+  "keys": [
+    {
+      "id": "b0f8…",
+      "name": "ingestion-worker",
+      "prefix": "bigrag_sk_abcd",
+      "active": true,
+      "scopes": ["document:*", "collection:read"],
+      "rate_limits": { "POST:/v1/collections/{name}/query": 300 },
+      "expires_at": null,
+      "last_used_at": "2026-04-12T10:21:44Z",
+      "created_at": "2026-04-01T00:00:00Z",
+      "updated_at": "2026-04-01T00:00:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+## Create Key
+
+```
+POST /v1/admin/api-keys
+```
+
+```json
+{
+  "name": "ingestion-worker",
+  "scopes": ["document:*", "collection:read"],
+  "rate_limits": { "POST:/v1/collections/{name}/query": 300 },
+  "expires_at": "2027-01-01T00:00:00Z"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `name` | string | yes | Human label |
+| `scopes` | string[] | no | Omit / empty = full access. See [scopes](/docs/api-reference/authentication#scopes) |
+| `rate_limits` | object | no | `"METHOD:PATH" → requests/min` |
+| `expires_at` | string (RFC3339) | no | `null` = never |
+
+**Response** `201`:
+
+```json
+{
+  "id": "b0f8…",
+  "name": "ingestion-worker",
+  "prefix": "bigrag_sk_abcd",
+  "active": true,
+  "scopes": ["document:*", "collection:read"],
+  "rate_limits": { "POST:/v1/collections/{name}/query": 300 },
+  "expires_at": "2027-01-01T00:00:00Z",
+  "created_at": "2026-04-12T10:21:44Z",
+  "updated_at": "2026-04-12T10:21:44Z",
+  "key": "bigrag_sk_abcd_…_XXXXXXXXXXXXXXXXXXXXXXXX"
+}
+```
+
+Store `key` immediately — it is not retrievable later.
+
+## Update Key
+
+```
+PATCH /v1/admin/api-keys/{key_id}
+```
+
+```json
+{ "name": "ingest-prod", "active": false, "scopes": ["query:read"], "rate_limits": null }
+```
+
+Any combination of the four fields is permitted. Deactivating (`active: false`) is the non-destructive way to freeze a leaked key while you investigate; the audit log still references it.
+
+**Response** `200`: updated key (without `key`).
+
+## Delete Key
+
+```
+DELETE /v1/admin/api-keys/{key_id}
+```
+
+Permanently revokes the key. Any in-flight request that has already been authenticated still completes; subsequent requests return `401`.
+
+**Response** `200`: `{"status": "ok", "message": "API key deleted"}`.

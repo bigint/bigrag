@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from tests.conftest import make_collection_row, make_webhook_row
+from tests.conftest import install_fetchrow_router, make_collection_row, make_webhook_row
 
 
 class TestFilterExpressions:
@@ -90,8 +90,6 @@ class TestFilterExpressions:
         expr = _build_filter_expr({})
         assert expr is None
 
-    # -- Security: injection rejection tests --
-
     def test_comparison_rejects_string_value(self):
         """String values in $gt/$gte/$lt/$lte are the primary injection vector."""
         from bigrag.services.retrieval import _build_filter_expr
@@ -124,8 +122,6 @@ class TestFilterExpressions:
             _build_filter_expr({"field": {"$in": [{"nested": "dict"}]}})
         with pytest.raises(ValueError, match="requires a scalar value"):
             _build_filter_expr({"field": {"$in": [None]}})
-
-    # -- Happy path gaps --
 
     def test_operator_gte_lte(self):
         from bigrag.services.retrieval import _build_filter_expr
@@ -281,7 +277,7 @@ async def test_upload_to_nonexistent_collection(client, auth_headers, mock_db):
             return None
         return None
 
-    mock_db.fetchrow = AsyncMock(side_effect=fetchrow_router)
+    install_fetchrow_router(mock_db, fetchrow_router)
 
     resp = await client.post(
         "/v1/collections/nonexistent/documents",
@@ -298,7 +294,7 @@ async def test_list_documents_nonexistent_collection(client, auth_headers, mock_
             return None
         return None
 
-    mock_db.fetchrow = AsyncMock(side_effect=fetchrow_router)
+    install_fetchrow_router(mock_db, fetchrow_router)
 
     resp = await client.get(
         "/v1/collections/nonexistent/documents",
@@ -391,6 +387,8 @@ async def test_auth_extra_whitespace_in_token(client):
     """Token with extra whitespace should be rejected."""
     from tests.conftest import TEST_API_SECRET
 
+    # Clear the pre-attached session cookie so only the bearer is evaluated.
+    client.cookies.clear()
     resp = await client.get(
         "/v1/collections",
         headers={"Authorization": f"Bearer  {TEST_API_SECRET}"},
@@ -400,6 +398,7 @@ async def test_auth_extra_whitespace_in_token(client):
 
 async def test_auth_empty_bearer_token(client):
     """Empty Bearer token should be rejected."""
+    client.cookies.clear()
     resp = await client.get(
         "/v1/collections",
         headers={"Authorization": "Bearer "},
@@ -411,8 +410,9 @@ async def test_auth_empty_bearer_token(client):
 
 async def test_create_webhook_max_limit(client, auth_headers, mock_db):
     """Should reject creation when webhook limit is reached."""
-    mock_db.fetchrow.side_effect = lambda query, *args: (
-        {"cnt": 100} if "COUNT(*)" in query else None
+    install_fetchrow_router(
+        mock_db,
+        lambda query, *args: {"cnt": 100} if "COUNT(*)" in query else None,
     )
 
     resp = await client.post(
@@ -468,7 +468,7 @@ async def test_create_webhook_with_collections_filter(client, auth_headers, mock
             return row
         return None
 
-    mock_db.fetchrow.side_effect = fetchrow_router
+    install_fetchrow_router(mock_db, fetchrow_router)
 
     resp = await client.post(
         "/v1/admin/webhooks",
@@ -656,6 +656,7 @@ class TestRetrievalHelpers:
 
 
 async def test_embedding_models_requires_auth(client):
+    client.cookies.clear()
     resp = await client.get("/v1/embeddings/models")
     assert resp.status_code == 401
 

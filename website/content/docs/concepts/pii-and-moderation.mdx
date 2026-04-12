@@ -1,0 +1,91 @@
+---
+title: PII Redaction & Moderation
+description: Per-collection switches for stripping PII and rejecting unsafe uploads.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Two optional switches harden a collection against the content it ingests. Both are **per-collection** — enable them on sensitive collections and leave them off elsewhere to avoid paying the tax unnecessarily.
+
+## PII Redaction (`redact_pii`)
+
+When `redact_pii: true` is set on a collection, text extracted by Docling is run through a PII scrubber **before** chunking and embedding. Emails, phone numbers, national IDs, credit card numbers, and a configurable name list are replaced with typed placeholders (`[EMAIL]`, `[PHONE]`, `[NAME]`, …).
+
+```bash
+curl -X POST http://localhost:6100/v1/collections \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "support_tickets",
+    "embedding_provider": "openai",
+    "embedding_api_key": "sk-…",
+    "redact_pii": true
+  }'
+```
+
+### What it does and doesn't touch
+
+- **Embedded** — redacted text. Search results surface the redacted version.
+- **Stored file** — original bytes are kept unchanged on disk / S3 so you can still serve them via `GET /documents/{id}/file` for human review.
+- **Chunks** — the `text` field on `/chunks` responses is redacted.
+- **Metadata** — not touched. Don't put PII in metadata.
+
+Turning the switch on later only affects **new** uploads. Call [`POST /v1/collections/{name}/reembed`](/docs/api-reference/collections#re-embed-collection) to re-process existing documents under the new policy.
+
+### When to use it
+
+- Customer support transcripts
+- Health / HR records
+- Any collection that might feed into a response that leaves the trust boundary
+
+<Callout type="warn">
+PII redaction is best-effort. It catches common, well-structured PII but is not a substitute for data classification or DLP on the ingestion side. Don't rely on it to make an untrusted corpus safe.
+</Callout>
+
+## Content Moderation (`moderation_enabled`)
+
+When `moderation_enabled: true`, every upload's extracted text is scored by a moderation endpoint. Uploads that violate the policy are rejected with `400` and **never written** to storage or Milvus — the file is not retained.
+
+```bash
+curl -X POST http://localhost:6100/v1/collections \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "public_uploads",
+    "embedding_provider": "openai",
+    "embedding_api_key": "sk-…",
+    "moderation_enabled": true
+  }'
+```
+
+### When to use it
+
+- User-submitted uploads where you don't control the source
+- Multi-tenant SaaS where one tenant's policy violation could affect others
+- Collections feeding a chat product
+
+### When to skip it
+
+- Internal, authored content — moderation on an engineering handbook is pure cost and false positives
+- Cases where you need everything retained for compliance (turn it off and filter on the query side instead)
+
+Rejections are audited as `document.upload` with `status: rejected` and the violation categories in `metadata`, so you can review and whitelist edge cases.
+
+## Combining with metadata_schema
+
+For structured metadata you control, add a `metadata_schema` (JSON Schema) on the collection. Uploads that don't match the schema are rejected **before** running the PII scrubber or moderation pass. This is the cheapest defence — block it at the gate.
+
+```json
+{
+  "metadata_schema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {"type": "string"},
+      "classification": {"enum": ["public", "internal", "restricted"]}
+    },
+    "required": ["tenant_id", "classification"]
+  }
+}
+```
+
+See [Collections](/docs/api-reference/collections#create-collection) for the full field list.

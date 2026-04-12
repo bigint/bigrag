@@ -1,0 +1,45 @@
+---
+title: User Preferences
+description: Per-user JSON blob for Studio UI state.
+---
+
+Base path: `/v1/preferences`
+
+Session-only. This is a JSON scratch-pad scoped to the logged-in user — Studio UI uses it to persist sidebar state, default collection filter, preferred search mode, theme, and similar client-side prefs. The server does not interpret the payload.
+
+## Get Preferences
+
+```
+GET /v1/preferences
+```
+
+**Response** `200`:
+
+```json
+{
+  "data": {
+    "theme": "dark",
+    "sidebar_collapsed": false,
+    "default_collection": "knowledge_base",
+    "playground": { "search_mode": "hybrid", "top_k": 10 }
+  }
+}
+```
+
+New users return `{"data": {}}`.
+
+## Update Preferences
+
+```
+PUT /v1/preferences
+```
+
+Replaces the stored blob wholesale — merge client-side if you only want to patch one key.
+
+```json
+{ "data": { "theme": "light" } }
+```
+
+**Response** `200`: echoes the new `data`.
+
+There is no size validation beyond the standard request-body limit, but keep payloads small (&lt;64 KB) — this isn't a document store.

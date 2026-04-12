@@ -15,6 +15,8 @@ class DocumentResponse(BaseModel):
     status: str
     error_message: str | None = None
     metadata: dict
+    content_hash: str | None = None
+    deduped: bool = False
     created_at: datetime
     updated_at: datetime
 

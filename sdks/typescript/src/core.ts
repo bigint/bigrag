@@ -14,6 +14,22 @@ export interface BigRAGOptions {
   timeout?: number;
   maxRetries?: number;
   fetch?: typeof globalThis.fetch;
+  /**
+   * If true (default), mutating requests (POST/PUT/PATCH/DELETE) that
+   * don't have an explicit `idempotencyKey` get a random UUID attached.
+   * A retried request with the same key replays the first response.
+   */
+  autoIdempotencyKey?: boolean;
+}
+
+/** Per-request options for mutating SDK calls. */
+export interface MutatingRequestOptions {
+  /**
+   * Override the idempotency key for this request. Pass an explicit
+   * string to make client retries safe across redeploys; pass `null`
+   * to opt out entirely for this call.
+   */
+  idempotencyKey?: string | null;
 }
 
 /**
@@ -27,11 +43,19 @@ export interface RequestClient {
   _request<T>(
     method: string,
     path: string,
-    opts?: { json?: unknown; params?: Record<string, string> },
+    opts?: {
+      json?: unknown;
+      params?: Record<string, string>;
+      idempotencyKey?: string | null;
+    },
   ): Promise<T>;
 
   /** Issue a `multipart/form-data` POST and return the parsed response body. */
-  _requestFormData<T>(path: string, formData: FormData): Promise<T>;
+  _requestFormData<T>(
+    path: string,
+    formData: FormData,
+    opts?: { idempotencyKey?: string | null },
+  ): Promise<T>;
 
   /** The base URL of the API server (no trailing slash). */
   readonly baseUrl: string;
@@ -49,12 +73,25 @@ export interface RequestClient {
  * Handles authentication headers, retries with exponential back-off,
  * timeout via `AbortSignal.timeout`, and error classification.
  */
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function randomIdempotencyKey(): string {
+  // Prefer crypto.randomUUID when available (Node 19+ and modern browsers).
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  // Fallback: 128 bits of entropy as hex.
+  let s = "";
+  for (let i = 0; i < 32; i++) s += Math.floor(Math.random() * 16).toString(16);
+  return `${s.slice(0, 8)}-${s.slice(8, 12)}-${s.slice(12, 16)}-${s.slice(16, 20)}-${s.slice(20)}`;
+}
+
 export class BigRAGCore implements RequestClient {
   readonly apiKey: string;
   readonly baseUrl: string;
   readonly timeout: number;
   readonly maxRetries: number;
   readonly _fetch: typeof globalThis.fetch;
+  readonly autoIdempotencyKey: boolean;
 
   constructor(options: BigRAGOptions = {}) {
     this.apiKey =
@@ -66,6 +103,7 @@ export class BigRAGCore implements RequestClient {
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
     this._fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.autoIdempotencyKey = options.autoIdempotencyKey ?? true;
   }
 
   /** @internal Build standard request headers including auth. */
@@ -139,11 +177,30 @@ export class BigRAGCore implements RequestClient {
     throw errorForStatus(response.status, message, code);
   }
 
+  /**
+   * @internal Resolve the Idempotency-Key for this request.
+   *
+   * - Explicit string → use as-is.
+   * - Explicit null → never send the header.
+   * - undefined + mutating verb + autoIdempotencyKey → auto-generate.
+   * - undefined + GET/HEAD/OPTIONS → never send.
+   */
+  _resolveIdempotencyKey(method: string, explicit: string | null | undefined): string | null {
+    if (explicit === null) return null;
+    if (typeof explicit === "string" && explicit.length > 0) return explicit;
+    if (!this.autoIdempotencyKey) return null;
+    return MUTATING_METHODS.has(method) ? randomIdempotencyKey() : null;
+  }
+
   /** Issue a JSON-based HTTP request and return the parsed response body. */
   async _request<T>(
     method: string,
     path: string,
-    opts?: { json?: unknown; params?: Record<string, string> },
+    opts?: {
+      json?: unknown;
+      params?: Record<string, string>;
+      idempotencyKey?: string | null;
+    },
   ): Promise<T> {
     let url = `${this.baseUrl}${path}`;
     if (opts?.params) {
@@ -156,6 +213,8 @@ export class BigRAGCore implements RequestClient {
       headers["Content-Type"] = "application/json";
       body = JSON.stringify(opts.json);
     }
+    const idemKey = this._resolveIdempotencyKey(method, opts?.idempotencyKey);
+    if (idemKey) headers["Idempotency-Key"] = idemKey;
 
     const response = await this._fetchWithRetry(url, { method, headers, body });
 
@@ -166,11 +225,18 @@ export class BigRAGCore implements RequestClient {
   }
 
   /** Issue a `multipart/form-data` POST and return the parsed response body. */
-  async _requestFormData<T>(path: string, formData: FormData): Promise<T> {
+  async _requestFormData<T>(
+    path: string,
+    formData: FormData,
+    opts?: { idempotencyKey?: string | null },
+  ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+    const headers: Record<string, string> = { ...this._headers() };
+    const idemKey = this._resolveIdempotencyKey("POST", opts?.idempotencyKey);
+    if (idemKey) headers["Idempotency-Key"] = idemKey;
     const response = await this._fetchWithRetry(url, {
       method: "POST",
-      headers: this._headers(),
+      headers,
       body: formData,
     });
     return (await response.json()) as T;

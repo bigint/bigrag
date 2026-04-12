@@ -1,0 +1,83 @@
+---
+title: Embedding Presets
+description: Reusable embedding provider + model configurations.
+---
+
+Base path: `/v1/admin/embedding-presets`
+
+Presets let you save an embedding provider, model, dimension, and API key once and reference them when creating collections (in the Studio UI, or programmatically by copying the fields). They have no effect on existing collections.
+
+Session-only. The `api_key` column is Fernet-encrypted at rest with `BIGRAG_MASTER_KEY` — see [Encryption at rest](/docs/deployment/encryption).
+
+## List Presets
+
+```
+GET /v1/admin/embedding-presets?limit=100&offset=0
+```
+
+**Response** `200`:
+
+```json
+{
+  "presets": [
+    {
+      "id": "a1…",
+      "name": "OpenAI small",
+      "provider": "openai",
+      "model": "text-embedding-3-small",
+      "base_url": null,
+      "dimension": 1536,
+      "has_api_key": true,
+      "created_at": "2026-04-01T00:00:00Z",
+      "updated_at": "2026-04-01T00:00:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+The raw `api_key` is never returned; only `has_api_key` is surfaced.
+
+## Create Preset
+
+```
+POST /v1/admin/embedding-presets
+```
+
+```json
+{
+  "name": "Ollama nomic",
+  "provider": "openai_compatible",
+  "model": "nomic-embed-text",
+  "base_url": "http://ollama.internal:11434/v1",
+  "dimension": 768,
+  "api_key": "ollama"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `name` | string | yes | Unique |
+| `provider` | string | yes | `openai`, `cohere`, or `openai_compatible` |
+| `model` | string | yes | Provider model name |
+| `base_url` | string | when `openai_compatible` | Endpoint base URL |
+| `dimension` | integer | yes | Must match the model |
+| `api_key` | string | yes | Stored server-side |
+
+**Response** `201`: preset without `api_key`.
+
+## Update Preset
+
+```
+PATCH /v1/admin/embedding-presets/{preset_id}
+```
+
+Partial — any combination of `name`, `provider`, `model`, `base_url`, `dimension`, `api_key`.
+
+## Delete Preset
+
+```
+DELETE /v1/admin/embedding-presets/{preset_id}
+```
+
+Removes the preset. Collections that were seeded from this preset keep their own copy of the config.

@@ -37,7 +37,7 @@ Ingest files directly from an S3 bucket (or S3-compatible services like MinIO). 
 
 ```bash
 curl -X POST http://localhost:6100/v1/collections/docs/documents/s3 \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"bucket": "my-docs", "prefix": "reports/", "region": "us-east-1"}'
 ```
@@ -48,7 +48,7 @@ Public buckets (like [AWS Open Data](https://registry.opendata.aws/) datasets) a
 
 ```bash
 curl -X POST http://localhost:6100/v1/collections/legal/documents/s3 \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"bucket": "indian-supreme-court-judgments", "prefix": "judgments/2025/", "region": "ap-south-1", "no_sign_request": true}'
 ```
@@ -80,7 +80,7 @@ Filter documents by status:
 
 ```bash
 curl "http://localhost:6100/v1/collections/research/documents?status=failed" \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+  -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 
 ## Chunking Strategy
@@ -127,26 +127,26 @@ Upload, check status, or delete multiple documents in a single request:
 ```bash
 # Batch upload (up to 100 files)
 curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/upload \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -F "files=@paper1.pdf" \
   -F "files=@paper2.pdf" \
   -F 'metadata={"source": "batch-import"}'
 
 # Batch status check
 curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/status \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"document_ids": ["doc-id-1", "doc-id-2"]}'
 
 # Batch get full document metadata
 curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/get \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"document_ids": ["doc-id-1", "doc-id-2"]}'
 
 # Batch delete
 curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/delete \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"document_ids": ["doc-id-1", "doc-id-2"]}'
 ```
@@ -161,5 +161,5 @@ Reprocess a document to re-parse, re-chunk, and re-embed it. Useful after changi
 
 ```bash
 curl -X POST http://localhost:6100/v1/collections/docs/documents/DOC_ID/reprocess \
-  -H "Authorization: Bearer $BIGRAG_API_SECRET"
+  -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```

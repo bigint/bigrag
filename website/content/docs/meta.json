@@ -3,8 +3,11 @@
     "index",
     "getting-started",
     "concepts",
+    "studio",
     "api-reference",
     "sdks",
+    "cookbook",
+    "migration",
     "deployment",
     "comparison",
     "openrag-gap-analysis"

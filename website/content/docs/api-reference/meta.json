@@ -2,11 +2,19 @@
   "title": "API Reference",
   "pages": [
     "authentication",
+    "users",
+    "api-keys",
+    "audit",
     "collections",
     "documents",
     "query",
     "vectors",
+    "embedding-presets",
+    "s3-jobs",
     "webhooks",
+    "usage",
+    "evaluation",
+    "preferences",
     "health"
   ]
 }

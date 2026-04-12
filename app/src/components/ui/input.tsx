@@ -1,0 +1,50 @@
+"use client";
+
+import { Field } from "@base-ui/react/field";
+import type { InputHTMLAttributes, Ref } from "react";
+import { cn } from "@/lib/cn";
+
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+  error?: string | null;
+  description?: string;
+  trailing?: React.ReactNode;
+}
+
+export const Input = ({
+  className,
+  label,
+  error,
+  description,
+  trailing,
+  ref,
+  ...props
+}: InputProps & { ref?: Ref<HTMLInputElement> }) => (
+  <Field.Root invalid={!!error} className="w-full">
+    {label && <Field.Label className="mb-1 block text-sm font-medium">{label}</Field.Label>}
+    <div className="relative">
+      <Field.Control
+        className={cn(
+          "w-full rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "data-[invalid]:border-destructive data-[invalid]:focus-visible:ring-destructive",
+          trailing && "pr-9",
+          className,
+        )}
+        ref={ref}
+        render={<input />}
+        {...props}
+      />
+      {trailing && (
+        <div className="absolute inset-y-0 right-0 flex items-center pr-2 text-muted-foreground">
+          {trailing}
+        </div>
+      )}
+    </div>
+    {description && !error && (
+      <Field.Description className="mt-1.5 text-xs text-muted-foreground">
+        {description}
+      </Field.Description>
+    )}
+    {error && <Field.Error className="mt-1.5 text-xs text-destructive">{error}</Field.Error>}
+  </Field.Root>
+);
