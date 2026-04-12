@@ -7,9 +7,13 @@ import hashlib
 import uuid
 from datetime import UTC, datetime
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.database import db
+from bigrag.db.models import ApiKey, AuditLog, User
+from bigrag.db.models import Session as DbSession
+from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_session
 from bigrag.models.auth import (
@@ -25,19 +29,19 @@ logger = get_logger("bigrag.routers.admin_audit")
 router = APIRouter(prefix="/v1/admin", tags=["admin:audit"])
 
 
-def _audit_row(row: dict) -> AuditLogEntry:
+def _audit_row(entry: AuditLog) -> AuditLogEntry:
     return AuditLogEntry(
-        id=str(row["id"]),
-        actor_id=str(row["actor_id"]) if row.get("actor_id") else None,
-        actor_email=row.get("actor_email"),
-        api_key_id=str(row["api_key_id"]) if row.get("api_key_id") else None,
-        action=row["action"],
-        resource_type=row["resource_type"],
-        resource_id=row.get("resource_id"),
-        metadata=row.get("metadata") or {},
-        ip=row.get("ip"),
-        user_agent=row.get("user_agent"),
-        created_at=row["created_at"],
+        id=str(entry.id),
+        actor_id=str(entry.actor_id) if entry.actor_id else None,
+        actor_email=entry.actor_email,
+        api_key_id=str(entry.api_key_id) if entry.api_key_id else None,
+        action=entry.action,
+        resource_type=entry.resource_type,
+        resource_id=entry.resource_id,
+        metadata=entry.meta or {},
+        ip=entry.ip,
+        user_agent=entry.user_agent,
+        created_at=entry.created_at,
     )
 
 
@@ -49,44 +53,34 @@ async def list_audit_log(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
     _: dict = Depends(require_session),
+    session: AsyncSession = Depends(get_session),
 ) -> AuditLogListResponse:
-    where = []
-    params: list = []
-
+    filters = []
     if action:
-        params.append(action)
-        where.append(f"action = ${len(params)}")
+        filters.append(AuditLog.action == action)
     if actor_id:
         try:
-            params.append(uuid.UUID(actor_id))
+            filters.append(AuditLog.actor_id == uuid.UUID(actor_id))
         except ValueError as e:
             raise HTTPException(status_code=400, detail="Invalid actor_id") from e
-        where.append(f"actor_id = ${len(params)}")
     if resource_type:
-        params.append(resource_type)
-        where.append(f"resource_type = ${len(params)}")
+        filters.append(AuditLog.resource_type == resource_type)
 
-    clause = f"WHERE {' AND '.join(where)}" if where else ""
-    limit_idx = len(params) + 1
-    offset_idx = len(params) + 2
-    rows = await db.fetch(
-        f"""
-        SELECT * FROM audit_log {clause}
-        ORDER BY created_at DESC
-        LIMIT ${limit_idx} OFFSET ${offset_idx}
-        """,
-        *params,
-        limit,
-        offset,
+    entries = (
+        await session.scalars(
+            sa.select(AuditLog)
+            .where(*filters)
+            .order_by(AuditLog.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+    ).all()
+    total = await session.scalar(
+        sa.select(sa.func.count()).select_from(AuditLog).where(*filters)
     )
-    count_row = await db.fetchrow(
-        f"SELECT COUNT(*) AS cnt FROM audit_log {clause}",
-        *params,
-    )
-    total = int(count_row["cnt"]) if count_row else 0
     return AuditLogListResponse(
-        entries=[_audit_row(dict(r)) for r in rows],
-        total=total,
+        entries=[_audit_row(e) for e in entries],
+        total=total or 0,
     )
 
 
@@ -98,61 +92,51 @@ async def gdpr_cascade_delete(
     user_id: str,
     request: Request,
     admin: dict = Depends(require_session),
+    session: AsyncSession = Depends(get_session),
 ) -> GdprDeleteResponse:
     """GDPR erasure request. Cascades from user → sessions → api_keys →
     collections (and their documents + Milvus vectors). Returns a
     signed-ish certificate string derived from the deletion counts.
 
     The caller must be an admin. Deleting yourself is allowed but not
-    graceful — the current session is invalidated along with
-    everything else.
+    graceful — the current session is invalidated along with everything
+    else.
     """
     try:
         target = uuid.UUID(user_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail="User not found") from e
 
-    # Resolve collections owned by this user BEFORE deleting rows so we
-    # can drop their Milvus shadows.
-    # (bigRAG does not currently track per-collection ownership; this
-    # endpoint therefore deletes *all* the user's data in Postgres and
-    # trusts separate multi-tenant work to narrow it later. We expose
-    # only the counts that apply to the target user.)
-    sess_row = await db.fetchrow(
-        "SELECT COUNT(*) AS cnt FROM sessions WHERE user_id = $1", target
+    # bigRAG is single-tenant today — collection ownership isn't tracked,
+    # so the cascade only covers sessions + API keys. Surface zero for
+    # collections/documents until workspaces land.
+    sess_result = await session.execute(
+        sa.delete(DbSession).where(DbSession.user_id == target)
     )
-    key_row = await db.fetchrow(
-        "SELECT COUNT(*) AS cnt FROM api_keys WHERE user_id = $1", target
+    key_result = await session.execute(
+        sa.delete(ApiKey).where(ApiKey.user_id == target)
     )
-    # Collections the user created (created_by column present on webhooks
-    # but not on collections — bigRAG is single-tenant today). Document
-    # counts are surfaced as 0 until workspaces land.
+    # Don't delete the user row itself; keep it for the audit trail
+    # (anonymise instead).
+    await session.execute(
+        sa.update(User)
+        .where(User.id == target)
+        .values(
+            email=sa.func.concat("deleted-", sa.cast(User.id, sa.Text), "@tombstone.local"),
+            display_name="[deleted]",
+            password_hash="",
+        )
+    )
+    await session.commit()
+
+    deleted_sessions = sess_result.rowcount or 0
+    deleted_keys = key_result.rowcount or 0
     coll_count = 0
     doc_count = 0
 
-    sess_del = await db.execute("DELETE FROM sessions WHERE user_id = $1", target)
-    key_del = await db.execute("DELETE FROM api_keys WHERE user_id = $1", target)
-    # Don't delete the user row itself; keep it for the audit trail
-    # (anonymise instead).
-    await db.execute(
-        """
-        UPDATE users SET email = concat('deleted-', id, '@tombstone.local'),
-                         display_name = '[deleted]',
-                         password_hash = ''
-        WHERE id = $1
-        """,
-        target,
-    )
-
-    def _count(tag: str) -> int:
-        try:
-            return int(tag.split()[-1])
-        except (ValueError, AttributeError):
-            return 0
-
     deleted_at = datetime.now(UTC)
     cert_source = (
-        f"{user_id}|{_count(sess_del)}|{_count(key_del)}|{coll_count}|"
+        f"{user_id}|{deleted_sessions}|{deleted_keys}|{coll_count}|"
         f"{doc_count}|{deleted_at.isoformat()}"
     )
     certificate = hashlib.sha256(cert_source.encode()).hexdigest()
@@ -160,8 +144,8 @@ async def gdpr_cascade_delete(
     logger.warning(
         "gdpr: cascade delete complete",
         user_id=user_id,
-        sessions=_count(sess_del),
-        api_keys=_count(key_del),
+        sessions=deleted_sessions,
+        api_keys=deleted_keys,
         by=admin.get("email"),
     )
     audit.record(
@@ -174,8 +158,8 @@ async def gdpr_cascade_delete(
     )
     return GdprDeleteResponse(
         user_id=user_id,
-        deleted_sessions=_count(sess_del),
-        deleted_api_keys=_count(key_del),
+        deleted_sessions=deleted_sessions,
+        deleted_api_keys=deleted_keys,
         deleted_collections=coll_count,
         deleted_documents=doc_count,
         deleted_at=deleted_at,

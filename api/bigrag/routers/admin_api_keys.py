@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import uuid
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.database import build_update, db
+from bigrag.db.models import ApiKey
+from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_session
-from bigrag.services import audit
 from bigrag.models.auth import (
     ApiKeyListResponse,
     ApiKeyResponse,
@@ -22,6 +24,7 @@ from bigrag.models.auth import (
     UpdateApiKeyRequest,
 )
 from bigrag.models.common import StatusResponse
+from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
 
 logger = get_logger("bigrag.routers.admin_api_keys")
@@ -29,20 +32,20 @@ logger = get_logger("bigrag.routers.admin_api_keys")
 router = APIRouter(prefix="/v1/admin/api-keys", tags=["admin:api-keys"])
 
 
-def _row_to_response(row: dict) -> ApiKeyResponse:
-    permissions = row.get("permissions") or {}
+def _key_response(key: ApiKey) -> ApiKeyResponse:
+    permissions = key.permissions or {}
     scopes = permissions.get("scopes") if isinstance(permissions, dict) else None
     return ApiKeyResponse(
-        id=str(row["id"]),
-        name=row["name"],
-        prefix=row["prefix"],
-        active=row["active"],
+        id=str(key.id),
+        name=key.name,
+        prefix=key.prefix,
+        active=key.active,
         scopes=scopes if isinstance(scopes, list) else [],
-        rate_limits=row.get("rate_limits") or None,
-        last_used_at=row.get("last_used_at"),
-        expires_at=row.get("expires_at"),
-        created_at=row["created_at"],
-        updated_at=row["updated_at"],
+        rate_limits=key.rate_limits or None,
+        last_used_at=key.last_used_at,
+        expires_at=key.expires_at,
+        created_at=key.created_at,
+        updated_at=key.updated_at,
     )
 
 
@@ -60,14 +63,15 @@ async def list_api_keys(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     _: dict = Depends(require_session),
+    session: AsyncSession = Depends(get_session),
 ) -> ApiKeyListResponse:
-    rows = await db.fetch(
-        "SELECT * FROM api_keys ORDER BY created_at DESC LIMIT $1 OFFSET $2",
-        limit,
-        offset,
-    )
-    total = (await db.fetchrow("SELECT COUNT(*) AS cnt FROM api_keys"))["cnt"]
-    return ApiKeyListResponse(keys=[_row_to_response(dict(r)) for r in rows], total=total)
+    keys = (
+        await session.scalars(
+            sa.select(ApiKey).order_by(ApiKey.created_at.desc()).limit(limit).offset(offset)
+        )
+    ).all()
+    total = await session.scalar(sa.select(sa.func.count()).select_from(ApiKey))
+    return ApiKeyListResponse(keys=[_key_response(k) for k in keys], total=total or 0)
 
 
 @router.post("", response_model=CreateApiKeyResponse, status_code=201)
@@ -75,6 +79,7 @@ async def create_api_key(
     body: CreateApiKeyRequest,
     request: Request,
     admin: dict = Depends(require_session),
+    session: AsyncSession = Depends(get_session),
 ) -> CreateApiKeyResponse:
     try:
         _validate_scopes(body.scopes)
@@ -83,33 +88,30 @@ async def create_api_key(
 
     permissions = {"scopes": body.scopes} if body.scopes else {}
     plaintext, prefix, key_hash = generate_api_key()
-    row = await db.fetchrow(
-        """
-        INSERT INTO api_keys
-            (id, user_id, name, key_hash, prefix, expires_at,
-             permissions, rate_limits)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING *
-        """,
-        uuid.uuid4(),
-        uuid.UUID(admin["id"]),
-        body.name,
-        key_hash,
-        prefix,
-        body.expires_at,
-        permissions,
-        body.rate_limits or {},
+    key = ApiKey(
+        id=uuid.uuid4(),
+        user_id=uuid.UUID(admin["id"]),
+        name=body.name,
+        key_hash=key_hash,
+        prefix=prefix,
+        expires_at=body.expires_at,
+        permissions=permissions,
+        rate_limits=body.rate_limits or {},
     )
-    logger.info(f"API key created: id={row['id']} name={body.name} by={admin['email']}")
+    session.add(key)
+    await session.commit()
+    await session.refresh(key)
+
+    logger.info(f"API key created: id={key.id} name={body.name} by={admin['email']}")
     audit.record(
         request,
         user=admin,
         action="api_key.create",
         resource_type="api_key",
-        resource_id=str(row["id"]),
+        resource_id=str(key.id),
         metadata={"name": body.name, "scopes": body.scopes or []},
     )
-    base = _row_to_response(dict(row))
+    base = _key_response(key)
     return CreateApiKeyResponse(**base.model_dump(), key=plaintext)
 
 
@@ -118,51 +120,51 @@ async def update_api_key(
     key_id: str,
     body: UpdateApiKeyRequest,
     _: dict = Depends(require_session),
+    session: AsyncSession = Depends(get_session),
 ) -> ApiKeyResponse:
     try:
-        target = uuid.UUID(key_id)
+        target_id = uuid.UUID(key_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail="API key not found") from e
 
-    fields: dict = {}
+    key = await session.get(ApiKey, target_id)
+    if key is None:
+        raise HTTPException(status_code=404, detail="API key not found")
+
     if body.name is not None:
-        fields["name"] = body.name
+        key.name = body.name
     if body.active is not None:
-        fields["active"] = body.active
+        key.active = body.active
     if body.scopes is not None:
         try:
             _validate_scopes(body.scopes)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
-        fields["permissions"] = {"scopes": body.scopes}
+        key.permissions = {"scopes": body.scopes}
     if body.rate_limits is not None:
-        fields["rate_limits"] = body.rate_limits
+        key.rate_limits = body.rate_limits
 
-    if not fields:
-        row = await db.fetchrow("SELECT * FROM api_keys WHERE id = $1", target)
-        if not row:
-            raise HTTPException(status_code=404, detail="API key not found")
-        return _row_to_response(dict(row))
-
-    sql, params = build_update("api_keys", fields, "id", target)
-    row = await db.fetchrow(sql, *params)
-    if not row:
-        raise HTTPException(status_code=404, detail="API key not found")
-    return _row_to_response(dict(row))
+    await session.commit()
+    await session.refresh(key)
+    return _key_response(key)
 
 
 @router.delete("/{key_id}", response_model=StatusResponse)
 async def delete_api_key(
     key_id: str,
     admin: dict = Depends(require_session),
+    session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     try:
-        target = uuid.UUID(key_id)
+        target_id = uuid.UUID(key_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail="API key not found") from e
 
-    row = await db.fetchrow("DELETE FROM api_keys WHERE id = $1 RETURNING id", target)
-    if not row:
+    key = await session.get(ApiKey, target_id)
+    if key is None:
         raise HTTPException(status_code=404, detail="API key not found")
+    await session.delete(key)
+    await session.commit()
+
     logger.info(f"API key deleted: id={key_id} by={admin['email']}")
     return StatusResponse(status="ok", message="API key deleted")

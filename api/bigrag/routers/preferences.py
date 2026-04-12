@@ -12,9 +12,13 @@ from __future__ import annotations
 
 import uuid
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.database import db
+from bigrag.db.models import UserPreference
+from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_session
 
@@ -24,18 +28,21 @@ router = APIRouter(prefix="/v1/auth/preferences", tags=["auth"])
 
 
 @router.get("")
-async def get_preferences(user: dict = Depends(require_session)) -> dict:
-    row = await db.fetchrow(
-        "SELECT data FROM user_preferences WHERE user_id = $1",
-        uuid.UUID(user["id"]),
+async def get_preferences(
+    user: dict = Depends(require_session),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    row = await session.scalar(
+        sa.select(UserPreference).where(UserPreference.user_id == uuid.UUID(user["id"]))
     )
-    return {"data": dict(row["data"]) if row else {}}
+    return {"data": dict(row.data) if row else {}}
 
 
 @router.put("")
 async def update_preferences(
     body: dict,
     user: dict = Depends(require_session),
+    session: AsyncSession = Depends(get_session),
 ) -> dict:
     """Shallow-merge the request body into the stored preferences.
 
@@ -46,16 +53,16 @@ async def update_preferences(
     if not isinstance(incoming, dict):
         incoming = {}
 
-    row = await db.fetchrow(
-        """
-        INSERT INTO user_preferences (user_id, data)
-        VALUES ($1, $2)
-        ON CONFLICT (user_id)
-        DO UPDATE SET data = user_preferences.data || EXCLUDED.data,
-                      updated_at = now()
-        RETURNING data
-        """,
-        uuid.UUID(user["id"]),
-        incoming,
+    stmt = pg_insert(UserPreference).values(
+        user_id=uuid.UUID(user["id"]), data=incoming
     )
-    return {"data": dict(row["data"])}
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[UserPreference.user_id],
+        set_={
+            "data": UserPreference.data.op("||")(stmt.excluded.data),
+            "updated_at": sa.func.now(),
+        },
+    ).returning(UserPreference.data)
+    result = await session.execute(stmt)
+    await session.commit()
+    return {"data": dict(result.scalar_one())}

@@ -9,56 +9,62 @@ Session cookies and API keys both ultimately resolve to a user row.
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime
 
 from fastapi import Depends, HTTPException, Request
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.config import settings
-from bigrag.database import db
+from bigrag.db.models import ApiKey, User
+from bigrag.db.models import Session as DbSession
+from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.services.auth import API_KEY_PREFIX, hash_api_key, hash_session_token
 
 logger = get_logger("bigrag.auth")
 
 
-def _serialize_user(row: dict, *, auth: str, api_key_id: str | None = None) -> dict:
+def _user_dict(user: User) -> dict:
     return {
-        "id": str(row["id"]),
-        "email": row["email"],
-        "display_name": row["display_name"],
-        "role": row["role"],
+        "id": str(user.id),
+        "email": user.email,
+        "display_name": user.display_name,
+        "role": user.role,
+    }
+
+
+def _serialize(user: User, *, auth: str, api_key_id: str | None = None) -> dict:
+    return {
+        **_user_dict(user),
         "auth_method": auth,
         "api_key_id": api_key_id,
-        # Sessions (browser / Studio) have no scope list — admin users
-        # keep implicit full access. Scoped keys override this in
+        # Sessions (browser / Studio) have no scope list — admin users keep
+        # implicit full access. Scoped keys override this in
         # ``_user_from_api_key``.
         "scopes": None,
         "rate_limits": None,
     }
 
 
-async def _user_from_session(request: Request) -> dict | None:
+async def _user_from_session(request: Request, session: AsyncSession) -> dict | None:
     cookie = request.cookies.get(settings.session_cookie_name)
     if not cookie:
         return None
 
     token_hash = hash_session_token(cookie)
-    row = await db.fetchrow(
-        """
-        SELECT u.*
-        FROM sessions s
-        JOIN users u ON u.id = s.user_id
-        WHERE s.token_hash = $1 AND s.expires_at > now()
-        """,
-        token_hash,
+    user = await session.scalar(
+        select(User)
+        .join(DbSession, DbSession.user_id == User.id)
+        .where(DbSession.token_hash == token_hash)
+        .where(DbSession.expires_at > datetime.now(UTC))
     )
-    if not row:
+    if user is None:
         return None
-    return _serialize_user(dict(row), auth="session")
+    return _serialize(user, auth="session")
 
 
-async def _user_from_api_key(request: Request) -> dict | None:
+async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | None:
     auth_header = request.headers.get("authorization", "")
     token = ""
     if auth_header.startswith("Bearer "):
@@ -72,51 +78,42 @@ async def _user_from_api_key(request: Request) -> dict | None:
         return None
 
     key_hash = hash_api_key(token)
-    row = await db.fetchrow(
-        """
-        SELECT u.*,
-               k.id AS api_key_id,
-               k.permissions AS api_key_permissions,
-               k.rate_limits AS api_key_rate_limits
-        FROM api_keys k
-        JOIN users u ON u.id = k.user_id
-        WHERE k.key_hash = $1
-          AND k.active = true
-          AND (k.expires_at IS NULL OR k.expires_at > now())
-        """,
-        key_hash,
-    )
-    if not row:
+    now = datetime.now(UTC)
+    row = (
+        await session.execute(
+            select(ApiKey, User)
+            .join(User, User.id == ApiKey.user_id)
+            .where(ApiKey.key_hash == key_hash)
+            .where(ApiKey.active.is_(True))
+            .where((ApiKey.expires_at.is_(None)) | (ApiKey.expires_at > now))
+        )
+    ).first()
+    if row is None:
         return None
 
-    api_key_id = str(row["api_key_id"])
-    await db.execute(
-        "UPDATE api_keys SET last_used_at = now() WHERE id = $1",
-        uuid.UUID(api_key_id),
+    api_key, user = row
+    await session.execute(
+        update(ApiKey).where(ApiKey.id == api_key.id).values(last_used_at=now)
     )
-    permissions = row.get("api_key_permissions") or {}
+    await session.commit()
+
+    permissions = api_key.permissions or {}
     scopes = permissions.get("scopes") if isinstance(permissions, dict) else None
-    user_row = {k: v for k, v in dict(row).items() if k not in {
-        "api_key_id", "api_key_permissions", "api_key_rate_limits",
-    }}
-    principal = _serialize_user(user_row, auth="api_key", api_key_id=api_key_id)
+    principal = _serialize(user, auth="api_key", api_key_id=str(api_key.id))
     principal["scopes"] = scopes if isinstance(scopes, list) else None
-    principal["rate_limits"] = row.get("api_key_rate_limits") or {}
+    principal["rate_limits"] = api_key.rate_limits or {}
     return principal
 
 
-async def get_current_user(request: Request) -> dict:
+async def get_current_user(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
     from bigrag.services.scopes import has_scope, required_scope
 
-    principal: dict | None = None
-    session_user = await _user_from_session(request)
-    if session_user:
-        principal = session_user
-    else:
-        api_key_user = await _user_from_api_key(request)
-        if api_key_user:
-            principal = api_key_user
-
+    principal = await _user_from_session(request, session)
+    if principal is None:
+        principal = await _user_from_api_key(request, session)
     if principal is None:
         raise HTTPException(status_code=401, detail="Authentication required")
 
@@ -139,8 +136,8 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
 async def require_session(user: dict = Depends(get_current_user)) -> dict:
     """Require a logged-in admin (session cookie), not an API key.
 
-    Used for account-management endpoints where a machine credential
-    must not be able to escalate (e.g., change passwords, create users).
+    Used for account-management endpoints where a machine credential must
+    not be able to escalate (e.g., change passwords, create users).
     """
     if user.get("auth_method") != "session":
         raise HTTPException(status_code=403, detail="Session authentication required")
