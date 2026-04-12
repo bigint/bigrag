@@ -29,8 +29,11 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6380/0"
 
     # Auth
-    api_secret: str | None = None
     session_expiry_hours: int = 168
+    session_cookie_name: str = "bigrag_session"
+    session_cookie_secure: bool = False
+    session_cookie_samesite: str = "lax"
+    session_cookie_domain: str | None = None
 
     # Tuning
     embedding_concurrency: int = 8

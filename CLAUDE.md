@@ -4,6 +4,7 @@
 
 - `api/` — Python/FastAPI backend (Docling ingestion + Milvus vector DB)
 - `sdks/typescript/` — TypeScript SDK (`@bigrag/client`)
+- `app/` — Studio admin UI (Next.js 16 + Tailwind v4 + Base UI, `@bigrag/app`)
 - `website/` — Documentation site (Next.js + Fumadocs, content in `website/content/docs/`)
 
 ## Style Guide
@@ -54,12 +55,21 @@ If a feature is removed, remove it from the docs too. Never leave stale referenc
 ```bash
 ./dev.sh            # starts infra + backend
 ./dev.sh --website  # docs site only
+pnpm dev:app        # Studio admin UI on localhost:3100
 ```
 
+- Studio UI: http://localhost:3100 (first run → `/setup` to create admin)
 - Backend API: http://localhost:6100 (Swagger docs at /docs)
 - Postgres: localhost:5433
 - Redis: localhost:6380
 - Milvus: localhost:19530
+
+## Auth model
+
+bigRAG has no `BIGRAG_API_SECRET` env var. Auth is admin-account + session cookie
+(Studio UI) or minted API keys (`bigrag_sk_...`, external clients). First admin
+is created via the Studio's `/setup` page; subsequent admins via `/users`; API
+keys via `/api-keys`.
 
 ## E2E Tests
 

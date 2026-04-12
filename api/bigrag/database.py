@@ -187,6 +187,14 @@ MIGRATIONS = [
     """
     ALTER TABLE s3_ingest_jobs ADD COLUMN IF NOT EXISTS file_types JSONB NOT NULL DEFAULT '[]';
     """,
+    """
+    ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+    ALTER TABLE api_keys
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+    CREATE INDEX IF NOT EXISTS idx_api_keys_active ON api_keys(active);
+    CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(prefix);
+    """,
 ]
 
 

@@ -9,18 +9,67 @@ from __future__ import annotations
 import contextlib
 import uuid
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-TEST_API_SECRET = "test-secret-key-12345"
+from bigrag.services.auth import hash_api_key, hash_session_token
+
+TEST_API_KEY = "bigrag_sk_test-external-key-aBcDeFgHiJkLmNoPq"
+TEST_SESSION_TOKEN = "test-session-token-abc123"
+TEST_USER_ID = str(uuid.uuid4())
+TEST_API_KEY_ID = str(uuid.uuid4())
 SAMPLE_COLLECTION_ID = str(uuid.uuid4())
 SAMPLE_DOCUMENT_ID = str(uuid.uuid4())
 SAMPLE_WEBHOOK_ID = str(uuid.uuid4())
 
 
+def make_user_row(
+    user_id: str | None = None,
+    *,
+    email: str = "admin@example.com",
+    display_name: str = "Admin",
+    role: str = "admin",
+    password_hash: str = "$argon2id$dummy",
+) -> dict:
+    now = datetime.now(UTC)
+    return {
+        "id": uuid.UUID(user_id) if user_id else uuid.uuid4(),
+        "email": email,
+        "password_hash": password_hash,
+        "display_name": display_name,
+        "role": role,
+        "last_login_at": now,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
+def make_api_key_row(
+    key_id: str | None = None,
+    user_id: str | None = None,
+    *,
+    name: str = "default",
+    prefix: str = "bigrag_sk_test",
+    key_hash: str = "",
+    active: bool = True,
+) -> dict:
+    now = datetime.now(UTC)
+    return {
+        "id": uuid.UUID(key_id) if key_id else uuid.uuid4(),
+        "user_id": uuid.UUID(user_id) if user_id else uuid.uuid4(),
+        "name": name,
+        "key_hash": key_hash,
+        "prefix": prefix,
+        "permissions": {},
+        "active": active,
+        "expires_at": None,
+        "last_used_at": None,
+        "created_at": now,
+        "updated_at": now,
+    }
 
 
 def make_collection_row(
@@ -147,6 +196,34 @@ def make_delivery_row(
     }
 
 
+def _install_auth_fetchrow(mock_db: AsyncMock) -> None:
+    """Wrap mock_db.fetchrow so session + API key lookups return the test user."""
+    session_hash = hash_session_token(TEST_SESSION_TOKEN)
+    api_key_hash = hash_api_key(TEST_API_KEY)
+
+    test_user = make_user_row(user_id=TEST_USER_ID)
+
+    # Session JOIN returns a row shaped like a user (the middleware selects u.*).
+    session_row = dict(test_user)
+
+    # API-key JOIN returns user columns plus `api_key_id`.
+    api_key_row = dict(test_user)
+    api_key_row["api_key_id"] = uuid.UUID(TEST_API_KEY_ID)
+
+    original = mock_db.fetchrow.side_effect
+
+    async def fetchrow(query: str, *args):  # type: ignore[no-untyped-def]
+        if "FROM sessions" in query and args and args[0] == session_hash:
+            return session_row
+        if "FROM api_keys" in query and "JOIN users" in query:
+            if args and args[0] == api_key_hash:
+                return api_key_row
+            return None
+        if callable(original):
+            return await original(query, *args)
+        return mock_db.fetchrow.return_value
+
+    mock_db.fetchrow.side_effect = fetchrow
 
 
 @pytest.fixture()
@@ -159,6 +236,7 @@ def mock_db():
     m.fetchrow = AsyncMock(return_value=None)
     m.fetch = AsyncMock(return_value=[])
     m.execute = AsyncMock(return_value="DELETE 0")
+    _install_auth_fetchrow(m)
     return m
 
 
@@ -229,8 +307,6 @@ def mock_webhook_dispatcher():
     return m
 
 
-
-
 @pytest.fixture()
 async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webhook_dispatcher):
     """Async HTTP client talking to the FastAPI app with all services mocked."""
@@ -246,6 +322,10 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
         # Patch module-level singletons still used by routers/services
         mock_settings = MagicMock()
         stack.enter_context(patch("bigrag.database.db", mock_db))
+        stack.enter_context(patch("bigrag.middleware.auth.db", mock_db))
+        stack.enter_context(patch("bigrag.routers.auth.db", mock_db))
+        stack.enter_context(patch("bigrag.routers.admin_users.db", mock_db))
+        stack.enter_context(patch("bigrag.routers.admin_api_keys.db", mock_db))
         stack.enter_context(patch("bigrag.routers.collections.db", mock_db))
         stack.enter_context(patch("bigrag.routers.documents.db", mock_db))
         stack.enter_context(patch("bigrag.routers.webhooks.db", mock_db))
@@ -263,11 +343,16 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
         )
         stack.enter_context(patch("bigrag.services.collection_cache.settings", mock_settings))
         stack.enter_context(patch("bigrag.middleware.auth.settings", mock_settings))
+        stack.enter_context(patch("bigrag.routers.auth.settings", mock_settings))
         stack.enter_context(patch("bigrag.routers.collections.settings", mock_settings))
         stack.enter_context(patch("bigrag.routers.documents.settings", mock_settings))
 
-        mock_settings.api_secret = TEST_API_SECRET
         mock_settings.cors_origins = ["*"]
+        mock_settings.session_cookie_name = "bigrag_session"
+        mock_settings.session_cookie_secure = False
+        mock_settings.session_cookie_samesite = "lax"
+        mock_settings.session_cookie_domain = None
+        mock_settings.session_expiry_hours = 168
         mock_settings.embedding_provider = "openai"
         mock_settings.embedding_model = "text-embedding-3-small"
         mock_settings.embedding_dimension = 1536
@@ -290,13 +375,14 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            ac.cookies.set("bigrag_session", TEST_SESSION_TOKEN)
             yield ac
 
 
 @pytest.fixture()
 def auth_headers() -> dict[str, str]:
-    """Headers with a valid Bearer token."""
-    return {"Authorization": f"Bearer {TEST_API_SECRET}"}
+    """Headers with a valid API key (Bearer)."""
+    return {"Authorization": f"Bearer {TEST_API_KEY}"}
 
 
 @pytest.fixture()
@@ -308,4 +394,10 @@ def no_auth_headers() -> dict[str, str]:
 @pytest.fixture()
 def bad_auth_headers() -> dict[str, str]:
     """Headers with an invalid Bearer token."""
-    return {"Authorization": "Bearer wrong-token"}
+    return {"Authorization": "Bearer bigrag_sk_wrong-token-nope-nope-nope-nope"}
+
+
+# Backwards-compat alias for existing tests referencing TEST_API_SECRET.
+TEST_API_SECRET = TEST_API_KEY
+
+_ = timedelta  # retained for callers that import timedelta from conftest

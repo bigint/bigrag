@@ -29,8 +29,6 @@ async def lifespan(app: FastAPI):
     logger = get_logger("bigrag")
     logger.info("starting", version=__version__)
 
-    if not s.api_secret:
-        logger.warning("api_secret not set, all endpoints are open")
     if "*" in s.cors_origins:
         logger.warning("CORS allows all origins, restrict in production")
 
@@ -130,6 +128,9 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     async def validation_handler(request, exc: ValidationError):
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
+    from bigrag.routers.admin_api_keys import router as admin_api_keys_router
+    from bigrag.routers.admin_users import router as admin_users_router
+    from bigrag.routers.auth import router as auth_router
     from bigrag.routers.collections import router as collections_router
     from bigrag.routers.documents import global_router as documents_global_router
     from bigrag.routers.documents import router as documents_router
@@ -139,6 +140,9 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     from bigrag.routers.webhooks import router as webhooks_router
 
     app.include_router(health_router)
+    app.include_router(auth_router)
+    app.include_router(admin_users_router)
+    app.include_router(admin_api_keys_router)
     app.include_router(collections_router)
     app.include_router(documents_router)
     app.include_router(documents_global_router)
