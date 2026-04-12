@@ -1,13 +1,17 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession, useSetupStatus } from "@/hooks/use-auth";
 import { Sidebar } from "./components/sidebar";
 
+// Routes that manage their own scrolling + padding (i.e. chat-style pages).
+const FULL_HEIGHT_ROUTES = ["/playground"];
+
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
+  const pathname = usePathname();
   const { data: setupStatus } = useSetupStatus();
   const { data: session, isPending, isError } = useSession();
 
@@ -29,11 +33,19 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
+  const isFullHeight = FULL_HEIGHT_ROUTES.some((r) => pathname.startsWith(r));
+
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main id="main" className="min-w-0 flex-1">
-        <div className="mx-auto max-w-6xl px-6 py-8 md:px-10">{children}</div>
+      <main id="main" className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {isFullHeight ? (
+          children
+        ) : (
+          <div className="flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-6xl px-6 py-8 md:px-10">{children}</div>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -170,7 +170,7 @@ const PlaygroundPage = () => {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-var(--spacing)*8)] flex-col md:-m-6 md:h-dvh md:p-6">
+    <div className="flex min-h-0 flex-1 flex-col px-6 py-8 md:px-10">
       <div className="flex items-center justify-between pb-4">
         <div>
           <h1 className="text-lg font-semibold">Playground</h1>
