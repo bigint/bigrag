@@ -62,9 +62,7 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
       })) ?? [];
 
   const selectedDimension = useMemo(() => {
-    const match = catalog?.models.find(
-      (m) => m.provider === provider && m.model === model,
-    );
+    const match = catalog?.models.find((m) => m.provider === provider && m.model === model);
     if (match) return match.dimension;
     if (editing && editing.model === model) return editing.dimension;
     return DEFAULT_MODELS[provider].dimension;
