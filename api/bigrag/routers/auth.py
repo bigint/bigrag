@@ -154,6 +154,25 @@ async def logout(request: Request, response: Response) -> StatusResponse:
     return StatusResponse(status="ok", message="Logged out")
 
 
+@router.post("/logout-all", response_model=StatusResponse)
+async def logout_all(
+    response: Response,
+    user: dict = Depends(get_current_user),
+) -> StatusResponse:
+    """Revoke every session for the current user.
+
+    Used from the Studio's "Sign out everywhere" action when a user
+    suspects a device or session is compromised. The current browser
+    cookie is also cleared so the caller lands on the login page.
+    """
+    await db.execute(
+        "DELETE FROM sessions WHERE user_id = $1",
+        uuid.UUID(user["id"]),
+    )
+    _clear_session_cookie(response)
+    return StatusResponse(status="ok", message="Signed out of all devices")
+
+
 @router.get("/me", response_model=SessionResponse)
 async def me(user: dict = Depends(get_current_user)) -> SessionResponse:
     row = await db.fetchrow("SELECT * FROM users WHERE id = $1", uuid.UUID(user["id"]))

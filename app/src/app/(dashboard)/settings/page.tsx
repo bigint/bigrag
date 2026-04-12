@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
-import { useChangePassword, useLogout, useSession } from "@/hooks/use-auth";
+import { useChangePassword, useLogout, useLogoutAll, useSession } from "@/hooks/use-auth";
 import { useReadiness } from "@/hooks/use-platform";
 import { formatRelative } from "@/lib/format";
 
@@ -16,6 +16,7 @@ const SettingsPage = () => {
   const { data: session } = useSession();
   const changePassword = useChangePassword();
   const logout = useLogout();
+  const logoutAll = useLogoutAll();
   const { data: readiness } = useReadiness();
 
   const [current, setCurrent] = useState("");
@@ -93,6 +94,38 @@ const SettingsPage = () => {
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Active sessions</CardTitle>
+          <CardDescription>
+            Sign out of every browser or device where your account is logged in.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-start">
+          <Button
+            variant="outline"
+            disabled={logoutAll.isPending}
+            onClick={async () => {
+              if (
+                !window.confirm(
+                  "Sign out of every device? You'll need to log in again everywhere.",
+                )
+              ) {
+                return;
+              }
+              try {
+                await logoutAll.mutateAsync();
+                router.replace("/login");
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed");
+              }
+            }}
+          >
+            {logoutAll.isPending ? "Signing out…" : "Sign out of all devices"}
+          </Button>
         </CardContent>
       </Card>
 

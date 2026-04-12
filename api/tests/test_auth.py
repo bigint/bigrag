@@ -72,3 +72,35 @@ async def test_health_does_not_require_auth(client, no_auth_headers):
     client.cookies.clear()
     resp = await client.get("/health", headers=no_auth_headers)
     assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_logout_all_revokes_every_session_for_user(client, mock_db):
+    from tests.conftest import TEST_USER_ID
+
+    client.cookies.set("bigrag_session", TEST_SESSION_TOKEN)
+    resp = await client.post("/v1/auth/logout-all")
+
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Signed out of all devices"
+
+    # Confirm the user-scoped delete actually ran.
+    import uuid as _uuid
+
+    delete_calls = [
+        c for c in mock_db.execute.await_args_list
+        if c.args
+        and "DELETE FROM sessions" in c.args[0]
+        and "WHERE user_id" in c.args[0]
+        and c.args[1] == _uuid.UUID(TEST_USER_ID)
+    ]
+    assert delete_calls, (
+        "logout-all must issue DELETE FROM sessions WHERE user_id"
+    )
+
+
+@pytest.mark.asyncio
+async def test_logout_all_requires_auth(client):
+    client.cookies.clear()
+    resp = await client.post("/v1/auth/logout-all")
+    assert resp.status_code == 401

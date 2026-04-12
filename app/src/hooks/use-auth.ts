@@ -65,6 +65,18 @@ export const useLogout = () => {
   });
 };
 
+export const useLogoutAll = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiClient.post<void>("v1/auth/logout-all"),
+    onSuccess: () => {
+      qc.setQueryData(["auth", "session"], null);
+      qc.invalidateQueries();
+      toast.success("Signed out of all devices");
+    },
+  });
+};
+
 export const useSetup = () => {
   const qc = useQueryClient();
   return useMutation({
