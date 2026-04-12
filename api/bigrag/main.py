@@ -9,8 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from bigrag import __version__
+from bigrag import db as db_module
 from bigrag.config import Settings, settings
 from bigrag.database import db
+from bigrag.db.bootstrap import run_migrations
 from bigrag.exceptions import ConflictError, NotFoundError, ValidationError
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
 from bigrag.middleware.idempotency import IdempotencyMiddleware
@@ -41,6 +43,9 @@ async def lifespan(app: FastAPI):
     await db.connect(s.database_url, min_size=s.db_pool_min, max_size=s.db_pool_max)
     await db.migrate()
     app.state.db = db
+
+    await db_module.configure(s.database_url, pool_min=s.db_pool_min, pool_max=s.db_pool_max)
+    await run_migrations()
 
     vector_store.configure(s.milvus_uri, nprobe=s.milvus_nprobe)
     vector_store.connect()
@@ -90,6 +95,7 @@ async def lifespan(app: FastAPI):
     await storage.close()
     vector_store.close()
     await db.close()
+    await db_module.close()
     logger.info("shut down")
 
 

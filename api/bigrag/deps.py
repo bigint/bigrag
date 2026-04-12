@@ -11,6 +11,7 @@ from fastapi import Request
 
 from bigrag.config import Settings
 from bigrag.database import Database
+from bigrag.db.session import get_session  # noqa: F401  — re-exported
 from bigrag.services.queue import IngestionQueue
 from bigrag.services.storage import StorageBackend
 from bigrag.services.vector_store import VectorStore
