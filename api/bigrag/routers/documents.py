@@ -152,15 +152,34 @@ async def upload_document(
         await storage.delete(storage_key)
         raise
 
-    await ingestion_queue.enqueue(
-        create_ingestion_job(
-            document_id=doc_id,
-            file_path=storage_key,
-            collection_name=collection_name,
-            collection=collection,
-            fallback_api_key=settings.embedding_api_key,
+    try:
+        await ingestion_queue.enqueue(
+            create_ingestion_job(
+                document_id=doc_id,
+                file_path=storage_key,
+                collection_name=collection_name,
+                collection=collection,
+                fallback_api_key=settings.embedding_api_key,
+            )
         )
-    )
+    except Exception as exc:
+        logger.exception(
+            "upload: enqueue failed, marking document failed",
+            doc_id=doc_id,
+            collection=collection_name,
+        )
+        await db.execute(
+            "UPDATE documents SET status = 'failed', error_message = $2, "
+            "updated_at = now() WHERE id = $1",
+            uuid.UUID(doc_id),
+            f"enqueue failed: {exc.__class__.__name__}: {exc}",
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Ingestion queue unavailable — document saved as failed, retry later."
+            ),
+        ) from exc
 
     return _row_to_response(dict(row))
 
