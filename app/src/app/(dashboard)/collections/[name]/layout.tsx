@@ -27,6 +27,7 @@ const CollectionLayout = ({
   const tabs = [
     { href: `${base}/documents`, label: "Documents", count: stats?.document_count },
     { href: `${base}/search`, label: "Search" },
+    { href: `${base}/s3-jobs`, label: "S3 jobs" },
     { href: `${base}/settings`, label: "Settings" },
   ].map((t) => ({ ...t, active: pathname === t.href || pathname.startsWith(`${t.href}/`) }));
 
