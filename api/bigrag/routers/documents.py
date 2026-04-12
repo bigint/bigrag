@@ -6,11 +6,14 @@ import json
 import uuid
 from pathlib import Path
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.config import settings
-from bigrag.database import db
+from bigrag.db.models import Collection, Document
+from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.common import StatusResponse
@@ -27,7 +30,7 @@ from bigrag.models.document import (
 )
 from bigrag.models.s3 import S3IngestRequest, S3IngestResponse
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
-from bigrag.services import metadata_schema, moderation, pii
+from bigrag.services import metadata_schema, moderation
 from bigrag.services.event_bus import event_bus
 from bigrag.services.file_validation import InvalidFileContent, validate_upload
 from bigrag.services.ingestion_job import create_ingestion_job
@@ -40,35 +43,46 @@ logger = get_logger("bigrag.routers.documents")
 router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["documents"])
 
 SUPPORTED_EXTENSIONS = {
-    ".pdf",
-    ".docx",
-    ".pptx",
-    ".xlsx",
-    ".html",
-    ".htm",
-    ".md",
-    ".txt",
-    ".csv",
-    ".tsv",
-    ".xml",
-    ".json",
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".tiff",
-    ".bmp",
-    ".gif",
+    ".pdf", ".docx", ".pptx", ".xlsx",
+    ".html", ".htm", ".md", ".txt", ".csv", ".tsv", ".xml", ".json",
+    ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif",
 }
 
 
-def _row_to_response(row: dict) -> DocumentResponse:
-    r = {}
-    for k, v in row.items():
-        if isinstance(v, uuid.UUID):
-            r[k] = str(v)
-        else:
-            r[k] = v
-    return DocumentResponse(**r)
+def _document_response(doc: Document, *, deduped: bool = False) -> DocumentResponse:
+    return DocumentResponse(
+        id=str(doc.id),
+        collection_id=str(doc.collection_id),
+        filename=doc.filename,
+        file_type=doc.file_type,
+        file_size=doc.file_size,
+        chunk_count=doc.chunk_count,
+        status=doc.status,
+        error_message=doc.error_message,
+        metadata=doc.meta or {},
+        content_hash=doc.content_hash,
+        deduped=deduped,
+        created_at=doc.created_at,
+        updated_at=doc.updated_at,
+    )
+
+
+async def _recount_ready_documents(
+    session: AsyncSession,
+    collection_id: uuid.UUID,
+) -> None:
+    subq = (
+        sa.select(sa.func.count())
+        .select_from(Document)
+        .where(Document.collection_id == collection_id)
+        .where(Document.status == "ready")
+        .scalar_subquery()
+    )
+    await session.execute(
+        sa.update(Collection)
+        .where(Collection.id == collection_id)
+        .values(document_count=subq)
+    )
 
 
 @router.post("", response_model=DocumentResponse, status_code=201)
@@ -78,6 +92,7 @@ async def upload_document(
     file: UploadFile = File(...),
     metadata: str = Form(default="{}"),
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
     try:
@@ -127,27 +142,25 @@ async def upload_document(
     except InvalidFileContent as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    # Content-hash dedup: if the exact same bytes are already ingested
-    # into this collection we return the existing doc with deduped=True
-    # rather than creating a second copy and paying to re-embed it.
+    # Content-hash dedup: if the exact same bytes are already ingested into
+    # this collection we return the existing doc with deduped=True rather
+    # than creating a second copy and paying to re-embed it.
     content_hash = hashlib.sha256(content).hexdigest()
-    existing = await db.fetchrow(
-        "SELECT * FROM documents WHERE collection_id = $1 AND content_hash = $2 LIMIT 1",
-        collection["id"],
-        content_hash,
+    existing = await session.scalar(
+        sa.select(Document)
+        .where(Document.collection_id == collection["id"])
+        .where(Document.content_hash == content_hash)
+        .limit(1)
     )
-    if existing:
+    if existing is not None:
         logger.info(
             "upload: dedup hit — returning existing doc",
             content_hash=content_hash[:12],
-            doc_id=str(existing["id"]),
+            doc_id=str(existing.id),
         )
-        response = _row_to_response(dict(existing))
-        response_body = response.model_dump()
-        response_body["deduped"] = True
-        return response_body
+        return _document_response(existing, deduped=True)
 
-    doc_id = str(uuid.uuid4())
+    doc_id = uuid.uuid4()
     file_ext = Path(file.filename or "document").suffix
     storage_key = f"{collection_name}/{doc_id}{file_ext}"
 
@@ -165,9 +178,9 @@ async def upload_document(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
 
-    # Optional content moderation. Runs over the raw bytes decoded as
-    # utf-8 best-effort — avoids paying Docling cost for obviously-
-    # disallowed content. Fails open on unavailability.
+    # Optional content moderation. Runs over the raw bytes decoded as utf-8
+    # best-effort — avoids paying Docling cost for obviously-disallowed
+    # content. Fails open on unavailability.
     if collection.get("moderation_enabled"):
         text_preview = content[:50_000].decode("utf-8", errors="ignore")
         if text_preview.strip():
@@ -177,41 +190,38 @@ async def upload_document(
             if flagged:
                 raise HTTPException(status_code=400, detail=f"Upload blocked: {reason}")
 
-    # PII redaction. Redacts the text that will be embedded; raw bytes
-    # on storage are kept unredacted so Docling can still render a
-    # citation back into the original file (source of truth).
+    # PII redaction. Redacts the text that will be embedded; raw bytes on
+    # storage are kept unredacted so Docling can still render a citation
+    # back into the original file (source of truth).
     if collection.get("redact_pii"):
-        # Redaction is applied downstream during conversion — here we
-        # just note it in metadata so downstream workers know. That
-        # avoids double-parsing the file.
+        # Redaction is applied downstream during conversion — here we just
+        # note it in metadata so downstream workers know. That avoids
+        # double-parsing the file.
         meta = {**meta, "_redact_pii": True}
 
+    doc = Document(
+        id=doc_id,
+        collection_id=collection["id"],
+        filename=file.filename or "document",
+        file_type=file_ext.lstrip("."),
+        file_size=len(content),
+        file_path=storage_key,
+        content_hash=content_hash,
+        meta=meta,
+    )
+    session.add(doc)
     try:
-        row = await db.fetchrow(
-            """
-            INSERT INTO documents
-                (id, collection_id, filename, file_type, file_size, file_path,
-                 content_hash, metadata)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING *
-            """,
-            uuid.UUID(doc_id),
-            collection["id"],
-            file.filename or "document",
-            file_ext.lstrip("."),
-            len(content),
-            storage_key,
-            content_hash,
-            meta,
-        )
+        await session.commit()
     except Exception:
+        await session.rollback()
         await storage.delete(storage_key)
         raise
+    await session.refresh(doc)
 
     try:
         await ingestion_queue.enqueue(
             create_ingestion_job(
-                document_id=doc_id,
+                document_id=str(doc_id),
                 file_path=storage_key,
                 collection_name=collection_name,
                 collection=collection,
@@ -221,15 +231,18 @@ async def upload_document(
     except Exception as exc:
         logger.exception(
             "upload: enqueue failed, marking document failed",
-            doc_id=doc_id,
+            doc_id=str(doc_id),
             collection=collection_name,
         )
-        await db.execute(
-            "UPDATE documents SET status = 'failed', error_message = $2, "
-            "updated_at = now() WHERE id = $1",
-            uuid.UUID(doc_id),
-            f"enqueue failed: {exc.__class__.__name__}: {exc}",
+        await session.execute(
+            sa.update(Document)
+            .where(Document.id == doc_id)
+            .values(
+                status="failed",
+                error_message=f"enqueue failed: {exc.__class__.__name__}: {exc}",
+            )
         )
+        await session.commit()
         raise HTTPException(
             status_code=503,
             detail=(
@@ -237,7 +250,7 @@ async def upload_document(
             ),
         ) from exc
 
-    return _row_to_response(dict(row))
+    return _document_response(doc)
 
 
 @router.get("", response_model=DocumentListResponse)
@@ -247,45 +260,30 @@ async def list_documents(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
 
+    stmt = (
+        sa.select(Document)
+        .where(Document.collection_id == collection["id"])
+        .order_by(Document.created_at.desc())
+    )
+    count_stmt = (
+        sa.select(sa.func.count())
+        .select_from(Document)
+        .where(Document.collection_id == collection["id"])
+    )
     if status:
-        rows = await db.fetch(
-            """
-            SELECT * FROM documents
-            WHERE collection_id = $1 AND status = $2
-            ORDER BY created_at DESC LIMIT $3 OFFSET $4
-            """,
-            collection["id"],
-            status,
-            limit,
-            offset,
-        )
-        count_row = await db.fetchrow(
-            "SELECT COUNT(*) as cnt FROM documents WHERE collection_id = $1 AND status = $2",
-            collection["id"],
-            status,
-        )
-    else:
-        rows = await db.fetch(
-            """
-            SELECT * FROM documents
-            WHERE collection_id = $1
-            ORDER BY created_at DESC LIMIT $2 OFFSET $3
-            """,
-            collection["id"],
-            limit,
-            offset,
-        )
-        count_row = await db.fetchrow(
-            "SELECT COUNT(*) as cnt FROM documents WHERE collection_id = $1",
-            collection["id"],
-        )
+        stmt = stmt.where(Document.status == status)
+        count_stmt = count_stmt.where(Document.status == status)
+
+    docs = (await session.scalars(stmt.limit(limit).offset(offset))).all()
+    total = await session.scalar(count_stmt)
 
     return DocumentListResponse(
-        documents=[_row_to_response(dict(r)) for r in rows],
-        total=count_row["cnt"],
+        documents=[_document_response(d) for d in docs],
+        total=total or 0,
     )
 
 
@@ -294,16 +292,17 @@ async def get_document(
     collection_name: str,
     document_id: str,
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
-    row = await db.fetchrow(
-        "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
-        uuid.UUID(document_id),
-        collection["id"],
+    doc = await session.scalar(
+        sa.select(Document)
+        .where(Document.id == uuid.UUID(document_id))
+        .where(Document.collection_id == collection["id"])
     )
-    if not row:
+    if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    return _row_to_response(dict(row))
+    return _document_response(doc)
 
 
 @router.delete("/{document_id}", response_model=StatusResponse)
@@ -311,35 +310,27 @@ async def delete_document(
     collection_name: str,
     document_id: str,
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
-    row = await db.fetchrow(
-        "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
-        uuid.UUID(document_id),
-        collection["id"],
+    doc = await session.scalar(
+        sa.select(Document)
+        .where(Document.id == uuid.UUID(document_id))
+        .where(Document.collection_id == collection["id"])
     )
-    if not row:
+    if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
     await vector_store.delete_by_document(collection_name, document_id)
 
-    await db.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(document_id))
+    file_path = doc.file_path
+    await session.delete(doc)
+    await _recount_ready_documents(session, collection["id"])
+    await session.commit()
 
-    await db.execute(
-        """
-        UPDATE collections SET
-            document_count = (
-                SELECT COUNT(*) FROM documents WHERE collection_id = $1 AND status = 'ready'
-            ),
-            updated_at = now()
-        WHERE id = $1
-        """,
-        collection["id"],
-    )
+    await get_storage().delete(file_path)
 
-    await get_storage().delete(row["file_path"])
-
-    return {"status": "ok", "message": "Document deleted"}
+    return StatusResponse(status="ok", message="Document deleted")
 
 
 @router.post("/{document_id}/reprocess", response_model=StatusResponse)
@@ -347,14 +338,15 @@ async def reprocess_document(
     collection_name: str,
     document_id: str,
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
-    row = await db.fetchrow(
-        "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
-        uuid.UUID(document_id),
-        collection["id"],
+    doc = await session.scalar(
+        sa.select(Document)
+        .where(Document.id == uuid.UUID(document_id))
+        .where(Document.collection_id == collection["id"])
     )
-    if not row:
+    if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
     try:
@@ -362,7 +354,7 @@ async def reprocess_document(
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    if not await get_storage().exists(row["file_path"]):
+    if not await get_storage().exists(doc.file_path):
         raise HTTPException(
             status_code=400,
             detail="Source file no longer exists. Upload the document again.",
@@ -370,23 +362,22 @@ async def reprocess_document(
 
     await vector_store.delete_by_document(collection_name, document_id)
 
-    await db.execute(
-        "UPDATE documents SET status = 'pending', chunk_count = 0, "
-        "error_message = NULL, updated_at = now() WHERE id = $1",
-        uuid.UUID(document_id),
-    )
+    doc.status = "pending"
+    doc.chunk_count = 0
+    doc.error_message = None
+    await session.commit()
 
     await ingestion_queue.enqueue(
         create_ingestion_job(
             document_id=document_id,
-            file_path=row["file_path"],
+            file_path=doc.file_path,
             collection_name=collection_name,
             collection=collection,
             fallback_api_key=settings.embedding_api_key,
         )
     )
 
-    return {"status": "ok", "message": "Document reprocessing started"}
+    return StatusResponse(status="ok", message="Document reprocessing started")
 
 
 @router.get("/{document_id}/chunks")
@@ -396,14 +387,15 @@ async def get_document_chunks(
     limit: int = Query(default=50, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
-    row = await db.fetchrow(
-        "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
-        uuid.UUID(document_id),
-        collection["id"],
+    exists = await session.scalar(
+        sa.select(Document.id)
+        .where(Document.id == uuid.UUID(document_id))
+        .where(Document.collection_id == collection["id"])
     )
-    if not row:
+    if exists is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
     chunks, total = await vector_store.get_chunks(
@@ -417,21 +409,22 @@ async def download_document_file(
     collection_name: str,
     document_id: str,
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
-    row = await db.fetchrow(
-        "SELECT * FROM documents WHERE id = $1 AND collection_id = $2",
-        uuid.UUID(document_id),
-        collection["id"],
+    doc = await session.scalar(
+        sa.select(Document)
+        .where(Document.id == uuid.UUID(document_id))
+        .where(Document.collection_id == collection["id"])
     )
-    if not row:
+    if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
     storage = get_storage()
-    if not await storage.exists(row["file_path"]):
+    if not await storage.exists(doc.file_path):
         raise HTTPException(status_code=404, detail="File not found in storage")
 
-    data = await storage.get(row["file_path"])
+    data = await storage.get(doc.file_path)
 
     content_type_map = {
         "pdf": "application/pdf",
@@ -453,10 +446,10 @@ async def download_document_file(
         "tiff": "image/tiff",
         "bmp": "image/bmp",
     }
-    ext = row["file_type"].lower()
+    ext = doc.file_type.lower()
     content_type = content_type_map.get(ext, "application/octet-stream")
 
-    filename = row["filename"].replace('"', '\\"')
+    filename = doc.filename.replace('"', '\\"')
     return Response(
         content=data,
         media_type=content_type,
@@ -471,6 +464,7 @@ async def batch_upload_documents(
     files: list[UploadFile] = File(...),
     metadata: str = Form(default="{}"),
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
     try:
@@ -532,44 +526,47 @@ async def batch_upload_documents(
             ) from exc
         validated.append((file, content))
 
-    results = []
+    created: list[Document] = []
+    storage = get_storage()
     for file, content in validated:
-        doc_id = str(uuid.uuid4())
+        doc_id = uuid.uuid4()
         ext = Path(file.filename or "document").suffix
         storage_key = f"{collection_name}/{doc_id}{ext}"
 
-        storage = get_storage()
         await storage.put(storage_key, content)
 
-        row = await db.fetchrow(
-            """
-            INSERT INTO documents
-                (id, collection_id, filename, file_type, file_size, file_path, metadata)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING *
-            """,
-            uuid.UUID(doc_id),
-            collection["id"],
-            file.filename or "document",
-            ext.lstrip("."),
-            len(content),
-            storage_key,
-            shared_meta,
+        doc = Document(
+            id=doc_id,
+            collection_id=collection["id"],
+            filename=file.filename or "document",
+            file_type=ext.lstrip("."),
+            file_size=len(content),
+            file_path=storage_key,
+            meta=shared_meta,
         )
+        session.add(doc)
+        created.append(doc)
 
+    await session.commit()
+    for doc in created:
+        await session.refresh(doc)
+
+    for doc in created:
         await ingestion_queue.enqueue(
             create_ingestion_job(
-                document_id=doc_id,
-                file_path=storage_key,
+                document_id=str(doc.id),
+                file_path=doc.file_path,
                 collection_name=collection_name,
                 collection=collection,
                 fallback_api_key=settings.embedding_api_key,
             )
         )
-        results.append(_row_to_response(dict(row)))
 
-    logger.info(f"batch_upload: collection={collection_name} files={len(results)}")
-    return DocumentListResponse(documents=results, total=len(results))
+    logger.info(f"batch_upload: collection={collection_name} files={len(created)}")
+    return DocumentListResponse(
+        documents=[_document_response(d) for d in created],
+        total=len(created),
+    )
 
 
 @router.post("/batch/status", response_model=BatchStatusResponse)
@@ -577,6 +574,7 @@ async def batch_get_status(
     collection_name: str,
     body: BatchStatusRequest,
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
 
@@ -584,22 +582,22 @@ async def batch_get_status(
         raise HTTPException(status_code=400, detail="Maximum 100 documents per batch status")
 
     uuids = [uuid.UUID(d) for d in body.document_ids]
-    placeholders = ", ".join(f"${i + 2}" for i in range(len(uuids)))
-    rows = await db.fetch(
-        f"SELECT id, status, error_message, chunk_count FROM documents "
-        f"WHERE collection_id = $1 AND id IN ({placeholders})",
-        collection["id"],
-        *uuids,
-    )
+    rows = (
+        await session.execute(
+            sa.select(Document.id, Document.status, Document.error_message, Document.chunk_count)
+            .where(Document.collection_id == collection["id"])
+            .where(Document.id.in_(uuids))
+        )
+    ).all()
 
     documents = [
         DocumentStatusResponse(
-            id=str(r["id"]),
-            status=r["status"],
-            error_message=r["error_message"],
-            chunk_count=r["chunk_count"],
+            id=str(row.id),
+            status=row.status,
+            error_message=row.error_message,
+            chunk_count=row.chunk_count,
         )
-        for r in rows
+        for row in rows
     ]
 
     return BatchStatusResponse(documents=documents, total=len(documents))
@@ -610,6 +608,7 @@ async def batch_get_documents(
     collection_name: str,
     body: BatchGetRequest,
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
 
@@ -617,16 +616,18 @@ async def batch_get_documents(
         raise HTTPException(status_code=400, detail="Maximum 100 documents per batch get")
 
     uuids = [uuid.UUID(d) for d in body.document_ids]
-    placeholders = ", ".join(f"${i + 2}" for i in range(len(uuids)))
-    rows = await db.fetch(
-        f"SELECT * FROM documents WHERE collection_id = $1 AND id IN ({placeholders})",
-        collection["id"],
-        *uuids,
-    )
+    docs = (
+        await session.scalars(
+            sa.select(Document)
+            .where(Document.collection_id == collection["id"])
+            .where(Document.id.in_(uuids))
+        )
+    ).all()
 
-    documents = [_row_to_response(dict(r)) for r in rows]
+    documents = [_document_response(d) for d in docs]
     logger.info(
-        f"batch_get: collection={collection_name} requested={len(uuids)} found={len(documents)}"
+        f"batch_get: collection={collection_name} "
+        f"requested={len(uuids)} found={len(documents)}"
     )
     return BatchGetResponse(documents=documents, total=len(documents))
 
@@ -636,37 +637,33 @@ async def batch_delete_documents(
     collection_name: str,
     body: BatchDeleteRequest,
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
-
     collection = await get_collection_or_404(collection_name)
 
     if len(body.document_ids) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 documents per batch delete")
 
     uuids = [uuid.UUID(d) for d in body.document_ids]
-    placeholders = ", ".join(f"${i + 2}" for i in range(len(uuids)))
-    rows = await db.fetch(
-        f"SELECT * FROM documents WHERE collection_id = $1 AND id IN ({placeholders})",
-        collection["id"],
-        *uuids,
-    )
-    rows_by_id = {str(r["id"]): r for r in rows}
+    docs = (
+        await session.scalars(
+            sa.select(Document)
+            .where(Document.collection_id == collection["id"])
+            .where(Document.id.in_(uuids))
+        )
+    ).all()
+    by_id = {str(d.id): d for d in docs}
 
-    errors = []
-    not_found = [
+    errors = [
         {"document_id": d, "error": "Document not found"}
         for d in body.document_ids
-        if d not in rows_by_id
+        if d not in by_id
     ]
-    errors.extend(not_found)
 
-    async def _delete_one(doc_id: str, row: dict) -> bool:
+    async def _delete_one(doc_id: str, doc: Document) -> bool:
         try:
-            await asyncio.gather(
-                vector_store.delete_by_document(collection_name, doc_id),
-                db.execute("DELETE FROM documents WHERE id = $1", uuid.UUID(doc_id)),
-                get_storage().delete(row["file_path"]),
-            )
+            await vector_store.delete_by_document(collection_name, doc_id)
+            await get_storage().delete(doc.file_path)
             return True
         except Exception as e:
             logger.error(f"batch_delete: failed to delete doc={doc_id}: {e!r}")
@@ -674,24 +671,21 @@ async def batch_delete_documents(
             return False
 
     results = await asyncio.gather(
-        *[_delete_one(doc_id, row) for doc_id, row in rows_by_id.items()]
+        *[_delete_one(doc_id, doc) for doc_id, doc in by_id.items()]
     )
     deleted = sum(1 for r in results if r)
 
-    await db.execute(
-        """
-        UPDATE collections SET
-            document_count = (
-                SELECT COUNT(*) FROM documents WHERE collection_id = $1 AND status = 'ready'
-            ),
-            updated_at = now()
-        WHERE id = $1
-        """,
-        collection["id"],
-    )
+    # Remove the Postgres rows in one statement now that side effects
+    # (Milvus, storage) have settled.
+    deleted_ids = [uuid.UUID(d) for d, ok in zip(by_id.keys(), results, strict=True) if ok]
+    if deleted_ids:
+        await session.execute(sa.delete(Document).where(Document.id.in_(deleted_ids)))
+    await _recount_ready_documents(session, collection["id"])
+    await session.commit()
 
     logger.info(
-        f"batch_delete: collection={collection_name} deleted={deleted} errors={len(errors)}"
+        f"batch_delete: collection={collection_name} "
+        f"deleted={deleted} errors={len(errors)}"
     )
     return BatchDeleteResponse(status="ok", deleted=deleted, errors=errors)
 
@@ -703,14 +697,12 @@ global_router = APIRouter(prefix="/v1/documents", tags=["documents"])
 async def get_document_global(
     document_id: str,
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
-    row = await db.fetchrow(
-        "SELECT * FROM documents WHERE id = $1",
-        uuid.UUID(document_id),
-    )
-    if not row:
+    doc = await session.get(Document, uuid.UUID(document_id))
+    if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    return _row_to_response(dict(row))
+    return _document_response(doc)
 
 
 @global_router.get("/{document_id}/chunks")
@@ -719,20 +711,18 @@ async def get_document_chunks_global(
     limit: int = Query(default=50, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
-    row = await db.fetchrow(
-        "SELECT * FROM documents WHERE id = $1",
-        uuid.UUID(document_id),
-    )
-    if not row:
+    doc = await session.get(Document, uuid.UUID(document_id))
+    if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    collection = await db.fetchrow(
-        "SELECT name FROM collections WHERE id = $1", row["collection_id"],
+    collection_name = await session.scalar(
+        sa.select(Collection.name).where(Collection.id == doc.collection_id)
     )
-    if not collection:
+    if collection_name is None:
         raise HTTPException(status_code=404, detail="Collection not found")
     chunks, total = await vector_store.get_chunks(
-        collection["name"], document_id, limit=limit, offset=offset,
+        collection_name, document_id, limit=limit, offset=offset,
     )
     return {"chunks": chunks, "total": total}
 
@@ -745,8 +735,8 @@ async def ingest_from_s3(
 ):
     """List objects in an S3 bucket and ingest supported files.
 
-    Returns immediately. Listing, downloading, and ingestion all happen
-    in the background and persist across server restarts.
+    Returns immediately. Listing, downloading, and ingestion all happen in
+    the background and persist across server restarts.
     """
     from bigrag.services.s3_ingest import create_job
 
@@ -889,3 +879,8 @@ async def document_progress_sse(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# Keep the 'pii' module wired up — downstream consumers ingest it via
+# this import chain. See services.pii for the active redaction pipeline.
+from bigrag.services import pii  # noqa: E402, F401

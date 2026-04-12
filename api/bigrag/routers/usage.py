@@ -2,23 +2,25 @@
 
 Aggregates from:
 
-- ``documents.file_size`` + ``documents.chunk_count`` for storage /
-  ingestion volume
+- ``documents.file_size`` + ``documents.chunk_count`` for storage / ingestion
+  volume
 - ``query_log`` for query volume and average latency
 - A simple rate card (per-1M-token rates) for a rough dollar figure
 
-The cost is approximate — providers change pricing, and we don't
-track every detail (reranker calls, hypothetical HyDE calls, etc.).
-For exact numbers consumers should cross-check against their
-provider's billing dashboard.
+The cost is approximate — providers change pricing, and we don't track every
+detail (reranker calls, hypothetical HyDE calls, etc.). For exact numbers
+consumers should cross-check against their provider's billing dashboard.
 """
 
 from __future__ import annotations
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.database import db
+from bigrag.db.models import Collection, Document, QueryLog
+from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 
@@ -46,8 +48,8 @@ class UsageResponse(BaseModel):
     documents_total: int
     chunks_total: int
     storage_bytes_total: int
-    # Embeddings column is a rough estimate using token_count on
-    # documents, multiplied by the collection's embedding model rate.
+    # Embeddings column is a rough estimate using token_count on documents,
+    # multiplied by the collection's embedding model rate.
     embedding_tokens_total: int
     embedding_cost_usd_estimate: float
     by_collection: list[dict]
@@ -57,37 +59,41 @@ class UsageResponse(BaseModel):
 async def get_usage(
     window_days: int = Query(default=30, ge=1, le=365),
     _: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ) -> UsageResponse:
-    interval = f"{window_days} days"
+    per_collection = (
+        await session.execute(
+            sa.select(
+                Collection.id.label("collection_id"),
+                Collection.name.label("collection"),
+                Collection.embedding_model,
+                sa.func.coalesce(sa.func.sum(Document.file_size), 0).label("storage_bytes"),
+                sa.func.coalesce(sa.func.sum(Document.chunk_count), 0).label("chunks"),
+                sa.func.count(Document.id).label("documents"),
+                sa.func.coalesce(sa.func.sum(Document.token_count), 0).label("embedding_tokens"),
+            )
+            .select_from(Collection)
+            .outerjoin(Document, Document.collection_id == Collection.id)
+            .group_by(Collection.id, Collection.name, Collection.embedding_model)
+            .order_by(sa.desc("storage_bytes"))
+        )
+    ).all()
 
-    per_collection = await db.fetch(
-        """
-        SELECT
-            c.id AS collection_id,
-            c.name AS collection,
-            c.embedding_model,
-            COALESCE(SUM(d.file_size), 0)::bigint AS storage_bytes,
-            COALESCE(SUM(d.chunk_count), 0)::bigint AS chunks,
-            COUNT(d.id)::bigint AS documents,
-            COALESCE(SUM(d.token_count), 0)::bigint AS embedding_tokens
-        FROM collections c
-        LEFT JOIN documents d ON d.collection_id = c.id
-        GROUP BY c.id, c.name, c.embedding_model
-        ORDER BY storage_bytes DESC
-        """
-    )
+    window = sa.text("make_interval(days => :days)").bindparams(days=window_days)
+    query_counts = (
+        await session.execute(
+            sa.select(
+                QueryLog.collection_name,
+                sa.func.count().label("cnt"),
+                sa.func.coalesce(sa.func.avg(QueryLog.latency_ms), 0).label("avg_latency"),
+            )
+            .where(QueryLog.created_at > sa.func.now() - window)
+            .group_by(QueryLog.collection_name)
+        )
+    ).all()
+    queries_by_col = {r.collection_name: r for r in query_counts}
 
-    query_counts = await db.fetch(
-        f"""
-        SELECT collection_name, COUNT(*) AS cnt, COALESCE(AVG(latency_ms), 0) AS avg_latency
-        FROM query_log
-        WHERE created_at > now() - interval '{interval}'
-        GROUP BY collection_name
-        """
-    )
-    queries_by_col = {r["collection_name"]: r for r in query_counts}
-
-    by_collection = []
+    by_collection: list[dict] = []
     queries_total = 0
     docs_total = 0
     chunks_total = 0
@@ -96,20 +102,19 @@ async def get_usage(
     cost_total = 0.0
 
     for row in per_collection:
-        col = row["collection"]
-        rate = _EMBED_RATES_USD_PER_M.get(row["embedding_model"], 0.0)
-        col_tokens = int(row["embedding_tokens"])
+        rate = _EMBED_RATES_USD_PER_M.get(row.embedding_model, 0.0)
+        col_tokens = int(row.embedding_tokens)
         col_cost = col_tokens / 1_000_000 * rate
-        q = queries_by_col.get(col)
-        q_count = int(q["cnt"]) if q else 0
-        q_avg_latency = float(q["avg_latency"]) if q else 0.0
+        q = queries_by_col.get(row.collection)
+        q_count = int(q.cnt) if q else 0
+        q_avg_latency = float(q.avg_latency) if q else 0.0
 
         by_collection.append(
             {
-                "collection": col,
-                "documents": int(row["documents"]),
-                "chunks": int(row["chunks"]),
-                "storage_bytes": int(row["storage_bytes"]),
+                "collection": row.collection,
+                "documents": int(row.documents),
+                "chunks": int(row.chunks),
+                "storage_bytes": int(row.storage_bytes),
                 "embedding_tokens": col_tokens,
                 "embedding_cost_usd_estimate": round(col_cost, 4),
                 "queries": q_count,
@@ -117,9 +122,9 @@ async def get_usage(
             }
         )
         queries_total += q_count
-        docs_total += int(row["documents"])
-        chunks_total += int(row["chunks"])
-        bytes_total += int(row["storage_bytes"])
+        docs_total += int(row.documents)
+        chunks_total += int(row.chunks)
+        bytes_total += int(row.storage_bytes)
         tokens_total += col_tokens
         cost_total += col_cost
 

@@ -3,8 +3,11 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
+import sqlalchemy as sa
+
 from bigrag.config import settings
-from bigrag.database import db
+from bigrag.db.engine import session_factory
+from bigrag.db.models import Collection
 from bigrag.exceptions import NotFoundError, ValidationError
 from bigrag.logging import get_logger
 from bigrag.services import redis_cache
@@ -19,6 +22,37 @@ async def invalidate(name: str | None = None) -> None:
         await redis_cache.delete_pattern("collection:*")
 
 
+def _serialize(c: Collection) -> dict:
+    return {
+        "id": c.id,
+        "name": c.name,
+        "description": c.description,
+        "embedding_provider": c.embedding_provider,
+        "embedding_model": c.embedding_model,
+        "embedding_api_key": c.embedding_api_key,
+        "embedding_base_url": c.embedding_base_url,
+        "dimension": c.dimension,
+        "chunk_size": c.chunk_size,
+        "chunk_overlap": c.chunk_overlap,
+        "chunk_strategy": c.chunk_strategy,
+        "document_count": c.document_count,
+        "default_top_k": c.default_top_k,
+        "default_min_score": c.default_min_score,
+        "default_search_mode": c.default_search_mode,
+        "reranking_enabled": c.reranking_enabled,
+        "reranking_model": c.reranking_model,
+        "reranking_api_key": c.reranking_api_key,
+        "index_type": c.index_type,
+        "tenant_field": c.tenant_field,
+        "metadata_schema": c.metadata_schema,
+        "redact_pii": c.redact_pii,
+        "moderation_enabled": c.moderation_enabled,
+        "metadata": c.meta or {},
+        "created_at": c.created_at,
+        "updated_at": c.updated_at,
+    }
+
+
 async def get_or_404(name: str) -> dict:
     cached = await redis_cache.get(f"collection:{name}")
     if cached:
@@ -26,15 +60,19 @@ async def get_or_404(name: str) -> dict:
             cached["id"] = uuid.UUID(cached["id"])
         return cached
 
-    row = await db.fetchrow("SELECT * FROM collections WHERE name = $1", name)
-    if not row:
+    async with session_factory()() as session:
+        collection = await session.scalar(
+            sa.select(Collection).where(Collection.name == name)
+        )
+    if collection is None:
         raise NotFoundError("Collection", name)
-    data = {
+    data = _serialize(collection)
+    cacheable = {
         k: str(v) if hasattr(v, "hex") else v.isoformat() if isinstance(v, datetime) else v
-        for k, v in dict(row).items()
+        for k, v in data.items()
     }
     await redis_cache.set(
-        f"collection:{name}", data, ttl=settings.collection_cache_ttl,
+        f"collection:{name}", cacheable, ttl=settings.collection_cache_ttl,
     )
     return data
 
