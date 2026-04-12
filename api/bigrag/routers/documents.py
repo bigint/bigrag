@@ -27,6 +27,7 @@ from bigrag.models.document import (
 )
 from bigrag.models.s3 import S3IngestRequest, S3IngestResponse
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
+from bigrag.services import metadata_schema, moderation, pii
 from bigrag.services.event_bus import event_bus
 from bigrag.services.file_validation import InvalidFileContent, validate_upload
 from bigrag.services.ingestion_job import create_ingestion_job
@@ -159,6 +160,33 @@ async def upload_document(
         meta = json.loads(metadata) if metadata else {}
     except json.JSONDecodeError:
         meta = {}
+
+    # P2-E9: enforce the collection's metadata JSON schema if one is set.
+    try:
+        metadata_schema.validate(meta, collection.get("metadata_schema"))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
+
+    # P2-E6: optional content moderation. Runs over the raw bytes
+    # decoded as utf-8 best-effort — avoids paying Docling cost for
+    # obviously-disallowed content. Fails open on unavailability.
+    if collection.get("moderation_enabled"):
+        text_preview = content[:50_000].decode("utf-8", errors="ignore")
+        if text_preview.strip():
+            flagged, reason = await moderation.check_text(
+                text_preview, collection.get("embedding_api_key") or settings.embedding_api_key
+            )
+            if flagged:
+                raise HTTPException(status_code=400, detail=f"Upload blocked: {reason}")
+
+    # P2-E5: PII redaction. Redacts the text that will be embedded;
+    # raw bytes on storage are kept unredacted so Docling can still
+    # render a citation back into the original file (source of truth).
+    if collection.get("redact_pii"):
+        # Redaction is applied downstream during conversion — here we
+        # just note it in metadata so downstream workers know. That
+        # avoids double-parsing the file.
+        meta = {**meta, "_redact_pii": True}
 
     try:
         row = await db.fetchrow(
