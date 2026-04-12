@@ -42,12 +42,16 @@ curl -X POST http://localhost:6100/v1/collections/research/documents \
   "status": "pending",
   "error_message": null,
   "metadata": { "author": "Smith", "year": 2026 },
+  "content_hash": "sha256:7f3c…",
+  "deduped": false,
   "created_at": "2026-04-01T00:00:00Z",
   "updated_at": "2026-04-01T00:00:00Z"
 }
 ```
 
-**Errors:** `400` — Unsupported file type, `404` — Collection not found, `413` — File too large
+`content_hash` is a SHA-256 of the uploaded bytes used for deduplication — if a collection already has a document with the same hash, the new upload is rejected as a duplicate and `deduped` is `true` on the returned record. See [Collections → `content_hash` dedup](/docs/concepts/collections).
+
+**Errors:** `400` — Unsupported file type, `404` — Collection not found, `409` — Duplicate content (same `content_hash` already ingested), `413` — File too large
 
 ## List Documents
 
@@ -75,6 +79,8 @@ GET /v1/collections/{collection_name}/documents
       "status": "ready",
       "error_message": null,
       "metadata": {},
+      "content_hash": "sha256:7f3c…",
+      "deduped": false,
       "created_at": "...",
       "updated_at": "..."
     }
@@ -415,6 +421,8 @@ Fetch full metadata for up to 100 documents by ID.
       "status": "ready",
       "error_message": null,
       "metadata": {},
+      "content_hash": "sha256:7f3c…",
+      "deduped": false,
       "created_at": "...",
       "updated_at": "..."
     }

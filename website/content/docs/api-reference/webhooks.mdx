@@ -14,7 +14,7 @@ POST /v1/admin/webhooks
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `url` | string | yes | Delivery URL (HTTPS required, HTTP allowed for localhost) |
-| `events` | string[] | yes | Event types: `document.processing`, `document.ready`, `document.failed` |
+| `events` | string[] | yes | Event types (only these three deliver via webhooks today): `document.processing`, `document.ready`, `document.failed` |
 | `collections` | string[] | no | Filter by collection names (`null` = all) |
 | `description` | string | no | Human-readable description |
 
@@ -85,6 +85,10 @@ Sends a `webhook.test` event to verify the endpoint is reachable.
   "error_message": null
 }
 ```
+
+<Callout type="info">
+Webhooks deliver **document lifecycle events only**. Admin-plane events (`user.create`, `api_key.*`, `webhook.*`, `collection.*`) are recorded in the [audit log](/docs/api-reference/audit) and are not dispatched to webhooks.
+</Callout>
 
 ## Headers
 

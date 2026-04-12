@@ -28,6 +28,7 @@ def _job_response(job: S3IngestJob) -> S3JobResponse:
         region=job.region,
         endpoint_url=job.endpoint_url,
         file_types=list(job.file_types or []),
+        metadata=dict(job.meta or {}),
         status=job.status,
         total_found=job.total_found,
         total_ingested=job.total_ingested,
@@ -109,6 +110,8 @@ async def update_s3_job(
 
     if body.file_types is not None:
         job.file_types = body.file_types
+    if body.metadata is not None:
+        job.meta = body.metadata
     await session.commit()
     await session.refresh(job)
 

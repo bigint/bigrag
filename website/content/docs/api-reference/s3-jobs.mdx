@@ -5,7 +5,7 @@ description: Track and control S3 bucket ingestion jobs.
 
 Base path: `/v1/admin/s3-jobs`
 
-Use [`POST /v1/collections/{name}/documents/batch/s3`](/docs/api-reference/documents#ingest-from-s3) to kick off an S3 ingest. This resource surfaces the job metadata, lets you resume stalled jobs, and lets you clean up completed ones. On app restart, incomplete jobs (`pending`, `listing`, `ingesting`) are automatically re-enqueued.
+Use [`POST /v1/collections/{name}/documents/s3`](/docs/api-reference/documents#ingest-from-s3-bucket) to kick off an S3 ingest. This resource surfaces the job metadata, lets you resume stalled jobs, and lets you clean up completed ones. On app restart, incomplete jobs (`pending`, `listing`, `ingesting`) are automatically re-enqueued.
 
 Session-only.
 
@@ -30,19 +30,18 @@ GET /v1/admin/s3-jobs?status=ingesting&limit=50&offset=0
   "jobs": [
     {
       "id": "job-9f…",
-      "collection_id": "550e…",
       "collection_name": "research_papers",
       "bucket": "papers",
       "prefix": "2026/",
       "region": "us-east-1",
       "endpoint_url": null,
-      "file_types": [".pdf", ".docx"],
+      "file_types": ["pdf", "docx"],
+      "metadata": { "source_campaign": "q2-ingest" },
       "status": "ingesting",
       "total_found": 4321,
       "total_ingested": 982,
       "total_skipped": 12,
       "error_message": null,
-      "metadata": { "source_campaign": "q2-ingest" },
       "created_at": "2026-04-12T10:00:00Z",
       "updated_at": "2026-04-12T10:21:00Z"
     }
@@ -51,7 +50,7 @@ GET /v1/admin/s3-jobs?status=ingesting&limit=50&offset=0
 }
 ```
 
-Credentials (`access_key`, `secret_key`) are never returned.
+`file_types` uses bare extensions without a leading dot (`"pdf"`, not `".pdf"`) — same convention as [Ingest from S3 Bucket](/docs/api-reference/documents#ingest-from-s3-bucket). Credentials (`access_key`, `secret_key`) are never returned.
 
 ## Get Job
 
@@ -67,7 +66,7 @@ GET /v1/admin/s3-jobs/{job_id}
 PATCH /v1/admin/s3-jobs/{job_id}
 ```
 
-Only `metadata` is mutable — use it to attach tags or tenant IDs after the fact.
+Mutable fields are `metadata` and `file_types` — use them to attach tags, tenant IDs, or narrow the extension filter after the fact.
 
 ```json
 { "metadata": { "tenant": "acme", "reviewed_by": "jane" } }
