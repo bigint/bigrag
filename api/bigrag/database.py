@@ -368,5 +368,9 @@ class Database:
         async with self.pool.acquire(timeout=10) as conn:
             return await conn.execute(query, *args)
 
+    async def executemany(self, query: str, args) -> None:
+        async with self.pool.acquire(timeout=10) as conn:
+            await conn.executemany(query, args)
+
 
 db = Database()

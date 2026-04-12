@@ -101,11 +101,31 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
         or settings.embedding_model
     )
 
-    if provider not in ("openai", "cohere"):
+    if provider not in ("openai", "openai_compatible", "cohere"):
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported embedding provider: '{provider}'. Supported: openai, cohere",
+            detail=(
+                f"Unsupported embedding provider: '{provider}'. "
+                f"Supported: openai, openai_compatible, cohere"
+            ),
         )
+    if provider == "openai_compatible":
+        if not body.embedding_base_url and not (preset and preset.get("base_url")):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "embedding_base_url is required when provider="
+                    "'openai_compatible'"
+                ),
+            )
+        if body.dimension is None and not (preset and preset.get("dimension")):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "dimension is required when provider='openai_compatible' "
+                    "— set it to the output size of your endpoint's model"
+                ),
+            )
 
     api_key = (
         body.embedding_api_key

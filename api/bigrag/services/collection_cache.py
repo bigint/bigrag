@@ -44,18 +44,24 @@ def get_embedding_model_for(collection: dict):
     from bigrag.services.embedding import get_embedding_model
 
     api_key = collection.get("embedding_api_key") or settings.embedding_api_key
-    if not api_key:
+    provider = collection["embedding_provider"]
+    base_url = collection.get("embedding_base_url")
+    # openai_compatible often points at a self-hosted endpoint (Ollama,
+    # vLLM, TEI) that doesn't check the key — only require one for the
+    # hosted providers.
+    if not api_key and provider in ("openai", "cohere"):
         raise ValidationError(
             f"Collection '{collection['name']}' uses "
-            f"'{collection['embedding_provider']}' embeddings but no API key is configured. "
+            f"'{provider}' embeddings but no API key is configured. "
             "Set BIGRAG_EMBEDDING_API_KEY or recreate the collection with an API key."
         )
 
     return get_embedding_model(
-        provider=collection["embedding_provider"],
+        provider=provider,
         model_name=collection["embedding_model"],
         dimension=collection["dimension"],
         api_key=api_key,
+        base_url=base_url,
     )
 
 

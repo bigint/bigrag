@@ -8,9 +8,35 @@ from pathlib import Path
 import redis.asyncio as aioredis
 
 from bigrag.logging import get_logger
+from bigrag.services import embedding_cache
 from bigrag.services.conversion import _get_docling_converter
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import IngestionJob
+
+
+async def _embed_with_cache(
+    texts: list[str],
+    model,
+    provider: str,
+    model_name: str,
+    dimension: int,
+) -> list[list[float]]:
+    """Fetch vectors from the persistent cache, embed the misses, and
+    write them back. Returns vectors aligned to the input order."""
+    cached = await embedding_cache.get_many(texts, provider, model_name, dimension)
+    missing_idx = [i for i in range(len(texts)) if i not in cached]
+    if missing_idx:
+        missing_texts = [texts[i] for i in missing_idx]
+        fresh = await model.embed(missing_texts)
+        if len(fresh) != len(missing_texts):
+            raise ValueError(
+                f"embedding provider returned {len(fresh)} vectors for "
+                f"{len(missing_texts)} inputs"
+            )
+        await embedding_cache.put_many(missing_texts, fresh, provider, model_name, dimension)
+        for idx, vec in zip(missing_idx, fresh, strict=False):
+            cached[idx] = vec
+    return [cached[i] for i in range(len(texts))]
 
 logger = get_logger("bigrag.queue")
 
@@ -268,6 +294,7 @@ class IngestionQueue:
             model_name=job.embedding_model,
             dimension=job.embedding_dimension,
             api_key=job.embedding_api_key,
+            base_url=getattr(job, "embedding_base_url", None),
         )
         elapsed = time.monotonic() - t0
         logger.info(
@@ -339,7 +366,13 @@ class IngestionQueue:
                 attempt += 1
                 try:
                     t0 = time.monotonic()
-                    embeddings = await embedding_model.embed(batch_texts)
+                    embeddings = await _embed_with_cache(
+                        batch_texts,
+                        embedding_model,
+                        job.embedding_provider,
+                        job.embedding_model,
+                        job.embedding_dimension,
+                    )
                     embed_elapsed = time.monotonic() - t0
 
                     t1 = time.monotonic()
