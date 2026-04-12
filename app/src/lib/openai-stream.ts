@@ -4,12 +4,12 @@
  * the bigRAG server). Yields text deltas as they arrive.
  */
 
-export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+export type OpenAIMessage = { role: "system" | "user" | "assistant"; content: string };
 
 export type StreamOptions = {
   apiKey: string;
   model: string;
-  messages: ChatMessage[];
+  messages: OpenAIMessage[];
   temperature?: number;
   signal?: AbortSignal;
   onToken: (delta: string) => void;

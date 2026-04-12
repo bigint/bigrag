@@ -74,20 +74,3 @@ Auth is admin-account + session cookie (Studio UI) or minted API keys
 `/setup` page; subsequent admins via `/users`; API keys via `/api-keys`. There
 is no shared-secret env var — do not introduce one.
 
-## E2E Tests
-
-After any significant API change (new endpoints, modified request/response shapes, new features, bug fixes), **run and update the E2E tests**.
-
-```bash
-cd e2e && uv run --with httpx python run.py
-```
-
-- Tests live in `e2e/tests/` — one file per feature area
-- Config is in `e2e/.env` (gitignored) — copy from `e2e/.env.example`
-- Tests hit the live server at `BIGRAG_URL` (default `localhost:6100`)
-- All tests are real (no mocks) — they use actual Postgres, Redis, Milvus, and OpenAI
-
-When adding or changing an endpoint:
-1. Add test cases to the relevant `e2e/tests/test_*.py` file (or create a new one)
-2. Run the full suite and fix any failures before committing
-3. If a response shape changes, update both the test assertions and the SDK types

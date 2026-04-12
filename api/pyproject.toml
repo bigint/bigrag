@@ -3,7 +3,7 @@ name = "bigrag"
 version = "0.0.2"
 description = "Self-hostable RAG platform with Docling ingestion and Milvus vector DB"
 license = "MIT"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.34.0",
@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.24.0", "ruff>=0.8.0"]
+dev = ["ruff>=0.8.0"]
 
 [project.scripts]
 bigrag = "bigrag.main:cli"
@@ -40,11 +40,8 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "T201", "FA102"]
 ignore = ["B008"]  # Depends() and Query() in FastAPI defaults are intentional
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"

@@ -81,7 +81,12 @@ client.createCollection({
 })
 client.getCollection(name)
 client.getCollectionStats(name)
-client.updateCollection(name, { description?, metadata? })
+client.updateCollection(name, {
+  description?, metadata?,
+  chunk_strategy?, metadata_schema?, redact_pii?, moderation_enabled?,
+  reranking_enabled?, reranking_model?, reranking_api_key?,
+  default_top_k?, default_min_score?, default_search_mode?,
+})
 client.deleteCollection(name)
 client.truncateCollection(name)  // delete all documents, keep the collection
 client.collections.streamEvents(name)  // AsyncIterable of collection events (SSE)

@@ -49,7 +49,6 @@ function processLargeDataset(data: any) {
 - [Database \& Async Patterns](#database--async-patterns)
 - [Caching with Redis](#caching-with-redis)
 - [TypeScript SDK Design](#typescript-sdk-design)
-- [Testing](#testing)
 - [Summary](#summary)
 - [References](#references)
 
@@ -2148,8 +2147,6 @@ class NotFoundError(BigRAGError):
     def __init__(self, resource: str, identifier: str): ...
 class ConflictError(BigRAGError): ...
 class ValidationError(BigRAGError): ...
-class IngestionError(BigRAGError):
-    def __init__(self, message: str, *, permanent: bool = False): ...
 ```
 
 Exception handlers in `main.py` translate domain errors to HTTP:
@@ -2569,64 +2566,6 @@ listCollections(options?: CollectionListOptions): Promise<CollectionListResponse
   return this.collections.list(options);
 }
 ```
-
-## Testing
-
-### E2E Tests
-
-Tests live in `e2e/tests/`. They hit real infrastructure (Postgres, Redis, Milvus, OpenAI). No mocks:
-
-```bash
-cd e2e && uv run --with httpx python run.py
-```
-
-One file per feature area. Name files `test_*.py`:
-
-```
-e2e/tests/
-  test_collections.py
-  test_documents.py
-  test_query.py
-  test_s3_ingest.py
-  test_webhooks.py
-```
-
-### Test Structure
-
-Each test is a standalone async function. Use descriptive names:
-
-```python
-async def test_create_collection_returns_201():
-    resp = await client.post("/v1/collections", json={"name": "test_coll"})
-    assert resp.status_code == 201
-    data = resp.json()
-    assert data["name"] == "test_coll"
-
-async def test_duplicate_collection_returns_409():
-    await client.post("/v1/collections", json={"name": "dupe"})
-    resp = await client.post("/v1/collections", json={"name": "dupe"})
-    assert resp.status_code == 409
-```
-
-### Unit Tests
-
-Unit tests use pytest-asyncio with mocked dependencies:
-
-```python
-@pytest.mark.asyncio
-async def test_valid_bearer_token(client, auth_headers, mock_db):
-    mock_db.fetch.return_value = []
-    mock_db.fetchrow.return_value = {"cnt": 0}
-    resp = await client.get("/v1/collections", headers=auth_headers)
-    assert resp.status_code == 200
-```
-
-### When to Add Tests
-
-After any significant API change:
-1. Add test cases to the relevant `e2e/tests/test_*.py`
-2. Run the full suite and fix failures before committing
-3. If a response shape changes, update both test assertions and SDK types
 
 ## References
 

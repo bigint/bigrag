@@ -75,17 +75,10 @@ bigrag/
 - **Python**: Run `ruff check . && ruff format .` before committing
 - **TypeScript**: Run `pnpm lint` from the root (uses Biome)
 - **Type hints**: Use type annotations on all public functions
-- **Tests**: Add tests for new functionality in `api/tests/`
 
-### Running Tests
+### Verifying Changes
 
 ```bash
-# Python API tests
-cd api && uv run pytest tests/ -v
-
-# TypeScript SDK tests
-pnpm --filter @bigrag/client test
-
 # Website build check
 pnpm --filter @bigrag/docs build
 

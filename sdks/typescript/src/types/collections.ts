@@ -8,6 +8,12 @@ export interface Collection {
   dimension: number;
   chunk_size: number;
   chunk_overlap: number;
+  chunk_strategy: string;
+  index_type: string;
+  tenant_field: string | null;
+  redact_pii: boolean;
+  moderation_enabled: boolean;
+  has_metadata_schema: boolean;
   document_count: number;
   has_api_key: boolean;
   reranking_enabled: boolean;
@@ -48,12 +54,21 @@ export interface CollectionStatsResponse {
 export interface CreateCollectionBody {
   name: string;
   description?: string;
+  embedding_preset_id?: string;
   embedding_provider?: string;
   embedding_model?: string;
   embedding_api_key?: string;
+  embedding_base_url?: string;
   dimension?: number;
   chunk_size?: number;
   chunk_overlap?: number;
+  chunk_strategy?: "paragraph" | "recursive";
+  index_type?: "IVF_FLAT" | "HNSW";
+  tenant_field?: string;
+  metadata_schema?: Record<string, unknown>;
+  redact_pii?: boolean;
+  moderation_enabled?: boolean;
+  metadata?: Record<string, unknown>;
   reranking_enabled?: boolean;
   reranking_model?: string;
   reranking_api_key?: string;
@@ -72,4 +87,8 @@ export interface UpdateCollectionBody {
   default_top_k?: number;
   default_min_score?: number;
   default_search_mode?: "semantic" | "keyword" | "hybrid";
+  chunk_strategy?: "paragraph" | "recursive";
+  metadata_schema?: Record<string, unknown>;
+  redact_pii?: boolean;
+  moderation_enabled?: boolean;
 }

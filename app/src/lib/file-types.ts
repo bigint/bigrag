@@ -13,7 +13,7 @@ export const FILE_TYPE_CATEGORIES: Record<string, string[]> = {
 
 export const ALL_FILE_TYPES = Object.values(FILE_TYPE_CATEGORIES).flat();
 
-export const extensionOf = (filename: string): string => {
+const extensionOf = (filename: string): string => {
   const dot = filename.lastIndexOf(".");
   if (dot < 0) return "";
   return filename.slice(dot + 1).toLowerCase();

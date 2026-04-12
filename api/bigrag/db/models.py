@@ -98,7 +98,7 @@ class Collection(Base):
     embedding_model: Mapped[str] = mapped_column(
         sa.Text, nullable=False, server_default="text-embedding-3-small"
     )
-    embedding_api_key: Mapped[str | None] = mapped_column(sa.Text)
+    embedding_api_key: Mapped[str | None] = mapped_column(EncryptedString)
     embedding_base_url: Mapped[str | None] = mapped_column(sa.Text)
     dimension: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("1536")
@@ -128,7 +128,7 @@ class Collection(Base):
     reranking_model: Mapped[str] = mapped_column(
         sa.Text, nullable=False, server_default="rerank-v3.5"
     )
-    reranking_api_key: Mapped[str | None] = mapped_column(sa.Text)
+    reranking_api_key: Mapped[str | None] = mapped_column(EncryptedString)
     index_type: Mapped[str] = mapped_column(
         sa.Text, nullable=False, server_default="IVF_FLAT"
     )
@@ -192,6 +192,7 @@ class Document(Base):
 
 class Webhook(Base):
     __tablename__ = "webhooks"
+    __table_args__ = (sa.Index("idx_webhooks_created_by", "created_by"),)
 
     id: Mapped[UUIDpk]
     url: Mapped[str] = mapped_column(sa.Text, nullable=False)
@@ -263,7 +264,10 @@ class QueryLog(Base):
 
 class S3IngestJob(Base):
     __tablename__ = "s3_ingest_jobs"
-    __table_args__ = (sa.Index("idx_s3_ingest_jobs_status", "status"),)
+    __table_args__ = (
+        sa.Index("idx_s3_ingest_jobs_status", "status"),
+        sa.Index("idx_s3_ingest_jobs_collection_id", "collection_id"),
+    )
 
     id: Mapped[UUIDpk]
     collection_id: Mapped[UUID] = mapped_column(
@@ -346,6 +350,7 @@ class AuditLog(Base):
     __tablename__ = "audit_log"
     __table_args__ = (
         sa.Index("idx_audit_actor", "actor_id"),
+        sa.Index("idx_audit_api_key_id", "api_key_id"),
         sa.Index("idx_audit_action", "action"),
         sa.Index("idx_audit_created_at", sa.desc("created_at")),
     )

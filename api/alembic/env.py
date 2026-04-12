@@ -6,11 +6,11 @@ from __future__ import annotations
 import asyncio
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from alembic import context
 from bigrag.config import settings
 from bigrag.db import models  # noqa: F401  — register tables on Base.metadata
 from bigrag.db.base import Base

@@ -32,11 +32,3 @@ class ValidationError(BigRAGError):
 
     def __init__(self, message: str) -> None:
         super().__init__(message)
-
-
-class IngestionError(BigRAGError):
-    """Document ingestion failed."""
-
-    def __init__(self, message: str, *, permanent: bool = False) -> None:
-        self.permanent = permanent
-        super().__init__(message)
