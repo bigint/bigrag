@@ -1,6 +1,14 @@
 "use client";
 
-import { CheckCircle2, CircleDashed, FileText, Loader2, Trash2, TriangleAlert, Upload } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleDashed,
+  FileText,
+  Loader2,
+  Trash2,
+  TriangleAlert,
+  Upload,
+} from "lucide-react";
 import Link from "next/link";
 import { use, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -64,17 +72,17 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
         onDrop={onDrop}
         className={cn(
           "flex cursor-pointer items-center justify-center gap-3 rounded-xl border border-dashed px-6 py-8 text-sm transition-colors",
-          "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)] hover:bg-[var(--color-accent)]/50",
-          dragging && "border-[var(--color-primary)] bg-[var(--color-accent)]",
+          "border-border bg-card hover:border-primary hover:bg-accent/50",
+          dragging && "border-primary bg-accent",
           upload.isPending && "pointer-events-none opacity-60",
         )}
       >
-        <Upload className="h-5 w-5 text-[var(--color-muted-foreground)]" />
+        <Upload className="h-5 w-5 text-muted-foreground" />
         <div className="flex flex-col items-center gap-0.5 text-center">
           <span className="font-medium">
             {upload.isPending ? "Uploading…" : "Drop files or click to upload"}
           </span>
-          <span className="text-xs text-[var(--color-muted-foreground)]">
+          <span className="text-xs text-muted-foreground">
             PDF, DOCX, PPTX, MD, HTML, TXT, images — ingested automatically.
           </span>
         </div>
@@ -100,19 +108,19 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
           description="Upload files above — they'll appear here as they ingest."
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]">
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 border-b border-[var(--color-border)] px-4 py-2 text-xs font-medium uppercase tracking-wider text-[var(--color-muted-foreground)]">
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             <span>Filename</span>
             <span className="text-right">Size</span>
             <span className="text-right">Chunks</span>
             <span className="text-right">Updated</span>
             <span className="w-6" />
           </div>
-          <ul className="divide-y divide-[var(--color-border)]">
+          <ul className="divide-y divide-border">
             {data?.documents.map((d) => (
               <li
                 key={d.id}
-                className="group grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 px-4 py-3 hover:bg-[var(--color-muted)]"
+                className="group grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 px-4 py-3 hover:bg-muted"
               >
                 <Link
                   href={`/collections/${encodeURIComponent(name)}/documents/${d.id}`}
@@ -127,20 +135,18 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
                         <span>{d.status}</span>
                       </Badge>
                       {d.error_message && (
-                        <span className="text-xs text-[var(--color-destructive)] truncate">
-                          {d.error_message}
-                        </span>
+                        <span className="text-xs text-destructive truncate">{d.error_message}</span>
                       )}
                     </div>
                   </div>
                 </Link>
-                <span className="text-right text-sm tabular-nums text-[var(--color-muted-foreground)]">
+                <span className="text-right text-sm tabular-nums text-muted-foreground">
                   {formatBytes(d.file_size)}
                 </span>
-                <span className="text-right text-sm tabular-nums text-[var(--color-muted-foreground)]">
+                <span className="text-right text-sm tabular-nums text-muted-foreground">
                   {d.chunk_count}
                 </span>
-                <span className="text-right text-sm text-[var(--color-muted-foreground)]">
+                <span className="text-right text-sm text-muted-foreground">
                   {formatRelative(d.updated_at)}
                 </span>
                 <Button
@@ -169,7 +175,7 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
 };
 
 const FileType = ({ type }: { type: string }) => (
-  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-muted)] text-[10px] font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
+  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
     {type.slice(0, 4) || "?"}
   </div>
 );

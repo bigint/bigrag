@@ -47,11 +47,7 @@ const useProgressStream = (
   return event;
 };
 
-const DocumentDetail = ({
-  params,
-}: {
-  params: Promise<{ name: string; docId: string }>;
-}) => {
+const DocumentDetail = ({ params }: { params: Promise<{ name: string; docId: string }> }) => {
   const { name: rawName, docId } = use(params);
   const name = decodeURIComponent(rawName);
   const router = useRouter();
@@ -77,7 +73,7 @@ const DocumentDetail = ({
     <div className="flex flex-col gap-6">
       <Link
         href={`/collections/${encodeURIComponent(name)}/documents`}
-        className="inline-flex w-fit items-center gap-1.5 text-sm text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+        className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> Documents
       </Link>
@@ -120,28 +116,24 @@ const DocumentDetail = ({
         <Card>
           <CardContent className="flex flex-col gap-2 pt-5">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium capitalize">
-                {progress?.step ?? "queued"}
-              </span>
-              <span className="tabular-nums text-[var(--color-muted-foreground)]">
-                {pct}%
-              </span>
+              <span className="font-medium capitalize">{progress?.step ?? "queued"}</span>
+              <span className="tabular-nums text-muted-foreground">{pct}%</span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-muted)]">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full bg-[var(--color-primary)] transition-[width] duration-300"
+                className="h-full bg-primary transition-[width] duration-300"
                 style={{ width: `${pct}%` }}
               />
             </div>
             {progress?.message && (
-              <p className="text-xs text-[var(--color-muted-foreground)]">{progress.message}</p>
+              <p className="text-xs text-muted-foreground">{progress.message}</p>
             )}
           </CardContent>
         </Card>
       )}
 
       {doc.error_message && (
-        <Card className="border-[var(--color-destructive)]">
+        <Card className="border-destructive">
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 text-sm">
               <Badge variant="danger">failed</Badge>
@@ -152,7 +144,7 @@ const DocumentDetail = ({
       )}
 
       <div>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-muted-foreground)]">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Chunks
         </h2>
         {!chunks ? (
@@ -162,13 +154,8 @@ const DocumentDetail = ({
         ) : (
           <div className="flex flex-col gap-2">
             {chunks.chunks.map((c) => (
-              <article
-                key={c.id}
-                className={cn(
-                  "rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4",
-                )}
-              >
-                <div className="mb-2 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]">
+              <article key={c.id} className={cn("rounded-xl border border-border bg-card p-4")}>
+                <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant="neutral">#{c.chunk_index}</Badge>
                   <span className="font-mono">{c.id.slice(0, 8)}</span>
                 </div>

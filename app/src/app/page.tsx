@@ -22,7 +22,7 @@ const Home = () => {
   }, [setupStatus, session, setupPending, sessionPending, isError, router]);
 
   return (
-    <div className="flex min-h-svh items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center">
       <Spinner size="lg" />
     </div>
   );

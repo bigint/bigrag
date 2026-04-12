@@ -12,20 +12,18 @@ type Props = {
 export const Empty = ({ icon: Icon, title, description, action, className }: Props) => (
   <div
     className={cn(
-      "flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-[var(--color-border)] px-8 py-12 text-center",
+      "flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border px-8 py-12 text-center",
       className,
     )}
   >
     {Icon && (
-      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--color-accent)] text-[var(--color-accent-foreground)]">
-        <Icon className="h-5 w-5" />
+      <div className="flex size-11 items-center justify-center rounded-md bg-muted text-muted-foreground">
+        <Icon className="size-5" />
       </div>
     )}
     <div className="flex flex-col gap-1">
-      <p className="font-medium text-sm text-[var(--color-foreground)]">{title}</p>
-      {description && (
-        <p className="text-sm text-[var(--color-muted-foreground)] max-w-sm">{description}</p>
-      )}
+      <p className="text-sm font-medium text-foreground">{title}</p>
+      {description && <p className="max-w-sm text-sm text-muted-foreground">{description}</p>}
     </div>
     {action}
   </div>

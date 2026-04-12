@@ -5,11 +5,10 @@ type Props = { size?: "sm" | "md" | "lg"; className?: string };
 export const Spinner = ({ size = "md", className }: Props) => (
   <span
     className={cn(
-      "inline-block rounded-full border-2 border-current border-t-transparent",
-      "animate-[spin-slow_600ms_linear_infinite]",
-      size === "sm" && "h-3.5 w-3.5",
-      size === "md" && "h-5 w-5",
-      size === "lg" && "h-7 w-7",
+      "inline-block animate-[spin-slow_600ms_linear_infinite] rounded-full border-2 border-muted-foreground border-t-transparent",
+      size === "sm" && "size-3.5 border",
+      size === "md" && "size-5",
+      size === "lg" && "size-7",
       className,
     )}
     role="status"

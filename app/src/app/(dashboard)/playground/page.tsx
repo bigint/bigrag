@@ -1,7 +1,7 @@
 "use client";
 
-import { motion } from "motion/react";
 import { Search, Sparkles } from "lucide-react";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -62,11 +62,11 @@ const PlaygroundPage = () => {
               trailing={<Search className="h-4 w-4" />}
             />
             <div>
-              <div className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--color-muted-foreground)]">
+              <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Collections ({selected.size} selected)
               </div>
               {collections.length === 0 ? (
-                <p className="text-sm text-[var(--color-muted-foreground)]">
+                <p className="text-sm text-muted-foreground">
                   No collections yet. Create one first.
                 </p>
               ) : (
@@ -81,8 +81,8 @@ const PlaygroundPage = () => {
                         className={cn(
                           "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
                           active
-                            ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
-                            : "border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-foreground)] hover:bg-[var(--color-accent)]",
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card text-foreground hover:bg-accent",
                         )}
                       >
                         {c.name}
@@ -142,14 +142,14 @@ const PlaygroundPage = () => {
                 <div className="mb-3 flex items-center justify-between">
                   <Link
                     href={`/collections/${encodeURIComponent(group.collection)}`}
-                    className="font-semibold text-sm hover:text-[var(--color-primary)]"
+                    className="font-semibold text-sm hover:text-primary"
                   >
                     {group.collection}
                   </Link>
                   <Badge variant="neutral">{group.chunks.length}</Badge>
                 </div>
                 {group.chunks.length === 0 ? (
-                  <p className="text-sm text-[var(--color-muted-foreground)]">No matches.</p>
+                  <p className="text-sm text-muted-foreground">No matches.</p>
                 ) : (
                   <ul className="flex flex-col gap-2">
                     {group.chunks.map((c, i) => (
@@ -158,7 +158,7 @@ const PlaygroundPage = () => {
                         initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.02, duration: 0.18 }}
-                        className="rounded-md border border-[var(--color-border)] p-3"
+                        className="rounded-md border border-border p-3"
                       >
                         <div className="mb-1 flex items-center gap-2 text-xs">
                           <Badge variant="accent">{c.score.toFixed(3)}</Badge>

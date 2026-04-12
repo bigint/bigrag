@@ -76,7 +76,7 @@ const ApiKeysPage = () => {
       ) : (
         <Card>
           <CardContent className="p-0">
-            <ul className="divide-y divide-[var(--color-border)]">
+            <ul className="divide-y divide-border">
               {data?.keys.map((k) => (
                 <li
                   key={k.id}
@@ -88,7 +88,7 @@ const ApiKeysPage = () => {
                       {!k.active && <Badge variant="warning">revoked</Badge>}
                       {k.active && <Badge variant="success">active</Badge>}
                     </div>
-                    <div className="mt-1 flex items-center gap-2 font-mono text-xs text-[var(--color-muted-foreground)]">
+                    <div className="mt-1 flex items-center gap-2 font-mono text-xs text-muted-foreground">
                       <span>{k.prefix}…</span>
                       <span className="opacity-40">·</span>
                       <span>
@@ -102,9 +102,7 @@ const ApiKeysPage = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() =>
-                        toggle.mutate({ id: k.id, active: !k.active })
-                      }
+                      onClick={() => toggle.mutate({ id: k.id, active: !k.active })}
                       aria-label={k.active ? "Deactivate" : "Activate"}
                     >
                       <Power className="h-4 w-4" />
@@ -143,7 +141,13 @@ const ApiKeysPage = () => {
               required
             />
             <div className="flex justify-end gap-2">
-              <DialogClose render={<Button variant="ghost" type="button">Cancel</Button>} />
+              <DialogClose
+                render={
+                  <Button variant="ghost" type="button">
+                    Cancel
+                  </Button>
+                }
+              />
               <Button type="submit" disabled={create.isPending}>
                 {create.isPending ? "Creating…" : "Create key"}
               </Button>
@@ -159,7 +163,7 @@ const ApiKeysPage = () => {
         >
           {newKey && (
             <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-muted)] p-3 font-mono text-xs break-all">
+              <div className="flex items-center gap-2 rounded-md border border-border bg-muted p-3 font-mono text-xs break-all">
                 {newKey.key}
               </div>
               <Button onClick={copy} size="lg">

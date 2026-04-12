@@ -28,8 +28,7 @@ const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: str
   });
 
   const method = req.method;
-  const body =
-    method === "GET" || method === "HEAD" ? undefined : await req.arrayBuffer();
+  const body = method === "GET" || method === "HEAD" ? undefined : await req.arrayBuffer();
 
   const upstream = await fetch(target, {
     method,

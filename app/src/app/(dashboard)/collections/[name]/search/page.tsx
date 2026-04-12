@@ -1,7 +1,7 @@
 "use client";
 
-import { motion } from "motion/react";
 import { Search, Sparkles } from "lucide-react";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { use, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -66,9 +66,14 @@ const SearchTab = ({ params }: { params: Promise<{ name: string }> }) => {
                 className="w-24"
               />
               {collection?.reranking_enabled && (
-                <label className="flex items-center gap-2 text-sm">
-                  <Switch checked={rerank} onCheckedChange={setRerank} /> Rerank
-                </label>
+                <div className="flex items-center gap-2 text-sm">
+                  <Switch
+                    checked={rerank}
+                    onCheckedChange={setRerank}
+                    aria-label="Rerank results"
+                  />
+                  <span>Rerank</span>
+                </div>
               )}
               <div className="ml-auto">
                 <Button type="submit" disabled={run.isPending || !query.trim()}>
@@ -96,7 +101,7 @@ const SearchTab = ({ params }: { params: Promise<{ name: string }> }) => {
 
       {run.data && run.data.results.length > 0 && (
         <div className="flex flex-col gap-2">
-          <div className="text-xs uppercase tracking-wider text-[var(--color-muted-foreground)]">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">
             {run.data.total} result{run.data.total === 1 ? "" : "s"} for "{run.data.query}"
           </div>
           {run.data.results.map((r, i) => (
@@ -105,7 +110,7 @@ const SearchTab = ({ params }: { params: Promise<{ name: string }> }) => {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03, duration: 0.2 }}
-              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4"
+              className="rounded-xl border border-border bg-card p-4"
             >
               <div className="mb-2 flex items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
@@ -113,7 +118,7 @@ const SearchTab = ({ params }: { params: Promise<{ name: string }> }) => {
                   {r.document_id && (
                     <Link
                       href={`/collections/${encodeURIComponent(name)}/documents/${r.document_id}`}
-                      className="font-mono text-[var(--color-muted-foreground)] hover:text-[var(--color-primary)]"
+                      className="font-mono text-muted-foreground hover:text-primary"
                     >
                       {r.document_id.slice(0, 8)}#{r.chunk_index}
                     </Link>

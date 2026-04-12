@@ -144,7 +144,13 @@ export const CreateCollectionModal = ({ open, onOpenChange }: Props) => {
             />
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <DialogClose render={<Button variant="ghost" type="button">Cancel</Button>} />
+            <DialogClose
+              render={
+                <Button variant="ghost" type="button">
+                  Cancel
+                </Button>
+              }
+            />
             <Button type="submit" disabled={create.isPending}>
               {create.isPending ? "Creating…" : "Create collection"}
             </Button>

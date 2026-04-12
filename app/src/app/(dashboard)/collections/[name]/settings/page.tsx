@@ -96,15 +96,19 @@ const CollectionSettings = ({ params }: { params: Promise<{ name: string }> }) =
               ]}
             />
           </div>
-          <label className="flex items-center justify-between gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-muted)]/40 p-3">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/40 p-3">
             <div>
               <div className="font-medium text-sm">Rerank results</div>
-              <p className="text-xs text-[var(--color-muted-foreground)]">
+              <p className="text-xs text-muted-foreground">
                 Requires a Cohere rerank key on the collection.
               </p>
             </div>
-            <Switch checked={rerankingEnabled} onCheckedChange={setRerankingEnabled} />
-          </label>
+            <Switch
+              checked={rerankingEnabled}
+              onCheckedChange={setRerankingEnabled}
+              aria-label="Rerank results"
+            />
+          </div>
           <div className="flex justify-end">
             <Button onClick={save} disabled={update.isPending}>
               {update.isPending ? "Saving…" : "Save changes"}
@@ -113,19 +117,19 @@ const CollectionSettings = ({ params }: { params: Promise<{ name: string }> }) =
         </CardContent>
       </Card>
 
-      <Card className="border-[var(--color-destructive)]/50">
+      <Card className="border-destructive/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TriangleAlert className="h-4 w-4 text-[var(--color-destructive)]" />
+            <TriangleAlert className="h-4 w-4 text-destructive" />
             Danger zone
           </CardTitle>
           <CardDescription>Irreversible operations.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--color-border)] p-3">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
             <div>
               <div className="font-medium text-sm">Truncate</div>
-              <p className="text-xs text-[var(--color-muted-foreground)]">
+              <p className="text-xs text-muted-foreground">
                 Delete every document and vector. The collection stays.
               </p>
             </div>
@@ -139,10 +143,10 @@ const CollectionSettings = ({ params }: { params: Promise<{ name: string }> }) =
               Truncate
             </Button>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--color-destructive)]/50 p-3">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/50 p-3">
             <div>
               <div className="font-medium text-sm">Delete collection</div>
-              <p className="text-xs text-[var(--color-muted-foreground)]">
+              <p className="text-xs text-muted-foreground">
                 Permanently removes the collection, its documents, and its vectors.
               </p>
             </div>

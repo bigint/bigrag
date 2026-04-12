@@ -30,11 +30,11 @@ export const DialogContent = ({
   className?: string;
 }) => (
   <BaseDialog.Portal>
-    <BaseDialog.Backdrop className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] data-[open]:animate-in data-[open]:fade-in data-[closed]:animate-out data-[closed]:fade-out" />
+    <BaseDialog.Backdrop className="fixed inset-0 z-40 bg-black/40 data-[open]:animate-in data-[open]:fade-in data-[closed]:animate-out data-[closed]:fade-out" />
     <BaseDialog.Popup
       className={cn(
         "fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2",
-        "rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-[var(--shadow-lg)]",
+        "rounded-lg border border-border bg-card shadow-md",
         "focus:outline-none",
         "data-[open]:animate-in data-[open]:fade-in data-[open]:zoom-in-95",
         "data-[closed]:animate-out data-[closed]:fade-out data-[closed]:zoom-out-95",
@@ -47,16 +47,16 @@ export const DialogContent = ({
             {title}
           </BaseDialog.Title>
           {description && (
-            <BaseDialog.Description className="text-sm text-[var(--color-muted-foreground)]">
+            <BaseDialog.Description className="text-sm text-muted-foreground">
               {description}
             </BaseDialog.Description>
           )}
         </div>
         <BaseDialog.Close
-          className="rounded-md p-1 text-[var(--color-muted-foreground)] hover:bg-[var(--color-accent)] hover:text-[var(--color-accent-foreground)]"
+          className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
           aria-label="Close"
         >
-          <X className="h-4 w-4" />
+          <X className="size-4" />
         </BaseDialog.Close>
       </div>
       <div className="px-6 pb-6">{children}</div>

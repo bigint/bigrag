@@ -77,7 +77,7 @@ const WebhooksPage = () => {
       ) : (
         <Card>
           <CardContent className="p-0">
-            <ul className="divide-y divide-[var(--color-border)]">
+            <ul className="divide-y divide-border">
               {data?.webhooks.map((w) => (
                 <li
                   key={w.id}
@@ -94,18 +94,17 @@ const WebhooksPage = () => {
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-1 text-xs">
                       {w.events.map((e) => (
-                        <span key={e} className="rounded-full bg-[var(--color-muted)] px-1.5 py-0.5 text-[var(--color-muted-foreground)]">
+                        <span
+                          key={e}
+                          className="rounded-full bg-muted px-1.5 py-0.5 text-muted-foreground"
+                        >
                           {e}
                         </span>
                       ))}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => test.mutate(w.id)}
-                    >
+                    <Button size="sm" variant="ghost" onClick={() => test.mutate(w.id)}>
                       <Send className="h-4 w-4" /> Test
                     </Button>
                     <Button
@@ -162,8 +161,8 @@ const WebhooksPage = () => {
                       }
                       className={
                         active
-                          ? "rounded-full border border-[var(--color-primary)] bg-[var(--color-primary)] px-3 py-1 text-xs font-medium text-[var(--color-primary-foreground)]"
-                          : "rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1 text-xs text-[var(--color-foreground)] hover:bg-[var(--color-accent)]"
+                          ? "rounded-full border border-primary bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
+                          : "rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground hover:bg-accent"
                       }
                     >
                       {evt}
@@ -173,7 +172,13 @@ const WebhooksPage = () => {
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <DialogClose render={<Button variant="ghost" type="button">Cancel</Button>} />
+              <DialogClose
+                render={
+                  <Button variant="ghost" type="button">
+                    Cancel
+                  </Button>
+                }
+              />
               <Button type="submit" disabled={create.isPending || selected.size === 0}>
                 {create.isPending ? "Creating…" : "Create webhook"}
               </Button>
@@ -186,7 +191,7 @@ const WebhooksPage = () => {
         <DialogContent title="Signing secret" description="Store this to verify HMAC signatures.">
           {createdSecret && (
             <div className="flex flex-col gap-3">
-              <div className="break-all rounded-md border border-[var(--color-border)] bg-[var(--color-muted)] p-3 font-mono text-xs">
+              <div className="break-all rounded-md border border-border bg-muted p-3 font-mono text-xs">
                 {createdSecret}
               </div>
               <Button

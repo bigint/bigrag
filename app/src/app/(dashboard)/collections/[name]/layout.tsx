@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Layers, Settings } from "lucide-react";
+import { ArrowLeft, Layers, type Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { use } from "react";
@@ -34,7 +34,7 @@ const CollectionLayout = ({
     <div className="flex flex-col gap-6">
       <Link
         href="/collections"
-        className="inline-flex w-fit items-center gap-1.5 text-sm text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+        className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         All collections
@@ -82,8 +82,8 @@ const Stat = ({
   value: string;
   icon?: typeof Settings;
 }) => (
-  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-    <div className="flex items-center justify-between text-xs uppercase tracking-wider text-[var(--color-muted-foreground)]">
+  <div className="rounded-xl border border-border bg-card p-4">
+    <div className="flex items-center justify-between text-xs uppercase tracking-wider text-muted-foreground">
       <span>{label}</span>
       {Icon && <Icon className="h-3.5 w-3.5" />}
     </div>

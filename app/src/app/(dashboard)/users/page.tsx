@@ -77,29 +77,23 @@ const UsersPage = () => {
       ) : (
         <Card>
           <CardContent className="p-0">
-            <ul className="divide-y divide-[var(--color-border)]">
+            <ul className="divide-y divide-border">
               {data?.users.map((u) => (
                 <li
                   key={u.id}
                   className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-xs font-semibold text-white">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
                       {(u.display_name || u.email).slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">
-                          {u.display_name || "—"}
-                        </span>
-                        <Badge variant={u.role === "admin" ? "accent" : "neutral"}>
-                          {u.role}
-                        </Badge>
-                        {u.id === session?.user.id && (
-                          <Badge variant="info">you</Badge>
-                        )}
+                        <span className="font-medium text-sm">{u.display_name || "—"}</span>
+                        <Badge variant={u.role === "admin" ? "accent" : "neutral"}>{u.role}</Badge>
+                        {u.id === session?.user.id && <Badge variant="info">you</Badge>}
                       </div>
-                      <div className="text-xs text-[var(--color-muted-foreground)]">
+                      <div className="text-xs text-muted-foreground">
                         {u.email} · last seen {formatRelative(u.last_login_at)}
                       </div>
                     </div>
@@ -107,11 +101,7 @@ const UsersPage = () => {
                   <div className="flex items-center gap-2">
                     {u.id !== session?.user.id && (
                       <>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setResetForUserId(u.id)}
-                        >
+                        <Button size="sm" variant="ghost" onClick={() => setResetForUserId(u.id)}>
                           Reset password
                         </Button>
                         <Button
@@ -136,7 +126,10 @@ const UsersPage = () => {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent title="Invite an admin" description="They'll sign in with the password you set.">
+        <DialogContent
+          title="Invite an admin"
+          description="They'll sign in with the password you set."
+        >
           <form onSubmit={submit} className="flex flex-col gap-4">
             <Input
               label="Display name"
@@ -160,7 +153,13 @@ const UsersPage = () => {
               description="The new admin should change this after signing in."
             />
             <div className="flex justify-end gap-2">
-              <DialogClose render={<Button variant="ghost" type="button">Cancel</Button>} />
+              <DialogClose
+                render={
+                  <Button variant="ghost" type="button">
+                    Cancel
+                  </Button>
+                }
+              />
               <Button type="submit" disabled={create.isPending}>
                 {create.isPending ? "Creating…" : "Invite admin"}
               </Button>
@@ -171,7 +170,12 @@ const UsersPage = () => {
 
       <Dialog
         open={!!resetForUserId}
-        onOpenChange={(o) => !o && (setResetForUserId(null), setNewPassword(""))}
+        onOpenChange={(o) => {
+          if (!o) {
+            setResetForUserId(null);
+            setNewPassword("");
+          }
+        }}
       >
         <DialogContent
           title="Reset password"
@@ -188,7 +192,13 @@ const UsersPage = () => {
               autoFocus
             />
             <div className="flex justify-end gap-2">
-              <DialogClose render={<Button variant="ghost" type="button">Cancel</Button>} />
+              <DialogClose
+                render={
+                  <Button variant="ghost" type="button">
+                    Cancel
+                  </Button>
+                }
+              />
               <Button type="submit" disabled={update.isPending}>
                 {update.isPending ? "Saving…" : "Reset password"}
               </Button>

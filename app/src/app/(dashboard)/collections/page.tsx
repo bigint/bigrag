@@ -23,8 +23,7 @@ const CollectionsPage = () => {
     const needle = q.trim().toLowerCase();
     if (!needle) return data.collections;
     return data.collections.filter(
-      (c) =>
-        c.name.toLowerCase().includes(needle) || c.description.toLowerCase().includes(needle),
+      (c) => c.name.toLowerCase().includes(needle) || c.description.toLowerCase().includes(needle),
     );
   }, [data, q]);
 
@@ -75,26 +74,24 @@ const CollectionsPage = () => {
             <Link
               key={c.id}
               href={`/collections/${encodeURIComponent(c.name)}`}
-              className="group flex flex-col gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 transition-all hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-sm)]"
+              className="group flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary hover:shadow-sm"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-semibold text-sm tracking-tight">{c.name}</div>
-                  <div className="line-clamp-2 text-xs text-[var(--color-muted-foreground)]">
+                  <div className="line-clamp-2 text-xs text-muted-foreground">
                     {c.description || "—"}
                   </div>
                 </div>
                 <Badge variant="accent">{c.embedding_provider}</Badge>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-[var(--color-muted-foreground)]">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <span>{formatNumber(c.document_count)} docs</span>
                   <span className="opacity-40">·</span>
                   <span>{c.dimension}d</span>
                 </div>
-                <span className="text-[var(--color-muted-foreground)]">
-                  {formatRelative(c.updated_at)}
-                </span>
+                <span className="text-muted-foreground">{formatRelative(c.updated_at)}</span>
               </div>
             </Link>
           ))}

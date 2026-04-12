@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
+import { Outfit } from "next/font/google";
 import "./globals.css";
-import { ThemeInit } from "@/components/theme-init";
 import { Providers } from "./providers";
+
+const outfit = Outfit({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "bigRAG Studio",
@@ -11,19 +13,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafaf9" },
-    { media: "(prefers-color-scheme: dark)", color: "#0c0a09" },
-  ],
+  themeColor: "#ffffff",
 };
 
 const RootLayout = ({ children }: { children: React.ReactNode }) => (
-  <html lang="en" suppressHydrationWarning>
-    <body>
-      <ThemeInit />
+  <html lang="en">
+    <body className={`${outfit.className} min-h-screen bg-background text-foreground antialiased`}>
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 rounded-md bg-[var(--color-primary)] px-3 py-1.5 text-xs text-[var(--color-primary-foreground)]"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground"
       >
         Skip to content
       </a>

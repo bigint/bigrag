@@ -6,16 +6,14 @@ const badge = cva(
   {
     variants: {
       variant: {
-        neutral:
-          "bg-[var(--color-muted)] text-[var(--color-muted-foreground)] border-[var(--color-border)]",
-        accent:
-          "bg-[var(--color-accent)] text-[var(--color-accent-foreground)] border-transparent",
+        neutral: "bg-muted text-muted-foreground border-border",
+        accent: "bg-accent text-accent-foreground border-transparent",
         success:
           "bg-[color-mix(in_oklab,var(--color-success),transparent_88%)] text-[var(--color-success)] border-transparent",
         warning:
           "bg-[color-mix(in_oklab,var(--color-warning),transparent_88%)] text-[var(--color-warning)] border-transparent",
         danger:
-          "bg-[color-mix(in_oklab,var(--color-destructive),transparent_88%)] text-[var(--color-destructive)] border-transparent",
+          "bg-[color-mix(in_oklab,var(--color-destructive),transparent_88%)] text-destructive border-transparent",
         info: "bg-[color-mix(in_oklab,var(--color-info),transparent_88%)] text-[var(--color-info)] border-transparent",
       },
     },

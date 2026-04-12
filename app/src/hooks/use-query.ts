@@ -30,10 +30,7 @@ type MultiQueryResponse = {
 export const useRunQuery = (collection: string) =>
   useMutation({
     mutationFn: (body: QueryBody) =>
-      apiClient.post<QueryResponse>(
-        `v1/collections/${encodeURIComponent(collection)}/query`,
-        body,
-      ),
+      apiClient.post<QueryResponse>(`v1/collections/${encodeURIComponent(collection)}/query`, body),
   });
 
 export const useRunMultiQuery = () =>

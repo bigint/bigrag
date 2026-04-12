@@ -90,9 +90,7 @@ export const useTruncateCollection = (name: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      apiClient.post<{ status: string }>(
-        `v1/collections/${encodeURIComponent(name)}/truncate`,
-      ),
+      apiClient.post<{ status: string }>(`v1/collections/${encodeURIComponent(name)}/truncate`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: collectionsKey });
       toast.success("All documents removed from collection");

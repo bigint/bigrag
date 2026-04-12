@@ -3,13 +3,7 @@ import { cn } from "@/lib/cn";
 type Props = React.HTMLAttributes<HTMLDivElement>;
 
 export const Card = ({ className, ...props }: Props) => (
-  <div
-    className={cn(
-      "rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-[var(--shadow-xs)]",
-      className,
-    )}
-    {...props}
-  />
+  <div className={cn("rounded-lg border border-border bg-card shadow-xs", className)} {...props} />
 );
 
 export const CardHeader = ({ className, ...props }: Props) => (
@@ -17,11 +11,14 @@ export const CardHeader = ({ className, ...props }: Props) => (
 );
 
 export const CardTitle = ({ className, ...props }: Props) => (
-  <h3 className={cn("font-semibold text-base leading-tight tracking-tight", className)} {...props} />
+  <h3
+    className={cn("font-semibold text-base leading-tight tracking-tight", className)}
+    {...props}
+  />
 );
 
 export const CardDescription = ({ className, ...props }: Props) => (
-  <p className={cn("text-sm text-[var(--color-muted-foreground)]", className)} {...props} />
+  <p className={cn("text-sm text-muted-foreground", className)} {...props} />
 );
 
 export const CardContent = ({ className, ...props }: Props) => (
@@ -30,10 +27,7 @@ export const CardContent = ({ className, ...props }: Props) => (
 
 export const CardFooter = ({ className, ...props }: Props) => (
   <div
-    className={cn(
-      "flex items-center gap-2 px-5 py-3 border-t border-[var(--color-border)]",
-      className,
-    )}
+    className={cn("flex items-center gap-2 border-t border-border px-5 py-3", className)}
     {...props}
   />
 );

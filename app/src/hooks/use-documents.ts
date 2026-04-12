@@ -13,10 +13,10 @@ export const useDocuments = (collection: string, status?: string) =>
   useQuery({
     queryKey: [...docsKey(collection), { status: status ?? "all" }],
     queryFn: () =>
-      apiClient.get<DocListResponse>(
-        `v1/collections/${encodeURIComponent(collection)}/documents`,
-        { limit: 100, ...(status ? { status } : {}) },
-      ),
+      apiClient.get<DocListResponse>(`v1/collections/${encodeURIComponent(collection)}/documents`, {
+        limit: 100,
+        ...(status ? { status } : {}),
+      }),
     enabled: !!collection,
     refetchInterval: 5_000,
   });

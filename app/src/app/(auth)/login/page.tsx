@@ -31,14 +31,14 @@ const LoginPage = () => {
 
   if (isError) {
     return (
-      <div className="w-full max-w-sm rounded-xl border border-[var(--color-destructive)]/40 bg-[var(--color-card)] p-6 shadow-[var(--shadow-md)]">
+      <div className="w-full max-w-sm rounded-xl border border-destructive/40 bg-card p-6 shadow-md">
         <h1 className="font-semibold text-base">Can't reach bigRAG</h1>
-        <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+        <p className="mt-2 text-sm text-muted-foreground">
           {error instanceof Error ? error.message : "Unknown error"}
         </p>
-        <p className="mt-3 text-xs text-[var(--color-muted-foreground)]">
+        <p className="mt-3 text-xs text-muted-foreground">
           Make sure the bigRAG server is running at{" "}
-          <code className="rounded bg-[var(--color-muted)] px-1 py-0.5 font-mono">
+          <code className="rounded bg-muted px-1 py-0.5 font-mono">
             {process.env.NEXT_PUBLIC_BIGRAG_URL ?? "http://localhost:6100"}
           </code>
           .
@@ -58,10 +58,10 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-md)]">
+    <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-md">
       <div className="mb-5 flex flex-col gap-1">
         <h1 className="font-semibold text-lg tracking-tight">Sign in</h1>
-        <p className="text-sm text-[var(--color-muted-foreground)]">
+        <p className="text-sm text-muted-foreground">
           Manage your collections, documents, and API keys.
         </p>
       </div>

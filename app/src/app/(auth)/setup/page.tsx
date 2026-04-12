@@ -36,13 +36,13 @@ const SetupPage = () => {
   };
 
   return (
-    <div className="w-full max-w-md rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-md)]">
+    <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-md">
       <div className="mb-5 flex flex-col gap-1">
-        <div className="inline-flex items-center gap-2 self-start rounded-full bg-[var(--color-accent)] px-2 py-0.5 text-xs font-medium text-[var(--color-accent-foreground)]">
+        <div className="inline-flex items-center gap-2 self-start rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
           First-time setup
         </div>
         <h1 className="font-semibold text-lg tracking-tight">Create the first admin</h1>
-        <p className="text-sm text-[var(--color-muted-foreground)]">
+        <p className="text-sm text-muted-foreground">
           This account owns the Studio. You can invite more admins after signing in.
         </p>
       </div>

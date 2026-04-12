@@ -1,5 +1,6 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
   KeyRound,
@@ -15,29 +16,21 @@ import { Logo } from "@/components/brand/logo";
 import { cn } from "@/lib/cn";
 import { UserMenu } from "./user-menu";
 
-type NavSection = {
-  label: string;
-  items: { href: string; label: string; icon: typeof BookOpen }[];
-};
+interface NavItem {
+  readonly href: string;
+  readonly label: string;
+  readonly icon: LucideIcon;
+  readonly admin?: boolean;
+}
 
-const SECTIONS: NavSection[] = [
-  {
-    label: "Library",
-    items: [
-      { href: "/overview", label: "Overview", icon: LayoutDashboard },
-      { href: "/collections", label: "Collections", icon: BookOpen },
-      { href: "/playground", label: "Playground", icon: Sparkles },
-    ],
-  },
-  {
-    label: "Admin",
-    items: [
-      { href: "/api-keys", label: "API Keys", icon: KeyRound },
-      { href: "/users", label: "Admins", icon: Users },
-      { href: "/webhooks", label: "Webhooks", icon: Webhook },
-      { href: "/settings", label: "Settings", icon: Settings },
-    ],
-  },
+const NAV_ITEMS: NavItem[] = [
+  { href: "/overview", icon: LayoutDashboard, label: "Overview" },
+  { href: "/collections", icon: BookOpen, label: "Collections" },
+  { href: "/playground", icon: Sparkles, label: "Playground" },
+  { admin: true, href: "/api-keys", icon: KeyRound, label: "API Keys" },
+  { admin: true, href: "/users", icon: Users, label: "Admins" },
+  { admin: true, href: "/webhooks", icon: Webhook, label: "Webhooks" },
+  { admin: true, href: "/settings", icon: Settings, label: "Settings" },
 ];
 
 const isActive = (pathname: string, href: string) => {
@@ -48,55 +41,43 @@ const isActive = (pathname: string, href: string) => {
 export const Sidebar = () => {
   const pathname = usePathname();
 
+  let seenAdmin = false;
+
   return (
-    <aside className="sticky top-0 flex h-svh w-60 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-card)]">
-      <div className="flex h-14 items-center px-4 border-b border-[var(--color-border)]">
-        <Link href="/overview" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] rounded-md">
-          <Logo size="sm" />
-        </Link>
+    <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-border bg-muted/50">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-4">
+        <Logo />
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
-        {SECTIONS.map((section) => (
-          <div key={section.label} className="mb-5 last:mb-0">
-            <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)]">
-              {section.label}
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
+        {NAV_ITEMS.map((item) => {
+          const active = isActive(pathname, item.href);
+          const Icon = item.icon;
+          const prefix =
+            item.admin && !seenAdmin ? <div className="my-2 border-t border-border" /> : null;
+          if (item.admin) seenAdmin = true;
+          return (
+            <div key={item.href}>
+              {prefix}
+              <Link
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                  active
+                    ? "bg-primary font-medium text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                )}
+              >
+                <Icon className="size-4" />
+                {item.label}
+              </Link>
             </div>
-            <ul className="flex flex-col gap-0.5">
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(pathname, item.href);
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "group flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                        "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-muted)]",
-                        active &&
-                          "bg-[var(--color-accent)] text-[var(--color-accent-foreground)] hover:bg-[var(--color-accent)]",
-                      )}
-                    >
-                      <Icon
-                        className={cn(
-                          "h-4 w-4 shrink-0",
-                          active
-                            ? "text-[var(--color-primary)]"
-                            : "text-[var(--color-muted-foreground)] group-hover:text-[var(--color-foreground)]",
-                        )}
-                      />
-                      <span>{item.label}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
-      <div className="border-t border-[var(--color-border)] p-3">
+      <div className="shrink-0">
         <UserMenu />
       </div>
     </aside>

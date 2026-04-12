@@ -23,16 +23,16 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
 
   if (isPending || !session) {
     return (
-      <div className="flex min-h-svh items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center">
         <Spinner size="lg" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-svh">
+    <div className="flex min-h-screen">
       <Sidebar />
-      <main id="main" className="flex-1 min-w-0">
+      <main id="main" className="min-w-0 flex-1">
         <div className="mx-auto max-w-6xl px-6 py-8 md:px-10">{children}</div>
       </main>
     </div>

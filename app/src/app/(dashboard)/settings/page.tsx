@@ -117,15 +117,15 @@ const SettingsPage = () => {
 };
 
 const Row = ({ label, ok }: { label: string; ok: boolean | undefined }) => (
-  <div className="flex items-center justify-between rounded-md border border-[var(--color-border)] px-3 py-2 text-sm">
+  <div className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
     <span>{label}</span>
     <span
       className={
         ok === undefined
-          ? "text-[var(--color-muted-foreground)]"
+          ? "text-muted-foreground"
           : ok
-            ? "font-medium text-[var(--color-success)]"
-            : "font-medium text-[var(--color-destructive)]"
+            ? "font-medium text-success"
+            : "font-medium text-destructive"
       }
     >
       {ok === undefined ? "—" : ok ? "operational" : "down"}
