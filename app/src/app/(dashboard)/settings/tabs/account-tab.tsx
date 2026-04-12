@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useChangePassword, useLogout, useLogoutAll, useSession } from "@/hooks/use-auth";
-import { formatRelative } from "@/lib/format";
 
 export const AccountTab = () => {
   const router = useRouter();
@@ -45,11 +44,6 @@ export const AccountTab = () => {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <Input label="Display name" defaultValue={session?.user.display_name} disabled />
-          <Input
-            label="Last sign-in"
-            value={session?.user.last_login_at ? formatRelative(session.user.last_login_at) : "—"}
-            disabled
-          />
         </CardContent>
       </Card>
 

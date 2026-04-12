@@ -16,7 +16,7 @@ export const Tabs = ({ tabs, value, onChange }: TabsProps) => (
   <BaseTabs.Root onValueChange={(v) => onChange(v as string)} value={value}>
     <BaseTabs.List
       activateOnFocus
-      className="mb-6 flex gap-1 overflow-x-auto border-b border-border"
+      className="relative mb-6 flex gap-1 overflow-x-auto border-b border-border"
     >
       {tabs.map((tab) => (
         <BaseTabs.Tab
@@ -43,7 +43,7 @@ export const Tabs = ({ tabs, value, onChange }: TabsProps) => (
           )}
         </BaseTabs.Tab>
       ))}
-      <BaseTabs.Indicator className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary transition-[left,width] duration-300 ease-[cubic-bezier(0.65,0,0.35,1)]" />
+      <BaseTabs.Indicator className="absolute -bottom-px left-[var(--active-tab-left)] h-0.5 w-[var(--active-tab-width)] rounded-full bg-primary transition-[left,width] duration-300 ease-[cubic-bezier(0.65,0,0.35,1)]" />
     </BaseTabs.List>
   </BaseTabs.Root>
 );

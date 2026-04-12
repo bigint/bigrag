@@ -32,7 +32,7 @@ Studio proxies every request through `/api/bigrag/[...path]` onto the backend (d
 | `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets) — reusable provider + model + key tuples. |
 | `/api-keys` | Mint, scope, rate-limit, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
 | `/webhooks` | Register webhooks, test deliveries, replay failed attempts, view delivery history. |
-| `/settings` | Tabs: Account · Server · Usage · Audit · Eval · GDPR. |
+| `/settings` | Tabs: Account · Server · Usage · Audit · Eval. |
 
 ## Settings tabs
 
@@ -43,7 +43,6 @@ Studio proxies every request through `/api/bigrag/[...path]` onto the backend (d
 | **Usage** | `GET /v1/admin/usage` | — |
 | **Audit** | `GET /v1/admin/audit` | — |
 | **Eval** | — | `POST /v1/admin/eval` |
-| **GDPR** | `GET /v1/admin/users` | `DELETE /v1/admin/audit/{user_id}` |
 
 ## Real-time progress
 

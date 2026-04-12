@@ -60,7 +60,7 @@ Session endpoints:
 Session cookie attributes are controlled by `BIGRAG_SESSION_COOKIE_*` (see [Configuration](/docs/getting-started/configuration)). In production you must set `BIGRAG_SESSION_COOKIE_SECURE=true` and serve over HTTPS.
 
 <Callout type="info">
-Some endpoints (create user, manage API keys, change passwords, GDPR delete) require a **session** and cannot be invoked with an API key — this keeps long-lived keys from being able to self-replicate or escalate.
+Some endpoints (create user, manage API keys, change passwords) require a **session** and cannot be invoked with an API key — this keeps long-lived keys from being able to self-replicate or escalate.
 </Callout>
 
 ## API key auth (SDKs, services)

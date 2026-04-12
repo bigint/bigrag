@@ -1,4 +1,4 @@
-"""Tests for scoped API keys, audit log, and GDPR delete."""
+"""Tests for scoped API keys and the audit log."""
 
 from __future__ import annotations
 
@@ -140,36 +140,3 @@ async def test_audit_list_endpoint_returns_entries(client, auth_headers, mock_db
     body = resp.json()
     assert body["total"] == 1
     assert body["entries"][0]["action"] == "collection.create"
-
-
-@pytest.mark.asyncio
-async def test_gdpr_delete_returns_certificate(client, auth_headers, mock_db):
-    target_user = str(uuid.uuid4())
-
-    async def fetchrow(sql, *args):
-        if "FROM sessions WHERE user_id" in sql:
-            return {"cnt": 3}
-        if "FROM api_keys WHERE user_id" in sql:
-            return {"cnt": 2}
-        return None
-
-    async def execute(sql, *args):
-        if "DELETE FROM sessions" in sql:
-            return "DELETE 3"
-        if "DELETE FROM api_keys" in sql:
-            return "DELETE 2"
-        return "UPDATE 1"
-
-    install_fetchrow_router(mock_db, fetchrow)
-    mock_db.execute = AsyncMock(side_effect=execute)
-
-    resp = await client.delete(
-        f"/v1/admin/users/{target_user}/gdpr",
-        headers=auth_headers,
-    )
-    assert resp.status_code == 200, resp.text
-    body = resp.json()
-    assert body["user_id"] == target_user
-    assert body["deleted_sessions"] == 3
-    assert body["deleted_api_keys"] == 2
-    assert len(body["certificate"]) == 64  # sha256 hex

@@ -139,13 +139,3 @@ class AuditLogEntry(BaseModel):
 class AuditLogListResponse(BaseModel):
     entries: list[AuditLogEntry]
     total: int
-
-
-class GdprDeleteResponse(BaseModel):
-    user_id: str
-    deleted_sessions: int
-    deleted_api_keys: int
-    deleted_collections: int
-    deleted_documents: int
-    deleted_at: datetime
-    certificate: str  # opaque hash of the above for paper-trail purposes

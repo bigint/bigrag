@@ -130,7 +130,7 @@ to block disallowed content at upload time.
 
 ## Audit trail for compliance
 
-Every admin action (key creation, webhook config, GDPR delete) is in
+Every admin action (key creation, webhook config, user updates) is in
 `audit_log`. Surface it per-tenant by filtering on
 `actor_id` (the user) or `resource_id` (the collection name):
 
@@ -141,15 +141,15 @@ curl -H "Authorization: Bearer $ADMIN_KEY" \
 
 ## Offboarding
 
-A GDPR erasure request on your side:
+When a tenant cancels, tear down their data:
 
 ```python
-client.admin.gdpr_delete(user_id)         # cascades sessions + api_keys
-# then for Pattern A:
+# Pattern A — collection per tenant
 client.collections.delete(f"tenant_{tenant_id}")
-# for Pattern B:
+
+# Pattern B — shared collection
 client.vectors.delete("shared_tenants", tenant_filter={"tenant_id": tenant_id})
 ```
 
-The returned certificate (`sha256` of the deletion counts + timestamp)
-is your paper trail.
+Revoke the tenant's API keys via `client.api_keys.delete(key_id)` and
+archive the relevant `audit_log` rows for your records.

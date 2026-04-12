@@ -1,27 +1,19 @@
-"""Admin endpoints for reading the audit log and running a GDPR
-cascade delete."""
+"""Admin endpoint for reading the audit log."""
 
 from __future__ import annotations
 
-import hashlib
 import uuid
-from datetime import UTC, datetime
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import ApiKey, AuditLog, User
-from bigrag.db.models import Session as DbSession
+from bigrag.db.models import AuditLog
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_session
-from bigrag.models.auth import (
-    AuditLogEntry,
-    AuditLogListResponse,
-    GdprDeleteResponse,
-)
-from bigrag.services import audit, semantic_cache
+from bigrag.models.auth import AuditLogEntry, AuditLogListResponse
+from bigrag.services import semantic_cache
 from bigrag.services.vector_store import vector_store
 
 logger = get_logger("bigrag.routers.admin_audit")
@@ -81,89 +73,6 @@ async def list_audit_log(
     return AuditLogListResponse(
         entries=[_audit_row(e) for e in entries],
         total=total or 0,
-    )
-
-
-@router.delete(
-    "/users/{user_id}/gdpr",
-    response_model=GdprDeleteResponse,
-)
-async def gdpr_cascade_delete(
-    user_id: str,
-    request: Request,
-    admin: dict = Depends(require_session),
-    session: AsyncSession = Depends(get_session),
-) -> GdprDeleteResponse:
-    """GDPR erasure request. Cascades from user → sessions → api_keys →
-    collections (and their documents + Milvus vectors). Returns a
-    signed-ish certificate string derived from the deletion counts.
-
-    The caller must be an admin. Deleting yourself is allowed but not
-    graceful — the current session is invalidated along with everything
-    else.
-    """
-    try:
-        target = uuid.UUID(user_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="User not found") from e
-
-    # bigRAG is single-tenant today — collection ownership isn't tracked,
-    # so the cascade only covers sessions + API keys. Surface zero for
-    # collections/documents until workspaces land.
-    sess_result = await session.execute(
-        sa.delete(DbSession).where(DbSession.user_id == target)
-    )
-    key_result = await session.execute(
-        sa.delete(ApiKey).where(ApiKey.user_id == target)
-    )
-    # Don't delete the user row itself; keep it for the audit trail
-    # (anonymise instead).
-    await session.execute(
-        sa.update(User)
-        .where(User.id == target)
-        .values(
-            email=sa.func.concat("deleted-", sa.cast(User.id, sa.Text), "@tombstone.local"),
-            display_name="[deleted]",
-            password_hash="",
-        )
-    )
-    await session.commit()
-
-    deleted_sessions = sess_result.rowcount or 0
-    deleted_keys = key_result.rowcount or 0
-    coll_count = 0
-    doc_count = 0
-
-    deleted_at = datetime.now(UTC)
-    cert_source = (
-        f"{user_id}|{deleted_sessions}|{deleted_keys}|{coll_count}|"
-        f"{doc_count}|{deleted_at.isoformat()}"
-    )
-    certificate = hashlib.sha256(cert_source.encode()).hexdigest()
-
-    logger.warning(
-        "gdpr: cascade delete complete",
-        user_id=user_id,
-        sessions=deleted_sessions,
-        api_keys=deleted_keys,
-        by=admin.get("email"),
-    )
-    audit.record(
-        request,
-        user=admin,
-        action="user.gdpr_delete",
-        resource_type="user",
-        resource_id=user_id,
-        metadata={"certificate": certificate},
-    )
-    return GdprDeleteResponse(
-        user_id=user_id,
-        deleted_sessions=deleted_sessions,
-        deleted_api_keys=deleted_keys,
-        deleted_collections=coll_count,
-        deleted_documents=doc_count,
-        deleted_at=deleted_at,
-        certificate=certificate,
     )
 
 

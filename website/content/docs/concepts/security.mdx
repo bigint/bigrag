@@ -1,11 +1,11 @@
 ---
 title: Security & Auth Model
-description: Admin accounts, sessions, API keys, scopes, audit, and GDPR.
+description: Admin accounts, sessions, API keys, scopes, and audit.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-bigRAG's auth model has two credential types, one scope system, an immutable audit log, and a GDPR cascade-delete. This page is the high-level map; the API shapes live under [API Reference → Authentication](/docs/api-reference/authentication).
+bigRAG's auth model has two credential types, one scope system, and an immutable audit log. This page is the high-level map; the API shapes live under [API Reference → Authentication](/docs/api-reference/authentication).
 
 ## The two credentials
 
@@ -26,7 +26,7 @@ Two roles only. RBAC is intentionally coarse — fine-grained control lives on A
 
 | Role | Can |
 |------|-----|
-| `admin` | Everything: users, keys, collections, webhooks, audit, GDPR |
+| `admin` | Everything: users, keys, collections, webhooks, audit |
 | `member` | Read `/v1/auth/me`, read/write own `/v1/preferences`, log out |
 
 `member` accounts are useful for Studio users who need a read-only pane of glass.
@@ -76,24 +76,13 @@ Use `{name}` as a literal — the matcher normalizes path parameters. Over-budge
 
 ## Audit log
 
-Every state-changing admin action writes a row to `audit_log` with actor, IP, user-agent, resource, and metadata. Reads don't. Entries are immutable — only GDPR cascade delete removes them indirectly.
+Every state-changing admin action writes a row to `audit_log` with actor, IP, user-agent, resource, and metadata. Reads don't. Entries are immutable.
 
 - **Read**: `GET /v1/admin/audit`
 - **Filter**: `actor`, `action`, `resource_type`, `start_date`, `end_date`
 - **Pipe to SIEM**: scrape on a schedule or run `logout-all` + audit export on the `session.*` events
 
 The [Audit API Reference](/docs/api-reference/audit) lists the full action vocabulary.
-
-## GDPR cascade delete
-
-`DELETE /v1/admin/audit/{user_id}` tears down a user account and every object they own:
-
-- sessions
-- API keys
-- owned collections (and every document / vector / stored file inside)
-- the user's audit entries
-
-The operator gets a signed deletion certificate you can hand to the subject as proof. The action itself is audited as `gdpr.delete` (with the subject's email in `metadata`) so the trail is preserved for everyone **else**.
 
 ## Passwords
 
