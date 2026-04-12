@@ -16,7 +16,7 @@ from bigrag.exceptions import ConflictError, NotFoundError, ValidationError
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
 from bigrag.middleware.idempotency import IdempotencyMiddleware
 from bigrag.middleware.rate_limit import RateLimitMiddleware
-from bigrag.services import redis_cache
+from bigrag.services import crypto, redis_cache
 from bigrag.services.event_bus import event_bus
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import init_storage
@@ -38,6 +38,15 @@ async def lifespan(app: FastAPI):
 
     if "*" in s.cors_origins:
         logger.warning("CORS allows all origins, restrict in production")
+
+    # Install the master key before any ORM access — the EncryptedString
+    # type decorator calls into crypto on every read/write of a secret column.
+    crypto.configure(s.master_key)
+    if not crypto.is_configured():
+        logger.warning(
+            "BIGRAG_MASTER_KEY not set — provider credentials will be stored "
+            "in plaintext. Set it before promoting this instance to prod."
+        )
 
     await db_module.configure(s.database_url, pool_min=s.db_pool_min, pool_max=s.db_pool_max)
     await run_migrations()

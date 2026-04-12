@@ -1,0 +1,95 @@
+---
+title: Encryption at Rest
+description: How bigRAG protects secrets on disk, and what the operator is responsible for.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+bigRAG treats "at-rest encryption" as a split responsibility:
+
+- **App-layer envelope encryption** (handled by bigRAG) — a handful of highly-sensitive credential columns in Postgres are Fernet-encrypted before they ever touch disk.
+- **Storage-layer encryption** (handled by the operator) — everything else (document chunks, vectors, uploaded files, Redis, backups) relies on the disk or object-store encrypting its own data.
+
+Both layers are required for a defensible "encrypted at rest" posture.
+
+## What bigRAG encrypts at the app layer
+
+These four columns are encrypted transparently by the ORM using a single Fernet master key:
+
+| Table | Column | What it holds |
+|-------|--------|---------------|
+| `embedding_presets` | `api_key` | OpenAI / Cohere / compatible provider key |
+| `webhooks` | `secret` | HMAC signing secret issued to the webhook subscriber |
+| `s3_ingest_jobs` | `access_key` | AWS access key for a customer-provided bucket |
+| `s3_ingest_jobs` | `secret_key` | AWS secret key paired with the above |
+
+Ciphertext looks like `gAAAAABl...` — the Fernet v1 envelope. Decryption is HMAC-authenticated, so a tampered row fails to load rather than returning corrupt data.
+
+User passwords are already Argon2id-hashed and API keys (`bigrag_sk_…`) are SHA-256-hashed; neither is reversible, so no envelope is needed.
+
+## Configuring the master key
+
+bigRAG refuses to start in `BIGRAG_ENV=prod` without `BIGRAG_MASTER_KEY`. Generate one:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Hand the value to the process via env var, a secrets file mounted from your secret store, or an entrypoint that pulls from KMS before exec'ing bigRAG. **Do not** commit it to the repo or to your docker-compose file.
+
+```bash
+export BIGRAG_MASTER_KEY="Zm5VZ4vO8r0y3rVsT0xz7nxV_wP7u6-n5tB1GAlHZIw="   # example
+```
+
+In `BIGRAG_ENV=dev`, an unset key only prints a warning — dev contributors don't need a real secret store. `dev.sh` ships a fixed dev key so fresh clones start cleanly.
+
+<Callout type="warn">
+Losing `BIGRAG_MASTER_KEY` means the four columns above become permanently unreadable. Back it up the same way you back up your Postgres root credentials — offline, split across owners.
+</Callout>
+
+## What the operator must encrypt
+
+bigRAG delegates the bulk of at-rest protection to your infrastructure. For a production deployment you must configure at least the following:
+
+### Postgres
+
+- **Self-host**: LUKS on the data volume. `cryptsetup luksFormat /dev/sdX` before `initdb`.
+- **RDS / Aurora**: enable **Storage encryption** with a customer-managed KMS key. Enable the same on every read replica and snapshot target.
+- **Backups**: pipe `pg_dump` into a GPG or `age`-encrypted file, or push to S3 with SSE-KMS.
+
+### Milvus
+
+- Milvus stores its indexes on its own object backend. For Docker Compose this is **MinIO**; for production, point Milvus at S3 / GCS / Azure Blob with server-side encryption enabled.
+- Milvus metadata sits in etcd; run etcd on an encrypted volume.
+
+### Redis
+
+- Redis holds the ingestion queue, the event bus, and the semantic cache — all ephemeral, but queue payloads can contain document IDs and user context.
+- Disable RDB/AOF persistence in prod, or put the persistence directory on an encrypted volume.
+- Use TLS (`rediss://`) between bigRAG and Redis.
+
+### Stored files (`storage_backend`)
+
+- `local`: the upload directory (default `./data/uploads`) must live on an encrypted volume.
+- `s3`: configure `BIGRAG_S3_*` to point at a bucket with **default SSE-KMS** enabled. Grant the bigRAG role `kms:Decrypt` / `kms:Encrypt` on the specific key, not `*`.
+
+## Rotation
+
+Single-key rotation isn't automated yet (phase 4 in the roadmap). Manual process:
+
+1. Drain traffic.
+2. `BIGRAG_MASTER_KEY=$NEW alembic downgrade -1` with the *old* key still reachable as `$OLD` — run a one-off script that reads each ciphertext with `$OLD` and rewrites it with `$NEW`.
+3. Promote `$NEW` as `BIGRAG_MASTER_KEY`, restart.
+
+A `bigrag crypto rotate` CLI command with `BIGRAG_MASTER_KEY_PREVIOUS` dual-read support is on the roadmap.
+
+## What's intentionally **not** app-layer encrypted
+
+| Data | Why |
+|------|-----|
+| Document chunks (`document_chunks.content`) | Per-query decrypt kills search latency; rely on disk encryption. |
+| Vectors in Milvus | Same — search needs raw floats, not ciphertext. |
+| Audit log rows | Append-only. Store encrypted at the disk layer; querying encrypted metadata is prohibitive. |
+| User display names / emails | PII, not credentials. Disk-layer + column-level access control is the right split. |
+
+If your compliance regime demands column-level encryption for any of the above, open an issue — it's plausible but non-trivial and needs a performance budget first.

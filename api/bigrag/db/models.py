@@ -19,6 +19,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, BYTEA, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from bigrag.db.base import TS, Base, TSupd, UUIDpk
+from bigrag.services.crypto import EncryptedString
 
 
 class User(Base):
@@ -194,7 +195,7 @@ class Webhook(Base):
 
     id: Mapped[UUIDpk]
     url: Mapped[str] = mapped_column(sa.Text, nullable=False)
-    secret: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    secret: Mapped[str] = mapped_column(EncryptedString, nullable=False)
     events: Mapped[list[str]] = mapped_column(ARRAY(sa.Text), nullable=False)
     collections: Mapped[list[str] | None] = mapped_column(ARRAY(sa.Text))
     description: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
@@ -273,8 +274,8 @@ class S3IngestJob(Base):
     prefix: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
     region: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="us-east-1")
     endpoint_url: Mapped[str | None] = mapped_column(sa.Text)
-    access_key: Mapped[str | None] = mapped_column(sa.Text)
-    secret_key: Mapped[str | None] = mapped_column(sa.Text)
+    access_key: Mapped[str | None] = mapped_column(EncryptedString)
+    secret_key: Mapped[str | None] = mapped_column(EncryptedString)
     no_sign_request: Mapped[bool] = mapped_column(
         sa.Boolean, nullable=False, server_default=sa.false()
     )
@@ -322,7 +323,7 @@ class EmbeddingPreset(Base):
         nullable=False,
     )
     model: Mapped[str] = mapped_column(sa.Text, nullable=False)
-    api_key: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    api_key: Mapped[str] = mapped_column(EncryptedString, nullable=False)
     base_url: Mapped[str | None] = mapped_column(sa.Text)
     dimension: Mapped[int] = mapped_column(sa.Integer, nullable=False)
     created_at: Mapped[TS]

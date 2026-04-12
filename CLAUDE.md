@@ -13,7 +13,7 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 
 ## Tech Stack
 
-- **Backend**: Python 3.12+, FastAPI, SQLAlchemy 2 (async) + asyncpg, Alembic, pymilvus, docling, openai, cohere
+- **Backend**: Python 3.12+, FastAPI, SQLAlchemy 2 (async) + asyncpg, Alembic, pymilvus, docling, openai, cohere, cryptography (Fernet for at-rest encryption of provider secrets)
 - **Vector DB**: Milvus (via Docker)
 - **Metadata DB**: PostgreSQL 17
 - **Ingestion**: Docling (PDF, DOCX, PPTX, HTML, Markdown, images)

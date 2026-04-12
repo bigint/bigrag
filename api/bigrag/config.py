@@ -29,6 +29,8 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://localhost:6380/0"
 
+    master_key: str | None = None
+
     session_expiry_hours: int = 168
     session_cookie_name: str = "bigrag_session"
     session_cookie_secure: bool = False

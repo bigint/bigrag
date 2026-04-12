@@ -1,4 +1,4 @@
 {
   "title": "Deployment",
-  "pages": ["docker", "production"]
+  "pages": ["docker", "production", "encryption"]
 }

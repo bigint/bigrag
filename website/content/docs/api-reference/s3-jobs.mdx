@@ -50,7 +50,7 @@ GET /v1/admin/s3-jobs?status=ingesting&limit=50&offset=0
 }
 ```
 
-`file_types` uses bare extensions without a leading dot (`"pdf"`, not `".pdf"`) — same convention as [Ingest from S3 Bucket](/docs/api-reference/documents#ingest-from-s3-bucket). Credentials (`access_key`, `secret_key`) are never returned.
+`file_types` uses bare extensions without a leading dot (`"pdf"`, not `".pdf"`) — same convention as [Ingest from S3 Bucket](/docs/api-reference/documents#ingest-from-s3-bucket). Credentials (`access_key`, `secret_key`) are never returned and are Fernet-encrypted at rest — see [Encryption at rest](/docs/deployment/encryption).
 
 ## Get Job
 

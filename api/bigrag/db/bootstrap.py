@@ -2,7 +2,8 @@
 
 - If ``alembic_version`` table exists → run ``alembic upgrade head`` normally.
 - Else if legacy ``_migrations`` table exists with >= the known baseline
-  count → stamp head (existing production DB adoption; schema is at HEAD).
+  count → stamp at the 0001 baseline (the legacy array is schema-equivalent
+  to 0001) then upgrade to head so newer revisions apply.
 - Else (fresh DB) → run ``alembic upgrade head``.
 """
 
@@ -21,6 +22,7 @@ from bigrag.logging import get_logger
 logger = get_logger("bigrag.db.bootstrap")
 
 LEGACY_MIGRATION_COUNT = 21
+LEGACY_BASELINE_REVISION = "0001"
 
 
 def _alembic_config() -> Config:
@@ -54,8 +56,14 @@ async def run_migrations() -> None:
 
     loop = asyncio.get_running_loop()
     if not have_alembic and legacy_count >= LEGACY_MIGRATION_COUNT:
-        logger.info("adopting existing schema — stamping alembic head")
-        await loop.run_in_executor(None, lambda: command.stamp(cfg, "head"))
+        logger.info(
+            "adopting existing schema — stamping baseline and upgrading",
+            baseline=LEGACY_BASELINE_REVISION,
+        )
+        await loop.run_in_executor(
+            None, lambda: command.stamp(cfg, LEGACY_BASELINE_REVISION)
+        )
+        await loop.run_in_executor(None, lambda: command.upgrade(cfg, "head"))
     else:
         logger.info("running alembic upgrade head")
         await loop.run_in_executor(None, lambda: command.upgrade(cfg, "head"))

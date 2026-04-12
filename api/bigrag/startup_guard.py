@@ -47,6 +47,14 @@ def check_production_safety(s: Settings) -> None:
             "'bigrag:bigrag' credentials — rotate the Postgres password."
         )
 
+    if not s.master_key:
+        problems.append(
+            "BIGRAG_MASTER_KEY is not set — required for at-rest encryption "
+            "of provider credentials. Generate one with "
+            "`python -c 'from cryptography.fernet import Fernet; "
+            "print(Fernet.generate_key().decode())'`."
+        )
+
     if not problems:
         logger.info("startup guard: production checks passed")
         return
