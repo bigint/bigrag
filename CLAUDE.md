@@ -13,7 +13,7 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 
 ## Tech Stack
 
-- **Backend**: Python 3.12+, FastAPI, asyncpg, pymilvus, docling, openai, cohere
+- **Backend**: Python 3.12+, FastAPI, SQLAlchemy 2 (async) + asyncpg, Alembic, pymilvus, docling, openai, cohere
 - **Vector DB**: Milvus (via Docker)
 - **Metadata DB**: PostgreSQL 17
 - **Ingestion**: Docling (PDF, DOCX, PPTX, HTML, Markdown, images)
@@ -32,6 +32,9 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 ## Architecture Notes
 
 - Backend uses FastAPI dependency injection via `bigrag/deps.py` and `app.state`
+- Database layer lives in `bigrag/db/`: `engine.py` (async engine), `session.py`
+  (FastAPI `get_session` dependency), `models.py` (all 13 ORM models), `bootstrap.py`
+  (stamp-or-upgrade on startup). Schema changes go through Alembic (`api/alembic/`)
 - Services: `event_bus.py` (SSE), `ingestion_job.py` (job model), `conversion.py` (Docling), `cleanup.py` (periodic), `queue.py` (Redis workers)
 - SDK uses resource namespaces: `client.collections.list()`, `client.documents.upload()`, etc.
 
