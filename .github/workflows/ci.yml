@@ -48,11 +48,10 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: sdks/typescript/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: sdks/typescript
 
       - name: Type check
         run: pnpm tsc --noEmit
@@ -69,11 +68,10 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: website/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: website
 
       - name: Type check
         run: pnpm typecheck
@@ -92,10 +90,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: app/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: app
       - name: Type check
         run: pnpm typecheck
         working-directory: app
