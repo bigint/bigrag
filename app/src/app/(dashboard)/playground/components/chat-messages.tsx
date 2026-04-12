@@ -1,9 +1,9 @@
 "use client";
 
-import { BookOpen } from "lucide-react";
+import { BookOpen, Zap } from "lucide-react";
 import { memo, useEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
-import type { QueryResult } from "@/types/bigrag";
+import type { QueryResult, QueryTimings } from "@/types/bigrag";
 
 export type ChatMessage = {
   id: string;
@@ -12,6 +12,8 @@ export type ChatMessage = {
   meta?: {
     collection: string;
     chunks: QueryResult[];
+    timings?: QueryTimings;
+    cached?: boolean;
   };
 };
 
@@ -25,13 +27,52 @@ const Bubble = memo(({ message, isStreaming }: { message: ChatMessage; isStreami
   return (
     <div className={cn("flex flex-col", isUser ? "items-end" : "items-start")}>
       {!isUser && message.meta && (
-        <div className="mb-1.5 flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/60 px-2.5 py-1 text-[11px] text-muted-foreground">
-          <BookOpen className="size-3 shrink-0" />
-          <span>
-            Retrieved {message.meta.chunks.length} chunks from{" "}
-            <span className="font-medium text-foreground">{message.meta.collection}</span>
-          </span>
+        <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/60 px-2.5 py-1">
+            <BookOpen aria-hidden className="size-3 shrink-0" />
+            <span>
+              Retrieved {message.meta.chunks.length} chunks from{" "}
+              <span className="font-medium text-foreground">{message.meta.collection}</span>
+              {message.meta.cached && (
+                <span className="ml-1.5 rounded-sm bg-success/15 px-1.5 py-0.5 font-medium text-success">
+                  cached
+                </span>
+              )}
+            </span>
+          </div>
+          {message.meta.timings && (
+            <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/60 px-2.5 py-1 font-mono">
+              <Zap aria-hidden className="size-3 shrink-0" />
+              <span>{Math.round(message.meta.timings.total_ms)}ms</span>
+            </div>
+          )}
         </div>
+      )}
+      {!isUser && message.meta?.timings && (
+        <details className="mt-0.5 mb-1 text-[11px] text-muted-foreground">
+          <summary className="cursor-pointer hover:text-foreground">
+            Query debugger — per-phase latency
+          </summary>
+          <dl className="mt-1 grid max-w-sm grid-cols-2 gap-x-4 gap-y-0.5 rounded-md border border-border bg-card p-2 font-mono">
+            {(
+              [
+                ["embed", message.meta.timings.embed_ms],
+                ["search", message.meta.timings.search_ms],
+                ["rerank", message.meta.timings.rerank_ms],
+                ["hyde", message.meta.timings.hyde_ms],
+                ["mmr", message.meta.timings.mmr_ms],
+                ["total", message.meta.timings.total_ms],
+              ] as const
+            )
+              .filter(([, v]) => v > 0 || true)
+              .map(([name, ms]) => (
+                <div key={name} className="flex justify-between">
+                  <dt>{name}</dt>
+                  <dd className={cn(ms > 0 ? "text-foreground" : "")}>{ms.toFixed(1)}ms</dd>
+                </div>
+              ))}
+          </dl>
+        </details>
       )}
       <div
         className={cn(

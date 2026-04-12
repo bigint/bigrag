@@ -11,7 +11,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { usePreferences, useUpdatePreferences } from "@/hooks/use-preferences";
 import { apiClient } from "@/lib/api";
 import { streamOpenAI } from "@/lib/openai-stream";
-import type { QueryResult } from "@/types/bigrag";
+import type { QueryResponse, QueryResult } from "@/types/bigrag";
 import { ChatInput, type PlaygroundState } from "./components/chat-input";
 import type { ChatMessage } from "./components/chat-messages";
 import { ChatMessages } from "./components/chat-messages";
@@ -95,12 +95,13 @@ const PlaygroundPage = () => {
     setIsStreaming(true);
 
     let chunks: QueryResult[] = [];
+    let queryResponse: QueryResponse | null = null;
     try {
-      const res = await apiClient.post<{ results: QueryResult[] }>(
+      queryResponse = await apiClient.post<QueryResponse>(
         `v1/collections/${encodeURIComponent(collection)}/query`,
         { query: text, top_k: state.topK },
       );
-      chunks = res.results;
+      chunks = queryResponse.results;
     } catch (err) {
       setMessages((prev) =>
         prev.map((m) =>
@@ -117,7 +118,19 @@ const PlaygroundPage = () => {
     }
 
     setMessages((prev) =>
-      prev.map((m) => (m.id === assistantId ? { ...m, meta: { chunks, collection } } : m)),
+      prev.map((m) =>
+        m.id === assistantId
+          ? {
+              ...m,
+              meta: {
+                chunks,
+                collection,
+                timings: queryResponse?.timings,
+                cached: queryResponse?.cached,
+              },
+            }
+          : m,
+      ),
     );
 
     const context = chunks.map((c, i) => `[${i + 1}] ${c.text}`).join("\n\n---\n\n");

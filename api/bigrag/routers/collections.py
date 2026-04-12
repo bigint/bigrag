@@ -18,6 +18,8 @@ from bigrag.models.collection import (
     UpdateCollectionRequest,
 )
 from bigrag.models.common import StatusResponse
+from bigrag.services.ingestion_job import create_ingestion_job
+from bigrag.services.queue import ingestion_queue
 from bigrag.services.vector_store import vector_store
 
 logger = get_logger("bigrag.routers.collections")
@@ -209,6 +211,51 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
         f"create: collection={body.name} created provider={provider} model={model} dim={dimension}"
     )
     return _row_to_response(dict(row))
+
+
+@router.post("/{name}/reembed", response_model=StatusResponse)
+async def reembed_collection(
+    name: str,
+    _: dict = Depends(get_current_user),
+) -> StatusResponse:
+    """Queue every document in a collection for re-embedding.
+
+    Use this after changing the collection's embedding_model or
+    embedding_base_url — the persistent embedding cache means chunks
+    that haven't actually changed get their new vectors essentially
+    for free, so this scales well even for large collections.
+    """
+    row = await db.fetchrow("SELECT * FROM collections WHERE name = $1", name)
+    if not row:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    collection = dict(row)
+
+    docs = await db.fetch(
+        "SELECT id, file_path FROM documents WHERE collection_id = $1 "
+        "AND status IN ('ready', 'failed')",
+        collection["id"],
+    )
+    for d in docs:
+        await db.execute(
+            "UPDATE documents SET status = 'pending', error_message = NULL, "
+            "updated_at = now() WHERE id = $1",
+            d["id"],
+        )
+        await ingestion_queue.enqueue(
+            create_ingestion_job(
+                document_id=str(d["id"]),
+                file_path=d["file_path"],
+                collection_name=name,
+                collection=collection,
+                fallback_api_key=settings.embedding_api_key,
+            )
+        )
+
+    logger.info("reembed: queued", collection=name, docs=len(docs))
+    return StatusResponse(
+        status="ok",
+        message=f"Queued {len(docs)} documents for re-embedding",
+    )
 
 
 @router.get("/{name}", response_model=CollectionResponse)

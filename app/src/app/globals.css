@@ -2,6 +2,8 @@
 
 @source "../**/*.tsx";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-background: #ffffff;
   --color-foreground: #0a0a0a;
@@ -46,6 +48,26 @@ body {
   font-feature-settings:
     "rlig" 1,
     "calt" 1;
+}
+
+/* Dark theme token overrides. Applied when html has class="dark". */
+.dark {
+  --color-background: #0a0a0a;
+  --color-foreground: #fafafa;
+  --color-card: #171717;
+  --color-card-foreground: #fafafa;
+  --color-popover: #171717;
+  --color-popover-foreground: #fafafa;
+  --color-primary: #fafafa;
+  --color-primary-foreground: #0a0a0a;
+  --color-muted: #262626;
+  --color-muted-foreground: #a3a3a3;
+  --color-surface: #171717;
+  --color-border: #262626;
+  --color-input: #262626;
+  --color-ring: #d4d4d4;
+  --color-accent: #262626;
+  --color-accent-foreground: #fafafa;
 }
 
 button,

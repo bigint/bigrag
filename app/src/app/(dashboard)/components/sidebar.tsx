@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { cn } from "@/lib/cn";
 import { UserMenu } from "./user-menu";
 
@@ -45,8 +46,9 @@ export const Sidebar = () => {
 
   return (
     <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-border bg-muted/50">
-      <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-4">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-4">
         <Logo />
+        <ThemeToggle />
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
