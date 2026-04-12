@@ -62,6 +62,18 @@ export type QueryResult = {
   metadata: Record<string, unknown>;
 };
 
+export type EmbeddingPreset = {
+  id: string;
+  name: string;
+  provider: "openai" | "cohere";
+  model: string;
+  base_url: string | null;
+  dimension: number;
+  has_api_key: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ApiKey = {
   id: string;
   name: string;

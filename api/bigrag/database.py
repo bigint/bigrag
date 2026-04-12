@@ -195,6 +195,20 @@ MIGRATIONS = [
     CREATE INDEX IF NOT EXISTS idx_api_keys_active ON api_keys(active);
     CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(prefix);
     """,
+    """
+    CREATE TABLE IF NOT EXISTS embedding_presets (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT UNIQUE NOT NULL,
+        provider TEXT NOT NULL CHECK (provider IN ('openai', 'cohere')),
+        model TEXT NOT NULL,
+        api_key TEXT NOT NULL,
+        base_url TEXT,
+        dimension INT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS idx_embedding_presets_name ON embedding_presets(name);
+    """,
 ]
 
 

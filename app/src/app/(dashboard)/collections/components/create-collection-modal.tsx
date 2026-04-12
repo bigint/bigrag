@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ArrowRight, Cpu } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +10,7 @@ import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateCollection } from "@/hooks/use-collections";
-import { useEmbeddingModels } from "@/hooks/use-platform";
+import { useEmbeddingPresets } from "@/hooks/use-embedding-presets";
 
 type Props = { open: boolean; onClose: () => void };
 
@@ -21,45 +23,49 @@ const slugify = (v: string) =>
 
 export const CreateCollectionModal = ({ open, onClose }: Props) => {
   const create = useCreateCollection();
-  const { data: models } = useEmbeddingModels();
+  const { data: presetsData } = useEmbeddingPresets();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [provider, setProvider] = useState<"openai" | "cohere">("openai");
-  const [model, setModel] = useState("text-embedding-3-small");
-  const [apiKey, setApiKey] = useState("");
-  const [dimension, setDimension] = useState(1536);
+  const [presetId, setPresetId] = useState<string>("");
   const [chunkSize, setChunkSize] = useState(512);
   const [chunkOverlap, setChunkOverlap] = useState(50);
 
-  useEffect(() => {
-    if (!models) return;
-    const match = models.models.find((m) => m.provider === provider && m.model === model);
-    if (match) setDimension(match.dimension);
-  }, [model, provider, models]);
+  const presets = presetsData?.presets ?? [];
+  const options = useMemo(
+    () => [
+      { value: "", label: presets.length ? "Select a preset…" : "No presets available" },
+      ...presets.map((p) => ({
+        value: p.id,
+        label: `${p.name} — ${p.provider}/${p.model}`,
+      })),
+    ],
+    [presets],
+  );
 
-  const modelOptions =
-    models?.models
-      .filter((m) => m.provider === provider)
-      .map((m) => ({ value: m.model, label: `${m.model} (${m.dimension}d)` })) ?? [];
+  useEffect(() => {
+    const first = presets[0];
+    if (open && first && !presetId) setPresetId(first.id);
+  }, [open, presets, presetId]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!presetId) {
+      toast.error("Pick an embedding preset first");
+      return;
+    }
     try {
       await create.mutateAsync({
         name: slugify(name),
         description,
-        embedding_provider: provider,
-        embedding_model: model,
-        embedding_api_key: apiKey,
-        dimension,
+        embedding_preset_id: presetId,
         chunk_size: chunkSize,
         chunk_overlap: chunkOverlap,
       });
       onClose();
       setName("");
       setDescription("");
-      setApiKey("");
+      setPresetId("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create");
     }
@@ -68,8 +74,11 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
   return (
     <Modal onClose={onClose} open={open} title="New collection">
       <p className="mb-4 text-sm text-muted-foreground">
-        Collections isolate vectors, chunking, and embedding config. You can limit file types and
-        tweak defaults from the collection's Settings tab.
+        Collections share a preset's provider, model, and API key. Manage presets on the{" "}
+        <Link className="font-medium text-foreground underline" href="/models">
+          Models
+        </Link>{" "}
+        page.
       </p>
       <form onSubmit={submit} className="space-y-4">
         <Input
@@ -87,43 +96,31 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
+        {presets.length === 0 ? (
+          <div className="flex items-start gap-3 rounded-md border border-border bg-muted/50 px-3 py-3 text-sm">
+            <Cpu className="mt-0.5 size-4 text-muted-foreground" />
+            <div className="flex-1">
+              <div className="font-medium">No embedding presets yet</div>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Create one to set provider, model, and API key once.
+              </p>
+            </div>
+            <Link
+              href="/models"
+              className="inline-flex items-center gap-1 text-xs font-medium text-foreground"
+            >
+              Go to Models <ArrowRight className="size-3" />
+            </Link>
+          </div>
+        ) : (
+          <Select
+            label="Embedding preset"
+            value={presetId}
+            onChange={setPresetId}
+            options={options}
+          />
+        )}
         <div className="grid grid-cols-2 gap-3">
-          <Select
-            label="Embedding provider"
-            value={provider}
-            onChange={(v) => setProvider(v as "openai" | "cohere")}
-            options={[
-              { value: "openai", label: "OpenAI" },
-              { value: "cohere", label: "Cohere" },
-            ]}
-          />
-          <Select
-            label="Model"
-            value={model}
-            onChange={setModel}
-            options={
-              modelOptions.length ? modelOptions : [{ value: model, label: `${model} (loading…)` }]
-            }
-          />
-        </div>
-        <Input
-          label="Provider API key"
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder="sk-..."
-          description="Stored encrypted on the server. Used to embed documents in this collection."
-          required
-        />
-        <div className="grid grid-cols-3 gap-3">
-          <Input
-            label="Dimension"
-            type="number"
-            min={64}
-            max={4096}
-            value={dimension}
-            onChange={(e) => setDimension(Number(e.target.value))}
-          />
           <Input
             label="Chunk size"
             type="number"
@@ -145,7 +142,7 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={create.isPending}>
+          <Button type="submit" disabled={create.isPending || !presetId}>
             {create.isPending ? "Creating…" : "Create collection"}
           </Button>
         </div>

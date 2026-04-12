@@ -8,9 +8,11 @@ from pydantic import BaseModel, Field, model_validator
 class CreateCollectionRequest(BaseModel):
     name: str = Field(min_length=1, max_length=128, pattern=r"^[a-zA-Z][a-zA-Z0-9_]*$")
     description: str = ""
+    embedding_preset_id: str | None = None
     embedding_provider: str | None = None
     embedding_model: str | None = None
     embedding_api_key: str | None = None
+    embedding_base_url: str | None = None
     dimension: int | None = None
     chunk_size: int = Field(default=512, ge=64, le=10000)
     chunk_overlap: int = Field(default=50, ge=0, le=5000)

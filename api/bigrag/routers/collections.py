@@ -77,8 +77,29 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
     if existing:
         raise HTTPException(status_code=409, detail="Collection already exists")
 
-    provider = body.embedding_provider or settings.embedding_provider
-    model = body.embedding_model or settings.embedding_model
+    preset: dict | None = None
+    if body.embedding_preset_id:
+        try:
+            preset_uuid = UUID(body.embedding_preset_id)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail="Invalid embedding_preset_id") from e
+        preset_row = await db.fetchrow(
+            "SELECT * FROM embedding_presets WHERE id = $1", preset_uuid
+        )
+        if not preset_row:
+            raise HTTPException(status_code=400, detail="Embedding preset not found")
+        preset = dict(preset_row)
+
+    provider = (
+        body.embedding_provider
+        or (preset["provider"] if preset else None)
+        or settings.embedding_provider
+    )
+    model = (
+        body.embedding_model
+        or (preset["model"] if preset else None)
+        or settings.embedding_model
+    )
 
     if provider not in ("openai", "cohere"):
         raise HTTPException(
@@ -86,12 +107,18 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             detail=f"Unsupported embedding provider: '{provider}'. Supported: openai, cohere",
         )
 
-    api_key = body.embedding_api_key or settings.embedding_api_key
+    api_key = (
+        body.embedding_api_key
+        or (preset["api_key"] if preset else None)
+        or settings.embedding_api_key
+    )
     if not api_key:
         raise HTTPException(
             status_code=400,
             detail=f"API key is required for the '{provider}' embedding provider",
         )
+    base_url = body.embedding_base_url or (preset["base_url"] if preset else None)
+    dimension_override = body.dimension or (preset["dimension"] if preset else None)
 
     try:
         from bigrag.services.embedding import get_embedding_model
@@ -99,10 +126,10 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
         emb = get_embedding_model(
             provider=provider,
             model_name=model,
-            dimension=body.dimension,
+            dimension=dimension_override,
             api_key=api_key,
         )
-        dimension = body.dimension or emb.dimension
+        dimension = dimension_override or emb.dimension
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -116,10 +143,10 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             """
             INSERT INTO collections (name, description, embedding_provider, embedding_model,
                                       dimension, chunk_size, chunk_overlap, metadata,
-                                      embedding_api_key,
+                                      embedding_api_key, embedding_base_url,
                                       reranking_enabled, reranking_model, reranking_api_key,
                                       default_top_k, default_min_score, default_search_mode)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             RETURNING *
             """,
             body.name,
@@ -130,7 +157,8 @@ async def create_collection(body: CreateCollectionRequest, _: dict = Depends(get
             body.chunk_size,
             body.chunk_overlap,
             body.metadata,
-            body.embedding_api_key,
+            api_key,
+            base_url,
             body.reranking_enabled,
             body.reranking_model,
             body.reranking_api_key,

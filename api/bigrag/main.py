@@ -134,6 +134,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     from bigrag.routers.collections import router as collections_router
     from bigrag.routers.documents import global_router as documents_global_router
     from bigrag.routers.documents import router as documents_router
+    from bigrag.routers.embedding_presets import router as embedding_presets_router
     from bigrag.routers.health import router as health_router
     from bigrag.routers.query import router as query_router
     from bigrag.routers.s3_jobs import router as s3_jobs_router
@@ -143,6 +144,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(admin_users_router)
     app.include_router(admin_api_keys_router)
+    app.include_router(embedding_presets_router)
     app.include_router(collections_router)
     app.include_router(documents_router)
     app.include_router(documents_global_router)

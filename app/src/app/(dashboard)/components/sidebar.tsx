@@ -3,11 +3,11 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
+  Cpu,
   KeyRound,
   LayoutDashboard,
   Settings,
   Sparkles,
-  Users,
   Webhook,
 } from "lucide-react";
 import Link from "next/link";
@@ -26,9 +26,9 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: "/overview", icon: LayoutDashboard, label: "Overview" },
   { href: "/collections", icon: BookOpen, label: "Collections" },
+  { href: "/models", icon: Cpu, label: "Models" },
   { href: "/playground", icon: Sparkles, label: "Playground" },
   { admin: true, href: "/api-keys", icon: KeyRound, label: "API Keys" },
-  { admin: true, href: "/users", icon: Users, label: "Admins" },
   { admin: true, href: "/webhooks", icon: Webhook, label: "Webhooks" },
   { admin: true, href: "/settings", icon: Settings, label: "Settings" },
 ];

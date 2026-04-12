@@ -35,10 +35,12 @@ export const useCollectionStats = (name: string) =>
 export type CreateCollectionBody = {
   name: string;
   description?: string;
-  embedding_provider: "openai" | "cohere";
-  embedding_model: string;
-  embedding_api_key: string;
-  dimension: number;
+  embedding_preset_id?: string | null;
+  embedding_provider?: "openai" | "cohere";
+  embedding_model?: string;
+  embedding_api_key?: string;
+  embedding_base_url?: string | null;
+  dimension?: number;
   chunk_size?: number;
   chunk_overlap?: number;
   reranking_enabled?: boolean;
