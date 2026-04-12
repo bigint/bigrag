@@ -54,7 +54,6 @@ class IngestionQueue:
         self._workers: list[asyncio.Task] = []
         self._running = False
         self._redis: aioredis.Redis | None = None
-        self._db = None
         self._vector_store = None
 
     async def connect(self, redis_url: str) -> None:
@@ -66,7 +65,7 @@ class IngestionQueue:
         await self._redis.ping()
         logger.info(f"Queue connected to Redis at {redis_url}")
 
-    async def start(self, db=None, vector_store=None) -> None:
+    async def start(self, vector_store=None) -> None:
         if vector_store is not None:
             self._vector_store = vector_store
 

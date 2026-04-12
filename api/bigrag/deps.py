@@ -10,7 +10,6 @@ from __future__ import annotations
 from fastapi import Request
 
 from bigrag.config import Settings
-from bigrag.database import Database
 from bigrag.db.session import get_session  # noqa: F401  — re-exported
 from bigrag.services.queue import IngestionQueue
 from bigrag.services.storage import StorageBackend
@@ -20,10 +19,6 @@ from bigrag.services.webhook import WebhookDispatcher
 
 def get_settings(request: Request) -> Settings:
     return request.app.state.settings
-
-
-def get_db(request: Request) -> Database:
-    return request.app.state.db
 
 
 def get_vector_store(request: Request) -> VectorStore:

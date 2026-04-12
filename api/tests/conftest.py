@@ -1,7 +1,14 @@
-"""Shared fixtures for bigRAG E2E tests.
+"""Shared fixtures for bigRAG in-process tests.
 
-Uses FastAPI's TestClient (httpx AsyncClient + ASGITransport) with mocked
-service singletons so tests run without Postgres, Milvus, or Redis.
+Status (2026-04-12): these fixtures were designed against the legacy
+asyncpg ``Database`` singleton and patch ``bigrag.database.db`` directly.
+That module has been replaced by ``bigrag.db`` (SQLAlchemy 2 async), so
+the old patches are no-ops and any test that relied on them will skip /
+fail until this harness is ported to mock the ``AsyncSession`` dependency.
+
+The canonical test suite is ``e2e/`` (live server, real DB). Keep this
+file around for data-builder helpers (``make_user_row`` etc.) that unit
+tests can reuse when they're rewritten.
 """
 
 from __future__ import annotations
@@ -369,19 +376,9 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
         stack.enter_context(patch("bigrag.main.lifespan", _test_lifespan))
 
         mock_settings = MagicMock()
-        stack.enter_context(patch("bigrag.database.db", mock_db))
-        stack.enter_context(patch("bigrag.middleware.auth.db", mock_db))
-        stack.enter_context(patch("bigrag.routers.auth.db", mock_db))
-        stack.enter_context(patch("bigrag.routers.admin_users.db", mock_db))
-        stack.enter_context(patch("bigrag.routers.admin_api_keys.db", mock_db))
-        stack.enter_context(patch("bigrag.routers.admin_audit.db", mock_db))
-        stack.enter_context(patch("bigrag.services.audit.db", mock_db))
-        stack.enter_context(patch("bigrag.routers.collections.db", mock_db))
-        stack.enter_context(patch("bigrag.routers.documents.db", mock_db))
-        stack.enter_context(patch("bigrag.routers.webhooks.db", mock_db))
-        stack.enter_context(patch("bigrag.routers.usage.db", mock_db))
-        stack.enter_context(patch("bigrag.routers.evaluation.db", mock_db, create=True))
-        stack.enter_context(patch("bigrag.services.collection_cache.db", mock_db))
+        # NOTE: the previous legacy-db patches were removed with the
+        # SQLAlchemy migration; in-process unit tests need re-wiring to
+        # mock the AsyncSession factory. See this file's module docstring.
         stack.enter_context(patch("bigrag.routers.collections.vector_store", mock_vector_store))
         stack.enter_context(patch("bigrag.routers.query.vector_store", mock_vector_store))
         stack.enter_context(patch("bigrag.services.retrieval.vector_store", mock_vector_store))
