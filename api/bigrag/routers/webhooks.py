@@ -4,12 +4,12 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from bigrag.config import settings
 from bigrag.database import db
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_admin
 from bigrag.models.common import StatusResponse
 from bigrag.models.webhook import (
-    MAX_WEBHOOKS,
     CreateWebhookRequest,
     CreateWebhookResponse,
     UpdateWebhookRequest,
@@ -50,8 +50,12 @@ def _delivery_row_to_response(row: dict) -> WebhookDeliveryResponse:
 @router.post("", response_model=CreateWebhookResponse, status_code=201)
 async def create_webhook(body: CreateWebhookRequest, admin: dict = Depends(require_admin)):
     count_row = await db.fetchrow("SELECT COUNT(*) as cnt FROM webhooks")
-    if count_row["cnt"] >= MAX_WEBHOOKS:
-        raise HTTPException(status_code=400, detail=f"Maximum of {MAX_WEBHOOKS} webhooks reached")
+    max_count = settings.webhook_max_count
+    if count_row["cnt"] >= max_count:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum of {max_count} webhooks reached",
+        )
 
     secret = generate_secret()
     webhook_id = uuid.uuid4()

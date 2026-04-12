@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, model_validator
 
 VALID_EVENTS = frozenset({"document.ready", "document.failed", "document.processing"})
 
-MAX_WEBHOOKS = 50
+MAX_WEBHOOKS = 50  # Historical default; prefer settings.webhook_max_count.
 
 
 def _is_blocked_ip(ip_str: str) -> bool:

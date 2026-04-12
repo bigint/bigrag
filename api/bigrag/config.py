@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     webhook_delivery_timeout: int = 10
     webhook_retry_delays: list[int] = [10, 30, 90]
     webhook_cache_ttl: int = 60
+    webhook_max_count: int = 50
 
     # Embedding defaults
     embedding_provider: str = "openai"
