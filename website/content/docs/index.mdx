@@ -5,7 +5,7 @@ description: bigRAG is an open-source, self-hostable RAG platform for document i
 
 import { Cards, Card } from "fumadocs-ui/components/card";
 
-bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provides a complete pipeline for document ingestion, chunking, embedding, and vector search — behind a REST API, a TypeScript/Python/Rust SDK, and a Studio admin UI.
+bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provides a complete pipeline for document ingestion, chunking, embedding, and vector search — behind a REST API, TypeScript / Python / Rust SDKs, a Studio admin UI, and an MCP server for Claude Desktop, Cursor, and any MCP-aware runtime.
 
 ## Key Features
 
@@ -23,17 +23,20 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 ## Architecture
 
 <Mermaid chart='graph TD
-    Client([Client / SDK / Studio]) -->|REST API| API[bigRAG API]
-    API --> Auth[Auth & Audit]
+    MCP([MCP client / Claude / Cursor]) -->|bigrag-mcp| API
+    Studio([Studio admin UI]) -->|session cookie| API
+    SDK([TS / Python / Rust SDK]) -->|bigrag_sk_… key| API
+    API[bigRAG API]
+    API --> Auth[Auth & audit]
     API --> Collections[Collections]
     API --> Documents[Documents]
     API --> Query[Query]
     API --> Webhooks[Webhooks]
     Documents -->|store files| Storage[(Local / S3)]
     Documents -->|enqueue| Redis[(Redis)]
-    Redis -->|process| Worker[Ingestion Worker]
+    Redis -->|process| Worker[Ingestion worker]
     Worker -->|parse| Docling[Docling]
-    Worker -->|embed| Embedding[Embedding Provider]
+    Worker -->|embed| Embedding[Embedding provider]
     Worker -->|store vectors| Milvus[(Milvus)]
     Query -->|search| Milvus
     Query -->|embed query| Embedding
@@ -70,6 +73,9 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
   </Card>
   <Card title="TypeScript SDK" href="/docs/sdks/typescript">
     Zero-dependency client with full type safety
+  </Card>
+  <Card title="MCP Server" href="/docs/sdks/mcp">
+    Plug bigRAG into Claude Desktop, Cursor, or any MCP runtime
   </Card>
   <Card title="Deployment" href="/docs/deployment/docker">
     Deploy with Docker Compose
