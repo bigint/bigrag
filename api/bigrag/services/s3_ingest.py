@@ -128,7 +128,18 @@ async def _run_job(job: dict) -> None:
         job_id=job_id, bucket=bucket, prefix=prefix,
     )
 
+    # Allowlist of columns this helper is permitted to update. Adding
+    # a new field? Add it here first — otherwise _update raises. Keeps
+    # a stray caller from smuggling attacker-controlled field names
+    # into the SQL even if a future refactor makes them user-reachable.
+    _ALLOWED_UPDATE_FIELDS = frozenset(
+        {"error_message", "total_found", "total_ingested", "total_skipped"}
+    )
+
     async def _update(status: str, **fields: Any) -> None:
+        unknown = set(fields) - _ALLOWED_UPDATE_FIELDS
+        if unknown:
+            raise ValueError(f"_update: unknown fields {sorted(unknown)}")
         parts = ["status = $2", "updated_at = now()"]
         vals: list[Any] = [uuid.UUID(job_id), status]
         idx = 3
