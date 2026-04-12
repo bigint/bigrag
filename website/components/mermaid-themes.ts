@@ -1,5 +1,4 @@
 export const darkThemeVariables = {
-  // Dark mode
   actorBkg: "#1a1a1a",
   actorBorder: "#333",
   actorLineColor: "#555",
@@ -34,7 +33,6 @@ export const darkThemeVariables = {
 };
 
 export const lightThemeVariables = {
-  // Light mode
   actorBkg: "#fff",
   actorBorder: "#e0e0e0",
   actorLineColor: "#ccc",

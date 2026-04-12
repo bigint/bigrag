@@ -38,17 +38,14 @@ async def lifespan(app: FastAPI):
     if "*" in s.cors_origins:
         logger.warning("CORS allows all origins, restrict in production")
 
-    # Postgres
     await db.connect(s.database_url, min_size=s.db_pool_min, max_size=s.db_pool_max)
     await db.migrate()
     app.state.db = db
 
-    # Milvus
     vector_store.configure(s.milvus_uri, nprobe=s.milvus_nprobe)
     vector_store.connect()
     app.state.vector_store = vector_store
 
-    # Storage
     storage = init_storage(
         backend=s.storage_backend,
         upload_dir=s.upload_dir,
@@ -60,27 +57,22 @@ async def lifespan(app: FastAPI):
     )
     app.state.storage = storage
 
-    # Redis cache + event bus
     await redis_cache.connect(s.redis_url)
     await event_bus.connect(s.redis_url)
 
-    # Redis + ingestion queue
     ingestion_queue._num_workers = s.ingestion_workers
     await ingestion_queue.connect(s.redis_url)
     await ingestion_queue.start(db=db, vector_store=vector_store)
     app.state.queue = ingestion_queue
 
-    # Webhook dispatcher
     dispatcher = WebhookDispatcher()
     await dispatcher.start()
     app.state.webhook_dispatcher = dispatcher
 
-    # Resume incomplete S3 ingest jobs
     from bigrag.services.s3_ingest import resume_incomplete_jobs
 
     await resume_incomplete_jobs()
 
-    # Cleanup task
     import asyncio
 
     from bigrag.services.cleanup import cleanup_old_data
@@ -123,7 +115,6 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Global exception handlers for domain exceptions
     @app.exception_handler(NotFoundError)
     async def not_found_handler(request, exc: NotFoundError):
         return JSONResponse(status_code=404, content={"detail": str(exc)})

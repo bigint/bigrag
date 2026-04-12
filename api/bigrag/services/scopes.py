@@ -18,18 +18,14 @@ from __future__ import annotations
 # Specific paths first — first match wins, so nested endpoints must
 # appear before their containing prefix.
 _ENDPOINT_SCOPES: list[tuple[str, str, str]] = [
-    # Query endpoints
     ("POST", "/v1/collections/{name}/query", "query:read"),
     ("POST", "/v1/query", "query:read"),
     ("POST", "/v1/batch/query", "query:read"),
-    # Document endpoints nested under a collection
     ("POST", "/v1/collections/{name}/documents", "document:upload"),
     ("GET", "/v1/collections/{name}/documents", "document:read"),
     ("DELETE", "/v1/collections/{name}/documents", "document:delete"),
-    # Webhook admin
     ("POST", "/v1/admin/webhooks", "webhook:write"),
     ("GET", "/v1/admin/webhooks", "webhook:read"),
-    # Usage / audit
     ("GET", "/v1/usage", "audit:read"),
     ("GET", "/v1/admin/audit", "audit:read"),
     # Collection CRUD — generic, must come AFTER nested endpoints above.

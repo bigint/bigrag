@@ -53,7 +53,6 @@ class VectorStore:
         logger.info(f"Connected to Milvus at {self.uri}")
 
     def reconnect(self) -> None:
-        """Reconnect to Milvus if the connection was lost."""
         logger.warning(f"Reconnecting to Milvus at {self.uri}")
         if self.client:
             try:
@@ -99,7 +98,7 @@ class VectorStore:
                         raise
                 else:
                     raise
-        raise last_error  # Should not reach here
+        raise last_error
 
     def close(self) -> None:
         if self.client:
@@ -339,7 +338,6 @@ class VectorStore:
         """Search by text content using keyword matching."""
         col = self._col(collection)
 
-        # Build a filter that matches any of the query terms in the text field
         term_filters = []
         for term in query_terms:
             escaped = term.replace("\\", "\\\\").replace('"', '\\"').replace("%", "\\%")

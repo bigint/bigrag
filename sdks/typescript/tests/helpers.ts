@@ -7,9 +7,6 @@ export interface CapturedRequest {
   body: string | null;
 }
 
-/**
- * Create a mock fetch that returns a fixed response and captures requests.
- */
 export function mockFetch(
   responseBody: unknown = {},
   status = 200,
@@ -43,9 +40,6 @@ export function mockFetch(
   return { fetch, calls };
 }
 
-/**
- * Create a BigRAG client with a mock fetch.
- */
 export function createMockClient(
   responseBody: unknown = {},
   status = 200,

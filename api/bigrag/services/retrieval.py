@@ -377,7 +377,6 @@ async def retrieve(
     # Over-fetch when we'll MMR trim later, so diversity has headroom.
     fetch_k = top_k * 3 if (diversity is not None and diversity < 1.0) else top_k
 
-    # HyDE query expansion (optional).
     embed_query = query
     if hyde:
         embed_query, timings["hyde_ms"] = await _hyde_expand(query, hyde_api_key)

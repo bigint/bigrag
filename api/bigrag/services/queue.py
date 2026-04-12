@@ -212,7 +212,6 @@ class IngestionQueue:
         file_data = await get_storage().get(job.file_path)
         suffix = Path(job.file_path).suffix.lower()
 
-        # Plain text formats: skip Docling, use content directly
         if suffix in self._PLAIN_TEXT_EXTS:
             text = file_data.decode("utf-8", errors="replace")
             if not text.strip():
@@ -226,7 +225,6 @@ class IngestionQueue:
             )
             return text
 
-        # All other formats: use Docling
         def _write_and_convert():
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
             try:
@@ -342,10 +340,10 @@ class IngestionQueue:
         total_batches = (len(chunks) + batch_size - 1) // batch_size
         doc = job.document_id
 
-        # P1-I4: chunk-level retry. A flaky embedding call or a single
-        # oversized chunk in the middle of a large doc used to fail the
-        # whole document. We now retry each batch up to MAX_BATCH_RETRIES
-        # with exponential backoff; on exhaustion the batch's chunks are
+        # Chunk-level retry: a flaky embedding call or a single oversized
+        # chunk in the middle of a large doc used to fail the whole
+        # document. Retry each batch up to MAX_BATCH_RETRIES with
+        # exponential backoff; on exhaustion the batch's chunks are
         # skipped (logged) and the doc still completes for whatever did
         # embed — better than hours of re-ingest because one chunk was
         # bad.
@@ -551,7 +549,7 @@ class IngestionQueue:
                 )
                 await self._redis.hincrby(STATS_KEY, "failed", 1)
                 await self._redis.lpush(DEAD_LETTER_KEY, job.serialize())
-                await self._redis.ltrim(DEAD_LETTER_KEY, 0, 999)  # cap at 1000
+                await self._redis.ltrim(DEAD_LETTER_KEY, 0, 999)
                 await db.execute(
                     "UPDATE documents SET status = 'failed', "
                     "error_message = $1, updated_at = now() WHERE id = $2",
@@ -571,5 +569,4 @@ class IngestionQueue:
                 event_bus.complete(doc)
 
 
-# Keep backward-compatible module-level singleton for imports that haven't migrated
 ingestion_queue = IngestionQueue()

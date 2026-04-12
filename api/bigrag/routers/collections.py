@@ -443,7 +443,6 @@ async def truncate_collection(name: str, _: dict = Depends(get_current_user)):
         await cancel_job(str(j["id"]))
     logger.info(f"truncate: cancelled {len(s3_jobs)} running S3 jobs name={name}")
 
-    # Flush queued ingestion jobs
     from bigrag.services.queue import ingestion_queue
 
     flushed = await ingestion_queue.flush_collection(name)
@@ -453,13 +452,11 @@ async def truncate_collection(name: str, _: dict = Depends(get_current_user)):
     await vector_store.delete_collection(name)
     logger.info(f"truncate: vectors cleared name={name}")
 
-    # Delete storage files
     from bigrag.services.storage import get_storage
 
     deleted = await get_storage().delete_prefix(f"{name}/")
     logger.info(f"truncate: storage files removed name={name} count={deleted}")
 
-    # Delete all documents
     await db.execute("DELETE FROM documents WHERE collection_id = $1", collection_id)
     await db.execute(
         "UPDATE collections SET document_count = 0, updated_at = now() WHERE id = $1",

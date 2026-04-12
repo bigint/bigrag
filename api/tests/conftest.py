@@ -366,10 +366,8 @@ async def client(mock_db, mock_vector_store, mock_queue, mock_storage, mock_webh
         yield
 
     with contextlib.ExitStack() as stack:
-        # Bypass the real lifespan
         stack.enter_context(patch("bigrag.main.lifespan", _test_lifespan))
 
-        # Patch module-level singletons still used by routers/services
         mock_settings = MagicMock()
         stack.enter_context(patch("bigrag.database.db", mock_db))
         stack.enter_context(patch("bigrag.middleware.auth.db", mock_db))
@@ -451,7 +449,6 @@ def bad_auth_headers() -> dict[str, str]:
     return {"Authorization": "Bearer bigrag_sk_wrong-token-nope-nope-nope-nope"}
 
 
-# Backwards-compat alias for existing tests referencing TEST_API_SECRET.
 TEST_API_SECRET = TEST_API_KEY
 
 _ = timedelta  # retained for callers that import timedelta from conftest

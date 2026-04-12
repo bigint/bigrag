@@ -48,7 +48,6 @@ export const Tabs = ({ tabs, value, onChange }: TabsProps) => (
   </BaseTabs.Root>
 );
 
-/* Link-based tabs for server-navigated tab shells (collection detail). */
 type LinkTab = { href: string; label: string; active: boolean; count?: number };
 
 export const LinkTabs = ({ tabs, className }: { tabs: LinkTab[]; className?: string }) => (

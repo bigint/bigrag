@@ -127,10 +127,9 @@ async def upload_document(
     except InvalidFileContent as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    # P1-I3: content-hash dedup. If the exact same bytes are already
-    # ingested into this collection we return the existing doc with
-    # deduped=True rather than creating a second copy and paying to
-    # re-embed it.
+    # Content-hash dedup: if the exact same bytes are already ingested
+    # into this collection we return the existing doc with deduped=True
+    # rather than creating a second copy and paying to re-embed it.
     content_hash = hashlib.sha256(content).hexdigest()
     existing = await db.fetchrow(
         "SELECT * FROM documents WHERE collection_id = $1 AND content_hash = $2 LIMIT 1",
@@ -161,15 +160,14 @@ async def upload_document(
     except json.JSONDecodeError:
         meta = {}
 
-    # P2-E9: enforce the collection's metadata JSON schema if one is set.
     try:
         metadata_schema.validate(meta, collection.get("metadata_schema"))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
 
-    # P2-E6: optional content moderation. Runs over the raw bytes
-    # decoded as utf-8 best-effort — avoids paying Docling cost for
-    # obviously-disallowed content. Fails open on unavailability.
+    # Optional content moderation. Runs over the raw bytes decoded as
+    # utf-8 best-effort — avoids paying Docling cost for obviously-
+    # disallowed content. Fails open on unavailability.
     if collection.get("moderation_enabled"):
         text_preview = content[:50_000].decode("utf-8", errors="ignore")
         if text_preview.strip():
@@ -179,9 +177,9 @@ async def upload_document(
             if flagged:
                 raise HTTPException(status_code=400, detail=f"Upload blocked: {reason}")
 
-    # P2-E5: PII redaction. Redacts the text that will be embedded;
-    # raw bytes on storage are kept unredacted so Docling can still
-    # render a citation back into the original file (source of truth).
+    # PII redaction. Redacts the text that will be embedded; raw bytes
+    # on storage are kept unredacted so Docling can still render a
+    # citation back into the original file (source of truth).
     if collection.get("redact_pii"):
         # Redaction is applied downstream during conversion — here we
         # just note it in metadata so downstream workers know. That
@@ -877,7 +875,7 @@ async def document_progress_sse(
             '"message":"Listening for progress","progress":0}\n\n'
         )
         try:
-            async with asyncio.timeout(600):  # 10 min max
+            async with asyncio.timeout(600):
                 async for event in event_bus.stream(document_id):
                     yield event.to_sse()
         except TimeoutError:

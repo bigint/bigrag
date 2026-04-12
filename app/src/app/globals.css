@@ -50,7 +50,6 @@ body {
     "calt" 1;
 }
 
-/* Dark theme token overrides. Applied when html has class="dark". */
 .dark {
   --color-background: #0a0a0a;
   --color-foreground: #fafafa;

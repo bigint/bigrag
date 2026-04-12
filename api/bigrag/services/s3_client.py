@@ -48,7 +48,6 @@ async def resolve_bucket_region(bucket: str) -> str | None:
 
     from botocore.exceptions import BotoCoreError, ClientError
 
-    # Try GetBucketLocation first
     try:
         kw: dict[str, Any] = {
             "region_name": "us-east-1",

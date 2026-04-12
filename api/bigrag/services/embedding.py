@@ -66,7 +66,7 @@ def truncate_to_tokens(
     if limit is None and model:
         limit = _TOKEN_LIMITS.get(model)
     if limit is None:
-        limit = 8000  # conservative
+        limit = 8000
 
     try:
         import tiktoken

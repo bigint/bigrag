@@ -37,7 +37,6 @@ def _cache_ttl() -> int:
     return settings.webhook_cache_ttl
 
 
-# Map ingestion event steps to webhook event names
 _STEP_TO_EVENT = {
     "processing": "document.processing",
     "complete": "document.ready",
@@ -186,7 +185,6 @@ class WebhookDispatcher:
         if webhook_event is None:
             return
 
-        # Extract collection from event detail or look up from DB
         collection = event.detail.get("collection")
         if not collection:
             collection = await self._get_collection_for_document(event.document_id)
@@ -200,7 +198,6 @@ class WebhookDispatcher:
             if _matches_webhook(webhook, webhook_event, collection):
                 wh_id = str(webhook["id"])
 
-                # Check circuit breaker before dispatching
                 if self._circuit_breaker.is_open(wh_id):
                     logger.warning(
                         f"Circuit open for webhook={wh_id}, skipping delivery for {webhook_event}"
@@ -329,7 +326,6 @@ class WebhookDispatcher:
                 except Exception as e:
                     last_error = str(e)
 
-                # Update attempt count and schedule retry with jitter
                 retry_index = attempt - 1
                 if retry_index < len(retry_delays):
                     delay = _jittered_delay(retry_delays[retry_index])
@@ -355,7 +351,6 @@ class WebhookDispatcher:
                 else:
                     break
 
-            # All retries exhausted
             self._circuit_breaker.record_failure(wh_id_str)
             await db.execute(
                 """

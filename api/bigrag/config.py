@@ -14,7 +14,6 @@ class Settings(BaseSettings):
     # enum fall through as ``dev``.
     env: str = "dev"
 
-    # Server
     host: str = "0.0.0.0"
     port: int = 6100
     workers: int = 4
@@ -22,25 +21,20 @@ class Settings(BaseSettings):
     log_format: str = "text"
     cors_origins: list[str] = []
 
-    # Postgres
     database_url: str = "postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable"
     db_pool_min: int = 5
     db_pool_max: int = 50
 
-    # Milvus
     milvus_uri: str = "http://localhost:19530"
 
-    # Redis
     redis_url: str = "redis://localhost:6380/0"
 
-    # Auth
     session_expiry_hours: int = 168
     session_cookie_name: str = "bigrag_session"
     session_cookie_secure: bool = False
     session_cookie_samesite: str = "lax"
     session_cookie_domain: str | None = None
 
-    # Tuning
     embedding_concurrency: int = 8
     milvus_max_workers: int = 32
     milvus_nprobe: int = 32
@@ -52,13 +46,11 @@ class Settings(BaseSettings):
     webhook_cache_ttl: int = 60
     webhook_max_count: int = 50
 
-    # Embedding defaults
     embedding_provider: str = "openai"
     embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = 1536
     embedding_api_key: str | None = None
 
-    # Storage
     storage_backend: str = "local"
     upload_dir: str = "./data/uploads"
     s3_bucket: str | None = None
@@ -67,7 +59,6 @@ class Settings(BaseSettings):
     s3_access_key: str | None = None
     s3_secret_key: str | None = None
 
-    # Ingestion
     chunk_size: int = 512
     chunk_overlap: int = 50
     max_upload_size_mb: int = 1024

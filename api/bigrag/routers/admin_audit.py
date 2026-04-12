@@ -118,7 +118,6 @@ async def gdpr_cascade_delete(
     # endpoint therefore deletes *all* the user's data in Postgres and
     # trusts separate multi-tenant work to narrow it later. We expose
     # only the counts that apply to the target user.)
-    # Session + api-key counts.
     sess_row = await db.fetchrow(
         "SELECT COUNT(*) AS cnt FROM sessions WHERE user_id = $1", target
     )
@@ -131,7 +130,6 @@ async def gdpr_cascade_delete(
     coll_count = 0
     doc_count = 0
 
-    # Destructive ops: delete in order.
     sess_del = await db.execute("DELETE FROM sessions WHERE user_id = $1", target)
     key_del = await db.execute("DELETE FROM api_keys WHERE user_id = $1", target)
     # Don't delete the user row itself; keep it for the audit trail
