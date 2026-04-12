@@ -78,6 +78,7 @@ Bubble.displayName = "Bubble";
 export const ChatMessages = ({ messages, isStreaming }: Props) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-scroll on every messages change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
       behavior: isStreaming ? "instant" : "smooth",
