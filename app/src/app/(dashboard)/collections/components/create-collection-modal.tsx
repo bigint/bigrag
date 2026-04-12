@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateCollection } from "@/hooks/use-collections";
 import { useEmbeddingModels } from "@/hooks/use-platform";
 
-type Props = { open: boolean; onOpenChange: (open: boolean) => void };
+type Props = { open: boolean; onClose: () => void };
 
 const slugify = (v: string) =>
   v
@@ -19,7 +19,7 @@ const slugify = (v: string) =>
     .replace(/\s+/g, "_")
     .slice(0, 48);
 
-export const CreateCollectionModal = ({ open, onOpenChange }: Props) => {
+export const CreateCollectionModal = ({ open, onClose }: Props) => {
   const create = useCreateCollection();
   const { data: models } = useEmbeddingModels();
 
@@ -56,7 +56,7 @@ export const CreateCollectionModal = ({ open, onOpenChange }: Props) => {
         chunk_size: chunkSize,
         chunk_overlap: chunkOverlap,
       });
-      onOpenChange(false);
+      onClose();
       setName("");
       setDescription("");
       setApiKey("");
@@ -66,97 +66,90 @@ export const CreateCollectionModal = ({ open, onOpenChange }: Props) => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        title="New collection"
-        description="Collections isolate vectors, chunking, and embedding config."
-      >
-        <form onSubmit={submit} className="flex flex-col gap-4">
+    <Modal onClose={onClose} open={open} title="New collection">
+      <p className="mb-4 text-sm text-muted-foreground">
+        Collections isolate vectors, chunking, and embedding config. You can limit file types and
+        tweak defaults from the collection's Settings tab.
+      </p>
+      <form onSubmit={submit} className="space-y-4">
+        <Input
+          label="Name"
+          placeholder="product-docs"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          description="Lowercase letters, numbers, dashes and underscores."
+          required
+          autoFocus
+        />
+        <Textarea
+          label="Description"
+          placeholder="Optional"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <Select
+            label="Embedding provider"
+            value={provider}
+            onChange={(v) => setProvider(v as "openai" | "cohere")}
+            options={[
+              { value: "openai", label: "OpenAI" },
+              { value: "cohere", label: "Cohere" },
+            ]}
+          />
+          <Select
+            label="Model"
+            value={model}
+            onChange={setModel}
+            options={
+              modelOptions.length ? modelOptions : [{ value: model, label: `${model} (loading…)` }]
+            }
+          />
+        </div>
+        <Input
+          label="Provider API key"
+          type="password"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder="sk-..."
+          description="Stored encrypted on the server. Used to embed documents in this collection."
+          required
+        />
+        <div className="grid grid-cols-3 gap-3">
           <Input
-            label="Name"
-            placeholder="product-docs"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            description="Lowercase letters, numbers, dashes and underscores."
-            required
-            autoFocus
+            label="Dimension"
+            type="number"
+            min={64}
+            max={4096}
+            value={dimension}
+            onChange={(e) => setDimension(Number(e.target.value))}
           />
-          <Textarea
-            label="Description"
-            placeholder="Optional"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <Select
-              label="Embedding provider"
-              value={provider}
-              onChange={(e) => setProvider(e.target.value as "openai" | "cohere")}
-              options={[
-                { value: "openai", label: "OpenAI" },
-                { value: "cohere", label: "Cohere" },
-              ]}
-            />
-            <Select
-              label="Model"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              options={
-                modelOptions.length
-                  ? modelOptions
-                  : [{ value: model, label: `${model} (loading…)` }]
-              }
-            />
-          </div>
           <Input
-            label="Provider API key"
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-..."
-            description="Stored encrypted on the server. Used to embed documents in this collection."
-            required
+            label="Chunk size"
+            type="number"
+            min={128}
+            max={10000}
+            value={chunkSize}
+            onChange={(e) => setChunkSize(Number(e.target.value))}
           />
-          <div className="grid grid-cols-3 gap-3">
-            <Input
-              label="Dimension"
-              type="number"
-              min={64}
-              max={4096}
-              value={dimension}
-              onChange={(e) => setDimension(Number(e.target.value))}
-            />
-            <Input
-              label="Chunk size"
-              type="number"
-              min={128}
-              max={10000}
-              value={chunkSize}
-              onChange={(e) => setChunkSize(Number(e.target.value))}
-            />
-            <Input
-              label="Chunk overlap"
-              type="number"
-              min={0}
-              max={5000}
-              value={chunkOverlap}
-              onChange={(e) => setChunkOverlap(Number(e.target.value))}
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-1">
-            <DialogClose
-              render={
-                <Button variant="ghost" type="button">
-                  Cancel
-                </Button>
-              }
-            />
-            <Button type="submit" disabled={create.isPending}>
-              {create.isPending ? "Creating…" : "Create collection"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          <Input
+            label="Chunk overlap"
+            type="number"
+            min={0}
+            max={5000}
+            value={chunkOverlap}
+            onChange={(e) => setChunkOverlap(Number(e.target.value))}
+          />
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={create.isPending}>
+            {create.isPending ? "Creating…" : "Create collection"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 };

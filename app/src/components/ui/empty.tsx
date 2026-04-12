@@ -1,30 +1,31 @@
-import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-type Props = {
-  icon?: LucideIcon;
+interface EmptyStateProps {
+  icon?: ReactNode;
   title: string;
   description?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
+  bordered?: boolean;
   className?: string;
-};
+}
 
-export const Empty = ({ icon: Icon, title, description, action, className }: Props) => (
-  <div
-    className={cn(
-      "flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border px-8 py-12 text-center",
-      className,
-    )}
-  >
-    {Icon && (
-      <div className="flex size-11 items-center justify-center rounded-md bg-muted text-muted-foreground">
-        <Icon className="size-5" />
+export const Empty = ({
+  icon,
+  title,
+  description,
+  action,
+  bordered = true,
+  className,
+}: EmptyStateProps) => (
+  <div className={cn("p-12 text-center", bordered && "rounded-xl border border-border", className)}>
+    {icon && (
+      <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        {icon}
       </div>
     )}
-    <div className="flex flex-col gap-1">
-      <p className="text-sm font-medium text-foreground">{title}</p>
-      {description && <p className="max-w-sm text-sm text-muted-foreground">{description}</p>}
-    </div>
-    {action}
+    <h2 className="text-base font-medium text-foreground">{title}</h2>
+    {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+    {action && <div className="mt-4">{action}</div>}
   </div>
 );

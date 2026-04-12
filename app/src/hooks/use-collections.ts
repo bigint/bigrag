@@ -46,6 +46,7 @@ export type CreateCollectionBody = {
   reranking_api_key?: string | null;
   default_top_k?: number;
   default_search_mode?: "semantic" | "keyword" | "hybrid";
+  metadata?: Record<string, unknown>;
 };
 
 export const useCreateCollection = () => {

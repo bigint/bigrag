@@ -1,57 +1,56 @@
 "use client";
 
-import {
-  CheckCircle2,
-  CircleDashed,
-  FileText,
-  Loader2,
-  Trash2,
-  TriangleAlert,
-  Upload,
-} from "lucide-react";
+import { FileText, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { use, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
+import { useCollection } from "@/hooks/use-collections";
 import { useDeleteDocument, useDocuments, useUploadDocuments } from "@/hooks/use-documents";
 import { cn } from "@/lib/cn";
+import { acceptAttribute, filterBlockedFiles, getAllowedFileTypes } from "@/lib/file-types";
 import { formatBytes, formatRelative } from "@/lib/format";
 import type { DocumentStatus } from "@/types/bigrag";
 
-const statusVariant: Record<DocumentStatus, "success" | "warning" | "info" | "danger"> = {
+const statusVariant: Record<DocumentStatus, "success" | "warning" | "info" | "error"> = {
   ready: "success",
   processing: "info",
   pending: "warning",
-  failed: "danger",
-};
-
-const StatusIcon = ({ status }: { status: DocumentStatus }) => {
-  if (status === "ready") return <CheckCircle2 className="h-3 w-3" />;
-  if (status === "processing") return <Loader2 className="h-3 w-3 animate-spin" />;
-  if (status === "pending") return <CircleDashed className="h-3 w-3" />;
-  return <TriangleAlert className="h-3 w-3" />;
+  failed: "error",
 };
 
 const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
   const { name: rawName } = use(params);
   const name = decodeURIComponent(rawName);
 
+  const { data: collection } = useCollection(name);
   const { data, isPending } = useDocuments(name);
   const upload = useUploadDocuments(name);
   const remove = useDeleteDocument(name);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const [deleteDoc, setDeleteDoc] = useState<{ id: string; filename: string } | null>(null);
+
+  const allowed = getAllowedFileTypes(collection?.metadata);
+  const accept = acceptAttribute(allowed);
 
   const onFiles = useCallback(
     async (files: FileList | File[]) => {
       const arr = Array.from(files);
       if (!arr.length) return;
-      await upload.mutateAsync(arr);
+      const { accepted, rejected } = filterBlockedFiles(arr, allowed);
+      if (rejected.length) {
+        toast.warning(
+          `${rejected.length} file${rejected.length === 1 ? "" : "s"} skipped — not allowed in this collection.`,
+        );
+      }
+      if (accepted.length) await upload.mutateAsync(accepted);
     },
-    [upload],
+    [upload, allowed],
   );
 
   const onDrop = (e: React.DragEvent) => {
@@ -59,6 +58,10 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
     setDragging(false);
     if (e.dataTransfer.files.length) onFiles(e.dataTransfer.files);
   };
+
+  const acceptedDescription = allowed.length
+    ? `Only ${allowed.map((t) => `.${t}`).join(", ")} allowed in this collection.`
+    : "PDF, DOCX, PPTX, MD, HTML, TXT, images — ingested automatically.";
 
   return (
     <div className="flex flex-col gap-4">
@@ -77,14 +80,12 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
           upload.isPending && "pointer-events-none opacity-60",
         )}
       >
-        <Upload className="h-5 w-5 text-muted-foreground" />
+        <Upload className="size-5 text-muted-foreground" />
         <div className="flex flex-col items-center gap-0.5 text-center">
           <span className="font-medium">
             {upload.isPending ? "Uploading…" : "Drop files or click to upload"}
           </span>
-          <span className="text-xs text-muted-foreground">
-            PDF, DOCX, PPTX, MD, HTML, TXT, images — ingested automatically.
-          </span>
+          <span className="text-xs text-muted-foreground">{acceptedDescription}</span>
         </div>
         <input
           ref={fileInput}
@@ -92,7 +93,7 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
           type="file"
           multiple
           className="sr-only"
-          accept=".pdf,.docx,.pptx,.xlsx,.html,.htm,.md,.txt,.csv,.tsv,.xml,.json,.png,.jpg,.jpeg,.tiff,.bmp,.gif"
+          accept={accept}
           onChange={(e) => e.target.files && onFiles(e.target.files)}
         />
       </label>
@@ -103,7 +104,7 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
         </div>
       ) : data?.documents.length === 0 ? (
         <Empty
-          icon={FileText}
+          icon={<FileText className="size-6" />}
           title="No documents yet"
           description="Upload files above — they'll appear here as they ingest."
         />
@@ -128,14 +129,13 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
                 >
                   <FileType type={d.file_type} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium text-sm">{d.filename}</div>
+                    <div className="truncate text-sm font-medium">{d.filename}</div>
                     <div className="mt-0.5 flex items-center gap-2">
-                      <Badge variant={statusVariant[d.status]}>
-                        <StatusIcon status={d.status} />
-                        <span>{d.status}</span>
+                      <Badge dot variant={statusVariant[d.status]}>
+                        {d.status}
                       </Badge>
                       {d.error_message && (
-                        <span className="text-xs text-destructive truncate">{d.error_message}</span>
+                        <span className="truncate text-xs text-destructive">{d.error_message}</span>
                       )}
                     </div>
                   </div>
@@ -153,29 +153,46 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
                   variant="ghost"
                   size="icon"
                   aria-label="Delete"
-                  onClick={async (e) => {
+                  onClick={(e) => {
                     e.preventDefault();
-                    if (!confirm(`Delete "${d.filename}"?`)) return;
-                    try {
-                      await remove.mutateAsync(d.id);
-                    } catch (err) {
-                      toast.error(err instanceof Error ? err.message : "Delete failed");
-                    }
+                    setDeleteDoc({ id: d.id, filename: d.filename });
                   }}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="size-4" />
                 </Button>
               </li>
             ))}
           </ul>
         </div>
       )}
+
+      <ConfirmDialog
+        confirmLabel="Delete"
+        description={
+          deleteDoc
+            ? `Delete "${deleteDoc.filename}"? This removes the document and its vectors.`
+            : ""
+        }
+        loading={remove.isPending}
+        onClose={() => setDeleteDoc(null)}
+        onConfirm={async () => {
+          if (!deleteDoc) return;
+          try {
+            await remove.mutateAsync(deleteDoc.id);
+            setDeleteDoc(null);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Delete failed");
+          }
+        }}
+        open={!!deleteDoc}
+        title="Delete document"
+      />
     </div>
   );
 };
 
 const FileType = ({ type }: { type: string }) => (
-  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+  <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
     {type.slice(0, 4) || "?"}
   </div>
 );

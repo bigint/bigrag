@@ -48,7 +48,7 @@ const SearchTab = ({ params }: { params: Promise<{ name: string }> }) => {
               <Select
                 label="Mode"
                 value={mode}
-                onChange={(e) => setMode(e.target.value as typeof mode)}
+                onChange={(v) => setMode(v as typeof mode)}
                 options={[
                   { value: "semantic", label: "Semantic" },
                   { value: "keyword", label: "Keyword" },
@@ -93,7 +93,7 @@ const SearchTab = ({ params }: { params: Promise<{ name: string }> }) => {
 
       {run.data && run.data.results.length === 0 && (
         <Empty
-          icon={Search}
+          icon={<Search className="size-6" />}
           title="No results"
           description="Try a different query, mode, or raise min score."
         />
@@ -114,7 +114,7 @@ const SearchTab = ({ params }: { params: Promise<{ name: string }> }) => {
             >
               <div className="mb-2 flex items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
-                  <Badge variant="accent">score {r.score.toFixed(3)}</Badge>
+                  <Badge variant="primary">score {r.score.toFixed(3)}</Badge>
                   {r.document_id && (
                     <Link
                       href={`/collections/${encodeURIComponent(name)}/documents/${r.document_id}`}

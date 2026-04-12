@@ -53,7 +53,7 @@ const CollectionsPage = () => {
         </div>
       ) : items.length === 0 ? (
         <Empty
-          icon={BookOpen}
+          icon={<BookOpen className="size-6" />}
           title={q ? "No collections match" : "No collections yet"}
           description={
             q
@@ -63,7 +63,7 @@ const CollectionsPage = () => {
           action={
             !q && (
               <Button onClick={() => setOpen(true)} size="sm">
-                <Plus className="h-4 w-4" /> New collection
+                <Plus className="size-4" /> New collection
               </Button>
             )
           }
@@ -83,7 +83,7 @@ const CollectionsPage = () => {
                     {c.description || "—"}
                   </div>
                 </div>
-                <Badge variant="accent">{c.embedding_provider}</Badge>
+                <Badge variant="primary">{c.embedding_provider}</Badge>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -98,7 +98,7 @@ const CollectionsPage = () => {
         </div>
       )}
 
-      <CreateCollectionModal open={open} onOpenChange={setOpen} />
+      <CreateCollectionModal open={open} onClose={() => setOpen(false)} />
     </div>
   );
 };

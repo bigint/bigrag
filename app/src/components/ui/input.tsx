@@ -1,52 +1,50 @@
 "use client";
 
-import { forwardRef } from "react";
+import { Field } from "@base-ui/react/field";
+import type { InputHTMLAttributes, Ref } from "react";
 import { cn } from "@/lib/cn";
 
-type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
+  error?: string | null;
   description?: string;
-  error?: string;
   trailing?: React.ReactNode;
-};
+}
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, description, error, trailing, id, ...props }, ref) => {
-    const inputId = id ?? `input-${label?.replace(/\s+/g, "-").toLowerCase()}`;
-    return (
-      <div className="flex w-full flex-col gap-1.5">
-        {label && (
-          <label htmlFor={inputId} className="text-xs font-medium text-foreground">
-            {label}
-          </label>
+export const Input = ({
+  className,
+  label,
+  error,
+  description,
+  trailing,
+  ref,
+  ...props
+}: InputProps & { ref?: Ref<HTMLInputElement> }) => (
+  <Field.Root invalid={!!error} className="w-full">
+    {label && <Field.Label className="mb-1 block text-sm font-medium">{label}</Field.Label>}
+    <div className="relative">
+      <Field.Control
+        className={cn(
+          "w-full rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "data-[invalid]:border-destructive data-[invalid]:focus-visible:ring-destructive",
+          trailing && "pr-9",
+          className,
         )}
-        <div className="relative">
-          <input
-            id={inputId}
-            ref={ref}
-            aria-invalid={!!error}
-            className={cn(
-              "flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
-              "text-foreground placeholder:text-muted-foreground",
-              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
-              "transition-colors duration-150",
-              "disabled:cursor-not-allowed disabled:opacity-50",
-              error && "border-destructive",
-              trailing && "pr-9",
-              className,
-            )}
-            {...props}
-          />
-          {trailing && (
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2 text-muted-foreground">
-              {trailing}
-            </div>
-          )}
+        ref={ref}
+        render={<input />}
+        {...props}
+      />
+      {trailing && (
+        <div className="absolute inset-y-0 right-0 flex items-center pr-2 text-muted-foreground">
+          {trailing}
         </div>
-        {description && !error && <p className="text-xs text-muted-foreground">{description}</p>}
-        {error && <p className="text-xs text-destructive">{error}</p>}
-      </div>
-    );
-  },
+      )}
+    </div>
+    {description && !error && (
+      <Field.Description className="mt-1.5 text-xs text-muted-foreground">
+        {description}
+      </Field.Description>
+    )}
+    {error && <Field.Error className="mt-1.5 text-xs text-destructive">{error}</Field.Error>}
+  </Field.Root>
 );
-Input.displayName = "Input";

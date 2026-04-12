@@ -1,28 +1,39 @@
 import { cva, type VariantProps } from "class-variance-authority";
+import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
-const badge = cva(
-  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums",
+const badgeVariants = cva(
+  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
   {
+    defaultVariants: { dot: false, variant: "neutral" },
     variants: {
+      dot: { false: "", true: "" },
       variant: {
-        neutral: "bg-muted text-muted-foreground border-border",
-        accent: "bg-accent text-accent-foreground border-transparent",
-        success:
-          "bg-[color-mix(in_oklab,var(--color-success),transparent_88%)] text-[var(--color-success)] border-transparent",
-        warning:
-          "bg-[color-mix(in_oklab,var(--color-warning),transparent_88%)] text-[var(--color-warning)] border-transparent",
-        danger:
-          "bg-[color-mix(in_oklab,var(--color-destructive),transparent_88%)] text-destructive border-transparent",
-        info: "bg-[color-mix(in_oklab,var(--color-info),transparent_88%)] text-[var(--color-info)] border-transparent",
+        error: "bg-destructive/10 text-destructive",
+        info: "bg-info/10 text-info",
+        neutral: "bg-muted text-muted-foreground",
+        primary: "bg-primary/10 text-primary",
+        success: "bg-success/10 text-success",
+        warning: "bg-warning/10 text-warning",
       },
     },
-    defaultVariants: { variant: "neutral" },
   },
 );
 
-type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & VariantProps<typeof badge>;
+const dotColorMap: Record<string, string> = {
+  error: "bg-destructive",
+  info: "bg-info",
+  neutral: "bg-muted-foreground",
+  primary: "bg-primary",
+  success: "bg-success",
+  warning: "bg-warning",
+};
 
-export const Badge = ({ className, variant, ...props }: BadgeProps) => (
-  <span className={cn(badge({ variant }), className)} {...props} />
+type BadgeProps = HTMLAttributes<HTMLSpanElement> & VariantProps<typeof badgeVariants>;
+
+export const Badge = ({ className, variant, dot, children, ...props }: BadgeProps) => (
+  <span className={cn(badgeVariants({ className, dot, variant }))} {...props}>
+    {dot && <span className={cn("size-1.5 rounded-full", dotColorMap[variant ?? "neutral"])} />}
+    {children}
+  </span>
 );

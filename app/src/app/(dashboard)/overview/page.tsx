@@ -108,7 +108,7 @@ const OverviewPage = () => {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-sm truncate">{c.name}</span>
-                          <Badge variant="accent">{c.embedding_model}</Badge>
+                          <Badge variant="primary">{c.embedding_model}</Badge>
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
                           {c.description || "No description"}

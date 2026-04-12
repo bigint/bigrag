@@ -1,43 +1,46 @@
 "use client";
 
-import { forwardRef } from "react";
+import { Field } from "@base-ui/react/field";
+import type { Ref, TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
-type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
+  error?: string | null;
   description?: string;
-  error?: string;
-};
+}
 
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, label, description, error, id, ...props }, ref) => {
-    const textareaId = id ?? `textarea-${label?.replace(/\s+/g, "-").toLowerCase()}`;
-    return (
-      <div className="flex w-full flex-col gap-1.5">
-        {label && (
-          <label htmlFor={textareaId} className="text-xs font-medium">
-            {label}
-          </label>
-        )}
-        <textarea
-          id={textareaId}
-          ref={ref}
-          aria-invalid={!!error}
-          className={cn(
-            "min-h-20 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm",
-            "text-foreground placeholder:text-muted-foreground",
-            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
-            "transition-colors duration-150",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            error && "border-destructive",
-            className,
-          )}
-          {...props}
-        />
-        {description && !error && <p className="text-xs text-muted-foreground">{description}</p>}
-        {error && <p className="text-xs text-destructive">{error}</p>}
-      </div>
-    );
-  },
+export const Textarea = ({
+  className,
+  label,
+  error,
+  description,
+  id,
+  ref,
+  ...props
+}: TextareaProps & { ref?: Ref<HTMLTextAreaElement> }) => (
+  <Field.Root invalid={!!error} className="w-full">
+    {label && (
+      <Field.Label className="mb-1.5 block text-sm font-medium" htmlFor={id}>
+        {label}
+      </Field.Label>
+    )}
+    <textarea
+      id={id}
+      ref={ref}
+      className={cn(
+        "w-full min-h-[80px] resize-y rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        error && "border-destructive focus-visible:ring-destructive",
+        className,
+      )}
+      {...props}
+    />
+    {description && !error && (
+      <Field.Description className="mt-1.5 text-xs text-muted-foreground">
+        {description}
+      </Field.Description>
+    )}
+    {error && <Field.Error className="mt-1.5 text-xs text-destructive">{error}</Field.Error>}
+  </Field.Root>
 );
-Textarea.displayName = "Textarea";

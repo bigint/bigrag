@@ -136,7 +136,7 @@ const DocumentDetail = ({ params }: { params: Promise<{ name: string; docId: str
         <Card className="border-destructive">
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 text-sm">
-              <Badge variant="danger">failed</Badge>
+              <Badge variant="error">failed</Badge>
               <span className="font-mono text-xs">{doc.error_message}</span>
             </div>
           </CardContent>

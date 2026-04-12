@@ -96,7 +96,7 @@ const PlaygroundPage = () => {
               <Select
                 label="Mode"
                 value={mode}
-                onChange={(e) => setMode(e.target.value as typeof mode)}
+                onChange={(v) => setMode(v as typeof mode)}
                 options={[
                   { value: "semantic", label: "Semantic" },
                   { value: "keyword", label: "Keyword" },
@@ -161,7 +161,7 @@ const PlaygroundPage = () => {
                         className="rounded-md border border-border p-3"
                       >
                         <div className="mb-1 flex items-center gap-2 text-xs">
-                          <Badge variant="accent">{c.score.toFixed(3)}</Badge>
+                          <Badge variant="primary">{c.score.toFixed(3)}</Badge>
                         </div>
                         <p className="line-clamp-5 text-sm leading-relaxed">{c.text}</p>
                       </motion.li>
