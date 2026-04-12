@@ -190,7 +190,16 @@ class VectorStore:
     ) -> list[dict]:
         col = self._col(collection)
         if output_fields is None:
-            output_fields = ["text", "document_id", "chunk_index"]
+            # Include the dynamic fields used for citation provenance so
+            # callers can render page/char references inline.
+            output_fields = [
+                "text",
+                "document_id",
+                "chunk_index",
+                "char_start",
+                "char_end",
+                "page_no",
+            ]
 
         results = await self._run_with_retry(
             self.client.search,
@@ -203,15 +212,23 @@ class VectorStore:
         )
 
         hits = []
+        fixed = {"text", "document_id", "chunk_index", "embedding"}
         if results and len(results) > 0:
             for hit in results[0]:
+                entity = hit["entity"]
+                metadata = {
+                    k: v
+                    for k, v in dict(entity).items()
+                    if k not in fixed and v is not None
+                }
                 hits.append(
                     {
                         "id": hit["id"],
                         "score": hit["distance"],
-                        "text": hit["entity"].get("text", ""),
-                        "document_id": hit["entity"].get("document_id"),
-                        "chunk_index": hit["entity"].get("chunk_index"),
+                        "text": entity.get("text", ""),
+                        "document_id": entity.get("document_id"),
+                        "chunk_index": entity.get("chunk_index"),
+                        "metadata": metadata,
                     }
                 )
         logger.info(f"search: collection={col} top_k={top_k} hits={len(hits)} filter={filters}")

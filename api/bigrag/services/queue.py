@@ -256,7 +256,7 @@ class IngestionQueue:
         """Chunk text, embed, and insert into vector store. Returns total inserted count."""
         from bigrag.config import settings as _settings
         from bigrag.services.embedding import get_embedding_model
-        from bigrag.services.ingestion import _chunk_text
+        from bigrag.services.ingestion import chunk_document
 
         vector_store = self._vector_store
         if vector_store is None:
@@ -286,10 +286,15 @@ class IngestionQueue:
             elapsed=round(elapsed, 2),
         )
 
-        chunks = await asyncio.to_thread(_chunk_text, text, job.chunk_size, job.chunk_overlap)
+        strategy = getattr(job, "chunk_strategy", "paragraph") or "paragraph"
+        chunks = await asyncio.to_thread(
+            chunk_document, text, job.chunk_size, job.chunk_overlap, strategy,
+        )
         if not chunks:
             raise ValueError("Document produced no chunks")
-        logger.info(f"{prefix} chunked into {len(chunks)} chunks")
+        logger.info(
+            f"{prefix} chunked into {len(chunks)} chunks (strategy={strategy})"
+        )
         self._emit(
             job.document_id,
             "chunked",
@@ -312,7 +317,8 @@ class IngestionQueue:
 
         for batch_start in range(0, len(chunks), batch_size):
             batch_end = min(batch_start + batch_size, len(chunks))
-            batch_texts = chunks[batch_start:batch_end]
+            batch_chunks = chunks[batch_start:batch_end]
+            batch_texts = [c.text for c in batch_chunks]
             batch_num = batch_start // batch_size + 1
 
             t0 = time.monotonic()
@@ -323,6 +329,10 @@ class IngestionQueue:
             ids = [f"{doc}_{i}" for i in range(batch_start, batch_end)]
             doc_ids = [doc] * len(batch_texts)
             indices = list(range(batch_start, batch_end))
+            metadata = [
+                {"char_start": c.char_start, "char_end": c.char_end}
+                for c in batch_chunks
+            ]
             count = await vector_store.insert(
                 collection=job.collection_name,
                 ids=ids,
@@ -330,6 +340,7 @@ class IngestionQueue:
                 chunk_indices=indices,
                 texts=batch_texts,
                 embeddings=embeddings,
+                metadata=metadata,
             )
             insert_elapsed = time.monotonic() - t1
             total_inserted += count

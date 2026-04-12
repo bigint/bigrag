@@ -19,6 +19,7 @@ from bigrag.models.query import (
     QueryRequest,
     QueryResponse,
     QueryResult,
+    QueryTimings,
     VectorDeleteRequest,
     VectorUpsertRequest,
 )
@@ -55,7 +56,7 @@ async def query_collection(
     )
     search_mode = body.search_mode or collection.get("default_search_mode", "semantic")
 
-    results = await retrieve(
+    outcome = await retrieve(
         collection_name=collection_name,
         query=body.query,
         embedding_model=embedding_model,
@@ -65,15 +66,44 @@ async def query_collection(
         search_mode=search_mode,
         reranking_config=get_reranking_config(collection),
         rerank_override=body.rerank,
+        diversity=body.diversity,
+        hybrid_strategy=body.hybrid_strategy or "rrf",
+        hyde=bool(body.hyde),
+        hyde_api_key=collection.get("embedding_api_key"),
+        facets=body.facets,
     )
 
-    logger.info(f"query: collection={collection_name} results={len(results)}")
+    logger.info(
+        f"query: collection={collection_name} results={len(outcome.results)} "
+        f"total_ms={outcome.total_ms}"
+    )
     return QueryResponse(
-        results=[QueryResult(**r) for r in results],
+        results=[QueryResult(**_result_to_dict(r)) for r in outcome.results],
         query=body.query,
         collection=collection_name,
-        total=len(results),
+        total=len(outcome.results),
+        timings=QueryTimings(
+            embed_ms=outcome.embed_ms,
+            search_ms=outcome.search_ms,
+            rerank_ms=outcome.rerank_ms,
+            hyde_ms=outcome.hyde_ms,
+            mmr_ms=outcome.mmr_ms,
+            total_ms=outcome.total_ms,
+        ),
+        facets=outcome.facets,
+        cached=outcome.cached,
     )
+
+
+def _result_to_dict(row: dict) -> dict:
+    """Drop internal-only keys (``embedding``) before serialization and
+    lift provenance fields out of ``metadata`` so they're first-class."""
+    cleaned = {k: v for k, v in row.items() if k != "embedding"}
+    metadata = cleaned.get("metadata") or {}
+    for field_name in ("page_no", "char_start", "char_end"):
+        if field_name in metadata and field_name not in cleaned:
+            cleaned[field_name] = metadata[field_name]
+    return cleaned
 
 
 @router.post("/v1/query", response_model=MultiQueryResponse)
@@ -131,7 +161,7 @@ async def batch_query(
             msg = f"Collection '{item.collection}': {e}"
             raise HTTPException(status_code=400, detail=msg) from e
 
-        results = await retrieve(
+        outcome = await retrieve(
             collection_name=item.collection,
             query=item.query,
             embedding_model=embedding_model,
@@ -144,10 +174,10 @@ async def batch_query(
         )
 
         return BatchQueryResultItem(
-            results=[QueryResult(**r) for r in results],
+            results=[QueryResult(**_result_to_dict(r)) for r in outcome.results],
             query=item.query,
             collection=item.collection,
-            total=len(results),
+            total=len(outcome.results),
         )
 
     results = await asyncio.gather(*[run_one(item) for item in body.queries])
