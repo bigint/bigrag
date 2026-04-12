@@ -125,7 +125,7 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
           required
           value={name}
         />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-4">
           <Select
             label="Provider"
             value={provider}
@@ -163,7 +163,7 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
           type="password"
           value={apiKey}
         />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-4">
           <Input
             label="Dimension"
             description="Must match what the model emits."

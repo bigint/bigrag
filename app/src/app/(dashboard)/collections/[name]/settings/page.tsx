@@ -127,7 +127,7 @@ const CollectionSettings = ({ params }: { params: Promise<{ name: string }> }) =
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-4">
             <Input
               label="Default top K"
               type="number"

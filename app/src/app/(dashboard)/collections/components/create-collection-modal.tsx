@@ -120,7 +120,7 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             options={options}
           />
         )}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-4">
           <Input
             label="Chunk size"
             type="number"
