@@ -49,7 +49,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           children
         ) : (
           <div className="flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-6xl px-6 py-8 md:px-10">{children}</div>
+            <div className="px-4 py-4 md:px-8 md:py-6">{children}</div>
           </div>
         )}
       </main>
