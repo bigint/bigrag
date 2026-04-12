@@ -570,6 +570,59 @@ Each item is described well enough to plan and execute in a day or two. When we'
 
 ---
 
+## Shipped in the 2026-04-12 follow-up pass
+
+After the P0 commits, a second pass landed most of the P1/P2/BB/RM work:
+
+- **Retrieval quality** (P1-R1/R2/R3/R4/R5/R6): MMR diversity,
+  RRF+weighted+normalized fusion, HyDE, char-offset citations,
+  facets, per-phase timings in the response.
+- **Semantic cache** (BB3): per-collection Redis-backed cache; 0.97
+  cosine threshold; TTL-capped; invalidate-on-ingest hook.
+- **Ingestion** (P1-I1/I3/I4): recursive chunker option, content-hash
+  dedup, chunk-level retry with exponential backoff.
+- **Embeddings** (P1-E1/E2/E3/E4): BYO OpenAI-compatible endpoint
+  (Ollama/vLLM/TEI/Infinity/LiteLLM), persistent Postgres cache,
+  tiktoken-aware truncation with warnings, `/v1/usage` cost endpoint.
+- **Vector store** (P1-V2/V3): HNSW index option, partition-per-tenant
+  primitive via `tenant_field`.
+- **Auth + compliance** (P1-A1/A2, P2-E5/E6/E7/E8/E9/E10-partial):
+  scoped API keys, audit log + listing endpoint, GDPR cascade delete
+  with certificate, regex PII redaction, OpenAI moderation hook,
+  metadata JSON-Schema validation, per-key rate_limits column, eval
+  runner (recall/MRR/nDCG).
+- **Webhooks** (P1-W1/W2/W3): delivery replay endpoint, test-fire
+  (already shipped), X-BigRAG-* signature headers (already shipped).
+- **Studio UI** (P1-U1/U3/U5/U6): query debugger panel with timings,
+  re-embed backend endpoint, dark mode toggle + tokens, skip-to-content
+  link, aria-hidden on decorative icons.
+- **SDK** (P1-S2/S3): `onUploadProgress` via XHR, `listAll` async
+  iterators for collections and documents.
+- **Docs** (P1-D1/D3/D4/D6): Pinecone migration guide, production
+  hardening checklist, architecture deep-dive, multi-tenant SaaS
+  cookbook.
+- **CI** (P2-E4): e2e job with live Postgres/Redis/Milvus services,
+  opt-in via repo variable `RUN_E2E=true`.
+- **Cleanup** (RM3): webhook limit configurable via
+  `BIGRAG_WEBHOOK_MAX_COUNT`; other RM items triaged as either
+  already-done or superseded by scoped-keys/HNSW work.
+
+Deferred to future focused projects (each warrants its own plan):
+
+- **P1-V1** pluggable vector backend — architectural rewrite.
+- **P1-A3** OAuth/OIDC — needs provider credential setup.
+- **P1-A4** workspaces — touches every table.
+- **P1-I2** image captioning during ingestion.
+- **P1-I5** streaming S3 tail sync.
+- **P1-O1/O2** OpenTelemetry + Sentry.
+- **P1-S1** OpenAPI-generated TS types.
+- **P1-S4** `@bigrag/react` hooks package.
+- **P1-S6** Go SDK.
+- **P1-U2/U4** chunk viewer with highlight, bulk upload UI.
+- **P2-E1/E2/E3** Helm chart, Terraform, one-click deploys.
+- **BB1/BB2/BB5** graph-RAG, agentic retrieval, streaming answers.
+- **BB4** managed cloud.
+
 ## Execution checkpoint
 
 After every two P0 tasks land, run the full test suite (`cd api && uv run pytest`) and the e2e suite (`cd e2e && uv run python run.py`). After all P0 tasks land, **stop**, surface progress, and ask the user which P1 cluster to pick up first — retrieval quality, SDK, observability, or multi-tenancy all make sense as standalone sub-plans.

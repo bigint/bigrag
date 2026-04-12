@@ -1,4 +1,4 @@
 {
   "title": "Concepts",
-  "pages": ["collections", "documents", "embeddings", "search", "webhooks"]
+  "pages": ["architecture", "collections", "documents", "embeddings", "search", "webhooks"]
 }
