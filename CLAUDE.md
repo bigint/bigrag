@@ -69,10 +69,10 @@ pnpm dev:app        # Studio admin UI on localhost:3100
 
 ## Auth model
 
-bigRAG has no `BIGRAG_API_SECRET` env var. Auth is admin-account + session cookie
-(Studio UI) or minted API keys (`bigrag_sk_...`, external clients). First admin
-is created via the Studio's `/setup` page; subsequent admins via `/users`; API
-keys via `/api-keys`.
+Auth is admin-account + session cookie (Studio UI) or minted API keys
+(`bigrag_sk_...`, external clients). First admin is created via the Studio's
+`/setup` page; subsequent admins via `/users`; API keys via `/api-keys`. There
+is no shared-secret env var — do not introduce one.
 
 ## E2E Tests
 

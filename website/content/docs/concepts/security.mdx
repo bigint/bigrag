@@ -14,8 +14,6 @@ bigRAG's auth model has two credential types, one scope system, an immutable aud
 | **Session cookie** | Studio UI, browser flows | `BIGRAG_SESSION_EXPIRY_HOURS` (default 7 days) | `/v1/auth/logout`, `/v1/auth/logout-all`, or cleanup sweeper |
 | **API key** (`bigrag_sk_…`) | SDKs, backend services, CI | Indefinite unless `expires_at` set | `DELETE /v1/admin/api-keys/{id}` or `active: false` |
 
-There is **no shared-secret** credential. If a client still sets `BIGRAG_API_SECRET`, it's from an older version and needs updating.
-
 ## First-run setup
 
 A fresh install has no users. The server exposes exactly one unauthenticated admin-capable endpoint: `POST /v1/auth/setup`. It works once. After the first admin exists, subsequent calls return `409` and every admin endpoint requires auth.

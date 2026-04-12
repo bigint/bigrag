@@ -684,12 +684,12 @@ A complete feature-by-feature comparison:
 | Document metadata (custom) | Yes | Limited | bigRAG ahead |
 | Raw vector upsert | Yes | No | bigRAG ahead |
 | **Authentication** | | | |
-| API secret/key auth | Yes (shared) | Yes (per-user keys) | High |
+| API key auth | Yes (`bigrag_sk_` per-key, scoped) | Yes (per-user keys) | -- |
 | OAuth / OIDC | No | Yes (Google, IBM) | Critical |
 | Per-user document ownership | No | Yes | High |
 | Document-level ACL | No | Yes (DLS) | High |
-| Role-based access | Basic | Yes | Medium |
-| Session management | No | Yes | Medium |
+| Role-based access | admin / member | Yes (fine-grained) | Medium |
+| Session management | Yes (session cookies + logout-all) | Yes | -- |
 | **Operations** | | | |
 | Docker Compose deployment | Yes | Yes | -- |
 | Single-command install (`uvx`) | No | Yes | High |
@@ -771,7 +771,7 @@ Based on this analysis, here are the recommended priorities for closing the most
 
 1. **LLM Integration & Chat API** — Add an optional LLM generation layer that accepts a query, retrieves context, and returns a generated answer with citations. Support OpenAI and Anthropic as providers. This is the single most impactful feature for competitive positioning.
 
-2. **OAuth / OIDC Authentication** — Replace or augment the shared API secret with proper identity management. Support Google OIDC at minimum, with extensibility for other providers.
+2. **OAuth / OIDC Authentication** — Add external identity-provider support (Google OIDC at minimum, with extensibility for other providers) alongside the existing native accounts and `bigrag_sk_` API keys.
 
 3. **Web UI** — Build a lightweight management UI for document browsing, upload, collection configuration, and query testing. It doesn't need to be as feature-rich as OpenRAG's — a focused admin panel would close the gap.
 

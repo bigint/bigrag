@@ -6,12 +6,10 @@ description: Admin accounts with session cookies and minted API keys.
 import { Callout } from "fumadocs-ui/components/callout";
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 
-bigRAG does **not** use a shared secret. Every request is authenticated as either:
+Every request is authenticated as either:
 
 - **An admin account** via a session cookie (used by the Studio UI and browser-based flows), or
 - **An API key** (`bigrag_sk_…`) minted by an admin (used by backend services, SDKs, and automation).
-
-There is no `BIGRAG_API_SECRET` — if you see references to it in older clients, upgrade them.
 
 ## First-run setup
 

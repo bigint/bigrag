@@ -7,9 +7,7 @@ import { Callout } from "fumadocs-ui/components/callout";
 
 bigRAG reads configuration from a `bigrag.toml` file and/or environment variables. Environment variables take precedence over TOML values, and CLI flags passed to `python -m bigrag.main` override both.
 
-<Callout type="warn">
-There is no `BIGRAG_API_SECRET`. Auth is admin accounts + session cookies and minted `bigrag_sk_…` API keys. See [Authentication](/docs/api-reference/authentication).
-</Callout>
+Auth is admin accounts + session cookies and minted `bigrag_sk_…` API keys — see [Authentication](/docs/api-reference/authentication).
 
 ## TOML configuration
 
@@ -112,7 +110,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | `BIGRAG_SESSION_COOKIE_SAMESITE` | `lax`, `strict`, or `none` | `lax` |
 | `BIGRAG_SESSION_COOKIE_DOMAIN` | Optional cookie scope | — |
 
-There is no shared API secret. Admins are created via [`POST /v1/auth/setup`](/docs/api-reference/authentication) and API keys are minted via [`POST /v1/admin/api-keys`](/docs/api-reference/api-keys).
+Admins are created via [`POST /v1/auth/setup`](/docs/api-reference/authentication) and API keys are minted via [`POST /v1/admin/api-keys`](/docs/api-reference/api-keys).
 
 ### Embedding (server defaults)
 
