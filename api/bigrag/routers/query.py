@@ -24,6 +24,7 @@ from bigrag.models.query import (
     VectorUpsertRequest,
 )
 from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
+from bigrag.services import semantic_cache
 from bigrag.services.embedding import AVAILABLE_MODELS
 from bigrag.services.retrieval import retrieve, retrieve_multi
 from bigrag.services.vector_store import vector_store
@@ -73,11 +74,21 @@ async def query_collection(
         facets=body.facets,
     )
 
+    # Semantic cache: if an embedding was computed and caching isn't
+    # bypassed, check for a near-duplicate recent query and replay its
+    # response. Otherwise cache ours.
+    use_semcache = body.use_semantic_cache if body.use_semantic_cache is not None else True
+    if use_semcache and outcome.query_embedding is not None:
+        cached = await semantic_cache.lookup(collection_name, outcome.query_embedding)
+        if cached:
+            cached_copy = {**cached, "cached": True}
+            return QueryResponse(**cached_copy)
+
     logger.info(
         f"query: collection={collection_name} results={len(outcome.results)} "
         f"total_ms={outcome.total_ms}"
     )
-    return QueryResponse(
+    response = QueryResponse(
         results=[QueryResult(**_result_to_dict(r)) for r in outcome.results],
         query=body.query,
         collection=collection_name,
@@ -93,6 +104,16 @@ async def query_collection(
         facets=outcome.facets,
         cached=outcome.cached,
     )
+
+    if use_semcache and outcome.query_embedding is not None and outcome.results:
+        # Store a deep-copy dict so future hits don't leak mutable state.
+        await semantic_cache.store(
+            collection_name,
+            outcome.query_embedding,
+            response.model_dump(),
+        )
+
+    return response
 
 
 def _result_to_dict(row: dict) -> dict:

@@ -37,6 +37,14 @@ class QueryRequest(BaseModel):
         max_length=10,
         description="Metadata fields to aggregate counts over in the response.",
     )
+    use_semantic_cache: bool | None = Field(
+        default=None,
+        description=(
+            "When true (default), the server may return a cached response "
+            "for a near-duplicate recent query. Set false to always hit "
+            "Milvus fresh — useful for eval runs."
+        ),
+    )
 
 
 class VectorEntry(BaseModel):
