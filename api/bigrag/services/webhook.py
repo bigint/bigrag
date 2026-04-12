@@ -374,6 +374,49 @@ class WebhookDispatcher:
                 f"delivery={delivery_id} error={last_error}"
             )
 
+    async def deliver_once(self, webhook: dict, event: str, payload: str) -> dict:
+        """Fire a single one-off delivery (no retries, no circuit-breaker
+        state touched). Used by the admin replay endpoint.
+
+        Returns a dict shaped like :meth:`deliver_test`'s result so the
+        Studio UI can render both the same way.
+        """
+        try:
+            from bigrag.models.webhook import resolve_and_validate_url
+
+            resolve_and_validate_url(webhook["url"])
+        except ValueError:
+            return {
+                "status": "failed",
+                "status_code": None,
+                "error": "Blocked: URL targets a private or internal network",
+            }
+
+        signature = compute_signature(payload, webhook["secret"])
+        headers = {
+            "Content-Type": "application/json",
+            "X-BigRAG-Signature": signature,
+            "X-BigRAG-Event": event,
+            "X-BigRAG-Delivery": str(uuid.uuid4()),
+            "User-Agent": "bigrag-webhooks/1.0",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=_delivery_timeout()) as client:
+                response = await client.post(webhook["url"], content=payload, headers=headers)
+            return {
+                "status": "delivered" if 200 <= response.status_code < 300 else "failed",
+                "status_code": response.status_code,
+                "error": None
+                if 200 <= response.status_code < 300
+                else f"HTTP {response.status_code}",
+            }
+        except Exception as exc:  # noqa: BLE001 — surface connect errors to the UI
+            return {
+                "status": "failed",
+                "status_code": None,
+                "error": f"{exc.__class__.__name__}: {exc}",
+            }
+
     async def deliver_test(self, webhook: dict) -> dict:
         """Send a test event to a webhook. Returns result inline (no retries)."""
         # Re-validate URL target at delivery time to prevent DNS rebinding

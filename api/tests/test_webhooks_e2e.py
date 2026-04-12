@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import uuid
 
+from unittest.mock import AsyncMock
+
 from httpx import AsyncClient
 
 from tests.conftest import install_fetchrow_router, make_delivery_row, make_webhook_row
@@ -245,6 +247,48 @@ async def test_test_webhook(
     mock_webhook_dispatcher.deliver_test.assert_awaited_once()
 
 
+
+
+async def test_replay_delivery_fires_deliver_once(
+    client: AsyncClient, auth_headers: dict, mock_db, mock_webhook_dispatcher
+):
+    """POST /webhooks/:id/deliveries/:delivery_id/replay should re-fire
+    using the stored payload and event, via deliver_once (not the full
+    retry pipeline)."""
+    wh_id = str(uuid.uuid4())
+    del_id = str(uuid.uuid4())
+    webhook = make_webhook_row(webhook_id=wh_id)
+    delivery = make_delivery_row(
+        delivery_id=del_id,
+        webhook_id=wh_id,
+        event="document.ready",
+        payload={"event": "document.ready", "document_id": "doc-1"},
+    )
+
+    def router(query, *args):
+        if "FROM webhooks WHERE id" in query:
+            return webhook
+        if "FROM webhook_deliveries WHERE id" in query:
+            return delivery
+        return None
+
+    install_fetchrow_router(mock_db, router)
+    mock_webhook_dispatcher.deliver_once = AsyncMock(
+        return_value={"status": "delivered", "status_code": 200, "error": None},
+    )
+
+    resp = await client.post(
+        f"/v1/admin/webhooks/{wh_id}/deliveries/{del_id}/replay",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "delivered"
+    mock_webhook_dispatcher.deliver_once.assert_awaited_once()
+    # Confirm the same event+payload were re-used.
+    call_args = mock_webhook_dispatcher.deliver_once.await_args
+    assert call_args.args[1] == "document.ready"
+    assert '"document_id":"doc-1"' in call_args.args[2]
 
 
 async def test_webhooks_require_auth(client: AsyncClient):

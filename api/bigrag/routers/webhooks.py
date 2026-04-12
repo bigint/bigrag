@@ -192,3 +192,49 @@ async def test_webhook(webhook_id: str, _: dict = Depends(require_admin)):
 
     result = await webhook_dispatcher.deliver_test(dict(row))
     return WebhookTestResponse(**result)
+
+
+@router.post(
+    "/{webhook_id}/deliveries/{delivery_id}/replay",
+    response_model=WebhookTestResponse,
+)
+async def replay_delivery(
+    webhook_id: str,
+    delivery_id: str,
+    _: dict = Depends(require_admin),
+) -> WebhookTestResponse:
+    """Re-fire a failed (or successful) delivery using the original
+    payload and event. Doesn't touch the circuit breaker or retry
+    counters — it's explicitly a one-off.
+    """
+    try:
+        wh_uuid = uuid.UUID(webhook_id)
+        del_uuid = uuid.UUID(delivery_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="Not found") from e
+
+    webhook = await db.fetchrow("SELECT * FROM webhooks WHERE id = $1", wh_uuid)
+    if not webhook:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+
+    delivery = await db.fetchrow(
+        "SELECT event, payload FROM webhook_deliveries WHERE id = $1 AND webhook_id = $2",
+        del_uuid,
+        wh_uuid,
+    )
+    if not delivery:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+
+    import orjson
+
+    payload_str = orjson.dumps(delivery["payload"]).decode()
+    result = await webhook_dispatcher.deliver_once(
+        dict(webhook), delivery["event"], payload_str,
+    )
+    logger.info(
+        "Webhook delivery replayed",
+        webhook_id=webhook_id,
+        delivery_id=delivery_id,
+        status=result["status"],
+    )
+    return WebhookTestResponse(**result)
