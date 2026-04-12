@@ -35,7 +35,6 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
   const [provider, setProvider] = useState<"openai" | "cohere">("openai");
   const [model, setModel] = useState("text-embedding-3-small");
   const [apiKey, setApiKey] = useState("");
-  const [baseUrl, setBaseUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `open` triggers reset
@@ -44,14 +43,12 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
       setName(editing.name);
       setProvider(editing.provider);
       setModel(editing.model);
-      setBaseUrl(editing.base_url ?? "");
       setApiKey("");
     } else {
       setName("");
       setProvider("openai");
       setModel(DEFAULT_MODELS.openai.model);
       setApiKey("");
-      setBaseUrl("");
     }
     setError(null);
   }, [editing, open]);
@@ -84,7 +81,6 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
       name: name.trim(),
       provider,
       model: model.trim(),
-      base_url: baseUrl.trim() || null,
       dimension: selectedDimension,
     };
     if (apiKey.trim()) body.api_key = apiKey.trim();
@@ -158,14 +154,6 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
           placeholder={isEdit ? "••••••••" : "sk-..."}
           type="password"
           value={apiKey}
-        />
-        <Input
-          label="Base URL (optional)"
-          description="For self-hosted or proxied providers."
-          onChange={(e) => setBaseUrl(e.target.value)}
-          placeholder="https://api.openai.com/v1"
-          type="url"
-          value={baseUrl}
         />
         <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
           <span className="text-muted-foreground">Embedding dimension</span>
