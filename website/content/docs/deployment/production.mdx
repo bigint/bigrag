@@ -5,6 +5,20 @@ description: Configuration and best practices for production deployments.
 
 import { Callout } from "fumadocs-ui/components/callout";
 
+## Startup safety guard
+
+bigRAG refuses to boot when `BIGRAG_ENV=prod` is set **and** any of the following
+insecure defaults are still active. Setting `BIGRAG_ENV=prod` in production catches
+config mistakes that would otherwise ship silently:
+
+- `BIGRAG_CORS_ORIGINS` contains `*` — set an explicit list (e.g. `https://studio.example.com`).
+- `BIGRAG_SESSION_COOKIE_SECURE` is `false` — set to `true` so cookies are HTTPS-only.
+- `BIGRAG_DATABASE_URL` still uses the shipped `bigrag:bigrag` credentials — rotate the Postgres password.
+
+When the guard trips, it logs every violation before exiting so you can fix the whole
+list in one edit. If you intentionally want to run with the development defaults (e.g.
+on a private network behind a VPN), leave `BIGRAG_ENV` unset or set it to `dev`.
+
 ## Production Docker Compose
 
 ```yaml

@@ -16,6 +16,7 @@ from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logg
 from bigrag.middleware.idempotency import IdempotencyMiddleware
 from bigrag.middleware.rate_limit import RateLimitMiddleware
 from bigrag.services import redis_cache
+from bigrag.startup_guard import check_production_safety
 from bigrag.services.event_bus import event_bus
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import init_storage
@@ -29,7 +30,10 @@ async def lifespan(app: FastAPI):
 
     configure_logging(log_level=s.log_level, log_format=s.log_format)
     logger = get_logger("bigrag")
-    logger.info("starting", version=__version__)
+    logger.info("starting", version=__version__, env=s.env)
+
+    # Refuse to boot in prod mode with default/insecure config.
+    check_production_safety(s)
 
     if "*" in s.cors_origins:
         logger.warning("CORS allows all origins, restrict in production")

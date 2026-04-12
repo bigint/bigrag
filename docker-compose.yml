@@ -8,6 +8,10 @@ services:
     volumes:
       - bigrag_data:/data
     environment:
+      # Default is 'dev'. Set BIGRAG_ENV=prod in production — this
+      # enables startup checks that refuse insecure defaults (wildcard
+      # CORS, non-secure cookies, default Postgres password).
+      BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
       BIGRAG_DATABASE_URL: postgres://bigrag:bigrag@postgres:5432/bigrag?sslmode=disable
       BIGRAG_MILVUS_URI: http://milvus:19530
       BIGRAG_REDIS_URL: redis://redis:6379/0

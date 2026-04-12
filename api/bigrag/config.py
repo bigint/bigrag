@@ -9,6 +9,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="BIGRAG_", env_nested_delimiter="__")
 
+    # Deployment mode. ``prod`` enables startup safety checks (see
+    # bigrag.main.lifespan); ``dev`` skips them. Values outside this
+    # enum fall through as ``dev``.
+    env: str = "dev"
+
     # Server
     host: str = "0.0.0.0"
     port: int = 6100
