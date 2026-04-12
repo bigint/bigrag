@@ -1,0 +1,109 @@
+---
+title: Migrate from Pinecone
+description: Move an existing Pinecone index to bigRAG with one importer script — API mapping, chunking considerations, and a reusable migration pattern.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+bigRAG's data model is a superset of Pinecone's — every Pinecone
+concept has a direct equivalent, plus a few extras (persistent chunk
+text, ingestion pipeline, webhooks). Migrating is primarily a data
+copy and an API-layer search-and-replace.
+
+## Concept mapping
+
+| Pinecone | bigRAG |
+| --- | --- |
+| Index | Collection |
+| Namespace | Metadata field `namespace` (or partition via `tenant_field`) |
+| Vector (id, values, metadata) | Chunk (`id`, `embedding`, `metadata`) |
+| `upsert` | `POST /v1/collections/{name}/vectors/upsert` |
+| `query(vector, topK, filter)` | `POST /v1/collections/{name}/query` |
+| `delete(ids)` | `POST /v1/collections/{name}/vectors/delete` |
+| `describe_index_stats` | `GET /v1/collections/{name}/stats` |
+
+<Callout type="info">
+bigRAG stores chunk **text** alongside the vector — so results carry
+the source passage natively. Pinecone only keeps metadata; if your
+pipeline previously embedded text elsewhere, you can drop that storage.
+</Callout>
+
+## One-shot importer script
+
+```python
+# examples/migrate_from_pinecone.py
+from pinecone import Pinecone
+from bigrag import BigRAG
+
+pc = Pinecone(api_key="pcsk_...")
+source = pc.Index("prod-docs")
+
+client = BigRAG(api_key="bigrag_sk_...")
+
+# Create the target collection using the same embedding provider you used
+# in Pinecone so vectors stay comparable. Dimension MUST match.
+client.collections.create({
+    "name": "prod_docs",
+    "embedding_provider": "openai",
+    "embedding_model": "text-embedding-3-small",
+    "dimension": 1536,
+})
+
+BATCH = 100
+cursor = None
+while True:
+    page = source.list_paginated(limit=BATCH, pagination_token=cursor)
+    ids = [v.id for v in page.vectors]
+    if not ids:
+        break
+    fetched = source.fetch(ids=ids)
+    vectors = [
+        {
+            "id": v.id,
+            "embedding": v.values,
+            "text": v.metadata.get("text", ""),  # or whatever field holds chunk text
+            "metadata": {k: v for k, v in v.metadata.items() if k != "text"},
+        }
+        for v in fetched.vectors.values()
+    ]
+    client.vectors.upsert("prod_docs", vectors)
+    cursor = page.pagination.next if page.pagination else None
+    if not cursor:
+        break
+```
+
+## Two migration strategies
+
+**Lift and shift** — the script above copies vectors as-is. Fastest,
+keeps existing retrieval quality identical. Good when you're just
+moving off Pinecone's hosting cost.
+
+**Re-ingest from source** — upload the original documents through
+`POST /v1/collections/{name}/documents`. Slower (you pay the embedding
+bill again) but unlocks features Pinecone doesn't have: citation
+provenance (`page_no`, `char_start`), chunk-level re-embedding, the
+persistent embedding cache, Docling-parsed tables and images.
+Recommended if you're in the middle of a chunking rethink anyway.
+
+## API differences to watch
+
+- **Filters use a Milvus expression string**, not the Pinecone dict.
+  The SDK hides this — pass a dict like `{"department": "sales"}`
+  and bigRAG produces `department == "sales"`. For complex boolean
+  queries you can pass a raw expression via the `filters` param.
+- **Namespaces → metadata partitions**. Pinecone's `namespace="docs"`
+  becomes `metadata.namespace = "docs"`. For 10-50× faster tenant
+  scoping, set `tenant_field: "namespace"` on the collection and
+  bigRAG will create a Milvus partition per distinct value.
+- **Hybrid search is built-in**. `search_mode: "hybrid"` runs keyword
+  + vector in parallel and fuses with RRF / normalized / weighted.
+  No separate "sparse" vectors to maintain.
+
+## Cut-over
+
+1. Run the importer with `BATCH=100` overnight.
+2. Update your application's search code to hit bigRAG. Filters, top_k,
+   and metadata pass through.
+3. Dual-read for 24h (query both, log discrepancies) to verify parity.
+4. Flip reads fully to bigRAG, stop writes to Pinecone, and once dust
+   settles, delete the Pinecone index.

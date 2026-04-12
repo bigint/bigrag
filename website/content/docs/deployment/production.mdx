@@ -5,6 +5,32 @@ description: Configuration and best practices for production deployments.
 
 import { Callout } from "fumadocs-ui/components/callout";
 
+## Production hardening checklist
+
+Tick these off before pointing real traffic at a bigRAG deployment:
+
+- [ ] `BIGRAG_ENV=prod` — enables the startup guard.
+- [ ] Rotate `POSTGRES_PASSWORD` from the shipped default (`bigrag`).
+- [ ] `BIGRAG_SESSION_COOKIE_SECURE=true` and terminate TLS at your
+  reverse proxy (nginx, Caddy, Traefik, Cloudflare).
+- [ ] `BIGRAG_CORS_ORIGINS` set to an explicit list of your Studio /
+  app origins — no `*`.
+- [ ] Redis with `requirepass` set and `appendonly yes` persisted to
+  a mounted volume.
+- [ ] Milvus in cluster mode if you expect >10M vectors or need HA.
+- [ ] Postgres warm-standby replica for failover.
+- [ ] Backup strategy: daily `pg_dump` + Milvus backup tool + S3
+  replication of the upload volume.
+- [ ] Rate limit overrides: set per-key `rate_limits` JSON on any key
+  that legitimately needs more than the default bucket.
+- [ ] Enable `redact_pii` and/or `moderation_enabled` on user-facing
+  collections where appropriate.
+- [ ] Set `metadata_schema` on collections that accept untrusted
+  metadata so uploads with invalid shape are rejected at the edge.
+- [ ] Wire `GET /v1/admin/audit` into your SIEM / log pipeline.
+- [ ] Configure webhooks to your monitoring stack for
+  `document.failed` events so ingestion errors don't sit silently.
+
 ## Startup safety guard
 
 bigRAG refuses to boot when `BIGRAG_ENV=prod` is set **and** any of the following

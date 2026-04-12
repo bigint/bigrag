@@ -1,0 +1,155 @@
+---
+title: Cookbook — multi-tenant SaaS
+description: Patterns for serving many customers from one bigRAG deployment — isolation, per-tenant API keys, usage metering, and cost controls.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+This recipe turns bigRAG into a per-tenant RAG backbone for a typical
+SaaS app — one collection per customer (or one collection shared with
+tenant filtering), scoped API keys, usage dashboards, and cost caps.
+
+## Pattern A — collection per tenant
+
+Simplest isolation model. Each tenant's data lives in its own
+collection; queries are physically scoped by the collection name.
+
+### Provisioning
+
+```python
+# called from your signup / onboarding flow
+client.collections.create({
+    "name": f"tenant_{tenant_id}",
+    "embedding_provider": "openai",
+    "embedding_model": "text-embedding-3-small",
+    "dimension": 1536,
+    "redact_pii": True,
+    "moderation_enabled": True,
+    "metadata_schema": {
+        "type": "object",
+        "required": ["source"],
+        "properties": {
+            "source": {"type": "string", "enum": ["email", "docs", "chat"]},
+            "tier": {"type": "string", "enum": ["free", "pro", "enterprise"]},
+        },
+    },
+})
+```
+
+### Per-tenant API key
+
+Mint a scoped key so the tenant's browser / mobile app can query but
+can't touch other collections or the admin surface:
+
+```python
+key = client.api_keys.create({
+    "name": f"tenant-{tenant_id}",
+    "scopes": ["query:read", f"document:upload"],
+    "rate_limits": {
+        "POST:/v1/query": 60,       # queries / min
+        "POST:/v1/documents": 10,   # uploads / min
+    },
+})
+# key.key is the plaintext bigrag_sk_... — hand it to the tenant once.
+```
+
+The middleware enforces the scopes so a leaked tenant key can only
+damage its own data.
+
+<Callout type="warn">
+Collections-per-tenant has a ceiling — Milvus caps at ~10k collections
+on a single node. Above that, move to Pattern B (shared collection
+with tenant_field partitioning).
+</Callout>
+
+## Pattern B — shared collection with partitions
+
+One collection, tenant isolation via a Milvus partition and a
+metadata filter.
+
+```python
+client.collections.create({
+    "name": "shared_tenants",
+    "tenant_field": "tenant_id",   # bigRAG creates a partition per value
+    # ... other config
+})
+
+# Upload with the tenant tag
+client.documents.upload(
+    "shared_tenants",
+    file=handle,
+    metadata={"tenant_id": "acme", "source": "docs"},
+)
+
+# Query with the tenant filter — hits only acme's partition
+results = client.queries.search("shared_tenants", {
+    "query": "quarterly revenue",
+    "filters": {"tenant_id": "acme"},
+})
+```
+
+Partition scans are 10-50× faster than scalar-filter-then-scan at
+scale. You still need the `filters` clause so bigRAG routes the
+search to the right partition; forgetting it yields cross-tenant
+results (a critical bug — treat it like a SQL injection vector in
+review).
+
+## Per-tenant usage + billing
+
+```python
+usage = client.usage.get(window_days=30)
+# {
+#   "by_collection": [
+#     {"collection": "tenant_acme", "documents": 142, "chunks": 4321,
+#      "storage_bytes": 5120000, "embedding_tokens": 1500000,
+#      "embedding_cost_usd_estimate": 0.03, "queries": 842, ...},
+#     ...
+#   ]
+# }
+```
+
+Join this with your billing system's `tenant_id ↔ collection_name`
+map and you have a per-tenant invoice line. For pattern B, aggregate
+the same stats from `audit_log` by `metadata.tenant_id`.
+
+## Cost caps
+
+Set per-tenant quotas on the minted API key:
+
+```python
+client.api_keys.update(key_id, {
+    "rate_limits": {
+        "POST:/v1/query": 10,     # free tier
+    },
+})
+```
+
+Combine with `redact_pii: true` on the collection to keep sensitive
+payloads out of embedding providers, and `moderation_enabled: true`
+to block disallowed content at upload time.
+
+## Audit trail for compliance
+
+Every admin action (key creation, webhook config, GDPR delete) is in
+`audit_log`. Surface it per-tenant by filtering on
+`actor_id` (the user) or `resource_id` (the collection name):
+
+```bash
+curl -H "Authorization: Bearer $ADMIN_KEY" \
+  "http://localhost:6100/v1/admin/audit?resource_type=collection"
+```
+
+## Offboarding
+
+A GDPR erasure request on your side:
+
+```python
+client.admin.gdpr_delete(user_id)         # cascades sessions + api_keys
+# then for Pattern A:
+client.collections.delete(f"tenant_{tenant_id}")
+# for Pattern B:
+client.vectors.delete("shared_tenants", tenant_filter={"tenant_id": tenant_id})
+```
+
+The returned certificate (`sha256` of the deletion counts + timestamp)
+is your paper trail.
