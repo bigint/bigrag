@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,19 +36,15 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
   const [model, setModel] = useState("text-embedding-3-small");
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
-  const [dimension, setDimension] = useState(1536);
   const [error, setError] = useState<string | null>(null);
 
-  // Hydrate when editing; reset on close. `open` is intentional — we want to
-  // reset form state every time the modal (re)opens, even for the same preset.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: open triggers reset
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `open` triggers reset
   useEffect(() => {
     if (editing) {
       setName(editing.name);
       setProvider(editing.provider);
       setModel(editing.model);
       setBaseUrl(editing.base_url ?? "");
-      setDimension(editing.dimension);
       setApiKey("");
     } else {
       setName("");
@@ -56,17 +52,9 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
       setModel(DEFAULT_MODELS.openai.model);
       setApiKey("");
       setBaseUrl("");
-      setDimension(DEFAULT_MODELS.openai.dimension);
     }
     setError(null);
   }, [editing, open]);
-
-  // When the chosen model is in the catalog, snap dimension to its canonical value.
-  useEffect(() => {
-    if (!catalog) return;
-    const match = catalog.models.find((m) => m.provider === provider && m.model === model);
-    if (match) setDimension(match.dimension);
-  }, [catalog, provider, model]);
 
   const modelOptions =
     catalog?.models
@@ -75,6 +63,15 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
         value: m.model,
         label: `${m.model} · ${m.dimension}d`,
       })) ?? [];
+
+  const selectedDimension = useMemo(() => {
+    const match = catalog?.models.find(
+      (m) => m.provider === provider && m.model === model,
+    );
+    if (match) return match.dimension;
+    if (editing && editing.model === model) return editing.dimension;
+    return DEFAULT_MODELS[provider].dimension;
+  }, [catalog, provider, model, editing]);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -88,7 +85,7 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
       provider,
       model: model.trim(),
       base_url: baseUrl.trim() || null,
-      dimension,
+      dimension: selectedDimension,
     };
     if (apiKey.trim()) body.api_key = apiKey.trim();
 
@@ -133,7 +130,6 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
               const p = v as "openai" | "cohere";
               setProvider(p);
               setModel(DEFAULT_MODELS[p].model);
-              setDimension(DEFAULT_MODELS[p].dimension);
             }}
             options={[
               { value: "openai", label: "OpenAI" },
@@ -163,24 +159,17 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
           type="password"
           value={apiKey}
         />
-        <div className="space-y-4">
-          <Input
-            label="Dimension"
-            description="Must match what the model emits."
-            min={64}
-            max={4096}
-            onChange={(e) => setDimension(Number(e.target.value))}
-            type="number"
-            value={dimension}
-          />
-          <Input
-            label="Base URL (optional)"
-            description="For self-hosted/proxied providers."
-            onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder="https://api.openai.com/v1"
-            type="url"
-            value={baseUrl}
-          />
+        <Input
+          label="Base URL (optional)"
+          description="For self-hosted or proxied providers."
+          onChange={(e) => setBaseUrl(e.target.value)}
+          placeholder="https://api.openai.com/v1"
+          type="url"
+          value={baseUrl}
+        />
+        <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
+          <span className="text-muted-foreground">Embedding dimension</span>
+          <span className="font-mono tabular-nums">{selectedDimension}</span>
         </div>
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="secondary" onClick={onClose}>
