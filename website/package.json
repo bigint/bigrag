@@ -10,9 +10,9 @@
     "typecheck": "fumadocs-mdx && tsc --noEmit"
   },
   "dependencies": {
-    "fumadocs-core": "^16.7.12",
-    "fumadocs-mdx": "^14.2.11",
-    "fumadocs-ui": "^16.7.12",
+    "fumadocs-core": "^16.7.14",
+    "fumadocs-mdx": "^14.2.13",
+    "fumadocs-ui": "^16.7.14",
     "geist": "^1.7.0",
     "lucide-react": "^1.8.0",
     "mermaid": "^11.14.0",
