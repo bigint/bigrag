@@ -30,7 +30,7 @@ logger = logging.getLogger("bigrag.crypto")
 
 
 class CryptoNotConfiguredError(RuntimeError):
-    pass
+    """Raised when an encrypted column is touched without a master key loaded."""
 
 
 def configure(master_key: str | None) -> None:

@@ -80,8 +80,10 @@ class EventBus:
             self._listener.cancel()
             try:
                 await self._listener
-            except (asyncio.CancelledError, Exception):
+            except asyncio.CancelledError:
                 pass
+            except Exception as e:
+                logger.warning("event bus: listener task failed during shutdown", error=str(e))
         if self._pubsub:
             await self._pubsub.punsubscribe()
             await self._pubsub.aclose()
@@ -91,21 +93,20 @@ class EventBus:
 
     async def _listen(self) -> None:
         """Read messages from Redis and dispatch to local queues."""
-        try:
-            async for message in self._pubsub.listen():
-                if message["type"] != "pmessage":
-                    continue
-                try:
-                    channel: str = message["channel"]
-                    if isinstance(channel, bytes):
-                        channel = channel.decode()
-                    key = channel.removeprefix(CHANNEL_PREFIX)
-                    event = IngestionEvent.deserialize(message["data"])
-                    self._dispatch(key, event)
-                except Exception as e:
-                    logger.warning("event bus: bad message", error=str(e))
-        except asyncio.CancelledError:
-            pass
+        async for message in self._pubsub.listen():
+            if message["type"] != "pmessage":
+                continue
+            try:
+                channel: str = message["channel"]
+                if isinstance(channel, bytes):
+                    channel = channel.decode()
+                key = channel.removeprefix(CHANNEL_PREFIX)
+                event = IngestionEvent.deserialize(message["data"])
+                self._dispatch(key, event)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.warning("event bus: bad message", error=str(e))
 
     def _dispatch(self, channel_key: str, event: IngestionEvent) -> None:
         """Route an event to matching local subscriber queues."""

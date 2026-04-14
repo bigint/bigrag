@@ -7,18 +7,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSetup, useSetupStatus } from "@/hooks/use-auth";
 
+const useRedirectIfSetupComplete = () => {
+  const router = useRouter();
+  const { data: status, isPending } = useSetupStatus();
+  useEffect(() => {
+    if (!isPending && status && !status.needs_setup) router.replace("/login");
+  }, [isPending, status, router]);
+};
+
 const SetupPage = () => {
   const router = useRouter();
   const setup = useSetup();
-  const { data: status, isPending } = useSetupStatus();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
-  useEffect(() => {
-    if (!isPending && status && !status.needs_setup) router.replace("/login");
-  }, [isPending, status, router]);
+  useRedirectIfSetupComplete();
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

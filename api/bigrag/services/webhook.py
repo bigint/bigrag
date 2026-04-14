@@ -186,10 +186,10 @@ class WebhookDispatcher:
                     continue
                 try:
                     await self._handle_event(event)
+                except asyncio.CancelledError:
+                    raise
                 except Exception as e:
                     logger.error(f"Error handling event: {e!r}")
-        except asyncio.CancelledError:
-            pass
         finally:
             event_bus.unsubscribe("*", queue)
 

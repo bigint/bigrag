@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useLogin, useSetupStatus } from "@/hooks/use-auth";
 
+const useRedirectIfSetupNeeded = (needsSetup: boolean | undefined) => {
+  const router = useRouter();
+  useEffect(() => {
+    if (needsSetup) router.replace("/setup");
+  }, [needsSetup, router]);
+};
+
 const LoginPage = () => {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -15,11 +22,7 @@ const LoginPage = () => {
   const login = useLogin();
   const { data: setupStatus, isPending, isError, error } = useSetupStatus();
 
-  useEffect(() => {
-    if (setupStatus?.needs_setup) {
-      router.replace("/setup");
-    }
-  }, [setupStatus, router]);
+  useRedirectIfSetupNeeded(setupStatus?.needs_setup);
 
   if (isPending || setupStatus?.needs_setup) {
     return (

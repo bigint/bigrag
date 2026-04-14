@@ -35,6 +35,17 @@ const DEFAULT_STATE: PlaygroundState = {
   systemPrompt: DEFAULT_SYSTEM,
 };
 
+const useSelectFirstCollection = (
+  collections: { name: string }[],
+  current: string,
+  setCurrent: (name: string) => void,
+) => {
+  useEffect(() => {
+    const first = collections[0];
+    if (!current && first) setCurrent(first.name);
+  }, [collections, current, setCurrent]);
+};
+
 const PlaygroundPage = () => {
   const prefsQuery = usePreferences();
   const updatePrefs = useUpdatePreferences();
@@ -67,10 +78,7 @@ const PlaygroundPage = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    const first = collections[0];
-    if (!collection && first) setCollection(first.name);
-  }, [collections, collection]);
+  useSelectFirstCollection(collections, collection, setCollection);
 
   const stopStreaming = () => {
     abortRef.current?.abort();
