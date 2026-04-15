@@ -61,6 +61,13 @@ def _validate_scopes(scopes: list[str] | None) -> None:
         validate_scope_string(s)
 
 
+def _is_mcp_key(key: ApiKey) -> bool:
+    """MCP-server keys live in the same table but are managed from
+    ``/v1/admin/mcp-servers``. Hide them from generic api-keys CRUD."""
+    permissions = key.permissions or {}
+    return isinstance(permissions, dict) and isinstance(permissions.get("mcp"), dict)
+
+
 async def _validate_collection(
     session: AsyncSession, collection: str | None
 ) -> str | None:
@@ -84,12 +91,17 @@ async def list_api_keys(
     _: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> ApiKeyListResponse:
+    # Keys minted by the /mcp page live in the same table; filter them
+    # out here so they're only visible from their own admin UI.
+    base = sa.select(ApiKey).where(ApiKey.permissions["mcp"].is_(None))
     keys = (
         await session.scalars(
-            sa.select(ApiKey).order_by(ApiKey.created_at.desc()).limit(limit).offset(offset)
+            base.order_by(ApiKey.created_at.desc()).limit(limit).offset(offset)
         )
     ).all()
-    total = await session.scalar(sa.select(sa.func.count()).select_from(ApiKey))
+    total = await session.scalar(
+        sa.select(sa.func.count()).select_from(ApiKey).where(ApiKey.permissions["mcp"].is_(None))
+    )
     return ApiKeyListResponse(keys=[_key_response(k) for k in keys], total=total or 0)
 
 
@@ -156,7 +168,7 @@ async def update_api_key(
         raise HTTPException(status_code=404, detail="API key not found") from e
 
     key = await session.get(ApiKey, target_id)
-    if key is None:
+    if key is None or _is_mcp_key(key):
         raise HTTPException(status_code=404, detail="API key not found")
 
     if body.name is not None:
@@ -201,7 +213,7 @@ async def delete_api_key(
         raise HTTPException(status_code=404, detail="API key not found") from e
 
     key = await session.get(ApiKey, target_id)
-    if key is None:
+    if key is None or _is_mcp_key(key):
         raise HTTPException(status_code=404, detail="API key not found")
     await session.delete(key)
     await session.commit()
