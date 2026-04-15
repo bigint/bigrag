@@ -88,9 +88,18 @@ async def lifespan(app: FastAPI):
 
     cleanup_task = asyncio.create_task(cleanup_old_data())
 
+    # Start the MCP streamable-http session manager (task group). Must
+    # be entered before any /mcp request is served.
+    mcp_session_manager = getattr(app.state, "mcp_session_manager", None)
+    mcp_cm = mcp_session_manager.run() if mcp_session_manager is not None else None
+    if mcp_cm is not None:
+        await mcp_cm.__aenter__()
+
     logger.info("server ready", host=s.host, port=s.port)
     yield
 
+    if mcp_cm is not None:
+        await mcp_cm.__aexit__(None, None, None)
     cleanup_task.cancel()
     await ingestion_queue.stop()
     await dispatcher.stop()
@@ -167,6 +176,14 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(evaluation_router)
     app.include_router(usage_router)
     app.include_router(webhooks_router)
+
+    # Remote MCP endpoint — URL-based clients (Claude custom connector,
+    # remote Cursor) hit this instead of launching the `bigrag-mcp` CLI.
+    from bigrag.services.mcp_http import build_mcp_http_app
+
+    mcp_asgi, mcp_session_manager = build_mcp_http_app(app)
+    app.state.mcp_session_manager = mcp_session_manager
+    app.mount("/mcp", mcp_asgi)
 
     return app
 
