@@ -17,6 +17,6 @@
     "test:api": "cd api && uv run pytest tests/ -v --tb=short"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.11"
+    "@biomejs/biome": "^2.4.12"
   }
 }
