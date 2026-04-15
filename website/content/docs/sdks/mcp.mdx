@@ -3,21 +3,76 @@ title: MCP Server
 description: Expose a bigRAG instance over the Model Context Protocol so Claude Desktop, Cursor, and other MCP clients can retrieve from your collections natively.
 ---
 
-bigRAG ships an [MCP](https://modelcontextprotocol.io) server that wraps
-the REST API as tool calls. Point it at a running bigRAG instance and any
-MCP-aware runtime can list collections, query them, and fetch individual
-documents — no HTTP plumbing on the client side.
+bigRAG ships an [MCP](https://modelcontextprotocol.io) server in two
+shapes:
 
-## Install
+- **Remote HTTP** — mounted on the bigRAG API at `/mcp`, works with
+  Claude's custom connector, remote Cursor, and any streamable-http
+  client. No local install.
+- **Local stdio** — the `bigrag-mcp` CLI, for Claude Desktop's
+  `config.json` and older Cursor setups.
 
-The `bigrag-mcp` command is bundled with the `bigrag` Python package.
+Both share the same toolset. Scope (all-collections vs pinned to one
+collection) is derived from the API key.
 
-```bash
-pip install bigrag
-# or (preferred): uv tool install bigrag
+## Scoping via API keys
+
+When minting an API key in Studio (`/api-keys`), set **Collection
+scope** to pin the key to one collection. The bigRAG API blocks
+cross-collection endpoints for scoped keys with a 403, and both MCP
+transports adjust their toolset accordingly:
+
+| Key scope | Tools exposed |
+|-----------|---------------|
+| **All collections** | 8 tools including `list_collections` and `multi_collection_query`. |
+| **Pinned to `X`** | 6 tools, all with `collection` pre-bound to `X`. `list_collections` and `multi_collection_query` are hidden. |
+
+There is no separate `BIGRAG_COLLECTION` env var — the key itself
+carries its scope. To change scope, mint a new key.
+
+## Configure from Studio
+
+The fastest setup: open Studio → **MCP** → **New configuration**. Pick
+an API key, paste its value, and Studio renders all three snippets
+(remote URL, Claude Desktop JSON, shell command) ready to paste into
+the client of your choice.
+
+The rest of this page is the manual equivalent.
+
+## Remote HTTP (Claude custom connector, remote Cursor)
+
+No local install. Point the client at:
+
+```
+https://bigrag.example.com/mcp?token=bigrag_sk_...
 ```
 
-## Run
+For Claude's custom connector beta:
+
+- **Name**: anything you like, e.g. "bigRAG" or "bigRAG runbooks".
+- **Remote MCP server URL**: paste the URL above.
+- **OAuth Client ID / Secret**: leave blank — bigRAG authenticates via
+  the `?token=` query param, not OAuth.
+
+The token appears in the URL. Treat the URL like a password: it may
+end up in reverse-proxy and server logs. If a URL leaks, revoke the
+key in Studio.
+
+Under the hood the endpoint is a FastMCP server with
+`stateless_http=True` and `json_response=True`; every request carries
+the token and is dispatched through the bigRAG REST API, so all
+auth / scope / rate-limit rules apply uniformly.
+
+## Local stdio (Claude Desktop, legacy Cursor)
+
+Install the CLI:
+
+```bash
+uv tool install bigrag
+# or: pip install bigrag
+```
+
+Run directly:
 
 ```bash
 BIGRAG_URL=https://bigrag.example.com \
@@ -25,18 +80,23 @@ BIGRAG_API_KEY=bigrag_sk_... \
 bigrag-mcp
 ```
 
-Defaults:
+Flags:
 
 | Flag | Default | Notes |
 |------|---------|-------|
 | `--base-url` | `http://localhost:6100` | also read from `BIGRAG_URL` |
-| `--api-key` | _(none)_ | also read from `BIGRAG_API_KEY`; required for protected endpoints |
+| `--api-key` | _(none)_ | also read from `BIGRAG_API_KEY` |
 | `--transport` | `stdio` | alt: `streamable-http` |
 | `--port` | `6101` | for streamable-http only |
 
-## Claude Desktop
+Scope is discovered on startup via `GET /v1/auth/whoami`. If the key
+is pinned to a collection, the CLI registers the scoped toolset
+automatically.
 
-Add this to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+### Claude Desktop config
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`
+(macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
@@ -52,32 +112,36 @@ Add this to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-Restart Claude Desktop. The `bigrag` server appears under the tools icon
-with six tools registered.
-
-## Cursor / Windsurf / other MCP clients
-
-Any client that speaks MCP over stdio works identically. Consult the
-client's docs for where to register the server command; the command and
-env vars are the same as above.
+Restart Claude Desktop. The server appears under the tools icon with
+the tools registered for that key's scope.
 
 ## Tools
 
 All tools are thin wrappers around `/v1/*` endpoints. They honor the
 same auth, scopes, and rate limits as any other API client.
 
+### Full-workspace key
+
 | Tool | Calls | Purpose |
 |------|-------|---------|
 | `list_collections` | `GET /v1/collections` | Discover what's available. |
-| `get_collection` | `GET /v1/collections/{name}` | Read embedding/chunking config and counts. |
-| `query` | `POST /v1/collections/{name}/query` | **The main tool** — retrieve top-k chunks for a natural-language question. |
-| `list_documents` | `GET /v1/collections/{name}/documents` | Paginate through a collection's documents. |
-| `get_document` | `GET /v1/collections/{name}/documents/{id}` | Fetch one document's metadata. |
-| `get_document_chunks` | `GET /v1/collections/{name}/documents/{id}/chunks` | Read every chunk of a document in order. |
+| `get_collection` | `GET /v1/collections/{name}` | Embedding / chunking config. |
+| `get_collection_stats` | `GET /v1/collections/{name}/stats` | Document/chunk/token counts. |
+| `query` | `POST /v1/collections/{name}/query` | **Main tool** — top-k chunks for a question. |
+| `multi_collection_query` | `POST /v1/query` | Search several collections in parallel. |
+| `list_documents` | `GET /v1/collections/{name}/documents` | Paginate documents. |
+| `get_document` | `GET /v1/collections/{name}/documents/{id}` | Metadata for one document. |
+| `get_document_chunks` | `GET /v1/collections/{name}/documents/{id}/chunks` | All chunks of a document. |
+
+### Collection-pinned key
+
+Same six tools minus `list_collections` and `multi_collection_query`,
+and with the `collection` / `name` argument removed (pre-bound from
+the key's scope).
 
 ## Example interaction
 
-Once configured, the client can call tools directly:
+Once configured:
 
 > **User:** What does our runbook say about Postgres failover?
 >
@@ -93,5 +157,5 @@ Once configured, the client can call tools directly:
   SDK, or the Studio UI for writes.
 - Streaming SSE endpoints (document progress, collection events) are
   not wrapped — MCP tools are request/response only.
-- The server is a client of the bigRAG HTTP API; it does not connect to
-  Postgres or Milvus directly.
+- OAuth 2.0 flows are not implemented. For URL-based clients, use the
+  token-in-URL pattern above. OAuth is tracked as a future addition.
