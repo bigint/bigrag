@@ -15,33 +15,43 @@ shapes:
 Both share the same toolset. Scope (all-collections vs pinned to one
 collection) is derived from the API key.
 
-## Scoping via API keys
+## Studio manages its own credentials
 
-When minting an API key in Studio (`/api-keys`), set **Collection
-scope** to pin the key to one collection. The bigRAG API blocks
-cross-collection endpoints for scoped keys with a 403, and both MCP
-transports adjust their toolset accordingly:
+Studio's **MCP** page (`/mcp`) is the canonical way to set one up.
+Creating an MCP there:
 
-| Key scope | Tools exposed |
+1. mints a fresh bigRAG API key dedicated to that MCP (not shared
+   with `/api-keys`);
+2. shows the full URL (with token embedded) exactly once — copy it
+   straight into Claude's custom connector or Claude Desktop config;
+3. persists the MCP as a first-class server-side resource (title,
+   server name, collection scope, key prefix) that you can later
+   rotate or delete.
+
+You do **not** pick from existing keys on `/api-keys` — MCP credentials
+live in their own namespace. If a URL leaks or is lost, click **Rotate
+key** on the MCP's detail dialog. The previous token stops working
+immediately on the next request.
+
+## Scoping to a single collection
+
+When creating the MCP in Studio, set **Collection scope** to pin it to
+one collection. The bigRAG API blocks cross-collection endpoints for
+scoped MCPs with a 403, and both transports adjust their toolset:
+
+| MCP scope | Tools exposed |
 |-----------|---------------|
 | **All collections** | 8 tools including `list_collections` and `multi_collection_query`. |
 | **Pinned to `X`** | 6 tools, all with `collection` pre-bound to `X`. `list_collections` and `multi_collection_query` are hidden. |
 
 There is no separate `BIGRAG_COLLECTION` env var — the key itself
-carries its scope. To change scope, mint a new key.
-
-## Configure from Studio
-
-The fastest setup: open Studio → **MCP** → **New configuration**. Pick
-an API key, paste its value, and Studio renders all three snippets
-(remote URL, Claude Desktop JSON, shell command) ready to paste into
-the client of your choice.
-
-The rest of this page is the manual equivalent.
+carries its scope. To change scope, delete the MCP and create a new
+one (or rotate after editing via the REST API).
 
 ## Remote HTTP (Claude custom connector, remote Cursor)
 
-No local install. Point the client at:
+No local install. Studio hands you the full URL at MCP creation time;
+its shape is:
 
 ```
 https://bigrag.example.com/mcp?token=bigrag_sk_...
