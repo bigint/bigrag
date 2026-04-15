@@ -149,12 +149,8 @@ def _build_server() -> FastMCP:
         min_score: Annotated[
             float | None, Field(description="Drop results below this score")
         ] = None,
-        rerank: Annotated[
-            bool, Field(description="Run the collection's reranker")
-        ] = False,
-        filters: Annotated[
-            dict[str, Any] | None, Field(description="Metadata filter")
-        ] = None,
+        rerank: Annotated[bool, Field(description="Run the collection's reranker")] = False,
+        filters: Annotated[dict[str, Any] | None, Field(description="Metadata filter")] = None,
     ) -> dict[str, Any]:
         """Retrieve the top-k most relevant chunks from a collection."""
         body: dict[str, Any] = {
@@ -181,12 +177,8 @@ def _build_server() -> FastMCP:
         min_score: Annotated[
             float | None, Field(description="Drop results below this score")
         ] = None,
-        rerank: Annotated[
-            bool, Field(description="Run each collection's reranker")
-        ] = False,
-        filters: Annotated[
-            dict[str, Any] | None, Field(description="Metadata filter")
-        ] = None,
+        rerank: Annotated[bool, Field(description="Run each collection's reranker")] = False,
+        filters: Annotated[dict[str, Any] | None, Field(description="Metadata filter")] = None,
     ) -> dict[str, Any]:
         """Search several collections in parallel."""
         body: dict[str, Any] = {

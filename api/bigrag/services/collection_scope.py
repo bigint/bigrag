@@ -58,7 +58,6 @@ async def enforce_collection_scope(request: Request, pinned: str) -> None:
         raise HTTPException(
             status_code=403,
             detail=(
-                f"This API key is pinned to collection {pinned!r}; request "
-                f"targeted {target!r}."
+                f"This API key is pinned to collection {pinned!r}; request targeted {target!r}."
             ),
         )

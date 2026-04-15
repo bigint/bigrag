@@ -95,9 +95,7 @@ def _to_response(key: ApiKey) -> McpServerResponse:
     permissions = key.permissions or {}
     mcp = permissions.get("mcp") or {}
     raw_collection = permissions.get("collection")
-    collection = (
-        raw_collection if isinstance(raw_collection, str) and raw_collection else None
-    )
+    collection = raw_collection if isinstance(raw_collection, str) and raw_collection else None
     return McpServerResponse(
         id=str(key.id),
         title=mcp.get("title") or key.name,
@@ -111,18 +109,14 @@ def _to_response(key: ApiKey) -> McpServerResponse:
     )
 
 
-def _permissions(
-    title: str, server_name: str, collection: str | None
-) -> dict:
+def _permissions(title: str, server_name: str, collection: str | None) -> dict:
     permissions: dict = {"mcp": {"title": title, "server_name": server_name}}
     if collection:
         permissions["collection"] = collection
     return permissions
 
 
-async def _validate_collection(
-    session: AsyncSession, collection: str | None
-) -> str | None:
+async def _validate_collection(session: AsyncSession, collection: str | None) -> str | None:
     if collection is None:
         return None
     name = collection.strip()

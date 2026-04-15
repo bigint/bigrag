@@ -68,9 +68,7 @@ def _is_mcp_key(key: ApiKey) -> bool:
     return isinstance(permissions, dict) and isinstance(permissions.get("mcp"), dict)
 
 
-async def _validate_collection(
-    session: AsyncSession, collection: str | None
-) -> str | None:
+async def _validate_collection(session: AsyncSession, collection: str | None) -> str | None:
     """Return the normalized collection name or None. Raises 400 if the
     name is provided but doesn't match an existing collection."""
     if collection is None:
@@ -95,9 +93,7 @@ async def list_api_keys(
     # out here so they're only visible from their own admin UI.
     base = sa.select(ApiKey).where(ApiKey.permissions["mcp"].is_(None))
     keys = (
-        await session.scalars(
-            base.order_by(ApiKey.created_at.desc()).limit(limit).offset(offset)
-        )
+        await session.scalars(base.order_by(ApiKey.created_at.desc()).limit(limit).offset(offset))
     ).all()
     total = await session.scalar(
         sa.select(sa.func.count()).select_from(ApiKey).where(ApiKey.permissions["mcp"].is_(None))

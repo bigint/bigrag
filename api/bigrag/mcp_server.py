@@ -60,13 +60,9 @@ async def _discover_scope(client: httpx.AsyncClient) -> str | None:
     try:
         r = await client.get("/v1/auth/whoami")
     except httpx.HTTPError as e:
-        raise RuntimeError(
-            f"bigrag-mcp: could not reach bigRAG at {client.base_url!s}: {e}"
-        ) from e
+        raise RuntimeError(f"bigrag-mcp: could not reach bigRAG at {client.base_url!s}: {e}") from e
     if r.status_code == 401:
-        raise RuntimeError(
-            "bigrag-mcp: API key rejected (401). Check BIGRAG_API_KEY."
-        )
+        raise RuntimeError("bigrag-mcp: API key rejected (401). Check BIGRAG_API_KEY.")
     _raise_for_status(r)
     body = r.json()
     collection = body.get("collection")
@@ -209,12 +205,8 @@ def create_server(
             min_score: Annotated[
                 float | None, Field(description="Drop results below this score")
             ] = None,
-            rerank: Annotated[
-                bool, Field(description="Run each collection's reranker")
-            ] = False,
-            filters: Annotated[
-                dict[str, Any] | None, Field(description="Metadata filter")
-            ] = None,
+            rerank: Annotated[bool, Field(description="Run each collection's reranker")] = False,
+            filters: Annotated[dict[str, Any] | None, Field(description="Metadata filter")] = None,
         ) -> dict[str, Any]:
             """Search several collections in parallel when you don't know
             which one has the answer. Merges and scores results across them.
@@ -265,9 +257,7 @@ def create_server(
             document_id: Annotated[str, Field(description="Document UUID")],
         ) -> dict[str, Any]:
             """Return every chunk of a document in order, with its text and metadata."""
-            r = await client.get(
-                f"/v1/collections/{collection}/documents/{document_id}/chunks"
-            )
+            r = await client.get(f"/v1/collections/{collection}/documents/{document_id}/chunks")
             _raise_for_status(r)
             return r.json()
 
