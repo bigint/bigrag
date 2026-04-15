@@ -12,7 +12,7 @@ If you discover a security vulnerability in bigRAG, please report it responsibly
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Instead, please email **security@bigrag.io** with:
+Instead, please email **yoginth@hey.com** with:
 
 - A description of the vulnerability
 - Steps to reproduce the issue
