@@ -1,30 +1,19 @@
 "use client";
 
-import {
-  Check,
-  ChevronDown,
-  Copy,
-  ExternalLink,
-  Eye,
-  EyeOff,
-  Plug,
-  Plus,
-  Terminal,
-  Trash2,
-} from "lucide-react";
+import { Check, Copy, ExternalLink, Eye, EyeOff, Pencil, Plug, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { type Column, DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select, type SelectOption } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useApiKeys } from "@/hooks/use-api-keys";
-import { cn } from "@/lib/cn";
 import type { ApiKey } from "@/types/bigrag";
 
 const STORAGE_KEY = "bigrag:mcp:configs:v2";
@@ -37,8 +26,6 @@ interface McpConfig {
   url: string;
   selectedKeyId: string;
 }
-
-interface PersistedConfig extends McpConfig {}
 
 const TOOLS_UNSCOPED = [
   { name: "list_collections", description: "Discover which collections this key can read." },
@@ -73,41 +60,43 @@ const slugify = (s: string) =>
 
 const makeId = () => `cfg_${Math.random().toString(36).slice(2, 10)}`;
 
-const defaultConfig = (url: string): McpConfig => ({
+const defaultConfig = (url: string, index: number): McpConfig => ({
   id: makeId(),
-  title: "bigRAG",
-  serverName: "bigrag",
+  title: index === 0 ? "bigRAG" : `bigRAG ${index + 1}`,
+  serverName: index === 0 ? "bigrag" : `bigrag-${index + 1}`,
   url,
   selectedKeyId: "",
 });
 
-const buildJsonSnippet = (c: McpConfig, apiKey: string) => {
-  const env: Record<string, string> = {
-    BIGRAG_URL: c.url.trim() || "http://localhost:6100",
-    BIGRAG_API_KEY: apiKey.trim() || PLACEHOLDER_KEY,
-  };
-  return JSON.stringify(
-    { mcpServers: { [c.serverName || "bigrag"]: { command: "bigrag-mcp", env } } },
+const trimTrailingSlash = (s: string) => s.replace(/\/+$/, "");
+const safeUrl = (url: string) => trimTrailingSlash(url.trim() || "http://localhost:6100");
+
+const buildClaudeDesktopJson = (c: McpConfig, apiKey: string) =>
+  JSON.stringify(
+    {
+      mcpServers: {
+        [c.serverName || "bigrag"]: {
+          command: "bigrag-mcp",
+          env: {
+            BIGRAG_URL: safeUrl(c.url),
+            BIGRAG_API_KEY: apiKey.trim() || PLACEHOLDER_KEY,
+          },
+        },
+      },
+    },
     null,
     2,
   );
-};
 
-const buildShellSnippet = (c: McpConfig, apiKey: string) => {
-  const lines = [
-    `BIGRAG_URL=${c.url.trim() || "http://localhost:6100"}`,
-    `BIGRAG_API_KEY=${apiKey.trim() || PLACEHOLDER_KEY}`,
-  ];
-  return `${lines.join(" \\\n  ")} \\\n  bigrag-mcp`;
-};
+const buildShellSnippet = (c: McpConfig, apiKey: string) =>
+  `BIGRAG_URL=${safeUrl(c.url)} \\
+  BIGRAG_API_KEY=${apiKey.trim() || PLACEHOLDER_KEY} \\
+  bigrag-mcp`;
 
-const buildRemoteUrl = (c: McpConfig, apiKey: string) => {
-  const base = (c.url.trim() || "http://localhost:6100").replace(/\/+$/, "");
-  const token = apiKey.trim() || PLACEHOLDER_KEY;
-  return `${base}/mcp?token=${encodeURIComponent(token)}`;
-};
+const buildRemoteUrl = (c: McpConfig, apiKey: string) =>
+  `${safeUrl(c.url)}/mcp?token=${encodeURIComponent(apiKey.trim() || PLACEHOLDER_KEY)}`;
 
-const CodeBlock = ({ code, label }: { code: string; label: string }) => {
+const CopyButton = ({ code, label }: { code: string; label: string }) => {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     await navigator.clipboard.writeText(code);
@@ -116,202 +105,285 @@ const CodeBlock = ({ code, label }: { code: string; label: string }) => {
     setTimeout(() => setCopied(false), 1800);
   };
   return (
-    <div className="relative">
-      <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-4 font-mono text-xs leading-relaxed">
-        <code>{code}</code>
-      </pre>
-      <div className="absolute top-2 right-2">
-        <Tooltip content={copied ? "Copied" : "Copy"}>
-          <Button
-            aria-label={`Copy ${label}`}
-            className="h-7 w-7 p-0"
-            onClick={copy}
-            size="sm"
-            variant="secondary"
-          >
-            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-          </Button>
-        </Tooltip>
-      </div>
-    </div>
+    <Tooltip content={copied ? "Copied" : "Copy"}>
+      <Button
+        aria-label={`Copy ${label}`}
+        className="h-7 w-7 p-0"
+        onClick={copy}
+        size="sm"
+        variant="secondary"
+      >
+        {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+      </Button>
+    </Tooltip>
   );
 };
 
-interface ConfigCardProps {
-  config: McpConfig;
+const CodeBlock = ({ code, label }: { code: string; label: string }) => (
+  <div className="relative">
+    <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-4 font-mono text-xs leading-relaxed">
+      <code>{code}</code>
+    </pre>
+    <div className="absolute top-2 right-2">
+      <CopyButton code={code} label={label} />
+    </div>
+  </div>
+);
+
+interface ConfigDialogProps {
+  open: boolean;
+  onClose: () => void;
+  config: McpConfig | null;
   apiKey: string;
   onUpdate: (patch: Partial<McpConfig>) => void;
   onUpdateKey: (value: string) => void;
-  onDelete: () => void;
   keyOptions: SelectOption[];
   hasActiveKeys: boolean;
   selectedKey: ApiKey | undefined;
+  keysPending: boolean;
+  mode: "create" | "edit";
 }
 
-const ConfigCard = ({
+const ConfigDialog = ({
+  open,
+  onClose,
   config,
   apiKey,
   onUpdate,
   onUpdateKey,
-  onDelete,
   keyOptions,
   hasActiveKeys,
   selectedKey,
-}: ConfigCardProps) => {
+  keysPending,
+  mode,
+}: ConfigDialogProps) => {
   const [revealed, setRevealed] = useState(false);
-  const [showShell, setShowShell] = useState(false);
+
+  useEffect(() => {
+    if (!open) setRevealed(false);
+  }, [open]);
+
+  if (!config) return null;
+
+  const isScoped = Boolean(selectedKey?.collection);
+  const hasKey = !!selectedKey;
+  const remoteUrl = buildRemoteUrl(config, apiKey);
+  const jsonSnippet = buildClaudeDesktopJson(config, apiKey);
+  const shellSnippet = buildShellSnippet(config, apiKey);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <CardTitle className="flex items-center gap-2">
-            <Plug className="size-4 shrink-0 text-muted-foreground" />
-            <span className="truncate">{config.title || "Untitled"}</span>
-            {selectedKey?.collection ? (
-              <Badge variant="neutral">{selectedKey.collection}</Badge>
-            ) : selectedKey ? (
-              <Badge variant="neutral">all collections</Badge>
-            ) : null}
-          </CardTitle>
-          <CardDescription className="mt-1">
-            Server name{" "}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
-              {config.serverName || "bigrag"}
-            </code>
-            {selectedKey?.collection
-              ? ` — auto-scoped to collection "${selectedKey.collection}" (derived from the key)`
-              : selectedKey
-                ? " — full-workspace access"
-                : ""}
-          </CardDescription>
-        </div>
-        <Tooltip content="Delete configuration">
-          <Button
-            aria-label="Delete configuration"
-            className="hover:bg-destructive/10 hover:text-destructive"
-            onClick={onDelete}
-            size="sm"
-            variant="ghost"
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </Tooltip>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          <Input
-            autoComplete="off"
-            description="Freeform label for your own reference."
-            label="Title"
-            onChange={(e) => onUpdate({ title: e.target.value })}
-            placeholder="Product docs"
-            value={config.title}
-          />
-          <Input
-            autoComplete="off"
-            description="Used as the mcpServers key in the client config."
-            label="Server name"
-            onChange={(e) => onUpdate({ serverName: slugify(e.target.value) })}
-            placeholder="bigrag-product-docs"
-            value={config.serverName}
-          />
-          <Input
-            autoComplete="off"
-            description="Public bigRAG URL. Usually this Studio's origin."
-            label="URL"
-            onChange={(e) => onUpdate({ url: e.target.value })}
-            placeholder="http://localhost:6100"
-            value={config.url}
-          />
-
-          {hasActiveKeys ? (
-            <Select
-              label="API key"
-              onChange={(v) => onUpdate({ selectedKeyId: v })}
-              options={keyOptions}
-              value={config.selectedKeyId}
-            />
-          ) : (
-            <div>
-              <div className="mb-1 block text-sm font-medium">API key</div>
-              <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                No active keys.{" "}
-                <Link className="font-medium text-primary underline" href="/api-keys">
-                  Create one
-                </Link>
-                .
-              </div>
-            </div>
-          )}
-
-          <div className="md:col-span-2">
+    <Modal
+      onClose={onClose}
+      open={open}
+      size="xl"
+      title={mode === "create" ? "New MCP configuration" : `MCP — ${config.title || "Untitled"}`}
+    >
+      <div className="space-y-8">
+        <section>
+          <h3 className="mb-3 font-medium text-sm">Basics</h3>
+          <div className="grid gap-4 md:grid-cols-2">
             <Input
               autoComplete="off"
-              description={
-                selectedKey
-                  ? `Paste the full value for key "${selectedKey.name}". Not stored anywhere.`
-                  : "Paste the full key value. Not stored anywhere."
-              }
-              label="API key value"
-              onChange={(e) => onUpdateKey(e.target.value)}
-              placeholder={PLACEHOLDER_KEY}
-              spellCheck={false}
-              trailing={
-                <Tooltip content={revealed ? "Hide" : "Reveal"}>
-                  <button
-                    aria-label={revealed ? "Hide key" : "Reveal key"}
-                    className="inline-flex size-7 items-center justify-center rounded-md hover:bg-accent"
-                    onClick={() => setRevealed((v) => !v)}
-                    type="button"
-                  >
-                    {revealed ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </Tooltip>
-              }
-              type={revealed ? "text" : "password"}
-              value={apiKey}
+              description="Freeform label for your own reference."
+              label="Title"
+              onChange={(e) => onUpdate({ title: e.target.value })}
+              placeholder="Product docs"
+              value={config.title}
             />
+            <Input
+              autoComplete="off"
+              description="Used as the mcpServers key in the client config."
+              label="Server name"
+              onChange={(e) => onUpdate({ serverName: slugify(e.target.value) })}
+              placeholder="bigrag-product-docs"
+              value={config.serverName}
+            />
+            <Input
+              autoComplete="off"
+              description="Public bigRAG URL. Usually this Studio's origin."
+              label="URL"
+              onChange={(e) => onUpdate({ url: e.target.value })}
+              placeholder="http://localhost:6100"
+              value={config.url}
+            />
+            {hasActiveKeys ? (
+              <Select
+                label="API key"
+                onChange={(v) => onUpdate({ selectedKeyId: v })}
+                options={keyOptions}
+                value={config.selectedKeyId}
+              />
+            ) : (
+              <div>
+                <div className="mb-1 block text-sm font-medium">API key</div>
+                <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  {keysPending ? (
+                    "Loading keys…"
+                  ) : (
+                    <>
+                      No active keys.{" "}
+                      <Link className="font-medium text-primary underline" href="/api-keys">
+                        Create one
+                      </Link>
+                      .
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="md:col-span-2">
+              <Input
+                autoComplete="off"
+                description={
+                  selectedKey
+                    ? `Paste the full value for key "${selectedKey.name}". Not stored anywhere.`
+                    : "Paste the full key value. Not stored anywhere."
+                }
+                label="API key value"
+                onChange={(e) => onUpdateKey(e.target.value)}
+                placeholder={PLACEHOLDER_KEY}
+                spellCheck={false}
+                trailing={
+                  <Tooltip content={revealed ? "Hide" : "Reveal"}>
+                    <button
+                      aria-label={revealed ? "Hide key" : "Reveal key"}
+                      className="inline-flex size-7 items-center justify-center rounded-md hover:bg-accent"
+                      onClick={() => setRevealed((v) => !v)}
+                      type="button"
+                    >
+                      {revealed ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </Tooltip>
+                }
+                type={revealed ? "text" : "password"}
+                value={apiKey}
+              />
+            </div>
           </div>
-        </div>
+          {hasKey && (
+            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Server scope:</span>
+              {isScoped ? (
+                <Badge variant="neutral">pinned to {selectedKey?.collection}</Badge>
+              ) : (
+                <Badge variant="neutral">all collections</Badge>
+              )}
+            </div>
+          )}
+        </section>
 
-        <div className="space-y-2">
-          <div className="flex items-baseline justify-between">
-            <div className="text-xs font-medium text-muted-foreground">
-              Remote URL (Claude custom connector, remote Cursor)
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Paste as <em>Remote MCP server URL</em>.
-            </div>
+        <section>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h3 className="font-medium text-sm">Remote URL</h3>
+            <span className="text-xs text-muted-foreground">
+              Claude custom connector · remote Cursor
+            </span>
           </div>
-          <CodeBlock code={buildRemoteUrl(config, apiKey)} label="remote MCP URL" />
-          <p className="text-xs text-muted-foreground">
-            The token is embedded as a URL query param. Treat the URL like a password — it may
-            appear in reverse-proxy / server logs. Revoke the key if the URL leaks.
+          <CodeBlock code={remoteUrl} label="remote MCP URL" />
+          <ol className="mt-3 list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
+            <li>
+              In Claude, open <em>Add custom connector</em>.
+            </li>
+            <li>
+              Set <em>Name</em> to{" "}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono">
+                {config.title || "bigRAG"}
+              </code>
+              .
+            </li>
+            <li>
+              Paste the URL above into <em>Remote MCP server URL</em>.
+            </li>
+            <li>
+              Leave the OAuth fields blank — auth is via the{" "}
+              <code className="font-mono">?token=</code> query param.
+            </li>
+          </ol>
+          <p className="mt-2 text-xs text-muted-foreground">
+            The token is embedded in the URL. Treat the URL like a password — it may appear in
+            reverse-proxy / server logs. Revoke the key in{" "}
+            <Link className="font-medium text-primary underline" href="/api-keys">
+              API keys
+            </Link>{" "}
+            if the URL leaks.
           </p>
-        </div>
+        </section>
 
-        <div className="space-y-2">
-          <div className="text-xs font-medium text-muted-foreground">
-            Local stdio (Claude Desktop <code className="font-mono">config.json</code>, legacy
-            Cursor)
+        <section>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h3 className="font-medium text-sm">Claude Desktop</h3>
+            <span className="text-xs text-muted-foreground">Local stdio · config.json</span>
           </div>
-          <CodeBlock code={buildJsonSnippet(config, apiKey)} label="JSON config" />
-        </div>
+          <CodeBlock code={jsonSnippet} label="Claude Desktop JSON config" />
+          <ol className="mt-3 list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
+            <li>
+              Install the CLI:{" "}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono">uv tool install bigrag</code>{" "}
+              (or <code className="rounded bg-muted px-1 py-0.5 font-mono">pip install bigrag</code>
+              ).
+            </li>
+            <li>
+              Open{" "}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono">
+                ~/Library/Application Support/Claude/claude_desktop_config.json
+              </code>{" "}
+              (macOS) or{" "}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono">
+                %APPDATA%\Claude\claude_desktop_config.json
+              </code>{" "}
+              (Windows).
+            </li>
+            <li>Merge the snippet above into the existing file.</li>
+            <li>
+              Restart Claude Desktop. The{" "}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono">
+                {config.serverName || "bigrag"}
+              </code>{" "}
+              server appears under the tools icon.
+            </li>
+          </ol>
+        </section>
 
-        <button
-          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-          onClick={() => setShowShell((v) => !v)}
-          type="button"
-        >
-          <Terminal className="size-3.5" />
-          {showShell ? "Hide" : "Show"} shell command
-          <ChevronDown className={cn("size-3.5 transition-transform", showShell && "rotate-180")} />
-        </button>
-        {showShell && <CodeBlock code={buildShellSnippet(config, apiKey)} label="shell command" />}
-      </CardContent>
-    </Card>
+        <section>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h3 className="font-medium text-sm">Shell (quick test)</h3>
+            <span className="text-xs text-muted-foreground">stdio · foreground</span>
+          </div>
+          <CodeBlock code={shellSnippet} label="shell command" />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Runs the stdio server in your terminal. Ctrl-C to stop. Useful for verifying auth before
+            wiring it into a client.
+          </p>
+        </section>
+
+        <section>
+          <h3 className="mb-3 font-medium text-sm">
+            Tools exposed {hasKey ? (isScoped ? "(scoped set)" : "(full set)") : ""}
+          </h3>
+          {!hasKey ? (
+            <p className="text-sm text-muted-foreground">
+              Pick an API key above to see which tools this server will expose.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {(isScoped ? TOOLS_SCOPED : TOOLS_UNSCOPED).map((tool) => (
+                <li className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0" key={tool.name}>
+                  <code className="mt-0.5 shrink-0 font-mono text-sm">{tool.name}</code>
+                  <span className="text-sm text-muted-foreground">{tool.description}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {isScoped && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Scoped servers drop the <code className="font-mono">collection</code> argument and
+              hide <code className="font-mono">list_collections</code> /{" "}
+              <code className="font-mono">multi_collection_query</code>.
+            </p>
+          )}
+        </section>
+      </div>
+    </Modal>
   );
 };
 
@@ -321,26 +393,26 @@ const McpPage = () => {
 
   const [configs, setConfigs] = useState<McpConfig[]>([]);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [openId, setOpenId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const origin = window.location.origin;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as PersistedConfig[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        const parsed = JSON.parse(raw) as McpConfig[];
+        if (Array.isArray(parsed)) {
           setConfigs(parsed);
           setHydrated(true);
           return;
         }
       }
     } catch {
-      // malformed storage — fall through to default
+      // malformed storage — fall through to empty
     }
-    setConfigs([defaultConfig(origin)]);
+    setConfigs([]);
     setHydrated(true);
   }, []);
 
@@ -366,13 +438,9 @@ const McpPage = () => {
 
   const addConfig = () => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    setConfigs((prev) => {
-      const count = prev.length + 1;
-      return [
-        ...prev,
-        { ...defaultConfig(origin), title: `bigRAG ${count}`, serverName: `bigrag-${count}` },
-      ];
-    });
+    const fresh = defaultConfig(origin, configs.length);
+    setConfigs((prev) => [...prev, fresh]);
+    setOpenId(fresh.id);
   };
 
   const updateConfig = (id: string, patch: Partial<McpConfig>) => {
@@ -394,17 +462,90 @@ const McpPage = () => {
     setDeleteId(null);
   };
 
-  const scoped = configs.some((c) => {
-    const k = activeKeys.find((ak) => ak.id === c.selectedKeyId);
-    return !!k?.collection;
-  });
-  const unscoped = configs.some((c) => {
-    const k = activeKeys.find((ak) => ak.id === c.selectedKeyId);
-    return k && !k.collection;
-  });
+  const openConfig = configs.find((c) => c.id === openId) ?? null;
+  const openKey = openConfig
+    ? activeKeys.find((k) => k.id === openConfig.selectedKeyId)
+    : undefined;
+  const openIsNew = openConfig ? !openConfig.selectedKeyId && !apiKeys[openConfig.id] : false;
+
+  const columns: Column<McpConfig>[] = [
+    {
+      header: "Title",
+      key: "title",
+      render: (c) => (
+        <button
+          className="flex items-center gap-2 text-left font-medium text-sm hover:underline"
+          onClick={() => setOpenId(c.id)}
+          type="button"
+        >
+          <Plug className="size-4 shrink-0 text-muted-foreground" />
+          {c.title || <span className="text-muted-foreground italic">Untitled</span>}
+        </button>
+      ),
+    },
+    {
+      header: "Server name",
+      key: "serverName",
+      className: "font-mono text-xs text-muted-foreground",
+      render: (c) => c.serverName || "—",
+    },
+    {
+      header: "Key",
+      key: "key",
+      render: (c) => {
+        const k = activeKeys.find((ak) => ak.id === c.selectedKeyId);
+        if (!k) return <span className="text-muted-foreground text-xs">— not selected —</span>;
+        return <span className="text-sm">{k.name}</span>;
+      },
+    },
+    {
+      header: "Scope",
+      key: "scope",
+      render: (c) => {
+        const k = activeKeys.find((ak) => ak.id === c.selectedKeyId);
+        if (!k) return <span className="text-muted-foreground text-xs">—</span>;
+        return k.collection ? (
+          <Badge variant="neutral">{k.collection}</Badge>
+        ) : (
+          <span className="text-muted-foreground text-xs">all collections</span>
+        );
+      },
+    },
+    {
+      header: "Actions",
+      headerClassName: "text-right",
+      className: "text-right",
+      key: "actions",
+      render: (c) => (
+        <div className="flex items-center justify-end gap-2">
+          <Tooltip content="View config">
+            <Button
+              aria-label="View config"
+              onClick={() => setOpenId(c.id)}
+              size="sm"
+              variant="ghost"
+            >
+              <Pencil className="size-4" />
+            </Button>
+          </Tooltip>
+          <Tooltip content="Delete">
+            <Button
+              aria-label="Delete"
+              className="hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setDeleteId(c.id)}
+              size="sm"
+              variant="ghost"
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </Tooltip>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6">
+    <div>
       <PageHeader
         actions={
           <div className="flex items-center gap-2">
@@ -417,108 +558,43 @@ const McpPage = () => {
               <ExternalLink className="size-4" /> What is MCP?
             </a>
             <Button onClick={addConfig}>
-              <Plus className="size-4" /> New configuration
+              <Plus className="size-4" /> New MCP
             </Button>
           </div>
         }
-        description="Generate Claude Desktop, Cursor, and shell configs. Scope comes from the API key — pick a collection-scoped key to limit the MCP server to that collection."
+        description="Generate Claude custom connector, Claude Desktop, and shell configurations. Scope follows the API key you select."
         title="MCP"
       />
 
-      {!hydrated ? (
-        <Card>
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            Loading…
-          </CardContent>
-        </Card>
-      ) : configs.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-            <Plug className="size-8 text-muted-foreground" />
-            <div className="font-medium">No configurations</div>
-            <div className="max-w-md text-sm text-muted-foreground">
-              Create one for each MCP client you want to connect.
-            </div>
-            <Button onClick={addConfig}>
-              <Plus className="size-4" /> New configuration
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {configs.map((c) => (
-            <ConfigCard
-              apiKey={apiKeys[c.id] ?? ""}
-              config={c}
-              hasActiveKeys={!keysPending && activeKeys.length > 0}
-              key={c.id}
-              keyOptions={keyOptions}
-              onDelete={() => setDeleteId(c.id)}
-              onUpdate={(patch) => updateConfig(c.id, patch)}
-              onUpdateKey={(v) => setApiKeyFor(c.id, v)}
-              selectedKey={activeKeys.find((k) => k.id === c.selectedKeyId)}
-            />
-          ))}
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={configs}
+        emptyAction={
+          <Button onClick={addConfig}>
+            <Plus className="size-4" /> Create your first MCP
+          </Button>
+        }
+        emptyDescription="Create one for each MCP client (Claude custom connector, Claude Desktop, Cursor). Scope follows the API key you pick."
+        emptyIcon={<Plug className="size-6" />}
+        emptyTitle={hydrated ? "No MCP configurations yet" : "Loading…"}
+        keyExtractor={(c) => c.id}
+        loading={!hydrated}
+        loadingMessage="Loading configurations…"
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Tools exposed</CardTitle>
-          <CardDescription>
-            Read-only retrieval tools. Ingestion and writes aren&apos;t exposed — use the API or
-            Studio for those.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          {unscoped && (
-            <div>
-              <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Unscoped key → full tool set
-              </div>
-              <ul className="divide-y divide-border">
-                {TOOLS_UNSCOPED.map((tool) => (
-                  <li
-                    className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0"
-                    key={tool.name}
-                  >
-                    <code className="mt-0.5 shrink-0 font-mono text-sm">{tool.name}</code>
-                    <span className="text-sm text-muted-foreground">{tool.description}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {scoped && (
-            <div>
-              <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Collection-scoped key → scoped tool set
-              </div>
-              <ul className="divide-y divide-border">
-                {TOOLS_SCOPED.map((tool) => (
-                  <li
-                    className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0"
-                    key={tool.name}
-                  >
-                    <code className="mt-0.5 shrink-0 font-mono text-sm">{tool.name}</code>
-                    <span className="text-sm text-muted-foreground">{tool.description}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Scoped servers drop the <code className="font-mono">collection</code> argument and
-                hide <code className="font-mono">list_collections</code> /{" "}
-                <code className="font-mono">multi_collection_query</code>.
-              </p>
-            </div>
-          )}
-          {!scoped && !unscoped && (
-            <p className="text-sm text-muted-foreground">
-              Select an API key on a configuration to see which tools that server will expose.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <ConfigDialog
+        apiKey={openConfig ? (apiKeys[openConfig.id] ?? "") : ""}
+        config={openConfig}
+        hasActiveKeys={!keysPending && activeKeys.length > 0}
+        keyOptions={keyOptions}
+        keysPending={keysPending}
+        mode={openIsNew ? "create" : "edit"}
+        onClose={() => setOpenId(null)}
+        onUpdate={(patch) => openConfig && updateConfig(openConfig.id, patch)}
+        onUpdateKey={(v) => openConfig && setApiKeyFor(openConfig.id, v)}
+        open={!!openConfig}
+        selectedKey={openKey}
+      />
 
       <ConfirmDialog
         confirmLabel="Delete"
