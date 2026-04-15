@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import ApiKey
+from bigrag.db.models import ApiKey, Collection
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_session
@@ -35,12 +35,15 @@ router = APIRouter(prefix="/v1/admin/api-keys", tags=["admin:api-keys"])
 def _key_response(key: ApiKey) -> ApiKeyResponse:
     permissions = key.permissions or {}
     scopes = permissions.get("scopes") if isinstance(permissions, dict) else None
+    raw_collection = permissions.get("collection") if isinstance(permissions, dict) else None
+    collection = raw_collection if isinstance(raw_collection, str) and raw_collection else None
     return ApiKeyResponse(
         id=str(key.id),
         name=key.name,
         prefix=key.prefix,
         active=key.active,
         scopes=scopes if isinstance(scopes, list) else [],
+        collection=collection,
         rate_limits=key.rate_limits or None,
         last_used_at=key.last_used_at,
         expires_at=key.expires_at,
@@ -56,6 +59,22 @@ def _validate_scopes(scopes: list[str] | None) -> None:
 
     for s in scopes:
         validate_scope_string(s)
+
+
+async def _validate_collection(
+    session: AsyncSession, collection: str | None
+) -> str | None:
+    """Return the normalized collection name or None. Raises 400 if the
+    name is provided but doesn't match an existing collection."""
+    if collection is None:
+        return None
+    name = collection.strip()
+    if not name:
+        return None
+    exists = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
+    if exists is None:
+        raise HTTPException(status_code=400, detail=f"Collection {name!r} does not exist")
+    return name
 
 
 @router.get("", response_model=ApiKeyListResponse)
@@ -86,7 +105,12 @@ async def create_api_key(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    permissions = {"scopes": body.scopes} if body.scopes else {}
+    collection = await _validate_collection(session, body.collection)
+    permissions: dict = {}
+    if body.scopes:
+        permissions["scopes"] = body.scopes
+    if collection:
+        permissions["collection"] = collection
     plaintext, prefix, key_hash = generate_api_key()
     key = ApiKey(
         id=uuid.uuid4(),
@@ -109,7 +133,11 @@ async def create_api_key(
         action="api_key.create",
         resource_type="api_key",
         resource_id=str(key.id),
-        metadata={"name": body.name, "scopes": body.scopes or []},
+        metadata={
+            "name": body.name,
+            "scopes": body.scopes or [],
+            "collection": collection,
+        },
     )
     base = _key_response(key)
     return CreateApiKeyResponse(**base.model_dump(), key=plaintext)
@@ -135,12 +163,24 @@ async def update_api_key(
         key.name = body.name
     if body.active is not None:
         key.active = body.active
+    existing = dict(key.permissions or {})
     if body.scopes is not None:
         try:
             _validate_scopes(body.scopes)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
-        key.permissions = {"scopes": body.scopes}
+        if body.scopes:
+            existing["scopes"] = body.scopes
+        else:
+            existing.pop("scopes", None)
+    if body.collection is not None:
+        collection = await _validate_collection(session, body.collection)
+        if collection:
+            existing["collection"] = collection
+        else:
+            existing.pop("collection", None)
+    if body.scopes is not None or body.collection is not None:
+        key.permissions = existing
     if body.rate_limits is not None:
         key.rate_limits = body.rate_limits
 

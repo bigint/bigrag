@@ -79,6 +79,13 @@ class ApiKeyResponse(BaseModel):
     prefix: str
     active: bool
     scopes: list[str] = Field(default_factory=list)
+    collection: str | None = Field(
+        default=None,
+        description=(
+            "When set, this key can only see/query this one collection. "
+            "Cross-collection endpoints return 403."
+        ),
+    )
     rate_limits: dict | None = None
     last_used_at: datetime | None = None
     expires_at: datetime | None = None
@@ -97,6 +104,14 @@ class CreateApiKeyRequest(BaseModel):
             "'document:upload'] — or ['*:*'] for unrestricted."
         ),
     )
+    collection: str | None = Field(
+        default=None,
+        max_length=80,
+        description=(
+            "Pin the key to a single collection. Cross-collection "
+            "endpoints return 403 when this is set."
+        ),
+    )
     rate_limits: dict | None = Field(
         default=None,
         description=(
@@ -113,7 +128,30 @@ class UpdateApiKeyRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     active: bool | None = None
     scopes: list[str] | None = None
+    collection: str | None = Field(
+        default=None,
+        max_length=80,
+        description="Empty string clears the scope; a name pins to that collection.",
+    )
     rate_limits: dict | None = None
+
+
+class WhoamiResponse(BaseModel):
+    """Returned by /v1/auth/whoami so clients (including the MCP server)
+    can discover what they're authenticated as and what scope they have.
+    """
+
+    authenticated: bool = True
+    auth_method: str = Field(description="'session' or 'api_key'")
+    user_id: str
+    user_email: str
+    api_key_id: str | None = None
+    api_key_name: str | None = None
+    scopes: list[str] | None = None
+    collection: str | None = Field(
+        default=None,
+        description="Collection the key is pinned to, or null for full-workspace access.",
+    )
 
 
 class ApiKeyListResponse(BaseModel):

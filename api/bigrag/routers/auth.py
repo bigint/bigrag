@@ -25,6 +25,7 @@ from bigrag.models.auth import (
     SetupRequest,
     SetupStatusResponse,
     UserResponse,
+    WhoamiResponse,
 )
 from bigrag.models.common import StatusResponse
 from bigrag.services.auth import (
@@ -187,6 +188,24 @@ async def me(
     if target is None:
         raise HTTPException(status_code=404, detail="User not found")
     return SessionResponse(user=_user_response(target))
+
+
+@router.get("/whoami", response_model=WhoamiResponse)
+async def whoami(user: dict = Depends(get_current_user)) -> WhoamiResponse:
+    """Return the current principal's identity and scope.
+
+    Used by the MCP server to self-configure: an API key with a
+    `collection` pin auto-scopes the exposed tools.
+    """
+    return WhoamiResponse(
+        auth_method=user.get("auth_method", "session"),
+        user_id=user["id"],
+        user_email=user["email"],
+        api_key_id=user.get("api_key_id"),
+        api_key_name=user.get("api_key_name"),
+        scopes=user.get("scopes"),
+        collection=user.get("collection"),
+    )
 
 
 @router.post("/password", response_model=StatusResponse)

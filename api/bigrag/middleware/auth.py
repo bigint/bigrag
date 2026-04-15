@@ -39,10 +39,12 @@ def _serialize(user: User, *, auth: str, api_key_id: str | None = None) -> dict:
         **_user_dict(user),
         "auth_method": auth,
         "api_key_id": api_key_id,
+        "api_key_name": None,
         # Sessions (browser / Studio) have no scope list — admin users keep
         # implicit full access. Scoped keys override this in
         # ``_user_from_api_key``.
         "scopes": None,
+        "collection": None,
         "rate_limits": None,
     }
 
@@ -97,8 +99,12 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
 
     permissions = api_key.permissions or {}
     scopes = permissions.get("scopes") if isinstance(permissions, dict) else None
+    raw_collection = permissions.get("collection") if isinstance(permissions, dict) else None
+    collection = raw_collection if isinstance(raw_collection, str) and raw_collection else None
     principal = _serialize(user, auth="api_key", api_key_id=str(api_key.id))
+    principal["api_key_name"] = api_key.name
     principal["scopes"] = scopes if isinstance(scopes, list) else None
+    principal["collection"] = collection
     principal["rate_limits"] = api_key.rate_limits or {}
     return principal
 
@@ -107,6 +113,7 @@ async def get_current_user(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> dict:
+    from bigrag.services.collection_scope import enforce_collection_scope
     from bigrag.services.scopes import has_scope, required_scope
 
     principal = await _user_from_session(request, session)
@@ -122,6 +129,11 @@ async def get_current_user(
             status_code=403,
             detail=f"API key missing required scope: {scope}",
         )
+
+    # Enforce collection-pinning on API keys that carry one.
+    pinned = principal.get("collection")
+    if pinned:
+        await enforce_collection_scope(request, pinned)
     return principal
 
 
