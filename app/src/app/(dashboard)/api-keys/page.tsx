@@ -10,6 +10,7 @@ import { type Column, DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -18,17 +19,24 @@ import {
   useDeleteApiKey,
   useUpdateApiKey,
 } from "@/hooks/use-api-keys";
+import { useCollections } from "@/hooks/use-collections";
 import { formatRelative } from "@/lib/format";
 import type { ApiKey, CreatedApiKey } from "@/types/bigrag";
 
+const UNSCOPED = "__all__";
+
 const ApiKeysPage = () => {
   const { data, isPending } = useApiKeys();
+  const { data: collectionsData } = useCollections();
   const create = useCreateApiKey();
   const toggle = useUpdateApiKey();
   const revoke = useDeleteApiKey();
 
+  const collections = collectionsData?.collections ?? [];
+
   const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState("");
+  const [collection, setCollection] = useState<string>(UNSCOPED);
   const [newKey, setNewKey] = useState<CreatedApiKey | null>(null);
   const [copied, setCopied] = useState(false);
   const [deleteFor, setDeleteFor] = useState<ApiKey | null>(null);
@@ -37,9 +45,13 @@ const ApiKeysPage = () => {
     e.preventDefault();
     if (!name.trim()) return;
     try {
-      const created = await create.mutateAsync({ name });
+      const created = await create.mutateAsync({
+        name,
+        collection: collection === UNSCOPED ? null : collection,
+      });
       setNewKey(created);
       setName("");
+      setCollection(UNSCOPED);
       setAddOpen(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
@@ -65,6 +77,16 @@ const ApiKeysPage = () => {
       key: "prefix",
       className: "font-mono text-xs text-muted-foreground",
       render: (k) => `${k.prefix}…`,
+    },
+    {
+      header: "Scope",
+      key: "scope",
+      render: (k) =>
+        k.collection ? (
+          <Badge variant="neutral">{k.collection}</Badge>
+        ) : (
+          <span className="text-muted-foreground text-xs">All collections</span>
+        ),
     },
     {
       header: "Status",
@@ -149,6 +171,19 @@ const ApiKeysPage = () => {
             autoFocus
             required
           />
+          <Select
+            label="Collection scope"
+            value={collection}
+            onChange={setCollection}
+            options={[
+              { value: UNSCOPED, label: "All collections (full workspace)" },
+              ...collections.map((c) => ({ value: c.name, label: c.name })),
+            ]}
+          />
+          <p className="text-xs text-muted-foreground">
+            Scoped keys can only use endpoints for the pinned collection. Cross-collection endpoints
+            return 403.
+          </p>
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="secondary" onClick={() => setAddOpen(false)}>
               Cancel

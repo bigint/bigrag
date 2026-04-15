@@ -16,7 +16,7 @@ export const useApiKeys = () =>
 export const useCreateApiKey = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { name: string; expires_at?: string | null }) =>
+    mutationFn: (body: { name: string; expires_at?: string | null; collection?: string | null }) =>
       apiClient.post<CreatedApiKey>("v1/admin/api-keys", body),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create"),
@@ -26,8 +26,15 @@ export const useCreateApiKey = () => {
 export const useUpdateApiKey = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; name?: string; active?: boolean }) =>
-      apiClient.patch<ApiKey>(`v1/admin/api-keys/${id}`, body),
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      name?: string;
+      active?: boolean;
+      collection?: string | null;
+    }) => apiClient.patch<ApiKey>(`v1/admin/api-keys/${id}`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 };

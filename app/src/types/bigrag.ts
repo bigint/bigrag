@@ -101,6 +101,8 @@ export type ApiKey = {
   name: string;
   prefix: string;
   active: boolean;
+  scopes: string[];
+  collection: string | null;
   last_used_at: string | null;
   expires_at: string | null;
   created_at: string;
