@@ -111,6 +111,20 @@ export type ApiKey = {
 
 export type CreatedApiKey = ApiKey & { key: string };
 
+export type McpServer = {
+  id: string;
+  title: string;
+  server_name: string;
+  collection: string | null;
+  key_prefix: string;
+  key_active: boolean;
+  last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreatedMcpServer = McpServer & { api_key: string };
+
 export type User = {
   id: string;
   email: string;

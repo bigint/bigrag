@@ -1,0 +1,62 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { apiClient } from "@/lib/api";
+import type { CreatedMcpServer, McpServer } from "@/types/bigrag";
+
+const KEY = ["mcp-servers"] as const;
+
+export const useMcpServers = () =>
+  useQuery({
+    queryKey: KEY,
+    queryFn: () => apiClient.get<{ servers: McpServer[]; total: number }>("v1/admin/mcp-servers"),
+  });
+
+export const useCreateMcpServer = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { title: string; server_name: string; collection?: string | null }) =>
+      apiClient.post<CreatedMcpServer>("v1/admin/mcp-servers", body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create"),
+  });
+};
+
+export const useUpdateMcpServer = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      title?: string;
+      server_name?: string;
+      collection?: string | null;
+    }) => apiClient.patch<McpServer>(`v1/admin/mcp-servers/${id}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update"),
+  });
+};
+
+export const useRotateMcpServer = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.post<CreatedMcpServer>(`v1/admin/mcp-servers/${id}/rotate`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to rotate"),
+  });
+};
+
+export const useDeleteMcpServer = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete<{ status: string }>(`v1/admin/mcp-servers/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEY });
+      toast.success("MCP server deleted");
+    },
+  });
+};
