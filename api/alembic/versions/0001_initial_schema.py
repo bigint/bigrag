@@ -30,4 +30,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    Base.metadata.drop_all(bind=op.get_bind())
+    # Dropping the initial schema wipes every row in the database. That's
+    # almost never what someone running `alembic downgrade` actually wants,
+    # so refuse rather than silently nuke prod. Operators who genuinely
+    # need a clean slate can drop the database directly.
+    raise NotImplementedError(
+        "initial schema is not downgradeable — drop the database if you really mean it"
+    )
