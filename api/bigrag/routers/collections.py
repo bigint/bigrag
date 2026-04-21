@@ -164,8 +164,8 @@ async def create_collection(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     # Create in Milvus first (idempotent — skips if exists). index_type is
-    # honored on first create only; changing it later requires a re-index
-    # via a dedicated admin endpoint (TODO).
+    # honored on first create only; changing it later requires dropping and
+    # recreating the collection.
     await vector_store.create_collection(body.name, dimension, index_type=body.index_type)
 
     collection = Collection(
