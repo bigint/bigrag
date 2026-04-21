@@ -292,7 +292,13 @@ async def _run_job(job: dict) -> None:
                                 )
                             )
                             await session.commit()
-                    except Exception:
+                    except Exception as e:
+                        logger.warning(
+                            "s3_job: document insert failed",
+                            key=key,
+                            bucket=bucket,
+                            error=str(e),
+                        )
                         await storage.delete(storage_key)
                         skipped += 1
                         return
@@ -307,7 +313,14 @@ async def _run_job(job: dict) -> None:
                                 fallback_api_key=settings.embedding_api_key,
                             )
                         )
-                    except Exception:
+                    except Exception as e:
+                        logger.warning(
+                            "s3_job: enqueue failed — rolling back document",
+                            key=key,
+                            bucket=bucket,
+                            doc_id=str(doc_id),
+                            error=str(e),
+                        )
                         async with session_factory()() as session:
                             await session.execute(sa.delete(Document).where(Document.id == doc_id))
                             await session.commit()
