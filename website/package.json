@@ -10,24 +10,24 @@
     "typecheck": "fumadocs-mdx && tsc --noEmit"
   },
   "dependencies": {
-    "fumadocs-core": "^16.7.15",
-    "fumadocs-mdx": "^14.2.14",
-    "fumadocs-ui": "^16.7.15",
+    "fumadocs-core": "^16.8.1",
+    "fumadocs-mdx": "^14.3.1",
+    "fumadocs-ui": "^16.8.1",
     "geist": "^1.7.0",
     "lucide-react": "^1.8.0",
     "mermaid": "^11.14.0",
-    "next": "^16.2.3",
+    "next": "^16.2.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.2",
+    "@tailwindcss/postcss": "^4.2.4",
     "@types/mdx": "^2.0.13",
     "@types/node": "25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "postcss": "^8.5.9",
-    "tailwindcss": "^4.2.2",
-    "typescript": "^6.0.2"
+    "postcss": "^8.5.10",
+    "tailwindcss": "^4.2.4",
+    "typescript": "^6.0.3"
   }
 }
