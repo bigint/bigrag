@@ -31,7 +31,9 @@
       "website/**/*.tsx",
       "website/**/*.mjs",
       "app/src/**/*.ts",
-      "app/src/**/*.tsx"
+      "app/src/**/*.tsx",
+      "!**/.source",
+      "!**/.next"
     ]
   }
 }
