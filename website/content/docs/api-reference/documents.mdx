@@ -5,6 +5,12 @@ description: API endpoints for uploading, managing, and monitoring documents.
 
 Base path: `/v1/collections/{collection_name}/documents`
 
+All endpoints require [authentication](/docs/api-reference/authentication). API keys need:
+
+- `document:upload` for upload, batch upload, S3 ingest, and reprocess
+- `document:read` for list/get/download/chunks/progress and batch get/status
+- `document:delete` for delete and batch delete
+
 ## Upload Document
 
 ```
@@ -49,9 +55,9 @@ curl -X POST http://localhost:6100/v1/collections/research/documents \
 }
 ```
 
-`content_hash` is a SHA-256 of the uploaded bytes used for deduplication — if a collection already has a document with the same hash, the new upload is rejected as a duplicate and `deduped` is `true` on the returned record. See [Collections → `content_hash` dedup](/docs/concepts/collections).
+`content_hash` is a SHA-256 of the uploaded bytes used for deduplication. If the collection already has a document with the same hash, the existing record is returned with `deduped: true` instead of creating a duplicate. See [Collections → `content_hash` dedup](/docs/concepts/collections).
 
-**Errors:** `400` — Unsupported file type, `404` — Collection not found, `409` — Duplicate content (same `content_hash` already ingested), `413` — File too large
+**Errors:** `400` — Unsupported file type or blocked by metadata / moderation checks, `404` — Collection not found, `413` — File too large, `503` — Queue unavailable (document is stored as `failed`)
 
 ## List Documents
 
@@ -126,7 +132,7 @@ Re-parse, re-chunk, and re-embed a document.
 **Response** `200`:
 
 ```json
-{ "status": "ok", "message": "Document queued for reprocessing" }
+{ "status": "ok", "message": "Document reprocessing started" }
 ```
 
 ## Get Chunks
@@ -160,6 +166,89 @@ GET /v1/collections/{collection_name}/documents/{document_id}/file
 ```
 
 Download the original uploaded file. Returns binary content with appropriate `Content-Type`.
+
+## Batch Upload
+
+```
+POST /v1/collections/{collection_name}/documents/batch/upload
+```
+
+Upload up to 100 files in one request. Each file goes through the same extension sniffing, metadata-schema validation, moderation, and `content_hash` deduplication pipeline as the single-file upload endpoint.
+
+**Response** `201`:
+
+```json
+{
+  "documents": [
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440000",
+      "filename": "paper.pdf",
+      "status": "pending",
+      "deduped": false
+    },
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440000",
+      "filename": "duplicate.pdf",
+      "status": "ready",
+      "deduped": true
+    }
+  ],
+  "total": 2
+}
+```
+
+If queueing fails for an item, that document is still returned but with `status: "failed"` plus an `error_message`, rather than being left stuck in `pending`.
+
+## Batch Status
+
+```
+POST /v1/collections/{collection_name}/documents/batch/status
+```
+
+Request body:
+
+```json
+{ "document_ids": ["doc-1", "doc-2"] }
+```
+
+Returns `status`, `chunk_count`, and `error_message` for each found document.
+
+## Batch Get
+
+```
+POST /v1/collections/{collection_name}/documents/batch/get
+```
+
+Request body:
+
+```json
+{ "document_ids": ["doc-1", "doc-2"] }
+```
+
+Returns the full document objects for each found document.
+
+## Batch Delete
+
+```
+POST /v1/collections/{collection_name}/documents/batch/delete
+```
+
+Request body:
+
+```json
+{ "document_ids": ["doc-1", "doc-2"] }
+```
+
+Deletes documents in bulk and returns a per-document error list for any missing or failed deletes.
+
+## Global Document Lookup
+
+```
+GET /v1/documents/{document_id}
+GET /v1/documents/{document_id}/chunks
+```
+
+Convenience read endpoints that resolve the document by UUID without the caller supplying the collection name. They still require `document:read`, and collection-pinned API keys can only use them for documents that belong to their pinned collection.
 
 ## Stream Progress
 

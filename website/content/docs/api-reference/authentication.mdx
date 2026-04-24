@@ -112,16 +112,17 @@ Scopes use `resource:action` with `*` as a wildcard. Common shapes:
 | Scope | Grants |
 |-------|--------|
 | `collection:read` | List / get collections |
-| `collection:write` | Create / update / delete collections |
-| `document:upload` | Upload and ingest documents |
-| `document:read` | List / get / download documents |
-| `document:delete` | Delete documents |
+| `collection:write` | Create / update / reembed / truncate collections, plus direct vector upsert/delete |
+| `document:upload` | Upload documents, batch upload, S3 ingest, and reprocess |
+| `document:read` | List / get / download documents, chunks / progress, batch get/status, and global `/v1/documents/{id}` lookups |
+| `document:delete` | Delete documents, including batch delete |
 | `query:read` | Run queries |
-| `vector:write` | Direct `/vectors/upsert` and `/vectors/delete` |
 | `webhook:*` | Manage webhooks |
 | `*:*` | Full access (equivalent to no `scopes`) |
 
 A key missing a required scope returns `403` with `{"detail": "API key missing required scope: <scope>"}`.
+
+If a key is pinned to a single `collection`, that pin is enforced even on the global read helpers like `/v1/documents/{id}` by resolving the document's owning collection before returning it.
 
 ### Rate limits
 

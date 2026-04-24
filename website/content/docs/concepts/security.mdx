@@ -52,17 +52,18 @@ Scopes are `resource:action` pairs. A key without `scopes` has full access; a ke
 
 ```
 collection:read          # GET /v1/collections, GET /v1/collections/{name}, stats
-collection:write         # POST, PUT, DELETE collections, reembed, truncate
-document:upload          # POST /v1/collections/{name}/documents
-document:read            # GET documents, chunks, download file
-document:delete          # DELETE documents
+collection:write         # POST, PUT, DELETE collections, reembed, truncate, /vectors/*
+document:upload          # POST /v1/collections/{name}/documents, batch upload, S3 import, reprocess
+document:read            # GET documents, chunks, download file, batch get/status, /v1/documents/{id}
+document:delete          # DELETE documents, batch delete
 query:read               # POST /query, /batch/query, /collections/{name}/query
-vector:write             # /vectors/upsert, /vectors/delete
 webhook:*                # (session-only anyway, but included for completeness)
 *:*                      # equivalent to no scopes
 ```
 
 Missing-scope calls return `403` with `{"detail": "API key missing required scope: <scope>"}`.
+
+Collection-pinned keys apply that pin consistently, including the global document-read helpers under `/v1/documents/{id}`.
 
 ## Rate limits on API keys
 

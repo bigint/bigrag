@@ -236,6 +236,28 @@ async def reembed_collection(
             .where(Document.status.in_(("ready", "failed")))
         )
     ).all()
+
+    collection_dict = {
+        "embedding_provider": collection.embedding_provider,
+        "embedding_model": collection.embedding_model,
+        "embedding_api_key": collection.embedding_api_key,
+        "embedding_base_url": collection.embedding_base_url,
+        "dimension": collection.dimension,
+        "chunk_size": collection.chunk_size,
+        "chunk_overlap": collection.chunk_overlap,
+        "chunk_strategy": collection.chunk_strategy or "paragraph",
+    }
+    jobs = [
+        create_ingestion_job(
+            document_id=str(doc_id),
+            file_path=file_path,
+            collection_name=name,
+            collection=collection_dict,
+            fallback_api_key=settings.embedding_api_key,
+        )
+        for doc_id, file_path in docs
+    ]
+
     for doc_id, _file_path in docs:
         await session.execute(
             sa.update(Document)
@@ -244,23 +266,8 @@ async def reembed_collection(
         )
     await session.commit()
 
-    collection_dict = {
-        "embedding_provider": collection.embedding_provider,
-        "embedding_model": collection.embedding_model,
-        "embedding_api_key": collection.embedding_api_key,
-        "embedding_base_url": collection.embedding_base_url,
-        "dimension": collection.dimension,
-    }
-    for doc_id, file_path in docs:
-        await ingestion_queue.enqueue(
-            create_ingestion_job(
-                document_id=str(doc_id),
-                file_path=file_path,
-                collection_name=name,
-                collection=collection_dict,
-                fallback_api_key=settings.embedding_api_key,
-            )
-        )
+    for job in jobs:
+        await ingestion_queue.enqueue(job)
 
     logger.info("reembed: queued", collection=name, docs=len(docs))
     return StatusResponse(
