@@ -22,6 +22,12 @@ _TOKEN_LIMITS: dict[str, int] = {
     "embed-multilingual-v3.0": 500,
     "embed-english-light-v3.0": 500,
     "embed-multilingual-light-v3.0": 500,
+    "voyage-3-large": 32000,
+    "voyage-3.5": 32000,
+    "voyage-3.5-lite": 32000,
+    "voyage-code-3": 32000,
+    "voyage-finance-2": 32000,
+    "voyage-law-2": 16000,
 }
 
 
@@ -246,6 +252,81 @@ class CohereEmbedding(EmbeddingModel):
         return "cohere"
 
 
+class VoyageEmbedding(EmbeddingModel):
+    """Voyage AI embeddings via direct REST call.
+
+    Uses ``httpx`` (already a project dep) instead of the ``voyageai`` SDK,
+    which transitively pulls langchain, ffmpeg-python, and tokenizers — far
+    more weight than a single ``POST /v1/embeddings`` call warrants.
+
+    ``input_type`` accepts ``"document"`` or ``"query"`` and is passed
+    through unchanged. ``output_dimension`` is always sent so collections
+    that pin a non-default size (e.g. 256d for ``voyage-3-large``) work
+    transparently; for fixed-dimension models like ``voyage-finance-2`` the
+    only valid value is the default, which Voyage accepts as a no-op.
+    """
+
+    _API_URL = "https://api.voyageai.com/v1/embeddings"
+    _INPUT_TYPES = {"document", "query"}
+
+    def __init__(
+        self,
+        model_name: str = "voyage-3.5",
+        api_key: str | None = None,
+        dimension: int = 1024,
+    ) -> None:
+        if not api_key:
+            raise ValueError("api_key is required for the Voyage embedding provider")
+        self._model_name = model_name
+        self._dimension = dimension
+        self._api_key = api_key
+        logger.info(f"Initialized Voyage embedding: {model_name} (dim={dimension})")
+
+    async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
+        import httpx
+
+        texts, warnings = truncate_to_tokens(texts, self._model_name)
+        if any(warnings):
+            truncated = sum(1 for w in warnings if w)
+            logger.warning(
+                f"voyage_embed: {truncated}/{len(texts)} inputs exceeded token "
+                f"limit and were truncated (model={self._model_name})"
+            )
+        voyage_input_type = input_type if input_type in self._INPUT_TYPES else "document"
+        payload = {
+            "input": texts,
+            "model": self._model_name,
+            "input_type": voyage_input_type,
+            "output_dimension": self._dimension,
+        }
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+        async with _get_semaphore():
+            async with httpx.AsyncClient(timeout=60) as client:
+                response = await client.post(self._API_URL, json=payload, headers=headers)
+        if response.status_code >= 400:
+            # Surface the provider's error message but never the API key.
+            raise RuntimeError(
+                f"Voyage embed failed ({response.status_code}): {response.text[:500]}"
+            )
+        data = response.json()
+        return [item["embedding"] for item in data["data"]]
+
+    @property
+    def dimension(self) -> int:
+        return self._dimension
+
+    @property
+    def name(self) -> str:
+        return self._model_name
+
+    @property
+    def provider(self) -> str:
+        return "voyage"
+
+
 _models: dict[str, EmbeddingModel] = {}
 
 
@@ -271,9 +352,12 @@ def get_embedding_model(
         )
     elif provider == "cohere":
         model = CohereEmbedding(model_name, api_key=api_key, dimension=dimension or 1024)
+    elif provider == "voyage":
+        model = VoyageEmbedding(model_name, api_key=api_key, dimension=dimension or 1024)
     else:
         raise ValueError(
-            f"Unknown embedding provider: {provider}. Supported: openai, openai_compatible, cohere"
+            f"Unknown embedding provider: {provider}. "
+            f"Supported: openai, openai_compatible, cohere, voyage"
         )
 
     _models[cache_key] = model
@@ -316,6 +400,42 @@ AVAILABLE_MODELS = [
         "model": "embed-multilingual-light-v3.0",
         "dimension": 384,
         "description": "Cohere lightweight multilingual model",
+    },
+    {
+        "provider": "voyage",
+        "model": "voyage-3-large",
+        "dimension": 1024,
+        "description": "Voyage AI flagship general-purpose model",
+    },
+    {
+        "provider": "voyage",
+        "model": "voyage-3.5",
+        "dimension": 1024,
+        "description": "Voyage AI default general-purpose model",
+    },
+    {
+        "provider": "voyage",
+        "model": "voyage-3.5-lite",
+        "dimension": 1024,
+        "description": "Voyage AI cheap general-purpose model",
+    },
+    {
+        "provider": "voyage",
+        "model": "voyage-code-3",
+        "dimension": 1024,
+        "description": "Voyage AI code-tuned model",
+    },
+    {
+        "provider": "voyage",
+        "model": "voyage-finance-2",
+        "dimension": 1024,
+        "description": "Voyage AI finance-domain model",
+    },
+    {
+        "provider": "voyage",
+        "model": "voyage-law-2",
+        "dimension": 1024,
+        "description": "Voyage AI legal-domain model",
     },
     {
         "provider": "openai_compatible",
