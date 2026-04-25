@@ -118,12 +118,12 @@ async def create_collection(
     )
     model = body.embedding_model or (preset.model if preset else None) or settings.embedding_model
 
-    if provider not in ("openai", "openai_compatible", "cohere"):
+    if provider not in ("openai", "openai_compatible", "cohere", "voyage"):
         raise HTTPException(
             status_code=400,
             detail=(
                 f"Unsupported embedding provider: '{provider}'. "
-                f"Supported: openai, openai_compatible, cohere"
+                f"Supported: openai, openai_compatible, cohere, voyage"
             ),
         )
     if provider == "openai_compatible":
