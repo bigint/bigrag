@@ -41,7 +41,7 @@ curl -X POST http://localhost:6100/v1/collections \
 |-------|------|----------|---------|-------------|
 | `name` | string | yes | — | 1-128 chars, must match `[a-zA-Z][a-zA-Z0-9_]*` |
 | `description` | string | no | `""` | Human-readable description |
-| `embedding_provider` | string | no | Server default | `openai` or `cohere` |
+| `embedding_provider` | string | no | Server default | `openai`, `cohere`, `voyage`, or `openai_compatible` |
 | `embedding_model` | string | no | Server default | Model name for the provider |
 | `embedding_api_key` | string | no | — | API key for the embedding provider |
 | `dimension` | integer | no | Server default | Embedding vector dimension |

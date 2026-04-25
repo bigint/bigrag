@@ -64,7 +64,7 @@ client.listCollections({ name?, limit?, offset? })
 client.createCollection({
   name,
   description?,
-  embedding_provider?,      // "openai" | "cohere" | "openai_compatible"
+  embedding_provider?,      // "openai" | "cohere" | "voyage" | "openai_compatible"
   embedding_model?,
   embedding_api_key?,
   embedding_base_url?,      // required for openai_compatible (Ollama, vLLM, TEI, ...)

@@ -6,12 +6,13 @@ description: Supported embedding providers and models for vector search.
 import { Callout } from "fumadocs-ui/components/callout";
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 
-bigRAG supports three provider families. Each collection picks one at creation time and stores its own copy of the config, so different collections on the same instance can use different models.
+bigRAG supports four provider families. Each collection picks one at creation time and stores its own copy of the config, so different collections on the same instance can use different models.
 
 ## Providers
 
 - **`openai`** — the OpenAI API
 - **`cohere`** — the Cohere Embed API
+- **`voyage`** — the Voyage AI Embed API (general-purpose, code, finance, and legal models)
 - **`openai_compatible`** — any HTTP endpoint that implements the OpenAI `/embeddings` shape (Ollama, vLLM, TEI / HuggingFace Text Embedding Inference, Infinity, LiteLLM, Azure OpenAI, Bedrock via LiteLLM, self-hosted models, …)
 
 ## Managed models
@@ -25,6 +26,12 @@ bigRAG supports three provider families. Each collection picks one at creation t
 | **Cohere** | `embed-multilingual-v3.0` | 1024 | 100+ languages |
 | **Cohere** | `embed-english-light-v3.0` | 384 | Cheap, lightweight |
 | **Cohere** | `embed-multilingual-light-v3.0` | 384 | Cheap, multilingual |
+| **Voyage** | `voyage-3-large` | 1024 | Voyage flagship general-purpose |
+| **Voyage** | `voyage-3.5` | 1024 | Voyage default general-purpose |
+| **Voyage** | `voyage-3.5-lite` | 1024 | Cheap, general-purpose |
+| **Voyage** | `voyage-code-3` | 1024 | Code-tuned |
+| **Voyage** | `voyage-finance-2` | 1024 | Finance-domain |
+| **Voyage** | `voyage-law-2` | 1024 | Legal-domain |
 
 ```bash
 curl http://localhost:6100/v1/embeddings/models \
@@ -33,7 +40,7 @@ curl http://localhost:6100/v1/embeddings/models \
 
 ## Configuring a collection
 
-<Tabs items={["OpenAI", "Cohere", "Ollama (openai_compatible)", "vLLM / TEI / LiteLLM"]}>
+<Tabs items={["OpenAI", "Cohere", "Voyage", "Ollama (openai_compatible)", "vLLM / TEI / LiteLLM"]}>
 <Tab value="OpenAI">
 ```bash
 curl -X POST http://localhost:6100/v1/collections \
@@ -61,6 +68,22 @@ curl -X POST http://localhost:6100/v1/collections \
     "dimension": 1024
   }'
 ```
+</Tab>
+<Tab value="Voyage">
+```bash
+curl -X POST http://localhost:6100/v1/collections \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "voyage_collection",
+    "embedding_provider": "voyage",
+    "embedding_model": "voyage-3.5",
+    "embedding_api_key": "pa-...",
+    "dimension": 1024
+  }'
+```
+
+`voyage-3-large`, `voyage-3.5`, `voyage-3.5-lite`, and `voyage-code-3` accept Matryoshka dimensions (256, 512, 1024, 2048). Pass `dimension` accordingly. `voyage-finance-2` and `voyage-law-2` are fixed at 1024.
 </Tab>
 <Tab value="Ollama (openai_compatible)">
 ```bash

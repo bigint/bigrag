@@ -43,7 +43,7 @@ cookie_samesite = "lax"       # lax, strict, none
 # cookie_domain = ".example.com"
 
 [embedding]
-provider = "openai"           # openai, cohere, openai_compatible
+provider = "openai"           # openai, cohere, voyage, openai_compatible
 model = "text-embedding-3-small"
 dimension = 1536
 # api_key = "sk-..."          # Optional server default; usually set per collection
@@ -119,7 +119,7 @@ Embedding provider, model, and key are normally configured per collection. These
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BIGRAG_EMBEDDING_PROVIDER` | `openai`, `cohere`, or `openai_compatible` | `openai` |
+| `BIGRAG_EMBEDDING_PROVIDER` | `openai`, `cohere`, `voyage`, or `openai_compatible` | `openai` |
 | `BIGRAG_EMBEDDING_MODEL` | Default model name | `text-embedding-3-small` |
 | `BIGRAG_EMBEDDING_DIMENSION` | Default vector dimension | `1536` |
 | `BIGRAG_EMBEDDING_API_KEY` | Default provider API key | — |
