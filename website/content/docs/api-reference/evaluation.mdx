@@ -4,10 +4,10 @@ description: Measure retrieval quality against a labelled query set.
 ---
 
 ```
-POST /v1/admin/eval
+POST /v1/evaluation
 ```
 
-Runs a batch of queries against a collection and scores the retrieved chunks against a labelled set of expected chunk IDs. Used to catch regressions when tweaking chunk size, embedding model, reranking, or search mode.
+Runs a batch of queries against a collection and scores the retrieved chunks against a labelled set of expected document IDs. Used to catch regressions when tweaking chunk size, embedding model, reranking, or search mode.
 
 Session-only.
 
@@ -18,15 +18,15 @@ Session-only.
   "collection": "knowledge_base",
   "search_mode": "hybrid",
   "top_k": 10,
-  "rerank": true,
-  "queries": [
+  "cases": [
     {
       "query": "how do I rotate an API key?",
-      "expected_chunk_ids": ["doc-abc-123#4", "doc-abc-123#5"]
+      "relevant_ids": ["doc-abc-123", "doc-abc-456"]
     },
     {
       "query": "what's the PTO policy?",
-      "expected_chunk_ids": ["doc-def-456#12"]
+      "relevant_ids": ["doc-def-789"],
+      "top_k": 5
     }
   ]
 }
@@ -34,40 +34,40 @@ Session-only.
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `collection` | string | yes | Target collection |
-| `queries[]` | array | yes | 1–100 labelled queries |
-| `queries[].query` | string | yes | — |
-| `queries[].expected_chunk_ids` | string[] | yes | At least one; order doesn't matter |
-| `search_mode` | string | no | Overrides collection default |
-| `top_k` | integer | no | 1–1,000 |
-| `rerank` | boolean | no | Overrides collection default |
+| `collection` | string | yes | Target collection name |
+| `cases[]` | array | yes | 1–500 labelled cases |
+| `cases[].query` | string | yes | Non-empty |
+| `cases[].relevant_ids` | string[] | yes | Document IDs (or chunk IDs of the form `<doc>#<n>`); at least one |
+| `cases[].top_k` | integer | no | 1–100. Overrides the request-level `top_k` for this case |
+| `top_k` | integer | no | 1–100, default `10`. Used when a case omits its own `top_k` |
+| `search_mode` | string | no | `semantic` (default), `keyword`, or `hybrid` |
+
+The collection's saved reranking config is applied automatically — there is no `rerank` flag.
 
 ## Response
 
 ```json
 {
   "collection": "knowledge_base",
-  "top_k": 10,
-  "results": {
-    "recall_at_1": 0.60,
-    "recall_at_5": 0.85,
-    "recall_at_10": 0.92,
-    "reciprocal_rank": 0.73,
-    "ndcg_at_10": 0.81
-  },
-  "per_query": [
+  "total_cases": 2,
+  "recall_at_k_avg": 0.85,
+  "mrr": 0.73,
+  "ndcg_at_k_avg": 0.81,
+  "per_case": [
     {
       "query": "how do I rotate an API key?",
-      "expected_chunk_ids": ["doc-abc-123#4", "doc-abc-123#5"],
-      "hit_ranks": [1, 4],
-      "recall_at_10": 1.0
+      "hit_ids": ["doc-abc-123", "doc-xyz-001", "doc-abc-456"],
+      "expected_ids": ["doc-abc-123", "doc-abc-456"],
+      "recall_at_k": 1.0,
+      "reciprocal_rank": 1.0,
+      "ndcg_at_k": 0.91
     }
   ]
 }
 ```
 
-- **Recall@k** — fraction of expected chunks that appear in the top-k hits
-- **Reciprocal Rank** — `1 / rank` of the first relevant hit, averaged across queries
-- **nDCG@k** — rank-discounted relevance, averaged across queries
+- **Recall@k** — fraction of `relevant_ids` that appear anywhere in the top-k hits
+- **MRR** — `1 / rank` of the first relevant hit, averaged across cases
+- **nDCG@k** — rank-discounted relevance, averaged across cases
 
-The Studio UI exposes the same runner under **Settings → Eval**.
+The Studio UI exposes the same runner under **Settings → Evaluation**.

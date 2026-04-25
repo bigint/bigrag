@@ -10,6 +10,7 @@
     "query",
     "vectors",
     "embedding-presets",
+    "mcp-servers",
     "s3-jobs",
     "webhooks",
     "usage",

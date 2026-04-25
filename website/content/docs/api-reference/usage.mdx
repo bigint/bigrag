@@ -4,7 +4,7 @@ description: Aggregate per-collection usage statistics.
 ---
 
 ```
-GET /v1/admin/usage
+GET /v1/usage
 ```
 
 Session-only. Returns the per-collection resource footprint over a trailing window — useful for quota enforcement, billing, and capacity planning.
@@ -13,41 +13,39 @@ Session-only. Returns the per-collection resource footprint over a trailing wind
 
 | Parameter | Type | Default | Notes |
 |-----------|------|---------|-------|
-| `window_days` | integer | `30` | Days of embedding/query history to aggregate |
-| `collection` | string | — | Optional filter to a single collection name |
+| `window_days` | integer | `30` | 1–365. Sliding window applied to `query_log`. Document totals are lifetime, not windowed. |
 
 ## Response
 
 ```json
 {
   "window_days": 30,
-  "totals": {
-    "api_requests": 18231,
-    "queries": 9122,
-    "documents_uploaded": 482,
-    "embedding_tokens": 1820432,
-    "embedding_cost_usd_estimate": 0.36,
-    "storage_bytes": 52428800
-  },
+  "queries_total": 9122,
+  "queries_per_day_avg": 304.07,
+  "documents_total": 482,
+  "chunks_total": 18420,
+  "storage_bytes_total": 52428800,
+  "embedding_tokens_total": 1820432,
+  "embedding_cost_usd_estimate": 0.36,
   "by_collection": [
     {
       "collection": "knowledge_base",
       "documents": 15,
       "chunks": 482,
       "storage_bytes": 52428800,
-      "queries": 1203,
       "embedding_tokens": 125000,
-      "embedding_cost_usd_estimate": 0.025
+      "embedding_cost_usd_estimate": 0.0250,
+      "queries": 1203,
+      "avg_latency_ms": 142.31
     }
-  ],
-  "generated_at": "2026-04-12T10:22:00Z"
+  ]
 }
 ```
 
-Cost estimates use public list prices for OpenAI / Cohere; self-hosted `openai_compatible` endpoints are reported as `0`.
+Cost estimates use a fixed rate card (`text-embedding-3-small`, `text-embedding-3-large`, `text-embedding-ada-002`, Cohere `embed-*-v3.0` variants). Self-hosted `openai_compatible` endpoints and any model not in the rate card are reported as `0`.
 
 ## Common patterns
 
-- **Billing join:** join `by_collection[].collection` onto your own `tenant_id ↔ collection_name` map and invoice. See [Multi-tenant SaaS](/docs/cookbook/multi-tenant-saas).
+- **Billing join:** map `by_collection[].collection` to your own `tenant_id ↔ collection_name` table and invoice. See [Multi-tenant SaaS](/docs/cookbook/multi-tenant-saas).
 - **Quota alert:** poll with `window_days=1` and alert when a tenant's `embedding_tokens` exceeds their plan.
-- **Capacity planning:** pair with [`GET /v1/stats`](/docs/api-reference/health#platform-stats) to watch trend + global health.
+- **Capacity planning:** pair with [`GET /v1/stats`](/docs/api-reference/health#platform-stats) for global health alongside this per-collection roll-up.

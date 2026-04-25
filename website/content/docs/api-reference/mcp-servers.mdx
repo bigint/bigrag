@@ -1,0 +1,121 @@
+---
+title: MCP Servers
+description: Mint and manage Model Context Protocol server credentials for Claude Desktop, Cursor, and other MCP clients.
+---
+
+Base path: `/v1/admin/mcp-servers`
+
+Each MCP server is an API key with extra metadata pinned to it (`title`, `server_name`, optional `collection` scope). Under the hood it reuses the same `ApiKey` row, authentication, scope, rate-limit, and audit-logging machinery as ordinary API keys — but the `/v1/admin/api-keys` endpoints filter MCP-tagged keys out, so they don't pollute that list.
+
+Session-only (Studio).
+
+A delete on the underlying API key cascades through. Generic API keys minted via `/v1/admin/api-keys` and MCP servers minted via this endpoint share a uniqueness constraint on `key_hash`.
+
+## List MCP Servers
+
+```
+GET /v1/admin/mcp-servers
+```
+
+Returns only MCP-tagged keys owned by the calling admin.
+
+**Response** `200`:
+
+```json
+{
+  "servers": [
+    {
+      "id": "1e482…",
+      "title": "Resumes RAG",
+      "server_name": "resumes",
+      "collection": "resumes",
+      "key_prefix": "bigrag_sk_Ge0v",
+      "key_active": true,
+      "last_used_at": "2026-04-25T05:21:09Z",
+      "created_at": "2026-04-12T08:44:59Z",
+      "updated_at": "2026-04-12T08:44:59Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+## Create MCP Server
+
+```
+POST /v1/admin/mcp-servers
+```
+
+Mints a fresh API key bound to the new server. The plaintext token is returned **once** in `api_key` — store it before the response leaves the wire.
+
+**Request:**
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `title` | string | yes | 1–80 chars. Display name in Studio and the client's connector list. |
+| `server_name` | string | yes | 1–60 chars. Lowercase alphanumeric and dashes (`^[a-z0-9][a-z0-9-]*$`). Used as the key under `mcpServers` in the client config and must be unique per owner. |
+| `collection` | string | no | Pin the credential to a single collection. If set, the collection must exist. Omit (or set to empty) for a global key. |
+
+**Response** `201`:
+
+```json
+{
+  "id": "1e482…",
+  "title": "Resumes RAG",
+  "server_name": "resumes",
+  "collection": "resumes",
+  "key_prefix": "bigrag_sk_Ge0v",
+  "key_active": true,
+  "last_used_at": null,
+  "created_at": "2026-04-25T05:21:09Z",
+  "updated_at": "2026-04-25T05:21:09Z",
+  "api_key": "bigrag_sk_Ge0v..."
+}
+```
+
+`409` if `server_name` already exists for this user. `400` if `collection` does not exist.
+
+## Update MCP Server
+
+```
+PATCH /v1/admin/mcp-servers/{server_id}
+```
+
+Edit `title`, `server_name`, and/or `collection`. Send only the fields you want to change.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `title` | string | Optional |
+| `server_name` | string | Optional. Same constraints as create; uniqueness re-checked. |
+| `collection` | string | Optional. Empty string clears the scope; a name pins to that collection. |
+
+**Response** `200`: same shape as the list entry above.
+
+## Rotate Credential
+
+```
+POST /v1/admin/mcp-servers/{server_id}/rotate
+```
+
+Mint a new API key for an existing server and invalidate the old one immediately. Use this if the previous URL leaked or was lost.
+
+**Response** `200`: same shape as create — includes a one-shot `api_key`.
+
+## Delete MCP Server
+
+```
+DELETE /v1/admin/mcp-servers/{server_id}
+```
+
+Removes the server and its underlying API key. Existing connector URLs stop working on the next request.
+
+**Response** `200`:
+
+```json
+{ "status": "ok", "message": "MCP server deleted" }
+```
+
+## See also
+
+- [MCP usage guide](/docs/sdks/mcp) — wire a server into Claude Desktop, Cursor, or a custom client.
+- [API Keys](/docs/api-reference/api-keys) — the underlying credential primitive.
