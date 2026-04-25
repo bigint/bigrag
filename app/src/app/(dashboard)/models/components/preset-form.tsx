@@ -20,9 +20,12 @@ interface Props {
   editing: EmbeddingPreset | null;
 }
 
-const DEFAULT_MODELS: Record<"openai" | "cohere", { model: string; dimension: number }> = {
+type Provider = "openai" | "cohere" | "voyage";
+
+const DEFAULT_MODELS: Record<Provider, { model: string; dimension: number }> = {
   openai: { model: "text-embedding-3-small", dimension: 1536 },
   cohere: { model: "embed-english-v3.0", dimension: 1024 },
+  voyage: { model: "voyage-3.5", dimension: 1024 },
 };
 
 export const PresetForm = ({ open, onClose, editing }: Props) => {
@@ -32,7 +35,7 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
   const { data: catalog } = useEmbeddingModels();
 
   const [name, setName] = useState("");
-  const [provider, setProvider] = useState<"openai" | "cohere">("openai");
+  const [provider, setProvider] = useState<Provider>("openai");
   const [model, setModel] = useState("text-embedding-3-small");
   const [apiKey, setApiKey] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -121,13 +124,14 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
             label="Provider"
             value={provider}
             onChange={(v) => {
-              const p = v as "openai" | "cohere";
+              const p = v as Provider;
               setProvider(p);
               setModel(DEFAULT_MODELS[p].model);
             }}
             options={[
               { value: "openai", label: "OpenAI" },
               { value: "cohere", label: "Cohere" },
+              { value: "voyage", label: "Voyage AI" },
             ]}
           />
           <Select

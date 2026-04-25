@@ -87,7 +87,7 @@ export type QueryResponse = {
 export type EmbeddingPreset = {
   id: string;
   name: string;
-  provider: "openai" | "cohere";
+  provider: "openai" | "cohere" | "voyage";
   model: string;
   base_url: string | null;
   dimension: number;

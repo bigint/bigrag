@@ -36,7 +36,7 @@ export type CreateCollectionBody = {
   name: string;
   description?: string;
   embedding_preset_id?: string | null;
-  embedding_provider?: "openai" | "cohere";
+  embedding_provider?: "openai" | "cohere" | "voyage";
   embedding_model?: string;
   embedding_api_key?: string;
   embedding_base_url?: string | null;

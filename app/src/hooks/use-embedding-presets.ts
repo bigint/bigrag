@@ -16,7 +16,7 @@ export const useEmbeddingPresets = () =>
 
 export type EmbeddingPresetBody = {
   name: string;
-  provider: "openai" | "cohere";
+  provider: "openai" | "cohere" | "voyage";
   model: string;
   api_key: string;
   base_url?: string | null;
