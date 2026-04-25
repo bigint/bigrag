@@ -23,13 +23,15 @@ Six entries appear in `AVAILABLE_MODELS` and the Studio dropdown:
 
 Multilingual-2 is intentionally excluded — `voyage-3.5` already handles multilingual well.
 
-## Approach: native SDK client
+## Approach: HTTP-only via httpx
 
-Add a `VoyageEmbedding` class in `api/bigrag/services/embedding.py` that wraps `voyageai.AsyncClient`. Voyage's `input_type` field accepts `"query"` and `"document"` directly, matching our existing `EmbeddingModel.embed(texts, input_type=...)` abstraction with no translation. Token limit set to 32 000 (Voyage's 32k context).
+Add a `VoyageEmbedding` class in `api/bigrag/services/embedding.py` that calls `POST https://api.voyageai.com/v1/embeddings` directly through the existing `httpx` dependency. Voyage's `input_type` field accepts `"query"` and `"document"` directly, matching our existing `EmbeddingModel.embed(texts, input_type=...)` abstraction with no translation. Token limit set to 32 000 (Voyage's 32k context).
+
+The official `voyageai` SDK was rejected after dependency review: it transitively pulls in `langchain-text-splitters`, `langchain-core`, `langsmith`, `ffmpeg-python`, `tokenizers`, `aiohttp`, `pillow`, and ~10 other packages — a ~50 MB install footprint for what is fundamentally a single REST call we can issue in 20 lines.
 
 Rejected alternatives:
 - **`openai_compatible` shim** — Voyage's `/embeddings` shape is similar but its `input_type` field is required for retrieval quality; routing via `openai_compatible` would silently drop it.
-- **HTTP-only via httpx** — saves a dep but loses retries/typed responses for marginal benefit.
+- **Native `voyageai` SDK** — heavy transitive deps (langchain, ffmpeg-python, tokenizers) for marginal benefit; the REST call we need is trivially issued via httpx.
 
 ## Matryoshka dimension handling
 
@@ -40,9 +42,7 @@ The Studio catalog only shows the default 1024 entry per model. Operators who wa
 ## Files changed
 
 ### Backend
-- `api/pyproject.toml` — add `voyageai>=0.3`
-- `api/uv.lock` — refreshed
-- `api/bigrag/services/embedding.py` — new `VoyageEmbedding` class, extend `_TOKEN_LIMITS`, extend `get_embedding_model` factory, extend `AVAILABLE_MODELS` (6 entries)
+- `api/bigrag/services/embedding.py` — new `VoyageEmbedding` class (httpx-based), extend `_TOKEN_LIMITS`, extend `get_embedding_model` factory, extend `AVAILABLE_MODELS` (6 entries)
 - `api/bigrag/services/credential_check.py` — extend `Provider` Literal, add `voyage` to `_DEFAULT_BASE_URLS` (`https://api.voyageai.com/v1`)
 - `api/bigrag/models/embedding_preset.py` — regex `^(openai|cohere|voyage)$` on Create/Update bodies
 - `api/bigrag/routers/collections.py` — extend supported-providers tuple at the validation point
