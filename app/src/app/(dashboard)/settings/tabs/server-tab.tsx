@@ -53,7 +53,14 @@ export const ServerTab = () => {
           <StatusRow
             label="Embeddings"
             ok={readiness?.embedding}
-            hint={readiness?.embedding_error ?? undefined}
+            hint={
+              readiness?.embedding_error ??
+              (readiness?.embedding_source === "preset"
+                ? "via embedding preset"
+                : readiness?.embedding_source === "collection"
+                  ? "via collection-level key"
+                  : undefined)
+            }
           />
         </CardContent>
       </Card>

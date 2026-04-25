@@ -447,7 +447,7 @@ class IngestionQueue:
         import sqlalchemy as sa
 
         from bigrag.db.engine import session_factory
-        from bigrag.db.models import Collection, Document
+        from bigrag.db.models import Document
 
         vector_store = self._vector_store
         if vector_store is None:
@@ -507,11 +507,9 @@ class IngestionQueue:
                         error_message=None,
                     )
                 )
-                await session.execute(
-                    sa.update(Collection)
-                    .where(Collection.name == job.collection_name)
-                    .values(document_count=Collection.document_count + 1)
-                )
+                # Document.document_count tracks all rows (any status); the
+                # row already exists from the upload path, so completion
+                # doesn't change the count.
                 await session.commit()
 
             total_elapsed = time.monotonic() - start_time

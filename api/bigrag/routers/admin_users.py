@@ -6,7 +6,7 @@ import uuid
 
 import sqlalchemy as sa
 from asyncpg.exceptions import UniqueViolationError
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,7 @@ from bigrag.models.auth import (
     UserResponse,
 )
 from bigrag.models.common import StatusResponse
+from bigrag.services import audit
 from bigrag.services.auth import hash_password
 
 logger = get_logger("bigrag.routers.admin_users")
@@ -60,7 +61,8 @@ async def list_users(
 @router.post("", response_model=UserResponse, status_code=201)
 async def create_user(
     body: CreateUserRequest,
-    _: dict = Depends(require_session),
+    request: Request,
+    admin: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> UserResponse:
     user = User(
@@ -80,6 +82,14 @@ async def create_user(
         raise
     await session.refresh(user)
     logger.info(f"User created: {body.email} role={body.role}")
+    audit.record(
+        request,
+        user=admin,
+        action="user.create",
+        resource_type="user",
+        resource_id=str(user.id),
+        metadata={"email": user.email, "role": user.role},
+    )
     return _user_response(user)
 
 
@@ -87,6 +97,7 @@ async def create_user(
 async def update_user(
     user_id: str,
     body: UpdateUserRequest,
+    request: Request,
     admin: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> UserResponse:
@@ -100,13 +111,17 @@ async def update_user(
         raise HTTPException(status_code=404, detail="User not found")
 
     password_changed = False
+    fields: list[str] = []
     if body.display_name is not None:
         target.display_name = body.display_name
+        fields.append("display_name")
     if body.role is not None:
         target.role = body.role
+        fields.append("role")
     if body.password is not None:
         target.password_hash = hash_password(body.password)
         password_changed = True
+        fields.append("password")
 
     if password_changed:
         await session.execute(sa.delete(DbSession).where(DbSession.user_id == target_id))
@@ -118,12 +133,21 @@ async def update_user(
         f"display_name={body.display_name is not None} "
         f"role={body.role is not None} password={password_changed}"
     )
+    audit.record(
+        request,
+        user=admin,
+        action="user.update",
+        resource_type="user",
+        resource_id=str(target.id),
+        metadata={"email": target.email, "fields": fields},
+    )
     return _user_response(target)
 
 
 @router.delete("/{user_id}", response_model=StatusResponse)
 async def delete_user(
     user_id: str,
+    request: Request,
     admin: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
@@ -147,8 +171,18 @@ async def delete_user(
     target = await session.get(User, target_id)
     if target is None:
         raise HTTPException(status_code=404, detail="User not found")
+    deleted_email = target.email
+    deleted_role = target.role
     await session.delete(target)
     await session.commit()
 
     logger.info(f"User deleted: id={user_id} by={admin['email']}")
+    audit.record(
+        request,
+        user=admin,
+        action="user.delete",
+        resource_type="user",
+        resource_id=str(target_id),
+        metadata={"email": deleted_email, "role": deleted_role},
+    )
     return StatusResponse(status="ok", message="User deleted")

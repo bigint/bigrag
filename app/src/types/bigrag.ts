@@ -198,5 +198,6 @@ export type ReadinessReport = {
   redis: boolean;
   embedding: boolean;
   embedding_error?: string;
+  embedding_source?: "env" | "preset" | "collection";
   status: "ok" | "degraded";
 };

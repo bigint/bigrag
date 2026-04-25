@@ -19,17 +19,78 @@ router = APIRouter(tags=["health"])
 _EMBEDDING_HEALTH_TTL = 60  # seconds
 
 
-async def _check_embedding_provider(settings) -> dict[str, object]:
-    """Validate embedding provider connectivity by embedding a test string."""
-    provider = settings.embedding_provider
-    api_key = settings.embedding_api_key
+async def _resolve_embedding_target(
+    settings,
+) -> tuple[str, str, int | None, str, str | None] | None:
+    """Pick a (provider, model, dimension, api_key, source) tuple to probe.
 
-    if not api_key:
+    Order: global env override → first embedding preset with a key →
+    first collection with a key. Returns None when nothing is configured.
+    """
+    if settings.embedding_api_key:
+        return (
+            settings.embedding_provider,
+            settings.embedding_model,
+            settings.embedding_dimension,
+            settings.embedding_api_key,
+            "env",
+        )
+
+    from bigrag.db.models import Collection, EmbeddingPreset
+
+    async with session_factory()() as session:
+        preset = await session.scalar(
+            sa.select(EmbeddingPreset)
+            .where(EmbeddingPreset.api_key.is_not(None))
+            .where(EmbeddingPreset.api_key != "")
+            .order_by(EmbeddingPreset.created_at.asc())
+            .limit(1)
+        )
+        if preset is not None:
+            return (
+                preset.provider,
+                preset.model,
+                preset.dimension,
+                preset.api_key,
+                "preset",
+            )
+
+        collection = await session.scalar(
+            sa.select(Collection)
+            .where(Collection.embedding_api_key.is_not(None))
+            .where(Collection.embedding_api_key != "")
+            .order_by(Collection.created_at.asc())
+            .limit(1)
+        )
+        if collection is not None:
+            return (
+                collection.embedding_provider,
+                collection.embedding_model,
+                collection.dimension,
+                collection.embedding_api_key,
+                "collection",
+            )
+
+    return None
+
+
+async def _check_embedding_provider(settings) -> dict[str, object]:
+    """Validate embedding provider connectivity by embedding a test string.
+
+    A bigRAG instance is "healthy" for embeddings if ANY configured source
+    (env, preset, or collection) can successfully embed. Reporting "down"
+    when only the env var is missing — but presets work — is misleading
+    and hides the fact that retrieval is actually functional.
+    """
+    target = await _resolve_embedding_target(settings)
+    if target is None:
         return {"embedding": False, "embedding_error": "no API key configured"}
 
-    cached = await redis_cache.get(f"health:embedding:{provider}")
+    provider, model, dimension, api_key, source = target
+    cache_key = f"health:embedding:{provider}:{source}"
+    cached = await redis_cache.get(cache_key)
     if cached:
-        result: dict[str, object] = {"embedding": cached["ok"]}
+        result: dict[str, object] = {"embedding": cached["ok"], "embedding_source": source}
         if cached.get("error"):
             result["embedding_error"] = cached["error"]
         return result
@@ -37,27 +98,27 @@ async def _check_embedding_provider(settings) -> dict[str, object]:
     try:
         from bigrag.services.embedding import get_embedding_model
 
-        model = get_embedding_model(
+        emb_model = get_embedding_model(
             provider=provider,
-            model_name=settings.embedding_model,
-            dimension=settings.embedding_dimension,
+            model_name=model,
+            dimension=dimension,
             api_key=api_key,
         )
-        await asyncio.wait_for(model.embed(["health check"], input_type="query"), timeout=10)
-        await redis_cache.set(
-            f"health:embedding:{provider}",
-            {"ok": True},
-            ttl=_EMBEDDING_HEALTH_TTL,
-        )
-        return {"embedding": True}
+        await asyncio.wait_for(emb_model.embed(["health check"], input_type="query"), timeout=10)
+        await redis_cache.set(cache_key, {"ok": True}, ttl=_EMBEDDING_HEALTH_TTL)
+        return {"embedding": True, "embedding_source": source}
     except Exception as exc:
         error_msg = str(exc)[:200]
         await redis_cache.set(
-            f"health:embedding:{provider}",
+            cache_key,
             {"ok": False, "error": error_msg},
             ttl=_EMBEDDING_HEALTH_TTL,
         )
-        return {"embedding": False, "embedding_error": error_msg}
+        return {
+            "embedding": False,
+            "embedding_error": error_msg,
+            "embedding_source": source,
+        }
 
 
 @router.get("/health")

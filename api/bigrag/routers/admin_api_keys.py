@@ -155,7 +155,8 @@ async def create_api_key(
 async def update_api_key(
     key_id: str,
     body: UpdateApiKeyRequest,
-    _: dict = Depends(require_session),
+    request: Request,
+    admin: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> ApiKeyResponse:
     try:
@@ -167,10 +168,13 @@ async def update_api_key(
     if key is None or _is_mcp_key(key):
         raise HTTPException(status_code=404, detail="API key not found")
 
+    fields: list[str] = []
     if body.name is not None:
         key.name = body.name
+        fields.append("name")
     if body.active is not None:
         key.active = body.active
+        fields.append("active")
     existing = dict(key.permissions or {})
     if body.scopes is not None:
         try:
@@ -181,25 +185,37 @@ async def update_api_key(
             existing["scopes"] = body.scopes
         else:
             existing.pop("scopes", None)
+        fields.append("scopes")
     if body.collection is not None:
         collection = await _validate_collection(session, body.collection)
         if collection:
             existing["collection"] = collection
         else:
             existing.pop("collection", None)
+        fields.append("collection")
     if body.scopes is not None or body.collection is not None:
         key.permissions = existing
     if body.rate_limits is not None:
         key.rate_limits = body.rate_limits
+        fields.append("rate_limits")
 
     await session.commit()
     await session.refresh(key)
+    audit.record(
+        request,
+        user=admin,
+        action="api_key.update",
+        resource_type="api_key",
+        resource_id=str(key.id),
+        metadata={"name": key.name, "fields": fields},
+    )
     return _key_response(key)
 
 
 @router.delete("/{key_id}", response_model=StatusResponse)
 async def delete_api_key(
     key_id: str,
+    request: Request,
     admin: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
@@ -211,8 +227,17 @@ async def delete_api_key(
     key = await session.get(ApiKey, target_id)
     if key is None or _is_mcp_key(key):
         raise HTTPException(status_code=404, detail="API key not found")
+    deleted_name = key.name
     await session.delete(key)
     await session.commit()
 
     logger.info(f"API key deleted: id={key_id} by={admin['email']}")
+    audit.record(
+        request,
+        user=admin,
+        action="api_key.delete",
+        resource_type="api_key",
+        resource_id=key_id,
+        metadata={"name": deleted_name},
+    )
     return StatusResponse(status="ok", message="API key deleted")

@@ -1,8 +1,34 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, BeforeValidator, Field
+
+# Pragmatic email validator for self-hosted deployments. Pydantic's EmailStr
+# rejects reserved TLDs like `.local`, `.internal`, `.corp`, breaking on-prem
+# Active Directory shops. We validate basic RFC 5322 shape and length — DNS
+# deliverability is the operator's concern, not ours.
+_EMAIL_RE = re.compile(
+    r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?)+$"
+)
+
+
+def _normalize_email(value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError("email must be a string")
+    candidate = value.strip().lower()
+    if len(candidate) > 254 or not _EMAIL_RE.match(candidate):
+        raise ValueError("value is not a valid email address")
+    local, _, domain = candidate.partition("@")
+    if len(local) > 64 or len(domain) > 253:
+        raise ValueError("value is not a valid email address")
+    return candidate
+
+
+PermissiveEmail = Annotated[str, BeforeValidator(_normalize_email)]
 
 
 class SetupStatusResponse(BaseModel):
@@ -10,12 +36,12 @@ class SetupStatusResponse(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: PermissiveEmail
     password: str = Field(min_length=8, max_length=256)
 
 
 class SetupRequest(BaseModel):
-    email: EmailStr
+    email: PermissiveEmail
     password: str = Field(min_length=8, max_length=256)
     display_name: str = Field(default="", max_length=120)
 
@@ -40,7 +66,7 @@ class SessionResponse(BaseModel):
 
 
 class CreateUserRequest(BaseModel):
-    email: EmailStr
+    email: PermissiveEmail
     password: str = Field(min_length=8, max_length=256)
     display_name: str = Field(default="", max_length=120)
     role: str = Field(default="admin", pattern="^(admin|member)$")

@@ -28,6 +28,7 @@ from bigrag.models.auth import (
     WhoamiResponse,
 )
 from bigrag.models.common import StatusResponse
+from bigrag.services import audit
 from bigrag.services.auth import (
     generate_session_token,
     hash_password,
@@ -98,6 +99,7 @@ async def setup_status(
 @router.post("/setup", response_model=SessionResponse, status_code=201)
 async def setup(
     body: SetupRequest,
+    request: Request,
     response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> SessionResponse:
@@ -121,17 +123,34 @@ async def setup(
 
     _set_session_cookie(response, token)
     logger.info(f"First admin created: {body.email}")
+    audit.record(
+        request,
+        user={"id": str(user.id), "email": user.email},
+        action="auth.setup",
+        resource_type="user",
+        resource_id=str(user.id),
+        metadata={"email": user.email, "role": "admin"},
+    )
     return SessionResponse(user=_user_response(user))
 
 
 @router.post("/login", response_model=SessionResponse)
 async def login(
     body: LoginRequest,
+    request: Request,
     response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> SessionResponse:
     user = await session.scalar(sa.select(User).where(User.email == body.email.lower()))
     if user is None or not verify_password(body.password, user.password_hash):
+        audit.record(
+            request,
+            user={"id": None, "email": body.email.lower()},
+            action="auth.login_failed",
+            resource_type="user",
+            resource_id=None,
+            metadata={"email": body.email.lower()},
+        )
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if needs_rehash(user.password_hash):
@@ -142,6 +161,14 @@ async def login(
     await session.commit()
     await session.refresh(user)
     _set_session_cookie(response, token)
+    audit.record(
+        request,
+        user={"id": str(user.id), "email": user.email},
+        action="auth.login",
+        resource_type="user",
+        resource_id=str(user.id),
+        metadata={},
+    )
     return SessionResponse(user=_user_response(user))
 
 
@@ -152,17 +179,32 @@ async def logout(
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     cookie = request.cookies.get(settings.session_cookie_name)
+    actor_user: User | None = None
     if cookie:
-        await session.execute(
-            sa.delete(DbSession).where(DbSession.token_hash == hash_session_token(cookie))
+        token_hash = hash_session_token(cookie)
+        actor_user = await session.scalar(
+            sa.select(User)
+            .join(DbSession, DbSession.user_id == User.id)
+            .where(DbSession.token_hash == token_hash)
         )
+        await session.execute(sa.delete(DbSession).where(DbSession.token_hash == token_hash))
         await session.commit()
     _clear_session_cookie(response)
+    if actor_user is not None:
+        audit.record(
+            request,
+            user={"id": str(actor_user.id), "email": actor_user.email},
+            action="auth.logout",
+            resource_type="user",
+            resource_id=str(actor_user.id),
+            metadata={},
+        )
     return StatusResponse(status="ok", message="Logged out")
 
 
 @router.post("/logout-all", response_model=StatusResponse)
 async def logout_all(
+    request: Request,
     response: Response,
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
@@ -176,6 +218,14 @@ async def logout_all(
     await session.execute(sa.delete(DbSession).where(DbSession.user_id == uuid.UUID(user["id"])))
     await session.commit()
     _clear_session_cookie(response)
+    audit.record(
+        request,
+        user=user,
+        action="auth.logout_all",
+        resource_type="user",
+        resource_id=user["id"],
+        metadata={},
+    )
     return StatusResponse(status="ok", message="Signed out of all devices")
 
 
@@ -211,6 +261,7 @@ async def whoami(user: dict = Depends(get_current_user)) -> WhoamiResponse:
 @router.post("/password", response_model=StatusResponse)
 async def change_password(
     body: ChangePasswordRequest,
+    request: Request,
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
@@ -221,4 +272,12 @@ async def change_password(
     target.password_hash = hash_password(body.new_password)
     await session.execute(sa.delete(DbSession).where(DbSession.user_id == target.id))
     await session.commit()
+    audit.record(
+        request,
+        user=user,
+        action="user.password_change",
+        resource_type="user",
+        resource_id=str(target.id),
+        metadata={},
+    )
     return StatusResponse(status="ok", message="Password updated — please sign in again")

@@ -226,6 +226,7 @@ async def create_mcp_server(
 async def update_mcp_server(
     server_id: str,
     body: UpdateMcpServerRequest,
+    request: Request,
     admin: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> McpServerResponse:
@@ -240,9 +241,11 @@ async def update_mcp_server(
 
     permissions = dict(key.permissions or {})
     mcp = dict(permissions.get("mcp") or {})
+    fields: list[str] = []
 
     if body.title is not None:
         mcp["title"] = body.title
+        fields.append("title")
     if body.server_name is not None:
         if await _server_name_conflict(
             session,
@@ -256,6 +259,7 @@ async def update_mcp_server(
             )
         mcp["server_name"] = body.server_name
         key.name = f"mcp:{body.server_name}"
+        fields.append("server_name")
 
     if body.collection is not None:
         collection = await _validate_collection(session, body.collection)
@@ -263,12 +267,21 @@ async def update_mcp_server(
             permissions["collection"] = collection
         else:
             permissions.pop("collection", None)
+        fields.append("collection")
 
     permissions["mcp"] = mcp
     key.permissions = permissions
 
     await session.commit()
     await session.refresh(key)
+    audit.record(
+        request,
+        user=admin,
+        action="mcp_server.update",
+        resource_type="mcp_server",
+        resource_id=str(key.id),
+        metadata={"server_name": mcp.get("server_name"), "fields": fields},
+    )
     return _to_response(key)
 
 
@@ -315,6 +328,7 @@ async def rotate_mcp_server_key(
 @router.delete("/{server_id}", response_model=StatusResponse)
 async def delete_mcp_server(
     server_id: str,
+    request: Request,
     admin: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
@@ -327,8 +341,20 @@ async def delete_mcp_server(
     if not _is_mcp(key) or key.user_id != uuid.UUID(admin["id"]):
         raise HTTPException(status_code=404, detail="MCP server not found")
 
+    metadata = key.permissions.get("mcp", {}) if isinstance(key.permissions, dict) else {}
     await session.delete(key)
     await session.commit()
 
     logger.info(f"MCP server deleted: id={server_id} by={admin['email']}")
+    audit.record(
+        request,
+        user=admin,
+        action="mcp_server.delete",
+        resource_type="mcp_server",
+        resource_id=server_id,
+        metadata={
+            "title": metadata.get("title"),
+            "server_name": metadata.get("server_name"),
+        },
+    )
     return StatusResponse(status="ok", message="MCP server deleted")

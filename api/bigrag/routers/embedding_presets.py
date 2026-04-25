@@ -10,7 +10,7 @@ import uuid
 
 import sqlalchemy as sa
 from asyncpg.exceptions import UniqueViolationError
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +25,7 @@ from bigrag.models.embedding_preset import (
     EmbeddingPresetResponse,
     UpdateEmbeddingPresetRequest,
 )
+from bigrag.services import audit
 from bigrag.services.credential_check import (
     CredentialCheckError,
     verify_provider_credentials,
@@ -78,6 +79,7 @@ async def list_presets(
 @router.post("", response_model=EmbeddingPresetResponse, status_code=201)
 async def create_preset(
     body: CreateEmbeddingPresetRequest,
+    request: Request,
     admin: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> EmbeddingPresetResponse:
@@ -111,6 +113,14 @@ async def create_preset(
         raise
     await session.refresh(preset)
     logger.info(f"Embedding preset created: name={body.name} by={admin['email']}")
+    audit.record(
+        request,
+        user=admin,
+        action="embedding_preset.create",
+        resource_type="embedding_preset",
+        resource_id=str(preset.id),
+        metadata={"name": preset.name, "provider": preset.provider, "model": preset.model},
+    )
     return _preset_response(preset)
 
 
@@ -118,7 +128,8 @@ async def create_preset(
 async def update_preset(
     preset_id: str,
     body: UpdateEmbeddingPresetRequest,
-    _: dict = Depends(require_session),
+    request: Request,
+    admin: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> EmbeddingPresetResponse:
     try:
@@ -130,10 +141,12 @@ async def update_preset(
     if preset is None:
         raise HTTPException(status_code=404, detail="Preset not found")
 
+    fields: list[str] = []
     for col in ("name", "provider", "model", "api_key", "base_url", "dimension"):
         val = getattr(body, col)
         if val is not None:
             setattr(preset, col, val)
+            fields.append(col)
 
     try:
         await session.commit()
@@ -145,12 +158,21 @@ async def update_preset(
             ) from e
         raise
     await session.refresh(preset)
+    audit.record(
+        request,
+        user=admin,
+        action="embedding_preset.update",
+        resource_type="embedding_preset",
+        resource_id=str(preset.id),
+        metadata={"name": preset.name, "fields": fields},
+    )
     return _preset_response(preset)
 
 
 @router.delete("/{preset_id}", response_model=StatusResponse)
 async def delete_preset(
     preset_id: str,
+    request: Request,
     admin: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
@@ -162,8 +184,17 @@ async def delete_preset(
     preset = await session.get(EmbeddingPreset, target_id)
     if preset is None:
         raise HTTPException(status_code=404, detail="Preset not found")
+    deleted_name = preset.name
     await session.delete(preset)
     await session.commit()
 
     logger.info(f"Embedding preset deleted: id={preset_id} by={admin['email']}")
+    audit.record(
+        request,
+        user=admin,
+        action="embedding_preset.delete",
+        resource_type="embedding_preset",
+        resource_id=preset_id,
+        metadata={"name": deleted_name},
+    )
     return StatusResponse(status="ok", message="Preset deleted")

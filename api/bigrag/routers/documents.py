@@ -30,7 +30,7 @@ from bigrag.models.document import (
 )
 from bigrag.models.s3 import S3IngestRequest, S3IngestResponse
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
-from bigrag.services import metadata_schema, moderation
+from bigrag.services import audit, metadata_schema, moderation
 from bigrag.services.event_bus import event_bus
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 from bigrag.services.ingestion_job import create_ingestion_job
@@ -164,6 +164,8 @@ async def _persist_document(
         await storage.delete(storage_key)
         raise
     await session.refresh(doc)
+    await _recount_collection_documents(session, collection["id"])
+    await session.commit()
 
     try:
         await ingestion_queue.enqueue(
@@ -223,15 +225,20 @@ async def _get_document_with_collection(
     return doc, collection_name
 
 
-async def _recount_ready_documents(
+async def _recount_collection_documents(
     session: AsyncSession,
     collection_id: uuid.UUID,
 ) -> None:
+    """Resync ``Collection.document_count`` to the actual row count.
+
+    Counts every document regardless of status — pending, processing,
+    ready, and failed all show up to operators. Anything else makes the
+    Studio overview disagree with the per-collection stats endpoint.
+    """
     subq = (
         sa.select(sa.func.count())
         .select_from(Document)
         .where(Document.collection_id == collection_id)
-        .where(Document.status == "ready")
         .scalar_subquery()
     )
     await session.execute(
@@ -245,7 +252,7 @@ async def upload_document(
     request: Request,
     file: UploadFile = File(...),
     metadata: str = Form(default="{}"),
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
@@ -319,6 +326,18 @@ async def upload_document(
         raise_on_enqueue_failure=True,
     )
 
+    audit.record(
+        request,
+        user=user,
+        action="document.upload",
+        resource_type="document",
+        resource_id=str(doc.id),
+        metadata={
+            "collection": collection_name,
+            "filename": doc.filename,
+            "size": doc.file_size,
+        },
+    )
     return _document_response(doc)
 
 
@@ -378,7 +397,8 @@ async def get_document(
 async def delete_document(
     collection_name: str,
     document_id: str,
-    _: dict = Depends(get_current_user),
+    request: Request,
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
@@ -393,12 +413,21 @@ async def delete_document(
     await vector_store.delete_by_document(collection_name, document_id)
 
     file_path = doc.file_path
+    deleted_filename = doc.filename
     await session.delete(doc)
-    await _recount_ready_documents(session, collection["id"])
+    await _recount_collection_documents(session, collection["id"])
     await session.commit()
 
     await get_storage().delete(file_path)
 
+    audit.record(
+        request,
+        user=user,
+        action="document.delete",
+        resource_type="document",
+        resource_id=document_id,
+        metadata={"collection": collection_name, "filename": deleted_filename},
+    )
     return StatusResponse(status="ok", message="Document deleted")
 
 
@@ -406,7 +435,8 @@ async def delete_document(
 async def reprocess_document(
     collection_name: str,
     document_id: str,
-    _: dict = Depends(get_current_user),
+    request: Request,
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
@@ -446,6 +476,14 @@ async def reprocess_document(
         )
     )
 
+    audit.record(
+        request,
+        user=user,
+        action="document.reprocess",
+        resource_type="document",
+        resource_id=document_id,
+        metadata={"collection": collection_name, "filename": doc.filename},
+    )
     return StatusResponse(status="ok", message="Document reprocessing started")
 
 
@@ -532,9 +570,10 @@ async def download_document_file(
 @router.post("/batch/upload", response_model=DocumentListResponse, status_code=201)
 async def batch_upload_documents(
     collection_name: str,
+    request: Request,
     files: list[UploadFile] = File(...),
     metadata: str = Form(default="{}"),
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
@@ -621,6 +660,14 @@ async def batch_upload_documents(
         created.append(_document_response(doc))
 
     logger.info(f"batch_upload: collection={collection_name} files={len(created)}")
+    audit.record(
+        request,
+        user=user,
+        action="document.batch_upload",
+        resource_type="collection",
+        resource_id=str(collection["id"]),
+        metadata={"collection": collection_name, "files": len(created)},
+    )
     return DocumentListResponse(
         documents=created,
         total=len(created),
@@ -693,7 +740,8 @@ async def batch_get_documents(
 async def batch_delete_documents(
     collection_name: str,
     body: BatchDeleteRequest,
-    _: dict = Depends(get_current_user),
+    request: Request,
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
@@ -735,11 +783,19 @@ async def batch_delete_documents(
     deleted_ids = [uuid.UUID(d) for d, ok in zip(by_id.keys(), results, strict=True) if ok]
     if deleted_ids:
         await session.execute(sa.delete(Document).where(Document.id.in_(deleted_ids)))
-    await _recount_ready_documents(session, collection["id"])
+    await _recount_collection_documents(session, collection["id"])
     await session.commit()
 
     logger.info(
         f"batch_delete: collection={collection_name} deleted={deleted} errors={len(errors)}"
+    )
+    audit.record(
+        request,
+        user=user,
+        action="document.batch_delete",
+        resource_type="collection",
+        resource_id=str(collection["id"]),
+        metadata={"collection": collection_name, "deleted": deleted, "errors": len(errors)},
     )
     return BatchDeleteResponse(status="ok", deleted=deleted, errors=errors)
 
@@ -781,7 +837,8 @@ async def get_document_chunks_global(
 async def ingest_from_s3(
     collection_name: str,
     body: S3IngestRequest,
-    _: dict = Depends(get_current_user),
+    request: Request,
+    user: dict = Depends(get_current_user),
 ):
     """List objects in an S3 bucket and ingest supported files.
 
@@ -810,6 +867,18 @@ async def ingest_from_s3(
         file_types=body.file_types,
     )
 
+    audit.record(
+        request,
+        user=user,
+        action="document.s3_ingest",
+        resource_type="collection",
+        resource_id=str(collection["id"]),
+        metadata={
+            "collection": collection_name,
+            "bucket": body.bucket,
+            "prefix": body.prefix,
+        },
+    )
     return S3IngestResponse(
         status="accepted",
         message="S3 ingestion started in background",

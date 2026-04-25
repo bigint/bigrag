@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.config import settings
@@ -21,6 +21,7 @@ from bigrag.models.webhook import (
     WebhookResponse,
     WebhookTestResponse,
 )
+from bigrag.services import audit
 from bigrag.services.webhook import generate_secret, webhook_dispatcher
 
 logger = get_logger("bigrag.routers.webhooks")
@@ -75,6 +76,7 @@ def _delivery_response(d: WebhookDelivery) -> WebhookDeliveryResponse:
 @router.post("", response_model=CreateWebhookResponse, status_code=201)
 async def create_webhook(
     body: CreateWebhookRequest,
+    request: Request,
     admin: dict = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
@@ -102,6 +104,14 @@ async def create_webhook(
 
     await webhook_dispatcher.invalidate_cache()
     logger.info(f"Webhook created: id={wh.id} url={body.url} events={body.events}")
+    audit.record(
+        request,
+        user=admin,
+        action="webhook.create",
+        resource_type="webhook",
+        resource_id=str(wh.id),
+        metadata={"url": wh.url, "events": list(wh.events)},
+    )
 
     base = _webhook_response(wh)
     return CreateWebhookResponse(**base.model_dump(), secret=secret)
@@ -138,46 +148,71 @@ async def get_webhook(
 async def update_webhook(
     webhook_id: str,
     body: UpdateWebhookRequest,
-    _: dict = Depends(require_admin),
+    request: Request,
+    admin: dict = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
     wh = await session.get(Webhook, uuid.UUID(webhook_id))
     if wh is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
+    fields: list[str] = []
     if body.url is not None:
         wh.url = body.url
+        fields.append("url")
     if body.events is not None:
         wh.events = body.events
+        fields.append("events")
     if body.collections is not None:
         wh.collections = body.collections
+        fields.append("collections")
     if body.description is not None:
         wh.description = body.description
+        fields.append("description")
     if body.active is not None:
         wh.active = body.active
+        fields.append("active")
 
     await session.commit()
     await session.refresh(wh)
 
     await webhook_dispatcher.invalidate_cache()
     logger.info(f"Webhook updated: id={webhook_id}")
+    audit.record(
+        request,
+        user=admin,
+        action="webhook.update",
+        resource_type="webhook",
+        resource_id=str(wh.id),
+        metadata={"url": wh.url, "fields": fields},
+    )
     return _webhook_response(wh)
 
 
 @router.delete("/{webhook_id}", response_model=StatusResponse)
 async def delete_webhook(
     webhook_id: str,
-    _: dict = Depends(require_admin),
+    request: Request,
+    admin: dict = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
     wh = await session.get(Webhook, uuid.UUID(webhook_id))
     if wh is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
+    deleted_url = wh.url
     await session.delete(wh)
     await session.commit()
     await webhook_dispatcher.invalidate_cache()
     logger.info(f"Webhook deleted: id={webhook_id}")
+    audit.record(
+        request,
+        user=admin,
+        action="webhook.delete",
+        resource_type="webhook",
+        resource_id=webhook_id,
+        metadata={"url": deleted_url},
+    )
     return StatusResponse(status="ok", message="Webhook deleted")
 
 
