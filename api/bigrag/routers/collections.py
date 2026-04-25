@@ -4,7 +4,7 @@ import asyncio
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
@@ -22,6 +22,7 @@ from bigrag.models.collection import (
     UpdateCollectionRequest,
 )
 from bigrag.models.common import StatusResponse
+from bigrag.services import audit
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.vector_store import vector_store
@@ -89,7 +90,8 @@ async def list_collections(
 @router.post("", response_model=CollectionResponse, status_code=201)
 async def create_collection(
     body: CreateCollectionRequest,
-    _: dict = Depends(get_current_user),
+    request: Request,
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     logger.info(
@@ -209,13 +211,27 @@ async def create_collection(
     logger.info(
         f"create: collection={body.name} created provider={provider} model={model} dim={dimension}"
     )
+    audit.record(
+        request,
+        user=user,
+        action="collection.create",
+        resource_type="collection",
+        resource_id=str(collection.id),
+        metadata={
+            "name": body.name,
+            "provider": provider,
+            "model": model,
+            "dimension": dimension,
+        },
+    )
     return _collection_response(collection)
 
 
 @router.post("/{name}/reembed", response_model=StatusResponse)
 async def reembed_collection(
     name: str,
-    _: dict = Depends(get_current_user),
+    request: Request,
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     """Queue every document in a collection for re-embedding.
@@ -270,6 +286,14 @@ async def reembed_collection(
         await ingestion_queue.enqueue(job)
 
     logger.info("reembed: queued", collection=name, docs=len(docs))
+    audit.record(
+        request,
+        user=user,
+        action="collection.reembed",
+        resource_type="collection",
+        resource_id=str(collection.id),
+        metadata={"name": name, "docs_queued": len(docs)},
+    )
     return StatusResponse(
         status="ok",
         message=f"Queued {len(docs)} documents for re-embedding",
@@ -334,7 +358,8 @@ async def get_collection_stats(
 async def update_collection(
     name: str,
     body: UpdateCollectionRequest,
-    _: dict = Depends(get_current_user),
+    request: Request,
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     logger.info(f"update: collection={name}")
@@ -342,22 +367,31 @@ async def update_collection(
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
+    fields: list[str] = []
     if body.description is not None:
         collection.description = body.description
+        fields.append("description")
     if body.metadata is not None:
         collection.meta = body.metadata
+        fields.append("metadata")
     if body.reranking_enabled is not None:
         collection.reranking_enabled = body.reranking_enabled
+        fields.append("reranking_enabled")
     if body.reranking_model is not None:
         collection.reranking_model = body.reranking_model
+        fields.append("reranking_model")
     if body.reranking_api_key is not None:
         collection.reranking_api_key = body.reranking_api_key
+        fields.append("reranking_api_key")
     if body.default_top_k is not None:
         collection.default_top_k = body.default_top_k
+        fields.append("default_top_k")
     if body.default_min_score is not None:
         collection.default_min_score = body.default_min_score
+        fields.append("default_min_score")
     if body.default_search_mode is not None:
         collection.default_search_mode = body.default_search_mode
+        fields.append("default_search_mode")
 
     await session.commit()
     await session.refresh(collection)
@@ -365,13 +399,22 @@ async def update_collection(
     from bigrag.routers import invalidate_collection_cache
 
     await invalidate_collection_cache(name)
+    audit.record(
+        request,
+        user=user,
+        action="collection.update",
+        resource_type="collection",
+        resource_id=str(collection.id),
+        metadata={"name": name, "fields": fields},
+    )
     return _collection_response(collection)
 
 
 @router.delete("/{name}", response_model=StatusResponse)
 async def delete_collection(
     name: str,
-    _: dict = Depends(get_current_user),
+    request: Request,
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     logger.info(f"delete: collection={name}")
@@ -390,6 +433,7 @@ async def delete_collection(
     deleted = await get_storage().delete_prefix(f"{name}/")
     logger.info(f"delete: storage files removed name={name} count={deleted}")
 
+    deleted_id = str(collection.id)
     # Cascades to documents via FK.
     await session.delete(collection)
     await session.commit()
@@ -398,6 +442,14 @@ async def delete_collection(
     from bigrag.routers import invalidate_collection_cache
 
     await invalidate_collection_cache(name)
+    audit.record(
+        request,
+        user=user,
+        action="collection.delete",
+        resource_type="collection",
+        resource_id=deleted_id,
+        metadata={"name": name},
+    )
 
     return StatusResponse(status="ok", message=f"Collection '{name}' deleted")
 
@@ -456,7 +508,8 @@ async def collection_events_sse(
 @router.post("/{name}/truncate", response_model=StatusResponse)
 async def truncate_collection(
     name: str,
-    _: dict = Depends(get_current_user),
+    request: Request,
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Delete all documents, vectors, and storage files in a collection."""
@@ -498,4 +551,12 @@ async def truncate_collection(
     await session.commit()
     logger.info(f"truncate: documents removed name={name}")
 
+    audit.record(
+        request,
+        user=user,
+        action="collection.truncate",
+        resource_type="collection",
+        resource_id=str(collection_id),
+        metadata={"name": name},
+    )
     return StatusResponse(status="ok", message=f"Collection '{name}' truncated")

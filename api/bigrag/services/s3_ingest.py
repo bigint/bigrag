@@ -406,6 +406,21 @@ async def _run_job(job: dict) -> None:
     if total_found == 0:
         logger.warning("s3_job: no supported files found", bucket=bucket, prefix=prefix)
 
+    if ingested:
+        async with session_factory()() as session:
+            subq = (
+                sa.select(sa.func.count())
+                .select_from(Document)
+                .where(Document.collection_id == collection_id)
+                .scalar_subquery()
+            )
+            await session.execute(
+                sa.update(Collection)
+                .where(Collection.id == collection_id)
+                .values(document_count=subq)
+            )
+            await session.commit()
+
     _emit(
         "s3_complete",
         "complete",
