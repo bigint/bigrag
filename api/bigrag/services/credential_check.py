@@ -25,11 +25,12 @@ from bigrag.logging import get_logger
 
 logger = get_logger("bigrag.services.credential_check")
 
-Provider = Literal["openai", "cohere"]
+Provider = Literal["openai", "cohere", "voyage"]
 
 _DEFAULT_BASE_URLS: dict[Provider, str] = {
     "openai": "https://api.openai.com/v1",
     "cohere": "https://api.cohere.ai/v1",
+    "voyage": "https://api.voyageai.com/v1",
 }
 
 
