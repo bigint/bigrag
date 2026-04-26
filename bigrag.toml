@@ -1,18 +1,65 @@
-[server]
-host = "0.0.0.0"
-port = 4000
-workers = 4
+# bigRAG configuration file (TOML)
+#
+# Loaded by `bigrag` at startup via `--config bigrag.toml`. Every key here can
+# also be set as an environment variable with the BIGRAG_ prefix (env vars
+# override TOML). Keys must match Settings field names — see api/bigrag/config.py.
+#
+# All values shown below are defaults; uncomment to customize.
 
-[database]
-url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
+# env = "dev"                   # dev | prod (prod enables startup safety checks)
 
-[milvus]
-uri = "http://localhost:19530"
+# host = "0.0.0.0"
+# port = 4000
+# workers = 4
+# log_level = "info"
+# log_format = "text"
+# cors_origins = []
 
-[redis]
-url = "redis://localhost:6379/0"
+# database_url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
+# db_pool_min = 5
+# db_pool_max = 50
 
-[ingestion]
-workers = 4
-upload_dir = "./data/uploads"
-max_upload_size_mb = 1024
+# milvus_uri = "http://localhost:19530"
+# milvus_max_workers = 32
+# milvus_nprobe = 32
+
+# redis_url = "redis://localhost:6379/0"
+
+# Encryption key for provider secrets at rest. Required in env=prod.
+# Generate with:
+#   python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
+# master_key = ""
+
+# session_expiry_hours = 168
+# session_cookie_name = "bigrag_session"
+# session_cookie_secure = false   # set true behind HTTPS
+# session_cookie_samesite = "lax"
+# session_cookie_domain = ""
+
+# embedding_provider = "openai"   # openai | cohere | voyage
+# embedding_model = "text-embedding-3-small"
+# embedding_dimension = 1536
+# embedding_concurrency = 8
+# embedding_api_key = ""           # use BIGRAG_EMBEDDING_API_KEY in production
+
+# storage_backend = "local"        # local | s3
+# upload_dir = "./data/uploads"
+# s3_bucket = ""
+# s3_endpoint_url = ""
+# s3_region = "us-east-1"
+# s3_access_key = ""
+# s3_secret_key = ""
+
+# chunk_size = 512
+# chunk_overlap = 50
+# max_upload_size_mb = 1024
+# ingestion_workers = 4
+# ingestion_batch_size = 128
+# conversion_timeout = 300
+# collection_cache_ttl = 30
+# queue_max_depth = 10000
+
+# webhook_delivery_timeout = 10
+# webhook_retry_delays = [10, 30, 90]
+# webhook_cache_ttl = 60
+# webhook_max_count = 50
