@@ -610,7 +610,7 @@ bool`).
 
 ---
 
-#### `[ ]` I-030 🟠 `/health/ready` leaks provider error details, unauthenticated
+#### `[x]` I-030 🟠 `/health/ready` leaks provider error details, unauthenticated
 
 **File:** `api/bigrag/routers/health.py:53-60`
 

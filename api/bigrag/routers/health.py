@@ -11,8 +11,11 @@ from bigrag import __version__
 from bigrag.db.engine import session_factory
 from bigrag.db.models import Collection, Document, Webhook
 from bigrag.db.session import get_session
+from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.services import redis_cache
+
+logger = get_logger("bigrag.routers.health")
 
 router = APIRouter(tags=["health"])
 
@@ -108,17 +111,43 @@ async def _check_embedding_provider(settings) -> dict[str, object]:
         await redis_cache.set(cache_key, {"ok": True}, ttl=_EMBEDDING_HEALTH_TTL)
         return {"embedding": True, "embedding_source": source}
     except Exception as exc:
-        error_msg = str(exc)[:200]
+        category = _categorize_provider_error(exc)
         await redis_cache.set(
             cache_key,
-            {"ok": False, "error": error_msg},
+            {"ok": False, "error": category},
             ttl=_EMBEDDING_HEALTH_TTL,
+        )
+        logger.warning(
+            "embedding health check failed",
+            provider=provider,
+            source=source,
+            category=category,
+            error=repr(exc),
         )
         return {
             "embedding": False,
-            "embedding_error": error_msg,
+            "embedding_error": category,
             "embedding_source": source,
         }
+
+
+_AUTH_TOKENS = ("401", "unauthor", "invalid api key", "invalid_api_key")
+_RATE_TOKENS = ("429", "rate", "quota")
+_TIMEOUT_TOKENS = ("timeout", "timed out")
+_NETWORK_TOKENS = ("connection", "network", "unreachable", "dns")
+
+
+def _categorize_provider_error(exc: Exception) -> str:
+    text = f"{exc.__class__.__name__}: {exc}".lower()
+    if any(t in text for t in _AUTH_TOKENS):
+        return "auth_failed"
+    if any(t in text for t in _RATE_TOKENS):
+        return "rate_limited"
+    if any(t in text for t in _TIMEOUT_TOKENS):
+        return "timeout"
+    if any(t in text for t in _NETWORK_TOKENS):
+        return "unreachable"
+    return "unknown"
 
 
 @router.get("/health")
