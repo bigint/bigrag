@@ -66,12 +66,23 @@ async def _user_from_session(request: Request, session: AsyncSession) -> dict | 
     return _serialize(user, auth="session")
 
 
+_QUERY_TOKEN_SUFFIXES = ("/events", "/progress")
+
+
+def _query_token_allowed(path: str) -> bool:
+    """`?token=` carries the secret in URLs, which leak via access logs,
+    Referer headers, and browser history. Only the SSE endpoints — which
+    ``EventSource`` cannot accompany with an Authorization header — opt in.
+    """
+    return any(path.endswith(suffix) for suffix in _QUERY_TOKEN_SUFFIXES)
+
+
 async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | None:
     auth_header = request.headers.get("authorization", "")
     token = ""
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
-    else:
+    elif _query_token_allowed(request.url.path):
         query_token = request.query_params.get("token")
         if query_token:
             token = query_token

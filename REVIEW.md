@@ -145,7 +145,7 @@ Validated URL → internal target.
 
 ---
 
-#### `[ ]` I-005 🔴 API key accepted as `?token=` query param leaks via logs
+#### `[x]` I-005 🔴 API key accepted as `?token=` query param leaks via logs
 
 **File:** `api/bigrag/middleware/auth.py:74-76`
 
