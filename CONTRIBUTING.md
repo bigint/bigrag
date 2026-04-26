@@ -113,7 +113,7 @@ test: add ingestion pipeline tests
 
 ### PR Requirements
 
-- All CI checks must pass (lint, test, sdk-test, website-build, biome)
+- All CI checks must pass (lint, biome, sdk-typecheck, website-build, studio-build)
 - At least one maintainer approval
 - No merge conflicts with `main`
 

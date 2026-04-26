@@ -382,6 +382,18 @@ async def update_collection(
     if body.default_search_mode is not None:
         collection.default_search_mode = body.default_search_mode
         fields.append("default_search_mode")
+    if body.chunk_strategy is not None:
+        collection.chunk_strategy = body.chunk_strategy
+        fields.append("chunk_strategy")
+    if body.metadata_schema is not None:
+        collection.metadata_schema = body.metadata_schema
+        fields.append("metadata_schema")
+    if body.redact_pii is not None:
+        collection.redact_pii = body.redact_pii
+        fields.append("redact_pii")
+    if body.moderation_enabled is not None:
+        collection.moderation_enabled = body.moderation_enabled
+        fields.append("moderation_enabled")
 
     await session.commit()
     await session.refresh(collection)
