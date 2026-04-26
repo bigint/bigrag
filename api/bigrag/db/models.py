@@ -307,7 +307,7 @@ class EmbeddingPreset(Base):
     provider: Mapped[str] = mapped_column(
         sa.Text,
         sa.CheckConstraint(
-            "provider IN ('openai', 'cohere')",
+            "provider IN ('openai', 'cohere', 'voyage')",
             name="embedding_presets_provider_check",
         ),
         nullable=False,

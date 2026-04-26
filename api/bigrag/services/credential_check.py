@@ -4,10 +4,10 @@ Called from the admin ``POST /v1/admin/embedding-presets`` handler before
 the preset is persisted, so operators learn immediately when a key is bad
 instead of hitting the failure at first-use.
 
-The check is intentionally cheap: a single GET against the provider's
-``/models`` listing. That proves the key authenticates; it does not prove
-the requested ``model`` exists on the provider (mismatches surface at
-embed time).
+OpenAI and Cohere are probed with a cheap ``GET /models`` listing. Voyage
+has no GET endpoints, so it's probed with a 1-token ``POST /embeddings``
+call against the preset's own ``model`` — which doubles as a model-name
+check and costs a single token.
 
 Strictly fails closed — any non-2xx, network error, or timeout raises
 ``CredentialCheckError``. Self-hosted OpenAI-compatible endpoints must
@@ -51,13 +51,26 @@ async def verify_provider_credentials(
     api_key: str,
     base_url: str | None,
     *,
+    model: str | None = None,
     timeout_seconds: float = 5.0,
 ) -> None:
-    """Hit the provider's /models endpoint. Return None on 2xx.
+    """Probe the provider to confirm the key works. Return None on success.
 
     Raises :class:`CredentialCheckError` on any non-2xx response, network
     failure, or timeout. The ``api_key`` is never logged, even on error.
     """
+    if provider == "voyage":
+        await _verify_voyage(api_key, base_url, model, timeout_seconds)
+        return
+    await _verify_via_models_listing(provider, api_key, base_url, timeout_seconds)
+
+
+async def _verify_via_models_listing(
+    provider: Provider,
+    api_key: str,
+    base_url: str | None,
+    timeout_seconds: float,
+) -> None:
     root = (base_url or _DEFAULT_BASE_URLS[provider]).rstrip("/")
     url = f"{root}/models"
     headers = {"Authorization": f"Bearer {api_key}"}
@@ -100,3 +113,71 @@ async def verify_provider_credentials(
         extra={"provider": provider, "base_url": base_url, "status": status},
     )
     raise CredentialCheckError("PROVIDER_ERROR", f"Provider returned {status}.")
+
+
+async def _verify_voyage(
+    api_key: str,
+    base_url: str | None,
+    model: str | None,
+    timeout_seconds: float,
+) -> None:
+    root = (base_url or _DEFAULT_BASE_URLS["voyage"]).rstrip("/")
+    url = f"{root}/embeddings"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {"input": ["ping"], "model": model or "voyage-3.5"}
+
+    try:
+        async with _build_client(timeout_seconds) as client:
+            response = await client.post(url, headers=headers, json=payload)
+    except httpx.TimeoutException:
+        logger.warning(
+            "credential_check timeout", extra={"provider": "voyage", "base_url": base_url}
+        )
+        raise CredentialCheckError(
+            "TIMEOUT", f"Provider did not respond within {timeout_seconds:.0f}s."
+        ) from None
+    except httpx.HTTPError as exc:
+        logger.warning(
+            "credential_check unreachable",
+            extra={"provider": "voyage", "base_url": base_url, "error": type(exc).__name__},
+        )
+        raise CredentialCheckError("UNREACHABLE", "Could not reach provider.") from None
+
+    status = response.status_code
+    if 200 <= status < 300:
+        return
+
+    if status in (401, 403):
+        logger.info(
+            "credential_check rejected",
+            extra={"provider": "voyage", "base_url": base_url, "status": status},
+        )
+        raise CredentialCheckError("INVALID_KEY", "Invalid API key.")
+    detail = _voyage_error_detail(response)
+    logger.warning(
+        "credential_check provider error",
+        extra={"provider": "voyage", "base_url": base_url, "status": status},
+    )
+    raise CredentialCheckError(
+        "PROVIDER_ERROR", f"Voyage returned {status}{f': {detail}' if detail else '.'}"
+    )
+
+
+def _voyage_error_detail(response: httpx.Response) -> str:
+    try:
+        body = response.json()
+    except ValueError:
+        return ""
+    if isinstance(body, dict):
+        for key in ("detail", "error", "message"):
+            value = body.get(key)
+            if isinstance(value, str) and value:
+                return value
+            if isinstance(value, dict):
+                msg = value.get("message")
+                if isinstance(msg, str) and msg:
+                    return msg
+    return ""

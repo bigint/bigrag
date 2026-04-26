@@ -88,6 +88,7 @@ async def create_preset(
             provider=body.provider,
             api_key=body.api_key,
             base_url=body.base_url,
+            model=body.model,
         )
     except CredentialCheckError as e:
         raise HTTPException(status_code=422, detail=e.message) from e
