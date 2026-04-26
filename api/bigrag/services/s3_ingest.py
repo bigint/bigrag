@@ -228,7 +228,18 @@ async def _run_job(job: dict) -> None:
     skipped = 0
     total_found = 0
     sem = asyncio.Semaphore(10)
+    counter_lock = asyncio.Lock()
     max_object_bytes = 2 * 1024 * 1024 * 1024  # 2GB per object
+
+    async def _inc_skipped(n: int = 1) -> None:
+        nonlocal skipped
+        async with counter_lock:
+            skipped += n
+
+    async def _inc_ingested(n: int = 1) -> None:
+        nonlocal ingested
+        async with counter_lock:
+            ingested += n
 
     await _update("ingesting")
 
@@ -256,7 +267,7 @@ async def _run_job(job: dict) -> None:
                             key=key,
                             size_mb=round(size_mb, 1),
                         )
-                        skipped += 1
+                        await _inc_skipped()
                         return
 
                     async with sem:
@@ -272,11 +283,11 @@ async def _run_job(job: dict) -> None:
                             content = await resp["Body"].read()
                         except Exception as e:
                             logger.warning("s3_job: download failed", key=key, error=str(e))
-                            skipped += 1
+                            await _inc_skipped()
                             return
 
                         if len(content) == 0:
-                            skipped += 1
+                            await _inc_skipped()
                             return
 
                         doc_id = uuid.uuid4()
@@ -310,7 +321,7 @@ async def _run_job(job: dict) -> None:
                             error=str(e),
                         )
                         await storage.delete(storage_key)
-                        skipped += 1
+                        await _inc_skipped()
                         return
 
                     try:
@@ -335,10 +346,10 @@ async def _run_job(job: dict) -> None:
                             await session.execute(sa.delete(Document).where(Document.id == doc_id))
                             await session.commit()
                         await storage.delete(storage_key)
-                        skipped += 1
+                        await _inc_skipped()
                         return
 
-                    ingested += 1
+                    await _inc_ingested()
                     _emit(
                         "s3_ingested",
                         "processing",
@@ -365,7 +376,7 @@ async def _run_job(job: dict) -> None:
                     raise
                 except Exception as e:
                     logger.warning("s3_job: failed to process", key=key, error=str(e))
-                    skipped += 1
+                    await _inc_skipped()
 
             async for page in iter_s3_pages(
                 bucket=bucket,
@@ -380,7 +391,7 @@ async def _run_job(job: dict) -> None:
                     key = obj["Key"]
                     total_found += 1
                     if key in existing_keys:
-                        skipped += 1
+                        await _inc_skipped()
                         page_skipped += 1
                     else:
                         existing_keys.add(key)

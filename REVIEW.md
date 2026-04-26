@@ -381,7 +381,7 @@ The worker increments `document_count` whenever a job ends in `status=ready`.
 
 ---
 
-#### `[ ]` I-016 🔴 S3 ingest counters get lost-update across coroutines
+#### `[x]` I-016 🔴 S3 ingest counters get lost-update across coroutines
 
 **File:** `api/bigrag/services/s3_ingest.py:217-218,303,331,248-249,268-269`
 
