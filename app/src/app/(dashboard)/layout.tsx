@@ -1,12 +1,13 @@
 "use client";
 
+import { Menu as MenuIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Logo } from "@/components/brand/logo";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession, useSetupStatus } from "@/hooks/use-auth";
-import { Sidebar } from "./components/sidebar";
+import { MobileSidebar, Sidebar } from "./components/sidebar";
 
-// Routes that manage their own scrolling + padding (i.e. chat-style pages).
 const FULL_HEIGHT_ROUTES = ["/playground"];
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
@@ -14,6 +15,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const { data: setupStatus } = useSetupStatus();
   const { data: session, isPending, isError } = useSession();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     if (isPending) return;
@@ -46,7 +48,20 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         Skip to main content
       </a>
       <Sidebar />
+      <MobileSidebar open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       <main id="main" className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-3 py-2.5 lg:hidden">
+          <button
+            type="button"
+            aria-label="Open navigation"
+            onClick={() => setMobileNavOpen(true)}
+            className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            <MenuIcon className="size-5" />
+          </button>
+          <Logo />
+          <span className="size-9" aria-hidden />
+        </header>
         {isFullHeight ? (
           children
         ) : (
