@@ -11,8 +11,6 @@ from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_session
 from bigrag.models.auth import AuditLogEntry, AuditLogListResponse
-from bigrag.services import semantic_cache
-from bigrag.services.vector_store import vector_store
 
 logger = get_logger("bigrag.routers.admin_audit")
 
@@ -70,6 +68,3 @@ async def list_audit_log(
         entries=[_audit_row(e) for e in entries],
         total=total or 0,
     )
-
-
-_ = semantic_cache, vector_store
