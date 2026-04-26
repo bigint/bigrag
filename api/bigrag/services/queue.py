@@ -114,41 +114,65 @@ class IngestionQueue:
             await self._redis.hset(STATS_KEY, "processing", 0)
         return recovered
 
+    _ENQUEUE_LUA = """
+    local depth = redis.call('LLEN', KEYS[1])
+    if depth >= tonumber(ARGV[2]) then
+      return -1
+    end
+    redis.call('LPUSH', KEYS[1], ARGV[1])
+    redis.call('HINCRBY', KEYS[2], 'queued', 1)
+    return redis.call('LLEN', KEYS[1])
+    """
+
+    _FLUSH_LUA = """
+    local items = redis.call('LRANGE', KEYS[1], 0, -1)
+    local kept = {}
+    local removed = 0
+    for _, raw in ipairs(items) do
+      local ok, decoded = pcall(cjson.decode, raw)
+      if ok and decoded['collection_name'] == ARGV[1] then
+        removed = removed + 1
+      else
+        table.insert(kept, raw)
+      end
+    end
+    redis.call('DEL', KEYS[1])
+    if #kept > 0 then
+      redis.call('RPUSH', KEYS[1], unpack(kept))
+    end
+    return removed
+    """
+
     async def enqueue(self, job: IngestionJob) -> None:
         from bigrag.config import settings as _settings
 
-        depth = await self._redis.llen(QUEUE_KEY)
-        if depth >= _settings.queue_max_depth:
+        pending = await self._redis.eval(
+            self._ENQUEUE_LUA,
+            2,
+            QUEUE_KEY,
+            STATS_KEY,
+            job.serialize(),
+            _settings.queue_max_depth,
+        )
+        if pending == -1:
             raise ValueError("Ingestion queue is full. Try again later.")
-        await self._redis.lpush(QUEUE_KEY, job.serialize())
-        await self._redis.hincrby(STATS_KEY, "queued", 1)
-        pending = await self._redis.llen(QUEUE_KEY)
         logger.info(
             f"[queue] enqueued job={job.job_id} doc={job.document_id} "
             f"collection={job.collection_name} pending={pending}"
         )
 
     async def flush_collection(self, collection_name: str) -> int:
-
         if not self._redis:
             return 0
-        removed = 0
-        items = await self._redis.lrange(QUEUE_KEY, 0, -1)
-        for item in items:
-            try:
-                job = IngestionJob.deserialize(item)
-            except (ValueError, TypeError, KeyError) as exc:
-                logger.warning(
-                    "queue: malformed job payload, skipping",
-                    error=f"{exc.__class__.__name__}: {exc}",
-                )
-                continue
-            if job.collection_name == collection_name:
-                await self._redis.lrem(QUEUE_KEY, 1, item)
-                removed += 1
+        removed = await self._redis.eval(
+            self._FLUSH_LUA,
+            1,
+            QUEUE_KEY,
+            collection_name,
+        )
         if removed:
             logger.info(f"[queue] flushed {removed} jobs for collection={collection_name}")
-        return removed
+        return int(removed)
 
     @property
     async def stats(self) -> dict:

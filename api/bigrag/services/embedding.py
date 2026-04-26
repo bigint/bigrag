@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 
 from bigrag.logging import get_logger
 
@@ -297,7 +298,8 @@ class VoyageEmbedding(EmbeddingModel):
         return "voyage"
 
 
-_models: dict[str, EmbeddingModel] = {}
+_MODELS_MAX = 32
+_models: OrderedDict[str, EmbeddingModel] = OrderedDict()
 
 
 def get_embedding_model(
@@ -311,9 +313,10 @@ def get_embedding_model(
     base_tag = hashlib.sha256((base_url or "").encode()).hexdigest()[:6] if base_url else "def"
     cache_key = f"{provider}:{model_name}:{key_hash}:{base_tag}"
     if cache_key in _models:
+        _models.move_to_end(cache_key)
         return _models[cache_key]
 
-    if provider in ("openai", "openai_compatible"):
+    if provider == "openai":
         model = OpenAIEmbedding(
             model_name,
             api_key=api_key,
@@ -326,11 +329,12 @@ def get_embedding_model(
         model = VoyageEmbedding(model_name, api_key=api_key, dimension=dimension or 1024)
     else:
         raise ValueError(
-            f"Unknown embedding provider: {provider}. "
-            f"Supported: openai, openai_compatible, cohere, voyage"
+            f"Unknown embedding provider: {provider}. Supported: openai, cohere, voyage"
         )
 
     _models[cache_key] = model
+    while len(_models) > _MODELS_MAX:
+        _models.popitem(last=False)
     return model
 
 

@@ -5,7 +5,6 @@ import hashlib
 import hmac
 import random
 import secrets
-import time
 import uuid
 from datetime import UTC, datetime
 
@@ -74,33 +73,56 @@ def _jittered_delay(base_delay: int, jitter_factor: float = 0.25) -> float:
 
 
 class CircuitBreaker:
+    """Webhook circuit breaker. State lives in Redis so workers share it.
+
+    `failures:{id}` — INCR on each failure, EX = cooldown_seconds * 2.
+    The breaker is open when the counter reaches failure_threshold; the
+    counter expires naturally, giving the endpoint a clean half-open at
+    the next attempt.
+    """
+
     def __init__(self, failure_threshold: int = 5, cooldown_seconds: int = 300) -> None:
         self._failure_threshold = failure_threshold
         self._cooldown = cooldown_seconds
-        self._state: dict[str, tuple[int, float]] = {}
 
-    def is_open(self, webhook_id: str) -> bool:
+    @staticmethod
+    def _key(webhook_id: str) -> str:
+        return f"bigrag:webhook:cb:{webhook_id}"
 
-        state = self._state.get(webhook_id)
-        if state is None:
+    async def is_open(self, webhook_id: str) -> bool:
+        from bigrag.services.redis_cache import get_redis
+
+        redis = get_redis()
+        if redis is None:
             return False
-        failures, last_failure = state
-        if failures >= self._failure_threshold:
-            if time.monotonic() - last_failure < self._cooldown:
-                return True
+        raw = await redis.get(self._key(webhook_id))
+        if raw is None:
             return False
-        return False
+        try:
+            failures = int(raw)
+        except (TypeError, ValueError):
+            return False
+        return failures >= self._failure_threshold
 
-    def record_success(self, webhook_id: str) -> None:
-        self._state.pop(webhook_id, None)
+    async def record_success(self, webhook_id: str) -> None:
+        from bigrag.services.redis_cache import get_redis
 
-    def record_failure(self, webhook_id: str) -> None:
-        state = self._state.get(webhook_id)
-        if state:
-            failures, _ = state
-            self._state[webhook_id] = (failures + 1, time.monotonic())
-        else:
-            self._state[webhook_id] = (1, time.monotonic())
+        redis = get_redis()
+        if redis is None:
+            return
+        await redis.delete(self._key(webhook_id))
+
+    async def record_failure(self, webhook_id: str) -> None:
+        from bigrag.services.redis_cache import get_redis
+
+        redis = get_redis()
+        if redis is None:
+            return
+        key = self._key(webhook_id)
+        async with redis.pipeline(transaction=True) as pipe:
+            pipe.incr(key)
+            pipe.expire(key, self._cooldown)
+            await pipe.execute()
 
 
 class WebhookDispatcher:
@@ -205,7 +227,7 @@ class WebhookDispatcher:
             if _matches_webhook(webhook, webhook_event, collection):
                 wh_id = str(webhook["id"])
 
-                if self._circuit_breaker.is_open(wh_id):
+                if await self._circuit_breaker.is_open(wh_id):
                     logger.warning(
                         f"Circuit open for webhook={wh_id}, skipping delivery for {webhook_event}"
                     )
@@ -338,7 +360,7 @@ class WebhookDispatcher:
                                 )
                             )
                             await session.commit()
-                        self._circuit_breaker.record_success(wh_id_str)
+                        await self._circuit_breaker.record_success(wh_id_str)
                         logger.info(
                             f"Webhook delivered: webhook={webhook_id} event={event} "
                             f"delivery={delivery_id} attempt={attempt} status={last_status_code}"
@@ -375,7 +397,7 @@ class WebhookDispatcher:
                 else:
                     break
 
-            self._circuit_breaker.record_failure(wh_id_str)
+            await self._circuit_breaker.record_failure(wh_id_str)
             async with session_factory()() as session:
                 await session.execute(
                     sa.update(WebhookDelivery)

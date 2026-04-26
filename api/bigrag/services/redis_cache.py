@@ -18,6 +18,10 @@ async def connect(redis_url: str) -> None:
     logger.info("redis cache connected")
 
 
+def get_redis() -> aioredis.Redis | None:
+    return _redis
+
+
 async def close() -> None:
     global _redis
     if _redis:
