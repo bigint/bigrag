@@ -79,9 +79,11 @@ const buildClaudeDesktopJson = (server: McpServer, origin: string, plaintext: st
     2,
   );
 
+const shellQuote = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
+
 const buildShellSnippet = (origin: string, plaintext: string) =>
-  `BIGRAG_URL=${trimSlash(origin)} \\
-  BIGRAG_API_KEY=${plaintext} \\
+  `BIGRAG_URL=${shellQuote(trimSlash(origin))} \\
+  BIGRAG_API_KEY=${shellQuote(plaintext)} \\
   bigrag-mcp`;
 
 const CopyButton = ({ code, label }: { code: string; label: string }) => {
@@ -406,6 +408,12 @@ const McpPage = () => {
     server: CreatedMcpServer;
     kind: "created" | "rotated";
   } | null>(null);
+
+  useEffect(() => {
+    if (!credential) return;
+    const timer = setTimeout(() => setCredential(null), 5 * 60 * 1000);
+    return () => clearTimeout(timer);
+  }, [credential]);
 
   const handleRotate = async () => {
     if (!detailId) return;

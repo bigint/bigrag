@@ -682,7 +682,7 @@ cookies at the Next.js origin with arbitrary attributes (no `Secure`, no
 
 ---
 
-#### `[ ]` I-035 🟠 MCP page renders the full token in the DOM
+#### `[x]` I-035 🟠 MCP page renders the full token in the DOM
 
 **File:** `app/src/app/(dashboard)/mcp/page.tsx:62-63,256`
 
@@ -700,7 +700,7 @@ React fiber tree all see it. The modal stays mounted until the user clicks
 
 ---
 
-#### `[ ]` I-036 🟠 Shell snippet on the MCP page isn't shell-quoted
+#### `[x]` I-036 🟠 Shell snippet on the MCP page isn't shell-quoted
 
 **File:** `app/src/app/(dashboard)/mcp/page.tsx:82-85`
 
