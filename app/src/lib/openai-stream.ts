@@ -1,9 +1,3 @@
-/**
- * Minimal OpenAI Chat Completions streaming client, browser-only.
- * The user's API key is sent directly to api.openai.com (never through
- * the bigRAG server). Yields text deltas as they arrive.
- */
-
 export type OpenAIMessage = { role: "system" | "user" | "assistant"; content: string };
 
 export type StreamOptions = {
@@ -76,9 +70,7 @@ export const streamOpenAI = async (opts: StreamOptions): Promise<void> => {
           };
           const delta = parsed.choices?.[0]?.delta?.content;
           if (delta) opts.onToken(delta);
-        } catch {
-          // skip malformed frame
-        }
+        } catch {}
       }
     }
   }

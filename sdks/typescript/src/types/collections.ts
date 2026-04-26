@@ -1,4 +1,3 @@
-/** A collection of documents with embedding and search configuration. */
 export interface Collection {
   id: string;
   name: string;
@@ -27,20 +26,17 @@ export interface Collection {
   updated_at: string;
 }
 
-/** Options for listing collections. */
 export interface CollectionListOptions {
   name?: string;
   limit?: number;
   offset?: number;
 }
 
-/** Paginated list of collections. */
 export interface CollectionListResponse {
   collections: Collection[];
   total: number;
 }
 
-/** Statistics for a single collection. */
 export interface CollectionStatsResponse {
   collection: string;
   document_count: number;
@@ -50,7 +46,6 @@ export interface CollectionStatsResponse {
   status_counts: Record<string, number>;
 }
 
-/** Body for creating a new collection. */
 export interface CreateCollectionBody {
   name: string;
   description?: string;
@@ -77,7 +72,6 @@ export interface CreateCollectionBody {
   default_search_mode?: "semantic" | "keyword" | "hybrid";
 }
 
-/** Body for updating an existing collection. */
 export interface UpdateCollectionBody {
   description?: string;
   metadata?: Record<string, unknown>;

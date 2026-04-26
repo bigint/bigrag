@@ -1,12 +1,5 @@
 import type { FileInput } from "./types/documents.js";
 
-/**
- * Normalize a single {@link FileInput} into a `Blob` suitable for `FormData`
- * along with a human-readable file name.
- *
- * This consolidates the duplicated detection logic that was previously
- * inlined in both `_buildUploadForm` and `batchUploadDocuments`.
- */
 export async function normalizeFileInput(file: FileInput): Promise<{ blob: Blob; name: string }> {
   if (file instanceof Blob) {
     const name = file instanceof File ? file.name : "document";
@@ -25,6 +18,5 @@ export async function normalizeFileInput(file: FileInput): Promise<{ blob: Blob;
     return { blob: new Blob([data]), name };
   }
 
-  // Exhaustiveness -- should never be reached.
   throw new Error("Unsupported file input type");
 }

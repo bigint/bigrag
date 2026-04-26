@@ -1,4 +1,3 @@
-/** An SSE event emitted during document processing. */
 export interface ProgressEvent {
   step: string;
   message: string;

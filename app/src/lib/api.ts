@@ -17,9 +17,7 @@ const api: KyInstance = ky.create({
               wrapped.status = error.response.status;
               return wrapped;
             }
-          } catch {
-            // body was not JSON — fall through to the original error
-          }
+          } catch {}
         }
         return error;
       },

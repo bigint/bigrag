@@ -1,4 +1,3 @@
-/** Body for a single-collection query. */
 export interface QueryBody {
   query: string;
   top_k?: number;
@@ -8,7 +7,6 @@ export interface QueryBody {
   rerank?: boolean;
 }
 
-/** A single query result with score and metadata. */
 export interface QueryResult {
   id: string;
   text: string;
@@ -18,7 +16,6 @@ export interface QueryResult {
   metadata: Record<string, unknown>;
 }
 
-/** Response for a single-collection query. */
 export interface QueryResponse {
   results: QueryResult[];
   query: string;
@@ -26,7 +23,6 @@ export interface QueryResponse {
   total: number;
 }
 
-/** Body for a multi-collection query. */
 export interface MultiQueryBody {
   query: string;
   collections: string[];
@@ -36,7 +32,6 @@ export interface MultiQueryBody {
   search_mode?: "semantic" | "keyword" | "hybrid";
 }
 
-/** A query result that includes its source collection. */
 export interface MultiQueryResult {
   id: string;
   text: string;
@@ -47,7 +42,6 @@ export interface MultiQueryResult {
   metadata: Record<string, unknown>;
 }
 
-/** Response for a multi-collection query. */
 export interface MultiQueryResponse {
   results: MultiQueryResult[];
   query: string;
@@ -55,7 +49,6 @@ export interface MultiQueryResponse {
   total: number;
 }
 
-/** A single item in a batch query request. */
 export interface BatchQueryItem {
   collection: string;
   query: string;
@@ -66,12 +59,10 @@ export interface BatchQueryItem {
   rerank?: boolean;
 }
 
-/** Body for a batch query request. */
 export interface BatchQueryBody {
   queries: BatchQueryItem[];
 }
 
-/** A single result set in a batch query response. */
 export interface BatchQueryResultItem {
   results: QueryResult[];
   query: string;
@@ -79,7 +70,6 @@ export interface BatchQueryResultItem {
   total: number;
 }
 
-/** Response for a batch query request. */
 export interface BatchQueryResponse {
   results: BatchQueryResultItem[];
 }

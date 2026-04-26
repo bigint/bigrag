@@ -17,8 +17,7 @@ export function CtaSection() {
           <div className="mb-8 w-full max-w-md overflow-hidden rounded-xl border border-fd-border bg-fd-background shadow-sm">
             <pre className="px-5 py-4 text-left text-sm">
               <code className="text-fd-foreground/85">
-                <span className="text-fd-muted-foreground">$</span> curl -O
-                https://raw.githubusercontent.com/bigint/bigrag/main/docker-compose.yml
+                <span className="text-fd-muted-foreground">$</span> curl -O https:
                 {"\n"}
                 <span className="text-fd-muted-foreground">$</span> docker compose up -d
               </code>

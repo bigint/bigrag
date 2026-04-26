@@ -1,10 +1,3 @@
-/**
- * File-type categories accepted by bigRAG's Docling ingester.
- * Stored per-collection in `collection.metadata.allowed_file_types` — when
- * empty or missing, all types are allowed. When non-empty, the Studio refuses
- * uploads whose extension isn't in the list.
- */
-
 export const FILE_TYPE_CATEGORIES: Record<string, string[]> = {
   Documents: ["pdf", "docx", "pptx", "xlsx"],
   Text: ["md", "txt", "html", "htm", "csv", "tsv", "xml", "json"],

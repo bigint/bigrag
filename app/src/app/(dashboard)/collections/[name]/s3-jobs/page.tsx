@@ -76,7 +76,7 @@ const S3JobsTab = ({ params }: { params: Promise<{ name: string }> }) => {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="truncate font-mono text-sm">
-                      s3://{j.bucket}
+                      s3:
                       {j.prefix ? `/${j.prefix}` : ""}
                     </span>
                     <Badge dot variant={statusVariant[j.status]}>

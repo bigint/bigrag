@@ -36,9 +36,7 @@ const useProgressStream = (
     es.onmessage = (e) => {
       try {
         setEvent(JSON.parse(e.data) as ProgressEvent);
-      } catch {
-        // ignore malformed frames
-      }
+      } catch {}
     };
     es.onerror = () => es.close();
     return () => es.close();

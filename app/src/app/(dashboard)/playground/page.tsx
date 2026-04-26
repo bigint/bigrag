@@ -188,7 +188,6 @@ const PlaygroundPage = () => {
       });
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        // user pressed stop — keep partial response
       } else {
         const message = err instanceof Error ? err.message : "OpenAI request failed";
         setMessages((prev) =>

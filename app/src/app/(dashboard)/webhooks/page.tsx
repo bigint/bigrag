@@ -24,9 +24,7 @@ const WebhooksPage = () => {
     try {
       await remove.mutateAsync(deleteId);
       setDeleteId(null);
-    } catch {
-      // toast handled in mutation
-    }
+    } catch {}
   };
 
   return (

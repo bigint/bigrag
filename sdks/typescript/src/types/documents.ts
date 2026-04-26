@@ -1,4 +1,3 @@
-/** A document stored within a collection. */
 export interface Document {
   id: string;
   collection_id: string;
@@ -13,20 +12,17 @@ export interface Document {
   updated_at: string;
 }
 
-/** Paginated list of documents. */
 export interface DocumentListResponse {
   documents: Document[];
   total: number;
 }
 
-/** Options for listing documents. */
 export interface DocumentListOptions {
   status?: string;
   limit?: number;
   offset?: number;
 }
 
-/** A single chunk extracted from a document. */
 export interface DocumentChunk {
   id: string;
   document_id: string;
@@ -35,18 +31,15 @@ export interface DocumentChunk {
   metadata: Record<string, unknown>;
 }
 
-/** Paginated list of document chunks. */
 export interface DocumentChunkListResponse {
   chunks: DocumentChunk[];
   total: number;
 }
 
-/** Body for batch status requests. */
 export interface BatchStatusBody {
   document_ids: string[];
 }
 
-/** Status of a single document in a batch response. */
 export interface DocumentStatus {
   id: string;
   status: string;
@@ -54,31 +47,26 @@ export interface DocumentStatus {
   chunk_count: number;
 }
 
-/** Response for batch document status check. */
 export interface BatchStatusResponse {
   documents: DocumentStatus[];
   total: number;
 }
 
-/** Response for batch document retrieval. */
 export interface BatchGetDocumentsResponse {
   documents: Document[];
   total: number;
 }
 
-/** Body for batch document deletion. */
 export interface BatchDeleteBody {
   document_ids: string[];
 }
 
-/** Response for batch document deletion. */
 export interface BatchDeleteDocumentsResponse {
   status: string;
   deleted: number;
   errors: Array<{ document_id: string; error: string }>;
 }
 
-/** Request body for S3 bucket ingestion. */
 export interface S3IngestBody {
   bucket: string;
   prefix?: string;
@@ -91,13 +79,11 @@ export interface S3IngestBody {
   file_types?: string[];
 }
 
-/** Response for S3 bucket ingestion. */
 export interface S3IngestResponse {
   status: string;
   message: string;
 }
 
-/** An S3 ingest job. */
 export interface S3Job {
   id: string;
   collection_name: string;
@@ -115,22 +101,13 @@ export interface S3Job {
   updated_at: string;
 }
 
-/** Body for updating an S3 ingest job. */
 export interface UpdateS3JobBody {
   file_types?: string[];
 }
 
-/** Paginated list of S3 ingest jobs. */
 export interface S3JobListResponse {
   jobs: S3Job[];
   total: number;
 }
 
-/**
- * Accepted file input types for document upload.
- *
- * - `File` / `Blob` -- browser-native types
- * - `Buffer` / `Uint8Array` -- raw bytes
- * - `{ path: string; name?: string }` -- Node.js file-system path
- */
 export type FileInput = File | Blob | Buffer | Uint8Array | { path: string; name?: string };

@@ -1,16 +1,13 @@
-/** Response indicating an operation's status. */
 export interface StatusResponse {
   status: string;
   message?: string;
 }
 
-/** Health-check response from the platform. */
 export interface HealthResponse {
   status: string;
   version: string;
 }
 
-/** Readiness probe showing connectivity to all backing services. */
 export interface ReadinessResponse {
   status: string;
   version: string;
@@ -21,7 +18,6 @@ export interface ReadinessResponse {
   embedding_error?: string;
 }
 
-/** Aggregated queue statistics. */
 export interface QueueStatsResponse {
   queued: number;
   completed: number;
@@ -30,7 +26,6 @@ export interface QueueStatsResponse {
   processing: number;
 }
 
-/** Aggregate counts and sizes for documents. */
 export interface DocumentStats {
   total: number;
   ready: number;
@@ -42,7 +37,6 @@ export interface DocumentStats {
   total_size_bytes: number;
 }
 
-/** Platform-wide statistics encompassing collections, documents, webhooks and queues. */
 export interface PlatformStatsResponse {
   collections: number;
   documents: DocumentStats;

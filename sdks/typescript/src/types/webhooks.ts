@@ -1,4 +1,3 @@
-/** A registered webhook. */
 export interface Webhook {
   id: string;
   url: string;
@@ -11,7 +10,6 @@ export interface Webhook {
   updated_at: string;
 }
 
-/** Body for creating a new webhook. */
 export interface CreateWebhookBody {
   url: string;
   events: string[];
@@ -19,12 +17,10 @@ export interface CreateWebhookBody {
   description?: string;
 }
 
-/** Response when creating a webhook -- includes the signing secret. */
 export interface CreateWebhookResponse extends Webhook {
   secret: string;
 }
 
-/** Body for updating an existing webhook. */
 export interface UpdateWebhookBody {
   url?: string;
   events?: string[];
@@ -33,12 +29,10 @@ export interface UpdateWebhookBody {
   active?: boolean;
 }
 
-/** Response listing webhooks. */
 export interface WebhookListResponse {
   webhooks: Webhook[];
 }
 
-/** A single webhook delivery attempt. */
 export interface WebhookDelivery {
   id: string;
   webhook_id: string;
@@ -52,13 +46,11 @@ export interface WebhookDelivery {
   completed_at: string | null;
 }
 
-/** Paginated list of webhook deliveries. */
 export interface WebhookDeliveryListResponse {
   deliveries: WebhookDelivery[];
   total: number;
 }
 
-/** Response from testing a webhook endpoint. */
 export interface WebhookTestResponse {
   status: string;
   status_code: number | null;

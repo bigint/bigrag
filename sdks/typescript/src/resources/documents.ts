@@ -21,22 +21,9 @@ import type {
   UpdateS3JobBody,
 } from "../types.js";
 
-/**
- * Resource namespace for document operations within a collection.
- *
- * Access via `client.documents`.
- */
 export class DocumentsResource {
-  /** @internal */
   constructor(private readonly _client: RequestClient) {}
 
-  /**
-   * Upload a single document to a collection.
-   *
-   * @param collection - The target collection name.
-   * @param file - The file to upload (File, Blob, Buffer, Uint8Array, or path object).
-   * @param metadata - Optional metadata to attach to the document.
-   */
   async upload(
     collection: string,
     file: FileInput,
@@ -58,7 +45,6 @@ export class DocumentsResource {
     );
   }
 
-  /** @internal Upload via XHR so we can report per-chunk progress. */
   private _uploadWithProgress(
     collection: string,
     form: FormData,
@@ -92,13 +78,6 @@ export class DocumentsResource {
     });
   }
 
-  /**
-   * Upload multiple documents in a single request.
-   *
-   * @param collection - The target collection name.
-   * @param files - Array of files to upload.
-   * @param metadata - Optional metadata to attach to all documents.
-   */
   async batchUpload(
     collection: string,
     files: FileInput[],
@@ -118,12 +97,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * List documents in a collection with optional filtering and pagination.
-   *
-   * @param collection - The collection name.
-   * @param options - Optional filters such as `status`, `limit`, and `offset`.
-   */
   list(collection: string, options?: DocumentListOptions): Promise<DocumentListResponse> {
     const params: Record<string, string> = {};
     if (options?.status) params.status = options.status;
@@ -136,18 +109,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * Auto-paginate through every document in a collection. Yields one
-   * {@link Document} at a time so callers can stream-process large
-   * collections without buffering everything in memory.
-   *
-   * @example
-   * ```ts
-   * for await (const doc of client.documents.listAll("docs")) {
-   *   console.log(doc.filename);
-   * }
-   * ```
-   */
   async *listAll(
     collection: string,
     options?: Omit<DocumentListOptions, "offset">,
@@ -167,12 +128,6 @@ export class DocumentsResource {
     }
   }
 
-  /**
-   * Retrieve a single document by ID.
-   *
-   * @param collection - The collection name.
-   * @param documentId - The document ID.
-   */
   get(collection: string, documentId: string): Promise<Document> {
     return this._client._request(
       "GET",
@@ -180,12 +135,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * Delete a document by ID.
-   *
-   * @param collection - The collection name.
-   * @param documentId - The document ID.
-   */
   delete(collection: string, documentId: string): Promise<StatusResponse> {
     return this._client._request(
       "DELETE",
@@ -193,12 +142,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * Trigger reprocessing of a document.
-   *
-   * @param collection - The collection name.
-   * @param documentId - The document ID.
-   */
   reprocess(collection: string, documentId: string): Promise<StatusResponse> {
     return this._client._request(
       "POST",
@@ -206,13 +149,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * Get chunks for a document with pagination.
-   *
-   * @param collection - The collection name.
-   * @param documentId - The document ID.
-   * @param options - Optional limit and offset for pagination.
-   */
   getChunks(
     collection: string,
     documentId: string,
@@ -228,13 +164,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * Build the URL for downloading the original document file.
-   *
-   * @param collection - The collection name.
-   * @param documentId - The document ID.
-   * @returns The fully-qualified URL including an auth token query parameter when applicable.
-   */
   getFileUrl(collection: string, documentId: string): string {
     const path = `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/file`;
     if (this._client.apiKey) {
@@ -243,12 +172,6 @@ export class DocumentsResource {
     return `${this._client.baseUrl}${path}`;
   }
 
-  /**
-   * Get the processing status of multiple documents at once.
-   *
-   * @param collection - The collection name.
-   * @param documentIds - Array of document IDs.
-   */
   batchGetStatus(collection: string, documentIds: string[]): Promise<BatchStatusResponse> {
     return this._client._request(
       "POST",
@@ -257,12 +180,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * Retrieve multiple documents at once.
-   *
-   * @param collection - The collection name.
-   * @param documentIds - Array of document IDs.
-   */
   batchGet(collection: string, documentIds: string[]): Promise<BatchGetDocumentsResponse> {
     return this._client._request(
       "POST",
@@ -271,12 +188,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * Delete multiple documents at once.
-   *
-   * @param collection - The collection name.
-   * @param documentIds - Array of document IDs.
-   */
   batchDelete(collection: string, documentIds: string[]): Promise<BatchDeleteDocumentsResponse> {
     return this._client._request(
       "POST",
@@ -285,12 +196,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * List objects in an S3 bucket and ingest supported files.
-   *
-   * @param collection - The target collection name.
-   * @param body - S3 bucket, prefix, credentials, and optional metadata.
-   */
   ingestS3(collection: string, body: S3IngestBody): Promise<S3IngestResponse> {
     return this._client._request(
       "POST",
@@ -301,20 +206,10 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * Retrieve a document by ID (without specifying collection).
-   *
-   * @param documentId - The document ID.
-   */
   getById(documentId: string): Promise<Document> {
     return this._client._request("GET", `/v1/documents/${encodeURIComponent(documentId)}`);
   }
 
-  /**
-   * Get chunks for a document by ID (without specifying collection).
-   *
-   * @param documentId - The document ID.
-   */
   getChunksById(
     documentId: string,
     options?: { limit?: number; offset?: number },
@@ -327,11 +222,6 @@ export class DocumentsResource {
     });
   }
 
-  /**
-   * List S3 ingest jobs for a collection.
-   *
-   * @param collection - The collection name.
-   */
   listS3Jobs(collection: string): Promise<S3JobListResponse> {
     return this._client._request(
       "GET",
@@ -339,12 +229,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * Get a single S3 ingest job by ID.
-   *
-   * @param collection - The collection name.
-   * @param jobId - The job ID.
-   */
   getS3Job(collection: string, jobId: string): Promise<S3Job> {
     return this._client._request(
       "GET",
@@ -352,12 +236,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * Delete an S3 ingest job.
-   *
-   * @param collection - The collection name.
-   * @param jobId - The job ID.
-   */
   deleteS3Job(collection: string, jobId: string): Promise<StatusResponse> {
     return this._client._request(
       "DELETE",
@@ -365,13 +243,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * Update an S3 ingest job (e.g., change file_types).
-   *
-   * @param collection - The collection name.
-   * @param jobId - The job ID.
-   * @param body - Fields to update.
-   */
   updateS3Job(collection: string, jobId: string, body: UpdateS3JobBody): Promise<S3Job> {
     return this._client._request(
       "PATCH",
@@ -380,12 +251,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * Re-sync an S3 ingest job. Restarts ingestion, skipping already-ingested files.
-   *
-   * @param collection - The collection name.
-   * @param jobId - The job ID.
-   */
   resyncS3Job(collection: string, jobId: string): Promise<StatusResponse> {
     return this._client._request(
       "POST",
@@ -393,13 +258,6 @@ export class DocumentsResource {
     );
   }
 
-  /**
-   * Stream aggregated progress for multiple documents via SSE.
-   *
-   * @param collection - The collection name.
-   * @param documentIds - Array of document IDs to track.
-   * @yields {@link ProgressEvent} objects with batch-level summary.
-   */
   async *streamBatchProgress(
     collection: string,
     documentIds: string[],
@@ -423,13 +281,6 @@ export class DocumentsResource {
     yield* parseSSEStream(response);
   }
 
-  /**
-   * Stream real-time processing progress for a document via SSE.
-   *
-   * @param collection - The collection name.
-   * @param documentId - The document ID.
-   * @yields {@link ProgressEvent} objects as they arrive.
-   */
   async *streamProgress(collection: string, documentId: string): AsyncGenerator<ProgressEvent> {
     const path = `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/progress`;
     const tokenParam = this._client.apiKey
