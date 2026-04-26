@@ -441,7 +441,7 @@ status codes). Better: extract a shared `_execute_with_retry` helper.
 
 ### C. Repo / build is currently broken
 
-#### `[ ]` I-020 🔴 Dockerfile never copies `alembic/` or `alembic.ini`
+#### `[x]` I-020 🔴 Dockerfile never copies `alembic/` or `alembic.ini`
 
 **File:** `api/Dockerfile:17-19`
 

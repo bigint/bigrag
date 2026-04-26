@@ -17,9 +17,22 @@ logger = get_logger("bigrag.db.bootstrap")
 
 
 def _alembic_config() -> Config:
-    api_root = Path(__file__).resolve().parents[2]
-    cfg = Config(str(api_root / "alembic.ini"))
-    cfg.set_main_option("script_location", str(api_root / "alembic"))
+    pkg_dir = Path(__file__).resolve().parent.parent  # bigrag/
+
+    # Wheel install: alembic is bundled at bigrag/_alembic via the hatch
+    # force-include in pyproject.toml. Editable / source install: it lives
+    # at api/alembic next to the package.
+    bundled = pkg_dir / "_alembic"
+    if (bundled / "env.py").exists():
+        ini_path = bundled / "alembic.ini"
+        script_dir = bundled
+    else:
+        api_root = pkg_dir.parent
+        ini_path = api_root / "alembic.ini"
+        script_dir = api_root / "alembic"
+
+    cfg = Config(str(ini_path))
+    cfg.set_main_option("script_location", str(script_dir))
     return cfg
 
 
