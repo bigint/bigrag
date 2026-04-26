@@ -106,7 +106,7 @@ async def setup(
 ) -> SessionResponse:
     existing = await session.scalar(sa.select(sa.func.count()).select_from(User))
     if existing > 0:
-        raise HTTPException(status_code=403, detail="Setup has already been completed")
+        raise HTTPException(status_code=409, detail="Setup has already been completed")
 
     user = User(
         id=uuid.uuid4(),
@@ -215,6 +215,8 @@ async def logout_all(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
+    if user.get("auth_method") != "session":
+        raise HTTPException(status_code=403, detail="Session authentication required")
     """Revoke every session for the current user.
 
     Used from the Studio's "Sign out everywhere" action when a user suspects

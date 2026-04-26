@@ -642,7 +642,7 @@ Then check `rowcount` to decide whether to 200 or 400.
 
 ---
 
-#### `[ ]` I-032 🟠 `/v1/auth/logout-all` accepts API keys
+#### `[x]` I-032 🟠 `/v1/auth/logout-all` accepts API keys
 
 **File:** `api/bigrag/routers/auth.py:165`
 
@@ -653,7 +653,7 @@ key can log its owning user out of all sessions.
 
 ---
 
-#### `[ ]` I-033 🟠 `POST /v1/auth/setup` returns 403, docs say 409
+#### `[x]` I-033 🟠 `POST /v1/auth/setup` returns 403, docs say 409
 
 **File:** `api/bigrag/routers/auth.py:106` vs
 `website/content/docs/api-reference/authentication.mdx:167`
