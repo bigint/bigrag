@@ -537,7 +537,7 @@ OpenRAG publishes an MCP server (`openrag-mcp` on PyPI / `uvx openrag-mcp`) that
 
 Tools exposed: `openrag_chat`, `openrag_search`, `openrag_get_settings`, `openrag_update_settings`, `openrag_list_models`.
 
-**bigRAG gap:** No MCP server. bigRAG cannot be used as a tool by AI coding assistants or agentic platforms.
+**bigRAG status:** Resolved — bigRAG ships an MCP server (`bigrag-mcp`) that exposes 6 tools to collection-pinned keys and 8 to full-workspace keys. See the [MCP integration docs](/docs/sdks/mcp).
 
 ### 7.3 Single-Command Installation
 
@@ -638,7 +638,7 @@ OpenRAG auto-generates secrets for:
 
 OpenRAG's API key system tracks `last_used_at` timestamps, and session ownership provides basic audit trail capabilities for who accessed what.
 
-**bigRAG gap:** No audit trail. No tracking of who made which API calls or when API credentials were last used.
+**bigRAG status:** Resolved — every state-changing call is recorded in the `audit_logs` table (actor, action, resource, IP, user agent), exposed at `/v1/admin/audit`, and API keys carry `last_used_at`.
 
 ---
 
@@ -710,13 +710,13 @@ A complete feature-by-feature comparison:
 | Password complexity validation | No | Yes (zxcvbn) | High |
 | JWT asymmetric signing | No | Yes (RSA) | Medium |
 | Secret auto-generation | No | Yes | Medium |
-| Audit trail | No | Basic | Low |
+| Audit trail | Yes (`audit_logs` table) | Basic | Resolved |
 | **Developer Experience** | | | |
 | TypeScript SDK | Yes | Yes | -- |
 | Python SDK | Yes | Yes | Resolved |
-| MCP server | No | Yes | High |
+| MCP server | Yes | Yes | Resolved |
 | Visual workflow builder | No | Yes (Langflow) | High |
-| Web UI | No | Yes | Critical |
+| Web UI | Yes (Studio) | Yes | Resolved |
 | Webhook system | Yes | Partial (filter subs) | bigRAG ahead |
 | **Ecosystem** | | | |
 | License | MIT | Apache-2.0 | -- |

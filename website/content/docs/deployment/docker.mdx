@@ -96,6 +96,7 @@ services:
       ETCD_ENDPOINTS: milvus-etcd:2379
     volumes:
       - milvus_data:/var/lib/milvus
+      - ./milvus.yaml:/milvus/configs/user.yaml:ro
     depends_on:
       - milvus-etcd
     healthcheck:
