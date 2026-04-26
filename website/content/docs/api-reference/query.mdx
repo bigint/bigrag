@@ -22,6 +22,7 @@ Perform a search against a collection. The query is embedded with the collection
   "filters": { "author": "Smith", "year": { "$gte": 2024 } },
   "min_score": 0.5,
   "search_mode": "hybrid",
+  "hybrid_strategy": "rrf",
   "rerank": true,
   "diversity": 0.3,
   "hyde": false,
@@ -37,6 +38,7 @@ Perform a search against a collection. The query is embedded with the collection
 | `filters` | object | no | — | Metadata filters — see [operators](/docs/concepts/search#filters) |
 | `min_score` | float | no | Collection default | Drop results below this score |
 | `search_mode` | string | no | Collection default | `semantic`, `keyword`, or `hybrid` |
+| `hybrid_strategy` | string | no | `rrf` | Fusion strategy when `search_mode=hybrid`: `rrf`, `weighted`, or `normalized`. Ignored otherwise. |
 | `rerank` | boolean | no | Collection setting | Force Cohere reranking on/off for this query |
 | `diversity` | float | no | — | MMR diversity weight `0.0–1.0` (0 = pure relevance, 1 = pure diversity) |
 | `hyde` | boolean | no | `false` | Generate a HyDE hypothetical document to improve recall on sparse queries |
