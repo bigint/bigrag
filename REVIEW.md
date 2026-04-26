@@ -1085,7 +1085,7 @@ _engine = create_async_engine(
 
 ---
 
-#### `[ ]` I-058 🟠 `cors_origins=[]` silently breaks all browser clients
+#### `[x]` I-058 🟠 `cors_origins=[]` silently breaks all browser clients
 
 **Files:** `api/bigrag/config.py:22`, `api/bigrag/main.py:129-134`
 
@@ -1098,7 +1098,7 @@ empty. Set a sensible dev default like `["http://localhost:3000",
 
 ---
 
-#### `[ ]` I-059 🟠 `session_cookie_secure=False` only checked when `env == "prod"` exactly
+#### `[x]` I-059 🟠 `session_cookie_secure=False` only checked when `env == "prod"` exactly
 
 **Files:** `api/bigrag/config.py:36`, `api/bigrag/startup_guard.py:27`
 
@@ -1112,7 +1112,7 @@ cookies.
 
 ---
 
-#### `[ ]` I-060 🟠 `TSupd.onupdate=sa.text("now()")`
+#### `[x]` I-060 🟠 `TSupd.onupdate=sa.text("now()")`
 
 **File:** `api/bigrag/db/base.py:28`
 

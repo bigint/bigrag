@@ -38,6 +38,11 @@ async def lifespan(app: FastAPI):
 
     if "*" in s.cors_origins:
         logger.warning("CORS allows all origins, restrict in production")
+    if not s.cors_origins and s.env != "dev":
+        logger.warning(
+            "BIGRAG_CORS_ORIGINS is empty — every cross-origin browser request will "
+            "be rejected. Set it explicitly (e.g. https://studio.example.com)."
+        )
 
     # Install the master key before any ORM access — the EncryptedString
     # type decorator calls into crypto on every read/write of a secret column.

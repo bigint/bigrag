@@ -27,8 +27,8 @@ TSupd = Annotated[
     datetime,
     mapped_column(
         sa.DateTime(timezone=True),
-        server_default=sa.text("now()"),
-        onupdate=sa.text("now()"),
+        server_default=sa.func.now(),
+        onupdate=sa.func.now(),
         nullable=False,
     ),
 ]
