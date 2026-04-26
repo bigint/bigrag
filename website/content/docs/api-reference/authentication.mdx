@@ -55,6 +55,7 @@ Session endpoints:
 | `POST` | `/v1/auth/logout` | Clear current session |
 | `POST` | `/v1/auth/logout-all` | Revoke every session for the current user |
 | `GET`  | `/v1/auth/me` | Return the current user |
+| `GET`  | `/v1/auth/whoami` | Return the current principal's identity, auth method, and (for API keys) scopes / collection pin — used by SDKs and the MCP server to self-configure |
 | `POST` | `/v1/auth/password` | Change password; revokes all other sessions |
 
 Session cookie attributes are controlled by `BIGRAG_SESSION_COOKIE_*` (see [Configuration](/docs/getting-started/configuration)). In production you must set `BIGRAG_SESSION_COOKIE_SECURE=true` and serve over HTTPS.
