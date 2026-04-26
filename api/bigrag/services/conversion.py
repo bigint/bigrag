@@ -1,15 +1,22 @@
 from __future__ import annotations
 
+import threading
+
 from bigrag.logging import get_logger
 
 logger = get_logger("bigrag.conversion")
 
 _docling_converter = None
+_docling_lock = threading.Lock()
 
 
 def _get_docling_converter():
     global _docling_converter
-    if _docling_converter is None:
+    if _docling_converter is not None:
+        return _docling_converter
+    with _docling_lock:
+        if _docling_converter is not None:
+            return _docling_converter
         import os
 
         # Use HF cache if models are already downloaded, otherwise allow download

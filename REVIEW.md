@@ -971,7 +971,7 @@ return #items - #kept
 
 ---
 
-#### `[ ]` I-052 🟠 `_docling_converter` lazy init isn't thread-safe
+#### `[x]` I-052 🟠 `_docling_converter` lazy init isn't thread-safe
 
 **File:** `api/bigrag/services/conversion.py:7-46`
 
