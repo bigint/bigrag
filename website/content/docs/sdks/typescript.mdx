@@ -25,27 +25,29 @@ const client = new BigRAG({
 });
 
 // Create a collection
-const collection = await client.createCollection({
+const collection = await client.collections.create({
   name: "knowledge_base",
   description: "Company docs",
   chunk_size: 512,
 });
 
 // Upload a document
-const doc = await client.uploadDocument("knowledge_base", file);
+const doc = await client.documents.upload("knowledge_base", file);
 
 // Stream processing progress
-for await (const event of client.streamDocumentProgress("knowledge_base", doc.id)) {
+for await (const event of client.documents.streamProgress("knowledge_base", doc.id)) {
   console.log(event.step, event.progress);
-  if (event.status === "complete") break;
+  if (event.status === "completed") break;
 }
 
 // Query
-const { results } = await client.query("knowledge_base", {
+const { results } = await client.queries.query("knowledge_base", {
   query: "What is the PTO policy?",
   top_k: 5,
 });
 ```
+
+The client follows a Stripe-style **resource namespace** layout: `client.collections`, `client.documents`, `client.queries`, `client.vectors`, `client.webhooks`. Flat method aliases (e.g. `client.uploadDocument(...)`) still work but are `@deprecated` — prefer the namespaced form below.
 
 ## Configuration
 
@@ -60,8 +62,9 @@ const { results } = await client.query("knowledge_base", {
 ## Collections
 
 ```typescript
-client.listCollections({ name?, limit?, offset? })
-client.createCollection({
+client.collections.list({ name?, limit?, offset? })
+client.collections.listAll({ name?, limit? })  // AsyncGenerator that pages through every collection
+client.collections.create({
   name,
   description?,
   embedding_provider?,      // "openai" | "cohere" | "voyage" | "openai_compatible"
@@ -79,34 +82,36 @@ client.createCollection({
   default_top_k?, default_min_score?, default_search_mode?,
   metadata?,
 })
-client.getCollection(name)
-client.getCollectionStats(name)
-client.updateCollection(name, {
+client.collections.get(name)
+client.collections.stats(name)
+client.collections.update(name, {
   description?, metadata?,
   chunk_strategy?, metadata_schema?, redact_pii?, moderation_enabled?,
   reranking_enabled?, reranking_model?, reranking_api_key?,
   default_top_k?, default_min_score?, default_search_mode?,
 })
-client.deleteCollection(name)
-client.truncateCollection(name)  // delete all documents, keep the collection
-client.collections.streamEvents(name)  // AsyncIterable of collection events (SSE)
+client.collections.delete(name)
+client.collections.truncate(name)        // delete all documents, keep the collection
+client.collections.streamEvents(name)    // AsyncIterable of collection events (SSE)
 ```
 
 ## Documents
 
 ```typescript
-client.uploadDocument(collection, file, metadata?)
-client.batchUploadDocuments(collection, files, metadata?)
-client.listDocuments(collection, { status?, limit?, offset? })
-client.getDocument(collection, documentId)
-client.deleteDocument(collection, documentId)
-client.batchGetStatus(collection, documentIds)
-client.batchGetDocuments(collection, documentIds)
-client.batchDeleteDocuments(collection, documentIds)
-client.reprocessDocument(collection, documentId)
-client.getDocumentChunks(collection, documentId)
-client.getDocumentFileUrl(collection, documentId)  // returns URL string
-client.streamDocumentProgress(collection, documentId)  // returns AsyncIterable
+client.documents.upload(collection, file, metadata?, { onUploadProgress? }?)
+client.documents.batchUpload(collection, files, metadata?)
+client.documents.list(collection, { status?, limit?, offset? })
+client.documents.listAll(collection, { status?, limit? })  // AsyncGenerator
+client.documents.get(collection, documentId)
+client.documents.delete(collection, documentId)
+client.documents.batchGetStatus(collection, documentIds)
+client.documents.batchGet(collection, documentIds)
+client.documents.batchDelete(collection, documentIds)
+client.documents.reprocess(collection, documentId)
+client.documents.getChunks(collection, documentId, { limit?, offset? }?)
+client.documents.getFileUrl(collection, documentId)         // returns URL string
+client.documents.streamProgress(collection, documentId)     // AsyncIterable<ProgressEvent>
+client.documents.streamBatchProgress(collection, ids)       // AsyncIterable<ProgressEvent>
 
 // S3 ingestion
 client.documents.ingestS3(collection, {
@@ -116,55 +121,74 @@ client.documents.ingestS3(collection, {
 client.documents.listS3Jobs(collection)
 client.documents.resyncS3Job(collection, jobId)
 client.documents.deleteS3Job(collection, jobId)
-client.documents.streamBatchProgress(collection, documentIds)  // AsyncIterable
 
 // Global document access (without collection scope)
 client.documents.getById(documentId)
-client.documents.getChunksById(documentId)
+client.documents.getChunksById(documentId, { limit?, offset? }?)
 ```
 
 File uploads accept `File`, `Blob`, `Buffer`, `Uint8Array`, or `{ path: string; name?: string }`.
 
-## Query & Vectors
+## Queries
 
 ```typescript
-client.query(collection, {
+client.queries.query(collection, {
   query,
   top_k?, filters?, min_score?,
-  search_mode?, rerank?,
+  search_mode?,             // "semantic" | "keyword" | "hybrid"
+  hybrid_strategy?,         // "rrf" | "weighted" | "normalized" — only when search_mode = "hybrid"
+  rerank?,
   diversity?,               // MMR weight 0–1
   hyde?,                    // Hypothetical Document Embeddings
   facets?,                  // metadata keys to aggregate
   use_semantic_cache?,      // default true
 })
 // Response exposes: results, query, collection, total, timings, cached, facets?
-client.multiQuery({
+
+client.queries.multiQuery({
   query, collections, top_k?, filters?, min_score?, search_mode?, rerank?
 })
-client.batchQuery({
+client.queries.batchQuery({
   queries: [{ collection, query, top_k?, search_mode? }, ...]
 })
-client.upsertVectors(collection, vectors)
-client.deleteVectors(collection, ids)
-client.listEmbeddingModels()
-client.getStats()
-client.health()           // GET /health
-client.readiness()        // GET /health/ready
+```
+
+## Vectors
+
+```typescript
+client.vectors.upsert(collection, vectors)
+client.vectors.delete(collection, ids)
+```
+
+## Webhooks
+
+```typescript
+client.webhooks.create({ url, events, collections?, description? })
+client.webhooks.list()
+client.webhooks.get(id)
+client.webhooks.update(id, { url?, events?, collections?, description?, active? })
+client.webhooks.delete(id)
+client.webhooks.listDeliveries(id, { limit?, offset? })
+client.webhooks.test(id)
+```
+
+## Platform
+
+```typescript
+client.health()                  // GET /health
+client.readiness()               // GET /health/ready
+client.getStats()                // GET /v1/stats
+client.listEmbeddingModels()     // GET /v1/embeddings/models
+client.getAnalytics(collection)  // GET /v1/collections/{name}/analytics
 ```
 
 <Callout type="info">
-Admin endpoints (`/v1/admin/*`, `/v1/auth/*`, `/v1/preferences`) are session-only — mint an API key for read/query/ingest workloads, and use the browser / a Studio-authenticated session for mutating admin calls.
+Admin endpoints (`/v1/admin/*`, most of `/v1/auth/*`) are session-only — mint an API key for read/query/ingest workloads, and use the browser / a Studio-authenticated session for mutating admin calls.
 </Callout>
-
-## Analytics
-
-```typescript
-client.getAnalytics(collection)
-```
 
 ## Scoped Collection Client
 
-Use `client.collection(name)` to get a scoped client that omits the collection parameter:
+Use `client.collection(name)` to get a wrapper that pre-binds the collection name:
 
 ```typescript
 const docs = client.collection("knowledge_base");
@@ -176,18 +200,7 @@ await docs.batchGetDocuments(["doc-id-1", "doc-id-2"]);
 await docs.batchDelete(["doc-id-1", "doc-id-2"]);
 await docs.stats();
 await docs.analytics();
-```
-
-## Webhooks
-
-```typescript
-client.createWebhook({ url, events, collections?, description? })
-client.listWebhooks()
-client.getWebhook(id)
-client.updateWebhook(id, { url?, events?, collections?, description?, active? })
-client.deleteWebhook(id)
-client.listWebhookDeliveries(id, { limit?, offset? })
-client.testWebhook(id)
+await docs.streamEvents();
 ```
 
 ## Error Handling
@@ -201,7 +214,7 @@ import {
 } from "@bigrag/client";
 
 try {
-  await client.getCollection("missing");
+  await client.collections.get("missing");
 } catch (err) {
   if (err instanceof NotFoundError) {
     // 404
