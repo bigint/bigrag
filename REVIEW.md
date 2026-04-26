@@ -857,7 +857,7 @@ duplex: hasBody ? "half" : undefined,
 
 ### Pipeline / retrieval
 
-#### `[ ]` I-046 🟠 OpenAI key stored unencrypted in `user_preferences`
+#### `[x]` I-046 🟠 OpenAI key stored unencrypted in `user_preferences`
 
 **Files:** `app/src/app/(dashboard)/playground/components/chat-input.tsx:160`,
 `api/bigrag/db/models.py:323-330`

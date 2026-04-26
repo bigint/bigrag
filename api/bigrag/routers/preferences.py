@@ -21,10 +21,62 @@ from bigrag.db.models import UserPreference
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_session
+from bigrag.services import crypto
 
 logger = get_logger("bigrag.routers.preferences")
 
 router = APIRouter(prefix="/v1/auth/preferences", tags=["auth"])
+
+# Sensitive ``(parent, key)`` paths that hold third-party credentials. The
+# entire preferences blob is JSONB, so we encrypt these at the application
+# layer instead of putting an EncryptedString TypeDecorator on the whole
+# column (which would force a Fernet round-trip on every preference field).
+_SENSITIVE_PATHS: frozenset[tuple[str, str]] = frozenset({("playground", "openai_key")})
+
+
+def _encrypt_sensitive(data: dict) -> dict:
+    """Return a copy of *data* with sensitive paths Fernet-encrypted in place."""
+    if not isinstance(data, dict) or not crypto.is_configured():
+        return data
+    out = {**data}
+    for parent, key in _SENSITIVE_PATHS:
+        sub = out.get(parent)
+        if not isinstance(sub, dict) or key not in sub:
+            continue
+        value = sub[key]
+        if not isinstance(value, str) or not value:
+            continue
+        if value.startswith(crypto._FERNET_PREFIX):  # already encrypted
+            continue
+        out[parent] = {**sub, key: crypto.encrypt(value)}
+    return out
+
+
+def _decrypt_sensitive(data: dict) -> dict:
+    """Inverse of :func:`_encrypt_sensitive`. Tolerates plaintext from rows
+    written before this encryption was added so operators don't lose their
+    keys on rollout."""
+    if not isinstance(data, dict):
+        return data
+    out = {**data}
+    for parent, key in _SENSITIVE_PATHS:
+        sub = out.get(parent)
+        if not isinstance(sub, dict) or key not in sub:
+            continue
+        value = sub[key]
+        if not isinstance(value, str) or not value:
+            continue
+        if not value.startswith(crypto._FERNET_PREFIX):
+            continue
+        if not crypto.is_configured():
+            continue
+        try:
+            decrypted = crypto.decrypt(value)
+        except ValueError:
+            logger.warning("preferences: failed to decrypt sensitive value at %s.%s", parent, key)
+            continue
+        out[parent] = {**sub, key: decrypted}
+    return out
 
 
 @router.get("")
@@ -35,7 +87,7 @@ async def get_preferences(
     row = await session.scalar(
         sa.select(UserPreference).where(UserPreference.user_id == uuid.UUID(user["id"]))
     )
-    return {"data": dict(row.data) if row else {}}
+    return {"data": _decrypt_sensitive(dict(row.data)) if row else {}}
 
 
 @router.put("")
@@ -53,6 +105,8 @@ async def update_preferences(
     if not isinstance(incoming, dict):
         incoming = {}
 
+    incoming = _encrypt_sensitive(incoming)
+
     stmt = pg_insert(UserPreference).values(user_id=uuid.UUID(user["id"]), data=incoming)
     stmt = stmt.on_conflict_do_update(
         index_elements=[UserPreference.user_id],
@@ -63,4 +117,4 @@ async def update_preferences(
     ).returning(UserPreference.data)
     result = await session.execute(stmt)
     await session.commit()
-    return {"data": dict(result.scalar_one())}
+    return {"data": _decrypt_sensitive(dict(result.scalar_one()))}
