@@ -917,7 +917,7 @@ if not collection:
 
 ---
 
-#### `[ ]` I-049 🟠 Webhook circuit breaker is per-process; never resets without success
+#### `[x]` I-049 🟠 Webhook circuit breaker is per-process; never resets without success
 
 **File:** `api/bigrag/services/webhook.py:76-107`
 
@@ -936,7 +936,7 @@ breaker.
 
 ---
 
-#### `[ ]` I-050 🟠 `flush_collection` is non-atomic
+#### `[x]` I-050 🟠 `flush_collection` is non-atomic
 
 **File:** `api/bigrag/services/queue.py:115-135`
 
@@ -960,7 +960,7 @@ return #items - #kept
 
 ---
 
-#### `[ ]` I-051 🟠 Queue depth check is TOCTOU
+#### `[x]` I-051 🟠 Queue depth check is TOCTOU
 
 **File:** `api/bigrag/services/queue.py:101-107`
 
@@ -995,7 +995,7 @@ def _get_docling_converter():
 
 ---
 
-#### `[ ]` I-053 🟠 Embedding-model `_models` cache is unbounded
+#### `[x]` I-053 🟠 Embedding-model `_models` cache is unbounded
 
 **File:** `api/bigrag/services/embedding.py:249-279`
 
@@ -1023,7 +1023,7 @@ vector, and key the cache on the truncated input.
 
 ---
 
-#### `[ ]` I-055 🟠 Semantic-cache cosine on the event loop
+#### `[x]` I-055 🟠 Semantic-cache cosine on the event loop
 
 **File:** `api/bigrag/services/semantic_cache.py:77-97`
 
@@ -1040,7 +1040,7 @@ scores = (mat @ q) / (np.linalg.norm(mat, axis=1) * np.linalg.norm(q))
 
 ---
 
-#### `[ ]` I-056 🟠 S3 object body fully buffered, twice
+#### `[x]` I-056 🟠 S3 object body fully buffered, twice
 
 **File:** `api/bigrag/services/s3_ingest.py:261-263`
 
@@ -1135,7 +1135,7 @@ TSupd = Annotated[
 
 ---
 
-#### `[ ]` I-061 🟠 `QueryLog` has no FK to `collections`
+#### `[x]` I-061 🟠 `QueryLog` has no FK to `collections`
 
 **File:** `api/bigrag/db/models.py:232-249`
 
@@ -1162,7 +1162,7 @@ delivery.
 
 ---
 
-#### `[ ]` I-063 🟠 MCP tool inputs not path-sanitized
+#### `[x]` I-063 🟠 MCP tool inputs not path-sanitized
 
 **Files:** `api/bigrag/mcp_server.py` (multiple places),
 `api/bigrag/services/mcp_http.py` (multiple)
@@ -1190,7 +1190,7 @@ slow Cohere call eats OpenAI's parallelism budget and vice versa.
 
 ---
 
-#### `[ ]` I-065 🟡 Moderation runs on raw binary upload bytes
+#### `[x]` I-065 🟡 Moderation runs on raw binary upload bytes
 
 **File:** `api/bigrag/routers/documents.py:100-111`
 
@@ -1207,7 +1207,7 @@ delete from storage if flagged).
 
 ---
 
-#### `[ ]` I-066 🟡 Moderation only checks first 10 KB of text
+#### `[x]` I-066 🟡 Moderation only checks first 10 KB of text
 
 **File:** `api/bigrag/services/moderation.py:33`
 
@@ -1222,7 +1222,7 @@ content.
 
 ---
 
-#### `[ ]` I-067 🟡 `last_used_at` writes commit on every API call
+#### `[x]` I-067 🟡 `last_used_at` writes commit on every API call
 
 **File:** `api/bigrag/middleware/auth.py:97-98`
 
@@ -1239,7 +1239,7 @@ if api_key.last_used_at is None or (now - api_key.last_used_at).total_seconds() 
 
 ---
 
-#### `[ ]` I-068 🟡 `request.client` ignores X-Forwarded-For
+#### `[x]` I-068 🟡 `request.client` ignores X-Forwarded-For
 
 **Files:** `api/bigrag/services/audit.py:71`,
 `api/bigrag/middleware/rate_limit.py:67-78`
@@ -1262,7 +1262,7 @@ past `MAX_DECOMPRESSED_BYTES` for collections that accept untrusted uploads.
 
 ---
 
-#### `[ ]` I-070 🟡 No master-key rotation path
+#### `[x]` I-070 🟡 No master-key rotation path
 
 **File:** `api/bigrag/services/crypto.py:36-49`,
 `website/content/docs/deployment/encryption.mdx`
@@ -1324,7 +1324,7 @@ Run in batches.
 
 ---
 
-#### `[ ]` I-074 🟡 Rate-limit `EXPIRE` resets TTL on every hit
+#### `[x]` I-074 🟡 Rate-limit `EXPIRE` resets TTL on every hit
 
 **File:** `api/bigrag/middleware/rate_limit.py:157-171`
 
@@ -1348,7 +1348,7 @@ target stalls the server.
 
 ---
 
-#### `[ ]` I-076 🟡 No re-verification on preset update
+#### `[x]` I-076 🟡 No re-verification on preset update
 
 **File:** `api/bigrag/routers/embedding_presets.py:117-148`
 
@@ -1370,7 +1370,7 @@ known offsets.
 
 ---
 
-#### `[ ]` I-078 🟡 `mcp_server` raw 5xx detail forwarded to MCP client
+#### `[x]` I-078 🟡 `mcp_server` raw 5xx detail forwarded to MCP client
 
 **Files:** `api/bigrag/mcp_server.py:46-54`,
 `api/bigrag/services/mcp_http.py:78-86`
@@ -1400,7 +1400,7 @@ for non-HTTPS deployments.
 
 ---
 
-#### `[ ]` I-080 🟡 `sslmode=disable` stripping is fragile
+#### `[x]` I-080 🟡 `sslmode=disable` stripping is fragile
 
 **File:** `api/bigrag/db/engine.py:22-24`
 
@@ -1411,7 +1411,7 @@ a leading `?&` which asyncpg rejects.
 
 ---
 
-#### `[ ]` I-081 🟡 `_SENSITIVE_KEYS` missing `secret` and `master_key`
+#### `[x]` I-081 🟡 `_SENSITIVE_KEYS` missing `secret` and `master_key`
 
 **File:** `api/bigrag/logging.py:9-31`
 
@@ -1540,7 +1540,7 @@ SSE).
 
 ---
 
-#### `[ ]` I-091 🟠 SDK type drift: `Document` missing `content_hash`, `deduped`
+#### `[x]` I-091 🟠 SDK type drift: `Document` missing `content_hash`, `deduped`
 
 **Files:**
 - `sdks/typescript/src/types/documents.ts:1-14`
@@ -1554,7 +1554,7 @@ way callers can detect dedup. SDK callers cannot.
 
 ---
 
-#### `[ ]` I-092 🟠 SDK type drift: `QueryResponse` missing `timings`, `facets`, `cached`
+#### `[x]` I-092 🟠 SDK type drift: `QueryResponse` missing `timings`, `facets`, `cached`
 
 **Files:**
 - `sdks/typescript/src/types/query.ts:22-27`
@@ -1568,7 +1568,7 @@ provenance).
 
 ---
 
-#### `[ ]` I-093 🟠 SDK type drift: `QueryBody` missing 5 request fields
+#### `[x]` I-093 🟠 SDK type drift: `QueryBody` missing 5 request fields
 
 **Files:** all three SDK `types/query.*`
 
@@ -1579,7 +1579,7 @@ Server accepts `diversity`, `hybrid_strategy`, `hyde`, `facets`,
 
 ---
 
-#### `[ ]` I-094 🟠 SDK type drift: `MultiQueryBody` missing `rerank` (Python+TS)
+#### `[x]` I-094 🟠 SDK type drift: `MultiQueryBody` missing `rerank` (Python+TS)
 
 **Files:**
 - `sdks/python/src/bigrag/types/query.py:33-40`
@@ -1674,7 +1674,7 @@ Missing `embedding_preset_id`, `embedding_base_url`, `chunk_strategy`,
 
 ---
 
-#### `[ ]` I-100 🟡 SDK SSE parsers swallow JSON errors
+#### `[x]` I-100 🟡 SDK SSE parsers swallow JSON errors
 
 **Files:** `sdks/typescript/src/sse.ts:25-26`,
 `sdks/python/src/bigrag/_sse.py:26-29`,
@@ -1687,7 +1687,7 @@ Bare `catch {}` / `except`. Caller has no way to detect malformed events.
 
 ---
 
-#### `[ ]` I-101 🟡 TS SSE parser doesn't accumulate multi-line `data:` blocks
+#### `[x]` I-101 🟡 TS SSE parser doesn't accumulate multi-line `data:` blocks
 
 **File:** `sdks/typescript/src/sse.ts:17-27`
 
@@ -1715,7 +1715,7 @@ All other `CollectionClient` methods route through resource methods that call
 
 ---
 
-#### `[ ]` I-103 🟡 TS `_requestFormData` doesn't guard 204 / empty bodies
+#### `[x]` I-103 🟡 TS `_requestFormData` doesn't guard 204 / empty bodies
 
 **File:** `sdks/typescript/src/core.ts:228-243`
 
