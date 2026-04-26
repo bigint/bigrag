@@ -9,8 +9,6 @@ from bigrag.models.webhook import resolve_and_validate_url
 
 
 def validate_s3_endpoint_url(url: str) -> None:
-    """Reject S3 endpoint URLs that target private networks or use unsupported
-    schemes. Loopback http is allowed for local MinIO dev."""
     parsed = urlparse(url)
     is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
     if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):

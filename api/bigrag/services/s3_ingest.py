@@ -181,9 +181,6 @@ async def _run_job(job: dict) -> None:
 
     _emit("s3_started", "processing", f"S3 import from s3://{bucket}/{prefix}")
 
-    # Re-validate the endpoint URL right before connecting so a DNS rebinding
-    # between request validation and job execution can't redirect us at an
-    # internal address.
     if job.get("endpoint_url"):
         from bigrag.models.s3 import validate_s3_endpoint_url
 

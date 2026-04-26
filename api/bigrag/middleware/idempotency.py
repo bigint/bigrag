@@ -29,9 +29,6 @@ _DEFAULT_TTL_SECONDS = 24 * 60 * 60
 
 
 def _cache_key(principal: str, idem_key: str, method: str, path: str) -> str:
-    # Scope the cached result to (principal, key, verb, path) so two callers
-    # supplying the same Idempotency-Key on the same endpoint can't read
-    # each other's cached responses.
     h = hashlib.sha256(f"{principal}|{idem_key}|{method}|{path}".encode()).hexdigest()
     return f"idem:{h}"
 

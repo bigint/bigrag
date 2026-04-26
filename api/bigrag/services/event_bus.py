@@ -15,10 +15,6 @@ logger = get_logger("bigrag.event_bus")
 
 CHANNEL_PREFIX = "bigrag:events:"
 
-# Sentinel payload published over Redis to signal stream end. Workers see
-# this in `_listen` and forward `None` to local subscriber queues so the
-# SSE generator returns even when the completing worker is not the one
-# holding the listener.
 _COMPLETE_MARKER = b'{"_complete":true}'
 
 
@@ -155,7 +151,6 @@ class EventBus:
             )
 
     def complete(self, document_id: str) -> None:
-        # Local fast-path so a single-worker setup doesn't pay a Redis round-trip.
         for q in self._subs.get(document_id, []):
             q.put_nowait(None)
         if not self._redis:

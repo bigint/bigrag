@@ -1,9 +1,3 @@
-"""Shared principal-resolution helper for ASGI middleware.
-
-Both rate-limit and idempotency need a consistent identifier per caller so
-their per-principal buckets / cache keys don't collide between tenants.
-"""
-
 from __future__ import annotations
 
 from http.cookies import SimpleCookie
@@ -16,14 +10,6 @@ from bigrag.services.auth import API_KEY_PREFIX, hash_api_key, hash_session_toke
 
 
 def principal_id(scope: Scope, headers: Headers | None = None) -> str:
-    """Return a stable, opaque principal identifier for the request.
-
-    Order of preference:
-      1. ``Authorization: Bearer bigrag_sk_...`` API key (hashed)
-      2. ``?token=bigrag_sk_...`` query param API key (hashed)
-      3. session cookie (hashed)
-      4. client IP
-    """
     if headers is None:
         headers = Headers(scope=scope)
 

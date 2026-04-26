@@ -30,9 +30,6 @@ const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: str
   const method = req.method;
   const hasBody = method !== "GET" && method !== "HEAD";
 
-  // CSRF guard: a cross-origin page can ride along with the Studio session
-  // cookie. Reject mutating verbs whose Origin doesn't match the request
-  // host. GET/HEAD/OPTIONS pass through (preflight + safe verbs).
   if (MUTATING_METHODS.has(method)) {
     const origin = req.headers.get("origin");
     const host = req.headers.get("host");
@@ -91,9 +88,6 @@ const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: str
     }
   });
 
-  // `redirect: "manual"` keeps the upstream Location verbatim. If the
-  // backend ever emits a redirect to a third-party origin (or a relative
-  // path that resolves elsewhere), don't forward it to the browser.
   if (upstream.status >= 300 && upstream.status < 400) {
     const location = responseHeaders.get("location");
     if (location) {

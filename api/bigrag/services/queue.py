@@ -47,9 +47,6 @@ PROCESSING_KEY = "bigrag:ingestion:processing"
 DEAD_LETTER_KEY = "bigrag:ingestion:dead"
 STATS_KEY = "bigrag:ingestion:stats"
 LEASE_KEY_PREFIX = "bigrag:ingestion:lease:"
-# Long enough to cover normal end-to-end processing (large PDFs, slow
-# embedding providers) but short enough that a crashed worker's job is
-# recoverable on the next restart. Workers can extend by re-setting it.
 _LEASE_TTL_SECONDS = 30 * 60
 
 
@@ -97,13 +94,6 @@ class IngestionQueue:
         logger.info("[queue] all workers stopped")
 
     async def _recover_stuck_jobs(self) -> int:
-        """Move only orphaned jobs back to the queue.
-
-        With multiple uvicorn workers, a job actively running in process A
-        must NOT be re-claimed by process B on B's startup. Each worker
-        writes a TTL'd lease key when it claims a job; recovery moves an
-        item back only when its lease has expired.
-        """
         items = await self._redis.lrange(PROCESSING_KEY, 0, -1)
         recovered = 0
         for raw in items:
@@ -117,7 +107,7 @@ class IngestionQueue:
                 await self._redis.lrem(PROCESSING_KEY, 1, raw)
                 continue
             if await self._redis.exists(_lease_key(job.job_id)):
-                continue  # Another worker is still processing this one.
+                continue
             await self._redis.lrem(PROCESSING_KEY, 1, raw)
             await self._redis.lpush(QUEUE_KEY, raw)
             recovered += 1
@@ -320,13 +310,8 @@ class IngestionQueue:
     async def _chunk_and_embed(
         self, job: IngestionJob, text: str, prefix: str
     ) -> tuple[int, int]:
-        """Chunk text, embed, and insert into vector store.
-
-        Returns ``(total_inserted, total_expected)``. They differ when one or
-        more batches exhaust their retries — the worker uses the gap to mark
-        the document as a partial success rather than silently "ready" with
-        zero chunks.
-        """
+        """Chunk text, embed, and insert into vector store. Returns
+        ``(total_inserted, total_expected)``."""
         from bigrag.config import settings as _settings
         from bigrag.services.embedding import get_embedding_model
         from bigrag.services.ingestion import chunk_document
@@ -532,12 +517,8 @@ class IngestionQueue:
 
             text = await self._convert_document(job, prefix)
             total_inserted, total_expected = await self._chunk_and_embed(job, text, prefix)
-            token_count = len(text) // 4  # approximate tokens
+            token_count = len(text) // 4
 
-            # If every batch exhausted its retries we'd otherwise mark the
-            # doc "ready" with chunk_count=0 — silent partial failure that
-            # makes search return nothing. Fail loudly instead so the
-            # existing retry path runs.
             if total_inserted == 0:
                 raise RuntimeError(
                     f"All {total_expected} chunk batches failed embedding/insert"
@@ -560,9 +541,6 @@ class IngestionQueue:
                         error_message=partial_msg,
                     )
                 )
-                # Document.document_count tracks all rows (any status); the
-                # row already exists from the upload path, so completion
-                # doesn't change the count.
                 await session.commit()
 
             total_elapsed = time.monotonic() - start_time

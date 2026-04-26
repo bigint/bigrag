@@ -19,10 +19,6 @@ API_KEY_PREFIX = "bigrag_sk_"
 SESSION_TOKEN_BYTES = 32
 API_KEY_BODY_BYTES = 32
 
-# Computed once at import so the login route can run a verify against this
-# value when the email lookup misses, masking the response-timing oracle
-# that would otherwise reveal whether an email is registered. Hashed under
-# the same parameters as a real password.
 DUMMY_PASSWORD_HASH = _hasher.hash("bigrag-login-timing-equalizer")
 
 

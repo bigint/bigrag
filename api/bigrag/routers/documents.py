@@ -560,9 +560,6 @@ async def download_document_file(
     ext = doc.file_type.lower()
     content_type = content_type_map.get(ext, "application/octet-stream")
 
-    # Strip control characters before quoting so a stored filename containing
-    # CR/LF can't smuggle extra response headers (HTTP response splitting).
-    # Non-ASCII characters are preserved via the RFC 5987 ``filename*`` form.
     from urllib.parse import quote
 
     safe_ascii = re.sub(r"[\x00-\x1f\x7f\"\\]", "_", doc.filename)

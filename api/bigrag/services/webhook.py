@@ -316,10 +316,6 @@ class WebhookDispatcher:
 
             retry_delays = _retry_delays()
             for attempt in range(1, len(retry_delays) + 2):  # 1 initial + N retries
-                # Re-validate the URL on every attempt. Retry delays can
-                # stretch into minutes, and an attacker who controls DNS
-                # for the webhook target could flip the record to a private
-                # IP between attempts.
                 if attempt > 1:
                     try:
                         from bigrag.models.webhook import resolve_and_validate_url

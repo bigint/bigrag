@@ -27,15 +27,10 @@ logger = get_logger("bigrag.routers.preferences")
 
 router = APIRouter(prefix="/v1/auth/preferences", tags=["auth"])
 
-# Sensitive ``(parent, key)`` paths that hold third-party credentials. The
-# entire preferences blob is JSONB, so we encrypt these at the application
-# layer instead of putting an EncryptedString TypeDecorator on the whole
-# column (which would force a Fernet round-trip on every preference field).
 _SENSITIVE_PATHS: frozenset[tuple[str, str]] = frozenset({("playground", "openai_key")})
 
 
 def _encrypt_sensitive(data: dict) -> dict:
-    """Return a copy of *data* with sensitive paths Fernet-encrypted in place."""
     if not isinstance(data, dict) or not crypto.is_configured():
         return data
     out = {**data}
@@ -46,16 +41,13 @@ def _encrypt_sensitive(data: dict) -> dict:
         value = sub[key]
         if not isinstance(value, str) or not value:
             continue
-        if value.startswith(crypto._FERNET_PREFIX):  # already encrypted
+        if value.startswith(crypto._FERNET_PREFIX):
             continue
         out[parent] = {**sub, key: crypto.encrypt(value)}
     return out
 
 
 def _decrypt_sensitive(data: dict) -> dict:
-    """Inverse of :func:`_encrypt_sensitive`. Tolerates plaintext from rows
-    written before this encryption was added so operators don't lose their
-    keys on rollout."""
     if not isinstance(data, dict):
         return data
     out = {**data}

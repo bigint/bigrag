@@ -143,8 +143,6 @@ async def login(
     session: AsyncSession = Depends(get_session),
 ) -> SessionResponse:
     user = await session.scalar(sa.select(User).where(User.email == body.email.lower()))
-    # Always run a verify so an unknown email costs the same Argon2 work as a
-    # wrong password — closing the timing-based account-enumeration oracle.
     if user is None:
         verify_password(body.password, DUMMY_PASSWORD_HASH)
         password_ok = False

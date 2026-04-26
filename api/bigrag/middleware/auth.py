@@ -70,10 +70,6 @@ _QUERY_TOKEN_SUFFIXES = ("/events", "/progress")
 
 
 def _query_token_allowed(path: str) -> bool:
-    """`?token=` carries the secret in URLs, which leak via access logs,
-    Referer headers, and browser history. Only the SSE endpoints — which
-    ``EventSource`` cannot accompany with an Authorization header — opt in.
-    """
     return any(path.endswith(suffix) for suffix in _QUERY_TOKEN_SUFFIXES)
 
 
