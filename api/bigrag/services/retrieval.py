@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass, field
 
 from bigrag.logging import get_logger
+from bigrag.services._retrieval_filters import build_filter_expr
 from bigrag.services.embedding import EmbeddingModel
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.vector_store import vector_store
@@ -340,7 +341,7 @@ async def retrieve(
             collection_name=collection_name,
         )
     )
-    filter_expr = _build_filter_expr(filters) if filters else None
+    filter_expr = build_filter_expr(filters) if filters else None
     query_terms = _tokenize_query(query)
 
     fetch_k = top_k * 3 if (diversity is not None and diversity < 1.0) else top_k
@@ -558,67 +559,3 @@ async def retrieve_multi(
 
     merged.sort(key=lambda r: r.get("score", 0), reverse=True)
     return merged[:top_k]
-
-
-_SAFE_FIELD_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
-
-
-def _validate_field(key: str) -> str:
-
-    if not _SAFE_FIELD_RE.match(key):
-        raise ValueError(f"Invalid filter field name: {key!r}")
-    return key
-
-
-def _escape_string(value: str) -> str:
-
-    return value.replace("\\", "\\\\").replace('"', '\\"')
-
-
-def _validate_scalar(val: object, op: str) -> None:
-
-    if not isinstance(val, (str, int, float, bool)):
-        raise ValueError(f"Filter operator {op} requires a scalar value, got {type(val).__name__}")
-
-
-def _format_value(val: str | int | float | bool) -> str:
-
-    if isinstance(val, str):
-        return f'"{_escape_string(val)}"'
-    if isinstance(val, bool):
-        return "true" if val else "false"
-    return str(val)
-
-
-def _build_filter_expr(filters: dict) -> str | None:
-
-    expressions = []
-
-    for key, value in filters.items():
-        field = _validate_field(key)
-        if isinstance(value, (str, int, float, bool)):
-            expressions.append(f"{field} == {_format_value(value)}")
-        elif isinstance(value, dict):
-            for op, val in value.items():
-                if op in ("$eq", "$ne"):
-                    _validate_scalar(val, op)
-                    sym = "==" if op == "$eq" else "!="
-                    expressions.append(f"{field} {sym} {_format_value(val)}")
-                elif op in ("$gt", "$gte", "$lt", "$lte"):
-                    if not isinstance(val, (int, float)):
-                        raise ValueError(
-                            f"Filter operator {op} requires a numeric value, "
-                            f"got {type(val).__name__}"
-                        )
-                    op_map = {"$gt": ">", "$gte": ">=", "$lt": "<", "$lte": "<="}
-                    expressions.append(f"{field} {op_map[op]} {val}")
-                elif op == "$in":
-                    if not isinstance(val, list):
-                        raise ValueError("Filter operator $in requires a list value")
-                    safe_vals = []
-                    for v in val:
-                        _validate_scalar(v, "$in")
-                        safe_vals.append(_format_value(v))
-                    expressions.append(f"{field} in [{', '.join(safe_vals)}]")
-
-    return " and ".join(expressions) if expressions else None

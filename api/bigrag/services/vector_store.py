@@ -318,11 +318,11 @@ class VectorStore:
 
         col = self._col(collection)
 
-        from bigrag.services.retrieval import _escape_string
+        from bigrag.services._retrieval_filters import escape_string
 
         term_filters = []
         for term in query_terms:
-            escaped = _escape_string(term).replace("%", "\\%").replace("'", "\\'")
+            escaped = escape_string(term).replace("%", "\\%").replace("'", "\\'")
             term_filters.append(f'text like "%{escaped}%"')
 
         text_filter = " or ".join(term_filters)
