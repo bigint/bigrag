@@ -7,7 +7,6 @@
     "embeddings",
     "search",
     "security",
-    "pii-and-moderation",
     "webhooks"
   ]
 }

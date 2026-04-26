@@ -70,14 +70,12 @@ client.collections.create({
   embedding_provider?,      // "openai" | "cohere" | "voyage" | "openai_compatible"
   embedding_model?,
   embedding_api_key?,
-  embedding_base_url?,      // required for openai_compatible (Ollama, vLLM, TEI, ...)
+  embedding_base_url?,
   dimension?,
   chunk_size?, chunk_overlap?, chunk_strategy?,    // "paragraph" | "recursive"
   index_type?,              // "IVF_FLAT" | "HNSW"
   tenant_field?,            // metadata key for Milvus partitioning
   metadata_schema?,         // JSON Schema
-  redact_pii?,
-  moderation_enabled?,
   reranking_enabled?, reranking_model?, reranking_api_key?,
   default_top_k?, default_min_score?, default_search_mode?,
   metadata?,
@@ -86,7 +84,7 @@ client.collections.get(name)
 client.collections.stats(name)
 client.collections.update(name, {
   description?, metadata?,
-  chunk_strategy?, metadata_schema?, redact_pii?, moderation_enabled?,
+  chunk_strategy?, metadata_schema?,
   reranking_enabled?, reranking_model?, reranking_api_key?,
   default_top_k?, default_min_score?, default_search_mode?,
 })

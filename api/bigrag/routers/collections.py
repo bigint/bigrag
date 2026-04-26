@@ -45,8 +45,6 @@ def _collection_response(c: Collection) -> CollectionResponse:
         chunk_strategy=c.chunk_strategy,
         index_type=c.index_type,
         tenant_field=c.tenant_field,
-        redact_pii=c.redact_pii,
-        moderation_enabled=c.moderation_enabled,
         has_metadata_schema=bool(c.metadata_schema),
         document_count=c.document_count,
         has_api_key=bool(c.embedding_api_key),
@@ -180,8 +178,6 @@ async def create_collection(
         tenant_field=body.tenant_field,
         meta=body.metadata,
         metadata_schema=body.metadata_schema,
-        redact_pii=body.redact_pii,
-        moderation_enabled=body.moderation_enabled,
         embedding_api_key=api_key,
         embedding_base_url=base_url,
         reranking_enabled=body.reranking_enabled,
@@ -388,12 +384,6 @@ async def update_collection(
     if body.metadata_schema is not None:
         collection.metadata_schema = body.metadata_schema
         fields.append("metadata_schema")
-    if body.redact_pii is not None:
-        collection.redact_pii = body.redact_pii
-        fields.append("redact_pii")
-    if body.moderation_enabled is not None:
-        collection.moderation_enabled = body.moderation_enabled
-        fields.append("moderation_enabled")
 
     await session.commit()
     await session.refresh(collection)

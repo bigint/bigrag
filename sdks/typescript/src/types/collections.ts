@@ -10,8 +10,6 @@ export interface Collection {
   chunk_strategy: string;
   index_type: string;
   tenant_field: string | null;
-  redact_pii: boolean;
-  moderation_enabled: boolean;
   has_metadata_schema: boolean;
   document_count: number;
   has_api_key: boolean;
@@ -61,8 +59,6 @@ export interface CreateCollectionBody {
   index_type?: "IVF_FLAT" | "HNSW";
   tenant_field?: string;
   metadata_schema?: Record<string, unknown>;
-  redact_pii?: boolean;
-  moderation_enabled?: boolean;
   metadata?: Record<string, unknown>;
   reranking_enabled?: boolean;
   reranking_model?: string;
@@ -83,6 +79,4 @@ export interface UpdateCollectionBody {
   default_search_mode?: "semantic" | "keyword" | "hybrid";
   chunk_strategy?: "paragraph" | "recursive";
   metadata_schema?: Record<string, unknown>;
-  redact_pii?: boolean;
-  moderation_enabled?: boolean;
 }

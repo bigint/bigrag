@@ -24,8 +24,6 @@ Tick these off before pointing real traffic at a bigRAG deployment:
   replication of the upload volume.
 - [ ] Rate limit overrides: set per-key `rate_limits` JSON on any key
   that legitimately needs more than the default bucket.
-- [ ] Enable `redact_pii` and/or `moderation_enabled` on user-facing
-  collections where appropriate.
 - [ ] Set `metadata_schema` on collections that accept untrusted
   metadata so uploads with invalid shape are rejected at the edge.
 - [ ] Wire `GET /v1/admin/audit` into your SIEM / log pipeline.

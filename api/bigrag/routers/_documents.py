@@ -12,7 +12,7 @@ from bigrag.config import settings
 from bigrag.db.models import Collection, Document
 from bigrag.logging import get_logger
 from bigrag.models.document import DocumentResponse
-from bigrag.services import metadata_schema, moderation
+from bigrag.services import metadata_schema
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import get_storage
@@ -69,22 +69,7 @@ def parse_form_metadata(raw_metadata: str) -> dict:
 
 def prepare_document_metadata(collection: dict, metadata: dict) -> dict:
     metadata_schema.validate(metadata, collection.get("metadata_schema"))
-    if collection.get("redact_pii"):
-        return {**metadata, "_redact_pii": True}
     return metadata
-
-
-async def moderate_upload_content(collection: dict, content: bytes) -> None:
-    if not collection.get("moderation_enabled"):
-        return
-    text_preview = content[:50_000].decode("utf-8", errors="ignore")
-    if not text_preview.strip():
-        return
-    flagged, reason = await moderation.check_text(
-        text_preview, collection.get("embedding_api_key") or settings.embedding_api_key
-    )
-    if flagged:
-        raise HTTPException(status_code=400, detail=f"Upload blocked: {reason}")
 
 
 async def read_upload_content(file: UploadFile, *, max_size: int) -> bytes:

@@ -117,10 +117,6 @@ class Collection(Base):
     index_type: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="IVF_FLAT")
     tenant_field: Mapped[str | None] = mapped_column(sa.Text)
     metadata_schema: Mapped[dict | None] = mapped_column(JSONB)
-    redact_pii: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default=sa.false())
-    moderation_enabled: Mapped[bool] = mapped_column(
-        sa.Boolean, nullable=False, server_default=sa.false()
-    )
     meta: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
     )

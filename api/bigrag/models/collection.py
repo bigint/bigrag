@@ -46,8 +46,6 @@ class CreateCollectionRequest(BaseModel):
             "ingestion."
         ),
     )
-    redact_pii: bool = False
-    moderation_enabled: bool = False
     metadata: dict = {}
     reranking_enabled: bool = False
     reranking_model: str = "rerank-v3.5"
@@ -74,8 +72,6 @@ class UpdateCollectionRequest(BaseModel):
     default_search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
     chunk_strategy: str | None = Field(default=None, pattern=r"^(paragraph|recursive)$")
     metadata_schema: dict | None = None
-    redact_pii: bool | None = None
-    moderation_enabled: bool | None = None
 
 
 class CollectionResponse(BaseModel):
@@ -90,8 +86,6 @@ class CollectionResponse(BaseModel):
     chunk_strategy: str = "paragraph"
     index_type: str = "IVF_FLAT"
     tenant_field: str | None = None
-    redact_pii: bool = False
-    moderation_enabled: bool = False
     has_metadata_schema: bool = False
     document_count: int
     has_api_key: bool = False

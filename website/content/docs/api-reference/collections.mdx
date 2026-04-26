@@ -39,8 +39,6 @@ GET /v1/collections
       "index_type": "IVF_FLAT",
       "tenant_field": null,
       "metadata_schema": null,
-      "redact_pii": false,
-      "moderation_enabled": false,
       "document_count": 15,
       "has_api_key": false,
       "reranking_enabled": false,
@@ -83,8 +81,6 @@ POST /v1/collections
     "properties": { "tenant_id": { "type": "string" } },
     "required": ["tenant_id"]
   },
-  "redact_pii": true,
-  "moderation_enabled": false,
   "reranking_enabled": true,
   "default_top_k": 10,
   "default_min_score": 0.3,
@@ -108,8 +104,6 @@ POST /v1/collections
 | `index_type` | string | no | `"IVF_FLAT"` | `IVF_FLAT` (≤1M vectors) or `HNSW` (large / high-recall) |
 | `tenant_field` | string | no | — | Metadata key whose value partitions the Milvus collection — enables 10–50× faster multi-tenant filtering |
 | `metadata_schema` | object | no | — | JSON Schema validated on every upload / upsert |
-| `redact_pii` | boolean | no | `false` | Strip PII from text before embedding (original bytes retained on storage) |
-| `moderation_enabled` | boolean | no | `false` | Reject uploads whose extracted text violates content moderation |
 | `default_top_k` | integer | no | `10` | 1–1,000 |
 | `default_min_score` | float | no | `null` | Minimum similarity score |
 | `default_search_mode` | string | no | `"semantic"` | `semantic`, `keyword`, `hybrid` |
@@ -167,8 +161,6 @@ Only the fields below are mutable. Embedding config, chunk size / overlap, `inde
 | `description` | string | — |
 | `metadata` | object | Replaces entire metadata object |
 | `metadata_schema` | object | Updates JSON Schema validation |
-| `redact_pii` | boolean | Applies to new uploads only |
-| `moderation_enabled` | boolean | Applies to new uploads only |
 | `reranking_enabled` | boolean | — |
 | `reranking_model` | string | — |
 | `reranking_api_key` | string | — |

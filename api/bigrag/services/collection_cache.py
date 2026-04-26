@@ -48,8 +48,6 @@ def _serialize(c: Collection) -> dict:
         "index_type": c.index_type,
         "tenant_field": c.tenant_field,
         "metadata_schema": c.metadata_schema,
-        "redact_pii": c.redact_pii,
-        "moderation_enabled": c.moderation_enabled,
         "metadata": c.meta or {},
         "created_at": c.created_at,
         "updated_at": c.updated_at,

@@ -35,7 +35,6 @@ from bigrag.routers._documents import (
     assert_collection_pin_matches,
     document_response,
     get_document_with_collection,
-    moderate_upload_content,
     parse_form_metadata,
     persist_document,
     prepare_document_metadata,
@@ -103,8 +102,6 @@ async def upload_document(
         meta = prepare_document_metadata(collection, parse_form_metadata(metadata))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
-
-    await moderate_upload_content(collection, content)
 
     content_hash = hashlib.sha256(content).hexdigest()
     existing = await session.scalar(
@@ -437,7 +434,6 @@ async def batch_upload_documents(
                 status_code=400,
                 detail=f"File '{file.filename}': {exc}",
             ) from exc
-        await moderate_upload_content(collection, content)
         validated.append((file, content))
 
     created: list[DocumentResponse] = []

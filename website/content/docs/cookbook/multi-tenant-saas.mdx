@@ -23,8 +23,6 @@ client.collections.create({
     "embedding_provider": "openai",
     "embedding_model": "text-embedding-3-small",
     "dimension": 1536,
-    "redact_pii": True,
-    "moderation_enabled": True,
     "metadata_schema": {
         "type": "object",
         "required": ["source"],
@@ -123,10 +121,6 @@ client.api_keys.update(key_id, {
     },
 })
 ```
-
-Combine with `redact_pii: true` on the collection to keep sensitive
-payloads out of embedding providers, and `moderation_enabled: true`
-to block disallowed content at upload time.
 
 ## Audit trail for compliance
 
