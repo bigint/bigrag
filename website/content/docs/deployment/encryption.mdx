@@ -38,7 +38,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 Hand the value to the process via env var, a secrets file mounted from your secret store, or an entrypoint that pulls from KMS before exec'ing bigRAG. **Do not** commit it to the repo or to your docker-compose file.
 
 ```bash
-export BIGRAG_MASTER_KEY="Zm5VZ4vO8r0y3rVsT0xz7nxV_wP7u6-n5tB1GAlHZIw="   # example
+export BIGRAG_MASTER_KEY="<paste-the-output-of-the-fernet-generate-command>"
 ```
 
 In `BIGRAG_ENV=dev`, an unset key only prints a warning — dev contributors don't need a real secret store. `dev.sh` ships a fixed dev key so fresh clones start cleanly.

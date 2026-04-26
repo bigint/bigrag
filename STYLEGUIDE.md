@@ -149,8 +149,8 @@ The app uses modern web technologies:
 
 ### Core Framework
 - **React 19** - UI framework with modern hooks and concurrent features
-- **TypeScript 5.8** - Type-safe JavaScript with strict mode
-- **Next.js 15 (App Router)** - Full-stack React framework with file-based routing, server components, and API routes
+- **TypeScript 6** - Type-safe JavaScript with strict mode
+- **Next.js 16 (App Router)** - Full-stack React framework with file-based routing, server components, and API routes
 
 ### API & Data Management
 - **FastAPI** - Python backend framework (API server, in `api/` directory)
@@ -2584,7 +2584,7 @@ listCollections(options?: CollectionListOptions): Promise<CollectionListResponse
 - **Ruff**: [docs.astral.sh/ruff](https://docs.astral.sh/ruff/)
 - **React 19**: [react.dev](https://react.dev)
 - **TypeScript**: [typescriptlang.org](https://www.typescriptlang.org/)
-- **Next.js 15**: [nextjs.org](https://nextjs.org/)
+- **Next.js 16**: [nextjs.org](https://nextjs.org/)
 - **TanStack Query**: [tanstack.com/query](https://tanstack.com/query/latest)
 - **Tailwind CSS**: [tailwindcss.com](https://tailwindcss.com/)
 - **Base UI**: [base-ui.com](https://base-ui.com/)

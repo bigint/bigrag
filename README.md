@@ -8,7 +8,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 
 - **Document ingestion** — PDF, DOCX, PPTX, HTML, Markdown, images, and more via [Docling](https://github.com/DS4SD/docling)
 - **S3 bucket ingestion** — ingest from S3 or any S3-compatible service (MinIO, R2, Spaces, etc.), including public buckets
-- **Embedding providers** — OpenAI, Cohere, and any `openai_compatible` gateway (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock)
+- **Embedding providers** — OpenAI, Cohere, and Voyage
 - **Embedding presets** — save named provider/model configs once, reuse across collections
 - **Vector search** — semantic, keyword, and hybrid search modes via [Milvus](https://milvus.io)
 - **Reranking** — Cohere reranking for improved result relevance
@@ -284,7 +284,7 @@ Drop this into `claude_desktop_config.json`:
 }
 ```
 
-Six tools are exposed — `list_collections`, `get_collection`, `query`, `list_documents`, `get_document`, `get_document_chunks`. See [docs/sdks/mcp](website/content/docs/sdks/mcp.mdx) for details.
+Full-workspace keys expose 8 tools — `list_collections`, `get_collection`, `get_collection_stats`, `query`, `multi_collection_query`, `list_documents`, `get_document`, `get_document_chunks`. Collection-pinned keys see 6 (no `list_collections` or `multi_collection_query`). See [docs/sdks/mcp](website/content/docs/sdks/mcp.mdx) for details.
 
 ## Configuration
 
@@ -293,7 +293,7 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_PORT` | Server port | `4000` |
-| `BIGRAG_DATABASE_URL` | Postgres URL | `postgres://bigrag:bigrag@localhost:5432/bigrag` |
+| `BIGRAG_DATABASE_URL` | Postgres URL (`postgres:5432` inside docker-compose, `localhost:5432` for bare-metal dev) | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
 | `BIGRAG_MILVUS_URI` | Milvus URI | `http://localhost:19530` |
 | `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
 | `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
