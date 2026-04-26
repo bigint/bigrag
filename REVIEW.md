@@ -106,7 +106,7 @@ helper into a shared module.
 
 ---
 
-#### `[ ]` I-003 🔴 Per-key rate limits are stored but never applied
+#### `[x]` I-003 🔴 Per-key rate limits are stored but never applied
 
 **Files:** `api/bigrag/middleware/rate_limit.py` (whole file),
 `api/bigrag/middleware/auth.py:108`

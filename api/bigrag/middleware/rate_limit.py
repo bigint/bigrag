@@ -89,6 +89,15 @@ class RateLimitMiddleware:
         headers = Headers(scope=scope)
         principal = principal_id(scope, headers)
 
+        # Per-key overrides: an admin can pin a tighter (or looser) limit on
+        # a specific API key by setting `api_keys.rate_limits[bucket]`. Falls
+        # back to the global rule limit when nothing matches.
+        if principal.startswith("key:"):
+            per_key = await _per_key_limits(principal[4:])
+            override = per_key.get(bucket)
+            if isinstance(override, int) and override > 0:
+                limit = override
+
         now = time.time()
         window_start = int(now // self.window_seconds) * self.window_seconds
         reset_at = window_start + self.window_seconds
@@ -154,3 +163,34 @@ async def _incr(key: str, ttl: int) -> int:
     pipe.expire(key, ttl)
     results = await pipe.execute()
     return int(results[0])
+
+
+_PER_KEY_LIMITS_TTL = 60
+
+
+async def _per_key_limits(key_hash: str) -> dict[str, int]:
+    """Look up `api_keys.rate_limits` JSON for this key, with a 60 s Redis cache."""
+    cache_key = f"rl:limits:{key_hash}"
+    cached = await redis_cache.get(cache_key)
+    if cached is not None:
+        return cached if isinstance(cached, dict) else {}
+
+    import sqlalchemy as sa
+
+    from bigrag.db.engine import session_factory
+    from bigrag.db.models import ApiKey
+
+    try:
+        async with session_factory()() as session:
+            row = (
+                await session.execute(
+                    sa.select(ApiKey.rate_limits).where(ApiKey.key_hash == key_hash)
+                )
+            ).first()
+    except Exception as exc:  # DB hiccup → don't break rate limiting
+        logger.warning("rate_limit: per-key lookup failed", error=repr(exc))
+        return {}
+
+    limits = (row[0] if row else None) or {}
+    await redis_cache.set(cache_key, limits, ttl=_PER_KEY_LIMITS_TTL)
+    return limits if isinstance(limits, dict) else {}
