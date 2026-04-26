@@ -306,7 +306,7 @@ curl -X POST http://localhost:6100/v1/collections/legal/documents/s3 \
 | `bucket` | string | yes | S3 bucket name |
 | `prefix` | string | no | Filter objects by key prefix |
 | `region` | string | no | AWS region (default: `us-east-1`) |
-| `endpoint_url` | string | no | Custom S3 endpoint (for S3-compatible services like MinIO) |
+| `endpoint_url` | string | no | Custom S3 endpoint (for S3-compatible services like MinIO). Must be HTTPS unless pointing at `localhost`/`127.0.0.1`; private and reserved IP ranges are rejected. |
 | `access_key` | string | no | AWS access key ID |
 | `secret_key` | string | no | AWS secret access key |
 | `no_sign_request` | boolean | no | Skip request signing for public buckets (default: `false`) |

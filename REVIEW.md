@@ -63,7 +63,7 @@ Severity badges:
 
 ### A. Critical security holes
 
-#### `[ ]` I-001 🔴 SSRF via `S3IngestRequest.endpoint_url`
+#### `[x]` I-001 🔴 SSRF via `S3IngestRequest.endpoint_url`
 
 **Files:** `api/bigrag/models/s3.py` (lines 9–17), `api/bigrag/routers/documents.py:780`
 
