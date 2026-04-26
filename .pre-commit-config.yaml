@@ -1,0 +1,29 @@
+default_install_hook_types: [pre-commit]
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check (api)
+        entry: uv run --project api ruff check --fix --force-exclude
+        language: system
+        types: [python]
+        files: ^api/
+        pass_filenames: true
+        require_serial: true
+      - id: ruff-format
+        name: ruff format (api)
+        entry: uv run --project api ruff format --force-exclude
+        language: system
+        types: [python]
+        files: ^api/
+        pass_filenames: true
+        require_serial: true
+      - id: biome-check
+        name: biome check
+        entry: pnpm exec biome check --write --no-errors-on-unmatched --files-ignore-unknown=true
+        language: system
+        files: \.(ts|tsx|js|jsx|mjs|cjs|json|jsonc|css)$
+        exclude: ^(api/|.*/node_modules/|.*/\.next/|.*/\.next-dev/|.*/dist/|pnpm-lock\.yaml$)
+        pass_filenames: true
+        require_serial: true

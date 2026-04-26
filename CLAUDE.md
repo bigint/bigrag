@@ -29,6 +29,28 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 - **Python**: `ruff` (config in `api/pyproject.toml`)
 - **TypeScript/JS**: `biome` (config in `biome.jsonc`)
 
+**Always run lint + format before committing.** Either let the pre-commit hook run them, or invoke them manually — never commit unformatted code:
+
+```bash
+# Python (api/)
+uv run --project api ruff check --fix .
+uv run --project api ruff format .
+
+# TS / JS / JSON / CSS (everything else)
+pnpm exec biome check --write .
+```
+
+### Pre-commit hook
+
+The repo ships a `.pre-commit-config.yaml` that runs `ruff check`, `ruff format`, and `biome check` on staged files. Install it once per clone:
+
+```bash
+uv tool install pre-commit   # or: brew install pre-commit
+pre-commit install
+```
+
+After that, every `git commit` runs the same checks CI runs (`.github/workflows/ci.yml`). If a hook auto-fixes a file, the commit aborts — re-stage and commit again.
+
 ## Architecture Notes
 
 - Backend uses FastAPI dependency injection via `bigrag/deps.py` and `app.state`
