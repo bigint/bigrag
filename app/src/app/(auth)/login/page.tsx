@@ -39,13 +39,19 @@ const LoginPage = () => {
         <p className="mt-2 text-sm text-muted-foreground">
           {error instanceof Error ? error.message : "Unknown error"}
         </p>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Make sure the bigRAG server is running at{" "}
-          <code className="rounded bg-muted px-1 py-0.5 font-mono">
-            {process.env.NEXT_PUBLIC_BIGRAG_URL ?? "http://localhost:6100"}
-          </code>
-          .
-        </p>
+        {process.env.NODE_ENV === "development" ? (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Make sure the bigRAG server is running at{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono">
+              {process.env.NEXT_PUBLIC_BIGRAG_URL ?? "http://localhost:6100"}
+            </code>
+            .
+          </p>
+        ) : (
+          <p className="mt-3 text-xs text-muted-foreground">
+            The bigRAG API is not reachable. Try again in a moment, or contact your administrator.
+          </p>
+        )}
       </div>
     );
   }
