@@ -159,21 +159,26 @@ async def delete_user(
     if str(target_id) == admin["id"]:
         raise HTTPException(status_code=400, detail="You cannot delete your own account")
 
-    remaining_admins = await session.scalar(
-        sa.select(sa.func.count())
-        .select_from(User)
-        .where(User.role == "admin")
-        .where(User.id != target_id)
-    )
-    if remaining_admins == 0:
-        raise HTTPException(status_code=400, detail="Cannot delete the last admin")
-
     target = await session.get(User, target_id)
     if target is None:
         raise HTTPException(status_code=404, detail="User not found")
     deleted_email = target.email
     deleted_role = target.role
-    await session.delete(target)
+
+    admin_count_subq = (
+        sa.select(sa.func.count())
+        .select_from(User)
+        .where(User.role == "admin")
+        .scalar_subquery()
+    )
+    result = await session.execute(
+        sa.delete(User)
+        .where(User.id == target_id)
+        .where(sa.or_(User.role != "admin", admin_count_subq > 1))
+    )
+    if result.rowcount == 0:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail="Cannot delete the last admin")
     await session.commit()
 
     logger.info(f"User deleted: id={user_id} by={admin['email']}")

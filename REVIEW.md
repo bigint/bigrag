@@ -625,7 +625,7 @@ embedding sub-check behind an auth header.
 
 ---
 
-#### `[ ]` I-031 🟠 Last-admin TOCTOU race
+#### `[x]` I-031 🟠 Last-admin TOCTOU race
 
 **File:** `api/bigrag/routers/admin_users.py:138-150`
 
