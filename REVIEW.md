@@ -411,7 +411,7 @@ the health check.
 
 ---
 
-#### `[ ]` I-018 🔴 Semantic cache is checked **after** full retrieval
+#### `[x]` I-018 🔴 Semantic cache is checked **after** full retrieval
 
 **File:** `api/bigrag/routers/query.py:60-85`
 

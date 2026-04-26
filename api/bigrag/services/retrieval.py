@@ -356,6 +356,7 @@ async def retrieve(
     hyde: bool = False,
     hyde_api_key: str | None = None,
     facets: list[str] | None = None,
+    precomputed_embedding: list[float] | None = None,
 ) -> RetrievalOutcome:
     """Run a retrieval and return an outcome with timings + facets.
 
@@ -406,10 +407,13 @@ async def retrieve(
         results = results[:fetch_k]
 
     elif search_mode == "hybrid":
-        t0 = time.monotonic()
-        embeddings = await embedding_model.embed([embed_query], input_type="query")
-        query_embedding = embeddings[0]
-        timings["embed_ms"] = (time.monotonic() - t0) * 1000
+        if precomputed_embedding is not None and not hyde:
+            query_embedding = precomputed_embedding
+        else:
+            t0 = time.monotonic()
+            embeddings = await embedding_model.embed([embed_query], input_type="query")
+            query_embedding = embeddings[0]
+            timings["embed_ms"] = (time.monotonic() - t0) * 1000
 
         t0 = time.monotonic()
         semantic_task = vector_store.search(
@@ -442,10 +446,13 @@ async def retrieve(
         results = results[:fetch_k]
 
     else:
-        t0 = time.monotonic()
-        embeddings = await embedding_model.embed([embed_query], input_type="query")
-        query_embedding = embeddings[0]
-        timings["embed_ms"] = (time.monotonic() - t0) * 1000
+        if precomputed_embedding is not None and not hyde:
+            query_embedding = precomputed_embedding
+        else:
+            t0 = time.monotonic()
+            embeddings = await embedding_model.embed([embed_query], input_type="query")
+            query_embedding = embeddings[0]
+            timings["embed_ms"] = (time.monotonic() - t0) * 1000
 
         t0 = time.monotonic()
         results = await vector_store.search(

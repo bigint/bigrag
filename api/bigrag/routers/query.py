@@ -57,6 +57,17 @@ async def query_collection(
     )
     search_mode = body.search_mode or collection.get("default_search_mode", "semantic")
 
+    use_semcache = body.use_semantic_cache if body.use_semantic_cache is not None else True
+
+    precomputed_embedding: list[float] | None = None
+    if use_semcache and not body.hyde and search_mode in ("semantic", "hybrid"):
+        embeddings = await embedding_model.embed([body.query], input_type="query")
+        precomputed_embedding = embeddings[0]
+        cached = await semantic_cache.lookup(collection_name, precomputed_embedding)
+        if cached:
+            cached_copy = {**cached, "cached": True}
+            return QueryResponse(**cached_copy)
+
     outcome = await retrieve(
         collection_name=collection_name,
         query=body.query,
@@ -72,17 +83,8 @@ async def query_collection(
         hyde=bool(body.hyde),
         hyde_api_key=collection.get("embedding_api_key"),
         facets=body.facets,
+        precomputed_embedding=precomputed_embedding,
     )
-
-    # Semantic cache: if an embedding was computed and caching isn't
-    # bypassed, check for a near-duplicate recent query and replay its
-    # response. Otherwise cache ours.
-    use_semcache = body.use_semantic_cache if body.use_semantic_cache is not None else True
-    if use_semcache and outcome.query_embedding is not None:
-        cached = await semantic_cache.lookup(collection_name, outcome.query_embedding)
-        if cached:
-            cached_copy = {**cached, "cached": True}
-            return QueryResponse(**cached_copy)
 
     logger.info(
         f"query: collection={collection_name} results={len(outcome.results)} "
