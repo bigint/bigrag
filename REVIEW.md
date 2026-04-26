@@ -425,7 +425,7 @@ short-circuit before calling `retrieve()` on a hit.
 
 ---
 
-#### `[ ]` I-019 🔴 Python SDK `_request_form` has no retry loop
+#### `[x]` I-019 🔴 Python SDK `_request_form` has no retry loop
 
 **File:** `sdks/python/src/bigrag/_core.py:136-158`
 

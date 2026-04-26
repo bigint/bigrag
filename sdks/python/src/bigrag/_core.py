@@ -62,6 +62,39 @@ class BigRAGCore:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
+    async def _execute_with_retry(self, send_fn) -> httpx.Response:
+        last_error: Exception | None = None
+
+        for attempt in range(self.max_retries + 1):
+            if attempt > 0:
+                delay = min(0.5 * (2 ** attempt), 4.0)
+                await asyncio.sleep(delay)
+
+            try:
+                response = await send_fn()
+            except httpx.TimeoutException as exc:
+                last_error = exc
+                if attempt < self.max_retries:
+                    continue
+                raise APITimeoutError(str(exc)) from exc
+            except httpx.HTTPError as exc:
+                last_error = exc
+                if attempt < self.max_retries:
+                    continue
+                raise APIConnectionError(str(exc)) from exc
+
+            if response.status_code >= 500 and attempt < self.max_retries:
+                last_error = Exception(response.text)
+                continue
+
+            if response.status_code == 429 and attempt < self.max_retries:
+                last_error = Exception("Rate limited")
+                continue
+
+            return response
+
+        raise APIConnectionError(str(last_error) if last_error else "Request failed")
+
     async def _request(
         self,
         method: str,
@@ -80,58 +113,29 @@ class BigRAGCore:
         if json is not None:
             headers["Content-Type"] = "application/json"
 
-        last_error: Exception | None = None
+        async def _send() -> httpx.Response:
+            return await self._client.request(
+                method,
+                url,
+                json=json,
+                params=params,
+                headers=headers,
+                timeout=self.timeout,
+            )
 
-        for attempt in range(self.max_retries + 1):
-            if attempt > 0:
-                delay = min(0.5 * (2 ** attempt), 4.0)
-                await asyncio.sleep(delay)
+        response = await self._execute_with_retry(_send)
 
-            try:
-                response = await self._client.request(
-                    method,
-                    url,
-                    json=json,
-                    params=params,
-                    headers=headers,
-                    timeout=self.timeout,
-                )
-            except httpx.TimeoutException as exc:
-                last_error = exc
-                if attempt < self.max_retries:
-                    continue
-                raise APITimeoutError(str(exc)) from exc
-            except httpx.HTTPError as exc:
-                last_error = exc
-                if attempt < self.max_retries:
-                    continue
-                raise APIConnectionError(str(exc)) from exc
+        if response.status_code >= 400:
+            await self._throw_for_status(response)
 
-            # Retry on server errors
-            if response.status_code >= 500 and attempt < self.max_retries:
-                last_error = Exception(response.text)
-                continue
+        if response.status_code == 204:
+            return {"status": "ok"}
 
-            # Retry on rate limit
-            if response.status_code == 429 and attempt < self.max_retries:
-                last_error = Exception("Rate limited")
-                continue
+        text = response.text
+        if not text:
+            return {"status": "ok"}
 
-            # Raise typed errors for client/server error codes
-            if response.status_code >= 400:
-                await self._throw_for_status(response)
-
-            # 204 No Content
-            if response.status_code == 204:
-                return {"status": "ok"}
-
-            text = response.text
-            if not text:
-                return {"status": "ok"}
-
-            return response.json()
-
-        raise APIConnectionError(str(last_error) if last_error else "Request failed")
+        return response.json()
 
     async def _request_form(
         self,
@@ -142,15 +146,17 @@ class BigRAGCore:
         """Issue a ``multipart/form-data`` POST and return the parsed body."""
         url = f"{self.base_url}{path}"
         headers = self._headers()
-        # Do not set Content-Type; httpx sets it automatically with boundary.
 
-        response = await self._client.post(
-            url,
-            files=files,
-            data=data or {},
-            headers=headers,
-            timeout=self.timeout,
-        )
+        async def _send() -> httpx.Response:
+            return await self._client.post(
+                url,
+                files=files,
+                data=data or {},
+                headers=headers,
+                timeout=self.timeout,
+            )
+
+        response = await self._execute_with_retry(_send)
 
         if response.status_code >= 400:
             await self._throw_for_status(response)
