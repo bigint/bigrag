@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
+import { errorToast } from "@/lib/mutation-toast";
 import type { CreatedMcpServer, McpServer } from "@/types/bigrag";
 
 const KEY = ["mcp-servers"] as const;
@@ -19,7 +20,7 @@ export const useCreateMcpServer = () => {
     mutationFn: (body: { title: string; server_name: string; collection?: string | null }) =>
       apiClient.post<CreatedMcpServer>("v1/admin/mcp-servers", body),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create"),
+    onError: errorToast("Failed to create"),
   });
 };
 
@@ -36,7 +37,7 @@ export const useUpdateMcpServer = () => {
       collection?: string | null;
     }) => apiClient.patch<McpServer>(`v1/admin/mcp-servers/${id}`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update"),
+    onError: errorToast("Failed to update"),
   });
 };
 
@@ -46,7 +47,7 @@ export const useRotateMcpServer = () => {
     mutationFn: (id: string) =>
       apiClient.post<CreatedMcpServer>(`v1/admin/mcp-servers/${id}/rotate`),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to rotate"),
+    onError: errorToast("Failed to rotate"),
   });
 };
 

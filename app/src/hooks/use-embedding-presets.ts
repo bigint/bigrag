@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
+import { errorToast } from "@/lib/mutation-toast";
 import type { EmbeddingPreset } from "@/types/bigrag";
 
 const KEY = ["embedding-presets"] as const;
@@ -32,7 +33,7 @@ export const useCreateEmbeddingPreset = () => {
       qc.invalidateQueries({ queryKey: KEY });
       toast.success("Embedding preset created");
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create preset"),
+    onError: errorToast("Failed to create preset"),
   });
 };
 
@@ -45,7 +46,7 @@ export const useUpdateEmbeddingPreset = () => {
       qc.invalidateQueries({ queryKey: KEY });
       toast.success("Preset updated");
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update preset"),
+    onError: errorToast("Failed to update preset"),
   });
 };
 

@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
+import { errorToast } from "@/lib/mutation-toast";
 import type { ApiKey, CreatedApiKey } from "@/types/bigrag";
 
 const KEY = ["api-keys"] as const;
@@ -19,7 +20,7 @@ export const useCreateApiKey = () => {
     mutationFn: (body: { name: string; expires_at?: string | null; collection?: string | null }) =>
       apiClient.post<CreatedApiKey>("v1/admin/api-keys", body),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create"),
+    onError: errorToast("Failed to create"),
   });
 };
 
@@ -36,7 +37,7 @@ export const useUpdateApiKey = () => {
       collection?: string | null;
     }) => apiClient.patch<ApiKey>(`v1/admin/api-keys/${id}`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update key"),
+    onError: errorToast("Failed to update key"),
   });
 };
 

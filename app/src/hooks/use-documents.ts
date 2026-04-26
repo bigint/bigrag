@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
+import { errorToast } from "@/lib/mutation-toast";
 import type { Chunk, Document } from "@/types/bigrag";
 
 type DocListResponse = { documents: Document[]; total: number };
@@ -61,7 +62,7 @@ export const useUploadDocuments = (collection: string) => {
       qc.invalidateQueries({ queryKey: docsKey(collection) });
       toast.success(`Queued ${res.total} document${res.total === 1 ? "" : "s"} for ingestion`);
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Upload failed"),
+    onError: errorToast("Upload failed"),
   });
 };
 

@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
+import { errorToast } from "@/lib/mutation-toast";
 import type { S3Job } from "@/types/bigrag";
 
 type S3JobListResponse = { jobs: S3Job[]; total: number };
@@ -50,7 +51,7 @@ export const useCreateS3Job = (collection: string) => {
       qc.invalidateQueries({ queryKey: s3JobsKey(collection) });
       toast.success("S3 ingestion job started");
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to start S3 job"),
+    onError: errorToast("Failed to start S3 job"),
   });
 };
 

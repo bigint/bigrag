@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
+import { errorToast } from "@/lib/mutation-toast";
 import type { Collection, CollectionStats } from "@/types/bigrag";
 
 type ListResponse = { collections: Collection[]; total: number };
@@ -59,7 +60,7 @@ export const useCreateCollection = () => {
       qc.invalidateQueries({ queryKey: collectionsKey });
       toast.success(`Collection "${c.name}" created`);
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create"),
+    onError: errorToast("Failed to create"),
   });
 };
 
@@ -72,7 +73,7 @@ export const useUpdateCollection = (name: string) => {
       qc.invalidateQueries({ queryKey: collectionsKey });
       toast.success("Collection updated");
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update"),
+    onError: errorToast("Failed to update"),
   });
 };
 
@@ -85,7 +86,7 @@ export const useDeleteCollection = () => {
       qc.invalidateQueries({ queryKey: collectionsKey });
       toast.success("Collection deleted");
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete"),
+    onError: errorToast("Failed to delete"),
   });
 };
 
@@ -98,6 +99,6 @@ export const useTruncateCollection = (name: string) => {
       qc.invalidateQueries({ queryKey: collectionsKey });
       toast.success("All documents removed from collection");
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to truncate"),
+    onError: errorToast("Failed to truncate"),
   });
 };

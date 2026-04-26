@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
+import { errorToast } from "@/lib/mutation-toast";
 import type { Webhook } from "@/types/bigrag";
 
 const KEY = ["webhooks"] as const;
@@ -23,7 +24,7 @@ export const useCreateWebhook = () => {
       description?: string;
     }) => apiClient.post<Webhook & { secret: string }>("v1/admin/webhooks", body),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create webhook"),
+    onError: errorToast("Failed to create webhook"),
   });
 };
 
