@@ -3,24 +3,23 @@ title: S3 Jobs
 description: Track and control S3 bucket ingestion jobs.
 ---
 
-Base path: `/v1/admin/s3-jobs`
+Base path: `/v1/collections/{collection_name}/s3-jobs`
 
 Use [`POST /v1/collections/{name}/documents/s3`](/docs/api-reference/documents#ingest-from-s3-bucket) to kick off an S3 ingest. This resource surfaces the job metadata, lets you resume stalled jobs, and lets you clean up completed ones. On app restart, incomplete jobs (`pending`, `listing`, `ingesting`) are automatically re-enqueued.
 
-Session-only.
+Authenticated like any collection-scoped endpoint — session cookie or an API key with the appropriate document scope.
 
 ## List Jobs
 
 ```
-GET /v1/admin/s3-jobs?status=ingesting&limit=50&offset=0
+GET /v1/collections/{collection_name}/s3-jobs?limit=100&offset=0
 ```
 
 **Query parameters:**
 
 | Parameter | Type | Notes |
 |-----------|------|-------|
-| `status` | string | `pending`, `listing`, `ingesting`, `complete`, `failed` |
-| `limit` | integer | 1–200, default 50 |
+| `limit` | integer | 1–1,000, default 100 |
 | `offset` | integer | Default 0 |
 
 **Response** `200`:
@@ -52,10 +51,12 @@ GET /v1/admin/s3-jobs?status=ingesting&limit=50&offset=0
 
 `file_types` uses bare extensions without a leading dot (`"pdf"`, not `".pdf"`) — same convention as [Ingest from S3 Bucket](/docs/api-reference/documents#ingest-from-s3-bucket). Credentials (`access_key`, `secret_key`) are never returned and are Fernet-encrypted at rest — see [Encryption at rest](/docs/deployment/encryption).
 
+Filter client-side on the returned `status` field (`pending`, `listing`, `ingesting`, `complete`, `failed`).
+
 ## Get Job
 
 ```
-GET /v1/admin/s3-jobs/{job_id}
+GET /v1/collections/{collection_name}/s3-jobs/{job_id}
 ```
 
 **Response** `200`: full job object.
@@ -63,7 +64,7 @@ GET /v1/admin/s3-jobs/{job_id}
 ## Update Job
 
 ```
-PATCH /v1/admin/s3-jobs/{job_id}
+PATCH /v1/collections/{collection_name}/s3-jobs/{job_id}
 ```
 
 Mutable fields are `metadata` and `file_types` — use them to attach tags, tenant IDs, or narrow the extension filter after the fact.
@@ -75,19 +76,19 @@ Mutable fields are `metadata` and `file_types` — use them to attach tags, tena
 ## Resync Job
 
 ```
-POST /v1/admin/s3-jobs/{job_id}/resync
+POST /v1/collections/{collection_name}/s3-jobs/{job_id}/resync
 ```
 
 Resumes an incomplete job: lists the bucket again, skips already-ingested keys (matched by `s3_bucket + s3_key`), and enqueues the rest. Safe to call on a `complete` or `failed` job to pick up newly uploaded objects.
 
-**Response** `200`: `{"status": "ok", "message": "Resync started"}`.
+**Response** `200`: `{"status": "ok", "message": "S3 ingest job re-syncing"}`.
 
 ## Delete Job
 
 ```
-DELETE /v1/admin/s3-jobs/{job_id}
+DELETE /v1/collections/{collection_name}/s3-jobs/{job_id}
 ```
 
 Deletes the job record only. Documents that were already ingested stay in the collection. If the job is still running it is cancelled first.
 
-**Response** `200`: `{"status": "ok", "message": "S3 job deleted"}`.
+**Response** `200`: `{"status": "ok", "message": "S3 ingest job deleted"}`.
