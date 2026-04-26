@@ -17,13 +17,13 @@ GET /v1/admin/audit
 
 | Parameter | Type | Notes |
 |-----------|------|-------|
-| `actor` | string | Filter by `actor_id` (user UUID) or `actor_email` |
 | `action` | string | Exact match, e.g. `api_key.create` |
+| `actor_id` | UUID | Filter by user UUID — must be a valid UUID, not an email |
 | `resource_type` | string | e.g. `collection`, `document`, `api_key`, `user`, `webhook` |
-| `start_date` | RFC3339 | Inclusive |
-| `end_date` | RFC3339 | Inclusive |
-| `limit` | integer | 1–500, default 100 |
+| `limit` | integer | 1–1,000, default 100 |
 | `offset` | integer | Default 0 |
+
+Date-range filtering isn't yet supported — paginate and filter `created_at` client-side if you need a time window.
 
 **Response** `200`:
 
