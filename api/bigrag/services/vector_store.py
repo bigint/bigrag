@@ -259,22 +259,24 @@ class VectorStore:
 
         hits = []
         fixed = {"text", "document_id", "chunk_index", "embedding"}
+        want_embedding = "embedding" in output_fields
         if results and len(results) > 0:
             for hit in results[0]:
                 entity = hit["entity"]
                 metadata = {
                     k: v for k, v in dict(entity).items() if k not in fixed and v is not None
                 }
-                hits.append(
-                    {
-                        "id": hit["id"],
-                        "score": hit["distance"],
-                        "text": entity.get("text", ""),
-                        "document_id": entity.get("document_id"),
-                        "chunk_index": entity.get("chunk_index"),
-                        "metadata": metadata,
-                    }
-                )
+                row = {
+                    "id": hit["id"],
+                    "score": hit["distance"],
+                    "text": entity.get("text", ""),
+                    "document_id": entity.get("document_id"),
+                    "chunk_index": entity.get("chunk_index"),
+                    "metadata": metadata,
+                }
+                if want_embedding:
+                    row["embedding"] = entity.get("embedding")
+                hits.append(row)
         logger.info(f"search: collection={col} top_k={top_k} hits={len(hits)} filter={filters}")
         return hits
 

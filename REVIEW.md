@@ -875,7 +875,7 @@ Studio playground saves `playground.openai_key` into `UserPreference.data`
 
 ---
 
-#### `[ ]` I-047 🟠 MMR has no effect (silent no-op)
+#### `[x]` I-047 🟠 MMR has no effect (silent no-op)
 
 **Files:** `api/bigrag/services/retrieval.py:170-202`,
 `api/bigrag/services/vector_store.py:241-248`

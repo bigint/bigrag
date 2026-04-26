@@ -415,12 +415,20 @@ async def retrieve(
             query_embedding = embeddings[0]
             timings["embed_ms"] = (time.monotonic() - t0) * 1000
 
+        want_mmr = diversity is not None and diversity < 1.0
+        search_fields = (
+            ["text", "document_id", "chunk_index", "char_start", "char_end", "page_no", "embedding"]
+            if want_mmr
+            else None
+        )
+
         t0 = time.monotonic()
         semantic_task = vector_store.search(
             collection=collection_name,
             query_embedding=query_embedding,
             top_k=fetch_k,
             filters=filter_expr,
+            output_fields=search_fields,
         )
         keyword_task = vector_store.text_search(
             collection=collection_name,
@@ -454,12 +462,20 @@ async def retrieve(
             query_embedding = embeddings[0]
             timings["embed_ms"] = (time.monotonic() - t0) * 1000
 
+        want_mmr = diversity is not None and diversity < 1.0
+        search_fields = (
+            ["text", "document_id", "chunk_index", "char_start", "char_end", "page_no", "embedding"]
+            if want_mmr
+            else None
+        )
+
         t0 = time.monotonic()
         results = await vector_store.search(
             collection=collection_name,
             query_embedding=query_embedding,
             top_k=fetch_k,
             filters=filter_expr,
+            output_fields=search_fields,
         )
         timings["search_ms"] = (time.monotonic() - t0) * 1000
 
