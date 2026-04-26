@@ -25,7 +25,7 @@ class S3IngestRequest(BaseModel):
     secret_key: str | None = None
     no_sign_request: bool = False
     metadata: dict = {}
-    file_types: list[str] = []  # empty means all supported types
+    file_types: list[str] = []
 
     @model_validator(mode="after")
     def _validate_endpoint_url(self):

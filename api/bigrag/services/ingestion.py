@@ -5,26 +5,19 @@ from dataclasses import dataclass
 
 @dataclass
 class Chunk:
-    """A chunk of source text with its character offsets for citation."""
-
     text: str
     char_start: int
     char_end: int
 
 
 def _paragraph_chunks(text: str, chunk_size: int) -> list[Chunk]:
-    """Original paragraph→sentence→char fallback, but tracking the
-    offset of each chunk in the source ``text`` so we can cite back
-    into the document later.
-    """
+
     if not text.strip():
         return []
 
     paragraphs = [p for p in text.split("\n\n") if p.strip()]
     chunks: list[Chunk] = []
 
-    # Walk source text with a cursor so we can figure out each
-    # paragraph's offset even though split() drops the separators.
     cursor = 0
     current_text = ""
     current_start = 0
@@ -32,7 +25,6 @@ def _paragraph_chunks(text: str, chunk_size: int) -> list[Chunk]:
     def _flush(current: str, start: int) -> None:
         if current.strip():
             stripped = current.strip()
-            # Locate stripped slice inside ``current`` to adjust offsets.
             leading = len(current) - len(current.lstrip())
             chunks.append(
                 Chunk(
@@ -62,7 +54,6 @@ def _paragraph_chunks(text: str, chunk_size: int) -> list[Chunk]:
             _flush(current_text, current_start)
             current_text = ""
             if len(para) > chunk_size:
-                # Split long paragraph by sentence.
                 sentences = para.replace(". ", ".\n").split("\n")
                 sub_cursor = para_start
                 for sentence in sentences:
@@ -106,10 +97,7 @@ def _paragraph_chunks(text: str, chunk_size: int) -> list[Chunk]:
 
 
 def _recursive_chunks(text: str, chunk_size: int) -> list[Chunk]:
-    """Recursive splitter with a separator cascade (double-newline →
-    single-newline → sentence → word). Produces chunks ≤ chunk_size
-    whenever possible. Offsets track the source.
-    """
+
     if not text.strip() or chunk_size <= 0:
         return []
 
@@ -130,7 +118,7 @@ def _recursive_chunks(text: str, chunk_size: int) -> list[Chunk]:
             ]
 
         sep, *rest = seps
-        if not sep:  # Last resort — hard slice by chunk_size.
+        if not sep:
             out: list[Chunk] = []
             for i in range(0, len(s), chunk_size):
                 part = s[i : i + chunk_size]
@@ -171,9 +159,7 @@ def _recursive_chunks(text: str, chunk_size: int) -> list[Chunk]:
 
 
 def _apply_overlap(chunks: list[Chunk], overlap: int) -> list[Chunk]:
-    """Prepend the last ``overlap`` chars of each chunk to the next.
-    Offsets are extended backwards so they still point into the source.
-    """
+
     if overlap <= 0 or len(chunks) <= 1:
         return chunks
     result = [chunks[0]]
@@ -202,13 +188,7 @@ def chunk_document(
     chunk_overlap: int,
     strategy: str = "paragraph",
 ) -> list[Chunk]:
-    """Split ``text`` into citation-aware chunks.
 
-    Strategies:
-
-    - ``paragraph`` — paragraph → sentence → char fallback (original).
-    - ``recursive`` — LangChain-style separator cascade.
-    """
     if strategy == "recursive":
         chunks = _recursive_chunks(text, chunk_size)
     else:
@@ -217,7 +197,5 @@ def chunk_document(
 
 
 def _chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
-    """Backward-compatible plain-string chunker. Existing callers get
-    the text list; new callers should use :func:`chunk_document`.
-    """
+
     return [c.text for c in chunk_document(text, chunk_size, chunk_overlap, strategy="paragraph")]

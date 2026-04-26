@@ -1,5 +1,3 @@
-"""Declarative base and reusable column type annotations."""
-
 from __future__ import annotations
 
 from datetime import datetime

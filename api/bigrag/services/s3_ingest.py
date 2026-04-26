@@ -1,5 +1,3 @@
-"""Persistent S3 ingest jobs that survive server restarts."""
-
 from __future__ import annotations
 
 import asyncio
@@ -22,7 +20,7 @@ from bigrag.services.s3_client import (
 
 logger = get_logger("bigrag.s3_ingest")
 
-_tasks: dict[str, asyncio.Task] = {}  # job_id → task
+_tasks: dict[str, asyncio.Task] = {}
 
 
 def _job_to_dict(job: S3IngestJob) -> dict:
@@ -55,7 +53,7 @@ async def create_job(
     metadata: dict,
     file_types: list[str] | None = None,
 ) -> dict:
-    """Create a persistent S3 ingest job and start processing."""
+
     job = S3IngestJob(
         id=uuid.uuid4(),
         collection_id=uuid.UUID(collection_id),
@@ -80,7 +78,7 @@ async def create_job(
 
 
 async def resume_incomplete_jobs() -> None:
-    """Resume any jobs that were interrupted by a server restart."""
+
     async with session_factory()() as session:
         jobs = (
             await session.scalars(
@@ -104,7 +102,7 @@ def _start_job(job: dict) -> None:
 
 
 async def cancel_job(job_id: str) -> bool:
-    """Cancel a running S3 ingest job and wait for it to stop."""
+
     task = _tasks.get(job_id)
     if task and not task.done():
         task.cancel()
@@ -117,17 +115,13 @@ async def cancel_job(job_id: str) -> bool:
     return False
 
 
-# Allowlist of columns _update is permitted to touch. Adding a new field?
-# Add it here first — otherwise _update raises. Keeps a stray caller from
-# smuggling attacker-controlled field names into the SQL even if a future
-# refactor makes them user-reachable.
 _ALLOWED_UPDATE_FIELDS = frozenset(
     {"error_message", "total_found", "total_ingested", "total_skipped"}
 )
 
 
 async def _run_job(job: dict) -> None:
-    """Full lifecycle: list → download → extract → ingest."""
+
     import aiobotocore.session
 
     from bigrag.services.ingestion_job import create_ingestion_job
@@ -229,7 +223,7 @@ async def _run_job(job: dict) -> None:
     total_found = 0
     sem = asyncio.Semaphore(10)
     counter_lock = asyncio.Lock()
-    max_object_bytes = 2 * 1024 * 1024 * 1024  # 2GB per object
+    max_object_bytes = 2 * 1024 * 1024 * 1024
 
     async def _inc_skipped(n: int = 1) -> None:
         nonlocal skipped
@@ -465,5 +459,4 @@ async def _run_job(job: dict) -> None:
     )
 
 
-# keep module imports referenced — alembic/migrations hook introspection
 _ = Collection

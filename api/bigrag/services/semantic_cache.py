@@ -1,25 +1,3 @@
-"""Semantic cache for /query.
-
-Idempotency caches by key. Semantic caching caches by *meaning*: embed
-the incoming query, cosine-compare against a bounded set of recent
-queries for the same collection, and if similarity ≥ ``SIMILARITY_THRESHOLD``
-replay the stored response. Huge cost win when users paraphrase each
-other (chat assistants, helpdesks).
-
-Storage layout in Redis:
-
-- ``semcache:{collection}:entries`` — a list of JSON entries
-  ``{"vec": [...], "payload": {...}, "ts": <epoch>}``. Capped at
-  :data:`MAX_ENTRIES_PER_COLLECTION` via LTRIM after every write.
-
-Entries expire after :data:`TTL_SECONDS`; we keep a per-entry timestamp
-instead of per-entry TTLs because list-element TTLs aren't a thing in
-Redis.
-
-Misses and failures return ``None`` and log at debug — this is an
-optimization, never a dependency.
-"""
-
 from __future__ import annotations
 
 import math
@@ -35,7 +13,7 @@ logger = get_logger("bigrag.semantic_cache")
 
 SIMILARITY_THRESHOLD = 0.97
 MAX_ENTRIES_PER_COLLECTION = 200
-TTL_SECONDS = 60 * 30  # 30 minutes
+TTL_SECONDS = 60 * 30
 
 
 def _list_key(collection: str) -> str:
@@ -58,8 +36,7 @@ async def lookup(
     query_vec: list[float],
     threshold: float = SIMILARITY_THRESHOLD,
 ) -> dict[str, Any] | None:
-    """Return the cached payload whose query vector is most similar to
-    ``query_vec`` (if above ``threshold``), else None."""
+
     client = redis_cache._redis  # noqa: SLF001 — intentional reuse
     if client is None or not query_vec:
         return None
@@ -80,7 +57,7 @@ async def lookup(
         except Exception:  # noqa: BLE001 — malformed entry; skip
             continue
         if (now - entry.get("ts", 0)) > TTL_SECONDS:
-            continue  # expired — drop on next write
+            continue
         kept.append(raw)
         score = _cosine(query_vec, entry.get("vec") or [])
         if score > best_score:
@@ -102,8 +79,7 @@ async def store(
     query_vec: list[float],
     payload: dict[str, Any],
 ) -> None:
-    """Cache ``payload`` under the ``query_vec`` for future lookups.
-    Best-effort: swallow Redis errors rather than failing the request."""
+
     client = redis_cache._redis  # noqa: SLF001
     if client is None or not query_vec:
         return
@@ -112,16 +88,13 @@ async def store(
         key = _list_key(collection)
         await client.lpush(key, orjson.dumps(entry))
         await client.ltrim(key, 0, MAX_ENTRIES_PER_COLLECTION - 1)
-        # Whole-list TTL bounds memory even when nobody queries the
-        # collection again.
         await client.expire(key, TTL_SECONDS * 2)
     except Exception as exc:  # noqa: BLE001
         logger.debug("semcache: store failed", collection=collection, error=str(exc))
 
 
 async def invalidate(collection: str) -> None:
-    """Drop every cached query for ``collection``. Call on ingest,
-    delete, or re-embed so stale answers don't linger."""
+
     client = redis_cache._redis  # noqa: SLF001
     if client is None:
         return

@@ -283,10 +283,7 @@ async def replay_delivery(
     admin: dict = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ) -> WebhookTestResponse:
-    """Re-fire a failed (or successful) delivery using the original payload
-    and event. Doesn't touch the circuit breaker or retry counters — it's
-    explicitly a one-off.
-    """
+
     try:
         wh_uuid = uuid.UUID(webhook_id)
         del_uuid = uuid.UUID(delivery_id)

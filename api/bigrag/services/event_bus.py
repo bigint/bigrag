@@ -1,5 +1,3 @@
-"""Redis-backed event bus for cross-process ingestion events."""
-
 from __future__ import annotations
 
 import asyncio
@@ -58,12 +56,6 @@ class IngestionEvent:
 
 
 class EventBus:
-    """Redis pub/sub event bus.
-
-    Publishes events to Redis channels and dispatches incoming messages
-    to local asyncio queues. Works across multiple server processes.
-    """
-
     def __init__(self) -> None:
         self._redis: aioredis.Redis | None = None
         self._pubsub: aioredis.client.PubSub | None = None
@@ -94,7 +86,7 @@ class EventBus:
         logger.info("event bus closed")
 
     async def _listen(self) -> None:
-        """Read messages from Redis and dispatch to local queues."""
+
         async for message in self._pubsub.listen():
             if message["type"] != "pmessage":
                 continue
@@ -115,7 +107,7 @@ class EventBus:
                 logger.warning("event bus: bad message", error=str(e))
 
     def _dispatch(self, channel_key: str, event: IngestionEvent) -> None:
-        """Route an event to matching local subscriber queues."""
+
         for q in self._subs.get(channel_key, []):
             q.put_nowait(event)
         for q in self._subs.get("*", []):

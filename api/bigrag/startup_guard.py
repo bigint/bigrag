@@ -1,15 +1,3 @@
-"""Refuse to boot in production mode with insecure defaults.
-
-When ``BIGRAG_ENV=prod`` the lifespan calls :func:`check_production_safety`
-before any service connects. Any violation exits(1) with a checklist
-so operators know exactly what to set. ``dev`` mode skips all checks.
-
-We deliberately don't try to check database passwords by connecting —
-that's the database's job. We check the *configuration* surface the
-operator controls: cookies, CORS, and the usual footguns in the
-shipped docker-compose.yml.
-"""
-
 from __future__ import annotations
 
 import sys
@@ -21,9 +9,7 @@ logger = get_logger("bigrag.startup")
 
 
 def check_production_safety(s: Settings) -> None:
-    """Raise :class:`SystemExit` if any production-insecure setting is
-    active when ``s.env == "prod"``. No-op otherwise.
-    """
+
     if s.env != "prod":
         return
 
@@ -67,6 +53,4 @@ def check_production_safety(s: Settings) -> None:
     logger.error(
         "Set BIGRAG_ENV=dev if you really intend to run in this state, or fix the items above.",
     )
-    # SystemExit is catchable by the caller (useful for tests) but
-    # will terminate the process at the module boundary otherwise.
     sys.exit(1)

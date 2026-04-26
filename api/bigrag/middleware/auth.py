@@ -1,12 +1,3 @@
-"""Auth dependencies for FastAPI routes.
-
-Resolves an authenticated principal from either:
-  * a session cookie set by the login endpoint (browser / Studio UI), or
-  * an ``Authorization: Bearer bigrag_sk_...`` API key (external clients).
-
-Session cookies and API keys both ultimately resolve to a user row.
-"""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -40,9 +31,6 @@ def _serialize(user: User, *, auth: str, api_key_id: str | None = None) -> dict:
         "auth_method": auth,
         "api_key_id": api_key_id,
         "api_key_name": None,
-        # Sessions (browser / Studio) have no scope list — admin users keep
-        # implicit full access. Scoped keys override this in
-        # ``_user_from_api_key``.
         "scopes": None,
         "collection": None,
         "rate_limits": None,
@@ -129,7 +117,6 @@ async def get_current_user(
     if principal is None:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    # Enforce scoped-key permissions. Sessions (scopes=None) always pass.
     scope = required_scope(request.method, request.url.path)
     if scope and not has_scope(principal.get("scopes"), scope):
         raise HTTPException(
@@ -137,7 +124,6 @@ async def get_current_user(
             detail=f"API key missing required scope: {scope}",
         )
 
-    # Enforce collection-pinning on API keys that carry one.
     pinned = principal.get("collection")
     if pinned:
         await enforce_collection_scope(request, pinned)
@@ -151,11 +137,7 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
 
 
 async def require_session(user: dict = Depends(get_current_user)) -> dict:
-    """Require a logged-in admin (session cookie), not an API key.
 
-    Used for account-management endpoints where a machine credential must
-    not be able to escalate (e.g., change passwords, create users).
-    """
     if user.get("auth_method") != "session":
         raise HTTPException(status_code=403, detail="Session authentication required")
     if user.get("role") != "admin":

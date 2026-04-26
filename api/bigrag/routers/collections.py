@@ -165,9 +165,6 @@ async def create_collection(
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    # Create in Milvus first (idempotent — skips if exists). index_type is
-    # honored on first create only; changing it later requires dropping and
-    # recreating the collection.
     await vector_store.create_collection(body.name, dimension, index_type=body.index_type)
 
     collection = Collection(
@@ -199,7 +196,6 @@ async def create_collection(
         await session.commit()
     except IntegrityError as e:
         await session.rollback()
-        # Roll back Milvus collection if Postgres insert fails
         await vector_store.delete_collection(body.name)
         raise HTTPException(status_code=409, detail="Collection already exists") from e
     except Exception:
@@ -234,13 +230,7 @@ async def reembed_collection(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
-    """Queue every document in a collection for re-embedding.
 
-    Use this after changing the collection's embedding_model or
-    embedding_base_url — the persistent embedding cache means chunks
-    that haven't actually changed get their new vectors essentially for
-    free, so this scales well even for large collections.
-    """
     collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
@@ -434,7 +424,6 @@ async def delete_collection(
     logger.info(f"delete: storage files removed name={name} count={deleted}")
 
     deleted_id = str(collection.id)
-    # Cascades to documents via FK.
     await session.delete(collection)
     await session.commit()
     logger.info(f"delete: postgres records removed name={name}")
@@ -460,7 +449,7 @@ async def collection_events_sse(
     _: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Stream real-time events for all activity in a collection via SSE."""
+
     from bigrag.services.event_bus import event_bus
 
     exists = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
@@ -512,13 +501,12 @@ async def truncate_collection(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Delete all documents, vectors, and storage files in a collection."""
+
     logger.info(f"truncate: collection={name}")
     collection_id = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
     if collection_id is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
-    # Cancel running S3 ingest jobs (but keep the records)
     from bigrag.services.s3_ingest import cancel_job
 
     running_job_ids = (
@@ -535,7 +523,6 @@ async def truncate_collection(
     flushed = await ingestion_queue.flush_collection(name)
     logger.info(f"truncate: flushed {flushed} queued jobs name={name}")
 
-    # Drop all vectors (collection gets recreated on next insert)
     await vector_store.delete_collection(name)
     logger.info(f"truncate: vectors cleared name={name}")
 

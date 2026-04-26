@@ -1,5 +1,3 @@
-"""S3 connection helpers and object listing."""
-
 from __future__ import annotations
 
 import asyncio
@@ -34,7 +32,7 @@ SUPPORTED_EXTENSIONS = {
 
 
 def build_s3_kwargs(job: dict) -> dict[str, Any]:
-    """Build aiobotocore client kwargs from a job row."""
+
     from botocore import UNSIGNED
     from botocore.config import Config
 
@@ -50,11 +48,7 @@ def build_s3_kwargs(job: dict) -> dict[str, Any]:
 
 
 async def resolve_bucket_region(bucket: str) -> str | None:
-    """Detect the actual region for a bucket.
 
-    Tries GetBucketLocation first, then falls back to a HEAD request.
-    Returns None if detection fails.
-    """
     import aiobotocore.session
     from botocore import UNSIGNED
     from botocore.config import Config
@@ -81,7 +75,6 @@ async def resolve_bucket_region(bucket: str) -> str | None:
             error=f"{exc.__class__.__name__}: {exc}",
         )
 
-    # Fallback: HEAD request — region is in the response header
     try:
         import httpx
 
@@ -107,10 +100,7 @@ async def resolve_s3_config(
     prefix: str,
     s3_kwargs: dict[str, Any],
 ) -> dict[str, Any]:
-    """Test S3 access and resolve correct credentials/region via fallback.
 
-    Returns the (possibly modified) *s3_kwargs* that successfully listed.
-    """
     import aiobotocore.session
     from botocore import UNSIGNED
     from botocore.config import Config
@@ -129,7 +119,6 @@ async def resolve_s3_config(
         s = str(exc)
         return "PermanentRedirect" in s or "specified endpoint" in s
 
-    # 1. Try as-is
     try:
         await _probe(s3_kwargs)
         return s3_kwargs
@@ -142,14 +131,12 @@ async def resolve_s3_config(
         if "config" not in s3_kwargs:
             s3_kwargs["config"] = Config(signature_version=UNSIGNED)
 
-    # 2. Try to detect correct region
     region = await resolve_bucket_region(bucket)
     if region and region != s3_kwargs.get("region_name"):
         logger.info("detected region", actual=region)
         s3_kwargs["region_name"] = region
         s3_kwargs.pop("endpoint_url", None)
 
-    # 3. Verify resolved config works
     logger.info(
         "resolved s3 config",
         region=s3_kwargs.get("region_name"),
@@ -166,11 +153,7 @@ async def iter_s3_pages(
     extensions: set[str],
     on_progress: Callable[[int], Any] | None = None,
 ) -> AsyncIterator[list[dict]]:
-    """Yield pages of filtered S3 objects.
 
-    Each page contains up to 1000 objects (S3 default) filtered by extension.
-    *on_progress* is called every 5 pages with the running total.
-    """
     import aiobotocore.session
 
     session = aiobotocore.session.get_session()

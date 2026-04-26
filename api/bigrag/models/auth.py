@@ -6,10 +6,6 @@ from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator, Field
 
-# Pragmatic email validator for self-hosted deployments. Pydantic's EmailStr
-# rejects reserved TLDs like `.local`, `.internal`, `.corp`, breaking on-prem
-# Active Directory shops. We validate basic RFC 5322 shape and length — DNS
-# deliverability is the operator's concern, not ours.
 _EMAIL_RE = re.compile(
     r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?"
     r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?)+$"
@@ -84,11 +80,6 @@ class UserListResponse(BaseModel):
 
 
 class ApiKeyScope(BaseModel):
-    """A granular permission. Scopes resolve to ``resource:action``
-    strings (e.g. ``collection:read``, ``document:upload``). Wildcards
-    allowed: ``*:read``, ``collection:*``, ``*:*``.
-    """
-
     resource: str = Field(min_length=1, max_length=40)
     action: str = Field(min_length=1, max_length=40)
 
@@ -163,10 +154,6 @@ class UpdateApiKeyRequest(BaseModel):
 
 
 class WhoamiResponse(BaseModel):
-    """Returned by /v1/auth/whoami so clients (including the MCP server)
-    can discover what they're authenticated as and what scope they have.
-    """
-
     authenticated: bool = True
     auth_method: str = Field(description="'session' or 'api_key'")
     user_id: str

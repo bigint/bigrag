@@ -1,10 +1,3 @@
-"""FastAPI dependency injection for service singletons.
-
-Services are stored on app.state during lifespan and retrieved here via the
-Request object. This eliminates the need for module-level singleton imports
-in routers and simplifies test setup.
-"""
-
 from __future__ import annotations
 
 from fastapi import Request

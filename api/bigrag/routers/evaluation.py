@@ -1,14 +1,3 @@
-"""Built-in retrieval evaluation runner.
-
-Upload a JSONL / JSON array of test cases — each with a ``query`` and
-a list of expected ``relevant_ids`` — and the endpoint runs every case
-against a collection and returns recall@k, mrr, and ndcg@k.
-
-Good enough for tracking quality regressions across chunking /
-embedding / reranker changes; not a substitute for a full RAGAS run
-(which needs ground-truth generated answers).
-"""
-
 from __future__ import annotations
 
 import math

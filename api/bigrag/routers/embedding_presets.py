@@ -1,9 +1,3 @@
-"""Admin endpoints for managing reusable embedding provider configs.
-
-A preset bundles ``(provider, model, api_key, dimension, base_url?)`` under a
-human-readable name so collections can reference it instead of duplicating keys.
-"""
-
 from __future__ import annotations
 
 import uuid

@@ -33,7 +33,6 @@ async def lifespan(app: FastAPI):
     logger = get_logger("bigrag")
     logger.info("starting", version=__version__, env=s.env)
 
-    # Refuse to boot in prod mode with default/insecure config.
     check_production_safety(s)
 
     if "*" in s.cors_origins:
@@ -44,8 +43,6 @@ async def lifespan(app: FastAPI):
             "be rejected. Set it explicitly (e.g. https://studio.example.com)."
         )
 
-    # Install the master key before any ORM access — the EncryptedString
-    # type decorator calls into crypto on every read/write of a secret column.
     crypto.configure(s.master_key)
     if not crypto.is_configured():
         logger.warning(
@@ -94,8 +91,6 @@ async def lifespan(app: FastAPI):
 
     cleanup_task = safe_create_task(cleanup_old_data(), name="cleanup")
 
-    # Start the MCP streamable-http session manager (task group). Must
-    # be entered before any /mcp request is served.
     mcp_session_manager = getattr(app.state, "mcp_session_manager", None)
     mcp_cm = mcp_session_manager.run() if mcp_session_manager is not None else None
     if mcp_cm is not None:
@@ -189,8 +184,6 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(usage_router)
     app.include_router(webhooks_router)
 
-    # Remote MCP endpoint — URL-based clients (Claude custom connector,
-    # remote Cursor) hit this instead of launching the `bigrag-mcp` CLI.
     from bigrag.services.mcp_http import build_mcp_http_app
 
     mcp_asgi, mcp_session_manager = build_mcp_http_app(app)

@@ -1,17 +1,3 @@
-"""Minimal JSON-Schema validator for collection metadata.
-
-Supports the subset we need for metadata constraints — no need to pull
-in jsonschema for something this targeted. Enforces:
-
-- ``type`` (string, number, integer, boolean, array, object)
-- ``required`` (list of required top-level keys)
-- ``properties`` (per-key type + enum + min/max length + pattern)
-- ``enum`` at property level
-
-Raises :class:`ValueError` with a human-readable message. The router
-turns that into a 400.
-"""
-
 from __future__ import annotations
 
 import re
@@ -28,7 +14,7 @@ _TYPE_CHECKS = {
 
 
 def validate(metadata: dict, schema: dict | None) -> None:
-    """Raise ValueError if ``metadata`` doesn't satisfy ``schema``."""
+
     if not schema:
         return
     if schema.get("type") and schema["type"] != "object":

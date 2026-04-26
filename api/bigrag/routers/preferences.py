@@ -1,13 +1,3 @@
-"""Per-admin preferences — arbitrary JSON blob keyed on the user.
-
-Used by the Studio to persist playground settings (OpenAI API key, chosen
-model, top-K, temperature, system prompt) so they follow the admin across
-browsers and devices instead of being stuck in localStorage.
-
-Session-authenticated only: machine API keys don't have a persistent user,
-so they can't read/write personal preferences.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -88,11 +78,7 @@ async def update_preferences(
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    """Shallow-merge the request body into the stored preferences.
 
-    Keys are overwritten; missing keys are preserved. Send an explicit ``null``
-    to clear a single key.
-    """
     incoming = body.get("data") if isinstance(body.get("data"), dict) else body
     if not isinstance(incoming, dict):
         incoming = {}

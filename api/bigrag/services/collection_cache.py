@@ -97,15 +97,12 @@ async def get_or_404(name: str) -> dict:
 
 
 def get_embedding_model_for(collection: dict):
-    """Load the embedding model for a collection, using its API key or the global fallback."""
+
     from bigrag.services.embedding import get_embedding_model
 
     api_key = collection.get("embedding_api_key") or settings.embedding_api_key
     provider = collection["embedding_provider"]
     base_url = collection.get("embedding_base_url")
-    # openai_compatible often points at a self-hosted endpoint (Ollama,
-    # vLLM, TEI) that doesn't check the key — only require one for the
-    # hosted providers.
     if not api_key and provider in ("openai", "cohere"):
         raise ValidationError(
             f"Collection '{collection['name']}' uses "
@@ -123,7 +120,7 @@ def get_embedding_model_for(collection: dict):
 
 
 def get_reranking_config(collection: dict) -> dict:
-    """Build reranking config dict from a collection row."""
+
     return {
         "enabled": collection.get("reranking_enabled", False),
         "model": collection.get("reranking_model", "rerank-v3.5"),

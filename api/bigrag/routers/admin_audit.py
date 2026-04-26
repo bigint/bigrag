@@ -1,5 +1,3 @@
-"""Admin endpoint for reading the audit log."""
-
 from __future__ import annotations
 
 import uuid
@@ -74,7 +72,4 @@ async def list_audit_log(
     )
 
 
-# Keep these helpers referenced so ruff doesn't flag them unused —
-# they're exercised by future cluster-9 work (eval runner refreshes
-# the cache after moderation decisions).
 _ = semantic_cache, vector_store

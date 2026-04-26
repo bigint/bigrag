@@ -1,12 +1,3 @@
-"""Content moderation via OpenAI's moderation endpoint.
-
-Called from the upload path when a collection has ``moderation_enabled=
-true``. A positive flag blocks ingestion with a 400 and an
-``error_message`` explaining which category triggered. Without an
-OpenAI API key we fail open with a warning so self-hosters on air-
-gapped networks aren't silently blocked.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -17,13 +8,7 @@ logger = get_logger("bigrag.moderation")
 
 
 async def check_text(text: str, api_key: str | None) -> tuple[bool, str | None]:
-    """Return ``(flagged, reason_or_none)``.
 
-    ``flagged=True`` → the caller should reject the upload.
-    ``flagged=False, reason="unavailable"`` → moderation could not run
-    (no key, API error). Policy on how to treat that is up to the
-    caller — by default we fail open.
-    """
     if not api_key:
         return False, "unavailable: no OpenAI api_key"
     try:

@@ -230,12 +230,7 @@ async def _recount_collection_documents(
     session: AsyncSession,
     collection_id: uuid.UUID,
 ) -> None:
-    """Resync ``Collection.document_count`` to the actual row count.
 
-    Counts every document regardless of status — pending, processing,
-    ready, and failed all show up to operators. Anything else makes the
-    Studio overview disagree with the per-collection stats endpoint.
-    """
     subq = (
         sa.select(sa.func.count())
         .select_from(Document)
@@ -298,9 +293,6 @@ async def upload_document(
 
     await _moderate_upload_content(collection, content)
 
-    # Content-hash dedup: if the exact same bytes are already ingested into
-    # this collection we return the existing doc with deduped=True rather
-    # than creating a second copy and paying to re-embed it.
     content_hash = hashlib.sha256(content).hexdigest()
     existing = await session.scalar(
         sa.select(Document)
@@ -599,7 +591,6 @@ async def batch_upload_documents(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
 
-    # Pre-validate and read all files before committing any
     validated: list[tuple[UploadFile, bytes]] = []
     for file in files:
         file_ext = Path(file.filename or "").suffix.lower()
@@ -786,8 +777,6 @@ async def batch_delete_documents(
     results = await asyncio.gather(*[_delete_one(doc_id, doc) for doc_id, doc in by_id.items()])
     deleted = sum(1 for r in results if r)
 
-    # Remove the Postgres rows in one statement now that side effects
-    # (Milvus, storage) have settled.
     deleted_ids = [uuid.UUID(d) for d, ok in zip(by_id.keys(), results, strict=True) if ok]
     if deleted_ids:
         await session.execute(sa.delete(Document).where(Document.id.in_(deleted_ids)))
@@ -848,11 +837,7 @@ async def ingest_from_s3(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """List objects in an S3 bucket and ingest supported files.
 
-    Returns immediately. Listing, downloading, and ingestion all happen in
-    the background and persist across server restarts.
-    """
     from bigrag.services.s3_ingest import create_job
 
     collection = await get_collection_or_404(collection_name)
@@ -899,7 +884,6 @@ async def batch_progress_sse(
     ids: str = Query(..., description="Comma-separated document IDs"),
     _: dict = Depends(get_current_user),
 ):
-    """Stream aggregated progress for multiple documents via SSE."""
 
     import orjson
 
@@ -1003,6 +987,4 @@ async def document_progress_sse(
     )
 
 
-# Keep the 'pii' module wired up — downstream consumers ingest it via
-# this import chain. See services.pii for the active redaction pipeline.
 from bigrag.services import pii  # noqa: E402, F401

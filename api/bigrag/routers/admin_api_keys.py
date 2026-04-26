@@ -1,9 +1,3 @@
-"""Admin endpoints for creating and revoking API keys.
-
-Plaintext keys are returned exactly once on creation. Only the prefix
-and sha256 hash are persisted.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -62,15 +56,13 @@ def _validate_scopes(scopes: list[str] | None) -> None:
 
 
 def _is_mcp_key(key: ApiKey) -> bool:
-    """MCP-server keys live in the same table but are managed from
-    ``/v1/admin/mcp-servers``. Hide them from generic api-keys CRUD."""
+
     permissions = key.permissions or {}
     return isinstance(permissions, dict) and isinstance(permissions.get("mcp"), dict)
 
 
 async def _validate_collection(session: AsyncSession, collection: str | None) -> str | None:
-    """Return the normalized collection name or None. Raises 400 if the
-    name is provided but doesn't match an existing collection."""
+
     if collection is None:
         return None
     name = collection.strip()
@@ -89,8 +81,6 @@ async def list_api_keys(
     _: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> ApiKeyListResponse:
-    # Keys minted by the /mcp page live in the same table; filter them
-    # out here so they're only visible from their own admin UI.
     base = sa.select(ApiKey).where(ApiKey.permissions["mcp"].is_(None))
     keys = (
         await session.scalars(base.order_by(ApiKey.created_at.desc()).limit(limit).offset(offset))

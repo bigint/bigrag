@@ -17,8 +17,6 @@ logger = get_logger("bigrag.retrieval")
 
 @dataclass
 class RetrievalOutcome:
-    """Return type of :func:`retrieve` — results plus per-phase timings and facets."""
-
     results: list[dict]
     embed_ms: float = 0.0
     search_ms: float = 0.0
@@ -28,18 +26,16 @@ class RetrievalOutcome:
     total_ms: float = 0.0
     facets: dict[str, dict[str, int]] | None = None
     cached: bool = False
-    # The embedded query vector — exposed so the semantic cache can
-    # store/score entries without recomputing.
     query_embedding: list[float] | None = field(default=None, repr=False)
 
 
 def _tokenize_query(query: str) -> list[str]:
-    """Split query into lowercase search terms, filtering short words."""
+
     return [w.lower() for w in re.split(r"\s+", query.strip()) if len(w) >= 2]
 
 
 def _keyword_score(text: str, query_terms: list[str]) -> float:
-    """Simple keyword relevance score based on term frequency."""
+
     text_lower = text.lower()
     if not query_terms:
         return 0.0
@@ -51,10 +47,7 @@ def _reciprocal_rank_fusion(
     ranked_lists: list[list[dict]],
     k: int = 60,
 ) -> list[dict]:
-    """Merge multiple ranked result lists using Reciprocal Rank Fusion (RRF).
 
-    RRF score = sum(1 / (k + rank)) for each list where the item appears.
-    """
     scores: dict[str, float] = {}
     items: dict[str, dict] = {}
 
@@ -76,7 +69,7 @@ def _reciprocal_rank_fusion(
 
 
 def _normalize_scores(items: list[dict]) -> list[dict]:
-    """Min-max normalize scores into [0, 1]. Stable when all scores equal."""
+
     if not items:
         return items
     scores = [i.get("score", 0.0) for i in items]
@@ -97,8 +90,7 @@ def _weighted_fusion(
     ranked_lists: list[list[dict]],
     weights: list[float] | None = None,
 ) -> list[dict]:
-    """Merge lists by weighted sum of normalized scores. Falls back to
-    equal weights."""
+
     weights = weights or [1.0] * len(ranked_lists)
     assert len(weights) == len(ranked_lists), "weights/lists length mismatch"
 
@@ -125,15 +117,12 @@ def fuse_results(
     strategy: str = "rrf",
     weights: list[float] | None = None,
 ) -> list[dict]:
-    """Dispatch to the configured hybrid fusion strategy."""
+
     if strategy == "weighted":
         return _weighted_fusion(ranked_lists, weights=weights)
     if strategy == "normalized":
-        # Normalize first so a keyword score doesn't dominate cosine scores,
-        # then RRF over the normalized order (rank is what counts in RRF).
         normalized = [_normalize_scores(lst) for lst in ranked_lists]
         return _reciprocal_rank_fusion(normalized)
-    # Default: classic RRF over raw ranks.
     return _reciprocal_rank_fusion(ranked_lists)
 
 
@@ -156,23 +145,12 @@ def mmr_rerank(
     lambda_: float,
     top_k: int,
 ) -> list[dict]:
-    """Maximal Marginal Relevance re-rank.
 
-    ``lambda_`` trades relevance vs. diversity:
-
-    - ``1.0`` → pure relevance (identical to input order)
-    - ``0.0`` → pure novelty (picks points maximally unlike each other)
-
-    Items without an ``embedding`` field are skipped from diversity
-    comparison (they get no penalty). Missing-embedding items keep
-    their original score so we don't destroy the ranking.
-    """
     if lambda_ >= 1.0 or top_k >= len(results):
         return results[:top_k]
 
     remaining = list(results)
     picked: list[dict] = []
-    # Pre-normalize query embedding once.
     q_norm = _norm(query_embedding)
     if not q_norm:
         return results[:top_k]
@@ -184,7 +162,6 @@ def mmr_rerank(
             emb = candidate.get("embedding")
             relevance = candidate.get("score", 0.0)
             if not picked or not emb:
-                # No peers yet — pure relevance, or no embedding to compare.
                 mmr = lambda_ * relevance - (1 - lambda_) * 0.0
             else:
                 max_sim = (
@@ -206,13 +183,7 @@ def compute_facets(
     results: list[dict],
     fields: list[str],
 ) -> dict[str, dict[str, int]]:
-    """Aggregate counts per metadata value for each requested field.
 
-    Missing or null values are skipped. Non-scalar values are coerced
-    to their ``str()`` so operators like {"tags": ["a", "b"]} count
-    the list as a single bucket — the caller can ask for the flattened
-    form with a pre-processing pass if they need it.
-    """
     facets: dict[str, dict[str, int]] = {f: {} for f in fields}
     for result in results:
         metadata = result.get("metadata") or {}
@@ -231,7 +202,7 @@ async def rerank_results(
     model: str = "rerank-v3.5",
     api_key: str | None = None,
 ) -> list[dict]:
-    """Rerank results using Cohere Rerank API."""
+
     if not results:
         return results
 
@@ -276,7 +247,7 @@ async def _log_query(
     latency_ms: float,
     search_mode: str,
 ) -> None:
-    """Log a query for analytics. Fire-and-forget, errors are swallowed."""
+
     try:
         from bigrag.db.engine import session_factory
         from bigrag.db.models import QueryLog
@@ -302,10 +273,7 @@ async def _hyde_expand(
     query: str,
     api_key: str | None,
 ) -> tuple[str, float]:
-    """Generate a hypothetical answer via OpenAI and return it alongside
-    elapsed ms. Falls back to the original query on any failure —
-    HyDE is a boost, not a hard dependency.
-    """
+
     t0 = time.monotonic()
     try:
         import openai
@@ -358,11 +326,7 @@ async def retrieve(
     facets: list[str] | None = None,
     precomputed_embedding: list[float] | None = None,
 ) -> RetrievalOutcome:
-    """Run a retrieval and return an outcome with timings + facets.
 
-    Backward-compat: callers that treat the return as ``list[dict]``
-    will break — use ``outcome.results``.
-    """
     _retrieve_start = time.monotonic()
     timings = {"embed_ms": 0.0, "search_ms": 0.0, "rerank_ms": 0.0, "hyde_ms": 0.0, "mmr_ms": 0.0}
 
@@ -379,7 +343,6 @@ async def retrieve(
     filter_expr = _build_filter_expr(filters) if filters else None
     query_terms = _tokenize_query(query)
 
-    # Over-fetch when we'll MMR trim later, so diversity has headroom.
     fetch_k = top_k * 3 if (diversity is not None and diversity < 1.0) else top_k
 
     embed_query = query
@@ -493,13 +456,12 @@ async def retrieve(
             )
             timings["rerank_ms"] = (time.monotonic() - t0) * 1000
 
-    # MMR diversity, over-fetched candidates → top_k by relevance+novelty.
     if diversity is not None and diversity < 1.0 and query_embedding is not None and results:
         t0 = time.monotonic()
         results = mmr_rerank(
             results,
             query_embedding=query_embedding,
-            lambda_=1.0 - diversity,  # caller's 0=pure_novelty ↔ MMR lambda
+            lambda_=1.0 - diversity,
             top_k=top_k,
         )
         timings["mmr_ms"] = (time.monotonic() - t0) * 1000
@@ -567,7 +529,6 @@ async def retrieve_multi(
     reranking_configs: dict[str, dict] | None = None,
     rerank_override: bool | None = None,
 ) -> list[dict]:
-    """Query multiple collections in parallel and merge results by score."""
 
     async def search_one(col_name: str) -> list[dict]:
         col_reranking = (reranking_configs or {}).get(col_name)
@@ -603,25 +564,25 @@ _SAFE_FIELD_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 
 def _validate_field(key: str) -> str:
-    """Validate that a field name is safe for use in filter expressions."""
+
     if not _SAFE_FIELD_RE.match(key):
         raise ValueError(f"Invalid filter field name: {key!r}")
     return key
 
 
 def _escape_string(value: str) -> str:
-    """Escape a string value for safe use in Milvus filter expressions."""
+
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def _validate_scalar(val: object, op: str) -> None:
-    """Ensure a filter value is a safe scalar (str, int, float, or bool)."""
+
     if not isinstance(val, (str, int, float, bool)):
         raise ValueError(f"Filter operator {op} requires a scalar value, got {type(val).__name__}")
 
 
 def _format_value(val: str | int | float | bool) -> str:
-    """Format a validated scalar for use in a Milvus filter expression."""
+
     if isinstance(val, str):
         return f'"{_escape_string(val)}"'
     if isinstance(val, bool):
@@ -630,7 +591,7 @@ def _format_value(val: str | int | float | bool) -> str:
 
 
 def _build_filter_expr(filters: dict) -> str | None:
-    """Convert filter dict to Milvus filter expression."""
+
     expressions = []
 
     for key, value in filters.items():

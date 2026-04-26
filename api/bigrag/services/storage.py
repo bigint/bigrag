@@ -35,7 +35,7 @@ class LocalStorage(StorageBackend):
         self._base.mkdir(parents=True, exist_ok=True)
 
     def _safe_path(self, key: str) -> Path:
-        """Resolve key to a path guaranteed to be under base directory."""
+
         resolved = (self._base / key).resolve()
         if resolved != self._base and self._base not in resolved.parents:
             raise ValueError(f"Invalid storage key: {key}")

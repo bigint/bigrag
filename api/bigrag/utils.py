@@ -8,7 +8,7 @@ logger = get_logger("bigrag.utils")
 
 
 def safe_create_task(coro, *, name: str = "background") -> asyncio.Task:
-    """Create a task that logs exceptions instead of silently swallowing them."""
+
     task = asyncio.create_task(coro, name=name)
 
     def _on_done(t: asyncio.Task) -> None:

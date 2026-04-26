@@ -1,5 +1,3 @@
-"""Async wrapper around pymilvus MilvusClient. All blocking calls run in a thread pool."""
-
 from __future__ import annotations
 
 import asyncio
@@ -12,7 +10,6 @@ from bigrag.logging import get_logger
 
 logger = get_logger("bigrag.vector_store")
 
-# Dedicated thread pool for Milvus I/O so we never block the event loop
 _executor: ThreadPoolExecutor | None = None
 
 
@@ -32,7 +29,6 @@ async def _run(fn, *args, **kwargs):
     return await loop.run_in_executor(_get_executor(), partial(fn, *args, **kwargs))
 
 
-# Pymilvus exceptions that indicate a transient connection issue
 _TRANSIENT_ERRORS = (ConnectionError, TimeoutError, OSError)
 
 
@@ -44,7 +40,7 @@ class VectorStore:
         self._max_retries: int = 2
 
     def configure(self, uri: str, nprobe: int = 32) -> None:
-        """Update the URI before connecting. Use instead of calling __init__ directly."""
+
         self.uri = uri
         self._nprobe = nprobe
 
@@ -58,8 +54,6 @@ class VectorStore:
             try:
                 self.client.close()
             except (ConnectionError, OSError, TimeoutError) as exc:
-                # Old client already half-dead — best-effort close is fine,
-                # but we still want the error on record.
                 logger.warning(
                     "vector_store: disconnect during reconnect failed",
                     error=f"{exc.__class__.__name__}: {exc}",
@@ -68,7 +62,7 @@ class VectorStore:
         logger.info(f"Reconnected to Milvus at {self.uri}")
 
     async def _run_with_retry(self, fn, *args, **kwargs):
-        """Run a Milvus operation with retry and auto-reconnect on transient failures."""
+
         last_error = None
         for attempt in range(self._max_retries + 1):
             try:
@@ -84,7 +78,6 @@ class VectorStore:
                 else:
                     raise
             except Exception as e:
-                # Check if pymilvus wrapped a transient error
                 err_str = str(e).lower()
                 if any(kw in err_str for kw in ("connect", "timeout", "unavailable", "reset")):
                     last_error = e
@@ -110,7 +103,7 @@ class VectorStore:
 
     @staticmethod
     def _safe_id(value: str) -> str:
-        """Escape a string for safe use in Milvus filter expressions."""
+
         return value.replace("\\", "\\\\").replace('"', '\\"')
 
     async def create_collection(
@@ -135,10 +128,6 @@ class VectorStore:
 
         index_params = self.client.prepare_index_params()
         if index_type.upper() == "HNSW":
-            # HNSW — better recall vs latency tradeoff for >1M vectors.
-            # M controls graph degree; efConstruction trades build time
-            # for quality. These defaults match Milvus's recommended
-            # starting point.
             index_params.add_index(
                 field_name="embedding",
                 index_type="HNSW",
@@ -162,13 +151,8 @@ class VectorStore:
         logger.info(f"Created Milvus collection: {col} (dim={dimension}, index={index_type})")
 
     async def ensure_partition(self, name: str, partition: str) -> None:
-        """Create a Milvus partition if it doesn't exist.
 
-        Used for partition-per-tenant isolation — filtering by partition
-        name is 10-50× faster than scalar-filter-then-scan at scale.
-        """
         col = self._col(name)
-        # Milvus partition names must match [a-zA-Z_][a-zA-Z0-9_]{0,254}
         safe = "".join(c if c.isalnum() or c == "_" else "_" for c in partition)[:64]
         if not safe:
             return
@@ -236,8 +220,6 @@ class VectorStore:
     ) -> list[dict]:
         col = self._col(collection)
         if output_fields is None:
-            # Include the dynamic fields used for citation provenance so
-            # callers can render page/char references inline.
             output_fields = [
                 "text",
                 "document_id",
@@ -287,7 +269,7 @@ class VectorStore:
         limit: int = 10000,
         offset: int = 0,
     ) -> tuple[list[dict], int]:
-        """Return (chunks, total_count) for a document with pagination."""
+
         col = self._col(collection)
         if not await self._run_with_retry(self.client.has_collection, col):
             return [], 0
@@ -333,7 +315,7 @@ class VectorStore:
         top_k: int = 10,
         filters: str | None = None,
     ) -> list[dict]:
-        """Search by text content using keyword matching."""
+
         col = self._col(collection)
 
         from bigrag.services.retrieval import _escape_string
@@ -355,10 +337,10 @@ class VectorStore:
                 collection_name=col,
                 filter=combined_filter,
                 output_fields=["text", "document_id", "chunk_index"],
-                limit=top_k * 3,  # Fetch more to allow scoring/ranking
+                limit=top_k * 3,
             )
         except _TRANSIENT_ERRORS:
-            raise  # Let transient errors propagate for retry at a higher level
+            raise
         except Exception as e:
             logger.warning(f"text_search query failed: {e!r}, returning empty results")
             return []

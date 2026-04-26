@@ -1,10 +1,3 @@
-"""Audit log service.
-
-Records privileged actions with actor, resource, metadata, and request
-provenance so SOC2-style auditors have a trail. Writes are fire-and-forget
-so a logging blip never fails a user request.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -66,7 +59,7 @@ def record(
     resource_id: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> None:
-    """Record an audit entry. Non-blocking — runs in a background task."""
+
     client = request.client
     ip = client[0] if client else None
     user_agent = request.headers.get("user-agent")

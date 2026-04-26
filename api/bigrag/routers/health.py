@@ -19,17 +19,13 @@ logger = get_logger("bigrag.routers.health")
 
 router = APIRouter(tags=["health"])
 
-_EMBEDDING_HEALTH_TTL = 60  # seconds
+_EMBEDDING_HEALTH_TTL = 60
 
 
 async def _resolve_embedding_target(
     settings,
 ) -> tuple[str, str, int | None, str, str | None] | None:
-    """Pick a (provider, model, dimension, api_key, source) tuple to probe.
 
-    Order: global env override → first embedding preset with a key →
-    first collection with a key. Returns None when nothing is configured.
-    """
     if settings.embedding_api_key:
         return (
             settings.embedding_provider,
@@ -78,13 +74,7 @@ async def _resolve_embedding_target(
 
 
 async def _check_embedding_provider(settings) -> dict[str, object]:
-    """Validate embedding provider connectivity by embedding a test string.
 
-    A bigRAG instance is "healthy" for embeddings if ANY configured source
-    (env, preset, or collection) can successfully embed. Reporting "down"
-    when only the env var is missing — but presets work — is misleading
-    and hides the fact that retrieval is actually functional.
-    """
     target = await _resolve_embedding_target(settings)
     if target is None:
         return {"embedding": False, "embedding_error": "no API key configured"}

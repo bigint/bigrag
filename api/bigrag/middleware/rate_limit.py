@@ -1,15 +1,3 @@
-"""Per-API-key / per-IP rate limiting.
-
-Implements a fixed-window counter in Redis. Each request bumps a
-counter keyed by ``(principal, endpoint_bucket, window_epoch)`` and
-rejects anything over the configured limit with 429 + RFC 6585
-headers.
-
-Defaults are deliberately lenient so bursts during normal ingestion
-work don't trip customers; customers can raise limits per-key later
-by setting ``api_keys.rate_limits`` JSON.
-"""
-
 from __future__ import annotations
 
 import math
@@ -26,14 +14,12 @@ from bigrag.services import redis_cache
 logger = get_logger("bigrag.rate_limit")
 
 
-# (method, path-prefix, limit-per-minute). First prefix match wins.
 _RULES: list[tuple[str, str, int]] = [
     ("POST", "/v1/auth/login", 5),
     ("POST", "/v1/auth/setup", 3),
     ("POST", "/v1/collections/{name}/documents", 10),
     ("POST", "/v1/collections/{name}/query", 60),
     ("POST", "/v1/query", 60),
-    # Catch-all: generous default so healthy apps don't trip.
     ("*", "/v1/", 120),
 ]
 
@@ -44,7 +30,6 @@ def _match_rule(method: str, path: str) -> tuple[str, int] | None:
     for rule_method, prefix, limit in _RULES:
         if rule_method != "*" and rule_method != method:
             continue
-        # ``{name}`` is a single-segment placeholder.
         if _path_matches(path, prefix):
             return (f"{rule_method}:{prefix}", limit)
     return None
@@ -66,8 +51,6 @@ def _path_matches(path: str, pattern: str) -> bool:
 
 
 class RateLimitMiddleware:
-    """ASGI middleware enforcing per-principal rate limits."""
-
     def __init__(self, app: ASGIApp, window_seconds: int = 60) -> None:
         self.app = app
         self.window_seconds = window_seconds
@@ -148,12 +131,7 @@ class RateLimitMiddleware:
 
 
 async def _incr(key: str, ttl: int) -> int:
-    """Atomic INCR with EXPIRE via the shared redis client.
 
-    Returns the resulting count. If Redis is unavailable, returns 0 so
-    the request is allowed through — rate limiting is best-effort, not
-    a hard-fail surface.
-    """
     client = redis_cache._redis  # noqa: SLF001 — intentional reuse of shared client
     if client is None:
         return 0

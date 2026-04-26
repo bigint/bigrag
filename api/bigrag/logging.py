@@ -46,12 +46,12 @@ def _redact(value: object) -> object:
 
 
 def redact_secrets(logger, method_name, event_dict):  # noqa: ARG001 - structlog signature
-    """Structlog processor that redacts sensitive fields recursively."""
+
     return _redact(event_dict)
 
 
 def configure_logging(log_level: str = "info", log_format: str = "text") -> None:
-    """Configure structlog + stdlib logging for the entire application."""
+
     level = getattr(logging, log_level.upper(), logging.INFO)
 
     shared_processors: list[structlog.types.Processor] = [
@@ -98,19 +98,16 @@ def configure_logging(log_level: str = "info", log_format: str = "text") -> None
     root.addHandler(handler)
     root.setLevel(level)
 
-    # Silence noisy third-party loggers
     for name in ("pymilvus", "httpx", "httpcore", "hpack", "uvicorn.access"):
         logging.getLogger(name).setLevel(logging.WARNING)
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
-    """Get a structlog logger. Pass module name like 'bigrag.queue'."""
+
     return structlog.get_logger(name)
 
 
 class RequestLoggingMiddleware:
-    """ASGI middleware that logs HTTP requests with structured fields."""
-
     def __init__(self, app):
         self.app = app
         self._logger = get_logger("bigrag.http")

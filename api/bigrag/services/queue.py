@@ -21,8 +21,7 @@ async def _embed_with_cache(
     model_name: str,
     dimension: int,
 ) -> list[list[float]]:
-    """Fetch vectors from the persistent cache, embed the misses, and
-    write them back. Returns vectors aligned to the input order."""
+
     cached = await embedding_cache.get_many(texts, provider, model_name, dimension)
     missing_idx = [i for i in range(len(texts)) if i not in cached]
     if missing_idx:
@@ -130,7 +129,7 @@ class IngestionQueue:
         )
 
     async def flush_collection(self, collection_name: str) -> int:
-        """Remove all queued jobs for a collection. Returns count removed."""
+
         if not self._redis:
             return 0
         removed = 0
@@ -213,7 +212,7 @@ class IngestionQueue:
     _PLAIN_TEXT_EXTS = {".txt", ".csv", ".tsv", ".md", ".json", ".xml"}
 
     async def _convert_document(self, job: IngestionJob, prefix: str) -> str:
-        """Convert document to text via Docling (or read directly for plain text)."""
+
         import tempfile
 
         from bigrag.services.storage import get_storage
@@ -308,8 +307,7 @@ class IngestionQueue:
         return text
 
     async def _chunk_and_embed(self, job: IngestionJob, text: str, prefix: str) -> tuple[int, int]:
-        """Chunk text, embed, and insert into vector store. Returns
-        ``(total_inserted, total_expected)``."""
+
         from bigrag.config import settings as _settings
         from bigrag.services.embedding import get_embedding_model
         from bigrag.services.ingestion import chunk_document
@@ -365,8 +363,6 @@ class IngestionQueue:
             chunk_size=job.chunk_size,
         )
 
-        # Ensure Milvus collection exists (may have been dropped by truncate or
-        # missed during creation if Milvus was unavailable)
         await vector_store.create_collection(job.collection_name, job.embedding_dimension)
 
         batch_size = _settings.ingestion_batch_size
@@ -374,13 +370,6 @@ class IngestionQueue:
         total_batches = (len(chunks) + batch_size - 1) // batch_size
         doc = job.document_id
 
-        # Chunk-level retry: a flaky embedding call or a single oversized
-        # chunk in the middle of a large doc used to fail the whole
-        # document. Retry each batch up to max_batch_retries with
-        # exponential backoff; on exhaustion the batch's chunks are
-        # skipped (logged) and the doc still completes for whatever did
-        # embed — better than hours of re-ingest because one chunk was
-        # bad.
         max_batch_retries = 3
         batch_backoff_base = 2
 

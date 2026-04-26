@@ -1,20 +1,3 @@
-"""Live credential verification for embedding provider API keys.
-
-Called from the admin ``POST /v1/admin/embedding-presets`` handler before
-the preset is persisted, so operators learn immediately when a key is bad
-instead of hitting the failure at first-use.
-
-OpenAI and Cohere are probed with a cheap ``GET /models`` listing. Voyage
-has no GET endpoints, so it's probed with a 1-token ``POST /embeddings``
-call against the preset's own ``model`` — which doubles as a model-name
-check and costs a single token.
-
-Strictly fails closed — any non-2xx, network error, or timeout raises
-``CredentialCheckError``. Self-hosted OpenAI-compatible endpoints must
-serve ``/models``; if they do not, the operator must fix the endpoint
-rather than bypass verification.
-"""
-
 from __future__ import annotations
 
 from typing import Literal
@@ -42,7 +25,7 @@ class CredentialCheckError(Exception):
 
 
 def _build_client(timeout: float) -> httpx.AsyncClient:
-    """Seam for tests to inject an httpx.MockTransport."""
+
     return httpx.AsyncClient(timeout=timeout)
 
 
@@ -54,11 +37,7 @@ async def verify_provider_credentials(
     model: str | None = None,
     timeout_seconds: float = 5.0,
 ) -> None:
-    """Probe the provider to confirm the key works. Return None on success.
 
-    Raises :class:`CredentialCheckError` on any non-2xx response, network
-    failure, or timeout. The ``api_key`` is never logged, even on error.
-    """
     if provider == "voyage":
         await _verify_voyage(api_key, base_url, model, timeout_seconds)
         return

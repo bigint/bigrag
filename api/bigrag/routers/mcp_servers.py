@@ -1,21 +1,3 @@
-"""MCP-server resource endpoints.
-
-Studio's ``/mcp`` page treats each row as a first-class MCP server with
-its own credential. Under the hood an MCP server is just an ``ApiKey``
-row with extra metadata pinned in its ``permissions`` JSON:
-
-    {
-        "mcp": {"title": "...", "server_name": "..."},
-        "collection": "..." | absent,
-    }
-
-Keeping it in the same table means we reuse all the existing
-authentication, scope, rate-limit, and audit-logging machinery —
-there's no new migration and no second code path for auth. The
-``/v1/admin/api-keys`` endpoints skip over MCP-tagged keys so they
-don't pollute the generic API-keys list.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -134,8 +116,7 @@ async def _server_name_conflict(
     server_name: str,
     exclude_id: uuid.UUID | None = None,
 ) -> bool:
-    """MCP server_name must be unique per owner — two configs sharing it
-    would collide inside a single client's mcpServers map."""
+
     q = sa.select(ApiKey).where(
         ApiKey.user_id == user_id,
         ApiKey.permissions["mcp"]["server_name"].astext == server_name,
@@ -292,9 +273,7 @@ async def rotate_mcp_server_key(
     admin: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> CreateMcpServerResponse:
-    """Mint a new API key for an existing MCP server and revoke the old
-    one. Use this if the previous URL leaked or was lost — the old
-    token stops working immediately on the next request."""
+
     try:
         target_id = uuid.UUID(server_id)
     except ValueError as e:

@@ -14,10 +14,10 @@ _NINETY_DAYS = sa.text("make_interval(days => 90)")
 
 
 async def cleanup_old_data() -> None:
-    """Periodically clean query_log and webhook_deliveries older than 90 days."""
+
     while True:
         try:
-            await asyncio.sleep(86400)  # Run daily
+            await asyncio.sleep(86400)
             async with session_factory()() as session:
                 cutoff = sa.func.now() - _NINETY_DAYS
                 ql_result = await session.execute(

@@ -9,7 +9,7 @@ class QueryRequest(BaseModel):
     filters: dict | None = None
     min_score: float | None = None
     search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
-    rerank: bool | None = None  # Override collection's reranking_enabled
+    rerank: bool | None = None
     diversity: float | None = Field(
         default=None,
         ge=0.0,
@@ -67,8 +67,6 @@ class QueryResult(BaseModel):
     score: float
     document_id: str | None = None
     chunk_index: int | None = None
-    # Citation provenance (populated when Docling surfaces them during
-    # ingestion). Useful for inline LLM citations.
     page_no: int | None = None
     char_start: int | None = None
     char_end: int | None = None
@@ -76,8 +74,6 @@ class QueryResult(BaseModel):
 
 
 class QueryTimings(BaseModel):
-    """Per-phase latency breakdown so clients / Studio can show a debugger."""
-
     embed_ms: float = 0.0
     search_ms: float = 0.0
     rerank_ms: float = 0.0
@@ -93,7 +89,7 @@ class QueryResponse(BaseModel):
     total: int
     timings: QueryTimings | None = None
     facets: dict[str, dict[str, int]] | None = None
-    cached: bool = False  # set true when the semantic cache served this
+    cached: bool = False
 
 
 class MultiQueryRequest(BaseModel):
@@ -103,7 +99,7 @@ class MultiQueryRequest(BaseModel):
     filters: dict | None = None
     min_score: float | None = None
     search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
-    rerank: bool | None = None  # Override collection's reranking_enabled
+    rerank: bool | None = None
 
 
 class MultiQueryResult(BaseModel):

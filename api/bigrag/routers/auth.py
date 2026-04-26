@@ -1,5 +1,3 @@
-"""Authentication endpoints: setup, login, logout, me, change password."""
-
 from __future__ import annotations
 
 import uuid
@@ -250,11 +248,7 @@ async def me(
 
 @router.get("/whoami", response_model=WhoamiResponse)
 async def whoami(user: dict = Depends(get_current_user)) -> WhoamiResponse:
-    """Return the current principal's identity and scope.
 
-    Used by the MCP server to self-configure: an API key with a
-    `collection` pin auto-scopes the exposed tools.
-    """
     return WhoamiResponse(
         auth_method=user.get("auth_method", "session"),
         user_id=user["id"],

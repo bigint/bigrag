@@ -1,5 +1,3 @@
-"""FastAPI session dependency — yields a fresh AsyncSession per request."""
-
 from __future__ import annotations
 
 from collections.abc import AsyncIterator

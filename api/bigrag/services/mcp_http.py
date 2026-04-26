@@ -1,23 +1,3 @@
-"""HTTP MCP endpoint mounted on the bigRAG FastAPI app.
-
-Lets URL-only MCP clients (Claude's custom connector, Cursor remote
-servers, etc.) connect without installing the ``bigrag-mcp`` Python
-CLI. Point the client at ``https://bigrag.example.com/mcp?token=<key>``
-and it gets the same toolset as the stdio server.
-
-Auth: the incoming token is extracted from either
-``?token=...`` or ``Authorization: Bearer ...``, stashed into a
-contextvar, and re-used by the tool bodies for loopback ASGI calls to
-the REST API. The REST layer enforces scope so a pinned key can't
-escape its collection — the tools themselves are unscoped for display,
-scope mismatches surface as tool errors.
-
-Why loopback-via-ASGI and not a direct service call? Reuse: the REST
-router already handles auth, rate limiting, scope enforcement, audit
-logging, and idempotency. Duplicating that logic inside an MCP tool
-would bitrot.
-"""
-
 from __future__ import annotations
 
 import contextvars
@@ -34,8 +14,6 @@ from starlette.types import ASGIApp
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
-# Set by the middleware for the duration of a single request; read by
-# tool bodies so they can propagate the caller's auth downstream.
 _current_token: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "bigrag_mcp_http_token", default=None
 )
@@ -98,12 +76,7 @@ def _build_server() -> FastMCP:
         ),
         stateless_http=True,
         json_response=True,
-        # Serve at the mount root — the enclosing FastAPI app mounts this
-        # at `/mcp`, so combined the endpoint is just `/mcp`.
         streamable_http_path="/",
-        # The bigRAG FastAPI app fronts this endpoint behind whatever
-        # hostname the operator uses. Auth is via bearer token, not Host
-        # header, so DNS-rebinding protection is the wrong layer.
         transport_security=TransportSecuritySettings(
             enable_dns_rebinding_protection=False,
         ),
@@ -114,7 +87,7 @@ def _build_server() -> FastMCP:
         limit: Annotated[int, Field(ge=1, le=100)] = 50,
         offset: Annotated[int, Field(ge=0)] = 0,
     ) -> dict[str, Any]:
-        """List document collections the current key can read."""
+
         async with _client() as c:
             r = await c.get("/v1/collections", params={"limit": limit, "offset": offset})
             _raise_for_status(r)
@@ -124,7 +97,7 @@ def _build_server() -> FastMCP:
     async def get_collection(
         name: Annotated[str, Field(description="Collection name")],
     ) -> dict[str, Any]:
-        """Full metadata for a collection."""
+
         async with _client() as c:
             r = await c.get(f"/v1/collections/{name}")
             _raise_for_status(r)
@@ -134,7 +107,7 @@ def _build_server() -> FastMCP:
     async def get_collection_stats(
         name: Annotated[str, Field(description="Collection name")],
     ) -> dict[str, Any]:
-        """Document/chunk/token counts and status breakdown."""
+
         async with _client() as c:
             r = await c.get(f"/v1/collections/{name}/stats")
             _raise_for_status(r)
@@ -152,7 +125,7 @@ def _build_server() -> FastMCP:
         rerank: Annotated[bool, Field(description="Run the collection's reranker")] = False,
         filters: Annotated[dict[str, Any] | None, Field(description="Metadata filter")] = None,
     ) -> dict[str, Any]:
-        """Retrieve the top-k most relevant chunks from a collection."""
+
         body: dict[str, Any] = {
             "query": query,
             "top_k": top_k,
@@ -180,7 +153,7 @@ def _build_server() -> FastMCP:
         rerank: Annotated[bool, Field(description="Run each collection's reranker")] = False,
         filters: Annotated[dict[str, Any] | None, Field(description="Metadata filter")] = None,
     ) -> dict[str, Any]:
-        """Search several collections in parallel."""
+
         body: dict[str, Any] = {
             "collections": collections,
             "query": query,
@@ -204,7 +177,7 @@ def _build_server() -> FastMCP:
         offset: Annotated[int, Field(ge=0)] = 0,
         status: Literal["pending", "processing", "ready", "failed"] | None = None,
     ) -> dict[str, Any]:
-        """List documents in a collection."""
+
         params: dict[str, Any] = {"limit": limit, "offset": offset}
         if status is not None:
             params["status"] = status
@@ -218,7 +191,7 @@ def _build_server() -> FastMCP:
         collection: Annotated[str, Field(description="Collection name")],
         document_id: Annotated[str, Field(description="Document UUID")],
     ) -> dict[str, Any]:
-        """One document's metadata."""
+
         async with _client() as c:
             r = await c.get(f"/v1/collections/{collection}/documents/{document_id}")
             _raise_for_status(r)
@@ -229,7 +202,7 @@ def _build_server() -> FastMCP:
         collection: Annotated[str, Field(description="Collection name")],
         document_id: Annotated[str, Field(description="Document UUID")],
     ) -> dict[str, Any]:
-        """Every chunk of a document in order."""
+
         async with _client() as c:
             r = await c.get(f"/v1/collections/{collection}/documents/{document_id}/chunks")
             _raise_for_status(r)
@@ -239,18 +212,7 @@ def _build_server() -> FastMCP:
 
 
 def build_mcp_http_app(parent_app: FastAPI) -> tuple[ASGIApp, Any]:
-    """Return ``(mcp_asgi_app, session_manager)``.
 
-    * Mount ``mcp_asgi_app`` at ``/mcp`` on the parent FastAPI.
-    * Enter ``session_manager.run()`` as an async context in the parent's
-      lifespan — FastMCP's streamable-http transport uses a task group
-      that must be started before any request is served.
-
-    Each incoming request gets the caller's token stashed in a
-    contextvar (via ``_TokenExtractMiddleware``) and the parent FastAPI
-    bound as the ASGI target (via ``_ParentAppBinding``), so tool bodies
-    can dispatch into the REST API without a network hop.
-    """
     mcp = _build_server()
     http_app = mcp.streamable_http_app()
 

@@ -1,27 +1,3 @@
-"""bigRAG MCP server.
-
-Exposes bigRAG as a Model Context Protocol server so clients like
-Claude Desktop, Cursor, and any other MCP-aware runtime can discover
-collections and query them as first-class tools.
-
-The server is a thin client of the bigRAG HTTP API — it doesn't talk to
-Postgres or Milvus directly. Point it at a running bigRAG instance with
-``BIGRAG_URL`` and authenticate with ``BIGRAG_API_KEY``.
-
-Scope is discovered from the API key itself via ``GET /v1/auth/whoami``
-at startup:
-
-* Full-workspace keys → all 8 tools, cross-collection ones included.
-* Collection-pinned keys → the 6 scoped tools with the collection
-  argument pre-bound, no cross-collection tools visible.
-
-Usage::
-
-    BIGRAG_URL=https://bigrag.example.com \\
-    BIGRAG_API_KEY=bigrag_sk_... \\
-    bigrag-mcp
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -43,7 +19,7 @@ def _make_client(base_url: str, api_key: str | None) -> httpx.AsyncClient:
 
 
 def _raise_for_status(response: httpx.Response) -> None:
-    """Surface HTTP errors as tool errors with the server's detail message."""
+
     if response.is_success:
         return
     try:
@@ -55,8 +31,7 @@ def _raise_for_status(response: httpx.Response) -> None:
 
 
 async def _discover_scope(client: httpx.AsyncClient) -> str | None:
-    """Call /v1/auth/whoami. Returns the collection the key is pinned
-    to, or None for full-workspace keys. Raises if the key is invalid."""
+
     try:
         r = await client.get("/v1/auth/whoami")
     except httpx.HTTPError as e:
@@ -95,12 +70,7 @@ def create_server(
     api_key: str | None,
     collection: str | None = None,
 ) -> FastMCP:
-    """Build an MCP server.
 
-    When ``collection`` is set, tools that normally take a collection arg are
-    pre-bound to it and the cross-collection tools (`list_collections`,
-    `multi_collection_query`) are omitted.
-    """
     mcp = FastMCP(
         name=f"bigrag-{collection}" if collection else "bigrag",
         instructions=_scoped_instructions(collection) if collection else _unscoped_instructions(),
@@ -139,7 +109,7 @@ def create_server(
             ] = 50,
             offset: Annotated[int, Field(ge=0)] = 0,
         ) -> dict[str, Any]:
-            """List document collections visible to the current API key."""
+
             r = await client.get("/v1/collections", params={"limit": limit, "offset": offset})
             _raise_for_status(r)
             return r.json()
@@ -148,7 +118,7 @@ def create_server(
         async def get_collection(
             name: Annotated[str, Field(description="Collection name")],
         ) -> dict[str, Any]:
-            """Fetch a collection's full metadata."""
+
             r = await client.get(f"/v1/collections/{name}")
             _raise_for_status(r)
             return r.json()
@@ -157,9 +127,7 @@ def create_server(
         async def get_collection_stats(
             name: Annotated[str, Field(description="Collection name")],
         ) -> dict[str, Any]:
-            """Return document count, chunk count, total tokens/bytes, and a
-            status breakdown for a collection. Cheap pre-flight before a
-            `query` to decide whether a collection is worth searching."""
+
             r = await client.get(f"/v1/collections/{name}/stats")
             _raise_for_status(r)
             return r.json()
@@ -181,12 +149,7 @@ def create_server(
                 Field(description="Metadata filter, e.g. {'source': 'docs'}"),
             ] = None,
         ) -> dict[str, Any]:
-            """Retrieve the top-k most relevant chunks from a collection.
 
-            Returns chunks with scores, the document_id they came from, and
-            any metadata attached at upload time. Cite document_id in your
-            answer so the user can trace it back.
-            """
             return await _query(collection, query, top_k, search_mode, min_score, rerank, filters)
 
         @mcp.tool()
@@ -208,9 +171,7 @@ def create_server(
             rerank: Annotated[bool, Field(description="Run each collection's reranker")] = False,
             filters: Annotated[dict[str, Any] | None, Field(description="Metadata filter")] = None,
         ) -> dict[str, Any]:
-            """Search several collections in parallel when you don't know
-            which one has the answer. Merges and scores results across them.
-            Prefer over calling `query` in a loop."""
+
             body: dict[str, Any] = {
                 "collections": collections,
                 "query": query,
@@ -233,7 +194,7 @@ def create_server(
             offset: Annotated[int, Field(ge=0)] = 0,
             status: Literal["pending", "processing", "ready", "failed"] | None = None,
         ) -> dict[str, Any]:
-            """List documents in a collection, optionally filtered by processing status."""
+
             params: dict[str, Any] = {"limit": limit, "offset": offset}
             if status is not None:
                 params["status"] = status
@@ -246,7 +207,7 @@ def create_server(
             collection: Annotated[str, Field(description="Collection name")],
             document_id: Annotated[str, Field(description="Document UUID")],
         ) -> dict[str, Any]:
-            """Fetch a single document's metadata (filename, size, status, chunks)."""
+
             r = await client.get(f"/v1/collections/{collection}/documents/{document_id}")
             _raise_for_status(r)
             return r.json()
@@ -256,7 +217,7 @@ def create_server(
             collection: Annotated[str, Field(description="Collection name")],
             document_id: Annotated[str, Field(description="Document UUID")],
         ) -> dict[str, Any]:
-            """Return every chunk of a document in order, with its text and metadata."""
+
             r = await client.get(f"/v1/collections/{collection}/documents/{document_id}/chunks")
             _raise_for_status(r)
             return r.json()
@@ -267,15 +228,14 @@ def create_server(
 
     @mcp.tool()
     async def get_collection() -> dict[str, Any]:
-        """Fetch the pinned collection's metadata."""
+
         r = await client.get(f"/v1/collections/{pinned}")
         _raise_for_status(r)
         return r.json()
 
     @mcp.tool()
     async def get_collection_stats() -> dict[str, Any]:
-        """Document count, chunk count, total tokens/bytes, and status
-        breakdown for the pinned collection."""
+
         r = await client.get(f"/v1/collections/{pinned}/stats")
         _raise_for_status(r)
         return r.json()
@@ -296,7 +256,7 @@ def create_server(
             Field(description="Metadata filter, e.g. {'source': 'docs'}"),
         ] = None,
     ) -> dict[str, Any]:
-        """Retrieve the top-k most relevant chunks from the pinned collection."""
+
         return await _query(pinned, query, top_k, search_mode, min_score, rerank, filters)
 
     @mcp.tool()
@@ -305,7 +265,7 @@ def create_server(
         offset: Annotated[int, Field(ge=0)] = 0,
         status: Literal["pending", "processing", "ready", "failed"] | None = None,
     ) -> dict[str, Any]:
-        """List documents in the pinned collection, optionally filtered by processing status."""
+
         params: dict[str, Any] = {"limit": limit, "offset": offset}
         if status is not None:
             params["status"] = status
@@ -317,7 +277,7 @@ def create_server(
     async def get_document(
         document_id: Annotated[str, Field(description="Document UUID")],
     ) -> dict[str, Any]:
-        """Fetch a single document's metadata from the pinned collection."""
+
         r = await client.get(f"/v1/collections/{pinned}/documents/{document_id}")
         _raise_for_status(r)
         return r.json()
@@ -326,7 +286,7 @@ def create_server(
     async def get_document_chunks(
         document_id: Annotated[str, Field(description="Document UUID")],
     ) -> dict[str, Any]:
-        """Return every chunk of a document in order (pinned collection)."""
+
         r = await client.get(f"/v1/collections/{pinned}/documents/{document_id}/chunks")
         _raise_for_status(r)
         return r.json()

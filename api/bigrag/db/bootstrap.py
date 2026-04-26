@@ -1,8 +1,3 @@
-"""On-startup migration bootstrap.
-
-Runs ``alembic upgrade head`` against the metadata database.
-"""
-
 from __future__ import annotations
 
 import asyncio

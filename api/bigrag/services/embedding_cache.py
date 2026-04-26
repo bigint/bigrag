@@ -1,15 +1,3 @@
-"""Persistent embedding cache.
-
-Keyed by ``(sha256(text), model_key)``. Survives restarts — the in-process
-dict-based cache used by EmbeddingModel objects evaporates with the worker,
-so a re-ingest or re-chunk today pays the full embedding bill again. With
-this cache a content-identical chunk gets its vector for free.
-
-Stored as raw float32 BYTEA in Postgres so one row per entry, no per-access
-JSON overhead. The ``model_key`` is ``provider:model:dim`` so the same text
-embedded under two models doesn't collide.
-"""
-
 from __future__ import annotations
 
 import hashlib
@@ -53,8 +41,7 @@ async def get_many(
     model: str,
     dimension: int,
 ) -> dict[int, list[float]]:
-    """Return a mapping ``{index: vector}`` for whichever texts hit the
-    cache. Missing indices are the caller's responsibility."""
+
     if not texts:
         return {}
     hashes = [_hash(t) for t in texts]
@@ -81,9 +68,8 @@ async def get_many(
         try:
             out[i] = _unpack(blob, dimension)
         except struct.error:
-            continue  # corrupt row; fall through to re-embed
+            continue
     if out:
-        # Refresh last_hit_at so LRU eviction favours stale entries.
         hit_hashes = [hashes[i] for i in out]
         try:
             async with session_factory()() as session:
@@ -106,8 +92,7 @@ async def put_many(
     model: str,
     dimension: int,
 ) -> None:
-    """Insert (or upsert) vectors for the given texts under the specified
-    model."""
+
     if not texts or len(texts) != len(vectors):
         return
     model_key = _model_key(provider, model, dimension)
@@ -134,8 +119,7 @@ async def put_many(
 
 
 async def prune_oldest(keep: int = 500_000) -> int:
-    """Trim the cache to at most ``keep`` rows by deleting least-recently-
-    used entries. Call periodically from :mod:`bigrag.services.cleanup`."""
+
     try:
         subq = (
             sa.select(EmbeddingCache.content_hash, EmbeddingCache.model_key)

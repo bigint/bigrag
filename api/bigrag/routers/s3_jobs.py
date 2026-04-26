@@ -145,7 +145,7 @@ async def resync_s3_job(
 
     from bigrag.services.s3_ingest import _start_job, cancel_job
 
-    await cancel_job(job_id)  # cancel and wait before restarting
+    await cancel_job(job_id)
 
     _start_job(
         {

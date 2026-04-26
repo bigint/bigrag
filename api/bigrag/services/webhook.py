@@ -45,18 +45,18 @@ _STEP_TO_EVENT = {
 
 
 def generate_secret() -> str:
-    """Generate a webhook signing secret."""
+
     return f"whsec_{secrets.token_urlsafe(32)}"
 
 
 def compute_signature(payload: str, secret: str) -> str:
-    """Compute HMAC-SHA256 signature for a webhook payload."""
+
     digest = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
     return f"sha256={digest}"
 
 
 def _matches_webhook(webhook: dict, event: str, collection: str) -> bool:
-    """Check if a webhook should receive this event."""
+
     if not webhook.get("active", True):
         return False
     if event not in webhook.get("events", []):
@@ -68,22 +68,19 @@ def _matches_webhook(webhook: dict, event: str, collection: str) -> bool:
 
 
 def _jittered_delay(base_delay: int, jitter_factor: float = 0.25) -> float:
-    """Add ±25% jitter to a delay to avoid thundering herd."""
+
     jitter = base_delay * jitter_factor
     return base_delay + random.uniform(-jitter, jitter)
 
 
 class CircuitBreaker:
-    """Per-webhook circuit breaker to avoid retry storms against a down endpoint."""
-
     def __init__(self, failure_threshold: int = 5, cooldown_seconds: int = 300) -> None:
         self._failure_threshold = failure_threshold
         self._cooldown = cooldown_seconds
-        # webhook_id -> (consecutive_failures, last_failure_time)
         self._state: dict[str, tuple[int, float]] = {}
 
     def is_open(self, webhook_id: str) -> bool:
-        """Return True if circuit is open (should NOT deliver)."""
+
         state = self._state.get(webhook_id)
         if state is None:
             return False
@@ -91,7 +88,6 @@ class CircuitBreaker:
         if failures >= self._failure_threshold:
             if time.monotonic() - last_failure < self._cooldown:
                 return True
-            # Cooldown expired, allow one attempt (half-open)
             return False
         return False
 
@@ -108,13 +104,10 @@ class CircuitBreaker:
 
 
 class WebhookDispatcher:
-    """Subscribes to EventBus and dispatches webhooks for document state changes."""
-
     def __init__(self) -> None:
         self._client: httpx.AsyncClient | None = None
         self._task: asyncio.Task | None = None
         self._circuit_breaker = CircuitBreaker()
-        # Per-webhook concurrency limiter (max 5 concurrent deliveries per webhook)
         self._semaphores: dict[str, asyncio.Semaphore] = {}
 
     def _get_semaphore(self, webhook_id: str) -> asyncio.Semaphore:
@@ -144,7 +137,7 @@ class WebhookDispatcher:
         await redis_cache.delete("webhooks:active")
 
     async def _get_webhooks(self) -> list[dict]:
-        """Fetch active webhooks, cached in Redis."""
+
         from bigrag.services import redis_cache
 
         cached = await redis_cache.get("webhooks:active")
@@ -177,7 +170,7 @@ class WebhookDispatcher:
         return webhooks
 
     async def _listen(self) -> None:
-        """Subscribe to all EventBus events and dispatch matching webhooks."""
+
         queue = event_bus.subscribe("*")
         try:
             while True:
@@ -194,7 +187,7 @@ class WebhookDispatcher:
             event_bus.unsubscribe("*", queue)
 
     async def _handle_event(self, event: IngestionEvent) -> None:
-        """Match event to webhooks and dispatch deliveries."""
+
         webhook_event = _STEP_TO_EVENT.get(event.step)
         if webhook_event is None:
             return
@@ -224,7 +217,7 @@ class WebhookDispatcher:
                 )
 
     async def _get_collection_for_document(self, document_id: str) -> str | None:
-        """Look up the collection name for a document."""
+
         import sqlalchemy as sa
 
         from bigrag.db.engine import session_factory
@@ -239,7 +232,7 @@ class WebhookDispatcher:
         return name
 
     def _build_payload(self, webhook_event: str, event: IngestionEvent, collection: str) -> str:
-        """Build the JSON payload for a webhook delivery."""
+
         data = {
             "event": webhook_event,
             "timestamp": datetime.now(UTC).isoformat(),
@@ -252,7 +245,7 @@ class WebhookDispatcher:
         return orjson.dumps(data).decode()
 
     async def _deliver(self, webhook: dict, event: str, payload: str) -> None:
-        """Deliver a webhook with retries, circuit breaker, and jitter."""
+
         import sqlalchemy as sa
 
         from bigrag.db.engine import session_factory
@@ -291,7 +284,6 @@ class WebhookDispatcher:
             last_error = None
             last_status_code = None
 
-            # Re-validate URL target at delivery time to prevent DNS rebinding
             try:
                 from bigrag.models.webhook import resolve_and_validate_url
 
@@ -315,7 +307,7 @@ class WebhookDispatcher:
                 return
 
             retry_delays = _retry_delays()
-            for attempt in range(1, len(retry_delays) + 2):  # 1 initial + N retries
+            for attempt in range(1, len(retry_delays) + 2):
                 if attempt > 1:
                     try:
                         from bigrag.models.webhook import resolve_and_validate_url
@@ -403,12 +395,7 @@ class WebhookDispatcher:
             )
 
     async def deliver_once(self, webhook: dict, event: str, payload: str) -> dict:
-        """Fire a single one-off delivery (no retries, no circuit-breaker
-        state touched). Used by the admin replay endpoint.
 
-        Returns a dict shaped like :meth:`deliver_test`'s result so the
-        Studio UI can render both the same way.
-        """
         try:
             from bigrag.models.webhook import resolve_and_validate_url
 
@@ -446,8 +433,7 @@ class WebhookDispatcher:
             }
 
     async def deliver_test(self, webhook: dict) -> dict:
-        """Send a test event to a webhook. Returns result inline (no retries)."""
-        # Re-validate URL target at delivery time to prevent DNS rebinding
+
         try:
             from bigrag.models.webhook import resolve_and_validate_url
 

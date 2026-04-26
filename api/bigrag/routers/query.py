@@ -108,7 +108,6 @@ async def query_collection(
     )
 
     if use_semcache and outcome.query_embedding is not None and outcome.results:
-        # Store a deep-copy dict so future hits don't leak mutable state.
         await semantic_cache.store(
             collection_name,
             outcome.query_embedding,
@@ -119,8 +118,7 @@ async def query_collection(
 
 
 def _result_to_dict(row: dict) -> dict:
-    """Drop internal-only keys (``embedding``) before serialization and
-    lift provenance fields out of ``metadata`` so they're first-class."""
+
     cleaned = {k: v for k, v in row.items() if k != "embedding"}
     metadata = cleaned.get("metadata") or {}
     for field_name in ("page_no", "char_start", "char_end"):
@@ -206,9 +204,6 @@ async def batch_query(
     results = await asyncio.gather(*[run_one(item) for item in body.queries])
 
     return BatchQueryResponse(results=list(results))
-
-
-# Direct vector operations (for advanced users bringing their own embeddings)
 
 
 @router.post("/v1/collections/{collection_name}/vectors/upsert")

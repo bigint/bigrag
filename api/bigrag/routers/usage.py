@@ -1,17 +1,3 @@
-"""Usage and cost aggregation endpoint.
-
-Aggregates from:
-
-- ``documents.file_size`` + ``documents.chunk_count`` for storage / ingestion
-  volume
-- ``query_log`` for query volume and average latency
-- A simple rate card (per-1M-token rates) for a rough dollar figure
-
-The cost is approximate — providers change pricing, and we don't track every
-detail (reranker calls, hypothetical HyDE calls, etc.). For exact numbers
-consumers should cross-check against their provider's billing dashboard.
-"""
-
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -29,7 +15,6 @@ logger = get_logger("bigrag.routers.usage")
 router = APIRouter(prefix="/v1/usage", tags=["usage"])
 
 
-# Rough embedding prices in USD per million tokens.
 _EMBED_RATES_USD_PER_M: dict[str, float] = {
     "text-embedding-3-small": 0.02,
     "text-embedding-3-large": 0.13,
@@ -48,8 +33,6 @@ class UsageResponse(BaseModel):
     documents_total: int
     chunks_total: int
     storage_bytes_total: int
-    # Embeddings column is a rough estimate using token_count on documents,
-    # multiplied by the collection's embedding model rate.
     embedding_tokens_total: int
     embedding_cost_usd_estimate: float
     by_collection: list[dict]

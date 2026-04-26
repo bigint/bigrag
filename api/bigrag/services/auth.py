@@ -1,9 +1,3 @@
-"""Authentication primitives: password hashing, session tokens, and API keys.
-
-Passwords are hashed with Argon2id. Session tokens and API keys are opaque
-random strings stored as SHA-256 hashes — constant-time lookup via DB index.
-"""
-
 from __future__ import annotations
 
 import hashlib
@@ -50,11 +44,7 @@ def hash_session_token(token: str) -> str:
 
 
 def generate_api_key() -> tuple[str, str, str]:
-    """Return ``(plaintext, prefix, key_hash)``.
 
-    Prefix is the 8-character display stub shown next to keys in the UI.
-    The plaintext is only returned once — never stored.
-    """
     body = secrets.token_urlsafe(API_KEY_BODY_BYTES)
     plaintext = f"{API_KEY_PREFIX}{body}"
     prefix = plaintext[: len(API_KEY_PREFIX) + 4]

@@ -19,7 +19,6 @@ def _get_docling_converter():
             return _docling_converter
         import os
 
-        # Use HF cache if models are already downloaded, otherwise allow download
         if os.environ.get("HF_HUB_OFFLINE") is None:
             from huggingface_hub import scan_cache_dir
 
@@ -32,7 +31,6 @@ def _get_docling_converter():
                 else:
                     logger.info("Docling models not cached — will download from HF")
             except (OSError, PermissionError) as exc:
-                # HF cache unreadable (no disk perms, missing dir) — let HF decide at call time.
                 logger.debug("hf cache scan failed, deferring to HF", error=str(exc))
 
         from docling.datamodel.pipeline_options import PdfPipelineOptions

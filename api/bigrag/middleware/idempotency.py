@@ -1,19 +1,3 @@
-"""Idempotency-Key middleware.
-
-Implements the Stripe-style ``Idempotency-Key`` header convention: a
-mutating request (POST/PUT/PATCH/DELETE) tagged with this header is
-processed once; any retry with the same key replays the original
-response byte-for-byte. Only 2xx responses are cached — clients can
-still retry 4xx/5xx requests with the same key to get a different
-result after fixing the input.
-
-Keys are scoped by ``(key, method, path)`` so collisions across
-endpoints are impossible. A 24-hour TTL prevents old keys from
-accumulating. The replay response carries an
-``Idempotency-Key-Replayed: true`` header so clients can distinguish
-cached responses.
-"""
-
 from __future__ import annotations
 
 import hashlib
@@ -41,8 +25,6 @@ def _find_header(headers: list[tuple[bytes, bytes]], name: bytes) -> bytes | Non
 
 
 class IdempotencyMiddleware:
-    """ASGI middleware implementing Idempotency-Key for mutating verbs."""
-
     def __init__(self, app, ttl_seconds: int = _DEFAULT_TTL_SECONDS) -> None:
         self.app = app
         self.ttl_seconds = ttl_seconds
@@ -104,9 +86,6 @@ class IdempotencyMiddleware:
                 {
                     "status": status_code,
                     "headers": response_headers,
-                    # Store as latin-1-encoded str so orjson can round-trip
-                    # any byte payload (JSON responses are usually utf-8;
-                    # latin-1 is 1:1 for raw bytes).
                     "body": body.decode("latin-1"),
                 },
                 ttl=self.ttl_seconds,
@@ -117,7 +96,6 @@ async def _send_cached(send, cached: dict) -> None:
     headers = [
         (k.encode("latin-1"), v.encode("latin-1"))
         for k, v in cached.get("headers", [])
-        # Avoid replaying content-length of the new framing below.
         if k.lower() != "content-length"
     ]
     body = cached["body"].encode("latin-1")

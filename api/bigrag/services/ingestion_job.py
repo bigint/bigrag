@@ -46,8 +46,6 @@ class IngestionJob:
     @classmethod
     def deserialize(cls, data: bytes) -> IngestionJob:
         payload = orjson.loads(data)
-        # Drop unknown keys so old queue entries deserialise cleanly
-        # after the dataclass grows new fields.
         known = {f.name for f in cls.__dataclass_fields__.values()}
         clean = {k: v for k, v in payload.items() if k in known}
         return cls(**clean)
@@ -61,7 +59,7 @@ def create_ingestion_job(
     collection: dict,
     fallback_api_key: str | None,
 ) -> IngestionJob:
-    """Factory to create an IngestionJob from a collection dict."""
+
     return IngestionJob(
         document_id=document_id,
         file_path=file_path,

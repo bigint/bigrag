@@ -10,10 +10,6 @@ logger = get_logger("bigrag.embedding")
 
 _embed_semaphore: asyncio.Semaphore | None = None
 
-# Approximate token limits per model. We use tiktoken when available for
-# OpenAI, otherwise fall back to a 4-chars-per-token heuristic. Numbers
-# intentionally a bit below the provider's published maximum to give a
-# safety margin for provider-side tokenizer drift.
 _TOKEN_LIMITS: dict[str, int] = {
     "text-embedding-3-small": 8000,
     "text-embedding-3-large": 8000,
@@ -41,9 +37,7 @@ def _get_semaphore() -> asyncio.Semaphore:
 
 
 def count_tokens(text: str, model: str | None = None) -> int:
-    """Best-effort token count. Prefer tiktoken when available for
-    OpenAI-compatible models; otherwise fall back to a char-based
-    heuristic."""
+
     try:
         import tiktoken
 
@@ -57,7 +51,6 @@ def count_tokens(text: str, model: str | None = None) -> int:
             enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
     except Exception:  # noqa: BLE001 — tiktoken missing or model unknown
-        # ~4 characters per token is a safe over-estimate for English.
         return max(1, len(text) // 4)
 
 
@@ -66,10 +59,7 @@ def truncate_to_tokens(
     model: str | None,
     max_tokens: int | None = None,
 ) -> tuple[list[str], list[bool]]:
-    """Truncate each text to the model's token cap. Returns (truncated,
-    warnings) — warnings[i] is True if texts[i] was trimmed.
 
-    Falls back to character truncation when tiktoken isn't installed."""
     limit = max_tokens
     if limit is None and model:
         limit = _TOKEN_LIMITS.get(model)
@@ -99,7 +89,6 @@ def truncate_to_tokens(
                 warnings.append(False)
         return out_texts, warnings
     except Exception:  # noqa: BLE001
-        # Char-based fallback: 4 chars ≈ 1 token.
         char_limit = limit * 4
         out_texts = []
         warnings = []
@@ -133,11 +122,6 @@ class EmbeddingModel(ABC):
 
 
 class OpenAIEmbedding(EmbeddingModel):
-    """Works against OpenAI directly or any OpenAI-compatible endpoint
-    (Azure OpenAI, vLLM, Ollama's /v1/embeddings, Infinity, LiteLLM's
-    proxy, Bedrock via LiteLLM, Vertex via adaptor, etc.) — pass
-    ``base_url`` at construction time."""
-
     def __init__(
         self,
         model_name: str = "text-embedding-3-small",
@@ -253,19 +237,6 @@ class CohereEmbedding(EmbeddingModel):
 
 
 class VoyageEmbedding(EmbeddingModel):
-    """Voyage AI embeddings via direct REST call.
-
-    Uses ``httpx`` (already a project dep) instead of the ``voyageai`` SDK,
-    which transitively pulls langchain, ffmpeg-python, and tokenizers — far
-    more weight than a single ``POST /v1/embeddings`` call warrants.
-
-    ``input_type`` accepts ``"document"`` or ``"query"`` and is passed
-    through unchanged. ``output_dimension`` is always sent so collections
-    that pin a non-default size (e.g. 256d for ``voyage-3-large``) work
-    transparently; for fixed-dimension models like ``voyage-finance-2`` the
-    only valid value is the default, which Voyage accepts as a no-op.
-    """
-
     _API_URL = "https://api.voyageai.com/v1/embeddings"
     _INPUT_TYPES = {"document", "query"}
 
@@ -307,7 +278,6 @@ class VoyageEmbedding(EmbeddingModel):
             async with httpx.AsyncClient(timeout=60) as client:
                 response = await client.post(self._API_URL, json=payload, headers=headers)
         if response.status_code >= 400:
-            # Surface the provider's error message but never the API key.
             raise RuntimeError(
                 f"Voyage embed failed ({response.status_code}): {response.text[:500]}"
             )

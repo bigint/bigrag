@@ -9,11 +9,11 @@ from pydantic import BaseModel, Field, model_validator
 
 VALID_EVENTS = frozenset({"document.ready", "document.failed", "document.processing"})
 
-MAX_WEBHOOKS = 50  # Historical default; prefer settings.webhook_max_count.
+MAX_WEBHOOKS = 50
 
 
 def _is_blocked_ip(ip_str: str) -> bool:
-    """Return True if the IP targets a private/internal network (loopback is allowed)."""
+
     try:
         addr = ipaddress.ip_address(ip_str)
     except ValueError:
@@ -24,10 +24,7 @@ def _is_blocked_ip(ip_str: str) -> bool:
 
 
 def resolve_and_validate_url(url: str) -> None:
-    """Resolve a webhook URL and reject private/internal network targets.
 
-    Loopback addresses (127.0.0.0/8, ::1) are allowed for local development.
-    """
     parsed = urlparse(url)
     hostname = parsed.hostname
     if not hostname:

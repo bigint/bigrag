@@ -1,21 +1,3 @@
-"""Fernet-based envelope encryption for secret columns.
-
-Two public pieces:
-
-* :func:`configure` — call once at startup with the master key.
-* :class:`EncryptedString` — a SQLAlchemy ``TypeDecorator`` that transparently
-  encrypts on write and decrypts on read. Drop it onto any ``Text`` column that
-  holds a third-party credential.
-
-Key format is Fernet's standard 32-byte urlsafe-base64 string. Generate one
-with::
-
-    python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-
-Rotation (future phase) is not implemented here; this module only handles a
-single active key.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -24,18 +6,17 @@ from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy.types import Text, TypeDecorator
 
 _fernet: Fernet | None = None
-_FERNET_PREFIX = "gAAAA"  # Fernet tokens always start with this after base64.
+_FERNET_PREFIX = "gAAAA"
 
 logger = logging.getLogger("bigrag.crypto")
 
 
 class CryptoNotConfiguredError(RuntimeError):
-    """Raised when an encrypted column is touched without a master key loaded."""
+    pass
 
 
 def configure(master_key: str | None) -> None:
-    """Install the master key for this process. Passing ``None`` disables
-    encryption — callers should only do that in tests."""
+
     global _fernet
     if not master_key:
         _fernet = None
@@ -75,8 +56,6 @@ def decrypt(ciphertext: str) -> str:
 
 
 class EncryptedString(TypeDecorator):
-    """Transparent Fernet at the ORM boundary."""
-
     impl = Text
     cache_ok = True
 
@@ -88,10 +67,6 @@ class EncryptedString(TypeDecorator):
     def process_result_value(self, value, dialect):  # type: ignore[override]
         if value is None:
             return None
-        # Tolerate legacy plaintext rows written before the column became
-        # EncryptedString. They'll be re-written as Fernet ciphertext on the
-        # next update. Warn once so operators know there's still plaintext
-        # on disk.
         if not value.startswith(_FERNET_PREFIX):
             logger.warning(
                 "crypto: read a plaintext value in an encrypted column — "
