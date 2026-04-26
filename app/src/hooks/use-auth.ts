@@ -31,8 +31,9 @@ export const useSession = () =>
       try {
         return await apiClient.get<SessionResponse>("v1/auth/me");
       } catch (err: unknown) {
-        const status = (err as { response?: { status?: number }; status?: number }).response
-          ?.status ?? (err as { status?: number }).status;
+        const status =
+          (err as { response?: { status?: number }; status?: number }).response?.status ??
+          (err as { status?: number }).status;
         if (status === 401) {
           return null;
         }

@@ -45,10 +45,10 @@ const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: str
     const origin = req.headers.get("origin");
     const host = req.headers.get("host");
     if (!origin) {
-      return new Response(
-        JSON.stringify({ detail: "Missing Origin header on mutating request" }),
-        { status: 403, headers: { "content-type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ detail: "Missing Origin header on mutating request" }), {
+        status: 403,
+        headers: { "content-type": "application/json" },
+      });
     }
     let originHost: string;
     try {
