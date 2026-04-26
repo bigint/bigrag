@@ -10,6 +10,23 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
+CollectionName = Annotated[
+    str,
+    Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[a-zA-Z][a-zA-Z0-9_]*$",
+        description="Collection name",
+    ),
+]
+DocumentId = Annotated[
+    str,
+    Field(
+        pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+        description="Document UUID",
+    ),
+]
+
 
 def _make_client(base_url: str, api_key: str | None) -> httpx.AsyncClient:
     headers = {"User-Agent": "bigrag-mcp/1.0"}
@@ -116,7 +133,7 @@ def create_server(
 
         @mcp.tool()
         async def get_collection(
-            name: Annotated[str, Field(description="Collection name")],
+            name: CollectionName,
         ) -> dict[str, Any]:
 
             r = await client.get(f"/v1/collections/{name}")
@@ -125,7 +142,7 @@ def create_server(
 
         @mcp.tool()
         async def get_collection_stats(
-            name: Annotated[str, Field(description="Collection name")],
+            name: CollectionName,
         ) -> dict[str, Any]:
 
             r = await client.get(f"/v1/collections/{name}/stats")
@@ -134,7 +151,7 @@ def create_server(
 
         @mcp.tool()
         async def query(
-            collection: Annotated[str, Field(description="Collection name to search")],
+            collection: CollectionName,
             query: Annotated[str, Field(min_length=1, description="Natural-language query")],
             top_k: Annotated[int, Field(ge=1, le=100)] = 10,
             search_mode: Literal["semantic", "keyword", "hybrid"] = "semantic",
@@ -189,7 +206,7 @@ def create_server(
 
         @mcp.tool()
         async def list_documents(
-            collection: Annotated[str, Field(description="Collection name")],
+            collection: CollectionName,
             limit: Annotated[int, Field(ge=1, le=100)] = 50,
             offset: Annotated[int, Field(ge=0)] = 0,
             status: Literal["pending", "processing", "ready", "failed"] | None = None,
@@ -204,8 +221,8 @@ def create_server(
 
         @mcp.tool()
         async def get_document(
-            collection: Annotated[str, Field(description="Collection name")],
-            document_id: Annotated[str, Field(description="Document UUID")],
+            collection: CollectionName,
+            document_id: DocumentId,
         ) -> dict[str, Any]:
 
             r = await client.get(f"/v1/collections/{collection}/documents/{document_id}")
@@ -214,8 +231,8 @@ def create_server(
 
         @mcp.tool()
         async def get_document_chunks(
-            collection: Annotated[str, Field(description="Collection name")],
-            document_id: Annotated[str, Field(description="Document UUID")],
+            collection: CollectionName,
+            document_id: DocumentId,
         ) -> dict[str, Any]:
 
             r = await client.get(f"/v1/collections/{collection}/documents/{document_id}/chunks")
@@ -275,7 +292,7 @@ def create_server(
 
     @mcp.tool()
     async def get_document(
-        document_id: Annotated[str, Field(description="Document UUID")],
+        document_id: DocumentId,
     ) -> dict[str, Any]:
 
         r = await client.get(f"/v1/collections/{pinned}/documents/{document_id}")
@@ -284,7 +301,7 @@ def create_server(
 
     @mcp.tool()
     async def get_document_chunks(
-        document_id: Annotated[str, Field(description="Document UUID")],
+        document_id: DocumentId,
     ) -> dict[str, Any]:
 
         r = await client.get(f"/v1/collections/{pinned}/documents/{document_id}/chunks")

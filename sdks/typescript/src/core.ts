@@ -195,7 +195,10 @@ export class BigRAGCore implements RequestClient {
       headers,
       body: formData,
     });
-    return (await response.json()) as T;
+    if (response.status === 204) return { status: "ok" } as T;
+    const text = await response.text();
+    if (!text) return { status: "ok" } as T;
+    return JSON.parse(text) as T;
   }
 }
 

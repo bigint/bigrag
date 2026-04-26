@@ -217,10 +217,14 @@ class QueryLog(Base):
     __tablename__ = "query_log"
     __table_args__ = (
         sa.Index("idx_query_log_collection", "collection_name"),
+        sa.Index("idx_query_log_collection_id", "collection_id"),
         sa.Index("idx_query_log_created_at", "created_at"),
     )
 
     id: Mapped[UUIDpk]
+    collection_id: Mapped[UUID | None] = mapped_column(
+        sa.ForeignKey("collections.id", ondelete="CASCADE")
+    )
     collection_name: Mapped[str] = mapped_column(sa.Text, nullable=False)
     query: Mapped[str] = mapped_column(sa.Text, nullable=False)
     top_k: Mapped[int] = mapped_column(sa.Integer, nullable=False)

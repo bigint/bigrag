@@ -8,6 +8,8 @@ export interface Document {
   status: string;
   error_message: string | null;
   metadata: Record<string, unknown>;
+  content_hash: string | null;
+  deduped: boolean;
   created_at: string;
   updated_at: string;
 }

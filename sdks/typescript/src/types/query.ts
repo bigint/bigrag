@@ -4,7 +4,12 @@ export interface QueryBody {
   filters?: Record<string, unknown>;
   min_score?: number;
   search_mode?: "semantic" | "keyword" | "hybrid";
+  hybrid_strategy?: "rrf" | "weighted" | "normalized";
   rerank?: boolean;
+  diversity?: number;
+  hyde?: boolean;
+  facets?: string[];
+  use_semantic_cache?: boolean;
 }
 
 export interface QueryResult {
@@ -16,11 +21,23 @@ export interface QueryResult {
   metadata: Record<string, unknown>;
 }
 
+export interface QueryTimings {
+  embed_ms?: number;
+  search_ms?: number;
+  rerank_ms?: number;
+  hyde_ms?: number;
+  mmr_ms?: number;
+  total_ms?: number;
+}
+
 export interface QueryResponse {
   results: QueryResult[];
   query: string;
   collection: string;
   total: number;
+  timings?: QueryTimings;
+  facets?: Record<string, Record<string, number>>;
+  cached?: boolean;
 }
 
 export interface MultiQueryBody {
@@ -30,6 +47,7 @@ export interface MultiQueryBody {
   filters?: Record<string, unknown>;
   min_score?: number;
   search_mode?: "semantic" | "keyword" | "hybrid";
+  rerank?: boolean;
 }
 
 export interface MultiQueryResult {
