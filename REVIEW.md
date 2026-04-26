@@ -669,7 +669,7 @@ correct REST semantic for "resource already exists".)
 
 ### Studio app
 
-#### `[ ]` I-034 🟠 Studio proxy forwards backend `Set-Cookie` verbatim
+#### `[x]` I-034 🟠 Studio proxy forwards backend `Set-Cookie` verbatim
 
 **File:** `app/src/app/api/bigrag/[...path]/route.ts:HOP_HEADERS`
 
@@ -822,7 +822,7 @@ prod, show a generic "bigRAG API is not reachable".
 
 ---
 
-#### `[ ]` I-044 🟠 Studio proxy forwards arbitrary client headers upstream
+#### `[x]` I-044 🟠 Studio proxy forwards arbitrary client headers upstream
 
 **File:** `app/src/app/api/bigrag/[...path]/route.ts:32-36`
 
@@ -836,7 +836,7 @@ any other known-needed headers.
 
 ---
 
-#### `[ ]` I-045 🟠 Proxy buffers full upload body in memory
+#### `[x]` I-045 🟠 Proxy buffers full upload body in memory
 
 **File:** `app/src/app/api/bigrag/[...path]/route.ts:43`
 

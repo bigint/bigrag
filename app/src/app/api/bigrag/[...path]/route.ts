@@ -2,8 +2,21 @@ import type { NextRequest } from "next/server";
 
 const BIGRAG_URL = process.env.BIGRAG_URL ?? "http://localhost:6100";
 
-// Headers that must not be forwarded on either direction of a proxy.
-const HOP_HEADERS = new Set([
+const ALLOWED_REQUEST_HEADERS = new Set([
+  "accept",
+  "accept-encoding",
+  "accept-language",
+  "authorization",
+  "content-type",
+  "cookie",
+  "idempotency-key",
+  "user-agent",
+  "if-none-match",
+  "if-modified-since",
+  "x-requested-with",
+]);
+
+const RESPONSE_HOP_HEADERS = new Set([
   "connection",
   "keep-alive",
   "proxy-authenticate",
@@ -14,10 +27,8 @@ const HOP_HEADERS = new Set([
   "upgrade",
   "host",
   "content-length",
-  // Node's fetch auto-decodes gzip/deflate/br response bodies, so
-  // forwarding the original encoding header would mislead the browser
-  // into trying to decode a plaintext body.
   "content-encoding",
+  "set-cookie",
 ]);
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -43,22 +54,22 @@ const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: str
     try {
       originHost = new URL(origin).host;
     } catch {
-      return new Response(
-        JSON.stringify({ detail: "Malformed Origin header" }),
-        { status: 403, headers: { "content-type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ detail: "Malformed Origin header" }), {
+        status: 403,
+        headers: { "content-type": "application/json" },
+      });
     }
     if (originHost !== host) {
-      return new Response(
-        JSON.stringify({ detail: "Cross-origin request rejected" }),
-        { status: 403, headers: { "content-type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ detail: "Cross-origin request rejected" }), {
+        status: 403,
+        headers: { "content-type": "application/json" },
+      });
     }
   }
 
   const headers = new Headers();
   req.headers.forEach((value, key) => {
-    if (!HOP_HEADERS.has(key.toLowerCase())) {
+    if (ALLOWED_REQUEST_HEADERS.has(key.toLowerCase())) {
       headers.set(key, value);
     }
   });
@@ -68,9 +79,8 @@ const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: str
     upstream = await fetch(target, {
       method,
       headers,
-      body: hasBody ? await req.arrayBuffer() : undefined,
+      body: hasBody ? req.body : undefined,
       redirect: "manual",
-      // duplex is required only when streaming a request body
       ...(hasBody ? { duplex: "half" } : {}),
     } as RequestInit);
   } catch (err) {
@@ -83,7 +93,7 @@ const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: str
 
   const responseHeaders = new Headers();
   upstream.headers.forEach((value, key) => {
-    if (!HOP_HEADERS.has(key.toLowerCase())) {
+    if (!RESPONSE_HOP_HEADERS.has(key.toLowerCase())) {
       responseHeaders.append(key, value);
     }
   });
@@ -102,8 +112,6 @@ const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: str
     }
   }
 
-  // SSE / event-stream endpoints must stream — buffering would break the
-  // document-progress and collection-events routes.
   const isStream = (upstream.headers.get("content-type") ?? "").includes("text/event-stream");
   const body = isStream ? upstream.body : await upstream.arrayBuffer();
 
