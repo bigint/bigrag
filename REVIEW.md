@@ -1743,7 +1743,7 @@ breaks.
 
 ## Docs / drift cleanup
 
-#### `[ ]` I-105 🟡 README MCP tool list says 6, code exposes 8
+#### `[x]` I-105 🟡 README MCP tool list says 6, code exposes 8
 
 **File:** `README.md:287`
 
@@ -1755,7 +1755,7 @@ Full-workspace keys see 8 tools (adds `get_collection_stats` and
 
 ---
 
-#### `[ ]` I-106 🟡 README database URL default mismatches Docker default
+#### `[x]` I-106 🟡 README database URL default mismatches Docker default
 
 **Files:** `README.md:297`, `docker-compose.yml:15`,
 `website/content/docs/deployment/docker.mdx:130`
@@ -1769,7 +1769,7 @@ two rows.
 
 ---
 
-#### `[ ]` I-107 🟡 OpenRAG gap analysis — multiple stale claims
+#### `[x]` I-107 🟡 OpenRAG gap analysis — multiple stale claims
 
 **File:** `website/content/docs/openrag-gap-analysis.mdx`
 
@@ -1785,7 +1785,7 @@ two rows.
 
 ---
 
-#### `[ ]` I-108 🟡 `comparison.mdx` matrix says "Web UI: No"
+#### `[x]` I-108 🟡 `comparison.mdx` matrix says "Web UI: No"
 
 **File:** `website/content/docs/comparison.mdx:23`
 
@@ -1796,7 +1796,7 @@ at-a-glance matrix doesn't.
 
 ---
 
-#### `[ ]` I-109 🟡 `embedding-presets.mdx` lists `openai_compatible` as a valid provider
+#### `[x]` I-109 🟡 `embedding-presets.mdx` lists `openai_compatible` as a valid provider
 
 **Files:** `website/content/docs/api-reference/embedding-presets.mdx:50-55`,
 `api/bigrag/models/embedding_preset.py:11`,
@@ -1810,7 +1810,7 @@ providers; `openai_compatible` is configured inline on the collection).
 
 ---
 
-#### `[ ]` I-110 🟡 `collections.mdx` UpdateCollectionRequest table lists fields the route doesn't write
+#### `[x]` I-110 🟡 `collections.mdx` UpdateCollectionRequest table lists fields the route doesn't write
 
 **Files:** `website/content/docs/api-reference/collections.mdx:173-178`,
 `api/bigrag/routers/collections.py:371-395`
@@ -1825,7 +1825,7 @@ expect them to work.)
 
 ---
 
-#### `[ ]` I-111 🟡 `collections.mdx` example response includes `embedding_base_url`
+#### `[x]` I-111 🟡 `collections.mdx` example response includes `embedding_base_url`
 
 **File:** `website/content/docs/api-reference/collections.mdx:36`
 
@@ -1836,7 +1836,7 @@ response shouldn't include it.
 
 ---
 
-#### `[ ]` I-112 🟡 Webhook admin docs say session-only; code uses `require_admin`
+#### `[x]` I-112 🟡 Webhook admin docs say session-only; code uses `require_admin`
 
 **Files:** `website/content/docs/concepts/security.mdx:38-46`,
 `api/bigrag/routers/webhooks.py`
@@ -1857,7 +1857,7 @@ confirming after every Studio refactor.
 
 ---
 
-#### `[ ]` I-114 🟡 `docker.mdx` snippet omits `milvus.yaml` mount
+#### `[x]` I-114 🟡 `docker.mdx` snippet omits `milvus.yaml` mount
 
 **Files:** `website/content/docs/deployment/docker.mdx:91-102`,
 `docker-compose.yml:118`
@@ -1870,7 +1870,7 @@ config.
 
 ---
 
-#### `[ ]` I-115 🟡 Encryption docs use a real-looking Fernet key as example
+#### `[x]` I-115 🟡 Encryption docs use a real-looking Fernet key as example
 
 **Files:** `website/content/docs/deployment/encryption.mdx:42`,
 `dev.sh:150`
@@ -1896,7 +1896,7 @@ Project tree shows `database.py` under `api/bigrag/`. Real layout is the
 
 ---
 
-#### `[ ]` I-117 🟡 Tech-stack version drift
+#### `[x]` I-117 🟡 Tech-stack version drift
 
 **Files:** `CLAUDE.md:7`, `STYLEGUIDE.md:152-153`
 
@@ -1908,7 +1908,7 @@ Project tree shows `database.py` under `api/bigrag/`. Real layout is the
 
 ---
 
-#### `[ ]` I-118 🟡 `bigrag.toml` is a tiny subset of the documented schema
+#### `[x]` I-118 🟡 `bigrag.toml` is a tiny subset of the documented schema
 
 **Files:** `bigrag.toml`,
 `website/content/docs/getting-started/configuration.mdx`
@@ -1927,7 +1927,7 @@ those fields, set under `[server]` per the docs, are silently ignored.
 
 ---
 
-#### `[ ]` I-119 🟡 CI is missing `test:api` and SDK tests
+#### `[x]` I-119 🟡 CI is missing `test:api` and SDK tests
 
 **File:** `.github/workflows/ci.yml`
 
@@ -1942,7 +1942,7 @@ website-build, biome)". Only typecheck/lint/website-build are wired up.
 
 ---
 
-#### `[ ]` I-120 🟡 `biome.jsonc` schema URL pinned to a specific minor
+#### `[x]` I-120 🟡 `biome.jsonc` schema URL pinned to a specific minor
 
 **Files:** `biome.jsonc:2`, `package.json:20`
 
@@ -1965,7 +1965,7 @@ The kill block runs only when `START_BACKEND` or `START_WEBSITE` is true.
 
 ---
 
-#### `[ ]` I-122 🟢 `authentication.mdx` doesn't list `/v1/auth/whoami`
+#### `[x]` I-122 🟢 `authentication.mdx` doesn't list `/v1/auth/whoami`
 
 **File:** `website/content/docs/api-reference/authentication.mdx:144-152`
 
@@ -1976,7 +1976,7 @@ startup.
 
 ---
 
-#### `[ ]` I-123 🟢 `concepts/collections.mdx` only lists 2 providers
+#### `[x]` I-123 🟢 `concepts/collections.mdx` only lists 2 providers
 
 **File:** `website/content/docs/concepts/collections.mdx:44`
 
