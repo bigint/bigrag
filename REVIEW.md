@@ -749,7 +749,7 @@ refetching.
 
 ---
 
-#### `[ ]` I-039 🟠 Setup-status redirect can race a valid session
+#### `[x]` I-039 🟠 Setup-status redirect can race a valid session
 
 **File:** `app/src/app/(dashboard)/layout.tsx:18-27`
 

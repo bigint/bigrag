@@ -16,11 +16,13 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const { data: session, isPending, isError } = useSession();
 
   useEffect(() => {
+    if (isPending) return;
+    if (session) return;
     if (setupStatus?.needs_setup) {
       router.replace("/setup");
       return;
     }
-    if (!isPending && (isError || !session)) {
+    if (isError || !session) {
       router.replace("/login");
     }
   }, [session, isPending, isError, setupStatus, router]);
