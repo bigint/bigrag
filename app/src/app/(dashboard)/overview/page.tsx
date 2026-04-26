@@ -3,7 +3,6 @@
 import {
   ArrowUpRight,
   BookOpen,
-  Clock,
   FileText,
   HardDrive,
   KeyRound,
@@ -141,14 +140,6 @@ const OverviewPage = () => {
               ok={readiness?.embedding}
               detail={readiness?.embedding_error}
             />
-            {readiness?.version && (
-              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" /> {readiness.status}
-                </span>
-                <span>v{readiness.version}</span>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
