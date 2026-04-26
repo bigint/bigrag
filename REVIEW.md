@@ -321,7 +321,7 @@ JSONB (already on the list as I-046).
 
 ### B. Data integrity / multi-process correctness
 
-#### `[ ]` I-013 🔴 Stuck-job recovery races with running workers
+#### `[x]` I-013 🔴 Stuck-job recovery races with running workers
 
 **File:** `api/bigrag/services/queue.py:90-99`
 

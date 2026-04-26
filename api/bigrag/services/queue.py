@@ -46,6 +46,15 @@ QUEUE_KEY = "bigrag:ingestion:queue"
 PROCESSING_KEY = "bigrag:ingestion:processing"
 DEAD_LETTER_KEY = "bigrag:ingestion:dead"
 STATS_KEY = "bigrag:ingestion:stats"
+LEASE_KEY_PREFIX = "bigrag:ingestion:lease:"
+# Long enough to cover normal end-to-end processing (large PDFs, slow
+# embedding providers) but short enough that a crashed worker's job is
+# recoverable on the next restart. Workers can extend by re-setting it.
+_LEASE_TTL_SECONDS = 30 * 60
+
+
+def _lease_key(job_id: str) -> str:
+    return f"{LEASE_KEY_PREFIX}{job_id}"
 
 
 class IngestionQueue:
@@ -88,15 +97,33 @@ class IngestionQueue:
         logger.info("[queue] all workers stopped")
 
     async def _recover_stuck_jobs(self) -> int:
-        count = 0
-        while True:
-            data = await self._redis.lmove(PROCESSING_KEY, QUEUE_KEY, src="RIGHT", dest="LEFT")
-            if data is None:
-                break
-            count += 1
-        if count > 0:
+        """Move only orphaned jobs back to the queue.
+
+        With multiple uvicorn workers, a job actively running in process A
+        must NOT be re-claimed by process B on B's startup. Each worker
+        writes a TTL'd lease key when it claims a job; recovery moves an
+        item back only when its lease has expired.
+        """
+        items = await self._redis.lrange(PROCESSING_KEY, 0, -1)
+        recovered = 0
+        for raw in items:
+            try:
+                job = IngestionJob.deserialize(raw)
+            except (ValueError, TypeError, KeyError) as exc:
+                logger.warning(
+                    "queue: malformed processing payload, dropping",
+                    error=f"{exc.__class__.__name__}: {exc}",
+                )
+                await self._redis.lrem(PROCESSING_KEY, 1, raw)
+                continue
+            if await self._redis.exists(_lease_key(job.job_id)):
+                continue  # Another worker is still processing this one.
+            await self._redis.lrem(PROCESSING_KEY, 1, raw)
+            await self._redis.lpush(QUEUE_KEY, raw)
+            recovered += 1
+        if recovered > 0:
             await self._redis.hset(STATS_KEY, "processing", 0)
-        return count
+        return recovered
 
     async def enqueue(self, job: IngestionJob) -> None:
         from bigrag.config import settings as _settings
@@ -158,10 +185,13 @@ class IngestionQueue:
                     continue
 
                 job = IngestionJob.deserialize(data)
+                lease_key = _lease_key(job.job_id)
+                await self._redis.set(lease_key, b"1", ex=_LEASE_TTL_SECONDS)
                 try:
                     await self._process_job(worker_id, job)
                 finally:
                     await self._redis.lrem(PROCESSING_KEY, 1, data)
+                    await self._redis.delete(lease_key)
             except Exception as e:
                 logger.error(f"[worker-{worker_id}] loop error: {e!r}")
                 await asyncio.sleep(1)
