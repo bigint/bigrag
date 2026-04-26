@@ -32,17 +32,20 @@ def _normalize_url(dsn: str) -> tuple[str, dict]:
 async def configure(database_url: str, pool_min: int = 5, pool_max: int = 50) -> None:
     global _engine, _session_factory
     url, connect_args = _normalize_url(database_url)
+    if pool_min > pool_max:
+        pool_min = pool_max
+    overflow = max(0, pool_max - pool_min)
     _engine = create_async_engine(
         url,
-        pool_size=pool_max,
-        max_overflow=0,
+        pool_size=pool_min,
+        max_overflow=overflow,
         pool_pre_ping=True,
         pool_recycle=300,
         connect_args=connect_args,
         future=True,
     )
     _session_factory = async_sessionmaker(_engine, expire_on_commit=False, class_=AsyncSession)
-    logger.info(f"SQLAlchemy engine ready (pool_size={pool_max})")
+    logger.info(f"SQLAlchemy engine ready (pool_min={pool_min} pool_max={pool_max})")
 
 
 def engine() -> AsyncEngine:

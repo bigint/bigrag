@@ -1061,7 +1061,7 @@ storage. Add a streaming `LocalStorage.put_stream(key, stream)` /
 
 ### Backend infra
 
-#### `[ ]` I-057 🟠 `pool_min` is silently ignored; pool always at `pool_max`
+#### `[x]` I-057 🟠 `pool_min` is silently ignored; pool always at `pool_max`
 
 **File:** `api/bigrag/db/engine.py:35`
 
