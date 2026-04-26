@@ -2554,19 +2554,6 @@ async *streamEvents(name: string): AsyncGenerator<ProgressEvent> {
 }
 ```
 
-### Deprecation
-
-Old flat methods delegate to resource namespaces with `@deprecated` JSDoc:
-
-```typescript
-/**
- * @deprecated Use `client.collections.list()` instead.
- */
-listCollections(options?: CollectionListOptions): Promise<CollectionListResponse> {
-  return this.collections.list(options);
-}
-```
-
 ## References
 
 ### Core Concepts
