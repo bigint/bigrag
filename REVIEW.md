@@ -216,7 +216,7 @@ or `os.path.commonpath([resolved, self._base]) == str(self._base)`.
 
 ---
 
-#### `[ ]` I-008 🔴 Milvus filter-expression injection in `text_search`
+#### `[x]` I-008 🔴 Milvus filter-expression injection in `text_search`
 
 **File:** `api/bigrag/services/vector_store.py:338-339`
 

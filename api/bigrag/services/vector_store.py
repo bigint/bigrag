@@ -334,9 +334,17 @@ class VectorStore:
         """Search by text content using keyword matching."""
         col = self._col(collection)
 
+        from bigrag.services.retrieval import _escape_string
+
         term_filters = []
         for term in query_terms:
-            escaped = term.replace("\\", "\\\\").replace('"', '\\"').replace("%", "\\%")
+            # Reuse the shared expression-string escape, plus escape `%` so
+            # callers can't smuggle LIKE-wildcards into the query, and `'`
+            # so the term cannot break out of a single-quoted literal if a
+            # future caller switches quoting style.
+            escaped = (
+                _escape_string(term).replace("%", "\\%").replace("'", "\\'")
+            )
             term_filters.append(f'text like "%{escaped}%"')
 
         text_filter = " or ".join(term_filters)
