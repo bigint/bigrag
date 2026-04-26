@@ -287,7 +287,7 @@ class VectorStore:
     ) -> tuple[list[dict], int]:
         """Return (chunks, total_count) for a document with pagination."""
         col = self._col(collection)
-        if not self.client.has_collection(col):
+        if not await self._run_with_retry(self.client.has_collection, col):
             return [], 0
         safe_doc_id = self._safe_id(document_id)
         results = await self._run_with_retry(
@@ -311,7 +311,7 @@ class VectorStore:
 
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         col = self._col(collection)
-        if not self.client.has_collection(col):
+        if not await self._run_with_retry(self.client.has_collection, col):
             return
         safe_doc_id = self._safe_id(document_id)
         await self._run_with_retry(

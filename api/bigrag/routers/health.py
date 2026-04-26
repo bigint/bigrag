@@ -144,7 +144,7 @@ async def readiness(request: Request):
             from pymilvus import MilvusClient
 
             if isinstance(vs.client, MilvusClient):
-                vs.client.list_collections()
+                await asyncio.to_thread(vs.client.list_collections)
         else:
             raise RuntimeError("milvus client not connected")
 

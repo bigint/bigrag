@@ -394,7 +394,7 @@ locally and reduce after `gather` completes.
 
 ---
 
-#### `[ ]` I-017 🔴 Blocking pymilvus calls on the event loop
+#### `[x]` I-017 🔴 Blocking pymilvus calls on the event loop
 
 **Files:** `api/bigrag/services/vector_store.py:290,314`,
 `api/bigrag/routers/health.py:81-87`
