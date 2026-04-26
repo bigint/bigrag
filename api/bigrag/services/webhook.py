@@ -199,8 +199,8 @@ class WebhookDispatcher:
         if webhook_event is None:
             return
 
-        collection = event.detail.get("collection")
-        if not collection:
+        collection = event.collection_name
+        if not collection and event.document_id:
             collection = await self._get_collection_for_document(event.document_id)
         if not collection:
             return

@@ -891,7 +891,7 @@ flag). Then MMR actually picks novel items.
 
 ---
 
-#### `[ ]` I-048 🟠 Webhook dispatcher reads collection from wrong field; empty UUID raises
+#### `[x]` I-048 🟠 Webhook dispatcher reads collection from wrong field; empty UUID raises
 
 **File:** `api/bigrag/services/webhook.py:202-207`
 
