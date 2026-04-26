@@ -20,6 +20,8 @@ const HOP_HEADERS = new Set([
   "content-encoding",
 ]);
 
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
 const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) => {
   const { path } = await params;
   const search = req.nextUrl.search;
@@ -27,6 +29,35 @@ const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: str
 
   const method = req.method;
   const hasBody = method !== "GET" && method !== "HEAD";
+
+  // CSRF guard: a cross-origin page can ride along with the Studio session
+  // cookie. Reject mutating verbs whose Origin doesn't match the request
+  // host. GET/HEAD/OPTIONS pass through (preflight + safe verbs).
+  if (MUTATING_METHODS.has(method)) {
+    const origin = req.headers.get("origin");
+    const host = req.headers.get("host");
+    if (!origin) {
+      return new Response(
+        JSON.stringify({ detail: "Missing Origin header on mutating request" }),
+        { status: 403, headers: { "content-type": "application/json" } },
+      );
+    }
+    let originHost: string;
+    try {
+      originHost = new URL(origin).host;
+    } catch {
+      return new Response(
+        JSON.stringify({ detail: "Malformed Origin header" }),
+        { status: 403, headers: { "content-type": "application/json" } },
+      );
+    }
+    if (originHost !== host) {
+      return new Response(
+        JSON.stringify({ detail: "Cross-origin request rejected" }),
+        { status: 403, headers: { "content-type": "application/json" } },
+      );
+    }
+  }
 
   const headers = new Headers();
   req.headers.forEach((value, key) => {

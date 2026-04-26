@@ -273,7 +273,7 @@ switch to `redirect: "follow"` and strip `Location` from the response headers.
 
 ---
 
-#### `[ ]` I-011 🔴 No CSRF protection on the Studio proxy
+#### `[x]` I-011 🔴 No CSRF protection on the Studio proxy
 
 **Files:** `app/src/app/api/bigrag/[...path]/route.ts`, `app/src/lib/api.ts:5`
 
