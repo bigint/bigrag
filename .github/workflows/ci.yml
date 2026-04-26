@@ -96,3 +96,6 @@ jobs:
       - name: Type check
         run: pnpm typecheck
         working-directory: app
+      - name: Build
+        run: pnpm build
+        working-directory: app
