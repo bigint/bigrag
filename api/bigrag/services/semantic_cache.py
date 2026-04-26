@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import math
+import asyncio
 import time
 from typing import Any
 
+import numpy as np
 import orjson
 
 from bigrag.logging import get_logger
@@ -20,15 +21,44 @@ def _list_key(collection: str) -> str:
     return f"semcache:{collection}:entries"
 
 
-def _cosine(a: list[float], b: list[float]) -> float:
-    if not a or not b or len(a) != len(b):
-        return 0.0
-    dot = sum(x * y for x, y in zip(a, b, strict=False))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(x * x for x in b))
-    if not na or not nb:
-        return 0.0
-    return dot / (na * nb)
+def _best_match(
+    query_vec: list[float],
+    raw_entries: list[bytes],
+    threshold: float,
+    now: float,
+) -> tuple[float, dict | None]:
+    if not query_vec or not raw_entries:
+        return 0.0, None
+    vecs: list[list[float]] = []
+    payloads: list[dict] = []
+    expected_dim = len(query_vec)
+    for raw in raw_entries:
+        try:
+            entry = orjson.loads(raw)
+        except Exception:
+            continue
+        if (now - entry.get("ts", 0)) > TTL_SECONDS:
+            continue
+        vec = entry.get("vec")
+        if not vec or len(vec) != expected_dim:
+            continue
+        vecs.append(vec)
+        payloads.append(entry.get("payload") or {})
+    if not vecs:
+        return 0.0, None
+    mat = np.asarray(vecs, dtype=np.float32)
+    q = np.asarray(query_vec, dtype=np.float32)
+    qn = float(np.linalg.norm(q))
+    if qn == 0:
+        return 0.0, None
+    norms = np.linalg.norm(mat, axis=1)
+    norms[norms == 0] = 1.0
+    scores = (mat @ q) / (norms * qn)
+    best_idx = int(np.argmax(scores))
+    best_score = float(scores[best_idx])
+    if best_score >= threshold:
+        return best_score, payloads[best_idx]
+    return best_score, None
 
 
 async def lookup(
@@ -36,7 +66,6 @@ async def lookup(
     query_vec: list[float],
     threshold: float = SIMILARITY_THRESHOLD,
 ) -> dict[str, Any] | None:
-
     client = redis_cache._redis  # noqa: SLF001 — intentional reuse
     if client is None or not query_vec:
         return None
@@ -46,32 +75,16 @@ async def lookup(
         logger.debug("semcache: lrange failed", collection=collection, error=str(exc))
         return None
 
-    now = time.time()
-    best_score = 0.0
-    best_payload: dict | None = None
-    kept: list[bytes] = []
-
-    for raw in raw_entries:
-        try:
-            entry = orjson.loads(raw)
-        except Exception:  # noqa: BLE001 — malformed entry; skip
-            continue
-        if (now - entry.get("ts", 0)) > TTL_SECONDS:
-            continue
-        kept.append(raw)
-        score = _cosine(query_vec, entry.get("vec") or [])
-        if score > best_score:
-            best_score = score
-            best_payload = entry.get("payload")
-
-    if best_payload and best_score >= threshold:
+    score, payload = await asyncio.to_thread(
+        _best_match, query_vec, raw_entries, threshold, time.time()
+    )
+    if payload is not None:
         logger.info(
             "semcache: hit",
             collection=collection,
-            similarity=round(best_score, 4),
+            similarity=round(score, 4),
         )
-        return best_payload
-    return None
+    return payload
 
 
 async def store(

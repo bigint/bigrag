@@ -27,6 +27,7 @@ dependencies = [
     "argon2-cffi>=23.1.0",
     "cryptography>=44.0.0",
     "mcp>=1.12.0",
+    "numpy>=2.0.0",
 ]
 
 [dependency-groups]

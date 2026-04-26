@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     log_level: str = "info"
     log_format: str = "text"
     cors_origins: list[str] = []
+    trusted_proxies: list[str] = []
 
     database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
     db_pool_min: int = 5

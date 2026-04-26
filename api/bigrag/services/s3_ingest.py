@@ -274,7 +274,23 @@ async def _run_job(job: dict) -> None:
 
                         try:
                             resp = await s3.get_object(Bucket=bucket, Key=key)
-                            content = await resp["Body"].read()
+                            chunks: list[bytes] = []
+                            total = 0
+                            async for chunk in resp["Body"].iter_chunks(chunk_size=1024 * 1024):
+                                total += len(chunk)
+                                if total > max_object_bytes:
+                                    logger.warning(
+                                        "s3_job: object body exceeded max_object_bytes "
+                                        "(metadata size lied — likely gzipped); aborting",
+                                        key=key,
+                                    )
+                                    chunks = []
+                                    break
+                                chunks.append(chunk)
+                            if not chunks:
+                                await _inc_skipped()
+                                return
+                            content = b"".join(chunks)
                         except Exception as e:
                             logger.warning("s3_job: download failed", key=key, error=str(e))
                             await _inc_skipped()

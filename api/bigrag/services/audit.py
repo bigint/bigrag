@@ -60,8 +60,9 @@ def record(
     metadata: dict[str, Any] | None = None,
 ) -> None:
 
-    client = request.client
-    ip = client[0] if client else None
+    from bigrag.services.client_ip import client_ip
+
+    ip = client_ip(request)
     user_agent = request.headers.get("user-agent")
     actor_id = user.get("id") if user else None
     actor_email = user.get("email") if user else None

@@ -39,7 +39,9 @@ def principal_id(scope: Scope, headers: Headers | None = None) -> str:
         if morsel and morsel.value:
             return f"sess:{hash_session_token(morsel.value)}"
 
-    client = scope.get("client")
-    if client:
-        return f"ip:{client[0]}"
+    from bigrag.services.client_ip import client_ip_from_scope
+
+    ip = client_ip_from_scope(scope)
+    if ip:
+        return f"ip:{ip}"
     return "ip:unknown"

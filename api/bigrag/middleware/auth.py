@@ -89,8 +89,11 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
         return None
 
     api_key, user = row
-    await session.execute(update(ApiKey).where(ApiKey.id == api_key.id).values(last_used_at=now))
-    await session.commit()
+    if api_key.last_used_at is None or (now - api_key.last_used_at).total_seconds() > 60:
+        await session.execute(
+            update(ApiKey).where(ApiKey.id == api_key.id).values(last_used_at=now)
+        )
+        await session.commit()
 
     permissions = api_key.permissions or {}
     scopes = permissions.get("scopes") if isinstance(permissions, dict) else None
