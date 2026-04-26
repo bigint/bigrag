@@ -28,7 +28,6 @@ const RESPONSE_HOP_HEADERS = new Set([
   "host",
   "content-length",
   "content-encoding",
-  "set-cookie",
 ]);
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
