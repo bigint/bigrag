@@ -292,7 +292,7 @@ proxy faithfully forwards.
 
 ---
 
-#### `[ ]` I-012 🔴 OpenAI key sent direct from browser, no CSP
+#### `[x]` I-012 🔴 OpenAI key sent direct from browser, no CSP
 
 **Files:** `app/src/lib/openai-stream.ts:28`, `app/next.config.ts`
 
