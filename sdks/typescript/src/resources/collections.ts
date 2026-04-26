@@ -3,6 +3,7 @@ import { USER_AGENT } from "../core.js";
 import { errorForStatus } from "../errors.js";
 import { parseSSEStream } from "../sse.js";
 import type {
+  AnalyticsResponse,
   Collection,
   CollectionListOptions,
   CollectionListResponse,
@@ -60,6 +61,10 @@ export class CollectionsResource {
 
   truncate(name: string): Promise<StatusResponse> {
     return this._client._request("POST", `/v1/collections/${encodeURIComponent(name)}/truncate`);
+  }
+
+  analytics(name: string): Promise<AnalyticsResponse> {
+    return this._client._request("GET", `/v1/collections/${encodeURIComponent(name)}/analytics`);
   }
 
   async *streamEvents(name: string): AsyncGenerator<ProgressEvent> {

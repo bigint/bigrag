@@ -199,15 +199,15 @@ import { BigRAG } from "@bigrag/client";
 const client = new BigRAG({ apiKey: "your-key", baseUrl: "http://localhost:4000" });
 
 // Upload a document
-const doc = await client.uploadDocument("docs", new File([pdf], "paper.pdf"));
+const doc = await client.documents.upload("docs", new File([pdf], "paper.pdf"));
 
 // Stream processing progress
-for await (const event of client.streamDocumentProgress("docs", doc.id)) {
+for await (const event of client.documents.streamProgress("docs", doc.id)) {
   console.log(event.step, event.progress);
 }
 
 // Query
-const { results } = await client.query("docs", { query: "What is RAG?" });
+const { results } = await client.queries.query("docs", { query: "What is RAG?" });
 
 // Ingest from S3
 await client.documents.ingestS3("docs", {

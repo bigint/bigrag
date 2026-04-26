@@ -47,7 +47,7 @@ const { results } = await client.queries.query("knowledge_base", {
 });
 ```
 
-The client follows a Stripe-style **resource namespace** layout: `client.collections`, `client.documents`, `client.queries`, `client.vectors`, `client.webhooks`. Flat method aliases (e.g. `client.uploadDocument(...)`) still work but are `@deprecated` — prefer the namespaced form below.
+The client follows a Stripe-style **resource namespace** layout: `client.collections`, `client.documents`, `client.queries`, `client.vectors`, `client.webhooks`.
 
 ## Configuration
 
@@ -175,33 +175,16 @@ client.webhooks.test(id)
 ## Platform
 
 ```typescript
-client.health()                  // GET /health
-client.readiness()               // GET /health/ready
-client.getStats()                // GET /v1/stats
-client.listEmbeddingModels()     // GET /v1/embeddings/models
-client.getAnalytics(collection)  // GET /v1/collections/{name}/analytics
+client.health()                          // GET /health
+client.readiness()                       // GET /health/ready
+client.getStats()                        // GET /v1/stats
+client.listEmbeddingModels()             // GET /v1/embeddings/models
+client.collections.analytics(collection) // GET /v1/collections/{name}/analytics
 ```
 
 <Callout type="info">
 Admin endpoints (`/v1/admin/*`, most of `/v1/auth/*`) are session-only — mint an API key for read/query/ingest workloads, and use the browser / a Studio-authenticated session for mutating admin calls.
 </Callout>
-
-## Scoped Collection Client
-
-Use `client.collection(name)` to get a wrapper that pre-binds the collection name:
-
-```typescript
-const docs = client.collection("knowledge_base");
-await docs.query({ query: "PTO policy", top_k: 5 });
-await docs.upload(file);
-await docs.batchUpload([file1, file2, file3]);
-await docs.batchGetStatus(["doc-id-1", "doc-id-2"]);
-await docs.batchGetDocuments(["doc-id-1", "doc-id-2"]);
-await docs.batchDelete(["doc-id-1", "doc-id-2"]);
-await docs.stats();
-await docs.analytics();
-await docs.streamEvents();
-```
 
 ## Error Handling
 
