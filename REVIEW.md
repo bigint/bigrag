@@ -780,7 +780,7 @@ if (!['http:', 'https:'].includes(parsed.protocol)) {
 
 ---
 
-#### `[ ]` I-041 🟠 `useUpdateApiKey` has no error toast
+#### `[x]` I-041 🟠 `useUpdateApiKey` has no error toast
 
 **File:** `app/src/hooks/use-api-keys.ts:26-39`
 
@@ -795,7 +795,7 @@ onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to up
 
 ---
 
-#### `[ ]` I-042 🟠 ky retries non-idempotent POSTs
+#### `[x]` I-042 🟠 ky retries non-idempotent POSTs
 
 **File:** `app/src/lib/api.ts:3-7`
 

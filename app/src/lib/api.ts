@@ -4,7 +4,7 @@ const api: KyInstance = ky.create({
   prefix: "/api/bigrag",
   credentials: "include",
   timeout: 120_000,
-  retry: { limit: 1 },
+  retry: { limit: 1, methods: ["get", "head"] },
   hooks: {
     beforeError: [
       async ({ error }) => {

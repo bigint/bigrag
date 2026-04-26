@@ -36,6 +36,7 @@ export const useUpdateApiKey = () => {
       collection?: string | null;
     }) => apiClient.patch<ApiKey>(`v1/admin/api-keys/${id}`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update key"),
   });
 };
 
