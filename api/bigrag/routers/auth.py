@@ -215,12 +215,6 @@ async def logout_all(
 ) -> StatusResponse:
     if user.get("auth_method") != "session":
         raise HTTPException(status_code=403, detail="Session authentication required")
-    """Revoke every session for the current user.
-
-    Used from the Studio's "Sign out everywhere" action when a user suspects
-    a device or session is compromised. The current browser cookie is also
-    cleared so the caller lands on the login page.
-    """
     await session.execute(sa.delete(DbSession).where(DbSession.user_id == uuid.UUID(user["id"])))
     await session.commit()
     _clear_session_cookie(response)
