@@ -317,8 +317,16 @@ class IngestionQueue:
         )
         return text
 
-    async def _chunk_and_embed(self, job: IngestionJob, text: str, prefix: str) -> int:
-        """Chunk text, embed, and insert into vector store. Returns total inserted count."""
+    async def _chunk_and_embed(
+        self, job: IngestionJob, text: str, prefix: str
+    ) -> tuple[int, int]:
+        """Chunk text, embed, and insert into vector store.
+
+        Returns ``(total_inserted, total_expected)``. They differ when one or
+        more batches exhaust their retries — the worker uses the gap to mark
+        the document as a partial success rather than silently "ready" with
+        zero chunks.
+        """
         from bigrag.config import settings as _settings
         from bigrag.services.embedding import get_embedding_model
         from bigrag.services.ingestion import chunk_document
@@ -471,7 +479,7 @@ class IngestionQueue:
                 embed_time=round(embed_elapsed, 2),
             )
 
-        return total_inserted
+        return total_inserted, len(chunks)
 
     async def _process_job(self, worker_id: int, job: IngestionJob) -> None:
         import sqlalchemy as sa
@@ -523,8 +531,23 @@ class IngestionQueue:
             )
 
             text = await self._convert_document(job, prefix)
-            total_inserted = await self._chunk_and_embed(job, text, prefix)
+            total_inserted, total_expected = await self._chunk_and_embed(job, text, prefix)
             token_count = len(text) // 4  # approximate tokens
+
+            # If every batch exhausted its retries we'd otherwise mark the
+            # doc "ready" with chunk_count=0 — silent partial failure that
+            # makes search return nothing. Fail loudly instead so the
+            # existing retry path runs.
+            if total_inserted == 0:
+                raise RuntimeError(
+                    f"All {total_expected} chunk batches failed embedding/insert"
+                )
+
+            partial_msg = (
+                f"Partial: {total_inserted}/{total_expected} chunks embedded"
+                if total_inserted < total_expected
+                else None
+            )
 
             async with session_factory()() as session:
                 await session.execute(
@@ -534,7 +557,7 @@ class IngestionQueue:
                         status="ready",
                         chunk_count=total_inserted,
                         token_count=token_count,
-                        error_message=None,
+                        error_message=partial_msg,
                     )
                 )
                 # Document.document_count tracks all rows (any status); the

@@ -358,7 +358,7 @@ until the 600 s timeout.
 
 ---
 
-#### `[ ]` I-015 🔴 `Collection.document_count` drift on reprocess + on zero-chunk "ready"
+#### `[x]` I-015 🔴 `Collection.document_count` drift on reprocess + on zero-chunk "ready"
 
 **Files:** `api/bigrag/services/queue.py:499-515`,
 `api/bigrag/routers/documents.py:reprocess_document`
