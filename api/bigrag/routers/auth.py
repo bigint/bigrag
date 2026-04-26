@@ -30,6 +30,7 @@ from bigrag.models.auth import (
 from bigrag.models.common import StatusResponse
 from bigrag.services import audit
 from bigrag.services.auth import (
+    DUMMY_PASSWORD_HASH,
     generate_session_token,
     hash_password,
     hash_session_token,
@@ -142,7 +143,14 @@ async def login(
     session: AsyncSession = Depends(get_session),
 ) -> SessionResponse:
     user = await session.scalar(sa.select(User).where(User.email == body.email.lower()))
-    if user is None or not verify_password(body.password, user.password_hash):
+    # Always run a verify so an unknown email costs the same Argon2 work as a
+    # wrong password — closing the timing-based account-enumeration oracle.
+    if user is None:
+        verify_password(body.password, DUMMY_PASSWORD_HASH)
+        password_ok = False
+    else:
+        password_ok = verify_password(body.password, user.password_hash)
+    if user is None or not password_ok:
         audit.record(
             request,
             user={"id": None, "email": body.email.lower()},

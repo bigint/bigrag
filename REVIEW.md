@@ -170,7 +170,7 @@ param is justified only for SSE/EventSource paths.
 
 ---
 
-#### `[ ]` I-006 🔴 Email enumeration via login response timing
+#### `[x]` I-006 🔴 Email enumeration via login response timing
 
 **File:** `api/bigrag/routers/auth.py:144-154`
 
