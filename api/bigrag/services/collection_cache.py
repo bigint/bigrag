@@ -22,6 +22,9 @@ async def invalidate(name: str | None = None) -> None:
         await redis_cache.delete_pattern("collection:*")
 
 
+_SECRET_FIELDS = ("embedding_api_key", "reranking_api_key")
+
+
 def _serialize(c: Collection) -> dict:
     return {
         "id": c.id,
@@ -53,11 +56,26 @@ def _serialize(c: Collection) -> dict:
     }
 
 
+async def _load_secrets(name: str) -> dict:
+    async with session_factory()() as session:
+        row = (
+            await session.execute(
+                sa.select(Collection.embedding_api_key, Collection.reranking_api_key).where(
+                    Collection.name == name
+                )
+            )
+        ).first()
+    if row is None:
+        return dict.fromkeys(_SECRET_FIELDS)
+    return {"embedding_api_key": row[0], "reranking_api_key": row[1]}
+
+
 async def get_or_404(name: str) -> dict:
     cached = await redis_cache.get(f"collection:{name}")
     if cached:
         if "id" in cached and isinstance(cached["id"], str):
             cached["id"] = uuid.UUID(cached["id"])
+        cached.update(await _load_secrets(name))
         return cached
 
     async with session_factory()() as session:
@@ -68,6 +86,7 @@ async def get_or_404(name: str) -> dict:
     cacheable = {
         k: str(v) if hasattr(v, "hex") else v.isoformat() if isinstance(v, datetime) else v
         for k, v in data.items()
+        if k not in _SECRET_FIELDS
     }
     await redis_cache.set(
         f"collection:{name}",

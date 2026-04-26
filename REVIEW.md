@@ -594,7 +594,7 @@ Categories: `webhook.create`, `webhook.update`, `webhook.delete`,
 
 ---
 
-#### `[ ]` I-029 🟠 `EncryptedString` plaintext fallback flows into Redis cache
+#### `[x]` I-029 🟠 `EncryptedString` plaintext fallback flows into Redis cache
 
 **Files:** `api/bigrag/services/crypto.py:88-101`,
 `api/bigrag/services/collection_cache.py:_serialize`
