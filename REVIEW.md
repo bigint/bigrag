@@ -472,7 +472,7 @@ Latest stable is `@v4`. `astral-sh/setup-uv@v6` is also wrong (current is
 
 ---
 
-#### `[ ]` I-022 🔴 Initial Alembic migration uses `Base.metadata.create_all`
+#### `[x]` I-022 🔴 Initial Alembic migration uses `Base.metadata.create_all`
 
 **File:** `api/alembic/versions/0001_initial_schema.py:29`
 
