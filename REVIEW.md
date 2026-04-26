@@ -86,7 +86,7 @@ implements the right check. S3 ingest does not.
 
 ---
 
-#### `[ ]` I-002 🔴 Idempotency key not scoped to the principal
+#### `[x]` I-002 🔴 Idempotency key not scoped to the principal
 
 **File:** `api/bigrag/middleware/idempotency.py:31-33,66-68`
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 
 from bigrag.logging import get_logger
+from bigrag.middleware._principal import principal_id
 from bigrag.services import redis_cache
 
 logger = get_logger("bigrag.idempotency")
@@ -27,10 +28,11 @@ _MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 _DEFAULT_TTL_SECONDS = 24 * 60 * 60
 
 
-def _cache_key(idem_key: str, method: str, path: str) -> str:
-    # Scope the cached result to (key, verb, path) so the same key used
-    # on two different endpoints doesn't collide.
-    h = hashlib.sha256(f"{idem_key}|{method}|{path}".encode()).hexdigest()
+def _cache_key(principal: str, idem_key: str, method: str, path: str) -> str:
+    # Scope the cached result to (principal, key, verb, path) so two callers
+    # supplying the same Idempotency-Key on the same endpoint can't read
+    # each other's cached responses.
+    h = hashlib.sha256(f"{principal}|{idem_key}|{method}|{path}".encode()).hexdigest()
     return f"idem:{h}"
 
 
@@ -65,7 +67,8 @@ class IdempotencyMiddleware:
 
         method = scope["method"]
         path = scope.get("path", "")
-        cache_key = _cache_key(idem_key, method, path)
+        principal = principal_id(scope)
+        cache_key = _cache_key(principal, idem_key, method, path)
 
         cached = await redis_cache.get(cache_key)
         if cached:

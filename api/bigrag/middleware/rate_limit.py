@@ -20,8 +20,8 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from bigrag.logging import get_logger
+from bigrag.middleware._principal import principal_id
 from bigrag.services import redis_cache
-from bigrag.services.auth import API_KEY_PREFIX, hash_api_key
 
 logger = get_logger("bigrag.rate_limit")
 
@@ -63,21 +63,6 @@ def _path_matches(path: str, pattern: str) -> bool:
     return True
 
 
-def _principal(scope: Scope, headers: Headers) -> str:
-    # Prefer the API key's hash so rotating the key resets its quota,
-    # and session cookies don't share a bucket with API key callers.
-    auth = headers.get("authorization", "")
-    if auth.startswith("Bearer "):
-        token = auth[7:].strip()
-        if token.startswith(API_KEY_PREFIX):
-            return f"key:{hash_api_key(token)}"
-    # Fall back to client IP for unauthenticated / session-cookie callers.
-    client = scope.get("client")
-    if client:
-        return f"ip:{client[0]}"
-    return "ip:unknown"
-
-
 class RateLimitMiddleware:
     """ASGI middleware enforcing per-principal rate limits."""
 
@@ -102,7 +87,7 @@ class RateLimitMiddleware:
 
         bucket, limit = rule
         headers = Headers(scope=scope)
-        principal = _principal(scope, headers)
+        principal = principal_id(scope, headers)
 
         now = time.time()
         window_start = int(now // self.window_seconds) * self.window_seconds
