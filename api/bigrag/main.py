@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
             "be rejected. Set it explicitly (e.g. https://studio.example.com)."
         )
 
-    crypto.configure(s.master_key)
+    crypto.configure(s.master_key, previous_keys=list(s.master_key_previous))
     if not crypto.is_configured():
         logger.warning(
             "BIGRAG_MASTER_KEY not set — provider credentials will be stored "

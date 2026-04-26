@@ -143,6 +143,18 @@ async def update_preset(
             setattr(preset, col, val)
             fields.append(col)
 
+    if any(f in fields for f in ("provider", "api_key", "model", "base_url")):
+        try:
+            await verify_provider_credentials(
+                provider=preset.provider,
+                api_key=preset.api_key,
+                base_url=preset.base_url,
+                model=preset.model,
+            )
+        except CredentialCheckError as e:
+            await session.rollback()
+            raise HTTPException(status_code=422, detail=e.message) from e
+
     try:
         await session.commit()
     except IntegrityError as e:

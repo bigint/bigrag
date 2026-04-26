@@ -28,6 +28,9 @@ _SENSITIVE_KEYS = frozenset(
         "x-api-key",
         "signing_secret",
         "webhook_secret",
+        "secret",
+        "master_key",
+        "master_key_previous",
     }
 )
 

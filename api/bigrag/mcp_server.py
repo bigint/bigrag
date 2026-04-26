@@ -36,9 +36,10 @@ def _make_client(base_url: str, api_key: str | None) -> httpx.AsyncClient:
 
 
 def _raise_for_status(response: httpx.Response) -> None:
-
     if response.is_success:
         return
+    if response.status_code >= 500:
+        raise RuntimeError(f"bigRAG {response.status_code}: upstream server error")
     try:
         payload = response.json()
         detail = payload.get("detail") or payload.get("error") or str(payload)
