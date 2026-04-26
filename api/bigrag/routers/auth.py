@@ -41,18 +41,6 @@ logger = get_logger("bigrag.routers.auth")
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
 
-def _user_response(user: User) -> UserResponse:
-    return UserResponse(
-        id=str(user.id),
-        email=user.email,
-        display_name=user.display_name,
-        role=user.role,
-        last_login_at=user.last_login_at,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-    )
-
-
 def _set_session_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         key=settings.session_cookie_name,
@@ -130,7 +118,7 @@ async def setup(
         resource_id=str(user.id),
         metadata={"email": user.email, "role": "admin"},
     )
-    return SessionResponse(user=_user_response(user))
+    return SessionResponse(user=UserResponse.from_user(user))
 
 
 @router.post("/login", response_model=SessionResponse)
@@ -173,7 +161,7 @@ async def login(
         resource_id=str(user.id),
         metadata={},
     )
-    return SessionResponse(user=_user_response(user))
+    return SessionResponse(user=UserResponse.from_user(user))
 
 
 @router.post("/logout", response_model=StatusResponse)
@@ -237,7 +225,7 @@ async def me(
     target = await session.get(User, uuid.UUID(user["id"]))
     if target is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return SessionResponse(user=_user_response(target))
+    return SessionResponse(user=UserResponse.from_user(target))
 
 
 @router.get("/whoami", response_model=WhoamiResponse)

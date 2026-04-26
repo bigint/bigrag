@@ -28,18 +28,6 @@ logger = get_logger("bigrag.routers.admin_users")
 router = APIRouter(prefix="/v1/admin/users", tags=["admin:users"])
 
 
-def _user_response(user: User) -> UserResponse:
-    return UserResponse(
-        id=str(user.id),
-        email=user.email,
-        display_name=user.display_name,
-        role=user.role,
-        last_login_at=user.last_login_at,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-    )
-
-
 @router.get("", response_model=UserListResponse)
 async def list_users(
     limit: int = Query(default=50, ge=1, le=200),
@@ -53,7 +41,7 @@ async def list_users(
         )
     ).all()
     total = await session.scalar(sa.select(sa.func.count()).select_from(User))
-    return UserListResponse(users=[_user_response(u) for u in users], total=total or 0)
+    return UserListResponse(users=[UserResponse.from_user(u) for u in users], total=total or 0)
 
 
 @router.post("", response_model=UserResponse, status_code=201)
@@ -88,7 +76,7 @@ async def create_user(
         resource_id=str(user.id),
         metadata={"email": user.email, "role": user.role},
     )
-    return _user_response(user)
+    return UserResponse.from_user(user)
 
 
 @router.patch("/{user_id}", response_model=UserResponse)
@@ -139,7 +127,7 @@ async def update_user(
         resource_id=str(target.id),
         metadata={"email": target.email, "fields": fields},
     )
-    return _user_response(target)
+    return UserResponse.from_user(target)
 
 
 @router.delete("/{user_id}", response_model=StatusResponse)

@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from pydantic import BaseModel, BeforeValidator, Field
+
+if TYPE_CHECKING:
+    from bigrag.db.models import User
 
 _EMAIL_RE = re.compile(
     r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?"
@@ -55,6 +58,18 @@ class UserResponse(BaseModel):
     last_login_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+
+    @classmethod
+    def from_user(cls, user: User) -> UserResponse:
+        return cls(
+            id=str(user.id),
+            email=user.email,
+            display_name=user.display_name,
+            role=user.role,
+            last_login_at=user.last_login_at,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+        )
 
 
 class SessionResponse(BaseModel):
