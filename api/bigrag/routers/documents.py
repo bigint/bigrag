@@ -569,7 +569,7 @@ async def download_document_file(
         media_type=content_type,
         headers={
             "Content-Disposition": (
-                f'attachment; filename="{safe_ascii}"; filename*=UTF-8\'\'{encoded}'
+                f"attachment; filename=\"{safe_ascii}\"; filename*=UTF-8''{encoded}"
             )
         },
     )

@@ -166,10 +166,7 @@ async def delete_user(
     deleted_role = target.role
 
     admin_count_subq = (
-        sa.select(sa.func.count())
-        .select_from(User)
-        .where(User.role == "admin")
-        .scalar_subquery()
+        sa.select(sa.func.count()).select_from(User).where(User.role == "admin").scalar_subquery()
     )
     result = await session.execute(
         sa.delete(User)

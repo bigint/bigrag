@@ -12,9 +12,7 @@ def validate_s3_endpoint_url(url: str) -> None:
     parsed = urlparse(url)
     is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
     if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
-        raise ValueError(
-            "endpoint_url must use HTTPS (HTTP allowed only for localhost)"
-        )
+        raise ValueError("endpoint_url must use HTTPS (HTTP allowed only for localhost)")
     resolve_and_validate_url(url)
 
 

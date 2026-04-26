@@ -307,9 +307,7 @@ class IngestionQueue:
         )
         return text
 
-    async def _chunk_and_embed(
-        self, job: IngestionJob, text: str, prefix: str
-    ) -> tuple[int, int]:
+    async def _chunk_and_embed(self, job: IngestionJob, text: str, prefix: str) -> tuple[int, int]:
         """Chunk text, embed, and insert into vector store. Returns
         ``(total_inserted, total_expected)``."""
         from bigrag.config import settings as _settings
@@ -520,9 +518,7 @@ class IngestionQueue:
             token_count = len(text) // 4
 
             if total_inserted == 0:
-                raise RuntimeError(
-                    f"All {total_expected} chunk batches failed embedding/insert"
-                )
+                raise RuntimeError(f"All {total_expected} chunk batches failed embedding/insert")
 
             partial_msg = (
                 f"Partial: {total_inserted}/{total_expected} chunks embedded"

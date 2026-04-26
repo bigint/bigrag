@@ -138,9 +138,7 @@ def upgrade() -> None:
         ),
         sa.Column("name", sa.Text(), nullable=False),
         sa.Column("description", sa.Text(), server_default="", nullable=False),
-        sa.Column(
-            "embedding_provider", sa.Text(), server_default="openai", nullable=False
-        ),
+        sa.Column("embedding_provider", sa.Text(), server_default="openai", nullable=False),
         sa.Column(
             "embedding_model",
             sa.Text(),
@@ -149,18 +147,10 @@ def upgrade() -> None:
         ),
         sa.Column("embedding_api_key", EncryptedString(), nullable=True),
         sa.Column("embedding_base_url", sa.Text(), nullable=True),
-        sa.Column(
-            "dimension", sa.Integer(), server_default=sa.text("1536"), nullable=False
-        ),
-        sa.Column(
-            "chunk_size", sa.Integer(), server_default=sa.text("512"), nullable=False
-        ),
-        sa.Column(
-            "chunk_overlap", sa.Integer(), server_default=sa.text("50"), nullable=False
-        ),
-        sa.Column(
-            "chunk_strategy", sa.Text(), server_default="paragraph", nullable=False
-        ),
+        sa.Column("dimension", sa.Integer(), server_default=sa.text("1536"), nullable=False),
+        sa.Column("chunk_size", sa.Integer(), server_default=sa.text("512"), nullable=False),
+        sa.Column("chunk_overlap", sa.Integer(), server_default=sa.text("50"), nullable=False),
+        sa.Column("chunk_strategy", sa.Text(), server_default="paragraph", nullable=False),
         sa.Column(
             "document_count",
             sa.Integer(),
@@ -193,14 +183,10 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("reranking_api_key", EncryptedString(), nullable=True),
-        sa.Column(
-            "index_type", sa.Text(), server_default="IVF_FLAT", nullable=False
-        ),
+        sa.Column("index_type", sa.Text(), server_default="IVF_FLAT", nullable=False),
         sa.Column("tenant_field", sa.Text(), nullable=True),
         sa.Column("metadata_schema", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column(
-            "redact_pii", sa.Boolean(), server_default=sa.text("false"), nullable=False
-        ),
+        sa.Column("redact_pii", sa.Boolean(), server_default=sa.text("false"), nullable=False),
         sa.Column(
             "moderation_enabled",
             sa.Boolean(),
@@ -248,12 +234,8 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("file_path", sa.Text(), server_default="", nullable=False),
-        sa.Column(
-            "chunk_count", sa.Integer(), server_default=sa.text("0"), nullable=False
-        ),
-        sa.Column(
-            "token_count", sa.Integer(), server_default=sa.text("0"), nullable=False
-        ),
+        sa.Column("chunk_count", sa.Integer(), server_default=sa.text("0"), nullable=False),
+        sa.Column("token_count", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("content_hash", sa.Text(), nullable=True),
         sa.Column("status", sa.Text(), server_default="pending", nullable=False),
         sa.Column("error_message", sa.Text(), nullable=True),
@@ -282,9 +264,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["collection_id"], ["collections.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "idx_documents_collection_id", "documents", ["collection_id"], unique=False
-    )
+    op.create_index("idx_documents_collection_id", "documents", ["collection_id"], unique=False)
     op.create_index("idx_documents_status", "documents", ["status"], unique=False)
     op.create_index("idx_documents_created_at", "documents", ["created_at"], unique=False)
     op.create_index(
@@ -307,9 +287,7 @@ def upgrade() -> None:
         sa.Column("events", postgresql.ARRAY(sa.Text()), nullable=False),
         sa.Column("collections", postgresql.ARRAY(sa.Text()), nullable=True),
         sa.Column("description", sa.Text(), server_default="", nullable=False),
-        sa.Column(
-            "active", sa.Boolean(), server_default=sa.text("true"), nullable=False
-        ),
+        sa.Column("active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
         sa.Column("created_by", sa.Uuid(), nullable=True),
         sa.Column(
             "created_at",
@@ -340,9 +318,7 @@ def upgrade() -> None:
         sa.Column("event", sa.Text(), nullable=False),
         sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("status", sa.Text(), server_default="pending", nullable=False),
-        sa.Column(
-            "attempts", sa.Integer(), server_default=sa.text("0"), nullable=False
-        ),
+        sa.Column("attempts", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("last_status_code", sa.Integer(), nullable=True),
         sa.Column("last_error", sa.Text(), nullable=True),
         sa.Column("next_retry_at", sa.DateTime(timezone=True), nullable=True),
@@ -366,9 +342,7 @@ def upgrade() -> None:
         ["webhook_id"],
         unique=False,
     )
-    op.create_index(
-        "idx_webhook_deliveries_status", "webhook_deliveries", ["status"], unique=False
-    )
+    op.create_index("idx_webhook_deliveries_status", "webhook_deliveries", ["status"], unique=False)
 
     op.create_table(
         "query_log",
@@ -381,14 +355,10 @@ def upgrade() -> None:
         sa.Column("collection_name", sa.Text(), nullable=False),
         sa.Column("query", sa.Text(), nullable=False),
         sa.Column("top_k", sa.Integer(), nullable=False),
-        sa.Column(
-            "result_count", sa.Integer(), server_default=sa.text("0"), nullable=False
-        ),
+        sa.Column("result_count", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("avg_score", sa.Double(), nullable=True),
         sa.Column("latency_ms", sa.Double(), nullable=True),
-        sa.Column(
-            "search_mode", sa.Text(), server_default="semantic", nullable=False
-        ),
+        sa.Column("search_mode", sa.Text(), server_default="semantic", nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -397,12 +367,8 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "idx_query_log_collection", "query_log", ["collection_name"], unique=False
-    )
-    op.create_index(
-        "idx_query_log_created_at", "query_log", ["created_at"], unique=False
-    )
+    op.create_index("idx_query_log_collection", "query_log", ["collection_name"], unique=False)
+    op.create_index("idx_query_log_created_at", "query_log", ["created_at"], unique=False)
 
     op.create_table(
         "s3_ingest_jobs",
@@ -439,9 +405,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("status", sa.Text(), server_default="pending", nullable=False),
-        sa.Column(
-            "total_found", sa.Integer(), server_default=sa.text("0"), nullable=False
-        ),
+        sa.Column("total_found", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column(
             "total_ingested",
             sa.Integer(),
@@ -474,9 +438,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["collection_id"], ["collections.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "idx_s3_ingest_jobs_status", "s3_ingest_jobs", ["status"], unique=False
-    )
+    op.create_index("idx_s3_ingest_jobs_status", "s3_ingest_jobs", ["status"], unique=False)
     op.create_index(
         "idx_s3_ingest_jobs_collection_id",
         "s3_ingest_jobs",
@@ -517,9 +479,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("name"),
     )
-    op.create_index(
-        "idx_embedding_presets_name", "embedding_presets", ["name"], unique=False
-    )
+    op.create_index("idx_embedding_presets_name", "embedding_presets", ["name"], unique=False)
 
     op.create_table(
         "user_preferences",

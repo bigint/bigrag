@@ -158,9 +158,7 @@ class EventBus:
 
         async def _safe_publish() -> None:
             try:
-                await self._redis.publish(
-                    f"{CHANNEL_PREFIX}{document_id}", _COMPLETE_MARKER
-                )
+                await self._redis.publish(f"{CHANNEL_PREFIX}{document_id}", _COMPLETE_MARKER)
             except Exception as e:
                 logger.warning(
                     "event bus: complete publish failed",

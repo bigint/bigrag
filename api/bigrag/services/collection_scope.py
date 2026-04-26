@@ -67,11 +67,7 @@ async def enforce_collection_scope(request: Request, pinned: str) -> None:
         )
 
     parts = stripped.strip("/").split("/")
-    is_collection_root = (
-        len(parts) == 3
-        and parts[0] == "v1"
-        and parts[1] == "collections"
-    )
+    is_collection_root = len(parts) == 3 and parts[0] == "v1" and parts[1] == "collections"
     if is_collection_root and method in _FORBIDDEN_METHODS_ON_PINNED_COLLECTION:
         raise HTTPException(
             status_code=403,
