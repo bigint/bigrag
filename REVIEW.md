@@ -518,7 +518,7 @@ except asyncio.CancelledError:
 
 ### Auth & scope correctness
 
-#### `[ ]` I-024 🟠 Reembed and truncate are unscoped
+#### `[x]` I-024 🟠 Reembed and truncate are unscoped
 
 **File:** `api/bigrag/services/scopes.py` (no entry for these endpoints)
 
@@ -535,7 +535,7 @@ authenticated key (including a `query:read`-only key) passes.
 
 ---
 
-#### `[ ]` I-025 🟠 `GET /v1/documents/{id}/chunks` is unscoped
+#### `[x]` I-025 🟠 `GET /v1/documents/{id}/chunks` is unscoped
 
 **File:** `api/bigrag/services/scopes.py:31`
 
