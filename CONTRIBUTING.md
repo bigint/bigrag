@@ -48,11 +48,13 @@ bigrag/
 │   │   ├── main.py        # App factory + lifespan
 │   │   ├── deps.py        # FastAPI dependency injection
 │   │   ├── config.py      # Settings
-│   │   ├── database.py    # Postgres pool + migrations
+│   │   ├── db/            # SQLAlchemy engine, session, ORM models, bootstrap
+│   │   ├── alembic/       # Schema migrations
 │   │   ├── models/        # Pydantic request/response models
 │   │   ├── services/      # Business logic (embedding, ingestion, retrieval, webhooks)
 │   │   ├── routers/       # API route handlers
-│   │   └── middleware/     # Auth middleware
+│   │   └── middleware/    # Auth middleware
+│   ├── alembic/
 │   └── pyproject.toml
 ├── sdks/typescript/       # TypeScript SDK (@bigrag/client)
 ├── website/               # Docs site (Next.js + Fumadocs)
