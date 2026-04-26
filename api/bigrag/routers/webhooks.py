@@ -252,7 +252,8 @@ async def list_deliveries(
 @router.post("/{webhook_id}/test", response_model=WebhookTestResponse)
 async def test_webhook(
     webhook_id: str,
-    _: dict = Depends(require_admin),
+    request: Request,
+    admin: dict = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
     wh = await session.get(Webhook, uuid.UUID(webhook_id))
@@ -260,6 +261,14 @@ async def test_webhook(
         raise HTTPException(status_code=404, detail="Webhook not found")
 
     result = await webhook_dispatcher.deliver_test(_webhook_to_dict(wh))
+    audit.record(
+        request,
+        user=admin,
+        action="webhook.test",
+        resource_type="webhook",
+        resource_id=webhook_id,
+        metadata={"url": wh.url, "status": result.get("status")},
+    )
     return WebhookTestResponse(**result)
 
 
@@ -270,7 +279,8 @@ async def test_webhook(
 async def replay_delivery(
     webhook_id: str,
     delivery_id: str,
-    _: dict = Depends(require_admin),
+    request: Request,
+    admin: dict = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ) -> WebhookTestResponse:
     """Re-fire a failed (or successful) delivery using the original payload
@@ -308,5 +318,17 @@ async def replay_delivery(
         webhook_id=webhook_id,
         delivery_id=delivery_id,
         status=result["status"],
+    )
+    audit.record(
+        request,
+        user=admin,
+        action="webhook.replay",
+        resource_type="webhook",
+        resource_id=webhook_id,
+        metadata={
+            "delivery_id": delivery_id,
+            "event": delivery.event,
+            "status": result.get("status"),
+        },
     )
     return WebhookTestResponse(**result)

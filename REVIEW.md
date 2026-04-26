@@ -580,7 +580,7 @@ much tighter limits (e.g. 5/min and 3/min per IP).
 
 ---
 
-#### `[ ]` I-028 🟠 Webhook mutations are unaudited
+#### `[x]` I-028 🟠 Webhook mutations are unaudited
 
 **File:** `api/bigrag/routers/webhooks.py` (entire file)
 
