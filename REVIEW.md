@@ -194,7 +194,7 @@ if user is None:
 
 ---
 
-#### `[ ]` I-007 🔴 Path traversal in `LocalStorage._safe_path`
+#### `[x]` I-007 🔴 Path traversal in `LocalStorage._safe_path`
 
 **File:** `api/bigrag/services/storage.py:38-40`
 
