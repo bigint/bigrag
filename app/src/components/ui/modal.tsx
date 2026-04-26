@@ -4,6 +4,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { backdropMotion, popupMotion } from "@/lib/dialog-motion";
 
 interface ModalProps {
   open: boolean;
@@ -36,27 +37,19 @@ export const Modal = ({ open, onClose, title, children, footer, size = "md" }: M
             <Dialog.Backdrop
               render={
                 <motion.div
-                  animate={{ opacity: 1 }}
                   className="fixed inset-0 z-50 bg-black/50"
-                  exit={{ opacity: 0 }}
-                  initial={isReduced ? { opacity: 1 } : { opacity: 0 }}
-                  transition={{ duration: isReduced ? 0 : 0.15 }}
+                  {...backdropMotion(isReduced)}
                 />
               }
             />
             <Dialog.Popup
               render={
                 <motion.div
-                  animate={{ opacity: 1, scale: 1 }}
                   className={cn(
                     "fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-h-[calc(100vh-4rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-background shadow-xl",
                     sizeMap[size],
                   )}
-                  exit={isReduced ? { opacity: 0 } : { opacity: 0, scale: 0.95 }}
-                  initial={isReduced ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.95 }}
-                  transition={
-                    isReduced ? { duration: 0 } : { duration: 0.2, ease: [0.16, 1, 0.3, 1] }
-                  }
+                  {...popupMotion(isReduced)}
                 />
               }
             >
