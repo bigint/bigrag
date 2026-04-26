@@ -11,6 +11,10 @@
 
 All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE.md](./STYLEGUIDE.md)**. Follow the rules and patterns defined there.
 
+### No comments
+
+Don't write comments or docstrings in code under `api/bigrag/`, `sdks/typescript/src/`, `app/`, or `website/`. This includes `#`, `//`, `/* */`, `/** */` JSDoc, and Python `"""docstrings"""`. The diff and well-named identifiers should speak for themselves; surprising invariants belong in commit messages or PR descriptions, not in the code. The only allowed exceptions are functional directives — shebangs, `# noqa`, `# type: ignore`, `# ruff:`, `// @ts-…`, `// biome-ignore`, `// eslint-…`, and similar tool pragmas. If you find yourself wanting to explain code, rename or restructure it instead.
+
 ## Tech Stack
 
 - **Backend**: Python 3.12+, FastAPI, SQLAlchemy 2 (async) + asyncpg, Alembic, pymilvus, docling, openai, cohere, cryptography (Fernet for at-rest encryption of provider secrets)
