@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 
 export type CurrentUser = {
   id: string;
@@ -18,7 +19,7 @@ type SessionResponse = { user: CurrentUser };
 
 export const useSetupStatus = () =>
   useQuery({
-    queryKey: ["auth", "setup-status"],
+    queryKey: queryKeys.auth.setupStatus(),
     queryFn: () => apiClient.get<{ needs_setup: boolean }>("v1/auth/setup-status"),
     staleTime: 0,
     retry: false,
@@ -26,7 +27,7 @@ export const useSetupStatus = () =>
 
 export const useSession = () =>
   useQuery({
-    queryKey: ["auth", "session"],
+    queryKey: queryKeys.auth.session(),
     queryFn: async () => {
       try {
         return await apiClient.get<SessionResponse>("v1/auth/me");
@@ -50,8 +51,8 @@ export const useLogin = () => {
     mutationFn: (body: { email: string; password: string }) =>
       apiClient.post<SessionResponse>("v1/auth/login", body),
     onSuccess: (data) => {
-      qc.setQueryData(["auth", "session"], data);
-      qc.invalidateQueries({ queryKey: ["auth"] });
+      qc.setQueryData(queryKeys.auth.session(), data);
+      qc.invalidateQueries({ queryKey: queryKeys.auth.all() });
     },
   });
 };
@@ -62,7 +63,7 @@ export const useLogout = () => {
     mutationFn: () => apiClient.post<void>("v1/auth/logout"),
     onSuccess: () => {
       qc.clear();
-      qc.setQueryData(["auth", "session"], null);
+      qc.setQueryData(queryKeys.auth.session(), null);
       toast.success("Signed out");
     },
   });
@@ -74,7 +75,7 @@ export const useLogoutAll = () => {
     mutationFn: () => apiClient.post<void>("v1/auth/logout-all"),
     onSuccess: () => {
       qc.clear();
-      qc.setQueryData(["auth", "session"], null);
+      qc.setQueryData(queryKeys.auth.session(), null);
       toast.success("Signed out of all devices");
     },
   });
@@ -86,8 +87,8 @@ export const useSetup = () => {
     mutationFn: (body: { email: string; password: string; display_name: string }) =>
       apiClient.post<SessionResponse>("v1/auth/setup", body),
     onSuccess: (data) => {
-      qc.setQueryData(["auth", "session"], data);
-      qc.invalidateQueries({ queryKey: ["auth"] });
+      qc.setQueryData(queryKeys.auth.session(), data);
+      qc.invalidateQueries({ queryKey: queryKeys.auth.all() });
     },
   });
 };

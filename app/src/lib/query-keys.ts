@@ -1,0 +1,28 @@
+export const queryKeys = {
+  auth: {
+    all: () => ["auth"] as const,
+    setupStatus: () => ["auth", "setup-status"] as const,
+    session: () => ["auth", "session"] as const,
+  },
+  apiKeys: () => ["api-keys"] as const,
+  mcpServers: () => ["mcp-servers"] as const,
+  webhooks: () => ["webhooks"] as const,
+  embeddingPresets: () => ["embedding-presets"] as const,
+  preferences: () => ["preferences"] as const,
+  collections: {
+    all: () => ["collections"] as const,
+    one: (name: string) => ["collections", name] as const,
+    stats: (name: string) => ["collections", name, "stats"] as const,
+  },
+  documents: {
+    list: (collection: string) => ["documents", collection] as const,
+    one: (collection: string, id: string) => ["documents", collection, id] as const,
+    chunks: (collection: string, id: string) => ["documents", collection, id, "chunks"] as const,
+  },
+  s3Jobs: (collection: string) => ["s3-jobs", collection] as const,
+  platform: {
+    stats: () => ["platform", "stats"] as const,
+    readiness: () => ["platform", "readiness"] as const,
+    embeddingModels: () => ["platform", "embedding-models"] as const,
+  },
+} as const;

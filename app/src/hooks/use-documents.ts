@@ -4,15 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
+import { queryKeys } from "@/lib/query-keys";
 import type { Chunk, Document } from "@/types/bigrag";
 
 type DocListResponse = { documents: Document[]; total: number };
 
-export const docsKey = (collection: string) => ["documents", collection] as const;
-
 export const useDocuments = (collection: string, status?: string) =>
   useQuery({
-    queryKey: [...docsKey(collection), { status: status ?? "all" }],
+    queryKey: [...queryKeys.documents.list(collection), { status: status ?? "all" }],
     queryFn: () =>
       apiClient.get<DocListResponse>(`v1/collections/${encodeURIComponent(collection)}/documents`, {
         limit: 100,
@@ -24,7 +23,7 @@ export const useDocuments = (collection: string, status?: string) =>
 
 export const useDocument = (collection: string, docId: string) =>
   useQuery({
-    queryKey: [...docsKey(collection), docId],
+    queryKey: queryKeys.documents.one(collection, docId),
     queryFn: () =>
       apiClient.get<Document>(
         `v1/collections/${encodeURIComponent(collection)}/documents/${docId}`,
@@ -38,7 +37,7 @@ export const useDocument = (collection: string, docId: string) =>
 
 export const useChunks = (collection: string, docId: string) =>
   useQuery({
-    queryKey: [...docsKey(collection), docId, "chunks"],
+    queryKey: queryKeys.documents.chunks(collection, docId),
     queryFn: () =>
       apiClient.get<{ chunks: Chunk[]; total: number }>(
         `v1/collections/${encodeURIComponent(collection)}/documents/${docId}/chunks`,
@@ -59,7 +58,7 @@ export const useUploadDocuments = (collection: string) => {
       );
     },
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: docsKey(collection) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
       toast.success(`Queued ${res.total} document${res.total === 1 ? "" : "s"} for ingestion`);
     },
     onError: errorToast("Upload failed"),
@@ -74,7 +73,7 @@ export const useDeleteDocument = (collection: string) => {
         `v1/collections/${encodeURIComponent(collection)}/documents/${docId}`,
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: docsKey(collection) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
       toast.success("Document deleted");
     },
   });
@@ -88,7 +87,7 @@ export const useReprocessDocument = (collection: string) => {
         `v1/collections/${encodeURIComponent(collection)}/documents/${docId}/reprocess`,
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: docsKey(collection) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
       toast.success("Reprocessing queued");
     },
   });

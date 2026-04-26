@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
+import { queryKeys } from "@/lib/query-keys";
 import type { S3Job } from "@/types/bigrag";
 
 type S3JobListResponse = { jobs: S3Job[]; total: number };
@@ -20,11 +21,9 @@ export type CreateS3JobBody = {
   metadata?: Record<string, unknown>;
 };
 
-export const s3JobsKey = (collection: string) => ["s3-jobs", collection] as const;
-
 export const useS3Jobs = (collection: string) =>
   useQuery({
-    queryKey: s3JobsKey(collection),
+    queryKey: queryKeys.s3Jobs(collection),
     queryFn: () =>
       apiClient.get<S3JobListResponse>(`v1/collections/${encodeURIComponent(collection)}/s3-jobs`, {
         limit: 100,
@@ -48,7 +47,7 @@ export const useCreateS3Job = (collection: string) => {
         body,
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: s3JobsKey(collection) });
+      qc.invalidateQueries({ queryKey: queryKeys.s3Jobs(collection) });
       toast.success("S3 ingestion job started");
     },
     onError: errorToast("Failed to start S3 job"),
@@ -63,7 +62,7 @@ export const useDeleteS3Job = (collection: string) => {
         `v1/collections/${encodeURIComponent(collection)}/s3-jobs/${jobId}`,
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: s3JobsKey(collection) });
+      qc.invalidateQueries({ queryKey: queryKeys.s3Jobs(collection) });
       toast.success("Job deleted");
     },
   });
@@ -77,7 +76,7 @@ export const useResyncS3Job = (collection: string) => {
         `v1/collections/${encodeURIComponent(collection)}/s3-jobs/${jobId}/resync`,
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: s3JobsKey(collection) });
+      qc.invalidateQueries({ queryKey: queryKeys.s3Jobs(collection) });
       toast.success("Resync queued");
     },
   });

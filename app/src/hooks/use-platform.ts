@@ -2,18 +2,19 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import type { PlatformStats, ReadinessReport } from "@/types/bigrag";
 
 export const usePlatformStats = () =>
   useQuery({
-    queryKey: ["platform", "stats"],
+    queryKey: queryKeys.platform.stats(),
     queryFn: () => apiClient.get<PlatformStats>("v1/stats"),
     refetchInterval: 15_000,
   });
 
 export const useReadiness = () =>
   useQuery({
-    queryKey: ["platform", "readiness"],
+    queryKey: queryKeys.platform.readiness(),
     queryFn: async (): Promise<ReadinessReport> => {
       const res = await fetch("/api/bigrag/health/ready", {
         credentials: "include",
@@ -30,7 +31,7 @@ export const useReadiness = () =>
 
 export const useEmbeddingModels = () =>
   useQuery({
-    queryKey: ["platform", "embedding-models"],
+    queryKey: queryKeys.platform.embeddingModels(),
     queryFn: () =>
       apiClient.get<{
         models: { provider: string; model: string; dimension: number; description: string }[];

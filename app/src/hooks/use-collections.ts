@@ -4,29 +4,28 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
+import { queryKeys } from "@/lib/query-keys";
 import type { Collection, CollectionStats } from "@/types/bigrag";
 
 type ListResponse = { collections: Collection[]; total: number };
 
-export const collectionsKey = ["collections"] as const;
-
 export const useCollections = () =>
   useQuery({
-    queryKey: collectionsKey,
+    queryKey: queryKeys.collections.all(),
     queryFn: () => apiClient.get<ListResponse>("v1/collections", { limit: 200 }),
     staleTime: 15_000,
   });
 
 export const useCollection = (name: string) =>
   useQuery({
-    queryKey: [...collectionsKey, name],
+    queryKey: queryKeys.collections.one(name),
     queryFn: () => apiClient.get<Collection>(`v1/collections/${encodeURIComponent(name)}`),
     enabled: !!name,
   });
 
 export const useCollectionStats = (name: string) =>
   useQuery({
-    queryKey: [...collectionsKey, name, "stats"],
+    queryKey: queryKeys.collections.stats(name),
     queryFn: () =>
       apiClient.get<CollectionStats>(`v1/collections/${encodeURIComponent(name)}/stats`),
     enabled: !!name,
@@ -57,7 +56,7 @@ export const useCreateCollection = () => {
   return useMutation({
     mutationFn: (body: CreateCollectionBody) => apiClient.post<Collection>("v1/collections", body),
     onSuccess: (c) => {
-      qc.invalidateQueries({ queryKey: collectionsKey });
+      qc.invalidateQueries({ queryKey: queryKeys.collections.all() });
       toast.success(`Collection "${c.name}" created`);
     },
     onError: errorToast("Failed to create"),
@@ -70,7 +69,7 @@ export const useUpdateCollection = (name: string) => {
     mutationFn: (body: Partial<CreateCollectionBody>) =>
       apiClient.put<Collection>(`v1/collections/${encodeURIComponent(name)}`, body),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: collectionsKey });
+      qc.invalidateQueries({ queryKey: queryKeys.collections.all() });
       toast.success("Collection updated");
     },
     onError: errorToast("Failed to update"),
@@ -83,7 +82,7 @@ export const useDeleteCollection = () => {
     mutationFn: (name: string) =>
       apiClient.delete<{ status: string }>(`v1/collections/${encodeURIComponent(name)}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: collectionsKey });
+      qc.invalidateQueries({ queryKey: queryKeys.collections.all() });
       toast.success("Collection deleted");
     },
     onError: errorToast("Failed to delete"),
@@ -96,7 +95,7 @@ export const useTruncateCollection = (name: string) => {
     mutationFn: () =>
       apiClient.post<{ status: string }>(`v1/collections/${encodeURIComponent(name)}/truncate`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: collectionsKey });
+      qc.invalidateQueries({ queryKey: queryKeys.collections.all() });
       toast.success("All documents removed from collection");
     },
     onError: errorToast("Failed to truncate"),

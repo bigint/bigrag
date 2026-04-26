@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 
 export type PlaygroundPrefs = {
   openai_key?: string;
@@ -15,7 +16,7 @@ export type Preferences = {
   playground?: PlaygroundPrefs;
 };
 
-const KEY = ["preferences"] as const;
+const KEY = queryKeys.preferences();
 
 export const usePreferences = () =>
   useQuery({

@@ -4,9 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
+import { queryKeys } from "@/lib/query-keys";
 import type { CreatedMcpServer, McpServer } from "@/types/bigrag";
 
-const KEY = ["mcp-servers"] as const;
+const KEY = queryKeys.mcpServers();
 
 export const useMcpServers = () =>
   useQuery({
