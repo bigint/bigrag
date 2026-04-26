@@ -31,7 +31,9 @@ export const useSession = () =>
       try {
         return await apiClient.get<SessionResponse>("v1/auth/me");
       } catch (err: unknown) {
-        if (err instanceof Error && "response" in err) {
+        const status = (err as { response?: { status?: number }; status?: number }).response
+          ?.status ?? (err as { status?: number }).status;
+        if (status === 401) {
           return null;
         }
         throw err;
@@ -58,8 +60,8 @@ export const useLogout = () => {
   return useMutation({
     mutationFn: () => apiClient.post<void>("v1/auth/logout"),
     onSuccess: () => {
+      qc.clear();
       qc.setQueryData(["auth", "session"], null);
-      qc.invalidateQueries();
       toast.success("Signed out");
     },
   });
@@ -70,8 +72,8 @@ export const useLogoutAll = () => {
   return useMutation({
     mutationFn: () => apiClient.post<void>("v1/auth/logout-all"),
     onSuccess: () => {
+      qc.clear();
       qc.setQueryData(["auth", "session"], null);
-      qc.invalidateQueries();
       toast.success("Signed out of all devices");
     },
   });

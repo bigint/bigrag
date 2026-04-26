@@ -720,7 +720,7 @@ return `BIGRAG_URL=${sq(origin)} BIGRAG_API_KEY=${sq(plaintext)} bigrag-mcp`;
 
 ---
 
-#### `[ ]` I-037 🟠 `useSession` swallows non-401 errors as "logged out"
+#### `[x]` I-037 🟠 `useSession` swallows non-401 errors as "logged out"
 
 **File:** `app/src/hooks/use-auth.ts:30-37`
 
@@ -736,7 +736,7 @@ throw err;
 
 ---
 
-#### `[ ]` I-038 🟠 Logout invalidates *all* queries → 401 storm before redirect
+#### `[x]` I-038 🟠 Logout invalidates *all* queries → 401 storm before redirect
 
 **File:** `app/src/hooks/use-auth.ts:59-64,71-76`
 
