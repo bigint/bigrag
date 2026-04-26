@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { useCollections } from "@/hooks/use-collections";
+import { useDocuments } from "@/hooks/use-documents";
 import { usePreferences, useUpdatePreferences } from "@/hooks/use-preferences";
 import { apiClient } from "@/lib/api";
 import { streamOpenAI } from "@/lib/openai-stream";
@@ -25,7 +26,9 @@ const newId = () =>
 const DEFAULT_SYSTEM =
   "You are a helpful assistant. Answer the user's question using ONLY the context below. " +
   "If the answer isn't in the context, say you don't know — don't make things up. " +
-  "Cite chunk numbers like [1], [2] when you use them.";
+  "Cite the chunks you use with their bracketed numbers like [1], [2]. " +
+  "When a chunk includes a source label such as `(source.pdf, page 5)`, mention the page in prose " +
+  "alongside the bracket so the reader can verify quickly.";
 
 const DEFAULT_STATE: PlaygroundState = {
   openaiKey: "",
@@ -51,6 +54,14 @@ const PlaygroundPage = () => {
   const updatePrefs = useUpdatePreferences();
   const { data: collectionsData, isPending: collectionsLoading } = useCollections();
   const collections = useMemo(() => collectionsData?.collections ?? [], [collectionsData]);
+  const [collection, setCollection] = useState("");
+  const { data: documentsData } = useDocuments(collection);
+  const documents = useMemo(() => documentsData?.documents ?? [], [documentsData]);
+  const documentMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const d of documents) m.set(d.id, d.filename);
+    return m;
+  }, [documents]);
 
   const state: PlaygroundState = useMemo(() => {
     const p = prefsQuery.data?.data.playground ?? {};
@@ -73,7 +84,6 @@ const PlaygroundPage = () => {
     updatePrefs.mutate({ playground: mapped });
   };
 
-  const [collection, setCollection] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -141,7 +151,16 @@ const PlaygroundPage = () => {
       ),
     );
 
-    const context = chunks.map((c, i) => `[${i + 1}] ${c.text}`).join("\n\n---\n\n");
+    const context = chunks
+      .map((c, i) => {
+        const filename = c.document_id ? documentMap.get(c.document_id) : undefined;
+        const parts: string[] = [];
+        if (filename) parts.push(filename);
+        if (typeof c.page_no === "number") parts.push(`page ${c.page_no}`);
+        const label = parts.length > 0 ? ` (${parts.join(", ")})` : "";
+        return `[${i + 1}]${label} ${c.text}`;
+      })
+      .join("\n\n---\n\n");
     const contextBlock = context || "(no matching chunks were found)";
 
     const controller = new AbortController();
@@ -233,7 +252,7 @@ const PlaygroundPage = () => {
           {messages.length === 0 ? (
             <EmptyPrompts onSelect={handleSend} disabled={!state.openaiKey || !collection} />
           ) : (
-            <ChatMessages isStreaming={isStreaming} messages={messages} />
+            <ChatMessages documents={documents} isStreaming={isStreaming} messages={messages} />
           )}
           <ChatInput
             collection={collection}

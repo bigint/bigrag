@@ -10,10 +10,10 @@ Studio is the Next.js admin UI packaged with bigRAG. Every control is also a RES
 ## Running Studio
 
 ```bash
-pnpm dev:app        # Studio on http://localhost:3100
+pnpm dev:app        # Studio on http://localhost:3000
 ```
 
-Studio proxies every request through `/api/bigrag/[...path]` onto the backend (default `http://localhost:6100`). Session cookies are forwarded automatically.
+Studio proxies every request through `/api/bigrag/[...path]` onto the backend (default `http://localhost:4000`). Session cookies are forwarded automatically.
 
 ## Route map
 
@@ -52,6 +52,10 @@ Studio subscribes to `GET /v1/collections/{name}/events` for collection-wide doc
 ## Playground specifics
 
 The playground sends full query bodies to `POST /v1/query` (multi-collection) or `POST /v1/collections/{name}/query` (single) and renders the `timings`, `cached` flag, and `facets` inline so you can tune performance directly against production data. Preferences (last-used mode, default collection, theme) persist via `/v1/preferences`.
+
+### Citations
+
+Retrieved chunks carry citation provenance — `document_id`, `chunk_index`, and Docling-derived `page_no` / `char_start` / `char_end` (see [`QueryResult`](/docs/api-reference/query)). The playground hands every chunk to the LLM as `[N] (filename, page X) <text>` and instructs the model to cite with bracketed numbers. In the rendered answer, every `[N]` token is a clickable link that expands the **View sources** panel and scrolls to the matching source card; the card itself shows the document filename, chunk index, page badge, and character offsets when present.
 
 <Callout type="info">
 Studio uses session cookies exclusively. To automate anything Studio does, mint an API key at `/api-keys` and use it with one of the [SDKs](/docs/sdks/typescript) — or with raw HTTP using the same REST endpoints.
