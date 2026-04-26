@@ -985,6 +985,3 @@ async def document_progress_sse(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
-
-
-from bigrag.services import pii  # noqa: E402, F401
