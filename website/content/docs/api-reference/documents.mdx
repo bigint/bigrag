@@ -175,6 +175,14 @@ POST /v1/collections/{collection_name}/documents/batch/upload
 
 Upload up to 100 files in one request. Each file goes through the same extension sniffing, metadata-schema validation, moderation, and `content_hash` deduplication pipeline as the single-file upload endpoint.
 
+```bash
+curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/upload \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -F "files=@paper1.pdf" \
+  -F "files=@paper2.pdf" \
+  -F 'metadata={"source": "batch-import"}'
+```
+
 **Response** `201`:
 
 ```json
@@ -205,13 +213,13 @@ If queueing fails for an item, that document is still returned but with `status:
 POST /v1/collections/{collection_name}/documents/batch/status
 ```
 
-Request body:
+Check status of up to 100 documents.
 
 ```json
-{ "document_ids": ["doc-1", "doc-2"] }
+{ "document_ids": ["doc-id-1", "doc-id-2"] }
 ```
 
-Returns `status`, `chunk_count`, and `error_message` for each found document.
+Returns `id`, `status`, `chunk_count`, and `error_message` for each found document.
 
 ## Batch Get
 
@@ -219,13 +227,38 @@ Returns `status`, `chunk_count`, and `error_message` for each found document.
 POST /v1/collections/{collection_name}/documents/batch/get
 ```
 
-Request body:
+Fetch full metadata for up to 100 documents by ID.
 
 ```json
-{ "document_ids": ["doc-1", "doc-2"] }
+{ "document_ids": ["doc-id-1", "doc-id-2"] }
 ```
 
-Returns the full document objects for each found document.
+**Response** `200`:
+
+```json
+{
+  "documents": [
+    {
+      "id": "doc-id-1",
+      "collection_id": "...",
+      "filename": "paper.pdf",
+      "file_type": "pdf",
+      "file_size": 1048576,
+      "chunk_count": 24,
+      "status": "ready",
+      "error_message": null,
+      "metadata": {},
+      "content_hash": "sha256:7f3c…",
+      "deduped": false,
+      "created_at": "...",
+      "updated_at": "..."
+    }
+  ],
+  "total": 1
+}
+```
+
+Unlike Batch Status (which returns only `id`, `status`, `error_message`, `chunk_count`), this endpoint returns the complete document object including `filename`, `file_size`, `file_type`, and `metadata`.
 
 ## Batch Delete
 
@@ -233,13 +266,23 @@ Returns the full document objects for each found document.
 POST /v1/collections/{collection_name}/documents/batch/delete
 ```
 
-Request body:
+Delete up to 100 documents. Partial success is supported — missing or failed deletes are returned in `errors` rather than aborting the whole batch.
 
 ```json
-{ "document_ids": ["doc-1", "doc-2"] }
+{ "document_ids": ["doc-id-1", "doc-id-2"] }
 ```
 
-Deletes documents in bulk and returns a per-document error list for any missing or failed deletes.
+**Response** `200`:
+
+```json
+{
+  "status": "ok",
+  "deleted": 2,
+  "errors": [
+    { "document_id": "doc-id-3", "error": "Document not found" }
+  ]
+}
+```
 
 ## Global Document Lookup
 
@@ -454,94 +497,3 @@ data: {"step":"batch_progress","status":"processing","message":"2/5 documents do
 ```
 
 The stream completes when all documents reach `complete` or `failed` status.
-
-## Batch Upload
-
-```
-POST /v1/collections/{collection_name}/documents/batch/upload
-```
-
-Upload up to 100 documents in a single request.
-
-```bash
-curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/upload \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
-  -F "files=@paper1.pdf" \
-  -F "files=@paper2.pdf" \
-  -F 'metadata={"source": "batch-import"}'
-```
-
-## Batch Status
-
-```
-POST /v1/collections/{collection_name}/documents/batch/status
-```
-
-Check status of up to 100 documents.
-
-```json
-{ "document_ids": ["doc-id-1", "doc-id-2"] }
-```
-
-## Batch Get Documents
-
-```
-POST /v1/collections/{collection_name}/documents/batch/get
-```
-
-Fetch full metadata for up to 100 documents by ID.
-
-```json
-{ "document_ids": ["doc-id-1", "doc-id-2"] }
-```
-
-**Response** `200`:
-
-```json
-{
-  "documents": [
-    {
-      "id": "doc-id-1",
-      "collection_id": "...",
-      "filename": "paper.pdf",
-      "file_type": "pdf",
-      "file_size": 1048576,
-      "chunk_count": 24,
-      "status": "ready",
-      "error_message": null,
-      "metadata": {},
-      "content_hash": "sha256:7f3c…",
-      "deduped": false,
-      "created_at": "...",
-      "updated_at": "..."
-    }
-  ],
-  "total": 1
-}
-```
-
-Unlike Batch Status (which returns only `id`, `status`, `error_message`, `chunk_count`), this endpoint returns the complete document object including `filename`, `file_size`, `file_type`, and `metadata`.
-
-## Batch Delete
-
-```
-POST /v1/collections/{collection_name}/documents/batch/delete
-```
-
-Delete up to 100 documents. Partial success is supported.
-
-```json
-{ "document_ids": ["doc-id-1", "doc-id-2"] }
-```
-
-**Response** `200`:
-
-```json
-{
-  "status": "ok",
-  "deleted": 2,
-  "errors": [
-    { "document_id": "doc-id-3", "error": "Document not found" }
-  ]
-}
-```
