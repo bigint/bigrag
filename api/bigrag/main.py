@@ -85,8 +85,9 @@ async def lifespan(app: FastAPI):
     import asyncio
 
     from bigrag.services.cleanup import cleanup_old_data
+    from bigrag.utils import safe_create_task
 
-    cleanup_task = asyncio.create_task(cleanup_old_data())
+    cleanup_task = safe_create_task(cleanup_old_data(), name="cleanup")
 
     # Start the MCP streamable-http session manager (task group). Must
     # be entered before any /mcp request is served.
@@ -101,6 +102,10 @@ async def lifespan(app: FastAPI):
     if mcp_cm is not None:
         await mcp_cm.__aexit__(None, None, None)
     cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
     await ingestion_queue.stop()
     await dispatcher.stop()
     await event_bus.close()

@@ -487,7 +487,7 @@ database, copy the body into `0001`.
 
 ---
 
-#### `[ ]` I-023 🔴 Cleanup task isn't awaited; exception swallowed
+#### `[x]` I-023 🔴 Cleanup task isn't awaited; exception swallowed
 
 **File:** `api/bigrag/main.py:89,103`
 
