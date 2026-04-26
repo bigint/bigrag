@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
 import re
 import uuid
 from pathlib import Path
@@ -13,7 +12,7 @@ from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.config import settings
-from bigrag.db.models import Collection, Document
+from bigrag.db.models import Document
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
@@ -31,7 +30,19 @@ from bigrag.models.document import (
 )
 from bigrag.models.s3 import S3IngestRequest, S3IngestResponse
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
-from bigrag.services import audit, metadata_schema, moderation
+from bigrag.routers._documents import (
+    SUPPORTED_EXTENSIONS,
+    assert_collection_pin_matches,
+    document_response,
+    get_document_with_collection,
+    moderate_upload_content,
+    parse_form_metadata,
+    persist_document,
+    prepare_document_metadata,
+    read_upload_content,
+    recount_collection_documents,
+)
+from bigrag.services import audit
 from bigrag.services.event_bus import event_bus
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 from bigrag.services.ingestion_job import create_ingestion_job
@@ -42,204 +53,6 @@ from bigrag.services.vector_store import vector_store
 logger = get_logger("bigrag.routers.documents")
 
 router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["documents"])
-
-SUPPORTED_EXTENSIONS = {
-    ".pdf",
-    ".docx",
-    ".pptx",
-    ".xlsx",
-    ".html",
-    ".htm",
-    ".md",
-    ".txt",
-    ".csv",
-    ".tsv",
-    ".xml",
-    ".json",
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".tiff",
-    ".bmp",
-    ".gif",
-}
-
-
-def _document_response(doc: Document, *, deduped: bool = False) -> DocumentResponse:
-    return DocumentResponse(
-        id=str(doc.id),
-        collection_id=str(doc.collection_id),
-        filename=doc.filename,
-        file_type=doc.file_type,
-        file_size=doc.file_size,
-        chunk_count=doc.chunk_count,
-        status=doc.status,
-        error_message=doc.error_message,
-        metadata=doc.meta or {},
-        content_hash=doc.content_hash,
-        deduped=deduped,
-        created_at=doc.created_at,
-        updated_at=doc.updated_at,
-    )
-
-
-def _parse_form_metadata(raw_metadata: str) -> dict:
-    try:
-        parsed = json.loads(raw_metadata) if raw_metadata else {}
-    except json.JSONDecodeError:
-        return {}
-    return parsed if isinstance(parsed, dict) else {}
-
-
-def _prepare_document_metadata(collection: dict, metadata: dict) -> dict:
-    metadata_schema.validate(metadata, collection.get("metadata_schema"))
-    if collection.get("redact_pii"):
-        return {**metadata, "_redact_pii": True}
-    return metadata
-
-
-async def _moderate_upload_content(collection: dict, content: bytes) -> None:
-    if not collection.get("moderation_enabled"):
-        return
-    text_preview = content[:50_000].decode("utf-8", errors="ignore")
-    if not text_preview.strip():
-        return
-    flagged, reason = await moderation.check_text(
-        text_preview, collection.get("embedding_api_key") or settings.embedding_api_key
-    )
-    if flagged:
-        raise HTTPException(status_code=400, detail=f"Upload blocked: {reason}")
-
-
-async def _read_upload_content(file: UploadFile, *, max_size: int) -> bytes:
-    chunks = []
-    total_size = 0
-    while True:
-        chunk = await file.read(1024 * 1024)
-        if not chunk:
-            break
-        total_size += len(chunk)
-        if total_size > max_size:
-            raise HTTPException(
-                status_code=413,
-                detail=f"File too large. Max size: {settings.max_upload_size_mb}MB",
-            )
-        chunks.append(chunk)
-    return b"".join(chunks)
-
-
-async def _persist_document(
-    *,
-    session: AsyncSession,
-    collection_name: str,
-    collection: dict,
-    filename: str,
-    content: bytes,
-    metadata: dict,
-    content_hash: str,
-    raise_on_enqueue_failure: bool,
-) -> Document:
-    doc_id = uuid.uuid4()
-    file_ext = Path(filename or "document").suffix
-    storage_key = f"{collection_name}/{doc_id}{file_ext}"
-    storage = get_storage()
-
-    await storage.put(storage_key, content)
-    logger.info(f"upload: stored key={storage_key} size={len(content)}")
-
-    doc = Document(
-        id=doc_id,
-        collection_id=collection["id"],
-        filename=filename or "document",
-        file_type=file_ext.lstrip("."),
-        file_size=len(content),
-        file_path=storage_key,
-        content_hash=content_hash,
-        meta=dict(metadata),
-    )
-    session.add(doc)
-    try:
-        await session.commit()
-    except Exception:
-        await session.rollback()
-        await storage.delete(storage_key)
-        raise
-    await session.refresh(doc)
-    await _recount_collection_documents(session, collection["id"])
-    await session.commit()
-
-    try:
-        await ingestion_queue.enqueue(
-            create_ingestion_job(
-                document_id=str(doc_id),
-                file_path=storage_key,
-                collection_name=collection_name,
-                collection=collection,
-                fallback_api_key=settings.embedding_api_key,
-            )
-        )
-    except Exception as exc:
-        logger.exception(
-            "upload: enqueue failed, marking document failed",
-            doc_id=str(doc_id),
-            collection=collection_name,
-        )
-        doc.status = "failed"
-        doc.error_message = f"enqueue failed: {exc.__class__.__name__}: {exc}"
-        await session.commit()
-        await session.refresh(doc)
-        if raise_on_enqueue_failure:
-            raise HTTPException(
-                status_code=503,
-                detail=("Ingestion queue unavailable — document saved as failed, retry later."),
-            ) from exc
-
-    return doc
-
-
-def _assert_collection_pin_matches(user: dict, *, collection_name: str) -> None:
-    pinned = user.get("collection")
-    if pinned and pinned != collection_name:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                f"This API key is pinned to collection {pinned!r}; "
-                f"request targeted {collection_name!r}."
-            ),
-        )
-
-
-async def _get_document_with_collection(
-    session: AsyncSession,
-    document_id: str,
-) -> tuple[Document, str]:
-    row = (
-        await session.execute(
-            sa.select(Document, Collection.name)
-            .join(Collection, Collection.id == Document.collection_id)
-            .where(Document.id == uuid.UUID(document_id))
-        )
-    ).first()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Document not found")
-    doc, collection_name = row
-    return doc, collection_name
-
-
-async def _recount_collection_documents(
-    session: AsyncSession,
-    collection_id: uuid.UUID,
-) -> None:
-
-    subq = (
-        sa.select(sa.func.count())
-        .select_from(Document)
-        .where(Document.collection_id == collection_id)
-        .scalar_subquery()
-    )
-    await session.execute(
-        sa.update(Collection).where(Collection.id == collection_id).values(document_count=subq)
-    )
 
 
 @router.post("", response_model=DocumentResponse, status_code=201)
@@ -276,7 +89,7 @@ async def upload_document(
             detail=f"File too large. Max size: {settings.max_upload_size_mb}MB",
         )
 
-    content = await _read_upload_content(file, max_size=max_size)
+    content = await read_upload_content(file, max_size=max_size)
 
     if len(content) == 0:
         raise HTTPException(status_code=400, detail="File is empty")
@@ -287,11 +100,11 @@ async def upload_document(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
-        meta = _prepare_document_metadata(collection, _parse_form_metadata(metadata))
+        meta = prepare_document_metadata(collection, parse_form_metadata(metadata))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
 
-    await _moderate_upload_content(collection, content)
+    await moderate_upload_content(collection, content)
 
     content_hash = hashlib.sha256(content).hexdigest()
     existing = await session.scalar(
@@ -306,9 +119,9 @@ async def upload_document(
             content_hash=content_hash[:12],
             doc_id=str(existing.id),
         )
-        return _document_response(existing, deduped=True)
+        return document_response(existing, deduped=True)
 
-    doc = await _persist_document(
+    doc = await persist_document(
         session=session,
         collection_name=collection_name,
         collection=collection,
@@ -331,7 +144,7 @@ async def upload_document(
             "size": doc.file_size,
         },
     )
-    return _document_response(doc)
+    return document_response(doc)
 
 
 @router.get("", response_model=DocumentListResponse)
@@ -363,7 +176,7 @@ async def list_documents(
     total = await session.scalar(count_stmt)
 
     return DocumentListResponse(
-        documents=[_document_response(d) for d in docs],
+        documents=[document_response(d) for d in docs],
         total=total or 0,
     )
 
@@ -383,7 +196,7 @@ async def get_document(
     )
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    return _document_response(doc)
+    return document_response(doc)
 
 
 @router.delete("/{document_id}", response_model=StatusResponse)
@@ -408,7 +221,7 @@ async def delete_document(
     file_path = doc.file_path
     deleted_filename = doc.filename
     await session.delete(doc)
-    await _recount_collection_documents(session, collection["id"])
+    await recount_collection_documents(session, collection["id"])
     await session.commit()
 
     await get_storage().delete(file_path)
@@ -587,7 +400,7 @@ async def batch_upload_documents(
 
     max_size = settings.max_upload_size_mb * 1024 * 1024
     try:
-        shared_meta = _prepare_document_metadata(collection, _parse_form_metadata(metadata))
+        shared_meta = prepare_document_metadata(collection, parse_form_metadata(metadata))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
 
@@ -604,7 +417,7 @@ async def batch_upload_documents(
             )
 
         try:
-            content = await _read_upload_content(file, max_size=max_size)
+            content = await read_upload_content(file, max_size=max_size)
         except HTTPException as exc:
             raise HTTPException(
                 status_code=exc.status_code,
@@ -624,7 +437,7 @@ async def batch_upload_documents(
                 status_code=400,
                 detail=f"File '{file.filename}': {exc}",
             ) from exc
-        await _moderate_upload_content(collection, content)
+        await moderate_upload_content(collection, content)
         validated.append((file, content))
 
     created: list[DocumentResponse] = []
@@ -642,10 +455,10 @@ async def batch_upload_documents(
             if existing is not None:
                 seen_by_hash[content_hash] = existing
         if existing is not None:
-            created.append(_document_response(existing, deduped=True))
+            created.append(document_response(existing, deduped=True))
             continue
 
-        doc = await _persist_document(
+        doc = await persist_document(
             session=session,
             collection_name=collection_name,
             collection=collection,
@@ -656,7 +469,7 @@ async def batch_upload_documents(
             raise_on_enqueue_failure=False,
         )
         seen_by_hash[content_hash] = doc
-        created.append(_document_response(doc))
+        created.append(document_response(doc))
 
     logger.info(f"batch_upload: collection={collection_name} files={len(created)}")
     audit.record(
@@ -728,7 +541,7 @@ async def batch_get_documents(
         )
     ).all()
 
-    documents = [_document_response(d) for d in docs]
+    documents = [document_response(d) for d in docs]
     logger.info(
         f"batch_get: collection={collection_name} requested={len(uuids)} found={len(documents)}"
     )
@@ -780,7 +593,7 @@ async def batch_delete_documents(
     deleted_ids = [uuid.UUID(d) for d, ok in zip(by_id.keys(), results, strict=True) if ok]
     if deleted_ids:
         await session.execute(sa.delete(Document).where(Document.id.in_(deleted_ids)))
-    await _recount_collection_documents(session, collection["id"])
+    await recount_collection_documents(session, collection["id"])
     await session.commit()
 
     logger.info(
@@ -806,9 +619,9 @@ async def get_document_global(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    doc, collection_name = await _get_document_with_collection(session, document_id)
-    _assert_collection_pin_matches(user, collection_name=collection_name)
-    return _document_response(doc)
+    doc, collection_name = await get_document_with_collection(session, document_id)
+    assert_collection_pin_matches(user, collection_name=collection_name)
+    return document_response(doc)
 
 
 @global_router.get("/{document_id}/chunks")
@@ -819,8 +632,8 @@ async def get_document_chunks_global(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    doc, collection_name = await _get_document_with_collection(session, document_id)
-    _assert_collection_pin_matches(user, collection_name=collection_name)
+    doc, collection_name = await get_document_with_collection(session, document_id)
+    assert_collection_pin_matches(user, collection_name=collection_name)
     chunks, total = await vector_store.get_chunks(
         collection_name,
         document_id,
