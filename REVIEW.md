@@ -551,7 +551,7 @@ chunks variant slips through. Add an explicit rule.
 
 ---
 
-#### `[ ]` I-026 🟠 `enforce_collection_scope` allows pinned keys to mutate their pinned collection
+#### `[x]` I-026 🟠 `enforce_collection_scope` allows pinned keys to mutate their pinned collection
 
 **File:** `api/bigrag/services/collection_scope.py:46-63`
 

@@ -26,6 +26,11 @@ _FORBIDDEN_FOR_SCOPED: tuple[tuple[str, str], ...] = (
     ("GET", "/v1/collections"),
 )
 
+# Methods on /v1/collections/{name} itself that pinned keys must not use,
+# even when {name} matches their pin: reconfiguring or deleting the
+# collection is reserved for human admins.
+_FORBIDDEN_METHODS_ON_PINNED_COLLECTION = frozenset({"PUT", "DELETE"})
+
 
 def _extract_collection_name(path: str) -> str | None:
     """Return the collection name from a `/v1/collections/{name}/...`
@@ -41,9 +46,9 @@ def _extract_collection_name(path: str) -> str | None:
 async def enforce_collection_scope(request: Request, pinned: str) -> None:
     method = request.method
     path = request.url.path
+    stripped = path.rstrip("/")
 
-    # Exact match on /v1/collections (no sub-resource) — blocked.
-    if (method, path.rstrip("/")) in {(m, p) for m, p in _FORBIDDEN_FOR_SCOPED}:
+    if (method, stripped) in {(m, p) for m, p in _FORBIDDEN_FOR_SCOPED}:
         raise HTTPException(
             status_code=403,
             detail=(
@@ -52,12 +57,26 @@ async def enforce_collection_scope(request: Request, pinned: str) -> None:
             ),
         )
 
-    # Path-scoped endpoint: /v1/collections/{name}/...
     target = _extract_collection_name(path)
     if target is not None and target != pinned:
         raise HTTPException(
             status_code=403,
             detail=(
                 f"This API key is pinned to collection {pinned!r}; request targeted {target!r}."
+            ),
+        )
+
+    parts = stripped.strip("/").split("/")
+    is_collection_root = (
+        len(parts) == 3
+        and parts[0] == "v1"
+        and parts[1] == "collections"
+    )
+    if is_collection_root and method in _FORBIDDEN_METHODS_ON_PINNED_COLLECTION:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"This API key is pinned to collection {pinned!r}; reconfiguring or "
+                "deleting collections is not allowed."
             ),
         )
