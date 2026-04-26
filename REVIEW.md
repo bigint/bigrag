@@ -123,7 +123,7 @@ fetch the principal's `rate_limits` from the request scope (set there by
 
 ---
 
-#### `[ ]` I-004 🔴 Webhook DNS rebinding bypass on SSRF guard
+#### `[x]` I-004 🔴 Webhook DNS rebinding bypass on SSRF guard
 
 **File:** `api/bigrag/models/webhook.py:26-50`
 
