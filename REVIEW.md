@@ -235,7 +235,7 @@ expression API if/when available.
 
 ---
 
-#### `[ ]` I-009 🔴 `Content-Disposition` header injection via `doc.filename`
+#### `[x]` I-009 🔴 `Content-Disposition` header injection via `doc.filename`
 
 **File:** `api/bigrag/routers/documents.py:555-560`
 
