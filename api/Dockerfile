@@ -15,6 +15,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
 COPY pyproject.toml .
+COPY alembic.ini .
+COPY alembic/ alembic/
 COPY bigrag/ bigrag/
 RUN pip install --no-cache-dir .
 
