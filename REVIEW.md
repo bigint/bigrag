@@ -565,7 +565,7 @@ A read-only or upload-only pinned key can therefore `PUT` (mutate config) or
 
 ---
 
-#### `[ ]` I-027 🟠 No brute-force throttle on login/setup
+#### `[x]` I-027 🟠 No brute-force throttle on login/setup
 
 **File:** `api/bigrag/middleware/rate_limit.py:30-36`
 

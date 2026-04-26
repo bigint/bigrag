@@ -28,6 +28,8 @@ logger = get_logger("bigrag.rate_limit")
 
 # (method, path-prefix, limit-per-minute). First prefix match wins.
 _RULES: list[tuple[str, str, int]] = [
+    ("POST", "/v1/auth/login", 5),
+    ("POST", "/v1/auth/setup", 3),
     ("POST", "/v1/collections/{name}/documents", 10),
     ("POST", "/v1/collections/{name}/query", 60),
     ("POST", "/v1/query", 60),
