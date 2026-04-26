@@ -763,7 +763,7 @@ check setup → redirect to `/setup` or `/login`.
 
 ---
 
-#### `[ ]` I-040 🟠 Webhook URL form accepts `javascript:` scheme
+#### `[x]` I-040 🟠 Webhook URL form accepts `javascript:` scheme
 
 **File:** `app/src/app/(dashboard)/webhooks/components/webhook-form.tsx:71-73`
 

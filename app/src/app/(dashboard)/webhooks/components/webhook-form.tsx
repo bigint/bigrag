@@ -68,7 +68,10 @@ export const WebhookForm = ({ open, onClose, onCreated }: WebhookFormProps) => {
     setFormError(null);
     if (!url.trim()) return setFormError("URL is required");
     try {
-      new URL(url);
+      const parsed = new URL(url);
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        return setFormError("Webhook URL must use http or https");
+      }
     } catch {
       return setFormError("Please enter a valid URL");
     }
