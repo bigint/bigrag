@@ -26,10 +26,10 @@ docker compose up -d
 
 This starts:
 
-- **bigRAG API** on port `6100` (Swagger docs at `/docs`)
+- **bigRAG API** on port `4000` (Swagger docs at `/docs`)
 - **Milvus** vector database on port `19530`
-- **PostgreSQL** for metadata on port `5433`
-- **Redis** for the ingestion queue on port `6380`
+- **PostgreSQL** for metadata on port `5432`
+- **Redis** for the ingestion queue on port `6379`
 
 Pre-built images are published to Docker Hub:
 
@@ -81,7 +81,7 @@ The easiest way to start everything for development:
 
 This script:
 
-1. Kills stale processes on port 6100
+1. Kills stale processes on port 4000
 2. Validates required commands (`docker`, `python3`, `curl`)
 3. Starts Docker services (Postgres, Redis, Milvus) and waits for readiness
 4. Creates a Python virtualenv and installs dependencies
@@ -91,10 +91,10 @@ This script:
 ## Verify
 
 ```bash
-curl http://localhost:6100/health
+curl http://localhost:4000/health
 # → {"status": "ok", "version": "0.x.x"}
 ```
 
 <Callout type="info">
-  Interactive Swagger docs are available at [http://localhost:6100/docs](http://localhost:6100/docs) once the server is running. Database migrations run automatically on startup.
+  Interactive Swagger docs are available at [http://localhost:4000/docs](http://localhost:4000/docs) once the server is running. Database migrations run automatically on startup.
 </Callout>

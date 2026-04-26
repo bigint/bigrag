@@ -814,7 +814,7 @@ retry: { limit: 1, methods: ['get', 'head'] },
 **File:** `app/src/app/(auth)/login/page.tsx:43-47`
 
 When the backend is unreachable, the page shows the internal hostname (e.g.
-`http://bigrag-api.internal:6100`). Anyone who can hit the login screen during
+`http://bigrag-api.internal:4000`). Anyone who can hit the login screen during
 a backend hiccup learns the internal URL.
 
 **Fix:** Show the URL only when `process.env.NODE_ENV === "development"`. In
@@ -1094,7 +1094,7 @@ surfaced.
 
 **Fix:** Add a startup-guard warning when `env != "dev"` and `cors_origins` is
 empty. Set a sensible dev default like `["http://localhost:3000",
-"http://localhost:5173", "http://localhost:3100"]`.
+"http://localhost:5173", "http://localhost:3000"]`.
 
 ---
 
@@ -1760,7 +1760,7 @@ Full-workspace keys see 8 tools (adds `get_collection_stats` and
 **Files:** `README.md:297`, `docker-compose.yml:15`,
 `website/content/docs/deployment/docker.mdx:130`
 
-README env-var table shows `localhost:5433` (the bare-metal/dev default).
+README env-var table shows `localhost:5432` (the bare-metal/dev default).
 docker-compose overrides to `postgres:5432`. New users copying the README
 table for a Docker deployment hit a connection-refused.
 
@@ -1954,12 +1954,12 @@ URL is stale and editors warn.
 
 ---
 
-#### `[ ]` I-121 🟢 `dev.sh` doesn't kill stale 6100 process under `--infra`
+#### `[ ]` I-121 🟢 `dev.sh` doesn't kill stale 4000 process under `--infra`
 
 **File:** `dev.sh:60-72`
 
 The kill block runs only when `START_BACKEND` or `START_WEBSITE` is true.
-`./dev.sh --infra` skips it; an orphaned API process can survive on 6100.
+`./dev.sh --infra` skips it; an orphaned API process can survive on 4000.
 
 **Fix:** Run the kill block whenever `START_INFRA` is true.
 

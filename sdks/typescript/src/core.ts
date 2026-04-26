@@ -1,6 +1,6 @@
 import { APIConnectionError, APITimeoutError, errorForStatus } from "./errors.js";
 
-const DEFAULT_BASE_URL = "http://localhost:6100";
+const DEFAULT_BASE_URL = "http://localhost:4000";
 const DEFAULT_TIMEOUT = 120_000;
 const DEFAULT_MAX_RETRIES = 2;
 

@@ -13,19 +13,19 @@ class Settings(BaseSettings):
     env: Literal["dev", "prod"] = "dev"
 
     host: str = "0.0.0.0"
-    port: int = 6100
+    port: int = 4000
     workers: int = 4
     log_level: str = "info"
     log_format: str = "text"
     cors_origins: list[str] = []
 
-    database_url: str = "postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable"
+    database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
     db_pool_min: int = 5
     db_pool_max: int = 50
 
     milvus_uri: str = "http://localhost:19530"
 
-    redis_url: str = "redis://localhost:6380/0"
+    redis_url: str = "redis://localhost:6379/0"
 
     master_key: str | None = None
 

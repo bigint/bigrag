@@ -20,7 +20,7 @@ All documents within a collection use the same embedding model, ensuring consist
 ## Creating a Collection
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections \
+curl -X POST http://localhost:4000/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -60,7 +60,7 @@ curl -X POST http://localhost:6100/v1/collections \
 Get a lightweight summary of a collection's document and chunk counts without fetching platform-wide stats:
 
 ```bash
-curl http://localhost:6100/v1/collections/research_papers/stats \
+curl http://localhost:4000/v1/collections/research_papers/stats \
   -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 
@@ -71,7 +71,7 @@ Returns `document_count`, `total_chunks`, `total_tokens`, `total_size_bytes`, an
 Each collection can define default query settings that apply when not specified per-query:
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections \
+curl -X POST http://localhost:4000/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -89,7 +89,7 @@ When querying, if `top_k`, `min_score`, or `search_mode` are omitted, the collec
 Collections can enable server-side reranking using the Cohere Rerank API:
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections \
+curl -X POST http://localhost:4000/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -113,7 +113,7 @@ You can override reranking per query by passing `"rerank": true` or `"rerank": f
 You can update a collection's description, metadata, reranking settings, and default query settings:
 
 ```bash
-curl -X PUT http://localhost:6100/v1/collections/research_papers \
+curl -X PUT http://localhost:4000/v1/collections/research_papers \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -149,6 +149,6 @@ All fields are optional — only provided fields are updated.
 Deleting a collection removes all its documents and vectors:
 
 ```bash
-curl -X DELETE http://localhost:6100/v1/collections/research_papers \
+curl -X DELETE http://localhost:4000/v1/collections/research_papers \
   -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```

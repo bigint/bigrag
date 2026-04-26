@@ -43,7 +43,7 @@ const LoginPage = () => {
           <p className="mt-3 text-xs text-muted-foreground">
             Make sure the bigRAG server is running at{" "}
             <code className="rounded bg-muted px-1 py-0.5 font-mono">
-              {process.env.NEXT_PUBLIC_BIGRAG_URL ?? "http://localhost:6100"}
+              {process.env.NEXT_PUBLIC_BIGRAG_URL ?? "http://localhost:4000"}
             </code>
             .
           </p>

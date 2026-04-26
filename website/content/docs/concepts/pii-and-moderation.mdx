@@ -12,7 +12,7 @@ Two optional switches harden a collection against the content it ingests. Both a
 When `redact_pii: true` is set on a collection, text extracted by Docling is run through a PII scrubber **before** chunking and embedding. Emails, phone numbers, national IDs, credit card numbers, and a configurable name list are replaced with typed placeholders (`[EMAIL]`, `[PHONE]`, `[NAME]`, …).
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections \
+curl -X POST http://localhost:4000/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -47,7 +47,7 @@ PII redaction is best-effort. It catches common, well-structured PII but is not 
 When `moderation_enabled: true`, every upload's extracted text is scored by a moderation endpoint. Uploads that violate the policy are rejected with `400` and **never written** to storage or Milvus — the file is not retained.
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections \
+curl -X POST http://localhost:4000/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{

@@ -36,7 +36,7 @@ Upload documents directly via the API or SDKs. Accepts single files or batch upl
 Ingest files directly from an S3 bucket (or S3-compatible services like MinIO). Provide a bucket name and optional prefix to filter objects — all supported file types are ingested automatically and unsupported files are skipped.
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections/docs/documents/s3 \
+curl -X POST http://localhost:4000/v1/collections/docs/documents/s3 \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"bucket": "my-docs", "prefix": "reports/", "region": "us-east-1"}'
@@ -47,7 +47,7 @@ Each ingested document's metadata automatically includes `source: "s3"`, `s3_buc
 Public buckets (like [AWS Open Data](https://registry.opendata.aws/) datasets) are supported via the `no_sign_request` option — no credentials required:
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections/legal/documents/s3 \
+curl -X POST http://localhost:4000/v1/collections/legal/documents/s3 \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"bucket": "indian-supreme-court-judgments", "prefix": "judgments/2025/", "region": "ap-south-1", "no_sign_request": true}'
@@ -79,7 +79,7 @@ Documents transition through these states:
 Filter documents by status:
 
 ```bash
-curl "http://localhost:6100/v1/collections/research/documents?status=failed" \
+curl "http://localhost:4000/v1/collections/research/documents?status=failed" \
   -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 
@@ -102,7 +102,7 @@ Monitor document processing in real time via Server-Sent Events:
 
 ```javascript
 const eventSource = new EventSource(
-  "http://localhost:6100/v1/collections/research/documents/DOC_ID/progress"
+  "http://localhost:4000/v1/collections/research/documents/DOC_ID/progress"
 );
 
 eventSource.onmessage = (event) => {
@@ -126,26 +126,26 @@ Upload, check status, or delete multiple documents in a single request:
 
 ```bash
 # Batch upload (up to 100 files)
-curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/upload \
+curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/upload \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -F "files=@paper1.pdf" \
   -F "files=@paper2.pdf" \
   -F 'metadata={"source": "batch-import"}'
 
 # Batch status check
-curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/status \
+curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/status \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"document_ids": ["doc-id-1", "doc-id-2"]}'
 
 # Batch get full document metadata
-curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/get \
+curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/get \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"document_ids": ["doc-id-1", "doc-id-2"]}'
 
 # Batch delete
-curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/delete \
+curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/delete \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"document_ids": ["doc-id-1", "doc-id-2"]}'
@@ -160,6 +160,6 @@ curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/delete \
 Reprocess a document to re-parse, re-chunk, and re-embed it. Useful after changing collection settings or if processing previously failed:
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections/docs/documents/DOC_ID/reprocess \
+curl -X POST http://localhost:4000/v1/collections/docs/documents/DOC_ID/reprocess \
   -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```

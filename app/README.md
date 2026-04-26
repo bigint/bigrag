@@ -10,9 +10,9 @@ pnpm install
 pnpm dev:app
 ```
 
-Open http://localhost:3100. On first run the `/setup` page lets you create the
+Open http://localhost:3000. On first run the `/setup` page lets you create the
 initial admin account. The Studio talks to the bigRAG server set in
-`BIGRAG_URL` (defaults to `http://localhost:6100`).
+`BIGRAG_URL` (defaults to `http://localhost:4000`).
 
 ## Stack
 

@@ -4,7 +4,7 @@ const codeExample = `import { BigRAG } from "@bigrag/client";
 
 const client = new BigRAG({
   apiSecret: "your-api-secret",
-  baseUrl: "http://localhost:6100",
+  baseUrl: "http://localhost:4000",
 });
 
 // Upload, embed, and search — all in one platform

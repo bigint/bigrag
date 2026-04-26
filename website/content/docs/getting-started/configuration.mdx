@@ -18,14 +18,14 @@ env = "prod"                  # "dev" (default) or "prod" — prod enables start
 
 [server]
 host = "0.0.0.0"
-port = 6100
+port = 4000
 workers = 4
 log_level = "info"            # debug, info, warning, error
 log_format = "json"           # text or json
 cors_origins = ["https://app.example.com"]
 
 [database]
-url = "postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable"
+url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 pool_min = 5
 pool_max = 50
 
@@ -33,7 +33,7 @@ pool_max = 50
 uri = "http://localhost:19530"
 
 [redis]
-url = "redis://localhost:6380/0"
+url = "redis://localhost:6379/0"
 
 [session]
 expiry_hours = 168
@@ -83,7 +83,7 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_ENV` | `dev` or `prod`. Production mode refuses to start if CORS is `*`, cookies aren't `Secure`, or Postgres still uses the shipped default password | `dev` |
-| `BIGRAG_PORT` | Server port | `6100` |
+| `BIGRAG_PORT` | Server port | `4000` |
 | `BIGRAG_HOST` | Bind address | `0.0.0.0` |
 | `BIGRAG_WORKERS` | Uvicorn workers | `4` |
 | `BIGRAG_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`) | `info` |
@@ -94,9 +94,9 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BIGRAG_DATABASE_URL` | Postgres connection URL | `postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable` |
+| `BIGRAG_DATABASE_URL` | Postgres connection URL | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
 | `BIGRAG_MILVUS_URI` | Milvus connection URI | `http://localhost:19530` |
-| `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6380/0` |
+| `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
 | `BIGRAG_DB_POOL_MIN` | Min Postgres pool size | `5` |
 | `BIGRAG_DB_POOL_MAX` | Max Postgres pool size | `50` |
 

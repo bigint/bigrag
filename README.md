@@ -30,25 +30,25 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 docker compose up -d
 ```
 
-This starts bigRAG API, Postgres, Redis, and Milvus. Open http://localhost:6100/docs for the interactive API docs.
+This starts bigRAG API, Postgres, Redis, and Milvus. Open http://localhost:4000/docs for the interactive API docs.
 
 ```bash
 # Create a collection
-curl -X POST http://localhost:6100/v1/collections \
+curl -X POST http://localhost:4000/v1/collections \
   -H "Content-Type: application/json" \
   -d '{"name": "docs", "embedding_api_key": "sk-..."}'
 
 # Upload a document
-curl -X POST http://localhost:6100/v1/collections/docs/documents \
+curl -X POST http://localhost:4000/v1/collections/docs/documents \
   -F "file=@paper.pdf"
 
 # Ingest from a public S3 bucket
-curl -X POST http://localhost:6100/v1/collections/docs/documents/s3 \
+curl -X POST http://localhost:4000/v1/collections/docs/documents/s3 \
   -H "Content-Type: application/json" \
   -d '{"bucket": "indian-supreme-court-judgments", "prefix": "judgments/2025/", "region": "ap-south-1", "no_sign_request": true}'
 
 # Query
-curl -X POST http://localhost:6100/v1/collections/docs/query \
+curl -X POST http://localhost:4000/v1/collections/docs/query \
   -H "Content-Type: application/json" \
   -d '{"query": "What are the main findings?"}'
 ```
@@ -196,7 +196,7 @@ npm install @bigrag/client
 ```typescript
 import { BigRAG } from "@bigrag/client";
 
-const client = new BigRAG({ apiKey: "your-key", baseUrl: "http://localhost:6100" });
+const client = new BigRAG({ apiKey: "your-key", baseUrl: "http://localhost:4000" });
 
 // Upload a document
 const doc = await client.uploadDocument("docs", new File([pdf], "paper.pdf"));
@@ -226,7 +226,7 @@ pip install bigrag
 ```python
 from bigrag import BigRAG
 
-client = BigRAG(api_key="your-key", base_url="http://localhost:6100")
+client = BigRAG(api_key="your-key", base_url="http://localhost:4000")
 
 # Upload a document
 doc = await client.documents.upload("docs", "/path/to/paper.pdf")
@@ -254,7 +254,7 @@ bigrag = "0.1"
 ```rust
 use bigrag::BigRAG;
 
-let client = BigRAG::new("http://localhost:6100").with_api_key("your-key");
+let client = BigRAG::new("http://localhost:4000").with_api_key("your-key");
 let result = client.query("docs", "What is RAG?").top_k(10).send().await?;
 ```
 
@@ -292,10 +292,10 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BIGRAG_PORT` | Server port | `6100` |
-| `BIGRAG_DATABASE_URL` | Postgres URL | `postgres://bigrag:bigrag@localhost:5433/bigrag` |
+| `BIGRAG_PORT` | Server port | `4000` |
+| `BIGRAG_DATABASE_URL` | Postgres URL | `postgres://bigrag:bigrag@localhost:5432/bigrag` |
 | `BIGRAG_MILVUS_URI` | Milvus URI | `http://localhost:19530` |
-| `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6380/0` |
+| `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
 | `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
 | `BIGRAG_SESSION_COOKIE_SECURE` | HTTPS-only session cookies | `false` |
 | `BIGRAG_EMBEDDING_API_KEY` | Default embedding API key | — |

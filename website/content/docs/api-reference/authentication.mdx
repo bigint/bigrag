@@ -17,11 +17,11 @@ A fresh install has no users. The first admin is created via the one-time setup 
 
 ```bash
 # Check whether setup is still required
-curl http://localhost:6100/v1/auth/setup-status
+curl http://localhost:4000/v1/auth/setup-status
 # → {"needs_setup": true}
 
 # Create the first admin (works exactly once)
-curl -X POST http://localhost:6100/v1/auth/setup \
+curl -X POST http://localhost:4000/v1/auth/setup \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@example.com",
@@ -32,19 +32,19 @@ curl -X POST http://localhost:6100/v1/auth/setup \
 
 Once at least one admin exists, `setup-status` returns `{"needs_setup": false}` and `/v1/auth/setup` returns `409`.
 
-The Studio UI exposes the same flow at `http://localhost:3100/setup`.
+The Studio UI exposes the same flow at `http://localhost:3000/setup`.
 
 ## Session auth (Studio UI, browser)
 
 Logging in returns a `bigrag_session` cookie (configurable via `BIGRAG_SESSION_COOKIE_NAME`). All subsequent requests from that browser are authenticated by the cookie.
 
 ```bash
-curl -X POST http://localhost:6100/v1/auth/login \
+curl -X POST http://localhost:4000/v1/auth/login \
   -H "Content-Type: application/json" \
   -c cookies.txt \
   -d '{"email": "admin@example.com", "password": "a-strong-password"}'
 
-curl http://localhost:6100/v1/auth/me -b cookies.txt
+curl http://localhost:4000/v1/auth/me -b cookies.txt
 ```
 
 Session endpoints:
@@ -68,7 +68,7 @@ Some endpoints (create user, manage API keys, change passwords) require a **sess
 API keys are minted by an admin at `/v1/admin/api-keys` (or via Studio → **API keys**). The plaintext key is shown **once**:
 
 ```bash
-curl -X POST http://localhost:6100/v1/admin/api-keys \
+curl -X POST http://localhost:4000/v1/admin/api-keys \
   -b cookies.txt \
   -H "Content-Type: application/json" \
   -d '{"name": "ingestion-worker", "scopes": ["collection:read", "document:*"]}'
@@ -81,7 +81,7 @@ Send the key as a bearer token:
 <Tabs items={["Header", "Query (SSE only)"]}>
 <Tab value="Header">
 ```bash
-curl http://localhost:6100/v1/collections \
+curl http://localhost:4000/v1/collections \
   -H "Authorization: Bearer bigrag_sk_…"
 ```
 </Tab>
@@ -90,7 +90,7 @@ curl http://localhost:6100/v1/collections \
 # For EventSource / SSE clients that can't set headers. Only paths ending
 # in /events or /progress accept ?token= — every other endpoint requires
 # the Authorization header so the secret never lands in URL access logs.
-curl "http://localhost:6100/v1/collections/docs/events?token=bigrag_sk_…"
+curl "http://localhost:4000/v1/collections/docs/events?token=bigrag_sk_…"
 ```
 </Tab>
 </Tabs>

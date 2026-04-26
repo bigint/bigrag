@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-const BIGRAG_URL = process.env.BIGRAG_URL ?? "http://localhost:6100";
+const BIGRAG_URL = process.env.BIGRAG_URL ?? "http://localhost:4000";
 
 const ALLOWED_REQUEST_HEADERS = new Set([
   "accept",

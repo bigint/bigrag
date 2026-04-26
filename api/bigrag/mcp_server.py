@@ -345,7 +345,7 @@ def cli() -> None:
     )
     parser.add_argument(
         "--base-url",
-        default=os.getenv("BIGRAG_URL", "http://localhost:6100"),
+        default=os.getenv("BIGRAG_URL", "http://localhost:4000"),
         help="bigRAG server URL (env: BIGRAG_URL)",
     )
     parser.add_argument(

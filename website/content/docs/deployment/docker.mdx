@@ -29,7 +29,7 @@ This starts bigRAG API, Postgres, Redis, and Milvus.
 ### Verify
 
 ```bash
-curl http://localhost:6100/health
+curl http://localhost:4000/health
 ```
 </Step>
 </Steps>
@@ -43,7 +43,7 @@ services:
   bigrag:
     image: yoginth/bigrag:latest
     ports:
-      - "6100:6100"
+      - "4000:4000"
     volumes:
       - bigrag_data:/data
     environment:
@@ -127,10 +127,10 @@ volumes:
 
 | Service | Default Port |
 |---------|-------------|
-| bigRAG API | 6100 |
-| PostgreSQL | 5432 (5433 in dev) |
+| bigRAG API | 4000 |
+| PostgreSQL | 5432 |
 | Milvus | 19530 |
-| Redis | 6379 (6380 in dev) |
+| Redis | 6379 |
 
 ## Health Checks
 
@@ -143,10 +143,10 @@ bigRAG exposes two health endpoints:
 
 ```bash
 # Quick liveness check
-curl http://localhost:6100/health
+curl http://localhost:4000/health
 
 # Full readiness (checks all dependencies)
-curl http://localhost:6100/health/ready
+curl http://localhost:4000/health/ready
 
 # Infrastructure services
 docker exec bigrag-postgres pg_isready -U bigrag

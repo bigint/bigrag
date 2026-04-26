@@ -20,7 +20,7 @@ POST /v1/collections/{collection_name}/documents
 Upload a document for ingestion. Uses `multipart/form-data`.
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections/research/documents \
+curl -X POST http://localhost:4000/v1/collections/research/documents \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -F "file=@paper.pdf" \
   -F 'metadata={"author": "Smith", "year": 2026}'
@@ -274,7 +274,7 @@ POST /v1/collections/{collection_name}/documents/s3
 List objects in an S3 bucket (optionally filtered by prefix) and ingest all supported files.
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections/research/documents/s3 \
+curl -X POST http://localhost:4000/v1/collections/research/documents/s3 \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -290,7 +290,7 @@ curl -X POST http://localhost:6100/v1/collections/research/documents/s3 \
 For public buckets (like [AWS Open Data](https://registry.opendata.aws/)), use `no_sign_request` instead of credentials:
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections/legal/documents/s3 \
+curl -X POST http://localhost:4000/v1/collections/legal/documents/s3 \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -396,7 +396,7 @@ POST /v1/collections/{collection_name}/s3-jobs/{job_id}/resync
 Reset and re-run an existing S3 ingest job. Cancels the job if it is currently running, resets all counters, and starts a fresh ingestion pass. Already-ingested documents are skipped automatically.
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections/research/s3-jobs/{job_id}/resync \
+curl -X POST http://localhost:4000/v1/collections/research/s3-jobs/{job_id}/resync \
   -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 
@@ -420,7 +420,7 @@ DELETE /v1/collections/{collection_name}/s3-jobs/{job_id}
 Delete an S3 ingest job. Cancels the job if it is currently running.
 
 ```bash
-curl -X DELETE http://localhost:6100/v1/collections/research/s3-jobs/{job_id} \
+curl -X DELETE http://localhost:4000/v1/collections/research/s3-jobs/{job_id} \
   -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 
@@ -464,7 +464,7 @@ POST /v1/collections/{collection_name}/documents/batch/upload
 Upload up to 100 documents in a single request.
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections/docs/documents/batch/upload \
+curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/upload \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -F "files=@paper1.pdf" \
   -F "files=@paper2.pdf" \

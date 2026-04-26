@@ -21,7 +21,7 @@ import { BigRAG } from "@bigrag/client";
 
 const client = new BigRAG({
   apiKey: process.env.BIGRAG_API_KEY!, // bigrag_sk_... minted via /v1/admin/api-keys
-  baseUrl: "http://localhost:6100",
+  baseUrl: "http://localhost:4000",
 });
 
 // Create a collection
@@ -52,7 +52,7 @@ const { results } = await client.query("knowledge_base", {
 | Option | Default | Description |
 |--------|---------|-------------|
 | `apiKey` | `BIGRAG_API_KEY` env var | `bigrag_sk_…` key minted at [`/v1/admin/api-keys`](/docs/api-reference/api-keys). Omit for session-cookie auth (browser contexts). |
-| `baseUrl` | `http://localhost:6100` | bigRAG server URL |
+| `baseUrl` | `http://localhost:4000` | bigRAG server URL |
 | `timeout` | `120000` | Request timeout in ms |
 | `maxRetries` | `2` | Max retries on 5xx, 429, network errors |
 | `fetch` | `globalThis.fetch` | Custom fetch implementation |

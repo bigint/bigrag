@@ -58,13 +58,13 @@ If a feature is removed, remove it from the docs too. Never leave stale referenc
 ```bash
 ./dev.sh            # starts infra + backend
 ./dev.sh --website  # docs site only
-pnpm dev:app        # Studio admin UI on localhost:3100
+pnpm dev:app        # Studio admin UI on localhost:3000
 ```
 
-- Studio UI: http://localhost:3100 (first run → `/setup` to create admin)
-- Backend API: http://localhost:6100 (Swagger docs at /docs)
-- Postgres: localhost:5433
-- Redis: localhost:6380
+- Studio UI: http://localhost:3000 (first run → `/setup` to create admin)
+- Backend API: http://localhost:4000 (Swagger docs at /docs)
+- Postgres: localhost:5432
+- Redis: localhost:6379
 - Milvus: localhost:19530
 
 ## MCP server

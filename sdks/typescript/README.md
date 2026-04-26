@@ -17,7 +17,7 @@ import { BigRAG } from "@bigrag/client";
 
 const client = new BigRAG({
   apiKey: "your-api-key",
-  baseUrl: "http://localhost:6100",
+  baseUrl: "http://localhost:4000",
 });
 
 // List collections
@@ -44,7 +44,7 @@ for await (const event of client.streamDocumentProgress("my_collection", doc.id)
 | Option | Default | Description |
 | --- | --- | --- |
 | `apiKey` | `BIGRAG_API_KEY` env var | API key or session token |
-| `baseUrl` | `http://localhost:6100` | bigRAG server URL |
+| `baseUrl` | `http://localhost:4000` | bigRAG server URL |
 | `timeout` | `120000` | Request timeout in milliseconds |
 | `maxRetries` | `2` | Max retries on 5xx, 429, and network errors |
 | `fetch` | `globalThis.fetch` | Custom fetch implementation |

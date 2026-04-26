@@ -28,7 +28,7 @@ use bigrag::types::{CreateCollectionBody, QueryBody};
 
 #[tokio::main]
 async fn main() -> Result<(), bigrag::BigRagError> {
-    let client = BigRag::new("http://localhost:6100", "your-api-key");
+    let client = BigRag::new("http://localhost:4000", "your-api-key");
 
     // Create a collection
     let col = client.collections().create(CreateCollectionBody {
@@ -57,7 +57,7 @@ async fn main() -> Result<(), bigrag::BigRagError> {
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `base_url` | `http://localhost:6100` | bigRAG API URL |
+| `base_url` | `http://localhost:4000` | bigRAG API URL |
 | `api_key` | `BIGRAG_API_KEY` env var | API key for authentication |
 | `timeout` | `120s` | Request timeout |
 | `max_retries` | `2` | Max retries for transient errors |

@@ -18,7 +18,7 @@ bigRAG exposes three base search modes plus four query-time modifiers. The modif
 ### Semantic
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections/docs/query \
+curl -X POST http://localhost:4000/v1/collections/docs/query \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query": "What are the main findings about climate change?"}'
@@ -29,7 +29,7 @@ Best for natural language questions and conceptual queries.
 ### Keyword
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections/docs/query \
+curl -X POST http://localhost:4000/v1/collections/docs/query \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query": "ERR-4021", "search_mode": "keyword"}'
@@ -40,7 +40,7 @@ Best for exact terms, product codes, IDs, proper nouns.
 ### Hybrid
 
 ```bash
-curl -X POST http://localhost:6100/v1/collections/docs/query \
+curl -X POST http://localhost:4000/v1/collections/docs/query \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query": "error code ERR-4021 authentication", "search_mode": "hybrid"}'
@@ -160,7 +160,7 @@ Every response includes a `timings` breakdown — stages that didn't run report 
 ## Multi-Collection Query
 
 ```bash
-curl -X POST http://localhost:6100/v1/query \
+curl -X POST http://localhost:4000/v1/query \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query":"machine learning","collections":["docs","papers"],"top_k":20}'
@@ -173,7 +173,7 @@ Each result includes a `collection` field. Useful when you've split content acro
 Up to 20 independent queries, executed in parallel:
 
 ```bash
-curl -X POST http://localhost:6100/v1/batch/query \
+curl -X POST http://localhost:4000/v1/batch/query \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -187,7 +187,7 @@ curl -X POST http://localhost:6100/v1/batch/query \
 ## Analytics
 
 ```bash
-curl http://localhost:6100/v1/collections/docs/analytics \
+curl http://localhost:4000/v1/collections/docs/analytics \
   -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 

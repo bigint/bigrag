@@ -18,7 +18,7 @@ Webhooks push notifications when document processing state changes. They're usef
 ## Registering a Webhook
 
 ```bash
-curl -X POST http://localhost:6100/v1/admin/webhooks \
+curl -X POST http://localhost:4000/v1/admin/webhooks \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -84,7 +84,7 @@ Failed deliveries retry 3 times with exponential backoff (~10s, ~30s, ~90s). Aft
 Check delivery history:
 
 ```bash
-curl http://localhost:6100/v1/admin/webhooks/{id}/deliveries \
+curl http://localhost:4000/v1/admin/webhooks/{id}/deliveries \
   -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 
@@ -93,7 +93,7 @@ curl http://localhost:6100/v1/admin/webhooks/{id}/deliveries \
 Send a `webhook.test` event to verify your endpoint is reachable:
 
 ```bash
-curl -X POST http://localhost:6100/v1/admin/webhooks/{id}/test \
+curl -X POST http://localhost:4000/v1/admin/webhooks/{id}/test \
   -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 

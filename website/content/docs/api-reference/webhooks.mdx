@@ -21,7 +21,7 @@ POST /v1/admin/webhooks
 **Response** `201`: Webhook object with `secret` field (shown once only). The secret is Fernet-encrypted at rest — see [Encryption at rest](/docs/deployment/encryption).
 
 ```bash
-curl -X POST http://localhost:6100/v1/admin/webhooks \
+curl -X POST http://localhost:4000/v1/admin/webhooks \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{

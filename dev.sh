@@ -59,7 +59,7 @@ trap cleanup EXIT INT TERM
 # --- Kill stale processes on dev ports ---
 if [ "$START_BACKEND" = true ] || [ "$START_WEBSITE" = true ]; then
   ports=()
-  [ "$START_BACKEND" = true ] && ports+=(6100)
+  [ "$START_BACKEND" = true ] && ports+=(4000)
   [ "$START_WEBSITE" = true ] && ports+=(3100)
   for port in "${ports[@]}"; do
     stale=$(lsof -ti:"$port" 2>/dev/null || true)
@@ -132,9 +132,9 @@ if [ "$START_INFRA" = true ]; then
   done
 fi
 
-DATABASE_URL="postgres://bigrag:bigrag@localhost:5433/bigrag?sslmode=disable"
+DATABASE_URL="postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 MILVUS_URI="http://localhost:19530"
-REDIS_URL="redis://localhost:6380/0"
+REDIS_URL="redis://localhost:6379/0"
 
 # --- Python backend ---
 if [ "$START_BACKEND" = true ]; then
@@ -156,7 +156,7 @@ if [ "$START_BACKEND" = true ]; then
   BIGRAG_MASTER_KEY="$DEV_MASTER_KEY" \
   PYTHONUNBUFFERED=1 \
   uv run --directory "$ROOT_DIR/api" uvicorn bigrag.main:create_app \
-    --factory --host 0.0.0.0 --port 6100 \
+    --factory --host 0.0.0.0 --port 4000 \
     --reload --reload-dir "$ROOT_DIR/api/bigrag" \
     --log-level info 2>&1 | while IFS= read -r line; do printf '[backend] %s\n' "$line"; done &
   PIDS+=($!)
@@ -164,7 +164,7 @@ if [ "$START_BACKEND" = true ]; then
   # Wait for backend
   echo -e "${CYAN}Waiting for backend...${NC}"
   for i in $(seq 1 120); do
-    if curl -sf http://localhost:6100/health > /dev/null 2>&1; then
+    if curl -sf http://localhost:4000/health > /dev/null 2>&1; then
       echo -e "${GREEN}Backend is ready.${NC}"
       break
     fi
@@ -186,10 +186,10 @@ if [ "$START_WEBSITE" = true ]; then
 fi
 
 echo -e "\n${GREEN}Services started:${NC}"
-[ "$START_BACKEND" = true ] && echo -e "  Backend  → http://localhost:6100"
-[ "$START_BACKEND" = true ] && echo -e "  API Docs → http://localhost:6100/docs"
-[ "$START_INFRA" = true ]   && echo -e "  Postgres → localhost:5433"
-[ "$START_INFRA" = true ]   && echo -e "  Redis    → localhost:6380"
+[ "$START_BACKEND" = true ] && echo -e "  Backend  → http://localhost:4000"
+[ "$START_BACKEND" = true ] && echo -e "  API Docs → http://localhost:4000/docs"
+[ "$START_INFRA" = true ]   && echo -e "  Postgres → localhost:5432"
+[ "$START_INFRA" = true ]   && echo -e "  Redis    → localhost:6379"
 [ "$START_INFRA" = true ]   && echo -e "  Milvus   → localhost:19530"
 [ "$START_WEBSITE" = true ] && echo -e "  Website  → http://localhost:3100"
 echo -e "\n${YELLOW}Press Ctrl+C to stop all services.${NC}"
