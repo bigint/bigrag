@@ -60,6 +60,23 @@ const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: str
     }
   });
 
+  // `redirect: "manual"` keeps the upstream Location verbatim. If the
+  // backend ever emits a redirect to a third-party origin (or a relative
+  // path that resolves elsewhere), don't forward it to the browser.
+  if (upstream.status >= 300 && upstream.status < 400) {
+    const location = responseHeaders.get("location");
+    if (location) {
+      try {
+        const resolved = new URL(location, BIGRAG_URL);
+        if (resolved.origin !== new URL(BIGRAG_URL).origin) {
+          responseHeaders.delete("location");
+        }
+      } catch {
+        responseHeaders.delete("location");
+      }
+    }
+  }
+
   // SSE / event-stream endpoints must stream — buffering would break the
   // document-progress and collection-events routes.
   const isStream = (upstream.headers.get("content-type") ?? "").includes("text/event-stream");

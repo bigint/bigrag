@@ -255,7 +255,7 @@ Or use RFC 5987 encoding: `filename*=UTF-8''<percent-encoded>`.
 
 ---
 
-#### `[ ]` I-010 🔴 Open redirect via Studio proxy
+#### `[x]` I-010 🔴 Open redirect via Studio proxy
 
 **File:** `app/src/app/api/bigrag/[...path]/route.ts:40,68`
 
