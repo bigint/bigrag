@@ -15,6 +15,12 @@ logger = get_logger("bigrag.event_bus")
 
 CHANNEL_PREFIX = "bigrag:events:"
 
+# Sentinel payload published over Redis to signal stream end. Workers see
+# this in `_listen` and forward `None` to local subscriber queues so the
+# SSE generator returns even when the completing worker is not the one
+# holding the listener.
+_COMPLETE_MARKER = b'{"_complete":true}'
+
 
 @dataclass
 class IngestionEvent:
@@ -101,6 +107,10 @@ class EventBus:
                 if isinstance(channel, bytes):
                     channel = channel.decode()
                 key = channel.removeprefix(CHANNEL_PREFIX)
+                if message["data"] == _COMPLETE_MARKER:
+                    for q in self._subs.get(key, []):
+                        q.put_nowait(None)
+                    continue
                 event = IngestionEvent.deserialize(message["data"])
                 self._dispatch(key, event)
             except asyncio.CancelledError:
@@ -145,8 +155,25 @@ class EventBus:
             )
 
     def complete(self, document_id: str) -> None:
+        # Local fast-path so a single-worker setup doesn't pay a Redis round-trip.
         for q in self._subs.get(document_id, []):
             q.put_nowait(None)
+        if not self._redis:
+            return
+
+        async def _safe_publish() -> None:
+            try:
+                await self._redis.publish(
+                    f"{CHANNEL_PREFIX}{document_id}", _COMPLETE_MARKER
+                )
+            except Exception as e:
+                logger.warning(
+                    "event bus: complete publish failed",
+                    document_id=document_id,
+                    error=str(e),
+                )
+
+        asyncio.ensure_future(_safe_publish())
 
     async def stream(self, document_id: str) -> AsyncIterator[IngestionEvent]:
         q = self.subscribe(document_id)

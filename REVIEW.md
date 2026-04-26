@@ -337,7 +337,7 @@ back only jobs whose heartbeat key has expired.
 
 ---
 
-#### `[ ]` I-014 🔴 Multi-process SSE never receives "complete"
+#### `[x]` I-014 🔴 Multi-process SSE never receives "complete"
 
 **File:** `api/bigrag/services/event_bus.py:147-149`
 
