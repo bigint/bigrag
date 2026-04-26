@@ -34,12 +34,16 @@ New users return `{"data": {}}`.
 PUT /v1/auth/preferences
 ```
 
-Replaces the stored blob wholesale — merge client-side if you only want to patch one key.
+Shallow-merges the request body into the stored preferences. Top-level keys in the request are overwritten; keys not present in the request are preserved. Send an explicit `null` to clear a single key.
 
 ```json
 { "data": { "theme": "light" } }
 ```
 
-**Response** `200`: echoes the new `data`.
+The body may be either `{"data": {...}}` or a bare object — both are accepted.
+
+**Response** `200`: echoes the merged `data`.
+
+Sensitive paths (currently `playground.openai_key`) are Fernet-encrypted at rest when `BIGRAG_ENCRYPTION_KEY` is configured, and decrypted on `GET`.
 
 There is no size validation beyond the standard request-body limit, but keep payloads small (&lt;64 KB) — this isn't a document store.
