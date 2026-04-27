@@ -36,6 +36,7 @@ from bigrag.types.query import (
     QueryBody,
     QueryResponse,
 )
+from bigrag.types.s3 import S3IngestResponse, S3Job, S3JobListResponse, UpdateS3JobBody
 from bigrag.types.sse import ProgressEvent
 
 
@@ -152,6 +153,10 @@ class CollectionClient:
         """Get statistics for this collection."""
         return await self._client.collections.stats(self._name)
 
+    async def reembed(self) -> StatusResponse:
+        """Queue all ready/failed documents in this collection for re-embedding."""
+        return await self._client.collections.reembed(self._name)
+
     async def batch_delete(
         self, document_ids: list[str]
     ) -> BatchDeleteDocumentsResponse:
@@ -163,10 +168,16 @@ class CollectionClient:
         return await self._client.documents.reprocess(self._name, document_id)
 
     async def get_document_chunks(
-        self, document_id: str
+        self,
+        document_id: str,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
     ) -> DocumentChunkListResponse:
         """Get all chunks for a document."""
-        return await self._client.documents.get_chunks(self._name, document_id)
+        return await self._client.documents.get_chunks(
+            self._name, document_id, limit=limit, offset=offset
+        )
 
     async def query(self, body: QueryBody) -> QueryResponse:
         """Query this collection."""
@@ -176,9 +187,29 @@ class CollectionClient:
         """Get analytics for this collection."""
         return await self._client.get_analytics(self._name)
 
-    async def ingest_s3(self, **kwargs: Any) -> Any:
+    async def ingest_s3(self, **kwargs: Any) -> S3IngestResponse:
         """Ingest files from an S3 bucket into this collection."""
         return await self._client.documents.ingest_s3(self._name, **kwargs)
+
+    async def list_s3_jobs(self) -> S3JobListResponse:
+        """List S3 ingest jobs for this collection."""
+        return await self._client.documents.list_s3_jobs(self._name)
+
+    async def get_s3_job(self, job_id: str) -> S3Job:
+        """Retrieve an S3 ingest job."""
+        return await self._client.documents.get_s3_job(self._name, job_id)
+
+    async def update_s3_job(self, job_id: str, body: UpdateS3JobBody) -> S3Job:
+        """Update an S3 ingest job."""
+        return await self._client.documents.update_s3_job(self._name, job_id, body)
+
+    async def delete_s3_job(self, job_id: str) -> StatusResponse:
+        """Delete an S3 ingest job."""
+        return await self._client.documents.delete_s3_job(self._name, job_id)
+
+    async def resync_s3_job(self, job_id: str) -> StatusResponse:
+        """Re-sync an S3 ingest job."""
+        return await self._client.documents.resync_s3_job(self._name, job_id)
 
     async def stream_document_progress(
         self, document_id: str

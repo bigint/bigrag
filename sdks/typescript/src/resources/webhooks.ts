@@ -50,4 +50,11 @@ export class WebhooksResource {
   test(id: string): Promise<WebhookTestResponse> {
     return this._client._request("POST", `/v1/admin/webhooks/${encodeURIComponent(id)}/test`);
   }
+
+  replayDelivery(id: string, deliveryId: string): Promise<WebhookTestResponse> {
+    return this._client._request(
+      "POST",
+      `/v1/admin/webhooks/${encodeURIComponent(id)}/deliveries/${encodeURIComponent(deliveryId)}/replay`,
+    );
+  }
 }

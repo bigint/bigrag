@@ -140,7 +140,7 @@ class BigRAGCore:
     async def _request_form(
         self,
         path: str,
-        files: dict[str, Any],
+        files: Any,
         data: dict[str, Any] | None = None,
     ) -> Any:
         """Issue a ``multipart/form-data`` POST and return the parsed body."""

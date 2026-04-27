@@ -43,7 +43,13 @@ from bigrag.types.query import (
     QueryResponse,
     QueryResult,
 )
-from bigrag.types.s3 import S3IngestBody, S3IngestResponse
+from bigrag.types.s3 import (
+    S3IngestBody,
+    S3IngestResponse,
+    S3Job,
+    S3JobListResponse,
+    UpdateS3JobBody,
+)
 from bigrag.types.sse import ProgressEvent
 from bigrag.types.vectors import DeleteResponse, UpsertResponse, VectorEntry
 from bigrag.types.webhooks import (
@@ -115,6 +121,9 @@ __all__ = [
     # S3
     "S3IngestBody",
     "S3IngestResponse",
+    "S3Job",
+    "S3JobListResponse",
+    "UpdateS3JobBody",
     # SSE
     "ProgressEvent",
 ]

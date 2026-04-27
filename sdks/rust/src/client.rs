@@ -11,11 +11,13 @@ use crate::resources::webhooks::Webhooks;
 use crate::sse::SseStream;
 use crate::types::analytics::AnalyticsResponse;
 use crate::types::collections::CollectionStatsResponse;
-use crate::types::common::{HealthResponse, PlatformStatsResponse, ReadinessResponse, StatusResponse};
+use crate::types::common::{
+    HealthResponse, PlatformStatsResponse, ReadinessResponse, StatusResponse,
+};
 use crate::types::documents::{
     BatchDeleteDocumentsResponse, BatchGetDocumentsResponse, BatchStatusResponse, Document,
-    DocumentChunkListResponse, DocumentListOptions, DocumentListResponse, S3IngestBody,
-    S3IngestResponse, S3JobListResponse,
+    DocumentChunkListResponse, DocumentChunkOptions, DocumentListOptions, DocumentListResponse,
+    S3IngestBody, S3IngestResponse, S3Job, S3JobListResponse, UpdateS3JobBody,
 };
 use crate::types::embeddings::EmbeddingModelListResponse;
 use crate::types::query::{QueryBody, QueryResponse};
@@ -156,7 +158,10 @@ impl BigRag {
 
     /// Get analytics for a collection.
     pub async fn analytics(&self, collection: &str) -> Result<AnalyticsResponse, BigRagError> {
-        let path = format!("/v1/collections/{}/analytics", crate::core::urlencode(collection));
+        let path = format!(
+            "/v1/collections/{}/analytics",
+            crate::core::urlencode(collection)
+        );
         self.transport.get(&path, vec![]).await
     }
 }
@@ -266,7 +271,10 @@ impl CollectionClient<'_> {
         file: impl Into<FileInput>,
         metadata: Option<serde_json::Value>,
     ) -> Result<Document, BigRagError> {
-        self.client.documents().upload(&self.name, file, metadata).await
+        self.client
+            .documents()
+            .upload(&self.name, file, metadata)
+            .await
     }
 
     /// Batch upload files to this collection.
@@ -275,7 +283,10 @@ impl CollectionClient<'_> {
         files: Vec<FileInput>,
         metadata: Option<serde_json::Value>,
     ) -> Result<DocumentListResponse, BigRagError> {
-        self.client.documents().batch_upload(&self.name, files, metadata).await
+        self.client
+            .documents()
+            .batch_upload(&self.name, files, metadata)
+            .await
     }
 
     /// List documents in this collection.
@@ -293,32 +304,75 @@ impl CollectionClient<'_> {
 
     /// Delete a document from this collection.
     pub async fn delete_document(&self, document_id: &str) -> Result<StatusResponse, BigRagError> {
-        self.client.documents().delete(&self.name, document_id).await
+        self.client
+            .documents()
+            .delete(&self.name, document_id)
+            .await
     }
 
     /// Reprocess a document in this collection.
-    pub async fn reprocess_document(&self, document_id: &str) -> Result<StatusResponse, BigRagError> {
-        self.client.documents().reprocess(&self.name, document_id).await
+    pub async fn reprocess_document(
+        &self,
+        document_id: &str,
+    ) -> Result<StatusResponse, BigRagError> {
+        self.client
+            .documents()
+            .reprocess(&self.name, document_id)
+            .await
     }
 
     /// Get chunks for a document in this collection.
-    pub async fn get_document_chunks(&self, document_id: &str) -> Result<DocumentChunkListResponse, BigRagError> {
-        self.client.documents().get_chunks(&self.name, document_id).await
+    pub async fn get_document_chunks(
+        &self,
+        document_id: &str,
+    ) -> Result<DocumentChunkListResponse, BigRagError> {
+        self.get_document_chunks_with_options(document_id, None)
+            .await
+    }
+
+    /// Get chunks for a document in this collection with pagination options.
+    pub async fn get_document_chunks_with_options(
+        &self,
+        document_id: &str,
+        options: Option<DocumentChunkOptions>,
+    ) -> Result<DocumentChunkListResponse, BigRagError> {
+        self.client
+            .documents()
+            .get_chunks_with_options(&self.name, document_id, options)
+            .await
     }
 
     /// Get batch document status.
-    pub async fn batch_get_status(&self, document_ids: &[&str]) -> Result<BatchStatusResponse, BigRagError> {
-        self.client.documents().batch_get_status(&self.name, document_ids).await
+    pub async fn batch_get_status(
+        &self,
+        document_ids: &[&str],
+    ) -> Result<BatchStatusResponse, BigRagError> {
+        self.client
+            .documents()
+            .batch_get_status(&self.name, document_ids)
+            .await
     }
 
     /// Get batch documents.
-    pub async fn batch_get_documents(&self, document_ids: &[&str]) -> Result<BatchGetDocumentsResponse, BigRagError> {
-        self.client.documents().batch_get(&self.name, document_ids).await
+    pub async fn batch_get_documents(
+        &self,
+        document_ids: &[&str],
+    ) -> Result<BatchGetDocumentsResponse, BigRagError> {
+        self.client
+            .documents()
+            .batch_get(&self.name, document_ids)
+            .await
     }
 
     /// Batch delete documents.
-    pub async fn batch_delete(&self, document_ids: &[&str]) -> Result<BatchDeleteDocumentsResponse, BigRagError> {
-        self.client.documents().batch_delete(&self.name, document_ids).await
+    pub async fn batch_delete(
+        &self,
+        document_ids: &[&str],
+    ) -> Result<BatchDeleteDocumentsResponse, BigRagError> {
+        self.client
+            .documents()
+            .batch_delete(&self.name, document_ids)
+            .await
     }
 
     /// Ingest from S3.
@@ -331,6 +385,39 @@ impl CollectionClient<'_> {
         self.client.documents().list_s3_jobs(&self.name).await
     }
 
+    /// Get an S3 job.
+    pub async fn get_s3_job(&self, job_id: &str) -> Result<S3Job, BigRagError> {
+        self.client.documents().get_s3_job(&self.name, job_id).await
+    }
+
+    /// Update an S3 job.
+    pub async fn update_s3_job(
+        &self,
+        job_id: &str,
+        body: UpdateS3JobBody,
+    ) -> Result<S3Job, BigRagError> {
+        self.client
+            .documents()
+            .update_s3_job(&self.name, job_id, body)
+            .await
+    }
+
+    /// Delete an S3 job.
+    pub async fn delete_s3_job(&self, job_id: &str) -> Result<StatusResponse, BigRagError> {
+        self.client
+            .documents()
+            .delete_s3_job(&self.name, job_id)
+            .await
+    }
+
+    /// Re-sync an S3 job.
+    pub async fn resync_s3_job(&self, job_id: &str) -> Result<StatusResponse, BigRagError> {
+        self.client
+            .documents()
+            .resync_s3_job(&self.name, job_id)
+            .await
+    }
+
     /// Query this collection.
     pub async fn query(&self, body: QueryBody) -> Result<QueryResponse, BigRagError> {
         self.client.queries().query(&self.name, body).await
@@ -341,9 +428,17 @@ impl CollectionClient<'_> {
         self.client.collections().stats(&self.name).await
     }
 
+    /// Queue all ready/failed documents in this collection for re-embedding.
+    pub async fn reembed(&self) -> Result<StatusResponse, BigRagError> {
+        self.client.collections().reembed(&self.name).await
+    }
+
     /// Get collection analytics.
     pub async fn analytics(&self) -> Result<AnalyticsResponse, BigRagError> {
-        let path = format!("/v1/collections/{}/analytics", &self.name);
+        let path = format!(
+            "/v1/collections/{}/analytics",
+            crate::core::urlencode(&self.name)
+        );
         self.client.transport.get(&path, vec![]).await
     }
 
@@ -353,10 +448,15 @@ impl CollectionClient<'_> {
     }
 
     /// Stream processing progress for a document in this collection.
-    pub async fn stream_document_progress(&self, document_id: &str) -> Result<SseStream, BigRagError> {
-        self.client.documents().stream_progress(&self.name, document_id).await
+    pub async fn stream_document_progress(
+        &self,
+        document_id: &str,
+    ) -> Result<SseStream, BigRagError> {
+        self.client
+            .documents()
+            .stream_progress(&self.name, document_id)
+            .await
     }
-
 }
 
 #[cfg(test)]

@@ -86,6 +86,16 @@ impl Transport {
             .await
     }
 
+    /// PATCH request with a JSON body.
+    pub async fn patch<B: Serialize, T: DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T, BigRagError> {
+        self.request_with_retry(Method::PATCH, path, Some(body), vec![])
+            .await
+    }
+
     /// DELETE request.
     pub async fn delete<T: DeserializeOwned>(&self, path: &str) -> Result<T, BigRagError> {
         self.request_with_retry(Method::DELETE, path, None::<&()>, vec![])
@@ -113,10 +123,10 @@ impl Transport {
         })?;
 
         if response.status().is_success() {
-            response
-                .json()
-                .await
-                .map_err(|e| BigRagError::Api { status: 0, message: format!("response deserialization failed: {}", e) })
+            response.json().await.map_err(|e| BigRagError::Api {
+                status: 0,
+                message: format!("response deserialization failed: {}", e),
+            })
         } else {
             Err(parse_error_response(response).await)
         }
@@ -124,12 +134,7 @@ impl Transport {
 
     /// GET request that returns the raw response for SSE streaming. Not retried.
     pub async fn get_stream(&self, path: &str) -> Result<reqwest::Response, BigRagError> {
-        let mut url = format!("{}{}", self.base_url, path);
-        if let Some(key) = &self.api_key {
-            let separator = if url.contains('?') { '&' } else { '?' };
-            url = format!("{}{}token={}", url, separator, urlencode(key));
-        }
-
+        let url = format!("{}{}", self.base_url, path);
         let mut req = self.http.get(&url);
         if let Some(key) = &self.api_key {
             req = req.bearer_auth(key);
@@ -209,10 +214,10 @@ impl Transport {
         })?;
 
         if response.status().is_success() {
-            response
-                .json()
-                .await
-                .map_err(|e| BigRagError::Api { status: 0, message: format!("response deserialization failed: {}", e) })
+            response.json().await.map_err(|e| BigRagError::Api {
+                status: 0,
+                message: format!("response deserialization failed: {}", e),
+            })
         } else {
             Err(parse_error_response(response).await)
         }
@@ -243,9 +248,7 @@ mod tests {
         Mock::given(method("GET"))
             .and(path("/v1/test"))
             .and(header("Authorization", "Bearer test-key"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({"ok": true})),
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"ok": true})))
             .mount(&mock_server)
             .await;
 
@@ -325,17 +328,14 @@ mod tests {
         Mock::given(method("GET"))
             .and(path("/v1/flaky"))
             .respond_with(
-                ResponseTemplate::new(500)
-                    .set_body_json(serde_json::json!({"detail": "error"})),
+                ResponseTemplate::new(500).set_body_json(serde_json::json!({"detail": "error"})),
             )
             .up_to_n_times(1)
             .mount(&mock_server)
             .await;
         Mock::given(method("GET"))
             .and(path("/v1/flaky"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({"ok": true})),
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"ok": true})))
             .mount(&mock_server)
             .await;
 

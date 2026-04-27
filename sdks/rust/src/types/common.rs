@@ -6,7 +6,8 @@ pub struct StatusResponse {
     /// Status string, typically `"ok"`.
     pub status: String,
     /// Human-readable message.
-    pub message: String,
+    #[serde(default)]
+    pub message: Option<String>,
 }
 
 /// Pagination parameters for list endpoints.
@@ -106,7 +107,7 @@ mod tests {
         let json = r#"{"status":"ok","message":"Collection deleted"}"#;
         let resp: StatusResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.status, "ok");
-        assert_eq!(resp.message, "Collection deleted");
+        assert_eq!(resp.message.as_deref(), Some("Collection deleted"));
     }
 
     #[test]

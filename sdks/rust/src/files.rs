@@ -110,19 +110,25 @@ mod tests {
     #[test]
     fn test_from_str_creates_path() {
         let input: FileInput = "/tmp/test.pdf".into();
-        assert!(matches!(input, FileInput::Path(ref p) if p.as_path() == std::path::Path::new("/tmp/test.pdf")));
+        assert!(
+            matches!(input, FileInput::Path(ref p) if p.as_path() == std::path::Path::new("/tmp/test.pdf"))
+        );
     }
 
     #[test]
     fn test_from_string_creates_path() {
         let input: FileInput = String::from("/tmp/test.pdf").into();
-        assert!(matches!(input, FileInput::Path(ref p) if p.as_path() == std::path::Path::new("/tmp/test.pdf")));
+        assert!(
+            matches!(input, FileInput::Path(ref p) if p.as_path() == std::path::Path::new("/tmp/test.pdf"))
+        );
     }
 
     #[test]
     fn test_from_pathbuf_creates_path() {
         let input: FileInput = PathBuf::from("/tmp/test.pdf").into();
-        assert!(matches!(input, FileInput::Path(ref p) if p.as_path() == std::path::Path::new("/tmp/test.pdf")));
+        assert!(
+            matches!(input, FileInput::Path(ref p) if p.as_path() == std::path::Path::new("/tmp/test.pdf"))
+        );
     }
 
     #[test]

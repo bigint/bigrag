@@ -14,6 +14,10 @@ class Collection(TypedDict):
     dimension: int
     chunk_size: int
     chunk_overlap: int
+    chunk_strategy: str
+    index_type: str
+    tenant_field: str | None
+    has_metadata_schema: bool
     document_count: int
     has_api_key: bool
     reranking_enabled: bool
@@ -44,12 +48,19 @@ class CollectionStatsResponse(TypedDict):
 class CreateCollectionBody(TypedDict):
     name: str
     description: NotRequired[str]
+    embedding_preset_id: NotRequired[str]
     embedding_provider: NotRequired[str]
     embedding_model: NotRequired[str]
     embedding_api_key: NotRequired[str]
+    embedding_base_url: NotRequired[str]
     dimension: NotRequired[int]
     chunk_size: NotRequired[int]
     chunk_overlap: NotRequired[int]
+    chunk_strategy: NotRequired[str]
+    index_type: NotRequired[str]
+    tenant_field: NotRequired[str]
+    metadata_schema: NotRequired[dict[str, Any]]
+    metadata: NotRequired[dict[str, Any]]
     reranking_enabled: NotRequired[bool]
     reranking_model: NotRequired[str]
     reranking_api_key: NotRequired[str]
@@ -67,3 +78,5 @@ class UpdateCollectionBody(TypedDict, total=False):
     default_top_k: int
     default_min_score: float
     default_search_mode: str
+    chunk_strategy: str
+    metadata_schema: dict[str, Any]

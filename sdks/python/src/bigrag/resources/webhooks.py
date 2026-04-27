@@ -79,3 +79,13 @@ class WebhooksResource:
         return await self._client._request(
             "POST", f"/v1/admin/webhooks/{quote(id, safe='')}/test"
         )
+
+    async def replay_delivery(self, id: str, delivery_id: str) -> WebhookTestResponse:
+        """Replay a previous webhook delivery."""
+        return await self._client._request(
+            "POST",
+            (
+                f"/v1/admin/webhooks/{quote(id, safe='')}/deliveries/"
+                f"{quote(delivery_id, safe='')}/replay"
+            ),
+        )

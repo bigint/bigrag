@@ -166,9 +166,6 @@ export class DocumentsResource {
 
   getFileUrl(collection: string, documentId: string): string {
     const path = `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/file`;
-    if (this._client.apiKey) {
-      return `${this._client.baseUrl}${path}?token=${encodeURIComponent(this._client.apiKey)}`;
-    }
     return `${this._client.baseUrl}${path}`;
   }
 
@@ -264,14 +261,13 @@ export class DocumentsResource {
   ): AsyncGenerator<ProgressEvent> {
     const ids = documentIds.join(",");
     const path = `/v1/collections/${encodeURIComponent(collection)}/documents/batch/progress?ids=${encodeURIComponent(ids)}`;
-    const tokenParam = this._client.apiKey
-      ? `&token=${encodeURIComponent(this._client.apiKey)}`
-      : "";
-    const url = `${this._client.baseUrl}${path}${tokenParam}`;
+    const url = `${this._client.baseUrl}${path}`;
+    const headers: Record<string, string> = { "User-Agent": USER_AGENT };
+    if (this._client.apiKey) headers.Authorization = `Bearer ${this._client.apiKey}`;
 
     const response = await this._client._fetch(url, {
       method: "GET",
-      headers: { "User-Agent": USER_AGENT },
+      headers,
     });
 
     if (!response.ok) {
@@ -283,14 +279,13 @@ export class DocumentsResource {
 
   async *streamProgress(collection: string, documentId: string): AsyncGenerator<ProgressEvent> {
     const path = `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/progress`;
-    const tokenParam = this._client.apiKey
-      ? `?token=${encodeURIComponent(this._client.apiKey)}`
-      : "";
-    const url = `${this._client.baseUrl}${path}${tokenParam}`;
+    const url = `${this._client.baseUrl}${path}`;
+    const headers: Record<string, string> = { "User-Agent": USER_AGENT };
+    if (this._client.apiKey) headers.Authorization = `Bearer ${this._client.apiKey}`;
 
     const response = await this._client._fetch(url, {
       method: "GET",
-      headers: { "User-Agent": USER_AGENT },
+      headers,
     });
 
     if (!response.ok) {

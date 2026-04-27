@@ -15,6 +15,8 @@ class Document(TypedDict):
     status: str
     error_message: str | None
     metadata: dict[str, Any]
+    content_hash: str | None
+    deduped: bool
     created_at: str
     updated_at: str
 

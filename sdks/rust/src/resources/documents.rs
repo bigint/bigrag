@@ -8,8 +8,8 @@ use crate::sse::SseStream;
 use crate::types::common::StatusResponse;
 use crate::types::documents::{
     BatchDeleteDocumentsResponse, BatchGetDocumentsResponse, BatchStatusResponse, Document,
-    DocumentChunkListResponse, DocumentListOptions, DocumentListResponse, S3IngestBody,
-    S3IngestResponse, S3JobListResponse,
+    DocumentChunkListResponse, DocumentChunkOptions, DocumentListOptions, DocumentListResponse,
+    S3IngestBody, S3IngestResponse, S3Job, S3JobListResponse, UpdateS3JobBody,
 };
 
 /// Documents resource — upload, manage, and retrieve documents.
@@ -80,11 +80,7 @@ impl Documents<'_> {
     }
 
     /// Get a document by ID within a collection.
-    pub async fn get(
-        &self,
-        collection: &str,
-        document_id: &str,
-    ) -> Result<Document, BigRagError> {
+    pub async fn get(&self, collection: &str, document_id: &str) -> Result<Document, BigRagError> {
         let path = format!(
             "/v1/collections/{}/documents/{}",
             urlencode(collection),
@@ -130,29 +126,45 @@ impl Documents<'_> {
         collection: &str,
         document_id: &str,
     ) -> Result<DocumentChunkListResponse, BigRagError> {
+        self.get_chunks_with_options(collection, document_id, None)
+            .await
+    }
+
+    /// Get chunks for a document with pagination options.
+    pub async fn get_chunks_with_options(
+        &self,
+        collection: &str,
+        document_id: &str,
+        options: Option<DocumentChunkOptions>,
+    ) -> Result<DocumentChunkListResponse, BigRagError> {
+        let mut query = Vec::new();
+        if let Some(opts) = options {
+            if let Some(limit) = opts.limit {
+                query.push(("limit".into(), limit.to_string()));
+            }
+            if let Some(offset) = opts.offset {
+                query.push(("offset".into(), offset.to_string()));
+            }
+        }
         let path = format!(
             "/v1/collections/{}/documents/{}/chunks",
             urlencode(collection),
             urlencode(document_id)
         );
-        self.client.transport.get(&path, vec![]).await
+        self.client.transport.get(&path, query).await
     }
 
     /// Get the download URL for a document's original file.
     ///
-    /// Appends `?token=<api_key>` when an API key is configured, matching
-    /// the TypeScript SDK behaviour.
+    /// The API requires authentication for this URL; pass the client's bearer
+    /// token in an `Authorization` header when downloading it.
     pub fn get_file_url(&self, collection: &str, document_id: &str) -> String {
-        let base = format!(
+        format!(
             "{}/v1/collections/{}/documents/{}/file",
             self.client.config.base_url,
             urlencode(collection),
             urlencode(document_id)
-        );
-        match &self.client.config.api_key {
-            Some(key) => format!("{}?token={}", base, urlencode(key)),
-            None => base,
-        }
+        )
     }
 
     /// Get processing status for multiple documents.
@@ -214,12 +226,34 @@ impl Documents<'_> {
     }
 
     /// List S3 ingestion jobs for a collection.
-    pub async fn list_s3_jobs(
-        &self,
-        collection: &str,
-    ) -> Result<S3JobListResponse, BigRagError> {
+    pub async fn list_s3_jobs(&self, collection: &str) -> Result<S3JobListResponse, BigRagError> {
         let path = format!("/v1/collections/{}/s3-jobs", urlencode(collection));
         self.client.transport.get(&path, vec![]).await
+    }
+
+    /// Get an S3 ingestion job.
+    pub async fn get_s3_job(&self, collection: &str, job_id: &str) -> Result<S3Job, BigRagError> {
+        let path = format!(
+            "/v1/collections/{}/s3-jobs/{}",
+            urlencode(collection),
+            urlencode(job_id)
+        );
+        self.client.transport.get(&path, vec![]).await
+    }
+
+    /// Update an S3 ingestion job.
+    pub async fn update_s3_job(
+        &self,
+        collection: &str,
+        job_id: &str,
+        body: UpdateS3JobBody,
+    ) -> Result<S3Job, BigRagError> {
+        let path = format!(
+            "/v1/collections/{}/s3-jobs/{}",
+            urlencode(collection),
+            urlencode(job_id)
+        );
+        self.client.transport.patch(&path, &body).await
     }
 
     /// Delete an S3 ingestion job.
@@ -264,8 +298,26 @@ impl Documents<'_> {
         &self,
         document_id: &str,
     ) -> Result<DocumentChunkListResponse, BigRagError> {
+        self.get_chunks_by_id_with_options(document_id, None).await
+    }
+
+    /// Get chunks for a document by ID with pagination options.
+    pub async fn get_chunks_by_id_with_options(
+        &self,
+        document_id: &str,
+        options: Option<DocumentChunkOptions>,
+    ) -> Result<DocumentChunkListResponse, BigRagError> {
+        let mut query = Vec::new();
+        if let Some(opts) = options {
+            if let Some(limit) = opts.limit {
+                query.push(("limit".into(), limit.to_string()));
+            }
+            if let Some(offset) = opts.offset {
+                query.push(("offset".into(), offset.to_string()));
+            }
+        }
         let path = format!("/v1/documents/{}/chunks", urlencode(document_id));
-        self.client.transport.get(&path, vec![]).await
+        self.client.transport.get(&path, query).await
     }
 
     /// Stream processing progress for a single document via SSE.
@@ -289,7 +341,11 @@ impl Documents<'_> {
         collection: &str,
         document_ids: &[&str],
     ) -> Result<SseStream, BigRagError> {
-        let ids = document_ids.iter().map(|id| urlencode(id)).collect::<Vec<_>>().join(",");
+        let ids = document_ids
+            .iter()
+            .map(|id| urlencode(id))
+            .collect::<Vec<_>>()
+            .join(",");
         let path = format!(
             "/v1/collections/{}/documents/batch/progress?ids={}",
             urlencode(collection),

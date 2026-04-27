@@ -22,7 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "httpx>=0.28.0",
-    "httpx-sse>=0.4.0",
+    "typing_extensions>=4.0; python_version < '3.11'",
 ]
 
 [tool.hatch.build.targets.wheel]

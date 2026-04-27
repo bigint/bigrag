@@ -21,6 +21,14 @@ pub struct Collection {
     pub chunk_size: u32,
     /// Chunk overlap in tokens.
     pub chunk_overlap: u32,
+    /// Chunking algorithm (`"paragraph"` or `"recursive"`).
+    pub chunk_strategy: String,
+    /// Milvus index type (`"IVF_FLAT"` or `"HNSW"`).
+    pub index_type: String,
+    /// Optional metadata field used as a tenant partition key.
+    pub tenant_field: Option<String>,
+    /// Whether this collection validates document metadata against a schema.
+    pub has_metadata_schema: bool,
     /// Number of documents in the collection.
     pub document_count: u32,
     /// Whether an embedding API key is configured.
@@ -76,6 +84,9 @@ pub struct CreateCollectionBody {
     /// Collection description.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Embedding preset ID to derive provider/model/key/base URL/dimension.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embedding_preset_id: Option<String>,
     /// Embedding provider (`"openai"` or `"cohere"`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_provider: Option<String>,
@@ -85,6 +96,9 @@ pub struct CreateCollectionBody {
     /// Embedding API key (if not configured globally).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_api_key: Option<String>,
+    /// OpenAI-compatible embedding base URL.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embedding_base_url: Option<String>,
     /// Vector dimensionality (auto-detected if omitted).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dimension: Option<u32>,
@@ -94,6 +108,18 @@ pub struct CreateCollectionBody {
     /// Chunk overlap in tokens (must be less than chunk_size).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chunk_overlap: Option<u32>,
+    /// Chunking algorithm (`"paragraph"` or `"recursive"`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chunk_strategy: Option<String>,
+    /// Milvus index type (`"IVF_FLAT"` or `"HNSW"`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index_type: Option<String>,
+    /// Optional metadata field used as a tenant partition key.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tenant_field: Option<String>,
+    /// Optional JSON Schema used to validate document metadata.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata_schema: Option<serde_json::Value>,
     /// User-defined metadata.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
@@ -144,6 +170,12 @@ pub struct UpdateCollectionBody {
     /// Updated default search mode.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_search_mode: Option<String>,
+    /// Updated chunking algorithm.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chunk_strategy: Option<String>,
+    /// Updated document metadata schema.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata_schema: Option<serde_json::Value>,
 }
 
 /// Response from `GET /v1/collections/{name}/stats`.
@@ -173,6 +205,8 @@ mod tests {
             "id": "col-1", "name": "docs", "description": "My docs",
             "embedding_provider": "openai", "embedding_model": "text-embedding-3-small",
             "dimension": 1536, "chunk_size": 512, "chunk_overlap": 50,
+            "chunk_strategy": "paragraph", "index_type": "IVF_FLAT",
+            "tenant_field": null, "has_metadata_schema": false,
             "document_count": 42, "has_api_key": true,
             "reranking_enabled": false, "reranking_model": "rerank-v3.5",
             "has_reranking_api_key": false, "default_top_k": 10,
@@ -182,6 +216,8 @@ mod tests {
         let col: Collection = serde_json::from_str(json).unwrap();
         assert_eq!(col.name, "docs");
         assert_eq!(col.dimension, 1536);
+        assert_eq!(col.chunk_strategy, "paragraph");
+        assert_eq!(col.index_type, "IVF_FLAT");
         assert_eq!(col.document_count, 42);
         assert_eq!(col.default_min_score, None);
     }
@@ -200,7 +236,7 @@ mod tests {
 
     #[test]
     fn test_deserialize_collection_list_response() {
-        let json = r#"{"collections":[{"id":"1","name":"a","description":"","embedding_provider":"openai","embedding_model":"m","dimension":768,"chunk_size":512,"chunk_overlap":50,"document_count":0,"has_api_key":false,"reranking_enabled":false,"reranking_model":"","has_reranking_api_key":false,"default_top_k":10,"default_min_score":null,"default_search_mode":"semantic","metadata":{},"created_at":"","updated_at":""}],"total":1}"#;
+        let json = r#"{"collections":[{"id":"1","name":"a","description":"","embedding_provider":"openai","embedding_model":"m","dimension":768,"chunk_size":512,"chunk_overlap":50,"chunk_strategy":"paragraph","index_type":"IVF_FLAT","tenant_field":null,"has_metadata_schema":false,"document_count":0,"has_api_key":false,"reranking_enabled":false,"reranking_model":"","has_reranking_api_key":false,"default_top_k":10,"default_min_score":null,"default_search_mode":"semantic","metadata":{},"created_at":"","updated_at":""}],"total":1}"#;
         let resp: CollectionListResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.total, 1);
         assert_eq!(resp.collections[0].name, "a");

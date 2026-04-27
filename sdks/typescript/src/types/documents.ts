@@ -94,6 +94,7 @@ export interface S3Job {
   region: string;
   endpoint_url: string | null;
   file_types: string[];
+  metadata: Record<string, unknown>;
   status: string;
   total_found: number;
   total_ingested: number;
@@ -105,6 +106,7 @@ export interface S3Job {
 
 export interface UpdateS3JobBody {
   file_types?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface S3JobListResponse {
