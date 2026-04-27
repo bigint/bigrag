@@ -1307,24 +1307,13 @@ before opening the stream.
 
 ---
 
-#### `[ ]` I-073 🟡 `prune_oldest` is a full-table sort
+#### `[x]` I-073 🟡 `prune_oldest` is a full-table sort
 
-**File:** `api/bigrag/services/embedding_cache.py:136-158`
+**File:** `api/bigrag/services/embedding_cache.py`
 
-`SELECT ... ORDER BY last_hit_at OFFSET keep` on a 500K-row table is a full
-sort. At 1M+ rows this holds a long-lived transaction and lock.
-
-**Fix:**
-```python
-DELETE FROM embedding_cache
- WHERE (content_hash, model_key) IN (
-   SELECT content_hash, model_key
-     FROM embedding_cache
-     ORDER BY last_hit_at ASC
-     LIMIT :n_to_delete
- )
-```
-Run in batches.
+**Resolution:** `prune_oldest` was never wired into a scheduler and had zero
+callers. Removed in cleanup pass; ttl pruning will be reintroduced if cache
+size becomes a concern.
 
 ---
 
