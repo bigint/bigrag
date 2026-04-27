@@ -43,9 +43,10 @@ const isActive = (pathname: string, href: string) => {
   return pathname === href || pathname.startsWith(`${href}/`);
 };
 
-const SidebarBody = ({ onNavigate }: { onNavigate?: () => void }) => {
+const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: string }) => {
   const pathname = usePathname();
   let seenAdmin = false;
+  const items = NAV_ITEMS.filter((item) => !item.admin || role === "admin");
 
   return (
     <div className="flex h-full flex-col">
@@ -55,7 +56,7 @@ const SidebarBody = ({ onNavigate }: { onNavigate?: () => void }) => {
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const active = isActive(pathname, item.href);
           const Icon = item.icon;
           const prefix =
@@ -90,13 +91,21 @@ const SidebarBody = ({ onNavigate }: { onNavigate?: () => void }) => {
   );
 };
 
-export const Sidebar = () => (
+export const Sidebar = ({ role }: { role: string }) => (
   <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-border bg-muted/50 lg:block">
-    <SidebarBody />
+    <SidebarBody role={role} />
   </aside>
 );
 
-export const MobileSidebar = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
+export const MobileSidebar = ({
+  onClose,
+  open,
+  role,
+}: {
+  onClose: () => void;
+  open: boolean;
+  role: string;
+}) => {
   const isReduced = useReducedMotion();
   return (
     <Dialog.Root
@@ -133,7 +142,7 @@ export const MobileSidebar = ({ open, onClose }: { open: boolean; onClose: () =>
               }
             >
               <Dialog.Title className="sr-only">Navigation</Dialog.Title>
-              <SidebarBody onNavigate={onClose} />
+              <SidebarBody onNavigate={onClose} role={role} />
             </Dialog.Popup>
           </Dialog.Portal>
         )}

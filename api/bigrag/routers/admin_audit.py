@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import AuditLog
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
-from bigrag.middleware.auth import require_session
+from bigrag.middleware.auth import require_admin_session
 from bigrag.models.auth import AuditLogEntry, AuditLogListResponse
 
 logger = get_logger("bigrag.routers.admin_audit")
@@ -40,7 +40,7 @@ async def list_audit_log(
     resource_type: str | None = Query(default=None, max_length=50),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
-    _: dict = Depends(require_session),
+    _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> AuditLogListResponse:
     filters = []

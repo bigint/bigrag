@@ -39,11 +39,7 @@ impl Webhooks<'_> {
     }
 
     /// Update a webhook.
-    pub async fn update(
-        &self,
-        id: &str,
-        body: UpdateWebhookBody,
-    ) -> Result<Webhook, BigRagError> {
+    pub async fn update(&self, id: &str, body: UpdateWebhookBody) -> Result<Webhook, BigRagError> {
         let path = format!("/v1/admin/webhooks/{}", urlencode(id));
         self.client.transport.put(&path, &body).await
     }
@@ -76,6 +72,23 @@ impl Webhooks<'_> {
     /// Send a test delivery to a webhook.
     pub async fn test(&self, id: &str) -> Result<WebhookTestResponse, BigRagError> {
         let path = format!("/v1/admin/webhooks/{}/test", urlencode(id));
+        self.client
+            .transport
+            .post(&path, &serde_json::Value::Null)
+            .await
+    }
+
+    /// Replay a previous webhook delivery.
+    pub async fn replay_delivery(
+        &self,
+        id: &str,
+        delivery_id: &str,
+    ) -> Result<WebhookTestResponse, BigRagError> {
+        let path = format!(
+            "/v1/admin/webhooks/{}/deliveries/{}/replay",
+            urlencode(id),
+            urlencode(delivery_id)
+        );
         self.client
             .transport
             .post(&path, &serde_json::Value::Null)

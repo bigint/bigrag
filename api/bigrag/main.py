@@ -12,7 +12,7 @@ from bigrag import __version__
 from bigrag import db as db_module
 from bigrag.config import Settings, settings
 from bigrag.db.bootstrap import run_migrations
-from bigrag.exceptions import ConflictError, NotFoundError, ValidationError
+from bigrag.exceptions import NotFoundError, ValidationError
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
 from bigrag.middleware.idempotency import IdempotencyMiddleware
 from bigrag.middleware.rate_limit import RateLimitMiddleware
@@ -141,10 +141,6 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     @app.exception_handler(NotFoundError)
     async def not_found_handler(request, exc: NotFoundError):
         return JSONResponse(status_code=404, content={"detail": str(exc)})
-
-    @app.exception_handler(ConflictError)
-    async def conflict_handler(request, exc: ConflictError):
-        return JSONResponse(status_code=409, content={"detail": str(exc)})
 
     @app.exception_handler(ValidationError)
     async def validation_handler(request, exc: ValidationError):

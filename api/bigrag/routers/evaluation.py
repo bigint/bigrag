@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
+from bigrag.services.collection_scope import assert_collection_matches_pin
 from bigrag.services.retrieval import retrieve
 
 logger = get_logger("bigrag.routers.evaluation")
@@ -73,7 +74,14 @@ def _ndcg_at_k(hit_ids: list[str], expected: set[str]) -> float:
 
 
 @router.post("", response_model=EvalResponse)
-async def run_evaluation(body: EvalRequest, _: dict = Depends(get_current_user)) -> EvalResponse:
+async def run_evaluation(
+    body: EvalRequest,
+    user: dict = Depends(get_current_user),
+) -> EvalResponse:
+    pinned = user.get("collection")
+    if pinned:
+        assert_collection_matches_pin(pinned, body.collection)
+
     collection = await get_collection_or_404(body.collection)
     try:
         embedding_model = get_embedding_model_for(collection)

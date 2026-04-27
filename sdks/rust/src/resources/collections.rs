@@ -76,6 +76,15 @@ impl Collections<'_> {
             .await
     }
 
+    /// Queue all ready/failed documents in a collection for re-embedding.
+    pub async fn reembed(&self, name: &str) -> Result<StatusResponse, BigRagError> {
+        let path = format!("/v1/collections/{}/reembed", urlencode(name));
+        self.client
+            .transport
+            .post(&path, &serde_json::Value::Null)
+            .await
+    }
+
     /// Stream real-time events for a collection via SSE.
     pub async fn stream_events(&self, name: &str) -> Result<SseStream, BigRagError> {
         let path = format!("/v1/collections/{}/events", urlencode(name));

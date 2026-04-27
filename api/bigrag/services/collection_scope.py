@@ -22,6 +22,16 @@ def _extract_collection_name(path: str) -> str | None:
     return parts[2]
 
 
+def assert_collection_matches_pin(pinned: str, target: str) -> None:
+    if target != pinned:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"This API key is pinned to collection {pinned!r}; request targeted {target!r}."
+            ),
+        )
+
+
 async def enforce_collection_scope(request: Request, pinned: str) -> None:
     method = request.method
     path = request.url.path
@@ -37,13 +47,8 @@ async def enforce_collection_scope(request: Request, pinned: str) -> None:
         )
 
     target = _extract_collection_name(path)
-    if target is not None and target != pinned:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                f"This API key is pinned to collection {pinned!r}; request targeted {target!r}."
-            ),
-        )
+    if target is not None:
+        assert_collection_matches_pin(pinned, target)
 
     parts = stripped.strip("/").split("/")
     is_collection_root = len(parts) == 3 and parts[0] == "v1" and parts[1] == "collections"

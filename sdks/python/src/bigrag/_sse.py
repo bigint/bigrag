@@ -7,7 +7,7 @@ from collections.abc import AsyncGenerator
 
 import httpx
 
-from bigrag._types import ProgressEvent
+from bigrag.types.sse import ProgressEvent
 
 
 async def parse_sse_stream(response: httpx.Response) -> AsyncGenerator[ProgressEvent, None]:

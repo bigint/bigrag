@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-export type CurrentUser = {
+type CurrentUser = {
   id: string;
   email: string;
   display_name: string;

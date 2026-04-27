@@ -15,10 +15,6 @@ export interface BigRAGOptions {
   autoIdempotencyKey?: boolean;
 }
 
-export interface MutatingRequestOptions {
-  idempotencyKey?: string | null;
-}
-
 export interface RequestClient {
   _request<T>(
     method: string,

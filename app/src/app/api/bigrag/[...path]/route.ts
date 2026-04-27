@@ -82,8 +82,7 @@ const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: str
       redirect: "manual",
       ...(hasBody ? { duplex: "half" } : {}),
     } as RequestInit);
-  } catch (err) {
-    console.error(`[bigrag-proxy] upstream unreachable: ${target}`, err);
+  } catch {
     return new Response(
       JSON.stringify({ detail: "bigRAG API is not reachable", upstream: BIGRAG_URL }),
       { status: 502, headers: { "content-type": "application/json" } },

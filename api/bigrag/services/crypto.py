@@ -77,12 +77,12 @@ class EncryptedString(TypeDecorator):
     impl = Text
     cache_ok = True
 
-    def process_bind_param(self, value, dialect):  # type: ignore[override]
+    def process_bind_param(self, value, _dialect):  # type: ignore[override]
         if value is None:
             return None
         return encrypt(value)
 
-    def process_result_value(self, value, dialect):  # type: ignore[override]
+    def process_result_value(self, value, _dialect):  # type: ignore[override]
         if value is None:
             return None
         if not value.startswith(_FERNET_PREFIX):

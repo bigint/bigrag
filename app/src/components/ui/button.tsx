@@ -48,5 +48,3 @@ export const Button = ({
     {...props}
   />
 );
-
-export { buttonVariants };

@@ -12,7 +12,7 @@ from bigrag.db.models import Session as DbSession
 from bigrag.db.models import User
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
-from bigrag.middleware.auth import require_session
+from bigrag.middleware.auth import require_admin_session
 from bigrag.models.auth import (
     CreateUserRequest,
     UpdateUserRequest,
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/v1/admin/users", tags=["admin:users"])
 async def list_users(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    _: dict = Depends(require_session),
+    _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> UserListResponse:
     users = (
@@ -48,7 +48,7 @@ async def list_users(
 async def create_user(
     body: CreateUserRequest,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> UserResponse:
     user = User(
@@ -84,7 +84,7 @@ async def update_user(
     user_id: str,
     body: UpdateUserRequest,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> UserResponse:
     try:
@@ -134,7 +134,7 @@ async def update_user(
 async def delete_user(
     user_id: str,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     try:

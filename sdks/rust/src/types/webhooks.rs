@@ -73,8 +73,8 @@ pub struct UpdateWebhookBody {
 pub struct WebhookListResponse {
     /// Webhooks in this page.
     pub webhooks: Vec<Webhook>,
-    /// Total number of webhooks.
-    pub total: u32,
+    /// Total number of webhooks, when returned by the API.
+    pub total: Option<u32>,
 }
 
 /// A webhook delivery attempt.
@@ -150,6 +150,14 @@ mod tests {
         let resp: WebhookTestResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.status_code, Some(200));
         assert_eq!(resp.error, None);
+    }
+
+    #[test]
+    fn test_deserialize_webhook_list_without_total() {
+        let json = r#"{"webhooks":[]}"#;
+        let resp: WebhookListResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.webhooks.is_empty());
+        assert_eq!(resp.total, None);
     }
 
     #[test]

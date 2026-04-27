@@ -63,20 +63,23 @@ export class CollectionsResource {
     return this._client._request("POST", `/v1/collections/${encodeURIComponent(name)}/truncate`);
   }
 
+  reembed(name: string): Promise<StatusResponse> {
+    return this._client._request("POST", `/v1/collections/${encodeURIComponent(name)}/reembed`);
+  }
+
   analytics(name: string): Promise<AnalyticsResponse> {
     return this._client._request("GET", `/v1/collections/${encodeURIComponent(name)}/analytics`);
   }
 
   async *streamEvents(name: string): AsyncGenerator<ProgressEvent> {
     const path = `/v1/collections/${encodeURIComponent(name)}/events`;
-    const tokenParam = this._client.apiKey
-      ? `?token=${encodeURIComponent(this._client.apiKey)}`
-      : "";
-    const url = `${this._client.baseUrl}${path}${tokenParam}`;
+    const url = `${this._client.baseUrl}${path}`;
+    const headers: Record<string, string> = { "User-Agent": USER_AGENT };
+    if (this._client.apiKey) headers.Authorization = `Bearer ${this._client.apiKey}`;
 
     const response = await this._client._fetch(url, {
       method: "GET",
-      headers: { "User-Agent": USER_AGENT },
+      headers,
     });
 
     if (!response.ok) {

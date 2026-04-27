@@ -19,13 +19,11 @@ from bigrag.types.documents import (
     DocumentChunkListResponse,
     DocumentListResponse,
 )
+from bigrag.types.s3 import S3IngestResponse, S3Job, S3JobListResponse, UpdateS3JobBody
 from bigrag.types.sse import ProgressEvent
 
 if TYPE_CHECKING:
     from bigrag._core import BigRAGCore
-
-_UA = "bigrag-python/0.0.1"
-
 
 def _col_path(collection: str) -> str:
     return f"/v1/collections/{quote(collection, safe='')}"
@@ -83,7 +81,7 @@ class DocumentsResource:
             form_data = {"metadata": _json.dumps(metadata)}
         return await self._client._request_form(
             f"{_col_path(collection)}/documents/batch/upload",
-            files=dict(file_list) if len(file_list) == 1 else file_list,  # type: ignore[arg-type]
+            files=file_list,
             data=form_data,
         )
 
@@ -128,29 +126,49 @@ class DocumentsResource:
         )
 
     async def get_chunks(
-        self, collection: str, document_id: str,
+        self,
+        collection: str,
+        document_id: str,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
     ) -> DocumentChunkListResponse:
         """Get all chunks for a document within a collection."""
+        params: dict[str, str] = {}
+        if limit is not None:
+            params["limit"] = str(limit)
+        if offset is not None:
+            params["offset"] = str(offset)
         return await self._client._request(
-            "GET", f"{_doc_path(collection, document_id)}/chunks",
+            "GET", f"{_doc_path(collection, document_id)}/chunks", params=params,
         )
 
     async def get_chunks_by_id(
-        self, document_id: str,
+        self,
+        document_id: str,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
     ) -> DocumentChunkListResponse:
         """Get chunks for a document by ID (without specifying collection)."""
+        params: dict[str, str] = {}
+        if limit is not None:
+            params["limit"] = str(limit)
+        if offset is not None:
+            params["offset"] = str(offset)
         return await self._client._request(
-            "GET", f"/v1/documents/{quote(document_id, safe='')}/chunks",
+            "GET",
+            f"/v1/documents/{quote(document_id, safe='')}/chunks",
+            params=params,
         )
 
     def get_file_url(self, collection: str, document_id: str) -> str:
-        """Build the URL for downloading the original document file."""
+        """Build the authenticated endpoint URL for the original document file.
+
+        Download callers must send this client's bearer token in an
+        ``Authorization`` header.
+        """
         path = f"{_doc_path(collection, document_id)}/file"
-        if self._client.api_key:
-            return (
-                f"{self._client.base_url}{path}"
-                f"?token={quote(self._client.api_key, safe='')}"
-            )
         return f"{self._client.base_url}{path}"
 
     async def batch_get_status(
@@ -196,7 +214,7 @@ class DocumentsResource:
         no_sign_request: bool = False,
         file_types: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> Any:
+    ) -> S3IngestResponse:
         """Ingest files from an S3 bucket."""
         body: dict[str, Any] = {
             "bucket": bucket, "prefix": prefix, "region": region,
@@ -217,20 +235,40 @@ class DocumentsResource:
             "POST", f"{_col_path(collection)}/documents/s3", json=body,
         )
 
-    async def list_s3_jobs(self, collection: str) -> Any:
+    async def list_s3_jobs(self, collection: str) -> S3JobListResponse:
         """List S3 ingest jobs for a collection."""
         return await self._client._request(
             "GET", f"{_col_path(collection)}/s3-jobs",
         )
 
-    async def delete_s3_job(self, collection: str, job_id: str) -> Any:
+    async def get_s3_job(self, collection: str, job_id: str) -> S3Job:
+        """Retrieve an S3 ingest job."""
+        return await self._client._request(
+            "GET",
+            f"{_col_path(collection)}/s3-jobs/{quote(job_id, safe='')}",
+        )
+
+    async def update_s3_job(
+        self,
+        collection: str,
+        job_id: str,
+        body: UpdateS3JobBody,
+    ) -> S3Job:
+        """Update an S3 ingest job."""
+        return await self._client._request(
+            "PATCH",
+            f"{_col_path(collection)}/s3-jobs/{quote(job_id, safe='')}",
+            json=body,
+        )
+
+    async def delete_s3_job(self, collection: str, job_id: str) -> StatusResponse:
         """Delete an S3 ingest job."""
         return await self._client._request(
             "DELETE",
             f"{_col_path(collection)}/s3-jobs/{quote(job_id, safe='')}",
         )
 
-    async def resync_s3_job(self, collection: str, job_id: str) -> Any:
+    async def resync_s3_job(self, collection: str, job_id: str) -> StatusResponse:
         """Re-sync an S3 ingest job."""
         return await self._client._request(
             "POST",
@@ -243,11 +281,7 @@ class DocumentsResource:
         """Stream aggregated progress for multiple documents via SSE."""
         ids_param = ",".join(document_ids)
         path = f"{_col_path(collection)}/documents/batch/progress"
-        token = (
-            f"&token={quote(self._client.api_key, safe='')}"
-            if self._client.api_key else ""
-        )
-        url = f"{self._client.base_url}{path}?ids={quote(ids_param, safe='')}{token}"
+        url = f"{self._client.base_url}{path}?ids={quote(ids_param, safe='')}"
         async for event in self._stream_sse(url):
             yield event
 
@@ -256,11 +290,7 @@ class DocumentsResource:
     ) -> AsyncGenerator[ProgressEvent, None]:
         """Stream real-time processing progress for a document."""
         path = f"{_doc_path(collection, document_id)}/progress"
-        token = (
-            f"?token={quote(self._client.api_key, safe='')}"
-            if self._client.api_key else ""
-        )
-        url = f"{self._client.base_url}{path}{token}"
+        url = f"{self._client.base_url}{path}"
         async for event in self._stream_sse(url):
             yield event
 
@@ -269,7 +299,7 @@ class DocumentsResource:
     ) -> AsyncGenerator[ProgressEvent, None]:
         """Internal helper to stream SSE from a URL."""
         request = self._client._client.build_request(
-            "GET", url, headers={"User-Agent": _UA},
+            "GET", url, headers=self._client._headers(),
         )
         response = await self._client._client.send(request, stream=True)
         if response.status_code >= 400:

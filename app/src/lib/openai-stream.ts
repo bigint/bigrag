@@ -1,6 +1,6 @@
-export type OpenAIMessage = { role: "system" | "user" | "assistant"; content: string };
+type OpenAIMessage = { role: "system" | "user" | "assistant"; content: string };
 
-export type StreamOptions = {
+type StreamOptions = {
   apiKey: string;
   model: string;
   messages: OpenAIMessage[];
@@ -9,7 +9,7 @@ export type StreamOptions = {
   onToken: (delta: string) => void;
 };
 
-export class OpenAIStreamError extends Error {
+class OpenAIStreamError extends Error {
   constructor(
     message: string,
     public status?: number,

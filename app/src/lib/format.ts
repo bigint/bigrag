@@ -16,16 +16,3 @@ export const formatRelative = (iso: string | Date | null | undefined): string =>
   if (Number.isNaN(d.getTime())) return "—";
   return `${formatDistanceToNowStrict(d)} ago`;
 };
-
-export const formatDateTime = (iso: string | Date | null | undefined): string => {
-  if (!iso) return "—";
-  const d = iso instanceof Date ? iso : new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString("en", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-};

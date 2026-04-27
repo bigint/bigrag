@@ -1,6 +1,6 @@
 import type { ProgressEvent } from "./types/sse.js";
 
-export class SSEParseError extends Error {
+class SSEParseError extends Error {
   readonly raw: string;
   readonly cause: unknown;
   constructor(raw: string, cause: unknown) {

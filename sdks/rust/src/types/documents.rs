@@ -21,6 +21,11 @@ pub struct Document {
     pub error_message: Option<String>,
     /// User-defined metadata.
     pub metadata: serde_json::Value,
+    /// Content hash used for deduplication.
+    pub content_hash: Option<String>,
+    /// Whether this response points at an existing deduplicated document.
+    #[serde(default)]
+    pub deduped: bool,
     /// Creation timestamp.
     pub created_at: String,
     /// Last update timestamp.
@@ -46,6 +51,17 @@ pub struct DocumentListOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<u32>,
     /// Number of results to skip.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset: Option<u32>,
+}
+
+/// Options for listing document chunks.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct DocumentChunkOptions {
+    /// Maximum number of chunks to return.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u32>,
+    /// Number of chunks to skip.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offset: Option<u32>,
 }
@@ -178,6 +194,14 @@ pub struct S3Job {
     pub prefix: String,
     /// AWS region.
     pub region: String,
+    /// Custom S3-compatible endpoint URL.
+    pub endpoint_url: Option<String>,
+    /// File types selected for ingestion.
+    #[serde(default)]
+    pub file_types: Vec<String>,
+    /// Metadata applied to ingested documents.
+    #[serde(default)]
+    pub metadata: serde_json::Value,
     /// Job status (`"running"`, `"completed"`, `"failed"`).
     pub status: String,
     /// Total objects found in S3.
@@ -203,22 +227,36 @@ pub struct S3JobListResponse {
     pub total: u32,
 }
 
+/// Body for updating an S3 ingestion job.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct UpdateS3JobBody {
+    /// Updated file types.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_types: Option<Vec<String>>,
+    /// Updated metadata applied on re-sync.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_deserialize_document() {
-        let json = r#"{"id":"doc-1","collection_id":"col-1","filename":"report.pdf","file_type":"pdf","file_size":1024,"chunk_count":10,"status":"ready","error_message":null,"metadata":{},"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}"#;
+        let json = r#"{"id":"doc-1","collection_id":"col-1","filename":"report.pdf","file_type":"pdf","file_size":1024,"chunk_count":10,"status":"ready","error_message":null,"metadata":{},"content_hash":"abc","deduped":false,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}"#;
         let doc: Document = serde_json::from_str(json).unwrap();
         assert_eq!(doc.filename, "report.pdf");
         assert_eq!(doc.status, "ready");
         assert_eq!(doc.error_message, None);
+        assert_eq!(doc.content_hash.as_deref(), Some("abc"));
+        assert!(!doc.deduped);
     }
 
     #[test]
     fn test_deserialize_batch_delete_response() {
-        let json = r#"{"status":"ok","deleted":3,"errors":[{"document_id":"x","error":"not found"}]}"#;
+        let json =
+            r#"{"status":"ok","deleted":3,"errors":[{"document_id":"x","error":"not found"}]}"#;
         let resp: BatchDeleteDocumentsResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.deleted, 3);
         assert_eq!(resp.errors.len(), 1);
@@ -239,9 +277,10 @@ mod tests {
 
     #[test]
     fn test_deserialize_s3_job() {
-        let json = r#"{"id":"job-1","collection_name":"docs","bucket":"b","prefix":"p/","region":"us-east-1","status":"running","total_found":100,"total_ingested":50,"total_skipped":5,"error_message":null,"created_at":"","updated_at":""}"#;
+        let json = r#"{"id":"job-1","collection_name":"docs","bucket":"b","prefix":"p/","region":"us-east-1","endpoint_url":null,"file_types":["pdf"],"metadata":{},"status":"running","total_found":100,"total_ingested":50,"total_skipped":5,"error_message":null,"created_at":"","updated_at":""}"#;
         let job: S3Job = serde_json::from_str(json).unwrap();
         assert_eq!(job.status, "running");
         assert_eq!(job.total_found, 100);
+        assert_eq!(job.file_types, vec!["pdf"]);
     }
 }

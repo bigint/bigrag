@@ -19,6 +19,8 @@
   },
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc --noEmit",
     "prepublishOnly": "tsc"
   },
   "devDependencies": {
