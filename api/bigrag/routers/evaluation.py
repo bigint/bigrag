@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
+from bigrag.services.collection_scope import assert_collection_matches_pin
 from bigrag.services.retrieval import retrieve
 
 logger = get_logger("bigrag.routers.evaluation")
@@ -78,14 +79,8 @@ async def run_evaluation(
     user: dict = Depends(get_current_user),
 ) -> EvalResponse:
     pinned = user.get("collection")
-    if pinned and pinned != body.collection:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                f"This API key is pinned to collection {pinned!r}; "
-                f"request targeted {body.collection!r}."
-            ),
-        )
+    if pinned:
+        assert_collection_matches_pin(pinned, body.collection)
 
     collection = await get_collection_or_404(body.collection)
     try:
