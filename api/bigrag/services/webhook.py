@@ -73,14 +73,6 @@ def _jittered_delay(base_delay: int, jitter_factor: float = 0.25) -> float:
 
 
 class CircuitBreaker:
-    """Webhook circuit breaker. State lives in Redis so workers share it.
-
-    `failures:{id}` — INCR on each failure, EX = cooldown_seconds * 2.
-    The breaker is open when the counter reaches failure_threshold; the
-    counter expires naturally, giving the endpoint a clean half-open at
-    the next attempt.
-    """
-
     def __init__(self, failure_threshold: int = 5, cooldown_seconds: int = 300) -> None:
         self._failure_threshold = failure_threshold
         self._cooldown = cooldown_seconds
