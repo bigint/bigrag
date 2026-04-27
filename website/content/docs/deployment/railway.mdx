@@ -50,22 +50,22 @@ Cmd+K → type `redis` → Enter. No further config. Railway exposes `REDIS_URL`
 
 | Setting | Value |
 |---|---|
-| Source | Docker image `quay.io/coreos/etcd:v3.5.18` |
-| Start command | `etcd -advertise-client-urls=http://0.0.0.0:2379 -listen-client-urls=http://0.0.0.0:2379 --data-dir=/etcd` |
+| Source | Docker image `bitnami/etcd:3.5.18` |
+| Start command | _leave empty — use the image's default entrypoint_ |
 | Volume | 1 GB at `/etcd` (right-click tile → Attach volume) |
 | Public domain | none |
 
-Optional env vars (etcd works without them; these are tunings to prevent disk-fill):
+Environment:
 
 ```
-ETCD_AUTO_COMPACTION_MODE=revision
-ETCD_AUTO_COMPACTION_RETENTION=1000
-ETCD_QUOTA_BACKEND_BYTES=4294967296
-ETCD_SNAPSHOT_COUNT=50000
+ALLOW_NONE_AUTHENTICATION=yes
+ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+ETCD_ADVERTISE_CLIENT_URLS=http://0.0.0.0:2379
+ETCD_DATA_DIR=/etcd
 ```
 
 <Callout type="warn">
-**Known issue — etcd container fails to create on Railway.** The `quay.io/coreos/etcd` image's container creation step has been observed to fail on Railway's runtime ("Failed to start deployment" at Deploy → Create container). If you hit this, swap to `bitnami/etcd:3.5.18` and add `ALLOW_NONE_AUTHENTICATION=yes` plus `ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379` and `ETCD_ADVERTISE_CLIENT_URLS=http://0.0.0.0:2379` env vars; the Bitnami image is designed for non-root container runtimes and works on Railway out of the box.
+**Why bitnami and not the official etcd image?** `quay.io/coreos/etcd:v3.5.18` fails on Railway's runtime — verified during the bigRAG bring-up: "Failed to start deployment" at Deploy → Create container, regardless of start command. Bitnami's image is built for non-root container runtimes (uid 1001) and runs on Railway out of the box. If you have a strong need for the official image, run etcd outside Railway.
 </Callout>
 
 ### bigrag-milvus
@@ -110,13 +110,20 @@ NEXT_PUBLIC_API_URL=https://${{bigrag.RAILWAY_PUBLIC_DOMAIN}}
 
 | Setting | Value |
 |---|---|
-| Source | GitHub repo, **Root Directory `/api`**, builder Dockerfile (`Dockerfile`) |
+| Source | GitHub repo, **Root Directory `/api`** |
+| Builder | **Dockerfile** (Settings → Build → Builder → Dockerfile) — Railpack default doesn't recognise the project |
+| Dockerfile path | `/api/Dockerfile` (Railway suggests this when Root is `/api`) |
+| Metal Build Environment | **Off** — the multi-stage Python+Torch build with strip operations doesn't play well with Metal's caching layer |
 | Start command | `python -m bigrag.main --host 0.0.0.0 --port $PORT` |
 | Volume | 10 GB at `/data` |
 | RAM | 4 GB minimum |
-| Public domain | yes |
+| Public domain | yes — Settings → Networking → Generate Domain, target port 8080 |
 
-The Dockerfile's `CMD` hard-codes `--port 4000`, so the start-command override is required for Railway's dynamic `$PORT` to take effect.
+The Dockerfile's `CMD` hard-codes `--port 4000`, so the start-command override is required for Railway's dynamic `$PORT` to take effect. When you generate the public domain, set the **target port to 8080** so Railway's HTTP proxy forwards correctly to whatever Railway sets `$PORT` to.
+
+<Callout type="warn">
+**Known issue — bigrag-api Dockerfile builds can fail on Railway.** The current `api/Dockerfile` uses a multi-stage build with CPU-only Torch (~2 GB), `pip uninstall sympy mpmath`, and a `find ... -exec strip` pass. This combination fights Railway's Metal Build Environment. If your build fails fast (under 30 s) at `[build 3/11] RUN apt-get install`, disable Metal (Settings → Build → toggle off) and redeploy. If it fails again at the Torch install, raise the build memory cap or split the Dockerfile so Torch installs in its own layer that survives Metal's cache.
+</Callout>
 
 Environment (paste via Variables → Raw Editor):
 
