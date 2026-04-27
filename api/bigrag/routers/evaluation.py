@@ -73,7 +73,20 @@ def _ndcg_at_k(hit_ids: list[str], expected: set[str]) -> float:
 
 
 @router.post("", response_model=EvalResponse)
-async def run_evaluation(body: EvalRequest, _: dict = Depends(get_current_user)) -> EvalResponse:
+async def run_evaluation(
+    body: EvalRequest,
+    user: dict = Depends(get_current_user),
+) -> EvalResponse:
+    pinned = user.get("collection")
+    if pinned and pinned != body.collection:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"This API key is pinned to collection {pinned!r}; "
+                f"request targeted {body.collection!r}."
+            ),
+        )
+
     collection = await get_collection_or_404(body.collection)
     try:
         embedding_model = get_embedding_model_for(collection)

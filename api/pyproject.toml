@@ -5,29 +5,33 @@ description = "Self-hostable RAG platform with Docling ingestion and Milvus vect
 license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.34.0",
-    "asyncpg>=0.30.0",
-    "sqlalchemy[asyncio]>=2.0.36",
-    "alembic>=1.14.0",
-    "pymilvus>=2.5.0",
-    "docling>=2.25.0",
-    "openai>=1.60.0",
-    "cohere>=5.13.0",
-    "pydantic[email]>=2.10.0",
-    "pydantic-settings>=2.7.0",
-    "python-multipart>=0.0.18",
+    "fastapi>=0.115.0,<1",
+    "starlette>=0.40.0,<1",
+    "uvicorn[standard]>=0.34.0,<1",
+    "asyncpg>=0.30.0,<1",
+    "sqlalchemy[asyncio]>=2.0.36,<3",
+    "alembic>=1.14.0,<2",
+    "pymilvus>=2.5.0,<3",
+    "docling>=2.25.0,<3",
+    "huggingface-hub>=0.36.0,<2",
+    "openai>=1.60.0,<2",
+    "cohere>=5.13.0,<6",
+    "pydantic[email]>=2.10.0,<3",
+    "pydantic-settings>=2.7.0,<3",
+    "python-multipart>=0.0.18,<1",
 
-    "httpx>=0.28.0",
-    "tomli>=2.2.0",
-    "redis[hiredis]>=5.2.0",
-    "orjson>=3.10.0",
-    "structlog>=24.4.0",
-    "aiobotocore>=2.18.0",
-    "argon2-cffi>=23.1.0",
-    "cryptography>=44.0.0",
-    "mcp>=1.12.0",
-    "numpy>=2.0.0",
+    "httpx>=0.28.0,<1",
+    "tomli>=2.2.0,<3",
+    "redis[hiredis]>=5.2.0,<8",
+    "orjson>=3.10.0,<4",
+    "structlog>=24.4.0,<26",
+    "aiobotocore>=2.18.0,<3",
+    "botocore>=1.35.0,<2",
+    "argon2-cffi>=23.1.0,<26",
+    "cryptography>=44.0.0,<48",
+    "mcp>=1.12.0,<2",
+    "numpy>=2.0.0,<3",
+    "tiktoken>=0.8.0,<1",
 ]
 
 [dependency-groups]
@@ -55,3 +59,7 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "T201", "FA102"]
 ignore = ["B008"]  # Depends() and Query() in FastAPI defaults are intentional
+
+[tool.deptry.package_module_name_map]
+argon2-cffi = "argon2"
+python-multipart = "python_multipart"

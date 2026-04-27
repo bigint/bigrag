@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import EmbeddingPreset
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
-from bigrag.middleware.auth import require_session
+from bigrag.middleware.auth import require_admin_session
 from bigrag.models.common import StatusResponse
 from bigrag.models.embedding_preset import (
     CreateEmbeddingPresetRequest,
@@ -52,7 +52,7 @@ def _is_unique_violation(exc: IntegrityError) -> bool:
 async def list_presets(
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-    _: dict = Depends(require_session),
+    _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> EmbeddingPresetListResponse:
     presets = (
@@ -74,7 +74,7 @@ async def list_presets(
 async def create_preset(
     body: CreateEmbeddingPresetRequest,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> EmbeddingPresetResponse:
     try:
@@ -124,7 +124,7 @@ async def update_preset(
     preset_id: str,
     body: UpdateEmbeddingPresetRequest,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> EmbeddingPresetResponse:
     try:
@@ -180,7 +180,7 @@ async def update_preset(
 async def delete_preset(
     preset_id: str,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     try:

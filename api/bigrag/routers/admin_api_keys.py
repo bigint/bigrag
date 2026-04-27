@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import ApiKey, Collection
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
-from bigrag.middleware.auth import require_session
+from bigrag.middleware.auth import require_admin_session
 from bigrag.models.auth import (
     ApiKeyListResponse,
     ApiKeyResponse,
@@ -78,7 +78,7 @@ async def _validate_collection(session: AsyncSession, collection: str | None) ->
 async def list_api_keys(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    _: dict = Depends(require_session),
+    _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ApiKeyListResponse:
     base = sa.select(ApiKey).where(ApiKey.permissions["mcp"].is_(None))
@@ -95,7 +95,7 @@ async def list_api_keys(
 async def create_api_key(
     body: CreateApiKeyRequest,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> CreateApiKeyResponse:
     try:
@@ -146,7 +146,7 @@ async def update_api_key(
     key_id: str,
     body: UpdateApiKeyRequest,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ApiKeyResponse:
     try:
@@ -206,7 +206,7 @@ async def update_api_key(
 async def delete_api_key(
     key_id: str,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     try:

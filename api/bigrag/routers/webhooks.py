@@ -10,7 +10,7 @@ from bigrag.config import settings
 from bigrag.db.models import Webhook, WebhookDelivery
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
-from bigrag.middleware.auth import require_session
+from bigrag.middleware.auth import require_admin_session
 from bigrag.models.common import StatusResponse
 from bigrag.models.webhook import (
     CreateWebhookRequest,
@@ -77,7 +77,7 @@ def _delivery_response(d: WebhookDelivery) -> WebhookDeliveryResponse:
 async def create_webhook(
     body: CreateWebhookRequest,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
     count = await session.scalar(sa.select(sa.func.count()).select_from(Webhook))
@@ -121,7 +121,7 @@ async def create_webhook(
 async def list_webhooks(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    _: dict = Depends(require_session),
+    _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
     webhooks = (
@@ -135,7 +135,7 @@ async def list_webhooks(
 @router.get("/{webhook_id}", response_model=WebhookResponse)
 async def get_webhook(
     webhook_id: str,
-    _: dict = Depends(require_session),
+    _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
     wh = await session.get(Webhook, uuid.UUID(webhook_id))
@@ -149,7 +149,7 @@ async def update_webhook(
     webhook_id: str,
     body: UpdateWebhookRequest,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
     wh = await session.get(Webhook, uuid.UUID(webhook_id))
@@ -193,7 +193,7 @@ async def update_webhook(
 async def delete_webhook(
     webhook_id: str,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
     wh = await session.get(Webhook, uuid.UUID(webhook_id))
@@ -221,7 +221,7 @@ async def list_deliveries(
     webhook_id: str,
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    _: dict = Depends(require_session),
+    _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
     wh_uuid = uuid.UUID(webhook_id)
@@ -253,7 +253,7 @@ async def list_deliveries(
 async def test_webhook(
     webhook_id: str,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
     wh = await session.get(Webhook, uuid.UUID(webhook_id))
@@ -280,7 +280,7 @@ async def replay_delivery(
     webhook_id: str,
     delivery_id: str,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> WebhookTestResponse:
 

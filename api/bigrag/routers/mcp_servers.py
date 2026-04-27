@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import ApiKey, Collection
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
-from bigrag.middleware.auth import require_session
+from bigrag.middleware.auth import require_admin_session
 from bigrag.models.common import StatusResponse
 from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
@@ -136,7 +136,7 @@ def _is_mcp(key: ApiKey | None) -> bool:
 
 @router.get("", response_model=McpServerListResponse)
 async def list_mcp_servers(
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> McpServerListResponse:
     user_id = uuid.UUID(admin["id"])
@@ -158,7 +158,7 @@ async def list_mcp_servers(
 async def create_mcp_server(
     body: CreateMcpServerRequest,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> CreateMcpServerResponse:
     user_id = uuid.UUID(admin["id"])
@@ -208,7 +208,7 @@ async def update_mcp_server(
     server_id: str,
     body: UpdateMcpServerRequest,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> McpServerResponse:
     try:
@@ -270,7 +270,7 @@ async def update_mcp_server(
 async def rotate_mcp_server_key(
     server_id: str,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> CreateMcpServerResponse:
 
@@ -308,7 +308,7 @@ async def rotate_mcp_server_key(
 async def delete_mcp_server(
     server_id: str,
     request: Request,
-    admin: dict = Depends(require_session),
+    admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     try:
