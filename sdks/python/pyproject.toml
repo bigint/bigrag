@@ -27,3 +27,6 @@ dependencies = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bigrag"]
+
+[tool.deptry]
+known_first_party = ["bigrag"]

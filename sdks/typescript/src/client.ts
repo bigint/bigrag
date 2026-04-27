@@ -14,8 +14,6 @@ import type {
   ReadinessResponse,
 } from "./types.js";
 
-export type { BigRAGOptions };
-
 export class BigRAG extends BigRAGCore {
   readonly collections: CollectionsResource;
   readonly documents: DocumentsResource;

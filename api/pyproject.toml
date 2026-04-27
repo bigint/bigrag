@@ -63,3 +63,6 @@ ignore = ["B008"]  # Depends() and Query() in FastAPI defaults are intentional
 [tool.deptry.package_module_name_map]
 argon2-cffi = "argon2"
 python-multipart = "python_multipart"
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["python-multipart"]
