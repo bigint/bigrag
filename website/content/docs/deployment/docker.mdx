@@ -47,10 +47,16 @@ services:
     volumes:
       - bigrag_data:/data
     environment:
+      BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
       BIGRAG_DATABASE_URL: postgres://bigrag:bigrag@postgres:5432/bigrag?sslmode=disable
       BIGRAG_MILVUS_URI: http://milvus:19530
       BIGRAG_REDIS_URL: redis://redis:6379/0
+      BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
+      BIGRAG_LOG_LEVEL: info
       BIGRAG_UPLOAD_DIR: /data/uploads
+      BIGRAG_INGESTION_WORKERS: "4"
+      BIGRAG_DB_POOL_MIN: "5"
+      BIGRAG_DB_POOL_MAX: "50"
     depends_on:
       postgres:
         condition: service_healthy
