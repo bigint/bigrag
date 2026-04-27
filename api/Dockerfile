@@ -59,7 +59,6 @@ RUN mkdir -p /data/uploads && \
 USER bigrag
 
 EXPOSE 4000
-VOLUME ["/data"]
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
     CMD curl -f http://localhost:4000/health || exit 1
