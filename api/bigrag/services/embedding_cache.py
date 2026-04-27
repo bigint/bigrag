@@ -116,27 +116,3 @@ async def put_many(
             await session.commit()
     except Exception as exc:  # noqa: BLE001
         logger.debug("embedding_cache: insert failed", error=str(exc))
-
-
-async def prune_oldest(keep: int = 500_000) -> int:
-
-    try:
-        subq = (
-            sa.select(EmbeddingCache.content_hash, EmbeddingCache.model_key)
-            .order_by(EmbeddingCache.last_hit_at.asc())
-            .offset(keep)
-            .subquery()
-        )
-        async with session_factory()() as session:
-            result = await session.execute(
-                sa.delete(EmbeddingCache).where(
-                    sa.tuple_(EmbeddingCache.content_hash, EmbeddingCache.model_key).in_(
-                        sa.select(subq.c.content_hash, subq.c.model_key)
-                    )
-                )
-            )
-            await session.commit()
-        return result.rowcount or 0
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("embedding_cache: prune failed", error=str(exc))
-        return 0
