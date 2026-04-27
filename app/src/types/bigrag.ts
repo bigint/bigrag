@@ -125,16 +125,6 @@ export type McpServer = {
 
 export type CreatedMcpServer = McpServer & { api_key: string };
 
-export type User = {
-  id: string;
-  email: string;
-  display_name: string;
-  role: string;
-  last_login_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
 export type S3JobStatus = "pending" | "listing" | "ingesting" | "complete" | "failed";
 
 export type S3Job = {

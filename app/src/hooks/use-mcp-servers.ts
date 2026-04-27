@@ -25,23 +25,6 @@ export const useCreateMcpServer = () => {
   });
 };
 
-export const useUpdateMcpServer = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      id,
-      ...body
-    }: {
-      id: string;
-      title?: string;
-      server_name?: string;
-      collection?: string | null;
-    }) => apiClient.patch<McpServer>(`v1/admin/mcp-servers/${id}`, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
-    onError: errorToast("Failed to update"),
-  });
-};
-
 export const useRotateMcpServer = () => {
   const qc = useQueryClient();
   return useMutation({

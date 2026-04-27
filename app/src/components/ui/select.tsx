@@ -124,5 +124,3 @@ export const Select = ({
     {error && <p className="text-xs text-destructive">{error}</p>}
   </div>
 );
-
-export type { SelectOption, SelectProps };

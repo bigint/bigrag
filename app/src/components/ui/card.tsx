@@ -24,10 +24,3 @@ export const CardDescription = ({ className, ...props }: Props) => (
 export const CardContent = ({ className, ...props }: Props) => (
   <div className={cn("px-5 pb-5", className)} {...props} />
 );
-
-export const CardFooter = ({ className, ...props }: Props) => (
-  <div
-    className={cn("flex items-center gap-2 border-t border-border px-5 py-3", className)}
-    {...props}
-  />
-);

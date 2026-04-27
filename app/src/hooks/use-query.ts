@@ -20,21 +20,8 @@ type QueryResponse = {
   total: number;
 };
 
-type MultiQueryResponse = {
-  results: { collection: string; chunks: QueryResult[] }[];
-  query: string;
-  collections: string[];
-  total: number;
-};
-
 export const useRunQuery = (collection: string) =>
   useMutation({
     mutationFn: (body: QueryBody) =>
       apiClient.post<QueryResponse>(`v1/collections/${encodeURIComponent(collection)}/query`, body),
-  });
-
-export const useRunMultiQuery = () =>
-  useMutation({
-    mutationFn: (body: QueryBody & { collections: string[] }) =>
-      apiClient.post<MultiQueryResponse>("v1/query", body),
   });

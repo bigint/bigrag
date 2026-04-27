@@ -38,6 +38,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   }
 
   const isFullHeight = FULL_HEIGHT_ROUTES.some((r) => pathname.startsWith(r));
+  const role = session.user.role;
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -47,8 +48,8 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       >
         Skip to main content
       </a>
-      <Sidebar />
-      <MobileSidebar open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <Sidebar role={role} />
+      <MobileSidebar open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} role={role} />
       <main id="main" className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-3 py-2.5 lg:hidden">
           <button

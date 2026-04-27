@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-export type PlaygroundPrefs = {
+type PlaygroundPrefs = {
   openai_key?: string;
   model?: string;
   top_k?: number;
@@ -12,7 +12,7 @@ export type PlaygroundPrefs = {
   system_prompt?: string;
 };
 
-export type Preferences = {
+type Preferences = {
   playground?: PlaygroundPrefs;
 };
 

@@ -32,7 +32,7 @@ export const useCollectionStats = (name: string) =>
     refetchInterval: 10_000,
   });
 
-export type CreateCollectionBody = {
+type CreateCollectionBody = {
   name: string;
   description?: string;
   embedding_preset_id?: string | null;
