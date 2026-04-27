@@ -41,8 +41,7 @@ FastAPI
   │ 3. idempotency — replay cached response if Idempotency-Key hits
   │ 4. content-hash dedup — sha256 of bytes; if a dupe exists, return it
   │ 5. validate — extension, magic bytes, zip-bomb guard, metadata schema
-  │ 6. optional moderation — OpenAI moderations on a preview slice
-  │ 7. INSERT documents row → commit
+  │ 6. INSERT documents row → commit
   ▼
 Redis queue (LPUSH)
   ▼

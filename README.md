@@ -16,7 +16,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 - **Batch operations** — bulk upload, delete, status checks, and queries
 - **Real-time progress** — SSE streaming for document processing status
 - **Auth, audit, scopes** — admin accounts, session cookies, `bigrag_sk_…` API keys with per-scope permissions and rate limits, full audit log
-- **PII redaction + moderation** — per-collection content filtering at ingest
+- **Metadata controls** — per-collection metadata schemas, file validation, and content-hash deduplication at ingest
 - **Retrieval evaluation runner** — ship recall@k / MRR / nDCG regressions against a golden set
 - **Analytics** — per-collection query analytics and platform-wide stats
 - **Webhooks** — HMAC-signed delivery, retries, circuit breaker, admin replay
@@ -297,6 +297,7 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 | `BIGRAG_MILVUS_URI` | Milvus URI | `http://localhost:19530` |
 | `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
 | `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
+| `BIGRAG_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and IP rate limits | `[]` |
 | `BIGRAG_SESSION_COOKIE_SECURE` | HTTPS-only session cookies | `false` |
 | `BIGRAG_EMBEDDING_API_KEY` | Default embedding API key | — |
 | `BIGRAG_MASTER_KEY` | Fernet key that encrypts provider credentials at rest (required in `prod`) | — |

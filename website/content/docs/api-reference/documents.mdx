@@ -57,7 +57,7 @@ curl -X POST http://localhost:4000/v1/collections/research/documents \
 
 `content_hash` is a SHA-256 of the uploaded bytes used for deduplication. If the collection already has a document with the same hash, the existing record is returned with `deduped: true` instead of creating a duplicate. See [Collections → `content_hash` dedup](/docs/concepts/collections).
 
-**Errors:** `400` — Unsupported file type or blocked by metadata / moderation checks, `404` — Collection not found, `413` — File too large, `503` — Queue unavailable (document is stored as `failed`)
+**Errors:** `400` — Unsupported file type or blocked by metadata-schema checks, `404` — Collection not found, `413` — File too large, `503` — Queue unavailable (document is stored as `failed`)
 
 ## List Documents
 
@@ -173,7 +173,7 @@ Download the original uploaded file. Returns binary content with appropriate `Co
 POST /v1/collections/{collection_name}/documents/batch/upload
 ```
 
-Upload up to 100 files in one request. Each file goes through the same extension sniffing, metadata-schema validation, moderation, and `content_hash` deduplication pipeline as the single-file upload endpoint.
+Upload up to 100 files in one request. Each file goes through the same extension sniffing, metadata-schema validation, and `content_hash` deduplication pipeline as the single-file upload endpoint.
 
 ```bash
 curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/upload \

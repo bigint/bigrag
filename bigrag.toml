@@ -14,6 +14,7 @@
 # log_level = "info"
 # log_format = "text"
 # cors_origins = []
+# trusted_proxies = []              # CIDRs allowed to supply X-Forwarded-For
 
 # database_url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 # db_pool_min = 5

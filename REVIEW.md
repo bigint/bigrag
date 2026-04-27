@@ -1190,7 +1190,7 @@ slow Cohere call eats OpenAI's parallelism budget and vice versa.
 
 ---
 
-#### `[x]` I-065 🟡 Moderation runs on raw binary upload bytes
+#### `[x]` I-065 🟡 Removed moderation stub that ran on raw binary upload bytes
 
 **File:** `api/bigrag/routers/documents.py:100-111`
 
@@ -1201,13 +1201,13 @@ text_preview = content[:50_000].decode("utf-8", errors="ignore")
 For a PDF/DOCX/PPTX, this is mostly garbage shipped to OpenAI's moderation
 endpoint. Wastes API calls; can produce false positives on binary noise.
 
-**Fix:** Skip moderation for binary types. Run it after Docling extracts text
-in the worker (move from upload-time to post-extraction; reject the doc and
-delete from storage if flagged).
+**Fix:** Removed the `moderation_enabled` collection flag and upload-time
+moderation path wholesale in migration `0004`. The implementation was a
+misleading stub, not a dependable safety feature.
 
 ---
 
-#### `[x]` I-066 🟡 Moderation only checks first 10 KB of text
+#### `[x]` I-066 🟡 Removed moderation service that only checked first 10 KB
 
 **File:** `api/bigrag/services/moderation.py:33`
 
@@ -1218,7 +1218,10 @@ client.moderations.create(input=text[:10_000])
 Trivially bypassable: prepend 10 KB of innocuous text before the prohibited
 content.
 
-**Fix:** Sliding window or reject any flagged window. Document the trade-off.
+**Fix:** Deleted `api/bigrag/services/moderation.py` and removed the
+`moderation_enabled` API/database surface. If moderation returns later, it
+should be designed as a real post-extraction pipeline with explicit retention
+semantics and tests.
 
 ---
 
@@ -1249,6 +1252,7 @@ the proxy's IP. Documented architecture explicitly assumes a reverse proxy.
 
 **Fix:** Add `BIGRAG_TRUSTED_PROXIES` setting (CIDR list); when the immediate
 client is in the list, use the rightmost untrusted IP from `X-Forwarded-For`.
+Covered by `api/tests/test_client_ip.py`.
 
 ---
 
@@ -1667,8 +1671,9 @@ them.
 `sdks/rust/src/types/collections.rs`
 
 Missing `embedding_preset_id`, `embedding_base_url`, `chunk_strategy`,
-`index_type`, `tenant_field`, `metadata_schema`, `redact_pii`,
-`moderation_enabled` (create). Same set on update.
+`index_type`, `tenant_field`, and `metadata_schema` (create). Same set on
+update where the API supports mutation. `redact_pii` and
+`moderation_enabled` were intentionally removed in migration `0004`.
 
 **Fix:** Add all fields. Confirm against `api/bigrag/models/collection.py`.
 
@@ -1815,13 +1820,13 @@ providers; `openai_compatible` is configured inline on the collection).
 **Files:** `website/content/docs/api-reference/collections.mdx:173-178`,
 `api/bigrag/routers/collections.py:371-395`
 
-`metadata_schema`, `redact_pii`, `moderation_enabled`, `chunk_strategy` are
-documented as putable, accepted by the Pydantic model — and never assigned
-in the handler. Sending them is a no-op.
+`metadata_schema` and `chunk_strategy` were documented as putable, accepted by
+the Pydantic model — and never assigned in the handler. Sending them was a
+no-op. `redact_pii` and `moderation_enabled` were removed from the API surface
+instead of being made mutable.
 
-**Fix:** Implement the missing assignments in `update_collection`. (Don't
-just delete from the doc — the model accepts them, so users will rightly
-expect them to work.)
+**Fix:** Implemented the supported missing assignments in `update_collection`
+and removed the PII/moderation fields from the model/docs.
 
 ---
 
@@ -2126,9 +2131,6 @@ For quick "what's outstanding in X" lookups.
 ### `api/bigrag/services/mcp_http.py`
 - I-062, I-063, I-079
 
-### `api/bigrag/services/moderation.py`
-- I-066
-
 ### `api/bigrag/mcp_server.py`
 - I-063, I-078
 
@@ -2347,4 +2349,3 @@ For quick "what's outstanding in X" lookups.
 - Sprint 2 (security) is the riskiest if you're shipping to real users
   today. Sprint 1 (unbreak) is the most embarrassing if anyone tries the
   documented Docker quickstart.
-

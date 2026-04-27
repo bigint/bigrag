@@ -38,3 +38,19 @@ def test_trusted_proxy_uses_nearest_untrusted_forwarded_ip() -> None:
     scope = _scope("10.0.0.10", "198.51.100.1, 192.0.2.2")
 
     assert client_ip_from_scope(scope) == "198.51.100.1"
+
+
+def test_invalid_trusted_proxy_entries_are_ignored() -> None:
+    settings.trusted_proxies = ["not-a-cidr"]
+    _trusted_networks.cache_clear()
+
+    assert client_ip_from_scope(_scope("10.0.0.10", "203.0.113.5")) == "10.0.0.10"
+
+
+def test_all_trusted_forwarded_chain_falls_back_to_immediate_client() -> None:
+    settings.trusted_proxies = ["10.0.0.0/8", "192.0.2.0/24"]
+    _trusted_networks.cache_clear()
+
+    scope = _scope("10.0.0.10", "192.0.2.1, 10.1.2.3")
+
+    assert client_ip_from_scope(scope) == "10.0.0.10"

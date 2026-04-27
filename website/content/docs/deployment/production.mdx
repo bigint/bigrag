@@ -16,6 +16,8 @@ Tick these off before pointing real traffic at a bigRAG deployment:
   reverse proxy (nginx, Caddy, Traefik, Cloudflare).
 - [ ] `BIGRAG_CORS_ORIGINS` set to an explicit list of your Studio /
   app origins — no `*`.
+- [ ] `BIGRAG_TRUSTED_PROXIES` set to the CIDRs of your own reverse
+  proxies if bigRAG sits behind nginx, Caddy, Traefik, or a load balancer.
 - [ ] Redis with `requirepass` set and `appendonly yes` persisted to
   a mounted volume.
 - [ ] Milvus in cluster mode if you expect >10M vectors or need HA.
@@ -62,6 +64,7 @@ services:
       BIGRAG_REDIS_URL: redis://redis:6379/0
       BIGRAG_SESSION_COOKIE_SECURE: "true"
       BIGRAG_CORS_ORIGINS: '["https://studio.example.com"]'
+      BIGRAG_TRUSTED_PROXIES: '["10.0.0.0/8"]'
       BIGRAG_LOG_FORMAT: json
       BIGRAG_UPLOAD_DIR: /data/uploads
     deploy:
@@ -163,6 +166,7 @@ BIGRAG_ENV=prod                     # refuses to boot with insecure defaults
 BIGRAG_SESSION_COOKIE_SECURE=true   # HTTPS-only
 BIGRAG_SESSION_COOKIE_SAMESITE=lax
 BIGRAG_CORS_ORIGINS=["https://studio.example.com"]
+BIGRAG_TRUSTED_PROXIES=["10.0.0.0/8"]  # your reverse-proxy/load-balancer CIDRs
 
 # Auth is admin accounts + minted bigrag_sk_ keys.
 # Bootstrap with POST /v1/auth/setup, then mint service keys at /v1/admin/api-keys.

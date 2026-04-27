@@ -27,7 +27,7 @@ Studio proxies every request through `/api/bigrag/[...path]` onto the backend (d
 | `/collections/[name]/documents` | Upload (drag & drop or batch), list, filter, download, reprocess, delete documents. |
 | `/collections/[name]/documents/[docId]` | Document detail — chunks viewer, file preview, metadata editor, reprocess. |
 | `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, filters, rerank, HyDE, diversity, facets. |
-| `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, PII and moderation flags, default query params. |
+| `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
 | `/playground` | Multi-collection chat-like query tester; pick collections, run queries, inspect timings / cache hits. |
 | `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets) — reusable provider + model + key tuples. |
 | `/mcp` | Mint, scope, rotate, and revoke [MCP server](/docs/api-reference/mcp-servers) credentials for Claude Desktop / Cursor / custom MCP clients. |
