@@ -27,7 +27,7 @@ Two roles only. RBAC is intentionally coarse — fine-grained control lives on A
 | Role | Can |
 |------|-----|
 | `admin` | Everything: users, keys, collections, webhooks, audit |
-| `member` | Read `/v1/auth/me`, read/write own `/v1/preferences`, log out |
+| `member` | Read `/v1/auth/me`, read/write own `/v1/auth/preferences`, log out |
 
 `member` accounts are useful for Studio users who need a read-only pane of glass.
 
@@ -40,7 +40,7 @@ A session cookie is strictly stronger than an API key. The following endpoints r
 - `/v1/admin/audit/**`
 - `/v1/admin/webhooks/**`
 - `/v1/admin/embedding-presets/**`
-- `/v1/preferences`
+- `/v1/auth/preferences`
 - `POST /v1/auth/password`
 - `POST /v1/auth/logout-all`
 

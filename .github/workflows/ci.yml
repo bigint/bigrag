@@ -29,6 +29,10 @@ jobs:
         run: uv run ruff format --check .
         working-directory: api
 
+      - name: API tests
+        run: uv run pytest tests/ -v
+        working-directory: api
+
   biome:
     runs-on: ubuntu-latest
     steps:
@@ -56,6 +60,21 @@ jobs:
       - name: Type check
         run: pnpm tsc --noEmit
         working-directory: sdks/typescript
+
+      - name: SDK tests
+        run: pnpm test
+        working-directory: sdks/typescript
+
+  rust-sdk-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust SDK tests
+        run: cargo test
+        working-directory: sdks/rust
 
   website-build:
     runs-on: ubuntu-latest

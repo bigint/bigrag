@@ -1454,7 +1454,7 @@ but unusual and breaks some uvicorn reload paths.
 
 ---
 
-#### `[ ]` I-084 🟡 No upper-bound deps and no lockfile
+#### `[x]` I-084 🟡 No upper-bound deps and no lockfile
 
 **File:** `api/pyproject.toml:7-29`
 
@@ -1497,7 +1497,7 @@ refetchIntervalInBackground: false,
 
 ## SDK drift & inconsistency
 
-#### `[ ]` I-087 🟠 Rust `WebhookListResponse.total` will panic at runtime
+#### `[x]` I-087 🟠 Rust `WebhookListResponse.total` will panic at runtime
 
 **File:** `sdks/rust/src/types/webhooks.rs:73-78`
 
@@ -1510,7 +1510,7 @@ call.
 
 ---
 
-#### `[ ]` I-088 🟠 Rust `S3Job` missing `endpoint_url` and `metadata`
+#### `[x]` I-088 🟠 Rust `S3Job` missing `endpoint_url` and `metadata`
 
 **File:** `sdks/rust/src/types/documents.rs:168-195`
 
@@ -1522,7 +1522,7 @@ serde_json::Value` (with `#[serde(default)]`).
 
 ---
 
-#### `[ ]` I-089 🟠 Rust `StatusResponse.message` non-optional
+#### `[x]` I-089 🟠 Rust `StatusResponse.message` non-optional
 
 **File:** `sdks/rust/src/types/common.rs:5-10`
 
@@ -1532,7 +1532,7 @@ Server omits `message` on 204 No Content paths. Deserialization panics.
 
 ---
 
-#### `[ ]` I-090 🟠 Rust `get_stream` sends API key both in URL and header
+#### `[x]` I-090 🟠 Rust `get_stream` sends API key both in URL and header
 
 **File:** `sdks/rust/src/core.rs:126-150`
 
@@ -1595,7 +1595,7 @@ Rust correctly has it.
 
 ---
 
-#### `[ ]` I-095 🟠 SDKs missing endpoints
+#### `[-]` I-095 🟠 SDKs missing endpoints
 
 | Endpoint | TS | Python | Rust |
 |---|---|---|---|
@@ -1614,9 +1614,15 @@ Rust correctly has it.
 fine to skip, but document it). Add `reembed` and `replay_delivery` to all
 three. Bring Python's `get_chunks` up to par.
 
+**Resolution:** Added `reembed`, webhook delivery replay,
+`get_s3_job`/`update_s3_job`, and Python chunk pagination. The broad admin-only
+Studio management surface (`users`, `audit`, `embedding-presets`, `mcp-servers`,
+etc.) remains intentionally outside the SDKs unless the SDK coverage policy
+changes.
+
 ---
 
-#### `[ ]` I-096 🟠 Python SDK: `typing_extensions` not declared
+#### `[x]` I-096 🟠 Python SDK: `typing_extensions` not declared
 
 **File:** `sdks/python/pyproject.toml`
 
@@ -1635,7 +1641,7 @@ dependencies = [
 
 ---
 
-#### `[ ]` I-097 🟠 Python SDK: `_request_form` files quirk
+#### `[x]` I-097 🟠 Python SDK: `_request_form` files quirk
 
 **File:** `sdks/python/src/bigrag/resources/documents.py:86`
 
@@ -1653,7 +1659,7 @@ files=file_list,
 
 ---
 
-#### `[ ]` I-098 🟠 Python SDK: `get_chunks` silently truncates at 50
+#### `[x]` I-098 🟠 Python SDK: `get_chunks` silently truncates at 50
 
 **File:** `sdks/python/src/bigrag/resources/documents.py:130-136`
 
@@ -1665,7 +1671,7 @@ them.
 
 ---
 
-#### `[ ]` I-099 🟠 SDK type drift: Python+Rust `Update/CreateCollectionBody`
+#### `[x]` I-099 🟠 SDK type drift: Python+Rust `Update/CreateCollectionBody`
 
 **Files:** `sdks/python/src/bigrag/types/collections.py`,
 `sdks/rust/src/types/collections.rs`
@@ -1705,7 +1711,7 @@ already does it correctly.
 
 ---
 
-#### `[ ]` I-102 🟡 Rust `CollectionClient::analytics` doesn't url-encode
+#### `[x]` I-102 🟡 Rust `CollectionClient::analytics` doesn't url-encode
 
 **File:** `sdks/rust/src/client.rs:344-348`
 
@@ -1730,7 +1736,7 @@ All other `CollectionClient` methods route through resource methods that call
 
 ---
 
-#### `[ ]` I-104 🟡 Python SDK: `_sse.py` imports via barrel
+#### `[x]` I-104 🟡 Python SDK: `_sse.py` imports via barrel
 
 **File:** `sdks/python/src/bigrag/_sse.py:10`
 
@@ -1852,7 +1858,7 @@ Same drift on `/v1/admin/embedding-presets`.
 
 ---
 
-#### `[ ]` I-113 🟡 `studio.mdx` route map vs `app/src/app/`
+#### `[x]` I-113 🟡 `studio.mdx` route map vs `app/src/app/`
 
 **File:** `website/content/docs/studio.mdx`
 
@@ -1890,7 +1896,7 @@ mistake.
 
 ---
 
-#### `[ ]` I-116 🟡 `CONTRIBUTING.md` references nonexistent `database.py`
+#### `[x]` I-116 🟡 `CONTRIBUTING.md` references nonexistent `database.py`
 
 **File:** `CONTRIBUTING.md:54`
 
@@ -1898,6 +1904,9 @@ Project tree shows `database.py` under `api/bigrag/`. Real layout is the
 `db/` package.
 
 **Fix:** Update the tree.
+
+**Resolution:** The current tree already documents the `db/` package and no
+longer references `database.py`.
 
 ---
 
