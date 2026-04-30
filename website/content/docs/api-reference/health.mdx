@@ -12,7 +12,7 @@ GET /health
 No authentication required. Returns 200 if the server is running.
 
 ```json
-{ "status": "ok", "version": "0.0.2" }
+{ "status": "ok", "version": "2026.4.30" }
 ```
 
 ## Readiness Check
@@ -28,7 +28,7 @@ No authentication required. Tests connectivity to Postgres, Milvus, Redis, and t
 ```json
 {
   "status": "ok",
-  "version": "0.0.2",
+  "version": "2026.4.30",
   "postgres": true,
   "milvus": true,
   "redis": true,
@@ -41,7 +41,7 @@ When the embedding provider is unreachable or misconfigured:
 ```json
 {
   "status": "degraded",
-  "version": "0.0.2",
+  "version": "2026.4.30",
   "postgres": true,
   "milvus": true,
   "redis": true,

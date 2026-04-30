@@ -6,7 +6,7 @@ Rust client for [bigRAG](https://github.com/bigint/bigrag) — a self-hostable R
 
 ```toml
 [dependencies]
-bigrag = "0.1"
+bigrag = "2026.4.30"
 tokio = { version = "1", features = ["full"] }
 ```
 

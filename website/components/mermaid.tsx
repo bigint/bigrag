@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { darkThemeVariables, lightThemeVariables } from "./mermaid-themes";
+import { mermaidThemeVariables } from "./mermaid-themes";
 
 export function Mermaid({ chart }: { chart: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -12,13 +12,12 @@ export function Mermaid({ chart }: { chart: string }) {
 
     const render = async () => {
       const { default: mermaid } = await import("mermaid");
-      const isDark = document.documentElement.classList.contains("dark");
 
       mermaid.initialize({
         fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
         startOnLoad: false,
         theme: "base",
-        themeVariables: isDark ? darkThemeVariables : lightThemeVariables,
+        themeVariables: mermaidThemeVariables,
       });
 
       if (currentRender !== renderIdRef.current || !ref.current) return;

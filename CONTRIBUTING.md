@@ -101,6 +101,12 @@ docs: update API reference for query endpoint
 test: add ingestion pipeline tests
 ```
 
+### Release Versioning
+
+bigRAG release artifacts use [CalVer](https://calver.org/) with the `YYYY.M.D` scheme, without zero-padding month or day so npm, Cargo, and Python package versions stay compatible. A release on April 30, 2026 is `2026.4.30`.
+
+When cutting a release, keep the API package, SDK packages, Studio/docs package metadata, SDK user-agent constants, Docker image tags, and docs examples on the same CalVer version.
+
 ## Pull Request Process
 
 1. **Open an issue first** for significant changes to discuss the approach

@@ -13,7 +13,7 @@ import { Callout } from "fumadocs-ui/components/callout";
 ### Pull the image
 
 ```bash
-docker pull yoginth/bigrag:latest
+docker pull yoginth/bigrag:2026.4.30
 ```
 </Step>
 <Step>
@@ -41,7 +41,7 @@ The default `docker-compose.yml` runs the full stack including Milvus with its e
 ```yaml
 services:
   bigrag:
-    image: yoginth/bigrag:latest
+    image: yoginth/bigrag:2026.4.30
     ports:
       - "4000:4000"
     volumes:

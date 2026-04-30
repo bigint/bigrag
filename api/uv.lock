@@ -320,7 +320,7 @@ wheels = [
 
 [[package]]
 name = "bigrag"
-version = "0.0.2"
+version = "2026.4.30"
 source = { editable = "." }
 dependencies = [
     { name = "aiobotocore" },

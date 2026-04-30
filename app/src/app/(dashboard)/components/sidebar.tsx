@@ -16,7 +16,6 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { cn } from "@/lib/cn";
 import { UserMenu } from "./user-menu";
 
@@ -52,7 +51,6 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-4">
         <Logo />
-        <ThemeToggle />
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3">

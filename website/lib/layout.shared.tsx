@@ -44,5 +44,8 @@ export function baseOptions(): BaseLayoutProps {
       ),
       transparentMode: "top",
     },
+    themeSwitch: {
+      enabled: false,
+    },
   };
 }

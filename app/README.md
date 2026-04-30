@@ -19,7 +19,7 @@ initial admin account. The Studio talks to the bigRAG server set in
 - Next.js 16 (App Router) · React 19 · TypeScript
 - Tailwind CSS v4 with violet accent + stone neutrals
 - Base UI for accessible primitives
-- TanStack Query + Ky for data · Zustand for theme · Sonner for toasts
+- TanStack Query + Ky for data · Sonner for toasts
 - `@bigrag/client` is used server-side in the catch-all proxy at `/api/bigrag/[...path]`
 
 The server-side proxy forwards the browser's session cookie — and for external

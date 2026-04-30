@@ -51,7 +51,7 @@ Studio subscribes to `GET /v1/collections/{name}/events` for collection-wide doc
 
 ## Playground specifics
 
-The playground sends full query bodies to `POST /v1/query` (multi-collection) or `POST /v1/collections/{name}/query` (single) and renders the `timings`, `cached` flag, and `facets` inline so you can tune performance directly against production data. Preferences (last-used mode, default collection, theme) persist via `/v1/auth/preferences`.
+The playground sends full query bodies to `POST /v1/query` (multi-collection) or `POST /v1/collections/{name}/query` (single) and renders the `timings`, `cached` flag, and `facets` inline so you can tune performance directly against production data. Preferences such as last-used mode and default collection persist via `/v1/auth/preferences`.
 
 ### Citations
 

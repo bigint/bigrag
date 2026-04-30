@@ -62,8 +62,10 @@ curl -X POST http://localhost:4000/v1/collections/docs/query \
 ### Docker Images
 
 ```bash
-docker pull yoginth/bigrag:latest
+docker pull yoginth/bigrag:2026.4.30
 ```
+
+Release artifacts use CalVer (`YYYY.M.D`); `latest` is also published for Docker images.
 
 ## Architecture
 
@@ -248,7 +250,7 @@ result = await client.documents.ingest_s3(
 ```toml
 # Cargo.toml
 [dependencies]
-bigrag = "0.1"
+bigrag = "2026.4.30"
 ```
 
 ```rust

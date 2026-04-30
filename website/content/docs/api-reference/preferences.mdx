@@ -5,7 +5,7 @@ description: Per-user JSON blob for Studio UI state.
 
 Base path: `/v1/auth/preferences`
 
-Session-only. This is a JSON scratch-pad scoped to the logged-in user — Studio UI uses it to persist sidebar state, default collection filter, preferred search mode, theme, and similar client-side prefs. The server does not interpret the payload.
+Session-only. This is a JSON scratch-pad scoped to the logged-in user — Studio UI uses it to persist sidebar state, default collection filter, preferred search mode, and similar client-side prefs. The server does not interpret the payload.
 
 ## Get Preferences
 
@@ -18,7 +18,6 @@ GET /v1/auth/preferences
 ```json
 {
   "data": {
-    "theme": "dark",
     "sidebar_collapsed": false,
     "default_collection": "knowledge_base",
     "playground": { "search_mode": "hybrid", "top_k": 10 }
@@ -37,7 +36,7 @@ PUT /v1/auth/preferences
 Shallow-merges the request body into the stored preferences. Top-level keys in the request are overwritten; keys not present in the request are preserved. Send an explicit `null` to clear a single key.
 
 ```json
-{ "data": { "theme": "light" } }
+{ "data": { "default_collection": "knowledge_base" } }
 ```
 
 The body may be either `{"data": {...}}` or a bare object — both are accepted.

@@ -16,13 +16,9 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html
-      className={`${GeistSans.variable} ${GeistMono.variable}`}
-      lang="en"
-      suppressHydrationWarning
-    >
+    <html className={`${GeistSans.variable} ${GeistMono.variable}`} lang="en">
       <body className="flex min-h-screen flex-col font-sans">
-        <RootProvider>{children}</RootProvider>
+        <RootProvider theme={{ enabled: false }}>{children}</RootProvider>
       </body>
     </html>
   );

@@ -34,8 +34,10 @@ This starts:
 Pre-built images are published to Docker Hub:
 
 ```bash
-docker pull yoginth/bigrag:latest
+docker pull yoginth/bigrag:2026.4.30
 ```
+
+Release artifacts use CalVer (`YYYY.M.D`). Docker also publishes `latest` for convenience, but production deployments should pin the dated tag.
 
 </Tab>
 <Tab value="From Source">
@@ -92,7 +94,7 @@ This script:
 
 ```bash
 curl http://localhost:4000/health
-# → {"status": "ok", "version": "0.x.x"}
+# → {"status": "ok", "version": "2026.4.30"}
 ```
 
 <Callout type="info">
