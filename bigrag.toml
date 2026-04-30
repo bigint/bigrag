@@ -19,6 +19,8 @@
 # database_url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 # db_pool_min = 5
 # db_pool_max = 50
+# run_migrations = true            # set false only after the schema is migrated
+# migration_timeout_seconds = 60
 
 # milvus_uri = "http://localhost:19530"
 # milvus_max_workers = 32

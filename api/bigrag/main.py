@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -51,7 +52,24 @@ async def lifespan(app: FastAPI):
         )
 
     await db_module.configure(s.database_url, pool_min=s.db_pool_min, pool_max=s.db_pool_max)
-    await run_migrations()
+    if s.run_migrations:
+        logger.info("startup migrations enabled", timeout_seconds=s.migration_timeout_seconds)
+        try:
+            if s.migration_timeout_seconds > 0:
+                await asyncio.wait_for(
+                    run_migrations(),
+                    timeout=s.migration_timeout_seconds,
+                )
+            else:
+                await run_migrations()
+        except TimeoutError:
+            logger.error(
+                "startup migrations timed out",
+                timeout_seconds=s.migration_timeout_seconds,
+            )
+            raise
+    else:
+        logger.warning("startup migrations disabled; assuming database schema is current")
 
     vector_store.configure(s.milvus_uri, nprobe=s.milvus_nprobe)
     vector_store.connect()
@@ -83,8 +101,6 @@ async def lifespan(app: FastAPI):
     from bigrag.services.s3_ingest import resume_incomplete_jobs
 
     await resume_incomplete_jobs()
-
-    import asyncio
 
     from bigrag.services.cleanup import cleanup_old_data
     from bigrag.utils import safe_create_task

@@ -144,6 +144,8 @@ BIGRAG_CORS_ORIGINS=https://${{app.RAILWAY_PUBLIC_DOMAIN}}
 BIGRAG_LOG_LEVEL=info
 BIGRAG_LOG_FORMAT=json
 BIGRAG_WORKERS=1
+BIGRAG_RUN_MIGRATIONS=true
+BIGRAG_MIGRATION_TIMEOUT_SECONDS=60
 BIGRAG_UPLOAD_DIR=/data/uploads
 BIGRAG_INGESTION_WORKERS=4
 BIGRAG_DB_POOL_MIN=5
@@ -194,6 +196,8 @@ This trades external-dependency risk for ~$15/mo and 4 GB RAM saved on Railway.
 **Milvus crashes immediately.** Almost always an etcd connectivity problem. Verify `ETCD_ENDPOINTS` resolves to a healthy etcd on `*.railway.internal:2379` — check etcd's deploy logs first.
 
 **API refuses to start in prod.** Check `api/bigrag/startup_guard.py`. Required for `BIGRAG_ENV=prod`: non-default Postgres credentials (Railway plugin handles this), `BIGRAG_SESSION_COOKIE_SECURE=true`, `BIGRAG_MASTER_KEY` set, and `BIGRAG_CORS_ORIGINS` not containing `*`.
+
+**API deploy logs stop at `running alembic upgrade head`.** Open the Postgres Data tab and check `alembic_version`. If it already matches the current repo migration head, set `BIGRAG_RUN_MIGRATIONS=false` on the API service and redeploy. Leave this enabled on first deploys or whenever a release includes new migrations.
 
 **App loads but API calls fail with CORS errors.** `BIGRAG_CORS_ORIGINS` on bigrag-api isn't pointing at the app's public domain. Variables tab → check the resolved value of `${{app.RAILWAY_PUBLIC_DOMAIN}}` matches the domain in your browser address bar.
 

@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
     db_pool_min: int = 5
     db_pool_max: int = 50
+    run_migrations: bool = True
+    migration_timeout_seconds: int = 60
 
     milvus_uri: str = "http://localhost:19530"
 
