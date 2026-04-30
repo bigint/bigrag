@@ -295,6 +295,7 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_PORT` | Server port | `4000` |
+| `BIGRAG_WORKERS` | API worker processes | `1` |
 | `BIGRAG_DATABASE_URL` | Postgres URL (`postgres:5432` inside docker-compose, `localhost:5432` for bare-metal dev) | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
 | `BIGRAG_MILVUS_URI` | Milvus URI | `http://localhost:19530` |
 | `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
