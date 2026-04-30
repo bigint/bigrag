@@ -61,7 +61,6 @@ USER bigrag
 EXPOSE 4000
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:4000/health || exit 1
+    CMD curl -f "http://localhost:${PORT:-4000}/health" || exit 1
 
-ENTRYPOINT ["python", "-m", "bigrag.main"]
-CMD ["--host", "0.0.0.0", "--port", "4000"]
+CMD ["sh", "-c", "exec python -m bigrag.main --host 0.0.0.0 --port \"${PORT:-4000}\""]

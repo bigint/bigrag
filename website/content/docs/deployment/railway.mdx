@@ -114,12 +114,12 @@ NEXT_PUBLIC_API_URL=https://${{bigrag.RAILWAY_PUBLIC_DOMAIN}}
 | Builder | **Dockerfile** (Settings → Build → Builder → Dockerfile) — Railpack default doesn't recognise the project |
 | Dockerfile path | `/api/Dockerfile` (Railway suggests this when Root is `/api`) |
 | Metal Build Environment | **Off** — the multi-stage Python+Torch build with strip operations doesn't play well with Metal's caching layer |
-| Start command | `python -m bigrag.main --host 0.0.0.0 --port $PORT` |
+| Start command | _leave empty — the Dockerfile listens on Railway's `$PORT`_ |
 | Volume | 10 GB at `/data` |
 | RAM | 4 GB minimum |
-| Public domain | yes — Settings → Networking → Generate Domain, target port 8080 |
+| Public domain | yes — Settings → Networking → Generate Domain, target port unset |
 
-The Dockerfile's `CMD` hard-codes `--port 4000`, so the start-command override is required for Railway's dynamic `$PORT` to take effect. When you generate the public domain, set the **target port to 8080** so Railway's HTTP proxy forwards correctly to whatever Railway sets `$PORT` to.
+The Dockerfile starts the API with `--port "${PORT:-4000}"`, so Railway's injected `$PORT` is used automatically. Leave the public domain target port unset; if you do set one manually, it must match the port the container is actually listening on.
 
 <Callout type="warn">
 **Known issue — bigrag-api Dockerfile builds can fail on Railway.** The current `api/Dockerfile` uses a multi-stage build with CPU-only Torch (~2 GB), `pip uninstall sympy mpmath`, and a `find ... -exec strip` pass. This combination fights Railway's Metal Build Environment. If your build fails fast (under 30 s) at `[build 3/11] RUN apt-get install`, disable Metal (Settings → Build → toggle off) and redeploy. If it fails again at the Torch install, raise the build memory cap or split the Dockerfile so Torch installs in its own layer that survives Metal's cache.
@@ -143,6 +143,7 @@ BIGRAG_SESSION_COOKIE_SAMESITE=lax
 BIGRAG_CORS_ORIGINS=https://${{app.RAILWAY_PUBLIC_DOMAIN}}
 BIGRAG_LOG_LEVEL=info
 BIGRAG_LOG_FORMAT=json
+BIGRAG_WORKERS=1
 BIGRAG_UPLOAD_DIR=/data/uploads
 BIGRAG_INGESTION_WORKERS=4
 BIGRAG_DB_POOL_MIN=5
