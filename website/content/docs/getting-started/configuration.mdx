@@ -51,8 +51,6 @@ dimension = 1536
 [ingestion]
 workers = 4
 batch_size = 128
-chunk_size = 512
-chunk_overlap = 50
 conversion_timeout = 300
 max_upload_size_mb = 1024
 
@@ -132,8 +130,6 @@ Embedding provider, model, and key are normally configured per collection. These
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload file size in MB | `1024` |
 | `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
 | `BIGRAG_INGESTION_BATCH_SIZE` | Vectors per embedding batch | `128` |
-| `BIGRAG_CHUNK_SIZE` | Default chunk size (tokens) | `512` |
-| `BIGRAG_CHUNK_OVERLAP` | Default chunk overlap (tokens) | `50` |
 | `BIGRAG_CONVERSION_TIMEOUT` | Docling conversion timeout (seconds) | `300` |
 
 ### Storage

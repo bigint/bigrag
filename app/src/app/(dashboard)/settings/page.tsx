@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Tabs } from "@/components/ui/tabs";
 import { AccountTab } from "./tabs/account-tab";
 import { AuditTab } from "./tabs/audit-tab";
-import { EvalTab } from "./tabs/eval-tab";
 import { ServerTab } from "./tabs/server-tab";
 import { UsageTab } from "./tabs/usage-tab";
 
@@ -14,7 +14,6 @@ const TABS = [
   { label: "Server", value: "server" },
   { label: "Usage & cost", value: "usage" },
   { label: "Audit log", value: "audit" },
-  { label: "Evaluation", value: "eval" },
 ];
 
 const COMPONENTS: Record<string, React.FC> = {
@@ -22,13 +21,18 @@ const COMPONENTS: Record<string, React.FC> = {
   server: ServerTab,
   usage: UsageTab,
   audit: AuditTab,
-  eval: EvalTab,
 };
 
 const SettingsPage = () => {
   const router = useRouter();
   const params = useSearchParams();
   const tab = params.get("tab") ?? "account";
+
+  useEffect(() => {
+    if (tab === "eval") {
+      router.replace("/evals");
+    }
+  }, [router, tab]);
 
   const setTab = (value: string) => {
     const next = new URLSearchParams(params.toString());
@@ -42,7 +46,7 @@ const SettingsPage = () => {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Instance settings"
-        description="Manage your account, inspect infrastructure health, review audit trails, and measure retrieval quality."
+        description="Manage your account, inspect infrastructure health, and review audit trails."
       />
       <Tabs tabs={TABS} value={tab} onChange={setTab} />
       <div>

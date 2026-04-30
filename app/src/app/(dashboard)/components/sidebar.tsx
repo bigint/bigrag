@@ -5,6 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
   Cpu,
+  FlaskConical,
   KeyRound,
   LayoutDashboard,
   Plug,
@@ -24,6 +25,7 @@ interface NavItem {
   readonly label: string;
   readonly icon: LucideIcon;
   readonly admin?: boolean;
+  readonly separated?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -31,8 +33,9 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/collections", icon: BookOpen, label: "Collections" },
   { href: "/models", icon: Cpu, label: "Models" },
   { href: "/playground", icon: Sparkles, label: "Playground" },
+  { admin: true, href: "/evals", icon: FlaskConical, label: "Evals" },
   { href: "/mcp", icon: Plug, label: "MCP" },
-  { admin: true, href: "/api-keys", icon: KeyRound, label: "API Keys" },
+  { admin: true, href: "/api-keys", icon: KeyRound, label: "API Keys", separated: true },
   { admin: true, href: "/webhooks", icon: Webhook, label: "Webhooks" },
   { admin: true, href: "/settings", icon: Settings, label: "Settings" },
 ];
@@ -44,7 +47,6 @@ const isActive = (pathname: string, href: string) => {
 
 const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: string }) => {
   const pathname = usePathname();
-  let seenAdmin = false;
   const items = NAV_ITEMS.filter((item) => !item.admin || role === "admin");
 
   return (
@@ -57,12 +59,9 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
         {items.map((item) => {
           const active = isActive(pathname, item.href);
           const Icon = item.icon;
-          const prefix =
-            item.admin && !seenAdmin ? <div className="my-2 border-t border-border" /> : null;
-          if (item.admin) seenAdmin = true;
           return (
             <div key={item.href}>
-              {prefix}
+              {item.separated && <div className="my-2 border-t border-border" />}
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}

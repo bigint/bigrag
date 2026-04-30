@@ -51,8 +51,6 @@
 # s3_access_key = ""
 # s3_secret_key = ""
 
-# chunk_size = 512
-# chunk_overlap = 50
 # max_upload_size_mb = 1024
 # ingestion_workers = 4
 # ingestion_batch_size = 128

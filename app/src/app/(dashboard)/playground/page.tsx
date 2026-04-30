@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
+import { PageHeader } from "@/components/ui/page-header";
 import { Spinner } from "@/components/ui/spinner";
 import { useCollections } from "@/hooks/use-collections";
 import { useDocuments } from "@/hooks/use-documents";
@@ -210,20 +211,19 @@ const PlaygroundPage = () => {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col px-6 py-8 md:px-10">
-      <div className="flex items-center justify-between pb-4">
-        <div>
-          <h1 className="text-lg font-semibold">Playground</h1>
-          <p className="text-sm text-muted-foreground">
-            Chat your collection end-to-end — bigRAG retrieves, OpenAI answers.
-          </p>
-        </div>
-        {messages.length > 0 && (
-          <Button disabled={isStreaming} onClick={clearMessages} size="sm" variant="ghost">
-            <RotateCcw className="size-3.5" />
-            New chat
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        actions={
+          messages.length > 0 ? (
+            <Button disabled={isStreaming} onClick={clearMessages} size="sm" variant="ghost">
+              <RotateCcw className="size-3.5" />
+              New chat
+            </Button>
+          ) : null
+        }
+        className="mb-4"
+        description="Chat your collection end-to-end — bigRAG retrieves, OpenAI answers."
+        title="Playground"
+      />
 
       {collectionsLoading || prefsQuery.isPending ? (
         <div className="flex flex-1 items-center justify-center rounded-xl border border-border">
