@@ -28,7 +28,6 @@ trusted_proxies = ["10.0.0.0/8"]
 database_url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 db_pool_min = 5
 db_pool_max = 50
-run_migrations = true
 migration_timeout_seconds = 60
 
 qdrant_url = "http://localhost:6333"
@@ -97,8 +96,7 @@ Runtime settings use the `BIGRAG_` prefix. Environment variables override TOML v
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_DATABASE_URL` | Postgres connection URL | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
-| `BIGRAG_RUN_MIGRATIONS` | Run Alembic migrations during API startup | `true` |
-| `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration timeout (`0` disables the timeout) | `60` |
+| `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration check timeout (`0` disables the timeout) | `60` |
 | `BIGRAG_QDRANT_URL` | Qdrant connection URL | `http://localhost:6333` |
 | `BIGRAG_QDRANT_API_KEY` | Optional Qdrant Cloud/API key | — |
 | `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout (`0` disables the timeout) | `10` |

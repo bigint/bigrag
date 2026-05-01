@@ -23,7 +23,6 @@ class Settings(BaseSettings):
     database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
     db_pool_min: int = 5
     db_pool_max: int = 50
-    run_migrations: bool = True
     migration_timeout_seconds: int = 60
 
     qdrant_url: str = "http://localhost:6333"
@@ -108,6 +107,7 @@ class Settings(BaseSettings):
                     flat[section] = values
         log_level = flat.pop("log_level", None)
         log_format = flat.pop("log_format", None)
+        flat.pop("run_migrations", None)
         settings = cls(**flat)
         if isinstance(log_level, str):
             settings.log_level = log_level

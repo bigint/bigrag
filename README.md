@@ -305,8 +305,7 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 | `BIGRAG_PORT` | Server port | `4000` |
 | `BIGRAG_WORKERS` | API worker processes | `1` |
 | `BIGRAG_DATABASE_URL` | Postgres URL (`postgres:5432` inside docker-compose, `localhost:5432` for bare-metal dev) | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
-| `BIGRAG_RUN_MIGRATIONS` | Run Alembic migrations during API startup | `true` |
-| `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration timeout (`0` disables the timeout) | `60` |
+| `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration check timeout (`0` disables the timeout) | `60` |
 | `BIGRAG_QDRANT_URL` | Qdrant URL | `http://localhost:6333` |
 | `BIGRAG_QDRANT_API_KEY` | Optional Qdrant Cloud/API key | — |
 | `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout (`0` disables the timeout) | `10` |

@@ -52,24 +52,7 @@ async def lifespan(app: FastAPI):
         )
 
     await db_module.configure(s.database_url, pool_min=s.db_pool_min, pool_max=s.db_pool_max)
-    if s.run_migrations:
-        logger.info("startup migrations enabled", timeout_seconds=s.migration_timeout_seconds)
-        try:
-            if s.migration_timeout_seconds > 0:
-                await asyncio.wait_for(
-                    run_migrations(),
-                    timeout=s.migration_timeout_seconds,
-                )
-            else:
-                await run_migrations()
-        except TimeoutError:
-            logger.error(
-                "startup migrations timed out",
-                timeout_seconds=s.migration_timeout_seconds,
-            )
-            raise
-    else:
-        logger.warning("startup migrations disabled; assuming database schema is current")
+    await _check_database_migrations(s, logger)
 
     vector_store.configure(
         s.qdrant_url,
@@ -144,6 +127,24 @@ async def lifespan(app: FastAPI):
     await vector_store.close()
     await db_module.close()
     logger.info("shut down")
+
+
+async def _check_database_migrations(s: Settings, logger) -> None:
+    logger.info("checking database migrations", timeout_seconds=s.migration_timeout_seconds)
+    try:
+        if s.migration_timeout_seconds > 0:
+            await asyncio.wait_for(
+                run_migrations(),
+                timeout=s.migration_timeout_seconds,
+            )
+        else:
+            await run_migrations()
+    except TimeoutError:
+        logger.error(
+            "startup migrations timed out",
+            timeout_seconds=s.migration_timeout_seconds,
+        )
+        raise
 
 
 def create_app(settings_override: Settings | None = None) -> FastAPI:
