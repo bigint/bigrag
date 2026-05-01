@@ -109,7 +109,7 @@ export const ChatInput = ({
 
   return (
     <div className="px-4 pt-2 pb-5 md:px-6">
-      <div className="mx-auto max-w-3xl rounded-3xl border border-border bg-background transition-all duration-300 ease-out focus-within:border-neutral-200">
+      <div className="mx-auto max-w-3xl rounded-3xl border border-border bg-background focus-within:border-neutral-200">
         <textarea
           ref={textareaRef}
           aria-label="Message input"
@@ -137,7 +137,7 @@ export const ChatInput = ({
             <button
               type="button"
               aria-label="Input options"
-              className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => toggle(keyIsSet ? "collection" : "key")}
             >
               <Plus className="size-4" />
@@ -357,7 +357,7 @@ const ModelMenu = ({
           key={m.value}
           onClick={() => onChange(m.value)}
           className={cn(
-            "flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-left text-sm transition-colors hover:bg-accent",
+            "flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-left text-sm hover:bg-accent",
             m.value === value && "bg-accent font-semibold text-foreground",
           )}
         >
@@ -369,7 +369,7 @@ const ModelMenu = ({
       <div className="my-1 h-px bg-border" />
       <button
         type="button"
-        className="flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-left text-sm transition-colors hover:bg-accent"
+        className="flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-left text-sm hover:bg-accent"
       >
         <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" />
         <span className="flex-1 truncate">Configure</span>
@@ -418,7 +418,7 @@ const CollectionMenu = ({
           key={c.id}
           onClick={() => onChange(c.name)}
           className={cn(
-            "flex h-10 w-full items-center gap-2 rounded-2xl px-3 text-left text-xs transition-colors hover:bg-accent",
+            "flex h-10 w-full items-center gap-2 rounded-2xl px-3 text-left text-xs hover:bg-accent",
             c.name === value && "bg-accent font-semibold text-foreground",
           )}
         >

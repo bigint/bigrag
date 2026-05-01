@@ -74,12 +74,12 @@ export const DataTable = <T,>({
         </thead>
         <tbody>
           {data.map((item, idx) => (
-            <tr key={keyExtractor(item)} className="group transition-colors">
+            <tr key={keyExtractor(item)} className="group">
               {columns.map((col) => (
                 <td
                   key={col.key}
                   className={cn(
-                    "bg-background px-3 py-3 tabular-nums transition-colors first:rounded-l-2xl last:rounded-r-2xl group-hover:bg-muted sm:px-5 sm:py-3.5",
+                    "bg-background px-3 py-3 tabular-nums first:rounded-l-2xl last:rounded-r-2xl group-hover:bg-muted sm:px-5 sm:py-3.5",
                     col.className,
                   )}
                 >

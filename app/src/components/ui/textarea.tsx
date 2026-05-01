@@ -29,7 +29,7 @@ export const Textarea = ({
       id={id}
       ref={ref}
       className={cn(
-        "min-h-24 w-full resize-y rounded-2xl border border-input bg-background px-4 py-3 text-sm transition-all",
+        "min-h-24 w-full resize-y rounded-2xl border border-input bg-background px-4 py-3 text-sm",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         error && "border-destructive focus-visible:ring-destructive",
         className,

@@ -56,7 +56,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
             type="button"
             aria-label="Open navigation"
             onClick={() => setMobileNavOpen(true)}
-            className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
           >
             <MenuIcon className="size-5" />
           </button>

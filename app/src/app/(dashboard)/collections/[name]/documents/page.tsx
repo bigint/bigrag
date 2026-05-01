@@ -74,7 +74,7 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={cn(
-          "flex cursor-pointer items-center justify-center gap-3 rounded-xl border border-dashed px-6 py-8 text-sm transition-colors",
+          "flex cursor-pointer items-center justify-center gap-3 rounded-xl border border-dashed px-6 py-8 text-sm",
           "border-border bg-card hover:border-primary hover:bg-accent/50",
           dragging && "border-primary bg-accent",
           upload.isPending && "pointer-events-none opacity-60",

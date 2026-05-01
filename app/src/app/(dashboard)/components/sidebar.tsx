@@ -14,7 +14,6 @@ import {
   Sparkles,
   Webhook,
 } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
@@ -69,7 +68,7 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
                 aria-current={active ? "page" : undefined}
                 onClick={onNavigate}
                 className={cn(
-                  "flex h-8 items-center gap-2.5 rounded-full px-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "flex h-8 items-center gap-2.5 rounded-full px-2.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active
                     ? "bg-background text-foreground"
                     : "text-muted-foreground hover:bg-background hover:text-foreground",
@@ -107,7 +106,6 @@ export const MobileSidebar = ({
   open: boolean;
   role: string;
 }) => {
-  const isReduced = useReducedMotion();
   return (
     <Dialog.Root
       open={open}
@@ -115,39 +113,19 @@ export const MobileSidebar = ({
         if (!o) onClose();
       }}
     >
-      <AnimatePresence>
-        {open && (
-          <Dialog.Portal>
-            <Dialog.Backdrop
-              render={
-                <motion.div
-                  className="fixed inset-0 z-50 bg-black/50 lg:hidden"
-                  initial={isReduced ? { opacity: 1 } : { opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: isReduced ? 0 : 0.15 }}
-                />
-              }
-            />
-            <Dialog.Popup
-              render={
-                <motion.div
-                  className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-sm flex-col border-r border-border bg-background lg:hidden"
-                  initial={isReduced ? { x: 0 } : { x: "-100%" }}
-                  animate={{ x: 0 }}
-                  exit={isReduced ? { opacity: 0 } : { x: "-100%" }}
-                  transition={
-                    isReduced ? { duration: 0 } : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }
-                  }
-                />
-              }
-            >
-              <Dialog.Title className="sr-only">Navigation</Dialog.Title>
-              <SidebarBody onNavigate={onClose} role={role} />
-            </Dialog.Popup>
-          </Dialog.Portal>
-        )}
-      </AnimatePresence>
+      {open && (
+        <Dialog.Portal>
+          <Dialog.Backdrop render={<div className="fixed inset-0 z-50 bg-black/50 lg:hidden" />} />
+          <Dialog.Popup
+            render={
+              <div className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-sm flex-col border-r border-border bg-background lg:hidden" />
+            }
+          >
+            <Dialog.Title className="sr-only">Navigation</Dialog.Title>
+            <SidebarBody onNavigate={onClose} role={role} />
+          </Dialog.Popup>
+        </Dialog.Portal>
+      )}
     </Dialog.Root>
   );
 };

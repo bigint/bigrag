@@ -186,7 +186,7 @@ const OverviewPage = () => {
               </div>
               <Link
                 href="/collections"
-                className="shrink-0 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                className="shrink-0 text-xs font-semibold text-muted-foreground hover:text-foreground"
               >
                 View all
               </Link>
@@ -205,7 +205,7 @@ const OverviewPage = () => {
                   <li key={collection.id}>
                     <Link
                       href={`/collections/${encodeURIComponent(collection.name)}`}
-                      className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-muted"
+                      className="flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-muted"
                     >
                       <div className="min-w-0">
                         <div className="flex min-w-0 items-center gap-2">
@@ -283,7 +283,7 @@ const PillLink = ({
   <Link
     href={href}
     className={cn(
-      "inline-flex h-9 items-center justify-center gap-2 rounded-full border px-3 text-xs font-semibold transition-all active:scale-95",
+      "inline-flex h-9 items-center justify-center gap-2 rounded-full border px-3 text-xs font-semibold",
       primary
         ? "border-primary bg-primary text-primary-foreground"
         : "border-border bg-background text-foreground hover:bg-muted",
@@ -349,7 +349,7 @@ const AccessCommandCenter = ({
           </div>
           <Link
             href="/access-logs"
-            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-background px-3 text-xs font-semibold transition-colors hover:bg-muted"
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-background px-3 text-xs font-semibold hover:bg-muted"
           >
             Open logs
             <ArrowUpRight className="size-3.5" />
@@ -395,10 +395,6 @@ const AccessCommandCenter = ({
                 value={formatNumber(overview?.unique_users ?? 0)}
                 sub="distinct users in this window"
               />
-            </div>
-
-            <div className="mt-5">
-              <AccessTimeline overview={overview} />
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -451,49 +447,6 @@ const AccessMetric = ({
     <div className="mt-1 truncate text-xs text-muted-foreground">{sub}</div>
   </div>
 );
-
-const AccessTimeline = ({ overview }: { overview: AccessLogOverview | undefined }) => {
-  const points = overview?.timeline ?? [];
-  const maxEvents = Math.max(1, ...points.map((point) => point.events));
-
-  return (
-    <div>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold">Traffic pulse</h3>
-        <Badge variant="neutral">{points.length} buckets</Badge>
-      </div>
-      <div className="flex h-28 items-end gap-1.5 rounded-2xl border border-border bg-muted/50 px-3 py-3">
-        {points.length === 0 ? (
-          <div className="self-center text-sm text-muted-foreground">Waiting for events</div>
-        ) : (
-          points.map((point) => {
-            const height = Math.max(8, (point.events / maxEvents) * 100);
-            const errorHeight = point.events ? Math.max(2, (point.errors / point.events) * 100) : 0;
-            return (
-              <div
-                className="group relative flex min-w-3 flex-1 items-end rounded-full bg-background"
-                key={point.bucket}
-                title={`${formatNumber(point.events)} events, ${formatNumber(point.errors)} errors`}
-              >
-                <div
-                  className="w-full overflow-hidden rounded-full bg-primary/80 transition-all group-hover:bg-primary"
-                  style={{ height: `${height}%` }}
-                >
-                  {point.errors > 0 && (
-                    <div
-                      className="mt-auto w-full bg-destructive"
-                      style={{ height: `${errorHeight}%` }}
-                    />
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-};
 
 const AccessBucketList = ({
   buckets,
@@ -555,7 +508,7 @@ const AccessRecentStream = ({ entries }: { entries: AccessLogEntry[] }) => (
       ) : (
         entries.slice(0, 7).map((entry) => (
           <Link
-            className="block rounded-2xl border border-border px-3 py-2.5 transition-colors hover:bg-muted"
+            className="block rounded-2xl border border-border px-3 py-2.5 hover:bg-muted"
             href="/access-logs"
             key={entry.id}
           >
@@ -711,9 +664,9 @@ const QuickAction = ({
 }) => (
   <Link
     href={href}
-    className="group flex items-center gap-3 rounded-3xl border border-border bg-background p-4 transition-all hover:border-neutral-200 active:scale-95"
+    className="group flex items-center gap-3 rounded-3xl border border-border bg-background p-4 hover:border-neutral-200"
   >
-    <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+    <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground">
       <Icon className="size-4" />
     </div>
     <div className="min-w-0 flex-1">

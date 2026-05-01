@@ -11,7 +11,7 @@ type Tab = { value: string; label: string; count?: number; icon?: LucideIcon };
 
 const tabListClassName = "flex gap-1.5 overflow-x-auto";
 const tabClassName =
-  "inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3.5 text-sm font-semibold transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-95";
+  "inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3.5 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
 const tabCountClassName = "rounded-full px-1.5 py-0.5 text-xs font-semibold leading-none";
 const tabIconClassName = "size-3.5";
 

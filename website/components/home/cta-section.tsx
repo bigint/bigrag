@@ -25,14 +25,14 @@ export function CtaSection() {
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-fd-primary px-5 text-sm font-medium text-fd-primary-foreground shadow-sm transition-all hover:opacity-90"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-fd-primary px-5 text-sm font-medium text-fd-primary-foreground shadow-sm hover:opacity-90"
               href="/docs/deployment/docker"
             >
               Deployment Guide
               <ArrowRight className="size-4" />
             </Link>
             <Link
-              className="inline-flex h-10 items-center rounded-lg border border-fd-border bg-fd-background px-5 text-sm font-medium text-fd-foreground shadow-sm transition-all hover:bg-fd-accent"
+              className="inline-flex h-10 items-center rounded-lg border border-fd-border bg-fd-background px-5 text-sm font-medium text-fd-foreground shadow-sm hover:bg-fd-accent"
               href="/docs/getting-started/quickstart"
             >
               Quickstart

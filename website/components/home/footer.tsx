@@ -5,7 +5,7 @@ export function Footer() {
         <p>
           Built by{" "}
           <a
-            className="font-medium text-fd-foreground transition-colors hover:text-fd-foreground/80"
+            className="font-medium text-fd-foreground hover:text-fd-foreground/80"
             href="https://x.com/yoginth"
             rel="noopener noreferrer"
             target="_blank"
@@ -15,7 +15,7 @@ export function Footer() {
         </p>
         <div className="flex items-center gap-6">
           <a
-            className="transition-colors hover:text-fd-foreground"
+            className="hover:text-fd-foreground"
             href="https://github.com/bigint/bigrag"
             rel="noopener noreferrer"
             target="_blank"
@@ -23,14 +23,14 @@ export function Footer() {
             GitHub
           </a>
           <a
-            className="transition-colors hover:text-fd-foreground"
+            className="hover:text-fd-foreground"
             href="https://x.com/yoginth"
             rel="noopener noreferrer"
             target="_blank"
           >
             X
           </a>
-          <a className="transition-colors hover:text-fd-foreground" href="mailto:yoginth@hey.com">
+          <a className="hover:text-fd-foreground" href="mailto:yoginth@hey.com">
             Support
           </a>
         </div>

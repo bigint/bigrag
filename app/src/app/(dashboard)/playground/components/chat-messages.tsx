@@ -46,7 +46,7 @@ const renderInlineCitations = (
           key={`c-${key++}`}
           type="button"
           onClick={() => onCite(n)}
-          className="mx-0.5 inline-flex items-center rounded-full bg-primary/10 px-1.5 align-baseline font-mono text-xs font-semibold text-primary transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="mx-0.5 inline-flex items-center rounded-full bg-primary/10 px-1.5 align-baseline font-mono text-xs font-semibold text-primary hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           aria-label={`Jump to source ${n}`}
         >
           [{n}]
@@ -146,11 +146,8 @@ const Bubble = memo(
                 const total = t.total_ms;
                 return (
                   <details className="group mt-0.5 mb-2 text-xs text-muted-foreground">
-                    <summary className="flex w-fit cursor-pointer items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:bg-muted hover:text-foreground">
-                      <ChevronRight
-                        aria-hidden
-                        className="size-3 transition-transform group-open:rotate-90"
-                      />
+                    <summary className="flex w-fit cursor-pointer items-center gap-1.5 rounded-full px-2 py-1 hover:bg-muted hover:text-foreground">
+                      <ChevronRight aria-hidden className="size-3" />
                       <span>Per-phase latency</span>
                     </summary>
                     <div className="mt-1.5 w-full max-w-md space-y-1 rounded-2xl border border-border bg-card px-3 py-2.5">
@@ -191,12 +188,12 @@ const Bubble = memo(
             <div className="whitespace-pre-wrap text-base leading-7 text-foreground">
               {renderInlineCitations(message.content, chunkCount, jumpToSource)}
               {isStreaming && (
-                <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-current align-text-bottom" />
+                <span className="ml-0.5 inline-block h-4 w-1.5 rounded-sm bg-current align-text-bottom" />
               )}
             </div>
             {message.meta && message.meta.chunks.length > 0 && (
               <details ref={detailsRef} className="mt-4 text-xs">
-                <summary className="w-fit cursor-pointer rounded-full bg-muted px-3 py-1.5 font-semibold text-muted-foreground transition-colors hover:text-foreground">
+                <summary className="w-fit cursor-pointer rounded-full bg-muted px-3 py-1.5 font-semibold text-muted-foreground hover:text-foreground">
                   View sources
                 </summary>
                 <ol className="mt-2 space-y-1.5">
@@ -215,7 +212,7 @@ const Bubble = memo(
                           else sourceRefs.current.delete(n);
                         }}
                         className={cn(
-                          "rounded-2xl border bg-card p-3 text-xs leading-snug transition-colors",
+                          "rounded-2xl border bg-card p-3 text-xs leading-snug",
                           highlight === n ? "border-primary bg-primary/5" : "border-border",
                         )}
                       >

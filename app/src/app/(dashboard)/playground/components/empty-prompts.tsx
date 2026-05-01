@@ -68,7 +68,7 @@ export const EmptyPrompts = ({ onSelect, disabled }: Props) => {
                   key={example.text}
                   onClick={() => onSelect(example.text)}
                   type="button"
-                  className="flex min-h-8 w-full items-center gap-2 px-4 py-2 text-left text-xs font-semibold transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex min-h-8 w-full items-center gap-2 px-4 py-2 text-left text-xs font-semibold hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Icon className="size-3.5 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate">{example.text}</span>

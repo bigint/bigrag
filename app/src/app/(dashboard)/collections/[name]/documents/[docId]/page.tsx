@@ -118,10 +118,7 @@ const DocumentDetail = ({ params }: { params: Promise<{ name: string; docId: str
               <span className="tabular-nums text-muted-foreground">{pct}%</span>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full bg-primary transition-[width] duration-300"
-                style={{ width: `${pct}%` }}
-              />
+              <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
             </div>
             {progress?.message && (
               <p className="text-xs text-muted-foreground">{progress.message}</p>

@@ -60,10 +60,10 @@ export function FeatureCard({
 }) {
   return (
     <Link
-      className="group relative rounded-xl border border-fd-border bg-fd-card p-6 transition-all duration-200 hover:border-fd-foreground/15 hover:shadow-sm"
+      className="group relative rounded-xl border border-fd-border bg-fd-card p-6 hover:border-fd-foreground/15 hover:shadow-sm"
       href={href}
     >
-      <div className="mb-4 inline-flex rounded-lg border border-fd-border bg-fd-background p-2.5 text-fd-foreground transition-colors group-hover:border-fd-foreground/15 group-hover:bg-fd-accent">
+      <div className="mb-4 inline-flex rounded-lg border border-fd-border bg-fd-background p-2.5 text-fd-foreground group-hover:border-fd-foreground/15 group-hover:bg-fd-accent">
         {icon}
       </div>
       <h3 className="mb-2 text-[15px] font-semibold text-fd-foreground">{title}</h3>

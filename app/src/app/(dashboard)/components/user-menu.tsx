@@ -32,8 +32,8 @@ export const UserMenu = ({ compact = false }: { compact?: boolean }) => {
       <Menu.Trigger
         className={cn(
           compact
-            ? "mx-auto mb-1 flex size-8 items-center justify-center rounded-full text-left transition-colors hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            : "flex w-full items-center gap-2.5 border-t border-border p-3 text-left transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            ? "mx-auto mb-1 flex size-8 items-center justify-center rounded-full text-left hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            : "flex w-full items-center gap-2.5 border-t border-border p-3 text-left hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         )}
         title={user.display_name || user.email}
       >

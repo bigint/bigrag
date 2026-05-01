@@ -34,7 +34,7 @@ export const Checkbox = ({
         aria-label={ariaLabel}
         checked={checked}
         className={cn(
-          "flex size-4 shrink-0 items-center justify-center rounded border border-input transition-colors duration-150",
+          "flex size-4 shrink-0 items-center justify-center rounded border border-input",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           "disabled:cursor-not-allowed disabled:opacity-50",
           checked || indeterminate

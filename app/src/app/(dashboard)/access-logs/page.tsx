@@ -1,7 +1,6 @@
 "use client";
 
 import { RefreshCw, ShieldCheck } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -41,7 +40,7 @@ const AccessLogsPage = () => {
       <PageHeader
         actions={
           <Button disabled={logs.isFetching} onClick={refresh} size="sm" variant="outline">
-            <RefreshCw className={cn("size-4", logs.isFetching && "animate-spin")} />
+            <RefreshCw className="size-4" />
             Refresh
           </Button>
         }
@@ -116,58 +115,52 @@ const Stat = ({
   </div>
 );
 
-const AccessLogTable = ({ entries }: { entries: AccessLogEntry[] }) => {
-  const reduced = useReducedMotion();
-  return (
-    <div className="divide-y divide-border">
-      {entries.map((entry, index) => (
-        <motion.div
-          animate={{ opacity: 1, y: 0 }}
-          className="grid gap-4 px-5 py-4 transition-colors hover:bg-muted/60 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_12rem_9rem]"
-          initial={reduced ? false : { opacity: 0, y: 8 }}
-          key={entry.id}
-          transition={{ delay: reduced ? 0 : Math.min(index, 8) * 0.025, duration: 0.18 }}
-        >
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge entry={entry} />
-              <span className="truncate text-sm font-semibold">{entry.action}</span>
-            </div>
-            <div className="mt-1 flex min-w-0 text-xs text-muted-foreground">
-              <span className="truncate">{entry.collection_name ?? entry.resource_type}</span>
-            </div>
+const AccessLogTable = ({ entries }: { entries: AccessLogEntry[] }) => (
+  <div className="divide-y divide-border">
+    {entries.map((entry) => (
+      <div
+        className="grid gap-4 px-5 py-4 hover:bg-muted/60 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_12rem_9rem]"
+        key={entry.id}
+      >
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge entry={entry} />
+            <span className="truncate text-sm font-semibold">{entry.action}</span>
           </div>
+          <div className="mt-1 flex min-w-0 text-xs text-muted-foreground">
+            <span className="truncate">{entry.collection_name ?? entry.resource_type}</span>
+          </div>
+        </div>
 
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">{entry.path}</div>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              <MetaPill>{entry.method}</MetaPill>
-              <MetaPill>{entry.auth_method ?? "anonymous"}</MetaPill>
-            </div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold">{entry.path}</div>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            <MetaPill>{entry.method}</MetaPill>
+            <MetaPill>{entry.auth_method ?? "anonymous"}</MetaPill>
           </div>
+        </div>
 
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">
-              {entry.api_key_name ?? entry.actor_email ?? "anonymous"}
-            </div>
-            <div className="mt-1 truncate text-xs text-muted-foreground">{entry.ip ?? "no ip"}</div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold">
+            {entry.api_key_name ?? entry.actor_email ?? "anonymous"}
           </div>
+          <div className="mt-1 truncate text-xs text-muted-foreground">{entry.ip ?? "no ip"}</div>
+        </div>
 
-          <div className="flex items-center justify-start gap-4 xl:justify-end">
-            <div className="text-right">
-              <div className="text-sm font-semibold tabular-nums">
-                {formatNumber(Math.round(entry.latency_ms))} ms
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {formatRelative(entry.created_at)}
-              </div>
+        <div className="flex items-center justify-start gap-4 xl:justify-end">
+          <div className="text-right">
+            <div className="text-sm font-semibold tabular-nums">
+              {formatNumber(Math.round(entry.latency_ms))} ms
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {formatRelative(entry.created_at)}
             </div>
           </div>
-        </motion.div>
-      ))}
-    </div>
-  );
-};
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 const StatusBadge = ({ entry }: { entry: AccessLogEntry }) => (
   <Badge variant={entry.success ? "success" : "error"}>{entry.status_code}</Badge>

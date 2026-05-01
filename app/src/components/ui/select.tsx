@@ -23,7 +23,7 @@ interface SelectProps {
 }
 
 const TRIGGER_CLASS =
-  "flex h-10 w-full items-center justify-between gap-2 rounded-full border border-input bg-background px-4 text-left text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+  "flex h-10 w-full items-center justify-between gap-2 rounded-full border border-input bg-background px-4 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 const ChevronIcon = () => (
   <svg

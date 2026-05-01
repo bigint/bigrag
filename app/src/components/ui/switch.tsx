@@ -32,7 +32,7 @@ export const Switch = ({
         disabled={disabled}
         onCheckedChange={onCheckedChange}
         className={cn(
-          "relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full border p-1 transition-colors duration-200 ease-out",
+          "relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full border p-1",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           "disabled:cursor-not-allowed disabled:opacity-50",
           checked ? "border-primary bg-primary" : "border-border bg-input",
@@ -40,7 +40,7 @@ export const Switch = ({
       >
         <BaseSwitch.Thumb
           className={cn(
-            "pointer-events-none size-4 rounded-full bg-background ring-1 ring-black/10 transition-transform duration-200 ease-out",
+            "pointer-events-none size-4 rounded-full bg-background ring-1 ring-black/10",
             checked ? "translate-x-4" : "translate-x-0",
           )}
         />

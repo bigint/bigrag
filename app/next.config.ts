@@ -16,7 +16,7 @@ const config: NextConfig = {
   reactStrictMode: true,
   output: "standalone",
   experimental: {
-    optimizePackageImports: ["lucide-react", "motion", "@base-ui/react"],
+    optimizePackageImports: ["lucide-react", "@base-ui/react"],
   },
   async headers() {
     return [

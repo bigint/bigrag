@@ -1,7 +1,6 @@
 "use client";
 
 import { Search, Sparkles } from "lucide-react";
-import { motion } from "motion/react";
 import Link from "next/link";
 import { use, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -104,14 +103,8 @@ const SearchTab = ({ params }: { params: Promise<{ name: string }> }) => {
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
             {run.data.total} result{run.data.total === 1 ? "" : "s"} for "{run.data.query}"
           </div>
-          {run.data.results.map((r, i) => (
-            <motion.article
-              key={r.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03, duration: 0.2 }}
-              className="rounded-xl border border-border bg-card p-4"
-            >
+          {run.data.results.map((r) => (
+            <article key={r.id} className="rounded-xl border border-border bg-card p-4">
               <div className="mb-2 flex items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
                   <Badge variant="primary">score {r.score.toFixed(3)}</Badge>
@@ -126,7 +119,7 @@ const SearchTab = ({ params }: { params: Promise<{ name: string }> }) => {
                 </div>
               </div>
               <p className="whitespace-pre-wrap text-sm leading-relaxed">{r.text}</p>
-            </motion.article>
+            </article>
           ))}
         </div>
       )}

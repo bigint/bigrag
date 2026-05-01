@@ -25,7 +25,7 @@ export const Input = ({
     <div className="relative">
       <Field.Control
         className={cn(
-          "h-10 w-full rounded-full border border-input bg-background px-4 text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "h-10 w-full rounded-full border border-input bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           "data-[invalid]:border-destructive data-[invalid]:focus-visible:ring-destructive",
           trailing && "pr-9",
           className,

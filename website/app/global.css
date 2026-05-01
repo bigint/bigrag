@@ -29,3 +29,9 @@ html > body[data-scroll-locked] {
   margin-right: 0px !important;
   --removed-body-scroll-bar-size: 0px !important;
 }
+
+*, *::before, *::after {
+  animation: none !important;
+  scroll-behavior: auto !important;
+  transition: none !important;
+}
