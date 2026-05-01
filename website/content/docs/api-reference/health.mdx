@@ -21,7 +21,7 @@ No authentication required. Returns 200 if the server is running.
 GET /health/ready
 ```
 
-No authentication required. Tests connectivity to Postgres, Milvus, Redis, and the configured embedding provider.
+No authentication required. Tests connectivity to Postgres, Qdrant, Redis, and the configured embedding provider.
 
 **Response** `200`:
 
@@ -30,7 +30,7 @@ No authentication required. Tests connectivity to Postgres, Milvus, Redis, and t
   "status": "ok",
   "version": "2026.4.30",
   "postgres": true,
-  "milvus": true,
+  "qdrant": true,
   "redis": true,
   "embedding": true
 }
@@ -43,7 +43,7 @@ When the embedding provider is unreachable or misconfigured:
   "status": "degraded",
   "version": "2026.4.30",
   "postgres": true,
-  "milvus": true,
+  "qdrant": true,
   "redis": true,
   "embedding": false,
   "embedding_error": "Invalid API key"

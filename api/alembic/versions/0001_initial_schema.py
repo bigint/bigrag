@@ -183,7 +183,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("reranking_api_key", EncryptedString(), nullable=True),
-        sa.Column("index_type", sa.Text(), server_default="IVF_FLAT", nullable=False),
+        sa.Column("index_type", sa.Text(), server_default="HNSW", nullable=False),
         sa.Column("tenant_field", sa.Text(), nullable=True),
         sa.Column("metadata_schema", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("redact_pii", sa.Boolean(), server_default=sa.text("false"), nullable=False),

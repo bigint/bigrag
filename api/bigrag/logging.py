@@ -101,7 +101,7 @@ def configure_logging(log_level: str = "info", log_format: str = "text") -> None
     root.addHandler(handler)
     root.setLevel(level)
 
-    for name in ("pymilvus", "httpx", "httpcore", "hpack", "uvicorn.access"):
+    for name in ("qdrant_client", "httpx", "httpcore", "hpack", "uvicorn.access"):
         logging.getLogger(name).setLevel(logging.WARNING)
 
 

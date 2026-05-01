@@ -71,8 +71,22 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("startup migrations disabled; assuming database schema is current")
 
-    vector_store.configure(s.milvus_uri, nprobe=s.milvus_nprobe)
-    vector_store.connect()
+    vector_store.configure(
+        s.qdrant_url,
+        api_key=s.qdrant_api_key,
+        connect_timeout_seconds=s.qdrant_connect_timeout_seconds,
+        search_ef=s.qdrant_search_ef,
+    )
+    try:
+        vector_store.connect()
+        await vector_store.health_check()
+    except Exception as exc:
+        logger.warning(
+            "Qdrant startup connection failed; API will start degraded",
+            error=f"{exc.__class__.__name__}: {exc}",
+        )
+        if s.qdrant_required:
+            raise
     app.state.vector_store = vector_store
 
     storage = init_storage(
@@ -127,7 +141,7 @@ async def lifespan(app: FastAPI):
     await event_bus.close()
     await redis_cache.close()
     await storage.close()
-    vector_store.close()
+    await vector_store.close()
     await db_module.close()
     logger.info("shut down")
 
@@ -137,7 +151,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title="bigRAG",
-        description="Self-hostable RAG platform with Docling + Milvus",
+        description="Self-hostable RAG platform with Docling + Qdrant",
         version=__version__,
         lifespan=lifespan,
     )
@@ -211,7 +225,7 @@ def cli():
     parser.add_argument("--host", help="Server host")
     parser.add_argument("--port", type=int, help="Server port")
     parser.add_argument("--database-url", help="Postgres connection URL")
-    parser.add_argument("--milvus-uri", help="Milvus connection URI")
+    parser.add_argument("--qdrant-url", help="Qdrant connection URL")
     parser.add_argument("--redis-url", help="Redis connection URL")
     parser.add_argument("--log-level", help="Log level")
     parser.add_argument("--log-format", choices=["text", "json"], help="Log format")
@@ -227,8 +241,8 @@ def cli():
         s.port = args.port
     if args.database_url:
         s.database_url = args.database_url
-    if args.milvus_uri:
-        s.milvus_uri = args.milvus_uri
+    if args.qdrant_url:
+        s.qdrant_url = args.qdrant_url
     if args.redis_url:
         s.redis_url = args.redis_url
     if args.log_level:

@@ -13,7 +13,7 @@ services:
       # CORS, non-secure cookies, default Postgres password).
       BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
       BIGRAG_DATABASE_URL: postgres://bigrag:bigrag@postgres:5432/bigrag?sslmode=disable
-      BIGRAG_MILVUS_URI: http://milvus:19530
+      BIGRAG_QDRANT_URL: http://qdrant:6333
       BIGRAG_REDIS_URL: redis://redis:6379/0
       BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
       BIGRAG_LOG_LEVEL: info
@@ -31,8 +31,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      milvus:
-        condition: service_healthy
+      qdrant:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
       interval: 30s
@@ -82,56 +82,21 @@ services:
       timeout: 5s
       retries: 5
 
-  # Milvus internal dependencies (not exposed to host)
-  milvus-etcd:
-    image: quay.io/coreos/etcd:v3.5.18
-    container_name: bigrag-etcd
+  qdrant:
+    image: qdrant/qdrant:v1.17.1
+    container_name: bigrag-qdrant
     restart: unless-stopped
-    environment:
-      ETCD_AUTO_COMPACTION_MODE: revision
-      ETCD_AUTO_COMPACTION_RETENTION: "1000"
-      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
-      ETCD_SNAPSHOT_COUNT: "50000"
-    volumes:
-      - etcd_data:/etcd
-    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls=http://0.0.0.0:2379 --data-dir=/etcd
-    healthcheck:
-      test: ["CMD", "etcdctl", "endpoint", "health"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-
-  milvus:
-    image: milvusdb/milvus:v2.5.4
-    container_name: bigrag-milvus
-    restart: unless-stopped
-    command: ["milvus", "run", "standalone"]
-    security_opt:
-      - seccomp:unconfined
     ports:
-      - "19530:19530"
-      - "9091:9091"
-    environment:
-      ETCD_ENDPOINTS: milvus-etcd:2379
+      - "6333:6333"
+      - "6334:6334"
     volumes:
-      - milvus_data:/var/lib/milvus
-      - ./milvus.yaml:/milvus/configs/user.yaml:ro
+      - qdrant_data:/qdrant/storage
     deploy:
       resources:
         limits:
-          memory: 4g
-    depends_on:
-      milvus-etcd:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-
+          memory: 2g
 volumes:
   bigrag_data:
   postgres_data:
   redis_data:
-  etcd_data:
-  milvus_data:
+  qdrant_data:

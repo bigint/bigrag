@@ -23,9 +23,9 @@ pub struct Collection {
     pub chunk_overlap: u32,
     /// Chunking algorithm (`"paragraph"` or `"recursive"`).
     pub chunk_strategy: String,
-    /// Milvus index type (`"IVF_FLAT"` or `"HNSW"`).
+    /// Vector index type preference (`"HNSW"`).
     pub index_type: String,
-    /// Optional metadata field used as a tenant partition key.
+    /// Optional metadata field used for indexed tenant filtering.
     pub tenant_field: Option<String>,
     /// Whether this collection validates document metadata against a schema.
     pub has_metadata_schema: bool,
@@ -111,10 +111,10 @@ pub struct CreateCollectionBody {
     /// Chunking algorithm (`"paragraph"` or `"recursive"`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chunk_strategy: Option<String>,
-    /// Milvus index type (`"IVF_FLAT"` or `"HNSW"`).
+    /// Vector index type preference (`"HNSW"`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub index_type: Option<String>,
-    /// Optional metadata field used as a tenant partition key.
+    /// Optional metadata field used for indexed tenant filtering.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tenant_field: Option<String>,
     /// Optional JSON Schema used to validate document metadata.
@@ -205,7 +205,7 @@ mod tests {
             "id": "col-1", "name": "docs", "description": "My docs",
             "embedding_provider": "openai", "embedding_model": "text-embedding-3-small",
             "dimension": 1536, "chunk_size": 512, "chunk_overlap": 50,
-            "chunk_strategy": "paragraph", "index_type": "IVF_FLAT",
+            "chunk_strategy": "paragraph", "index_type": "HNSW",
             "tenant_field": null, "has_metadata_schema": false,
             "document_count": 42, "has_api_key": true,
             "reranking_enabled": false, "reranking_model": "rerank-v3.5",
@@ -217,7 +217,7 @@ mod tests {
         assert_eq!(col.name, "docs");
         assert_eq!(col.dimension, 1536);
         assert_eq!(col.chunk_strategy, "paragraph");
-        assert_eq!(col.index_type, "IVF_FLAT");
+        assert_eq!(col.index_type, "HNSW");
         assert_eq!(col.document_count, 42);
         assert_eq!(col.default_min_score, None);
     }
@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn test_deserialize_collection_list_response() {
-        let json = r#"{"collections":[{"id":"1","name":"a","description":"","embedding_provider":"openai","embedding_model":"m","dimension":768,"chunk_size":512,"chunk_overlap":50,"chunk_strategy":"paragraph","index_type":"IVF_FLAT","tenant_field":null,"has_metadata_schema":false,"document_count":0,"has_api_key":false,"reranking_enabled":false,"reranking_model":"","has_reranking_api_key":false,"default_top_k":10,"default_min_score":null,"default_search_mode":"semantic","metadata":{},"created_at":"","updated_at":""}],"total":1}"#;
+        let json = r#"{"collections":[{"id":"1","name":"a","description":"","embedding_provider":"openai","embedding_model":"m","dimension":768,"chunk_size":512,"chunk_overlap":50,"chunk_strategy":"paragraph","index_type":"HNSW","tenant_field":null,"has_metadata_schema":false,"document_count":0,"has_api_key":false,"reranking_enabled":false,"reranking_model":"","has_reranking_api_key":false,"default_top_k":10,"default_min_score":null,"default_search_mode":"semantic","metadata":{},"created_at":"","updated_at":""}],"total":1}"#;
         let resp: CollectionListResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.total, 1);
         assert_eq!(resp.collections[0].name, "a");

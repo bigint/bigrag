@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass, field
 
 from bigrag.logging import get_logger
-from bigrag.services._retrieval_filters import build_filter_expr
+from bigrag.services._retrieval_filters import build_filter
 from bigrag.services.embedding import EmbeddingModel
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.vector_store import vector_store
@@ -356,7 +356,7 @@ async def retrieve(
             collection_name=collection_name,
         )
     )
-    filter_expr = build_filter_expr(filters) if filters else None
+    filter_expr = build_filter(filters) if filters else None
     query_terms = _tokenize_query(query)
 
     fetch_k = top_k * 3 if (diversity is not None and diversity < 1.0) else top_k

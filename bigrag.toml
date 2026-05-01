@@ -22,9 +22,11 @@
 # run_migrations = true            # set false only after the schema is migrated
 # migration_timeout_seconds = 60
 
-# milvus_uri = "http://localhost:19530"
-# milvus_max_workers = 32
-# milvus_nprobe = 32
+# qdrant_url = "http://localhost:6333"
+# qdrant_api_key = ""
+# qdrant_connect_timeout_seconds = 10
+# qdrant_required = false
+# qdrant_search_ef = 128
 
 # redis_url = "redis://localhost:6379/0"
 

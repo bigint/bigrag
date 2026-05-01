@@ -2324,7 +2324,7 @@ async def create_collection(
 Never call blocking I/O inside `async def`. Use `asyncio.to_thread()` for blocking libraries:
 
 ```python
-# GOOD - offload blocking pymilvus call
+# GOOD - offload blocking vector-store client call
 result = await asyncio.to_thread(self.client.search, collection_name, data, ...)
 
 # GOOD - offload blocking Docling conversion

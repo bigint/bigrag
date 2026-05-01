@@ -1,6 +1,6 @@
 ---
 title: Architecture deep-dive
-description: Why Milvus + Postgres + Redis + Docling, how requests flow end-to-end, and where the ingestion pipeline actually does its work.
+description: Why Qdrant + Postgres + Redis + Docling, how requests flow end-to-end, and where the ingestion pipeline actually does its work.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
@@ -10,9 +10,9 @@ import { Callout } from "fumadocs-ui/components/callout";
 bigRAG intentionally keeps four distinct stores instead of shoving
 everything into Postgres with pgvector. Each one earns its keep:
 
-- **Milvus** — the vector index. Purpose-built ANN structures (IVF,
-  HNSW) with per-collection partitions so multi-tenant filtered search
-  stays fast at 10M+ vectors.
+- **Qdrant** — the vector index. Purpose-built HNSW search with
+  payload indexes so tenant-aware filtered search stays fast at
+  scale.
 - **Postgres** — metadata and control plane. Collections, documents,
   users, API keys, webhooks, query logs, audit trail, embedding cache.
   Transactions keep ingestion consistent across stores.
@@ -25,7 +25,7 @@ everything into Postgres with pgvector. Each one earns its keep:
 
 <Callout type="info">
 bigRAG can run entirely from `docker compose up` on a single machine
-for up to ~10M vectors. Past that, Milvus wants its distributed mode
+for up to ~10M vectors. Past that, Qdrant wants its distributed mode
 and you'll want Postgres replicas.
 </Callout>
 
@@ -50,7 +50,7 @@ Ingestion worker (4 by default)
   │ b. chunk_document — paragraph or recursive strategy; tracks char offsets
   │ c. embedding_cache.get_many — skip chunks we've embedded before
   │ d. embed the misses — batched, with tiktoken truncation
-  │ e. vector_store.insert — Milvus upsert with dynamic metadata
+  │ e. vector_store.insert — Qdrant upsert with dynamic metadata
   │ f. UPDATE documents status = 'ready', emit SSE progress events
   ▼
 Webhook dispatcher
@@ -70,7 +70,7 @@ Client → FastAPI
   │ 3. semantic cache lookup — if cosine ≥ 0.97 vs a recent query, replay
   │ 4. optional HyDE — generate hypothetical answer, embed THAT instead
   │ 5. embed query (tiktoken-aware truncation)
-  │ 6. Milvus search (with metadata filter expression)
+  │ 6. Qdrant search (with payload filters)
   │ 7. optional hybrid fusion — keyword search + fuse (rrf/weighted/normalized)
   │ 8. optional rerank — Cohere Rerank v3.5
   │ 9. optional MMR diversity — over-fetched pool, lambda = 1 - diversity
@@ -99,18 +99,20 @@ Markdown / images via a single API, and exposes layout provenance we
 can thread into citation metadata (`page_no`, `bbox`). OCR is on by
 default for scanned PDFs.
 
-## Why Milvus, not pgvector
+## Why Qdrant, not pgvector
 
 pgvector is tempting — one less store, one less deploy. But at scale
 the gap widens:
 
-- **Index options**: Milvus ships IVF_FLAT, HNSW, IVF_SQ8, composite.
-  pgvector has IVFFlat and HNSW. Close but Milvus is 2-3× faster on
-  HNSW with similar recall.
-- **Partitioning**: Milvus partitions are a first-class concept —
-  10-50× faster filtered search at multi-tenant scale. pgvector would
-  need separate tables or schemas.
-- **Dedicated memory management**: Milvus won't blow out Postgres's
+- **Vector engine**: Qdrant gives bigRAG a dedicated HNSW vector
+  store with payload-aware filtering and operational knobs such as
+  search `ef`. pgvector can work well, but it shares capacity and
+  tuning with the transactional database.
+- **Payload indexes**: Qdrant can index tenant IDs, document IDs,
+  chunk offsets, pages, and text payloads alongside vectors. pgvector
+  deployments usually need extra Postgres indexes and careful query
+  planning to keep filtered ANN search predictable.
+- **Dedicated memory management**: Qdrant won't blow out Postgres's
   shared buffers during a large ANN scan.
 
 For single-tenant deployments under ~1M vectors, pgvector would work
@@ -121,8 +123,8 @@ a future pgvector backend.
 
 - **Horizontal API workers**: FastAPI is stateless past the lifespan.
   Run N replicas behind a load balancer; they share Postgres, Redis,
-  and Milvus.
-- **Milvus cluster mode**: ship to `milvus-cluster` when you hit
+  and Qdrant.
+- **Qdrant cluster mode**: ship to `qdrant-cluster` when you hit
   ~10M vectors or need multi-AZ resilience.
 - **Postgres replication**: the control plane is read-light; a
   warm-standby suffices for failover.

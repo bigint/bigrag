@@ -1,80 +1,87 @@
 from __future__ import annotations
 
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
-from functools import partial
+import uuid
+from collections.abc import Awaitable, Callable
+from typing import Any
 
-from pymilvus import DataType, MilvusClient
+import httpx
+from qdrant_client import AsyncQdrantClient, models
 
 from bigrag.logging import get_logger
 
 logger = get_logger("bigrag.vector_store")
 
-_executor: ThreadPoolExecutor | None = None
+_TRANSIENT_ERRORS = (
+    ConnectionError,
+    TimeoutError,
+    OSError,
+    httpx.HTTPError,
+)
 
-
-def _get_executor() -> ThreadPoolExecutor:
-    global _executor
-    if _executor is None:
-        from bigrag.config import settings
-
-        _executor = ThreadPoolExecutor(
-            max_workers=settings.milvus_max_workers, thread_name_prefix="milvus"
-        )
-    return _executor
-
-
-async def _run(fn, *args, **kwargs):
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(_get_executor(), partial(fn, *args, **kwargs))
-
-
-_TRANSIENT_ERRORS = (ConnectionError, TimeoutError, OSError)
+_POINT_NAMESPACE = uuid.UUID("1b04f7ca-0c3b-5d76-a5bb-6e4b4a40f61d")
+_FIXED_PAYLOAD_FIELDS = {"id", "text", "document_id", "chunk_index", "embedding"}
 
 
 class VectorStore:
-    def __init__(self, uri: str = "http://localhost:19530") -> None:
-        self.uri = uri
-        self.client: MilvusClient | None = None
-        self._nprobe: int = 32
+    def __init__(self, url: str = "http://localhost:6333") -> None:
+        self.url = url
+        self.api_key: str | None = None
+        self.client: AsyncQdrantClient | None = None
         self._max_retries: int = 2
+        self._connect_timeout_seconds: float | None = 10
+        self._search_ef: int | None = None
 
-    def configure(self, uri: str, nprobe: int = 32) -> None:
+    def configure(
+        self,
+        url: str,
+        *,
+        api_key: str | None = None,
+        connect_timeout_seconds: int | float | None = 10,
+        search_ef: int | None = None,
+    ) -> None:
 
-        self.uri = uri
-        self._nprobe = nprobe
+        self.url = url
+        self.api_key = api_key
+        self._search_ef = search_ef if search_ef and search_ef > 0 else None
+        if connect_timeout_seconds is None or connect_timeout_seconds <= 0:
+            self._connect_timeout_seconds = None
+        else:
+            self._connect_timeout_seconds = float(connect_timeout_seconds)
 
     def connect(self) -> None:
-        self.client = MilvusClient(uri=self.uri)
-        logger.info(f"Connected to Milvus at {self.uri}")
+        self.client = AsyncQdrantClient(
+            url=self.url,
+            api_key=self.api_key,
+            timeout=self._connect_timeout_seconds,
+        )
+        logger.info(f"Connected to Qdrant at {self.url}")
 
-    def reconnect(self) -> None:
-        logger.warning(f"Reconnecting to Milvus at {self.uri}")
-        if self.client:
-            try:
-                self.client.close()
-            except (ConnectionError, OSError, TimeoutError) as exc:
-                logger.warning(
-                    "vector_store: disconnect during reconnect failed",
-                    error=f"{exc.__class__.__name__}: {exc}",
-                )
-        self.client = MilvusClient(uri=self.uri)
-        logger.info(f"Reconnected to Milvus at {self.uri}")
+    async def reconnect(self) -> None:
+        logger.warning(f"Reconnecting to Qdrant at {self.url}")
+        await self.close()
+        self.connect()
+        logger.info(f"Reconnected to Qdrant at {self.url}")
 
-    async def _run_with_retry(self, fn, *args, **kwargs):
+    async def _run_with_retry(
+        self,
+        fn: Callable[..., Awaitable[Any]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
 
         last_error = None
         for attempt in range(self._max_retries + 1):
             try:
-                return await _run(fn, *args, **kwargs)
+                return await fn(*args, **kwargs)
             except _TRANSIENT_ERRORS as e:
                 last_error = e
                 if attempt < self._max_retries:
                     logger.warning(
-                        f"Milvus transient error (attempt {attempt + 1}/{self._max_retries + 1}): "
+                        f"Qdrant transient error (attempt {attempt + 1}/{self._max_retries + 1}): "
                         f"{e!r}, reconnecting..."
                     )
-                    await asyncio.to_thread(self.reconnect)
+                    await self.reconnect()
                 else:
                     raise
             except Exception as e:
@@ -83,103 +90,143 @@ class VectorStore:
                     last_error = e
                     if attempt < self._max_retries:
                         logger.warning(
-                            f"Milvus likely transient error (attempt {attempt + 1}/"
+                            f"Qdrant likely transient error (attempt {attempt + 1}/"
                             f"{self._max_retries + 1}): {e!r}, reconnecting..."
                         )
-                        await asyncio.to_thread(self.reconnect)
+                        await self.reconnect()
                     else:
                         raise
                 else:
                     raise
         raise last_error
 
-    def close(self) -> None:
+    async def close(self) -> None:
         if self.client:
-            self.client.close()
-            logger.info("Milvus connection closed")
+            await self.client.close()
+            self.client = None
+            logger.info("Qdrant connection closed")
+
+    async def health_check(self) -> None:
+        client = self._client()
+        await self._run_with_retry(client.get_collections)
+
+    def _client(self) -> AsyncQdrantClient:
+        if self.client is None:
+            self.connect()
+        assert self.client is not None
+        return self.client
 
     def _col(self, name: str) -> str:
         return f"bigrag_{name}"
 
     @staticmethod
-    def _safe_id(value: str) -> str:
+    def _point_id(collection: str, value: str) -> str:
+        return str(uuid.uuid5(_POINT_NAMESPACE, f"{collection}:{value}"))
 
-        return value.replace("\\", "\\\\").replace('"', '\\"')
+    @staticmethod
+    def _build_payload(
+        *,
+        id_: str,
+        document_id: str,
+        chunk_index: int,
+        text: str,
+        metadata: dict | None = None,
+    ) -> dict:
+        payload = dict(metadata or {})
+        payload.update(
+            {
+                "id": id_,
+                "document_id": document_id,
+                "chunk_index": chunk_index,
+                "text": text,
+            }
+        )
+        return payload
+
+    async def _create_payload_index(
+        self,
+        collection_name: str,
+        field_name: str,
+        schema: Any,
+    ) -> None:
+        client = self._client()
+        try:
+            await self._run_with_retry(
+                client.create_payload_index,
+                collection_name=collection_name,
+                field_name=field_name,
+                field_schema=schema,
+                wait=True,
+            )
+        except Exception as exc:  # noqa: BLE001
+            if "already exists" in str(exc).lower() or "exists" in str(exc).lower():
+                return
+            logger.warning(
+                "vector_store: payload index creation failed",
+                collection=collection_name,
+                field=field_name,
+                error=str(exc),
+            )
+
+    async def _ensure_payload_indexes(
+        self,
+        collection_name: str,
+        tenant_field: str | None = None,
+    ) -> None:
+        text_schema = models.TextIndexParams(
+            type=models.TextIndexType.TEXT,
+            tokenizer=models.TokenizerType.WORD,
+            min_token_len=2,
+            lowercase=True,
+        )
+        indexes: list[tuple[str, Any]] = [
+            ("id", "keyword"),
+            ("document_id", "keyword"),
+            ("chunk_index", "integer"),
+            ("char_start", "integer"),
+            ("char_end", "integer"),
+            ("page_no", "integer"),
+            ("text", text_schema),
+        ]
+        if tenant_field:
+            indexes.append((tenant_field, "keyword"))
+
+        await asyncio.gather(
+            *[
+                self._create_payload_index(collection_name, field_name, schema)
+                for field_name, schema in indexes
+            ]
+        )
 
     async def create_collection(
         self,
         name: str,
         dimension: int,
-        index_type: str = "IVF_FLAT",
+        index_type: str = "HNSW",
+        tenant_field: str | None = None,
     ) -> None:
         col = self._col(name)
+        client = self._client()
 
-        if await self._run_with_retry(self.client.has_collection, col):
-            return
-
-        schema = self.client.create_schema(auto_id=False, enable_dynamic_field=True)
-        schema.add_field(
-            field_name="id", datatype=DataType.VARCHAR, is_primary=True, max_length=128
-        )
-        schema.add_field(field_name="document_id", datatype=DataType.VARCHAR, max_length=128)
-        schema.add_field(field_name="chunk_index", datatype=DataType.INT64)
-        schema.add_field(field_name="text", datatype=DataType.VARCHAR, max_length=65535)
-        schema.add_field(field_name="embedding", datatype=DataType.FLOAT_VECTOR, dim=dimension)
-
-        index_params = self.client.prepare_index_params()
-        if index_type.upper() == "HNSW":
-            index_params.add_index(
-                field_name="embedding",
-                index_type="HNSW",
-                metric_type="COSINE",
-                params={"M": 16, "efConstruction": 200},
+        if not await self._run_with_retry(client.collection_exists, col):
+            await self._run_with_retry(
+                client.create_collection,
+                collection_name=col,
+                vectors_config=models.VectorParams(
+                    size=dimension,
+                    distance=models.Distance.COSINE,
+                ),
             )
-        else:
-            index_params.add_index(
-                field_name="embedding",
-                index_type="IVF_FLAT",
-                metric_type="COSINE",
-                params={"nlist": 256},
-            )
+            logger.info(f"Created Qdrant collection: {col} (dim={dimension}, index={index_type})")
 
-        await self._run_with_retry(
-            self.client.create_collection,
-            collection_name=col,
-            schema=schema,
-            index_params=index_params,
-        )
-        logger.info(f"Created Milvus collection: {col} (dim={dimension}, index={index_type})")
-
-    async def ensure_partition(self, name: str, partition: str) -> None:
-
-        col = self._col(name)
-        safe = "".join(c if c.isalnum() or c == "_" else "_" for c in partition)[:64]
-        if not safe:
-            return
-        try:
-            has = await self._run_with_retry(
-                self.client.has_partition, collection_name=col, partition_name=safe
-            )
-            if not has:
-                await self._run_with_retry(
-                    self.client.create_partition,
-                    collection_name=col,
-                    partition_name=safe,
-                )
-                logger.info(f"Created partition: {col}/{safe}")
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(
-                "vector_store: ensure_partition failed",
-                collection=col,
-                partition=safe,
-                error=str(exc),
-            )
+        await self._ensure_payload_indexes(col, tenant_field=tenant_field)
 
     async def delete_collection(self, name: str) -> None:
         col = self._col(name)
-        if await self._run_with_retry(self.client.has_collection, col):
-            await self._run_with_retry(self.client.drop_collection, col)
-            logger.info(f"Dropped Milvus collection: {col}")
+        client = self._client()
+        if await self._run_with_retry(client.collection_exists, col):
+            await self._run_with_retry(client.delete_collection, col)
+            logger.info(f"Dropped Qdrant collection: {col}")
 
     async def insert(
         self,
@@ -192,73 +239,89 @@ class VectorStore:
         metadata: list[dict] | None = None,
     ) -> int:
         col = self._col(collection)
-        data = []
+        points = []
         for i in range(len(ids)):
-            entry = {
-                "id": ids[i],
-                "document_id": document_ids[i],
-                "chunk_index": chunk_indices[i],
-                "text": texts[i],
-                "embedding": embeddings[i],
-            }
-            if metadata and metadata[i]:
-                entry.update(metadata[i])
-            data.append(entry)
+            points.append(
+                models.PointStruct(
+                    id=self._point_id(col, ids[i]),
+                    vector=embeddings[i],
+                    payload=self._build_payload(
+                        id_=ids[i],
+                        document_id=document_ids[i],
+                        chunk_index=chunk_indices[i],
+                        text=texts[i],
+                        metadata=metadata[i] if metadata else None,
+                    ),
+                )
+            )
 
-        result = await self._run_with_retry(self.client.insert, collection_name=col, data=data)
-        count = result.get("insert_count", len(ids))
-        logger.info(f"insert: collection={col} count={count}")
-        return count
+        client = self._client()
+        await self._run_with_retry(client.upsert, collection_name=col, points=points, wait=True)
+        logger.info(f"insert: collection={col} count={len(points)}")
+        return len(points)
+
+    def _search_params(self) -> models.SearchParams | None:
+        if self._search_ef is None:
+            return None
+        return models.SearchParams(hnsw_ef=self._search_ef)
+
+    @staticmethod
+    def _vector_from_point(point: Any) -> list[float] | None:
+        vector = getattr(point, "vector", None)
+        if vector is None:
+            return None
+        if isinstance(vector, list):
+            return vector
+        if isinstance(vector, dict):
+            first = next(iter(vector.values()), None)
+            return first if isinstance(first, list) else None
+        return None
+
+    @staticmethod
+    def _row_from_payload(point: Any, want_embedding: bool = False) -> dict:
+        payload = dict(getattr(point, "payload", None) or {})
+        point_id = str(getattr(point, "id", ""))
+        metadata = {
+            k: v for k, v in payload.items() if k not in _FIXED_PAYLOAD_FIELDS and v is not None
+        }
+        row = {
+            "id": payload.get("id") or point_id,
+            "score": getattr(point, "score", 0.0),
+            "text": payload.get("text", ""),
+            "document_id": payload.get("document_id"),
+            "chunk_index": payload.get("chunk_index"),
+            "metadata": metadata,
+        }
+        if want_embedding:
+            row["embedding"] = VectorStore._vector_from_point(point)
+        return row
 
     async def search(
         self,
         collection: str,
         query_embedding: list[float],
         top_k: int = 10,
-        filters: str | None = None,
+        filters: models.Filter | None = None,
         output_fields: list[str] | None = None,
     ) -> list[dict]:
         col = self._col(collection)
-        if output_fields is None:
-            output_fields = [
-                "text",
-                "document_id",
-                "chunk_index",
-                "char_start",
-                "char_end",
-                "page_no",
-            ]
+        want_embedding = bool(output_fields and "embedding" in output_fields)
 
+        client = self._client()
         results = await self._run_with_retry(
-            self.client.search,
+            client.query_points,
             collection_name=col,
-            data=[query_embedding],
+            query=query_embedding,
             limit=top_k,
-            output_fields=output_fields,
-            search_params={"metric_type": "COSINE", "params": {"nprobe": self._nprobe}},
-            filter=filters,
+            query_filter=filters,
+            search_params=self._search_params(),
+            with_payload=True,
+            with_vectors=want_embedding,
         )
 
-        hits = []
-        fixed = {"text", "document_id", "chunk_index", "embedding"}
-        want_embedding = "embedding" in output_fields
-        if results and len(results) > 0:
-            for hit in results[0]:
-                entity = hit["entity"]
-                metadata = {
-                    k: v for k, v in dict(entity).items() if k not in fixed and v is not None
-                }
-                row = {
-                    "id": hit["id"],
-                    "score": hit["distance"],
-                    "text": entity.get("text", ""),
-                    "document_id": entity.get("document_id"),
-                    "chunk_index": entity.get("chunk_index"),
-                    "metadata": metadata,
-                }
-                if want_embedding:
-                    row["embedding"] = entity.get("embedding")
-                hits.append(row)
+        hits = [
+            self._row_from_payload(point, want_embedding=want_embedding) for point in results.points
+        ]
         logger.info(f"search: collection={col} top_k={top_k} hits={len(hits)} filter={filters}")
         return hits
 
@@ -271,17 +334,26 @@ class VectorStore:
     ) -> tuple[list[dict], int]:
 
         col = self._col(collection)
-        if not await self._run_with_retry(self.client.has_collection, col):
+        client = self._client()
+        if not await self._run_with_retry(client.collection_exists, col):
             return [], 0
-        safe_doc_id = self._safe_id(document_id)
-        results = await self._run_with_retry(
-            self.client.query,
+
+        results, _next_offset = await self._run_with_retry(
+            client.scroll,
             collection_name=col,
-            filter=f'document_id == "{safe_doc_id}"',
-            output_fields=["text", "document_id", "chunk_index"],
+            scroll_filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="document_id",
+                        match=models.MatchValue(value=document_id),
+                    )
+                ]
+            ),
+            with_payload=True,
+            with_vectors=False,
             limit=10000,
         )
-        all_chunks = sorted(results, key=lambda r: r.get("chunk_index", 0))
+        all_chunks = sorted(results, key=lambda r: (r.payload or {}).get("chunk_index", 0))
         total = len(all_chunks)
         page = all_chunks[offset : offset + limit]
         logger.info(
@@ -289,54 +361,84 @@ class VectorStore:
             f"total={total} offset={offset} limit={limit} returned={len(page)}"
         )
         return [
-            {"id": r["id"], "text": r.get("text", ""), "chunk_index": r.get("chunk_index", 0)}
+            {
+                "id": (r.payload or {}).get("id") or str(r.id),
+                "text": (r.payload or {}).get("text", ""),
+                "chunk_index": (r.payload or {}).get("chunk_index", 0),
+            }
             for r in page
         ], total
 
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         col = self._col(collection)
-        if not await self._run_with_retry(self.client.has_collection, col):
+        client = self._client()
+        if not await self._run_with_retry(client.collection_exists, col):
             return
-        safe_doc_id = self._safe_id(document_id)
         await self._run_with_retry(
-            self.client.delete, collection_name=col, filter=f'document_id == "{safe_doc_id}"'
+            client.delete,
+            collection_name=col,
+            points_selector=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="document_id",
+                        match=models.MatchValue(value=document_id),
+                    )
+                ]
+            ),
+            wait=True,
         )
         logger.info(f"delete_by_document: collection={col} document_id={document_id}")
 
     async def delete_by_ids(self, collection: str, ids: list[str]) -> None:
         col = self._col(collection)
-        await self._run_with_retry(self.client.delete, collection_name=col, ids=ids)
+        client = self._client()
+        point_ids = [self._point_id(col, id_) for id_ in ids]
+        await self._run_with_retry(
+            client.delete,
+            collection_name=col,
+            points_selector=point_ids,
+            wait=True,
+        )
         logger.info(f"delete_by_ids: collection={col} count={len(ids)}")
+
+    @staticmethod
+    def _combine_filters(*filters: models.Filter | None) -> models.Filter | None:
+        active = [f for f in filters if f is not None]
+        if not active:
+            return None
+        if len(active) == 1:
+            return active[0]
+        return models.Filter(must=active)
 
     async def text_search(
         self,
         collection: str,
         query_terms: list[str],
         top_k: int = 10,
-        filters: str | None = None,
+        filters: models.Filter | None = None,
     ) -> list[dict]:
 
         col = self._col(collection)
+        terms = [term for term in query_terms if term]
+        if not terms:
+            return []
 
-        from bigrag.services._retrieval_filters import escape_string
-
-        term_filters = []
-        for term in query_terms:
-            escaped = escape_string(term).replace("%", "\\%").replace("'", "\\'")
-            term_filters.append(f'text like "%{escaped}%"')
-
-        text_filter = " or ".join(term_filters)
-        if filters:
-            combined_filter = f"({text_filter}) and ({filters})"
-        else:
-            combined_filter = text_filter
+        text_filter = models.Filter(
+            should=[
+                models.FieldCondition(key="text", match=models.MatchText(text=term))
+                for term in terms
+            ]
+        )
+        combined_filter = self._combine_filters(filters, text_filter)
 
         try:
-            results = await self._run_with_retry(
-                self.client.query,
+            client = self._client()
+            results, _next_offset = await self._run_with_retry(
+                client.scroll,
                 collection_name=col,
-                filter=combined_filter,
-                output_fields=["text", "document_id", "chunk_index"],
+                scroll_filter=combined_filter,
+                with_payload=True,
+                with_vectors=False,
                 limit=top_k * 3,
             )
         except _TRANSIENT_ERRORS:
@@ -345,16 +447,8 @@ class VectorStore:
             logger.warning(f"text_search query failed: {e!r}, returning empty results")
             return []
 
-        logger.info(f"text_search: collection={col} terms={len(query_terms)} hits={len(results)}")
-        return [
-            {
-                "id": r["id"],
-                "text": r.get("text", ""),
-                "document_id": r.get("document_id"),
-                "chunk_index": r.get("chunk_index"),
-            }
-            for r in results
-        ]
+        logger.info(f"text_search: collection={col} terms={len(terms)} hits={len(results)}")
+        return [self._row_from_payload(point) for point in results]
 
     async def upsert(
         self,
@@ -365,23 +459,26 @@ class VectorStore:
         metadata: list[dict] | None = None,
     ) -> int:
         col = self._col(collection)
-        data = []
+        points = []
         for i in range(len(ids)):
-            entry = {
-                "id": ids[i],
-                "document_id": "",
-                "chunk_index": 0,
-                "text": texts[i],
-                "embedding": embeddings[i],
-            }
-            if metadata and metadata[i]:
-                entry.update(metadata[i])
-            data.append(entry)
+            points.append(
+                models.PointStruct(
+                    id=self._point_id(col, ids[i]),
+                    vector=embeddings[i],
+                    payload=self._build_payload(
+                        id_=ids[i],
+                        document_id="",
+                        chunk_index=0,
+                        text=texts[i],
+                        metadata=metadata[i] if metadata else None,
+                    ),
+                )
+            )
 
-        result = await self._run_with_retry(self.client.upsert, collection_name=col, data=data)
-        count = result.get("upsert_count", len(ids))
-        logger.info(f"upsert: collection={col} count={count}")
-        return count
+        client = self._client()
+        await self._run_with_retry(client.upsert, collection_name=col, points=points, wait=True)
+        logger.info(f"upsert: collection={col} count={len(points)}")
+        return len(points)
 
 
 vector_store = VectorStore()

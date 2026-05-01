@@ -2,7 +2,7 @@
 
 ## Project Structure
 
-- `api/` — Python/FastAPI backend (Docling ingestion + Milvus vector DB)
+- `api/` — Python/FastAPI backend (Docling ingestion + Qdrant vector DB)
 - `sdks/typescript/` — TypeScript SDK (`@bigrag/client`)
 - `app/` — Studio admin UI (Next.js 16 + Tailwind v4 + Base UI, `@bigrag/app`)
 - `website/` — Documentation site (Next.js + Fumadocs, content in `website/content/docs/`)
@@ -17,8 +17,8 @@ Don't write comments or docstrings in code under `api/bigrag/`, `sdks/typescript
 
 ## Tech Stack
 
-- **Backend**: Python 3.12+, FastAPI, SQLAlchemy 2 (async) + asyncpg, Alembic, pymilvus, docling, openai, cohere, cryptography (Fernet for at-rest encryption of provider secrets)
-- **Vector DB**: Milvus (via Docker)
+- **Backend**: Python 3.12+, FastAPI, SQLAlchemy 2 (async) + asyncpg, Alembic, qdrant-client, docling, openai, cohere, cryptography (Fernet for at-rest encryption of provider secrets)
+- **Vector DB**: Qdrant (via Docker)
 - **Metadata DB**: PostgreSQL 17
 - **Ingestion**: Docling (PDF, DOCX, PPTX, HTML, Markdown, images)
 - **Embedding**: OpenAI and Cohere
@@ -91,7 +91,7 @@ pnpm dev:app        # Studio admin UI on localhost:3000
 - Backend API: http://localhost:4000 (Swagger docs at /docs)
 - Postgres: localhost:5432
 - Redis: localhost:6379
-- Milvus: localhost:19530
+- Qdrant: localhost:6333
 
 ## MCP server
 

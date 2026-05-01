@@ -305,7 +305,7 @@ except APITimeoutError:
 # Health check
 health = await client.health()
 
-# Readiness (checks Postgres, Milvus, Redis, embedding provider)
+# Readiness (checks Postgres, Qdrant, Redis, embedding provider)
 ready = await client.readiness()
 
 # Platform stats

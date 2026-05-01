@@ -12,7 +12,7 @@ export interface ReadinessResponse {
   status: string;
   version: string;
   postgres: boolean;
-  milvus: boolean;
+  qdrant: boolean;
   redis: boolean;
   embedding?: boolean;
   embedding_error?: string;

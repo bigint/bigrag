@@ -22,20 +22,16 @@ class CreateCollectionRequest(BaseModel):
         description="Chunking algorithm: paragraph (default) or recursive.",
     )
     index_type: str = Field(
-        default="IVF_FLAT",
-        pattern=r"^(IVF_FLAT|HNSW)$",
-        description=(
-            "Milvus index. IVF_FLAT (default) is fine below ~1M vectors; "
-            "HNSW is a better recall/latency tradeoff above that."
-        ),
+        default="HNSW",
+        pattern=r"^HNSW$",
+        description="Vector index preference. Qdrant uses HNSW for dense-vector search.",
     )
     tenant_field: str | None = Field(
         default=None,
         max_length=64,
         description=(
-            "Optional metadata field name used as the Milvus partition "
-            "key. When set, uploads land in a per-tenant partition for "
-            "10-50x faster filtered search in multi-tenant deployments."
+            "Optional metadata field name to index for tenant-aware Qdrant "
+            "payload filtering in multi-tenant deployments."
         ),
     )
     metadata_schema: dict | None = Field(
@@ -84,7 +80,7 @@ class CollectionResponse(BaseModel):
     chunk_size: int
     chunk_overlap: int
     chunk_strategy: str = "paragraph"
-    index_type: str = "IVF_FLAT"
+    index_type: str = "HNSW"
     tenant_field: str | None = None
     has_metadata_schema: bool = False
     document_count: int

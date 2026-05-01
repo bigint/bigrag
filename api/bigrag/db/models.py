@@ -114,7 +114,7 @@ class Collection(Base):
         sa.Text, nullable=False, server_default="rerank-v3.5"
     )
     reranking_api_key: Mapped[str | None] = mapped_column(EncryptedString)
-    index_type: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="IVF_FLAT")
+    index_type: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="HNSW")
     tenant_field: Mapped[str | None] = mapped_column(sa.Text)
     metadata_schema: Mapped[dict | None] = mapped_column(JSONB)
     meta: Mapped[dict] = mapped_column(

@@ -55,20 +55,21 @@ The middleware enforces the scopes so a leaked tenant key can only
 damage its own data.
 
 <Callout type="warn">
-Collections-per-tenant has a ceiling — Milvus caps at ~10k collections
-on a single node. Above that, move to Pattern B (shared collection
-with tenant_field partitioning).
+Collections-per-tenant is simple but creates operational overhead as
+tenant count grows. Above small/medium tenant counts, move to Pattern B
+so one Qdrant collection can use indexed tenant payload filters.
 </Callout>
 
-## Pattern B — shared collection with partitions
+## Pattern B — shared collection with tenant filters
 
-One collection, tenant isolation via a Milvus partition and a
-metadata filter.
+One collection, tenant isolation via a required metadata filter. Setting
+`tenant_field` tells bigRAG to create a Qdrant payload index for that
+field.
 
 ```python
 client.collections.create({
     "name": "shared_tenants",
-    "tenant_field": "tenant_id",   # bigRAG creates a partition per value
+    "tenant_field": "tenant_id",   # bigRAG indexes this payload field
     # ... other config
 })
 
@@ -79,18 +80,17 @@ client.documents.upload(
     metadata={"tenant_id": "acme", "source": "docs"},
 )
 
-# Query with the tenant filter — hits only acme's partition
+# Query with the tenant filter
 results = client.queries.search("shared_tenants", {
     "query": "quarterly revenue",
     "filters": {"tenant_id": "acme"},
 })
 ```
 
-Partition scans are 10-50× faster than scalar-filter-then-scan at
-scale. You still need the `filters` clause so bigRAG routes the
-search to the right partition; forgetting it yields cross-tenant
-results (a critical bug — treat it like a SQL injection vector in
-review).
+You still need the `filters` clause on every tenant-scoped query.
+Forgetting it yields cross-tenant results, which is a critical bug.
+Enforce this in your application layer the same way you would enforce a
+SQL tenant predicate.
 
 ## Per-tenant usage + billing
 

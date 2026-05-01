@@ -95,8 +95,8 @@ fi
 
 # --- Docker services ---
 if [ "$START_INFRA" = true ]; then
-  echo -e "${CYAN}Starting Docker services (Postgres, Redis, Milvus)...${NC}"
-  docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres redis milvus-etcd milvus -d
+  echo -e "${CYAN}Starting Docker services (Postgres, Redis, Qdrant)...${NC}"
+  docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres redis qdrant -d
 
   # Wait for Postgres
   echo -e "${CYAN}Waiting for Postgres...${NC}"
@@ -120,20 +120,20 @@ if [ "$START_INFRA" = true ]; then
     sleep 1
   done
 
-  # Wait for Milvus
-  echo -e "${CYAN}Waiting for Milvus...${NC}"
+  # Wait for Qdrant
+  echo -e "${CYAN}Waiting for Qdrant...${NC}"
   for i in $(seq 1 60); do
-    if curl -sf http://localhost:9091/healthz > /dev/null 2>&1; then
-      echo -e "${GREEN}Milvus is ready.${NC}"
+    if curl -sf http://localhost:6333/healthz > /dev/null 2>&1; then
+      echo -e "${GREEN}Qdrant is ready.${NC}"
       break
     fi
-    if [ "$i" -eq 60 ]; then echo -e "${RED}Milvus failed to start within 60s.${NC}"; exit 1; fi
+    if [ "$i" -eq 60 ]; then echo -e "${RED}Qdrant failed to start within 60s.${NC}"; exit 1; fi
     sleep 1
   done
 fi
 
 DATABASE_URL="postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
-MILVUS_URI="http://localhost:19530"
+QDRANT_URL="http://localhost:6333"
 REDIS_URL="redis://localhost:6379/0"
 
 # --- Python backend ---
@@ -151,7 +151,7 @@ if [ "$START_BACKEND" = true ]; then
 
   echo -e "${CYAN}Starting Python backend (auto-reload)...${NC}"
   BIGRAG_DATABASE_URL="$DATABASE_URL" \
-  BIGRAG_MILVUS_URI="$MILVUS_URI" \
+  BIGRAG_QDRANT_URL="$QDRANT_URL" \
   BIGRAG_REDIS_URL="$REDIS_URL" \
   BIGRAG_MASTER_KEY="$DEV_MASTER_KEY" \
   PYTHONUNBUFFERED=1 \
@@ -190,7 +190,7 @@ echo -e "\n${GREEN}Services started:${NC}"
 [ "$START_BACKEND" = true ] && echo -e "  API Docs → http://localhost:4000/docs"
 [ "$START_INFRA" = true ]   && echo -e "  Postgres → localhost:5432"
 [ "$START_INFRA" = true ]   && echo -e "  Redis    → localhost:6379"
-[ "$START_INFRA" = true ]   && echo -e "  Milvus   → localhost:19530"
+[ "$START_INFRA" = true ]   && echo -e "  Qdrant   → localhost:6333"
 [ "$START_WEBSITE" = true ] && echo -e "  Website  → http://localhost:3100"
 echo -e "\n${YELLOW}Press Ctrl+C to stop all services.${NC}"
 

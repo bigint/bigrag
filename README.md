@@ -10,7 +10,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 - **S3 bucket ingestion** — ingest from S3 or any S3-compatible service (MinIO, R2, Spaces, etc.), including public buckets
 - **Embedding providers** — OpenAI, Cohere, and Voyage
 - **Embedding presets** — save named provider/model configs once, reuse across collections
-- **Vector search** — semantic, keyword, and hybrid search modes via [Milvus](https://milvus.io)
+- **Vector search** — semantic, keyword, and hybrid search modes via [Qdrant](https://qdrant.io)
 - **Reranking** — Cohere reranking for improved result relevance
 - **Multi-collection queries** — search across collections in a single request
 - **Batch operations** — bulk upload, delete, status checks, and queries
@@ -30,7 +30,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 docker compose up -d
 ```
 
-This starts bigRAG API, Postgres, Redis, and Milvus. Open http://localhost:4000/docs for the interactive API docs.
+This starts bigRAG API, Postgres, Redis, and Qdrant. Open http://localhost:4000/docs for the interactive API docs.
 
 ```bash
 # Create a collection
@@ -56,7 +56,7 @@ curl -X POST http://localhost:4000/v1/collections/docs/query \
 ### Development
 
 ```bash
-./dev.sh  # starts Postgres, Redis, Milvus, and the API with hot reload
+./dev.sh  # starts Postgres, Redis, Qdrant, and the API with hot reload
 ```
 
 ### Docker Images
@@ -90,9 +90,9 @@ graph TD
 
     Worker -->|parse| Docling[Docling<br/>PDF, DOCX, HTML, Images]
     Worker -->|embed| Embedding[Embedding provider<br/>OpenAI / Cohere / openai_compatible]
-    Worker -->|store vectors| Milvus[(Milvus<br/>Vector DB)]
+    Worker -->|store vectors| Qdrant[(Qdrant<br/>Vector DB)]
 
-    Query -->|search| Milvus
+    Query -->|search| Qdrant
     Query -->|embed query| Embedding
     Query -->|rerank| Reranker[Cohere Rerank]
 
@@ -299,7 +299,11 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 | `BIGRAG_DATABASE_URL` | Postgres URL (`postgres:5432` inside docker-compose, `localhost:5432` for bare-metal dev) | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
 | `BIGRAG_RUN_MIGRATIONS` | Run Alembic migrations during API startup | `true` |
 | `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration timeout (`0` disables the timeout) | `60` |
-| `BIGRAG_MILVUS_URI` | Milvus URI | `http://localhost:19530` |
+| `BIGRAG_QDRANT_URL` | Qdrant URL | `http://localhost:6333` |
+| `BIGRAG_QDRANT_API_KEY` | Optional Qdrant Cloud/API key | — |
+| `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout (`0` disables the timeout) | `10` |
+| `BIGRAG_QDRANT_REQUIRED` | Fail API startup if Qdrant cannot be reached | `false` |
+| `BIGRAG_QDRANT_SEARCH_EF` | Optional Qdrant HNSW search recall/latency tuning | — |
 | `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
 | `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
 | `BIGRAG_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and IP rate limits | `[]` |

@@ -41,7 +41,7 @@ class QueryRequest(BaseModel):
         description=(
             "When true (default), the server may return a cached response "
             "for a near-duplicate recent query. Set false to always hit "
-            "Milvus fresh — useful for eval runs."
+            "Qdrant fresh — useful for eval runs."
         ),
     )
 

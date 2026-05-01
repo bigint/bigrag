@@ -13,7 +13,7 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 - **Any document format** — PDF, DOCX, PPTX, XLSX, HTML, Markdown, CSV/TSV/XML/JSON, and scanned images (OCR) via [Docling](https://github.com/DS4SD/docling)
 - **Any embedding model** — OpenAI, Cohere, or `openai_compatible` gateways (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) configured per collection
 - **Three search modes** plus HyDE, MMR diversity, metadata facets, and a semantic result cache
-- **Milvus vector database** — tenant-aware partitions, IVF_FLAT or HNSW indexes
+- **Qdrant vector database** — HNSW vector search with tenant-aware payload indexes
 - **First-class auth** — admin accounts, session cookies, `bigrag_sk_…` API keys with scopes and rate limits, and a full audit log
 - **Operational features** — S3 bulk ingestion, webhooks with HMAC signatures, metadata-schema validation, an evaluation runner, and per-collection query analytics
 - **Studio admin UI** — first-run setup, collection browser, query playground, API-key minter, webhook manager
@@ -37,8 +37,8 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
     Redis -->|process| Worker[Ingestion worker]
     Worker -->|parse| Docling[Docling]
     Worker -->|embed| Embedding[Embedding provider]
-    Worker -->|store vectors| Milvus[(Milvus)]
-    Query -->|search| Milvus
+    Worker -->|store vectors| Qdrant[(Qdrant)]
+    Query -->|search| Qdrant
     Query -->|embed query| Embedding
     Collections --> Postgres[(Postgres)]
     Documents --> Postgres
@@ -50,7 +50,7 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 | **bigRAG API** | REST API server (FastAPI) | `http://localhost:4000` |
 | **Studio UI** | Admin web app | `http://localhost:3000` |
 | **PostgreSQL** | Users, sessions, API keys, metadata, audit | `localhost:5432` |
-| **Milvus** | Vector storage and search | `localhost:19530` |
+| **Qdrant** | Vector storage and search | `localhost:6333` |
 | **Redis** | Ingestion + event bus | `localhost:6379` |
 
 ## Explore

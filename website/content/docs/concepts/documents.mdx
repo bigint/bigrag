@@ -62,7 +62,7 @@ Regardless of ingestion method, every document goes through the same pipeline:
 3. **Parse** — a background worker picks up the document and parses it with Docling
 4. **Chunk** — extracted text is split into chunks based on the collection's `chunk_size` and `chunk_overlap`
 5. **Embed** — each chunk is embedded using the collection's configured embedding model
-6. **Store** — embeddings are batch-inserted into the Milvus collection
+6. **Store** — embeddings are batch-inserted into the Qdrant collection
 7. **Ready** — document status is updated to `ready` with the chunk count
 
 ## Processing Status

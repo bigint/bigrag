@@ -387,7 +387,11 @@ class IngestionQueue:
             chunk_size=job.chunk_size,
         )
 
-        await vector_store.create_collection(job.collection_name, job.embedding_dimension)
+        await vector_store.create_collection(
+            job.collection_name,
+            job.embedding_dimension,
+            tenant_field=getattr(job, "tenant_field", None),
+        )
 
         batch_size = _settings.ingestion_batch_size
         total_inserted = 0

@@ -312,7 +312,7 @@ let test = client.webhooks().test("webhook-id").await?;
 // Health check
 let health = client.health().await?;
 
-// Readiness (checks Postgres, Milvus, Redis, embedding provider)
+// Readiness (checks Postgres, Qdrant, Redis, embedding provider)
 let ready = client.readiness().await?;
 
 // Platform-wide stats

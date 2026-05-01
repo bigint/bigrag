@@ -216,7 +216,7 @@ or `os.path.commonpath([resolved, self._base]) == str(self._base)`.
 
 ---
 
-#### `[x]` I-008 🔴 Milvus filter-expression injection in `text_search`
+#### `[x]` I-008 🔴 Qdrant filter-expression injection in `text_search`
 
 **File:** `api/bigrag/services/vector_store.py:338-339`
 
@@ -226,11 +226,11 @@ term_filters.append(f'text like "%{escaped}%"')
 ```
 
 Single quotes (`'`) are not escaped. A query term containing `'` produces a
-malformed Milvus expression and can be turned into expression injection that
-short-circuits filters or accesses other partitions. The broader escape used by
+malformed vector filter expression and can be turned into expression injection that
+short-circuits filters. The broader escape used by
 `retrieval._build_filter_expr` is correct; reuse it.
 
-**Fix:** Add `'` to the escape set, or pass terms through Milvus's parameterized
+**Fix:** Add `'` to the escape set, or pass terms through Qdrant's parameterized
 expression API if/when available.
 
 ---
@@ -328,7 +328,7 @@ JSONB (already on the list as I-046).
 `_recover_stuck_jobs` runs unconditionally on startup and moves every entry in
 `bigrag:ingestion:processing` back into `bigrag:ingestion:queue`. With multiple
 uvicorn workers (or a rolling deploy), a job actively running in process A is
-moved back and re-claimed by process B → duplicate Milvus inserts, double
+moved back and re-claimed by process B → duplicate Qdrant inserts, double
 `document_count` increment, possibly conflicting status writes.
 
 **Fix:** Use heartbeat-keyed leases. A worker takes a job by writing a
@@ -394,14 +394,14 @@ locally and reduce after `gather` completes.
 
 ---
 
-#### `[x]` I-017 🔴 Blocking pymilvus calls on the event loop
+#### `[x]` I-017 🔴 Blocking qdrant-client calls on the event loop
 
 **Files:** `api/bigrag/services/vector_store.py:290,314`,
 `api/bigrag/routers/health.py:81-87`
 
 - `vector_store.get_chunks` and `delete_by_document` call
   `self.client.has_collection(col)` directly (synchronous gRPC).
-- `health._check_milvus` calls `vs.client.list_collections()` directly.
+- `health._check_qdrant` calls `vs.client.list_collections()` directly.
 
 Both stall the event loop for the duration of the network round-trip.
 
@@ -1857,13 +1857,13 @@ confirming after every Studio refactor.
 
 ---
 
-#### `[x]` I-114 🟡 `docker.mdx` snippet omits `milvus.yaml` mount
+#### `[x]` I-114 🟡 `docker.mdx` snippet omits `Qdrant storage` mount
 
 **Files:** `website/content/docs/deployment/docker.mdx:91-102`,
 `docker-compose.yml:118`
 
-Real compose file mounts `./milvus.yaml:/milvus/configs/user.yaml:ro`. Doc
-example doesn't. Operators copying the doc snippet get default Milvus
+Real compose file mounts `./Qdrant storage:/qdrant/configs/user.yaml:ro`. Doc
+example doesn't. Operators copying the doc snippet get default Qdrant
 config.
 
 **Fix:** Add the mount, or note it's omitted for brevity.
@@ -1916,7 +1916,7 @@ longer references `database.py`.
 **Files:** `bigrag.toml`,
 `website/content/docs/getting-started/configuration.mdx`
 
-Repo-root `bigrag.toml` covers `[server]`, `[database]`, `[milvus]`,
+Repo-root `bigrag.toml` covers `[server]`, `[database]`, `[qdrant]`,
 `[redis]`, `[ingestion]`. Docs example covers `[session]`, `[embedding]`,
 `[storage]`, `[s3]`, `[webhooks]`. Worse: docs example puts `log_level`,
 `log_format`, `cors_origins` under `[server]`, but `from_toml()` flattens
@@ -2012,7 +2012,7 @@ PRs, in this order:
 9. **I-005** Restrict query-param auth to SSE paths.
 10. **I-006** Login timing oracle.
 11. **I-007** `LocalStorage._safe_path`.
-12. **I-008** Milvus expression escape.
+12. **I-008** Qdrant expression escape.
 13. **I-009** Content-Disposition.
 14. **I-010** Proxy redirect validation.
 15. **I-011** Proxy CSRF check.
@@ -2024,7 +2024,7 @@ PRs, in this order:
 18. **I-014** Multi-process SSE completion.
 19. **I-015** `document_count` + zero-chunk gating.
 20. **I-016** S3 ingest counter lock.
-21. **I-017** Blocking pymilvus calls.
+21. **I-017** Blocking qdrant-client calls.
 22. **I-018** Semantic cache reordering.
 23. **I-019** Python `_request_form` retries.
 

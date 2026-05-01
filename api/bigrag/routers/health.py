@@ -158,21 +158,18 @@ async def readiness(request: Request):
         async with session_factory()() as session:
             await session.execute(sa.text("SELECT 1"))
 
-    async def _check_milvus():
+    async def _check_qdrant():
         if vs.client:
-            from pymilvus import MilvusClient
-
-            if isinstance(vs.client, MilvusClient):
-                await asyncio.to_thread(vs.client.list_collections)
+            await vs.health_check()
         else:
-            raise RuntimeError("milvus client not connected")
+            raise RuntimeError("qdrant client not connected")
 
     async def _check_redis():
         await queue._redis.ping()
 
     infra_checks = {
         "postgres": _check_postgres(),
-        "milvus": _check_milvus(),
+        "qdrant": _check_qdrant(),
         "redis": _check_redis(),
     }
 

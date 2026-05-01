@@ -29,8 +29,8 @@ url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 pool_min = 5
 pool_max = 50
 
-[milvus]
-uri = "http://localhost:19530"
+[qdrant]
+url = "http://localhost:6333"
 
 [redis]
 url = "redis://localhost:6379/0"
@@ -94,7 +94,10 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_DATABASE_URL` | Postgres connection URL | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
-| `BIGRAG_MILVUS_URI` | Milvus connection URI | `http://localhost:19530` |
+| `BIGRAG_QDRANT_URL` | Qdrant connection URL | `http://localhost:6333` |
+| `BIGRAG_QDRANT_API_KEY` | Optional Qdrant Cloud/API key | — |
+| `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout (`0` disables the timeout) | `10` |
+| `BIGRAG_QDRANT_REQUIRED` | Fail API startup if Qdrant cannot be reached | `false` |
 | `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
 | `BIGRAG_DB_POOL_MIN` | Min Postgres pool size | `5` |
 | `BIGRAG_DB_POOL_MAX` | Max Postgres pool size | `50` |
@@ -158,8 +161,7 @@ Embedding provider, model, and key are normally configured per collection. These
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_EMBEDDING_CONCURRENCY` | Max concurrent embedding requests | `8` |
-| `BIGRAG_MILVUS_MAX_WORKERS` | Milvus thread pool size | `32` |
-| `BIGRAG_MILVUS_NPROBE` | Milvus search `nprobe` (recall/latency tradeoff) | `32` |
+| `BIGRAG_QDRANT_SEARCH_EF` | Optional Qdrant HNSW `ef` search value (higher recall, higher latency) | — |
 | `BIGRAG_COLLECTION_CACHE_TTL` | Collection metadata cache TTL (seconds) | `30` |
 | `BIGRAG_QUEUE_MAX_DEPTH` | Max pending jobs in the ingestion queue | `10000` |
 
@@ -172,7 +174,7 @@ Embedding provider, model, and key are normally configured per collection. These
 --host HOST              Override server host
 --port PORT              Override server port
 --database-url URL       Override Postgres URL
---milvus-uri URI         Override Milvus URI
+--qdrant-url URL         Override Qdrant URL
 --redis-url URL          Override Redis URL
 --log-level LEVEL        Override log level
 --log-format FORMAT      text | json

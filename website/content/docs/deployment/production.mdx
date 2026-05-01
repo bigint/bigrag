@@ -20,9 +20,9 @@ Tick these off before pointing real traffic at a bigRAG deployment:
   proxies if bigRAG sits behind nginx, Caddy, Traefik, or a load balancer.
 - [ ] Redis with `requirepass` set and `appendonly yes` persisted to
   a mounted volume.
-- [ ] Milvus in cluster mode if you expect >10M vectors or need HA.
+- [ ] Qdrant in cluster mode if you expect >10M vectors or need HA.
 - [ ] Postgres warm-standby replica for failover.
-- [ ] Backup strategy: daily `pg_dump` + Milvus backup tool + S3
+- [ ] Backup strategy: daily `pg_dump` + Qdrant backup tool + S3
   replication of the upload volume.
 - [ ] Rate limit overrides: set per-key `rate_limits` JSON on any key
   that legitimately needs more than the default bucket.
@@ -60,7 +60,7 @@ services:
     environment:
       BIGRAG_ENV: prod
       BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
-      BIGRAG_MILVUS_URI: http://milvus:19530
+      BIGRAG_QDRANT_URL: http://qdrant:6333
       BIGRAG_REDIS_URL: redis://redis:6379/0
       BIGRAG_SESSION_COOKIE_SECURE: "true"
       BIGRAG_CORS_ORIGINS: '["https://studio.example.com"]'
@@ -77,8 +77,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      milvus:
-        condition: service_healthy
+      qdrant:
+        condition: service_started
 
   postgres:
     image: postgres:17
@@ -98,40 +98,17 @@ services:
       timeout: 5s
       retries: 5
 
-  milvus-etcd:
-    image: quay.io/coreos/etcd:v3.5.18
-    environment:
-      ETCD_AUTO_COMPACTION_MODE: revision
-      ETCD_AUTO_COMPACTION_RETENTION: "1000"
-      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
-    volumes:
-      - etcd_data:/etcd
-    command: >
-      etcd
-      -advertise-client-urls=http://127.0.0.1:2379
-      -listen-client-urls=http://0.0.0.0:2379
-      --data-dir=/etcd
-
-  milvus:
-    image: milvusdb/milvus:v2.5.4
-    command: ["milvus", "run", "standalone"]
+  qdrant:
+    image: qdrant/qdrant:v1.17.1
     ports:
-      - "19530:19530"
-    environment:
-      ETCD_ENDPOINTS: milvus-etcd:2379
+      - "6333:6333"
+      - "6334:6334"
     volumes:
-      - milvus_data:/var/lib/milvus
-    depends_on:
-      - milvus-etcd
+      - qdrant_data:/qdrant/storage
     deploy:
       resources:
         limits:
-          memory: 4g
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+          memory: 2g
 
   redis:
     image: redis:7-alpine
@@ -151,8 +128,7 @@ services:
 volumes:
   bigrag_data:
   postgres_data:
-  etcd_data:
-  milvus_data:
+  qdrant_data:
   redis_data:
 ```
 
@@ -180,7 +156,7 @@ BIGRAG_WORKERS=8                    # Match CPU cores
 BIGRAG_INGESTION_WORKERS=8          # More workers for heavy ingestion
 BIGRAG_DB_POOL_MAX=100              # Increase for high concurrency
 BIGRAG_EMBEDDING_CONCURRENCY=16     # Parallel embedding requests
-BIGRAG_MILVUS_MAX_WORKERS=64        # Milvus thread pool
+BIGRAG_QDRANT_SEARCH_EF=128         # Optional HNSW recall/latency tuning
 
 # Logging
 BIGRAG_LOG_FORMAT=json              # Structured logging
@@ -249,7 +225,7 @@ Ensure all infrastructure services are running and healthy:
 
 ```bash
 docker exec bigrag-postgres pg_isready -U bigrag
-curl -f http://localhost:9091/healthz
+curl -f http://localhost:6333/healthz
 docker exec bigrag-redis redis-cli ping
 ```
 

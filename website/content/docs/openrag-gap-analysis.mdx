@@ -126,7 +126,7 @@ OpenRAG includes a rich terminal interface built with Python's Textual library:
 
 OpenRAG exposes OpenSearch Dashboards on port 5601, giving operators a full analytics and monitoring UI for the search layer — query inspection, index health, shard distribution, etc.
 
-**bigRAG gap:** No equivalent. Milvus has Attu (a third-party web UI) but it is not bundled or documented.
+**bigRAG gap:** No equivalent. Qdrant exposes an admin dashboard for vector-store inspection, but bigRAG does not bundle a dedicated vector database UI.
 
 ---
 
@@ -399,7 +399,7 @@ OpenRAG stores `allowed_users` and `allowed_groups` fields in OpenSearch, enabli
 - Per-document group whitelists
 - Automatic filtering at query time
 
-**bigRAG gap:** No document-level access control. Milvus stores metadata but there is no ACL filtering layer.
+**bigRAG gap:** No document-level access control. Qdrant stores metadata but there is no ACL filtering layer.
 
 ### 5.4 API Key System
 
@@ -482,7 +482,7 @@ OpenRAG uses [structlog](https://www.structlog.org/) for structured, machine-par
 
 OpenRAG's TUI streams container logs in real-time, making it easy to monitor all services from a single terminal.
 
-**bigRAG gap:** No log aggregation. Each service (Postgres, Redis, Milvus, API) logs independently. Users must use `docker logs` or `docker compose logs` manually.
+**bigRAG gap:** No log aggregation. Each service (Postgres, Redis, Qdrant, API) logs independently. Users must use `docker logs` or `docker compose logs` manually.
 
 ### 6.4 Disk Space Monitoring
 
@@ -490,7 +490,7 @@ OpenRAG's TUI streams container logs in real-time, making it easy to monitor all
 
 OpenRAG monitors disk space and alerts at 90% threshold to prevent out-of-space failures in OpenSearch.
 
-**bigRAG gap:** No disk space monitoring. Milvus or Postgres could fill the disk without warning.
+**bigRAG gap:** No disk space monitoring. Qdrant or Postgres could fill the disk without warning.
 
 ### 6.5 Provider Health Checks
 
@@ -498,7 +498,7 @@ OpenRAG monitors disk space and alerts at 90% threshold to prevent out-of-space 
 
 OpenRAG has a `/provider/health` endpoint that validates connectivity to the configured LLM and embedding providers, including API key validation and model availability.
 
-**bigRAG gap:** bigRAG's `/health/ready` checks Postgres, Milvus, and Redis, but does not validate embedding provider connectivity. If an OpenAI API key is invalid, bigRAG won't know until the first embedding request fails.
+**bigRAG gap:** bigRAG's `/health/ready` checks Postgres, Qdrant, and Redis, but does not validate embedding provider connectivity. If an OpenAI API key is invalid, bigRAG won't know until the first embedding request fails.
 
 ### 6.6 LLM Usage Analytics
 
@@ -594,7 +594,7 @@ OpenRAG supports Podman as an alternative to Docker, including Podman Compose.
 
 OpenRAG supports AES-256-GCM encryption for OpenSearch index payloads via the `OPENRAG_ENCRYPTION_KEY` environment variable. This encrypts document content stored in the search index.
 
-**bigRAG gap:** No encryption at rest beyond what Postgres and Milvus provide at the filesystem level. No application-level encryption of document content or embeddings.
+**bigRAG gap:** No encryption at rest beyond what Postgres and Qdrant provide at the filesystem level. No application-level encryption of document content or embeddings.
 
 ### 8.2 Password Complexity Validation
 
@@ -714,7 +714,7 @@ A complete feature-by-feature comparison:
 | License | MIT | Apache-2.0 | -- |
 | Enterprise support | No | Yes (IBM Elite) | Medium |
 | GitHub stars | -- | 3,700+ | -- |
-| Vector database | Milvus | OpenSearch | Different |
+| Vector database | Qdrant | OpenSearch | Different |
 | Metadata database | PostgreSQL | None (OpenSearch) | bigRAG ahead |
 
 ---
@@ -790,7 +790,7 @@ Based on this analysis, here are the recommended priorities for closing the most
 13. **Document-Level ACL** — Add `allowed_users` / `allowed_groups` metadata filtering.
 14. **Prefix/Autocomplete Search** — Add partial-match query support.
 15. **Single-Command Install** — Publish to PyPI for `uvx bigrag` or similar.
-16. **Disk Space Monitoring** — Monitor Milvus/Postgres disk usage and alert.
+16. **Disk Space Monitoring** — Monitor Qdrant/Postgres disk usage and alert.
 
 ### Tier 4 — Low Priority (monitor, don't build yet)
 

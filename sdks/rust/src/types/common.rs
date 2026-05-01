@@ -39,8 +39,8 @@ pub struct ReadinessResponse {
     pub version: String,
     /// Whether Postgres is reachable.
     pub postgres: bool,
-    /// Whether Milvus is reachable.
-    pub milvus: bool,
+    /// Whether Qdrant is reachable.
+    pub qdrant: bool,
     /// Whether Redis is reachable.
     pub redis: bool,
     /// Whether the embedding provider is reachable.
@@ -119,10 +119,10 @@ mod tests {
 
     #[test]
     fn test_deserialize_readiness_response() {
-        let json = r#"{"status":"ok","version":"1.2.3","postgres":true,"milvus":true,"redis":true,"embedding":true}"#;
+        let json = r#"{"status":"ok","version":"1.2.3","postgres":true,"qdrant":true,"redis":true,"embedding":true}"#;
         let resp: ReadinessResponse = serde_json::from_str(json).unwrap();
         assert!(resp.postgres);
-        assert!(resp.milvus);
+        assert!(resp.qdrant);
         assert!(resp.redis);
         assert_eq!(resp.embedding, Some(true));
         assert_eq!(resp.embedding_error, None);

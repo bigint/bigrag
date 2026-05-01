@@ -18,6 +18,7 @@ class IngestionJob:
     chunk_size: int
     chunk_overlap: int
     chunk_strategy: str = "paragraph"
+    tenant_field: str | None = None
     embedding_base_url: str | None = None
     attempt: int = 0
     max_attempts: int = 3
@@ -37,6 +38,7 @@ class IngestionJob:
                 "chunk_size": self.chunk_size,
                 "chunk_overlap": self.chunk_overlap,
                 "chunk_strategy": self.chunk_strategy,
+                "tenant_field": self.tenant_field,
                 "attempt": self.attempt,
                 "max_attempts": self.max_attempts,
                 "job_id": self.job_id,
@@ -72,4 +74,5 @@ def create_ingestion_job(
         chunk_size=collection["chunk_size"],
         chunk_overlap=collection["chunk_overlap"],
         chunk_strategy=collection.get("chunk_strategy") or "paragraph",
+        tenant_field=collection.get("tenant_field"),
     )

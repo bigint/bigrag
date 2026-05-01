@@ -133,7 +133,7 @@ const OverviewPage = () => {
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <HealthRow label="Postgres" ok={readiness?.postgres} />
-            <HealthRow label="Milvus" ok={readiness?.milvus} />
+            <HealthRow label="Qdrant" ok={readiness?.qdrant} />
             <HealthRow label="Redis" ok={readiness?.redis} />
             <HealthRow
               label="Embeddings"

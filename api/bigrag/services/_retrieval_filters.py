@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 
+from qdrant_client import models
+
 _SAFE_FIELD_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 
@@ -11,51 +13,60 @@ def validate_field(key: str) -> str:
     return key
 
 
-def escape_string(value: str) -> str:
-    return value.replace("\\", "\\\\").replace('"', '\\"')
-
-
 def validate_scalar(val: object, op: str) -> None:
     if not isinstance(val, (str, int, float, bool)):
         raise ValueError(f"Filter operator {op} requires a scalar value, got {type(val).__name__}")
 
 
-def format_value(val: str | int | float | bool) -> str:
-    if isinstance(val, str):
-        return f'"{escape_string(val)}"'
-    if isinstance(val, bool):
-        return "true" if val else "false"
-    return str(val)
+def _match_condition(field: str, value: str | int | float | bool) -> models.FieldCondition:
+    return models.FieldCondition(key=field, match=models.MatchValue(value=value))
 
 
-def build_filter_expr(filters: dict) -> str | None:
-    expressions = []
+def build_filter(filters: dict) -> models.Filter | None:
+    must: list[models.Condition] = []
+    must_not: list[models.Condition] = []
 
     for key, value in filters.items():
         field = validate_field(key)
         if isinstance(value, (str, int, float, bool)):
-            expressions.append(f"{field} == {format_value(value)}")
+            must.append(_match_condition(field, value))
         elif isinstance(value, dict):
             for op, val in value.items():
-                if op in ("$eq", "$ne"):
+                if op == "$eq":
                     validate_scalar(val, op)
-                    sym = "==" if op == "$eq" else "!="
-                    expressions.append(f"{field} {sym} {format_value(val)}")
+                    must.append(_match_condition(field, val))
+                elif op == "$ne":
+                    validate_scalar(val, op)
+                    must_not.append(_match_condition(field, val))
                 elif op in ("$gt", "$gte", "$lt", "$lte"):
-                    if not isinstance(val, (int, float)):
+                    if not isinstance(val, (int, float)) or isinstance(val, bool):
                         raise ValueError(
                             f"Filter operator {op} requires a numeric value, "
                             f"got {type(val).__name__}"
                         )
-                    op_map = {"$gt": ">", "$gte": ">=", "$lt": "<", "$lte": "<="}
-                    expressions.append(f"{field} {op_map[op]} {val}")
+                    must.append(
+                        models.FieldCondition(
+                            key=field,
+                            range=models.Range(
+                                gt=val if op == "$gt" else None,
+                                gte=val if op == "$gte" else None,
+                                lt=val if op == "$lt" else None,
+                                lte=val if op == "$lte" else None,
+                            ),
+                        )
+                    )
                 elif op == "$in":
                     if not isinstance(val, list):
                         raise ValueError("Filter operator $in requires a list value")
-                    safe_vals = []
-                    for v in val:
-                        validate_scalar(v, "$in")
-                        safe_vals.append(format_value(v))
-                    expressions.append(f"{field} in [{', '.join(safe_vals)}]")
+                    for item in val:
+                        validate_scalar(item, "$in")
+                    must.append(
+                        models.FieldCondition(
+                            key=field,
+                            match=models.MatchAny(any=val),
+                        )
+                    )
 
-    return " and ".join(expressions) if expressions else None
+    if not must and not must_not:
+        return None
+    return models.Filter(must=must or None, must_not=must_not or None)

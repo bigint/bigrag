@@ -27,7 +27,7 @@ docker compose up -d
 This starts:
 
 - **bigRAG API** on port `4000` (Swagger docs at `/docs`)
-- **Milvus** vector database on port `19530`
+- **Qdrant** vector database on port `6333`
 - **PostgreSQL** for metadata on port `5432`
 - **Redis** for the ingestion queue on port `6379`
 
@@ -47,7 +47,7 @@ Release artifacts use CalVer (`YYYY.M.D`). Docker also publishes `latest` for co
 ### Start infrastructure services
 
 ```bash
-docker compose up postgres redis milvus -d
+docker compose up postgres redis qdrant -d
 ```
 </Step>
 <Step>
@@ -85,7 +85,7 @@ This script:
 
 1. Kills stale processes on port 4000
 2. Validates required commands (`docker`, `python3`, `curl`)
-3. Starts Docker services (Postgres, Redis, Milvus) and waits for readiness
+3. Starts Docker services (Postgres, Redis, Qdrant) and waits for readiness
 4. Creates a Python virtualenv and installs dependencies
 5. Starts the backend with auto-reload
 6. Gracefully stops everything on Ctrl+C

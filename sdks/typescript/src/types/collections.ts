@@ -56,7 +56,7 @@ export interface CreateCollectionBody {
   chunk_size?: number;
   chunk_overlap?: number;
   chunk_strategy?: "paragraph" | "recursive";
-  index_type?: "IVF_FLAT" | "HNSW";
+  index_type?: "HNSW";
   tenant_field?: string;
   metadata_schema?: Record<string, unknown>;
   metadata?: Record<string, unknown>;

@@ -15,7 +15,7 @@ copy and an API-layer search-and-replace.
 | Pinecone | bigRAG |
 | --- | --- |
 | Index | Collection |
-| Namespace | Metadata field `namespace` (or partition via `tenant_field`) |
+| Namespace | Metadata field `namespace` (optionally indexed via `tenant_field`) |
 | Vector (id, values, metadata) | Chunk (`id`, `embedding`, `metadata`) |
 | `upsert` | `POST /v1/collections/{name}/vectors/upsert` |
 | `query(vector, topK, filter)` | `POST /v1/collections/{name}/query` |
@@ -87,14 +87,13 @@ Recommended if you're in the middle of a chunking rethink anyway.
 
 ## API differences to watch
 
-- **Filters use a Milvus expression string**, not the Pinecone dict.
-  The SDK hides this — pass a dict like `{"department": "sales"}`
-  and bigRAG produces `department == "sales"`. For complex boolean
-  queries you can pass a raw expression via the `filters` param.
-- **Namespaces → metadata partitions**. Pinecone's `namespace="docs"`
-  becomes `metadata.namespace = "docs"`. For 10-50× faster tenant
-  scoping, set `tenant_field: "namespace"` on the collection and
-  bigRAG will create a Milvus partition per distinct value.
+- **Filters stay as JSON objects**. Pass a dict like
+  `{"department": "sales"}` and bigRAG translates it into Qdrant
+  payload filters.
+- **Namespaces → metadata filters**. Pinecone's `namespace="docs"`
+  becomes `metadata.namespace = "docs"`. Set
+  `tenant_field: "namespace"` on the collection when that field should
+  get a Qdrant payload index for tenant-scoped searches.
 - **Hybrid search is built-in**. `search_mode: "hybrid"` runs keyword
   + vector in parallel and fuses with RRF / normalized / weighted.
   No separate "sparse" vectors to maintain.

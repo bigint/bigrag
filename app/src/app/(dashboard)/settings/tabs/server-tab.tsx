@@ -48,7 +48,7 @@ export const ServerTab = () => {
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <StatusRow label="Postgres" ok={readiness?.postgres} />
-          <StatusRow label="Milvus" ok={readiness?.milvus} />
+          <StatusRow label="Qdrant" ok={readiness?.qdrant} />
           <StatusRow label="Redis" ok={readiness?.redis} />
           <StatusRow
             label="Embeddings"

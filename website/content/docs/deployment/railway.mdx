@@ -1,151 +1,97 @@
 ---
 title: Railway
-description: Deploy bigRAG to a single Railway project with managed Postgres and Redis plus self-hosted Milvus.
+description: Deploy bigRAG to Railway with managed Postgres and Redis plus self-hosted Qdrant.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-This guide walks through a single-project Railway deployment with all six services side-by-side: API, Studio UI, Postgres, Redis, etcd, and Milvus. If you'd rather offload the vector store, the Zilliz Cloud variant at the bottom drops `etcd` and `milvus` and points the API at managed Milvus.
+This guide deploys the API, Studio UI, Postgres, Redis, and Qdrant in one Railway project. Qdrant runs as a single Docker-image service and does not need etcd in this setup.
 
 ## What you get
 
 - **bigrag-api** — FastAPI backend, public domain.
 - **bigrag-app** — Studio admin UI, public domain.
-- **Postgres 17** — Railway plugin, manages credentials, exposes `DATABASE_URL`.
-- **Redis 7** — Railway plugin, manages credentials, exposes `REDIS_URL`.
-- **bigrag-etcd** + **bigrag-milvus** — Docker images, internal-only.
-
-Idle cost on the Pro plan: roughly $58/mo (Pro base $20 + ~$38 of compute) plus ~$8/mo for ~30 GB of volumes. Milvus alone runs ~$15/mo because it holds 3 GB of RAM around the clock.
+- **Postgres 17** — Railway plugin, exposes `DATABASE_URL`.
+- **Redis 7** — Railway plugin, exposes `REDIS_URL`.
+- **bigrag-qdrant** — Qdrant Docker image, internal-only.
 
 ## Prerequisites
 
-- Railway **Pro plan** — Hobby's 8 GB ceiling will OOM Milvus.
-- An OpenAI or Cohere API key — you can deploy first and fill the key before your first ingestion.
-- A region — Railway sets region per-service. Singapore (`asia-southeast1`) is closest to South Asia. Plugins inherit the project's default region; Docker-image and GitHub services pick whatever the account default is, so set the region on each one explicitly if you care.
+- Railway Pro plan for comfortable API and vector-store memory limits.
+- An OpenAI, Cohere, Voyage, or OpenAI-compatible embedding provider key.
+- A region close to your users and embedding provider.
 
 ## Service order
 
-Provision in this order so the API can reference the app's public domain in CORS via `${{app.RAILWAY_PUBLIC_DOMAIN}}`:
+Provision in this order so API variables can reference private service domains:
 
-1. Postgres plugin (Cmd+K → type `postgres` → Enter)
-2. Redis plugin (Cmd+K → type `redis` → Enter)
-3. `bigrag-etcd` (Docker image)
-4. `bigrag-milvus` (Docker image)
-5. `bigrag-app` (GitHub repo, sub-service `app`)
-6. `bigrag-api` (GitHub repo, root directory `/api`)
+1. Postgres plugin.
+2. Redis plugin.
+3. `bigrag-qdrant` Docker image.
+4. `bigrag-app` from the repo root directory `/app`.
+5. `bigrag-api` from the repo root directory `/api`.
 
-Railway batches all changes you stage into a single "Apply" — review the **Details** dialog before clicking **Deploy** so nothing creeps in.
-
-## Service configuration
-
-### Postgres plugin
-
-Cmd+K → type `postgres` → Enter. No further config. Railway exposes `DATABASE_URL` automatically.
-
-### Redis plugin
-
-Cmd+K → type `redis` → Enter. No further config. Railway exposes `REDIS_URL` automatically.
-
-### bigrag-etcd
+## bigrag-qdrant
 
 | Setting | Value |
 |---|---|
-| Source | Docker image `bitnami/etcd:3.5.18` |
-| Start command | _leave empty — use the image's default entrypoint_ |
-| Volume | 1 GB at `/etcd` (right-click tile → Attach volume) |
+| Source | Docker image `qdrant/qdrant:v1.17.1` |
+| Start command | leave empty |
+| Volume | 10 GB at `/qdrant/storage` |
 | Public domain | none |
 
-Environment:
+Qdrant exposes HTTP on `6333` and gRPC on `6334`. The API uses HTTP.
 
-```
-ALLOW_NONE_AUTHENTICATION=yes
-ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
-ETCD_ADVERTISE_CLIENT_URLS=http://0.0.0.0:2379
-ETCD_DATA_DIR=/etcd
-```
-
-<Callout type="warn">
-**Why bitnami and not the official etcd image?** `quay.io/coreos/etcd:v3.5.18` fails on Railway's runtime — verified during the bigRAG bring-up: "Failed to start deployment" at Deploy → Create container, regardless of start command. Bitnami's image is built for non-root container runtimes (uid 1001) and runs on Railway out of the box. If you have a strong need for the official image, run etcd outside Railway.
-</Callout>
-
-### bigrag-milvus
-
-| Setting | Value |
-|---|---|
-| Source | Docker image `milvusdb/milvus:v2.5.4` |
-| Start command | `milvus run standalone` |
-| Volume | 10 GB at `/var/lib/milvus` |
-| RAM | 4 GB minimum (Settings → Scale → Resources) |
-| Public domain | none |
-
-Environment:
-
-```
-ETCD_ENDPOINTS=${{etcd.RAILWAY_PRIVATE_DOMAIN}}:2379
-```
-
-<Callout type="warn">
-The local `docker-compose.yml` runs Milvus with `seccomp:unconfined`. Railway does not expose seccomp config; on modern kernels Milvus 2.5 boots fine without it, but pin the image tag and watch first-deploy logs. Milvus also crash-loops if etcd isn't reachable, so stabilise etcd first.
-</Callout>
-
-### bigrag-app
+## bigrag-app
 
 | Setting | Value |
 |---|---|
 | Source | GitHub repo, **Root Directory `/app`** |
-| Builder | Nixpacks (auto-detects Next.js + pnpm workspace) |
+| Builder | Nixpacks |
 | Start command | `pnpm --filter @bigrag/app exec next start --port $PORT` |
-| Public domain | yes (Settings → Networking → Generate Domain or auto-issued) |
-
-When you connect the repo, Railway scans for sub-services and offers `app`, `api`, and `website` — pick `app` and Railway pre-fills the build command with `pnpm run --filter=@bigrag/app start`. You only need to override the start command so it honours Railway's dynamic `$PORT`; the package.json `start` script hard-codes port 3000.
+| Public domain | yes |
 
 Environment:
 
-```
+```bash
 NODE_ENV=production
-NEXT_PUBLIC_API_URL=https://${{bigrag.RAILWAY_PUBLIC_DOMAIN}}
+NEXT_PUBLIC_API_URL=https://${{bigrag-api.RAILWAY_PUBLIC_DOMAIN}}
 ```
 
-### bigrag-api
+## bigrag-api
 
 | Setting | Value |
 |---|---|
 | Source | GitHub repo, **Root Directory `/api`** |
-| Builder | **Dockerfile** (Settings → Build → Builder → Dockerfile) — Railpack default doesn't recognise the project |
-| Dockerfile path | `/api/Dockerfile` (Railway suggests this when Root is `/api`) |
-| Metal Build Environment | **Off** — the multi-stage Python+Torch build with strip operations doesn't play well with Metal's caching layer |
-| Start command | _leave empty — the Dockerfile listens on Railway's `$PORT`_ |
+| Builder | Dockerfile |
+| Dockerfile path | `/api/Dockerfile` |
+| Start command | leave empty |
 | Volume | 10 GB at `/data` |
-| RAM | 4 GB minimum |
-| Public domain | yes — Settings → Networking → Generate Domain, target port unset |
+| Public domain | yes |
 
-The Dockerfile starts the API with `--port "${PORT:-4000}"`, so Railway's injected `$PORT` is used automatically. Leave the public domain target port unset; if you do set one manually, it must match the port the container is actually listening on.
+Environment:
 
-<Callout type="warn">
-**Known issue — bigrag-api Dockerfile builds can fail on Railway.** The current `api/Dockerfile` uses a multi-stage build with CPU-only Torch (~2 GB), `pip uninstall sympy mpmath`, and a `find ... -exec strip` pass. This combination fights Railway's Metal Build Environment. If your build fails fast (under 30 s) at `[build 3/11] RUN apt-get install`, disable Metal (Settings → Build → toggle off) and redeploy. If it fails again at the Torch install, raise the build memory cap or split the Dockerfile so Torch installs in its own layer that survives Metal's cache.
-</Callout>
-
-Environment (paste via Variables → Raw Editor):
-
-```
+```bash
 BIGRAG_ENV=prod
 BIGRAG_HOST=0.0.0.0
 BIGRAG_DATABASE_URL=${{Postgres.DATABASE_URL}}
 BIGRAG_REDIS_URL=${{Redis.REDIS_URL}}
-BIGRAG_MILVUS_URI=http://${{milvus.RAILWAY_PRIVATE_DOMAIN}}:19530
+BIGRAG_QDRANT_URL=http://${{bigrag-qdrant.RAILWAY_PRIVATE_DOMAIN}}:6333
 BIGRAG_EMBEDDING_PROVIDER=openai
 BIGRAG_EMBEDDING_MODEL=text-embedding-3-small
 BIGRAG_EMBEDDING_DIMENSION=1536
-BIGRAG_EMBEDDING_API_KEY=<your OpenAI key>
-BIGRAG_MASTER_KEY=<see "Generate the master key" below>
+BIGRAG_EMBEDDING_API_KEY=<your embedding key>
+BIGRAG_MASTER_KEY=<generated Fernet key>
 BIGRAG_SESSION_COOKIE_SECURE=true
 BIGRAG_SESSION_COOKIE_SAMESITE=lax
-BIGRAG_CORS_ORIGINS=https://${{app.RAILWAY_PUBLIC_DOMAIN}}
+BIGRAG_CORS_ORIGINS=https://${{bigrag-app.RAILWAY_PUBLIC_DOMAIN}}
 BIGRAG_LOG_LEVEL=info
 BIGRAG_LOG_FORMAT=json
 BIGRAG_WORKERS=1
 BIGRAG_RUN_MIGRATIONS=true
 BIGRAG_MIGRATION_TIMEOUT_SECONDS=60
+BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS=10
+BIGRAG_QDRANT_REQUIRED=false
 BIGRAG_UPLOAD_DIR=/data/uploads
 BIGRAG_INGESTION_WORKERS=4
 BIGRAG_DB_POOL_MIN=5
@@ -153,7 +99,7 @@ BIGRAG_DB_POOL_MAX=50
 BIGRAG_STORAGE_BACKEND=local
 ```
 
-The `${{Postgres.DATABASE_URL}}`, `${{Redis.REDIS_URL}}`, `${{milvus.RAILWAY_PRIVATE_DOMAIN}}`, and `${{app.RAILWAY_PUBLIC_DOMAIN}}` template variables resolve at deploy time — provision the referenced services first.
+If using Qdrant Cloud instead of the Railway Qdrant service, set `BIGRAG_QDRANT_URL` to the cluster URL and set `BIGRAG_QDRANT_API_KEY`.
 
 ## Generate the master key
 
@@ -161,44 +107,22 @@ The `${{Postgres.DATABASE_URL}}`, `${{Redis.REDIS_URL}}`, `${{milvus.RAILWAY_PRI
 python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-Paste into `BIGRAG_MASTER_KEY` on the bigrag-api Variables tab.
-
 <Callout type="error">
-**Back the master key up immediately.** It encrypts provider secrets stored in Postgres. Losing it loses decrypt access — there is no recovery path. Save it to your password manager *before* uploading any documents.
+Back the master key up immediately. It encrypts provider secrets stored in Postgres, and losing it loses decrypt access.
 </Callout>
 
-## First-run
+## First Run
 
-1. Wait for all six services to settle: Postgres + Redis green, etcd green, milvus green (depends on etcd), api healthy, app healthy.
-2. Open the Studio UI's public URL.
-3. The first visit lands on `/setup` — create the admin account there.
-4. Log in, confirm the dashboard renders without console errors.
-5. Add a collection and upload a test document. If `BIGRAG_EMBEDDING_API_KEY` is still the placeholder, the upload surfaces a clear error — set the real OpenAI key on bigrag-api and redeploy.
-
-## Updating
-
-`bigrag-api` and `bigrag-app` watch the connected GitHub repo on their root directories. Pushing to `main` triggers an auto-deploy of just the affected service.
-
-## Self-hosted Milvus vs Zilliz Cloud
-
-If `bigrag-etcd + bigrag-milvus` prove too heavy or the etcd image refuses to run, swap them for [Zilliz Cloud](https://zilliz.com/cloud) (managed Milvus, free tier covers most dev workloads):
-
-1. Delete `bigrag-etcd` and `bigrag-milvus` from the Railway project.
-2. On bigrag-api, set `BIGRAG_MILVUS_URI=https://<your-cluster>.api.gcp-us-west1.zillizcloud.com` and add `BIGRAG_MILVUS_TOKEN=<token>`.
-3. Redeploy.
-
-This trades external-dependency risk for ~$15/mo and 4 GB RAM saved on Railway.
+1. Wait for Postgres, Redis, Qdrant, API, and app services to deploy.
+2. Open the Studio UI public URL.
+3. Complete `/setup` to create the first admin account.
+4. Create a collection and upload a small document.
+5. Check `/health/ready`; it should report `qdrant: true`.
 
 ## Troubleshooting
 
-**etcd "Failed to start deployment" at Create container.** Switch to `bitnami/etcd:3.5.18` (see Known Issue callout above).
+**API deploy logs stop while connecting to Qdrant.** Keep `BIGRAG_QDRANT_REQUIRED=false` so the API can boot and `/health` can respond while `/health/ready` reports the degraded vector-store dependency. Fix the Qdrant service URL or credentials, then redeploy.
 
-**Milvus crashes immediately.** Almost always an etcd connectivity problem. Verify `ETCD_ENDPOINTS` resolves to a healthy etcd on `*.railway.internal:2379` — check etcd's deploy logs first.
+**App loads but API calls fail with CORS errors.** Check `BIGRAG_CORS_ORIGINS` on `bigrag-api`; it must match the app public domain exactly.
 
-**API refuses to start in prod.** Check `api/bigrag/startup_guard.py`. Required for `BIGRAG_ENV=prod`: non-default Postgres credentials (Railway plugin handles this), `BIGRAG_SESSION_COOKIE_SECURE=true`, `BIGRAG_MASTER_KEY` set, and `BIGRAG_CORS_ORIGINS` not containing `*`.
-
-**API deploy logs stop at `running alembic upgrade head`.** Open the Postgres Data tab and check `alembic_version`. If it already matches the current repo migration head, set `BIGRAG_RUN_MIGRATIONS=false` on the API service and redeploy. Leave this enabled on first deploys or whenever a release includes new migrations.
-
-**App loads but API calls fail with CORS errors.** `BIGRAG_CORS_ORIGINS` on bigrag-api isn't pointing at the app's public domain. Variables tab → check the resolved value of `${{app.RAILWAY_PUBLIC_DOMAIN}}` matches the domain in your browser address bar.
-
-**App build fails with workspace errors.** Set the start command explicitly to `pnpm --filter @bigrag/app exec next start --port $PORT` and confirm Root Directory is `/app`. If Nixpacks still chokes, fall back to Root Directory `/` and Build Command `pnpm install --frozen-lockfile && pnpm --filter @bigrag/app build`.
+**App build fails with workspace errors.** Use `pnpm --filter @bigrag/app exec next start --port $PORT` as the start command and confirm the root directory is `/app`.

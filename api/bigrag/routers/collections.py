@@ -163,7 +163,12 @@ async def create_collection(
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    await vector_store.create_collection(body.name, dimension, index_type=body.index_type)
+    await vector_store.create_collection(
+        body.name,
+        dimension,
+        index_type=body.index_type,
+        tenant_field=body.tenant_field,
+    )
 
     collection = Collection(
         name=body.name,
@@ -248,6 +253,7 @@ async def reembed_collection(
         "chunk_size": collection.chunk_size,
         "chunk_overlap": collection.chunk_overlap,
         "chunk_strategy": collection.chunk_strategy or "paragraph",
+        "tenant_field": collection.tenant_field,
     }
     jobs = [
         create_ingestion_job(
@@ -418,7 +424,7 @@ async def delete_collection(
     logger.info(f"delete: flushed {flushed} queued jobs name={name}")
 
     await vector_store.delete_collection(name)
-    logger.info(f"delete: milvus collection dropped name={name}")
+    logger.info(f"delete: qdrant collection dropped name={name}")
 
     from bigrag.services.storage import get_storage
 

@@ -26,7 +26,10 @@ class Settings(BaseSettings):
     run_migrations: bool = True
     migration_timeout_seconds: int = 60
 
-    milvus_uri: str = "http://localhost:19530"
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: str | None = None
+    qdrant_connect_timeout_seconds: int = 10
+    qdrant_required: bool = False
 
     redis_url: str = "redis://localhost:6379/0"
 
@@ -40,8 +43,7 @@ class Settings(BaseSettings):
     session_cookie_domain: str | None = None
 
     embedding_concurrency: int = 8
-    milvus_max_workers: int = 32
-    milvus_nprobe: int = 32
+    qdrant_search_ef: int | None = None
     collection_cache_ttl: int = 30
     queue_max_depth: int = 10000
     conversion_timeout: int = 300

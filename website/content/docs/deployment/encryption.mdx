@@ -57,10 +57,10 @@ bigRAG delegates the bulk of at-rest protection to your infrastructure. For a pr
 - **RDS / Aurora**: enable **Storage encryption** with a customer-managed KMS key. Enable the same on every read replica and snapshot target.
 - **Backups**: pipe `pg_dump` into a GPG or `age`-encrypted file, or push to S3 with SSE-KMS.
 
-### Milvus
+### Qdrant
 
-- Milvus stores its indexes on its own object backend. For Docker Compose this is **MinIO**; for production, point Milvus at S3 / GCS / Azure Blob with server-side encryption enabled.
-- Milvus metadata sits in etcd; run etcd on an encrypted volume.
+- Qdrant stores vectors, payloads, and indexes under `/qdrant/storage` in the Docker deployment. Put that volume on encrypted storage.
+- For Qdrant Cloud, enable the provider's encryption controls and restrict API keys to the bigRAG service.
 
 ### Redis
 
@@ -88,7 +88,7 @@ A `bigrag crypto rotate` CLI command with `BIGRAG_MASTER_KEY_PREVIOUS` dual-read
 | Data | Why |
 |------|-----|
 | Document chunks (`document_chunks.content`) | Per-query decrypt kills search latency; rely on disk encryption. |
-| Vectors in Milvus | Same — search needs raw floats, not ciphertext. |
+| Vectors in Qdrant | Same — search needs raw floats, not ciphertext. |
 | Audit log rows | Append-only. Store encrypted at the disk layer; querying encrypted metadata is prohibitive. |
 | User display names / emails | PII, not credentials. Disk-layer + column-level access control is the right split. |
 

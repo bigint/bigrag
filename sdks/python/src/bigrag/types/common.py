@@ -19,7 +19,7 @@ class ReadinessResponse(TypedDict):
     status: str
     version: str
     postgres: bool
-    milvus: bool
+    qdrant: bool
     redis: bool
     embedding: NotRequired[bool]
     embedding_error: NotRequired[str]
