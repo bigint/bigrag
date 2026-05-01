@@ -809,7 +809,7 @@ retry: { limit: 1, methods: ['get', 'head'] },
 
 ---
 
-#### `[x]` I-043 🟠 `NEXT_PUBLIC_BIGRAG_URL` rendered into login error page
+#### `[x]` I-043 🟠 Public API URL rendered into login error page
 
 **File:** `app/src/app/(auth)/login/page.tsx:43-47`
 

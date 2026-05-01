@@ -65,7 +65,6 @@ services:
       BIGRAG_SESSION_COOKIE_SECURE: "true"
       BIGRAG_CORS_ORIGINS: '["https://studio.example.com"]'
       BIGRAG_TRUSTED_PROXIES: '["10.0.0.0/8"]'
-      BIGRAG_LOG_FORMAT: json
       BIGRAG_UPLOAD_DIR: /data/uploads
     deploy:
       resources:
@@ -158,9 +157,6 @@ BIGRAG_DB_POOL_MAX=100              # Increase for high concurrency
 BIGRAG_EMBEDDING_CONCURRENCY=16     # Parallel embedding requests
 BIGRAG_QDRANT_SEARCH_EF=128         # Optional HNSW recall/latency tuning
 
-# Logging
-BIGRAG_LOG_FORMAT=json              # Structured logging
-
 # Storage (S3 for production)
 BIGRAG_STORAGE_BACKEND=s3
 BIGRAG_S3_BUCKET=your-bucket
@@ -211,10 +207,10 @@ secret_key = "..."
 
 ```bash
 # Development (colorized text)
-BIGRAG_LOG_LEVEL=debug BIGRAG_LOG_FORMAT=text
+python -m bigrag.main --log-level debug --log-format text
 
 # Production (structured JSON)
-BIGRAG_LOG_LEVEL=info BIGRAG_LOG_FORMAT=json
+python -m bigrag.main --log-level info --log-format json
 ```
 
 ## Troubleshooting

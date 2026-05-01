@@ -9,11 +9,11 @@ This guide deploys the API, Studio UI, Postgres, Redis, and Qdrant in one Railwa
 
 ## What you get
 
-- **bigrag-api** — FastAPI backend, public domain.
-- **bigrag-app** — Studio admin UI, public domain.
+- **API** — FastAPI backend, public domain.
+- **App** — Studio admin UI, public domain.
 - **Postgres 17** — Railway plugin, exposes `DATABASE_URL`.
 - **Redis 7** — Railway plugin, exposes `REDIS_URL`.
-- **bigrag-qdrant** — Qdrant Docker image, internal-only.
+- **Qdrant** — Qdrant Docker image, internal-only.
 
 ## Prerequisites
 
@@ -27,11 +27,11 @@ Provision in this order so API variables can reference private service domains:
 
 1. Postgres plugin.
 2. Redis plugin.
-3. `bigrag-qdrant` Docker image.
-4. `bigrag-app` from the repo root directory `/app`.
-5. `bigrag-api` from the repo root directory `/api`.
+3. `Qdrant` Docker image.
+4. `App` from the repo root directory `/app`.
+5. `API` from the repo root directory `/api`.
 
-## bigrag-qdrant
+## Qdrant
 
 | Setting | Value |
 |---|---|
@@ -42,7 +42,7 @@ Provision in this order so API variables can reference private service domains:
 
 Qdrant exposes HTTP on `6333` and gRPC on `6334`. The API uses HTTP.
 
-## bigrag-app
+## App
 
 | Setting | Value |
 |---|---|
@@ -54,11 +54,10 @@ Qdrant exposes HTTP on `6333` and gRPC on `6334`. The API uses HTTP.
 Environment:
 
 ```bash
-NODE_ENV=production
-NEXT_PUBLIC_API_URL=https://${{bigrag-api.RAILWAY_PUBLIC_DOMAIN}}
+BIGRAG_URL=https://${{API.RAILWAY_PUBLIC_DOMAIN}}
 ```
 
-## bigrag-api
+## API
 
 | Setting | Value |
 |---|---|
@@ -73,30 +72,14 @@ Environment:
 
 ```bash
 BIGRAG_ENV=prod
-BIGRAG_HOST=0.0.0.0
 BIGRAG_DATABASE_URL=${{Postgres.DATABASE_URL}}
 BIGRAG_REDIS_URL=${{Redis.REDIS_URL}}
-BIGRAG_QDRANT_URL=http://${{bigrag-qdrant.RAILWAY_PRIVATE_DOMAIN}}:6333
-BIGRAG_EMBEDDING_PROVIDER=openai
-BIGRAG_EMBEDDING_MODEL=text-embedding-3-small
-BIGRAG_EMBEDDING_DIMENSION=1536
+BIGRAG_QDRANT_URL=http://${{Qdrant.RAILWAY_PRIVATE_DOMAIN}}:6333
 BIGRAG_EMBEDDING_API_KEY=<your embedding key>
 BIGRAG_MASTER_KEY=<generated Fernet key>
 BIGRAG_SESSION_COOKIE_SECURE=true
-BIGRAG_SESSION_COOKIE_SAMESITE=lax
-BIGRAG_CORS_ORIGINS=https://${{bigrag-app.RAILWAY_PUBLIC_DOMAIN}}
-BIGRAG_LOG_LEVEL=info
-BIGRAG_LOG_FORMAT=json
-BIGRAG_WORKERS=1
-BIGRAG_RUN_MIGRATIONS=true
-BIGRAG_MIGRATION_TIMEOUT_SECONDS=60
-BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS=10
-BIGRAG_QDRANT_REQUIRED=false
+BIGRAG_CORS_ORIGINS=["https://${{App.RAILWAY_PUBLIC_DOMAIN}}"]
 BIGRAG_UPLOAD_DIR=/data/uploads
-BIGRAG_INGESTION_WORKERS=4
-BIGRAG_DB_POOL_MIN=5
-BIGRAG_DB_POOL_MAX=50
-BIGRAG_STORAGE_BACKEND=local
 ```
 
 If using Qdrant Cloud instead of the Railway Qdrant service, set `BIGRAG_QDRANT_URL` to the cluster URL and set `BIGRAG_QDRANT_API_KEY`.
@@ -121,8 +104,8 @@ Back the master key up immediately. It encrypts provider secrets stored in Postg
 
 ## Troubleshooting
 
-**API deploy logs stop while connecting to Qdrant.** Keep `BIGRAG_QDRANT_REQUIRED=false` so the API can boot and `/health` can respond while `/health/ready` reports the degraded vector-store dependency. Fix the Qdrant service URL or credentials, then redeploy.
+**API deploy logs stop while connecting to Qdrant.** Keep the default optional Qdrant readiness behavior so the API can boot and `/health` can respond while `/health/ready` reports the degraded vector-store dependency. Fix the Qdrant service URL or credentials, then redeploy.
 
-**App loads but API calls fail with CORS errors.** Check `BIGRAG_CORS_ORIGINS` on `bigrag-api`; it must match the app public domain exactly.
+**App loads but API calls fail with CORS errors.** Check `BIGRAG_CORS_ORIGINS` on `API`; it must match the app public domain exactly.
 
 **App build fails with workspace errors.** Use `pnpm --filter @bigrag/app exec next start --port $PORT` as the start command and confirm the root directory is `/app`.

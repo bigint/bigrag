@@ -5,7 +5,7 @@ description: Configure bigRAG with TOML files and environment variables.
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-bigRAG reads configuration from a `bigrag.toml` file and/or environment variables. Environment variables take precedence over TOML values, and CLI flags passed to `python -m bigrag.main` override both.
+bigRAG reads configuration from a `bigrag.toml` file and/or environment variables. Environment variables take precedence over TOML values, and CLI flags passed to `python -m bigrag.main` override both. Logging is configured through TOML or CLI flags.
 
 Auth is admin accounts + session cookies and minted `bigrag_sk_…` API keys — see [Authentication](/docs/api-reference/authentication).
 
@@ -74,7 +74,7 @@ max_count = 50
 
 ## Environment variables
 
-All settings use the `BIGRAG_` prefix. Environment variables override TOML values.
+Runtime settings use the `BIGRAG_` prefix. Environment variables override TOML values.
 
 ### Server
 
@@ -84,8 +84,6 @@ All settings use the `BIGRAG_` prefix. Environment variables override TOML value
 | `BIGRAG_PORT` | Server port | `4000` |
 | `BIGRAG_HOST` | Bind address | `0.0.0.0` |
 | `BIGRAG_WORKERS` | Uvicorn workers | `4` |
-| `BIGRAG_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`) | `info` |
-| `BIGRAG_LOG_FORMAT` | `text` for colored console, `json` for structured logs | `text` |
 | `BIGRAG_CORS_ORIGINS` | Allowed CORS origins (JSON array; `["*"]` rejected in `prod`) | `[]` |
 | `BIGRAG_TRUSTED_PROXIES` | Trusted reverse-proxy CIDRs as a JSON array. When the immediate client is trusted, bigRAG uses the rightmost untrusted `X-Forwarded-For` IP for audit logs and IP rate limits. | `[]` |
 

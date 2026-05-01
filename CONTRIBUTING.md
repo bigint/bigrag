@@ -130,7 +130,7 @@ Open an issue with:
 - bigRAG version and how you installed it (Docker, pip, source)
 - Steps to reproduce
 - Expected vs actual behavior
-- Relevant logs (set `BIGRAG_LOG_LEVEL=debug` for detailed output)
+- Relevant logs (run `python -m bigrag.main --log-level debug` for detailed output)
 
 ## License
 

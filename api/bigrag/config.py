@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Literal
 
 import tomli
+from pydantic import PrivateAttr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,8 +16,6 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 4000
     workers: int = 1
-    log_level: str = "info"
-    log_format: str = "text"
     cors_origins: list[str] = []
     trusted_proxies: list[str] = []
 
@@ -69,6 +68,25 @@ class Settings(BaseSettings):
     ingestion_workers: int = 4
     ingestion_batch_size: int = 128
 
+    _log_level: str = PrivateAttr(default="info")
+    _log_format: str = PrivateAttr(default="text")
+
+    @property
+    def log_level(self) -> str:
+        return self._log_level
+
+    @log_level.setter
+    def log_level(self, value: str) -> None:
+        self._log_level = value
+
+    @property
+    def log_format(self) -> str:
+        return self._log_format
+
+    @log_format.setter
+    def log_format(self, value: str) -> None:
+        self._log_format = value
+
     @classmethod
     def from_toml(cls, path: str | Path) -> Settings:
         p = Path(path)
@@ -83,7 +101,14 @@ class Settings(BaseSettings):
                     flat[f"{section}_{k}"] = v
             else:
                 flat[section] = values
-        return cls(**flat)
+        log_level = flat.pop("log_level", None)
+        log_format = flat.pop("log_format", None)
+        settings = cls(**flat)
+        if isinstance(log_level, str):
+            settings.log_level = log_level
+        if isinstance(log_format, str):
+            settings.log_format = log_format
+        return settings
 
 
 settings = Settings()

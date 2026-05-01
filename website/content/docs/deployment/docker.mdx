@@ -52,11 +52,7 @@ services:
       BIGRAG_QDRANT_URL: http://qdrant:6333
       BIGRAG_REDIS_URL: redis://redis:6379/0
       BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
-      BIGRAG_LOG_LEVEL: info
       BIGRAG_UPLOAD_DIR: /data/uploads
-      BIGRAG_INGESTION_WORKERS: "4"
-      BIGRAG_DB_POOL_MIN: "5"
-      BIGRAG_DB_POOL_MAX: "50"
     depends_on:
       postgres:
         condition: service_healthy

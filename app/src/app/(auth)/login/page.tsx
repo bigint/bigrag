@@ -41,11 +41,9 @@ const LoginPage = () => {
         </p>
         {process.env.NODE_ENV === "development" ? (
           <p className="mt-3 text-xs text-muted-foreground">
-            Make sure the bigRAG server is running at{" "}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono">
-              {process.env.NEXT_PUBLIC_BIGRAG_URL ?? "http://localhost:4000"}
-            </code>
-            .
+            Make sure the bigRAG server is running and{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono">BIGRAG_URL</code> is set for
+            Studio.
           </p>
         ) : (
           <p className="mt-3 text-xs text-muted-foreground">
