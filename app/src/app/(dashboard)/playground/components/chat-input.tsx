@@ -35,18 +35,20 @@ const OPENAI_MODELS = [
 ];
 
 export type PlaygroundState = {
-  openaiKey: string;
+  hasOpenAIKey: boolean;
   model: string;
   topK: number;
   temperature: number;
   systemPrompt: string;
 };
 
+type PlaygroundPatch = Partial<PlaygroundState> & { openaiKey?: string };
+
 type PopoverName = "model" | "collection" | "settings" | "key" | null;
 
 interface Props {
   state: PlaygroundState;
-  onPatch: (patch: Partial<PlaygroundState>) => void;
+  onPatch: (patch: PlaygroundPatch) => void;
   saving: boolean;
   collections: Collection[];
   collection: string;
@@ -71,10 +73,12 @@ export const ChatInput = ({
 }: Props) => {
   const [value, setValue] = useState("");
   const [open, setOpen] = useState<PopoverName>(null);
-  const [keyDraft, setKeyDraft] = useState(state.openaiKey);
+  const [keyDraft, setKeyDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => setKeyDraft(state.openaiKey), [state.openaiKey]);
+  useEffect(() => {
+    if (!state.hasOpenAIKey) setKeyDraft("");
+  }, [state.hasOpenAIKey]);
 
   const toggle = (p: PopoverName) => setOpen((cur) => (cur === p ? null : p));
 
@@ -101,7 +105,7 @@ export const ChatInput = ({
 
   const selectedModelLabel =
     OPENAI_MODELS.find((m) => m.value === state.model)?.label ?? state.model;
-  const keyIsSet = state.openaiKey.length > 8;
+  const keyIsSet = state.hasOpenAIKey;
 
   return (
     <div className="px-4 pt-2 pb-5 md:px-6">
@@ -152,7 +156,7 @@ export const ChatInput = ({
                   variant="ghost"
                 >
                   <KeyRound className="size-3" />
-                  {keyIsSet ? `OpenAI key …${state.openaiKey.slice(-4)}` : "Add OpenAI key"}
+                  {keyIsSet ? "OpenAI key saved" : "Add OpenAI key"}
                 </Button>
               }
             >
@@ -160,8 +164,7 @@ export const ChatInput = ({
                 <div>
                   <div className="text-xs font-semibold">OpenAI API key</div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Saved on the server so it follows you across devices. Only used to call
-                    api.openai.com from your browser.
+                    Saved on the backend and used there for playground responses.
                   </p>
                 </div>
                 <input
@@ -169,7 +172,7 @@ export const ChatInput = ({
                   autoComplete="off"
                   className="h-10 w-full rounded-full border border-input bg-background px-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onChange={(e) => setKeyDraft(e.target.value)}
-                  placeholder="sk-..."
+                  placeholder={keyIsSet ? "Paste a replacement key" : "sk-..."}
                   type="password"
                   value={keyDraft}
                 />
@@ -192,9 +195,10 @@ export const ChatInput = ({
                     )}
                     <Button
                       size="sm"
-                      disabled={!keyDraft.trim() || keyDraft === state.openaiKey}
+                      disabled={!keyDraft.trim()}
                       onClick={() => {
                         onPatch({ openaiKey: keyDraft.trim() });
+                        setKeyDraft("");
                         setOpen(null);
                       }}
                     >

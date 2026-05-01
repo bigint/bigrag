@@ -292,30 +292,20 @@ proxy faithfully forwards.
 
 ---
 
-#### `[x]` I-012 🔴 OpenAI key sent direct from browser, no CSP
+#### `[x]` I-012 🔴 OpenAI key kept out of browser-side generation
 
-**Files:** `app/src/lib/openai-stream.ts:28`, `app/next.config.ts`
+**Files:** `app/src/lib/playground-stream.ts`, `app/next.config.ts`,
+`api/bigrag/routers/playground.py`, `api/bigrag/routers/preferences.py`
 
-`fetch("https://api.openai.com/...", { Authorization: Bearer sk-... })` runs
-client-side. The Next config sets `X-Content-Type-Options`, `X-Frame-Options`,
-`Referrer-Policy` — but **no CSP at all**. Any future XSS, malicious browser
-extension, or CDN-injected script can read the key from React state /
-TanStack Query cache and exfiltrate it.
-
-Also: the key is also persisted to `user_preferences` server-side as plain
-JSONB (already on the list as I-046).
+The playground stream now posts to the bigRAG backend at
+`/v1/playground/chat`. The backend reads the saved per-user OpenAI key from
+`user_preferences` and streams SSE deltas back to Studio. Preference responses
+redact the key and return only `has_openai_key`, so the saved secret is no
+longer hydrated into React state or TanStack Query cache.
 
 **Fix:**
-- Add a CSP in `next.config.ts`:
-  ```
-  default-src 'self';
-  script-src 'self';
-  connect-src 'self' https://api.openai.com;
-  img-src 'self' data:;
-  style-src 'self' 'unsafe-inline';
-  ```
-- Longer term: proxy the OpenAI stream through a Next.js server route so the
-  key never touches the browser.
+- Keep `connect-src 'self'` in `next.config.ts`.
+- Keep OpenAI generation behind the backend playground endpoint.
 
 ---
 
@@ -860,18 +850,15 @@ duplex: hasBody ? "half" : undefined,
 #### `[x]` I-046 🟠 OpenAI key stored unencrypted in `user_preferences`
 
 **Files:** `app/src/app/(dashboard)/playground/components/chat-input.tsx:160`,
-`api/bigrag/db/models.py:323-330`
+`api/bigrag/routers/preferences.py`
 
 Studio playground saves `playground.openai_key` into `UserPreference.data`
-(plain JSONB). Any DB dump leaks every Studio user's OpenAI key.
+(JSONB), but the preferences router encrypts that sensitive path with Fernet
+when `BIGRAG_MASTER_KEY` is configured. Preference responses redact the stored
+key and expose only `playground.has_openai_key`.
 
-**Fix:** Either
-- Wrap the `data` column in `EncryptedString` (re-encrypts everything inside
-  on rotation, but the key set is tiny) — simplest, but every preference
-  touch becomes a Fernet round-trip.
-- Or store sensitive keys in a separate, encrypted side-table.
-- Or keep the key client-only (localStorage) and accept the device-pinning
-  cost.
+**Fix:** Keep `BIGRAG_MASTER_KEY` configured in every non-dev deployment and
+keep new provider secrets listed in `_SENSITIVE_PATHS`.
 
 ---
 
@@ -2186,7 +2173,7 @@ For quick "what's outstanding in X" lookups.
 ### `app/src/lib/api.ts`
 - I-042
 
-### `app/src/lib/openai-stream.ts`
+### `app/src/lib/playground-stream.ts`
 - I-012
 
 ### `app/src/hooks/use-auth.ts`

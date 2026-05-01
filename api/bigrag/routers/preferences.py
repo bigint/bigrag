@@ -20,6 +20,17 @@ router = APIRouter(prefix="/v1/auth/preferences", tags=["auth"])
 _SENSITIVE_PATHS: frozenset[tuple[str, str]] = frozenset({("playground", "openai_key")})
 
 
+def _deep_merge(left: dict, right: dict) -> dict:
+    out = {**left}
+    for key, value in right.items():
+        existing = out.get(key)
+        if isinstance(existing, dict) and isinstance(value, dict):
+            out[key] = _deep_merge(existing, value)
+        else:
+            out[key] = value
+    return out
+
+
 def _encrypt_sensitive(data: dict) -> dict:
     if not isinstance(data, dict) or not crypto.is_configured():
         return data
@@ -61,6 +72,26 @@ def _decrypt_sensitive(data: dict) -> dict:
     return out
 
 
+def decrypt_preferences(data: dict) -> dict:
+    return _decrypt_sensitive(dict(data)) if isinstance(data, dict) else {}
+
+
+def _public_preferences(data: dict) -> dict:
+    if not isinstance(data, dict):
+        return {}
+    out = {**data}
+    for parent, key in _SENSITIVE_PATHS:
+        sub = out.get(parent)
+        if not isinstance(sub, dict):
+            continue
+        cleaned = {**sub}
+        if key in cleaned:
+            value = cleaned.pop(key)
+            cleaned[f"has_{key}"] = bool(value)
+        out[parent] = cleaned
+    return out
+
+
 @router.get("")
 async def get_preferences(
     user: dict = Depends(require_session),
@@ -69,7 +100,7 @@ async def get_preferences(
     row = await session.scalar(
         sa.select(UserPreference).where(UserPreference.user_id == uuid.UUID(user["id"]))
     )
-    return {"data": _decrypt_sensitive(dict(row.data)) if row else {}}
+    return {"data": _public_preferences(dict(row.data)) if row else {}}
 
 
 @router.put("")
@@ -83,16 +114,22 @@ async def update_preferences(
     if not isinstance(incoming, dict):
         incoming = {}
 
+    user_id = uuid.UUID(user["id"])
+    existing_row = await session.scalar(
+        sa.select(UserPreference).where(UserPreference.user_id == user_id)
+    )
+    existing = dict(existing_row.data) if existing_row else {}
     incoming = _encrypt_sensitive(incoming)
+    merged = _deep_merge(existing, incoming)
 
-    stmt = pg_insert(UserPreference).values(user_id=uuid.UUID(user["id"]), data=incoming)
+    stmt = pg_insert(UserPreference).values(user_id=user_id, data=merged)
     stmt = stmt.on_conflict_do_update(
         index_elements=[UserPreference.user_id],
         set_={
-            "data": UserPreference.data.op("||")(stmt.excluded.data),
+            "data": stmt.excluded.data,
             "updated_at": sa.func.now(),
         },
     ).returning(UserPreference.data)
     result = await session.execute(stmt)
     await session.commit()
-    return {"data": _decrypt_sensitive(dict(result.scalar_one()))}
+    return {"data": _public_preferences(dict(result.scalar_one()))}

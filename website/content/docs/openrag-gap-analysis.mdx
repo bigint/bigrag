@@ -22,7 +22,7 @@ OpenRAG and bigRAG share the same foundation — both use **FastAPI**, **Docling
 | Category | Current bigRAG status | Remaining strategic gap |
 |---|---|---|
 | [Web UI & User Experience](#1-web-ui--user-experience) | Studio exists for setup, collection/document management, playground, API keys, MCP, webhooks, settings, audit, usage, and evals | No end-user chat history, folder upload, visual workflow builder, or vector DB console |
-| [Agentic RAG & LLM Integration](#2-agentic-rag--llm-integration) | Studio playground can retrieve and stream an OpenAI answer from the browser using a user-provided key | No backend LLM generation API, conversation store, agents, tool-call inspection, or built-in prompt orchestration |
+| [Agentic RAG & LLM Integration](#2-agentic-rag--llm-integration) | Studio playground can retrieve chunks and stream an OpenAI answer through the backend using a saved key | No production LLM generation API, conversation store, agents, tool-call inspection, or built-in prompt orchestration |
 | [Cloud Storage Connectors](#3-cloud-storage-connectors) | S3 bucket ingestion and S3-compatible object storage are implemented | No OAuth-backed Google Drive, SharePoint, OneDrive, IBM COS, or connector abstraction |
 | [Search & Retrieval](#4-search--retrieval) | Semantic, keyword, hybrid fusion strategies, HyDE, MMR diversity, Cohere rerank, metadata filters, facets, batch query, and analytics | No explicit semantic/keyword weight ratios, prefix/autocomplete, saved filters, or one-index multi-model search |
 | [Authentication & Multi-Tenancy](#5-authentication--multi-tenancy) | Native admin/member accounts, session cookies, scoped API keys, and audit/access logs | No OAuth/OIDC, external IdP, document ownership, document ACLs, or tenant isolation |
@@ -137,7 +137,7 @@ OpenRAG exposes OpenSearch Dashboards on port 5601, giving operators a full anal
 
 ## 2. Agentic RAG & LLM Integration
 
-This is the largest philosophical gap. OpenRAG is an **agentic RAG platform** — it has an LLM in the backend loop that generates answers. bigRAG is primarily a **retrieval platform** — the API returns document chunks, while Studio's playground can optionally use a browser-supplied OpenAI key to turn retrieved chunks into a streamed answer for prototyping.
+This is the largest philosophical gap. OpenRAG is an **agentic RAG platform** — it has an LLM in the backend loop that generates answers. bigRAG is primarily a **retrieval platform** — the API returns document chunks, while Studio's playground can optionally use a saved OpenAI key on the backend to turn retrieved chunks into a streamed answer for prototyping.
 
 ### 2.1 Built-in LLM Generation
 
@@ -151,7 +151,7 @@ OpenRAG integrates LLM providers directly:
 
 The chat endpoint accepts a user query, retrieves relevant documents, feeds them as context to the LLM, and returns a generated answer with source citations.
 
-**bigRAG gap:** No backend LLM generation API. The core API returns raw retrieval results; Studio can call OpenAI from the browser for playground use, but production applications still integrate their own LLM layer.
+**bigRAG gap:** No production LLM generation API. The core API returns raw retrieval results; Studio can stream OpenAI answers through a backend playground endpoint, but production applications still integrate their own LLM layer.
 
 **Impact:** This is the single largest gap. Most teams evaluating end-user RAG platforms expect a production chat API with generated answers, citations, and stored conversations, not just retrieval plus a prototype playground.
 

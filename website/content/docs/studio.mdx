@@ -29,7 +29,7 @@ Studio proxies every request through `/api/bigrag/[...path]` onto the backend (d
 | `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, and rerank when enabled. |
 | `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
 | `/collections/[name]/s3-jobs` | Manage S3 bucket-ingestion jobs for a collection. |
-| `/playground` | Chat-like playground; retrieve from one collection, then stream an OpenAI answer from the browser using your saved playground key. |
+| `/playground` | Chat-like playground; retrieve from one collection, then stream an OpenAI answer through the backend using your saved playground key. |
 | `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets) — reusable provider + model + key tuples. |
 | `/mcp` | Mint, scope, rotate, and revoke [MCP server](/docs/api-reference/mcp-servers) credentials for Claude Desktop / Cursor / custom MCP clients. |
 | `/api-keys` | Mint, scope, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
@@ -52,7 +52,7 @@ Studio subscribes to `GET /v1/collections/{name}/documents/{doc_id}/progress` on
 
 ## Playground specifics
 
-The playground sends a single-collection retrieval request to `POST /v1/collections/{name}/query`, renders retrieved chunks and timings, and then calls OpenAI directly from the browser with your saved playground key. Preferences such as OpenAI key, model, temperature, `top_k`, and system prompt persist via `/v1/auth/preferences`.
+The playground sends a single-collection retrieval request to `POST /v1/collections/{name}/query`, renders retrieved chunks and timings, and then streams the OpenAI answer through `POST /v1/playground/chat`. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, and system prompt persist via `/v1/auth/preferences`.
 
 ### Citations
 

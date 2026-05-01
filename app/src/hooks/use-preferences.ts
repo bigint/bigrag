@@ -6,6 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 
 type PlaygroundPrefs = {
   openai_key?: string;
+  has_openai_key?: boolean;
   model?: string;
   top_k?: number;
   temperature?: number;
@@ -33,13 +34,18 @@ export const useUpdatePreferences = () => {
     onMutate: async (patch) => {
       await qc.cancelQueries({ queryKey: KEY });
       const previous = qc.getQueryData<{ data: Preferences }>(KEY);
+      let playgroundPatch = patch.playground;
+      if (patch.playground?.openai_key !== undefined) {
+        const { openai_key: openaiKey, ...rest } = patch.playground;
+        playgroundPatch = { ...rest, has_openai_key: Boolean(openaiKey) };
+      }
       qc.setQueryData<{ data: Preferences }>(KEY, (old) => ({
         data: {
           ...(old?.data ?? {}),
           ...patch,
           playground: {
             ...(old?.data?.playground ?? {}),
-            ...(patch.playground ?? {}),
+            ...(playgroundPatch ?? {}),
           },
         },
       }));
