@@ -47,7 +47,7 @@ const SettingsPage = () => {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Instance settings"
-        description="Manage your account, inspect infrastructure health, and review audit trails."
+        description="Manage account, infrastructure health, and audit trails."
       />
       <Tabs tabs={TABS} value={tab} onChange={setTab} />
       <div>

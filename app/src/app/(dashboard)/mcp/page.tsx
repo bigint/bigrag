@@ -521,7 +521,7 @@ const McpPage = () => {
             </Button>
           </div>
         }
-        description="Each MCP server has its own minted credential. Creating one generates a fresh URL to paste into Claude's custom connector, Claude Desktop, or any MCP client."
+        description="Mint scoped MCP URLs for Claude Desktop, custom connectors, and any MCP client."
         title="MCP"
       />
 

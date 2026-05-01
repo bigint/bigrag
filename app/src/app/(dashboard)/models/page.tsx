@@ -111,7 +111,7 @@ const ModelsPage = () => {
             <Plus className="size-4" /> New preset
           </Button>
         }
-        description="Save embedding provider configs once and reference them when creating collections — no more pasting API keys per-collection."
+        description="Save embedding presets once and reuse them across collections."
         title="Embedding models"
       />
 

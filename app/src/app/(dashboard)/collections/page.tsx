@@ -31,7 +31,7 @@ const CollectionsPage = () => {
     <div className="flex w-full flex-col gap-6">
       <PageHeader
         title="Collections"
-        description="A collection groups documents, chunks and vectors with a shared embedding config."
+        description="Group documents, chunks, and vectors under one embedding config."
         actions={
           <Button onClick={() => setOpen(true)}>
             <Plus className="h-4 w-4" />

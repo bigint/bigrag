@@ -66,8 +66,8 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         {isFullHeight ? (
           children
         ) : (
-          <div className="flex-1 overflow-y-auto">
-            <div className="mx-auto w-full max-w-7xl px-4 py-6 md:px-8 lg:px-10">{children}</div>
+          <div className="flex-1 overflow-y-auto bg-background px-4 py-6 md:px-8 lg:px-10">
+            <div className="mx-auto w-full max-w-7xl">{children}</div>
           </div>
         )}
       </main>

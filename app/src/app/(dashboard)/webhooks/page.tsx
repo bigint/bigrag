@@ -35,7 +35,7 @@ const WebhooksPage = () => {
             <Plus className="size-4" /> Add Webhook
           </Button>
         }
-        description="Receive real-time notifications when events happen in your collections."
+        description="Receive real-time collection event notifications."
         title="Webhooks"
       />
 

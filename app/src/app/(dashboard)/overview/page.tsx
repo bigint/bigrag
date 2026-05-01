@@ -69,11 +69,10 @@ const OverviewPage = () => {
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">Overview</p>
-            <h1 className="mt-1 text-3xl font-semibold leading-tight tracking-normal">
+            <h1 className="text-3xl font-semibold leading-tight tracking-normal">
               Good to see you, {firstName}
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            <p className="mt-2 max-w-4xl truncate text-sm leading-6 text-muted-foreground">
               Live readout of retrieval coverage, ingestion health, and the systems behind bigRAG.
             </p>
           </div>

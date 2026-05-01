@@ -20,7 +20,7 @@ export const Tabs = ({ tabs, value, onChange }: TabsProps) => (
           className={cn(
             "relative z-0 flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-t-md px-4 py-2 text-sm font-medium transition-colors",
             "rounded-full text-muted-foreground hover:bg-muted hover:text-foreground",
-            "data-[active]:bg-primary data-[active]:text-primary-foreground data-[active]:shadow-sm",
+            "data-[active]:bg-primary data-[active]:text-primary-foreground",
           )}
           key={tab.value}
           value={tab.value}
