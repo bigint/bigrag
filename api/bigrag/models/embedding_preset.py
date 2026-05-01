@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class CreateEmbeddingPresetRequest(BaseModel):
     name: str = Field(min_length=1, max_length=80)
-    provider: str = Field(pattern=r"^(openai|cohere|voyage)$")
+    provider: str = Field(pattern=r"^(openai|openai_compatible|cohere|voyage)$")
     model: str = Field(min_length=1, max_length=120)
     api_key: str = Field(min_length=1)
     base_url: str | None = Field(default=None, max_length=500)
@@ -16,7 +16,10 @@ class CreateEmbeddingPresetRequest(BaseModel):
 
 class UpdateEmbeddingPresetRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
-    provider: str | None = Field(default=None, pattern=r"^(openai|cohere|voyage)$")
+    provider: str | None = Field(
+        default=None,
+        pattern=r"^(openai|openai_compatible|cohere|voyage)$",
+    )
     model: str | None = Field(default=None, min_length=1, max_length=120)
     api_key: str | None = Field(default=None, min_length=1)
     base_url: str | None = Field(default=None, max_length=500)

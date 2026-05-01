@@ -108,7 +108,7 @@ const collection = await client.createCollection({
 </Tabs>
 
 <Callout type="info">
-No embedding key handy? Use `embedding_provider: "openai_compatible"` with `embedding_base_url` pointing at Ollama, vLLM, TEI, or any OpenAI-compatible endpoint. See [Embeddings](/docs/concepts/embeddings).
+No managed embedding key handy? Use `embedding_provider: "openai_compatible"` with `embedding_base_url` pointing at Ollama, vLLM, TEI, or any OpenAI-compatible endpoint. For local gateways without auth, set `embedding_api_key` to any non-empty placeholder. See [Embeddings](/docs/concepts/embeddings).
 </Callout>
 </Step>
 

@@ -11,11 +11,11 @@
   --color-popover-foreground: #0a0a0a;
   --color-primary: #0a0a0a;
   --color-primary-foreground: #fafafa;
-  --color-muted: #f5f5f5;
-  --color-muted-foreground: #737373;
-  --color-surface: #fafafa;
-  --color-border: #e5e5e5;
-  --color-input: #e5e5e5;
+  --color-muted: #f8f8f8;
+  --color-muted-foreground: #585858;
+  --color-surface: #f7f7f7;
+  --color-border: #f0f0f0;
+  --color-input: #eeeeee;
   --color-ring: #0a0a0a;
   --color-accent: #f5f5f5;
   --color-accent-foreground: #171717;
@@ -46,6 +46,7 @@ body {
   font-feature-settings:
     "rlig" 1,
     "calt" 1;
+  font-weight: 500;
 }
 
 button,

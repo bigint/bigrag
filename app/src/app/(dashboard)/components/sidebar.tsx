@@ -55,7 +55,7 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
         <Logo />
       </div>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
         {items.map((item) => {
           const active = isActive(pathname, item.href);
           const Icon = item.icon;
@@ -67,14 +67,14 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
                 aria-current={active ? "page" : undefined}
                 onClick={onNavigate}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                  "flex h-8 items-center gap-2.5 rounded-full px-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active
-                    ? "bg-primary font-medium text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:bg-background hover:text-foreground",
                 )}
               >
-                <Icon className="size-4" />
-                {item.label}
+                <Icon className="size-3.5" />
+                <span>{item.label}</span>
               </Link>
             </div>
           );
@@ -89,8 +89,10 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
 };
 
 export const Sidebar = ({ role }: { role: string }) => (
-  <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-border bg-muted/50 lg:block">
-    <SidebarBody role={role} />
+  <aside className="hidden h-full w-60 shrink-0 overflow-hidden rounded-[24px] border-2 border-border bg-background p-0.5 lg:flex">
+    <div className="flex size-full flex-col overflow-hidden rounded-[20px] bg-muted">
+      <SidebarBody role={role} />
+    </div>
   </aside>
 );
 

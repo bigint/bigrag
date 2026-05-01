@@ -8,9 +8,9 @@ from bigrag.logging import get_logger
 
 logger = get_logger("bigrag.services.credential_check")
 
-Provider = Literal["openai", "cohere", "voyage"]
+Provider = Literal["openai", "openai_compatible", "cohere", "voyage"]
 
-_DEFAULT_BASE_URLS: dict[Provider, str] = {
+_DEFAULT_BASE_URLS: dict[str, str] = {
     "openai": "https://api.openai.com/v1",
     "cohere": "https://api.cohere.ai/v1",
     "voyage": "https://api.voyageai.com/v1",
@@ -38,6 +38,11 @@ async def verify_provider_credentials(
     timeout_seconds: float = 5.0,
 ) -> None:
 
+    if provider == "openai_compatible" and not base_url:
+        raise CredentialCheckError(
+            "MISSING_BASE_URL",
+            "base_url is required for OpenAI-compatible embedding providers.",
+        )
     if provider == "voyage":
         await _verify_voyage(api_key, base_url, model, timeout_seconds)
         return

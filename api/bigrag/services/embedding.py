@@ -316,7 +316,9 @@ def get_embedding_model(
         _models.move_to_end(cache_key)
         return _models[cache_key]
 
-    if provider == "openai":
+    if provider in ("openai", "openai_compatible"):
+        if provider == "openai_compatible" and not base_url:
+            raise ValueError("base_url is required for openai_compatible embeddings")
         model = OpenAIEmbedding(
             model_name,
             api_key=api_key,
@@ -329,7 +331,8 @@ def get_embedding_model(
         model = VoyageEmbedding(model_name, api_key=api_key, dimension=dimension or 1024)
     else:
         raise ValueError(
-            f"Unknown embedding provider: {provider}. Supported: openai, cohere, voyage"
+            "Unknown embedding provider: "
+            f"{provider}. Supported: openai, openai_compatible, cohere, voyage"
         )
 
     _models[cache_key] = model

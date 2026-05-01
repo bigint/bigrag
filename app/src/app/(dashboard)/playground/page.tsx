@@ -6,7 +6,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
-import { PageHeader } from "@/components/ui/page-header";
 import { Spinner } from "@/components/ui/spinner";
 import { useCollections } from "@/hooks/use-collections";
 import { useDocuments } from "@/hooks/use-documents";
@@ -210,27 +209,21 @@ const PlaygroundPage = () => {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-6 py-8 md:px-10">
-      <PageHeader
-        actions={
-          messages.length > 0 ? (
-            <Button disabled={isStreaming} onClick={clearMessages} size="sm" variant="ghost">
-              <RotateCcw className="size-3.5" />
-              New chat
-            </Button>
-          ) : null
-        }
-        className="mb-4"
-        description="Chat your collection end-to-end — bigRAG retrieves, OpenAI answers."
-        title="Playground"
-      />
-
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      {messages.length > 0 && (
+        <div className="absolute top-5 right-3 z-20 hidden lg:block">
+          <Button disabled={isStreaming} onClick={clearMessages} size="sm" variant="ghost">
+            <RotateCcw className="size-3.5" />
+            New chat
+          </Button>
+        </div>
+      )}
       {collectionsLoading || prefsQuery.isPending ? (
-        <div className="flex flex-1 items-center justify-center rounded-xl border border-border">
+        <div className="flex flex-1 items-center justify-center">
           <Spinner size="lg" />
         </div>
       ) : collections.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center rounded-xl border border-border">
+        <div className="flex flex-1 items-center justify-center">
           <Empty
             action={
               <Link href="/collections">
@@ -247,7 +240,7 @@ const PlaygroundPage = () => {
           />
         </div>
       ) : (
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           {messages.length === 0 ? (
             <EmptyPrompts onSelect={handleSend} disabled={!state.openaiKey || !collection} />
           ) : (

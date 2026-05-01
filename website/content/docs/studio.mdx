@@ -23,17 +23,19 @@ Studio proxies every request through `/api/bigrag/[...path]` onto the backend (d
 | `/login` | Email + password login for admins and members. |
 | `/overview` | Platform-wide stats — collection count, document states, queue depth, readiness. |
 | `/collections` | List, create, delete, and search collections. |
-| `/collections/[name]` | Single-collection dashboard — counts, status breakdown, recent activity. |
-| `/collections/[name]/documents` | Upload (drag & drop or batch), list, filter, download, reprocess, delete documents. |
-| `/collections/[name]/documents/[docId]` | Document detail — chunks viewer, file preview, metadata editor, reprocess. |
-| `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, filters, rerank, HyDE, diversity, facets. |
+| `/collections/[name]` | Redirects to the collection's documents tab. |
+| `/collections/[name]/documents` | Upload (drag & drop or multi-file picker), list, inspect status, and delete documents. |
+| `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, live progress, failed-ingest error, reprocess, and delete. |
+| `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, and rerank when enabled. |
 | `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
-| `/playground` | Multi-collection chat-like query tester; pick collections, run queries, inspect timings / cache hits. |
+| `/collections/[name]/s3-jobs` | Manage S3 bucket-ingestion jobs for a collection. |
+| `/playground` | Chat-like playground; retrieve from one collection, then stream an OpenAI answer from the browser using your saved playground key. |
 | `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets) — reusable provider + model + key tuples. |
 | `/mcp` | Mint, scope, rotate, and revoke [MCP server](/docs/api-reference/mcp-servers) credentials for Claude Desktop / Cursor / custom MCP clients. |
 | `/api-keys` | Mint, scope, rate-limit, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
-| `/webhooks` | Register webhooks, test deliveries, replay failed attempts, view delivery history. |
-| `/settings` | Tabs: Account · Server · Usage & cost · Audit log · Evaluation. |
+| `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. |
+| `/settings` | Tabs: Account · Server · Usage & cost · Audit log. |
+| `/evals` | Run golden-set retrieval evaluations. |
 
 ## Settings tabs
 
@@ -43,15 +45,14 @@ Studio proxies every request through `/api/bigrag/[...path]` onto the backend (d
 | **Server** | `GET /health/ready`, `GET /v1/stats` | — |
 | **Usage & cost** | `GET /v1/usage` | — |
 | **Audit log** | `GET /v1/admin/audit` | — |
-| **Evaluation** | — | `POST /v1/evaluation` |
 
 ## Real-time progress
 
-Studio subscribes to `GET /v1/collections/{name}/events` for collection-wide document activity and `GET /v1/collections/{name}/documents/{doc_id}/progress` for per-document drill-down. Both are Server-Sent Events using the session cookie for auth.
+Studio subscribes to `GET /v1/collections/{name}/documents/{doc_id}/progress` on the document detail page while a document is pending or processing. The API also exposes `GET /v1/collections/{name}/events` for collection-wide document activity if you are building your own dashboard.
 
 ## Playground specifics
 
-The playground sends full query bodies to `POST /v1/query` (multi-collection) or `POST /v1/collections/{name}/query` (single) and renders the `timings`, `cached` flag, and `facets` inline so you can tune performance directly against production data. Preferences such as last-used mode and default collection persist via `/v1/auth/preferences`.
+The playground sends a single-collection retrieval request to `POST /v1/collections/{name}/query`, renders retrieved chunks and timings, and then calls OpenAI directly from the browser with your saved playground key. Preferences such as OpenAI key, model, temperature, `top_k`, and system prompt persist via `/v1/auth/preferences`.
 
 ### Citations
 

@@ -1,0 +1,94 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=e3]:
+    - link "Skip to main content" [ref=e4] [cursor=pointer]:
+      - /url: "#main"
+    - main [ref=e5]:
+      - generic [ref=e6]:
+        - button "Open navigation" [ref=e7] [cursor=pointer]:
+          - img [ref=e8]
+        - generic [ref=e9]:
+          - img [ref=e10]
+          - generic [ref=e14]: bigRAG
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - img [ref=e19]
+          - paragraph [ref=e23]: Calcutta · 11:27 am
+          - heading "Your RAG Worker" [level=1] [ref=e24]
+          - paragraph [ref=e25]: bigRAG searches collections, retrieves grounded context, and helps answer with citations.
+          - generic [ref=e26]:
+            - link "Ask bigRAG" [ref=e27] [cursor=pointer]:
+              - /url: /playground
+              - img [ref=e28]
+              - generic [ref=e30]: Ask bigRAG
+            - link "Collections" [ref=e31] [cursor=pointer]:
+              - /url: /collections
+              - img [ref=e32]
+              - generic [ref=e34]: Collections
+            - link "API keys" [ref=e35] [cursor=pointer]:
+              - /url: /api-keys
+              - img [ref=e36]
+              - generic [ref=e39]: API keys
+            - link "Models" [ref=e40] [cursor=pointer]:
+              - /url: /models
+              - img [ref=e41]
+              - generic [ref=e44]: Models
+            - link "MCP" [ref=e45] [cursor=pointer]:
+              - /url: /mcp
+              - img [ref=e46]
+              - generic [ref=e48]: MCP
+          - generic [ref=e49]:
+            - generic [ref=e50]: Watch workflows
+            - generic [ref=e51]:
+              - link "Ask a question and answer with cited chunks" [ref=e52] [cursor=pointer]:
+                - /url: /playground
+                - img [ref=e53]
+                - generic [ref=e56]: Ask a question and answer with cited chunks
+                - img [ref=e57]
+              - link "Create a collection and upload source documents" [ref=e59] [cursor=pointer]:
+                - /url: /collections
+                - img [ref=e60]
+                - generic [ref=e62]: Create a collection and upload source documents
+                - img [ref=e63]
+              - link "Sync an S3 bucket into a searchable knowledge base" [ref=e65] [cursor=pointer]:
+                - /url: /collections
+                - img [ref=e66]
+                - generic [ref=e69]: Sync an S3 bucket into a searchable knowledge base
+                - img [ref=e70]
+              - link "Evaluate retrieval quality before shipping changes" [ref=e72] [cursor=pointer]:
+                - /url: /evals
+                - img [ref=e73]
+                - generic [ref=e75]: Evaluate retrieval quality before shipping changes
+                - img [ref=e76]
+              - link "Issue scoped keys for apps, agents, and MCP clients" [ref=e78] [cursor=pointer]:
+                - /url: /api-keys
+                - img [ref=e79]
+                - generic [ref=e82]: Issue scoped keys for apps, agents, and MCP clients
+                - img [ref=e83]
+              - link "Connect bigRAG to external tools through MCP" [ref=e85] [cursor=pointer]:
+                - /url: /mcp
+                - img [ref=e86]
+                - generic [ref=e88]: Connect bigRAG to external tools through MCP
+                - img [ref=e89]
+          - generic [ref=e91]:
+            - generic [ref=e92]:
+              - generic [ref=e93]: Collections
+              - generic [ref=e94]: "6"
+            - generic [ref=e95]:
+              - generic [ref=e96]: Documents
+              - generic [ref=e97]: 1,842
+            - generic [ref=e98]:
+              - generic [ref=e99]: Storage
+              - generic [ref=e100]: 936.9 MB
+            - generic [ref=e101]:
+              - generic [ref=e102]: Online
+              - generic [ref=e103]: 4/4
+        - link "Ask anything research_docs" [ref=e104] [cursor=pointer]:
+          - /url: /playground
+          - generic [ref=e105]: Ask anything
+          - generic [ref=e106]:
+            - generic [ref=e107]: research_docs
+            - img [ref=e109]
+  - region "Notifications alt+T"
+  - alert [ref=e111]

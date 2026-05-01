@@ -1,6 +1,14 @@
 "use client";
 
-import { ArrowUp, ChevronDown, KeyRound, type Settings2, Square, Thermometer } from "lucide-react";
+import {
+  ArrowUp,
+  ChevronDown,
+  KeyRound,
+  Plus,
+  type Settings2,
+  Square,
+  Thermometer,
+} from "lucide-react";
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -84,12 +92,12 @@ export const ChatInput = ({
   const keyIsSet = state.openaiKey.length > 8;
 
   return (
-    <div className="px-4 py-3 md:px-6">
-      <div className="mx-auto max-w-3xl rounded-xl border border-border bg-muted/30 shadow-sm transition-colors focus-within:border-ring focus-within:bg-background">
+    <div className="px-4 pt-2 pb-4 md:px-6">
+      <div className="mx-auto max-w-[620px] rounded-[22px] border border-border bg-background shadow-[0_18px_60px_rgba(0,0,0,0.08)] transition-[border-color,box-shadow] focus-within:border-neutral-200 focus-within:shadow-[0_20px_70px_rgba(0,0,0,0.1)]">
         <textarea
           ref={textareaRef}
           aria-label="Message input"
-          className="w-full resize-none bg-transparent px-4 pt-3 pb-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none"
+          className="min-h-12 w-full resize-none bg-transparent px-4 pt-4 pb-2 text-[13px] placeholder:text-muted-foreground focus-visible:outline-none"
           disabled={isStreaming}
           onChange={(e) => {
             setValue(e.target.value);
@@ -108,8 +116,16 @@ export const ChatInput = ({
           value={value}
         />
 
-        <div className="flex items-center justify-between gap-1 px-3 pb-2">
-          <div className="flex flex-wrap items-center gap-0.5">
+        <div className="flex items-end justify-between gap-2 px-3 pb-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-1">
+            <button
+              type="button"
+              aria-label="Input options"
+              className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => toggle(keyIsSet ? "collection" : "key")}
+            >
+              <Plus className="size-4" />
+            </button>
             <div className="relative">
               <PopoverButton
                 icon={KeyRound}
@@ -171,8 +187,6 @@ export const ChatInput = ({
               )}
             </div>
 
-            <Sep />
-
             <ModelMenu
               selectedLabel={selectedModelLabel}
               value={state.model}
@@ -184,8 +198,6 @@ export const ChatInput = ({
               onToggle={() => toggle("model")}
               onClose={() => setOpen(null)}
             />
-
-            <Sep />
 
             <CollectionMenu
               collections={collections}
@@ -199,11 +211,9 @@ export const ChatInput = ({
               onClose={() => setOpen(null)}
             />
 
-            <Sep />
-
             <div className="relative">
               <Button
-                className="h-auto px-2 py-1 text-[11px]"
+                className="h-7 rounded-full px-2.5 py-1 text-[11px]"
                 onClick={() => toggle("settings")}
                 variant="ghost"
               >
@@ -273,13 +283,18 @@ export const ChatInput = ({
           </div>
 
           {isStreaming ? (
-            <Button aria-label="Stop" className="rounded-lg p-2" onClick={onStop} variant="ghost">
+            <Button
+              aria-label="Stop"
+              className="size-8 shrink-0 rounded-full p-0"
+              onClick={onStop}
+              variant="ghost"
+            >
               <Square className="size-4" />
             </Button>
           ) : (
             <Button
               aria-label="Send message"
-              className="rounded-lg p-2"
+              className="size-8 shrink-0 rounded-full bg-neutral-400 p-0 text-white hover:bg-neutral-500"
               disabled={disabled || !value.trim()}
               onClick={handleSend}
             >
@@ -291,8 +306,6 @@ export const ChatInput = ({
     </div>
   );
 };
-
-const Sep = () => <span className="mx-0.5 text-border">|</span>;
 
 const PopoverButton = ({
   icon: Icon,
@@ -309,7 +322,7 @@ const PopoverButton = ({
 }) => (
   <Button
     className={cn(
-      "h-auto px-2 py-1 text-[11px]",
+      "h-7 rounded-full px-2.5 py-1 text-[11px]",
       active && "bg-accent text-accent-foreground",
       missing && "text-destructive",
     )}
@@ -337,7 +350,11 @@ const ModelMenu = ({
   onClose: () => void;
 }) => (
   <div className="relative">
-    <Button className="h-auto px-2 py-1 text-[11px] font-medium" onClick={onToggle} variant="ghost">
+    <Button
+      className="h-7 rounded-full px-2.5 py-1 text-[11px] font-medium"
+      onClick={onToggle}
+      variant="ghost"
+    >
       {selectedLabel}
       <ChevronDown className="size-3" />
     </Button>
@@ -381,7 +398,10 @@ const CollectionMenu = ({
 }) => (
   <div className="relative">
     <Button
-      className={cn("h-auto px-2 py-1 text-[11px] font-medium", !value && "text-destructive")}
+      className={cn(
+        "h-7 rounded-full px-2.5 py-1 text-[11px] font-medium",
+        !value && "text-destructive",
+      )}
       onClick={onToggle}
       variant="ghost"
     >

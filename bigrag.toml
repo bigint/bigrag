@@ -35,6 +35,7 @@
 # Generate with:
 #   python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
 # master_key = ""
+# master_key_previous = []          # old Fernet keys for staged rotation
 
 # session_expiry_hours = 168
 # session_cookie_name = "bigrag_session"
@@ -42,9 +43,10 @@
 # session_cookie_samesite = "lax"
 # session_cookie_domain = ""
 
-# embedding_provider = "openai"   # openai | cohere | voyage
+# embedding_provider = "openai"   # openai | openai_compatible | cohere | voyage
 # embedding_model = "text-embedding-3-small"
 # embedding_dimension = 1536
+# embedding_base_url = ""          # required for openai_compatible endpoints
 # embedding_concurrency = 8
 # embedding_api_key = ""           # use BIGRAG_EMBEDDING_API_KEY in production
 

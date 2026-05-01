@@ -283,8 +283,8 @@ export const ChatMessages = ({ messages, isStreaming, documents }: Props) => {
   }, [messages, isStreaming]);
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6 md:px-6">
-      <div className="mx-auto flex max-w-3xl flex-col gap-4" role="log">
+    <div className="flex-1 overflow-y-auto px-4 pt-24 pb-2 md:px-6">
+      <div className="mx-auto flex max-w-[620px] flex-col gap-4" role="log">
         {messages.map((m, i) => (
           <Bubble
             key={m.id}

@@ -11,7 +11,7 @@ pub struct Collection {
     pub name: String,
     /// Collection description.
     pub description: String,
-    /// Embedding provider (`"openai"` or `"cohere"`).
+    /// Embedding provider (`"openai"`, `"openai_compatible"`, `"cohere"`, or `"voyage"`).
     pub embedding_provider: String,
     /// Embedding model name.
     pub embedding_model: String,
@@ -87,7 +87,7 @@ pub struct CreateCollectionBody {
     /// Embedding preset ID to derive provider/model/key/base URL/dimension.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_preset_id: Option<String>,
-    /// Embedding provider (`"openai"` or `"cohere"`).
+    /// Embedding provider (`"openai"`, `"openai_compatible"`, `"cohere"`, or `"voyage"`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_provider: Option<String>,
     /// Embedding model name.

@@ -9,8 +9,8 @@ def get_embedding_model_for(collection: dict):
 
     api_key = collection.get("embedding_api_key") or settings.embedding_api_key
     provider = collection["embedding_provider"]
-    base_url = collection.get("embedding_base_url")
-    if not api_key and provider in ("openai", "cohere"):
+    base_url = collection.get("embedding_base_url") or settings.embedding_base_url
+    if not api_key and provider in ("openai", "openai_compatible", "cohere", "voyage"):
         raise ValidationError(
             f"Collection '{collection['name']}' uses "
             f"'{provider}' embeddings but no API key is configured. "

@@ -24,7 +24,7 @@ _EMBEDDING_HEALTH_TTL = 60
 
 async def _resolve_embedding_target(
     settings,
-) -> tuple[str, str, int | None, str, str | None] | None:
+) -> tuple[str, str, int | None, str, str | None, str | None] | None:
 
     if settings.embedding_api_key:
         return (
@@ -32,6 +32,7 @@ async def _resolve_embedding_target(
             settings.embedding_model,
             settings.embedding_dimension,
             settings.embedding_api_key,
+            settings.embedding_base_url,
             "env",
         )
 
@@ -51,6 +52,7 @@ async def _resolve_embedding_target(
                 preset.model,
                 preset.dimension,
                 preset.api_key,
+                preset.base_url,
                 "preset",
             )
 
@@ -67,6 +69,7 @@ async def _resolve_embedding_target(
                 collection.embedding_model,
                 collection.dimension,
                 collection.embedding_api_key,
+                collection.embedding_base_url,
                 "collection",
             )
 
@@ -79,7 +82,7 @@ async def _check_embedding_provider(settings) -> dict[str, object]:
     if target is None:
         return {"embedding": False, "embedding_error": "no API key configured"}
 
-    provider, model, dimension, api_key, source = target
+    provider, model, dimension, api_key, base_url, source = target
     cache_key = f"health:embedding:{provider}:{source}"
     cached = await redis_cache.get(cache_key)
     if cached:
@@ -96,6 +99,7 @@ async def _check_embedding_provider(settings) -> dict[str, object]:
             model_name=model,
             dimension=dimension,
             api_key=api_key,
+            base_url=base_url,
         )
         await asyncio.wait_for(emb_model.embed(["health check"], input_type="query"), timeout=10)
         await redis_cache.set(cache_key, {"ok": True}, ttl=_EMBEDDING_HEALTH_TTL)

@@ -75,8 +75,8 @@ Perform a search against a collection. The query is embedded with the collection
   },
   "cached": false,
   "facets": {
-    "author": [{ "value": "Smith", "count": 8 }, { "value": "Jones", "count": 2 }],
-    "year": [{ "value": 2024, "count": 6 }, { "value": 2025, "count": 4 }]
+    "author": { "Smith": 8, "Jones": 2 },
+    "year": { "2024": 6, "2025": 4 }
   }
 }
 ```
@@ -97,7 +97,7 @@ Perform a search against a collection. The query is embedded with the collection
 | `results[].metadata` | object | Chunk + document metadata merged |
 | `timings` | object | Per-stage latency in milliseconds; stages that didn't run report `0` |
 | `cached` | boolean | `true` when the result came from the semantic cache |
-| `facets` | object | Only present when `facets` was requested; each key maps to an array of `{value, count}` |
+| `facets` | object | Only present when `facets` was requested; each key maps to a `{value: count}` object |
 
 **Errors:** `404` — collection not found.
 

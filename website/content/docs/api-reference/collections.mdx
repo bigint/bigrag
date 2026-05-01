@@ -95,7 +95,7 @@ POST /v1/collections
 | `description` | string | no | `""` | — |
 | `embedding_provider` | string | no | Server default | `openai`, `cohere`, `voyage`, `openai_compatible` |
 | `embedding_model` | string | no | Server default | Model name |
-| `embedding_api_key` | string | no | — | Required for `openai`, `cohere`, and `voyage` |
+| `embedding_api_key` | string | no | — | Required for all providers; use any non-empty value for local OpenAI-compatible gateways without auth |
 | `embedding_base_url` | string | no | — | Required for `openai_compatible` (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) |
 | `dimension` | integer | no | Provider default | Must match the model |
 | `chunk_size` | integer | no | `512` | 64–10,000 |

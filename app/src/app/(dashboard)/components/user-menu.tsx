@@ -14,7 +14,7 @@ const initials = (name: string, email: string) => {
   return source.slice(0, 2).toUpperCase();
 };
 
-export const UserMenu = () => {
+export const UserMenu = ({ compact = false }: { compact?: boolean }) => {
   const router = useRouter();
   const { data } = useSession();
   const logout = useLogout();
@@ -31,22 +31,31 @@ export const UserMenu = () => {
     <Menu.Root>
       <Menu.Trigger
         className={cn(
-          "flex w-full items-center gap-2.5 border-t border-border p-3 text-left transition-colors",
-          "hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          compact
+            ? "mx-auto mb-1 flex size-8 items-center justify-center rounded-full text-left transition-colors hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            : "flex w-full items-center gap-2.5 border-t border-border p-3 text-left transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         )}
+        title={user.display_name || user.email}
       >
         <div className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
           {initials(user.display_name, user.email)}
         </div>
-        <div className="flex min-w-0 flex-col">
-          <span className="truncate text-sm font-medium text-foreground">
-            {user.display_name || user.email}
-          </span>
-          <span className="truncate text-xs text-muted-foreground">{user.email}</span>
-        </div>
+        {!compact && (
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-medium text-foreground">
+              {user.display_name || user.email}
+            </span>
+            <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+          </div>
+        )}
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Positioner align="start" side="top" sideOffset={6} className="z-50">
+        <Menu.Positioner
+          align="start"
+          side={compact ? "right" : "top"}
+          sideOffset={compact ? 10 : 6}
+          className="z-50"
+        >
           <Menu.Popup className="min-w-[200px] rounded-md border border-border bg-popover p-1 text-sm shadow-md focus:outline-none">
             <Menu.Item
               onClick={onSignOut}

@@ -13,7 +13,7 @@ bigRAG exposes three base search modes plus four query-time modifiers. The modif
 |------|-------------|
 | `semantic` | Default. Cosine similarity against stored vectors. |
 | `keyword` | Text-based matching using term frequency. No embedding involved. |
-| `hybrid` | Runs semantic and keyword in parallel; merges with Reciprocal Rank Fusion (RRF). |
+| `hybrid` | Runs semantic and keyword in parallel; merges with `rrf` by default, or `weighted` / `normalized` when requested. |
 
 ### Semantic
 
@@ -43,7 +43,7 @@ Best for exact terms, product codes, IDs, proper nouns.
 curl -X POST http://localhost:4000/v1/collections/docs/query \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"query": "error code ERR-4021 authentication", "search_mode": "hybrid"}'
+  -d '{"query": "error code ERR-4021 authentication", "search_mode": "hybrid", "hybrid_strategy": "rrf"}'
 ```
 
 Best for queries that mix natural language with specific terms.
@@ -57,6 +57,7 @@ Best for queries that mix natural language with specific terms.
 | `filters` | object | — | Metadata filters — see below |
 | `min_score` | float | Collection default | Drop hits below this score |
 | `search_mode` | string | Collection default | `semantic`, `keyword`, `hybrid` |
+| `hybrid_strategy` | string | `rrf` | `rrf`, `weighted`, or `normalized` when `search_mode=hybrid` |
 | `rerank` | boolean | Collection setting | Force Cohere rerank on/off |
 | `diversity` | float (0–1) | — | MMR diversity weight |
 | `hyde` | boolean | `false` | Generate a HyDE hypothetical document |
@@ -131,8 +132,8 @@ Response includes:
 
 ```json
 "facets": {
-  "author": [{"value": "Smith", "count": 8}, {"value": "Jones", "count": 2}],
-  "year":   [{"value": 2024, "count": 6}, {"value": 2025, "count": 4}]
+  "author": { "Smith": 8, "Jones": 2 },
+  "year": { "2024": 6, "2025": 4 }
 }
 ```
 

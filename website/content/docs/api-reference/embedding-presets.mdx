@@ -57,9 +57,9 @@ POST /v1/admin/embedding-presets
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `name` | string | yes | Unique |
-| `provider` | string | yes | `openai`, `cohere`, or `voyage` |
+| `provider` | string | yes | `openai`, `openai_compatible`, `cohere`, or `voyage` |
 | `model` | string | yes | Provider model name |
-| `base_url` | string | no | Override the default API endpoint (rarely needed) |
+| `base_url` | string | no | Required for `openai_compatible`; optional override for OpenAI-compatible gateways |
 | `dimension` | integer | yes | Must match the model |
 | `api_key` | string | yes | Stored server-side |
 

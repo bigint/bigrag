@@ -1,20 +1,20 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import {
   ArrowUpRight,
   BookOpen,
+  Database,
   FileText,
   HardDrive,
   KeyRound,
   Layers,
+  MessageCircle,
   ShieldCheck,
   Sparkles,
-  Webhook,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page-header";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/hooks/use-auth";
 import { useCollections } from "@/hooks/use-collections";
@@ -22,237 +22,427 @@ import { usePlatformStats, useReadiness } from "@/hooks/use-platform";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatNumber, formatRelative } from "@/lib/format";
 
+const QUICK_ACTIONS = [
+  {
+    description: "Test retrieval with citations",
+    href: "/playground",
+    icon: MessageCircle,
+    title: "Run a query",
+  },
+  {
+    description: "Add documents or S3 sources",
+    href: "/collections",
+    icon: BookOpen,
+    title: "Manage collections",
+  },
+  {
+    description: "Create scoped client access",
+    href: "/api-keys",
+    icon: KeyRound,
+    title: "Mint API key",
+  },
+] as const;
+
 const OverviewPage = () => {
   const { data: session } = useSession();
   const { data: stats, isPending: statsPending } = usePlatformStats();
   const { data: readiness } = useReadiness();
-  const { data: collections } = useCollections();
+  const { data: collectionsData } = useCollections();
 
-  const greeting = (() => {
-    const h = new Date().getHours();
-    if (h < 5) return "Burning the midnight oil,";
-    if (h < 12) return "Good morning,";
-    if (h < 18) return "Good afternoon,";
-    return "Good evening,";
-  })();
+  const collections = collectionsData?.collections ?? [];
+  const firstName = session?.user.display_name?.split(" ")[0] || session?.user.email || "there";
+  const docs = stats?.documents;
+  const queuedDocs = (docs?.pending ?? 0) + (docs?.processing ?? 0);
+  const readyPct = docs?.total ? Math.round((docs.ready / docs.total) * 100) : 0;
+  const failedPct = docs?.total ? Math.round((docs.failed / docs.total) * 100) : 0;
+  const services = [
+    { label: "Postgres", ok: readiness?.postgres },
+    { label: "Qdrant", ok: readiness?.qdrant },
+    { label: "Redis", ok: readiness?.redis },
+    { detail: readiness?.embedding_error, label: "Embeddings", ok: readiness?.embedding },
+  ];
+  const servicesOnline = services.filter((service) => service.ok).length;
+  const queueItems = Object.entries(stats?.queue ?? {}).filter(([, value]) => value > 0);
 
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader
-        eyebrow="Overview"
-        title={`${greeting} ${session?.user.display_name?.split(" ")[0] || session?.user.email}`}
-        description="A snapshot of your collections, ingestion queue, and system health."
-      />
+    <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-6 md:px-8 lg:px-10">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[12px] font-semibold text-muted-foreground">Overview</p>
+            <h1 className="mt-1 text-3xl font-semibold leading-tight tracking-normal">
+              Good to see you, {firstName}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Live readout of retrieval coverage, ingestion health, and the systems behind bigRAG.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <PillLink href="/playground" icon={Sparkles} label="Ask bigRAG" />
+            <PillLink href="/collections" icon={BookOpen} label="New collection" primary />
+          </div>
+        </header>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          icon={BookOpen}
-          label="Collections"
-          value={statsPending ? undefined : formatNumber(stats?.collections ?? 0)}
-        />
-        <StatCard
-          icon={FileText}
-          label="Documents"
-          value={statsPending ? undefined : formatNumber(stats?.documents.total ?? 0)}
-          sub={
-            stats
-              ? `${formatNumber(stats.documents.ready)} ready · ${formatNumber(stats.documents.processing + stats.documents.pending)} in queue`
-              : undefined
-          }
-        />
-        <StatCard
-          icon={Layers}
-          label="Chunks"
-          value={statsPending ? undefined : formatNumber(stats?.documents.total_chunks ?? 0)}
-          sub={stats ? `${formatNumber(stats.documents.total_tokens)} tokens embedded` : undefined}
-        />
-        <StatCard
-          icon={HardDrive}
-          label="Storage"
-          value={statsPending ? undefined : formatBytes(stats?.documents.total_size_bytes ?? 0)}
-        />
-      </div>
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            icon={BookOpen}
+            label="Collections"
+            value={statsPending ? undefined : formatNumber(stats?.collections ?? 0)}
+            sub={`${formatNumber(collections.length)} visible in Studio`}
+          />
+          <MetricCard
+            icon={FileText}
+            label="Documents"
+            value={statsPending ? undefined : formatNumber(docs?.total ?? 0)}
+            sub={`${formatNumber(docs?.ready ?? 0)} ready, ${formatNumber(queuedDocs)} queued`}
+          />
+          <MetricCard
+            icon={Layers}
+            label="Chunks"
+            value={statsPending ? undefined : formatNumber(docs?.total_chunks ?? 0)}
+            sub={`${formatNumber(docs?.total_tokens ?? 0)} tokens embedded`}
+          />
+          <MetricCard
+            icon={HardDrive}
+            label="Storage"
+            value={statsPending ? undefined : formatBytes(docs?.total_size_bytes ?? 0)}
+            sub={`${servicesOnline}/4 services online`}
+          />
+        </section>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Recent collections</CardTitle>
-              <CardDescription>The last five collections you created or updated.</CardDescription>
+        <section className="grid gap-4 xl:grid-cols-[1.35fr_0.9fr]">
+          <Panel>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">Document readiness</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Current processing state across all collections.
+                </p>
+              </div>
+              <Badge variant={failedPct > 0 ? "warning" : "success"}>{readyPct}% ready</Badge>
             </div>
-            <Link href="/collections" className="text-xs font-medium text-primary hover:underline">
-              View all →
-            </Link>
-          </CardHeader>
-          <CardContent className="p-0">
-            {!collections ? (
-              <div className="px-5 pb-6">
+
+            <div className="mt-5">
+              <StatusBar
+                failed={docs?.failed ?? 0}
+                pending={docs?.pending ?? 0}
+                processing={docs?.processing ?? 0}
+                ready={docs?.ready ?? 0}
+                total={docs?.total ?? 0}
+              />
+              <div className="mt-4 grid gap-2 sm:grid-cols-4">
+                <StatusCount label="Ready" value={docs?.ready} tone="success" />
+                <StatusCount label="Processing" value={docs?.processing} tone="info" />
+                <StatusCount label="Pending" value={docs?.pending} tone="warning" />
+                <StatusCount label="Failed" value={docs?.failed} tone="error" />
+              </div>
+            </div>
+          </Panel>
+
+          <Panel>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">System health</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Readiness of storage, vector search, cache, and embedding calls.
+                </p>
+              </div>
+              <Badge variant={readiness?.status === "ok" ? "success" : "warning"} dot>
+                {readiness?.status ?? "checking"}
+              </Badge>
+            </div>
+            <div className="mt-4 space-y-2">
+              {services.map((service) => (
+                <HealthRow
+                  detail={service.detail}
+                  key={service.label}
+                  label={service.label}
+                  ok={service.ok}
+                />
+              ))}
+            </div>
+          </Panel>
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-[1fr_0.75fr]">
+          <Panel className="p-0">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold">Recent collections</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Last updated knowledge bases and their retrieval defaults.
+                </p>
+              </div>
+              <Link
+                href="/collections"
+                className="shrink-0 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+              >
+                View all
+              </Link>
+            </div>
+            {!collectionsData ? (
+              <div className="px-5 py-6">
                 <Spinner />
               </div>
-            ) : collections.collections.length === 0 ? (
-              <div className="px-5 pb-6 text-sm text-muted-foreground">
-                No collections yet.{" "}
-                <Link href="/collections" className="text-primary hover:underline">
-                  Create your first →
-                </Link>
+            ) : collections.length === 0 ? (
+              <div className="px-5 py-6 text-sm text-muted-foreground">
+                No collections yet. Create one to start tracking coverage.
               </div>
             ) : (
               <ul className="divide-y divide-border">
-                {collections.collections.slice(0, 5).map((c) => (
-                  <li key={c.id}>
+                {collections.slice(0, 6).map((collection) => (
+                  <li key={collection.id}>
                     <Link
-                      href={`/collections/${encodeURIComponent(c.name)}`}
-                      className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-muted"
+                      href={`/collections/${encodeURIComponent(collection.name)}`}
+                      className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-muted"
                     >
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm truncate">{c.name}</span>
-                          <Badge variant="primary">{c.embedding_model}</Badge>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm font-semibold">{collection.name}</span>
+                          <Badge variant="primary">{collection.default_search_mode}</Badge>
                         </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {c.description || "No description"}
+                        <div className="mt-1 truncate text-xs text-muted-foreground">
+                          {collection.description || collection.embedding_model}
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>{formatNumber(c.document_count)} docs</span>
-                        <span className="hidden sm:inline">{formatRelative(c.updated_at)}</span>
-                        <ArrowUpRight className="h-4 w-4" />
+                      <div className="flex shrink-0 items-center gap-4 text-xs text-muted-foreground">
+                        <span className="tabular-nums">
+                          {formatNumber(collection.document_count)} docs
+                        </span>
+                        <span className="hidden w-24 text-right sm:inline">
+                          {formatRelative(collection.updated_at)}
+                        </span>
+                        <ArrowUpRight className="size-4" />
                       </div>
                     </Link>
                   </li>
                 ))}
               </ul>
             )}
-          </CardContent>
-        </Card>
+          </Panel>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>System health</CardTitle>
-            <CardDescription>Readiness of connected services.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <HealthRow label="Postgres" ok={readiness?.postgres} />
-            <HealthRow label="Qdrant" ok={readiness?.qdrant} />
-            <HealthRow label="Redis" ok={readiness?.redis} />
-            <HealthRow
-              label="Embeddings"
-              ok={readiness?.embedding}
-              detail={readiness?.embedding_error}
-            />
-          </CardContent>
-        </Card>
-      </div>
+          <div className="grid gap-4">
+            <Panel>
+              <h2 className="text-base font-semibold">Ingestion queue</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Work waiting behind document upload, S3 sync, and reprocessing.
+              </p>
+              <div className="mt-4 space-y-2">
+                {queueItems.length === 0 ? (
+                  <div className="rounded-[14px] border border-border bg-muted px-3 py-3 text-sm font-medium">
+                    Queue is clear
+                  </div>
+                ) : (
+                  queueItems.map(([label, value]) => (
+                    <QueueRow key={label} label={label} value={value} />
+                  ))
+                )}
+              </div>
+            </Panel>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <QuickLink
-          icon={Sparkles}
-          title="Run a query"
-          description="Test retrieval across any collection"
-          href="/playground"
-        />
-        <QuickLink
-          icon={KeyRound}
-          title="Mint an API key"
-          description="Issue keys for external clients"
-          href="/api-keys"
-        />
-        <QuickLink
-          icon={Webhook}
-          title="Wire up webhooks"
-          description="Get notified when docs are ready"
-          href="/webhooks"
-        />
+            <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
+              {QUICK_ACTIONS.map((action) => (
+                <QuickAction key={action.href} {...action} />
+              ))}
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
 };
 
-const StatCard = ({
+const Panel = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  <div
+    className={cn(
+      "rounded-[20px] border border-border bg-background p-5 shadow-[0_12px_40px_rgba(0,0,0,0.035)]",
+      className,
+    )}
+  >
+    {children}
+  </div>
+);
+
+const PillLink = ({
+  href,
   icon: Icon,
   label,
-  value,
-  sub,
+  primary,
 }: {
-  icon: typeof BookOpen;
+  href: string;
+  icon: LucideIcon;
   label: string;
-  value: string | undefined;
-  sub?: string;
+  primary?: boolean;
 }) => (
-  <Card>
-    <CardContent className="pt-5">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {label}
-        </span>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div className="mt-2 text-2xl font-semibold tabular-nums tracking-tight">
-        {value ?? <Spinner size="sm" />}
-      </div>
-      {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
-    </CardContent>
-  </Card>
+  <Link
+    href={href}
+    className={cn(
+      "inline-flex h-9 items-center justify-center gap-2 rounded-full border px-3 text-xs font-semibold transition-[border-color,background-color,transform] active:scale-[0.99]",
+      primary
+        ? "border-primary bg-primary text-primary-foreground"
+        : "border-border bg-background text-foreground hover:bg-muted",
+    )}
+  >
+    <Icon className="size-3.5" />
+    {label}
+  </Link>
+);
+
+const MetricCard = ({
+  icon: Icon,
+  label,
+  sub,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  sub?: string;
+  value: string | undefined;
+}) => (
+  <Panel className="p-4">
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-[11px] font-semibold text-muted-foreground">{label}</span>
+      <Icon className="size-4 text-muted-foreground" />
+    </div>
+    <div className="mt-3 min-h-8 text-2xl font-semibold tabular-nums">
+      {value ?? <Spinner size="sm" />}
+    </div>
+    {sub && <div className="mt-1 truncate text-xs text-muted-foreground">{sub}</div>}
+  </Panel>
+);
+
+const StatusBar = ({
+  failed,
+  pending,
+  processing,
+  ready,
+  total,
+}: {
+  failed: number;
+  pending: number;
+  processing: number;
+  ready: number;
+  total: number;
+}) => {
+  const segments = [
+    { className: "bg-success", label: "Ready", value: ready },
+    { className: "bg-info", label: "Processing", value: processing },
+    { className: "bg-warning", label: "Pending", value: pending },
+    { className: "bg-destructive", label: "Failed", value: failed },
+  ].filter((segment) => segment.value > 0);
+
+  if (total <= 0) {
+    return <div className="h-3 rounded-full bg-muted" />;
+  }
+
+  return (
+    <div
+      aria-label="Document status distribution"
+      className="flex h-3 overflow-hidden rounded-full bg-muted"
+      role="img"
+    >
+      {segments.map((segment) => (
+        <div
+          aria-hidden="true"
+          className={segment.className}
+          key={segment.label}
+          style={{ width: `${Math.max(2, (segment.value / total) * 100)}%` }}
+        />
+      ))}
+    </div>
+  );
+};
+
+const StatusCount = ({
+  label,
+  tone,
+  value,
+}: {
+  label: string;
+  tone: "error" | "info" | "success" | "warning";
+  value: number | undefined;
+}) => (
+  <div className="rounded-[14px] border border-border bg-muted/60 px-3 py-2">
+    <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
+      <span
+        className={cn(
+          "size-1.5 rounded-full",
+          tone === "success" && "bg-success",
+          tone === "info" && "bg-info",
+          tone === "warning" && "bg-warning",
+          tone === "error" && "bg-destructive",
+        )}
+      />
+      {label}
+    </div>
+    <div className="mt-1 text-lg font-semibold tabular-nums">{formatNumber(value ?? 0)}</div>
+  </div>
 );
 
 const HealthRow = ({
+  detail,
   label,
   ok,
-  detail,
 }: {
+  detail?: string;
   label: string;
   ok: boolean | undefined;
-  detail?: string;
 }) => (
-  <div className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm">
-    <div className="flex items-center gap-2">
+  <div className="flex items-center justify-between gap-3 rounded-[14px] border border-border bg-muted/60 px-3 py-2.5">
+    <div className="flex min-w-0 items-center gap-2">
       <ShieldCheck
         className={cn(
-          "h-4 w-4",
+          "size-4 shrink-0",
           ok === undefined ? "text-muted-foreground" : ok ? "text-success" : "text-destructive",
         )}
       />
-      <span>{label}</span>
+      <span className="truncate text-sm font-semibold">{label}</span>
     </div>
-    <div
+    <span
       className={cn(
-        "text-xs font-medium",
+        "shrink-0 text-xs font-semibold",
         ok === undefined ? "text-muted-foreground" : ok ? "text-success" : "text-destructive",
       )}
       title={detail}
     >
-      {ok === undefined ? "—" : ok ? "operational" : "degraded"}
-    </div>
+      {ok === undefined ? "checking" : ok ? "online" : "degraded"}
+    </span>
   </div>
 );
 
-const QuickLink = ({
-  icon: Icon,
-  title,
+const QueueRow = ({ label, value }: { label: string; value: number }) => (
+  <div className="flex items-center justify-between gap-3 rounded-[14px] border border-border bg-muted/60 px-3 py-2.5">
+    <div className="flex items-center gap-2">
+      <Database className="size-4 text-muted-foreground" />
+      <span className="text-sm font-semibold capitalize">{label.replaceAll("_", " ")}</span>
+    </div>
+    <span className="text-sm font-semibold tabular-nums">{formatNumber(value)}</span>
+  </div>
+);
+
+const QuickAction = ({
   description,
   href,
+  icon: Icon,
+  title,
 }: {
-  icon: typeof BookOpen;
-  title: string;
   description: string;
   href: string;
+  icon: LucideIcon;
+  title: string;
 }) => (
   <Link
     href={href}
-    className="group rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary hover:bg-accent"
+    className="group flex items-center gap-3 rounded-[18px] border border-border bg-background p-4 shadow-[0_12px_40px_rgba(0,0,0,0.025)] transition-[border-color,transform] hover:border-neutral-200 active:scale-[0.99]"
   >
-    <div className="flex items-start gap-3">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground group-hover:bg-primary group-hover:text-primary-foreground">
-        <Icon className="h-4 w-4" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1 font-medium text-sm">
-          {title}
-          <ArrowUpRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
-        </div>
-        <div className="text-xs text-muted-foreground">{description}</div>
-      </div>
+    <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+      <Icon className="size-4" />
     </div>
+    <div className="min-w-0 flex-1">
+      <div className="text-sm font-semibold">{title}</div>
+      <div className="truncate text-xs text-muted-foreground">{description}</div>
+    </div>
+    <ArrowUpRight className="size-4 text-muted-foreground" />
   </Link>
 );
 
