@@ -94,7 +94,8 @@ def _weighted_fusion(
 ) -> list[dict]:
 
     weights = weights or [1.0] * len(ranked_lists)
-    assert len(weights) == len(ranked_lists), "weights/lists length mismatch"
+    if len(weights) != len(ranked_lists):
+        raise ValueError("weights/lists length mismatch")
 
     scores: dict[str, float] = {}
     items: dict[str, dict] = {}

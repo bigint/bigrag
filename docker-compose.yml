@@ -4,7 +4,7 @@ services:
     container_name: bigrag
     restart: unless-stopped
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     volumes:
       - bigrag_data:/data
     environment:
@@ -15,6 +15,7 @@ services:
       BIGRAG_DATABASE_URL: postgres://bigrag:bigrag@postgres:5432/bigrag?sslmode=disable
       BIGRAG_QDRANT_URL: http://qdrant:6333
       BIGRAG_REDIS_URL: redis://redis:6379/0
+      BIGRAG_HOST: 0.0.0.0
       BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
       BIGRAG_UPLOAD_DIR: /data/uploads
     deploy:
@@ -40,7 +41,7 @@ services:
     container_name: bigrag-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       # Change these credentials for production deployments
       POSTGRES_USER: bigrag
@@ -64,7 +65,7 @@ services:
     container_name: bigrag-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy noeviction
@@ -83,8 +84,8 @@ services:
     container_name: bigrag-qdrant
     restart: unless-stopped
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
     deploy:

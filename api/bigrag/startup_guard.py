@@ -41,6 +41,18 @@ def check_production_safety(s: Settings) -> None:
             "print(Fernet.generate_key().decode())'`."
         )
 
+    if s.allow_private_embedding_base_urls:
+        problems.append(
+            "BIGRAG_ALLOW_PRIVATE_EMBEDDING_BASE_URLS is true — private embedding "
+            "egress is a development-only escape hatch."
+        )
+
+    if s.allow_local_webhooks:
+        problems.append(
+            "BIGRAG_ALLOW_LOCAL_WEBHOOKS is true — loopback webhook targets are "
+            "a development-only escape hatch."
+        )
+
     if not problems:
         logger.info("startup guard: production checks passed")
         return

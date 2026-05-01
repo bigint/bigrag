@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 
 import sqlalchemy as sa
@@ -41,6 +42,20 @@ SUPPORTED_EXTENSIONS = {
 }
 
 
+@dataclass
+class UploadBudget:
+    max_size: int
+    used: int = 0
+
+    def consume(self, size: int) -> None:
+        self.used += size
+        if self.used > self.max_size:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Batch upload too large. Max size: {settings.max_batch_upload_size_mb}MB",
+            )
+
+
 def document_response(doc: Document, *, deduped: bool = False) -> DocumentResponse:
     return DocumentResponse(
         id=str(doc.id),
@@ -72,7 +87,12 @@ def prepare_document_metadata(collection: dict, metadata: dict) -> dict:
     return metadata
 
 
-async def read_upload_content(file: UploadFile, *, max_size: int) -> bytes:
+async def read_upload_content(
+    file: UploadFile,
+    *,
+    max_size: int,
+    budget: UploadBudget | None = None,
+) -> bytes:
     chunks = []
     total_size = 0
     while True:
@@ -85,6 +105,8 @@ async def read_upload_content(file: UploadFile, *, max_size: int) -> bytes:
                 status_code=413,
                 detail=f"File too large. Max size: {settings.max_upload_size_mb}MB",
             )
+        if budget is not None:
+            budget.consume(len(chunk))
         chunks.append(chunk)
     return b"".join(chunks)
 

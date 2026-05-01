@@ -6,6 +6,10 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 
 from bigrag.logging import get_logger
+from bigrag.services.url_security import (
+    validate_embedding_base_url,
+    validate_embedding_base_url_sync,
+)
 
 logger = get_logger("bigrag.embedding")
 
@@ -139,15 +143,15 @@ class OpenAIEmbedding(EmbeddingModel):
 
         self._model_name = model_name
         self._dimension = dimension
-        self._base_url = base_url
-        self._semaphore_key = f"openai:{base_url or 'default'}"
+        self._base_url = validate_embedding_base_url_sync(base_url)
+        self._semaphore_key = f"openai:{self._base_url or 'default'}"
         self._client = openai.AsyncOpenAI(
             api_key=api_key or "not-required",
-            base_url=base_url,
+            base_url=self._base_url,
         )
         logger.info(
             f"Initialized OpenAI-compatible embedding: {model_name} "
-            f"(dim={dimension}, base_url={base_url or 'default'})"
+            f"(dim={dimension}, base_url={self._base_url or 'default'})"
         )
 
     async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
@@ -158,6 +162,7 @@ class OpenAIEmbedding(EmbeddingModel):
                 f"openai_embed: {truncated}/{len(texts)} inputs exceeded token "
                 f"limit and were truncated (model={self._model_name})"
             )
+        await validate_embedding_base_url(self._base_url)
         async with _get_semaphore(self._semaphore_key):
             response = await asyncio.wait_for(
                 self._client.embeddings.create(input=texts, model=self._model_name),
@@ -311,6 +316,7 @@ def get_embedding_model(
     api_key: str | None = None,
     base_url: str | None = None,
 ) -> EmbeddingModel:
+    base_url = validate_embedding_base_url_sync(base_url)
     key_hash = hashlib.sha256(api_key.encode()).hexdigest()[:8] if api_key else "none"
     base_tag = hashlib.sha256((base_url or "").encode()).hexdigest()[:6] if base_url else "def"
     cache_key = f"{provider}:{model_name}:{key_hash}:{base_tag}"

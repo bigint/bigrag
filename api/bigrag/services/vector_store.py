@@ -113,7 +113,8 @@ class VectorStore:
     def _client(self) -> AsyncQdrantClient:
         if self.client is None:
             self.connect()
-        assert self.client is not None
+        if self.client is None:
+            raise RuntimeError("Qdrant client is not connected")
         return self.client
 
     def _col(self, name: str) -> str:

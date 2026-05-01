@@ -62,7 +62,7 @@ def _query_token_allowed(path: str) -> bool:
 
 async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | None:
     auth_header = request.headers.get("authorization", "")
-    token = ""
+    token: str | None = None
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
     elif _query_token_allowed(request.url.path):

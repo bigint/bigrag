@@ -5,15 +5,27 @@ import io
 import uuid
 from types import SimpleNamespace
 
+import orjson
 import pytest
 from fastapi import HTTPException
 from pydantic import TypeAdapter, ValidationError
 from starlette.responses import PlainTextResponse
 
+from bigrag.config import settings
 from bigrag.middleware import idempotency
 from bigrag.models import webhook as webhook_models
 from bigrag.routers import documents
-from bigrag.services import embedding, file_validation, mcp_http, queue
+from bigrag.routers._documents import UploadBudget
+from bigrag.services import (
+    collection_scope,
+    embedding,
+    file_validation,
+    mcp_http,
+    queue,
+    rate_limit,
+    url_security,
+)
+from bigrag.services.ingestion_job import create_ingestion_job
 
 
 def _run(coro):
@@ -187,7 +199,7 @@ def test_webhook_request_validation_does_not_resolve_dns(monkeypatch) -> None:
     def fail_getaddrinfo(*_args, **_kwargs):
         raise AssertionError("DNS should not run inside pydantic validation")
 
-    monkeypatch.setattr(webhook_models.socket, "getaddrinfo", fail_getaddrinfo)
+    monkeypatch.setattr(url_security.socket, "getaddrinfo", fail_getaddrinfo)
 
     request = webhook_models.CreateWebhookRequest(
         url="https://example.com/webhook",
@@ -204,12 +216,128 @@ def test_webhook_async_dns_validation_blocks_private_targets(monkeypatch) -> Non
     def private_addrinfo(_hostname, port):
         return [(None, None, None, None, ("10.0.0.1", port))]
 
-    monkeypatch.setattr(webhook_models.socket, "getaddrinfo", public_addrinfo)
+    monkeypatch.setattr(url_security.socket, "getaddrinfo", public_addrinfo)
     _run(webhook_models.resolve_and_validate_url("https://example.com/webhook"))
 
-    monkeypatch.setattr(webhook_models.socket, "getaddrinfo", private_addrinfo)
-    with pytest.raises(ValueError, match="private or internal"):
+    monkeypatch.setattr(url_security.socket, "getaddrinfo", private_addrinfo)
+    with pytest.raises(ValueError, match="private"):
         _run(webhook_models.resolve_and_validate_url("https://example.com/webhook"))
+
+
+def test_webhook_validation_blocks_loopback_by_default(monkeypatch) -> None:
+    def loopback_addrinfo(_hostname, port):
+        return [(None, None, None, None, ("127.0.0.1", port))]
+
+    monkeypatch.setattr(url_security.socket, "getaddrinfo", loopback_addrinfo)
+    monkeypatch.setattr(settings, "allow_local_webhooks", False)
+
+    with pytest.raises(ValueError, match="loopback"):
+        _run(webhook_models.resolve_and_validate_url("https://localhost/webhook"))
+
+
+def test_embedding_base_url_blocks_metadata_and_private_targets(monkeypatch) -> None:
+    def metadata_addrinfo(_hostname, port):
+        return [(None, None, None, None, ("169.254.169.254", port))]
+
+    monkeypatch.setattr(url_security.socket, "getaddrinfo", metadata_addrinfo)
+    monkeypatch.setattr(settings, "allowed_embedding_base_urls", [])
+    monkeypatch.setattr(settings, "allow_private_embedding_base_urls", False)
+
+    with pytest.raises(url_security.UnsafeOutboundUrlError, match="link-local"):
+        url_security.validate_embedding_base_url_sync("https://metadata.example/v1")
+
+
+def test_embedding_base_url_can_be_explicitly_allowlisted(monkeypatch) -> None:
+    def fail_getaddrinfo(*_args, **_kwargs):
+        raise AssertionError("allowlisted URLs should not require DNS resolution")
+
+    monkeypatch.setattr(url_security.socket, "getaddrinfo", fail_getaddrinfo)
+    monkeypatch.setattr(settings, "allowed_embedding_base_urls", ["http://ollama:11434/v1"])
+
+    assert (
+        url_security.validate_embedding_base_url_sync("http://ollama:11434/v1")
+        == "http://ollama:11434/v1"
+    )
+
+
+def test_pinned_collection_keys_cannot_use_global_stats_or_usage() -> None:
+    for path in ("/v1/usage", "/v1/stats", "/v1/embeddings/models"):
+        request = SimpleNamespace(method="GET", url=SimpleNamespace(path=path))
+        with pytest.raises(HTTPException) as exc:
+            _run(collection_scope.enforce_collection_scope(request, "docs"))
+        assert exc.value.status_code == 403
+
+
+def test_ingestion_jobs_do_not_serialize_embedding_api_keys() -> None:
+    job = create_ingestion_job(
+        document_id=str(uuid.uuid4()),
+        file_path="docs/doc.txt",
+        collection_name="docs",
+        collection={
+            "embedding_provider": "openai",
+            "embedding_model": "text-embedding-3-small",
+            "dimension": 1536,
+            "embedding_api_key": "sk-secret",
+            "embedding_base_url": "https://api.openai.com/v1",
+            "chunk_size": 512,
+            "chunk_overlap": 50,
+        },
+        fallback_api_key="sk-fallback",
+    )
+
+    payload = orjson.loads(job.serialize())
+
+    assert "embedding_api_key" not in payload
+    assert not hasattr(job, "embedding_api_key")
+
+
+def test_upload_budget_enforces_cumulative_batch_size() -> None:
+    budget = UploadBudget(max_size=4)
+    budget.consume(2)
+    with pytest.raises(HTTPException) as exc:
+        budget.consume(3)
+    assert exc.value.status_code == 413
+
+
+def test_auth_rate_limit_raises_after_limit(monkeypatch) -> None:
+    class FakeRedis:
+        def __init__(self) -> None:
+            self.count = 0
+
+        async def incr(self, _key):
+            self.count += 1
+            return self.count
+
+        async def expire(self, _key, _ttl):
+            return None
+
+        async def ttl(self, _key):
+            return 30
+
+    fake = FakeRedis()
+    monkeypatch.setattr(rate_limit, "get_redis", lambda: fake)
+
+    _run(
+        rate_limit.consume_rate_limit(
+            bucket="auth:test",
+            identifier="user@example.com",
+            limit=1,
+            window_seconds=60,
+            message="Too many attempts",
+        )
+    )
+    with pytest.raises(HTTPException) as exc:
+        _run(
+            rate_limit.consume_rate_limit(
+                bucket="auth:test",
+                identifier="user@example.com",
+                limit=1,
+                window_seconds=60,
+                message="Too many attempts",
+            )
+        )
+    assert exc.value.status_code == 429
+    assert exc.value.headers == {"Retry-After": "30"}
 
 
 def test_embedding_semaphores_are_partitioned_by_provider_or_endpoint() -> None:

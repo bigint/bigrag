@@ -31,6 +31,7 @@ from bigrag.models.document import (
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
 from bigrag.routers._documents import (
     SUPPORTED_EXTENSIONS,
+    UploadBudget,
     assert_collection_pin_matches,
     document_response,
     get_document_with_collection,
@@ -400,12 +401,21 @@ async def batch_upload_documents(
         raise HTTPException(status_code=400, detail="Maximum 100 files per batch upload")
 
     max_size = settings.max_upload_size_mb * 1024 * 1024
+    batch_max_size = settings.max_batch_upload_size_mb * 1024 * 1024
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > batch_max_size:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Batch upload too large. Max size: {settings.max_batch_upload_size_mb}MB",
+        )
+    budget = UploadBudget(batch_max_size)
     try:
         shared_meta = prepare_document_metadata(collection, parse_form_metadata(metadata))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
 
-    validated: list[tuple[UploadFile, bytes]] = []
+    created: list[DocumentResponse] = []
+    seen_by_hash: dict[str, Document] = {}
     for file in files:
         file_ext = Path(file.filename or "").suffix.lower()
         if file_ext and file_ext not in SUPPORTED_EXTENSIONS:
@@ -418,13 +428,11 @@ async def batch_upload_documents(
             )
 
         try:
-            content = await read_upload_content(file, max_size=max_size)
+            content = await read_upload_content(file, max_size=max_size, budget=budget)
         except HTTPException as exc:
             raise HTTPException(
                 status_code=exc.status_code,
-                detail=(
-                    f"File '{file.filename}' too large. Max size: {settings.max_upload_size_mb}MB"
-                ),
+                detail=f"File '{file.filename}': {exc.detail}",
             ) from exc
         if len(content) == 0:
             raise HTTPException(
@@ -438,11 +446,6 @@ async def batch_upload_documents(
                 status_code=400,
                 detail=f"File '{file.filename}': {exc}",
             ) from exc
-        validated.append((file, content))
-
-    created: list[DocumentResponse] = []
-    seen_by_hash: dict[str, Document] = {}
-    for file, content in validated:
         content_hash = hashlib.sha256(content).hexdigest()
         existing = seen_by_hash.get(content_hash)
         if existing is None:

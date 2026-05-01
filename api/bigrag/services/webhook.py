@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
-import random
 import secrets
 import uuid
 from datetime import UTC, datetime
@@ -16,6 +15,7 @@ from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.utils import safe_create_task
 
 logger = get_logger("bigrag.webhook")
+_RNG = secrets.SystemRandom()
 
 
 def _retry_delays() -> list[int]:
@@ -69,7 +69,7 @@ def _matches_webhook(webhook: dict, event: str, collection: str) -> bool:
 def _jittered_delay(base_delay: int, jitter_factor: float = 0.25) -> float:
 
     jitter = base_delay * jitter_factor
-    return base_delay + random.uniform(-jitter, jitter)
+    return base_delay + _RNG.uniform(-jitter, jitter)
 
 
 class CircuitBreaker:

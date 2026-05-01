@@ -14,7 +14,6 @@ class IngestionJob:
     embedding_provider: str
     embedding_model: str
     embedding_dimension: int
-    embedding_api_key: str | None
     chunk_size: int
     chunk_overlap: int
     chunk_strategy: str = "paragraph"
@@ -35,7 +34,6 @@ class IngestionJob:
                 "embedding_provider": self.embedding_provider,
                 "embedding_model": self.embedding_model,
                 "embedding_dimension": self.embedding_dimension,
-                "embedding_api_key": self.embedding_api_key,
                 "embedding_base_url": self.embedding_base_url,
                 "collection_epoch": self.collection_epoch,
                 "document_epoch": self.document_epoch,
@@ -73,7 +71,6 @@ def create_ingestion_job(
         embedding_provider=collection["embedding_provider"],
         embedding_model=collection["embedding_model"],
         embedding_dimension=collection["dimension"],
-        embedding_api_key=collection.get("embedding_api_key") or fallback_api_key,
         embedding_base_url=collection.get("embedding_base_url"),
         chunk_size=collection["chunk_size"],
         chunk_overlap=collection["chunk_overlap"],

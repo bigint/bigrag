@@ -1,52 +1,34 @@
 from __future__ import annotations
 
-import asyncio
-import ipaddress
-import socket
 from datetime import datetime
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, model_validator
+
+from bigrag.services.url_security import validate_webhook_url as validate_outbound_webhook_url
 
 VALID_EVENTS = frozenset({"document.ready", "document.failed", "document.processing"})
 
 MAX_WEBHOOKS = 50
 
 
-def _is_blocked_ip(ip_str: str) -> bool:
-
-    try:
-        addr = ipaddress.ip_address(ip_str)
-    except ValueError:
-        return True
-    if addr.is_loopback:
-        return False
-    return addr.is_private or addr.is_reserved or addr.is_link_local or addr.is_multicast
-
-
 async def resolve_and_validate_url(url: str) -> None:
-
-    parsed = urlparse(url)
-    hostname = parsed.hostname
-    if not hostname:
-        raise ValueError("Webhook URL must have a hostname")
-    port = parsed.port or (443 if parsed.scheme == "https" else 80)
     try:
-        addrinfo = await asyncio.to_thread(socket.getaddrinfo, hostname, port)
-    except socket.gaierror as exc:
-        raise ValueError("Cannot resolve webhook URL hostname") from exc
-    for _, _, _, _, sockaddr in addrinfo:
-        if _is_blocked_ip(sockaddr[0]):
-            raise ValueError("Webhook URL must not target private or internal networks")
+        await validate_outbound_webhook_url(url)
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
 
 
 def _validate_webhook_url(url: str) -> None:
+    from bigrag.config import settings
+
     parsed = urlparse(url)
     if not parsed.hostname:
         raise ValueError("Webhook URL must have a hostname")
     is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
-    if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
-        raise ValueError("Webhook URL must use HTTPS (HTTP allowed only for localhost)")
+    local_http_allowed = settings.allow_local_webhooks and parsed.scheme == "http" and is_localhost
+    if parsed.scheme != "https" and not local_http_allowed:
+        raise ValueError("Webhook URL must use HTTPS")
 
 
 def _validate_webhook_events(events: list[str]) -> None:

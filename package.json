@@ -18,5 +18,11 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": "^8.5.12",
+      "uuid": "^14.0.0"
+    }
   }
 }

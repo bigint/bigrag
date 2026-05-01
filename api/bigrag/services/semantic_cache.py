@@ -43,7 +43,7 @@ def _best_match(
     for raw in raw_entries:
         try:
             entry = orjson.loads(raw)
-        except Exception:
+        except (orjson.JSONDecodeError, TypeError):
             continue
         if entry.get("scope_hash", "") != scope_hash:
             continue

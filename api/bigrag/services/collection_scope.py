@@ -7,9 +7,13 @@ _FORBIDDEN_FOR_SCOPED: tuple[tuple[str, str], ...] = (
     ("POST", "/v1/batch/query"),
     ("POST", "/v1/collections"),
     ("GET", "/v1/collections"),
+    ("GET", "/v1/usage"),
+    ("GET", "/v1/stats"),
+    ("GET", "/v1/embeddings/models"),
 )
 
 _FORBIDDEN_METHODS_ON_PINNED_COLLECTION = frozenset({"PUT", "DELETE"})
+_FORBIDDEN_FOR_SCOPED_SET = frozenset(_FORBIDDEN_FOR_SCOPED)
 
 
 def _extract_collection_name(path: str) -> str | None:
@@ -37,7 +41,7 @@ async def enforce_collection_scope(request: Request, pinned: str) -> None:
     path = request.url.path
     stripped = path.rstrip("/")
 
-    if (method, stripped) in {(m, p) for m, p in _FORBIDDEN_FOR_SCOPED}:
+    if (method, stripped) in _FORBIDDEN_FOR_SCOPED_SET:
         raise HTTPException(
             status_code=403,
             detail=(

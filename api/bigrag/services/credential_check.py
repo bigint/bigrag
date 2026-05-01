@@ -5,6 +5,7 @@ from typing import Literal
 import httpx
 
 from bigrag.logging import get_logger
+from bigrag.services.url_security import UnsafeOutboundUrlError, validate_embedding_base_url
 
 logger = get_logger("bigrag.services.credential_check")
 
@@ -55,7 +56,14 @@ async def _verify_via_models_listing(
     base_url: str | None,
     timeout_seconds: float,
 ) -> None:
-    root = (base_url or _DEFAULT_BASE_URLS[provider]).rstrip("/")
+    try:
+        root = (
+            await validate_embedding_base_url(base_url)
+            if base_url
+            else _DEFAULT_BASE_URLS[provider]
+        ).rstrip("/")
+    except UnsafeOutboundUrlError as exc:
+        raise CredentialCheckError("UNSAFE_BASE_URL", str(exc)) from exc
     url = f"{root}/models"
     headers = {"Authorization": f"Bearer {api_key}"}
 
@@ -105,7 +113,14 @@ async def _verify_voyage(
     model: str | None,
     timeout_seconds: float,
 ) -> None:
-    root = (base_url or _DEFAULT_BASE_URLS["voyage"]).rstrip("/")
+    try:
+        root = (
+            await validate_embedding_base_url(base_url)
+            if base_url
+            else _DEFAULT_BASE_URLS["voyage"]
+        ).rstrip("/")
+    except UnsafeOutboundUrlError as exc:
+        raise CredentialCheckError("UNSAFE_BASE_URL", str(exc)) from exc
     url = f"{root}/embeddings"
     headers = {
         "Authorization": f"Bearer {api_key}",

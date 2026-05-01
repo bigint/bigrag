@@ -412,12 +412,27 @@ class IngestionQueue:
             from bigrag.services.vector_store import vector_store
 
         t0 = time.monotonic()
+        from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
+
+        collection = await get_collection_or_404(job.collection_name)
+        api_key = collection.get("embedding_api_key") or _settings.embedding_api_key
+        base_url = collection.get("embedding_base_url") or _settings.embedding_base_url
+        if not api_key and job.embedding_provider in (
+            "openai",
+            "openai_compatible",
+            "cohere",
+            "voyage",
+        ):
+            raise ValueError(
+                f"Collection '{job.collection_name}' uses '{job.embedding_provider}' "
+                "embeddings but no API key is configured"
+            )
         embedding_model = get_embedding_model(
             provider=job.embedding_provider,
             model_name=job.embedding_model,
             dimension=job.embedding_dimension,
-            api_key=job.embedding_api_key,
-            base_url=getattr(job, "embedding_base_url", None),
+            api_key=api_key,
+            base_url=base_url,
         )
         elapsed = time.monotonic() - t0
         logger.info(

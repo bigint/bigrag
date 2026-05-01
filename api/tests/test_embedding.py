@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from bigrag.config import settings
 from bigrag.services import embedding
 
 
@@ -33,6 +34,7 @@ def test_openai_compatible_uses_openai_embedding_client(monkeypatch) -> None:
 
     embedding._models.clear()
     monkeypatch.setattr(embedding, "OpenAIEmbedding", FakeOpenAIEmbedding)
+    monkeypatch.setattr(settings, "allowed_embedding_base_urls", ["http://ollama:11434/v1"])
 
     model = embedding.get_embedding_model(
         provider="openai_compatible",

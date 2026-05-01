@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     env: Literal["dev", "prod"] = "dev"
 
-    host: str = "0.0.0.0"
+    host: str = "127.0.0.1"
     port: int = 4000
     workers: int = 1
     cors_origins: list[str] = []
@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     session_cookie_secure: bool = False
     session_cookie_samesite: str = "lax"
     session_cookie_domain: str | None = None
+    auth_rate_limit_window_seconds: int = 60
+    auth_login_email_rate_limit: int = 5
+    auth_login_ip_rate_limit: int = 50
+    auth_setup_ip_rate_limit: int = 10
 
     embedding_concurrency: int = 8
     qdrant_search_ef: int | None = None
@@ -56,10 +60,14 @@ class Settings(BaseSettings):
     embedding_dimension: int = 1536
     embedding_base_url: str | None = None
     embedding_api_key: str | None = None
+    allowed_embedding_base_urls: list[str] = []
+    allow_private_embedding_base_urls: bool = False
+    allow_local_webhooks: bool = False
 
     upload_dir: str = "./data/uploads"
 
-    max_upload_size_mb: int = 1024
+    max_upload_size_mb: int = 64
+    max_batch_upload_size_mb: int = 128
     ingestion_workers: int = 4
     ingestion_batch_size: int = 128
 
