@@ -2,25 +2,33 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
+  Activity,
   ArrowUpRight,
+  BarChart3,
   BookOpen,
+  Clock3,
   Database,
   FileText,
+  Gauge,
   HardDrive,
   KeyRound,
   Layers,
   MessageCircle,
+  Radio,
   ShieldCheck,
+  SignalHigh,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
+import { useAccessOverview } from "@/hooks/use-access-logs";
 import { useSession } from "@/hooks/use-auth";
 import { useCollections } from "@/hooks/use-collections";
 import { usePlatformStats, useReadiness } from "@/hooks/use-platform";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatNumber, formatRelative } from "@/lib/format";
+import type { AccessLogBucket, AccessLogEntry, AccessLogOverview } from "@/types/bigrag";
 
 const QUICK_ACTIONS = [
   {
@@ -48,6 +56,8 @@ const OverviewPage = () => {
   const { data: stats, isPending: statsPending } = usePlatformStats();
   const { data: readiness } = useReadiness();
   const { data: collectionsData } = useCollections();
+  const canSeeAccess = session?.user.role === "admin";
+  const { data: accessOverview, isPending: accessPending } = useAccessOverview(canSeeAccess);
 
   const collections = collectionsData?.collections ?? [];
   const firstName = session?.user.display_name?.split(" ")[0] || session?.user.email || "there";
@@ -108,6 +118,8 @@ const OverviewPage = () => {
             sub={`${servicesOnline}/4 services online`}
           />
         </section>
+
+        {canSeeAccess && <AccessCommandCenter overview={accessOverview} pending={accessPending} />}
 
         <section className="grid gap-4 xl:grid-cols-3">
           <Panel className="xl:col-span-2">
@@ -303,6 +315,278 @@ const MetricCard = ({
     </div>
     {sub && <div className="mt-1 truncate text-xs text-muted-foreground">{sub}</div>}
   </Panel>
+);
+
+const formatPercent = (value: number | undefined) =>
+  `${Number.isFinite(value) ? (value ?? 0).toFixed(1) : "0.0"}%`;
+
+const formatMs = (value: number | undefined) => `${formatNumber(Math.round(value ?? 0))} ms`;
+
+const AccessCommandCenter = ({
+  overview,
+  pending,
+}: {
+  overview: AccessLogOverview | undefined;
+  pending: boolean;
+}) => {
+  const quiet = !pending && (!overview || overview.total_events === 0);
+
+  return (
+    <Panel className="overflow-hidden p-0">
+      <div className="border-b border-border px-5 py-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <Activity className="size-4" />
+              </span>
+              <h2 className="text-base font-semibold">RAG access command center</h2>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Actor, endpoint, status, and latency telemetry across the last{" "}
+              {overview?.window_days ?? 7} days.
+            </p>
+          </div>
+          <Link
+            href="/access-logs"
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-background px-3 text-xs font-semibold transition-colors hover:bg-muted"
+          >
+            Open logs
+            <ArrowUpRight className="size-3.5" />
+          </Link>
+        </div>
+      </div>
+
+      {pending ? (
+        <div className="px-5 py-8">
+          <Spinner />
+        </div>
+      ) : quiet ? (
+        <div className="px-5 py-8 text-sm text-muted-foreground">
+          No access events have landed in this window yet.
+        </div>
+      ) : (
+        <div className="grid gap-0 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="border-b border-border p-5 xl:border-b-0 xl:border-r">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <AccessMetric
+                icon={Radio}
+                label="Events"
+                value={formatNumber(overview?.total_events ?? 0)}
+                sub={`${formatNumber(overview?.query_events ?? 0)} query events`}
+              />
+              <AccessMetric
+                icon={SignalHigh}
+                label="Success"
+                tone="success"
+                value={formatPercent(overview?.success_rate)}
+                sub={`${formatPercent(overview?.error_rate)} errors`}
+              />
+              <AccessMetric
+                icon={Clock3}
+                label="P95 latency"
+                tone="warning"
+                value={formatMs(overview?.p95_latency_ms)}
+                sub={`${formatMs(overview?.avg_latency_ms)} average`}
+              />
+              <AccessMetric
+                icon={KeyRound}
+                label="API key use"
+                value={formatNumber(overview?.api_key_events ?? 0)}
+                sub={`${formatNumber(overview?.unique_users ?? 0)} session users`}
+              />
+            </div>
+
+            <div className="mt-5">
+              <AccessTimeline overview={overview} />
+            </div>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <AccessBucketList
+                buckets={overview?.by_action ?? []}
+                icon={BarChart3}
+                title="Endpoint mix"
+              />
+              <AccessBucketList
+                buckets={overview?.latency_by_action ?? []}
+                icon={Gauge}
+                showLatency
+                title="Latency leaders"
+              />
+            </div>
+          </div>
+
+          <AccessRecentStream entries={overview?.recent ?? []} />
+        </div>
+      )}
+    </Panel>
+  );
+};
+
+const AccessMetric = ({
+  icon: Icon,
+  label,
+  sub,
+  tone,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  sub: string;
+  tone?: "success" | "warning";
+  value: string;
+}) => (
+  <div className="min-w-0 border-l border-border pl-3">
+    <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+      <Icon
+        className={cn(
+          "size-3.5",
+          tone === "success" && "text-success",
+          tone === "warning" && "text-warning",
+        )}
+      />
+      <span className="truncate">{label}</span>
+    </div>
+    <div className="mt-2 truncate text-2xl font-semibold tabular-nums">{value}</div>
+    <div className="mt-1 truncate text-xs text-muted-foreground">{sub}</div>
+  </div>
+);
+
+const AccessTimeline = ({ overview }: { overview: AccessLogOverview | undefined }) => {
+  const points = overview?.timeline ?? [];
+  const maxEvents = Math.max(1, ...points.map((point) => point.events));
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold">Traffic pulse</h3>
+        <Badge variant="neutral">{points.length} buckets</Badge>
+      </div>
+      <div className="flex h-28 items-end gap-1.5 rounded-2xl border border-border bg-muted/50 px-3 py-3">
+        {points.length === 0 ? (
+          <div className="self-center text-sm text-muted-foreground">Waiting for events</div>
+        ) : (
+          points.map((point) => {
+            const height = Math.max(8, (point.events / maxEvents) * 100);
+            const errorHeight = point.events ? Math.max(2, (point.errors / point.events) * 100) : 0;
+            return (
+              <div
+                className="group relative flex min-w-3 flex-1 items-end rounded-full bg-background"
+                key={point.bucket}
+                title={`${formatNumber(point.events)} events, ${formatNumber(point.errors)} errors`}
+              >
+                <div
+                  className="w-full overflow-hidden rounded-full bg-primary/80 transition-all group-hover:bg-primary"
+                  style={{ height: `${height}%` }}
+                >
+                  {point.errors > 0 && (
+                    <div
+                      className="mt-auto w-full bg-destructive"
+                      style={{ height: `${errorHeight}%` }}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+};
+
+const AccessBucketList = ({
+  buckets,
+  icon: Icon,
+  showLatency,
+  title,
+}: {
+  buckets: AccessLogBucket[];
+  icon: LucideIcon;
+  showLatency?: boolean;
+  title: string;
+}) => {
+  const max = Math.max(1, ...buckets.map((bucket) => bucket.count));
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <Icon className="size-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold">{title}</h3>
+      </div>
+      <div className="space-y-2">
+        {buckets.length === 0 ? (
+          <div className="text-sm text-muted-foreground">No data yet</div>
+        ) : (
+          buckets.map((bucket) => (
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3" key={bucket.label}>
+              <div className="min-w-0">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="truncate font-semibold">{bucket.label}</span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {showLatency && bucket.avg_latency_ms !== null
+                      ? formatMs(bucket.avg_latency_ms)
+                      : formatNumber(bucket.count)}
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${Math.max(4, (bucket.count / max) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+const AccessRecentStream = ({ entries }: { entries: AccessLogEntry[] }) => (
+  <div className="p-5">
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h3 className="text-sm font-semibold">Recent access stream</h3>
+      <Badge variant="neutral">{entries.length}</Badge>
+    </div>
+    <div className="space-y-2">
+      {entries.length === 0 ? (
+        <div className="text-sm text-muted-foreground">No recent events</div>
+      ) : (
+        entries.slice(0, 7).map((entry) => (
+          <Link
+            className="block rounded-2xl border border-border px-3 py-2.5 transition-colors hover:bg-muted"
+            href="/access-logs"
+            key={entry.id}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "size-1.5 rounded-full",
+                      entry.success ? "bg-success" : "bg-destructive",
+                    )}
+                  />
+                  <span className="truncate text-sm font-semibold">{entry.action}</span>
+                </div>
+                <div className="mt-1 truncate text-xs text-muted-foreground">
+                  {entry.actor_email ?? entry.api_key_name ?? "anonymous"} /{" "}
+                  {entry.collection_name ?? entry.path}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-xs font-semibold tabular-nums">{entry.status_code}</div>
+                <div className="text-xs text-muted-foreground">
+                  {formatRelative(entry.created_at)}
+                </div>
+              </div>
+            </div>
+          </Link>
+        ))
+      )}
+    </div>
+  </div>
 );
 
 const StatusBar = ({

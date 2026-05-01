@@ -38,7 +38,6 @@ def _key_response(key: ApiKey) -> ApiKeyResponse:
         active=key.active,
         scopes=scopes if isinstance(scopes, list) else [],
         collection=collection,
-        rate_limits=key.rate_limits or None,
         last_used_at=key.last_used_at,
         expires_at=key.expires_at,
         created_at=key.created_at,
@@ -118,7 +117,6 @@ async def create_api_key(
         prefix=prefix,
         expires_at=body.expires_at,
         permissions=permissions,
-        rate_limits=body.rate_limits or {},
     )
     session.add(key)
     await session.commit()
@@ -185,9 +183,6 @@ async def update_api_key(
         fields.append("collection")
     if body.scopes is not None or body.collection is not None:
         key.permissions = existing
-    if body.rate_limits is not None:
-        key.rate_limits = body.rate_limits
-        fields.append("rate_limits")
 
     await session.commit()
     await session.refresh(key)

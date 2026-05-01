@@ -34,6 +34,8 @@ _ENDPOINT_SCOPES: list[tuple[str, str, str]] = [
     ("GET", "/v1/admin/webhooks/{id}/deliveries", "webhook:read"),
     ("GET", "/v1/usage", "audit:read"),
     ("GET", "/v1/admin/audit", "audit:read"),
+    ("GET", "/v1/admin/access/overview", "audit:read"),
+    ("GET", "/v1/admin/access/logs", "audit:read"),
     ("POST", "/v1/collections", "collection:write"),
     ("PUT", "/v1/collections/", "collection:write"),
     ("DELETE", "/v1/collections/", "collection:delete"),

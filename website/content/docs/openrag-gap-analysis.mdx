@@ -25,7 +25,7 @@ OpenRAG and bigRAG share the same foundation — both use **FastAPI**, **Docling
 | [Agentic RAG & LLM Integration](#2-agentic-rag--llm-integration) | Studio playground can retrieve and stream an OpenAI answer from the browser using a user-provided key | No backend LLM generation API, conversation store, agents, tool-call inspection, or built-in prompt orchestration |
 | [Cloud Storage Connectors](#3-cloud-storage-connectors) | S3 bucket ingestion and S3-compatible object storage are implemented | No OAuth-backed Google Drive, SharePoint, OneDrive, IBM COS, or connector abstraction |
 | [Search & Retrieval](#4-search--retrieval) | Semantic, keyword, hybrid fusion strategies, HyDE, MMR diversity, Cohere rerank, metadata filters, facets, batch query, and analytics | No explicit semantic/keyword weight ratios, prefix/autocomplete, saved filters, or one-index multi-model search |
-| [Authentication & Multi-Tenancy](#5-authentication--multi-tenancy) | Native admin/member accounts, session cookies, scoped API keys, rate limits, and audit logs | No OAuth/OIDC, external IdP, document ownership, document ACLs, or tenant isolation |
+| [Authentication & Multi-Tenancy](#5-authentication--multi-tenancy) | Native admin/member accounts, session cookies, scoped API keys, and audit/access logs | No OAuth/OIDC, external IdP, document ownership, document ACLs, or tenant isolation |
 | [Observability & Operations](#6-observability--operations) | Readiness checks Postgres, Qdrant, Redis, and embedding provider; structlog JSON logging exists | No disk monitoring, container-log TUI, or LLM observability |
 | [Developer Experience & Ecosystem](#7-developer-experience--ecosystem) | TypeScript, Python, Rust SDKs and MCP server exist | No `uvx bigrag` install, flow import/export, config backup/restore, factory reset, or Podman guide |
 | [Security & Compliance](#8-security--compliance) | Sensitive provider, webhook, and S3 credentials are Fernet-encrypted at rest | No document/vector content encryption, password strength scoring, or asymmetric JWT key system |
@@ -383,7 +383,7 @@ OpenRAG supports:
 - OIDC discovery endpoint (`/.well-known/openid-configuration`)
 - Token introspection endpoint
 
-**bigRAG gap (narrower):** bigRAG now has admin accounts, session cookies, per-user passwords (Argon2id), and minted `bigrag_sk_` API keys with scopes + rate limits — but it does **not** yet support OAuth/OIDC, external IdP login, or JWT token introspection. Integrations with Google / Okta / Microsoft / IBM still have to happen at a reverse proxy in front of bigRAG.
+**bigRAG gap (narrower):** bigRAG now has admin accounts, session cookies, per-user passwords (Argon2id), and minted `bigrag_sk_` API keys with scopes — but it does **not** yet support OAuth/OIDC, external IdP login, or JWT token introspection. Integrations with Google / Okta / Microsoft / IBM still have to happen at a reverse proxy in front of bigRAG.
 
 **Impact:** Multi-user deployments work today via bigRAG-native accounts; OAuth-backed SSO still requires fronting bigRAG with an auth proxy.
 
@@ -417,7 +417,7 @@ OpenRAG's API key system includes:
 - Create, list, revoke operations via API and UI
 - Separate auth tier: API keys access the public `/v1/*` endpoints
 
-**bigRAG parity (resolved):** bigRAG ships `bigrag_sk_…` prefixed keys, SHA-256 hashed at rest, with `last_used_at` usage tracking, create/list/update/revoke through [`/v1/admin/api-keys`](/docs/api-reference/api-keys) and the Studio UI. Scopes and per-endpoint rate limits attach to each key.
+**bigRAG parity (resolved):** bigRAG ships `bigrag_sk_…` prefixed keys, SHA-256 hashed at rest, with `last_used_at` usage tracking, create/list/update/revoke through [`/v1/admin/api-keys`](/docs/api-reference/api-keys) and the Studio UI. Scopes attach to each key.
 
 ### 5.5 Session Management
 

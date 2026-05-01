@@ -17,8 +17,8 @@ everything into Postgres with pgvector. Each one earns its keep:
   users, API keys, webhooks, query logs, audit trail, embedding cache.
   Transactions keep ingestion consistent across stores.
 - **Redis** — the ingestion queue (`BLPOP/BLMOVE` semantics), webhook
-  delivery queue, idempotency-key cache, rate-limit counters,
-  semantic query cache. All in-flight / TTL'd work.
+  delivery queue, idempotency-key cache, semantic query cache. All
+  in-flight / TTL'd work.
 - **Local disk or S3** — raw uploaded documents. Needed to produce
   citations back into source files and to support re-embedding without
   re-uploading.
@@ -37,11 +37,10 @@ Client
   ▼
 FastAPI
   │ 1. auth — session cookie or API key; enforces scoped-key permissions
-  │ 2. rate limit — Redis token bucket keyed by api-key hash
-  │ 3. idempotency — replay cached response if Idempotency-Key hits
-  │ 4. content-hash dedup — sha256 of bytes; if a dupe exists, return it
-  │ 5. validate — extension, magic bytes, zip-bomb guard, metadata schema
-  │ 6. INSERT documents row → commit
+  │ 2. idempotency — replay cached response if Idempotency-Key hits
+  │ 3. content-hash dedup — sha256 of bytes; if a dupe exists, return it
+  │ 4. validate — extension, magic bytes, zip-bomb guard, metadata schema
+  │ 5. INSERT documents row → commit
   ▼
 Redis queue (LPUSH)
   ▼
@@ -66,16 +65,15 @@ retry (3 attempts, exponential backoff) before permanently failing.
 ```
 Client → FastAPI
   │ 1. auth → scope check (query:read)
-  │ 2. rate limit
-  │ 3. semantic cache lookup — if cosine ≥ 0.97 vs a recent query, replay
-  │ 4. optional HyDE — generate hypothetical answer, embed THAT instead
-  │ 5. embed query (tiktoken-aware truncation)
-  │ 6. Qdrant search (with payload filters)
-  │ 7. optional hybrid fusion — keyword search + fuse (rrf/weighted/normalized)
-  │ 8. optional rerank — Cohere Rerank v3.5
-  │ 9. optional MMR diversity — over-fetched pool, lambda = 1 - diversity
-  │ 10. facets aggregation, attach timings (embed/search/rerank/mmr/total)
-  │ 11. semantic cache put — so the next paraphrase is free
+  │ 2. semantic cache lookup — if cosine ≥ 0.97 vs a recent query, replay
+  │ 3. optional HyDE — generate hypothetical answer, embed THAT instead
+  │ 4. embed query (tiktoken-aware truncation)
+  │ 5. Qdrant search (with payload filters)
+  │ 6. optional hybrid fusion — keyword search + fuse (rrf/weighted/normalized)
+  │ 7. optional rerank — Cohere Rerank v3.5
+  │ 8. optional MMR diversity — over-fetched pool, lambda = 1 - diversity
+  │ 9. facets aggregation, attach timings (embed/search/rerank/mmr/total)
+  │ 10. semantic cache put — so the next paraphrase is free
   ▼
 Response JSON with results, timings, facets, cached flag
 ```

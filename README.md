@@ -15,7 +15,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 - **Multi-collection queries** — search across collections in a single request
 - **Batch operations** — bulk upload, delete, status checks, and queries
 - **Real-time progress** — SSE streaming for document processing status
-- **Auth, audit, scopes** — admin accounts, session cookies, `bigrag_sk_…` API keys with per-scope permissions and rate limits, full audit log
+- **Auth, audit, scopes** — admin accounts, session cookies, scoped `bigrag_sk_…` API keys, and full audit/access logs
 - **Metadata controls** — per-collection metadata schemas, file validation, and content-hash deduplication at ingest
 - **Retrieval evaluation runner** — ship recall@k / MRR / nDCG regressions against a golden set
 - **Analytics** — per-collection query analytics and platform-wide stats
@@ -314,7 +314,7 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 | `BIGRAG_QDRANT_SEARCH_EF` | Optional Qdrant HNSW search recall/latency tuning | — |
 | `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
 | `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
-| `BIGRAG_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and IP rate limits | `[]` |
+| `BIGRAG_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and access logs | `[]` |
 | `BIGRAG_SESSION_COOKIE_SECURE` | HTTPS-only session cookies | `false` |
 | `BIGRAG_EMBEDDING_API_KEY` | Default embedding API key | — |
 | `BIGRAG_EMBEDDING_BASE_URL` | Base URL for OpenAI-compatible embedding endpoints | — |

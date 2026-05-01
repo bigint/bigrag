@@ -5,7 +5,7 @@ import asyncio
 import sqlalchemy as sa
 
 from bigrag.db.engine import session_factory
-from bigrag.db.models import QueryLog, WebhookDelivery
+from bigrag.db.models import AccessLog, QueryLog, WebhookDelivery
 from bigrag.logging import get_logger
 
 logger = get_logger("bigrag.cleanup")
@@ -23,11 +23,15 @@ async def cleanup_old_data() -> None:
                 ql_result = await session.execute(
                     sa.delete(QueryLog).where(QueryLog.created_at < cutoff)
                 )
+                al_result = await session.execute(
+                    sa.delete(AccessLog).where(AccessLog.created_at < cutoff)
+                )
                 wd_result = await session.execute(
                     sa.delete(WebhookDelivery).where(WebhookDelivery.created_at < cutoff)
                 )
                 await session.commit()
             logger.info(f"query_log cleanup: {ql_result.rowcount or 0}")
+            logger.info(f"access_log cleanup: {al_result.rowcount or 0}")
             logger.info(f"webhook_deliveries cleanup: {wd_result.rowcount or 0}")
         except asyncio.CancelledError:
             return

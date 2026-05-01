@@ -31,7 +31,6 @@ class ApiKey(TypedDict):
     active: bool
     scopes: list[str]
     collection: str | None
-    rate_limits: dict[str, Any] | None
     last_used_at: str | None
     expires_at: str | None
     created_at: str
@@ -43,7 +42,6 @@ class CreateApiKeyBody(TypedDict):
     expires_at: NotRequired[str | None]
     scopes: NotRequired[list[str] | None]
     collection: NotRequired[str | None]
-    rate_limits: NotRequired[dict[str, Any] | None]
 
 
 class CreateApiKeyResponse(ApiKey):
@@ -55,7 +53,6 @@ class UpdateApiKeyBody(TypedDict, total=False):
     active: bool
     scopes: list[str] | None
     collection: str | None
-    rate_limits: dict[str, Any] | None
 
 
 class ApiKeyListResponse(TypedDict):

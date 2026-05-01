@@ -33,7 +33,6 @@ def _serialize(user: User, *, auth: str, api_key_id: str | None = None) -> dict:
         "api_key_name": None,
         "scopes": None,
         "collection": None,
-        "rate_limits": None,
     }
 
 
@@ -103,7 +102,6 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
     principal["api_key_name"] = api_key.name
     principal["scopes"] = scopes if isinstance(scopes, list) else None
     principal["collection"] = collection
-    principal["rate_limits"] = api_key.rate_limits or {}
     return principal
 
 
@@ -119,6 +117,7 @@ async def get_current_user(
         principal = await _user_from_api_key(request, session)
     if principal is None:
         raise HTTPException(status_code=401, detail="Authentication required")
+    request.state.user = principal
 
     scope = required_scope(request.method, request.url.path)
     if scope and not has_scope(principal.get("scopes"), scope):

@@ -16,8 +16,8 @@ from bigrag.db.bootstrap import run_migrations
 from bigrag.exceptions import NotFoundError, ValidationError
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
 from bigrag.middleware.idempotency import IdempotencyMiddleware
-from bigrag.middleware.rate_limit import RateLimitMiddleware
 from bigrag.services import crypto, redis_cache
+from bigrag.services.access_log import AccessLogMiddleware
 from bigrag.services.event_bus import event_bus
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import init_storage
@@ -158,7 +158,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.state.settings = s
 
     app.add_middleware(RequestLoggingMiddleware)
-    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(AccessLogMiddleware)
     app.add_middleware(IdempotencyMiddleware)
     app.add_middleware(
         CORSMiddleware,
@@ -176,6 +176,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     async def validation_handler(request, exc: ValidationError):
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
+    from bigrag.routers.admin_access import router as admin_access_router
     from bigrag.routers.admin_api_keys import router as admin_api_keys_router
     from bigrag.routers.admin_audit import router as admin_audit_router
     from bigrag.routers.admin_users import router as admin_users_router
@@ -198,6 +199,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(preferences_router)
     app.include_router(admin_users_router)
     app.include_router(admin_api_keys_router)
+    app.include_router(admin_access_router)
     app.include_router(mcp_servers_router)
     app.include_router(admin_audit_router)
     app.include_router(embedding_presets_router)

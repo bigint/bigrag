@@ -3,6 +3,7 @@
 import { Dialog } from "@base-ui/react/dialog";
 import type { LucideIcon } from "lucide-react";
 import {
+  Activity,
   BookOpen,
   Cpu,
   FlaskConical,
@@ -36,6 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { admin: true, href: "/evals", icon: FlaskConical, label: "Evals" },
   { href: "/mcp", icon: Plug, label: "MCP" },
   { admin: true, href: "/api-keys", icon: KeyRound, label: "API Keys", separated: true },
+  { admin: true, href: "/access-logs", icon: Activity, label: "Access Logs" },
   { admin: true, href: "/webhooks", icon: Webhook, label: "Webhooks" },
   { admin: true, href: "/settings", icon: Settings, label: "Settings" },
 ];

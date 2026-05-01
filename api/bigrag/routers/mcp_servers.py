@@ -176,7 +176,6 @@ async def create_mcp_server(
         key_hash=key_hash,
         prefix=prefix,
         permissions=_permissions(body.title, body.server_name, collection),
-        rate_limits={},
     )
     session.add(key)
     await session.commit()

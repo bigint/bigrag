@@ -90,7 +90,7 @@ Runtime settings use the `BIGRAG_` prefix. Environment variables override TOML v
 | `BIGRAG_HOST` | Bind address | `0.0.0.0` |
 | `BIGRAG_WORKERS` | Uvicorn workers | `1` |
 | `BIGRAG_CORS_ORIGINS` | Allowed CORS origins (JSON array; `["*"]` rejected in `prod`) | `[]` |
-| `BIGRAG_TRUSTED_PROXIES` | Trusted reverse-proxy CIDRs as a JSON array. When the immediate client is trusted, bigRAG uses the rightmost untrusted `X-Forwarded-For` IP for audit logs and IP rate limits. | `[]` |
+| `BIGRAG_TRUSTED_PROXIES` | Trusted reverse-proxy CIDRs as a JSON array. When the immediate client is trusted, bigRAG uses the rightmost untrusted `X-Forwarded-For` IP for audit and access logs. | `[]` |
 
 ### Infrastructure
 

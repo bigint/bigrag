@@ -43,10 +43,6 @@ can't touch other collections or the admin surface:
 key = client.api_keys.create({
     "name": f"tenant-{tenant_id}",
     "scopes": ["query:read", f"document:upload"],
-    "rate_limits": {
-        "POST:/v1/query": 60,       # queries / min
-        "POST:/v1/documents": 10,   # uploads / min
-    },
 })
 # key.key is the plaintext bigrag_sk_... — hand it to the tenant once.
 ```
@@ -109,18 +105,6 @@ usage = client.usage.get(window_days=30)
 Join this with your billing system's `tenant_id ↔ collection_name`
 map and you have a per-tenant invoice line. For pattern B, aggregate
 the same stats from `audit_log` by `metadata.tenant_id`.
-
-## Cost caps
-
-Set per-tenant quotas on the minted API key:
-
-```python
-client.api_keys.update(key_id, {
-    "rate_limits": {
-        "POST:/v1/query": 10,     # free tier
-    },
-})
-```
 
 ## Audit trail for compliance
 

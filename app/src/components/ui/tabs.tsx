@@ -1,10 +1,96 @@
 "use client";
 
 import { Tabs as BaseTabs } from "@base-ui/react/tabs";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
+import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
-type Tab = { value: string; label: string; count?: number };
+type TabSurface = "default" | "inverse";
+type Tab = { value: string; label: string; count?: number; icon?: LucideIcon };
+
+const tabListClassName = "flex gap-1.5 overflow-x-auto";
+const tabClassName =
+  "inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3.5 text-sm font-semibold transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-95";
+const tabCountClassName = "rounded-full px-1.5 py-0.5 text-xs font-semibold leading-none";
+const tabIconClassName = "size-3.5";
+
+const surfaceClasses: Record<
+  TabSurface,
+  {
+    active: string;
+    inactive: string;
+    countActive: string;
+    countInactive: string;
+    focus: string;
+  }
+> = {
+  default: {
+    active: "bg-primary text-primary-foreground shadow-sm",
+    inactive: "text-muted-foreground hover:bg-muted hover:text-foreground",
+    countActive: "bg-primary-foreground/15 text-primary-foreground",
+    countInactive: "bg-muted text-muted-foreground",
+    focus: "focus-visible:ring-ring focus-visible:ring-offset-background",
+  },
+  inverse: {
+    active: "bg-primary-foreground text-primary shadow-sm",
+    inactive:
+      "text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground",
+    countActive: "bg-primary/10 text-primary",
+    countInactive: "bg-primary-foreground/10 text-primary-foreground/70",
+    focus: "focus-visible:ring-primary-foreground/70 focus-visible:ring-offset-primary",
+  },
+};
+
+const getTabClassName = ({
+  active,
+  className,
+  surface = "default",
+}: {
+  active: boolean;
+  className?: string;
+  surface?: TabSurface;
+}) =>
+  cn(
+    tabClassName,
+    surfaceClasses[surface].focus,
+    active ? surfaceClasses[surface].active : surfaceClasses[surface].inactive,
+    className,
+  );
+
+const getTabCountClassName = ({
+  active,
+  surface = "default",
+}: {
+  active: boolean;
+  surface?: TabSurface;
+}) =>
+  cn(
+    tabCountClassName,
+    active ? surfaceClasses[surface].countActive : surfaceClasses[surface].countInactive,
+  );
+
+const TabContent = ({
+  active,
+  count,
+  icon: Icon,
+  label,
+  surface,
+}: {
+  active: boolean;
+  count?: number;
+  icon?: LucideIcon;
+  label: string;
+  surface?: TabSurface;
+}) => (
+  <>
+    {Icon && <Icon className={tabIconClassName} />}
+    <span>{label}</span>
+    {count !== undefined && (
+      <span className={getTabCountClassName({ active, surface })}>{count}</span>
+    )}
+  </>
+);
 
 interface TabsProps {
   readonly tabs: Tab[];
@@ -14,63 +100,61 @@ interface TabsProps {
 
 export const Tabs = ({ tabs, value, onChange }: TabsProps) => (
   <BaseTabs.Root onValueChange={(v) => onChange(v as string)} value={value}>
-    <BaseTabs.List activateOnFocus className="relative mb-6 flex gap-1.5 overflow-x-auto">
-      {tabs.map((tab) => (
-        <BaseTabs.Tab
-          className={cn(
-            "relative z-0 flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-t-md px-4 py-2 text-sm font-medium transition-colors",
-            "rounded-full text-muted-foreground hover:bg-muted hover:text-foreground",
-            "data-[active]:bg-primary data-[active]:text-primary-foreground",
-          )}
-          key={tab.value}
-          value={tab.value}
-        >
-          {tab.label}
-          {tab.count !== undefined && (
-            <span
-              className={cn(
-                "rounded-full px-1.5 py-0.5 text-xs",
-                value === tab.value
-                  ? "bg-primary-foreground/15 text-primary-foreground"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              {tab.count}
-            </span>
-          )}
-        </BaseTabs.Tab>
-      ))}
+    <BaseTabs.List activateOnFocus className={cn(tabListClassName, "mb-6")}>
+      {tabs.map((tab) => {
+        const active = value === tab.value;
+        return (
+          <BaseTabs.Tab className={getTabClassName({ active })} key={tab.value} value={tab.value}>
+            <TabContent active={active} count={tab.count} icon={tab.icon} label={tab.label} />
+          </BaseTabs.Tab>
+        );
+      })}
       <BaseTabs.Indicator className="hidden" />
     </BaseTabs.List>
   </BaseTabs.Root>
 );
 
-type LinkTab = { href: string; label: string; active: boolean; count?: number };
+type LinkTab = { href: string; label: string; active: boolean; count?: number; icon?: LucideIcon };
 
 export const LinkTabs = ({ tabs, className }: { tabs: LinkTab[]; className?: string }) => (
-  <div className={cn("mb-6 flex gap-1.5 overflow-x-auto", className)}>
+  <div className={cn(tabListClassName, "mb-6", className)}>
     {tabs.map((t) => (
       <Link
+        aria-current={t.active ? "page" : undefined}
         key={t.href}
         href={t.href}
-        className={cn(
-          "relative z-0 flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-md px-4 py-2 text-sm font-medium transition-colors",
-          "rounded-full text-muted-foreground hover:bg-muted hover:text-foreground",
-          t.active && "border border-border bg-background text-foreground",
-        )}
+        className={getTabClassName({ active: t.active })}
       >
-        {t.label}
-        {t.count !== undefined && (
-          <span
-            className={cn(
-              "rounded-full px-1.5 py-0.5 text-xs",
-              t.active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
-            )}
-          >
-            {t.count}
-          </span>
-        )}
+        <TabContent active={t.active} count={t.count} icon={t.icon} label={t.label} />
       </Link>
     ))}
   </div>
+);
+
+type TabButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
+  readonly active: boolean;
+  readonly count?: number;
+  readonly icon?: LucideIcon;
+  readonly label: string;
+  readonly surface?: TabSurface;
+};
+
+export const TabButton = ({
+  active,
+  className,
+  count,
+  icon,
+  label,
+  surface = "default",
+  type = "button",
+  ...props
+}: TabButtonProps) => (
+  <button
+    aria-pressed={active}
+    className={getTabClassName({ active, className, surface })}
+    type={type}
+    {...props}
+  >
+    <TabContent active={active} count={count} icon={icon} label={label} surface={surface} />
+  </button>
 );

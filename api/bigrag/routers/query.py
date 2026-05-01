@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
@@ -24,7 +24,7 @@ from bigrag.models.query import (
     VectorUpsertRequest,
 )
 from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
-from bigrag.services import semantic_cache
+from bigrag.services import access_log, semantic_cache
 from bigrag.services.embedding import AVAILABLE_MODELS
 from bigrag.services.retrieval import retrieve, retrieve_multi
 from bigrag.services.vector_store import vector_store
@@ -38,8 +38,24 @@ router = APIRouter(tags=["query"])
 async def query_collection(
     collection_name: str,
     body: QueryRequest,
+    request: Request,
     _: dict = Depends(get_current_user),
 ):
+    access_log.set_context(
+        request,
+        action="query.run",
+        resource_type="collection",
+        resource_id=collection_name,
+        collection_name=collection_name,
+        metadata={
+            **access_log.query_fingerprint(body.query),
+            **access_log.filter_summary(body.filters),
+            "facets": body.facets or [],
+            "hyde": bool(body.hyde),
+            "requested_top_k": body.top_k,
+            "rerank_override": body.rerank,
+        },
+    )
     collection = await get_collection_or_404(collection_name)
     logger.info(
         f"query: collection={collection_name} q={body.query!r:.80s} "
@@ -56,6 +72,15 @@ async def query_collection(
         body.min_score if body.min_score is not None else collection.get("default_min_score")
     )
     search_mode = body.search_mode or collection.get("default_search_mode", "semantic")
+    access_log.set_context(
+        request,
+        resource_id=str(collection.get("id")),
+        metadata={
+            "top_k": top_k,
+            "search_mode": search_mode,
+            "min_score": min_score,
+        },
+    )
 
     use_semcache = body.use_semantic_cache if body.use_semantic_cache is not None else True
 
@@ -66,6 +91,14 @@ async def query_collection(
         cached = await semantic_cache.lookup(collection_name, precomputed_embedding)
         if cached:
             cached_copy = {**cached, "cached": True}
+            access_log.set_context(
+                request,
+                metadata={
+                    "cached": True,
+                    "result_count": cached_copy.get("total", 0),
+                    "latency_ms": (cached_copy.get("timings") or {}).get("total_ms"),
+                },
+            )
             return QueryResponse(**cached_copy)
 
     outcome = await retrieve(
@@ -114,6 +147,20 @@ async def query_collection(
             response.model_dump(),
         )
 
+    access_log.set_context(
+        request,
+        metadata={
+            "cached": response.cached,
+            "result_count": response.total,
+            "latency_ms": response.timings.total_ms if response.timings else None,
+            "avg_score": round(
+                sum(result.score for result in response.results) / len(response.results),
+                4,
+            )
+            if response.results
+            else None,
+        },
+    )
     return response
 
 
@@ -130,8 +177,22 @@ def _result_to_dict(row: dict) -> dict:
 @router.post("/v1/query", response_model=MultiQueryResponse)
 async def multi_collection_query(
     body: MultiQueryRequest,
+    request: Request,
     _: dict = Depends(get_current_user),
 ):
+    access_log.set_context(
+        request,
+        action="query.multi",
+        resource_type="collections",
+        metadata={
+            **access_log.query_fingerprint(body.query),
+            **access_log.filter_summary(body.filters),
+            "collections": body.collections,
+            "collection_count": len(body.collections),
+            "top_k": body.top_k,
+            "search_mode": body.search_mode,
+        },
+    )
     logger.info(
         f"multi-query: collections={body.collections} q={body.query!r:.80s} top_k={body.top_k}"
     )
@@ -159,6 +220,13 @@ async def multi_collection_query(
     )
 
     logger.info(f"multi-query: collections={body.collections} results={len(results)}")
+    access_log.set_context(
+        request,
+        metadata={
+            "result_count": len(results),
+            "collections_hit": sorted({str(row.get("collection")) for row in results}),
+        },
+    )
     return MultiQueryResponse(
         results=[MultiQueryResult(**r) for r in results],
         query=body.query,
@@ -170,8 +238,21 @@ async def multi_collection_query(
 @router.post("/v1/batch/query", response_model=BatchQueryResponse)
 async def batch_query(
     body: BatchQueryRequest,
+    request: Request,
     _: dict = Depends(get_current_user),
 ):
+    access_log.set_context(
+        request,
+        action="query.batch",
+        resource_type="collections",
+        metadata={
+            "batch_size": len(body.queries),
+            "collections": sorted({item.collection for item in body.queries}),
+            "query_hashes": [
+                access_log.query_fingerprint(item.query)["query_hash"] for item in body.queries
+            ],
+        },
+    )
     logger.info(f"batch-query: {len(body.queries)} queries")
 
     async def run_one(item: BatchQueryItem) -> BatchQueryResultItem:
@@ -202,6 +283,13 @@ async def batch_query(
         )
 
     results = await asyncio.gather(*[run_one(item) for item in body.queries])
+    access_log.set_context(
+        request,
+        metadata={
+            "result_count": sum(item.total for item in results),
+            "completed_queries": len(results),
+        },
+    )
 
     return BatchQueryResponse(results=list(results))
 
@@ -210,8 +298,17 @@ async def batch_query(
 async def upsert_vectors(
     collection_name: str,
     body: VectorUpsertRequest,
+    request: Request,
     _: dict = Depends(get_current_user),
 ):
+    access_log.set_context(
+        request,
+        action="vectors.upsert",
+        resource_type="collection",
+        resource_id=collection_name,
+        collection_name=collection_name,
+        metadata={"vector_count": len(body.vectors)},
+    )
     await get_collection_or_404(collection_name)
     logger.info(f"upsert: collection={collection_name} vectors={len(body.vectors)}")
 
@@ -228,6 +325,7 @@ async def upsert_vectors(
         metadata=metadata,
     )
     logger.info(f"upsert: collection={collection_name} upserted={count}")
+    access_log.set_context(request, metadata={"upserted": count})
 
     return {"status": "ok", "upserted": count}
 
@@ -236,19 +334,37 @@ async def upsert_vectors(
 async def delete_vectors(
     collection_name: str,
     body: VectorDeleteRequest,
+    request: Request,
     _: dict = Depends(get_current_user),
 ):
+    access_log.set_context(
+        request,
+        action="vectors.delete",
+        resource_type="collection",
+        resource_id=collection_name,
+        collection_name=collection_name,
+        metadata={"vector_count": len(body.ids)},
+    )
     await get_collection_or_404(collection_name)
     logger.info(f"vectors/delete: collection={collection_name} ids={len(body.ids)}")
     await vector_store.delete_by_ids(collection_name, body.ids)
+    access_log.set_context(request, metadata={"deleted": len(body.ids)})
     return {"status": "ok", "deleted": len(body.ids)}
 
 
 @router.get("/v1/collections/{collection_name}/analytics", response_model=AnalyticsResponse)
 async def collection_analytics(
     collection_name: str,
+    request: Request,
     _: dict = Depends(get_current_user),
 ):
+    access_log.set_context(
+        request,
+        action="analytics.read",
+        resource_type="collection",
+        resource_id=collection_name,
+        collection_name=collection_name,
+    )
     await get_collection_or_404(collection_name)
 
     from bigrag.services import redis_cache
