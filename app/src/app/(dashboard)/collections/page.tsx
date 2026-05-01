@@ -28,7 +28,7 @@ const CollectionsPage = () => {
   }, [data, q]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <PageHeader
         title="Collections"
         description="A collection groups documents, chunks and vectors with a shared embedding config."
@@ -40,12 +40,14 @@ const CollectionsPage = () => {
         }
       />
 
-      <Input
-        placeholder="Search collections…"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        trailing={<Search className="h-4 w-4" />}
-      />
+      <div className="max-w-md">
+        <Input
+          placeholder="Search collections..."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          trailing={<Search className="h-4 w-4" />}
+        />
+      </div>
 
       {isPending ? (
         <div className="flex justify-center py-12">
@@ -69,25 +71,27 @@ const CollectionsPage = () => {
           }
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
           {items.map((c) => (
             <Link
               key={c.id}
               href={`/collections/${encodeURIComponent(c.name)}`}
-              className="group flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary hover:shadow-sm"
+              className="group overflow-hidden rounded-3xl border border-border bg-card transition-all duration-200 ease-out hover:border-neutral-200 active:scale-95"
             >
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex min-h-16 items-start justify-between gap-3 px-5 pt-5 pb-3">
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-semibold text-sm tracking-tight">{c.name}</div>
-                  <div className="line-clamp-2 text-xs text-muted-foreground">
+                  <div className="truncate text-sm font-semibold tracking-normal">{c.name}</div>
+                  <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
                     {c.description || "—"}
                   </div>
                 </div>
                 <Badge variant="primary">{c.embedding_provider}</Badge>
               </div>
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center justify-between bg-muted px-5 py-3 text-xs">
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <span>{formatNumber(c.document_count)} docs</span>
+                  <span className="font-semibold text-foreground">
+                    {formatNumber(c.document_count)} docs
+                  </span>
                   <span className="opacity-40">·</span>
                   <span>{c.dimension}d</span>
                 </div>

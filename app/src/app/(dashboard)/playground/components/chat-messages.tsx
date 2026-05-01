@@ -46,7 +46,7 @@ const renderInlineCitations = (
           key={`c-${key++}`}
           type="button"
           onClick={() => onCite(n)}
-          className="mx-0.5 inline-flex items-center rounded-sm bg-primary/10 px-1 align-baseline font-mono text-[11px] font-medium text-primary transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="mx-0.5 inline-flex items-center rounded-full bg-primary/10 px-1.5 align-baseline font-mono text-xs font-semibold text-primary transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           aria-label={`Jump to source ${n}`}
         >
           [{n}]
@@ -104,162 +104,159 @@ const Bubble = memo(
     const chunkCount = message.meta?.chunks.length ?? 0;
 
     return (
-      <div className={cn("flex flex-col", isUser ? "items-end" : "items-start")}>
-        {!isUser && message.meta && (
-          <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-            <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/60 px-2.5 py-1">
-              <BookOpen aria-hidden className="size-3 shrink-0" />
-              <span>
-                Retrieved {message.meta.chunks.length} chunks from{" "}
-                <span className="font-medium text-foreground">{message.meta.collection}</span>
-                {message.meta.cached && (
-                  <span className="ml-1.5 rounded-sm bg-success/15 px-1.5 py-0.5 font-medium text-success">
-                    cached
+      <div className={cn("flex flex-col", isUser ? "items-center" : "items-stretch")}>
+        {isUser ? (
+          <div className="max-w-full rounded-full bg-muted px-4 py-2 text-center text-sm font-semibold leading-5 text-foreground sm:max-w-xl">
+            {message.content}
+          </div>
+        ) : (
+          <>
+            {message.meta && (
+              <div className="mb-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/60 px-2.5 py-1">
+                  <BookOpen aria-hidden className="size-3 shrink-0" />
+                  <span>
+                    Retrieved {message.meta.chunks.length} chunks from{" "}
+                    <span className="font-semibold text-foreground">{message.meta.collection}</span>
+                    {message.meta.cached && (
+                      <span className="ml-1.5 rounded-full bg-success/15 px-1.5 py-0.5 font-semibold text-success">
+                        cached
+                      </span>
+                    )}
                   </span>
+                </div>
+                {message.meta.timings && (
+                  <div className="flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/60 px-2.5 py-1 font-mono">
+                    <Zap aria-hidden className="size-3 shrink-0" />
+                    <span>{Math.round(message.meta.timings.total_ms)}ms</span>
+                  </div>
                 )}
-              </span>
-            </div>
-            {message.meta.timings && (
-              <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/60 px-2.5 py-1 font-mono">
-                <Zap aria-hidden className="size-3 shrink-0" />
-                <span>{Math.round(message.meta.timings.total_ms)}ms</span>
               </div>
             )}
-          </div>
-        )}
-        {!isUser &&
-          message.meta?.timings &&
-          (() => {
-            const t = message.meta.timings;
-            const phases = [
-              ["embed", t.embed_ms],
-              ["search", t.search_ms],
-              ["rerank", t.rerank_ms],
-              ["hyde", t.hyde_ms],
-              ["mmr", t.mmr_ms],
-            ] as const;
-            const total = t.total_ms;
-            return (
-              <details className="group mt-0.5 mb-1 text-[11px] text-muted-foreground">
-                <summary className="flex w-fit cursor-pointer items-center gap-1.5 rounded-md transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
-                  <ChevronRight
-                    aria-hidden
-                    className="size-3 transition-transform [details[open]_&]:rotate-90"
-                  />
-                  <span>Per-phase latency</span>
-                </summary>
-                <div className="mt-1.5 w-full max-w-md space-y-1 rounded-md border border-border/60 bg-card px-3 py-2.5">
-                  {phases.map(([name, ms]) => {
-                    const pct = total > 0 ? Math.min(100, (ms / total) * 100) : 0;
-                    const dim = ms < 0.05;
-                    return (
-                      <div
-                        key={name}
-                        className="grid grid-cols-[3.5rem_1fr_3.5rem] items-center gap-2.5"
-                      >
-                        <span className={cn(dim && "opacity-50")}>{name}</span>
-                        <div className="h-1 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full bg-primary/70"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span
-                          className={cn(
-                            "text-right font-mono tabular-nums",
-                            dim ? "text-muted-foreground" : "text-foreground",
-                          )}
-                        >
-                          {ms.toFixed(1)}ms
+            {message.meta?.timings &&
+              (() => {
+                const t = message.meta.timings;
+                const phases = [
+                  ["embed", t.embed_ms],
+                  ["search", t.search_ms],
+                  ["rerank", t.rerank_ms],
+                  ["hyde", t.hyde_ms],
+                  ["mmr", t.mmr_ms],
+                ] as const;
+                const total = t.total_ms;
+                return (
+                  <details className="group mt-0.5 mb-2 text-xs text-muted-foreground">
+                    <summary className="flex w-fit cursor-pointer items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:bg-muted hover:text-foreground">
+                      <ChevronRight
+                        aria-hidden
+                        className="size-3 transition-transform group-open:rotate-90"
+                      />
+                      <span>Per-phase latency</span>
+                    </summary>
+                    <div className="mt-1.5 w-full max-w-md space-y-1 rounded-2xl border border-border bg-card px-3 py-2.5">
+                      {phases.map(([name, ms]) => {
+                        const pct = total > 0 ? Math.min(100, (ms / total) * 100) : 0;
+                        const dim = ms < 0.05;
+                        return (
+                          <div key={name} className="flex items-center gap-2.5">
+                            <span className={cn("w-14", dim && "opacity-50")}>{name}</span>
+                            <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                              <div
+                                className="h-full rounded-full bg-primary/70"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span
+                              className={cn(
+                                "w-14 text-right font-mono tabular-nums",
+                                dim ? "text-muted-foreground" : "text-foreground",
+                              )}
+                            >
+                              {ms.toFixed(1)}ms
+                            </span>
+                          </div>
+                        );
+                      })}
+                      <div className="mt-1.5 flex items-center gap-2.5 border-t border-border/60 pt-1.5">
+                        <span className="w-14 font-semibold text-foreground">total</span>
+                        <span className="flex-1" aria-hidden />
+                        <span className="w-14 text-right font-mono font-semibold tabular-nums text-foreground">
+                          {total.toFixed(1)}ms
                         </span>
                       </div>
+                    </div>
+                  </details>
+                );
+              })()}
+            <div className="whitespace-pre-wrap text-base leading-7 text-foreground">
+              {renderInlineCitations(message.content, chunkCount, jumpToSource)}
+              {isStreaming && (
+                <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-current align-text-bottom" />
+              )}
+            </div>
+            {message.meta && message.meta.chunks.length > 0 && (
+              <details ref={detailsRef} className="mt-4 text-xs">
+                <summary className="w-fit cursor-pointer rounded-full bg-muted px-3 py-1.5 font-semibold text-muted-foreground transition-colors hover:text-foreground">
+                  View sources
+                </summary>
+                <ol className="mt-2 space-y-1.5">
+                  {message.meta.chunks.map((c, i) => {
+                    const n = i + 1;
+                    const filename = c.document_id ? documentMap.get(c.document_id) : undefined;
+                    const docLabel =
+                      filename ?? (c.document_id ? `${c.document_id.slice(0, 8)}...` : null);
+                    const hasCharRange =
+                      typeof c.char_start === "number" && typeof c.char_end === "number";
+                    return (
+                      <li
+                        key={c.id}
+                        ref={(el) => {
+                          if (el) sourceRefs.current.set(n, el);
+                          else sourceRefs.current.delete(n);
+                        }}
+                        className={cn(
+                          "rounded-2xl border bg-card p-3 text-xs leading-snug transition-colors",
+                          highlight === n ? "border-primary bg-primary/5" : "border-border",
+                        )}
+                      >
+                        <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span className="font-mono font-semibold text-foreground">[{n}]</span>
+                          <span className="font-mono">score {c.score.toFixed(3)}</span>
+                          {docLabel && (
+                            <span
+                              className={cn(
+                                "max-w-72 truncate",
+                                filename ? "font-semibold text-foreground" : "font-mono",
+                              )}
+                              title={filename ?? c.document_id ?? undefined}
+                            >
+                              {docLabel}
+                            </span>
+                          )}
+                          {typeof c.chunk_index === "number" && (
+                            <span className="font-mono">#{c.chunk_index}</span>
+                          )}
+                          {typeof c.page_no === "number" && (
+                            <span className="rounded-full bg-muted px-1.5 py-0.5 font-semibold text-foreground">
+                              p. {c.page_no}
+                            </span>
+                          )}
+                          {hasCharRange && (
+                            <span className="font-mono" title="character offsets in source">
+                              {c.char_start}-{c.char_end}
+                            </span>
+                          )}
+                        </div>
+                        <p className="line-clamp-4 whitespace-pre-wrap text-muted-foreground">
+                          {c.text}
+                        </p>
+                      </li>
                     );
                   })}
-                  <div className="mt-1.5 grid grid-cols-[3.5rem_1fr_3.5rem] items-center gap-2.5 border-t border-border/60 pt-1.5">
-                    <span className="font-medium text-foreground">total</span>
-                    <span aria-hidden />
-                    <span className="text-right font-mono font-semibold tabular-nums text-foreground">
-                      {total.toFixed(1)}ms
-                    </span>
-                  </div>
-                </div>
+                </ol>
               </details>
-            );
-          })()}
-        <div
-          className={cn(
-            "max-w-[80%] whitespace-pre-wrap rounded-xl px-4 py-2.5 text-sm leading-relaxed",
-            isUser ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
-          )}
-        >
-          {isUser
-            ? message.content
-            : renderInlineCitations(message.content, chunkCount, jumpToSource)}
-          {isStreaming && (
-            <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-current align-text-bottom" />
-          )}
-        </div>
-        {!isUser && message.meta && message.meta.chunks.length > 0 && (
-          <details ref={detailsRef} className="mt-1 text-xs">
-            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-              View sources
-            </summary>
-            <ol className="mt-2 space-y-1.5">
-              {message.meta.chunks.map((c, i) => {
-                const n = i + 1;
-                const filename = c.document_id ? documentMap.get(c.document_id) : undefined;
-                const docLabel =
-                  filename ?? (c.document_id ? `${c.document_id.slice(0, 8)}…` : null);
-                const hasCharRange =
-                  typeof c.char_start === "number" && typeof c.char_end === "number";
-                return (
-                  <li
-                    key={c.id}
-                    ref={(el) => {
-                      if (el) sourceRefs.current.set(n, el);
-                      else sourceRefs.current.delete(n);
-                    }}
-                    className={cn(
-                      "rounded-md border bg-card p-2 text-xs leading-snug transition-colors",
-                      highlight === n ? "border-primary bg-primary/5" : "border-border",
-                    )}
-                  >
-                    <div className="mb-1 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-                      <span className="font-mono font-semibold text-foreground">[{n}]</span>
-                      <span className="font-mono">score {c.score.toFixed(3)}</span>
-                      {docLabel && (
-                        <span
-                          className={cn(
-                            "max-w-[18rem] truncate",
-                            filename ? "font-medium text-foreground" : "font-mono",
-                          )}
-                          title={filename ?? c.document_id ?? undefined}
-                        >
-                          {docLabel}
-                        </span>
-                      )}
-                      {typeof c.chunk_index === "number" && (
-                        <span className="font-mono">#{c.chunk_index}</span>
-                      )}
-                      {typeof c.page_no === "number" && (
-                        <span className="rounded-sm bg-muted px-1.5 py-0.5 font-medium text-foreground">
-                          p. {c.page_no}
-                        </span>
-                      )}
-                      {hasCharRange && (
-                        <span className="font-mono" title="character offsets in source">
-                          {c.char_start}–{c.char_end}
-                        </span>
-                      )}
-                    </div>
-                    <p className="line-clamp-4 whitespace-pre-wrap text-muted-foreground">
-                      {c.text}
-                    </p>
-                  </li>
-                );
-              })}
-            </ol>
-          </details>
+            )}
+          </>
         )}
       </div>
     );
@@ -283,8 +280,8 @@ export const ChatMessages = ({ messages, isStreaming, documents }: Props) => {
   }, [messages, isStreaming]);
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 pt-24 pb-2 md:px-6">
-      <div className="mx-auto flex max-w-[620px] flex-col gap-4" role="log">
+    <div className="flex-1 overflow-y-auto px-4 pt-10 pb-3 md:px-6">
+      <div className="mx-auto flex max-w-3xl flex-col gap-5" role="log">
         {messages.map((m, i) => (
           <Bubble
             key={m.id}

@@ -14,16 +14,13 @@ interface TabsProps {
 
 export const Tabs = ({ tabs, value, onChange }: TabsProps) => (
   <BaseTabs.Root onValueChange={(v) => onChange(v as string)} value={value}>
-    <BaseTabs.List
-      activateOnFocus
-      className="relative mb-6 flex gap-1 overflow-x-auto border-b border-border"
-    >
+    <BaseTabs.List activateOnFocus className="relative mb-6 flex gap-1.5 overflow-x-auto">
       {tabs.map((tab) => (
         <BaseTabs.Tab
           className={cn(
             "relative z-0 flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-t-md px-4 py-2 text-sm font-medium transition-colors",
-            "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-            "data-[selected]:bg-accent data-[selected]:text-foreground",
+            "rounded-full text-muted-foreground hover:bg-muted hover:text-foreground",
+            "data-[active]:bg-primary data-[active]:text-primary-foreground data-[active]:shadow-sm",
           )}
           key={tab.value}
           value={tab.value}
@@ -34,7 +31,7 @@ export const Tabs = ({ tabs, value, onChange }: TabsProps) => (
               className={cn(
                 "rounded-full px-1.5 py-0.5 text-xs",
                 value === tab.value
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-primary-foreground/15 text-primary-foreground"
                   : "bg-muted text-muted-foreground",
               )}
             >
@@ -43,7 +40,7 @@ export const Tabs = ({ tabs, value, onChange }: TabsProps) => (
           )}
         </BaseTabs.Tab>
       ))}
-      <BaseTabs.Indicator className="absolute -bottom-px left-[var(--active-tab-left)] h-0.5 w-[var(--active-tab-width)] rounded-full bg-primary transition-[left,width] duration-300 ease-[cubic-bezier(0.65,0,0.35,1)]" />
+      <BaseTabs.Indicator className="hidden" />
     </BaseTabs.List>
   </BaseTabs.Root>
 );
@@ -51,15 +48,15 @@ export const Tabs = ({ tabs, value, onChange }: TabsProps) => (
 type LinkTab = { href: string; label: string; active: boolean; count?: number };
 
 export const LinkTabs = ({ tabs, className }: { tabs: LinkTab[]; className?: string }) => (
-  <div className={cn("mb-6 flex gap-1 overflow-x-auto border-b border-border", className)}>
+  <div className={cn("mb-6 flex gap-1.5 overflow-x-auto", className)}>
     {tabs.map((t) => (
       <Link
         key={t.href}
         href={t.href}
         className={cn(
           "relative z-0 flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-md px-4 py-2 text-sm font-medium transition-colors",
-          "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-          t.active && "bg-accent text-foreground",
+          "rounded-full text-muted-foreground hover:bg-muted hover:text-foreground",
+          t.active && "border border-border bg-background text-foreground",
         )}
       >
         {t.label}
@@ -72,9 +69,6 @@ export const LinkTabs = ({ tabs, className }: { tabs: LinkTab[]; className?: str
           >
             {t.count}
           </span>
-        )}
-        {t.active && (
-          <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" />
         )}
       </Link>
     ))}

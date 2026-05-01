@@ -40,7 +40,7 @@ export const ConfirmDialog = ({
             <AlertDialog.Backdrop
               render={
                 <motion.div
-                  className="fixed inset-0 z-50 bg-black/50"
+                  className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm"
                   {...backdropMotion(isReduced)}
                 />
               }
@@ -48,7 +48,7 @@ export const ConfirmDialog = ({
             <AlertDialog.Popup
               render={
                 <motion.div
-                  className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-background shadow-xl"
+                  className="fixed inset-x-4 top-1/2 z-50 max-w-sm -translate-y-1/2 rounded-3xl border border-border bg-background sm:left-1/2 sm:right-auto sm:w-full sm:-translate-x-1/2"
                   {...popupMotion(isReduced)}
                 />
               }
@@ -59,7 +59,7 @@ export const ConfirmDialog = ({
                   {description}
                 </AlertDialog.Description>
               </div>
-              <div className="flex justify-end gap-2 border-t border-border px-6 py-4">
+              <div className="flex justify-end gap-2 border-t border-border bg-muted/45 px-6 py-4">
                 <AlertDialog.Close
                   disabled={loading}
                   render={<Button variant="secondary">Cancel</Button>}

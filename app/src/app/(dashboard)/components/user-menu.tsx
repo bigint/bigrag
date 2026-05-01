@@ -56,7 +56,7 @@ export const UserMenu = ({ compact = false }: { compact?: boolean }) => {
           sideOffset={compact ? 10 : 6}
           className="z-50"
         >
-          <Menu.Popup className="min-w-[200px] rounded-md border border-border bg-popover p-1 text-sm shadow-md focus:outline-none">
+          <Menu.Popup className="min-w-52 rounded-md border border-border bg-popover p-1 text-sm focus:outline-none">
             <Menu.Item
               onClick={onSignOut}
               className={cn(

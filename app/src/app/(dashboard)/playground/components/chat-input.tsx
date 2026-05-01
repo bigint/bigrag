@@ -2,10 +2,14 @@
 
 import {
   ArrowUp,
+  BookOpen,
+  Check,
   ChevronDown,
   KeyRound,
+  type LucideIcon,
   Plus,
-  type Settings2,
+  SlidersHorizontal,
+  Sparkles,
   Square,
   Thermometer,
 } from "lucide-react";
@@ -92,12 +96,12 @@ export const ChatInput = ({
   const keyIsSet = state.openaiKey.length > 8;
 
   return (
-    <div className="px-4 pt-2 pb-4 md:px-6">
-      <div className="mx-auto max-w-[620px] rounded-[22px] border border-border bg-background shadow-[0_18px_60px_rgba(0,0,0,0.08)] transition-[border-color,box-shadow] focus-within:border-neutral-200 focus-within:shadow-[0_20px_70px_rgba(0,0,0,0.1)]">
+    <div className="px-4 pt-2 pb-5 md:px-6">
+      <div className="mx-auto max-w-3xl rounded-3xl border border-border bg-background transition-all duration-300 ease-out focus-within:border-neutral-200">
         <textarea
           ref={textareaRef}
           aria-label="Message input"
-          className="min-h-12 w-full resize-none bg-transparent px-4 pt-4 pb-2 text-[13px] placeholder:text-muted-foreground focus-visible:outline-none"
+          className="min-h-16 w-full resize-none bg-transparent px-5 pt-5 pb-2 text-base leading-6 placeholder:text-neutral-300 focus-visible:outline-none md:min-h-20 md:pb-3"
           disabled={isStreaming}
           onChange={(e) => {
             setValue(e.target.value);
@@ -107,7 +111,7 @@ export const ChatInput = ({
           placeholder={
             keyIsSet
               ? collection
-                ? "Ask a question of your collection…"
+                ? "Ask bigRAG a followup..."
                 : "Pick a collection below to start"
               : "Add your OpenAI API key to start"
           }
@@ -116,12 +120,12 @@ export const ChatInput = ({
           value={value}
         />
 
-        <div className="flex items-end justify-between gap-2 px-3 pb-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-1">
+        <div className="flex items-end justify-between gap-2 px-3 pb-3 md:px-4 md:pb-4">
+          <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto">
             <button
               type="button"
               aria-label="Input options"
-              className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => toggle(keyIsSet ? "collection" : "key")}
             >
               <Plus className="size-4" />
@@ -138,8 +142,8 @@ export const ChatInput = ({
                 <Dropdown onClose={() => setOpen(null)}>
                   <div className="w-80 space-y-3 p-3">
                     <div>
-                      <div className="text-xs font-medium">OpenAI API key</div>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      <div className="text-xs font-semibold">OpenAI API key</div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
                         Saved on the server so it follows you across devices. Only used to call
                         api.openai.com from your browser.
                       </p>
@@ -147,14 +151,14 @@ export const ChatInput = ({
                     <input
                       aria-label="OpenAI API key"
                       autoComplete="off"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="h-10 w-full rounded-full border border-input bg-background px-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       onChange={(e) => setKeyDraft(e.target.value)}
                       placeholder="sk-..."
                       type="password"
                       value={keyDraft}
                     />
                     <div className="flex items-center justify-between gap-1.5">
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {saving ? "Saving…" : keyIsSet ? "Saved" : ""}
                       </span>
                       <div className="flex gap-1.5">
@@ -213,7 +217,7 @@ export const ChatInput = ({
 
             <div className="relative">
               <Button
-                className="h-7 rounded-full px-2.5 py-1 text-[11px]"
+                className="h-8 px-3 text-xs"
                 onClick={() => toggle("settings")}
                 variant="ghost"
               >
@@ -224,10 +228,10 @@ export const ChatInput = ({
               </Button>
               {open === "settings" && (
                 <Dropdown onClose={() => setOpen(null)}>
-                  <div className="w-64 space-y-3 p-3">
+                  <div className="w-72 space-y-4 p-4">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium">Temperature</span>
+                        <span className="text-xs font-semibold">Temperature</span>
                         <span className="font-mono text-xs text-muted-foreground">
                           {state.temperature.toFixed(1)}
                         </span>
@@ -248,7 +252,7 @@ export const ChatInput = ({
 
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium">Top K chunks</span>
+                        <span className="text-xs font-semibold">Top K chunks</span>
                         <span className="font-mono text-xs text-muted-foreground">
                           {state.topK}
                         </span>
@@ -266,16 +270,16 @@ export const ChatInput = ({
                     </div>
 
                     <div className="space-y-1.5">
-                      <span className="text-xs font-medium">System prompt</span>
+                      <span className="text-xs font-semibold">System prompt</span>
                       <textarea
                         aria-label="System prompt"
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="w-full rounded-2xl border border-input bg-background px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         onChange={(e) => onPatch({ systemPrompt: e.target.value })}
                         rows={4}
                         value={state.systemPrompt}
                       />
                     </div>
-                    {saving && <div className="text-[11px] text-muted-foreground">Saving…</div>}
+                    {saving && <div className="text-xs text-muted-foreground">Saving…</div>}
                   </div>
                 </Dropdown>
               )}
@@ -285,7 +289,7 @@ export const ChatInput = ({
           {isStreaming ? (
             <Button
               aria-label="Stop"
-              className="size-8 shrink-0 rounded-full p-0"
+              className="size-9 shrink-0 p-0"
               onClick={onStop}
               variant="ghost"
             >
@@ -294,7 +298,7 @@ export const ChatInput = ({
           ) : (
             <Button
               aria-label="Send message"
-              className="size-8 shrink-0 rounded-full bg-neutral-400 p-0 text-white hover:bg-neutral-500"
+              className="size-9 shrink-0 bg-neutral-400 p-0 text-white hover:bg-neutral-500 disabled:bg-neutral-300"
               disabled={disabled || !value.trim()}
               onClick={handleSend}
             >
@@ -314,7 +318,7 @@ const PopoverButton = ({
   active,
   missing,
 }: {
-  icon: typeof Settings2;
+  icon: LucideIcon;
   label: string;
   onClick: () => void;
   active: boolean;
@@ -322,7 +326,7 @@ const PopoverButton = ({
 }) => (
   <Button
     className={cn(
-      "h-7 rounded-full px-2.5 py-1 text-[11px]",
+      "h-8 px-3 text-xs",
       active && "bg-accent text-accent-foreground",
       missing && "text-destructive",
     )}
@@ -350,31 +354,37 @@ const ModelMenu = ({
   onClose: () => void;
 }) => (
   <div className="relative">
-    <Button
-      className="h-7 rounded-full px-2.5 py-1 text-[11px] font-medium"
-      onClick={onToggle}
-      variant="ghost"
-    >
+    <Button className="h-8 px-3 text-xs font-semibold" onClick={onToggle} variant="ghost">
+      <Sparkles className="size-3.5 text-warning" />
       {selectedLabel}
       <ChevronDown className="size-3" />
     </Button>
     {open && (
-      <Dropdown onClose={onClose}>
-        <div className="w-52 py-1">
+      <Dropdown align="right" onClose={onClose}>
+        <div className="w-72 p-1.5">
           {OPENAI_MODELS.map((m) => (
             <button
               type="button"
               key={m.value}
               onClick={() => onChange(m.value)}
               className={cn(
-                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-accent",
-                m.value === value && "font-medium text-foreground",
+                "flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-left text-sm transition-colors hover:bg-accent",
+                m.value === value && "bg-accent font-semibold text-foreground",
               )}
             >
+              <Sparkles className="size-4 shrink-0 text-warning" />
               <span className="flex-1 truncate">{m.label}</span>
-              <span className="font-mono text-[10px] text-muted-foreground">{m.value}</span>
+              {m.value === value && <Check className="size-4" />}
             </button>
           ))}
+          <div className="my-1 h-px bg-border" />
+          <button
+            type="button"
+            className="flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-left text-sm transition-colors hover:bg-accent"
+          >
+            <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" />
+            <span className="flex-1 truncate">Configure</span>
+          </button>
         </div>
       </Dropdown>
     )}
@@ -398,19 +408,17 @@ const CollectionMenu = ({
 }) => (
   <div className="relative">
     <Button
-      className={cn(
-        "h-7 rounded-full px-2.5 py-1 text-[11px] font-medium",
-        !value && "text-destructive",
-      )}
+      className={cn("h-8 px-3 text-xs font-semibold", !value && "text-destructive")}
       onClick={onToggle}
       variant="ghost"
     >
-      {value || "Pick collection"}
+      <BookOpen className="size-3.5" />
+      {value || "Choose collection"}
       <ChevronDown className="size-3" />
     </Button>
     {open && (
       <Dropdown onClose={onClose}>
-        <div className="max-h-60 w-56 overflow-y-auto py-1">
+        <div className="max-h-64 w-64 overflow-y-auto p-1.5">
           {collections.length === 0 && (
             <p className="px-3 py-2 text-xs text-muted-foreground">No collections yet</p>
           )}
@@ -420,14 +428,13 @@ const CollectionMenu = ({
               key={c.id}
               onClick={() => onChange(c.name)}
               className={cn(
-                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-accent",
-                c.name === value && "font-medium text-foreground",
+                "flex h-10 w-full items-center gap-2 rounded-2xl px-3 text-left text-xs transition-colors hover:bg-accent",
+                c.name === value && "bg-accent font-semibold text-foreground",
               )}
             >
               <span className="flex-1 truncate">{c.name}</span>
-              <span className="font-mono text-[10px] text-muted-foreground">
-                {c.document_count}
-              </span>
+              <span className="font-mono text-xs text-muted-foreground">{c.document_count}</span>
+              {c.name === value && <Check className="size-3.5" />}
             </button>
           ))}
         </div>
@@ -436,10 +443,23 @@ const CollectionMenu = ({
   </div>
 );
 
-const Dropdown = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => (
+const Dropdown = ({
+  align = "left",
+  children,
+  onClose,
+}: {
+  align?: "left" | "right";
+  children: React.ReactNode;
+  onClose: () => void;
+}) => (
   <>
     <div aria-hidden="true" className="fixed inset-0 z-40" onClick={onClose} />
-    <div className="absolute bottom-full left-0 z-50 mb-1 rounded-lg border border-border bg-popover shadow-md">
+    <div
+      className={cn(
+        "absolute bottom-full z-50 mb-2 rounded-3xl border border-border bg-popover",
+        align === "right" ? "right-0" : "left-0",
+      )}
+    >
       {children}
     </div>
   </>

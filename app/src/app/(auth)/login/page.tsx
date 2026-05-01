@@ -34,7 +34,7 @@ const LoginPage = () => {
 
   if (isError) {
     return (
-      <div className="w-full max-w-sm rounded-xl border border-destructive/40 bg-card p-6 shadow-md">
+      <div className="w-full max-w-sm rounded-xl border border-destructive/40 bg-card p-6">
         <h1 className="font-semibold text-base">Can't reach bigRAG</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {error instanceof Error ? error.message : "Unknown error"}
@@ -65,7 +65,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-md">
+    <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6">
       <div className="mb-5 flex flex-col gap-1">
         <h1 className="font-semibold text-lg tracking-tight">Sign in</h1>
         <p className="text-sm text-muted-foreground">

@@ -37,7 +37,7 @@ export const Modal = ({ open, onClose, title, children, footer, size = "md" }: M
             <Dialog.Backdrop
               render={
                 <motion.div
-                  className="fixed inset-0 z-50 bg-black/50"
+                  className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm"
                   {...backdropMotion(isReduced)}
                 />
               }
@@ -46,18 +46,18 @@ export const Modal = ({ open, onClose, title, children, footer, size = "md" }: M
               render={
                 <motion.div
                   className={cn(
-                    "fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-h-[calc(100vh-4rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-background shadow-xl",
+                    "fixed inset-x-4 top-1/2 z-50 max-h-dvh -translate-y-1/2 overflow-y-auto rounded-3xl border border-border bg-background sm:left-1/2 sm:right-auto sm:w-full sm:-translate-x-1/2",
                     sizeMap[size],
                   )}
                   {...popupMotion(isReduced)}
                 />
               }
             >
-              <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <div className="flex items-center justify-between px-6 pt-5 pb-3">
                 <Dialog.Title className="text-base font-semibold">{title}</Dialog.Title>
                 <Dialog.Close
                   aria-label="Close"
-                  className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                  className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   <svg
                     aria-hidden="true"
@@ -72,9 +72,9 @@ export const Modal = ({ open, onClose, title, children, footer, size = "md" }: M
                   </svg>
                 </Dialog.Close>
               </div>
-              <div className="px-6 py-5">{children}</div>
+              <div className="px-6 pb-5">{children}</div>
               {footer && (
-                <div className="flex justify-end gap-2 border-t border-border px-6 py-4">
+                <div className="flex justify-end gap-2 border-t border-border bg-muted/45 px-6 py-4">
                   {footer}
                 </div>
               )}

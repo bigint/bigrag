@@ -21,7 +21,7 @@ export const Textarea = ({
 }: TextareaProps & { ref?: Ref<HTMLTextAreaElement> }) => (
   <Field.Root invalid={!!error} className="w-full">
     {label && (
-      <Field.Label className="mb-1.5 block text-sm font-medium" htmlFor={id}>
+      <Field.Label className="mb-1.5 block text-sm font-semibold" htmlFor={id}>
         {label}
       </Field.Label>
     )}
@@ -29,7 +29,7 @@ export const Textarea = ({
       id={id}
       ref={ref}
       className={cn(
-        "w-full min-h-[80px] resize-y rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors",
+        "min-h-24 w-full resize-y rounded-2xl border border-input bg-background px-4 py-3 text-sm transition-all",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         error && "border-destructive focus-visible:ring-destructive",
         className,

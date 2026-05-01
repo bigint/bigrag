@@ -18,7 +18,7 @@ export const Tooltip = ({ content, children, side = "top", align = "center" }: T
         <BaseTooltip.Trigger render={children as React.JSX.Element} />
         <BaseTooltip.Portal>
           <BaseTooltip.Positioner align={align} side={side} sideOffset={6}>
-            <BaseTooltip.Popup className="rounded-md bg-foreground px-2.5 py-1.5 text-xs text-background shadow-md">
+            <BaseTooltip.Popup className="rounded-md bg-foreground px-2.5 py-1.5 text-xs text-background">
               {content}
             </BaseTooltip.Popup>
           </BaseTooltip.Positioner>

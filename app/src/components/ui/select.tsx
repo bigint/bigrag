@@ -23,7 +23,7 @@ interface SelectProps {
 }
 
 const TRIGGER_CLASS =
-  "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+  "flex h-10 w-full items-center justify-between gap-2 rounded-full border border-input bg-background px-4 text-left text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 const ChevronIcon = () => (
   <svg
@@ -66,7 +66,7 @@ export const Select = ({
 }: SelectProps) => (
   <div className={cn("flex flex-col gap-1", className)}>
     {label && (
-      <label className="text-sm font-medium" id={id ? `${id}-label` : undefined} htmlFor={id}>
+      <label className="text-sm font-semibold" id={id ? `${id}-label` : undefined} htmlFor={id}>
         {label}
       </label>
     )}
@@ -97,15 +97,15 @@ export const Select = ({
         </BaseSelect.Icon>
       </BaseSelect.Trigger>
       <BaseSelect.Portal>
-        <BaseSelect.Positioner alignItemWithTrigger={false} className="z-[100]" sideOffset={4}>
+        <BaseSelect.Positioner alignItemWithTrigger={false} className="z-50" sideOffset={4}>
           <BaseSelect.Popup
-            className="max-h-60 overflow-y-auto rounded-md border border-border bg-popover py-1 shadow-lg"
+            className="max-h-60 overflow-y-auto rounded-3xl border border-border bg-popover p-1.5"
             style={{ width: "var(--anchor-width)" }}
           >
             <BaseSelect.List>
               {options.map((option) => (
                 <BaseSelect.Item
-                  className="flex w-full cursor-default select-none items-center gap-2 px-3 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
+                  className="flex w-full cursor-default select-none items-center gap-2 rounded-xl px-3 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
                   key={option.value}
                   value={option.value}
                 >

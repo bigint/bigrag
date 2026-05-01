@@ -69,7 +69,7 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
                 className={cn(
                   "flex h-8 items-center gap-2.5 rounded-full px-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active
-                    ? "bg-background text-foreground shadow-xs"
+                    ? "bg-background text-foreground"
                     : "text-muted-foreground hover:bg-background hover:text-foreground",
                 )}
               >
@@ -89,8 +89,8 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
 };
 
 export const Sidebar = ({ role }: { role: string }) => (
-  <aside className="hidden h-full w-60 shrink-0 overflow-hidden rounded-[24px] border-2 border-border bg-background p-0.5 lg:flex">
-    <div className="flex size-full flex-col overflow-hidden rounded-[20px] bg-muted">
+  <aside className="hidden h-full w-60 shrink-0 overflow-hidden rounded-3xl border-2 border-border bg-background p-0.5 lg:flex">
+    <div className="flex size-full flex-col overflow-hidden rounded-2xl bg-muted">
       <SidebarBody role={role} />
     </div>
   </aside>
@@ -130,7 +130,7 @@ export const MobileSidebar = ({
             <Dialog.Popup
               render={
                 <motion.div
-                  className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-border bg-background shadow-xl lg:hidden"
+                  className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-sm flex-col border-r border-border bg-background lg:hidden"
                   initial={isReduced ? { x: 0 } : { x: "-100%" }}
                   animate={{ x: 0 }}
                   exit={isReduced ? { opacity: 0 } : { x: "-100%" }}
