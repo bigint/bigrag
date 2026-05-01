@@ -9,7 +9,6 @@ use crate::types::common::StatusResponse;
 use crate::types::documents::{
     BatchDeleteDocumentsResponse, BatchGetDocumentsResponse, BatchStatusResponse, Document,
     DocumentChunkListResponse, DocumentChunkOptions, DocumentListOptions, DocumentListResponse,
-    S3IngestBody, S3IngestResponse, S3Job, S3JobListResponse, UpdateS3JobBody,
 };
 
 /// Documents resource — upload, manage, and retrieve documents.
@@ -213,78 +212,6 @@ impl Documents<'_> {
             "document_ids": document_ids,
         });
         self.client.transport.post(&path, &body).await
-    }
-
-    /// Start S3 ingestion for a collection.
-    pub async fn ingest_s3(
-        &self,
-        collection: &str,
-        body: S3IngestBody,
-    ) -> Result<S3IngestResponse, BigRagError> {
-        let path = format!("/v1/collections/{}/documents/s3", urlencode(collection));
-        self.client.transport.post(&path, &body).await
-    }
-
-    /// List S3 ingestion jobs for a collection.
-    pub async fn list_s3_jobs(&self, collection: &str) -> Result<S3JobListResponse, BigRagError> {
-        let path = format!("/v1/collections/{}/s3-jobs", urlencode(collection));
-        self.client.transport.get(&path, vec![]).await
-    }
-
-    /// Get an S3 ingestion job.
-    pub async fn get_s3_job(&self, collection: &str, job_id: &str) -> Result<S3Job, BigRagError> {
-        let path = format!(
-            "/v1/collections/{}/s3-jobs/{}",
-            urlencode(collection),
-            urlencode(job_id)
-        );
-        self.client.transport.get(&path, vec![]).await
-    }
-
-    /// Update an S3 ingestion job.
-    pub async fn update_s3_job(
-        &self,
-        collection: &str,
-        job_id: &str,
-        body: UpdateS3JobBody,
-    ) -> Result<S3Job, BigRagError> {
-        let path = format!(
-            "/v1/collections/{}/s3-jobs/{}",
-            urlencode(collection),
-            urlencode(job_id)
-        );
-        self.client.transport.patch(&path, &body).await
-    }
-
-    /// Delete an S3 ingestion job.
-    pub async fn delete_s3_job(
-        &self,
-        collection: &str,
-        job_id: &str,
-    ) -> Result<StatusResponse, BigRagError> {
-        let path = format!(
-            "/v1/collections/{}/s3-jobs/{}",
-            urlencode(collection),
-            urlencode(job_id)
-        );
-        self.client.transport.delete(&path).await
-    }
-
-    /// Re-sync an S3 ingestion job.
-    pub async fn resync_s3_job(
-        &self,
-        collection: &str,
-        job_id: &str,
-    ) -> Result<StatusResponse, BigRagError> {
-        let path = format!(
-            "/v1/collections/{}/s3-jobs/{}/resync",
-            urlencode(collection),
-            urlencode(job_id)
-        );
-        self.client
-            .transport
-            .post(&path, &serde_json::Value::Null)
-            .await
     }
 
     /// Get a document by ID (global, no collection scope).

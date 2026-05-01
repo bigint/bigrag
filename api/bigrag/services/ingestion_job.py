@@ -20,6 +20,8 @@ class IngestionJob:
     chunk_strategy: str = "paragraph"
     tenant_field: str | None = None
     embedding_base_url: str | None = None
+    collection_epoch: int = 0
+    document_epoch: int = 0
     attempt: int = 0
     max_attempts: int = 3
     job_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
@@ -35,6 +37,8 @@ class IngestionJob:
                 "embedding_dimension": self.embedding_dimension,
                 "embedding_api_key": self.embedding_api_key,
                 "embedding_base_url": self.embedding_base_url,
+                "collection_epoch": self.collection_epoch,
+                "document_epoch": self.document_epoch,
                 "chunk_size": self.chunk_size,
                 "chunk_overlap": self.chunk_overlap,
                 "chunk_strategy": self.chunk_strategy,

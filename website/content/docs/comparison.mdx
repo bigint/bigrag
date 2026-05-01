@@ -20,7 +20,7 @@ There are many ways to build a RAG pipeline. This page compares bigRAG to popula
 | **Webhooks** | Yes | Partial | No | No | No | No | No | No | No |
 | **TypeScript SDK** | Yes | Yes | No | No | No | No | Yes | Yes | Yes |
 | **Python SDK** | Yes | Yes | No | No | No | Yes | Yes | Yes | Yes |
-| **Web UI** | Yes (Studio) | Yes | Yes | Yes | Yes | No | No | No | Yes |
+| **Web UI** | Yes (admin UI) | Yes | Yes | Yes | Yes | No | No | No | Yes |
 | **LLM generation** | No | Yes | Yes | Yes | Yes | Via code | Via code | Via code | Yes |
 | **Vector DB** | Qdrant | OpenSearch | Elasticsearch | 9 options | Qdrant or pgvector | Integrations | Integrations | Integrations | Proprietary |
 | **Multi-collection** | Yes | No | Yes | Yes | No | N/A | N/A | N/A | Yes |
@@ -37,7 +37,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 **Where OpenRAG shines:**
 - Full-stack platform with web UI, chat interface, and visual workflow builder (Langflow)
 - Built-in LLM generation with OpenAI, Anthropic, Ollama, and watsonx support
-- Cloud storage connectors (Google Drive, SharePoint, OneDrive, S3, IBM COS)
+- Cloud storage connectors (Google Drive, SharePoint, OneDrive, IBM COS)
 - MCP server for AI coding assistant integration (Claude Desktop, Cursor)
 - OAuth/OIDC authentication with per-user document ownership
 - Single-command install via `uvx openrag`
@@ -53,7 +53,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 - Robust Redis-based queue with dead letter handling and job recovery
 - Native Cohere reranking with per-collection and per-query configuration
 
-**Choose OpenRAG** if you need an end-to-end platform with chat UI, backend LLM generation, and OAuth cloud connectors for non-technical users. **Choose bigRAG** if you need an API-first retrieval platform with optional Studio administration, multi-collection support, batch operations, and webhook-driven workflows.
+**Choose OpenRAG** if you need an end-to-end platform with chat UI, backend LLM generation, and OAuth cloud connectors for non-technical users. **Choose bigRAG** if you need an API-first retrieval platform with optional admin operations, multi-collection support, batch operations, and webhook-driven workflows.
 
 <Callout type="info">
   For a comprehensive feature-by-feature gap analysis, see [OpenRAG Gap Analysis](/docs/openrag-gap-analysis).
@@ -67,7 +67,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 - Built-in web UI for managing knowledge bases and testing queries
 - Multiple parser options (deepdoc, Docling, MinerU) with visual chunk editing
 - Agent and workflow orchestration
-- Data sync from Confluence, S3, Notion, Google Drive
+- Data sync from Confluence, Notion, Google Drive, and cloud storage
 
 **Where bigRAG is a better fit:**
 - Lighter footprint — RAGFlow requires 4+ cores and 16 GB RAM minimum
@@ -90,7 +90,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 - Multi-user support with permissions
 
 **Where bigRAG is a better fit:**
-- Purpose-built as an API-first retrieval service with optional Studio administration, not a chat app
+- Purpose-built as an API-first retrieval service with optional admin operations, not a chat app
 - Docling-based parsing handles complex documents (scanned PDFs, PPTX, XLSX) better
 - Webhook notifications for processing events
 - Designed for programmatic access and backend integration

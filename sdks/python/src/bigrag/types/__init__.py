@@ -76,13 +76,6 @@ from bigrag.types.query import (
     QueryResult,
     QueryTimings,
 )
-from bigrag.types.s3 import (
-    S3IngestBody,
-    S3IngestResponse,
-    S3Job,
-    S3JobListResponse,
-    UpdateS3JobBody,
-)
 from bigrag.types.sse import ProgressEvent
 from bigrag.types.usage import CollectionUsage, UsageResponse
 from bigrag.types.vectors import DeleteResponse, UpsertResponse, VectorEntry
@@ -190,12 +183,6 @@ __all__ = [
     # Usage
     "CollectionUsage",
     "UsageResponse",
-    # S3
-    "S3IngestBody",
-    "S3IngestResponse",
-    "S3Job",
-    "S3JobListResponse",
-    "UpdateS3JobBody",
     # SSE
     "ProgressEvent",
 ]

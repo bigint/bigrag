@@ -1,11 +1,11 @@
 ---
 title: Playground
-description: Session-only Studio playground generation endpoint.
+description: Session-only playground generation endpoint for the admin UI.
 ---
 
 Base path: `/v1/playground`
 
-Session-only. Studio uses this endpoint to stream generated answers without exposing the saved OpenAI key to the browser. Save or replace the key through `/v1/auth/preferences` using `playground.openai_key`; preference responses only return `playground.has_openai_key`.
+Session-only. The admin UI uses this endpoint to stream generated answers without exposing the saved OpenAI key to the browser. Save or replace the key through `/v1/auth/preferences` using `playground.openai_key`; preference responses only return `playground.has_openai_key`.
 
 ## Stream Chat
 

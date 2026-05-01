@@ -168,7 +168,7 @@ const CreateDialog = ({ open, onClose, onCreated, collections }: CreateDialogPro
       <form className="space-y-4" onSubmit={submit}>
         <Input
           autoFocus
-          description="Shown in Studio; also the suggested Name in Claude."
+          description="Shown in the admin UI; also the suggested Name in Claude."
           label="Title"
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Product docs"

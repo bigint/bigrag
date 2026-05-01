@@ -1,7 +1,7 @@
 # bigRAG — Code Review & Fix Tracker
 
 A consolidated list of issues found across the codebase by parallel review agents
-(ingestion + retrieval, routers/auth/middleware, data layer/MCP/bootstrap, Studio
+(ingestion + retrieval, routers/auth/middleware, data layer/MCP/bootstrap, admin UI
 Next.js app, all three SDKs, and docs/website/infra), plus the earlier hand
 review.
 
@@ -29,7 +29,7 @@ pool" claim — that thread has no running loop).
    - [Repo / build is currently broken](#c-repo--build-is-currently-broken)
 3. [High-priority bugs](#high-priority-bugs)
    - [Auth/scope correctness](#auth--scope-correctness)
-   - [Studio app](#studio-app)
+   - [admin UI app](#admin-ui-app)
    - [Pipeline / retrieval](#pipeline--retrieval)
    - [Backend infra](#backend-infra)
 4. [Medium-priority issues](#medium-priority-issues)
@@ -62,29 +62,6 @@ Severity badges:
 ## Top priority — fix first
 
 ### A. Critical security holes
-
-#### `[x]` I-001 🔴 SSRF via `S3IngestRequest.endpoint_url`
-
-**Files:** `api/bigrag/models/s3.py` (lines 9–17), `api/bigrag/routers/documents.py:780`
-
-`endpoint_url` is a free-form `str | None` with **zero validation** in the
-Pydantic model. An authenticated API-key holder with the `document:upload` scope
-(not even admin) can point it at:
-
-- `http://169.254.169.254/latest/meta-data/` (EC2 IMDS — credential theft)
-- internal cluster services (Postgres, Redis, internal HTTP APIs)
-- the loopback API itself
-
-The webhook model has a sibling guard (`resolve_and_validate_url`) that already
-implements the right check. S3 ingest does not.
-
-**Fix:**
-- Apply `resolve_and_validate_url` to `endpoint_url` in `S3IngestRequest`
-  (Pydantic `model_validator`).
-- Force `https://` only (or http only for explicit localhost).
-- Validate at delivery time too (DNS rebinding — see I-004).
-
----
 
 #### `[x]` I-002 🔴 Idempotency key not scoped to the principal
 
@@ -154,7 +131,7 @@ The full key `bigrag_sk_…` appears in:
 - browser history
 - HTTP `Referer` headers on outbound links
 - exception bodies that include the request URL
-- the **Studio MCP page** rendering the URL into the DOM
+- the **admin UI MCP page** rendering the URL into the DOM
   (`app/src/app/(dashboard)/mcp/page.tsx:62-63,256`)
 
 The codebase already accepts the key as `Authorization: Bearer …`. The query
@@ -164,7 +141,7 @@ param is justified only for SSE/EventSource paths.
 - Restrict query-param auth to a small allowlist of `*/events` and
   `*/progress` SSE endpoints.
 - Document the trade-off in `concepts/security.mdx`.
-- In Studio, render the token inside an `<input type="password" readonly>` so
+- In the admin UI, render the token inside an `<input type="password" readonly>` so
   it's not in the rendered text node tree, and clear `credential` state on a
   timer (see I-035).
 
@@ -255,7 +232,7 @@ Or use RFC 5987 encoding: `filename*=UTF-8''<percent-encoded>`.
 
 ---
 
-#### `[x]` I-010 🔴 Open redirect via Studio proxy
+#### `[x]` I-010 🔴 Open redirect via the admin UI proxy
 
 **File:** `app/src/app/api/bigrag/[...path]/route.ts:40,68`
 
@@ -273,7 +250,7 @@ switch to `redirect: "follow"` and strip `Location` from the response headers.
 
 ---
 
-#### `[x]` I-011 🔴 No CSRF protection on the Studio proxy
+#### `[x]` I-011 🔴 No CSRF protection on the admin UI proxy
 
 **Files:** `app/src/app/api/bigrag/[...path]/route.ts`, `app/src/lib/api.ts:5`
 
@@ -286,7 +263,7 @@ proxy faithfully forwards.
 
 **Fix:**
 - Reject mutating methods unless `Origin` matches `Host` (or the configured
-  Studio origin).
+  admin UI origin).
 - Add a synchronizer-token / double-submit cookie pair if forms are ever
   submitted via plain `<form>`.
 
@@ -299,7 +276,7 @@ proxy faithfully forwards.
 
 The playground stream now posts to the bigRAG backend at
 `/v1/playground/chat`. The backend reads the saved per-user OpenAI key from
-`user_preferences` and streams SSE deltas back to Studio. Preference responses
+`user_preferences` and streams SSE deltas back to the admin UI. Preference responses
 redact the key and return only `has_openai_key`, so the saved secret is no
 longer hydrated into React state or TanStack Query cache.
 
@@ -368,19 +345,6 @@ The worker increments `document_count` whenever a job ends in `status=ready`.
   `idx_documents_collection_id` index makes this cheap).
 - Mark partial-success docs with `error_message="Partial: N/M chunks
   embedded"` so operators can find them.
-
----
-
-#### `[x]` I-016 🔴 S3 ingest counters get lost-update across coroutines
-
-**File:** `api/bigrag/services/s3_ingest.py:217-218,303,331,248-249,268-269`
-
-`_download_and_ingest` is dispatched via `asyncio.gather`. Each coroutine reads
-`ingested` / `skipped` (via `nonlocal`) before its `await` and writes back
-after. Two concurrent coroutines reading the same value → lost increment.
-
-**Fix:** Wrap counter mutations in an `asyncio.Lock`, or accumulate per-task
-locally and reduce after `gather` completes.
 
 ---
 
@@ -657,9 +621,9 @@ correct REST semantic for "resource already exists".)
 
 ---
 
-### Studio app
+### admin UI app
 
-#### `[x]` I-034 🟠 Studio proxy forwards backend `Set-Cookie` verbatim
+#### `[x]` I-034 🟠 admin UI proxy forwards backend `Set-Cookie` verbatim
 
 **File:** `app/src/app/api/bigrag/[...path]/route.ts:HOP_HEADERS`
 
@@ -812,7 +776,7 @@ prod, show a generic "bigRAG API is not reachable".
 
 ---
 
-#### `[x]` I-044 🟠 Studio proxy forwards arbitrary client headers upstream
+#### `[x]` I-044 🟠 admin UI proxy forwards arbitrary client headers upstream
 
 **File:** `app/src/app/api/bigrag/[...path]/route.ts:32-36`
 
@@ -852,7 +816,7 @@ duplex: hasBody ? "half" : undefined,
 **Files:** `app/src/app/(dashboard)/playground/components/chat-input.tsx:160`,
 `api/bigrag/routers/preferences.py`
 
-Studio playground saves `playground.openai_key` into `UserPreference.data`
+The admin UI playground saves `playground.openai_key` into `UserPreference.data`
 (JSONB), but the preferences router encrypts that sensitive path with Fernet
 when `BIGRAG_MASTER_KEY` is configured. Preference responses redact the stored
 key and expose only `playground.has_openai_key`.
@@ -1024,25 +988,6 @@ mat = np.array([entry["vec"] for entry in raw_entries])  # (N, D)
 q = np.array(query_vec)
 scores = (mat @ q) / (np.linalg.norm(mat, axis=1) * np.linalg.norm(q))
 ```
-
----
-
-#### `[x]` I-056 🟠 S3 object body fully buffered, twice
-
-**File:** `api/bigrag/services/s3_ingest.py:261-263`
-
-```python
-content = await resp["Body"].read()
-...
-await storage.put(storage_key, content)
-```
-
-Whole object held in RAM, then again at the storage put. The 2 GB metadata
-size guard doesn't catch gzipped bodies that decompress past it.
-
-**Fix:** Stream to a temp file (`tempfile.NamedTemporaryFile`) and stream into
-storage. Add a streaming `LocalStorage.put_stream(key, stream)` /
-`S3Storage.put_stream` API.
 
 ---
 
@@ -1486,18 +1431,6 @@ call.
 
 ---
 
-#### `[x]` I-088 🟠 Rust `S3Job` missing `endpoint_url` and `metadata`
-
-**File:** `sdks/rust/src/types/documents.rs:168-195`
-
-Server always serializes both. Missing → deserialization panic on
-`list_s3_jobs` and `ingest_s3` responses.
-
-**Fix:** Add `pub endpoint_url: Option<String>` and `pub metadata:
-serde_json::Value` (with `#[serde(default)]`).
-
----
-
 #### `[x]` I-089 🟠 Rust `StatusResponse.message` non-optional
 
 **File:** `sdks/rust/src/types/common.rs:5-10`
@@ -1583,7 +1516,6 @@ Rust correctly has it.
 | `/v1/admin/embedding-presets/*` | ❌ | ❌ | ❌ |
 | `/v1/usage` | ❌ | ❌ | ❌ |
 | `/v1/admin/eval` | ❌ | ❌ | ❌ |
-| `get_s3_job` / `update_s3_job` | ✅ | ❌ | ❌ |
 | Pagination on `get_chunks` | ✅ | ❌ | ✅ |
 
 **Fix:** Decide on coverage policy (admin-only routes via SDKs are arguably
@@ -1591,8 +1523,8 @@ fine to skip, but document it). Add `reembed` and `replay_delivery` to all
 three. Bring Python's `get_chunks` up to par.
 
 **Resolution:** Added `reembed`, webhook delivery replay,
-`get_s3_job`/`update_s3_job`, and Python chunk pagination. The broad admin-only
-Studio management surface (`users`, `audit`, `embedding-presets`, `mcp-servers`,
+and Python chunk pagination. The broad admin-only
+admin UI management surface (`users`, `audit`, `embedding-presets`, `mcp-servers`,
 etc.) remains intentionally outside the SDKs unless the SDK coverage policy
 changes.
 
@@ -1776,10 +1708,10 @@ two rows.
 
 **File:** `website/content/docs/comparison.mdx:23`
 
-Studio ships in `app/`. The body of the page acknowledges this; the
+The admin UI ships in `app/`. The body of the page acknowledges this; the
 at-a-glance matrix doesn't.
 
-**Fix:** "Yes (Studio)" or "Optional (Studio)".
+**Fix:** "Yes (admin UI)" or "Optional (admin UI)".
 
 ---
 
@@ -1834,13 +1766,13 @@ Same drift on `/v1/admin/embedding-presets`.
 
 ---
 
-#### `[x]` I-113 🟡 `studio.mdx` route map vs `app/src/app/`
+#### `[x]` I-113 🟡 `admin-ui.mdx` route map vs `app/src/app/`
 
-**File:** `website/content/docs/studio.mdx`
+**File:** `website/content/docs/admin-ui.mdx`
 
 Verify every route listed exists. `/mcp` exists; `/models` exists;
 `/api-keys` exists; `/playground` exists. Looks correct, but worth
-confirming after every Studio refactor.
+confirming after every admin UI refactor.
 
 ---
 
@@ -1927,7 +1859,7 @@ website-build, biome)". Only typecheck/lint/website-build are wired up.
 **Fix:**
 - Add a Python test job: `uv run pytest tests/ -v` (after `uv sync --dev`).
 - Add an SDK test job for the TS client (`pnpm --filter @bigrag/client test`).
-- Add `pnpm build` to the `studio-build` job.
+- Add `pnpm build` to the `app-build` job.
 - Add a Rust SDK test job: `cargo test` in `sdks/rust/`.
 
 ---
@@ -2010,7 +1942,6 @@ PRs, in this order:
 17. **I-013** Heartbeat-leased queue recovery.
 18. **I-014** Multi-process SSE completion.
 19. **I-015** `document_count` + zero-chunk gating.
-20. **I-016** S3 ingest counter lock.
 21. **I-017** Blocking qdrant-client calls.
 22. **I-018** Semantic cache reordering.
 23. **I-019** Python `_request_form` retries.
@@ -2103,9 +2034,6 @@ For quick "what's outstanding in X" lookups.
 
 ### `api/bigrag/services/storage.py`
 - I-007
-
-### `api/bigrag/services/s3_ingest.py`
-- I-016, I-056
 
 ### `api/bigrag/services/audit.py`
 - I-068

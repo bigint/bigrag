@@ -6,6 +6,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
+from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
 from bigrag.services._retrieval_filters import build_filter
 from bigrag.services.embedding import EmbeddingModel
@@ -356,7 +357,10 @@ async def retrieve(
             collection_name=collection_name,
         )
     )
-    filter_expr = build_filter(filters) if filters else None
+    try:
+        filter_expr = build_filter(filters) if filters else None
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
     query_terms = _tokenize_query(query)
 
     fetch_k = top_k * 3 if (diversity is not None and diversity < 1.0) else top_k

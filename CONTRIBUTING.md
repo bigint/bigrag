@@ -105,7 +105,7 @@ test: add ingestion pipeline tests
 
 bigRAG release artifacts use [CalVer](https://calver.org/) with the `YYYY.M.D` scheme, without zero-padding month or day so npm, Cargo, and Python package versions stay compatible. A release on April 30, 2026 is `2026.4.30`.
 
-When cutting a release, keep the API package, SDK packages, Studio/docs package metadata, SDK user-agent constants, Docker image tags, and docs examples on the same CalVer version.
+When cutting a release, keep the API package, SDK packages, admin UI/docs package metadata, SDK user-agent constants, Docker image tags, and docs examples on the same CalVer version.
 
 ## Pull Request Process
 
@@ -119,7 +119,7 @@ When cutting a release, keep the API package, SDK packages, Studio/docs package 
 
 ### PR Requirements
 
-- All CI checks must pass (lint, biome, sdk-typecheck, website-build, studio-build)
+- All CI checks must pass (lint, biome, sdk-typecheck, website-build, app-build)
 - At least one maintainer approval
 - No merge conflicts with `main`
 

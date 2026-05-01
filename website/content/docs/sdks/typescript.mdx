@@ -111,15 +111,6 @@ client.documents.getFileUrl(collection, documentId)         // returns URL strin
 client.documents.streamProgress(collection, documentId)     // AsyncIterable<ProgressEvent>
 client.documents.streamBatchProgress(collection, ids)       // AsyncIterable<ProgressEvent>
 
-// S3 ingestion
-client.documents.ingestS3(collection, {
-  bucket, prefix?, region?, endpoint_url?, access_key?, secret_key?,
-  no_sign_request?, metadata?, file_types?
-})
-client.documents.listS3Jobs(collection)
-client.documents.resyncS3Job(collection, jobId)
-client.documents.deleteS3Job(collection, jobId)
-
 // Global document access (without collection scope)
 client.documents.getById(documentId)
 client.documents.getChunksById(documentId, { limit?, offset? }?)
@@ -181,7 +172,7 @@ client.collections.analytics(collection) // GET /v1/collections/{name}/analytics
 ```
 
 <Callout type="info">
-Admin endpoints (`/v1/admin/*`, most of `/v1/auth/*`) are session-only — mint an API key for read/query/ingest workloads, and use the browser / a Studio-authenticated session for mutating admin calls.
+Admin endpoints (`/v1/admin/*`, most of `/v1/auth/*`) are session-only — mint an API key for read/query/ingest workloads, and use the browser / a browser-authenticated session for mutating admin calls.
 </Callout>
 
 ## Error Handling

@@ -23,7 +23,6 @@ export const queryKeys = {
     one: (collection: string, id: string) => ["documents", collection, id] as const,
     chunks: (collection: string, id: string) => ["documents", collection, id, "chunks"] as const,
   },
-  s3Jobs: (collection: string) => ["s3-jobs", collection] as const,
   platform: {
     stats: () => ["platform", "stats"] as const,
     readiness: () => ["platform", "readiness"] as const,

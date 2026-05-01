@@ -159,18 +159,6 @@ let statuses = client.documents().batch_get_status("docs", &["id1", "id2"]).awai
 let docs = client.documents().batch_get("docs", &["id1", "id2"]).await?;
 let result = client.documents().batch_delete("docs", &["id1", "id2"]).await?;
 
-// S3 Ingestion
-let resp = client.documents().ingest_s3("docs", S3IngestBody {
-    bucket: "my-bucket".into(),
-    prefix: Some("documents/".into()),
-    ..Default::default()
-}).await?;
-
-// S3 job management
-let jobs = client.documents().list_s3_jobs("docs").await?;
-client.documents().resync_s3_job("docs", "job-id").await?;
-client.documents().delete_s3_job("docs", "job-id").await?;
-
 // Stream batch processing progress
 use futures_util::StreamExt;
 let mut stream = client.documents().stream_batch_progress("docs", &["id1", "id2"]).await?;
@@ -251,12 +239,6 @@ let batch = col.batch_upload(files, None).await?;
 let statuses = col.batch_get_status(&["id1", "id2"]).await?;
 let batch_docs = col.batch_get(&["id1", "id2"]).await?;
 col.batch_delete(&["id1", "id2"]).await?;
-
-// S3 ingestion
-col.ingest_s3(S3IngestBody { bucket: "my-bucket".into(), ..Default::default() }).await?;
-let jobs = col.list_s3_jobs().await?;
-col.resync_s3_job("job-id").await?;
-col.delete_s3_job("job-id").await?;
 
 // SSE streaming
 let mut stream = col.stream_events().await?;

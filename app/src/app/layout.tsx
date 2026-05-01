@@ -6,7 +6,7 @@ import { Providers } from "./providers";
 const outfit = Outfit({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "bigRAG Studio",
+  title: "bigRAG",
   description: "Admin console for bigRAG — collections, documents, queries, API keys.",
   icons: { icon: "/favicon.ico" },
   robots: { index: false, follow: false },

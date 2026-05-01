@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
 from bigrag.config import settings
-from bigrag.db.models import Collection, Document, EmbeddingPreset, S3IngestJob
+from bigrag.db.models import Collection, Document, EmbeddingPreset
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
@@ -22,7 +22,7 @@ from bigrag.models.collection import (
     UpdateCollectionRequest,
 )
 from bigrag.models.common import StatusResponse
-from bigrag.services import audit
+from bigrag.services import audit, semantic_cache
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.vector_store import vector_store
@@ -285,6 +285,7 @@ async def reembed_collection(
     for job in jobs:
         await ingestion_queue.enqueue(job)
 
+    await semantic_cache.invalidate(name)
     logger.info("reembed: queued", collection=name, docs=len(docs))
     audit.record(
         request,
@@ -405,6 +406,7 @@ async def update_collection(
     from bigrag.routers import invalidate_collection_cache
 
     await invalidate_collection_cache(name)
+    await semantic_cache.invalidate(name)
     audit.record(
         request,
         user=user,
@@ -428,8 +430,8 @@ async def delete_collection(
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
-    flushed = await ingestion_queue.flush_collection(name)
-    logger.info(f"delete: flushed {flushed} queued jobs name={name}")
+    flushed = await ingestion_queue.cancel_collection(name)
+    logger.info(f"delete: cancelled/flushed {flushed} queued jobs name={name}")
 
     await vector_store.delete_collection(name)
     logger.info(f"delete: qdrant collection dropped name={name}")
@@ -447,6 +449,7 @@ async def delete_collection(
     from bigrag.routers import invalidate_collection_cache
 
     await invalidate_collection_cache(name)
+    await semantic_cache.invalidate(name)
     audit.record(
         request,
         user=user,
@@ -523,21 +526,8 @@ async def truncate_collection(
     if collection_id is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
-    from bigrag.services.s3_ingest import cancel_job
-
-    running_job_ids = (
-        await session.scalars(
-            sa.select(S3IngestJob.id)
-            .where(S3IngestJob.collection_id == collection_id)
-            .where(S3IngestJob.status.in_(("pending", "listing", "ingesting")))
-        )
-    ).all()
-    for job_id in running_job_ids:
-        await cancel_job(str(job_id))
-    logger.info(f"truncate: cancelled {len(running_job_ids)} running S3 jobs name={name}")
-
-    flushed = await ingestion_queue.flush_collection(name)
-    logger.info(f"truncate: flushed {flushed} queued jobs name={name}")
+    flushed = await ingestion_queue.cancel_collection(name)
+    logger.info(f"truncate: cancelled/flushed {flushed} queued jobs name={name}")
 
     await vector_store.delete_collection(name)
     logger.info(f"truncate: vectors cleared name={name}")
@@ -553,6 +543,7 @@ async def truncate_collection(
     )
     await session.commit()
     logger.info(f"truncate: documents removed name={name}")
+    await semantic_cache.invalidate(name)
 
     audit.record(
         request,

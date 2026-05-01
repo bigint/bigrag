@@ -64,11 +64,11 @@ class AuthResource:
         return await self._client._request("POST", "/v1/auth/password", json=body)
 
     async def get_preferences(self) -> PreferencesResponse:
-        """Return the current user's Studio preferences."""
+        """Return the current user's admin UI preferences."""
         return await self._client._request("GET", "/v1/auth/preferences")
 
     async def update_preferences(self, data: dict[str, Any]) -> PreferencesResponse:
-        """Merge Studio preferences for the current user."""
+        """Merge admin UI preferences for the current user."""
         return await self._client._request(
             "PUT", "/v1/auth/preferences", json={"data": data}
         )

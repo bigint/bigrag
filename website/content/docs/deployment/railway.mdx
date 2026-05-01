@@ -5,12 +5,12 @@ description: Deploy bigRAG to Railway with managed Postgres and Redis plus self-
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-This guide deploys the API, Studio UI, Postgres, Redis, and Qdrant in one Railway project. Qdrant runs as a single Docker-image service and does not need etcd in this setup.
+This guide deploys the API, admin UI, Postgres, Redis, and Qdrant in one Railway project. Qdrant runs as a single Docker-image service and does not need etcd in this setup.
 
 ## What you get
 
 - **API** — FastAPI backend, public domain.
-- **App** — Studio admin UI, public domain.
+- **App** — admin UI, public domain.
 - **Postgres 17** — Railway plugin, exposes `DATABASE_URL`.
 - **Redis 7** — Railway plugin, exposes `REDIS_URL`.
 - **Qdrant** — Qdrant Docker image, internal-only.
@@ -97,7 +97,7 @@ Back the master key up immediately. It encrypts provider secrets stored in Postg
 ## First Run
 
 1. Wait for Postgres, Redis, Qdrant, API, and app services to deploy.
-2. Open the Studio UI public URL.
+2. Open the admin UI public URL.
 3. Complete `/setup` to create the first admin account.
 4. Create a collection and upload a small document.
 5. Check `/health/ready`; it should report `qdrant: true`.

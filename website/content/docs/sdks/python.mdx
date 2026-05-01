@@ -68,7 +68,7 @@ The SDK follows a resource namespace pattern:
 | Namespace | Description |
 |---|---|
 | `client.collections` | Collection CRUD and stats |
-| `client.documents` | Document upload, S3 ingestion, list, delete, batch ops |
+| `client.documents` | Document upload, list, delete, batch ops |
 | `client.queries` | Single, multi-collection, and batch queries |
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
@@ -131,33 +131,6 @@ result = await client.documents.batch_upload("docs", [
     "/path/to/a.pdf",
     "/path/to/b.docx",
 ])
-
-# Ingest from S3 bucket (only PDFs and DOCX files)
-result = await client.documents.ingest_s3(
-    "docs",
-    bucket="my-docs-bucket",
-    prefix="reports/2026/",
-    region="us-east-1",
-    access_key="AKIA...",
-    secret_key="...",
-    file_types=["pdf", "docx"],
-)
-# result["status"] = "accepted"
-# result["message"] = "S3 ingestion started in background"
-
-# Ingest from a public bucket (no credentials needed)
-result = await client.documents.ingest_s3(
-    "legal",
-    bucket="indian-supreme-court-judgments",
-    prefix="judgments/2025/",
-    region="ap-south-1",
-    no_sign_request=True,
-)
-
-# S3 job management
-jobs = await client.documents.list_s3_jobs("docs")
-await client.documents.resync_s3_job("docs", "job-id")
-await client.documents.delete_s3_job("docs", "job-id")
 
 # List documents
 docs = await client.documents.list("docs", status="ready", limit=20)

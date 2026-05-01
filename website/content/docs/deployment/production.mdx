@@ -14,7 +14,7 @@ Tick these off before pointing real traffic at a bigRAG deployment:
 - [ ] Rotate `POSTGRES_PASSWORD` from the shipped default (`bigrag`).
 - [ ] `BIGRAG_SESSION_COOKIE_SECURE=true` and terminate TLS at your
   reverse proxy (nginx, Caddy, Traefik, Cloudflare).
-- [ ] `BIGRAG_CORS_ORIGINS` set to an explicit list of your Studio /
+- [ ] `BIGRAG_CORS_ORIGINS` set to an explicit list of your admin UI /
   app origins — no `*`.
 - [ ] `BIGRAG_TRUSTED_PROXIES` set to the CIDRs of your own reverse
   proxies if bigRAG sits behind nginx, Caddy, Traefik, or a load balancer.
@@ -22,7 +22,7 @@ Tick these off before pointing real traffic at a bigRAG deployment:
   a mounted volume.
 - [ ] Qdrant in cluster mode if you expect >10M vectors or need HA.
 - [ ] Postgres warm-standby replica for failover.
-- [ ] Backup strategy: daily `pg_dump` + Qdrant backup tool + S3
+- [ ] Backup strategy: daily `pg_dump`, Qdrant backup tool, and encrypted
   replication of the upload volume.
 - [ ] Set `metadata_schema` on collections that accept untrusted
   metadata so uploads with invalid shape are rejected at the edge.
@@ -36,7 +36,7 @@ bigRAG refuses to boot when `BIGRAG_ENV=prod` is set **and** any of the followin
 insecure defaults are still active. Setting `BIGRAG_ENV=prod` in production catches
 config mistakes that would otherwise ship silently:
 
-- `BIGRAG_CORS_ORIGINS` contains `*` — set an explicit list (e.g. `https://studio.example.com`).
+- `BIGRAG_CORS_ORIGINS` contains `*` — set an explicit list (e.g. `https://admin.example.com`).
 - `BIGRAG_SESSION_COOKIE_SECURE` is `false` — set to `true` so cookies are HTTPS-only.
 - `BIGRAG_DATABASE_URL` still uses the shipped `bigrag:bigrag` credentials — rotate the Postgres password.
 - `BIGRAG_MASTER_KEY` is unset — bigRAG needs a Fernet key to envelope-encrypt provider credentials stored in Postgres. See [Encryption at rest](/docs/deployment/encryption).
@@ -61,7 +61,7 @@ services:
       BIGRAG_QDRANT_URL: http://qdrant:6333
       BIGRAG_REDIS_URL: redis://redis:6379/0
       BIGRAG_SESSION_COOKIE_SECURE: "true"
-      BIGRAG_CORS_ORIGINS: '["https://studio.example.com"]'
+      BIGRAG_CORS_ORIGINS: '["https://admin.example.com"]'
       BIGRAG_TRUSTED_PROXIES: '["10.0.0.0/8"]'
       BIGRAG_UPLOAD_DIR: /data/uploads
     deploy:
@@ -138,7 +138,7 @@ BIGRAG_ENV=prod                     # refuses to boot with insecure defaults
 # Sessions
 BIGRAG_SESSION_COOKIE_SECURE=true   # HTTPS-only
 BIGRAG_SESSION_COOKIE_SAMESITE=lax
-BIGRAG_CORS_ORIGINS=["https://studio.example.com"]
+BIGRAG_CORS_ORIGINS=["https://admin.example.com"]
 BIGRAG_TRUSTED_PROXIES=["10.0.0.0/8"]  # your reverse-proxy/load-balancer CIDRs
 
 # Auth is admin accounts + minted bigrag_sk_ keys.
@@ -155,45 +155,21 @@ BIGRAG_DB_POOL_MAX=100              # Increase for high concurrency
 BIGRAG_EMBEDDING_CONCURRENCY=16     # Parallel embedding requests
 BIGRAG_QDRANT_SEARCH_EF=128         # Optional HNSW recall/latency tuning
 
-# Storage (S3 for production)
-BIGRAG_STORAGE_BACKEND=s3
-BIGRAG_S3_BUCKET=your-bucket
-BIGRAG_S3_REGION=us-east-1
-BIGRAG_S3_ACCESS_KEY=AKIA...
-BIGRAG_S3_SECRET_KEY=...
+# Storage
+BIGRAG_UPLOAD_DIR=/data/uploads
 ```
 
 <Callout type="warn">
-  Never commit secrets (API keys, database passwords, S3 credentials) to version control. Use a `.env` file, Docker secrets, or a secrets manager like AWS Secrets Manager or HashiCorp Vault.
+  Never commit secrets (API keys or database passwords) to version control. Use a `.env` file, Docker secrets, or a secrets manager like AWS Secrets Manager or HashiCorp Vault.
 </Callout>
 
-## Storage Backends
+## Storage
 
-### Local Storage (default)
-
-Files stored on the local filesystem:
+Files are stored on the local filesystem:
 
 ```toml
-storage_backend = "local"
 upload_dir = "./data/uploads"
 ```
-
-### S3 Storage
-
-Files stored in an S3-compatible bucket (AWS S3, MinIO, etc.):
-
-```toml
-storage_backend = "s3"
-s3_bucket = "my-bigrag-bucket"
-s3_endpoint_url = "https://s3.amazonaws.com"
-s3_region = "us-east-1"
-s3_access_key = "AKIA..."
-s3_secret_key = "..."
-```
-
-<Callout type="info">
-  For production, use S3 storage to separate compute from storage and enable horizontal scaling.
-</Callout>
 
 ## Logging
 

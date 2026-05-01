@@ -31,33 +31,11 @@ bigRAG uses [Docling](https://github.com/DS4SD/docling) for document parsing:
 
 Upload documents directly via the API or SDKs. Accepts single files or batch uploads of up to 100 files.
 
-### S3 Bucket Ingestion
-
-Ingest files directly from an S3 bucket (or S3-compatible services like MinIO). Provide a bucket name and optional prefix to filter objects — all supported file types are ingested automatically and unsupported files are skipped.
-
-```bash
-curl -X POST http://localhost:4000/v1/collections/docs/documents/s3 \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"bucket": "my-docs", "prefix": "reports/", "region": "us-east-1"}'
-```
-
-Each ingested document's metadata automatically includes `source: "s3"`, `s3_bucket`, and `s3_key`.
-
-Public buckets (like [AWS Open Data](https://registry.opendata.aws/) datasets) are supported via the `no_sign_request` option — no credentials required:
-
-```bash
-curl -X POST http://localhost:4000/v1/collections/legal/documents/s3 \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"bucket": "indian-supreme-court-judgments", "prefix": "judgments/2025/", "region": "ap-south-1", "no_sign_request": true}'
-```
-
 ## Ingestion Pipeline
 
 Regardless of ingestion method, every document goes through the same pipeline:
 
-1. **Store** — file is saved to the configured storage backend (local disk or S3)
+1. **Store** — file is saved to the local upload directory
 2. **Queue** — document is added to the Redis ingestion queue with status `pending`
 3. **Parse** — a background worker picks up the document and parses it with Docling
 4. **Chunk** — extracted text is split into chunks based on the collection's `chunk_size` and `chunk_overlap`

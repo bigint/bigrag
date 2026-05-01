@@ -31,6 +31,8 @@ def build_filter(filters: dict) -> models.Filter | None:
         if isinstance(value, (str, int, float, bool)):
             must.append(_match_condition(field, value))
         elif isinstance(value, dict):
+            if not value:
+                raise ValueError(f"Filter field {field!r} has no operators")
             for op, val in value.items():
                 if op == "$eq":
                     validate_scalar(val, op)
@@ -66,6 +68,13 @@ def build_filter(filters: dict) -> models.Filter | None:
                             match=models.MatchAny(any=val),
                         )
                     )
+                else:
+                    raise ValueError(f"Unsupported filter operator {op!r} for field {field!r}")
+        else:
+            raise ValueError(
+                f"Filter field {field!r} requires a scalar value or operator object, "
+                f"got {type(value).__name__}"
+            )
 
     if not must and not must_not:
         return None

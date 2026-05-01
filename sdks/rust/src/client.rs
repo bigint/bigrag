@@ -17,7 +17,6 @@ use crate::types::common::{
 use crate::types::documents::{
     BatchDeleteDocumentsResponse, BatchGetDocumentsResponse, BatchStatusResponse, Document,
     DocumentChunkListResponse, DocumentChunkOptions, DocumentListOptions, DocumentListResponse,
-    S3IngestBody, S3IngestResponse, S3Job, S3JobListResponse, UpdateS3JobBody,
 };
 use crate::types::embeddings::EmbeddingModelListResponse;
 use crate::types::query::{QueryBody, QueryResponse};
@@ -372,49 +371,6 @@ impl CollectionClient<'_> {
         self.client
             .documents()
             .batch_delete(&self.name, document_ids)
-            .await
-    }
-
-    /// Ingest from S3.
-    pub async fn ingest_s3(&self, body: S3IngestBody) -> Result<S3IngestResponse, BigRagError> {
-        self.client.documents().ingest_s3(&self.name, body).await
-    }
-
-    /// List S3 jobs.
-    pub async fn list_s3_jobs(&self) -> Result<S3JobListResponse, BigRagError> {
-        self.client.documents().list_s3_jobs(&self.name).await
-    }
-
-    /// Get an S3 job.
-    pub async fn get_s3_job(&self, job_id: &str) -> Result<S3Job, BigRagError> {
-        self.client.documents().get_s3_job(&self.name, job_id).await
-    }
-
-    /// Update an S3 job.
-    pub async fn update_s3_job(
-        &self,
-        job_id: &str,
-        body: UpdateS3JobBody,
-    ) -> Result<S3Job, BigRagError> {
-        self.client
-            .documents()
-            .update_s3_job(&self.name, job_id, body)
-            .await
-    }
-
-    /// Delete an S3 job.
-    pub async fn delete_s3_job(&self, job_id: &str) -> Result<StatusResponse, BigRagError> {
-        self.client
-            .documents()
-            .delete_s3_job(&self.name, job_id)
-            .await
-    }
-
-    /// Re-sync an S3 job.
-    pub async fn resync_s3_job(&self, job_id: &str) -> Result<StatusResponse, BigRagError> {
-        self.client
-            .documents()
-            .resync_s3_job(&self.name, job_id)
             .await
     }
 

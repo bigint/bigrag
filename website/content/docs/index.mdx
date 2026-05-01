@@ -5,7 +5,7 @@ description: bigRAG is an open-source, self-hostable RAG platform for document i
 
 import { Cards, Card } from "fumadocs-ui/components/card";
 
-bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provides a complete pipeline for document ingestion, chunking, embedding, and vector search — behind a REST API, TypeScript / Python / Rust SDKs, a Studio admin UI, and an MCP server for Claude Desktop, Cursor, and any MCP-aware runtime.
+bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provides a complete pipeline for document ingestion, chunking, embedding, and vector search — behind a REST API, TypeScript / Python / Rust SDKs, an admin UI, and an MCP server for Claude Desktop, Cursor, and any MCP-aware runtime.
 
 ## Key Features
 
@@ -15,8 +15,8 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 - **Three search modes** plus HyDE, MMR diversity, metadata facets, and a semantic result cache
 - **Qdrant vector database** — HNSW vector search with tenant-aware payload indexes
 - **First-class auth** — admin accounts, session cookies, scoped `bigrag_sk_…` API keys, and full audit/access logs
-- **Operational features** — S3 bulk ingestion, webhooks with HMAC signatures, metadata-schema validation, an evaluation runner, and per-collection query analytics
-- **Studio admin UI** — first-run setup, collection browser, query playground, API-key minter, webhook manager
+- **Operational features** — batch ingestion, webhooks with HMAC signatures, metadata-schema validation, an evaluation runner, and per-collection query analytics
+- **Admin UI** — first-run setup, collection browser, query playground, API-key minter, webhook manager
 - **Self-hostable** — Docker Compose, no external dependencies
 - **MIT licensed** — run it anywhere, forever free
 
@@ -24,7 +24,7 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 
 <Mermaid chart='graph TD
     MCP([MCP client / Claude / Cursor]) -->|bigrag-mcp| API
-    Studio([Studio admin UI]) -->|session cookie| API
+    AdminUI([Admin UI]) -->|session cookie| API
     SDK([TS / Python / Rust SDK]) -->|bigrag_sk_… key| API
     API[bigRAG API]
     API --> Auth[Auth & audit]
@@ -32,7 +32,7 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
     API --> Documents[Documents]
     API --> Query[Query]
     API --> Webhooks[Webhooks]
-    Documents -->|store files| Storage[(Local / S3)]
+    Documents -->|store files| Storage[(Local disk)]
     Documents -->|enqueue| Redis[(Redis)]
     Redis -->|process| Worker[Ingestion worker]
     Worker -->|parse| Docling[Docling]
@@ -48,7 +48,7 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 | Component | Purpose | Default Address |
 |-----------|---------|-----------------|
 | **bigRAG API** | REST API server (FastAPI) | `http://localhost:4000` |
-| **Studio UI** | Admin web app | `http://localhost:3000` |
+| **Admin UI** | Admin web app | `http://localhost:3000` |
 | **PostgreSQL** | Users, sessions, API keys, metadata, audit | `localhost:5432` |
 | **Qdrant** | Vector storage and search | `localhost:6333` |
 | **Redis** | Ingestion + event bus | `localhost:6379` |
@@ -62,7 +62,7 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
   <Card title="Quickstart" href="/docs/getting-started/quickstart">
     Upload and search your first document in minutes
   </Card>
-  <Card title="Studio UI" href="/docs/studio">
+  <Card title="Admin UI" href="/docs/admin-ui">
     The admin UI tour — setup, playground, keys, webhooks
   </Card>
   <Card title="Security & Auth" href="/docs/concepts/security">

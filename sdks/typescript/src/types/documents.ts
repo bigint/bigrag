@@ -69,49 +69,4 @@ export interface BatchDeleteDocumentsResponse {
   errors: Array<{ document_id: string; error: string }>;
 }
 
-export interface S3IngestBody {
-  bucket: string;
-  prefix?: string;
-  region?: string;
-  endpoint_url?: string;
-  access_key?: string;
-  secret_key?: string;
-  no_sign_request?: boolean;
-  metadata?: Record<string, unknown>;
-  file_types?: string[];
-}
-
-export interface S3IngestResponse {
-  status: string;
-  message: string;
-}
-
-export interface S3Job {
-  id: string;
-  collection_name: string;
-  bucket: string;
-  prefix: string;
-  region: string;
-  endpoint_url: string | null;
-  file_types: string[];
-  metadata: Record<string, unknown>;
-  status: string;
-  total_found: number;
-  total_ingested: number;
-  total_skipped: number;
-  error_message: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface UpdateS3JobBody {
-  file_types?: string[];
-  metadata?: Record<string, unknown>;
-}
-
-export interface S3JobListResponse {
-  jobs: S3Job[];
-  total: number;
-}
-
 export type FileInput = File | Blob | Buffer | Uint8Array | { path: string; name?: string };

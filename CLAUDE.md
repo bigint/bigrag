@@ -4,7 +4,7 @@
 
 - `api/` — Python/FastAPI backend (Docling ingestion + Qdrant vector DB)
 - `sdks/typescript/` — TypeScript SDK (`@bigrag/client`)
-- `app/` — Studio admin UI (Next.js 16 + Tailwind v4 + Base UI, `@bigrag/app`)
+- `app/` — admin UI (Next.js 16 + Tailwind v4 + Base UI, `@bigrag/app`)
 - `website/` — Documentation site (Next.js + Fumadocs, content in `website/content/docs/`)
 
 ## Style Guide
@@ -84,10 +84,10 @@ If a feature is removed, remove it from the docs too. Never leave stale referenc
 ```bash
 ./dev.sh            # starts infra + backend
 ./dev.sh --website  # docs site only
-pnpm dev:app        # Studio admin UI on localhost:3000
+pnpm dev:app        # admin UI on localhost:3000
 ```
 
-- Studio UI: http://localhost:3000 (first run → `/setup` to create admin)
+- admin UI: http://localhost:3000 (first run → `/setup` to create admin)
 - Backend API: http://localhost:4000 (Swagger docs at /docs)
 - Postgres: localhost:5432
 - Redis: localhost:6379
@@ -104,8 +104,8 @@ matching tool in `mcp_server.py` and the docs at
 
 ## Auth model
 
-Auth is admin-account + session cookie (Studio UI) or minted API keys
-(`bigrag_sk_...`, external clients). First admin is created via the Studio's
+Auth is admin-account + session cookie (admin UI) or minted API keys
+(`bigrag_sk_...`, external clients). First admin is created via the admin UI's
 `/setup` page; subsequent admins via `/users`; API keys via `/api-keys`. There
 is no shared-secret env var — do not introduce one.
 

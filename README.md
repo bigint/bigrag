@@ -7,7 +7,6 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 ## Features
 
 - **Document ingestion** — PDF, DOCX, PPTX, HTML, Markdown, images, and more via [Docling](https://github.com/DS4SD/docling)
-- **S3 bucket ingestion** — ingest from S3 or any S3-compatible service (MinIO, R2, Spaces, etc.), including public buckets
 - **Embedding providers** — OpenAI, OpenAI-compatible gateways, Cohere, and Voyage
 - **Embedding presets** — save named provider/model configs once, reuse across collections
 - **Vector search** — semantic, keyword, and hybrid search modes via [Qdrant](https://qdrant.io)
@@ -42,11 +41,6 @@ curl -X POST http://localhost:4000/v1/collections \
 curl -X POST http://localhost:4000/v1/collections/docs/documents \
   -F "file=@paper.pdf"
 
-# Ingest from a public S3 bucket
-curl -X POST http://localhost:4000/v1/collections/docs/documents/s3 \
-  -H "Content-Type: application/json" \
-  -d '{"bucket": "indian-supreme-court-judgments", "prefix": "judgments/2025/", "region": "ap-south-1", "no_sign_request": true}'
-
 # Query
 curl -X POST http://localhost:4000/v1/collections/docs/query \
   -H "Content-Type: application/json" \
@@ -73,7 +67,7 @@ Python SDK publishes dated PyPI releases.
 ```mermaid
 graph TD
     MCP([MCP client<br/>Claude / Cursor]) -->|bigrag-mcp| API
-    Studio([Studio admin UI]) -->|session cookie| API
+    AdminUI([Admin UI]) -->|session cookie| API
     SDK([TS / Python / Rust SDK]) -->|bigrag_sk_… key| API
     Curl([curl / any HTTP client]) -->|bigrag_sk_… key| API
 
@@ -85,7 +79,7 @@ graph TD
     API --> Query[Query]
     API --> Webhooks[Webhooks]
 
-    Documents -->|store files| Storage[(Storage<br/>Local / S3)]
+    Documents -->|store files| Storage[(Storage<br/>Local disk)]
     Documents -->|enqueue| Redis[(Redis<br/>Job queue + event bus)]
     Redis -->|process| Worker[Ingestion worker]
 
@@ -118,7 +112,7 @@ graph TD
 | `POST` | `/v1/auth/logout-all` | Revoke all sessions for user |
 | `GET` | `/v1/auth/me` | Current session |
 | `POST` | `/v1/auth/password` | Change password |
-| `GET`/`PUT` | `/v1/auth/preferences` | Per-user Studio UI preferences |
+| `GET`/`PUT` | `/v1/auth/preferences` | Per-user admin UI preferences |
 | **Collections** | | |
 | `POST` | `/v1/collections` | Create collection |
 | `GET` | `/v1/collections` | List collections |
@@ -138,7 +132,6 @@ graph TD
 | `GET` | `/v1/collections/{name}/documents/{id}/chunks` | Get document chunks |
 | `GET` | `/v1/collections/{name}/documents/{id}/file` | Download original file |
 | `GET` | `/v1/collections/{name}/documents/{id}/progress` | Stream processing progress (SSE) |
-| `POST` | `/v1/collections/{name}/documents/s3` | Ingest from S3 bucket |
 | `POST` | `/v1/collections/{name}/documents/batch/upload` | Batch upload (up to 100) |
 | `POST` | `/v1/collections/{name}/documents/batch/status` | Batch status check |
 | `POST` | `/v1/collections/{name}/documents/batch/get` | Batch get documents |
@@ -153,10 +146,6 @@ graph TD
 | **Vectors** | | |
 | `POST` | `/v1/collections/{name}/vectors/upsert` | Upsert raw vectors |
 | `POST` | `/v1/collections/{name}/vectors/delete` | Delete vectors by ID |
-| **S3 jobs** | | |
-| `GET` | `/v1/collections/{name}/s3-jobs` | List S3 ingest jobs |
-| `GET`/`PATCH`/`DELETE` | `/v1/collections/{name}/s3-jobs/{id}` | Inspect / update / cancel a job |
-| `POST` | `/v1/collections/{name}/s3-jobs/{id}/resync` | Re-scan the bucket for a job |
 | **Evaluation** | | |
 | `POST` | `/v1/evaluation` | Run a golden-set eval (recall@k, MRR, nDCG) |
 | **Webhooks (admin)** | | |
@@ -218,13 +207,6 @@ for await (const event of client.documents.streamProgress("docs", doc.id)) {
 
 // Query
 const { results } = await client.queries.query("docs", { query: "What is RAG?" });
-
-// Ingest from S3
-await client.documents.ingestS3("docs", {
-  bucket: "my-bucket",
-  prefix: "reports/",
-  no_sign_request: true,
-});
 ```
 
 ### Python
@@ -243,14 +225,6 @@ doc = await client.documents.upload("docs", "/path/to/paper.pdf")
 
 # Query
 result = await client.queries.query("docs", {"query": "What is RAG?"})
-
-# Ingest from S3
-result = await client.documents.ingest_s3(
-    "docs",
-    bucket="my-bucket",
-    prefix="reports/",
-    no_sign_request=True,
-)
 ```
 
 ### Rust
@@ -318,7 +292,7 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 | `BIGRAG_EMBEDDING_API_KEY` | Default embedding API key | — |
 | `BIGRAG_EMBEDDING_BASE_URL` | Base URL for OpenAI-compatible embedding endpoints | — |
 | `BIGRAG_MASTER_KEY` | Fernet key that encrypts provider credentials at rest (required in `prod`) | — |
-| `BIGRAG_STORAGE_BACKEND` | `local` or `s3` for document blob storage | `local` |
+| `BIGRAG_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
 | `BIGRAG_INGESTION_WORKERS` | Background workers | `4` |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload size | `1024` |
 

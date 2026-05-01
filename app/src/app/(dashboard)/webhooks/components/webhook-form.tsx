@@ -10,9 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCreateWebhook } from "@/hooks/use-webhooks";
 
 const EVENT_CATEGORIES: Record<string, string[]> = {
-  Documents: ["document.ingested", "document.failed"],
-  Collections: ["collection.created", "collection.deleted"],
-  "S3 Jobs": ["s3.job.completed"],
+  Documents: ["document.processing", "document.ready", "document.failed"],
 };
 
 interface WebhookFormProps {

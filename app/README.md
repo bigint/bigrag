@@ -1,4 +1,4 @@
-# bigRAG Studio
+# bigRAG
 
 A Next.js admin console for bigRAG — manage collections, upload documents,
 watch ingestion live, run RAG queries, and mint API keys for external clients.
@@ -11,7 +11,7 @@ pnpm dev:app
 ```
 
 Open http://localhost:3000. On first run the `/setup` page lets you create the
-initial admin account. The Studio talks to the bigRAG server set in
+initial admin account. The admin UI talks to the bigRAG server set in
 `BIGRAG_URL` (defaults to `http://localhost:4000`).
 
 ## Stack

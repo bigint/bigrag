@@ -234,56 +234,6 @@ class QueryLog(Base):
     created_at: Mapped[TS]
 
 
-class S3IngestJob(Base):
-    __tablename__ = "s3_ingest_jobs"
-    __table_args__ = (
-        sa.Index("idx_s3_ingest_jobs_status", "status"),
-        sa.Index("idx_s3_ingest_jobs_collection_id", "collection_id"),
-    )
-
-    id: Mapped[UUIDpk]
-    collection_id: Mapped[UUID] = mapped_column(
-        sa.ForeignKey("collections.id", ondelete="CASCADE"), nullable=False
-    )
-    collection_name: Mapped[str] = mapped_column(sa.Text, nullable=False)
-    bucket: Mapped[str] = mapped_column(sa.Text, nullable=False)
-    prefix: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
-    region: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="us-east-1")
-    endpoint_url: Mapped[str | None] = mapped_column(sa.Text)
-    access_key: Mapped[str | None] = mapped_column(EncryptedString)
-    secret_key: Mapped[str | None] = mapped_column(EncryptedString)
-    no_sign_request: Mapped[bool] = mapped_column(
-        sa.Boolean, nullable=False, server_default=sa.false()
-    )
-    meta: Mapped[dict] = mapped_column(
-        "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
-    )
-    file_types: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")
-    )
-    status: Mapped[str] = mapped_column(
-        sa.Text,
-        sa.CheckConstraint(
-            "status IN ('pending', 'listing', 'ingesting', 'complete', 'failed')",
-            name="s3_ingest_jobs_status_check",
-        ),
-        nullable=False,
-        server_default="pending",
-    )
-    total_found: Mapped[int] = mapped_column(
-        sa.Integer, nullable=False, server_default=sa.text("0")
-    )
-    total_ingested: Mapped[int] = mapped_column(
-        sa.Integer, nullable=False, server_default=sa.text("0")
-    )
-    total_skipped: Mapped[int] = mapped_column(
-        sa.Integer, nullable=False, server_default=sa.text("0")
-    )
-    error_message: Mapped[str | None] = mapped_column(sa.Text)
-    created_at: Mapped[TS]
-    updated_at: Mapped[TSupd]
-
-
 class EmbeddingPreset(Base):
     __tablename__ = "embedding_presets"
     __table_args__ = (sa.Index("idx_embedding_presets_name", "name"),)

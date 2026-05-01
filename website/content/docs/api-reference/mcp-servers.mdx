@@ -7,7 +7,7 @@ Base path: `/v1/admin/mcp-servers`
 
 Each MCP server is an API key with extra metadata pinned to it (`title`, `server_name`, optional `collection` scope). Under the hood it reuses the same `ApiKey` row, authentication, scope, and audit/access-logging machinery as ordinary API keys — but the `/v1/admin/api-keys` endpoints filter MCP-tagged keys out, so they don't pollute that list.
 
-Session-only (Studio).
+Session-only (admin UI).
 
 A delete on the underlying API key cascades through. Generic API keys minted via `/v1/admin/api-keys` and MCP servers minted via this endpoint share a uniqueness constraint on `key_hash`.
 
@@ -52,7 +52,7 @@ Mints a fresh API key bound to the new server. The plaintext token is returned *
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `title` | string | yes | 1–80 chars. Display name in Studio and the client's connector list. |
+| `title` | string | yes | 1–80 chars. Display name in the admin UI and the client's connector list. |
 | `server_name` | string | yes | 1–60 chars. Lowercase alphanumeric and dashes (`^[a-z0-9][a-z0-9-]*$`). Used as the key under `mcpServers` in the client config and must be unique per owner. |
 | `collection` | string | no | Pin the credential to a single collection. If set, the collection must exist. Omit (or set to empty) for a global key. |
 

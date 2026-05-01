@@ -48,7 +48,7 @@ const SetupPage = () => {
         </div>
         <h1 className="font-semibold text-lg tracking-tight">Create the first admin</h1>
         <p className="text-sm text-muted-foreground">
-          This account owns the Studio. You can invite more admins after signing in.
+          This account owns the admin UI. You can invite more admins after signing in.
         </p>
       </div>
       <form onSubmit={submit} className="flex flex-col gap-4">

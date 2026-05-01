@@ -19,7 +19,7 @@ everything into Postgres with pgvector. Each one earns its keep:
 - **Redis** — the ingestion queue (`BLPOP/BLMOVE` semantics), webhook
   delivery queue, idempotency-key cache, semantic query cache. All
   in-flight / TTL'd work.
-- **Local disk or S3** — raw uploaded documents. Needed to produce
+- **Local disk** — raw uploaded documents. Needed to produce
   citations back into source files and to support re-embedding without
   re-uploading.
 

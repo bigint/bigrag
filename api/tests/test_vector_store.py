@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import warnings
+from types import SimpleNamespace
 
+import pytest
 from qdrant_client import AsyncQdrantClient
 
 from bigrag.services import vector_store as vector_store_module
@@ -134,5 +136,78 @@ def test_qdrant_local_round_trip_search_filter_and_delete() -> None:
         )
         assert hits == []
         await store.close()
+
+    asyncio.run(run())
+
+
+def test_build_filter_rejects_unknown_operators() -> None:
+    with pytest.raises(ValueError, match="Unsupported filter operator"):
+        build_filter({"tenant_id": {"$nin": ["acme"]}})
+
+
+def test_build_filter_rejects_empty_operator_objects() -> None:
+    with pytest.raises(ValueError, match="has no operators"):
+        build_filter({"tenant_id": {}})
+
+
+def test_get_chunks_follows_all_qdrant_scroll_pages() -> None:
+    class FakeQdrantClient:
+        def __init__(self) -> None:
+            self.offsets = []
+
+        async def collection_exists(self, _collection_name: str) -> bool:
+            return True
+
+        async def scroll(self, **kwargs):
+            self.offsets.append(kwargs.get("offset"))
+            if kwargs.get("offset") is None:
+                return (
+                    [
+                        SimpleNamespace(
+                            id="point-0",
+                            payload={
+                                "id": "doc-1_0",
+                                "document_id": "doc-1",
+                                "chunk_index": 0,
+                                "text": "first",
+                            },
+                        ),
+                        SimpleNamespace(
+                            id="point-1",
+                            payload={
+                                "id": "doc-1_1",
+                                "document_id": "doc-1",
+                                "chunk_index": 1,
+                                "text": "second",
+                            },
+                        ),
+                    ],
+                    "next-page",
+                )
+            return (
+                [
+                    SimpleNamespace(
+                        id="point-2",
+                        payload={
+                            "id": "doc-1_2",
+                            "document_id": "doc-1",
+                            "chunk_index": 2,
+                            "text": "third",
+                        },
+                    )
+                ],
+                None,
+            )
+
+    async def run() -> None:
+        store = VectorStore()
+        client = FakeQdrantClient()
+        store.client = client  # type: ignore[assignment]
+
+        chunks, total = await store.get_chunks("docs", "doc-1", limit=2, offset=1)
+
+        assert client.offsets == [None, "next-page"]
+        assert total == 3
+        assert [chunk["text"] for chunk in chunks] == ["second", "third"]
 
     asyncio.run(run())

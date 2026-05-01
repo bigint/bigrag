@@ -125,26 +125,6 @@ export type McpServer = {
 
 export type CreatedMcpServer = McpServer & { api_key: string };
 
-export type S3JobStatus = "pending" | "listing" | "ingesting" | "complete" | "failed";
-
-export type S3Job = {
-  id: string;
-  collection_name: string;
-  bucket: string;
-  prefix: string;
-  region: string;
-  endpoint_url: string | null;
-  file_types: string[];
-  metadata: Record<string, unknown>;
-  status: S3JobStatus;
-  total_found: number;
-  total_ingested: number;
-  total_skipped: number;
-  error_message: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
 export type Webhook = {
   id: string;
   url: string;

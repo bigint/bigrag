@@ -23,7 +23,7 @@
 
 ## Screenshots
 
-<!-- For Studio UI changes. Delete this section otherwise. -->
+<!-- For admin UI changes. Delete this section otherwise. -->
 
 ## Notes for reviewers
 

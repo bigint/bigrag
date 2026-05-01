@@ -4,7 +4,7 @@ pub mod analytics;
 pub mod collections;
 /// Common response types (status, pagination, health).
 pub mod common;
-/// Document types (upload, batch, S3, chunks).
+/// Document types (upload, batch, chunks).
 pub mod documents;
 /// Embedding model types.
 pub mod embeddings;

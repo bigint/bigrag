@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import time
 from typing import Any
 
@@ -21,11 +22,18 @@ def _list_key(collection: str) -> str:
     return f"semcache:{collection}:entries"
 
 
+def _scope_hash(scope: dict[str, Any] | None) -> str:
+    if not scope:
+        return ""
+    return hashlib.sha256(orjson.dumps(scope, option=orjson.OPT_SORT_KEYS)).hexdigest()
+
+
 def _best_match(
     query_vec: list[float],
     raw_entries: list[bytes],
     threshold: float,
     now: float,
+    scope_hash: str,
 ) -> tuple[float, dict | None]:
     if not query_vec or not raw_entries:
         return 0.0, None
@@ -36,6 +44,8 @@ def _best_match(
         try:
             entry = orjson.loads(raw)
         except Exception:
+            continue
+        if entry.get("scope_hash", "") != scope_hash:
             continue
         if (now - entry.get("ts", 0)) > TTL_SECONDS:
             continue
@@ -64,6 +74,8 @@ def _best_match(
 async def lookup(
     collection: str,
     query_vec: list[float],
+    *,
+    scope: dict[str, Any] | None = None,
     threshold: float = SIMILARITY_THRESHOLD,
 ) -> dict[str, Any] | None:
     client = redis_cache._redis  # noqa: SLF001 — intentional reuse
@@ -76,7 +88,12 @@ async def lookup(
         return None
 
     score, payload = await asyncio.to_thread(
-        _best_match, query_vec, raw_entries, threshold, time.time()
+        _best_match,
+        query_vec,
+        raw_entries,
+        threshold,
+        time.time(),
+        _scope_hash(scope),
     )
     if payload is not None:
         logger.info(
@@ -91,12 +108,19 @@ async def store(
     collection: str,
     query_vec: list[float],
     payload: dict[str, Any],
+    *,
+    scope: dict[str, Any] | None = None,
 ) -> None:
 
     client = redis_cache._redis  # noqa: SLF001
     if client is None or not query_vec:
         return
-    entry = {"vec": list(query_vec), "payload": payload, "ts": time.time()}
+    entry = {
+        "vec": list(query_vec),
+        "payload": payload,
+        "scope_hash": _scope_hash(scope),
+        "ts": time.time(),
+    }
     try:
         key = _list_key(collection)
         await client.lpush(key, orjson.dumps(entry))

@@ -58,22 +58,22 @@ class AdminUsersResource:
     async def list(
         self, *, limit: int | None = None, offset: int | None = None
     ) -> UserListResponse:
-        """List Studio users."""
+        """List admin UI users."""
         params = _pagination(limit=limit, offset=offset)
         return await self._client._request("GET", "/v1/admin/users", params=params)
 
     async def create(self, body: CreateUserBody) -> User:
-        """Create a Studio user."""
+        """Create an admin UI user."""
         return await self._client._request("POST", "/v1/admin/users", json=body)
 
     async def update(self, user_id: str, body: UpdateUserBody) -> User:
-        """Update a Studio user."""
+        """Update an admin UI user."""
         return await self._client._request(
             "PATCH", f"/v1/admin/users/{quote(user_id, safe='')}", json=body
         )
 
     async def delete(self, user_id: str) -> StatusResponse:
-        """Delete a Studio user."""
+        """Delete an admin UI user."""
         return await self._client._request(
             "DELETE", f"/v1/admin/users/{quote(user_id, safe='')}"
         )

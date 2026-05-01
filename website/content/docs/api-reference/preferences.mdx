@@ -1,11 +1,11 @@
 ---
 title: User Preferences
-description: Per-user JSON blob for Studio UI state.
+description: Per-user JSON blob for admin UI state.
 ---
 
 Base path: `/v1/auth/preferences`
 
-Session-only. This is a JSON scratch-pad scoped to the logged-in user — Studio UI uses it to persist sidebar state, default collection filter, preferred search mode, and similar client-side prefs. The server only interprets documented sensitive paths so it can encrypt and redact secrets.
+Session-only. This is a JSON scratch-pad scoped to the logged-in user — the admin UI uses it to persist sidebar state, default collection filter, preferred search mode, and similar client-side prefs. The server only interprets documented sensitive paths so it can encrypt and redact secrets.
 
 ## Get Preferences
 

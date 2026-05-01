@@ -14,14 +14,12 @@ Both layers are required for a defensible "encrypted at rest" posture.
 
 ## What bigRAG encrypts at the app layer
 
-These four columns are encrypted transparently by the ORM using a single Fernet master key:
+These columns are encrypted transparently by the ORM using a single Fernet master key:
 
 | Table | Column | What it holds |
 |-------|--------|---------------|
 | `embedding_presets` | `api_key` | OpenAI / Cohere / compatible provider key |
 | `webhooks` | `secret` | HMAC signing secret issued to the webhook subscriber |
-| `s3_ingest_jobs` | `access_key` | AWS access key for a customer-provided bucket |
-| `s3_ingest_jobs` | `secret_key` | AWS secret key paired with the above |
 
 Ciphertext looks like `gAAAAABl...` — the Fernet v1 envelope. Decryption is HMAC-authenticated, so a tampered row fails to load rather than returning corrupt data.
 
@@ -44,7 +42,7 @@ export BIGRAG_MASTER_KEY="<paste-the-output-of-the-fernet-generate-command>"
 In `BIGRAG_ENV=dev`, an unset key only prints a warning — dev contributors don't need a real secret store. `dev.sh` ships a fixed dev key so fresh clones start cleanly.
 
 <Callout type="warn">
-Losing `BIGRAG_MASTER_KEY` means the four columns above become permanently unreadable. Back it up the same way you back up your Postgres root credentials — offline, split across owners.
+	Losing `BIGRAG_MASTER_KEY` means the encrypted columns above become permanently unreadable. Back it up the same way you back up your Postgres root credentials — offline, split across owners.
 </Callout>
 
 ## What the operator must encrypt
@@ -55,7 +53,7 @@ bigRAG delegates the bulk of at-rest protection to your infrastructure. For a pr
 
 - **Self-host**: LUKS on the data volume. `cryptsetup luksFormat /dev/sdX` before `initdb`.
 - **RDS / Aurora**: enable **Storage encryption** with a customer-managed KMS key. Enable the same on every read replica and snapshot target.
-- **Backups**: pipe `pg_dump` into a GPG or `age`-encrypted file, or push to S3 with SSE-KMS.
+- **Backups**: pipe `pg_dump` into a GPG or `age`-encrypted file, or store it in an encrypted backup system.
 
 ### Qdrant
 
@@ -68,10 +66,9 @@ bigRAG delegates the bulk of at-rest protection to your infrastructure. For a pr
 - Disable RDB/AOF persistence in prod, or put the persistence directory on an encrypted volume.
 - Use TLS (`rediss://`) between bigRAG and Redis.
 
-### Stored files (`storage_backend`)
+### Stored files
 
-- `local`: the upload directory (default `./data/uploads`) must live on an encrypted volume.
-- `s3`: configure `BIGRAG_S3_*` to point at a bucket with **default SSE-KMS** enabled. Grant the bigRAG role `kms:Decrypt` / `kms:Encrypt` on the specific key, not `*`.
+The upload directory (default `./data/uploads`) must live on an encrypted volume.
 
 ## Rotation
 

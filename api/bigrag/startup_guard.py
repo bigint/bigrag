@@ -18,7 +18,7 @@ def check_production_safety(s: Settings) -> None:
     if "*" in s.cors_origins:
         problems.append(
             "BIGRAG_CORS_ORIGINS contains '*' — set an explicit list of "
-            "allowed origins (e.g. 'https://studio.example.com')."
+            "allowed origins (e.g. 'https://admin.example.com')."
         )
 
     if not s.session_cookie_secure:

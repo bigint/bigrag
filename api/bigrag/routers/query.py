@@ -83,12 +83,26 @@ async def query_collection(
     )
 
     use_semcache = body.use_semantic_cache if body.use_semantic_cache is not None else True
+    cache_scope = {
+        "filters": body.filters,
+        "top_k": top_k,
+        "min_score": min_score,
+        "search_mode": search_mode,
+        "rerank": body.rerank,
+        "diversity": body.diversity,
+        "hybrid_strategy": body.hybrid_strategy or "rrf",
+        "facets": body.facets or [],
+    }
 
     precomputed_embedding: list[float] | None = None
     if use_semcache and not body.hyde and search_mode in ("semantic", "hybrid"):
         embeddings = await embedding_model.embed([body.query], input_type="query")
         precomputed_embedding = embeddings[0]
-        cached = await semantic_cache.lookup(collection_name, precomputed_embedding)
+        cached = await semantic_cache.lookup(
+            collection_name,
+            precomputed_embedding,
+            scope=cache_scope,
+        )
         if cached:
             cached_copy = {**cached, "cached": True}
             access_log.set_context(
@@ -145,6 +159,7 @@ async def query_collection(
             collection_name,
             outcome.query_embedding,
             response.model_dump(),
+            scope=cache_scope,
         )
 
     access_log.set_context(
@@ -325,6 +340,7 @@ async def upsert_vectors(
         metadata=metadata,
     )
     logger.info(f"upsert: collection={collection_name} upserted={count}")
+    await semantic_cache.invalidate(collection_name)
     access_log.set_context(request, metadata={"upserted": count})
 
     return {"status": "ok", "upserted": count}
@@ -348,6 +364,7 @@ async def delete_vectors(
     await get_collection_or_404(collection_name)
     logger.info(f"vectors/delete: collection={collection_name} ids={len(body.ids)}")
     await vector_store.delete_by_ids(collection_name, body.ids)
+    await semantic_cache.invalidate(collection_name)
     access_log.set_context(request, metadata={"deleted": len(body.ids)})
     return {"status": "ok", "deleted": len(body.ids)}
 

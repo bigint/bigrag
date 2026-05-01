@@ -11,7 +11,7 @@ bigRAG separates two operational trails:
 
 - `audit_log` records privileged state changes such as API-key creation.
 - `access_log` records RAG calls with actor, auth method, endpoint, status, collection context,
-  and latency. Query, batch query, vector mutation, and evaluation calls are included; Studio
+  and latency. Query, batch query, vector mutation, and evaluation calls are included; admin UI
   refreshes and admin/control-plane reads are excluded. Request bodies, raw prompts, document
   content, secrets, and credentials are not stored.
 
@@ -59,7 +59,7 @@ Date-range filtering isn't yet supported — paginate and filter `created_at` cl
 ### Field notes
 
 - `actor_id` / `actor_email` identify the admin account that performed the action. Both are `null` for system-initiated events (e.g. cleanup workers).
-- `api_key_id` is populated when the action was performed via an API key — the field holds the key's UUID, and `actor_id` is the admin who owns the key. For session-cookie (Studio) calls, `api_key_id` is `null`.
+- `api_key_id` is populated when the action was performed via an API key — the field holds the key's UUID, and `actor_id` is the admin who owns the key. For session-cookie (admin UI) calls, `api_key_id` is `null`.
 - `metadata` is per-action context (never credentials or document content). Shape varies by `action` — e.g. `api_key.create` includes `name` and `scopes`.
 
 ### Currently emitted actions

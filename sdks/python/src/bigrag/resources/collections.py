@@ -76,7 +76,7 @@ class CollectionsResource:
         )
 
     async def truncate(self, name: str) -> StatusResponse:
-        """Truncate a collection — delete all documents, vectors, and S3 jobs."""
+        """Truncate a collection — delete all documents and vectors."""
         return await self._client._request(
             "POST", f"/v1/collections/{quote(name, safe='')}/truncate"
         )

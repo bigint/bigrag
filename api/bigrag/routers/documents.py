@@ -28,7 +28,6 @@ from bigrag.models.document import (
     DocumentResponse,
     DocumentStatusResponse,
 )
-from bigrag.models.s3 import S3IngestRequest, S3IngestResponse
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
 from bigrag.routers._documents import (
     SUPPORTED_EXTENSIONS,
@@ -41,7 +40,7 @@ from bigrag.routers._documents import (
     read_upload_content,
     recount_collection_documents,
 )
-from bigrag.services import audit
+from bigrag.services import audit, semantic_cache
 from bigrag.services.event_bus import event_bus
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 from bigrag.services.ingestion_job import create_ingestion_job
@@ -128,6 +127,7 @@ async def upload_document(
         content_hash=content_hash,
         raise_on_enqueue_failure=True,
     )
+    await semantic_cache.invalidate(collection_name)
 
     audit.record(
         request,
@@ -213,6 +213,7 @@ async def delete_document(
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
+    await ingestion_queue.cancel_documents([document_id])
     await vector_store.delete_by_document(collection_name, document_id)
 
     file_path = doc.file_path
@@ -222,6 +223,7 @@ async def delete_document(
     await session.commit()
 
     await get_storage().delete(file_path)
+    await semantic_cache.invalidate(collection_name)
 
     audit.record(
         request,
@@ -262,12 +264,14 @@ async def reprocess_document(
             detail="Source file no longer exists. Upload the document again.",
         )
 
+    await ingestion_queue.cancel_documents([document_id])
     await vector_store.delete_by_document(collection_name, document_id)
 
     doc.status = "pending"
     doc.chunk_count = 0
     doc.error_message = None
     await session.commit()
+    await semantic_cache.invalidate(collection_name)
 
     await ingestion_queue.enqueue(
         create_ingestion_job(
@@ -468,6 +472,7 @@ async def batch_upload_documents(
         created.append(document_response(doc))
 
     logger.info(f"batch_upload: collection={collection_name} files={len(created)}")
+    await semantic_cache.invalidate(collection_name)
     audit.record(
         request,
         user=user,
@@ -583,6 +588,7 @@ async def batch_delete_documents(
             errors.append({"document_id": doc_id, "error": str(e)})
             return False
 
+    await ingestion_queue.cancel_documents(list(by_id))
     results = await asyncio.gather(*[_delete_one(doc_id, doc) for doc_id, doc in by_id.items()])
     deleted = sum(1 for r in results if r)
 
@@ -591,6 +597,8 @@ async def batch_delete_documents(
         await session.execute(sa.delete(Document).where(Document.id.in_(deleted_ids)))
     await recount_collection_documents(session, collection["id"])
     await session.commit()
+    if deleted:
+        await semantic_cache.invalidate(collection_name)
 
     logger.info(
         f"batch_delete: collection={collection_name} deleted={deleted} errors={len(errors)}"
@@ -637,54 +645,6 @@ async def get_document_chunks_global(
         offset=offset,
     )
     return {"chunks": chunks, "total": total}
-
-
-@router.post("/s3", response_model=S3IngestResponse, status_code=202)
-async def ingest_from_s3(
-    collection_name: str,
-    body: S3IngestRequest,
-    request: Request,
-    user: dict = Depends(get_current_user),
-):
-
-    from bigrag.services.s3_ingest import create_job
-
-    collection = await get_collection_or_404(collection_name)
-    try:
-        get_embedding_model_for(collection)
-    except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-    await create_job(
-        collection_id=str(collection["id"]),
-        collection_name=collection_name,
-        bucket=body.bucket,
-        prefix=body.prefix,
-        region=body.region,
-        endpoint_url=body.endpoint_url,
-        access_key=body.access_key,
-        secret_key=body.secret_key,
-        no_sign_request=body.no_sign_request,
-        metadata=body.metadata,
-        file_types=body.file_types,
-    )
-
-    audit.record(
-        request,
-        user=user,
-        action="document.s3_ingest",
-        resource_type="collection",
-        resource_id=str(collection["id"]),
-        metadata={
-            "collection": collection_name,
-            "bucket": body.bucket,
-            "prefix": body.prefix,
-        },
-    )
-    return S3IngestResponse(
-        status="accepted",
-        message="S3 ingestion started in background",
-    )
 
 
 @router.get("/batch/progress")

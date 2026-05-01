@@ -8,7 +8,7 @@ from pathlib import Path
 import redis.asyncio as aioredis
 
 from bigrag.logging import get_logger
-from bigrag.services import embedding_cache
+from bigrag.services import embedding_cache, semantic_cache
 from bigrag.services.conversion import _get_docling_converter
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import IngestionJob
@@ -46,11 +46,25 @@ PROCESSING_KEY = "bigrag:ingestion:processing"
 DEAD_LETTER_KEY = "bigrag:ingestion:dead"
 STATS_KEY = "bigrag:ingestion:stats"
 LEASE_KEY_PREFIX = "bigrag:ingestion:lease:"
+COLLECTION_EPOCH_KEY_PREFIX = "bigrag:ingestion:collection_epoch:"
+DOCUMENT_EPOCH_KEY_PREFIX = "bigrag:ingestion:document_epoch:"
 _LEASE_TTL_SECONDS = 30 * 60
 
 
 def _lease_key(job_id: str) -> str:
     return f"{LEASE_KEY_PREFIX}{job_id}"
+
+
+def _collection_epoch_key(collection_name: str) -> str:
+    return f"{COLLECTION_EPOCH_KEY_PREFIX}{collection_name}"
+
+
+def _document_epoch_key(document_id: str) -> str:
+    return f"{DOCUMENT_EPOCH_KEY_PREFIX}{document_id}"
+
+
+class IngestionCancelledError(RuntimeError):
+    pass
 
 
 class IngestionQueue:
@@ -143,9 +157,39 @@ class IngestionQueue:
     return removed
     """
 
+    async def _epoch_value(self, key: str) -> int:
+        if not self._redis:
+            return 0
+        raw = await self._redis.get(key)
+        if raw is None:
+            return 0
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return 0
+
+    async def _collection_epoch(self, collection_name: str) -> int:
+        return await self._epoch_value(_collection_epoch_key(collection_name))
+
+    async def _document_epoch(self, document_id: str) -> int:
+        return await self._epoch_value(_document_epoch_key(document_id))
+
+    async def _ensure_job_current(self, job: IngestionJob) -> None:
+        collection_epoch = await self._collection_epoch(job.collection_name)
+        if collection_epoch != job.collection_epoch:
+            raise IngestionCancelledError(
+                f"Ingestion cancelled for collection '{job.collection_name}'"
+            )
+        document_epoch = await self._document_epoch(job.document_id)
+        if document_epoch != job.document_epoch:
+            raise IngestionCancelledError(f"Ingestion cancelled for document '{job.document_id}'")
+
     async def enqueue(self, job: IngestionJob) -> None:
         from bigrag.config import settings as _settings
 
+        if job.attempt == 0:
+            job.collection_epoch = await self._collection_epoch(job.collection_name)
+            job.document_epoch = await self._document_epoch(job.document_id)
         pending = await self._redis.eval(
             self._ENQUEUE_LUA,
             2,
@@ -173,6 +217,25 @@ class IngestionQueue:
         if removed:
             logger.info(f"[queue] flushed {removed} jobs for collection={collection_name}")
         return int(removed)
+
+    async def cancel_collection(self, collection_name: str) -> int:
+        if not self._redis:
+            return 0
+        removed = await self.flush_collection(collection_name)
+        await self._redis.incr(_collection_epoch_key(collection_name))
+        logger.info(
+            f"[queue] cancelled in-flight jobs for collection={collection_name} flushed={removed}"
+        )
+        return removed
+
+    async def cancel_documents(self, document_ids: list[str]) -> None:
+        if not self._redis:
+            return
+        pipe = self._redis.pipeline(transaction=False)
+        for document_id in document_ids:
+            pipe.incr(_document_epoch_key(document_id))
+        await pipe.execute()
+        logger.info(f"[queue] cancelled in-flight document jobs count={len(document_ids)}")
 
     @property
     async def stats(self) -> dict:
@@ -387,11 +450,13 @@ class IngestionQueue:
             chunk_size=job.chunk_size,
         )
 
+        await self._ensure_job_current(job)
         await vector_store.create_collection(
             job.collection_name,
             job.embedding_dimension,
             tenant_field=getattr(job, "tenant_field", None),
         )
+        await self._ensure_job_current(job)
 
         batch_size = _settings.ingestion_batch_size
         total_inserted = 0
@@ -425,6 +490,7 @@ class IngestionQueue:
                     embed_elapsed = time.monotonic() - t0
 
                     t1 = time.monotonic()
+                    await self._ensure_job_current(job)
                     ids = [f"{doc}_{i}" for i in range(batch_start, batch_end)]
                     doc_ids = [doc] * len(batch_texts)
                     indices = list(range(batch_start, batch_end))
@@ -440,6 +506,11 @@ class IngestionQueue:
                         embeddings=embeddings,
                         metadata=metadata,
                     )
+                    try:
+                        await self._ensure_job_current(job)
+                    except IngestionCancelledError:
+                        await vector_store.delete_by_document(job.collection_name, doc)
+                        raise
                     insert_elapsed = time.monotonic() - t1
                     break
                 except _PERMANENT_ERRORS:
@@ -520,6 +591,7 @@ class IngestionQueue:
         start_time = time.monotonic()
 
         try:
+            await self._ensure_job_current(job)
             await _update_doc(status="processing")
             self._emit(
                 doc,
@@ -531,6 +603,7 @@ class IngestionQueue:
             )
 
             text = await self._convert_document(job, prefix)
+            await self._ensure_job_current(job)
             total_inserted, total_expected = await self._chunk_and_embed(job, text, prefix)
             token_count = len(text) // 4
 
@@ -555,6 +628,8 @@ class IngestionQueue:
                     )
                 )
                 await session.commit()
+
+            await semantic_cache.invalidate(job.collection_name)
 
             total_elapsed = time.monotonic() - start_time
             await self._redis.hincrby(STATS_KEY, "completed", 1)
@@ -582,7 +657,24 @@ class IngestionQueue:
 
             is_permanent = isinstance(e, _PERMANENT_ERRORS)
 
-            if not is_permanent and job.attempt < job.max_attempts:
+            if isinstance(e, IngestionCancelledError):
+                try:
+                    await vector_store.delete_by_document(job.collection_name, doc)
+                except Exception as cleanup_err:
+                    logger.warning(
+                        f"{prefix} failed to clean up cancelled vectors: {cleanup_err!r}"
+                    )
+                await _update_doc(status="failed", error_message=str(e))
+                self._emit(
+                    doc,
+                    "cancelled",
+                    "failed",
+                    str(e),
+                    0.0,
+                    collection_name=job.collection_name,
+                )
+                event_bus.complete(doc)
+            elif not is_permanent and job.attempt < job.max_attempts:
                 try:
                     await vector_store.delete_by_document(job.collection_name, doc)
                 except Exception as cleanup_err:

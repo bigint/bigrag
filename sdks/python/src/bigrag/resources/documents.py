@@ -19,7 +19,6 @@ from bigrag.types.documents import (
     DocumentChunkListResponse,
     DocumentListResponse,
 )
-from bigrag.types.s3 import S3IngestResponse, S3Job, S3JobListResponse, UpdateS3JobBody
 from bigrag.types.sse import ProgressEvent
 
 if TYPE_CHECKING:
@@ -199,80 +198,6 @@ class DocumentsResource:
             "POST",
             f"{_col_path(collection)}/documents/batch/delete",
             json={"document_ids": document_ids},
-        )
-
-    async def ingest_s3(
-        self,
-        collection: str,
-        *,
-        bucket: str,
-        prefix: str = "",
-        region: str = "us-east-1",
-        endpoint_url: str | None = None,
-        access_key: str | None = None,
-        secret_key: str | None = None,
-        no_sign_request: bool = False,
-        file_types: list[str] | None = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> S3IngestResponse:
-        """Ingest files from an S3 bucket."""
-        body: dict[str, Any] = {
-            "bucket": bucket, "prefix": prefix, "region": region,
-        }
-        if endpoint_url is not None:
-            body["endpoint_url"] = endpoint_url
-        if access_key is not None:
-            body["access_key"] = access_key
-        if secret_key is not None:
-            body["secret_key"] = secret_key
-        if no_sign_request:
-            body["no_sign_request"] = True
-        if file_types:
-            body["file_types"] = file_types
-        if metadata is not None:
-            body["metadata"] = metadata
-        return await self._client._request(
-            "POST", f"{_col_path(collection)}/documents/s3", json=body,
-        )
-
-    async def list_s3_jobs(self, collection: str) -> S3JobListResponse:
-        """List S3 ingest jobs for a collection."""
-        return await self._client._request(
-            "GET", f"{_col_path(collection)}/s3-jobs",
-        )
-
-    async def get_s3_job(self, collection: str, job_id: str) -> S3Job:
-        """Retrieve an S3 ingest job."""
-        return await self._client._request(
-            "GET",
-            f"{_col_path(collection)}/s3-jobs/{quote(job_id, safe='')}",
-        )
-
-    async def update_s3_job(
-        self,
-        collection: str,
-        job_id: str,
-        body: UpdateS3JobBody,
-    ) -> S3Job:
-        """Update an S3 ingest job."""
-        return await self._client._request(
-            "PATCH",
-            f"{_col_path(collection)}/s3-jobs/{quote(job_id, safe='')}",
-            json=body,
-        )
-
-    async def delete_s3_job(self, collection: str, job_id: str) -> StatusResponse:
-        """Delete an S3 ingest job."""
-        return await self._client._request(
-            "DELETE",
-            f"{_col_path(collection)}/s3-jobs/{quote(job_id, safe='')}",
-        )
-
-    async def resync_s3_job(self, collection: str, job_id: str) -> StatusResponse:
-        """Re-sync an S3 ingest job."""
-        return await self._client._request(
-            "POST",
-            f"{_col_path(collection)}/s3-jobs/{quote(job_id, safe='')}/resync",
         )
 
     async def stream_batch_progress(

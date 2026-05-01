@@ -13,12 +13,7 @@ import type {
   DocumentListResponse,
   FileInput,
   ProgressEvent,
-  S3IngestBody,
-  S3IngestResponse,
-  S3Job,
-  S3JobListResponse,
   StatusResponse,
-  UpdateS3JobBody,
 } from "../types.js";
 
 export class DocumentsResource {
@@ -193,16 +188,6 @@ export class DocumentsResource {
     );
   }
 
-  ingestS3(collection: string, body: S3IngestBody): Promise<S3IngestResponse> {
-    return this._client._request(
-      "POST",
-      `/v1/collections/${encodeURIComponent(collection)}/documents/s3`,
-      {
-        json: body,
-      },
-    );
-  }
-
   getById(documentId: string): Promise<Document> {
     return this._client._request("GET", `/v1/documents/${encodeURIComponent(documentId)}`);
   }
@@ -217,42 +202,6 @@ export class DocumentsResource {
     return this._client._request("GET", `/v1/documents/${encodeURIComponent(documentId)}/chunks`, {
       params,
     });
-  }
-
-  listS3Jobs(collection: string): Promise<S3JobListResponse> {
-    return this._client._request(
-      "GET",
-      `/v1/collections/${encodeURIComponent(collection)}/s3-jobs`,
-    );
-  }
-
-  getS3Job(collection: string, jobId: string): Promise<S3Job> {
-    return this._client._request(
-      "GET",
-      `/v1/collections/${encodeURIComponent(collection)}/s3-jobs/${encodeURIComponent(jobId)}`,
-    );
-  }
-
-  deleteS3Job(collection: string, jobId: string): Promise<StatusResponse> {
-    return this._client._request(
-      "DELETE",
-      `/v1/collections/${encodeURIComponent(collection)}/s3-jobs/${encodeURIComponent(jobId)}`,
-    );
-  }
-
-  updateS3Job(collection: string, jobId: string, body: UpdateS3JobBody): Promise<S3Job> {
-    return this._client._request(
-      "PATCH",
-      `/v1/collections/${encodeURIComponent(collection)}/s3-jobs/${encodeURIComponent(jobId)}`,
-      { json: body },
-    );
-  }
-
-  resyncS3Job(collection: string, jobId: string): Promise<StatusResponse> {
-    return this._client._request(
-      "POST",
-      `/v1/collections/${encodeURIComponent(collection)}/s3-jobs/${encodeURIComponent(jobId)}/resync`,
-    );
   }
 
   async *streamBatchProgress(

@@ -49,13 +49,7 @@
 # embedding_concurrency = 8
 # embedding_api_key = ""           # use BIGRAG_EMBEDDING_API_KEY in production
 
-# storage_backend = "local"        # local | s3
 # upload_dir = "./data/uploads"
-# s3_bucket = ""
-# s3_endpoint_url = ""
-# s3_region = "us-east-1"
-# s3_access_key = ""
-# s3_secret_key = ""
 
 # max_upload_size_mb = 1024
 # ingestion_workers = 4

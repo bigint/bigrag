@@ -11,14 +11,14 @@ bigRAG's auth model has two credential types, one scope system, and an immutable
 
 | Credential | Used by | Lifetime | Revocation |
 |------------|---------|----------|-----------|
-| **Session cookie** | Studio UI, browser flows | `BIGRAG_SESSION_EXPIRY_HOURS` (default 7 days) | `/v1/auth/logout`, `/v1/auth/logout-all`, or cleanup sweeper |
+| **Session cookie** | admin UI, browser flows | `BIGRAG_SESSION_EXPIRY_HOURS` (default 7 days) | `/v1/auth/logout`, `/v1/auth/logout-all`, or cleanup sweeper |
 | **API key** (`bigrag_sk_…`) | SDKs, backend services, CI | Indefinite unless `expires_at` set | `DELETE /v1/admin/api-keys/{id}` or `active: false` |
 
 ## First-run setup
 
 A fresh install has no users. The server exposes exactly one unauthenticated admin-capable endpoint: `POST /v1/auth/setup`. It works once. After the first admin exists, subsequent calls return `409` and every admin endpoint requires auth.
 
-The Studio UI walks through this at `http://localhost:3000/setup`.
+The admin UI walks through this at `http://localhost:3000/setup`.
 
 ## Roles
 
@@ -29,7 +29,7 @@ Two roles only. RBAC is intentionally coarse — fine-grained control lives on A
 | `admin` | Everything: users, keys, collections, webhooks, audit |
 | `member` | Read `/v1/auth/me`, read/write own `/v1/auth/preferences`, log out |
 
-`member` accounts are useful for Studio users who need a read-only pane of glass.
+`member` accounts are useful for admin UI users who need a read-only pane of glass.
 
 ## Session-only endpoints
 
@@ -53,7 +53,7 @@ Scopes are `resource:action` pairs. A key without `scopes` has full access; a ke
 ```
 collection:read          # GET /v1/collections, GET /v1/collections/{name}, stats
 collection:write         # POST, PUT, DELETE collections, reembed, truncate, /vectors/*
-document:upload          # POST /v1/collections/{name}/documents, batch upload, S3 import, reprocess
+document:upload          # POST /v1/collections/{name}/documents, batch upload, reprocess
 document:read            # GET documents, chunks, download file, batch get/status, /v1/documents/{id}
 document:delete          # DELETE documents, batch delete
 query:read               # POST /query, /batch/query, /collections/{name}/query
@@ -77,7 +77,7 @@ The [Audit API Reference](/docs/api-reference/audit) lists the full action vocab
 
 ## RAG access log
 
-RAG calls write a non-blocking row to `access_log` with actor/API-key context when available, method, path, route, status, latency, IP, user-agent, collection context, and safe endpoint metadata. This covers query, batch query, vector mutation, and evaluation calls. Studio refreshes, admin reads, collection listing, and other control-plane traffic are excluded. Raw request bodies, prompts, document content, and credentials are not stored.
+RAG calls write a non-blocking row to `access_log` with actor/API-key context when available, method, path, route, status, latency, IP, user-agent, collection context, and safe endpoint metadata. This covers query, batch query, vector mutation, and evaluation calls. Admin UI refreshes, admin reads, collection listing, and other control-plane traffic are excluded. Raw request bodies, prompts, document content, and credentials are not stored.
 
 - **Overview**: `GET /v1/admin/access/overview`
 - **Rows**: `GET /v1/admin/access/logs`

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
+import os
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -10,8 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from bigrag import __version__
+from bigrag import config as config_module
 from bigrag import db as db_module
-from bigrag.config import Settings, settings
+from bigrag.config import Settings
 from bigrag.db.bootstrap import run_migrations
 from bigrag.exceptions import NotFoundError, ValidationError
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
@@ -24,6 +27,9 @@ from bigrag.services.storage import init_storage
 from bigrag.services.vector_store import vector_store
 from bigrag.services.webhook import WebhookDispatcher
 from bigrag.startup_guard import check_production_safety
+
+_CLI_CONFIG_PATH_ENV = "_BIGRAG_CLI_CONFIG_PATH"
+_CLI_OVERRIDES_ENV = "_BIGRAG_CLI_OVERRIDES"
 
 
 @asynccontextmanager
@@ -41,7 +47,7 @@ async def lifespan(app: FastAPI):
     if not s.cors_origins and s.env != "dev":
         logger.warning(
             "BIGRAG_CORS_ORIGINS is empty — every cross-origin browser request will "
-            "be rejected. Set it explicitly (e.g. https://studio.example.com)."
+            "be rejected. Set it explicitly (e.g. https://admin.example.com)."
         )
 
     crypto.configure(s.master_key, previous_keys=list(s.master_key_previous))
@@ -72,15 +78,7 @@ async def lifespan(app: FastAPI):
             raise
     app.state.vector_store = vector_store
 
-    storage = init_storage(
-        backend=s.storage_backend,
-        upload_dir=s.upload_dir,
-        s3_bucket=s.s3_bucket,
-        s3_endpoint_url=s.s3_endpoint_url,
-        s3_region=s.s3_region,
-        s3_access_key=s.s3_access_key,
-        s3_secret_key=s.s3_secret_key,
-    )
+    storage = init_storage(upload_dir=s.upload_dir)
     app.state.storage = storage
 
     await redis_cache.connect(s.redis_url)
@@ -94,10 +92,6 @@ async def lifespan(app: FastAPI):
     dispatcher = WebhookDispatcher()
     await dispatcher.start()
     app.state.webhook_dispatcher = dispatcher
-
-    from bigrag.services.s3_ingest import resume_incomplete_jobs
-
-    await resume_incomplete_jobs()
 
     from bigrag.services.cleanup import cleanup_old_data
     from bigrag.utils import safe_create_task
@@ -147,8 +141,23 @@ async def _check_database_migrations(s: Settings, logger) -> None:
         raise
 
 
+def _load_runtime_settings() -> Settings:
+    config_path = os.environ.get(_CLI_CONFIG_PATH_ENV)
+    s = Settings.from_toml(config_path) if config_path else config_module.settings
+
+    raw_overrides = os.environ.get(_CLI_OVERRIDES_ENV)
+    if raw_overrides:
+        for key, value in json.loads(raw_overrides).items():
+            setattr(s, key, value)
+    return s
+
+
 def create_app(settings_override: Settings | None = None) -> FastAPI:
-    s = settings_override or settings
+    if settings_override is not None:
+        config_module.settings = settings_override
+    else:
+        config_module.settings = _load_runtime_settings()
+    s = config_module.settings
 
     app = FastAPI(
         title="bigRAG",
@@ -192,7 +201,6 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     from bigrag.routers.playground import router as playground_router
     from bigrag.routers.preferences import router as preferences_router
     from bigrag.routers.query import router as query_router
-    from bigrag.routers.s3_jobs import router as s3_jobs_router
     from bigrag.routers.usage import router as usage_router
     from bigrag.routers.webhooks import router as webhooks_router
 
@@ -210,7 +218,6 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(documents_global_router)
     app.include_router(playground_router)
     app.include_router(query_router)
-    app.include_router(s3_jobs_router)
     app.include_router(evaluation_router)
     app.include_router(usage_router)
     app.include_router(webhooks_router)
@@ -236,26 +243,29 @@ def cli():
     parser.add_argument("--log-format", choices=["text", "json"], help="Log format")
     args = parser.parse_args()
 
-    from bigrag import config
-
     s = Settings.from_toml(args.config)
 
-    if args.host:
-        s.host = args.host
-    if args.port:
-        s.port = args.port
-    if args.database_url:
-        s.database_url = args.database_url
-    if args.qdrant_url:
-        s.qdrant_url = args.qdrant_url
-    if args.redis_url:
-        s.redis_url = args.redis_url
-    if args.log_level:
-        s.log_level = args.log_level
-    if args.log_format:
-        s.log_format = args.log_format
+    overrides: dict[str, str | int] = {}
+    if args.host is not None:
+        overrides["host"] = args.host
+    if args.port is not None:
+        overrides["port"] = args.port
+    if args.database_url is not None:
+        overrides["database_url"] = args.database_url
+    if args.qdrant_url is not None:
+        overrides["qdrant_url"] = args.qdrant_url
+    if args.redis_url is not None:
+        overrides["redis_url"] = args.redis_url
+    if args.log_level is not None:
+        overrides["log_level"] = args.log_level
+    if args.log_format is not None:
+        overrides["log_format"] = args.log_format
+    for key, value in overrides.items():
+        setattr(s, key, value)
 
-    config.settings = s
+    config_module.settings = s
+    os.environ[_CLI_CONFIG_PATH_ENV] = args.config
+    os.environ[_CLI_OVERRIDES_ENV] = json.dumps(overrides)
 
     uvicorn.run(
         "bigrag.main:create_app",

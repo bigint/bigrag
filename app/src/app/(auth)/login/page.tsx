@@ -43,7 +43,7 @@ const LoginPage = () => {
           <p className="mt-3 text-xs text-muted-foreground">
             Make sure the bigRAG server is running and{" "}
             <code className="rounded bg-muted px-1 py-0.5 font-mono">BIGRAG_URL</code> is set for
-            Studio.
+            the admin UI.
           </p>
         ) : (
           <p className="mt-3 text-xs text-muted-foreground">

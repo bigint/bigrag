@@ -2076,7 +2076,7 @@ All function signatures must have type annotations on parameters and return valu
 async def get_or_404(name: str) -> dict:
     ...
 
-def build_s3_kwargs(job: dict) -> dict[str, Any]:
+def build_request_kwargs(job: dict) -> dict[str, Any]:
     ...
 
 # BAD - missing return type

@@ -1,19 +1,19 @@
 ---
-title: Studio UI
-description: The bigRAG admin UI — setup, collections, playground, API keys, webhooks, settings.
+title: Admin UI
+description: Setup, collections, playground, API keys, webhooks, and settings.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-Studio is the Next.js admin UI packaged with bigRAG. Every control is also a REST API, so Studio is optional — you can run bigRAG headless — but it's the fastest way to bootstrap, prototype, and operate the platform.
+The admin UI is the Next.js web interface packaged with bigRAG. Every control is also a REST API, so the admin UI is optional — you can run bigRAG headless — but it's the fastest way to bootstrap, prototype, and operate the platform.
 
-## Running Studio
+## Running the Admin UI
 
 ```bash
-pnpm dev:app        # Studio on http://localhost:3000
+pnpm dev:app        # admin UI on http://localhost:3000
 ```
 
-Studio proxies every request through `/api/bigrag/[...path]` onto the backend (default `http://localhost:4000`). Session cookies are forwarded automatically.
+The admin UI proxies every request through `/api/bigrag/[...path]` onto the backend (default `http://localhost:4000`). Session cookies are forwarded automatically.
 
 ## Route map
 
@@ -28,7 +28,6 @@ Studio proxies every request through `/api/bigrag/[...path]` onto the backend (d
 | `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, live progress, failed-ingest error, reprocess, and delete. |
 | `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, and rerank when enabled. |
 | `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
-| `/collections/[name]/s3-jobs` | Manage S3 bucket-ingestion jobs for a collection. |
 | `/playground` | Chat-like playground; retrieve from one collection, then stream an OpenAI answer through the backend using your saved playground key. |
 | `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets) — reusable provider + model + key tuples. |
 | `/mcp` | Mint, scope, rotate, and revoke [MCP server](/docs/api-reference/mcp-servers) credentials for Claude Desktop / Cursor / custom MCP clients. |
@@ -48,7 +47,7 @@ Studio proxies every request through `/api/bigrag/[...path]` onto the backend (d
 
 ## Real-time progress
 
-Studio subscribes to `GET /v1/collections/{name}/documents/{doc_id}/progress` on the document detail page while a document is pending or processing. The API also exposes `GET /v1/collections/{name}/events` for collection-wide document activity if you are building your own dashboard.
+The admin UI subscribes to `GET /v1/collections/{name}/documents/{doc_id}/progress` on the document detail page while a document is pending or processing. The API also exposes `GET /v1/collections/{name}/events` for collection-wide document activity if you are building your own dashboard.
 
 ## Playground specifics
 
@@ -59,11 +58,11 @@ The playground sends a single-collection retrieval request to `POST /v1/collecti
 Retrieved chunks carry citation provenance — `document_id`, `chunk_index`, and Docling-derived `page_no` / `char_start` / `char_end` (see [`QueryResult`](/docs/api-reference/query)). The playground hands every chunk to the LLM as `[N] (filename, page X) <text>` and instructs the model to cite with bracketed numbers. In the rendered answer, every `[N]` token is a clickable link that expands the **View sources** panel and scrolls to the matching source card; the card itself shows the document filename, chunk index, page badge, and character offsets when present.
 
 <Callout type="info">
-Studio uses session cookies exclusively. To automate anything Studio does, mint an API key at `/api-keys` and use it with one of the [SDKs](/docs/sdks/typescript) — or with raw HTTP using the same REST endpoints.
+The admin UI uses session cookies exclusively. To automate anything the admin UI does, mint an API key at `/api-keys` and use it with one of the [SDKs](/docs/sdks/typescript) — or with raw HTTP using the same REST endpoints.
 </Callout>
 
-## When to skip Studio
+## When to skip the Admin UI
 
-- **Pure backend deployment** — no Studio process, everything via API keys and SDKs. Set `BIGRAG_ENV=prod` and use [`POST /v1/auth/setup`](/docs/api-reference/authentication) from an admin workstation to bootstrap.
-- **Embedded experiences** — if you're surfacing search inside your own app, skip Studio and build against the [query API](/docs/api-reference/query).
+- **Pure backend deployment** — no admin UI process, everything via API keys and SDKs. Set `BIGRAG_ENV=prod` and use [`POST /v1/auth/setup`](/docs/api-reference/authentication) from an admin workstation to bootstrap.
+- **Embedded experiences** — if you're surfacing search inside your own app, skip admin UI and build against the [query API](/docs/api-reference/query).
 - **Read-only operators** — create a `member` account; they get `/overview`, `/collections` (read), and `/playground` but can't mutate.

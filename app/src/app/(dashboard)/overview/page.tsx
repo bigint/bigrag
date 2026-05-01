@@ -36,7 +36,7 @@ const QUICK_ACTIONS = [
     title: "Run a query",
   },
   {
-    description: "Add documents or S3 sources",
+    description: "Add and organize documents",
     href: "/collections",
     icon: BookOpen,
     title: "Manage collections",
@@ -95,7 +95,7 @@ const OverviewPage = () => {
             icon={BookOpen}
             label="Collections"
             value={statsPending ? undefined : formatNumber(stats?.collections ?? 0)}
-            sub={`${formatNumber(collections.length)} visible in Studio`}
+            sub={`${formatNumber(collections.length)} visible in the admin UI`}
           />
           <MetricCard
             icon={FileText}
@@ -234,7 +234,7 @@ const OverviewPage = () => {
             <Panel>
               <h2 className="text-base font-semibold">Ingestion queue</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Work waiting behind document upload, S3 sync, and reprocessing.
+                Work waiting behind document upload and reprocessing.
               </p>
               <div className="mt-4 space-y-2">
                 {queueItems.length === 0 ? (

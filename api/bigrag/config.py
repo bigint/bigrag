@@ -57,13 +57,7 @@ class Settings(BaseSettings):
     embedding_base_url: str | None = None
     embedding_api_key: str | None = None
 
-    storage_backend: str = "local"
     upload_dir: str = "./data/uploads"
-    s3_bucket: str | None = None
-    s3_endpoint_url: str | None = None
-    s3_region: str = "us-east-1"
-    s3_access_key: str | None = None
-    s3_secret_key: str | None = None
 
     max_upload_size_mb: int = 1024
     ingestion_workers: int = 4

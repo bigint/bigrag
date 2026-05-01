@@ -338,21 +338,28 @@ class VectorStore:
         if not await self._run_with_retry(client.collection_exists, col):
             return [], 0
 
-        results, _next_offset = await self._run_with_retry(
-            client.scroll,
-            collection_name=col,
-            scroll_filter=models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="document_id",
-                        match=models.MatchValue(value=document_id),
-                    )
-                ]
-            ),
-            with_payload=True,
-            with_vectors=False,
-            limit=10000,
-        )
+        results = []
+        next_offset = None
+        while True:
+            batch, next_offset = await self._run_with_retry(
+                client.scroll,
+                collection_name=col,
+                scroll_filter=models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="document_id",
+                            match=models.MatchValue(value=document_id),
+                        )
+                    ]
+                ),
+                with_payload=True,
+                with_vectors=False,
+                limit=10000,
+                offset=next_offset,
+            )
+            results.extend(batch)
+            if next_offset is None:
+                break
         all_chunks = sorted(results, key=lambda r: (r.payload or {}).get("chunk_index", 0))
         total = len(all_chunks)
         page = all_chunks[offset : offset + limit]
