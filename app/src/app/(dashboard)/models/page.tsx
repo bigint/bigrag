@@ -104,8 +104,9 @@ const ModelsPage = () => {
   ];
 
   return (
-    <div>
+    <div className="flex w-full flex-col gap-6">
       <PageHeader
+        className="mb-0"
         actions={
           <Button onClick={() => setFormOpen(true)}>
             <Plus className="size-4" /> New preset

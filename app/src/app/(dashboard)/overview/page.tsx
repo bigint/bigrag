@@ -4,9 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   ArrowUpRight,
-  BarChart3,
   BookOpen,
-  Clock3,
   Database,
   FileText,
   Gauge,
@@ -28,7 +26,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { usePlatformStats, useReadiness } from "@/hooks/use-platform";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatNumber, formatRelative } from "@/lib/format";
-import type { AccessLogBucket, AccessLogEntry, AccessLogOverview } from "@/types/bigrag";
+import type { AccessLogOverview } from "@/types/bigrag";
 
 const QUICK_ACTIONS = [
   {
@@ -322,6 +320,8 @@ const formatPercent = (value: number | undefined) =>
 
 const formatMs = (value: number | undefined) => `${formatNumber(Math.round(value ?? 0))} ms`;
 
+const clampPercent = (value: number | undefined) => Math.max(0, Math.min(100, value ?? 0));
+
 const AccessCommandCenter = ({
   overview,
   pending,
@@ -335,17 +335,16 @@ const AccessCommandCenter = ({
     <Panel className="overflow-hidden p-0">
       <div className="border-b border-border px-5 py-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <Activity className="size-4" />
-              </span>
-              <h2 className="text-base font-semibold">RAG access command center</h2>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl border border-border bg-muted text-foreground">
+              <Activity className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-semibold">Access telemetry</h2>
+              <p className="mt-1 truncate text-sm text-muted-foreground">
+                Last {overview?.window_days ?? 7} days of query traffic, outcomes, and latency.
+              </p>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Actor, endpoint, status, and latency telemetry across the last{" "}
-              {overview?.window_days ?? 7} days.
-            </p>
           </div>
           <Link
             href="/access-logs"
@@ -366,60 +365,78 @@ const AccessCommandCenter = ({
           No access events have landed in this window yet.
         </div>
       ) : (
-        <div className="grid gap-0 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="border-b border-border p-5 xl:border-b-0 xl:border-r">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <AccessMetric
-                icon={Radio}
-                label="Events"
-                value={formatNumber(overview?.total_events ?? 0)}
-                sub={`${formatNumber(overview?.query_events ?? 0)} query events`}
-              />
-              <AccessMetric
-                icon={SignalHigh}
-                label="Success"
-                tone="success"
-                value={formatPercent(overview?.success_rate)}
-                sub={`${formatPercent(overview?.error_rate)} errors`}
-              />
-              <AccessMetric
-                icon={Clock3}
-                label="P95 latency"
-                tone="warning"
-                value={formatMs(overview?.p95_latency_ms)}
-                sub={`${formatMs(overview?.avg_latency_ms)} average`}
-              />
-              <AccessMetric
-                icon={ShieldCheck}
-                label="Actors"
-                value={formatNumber(overview?.unique_users ?? 0)}
-                sub="distinct users in this window"
-              />
-            </div>
-
-            <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              <AccessBucketList
-                buckets={overview?.by_action ?? []}
-                icon={BarChart3}
-                title="Endpoint mix"
-              />
-              <AccessBucketList
-                buckets={overview?.latency_by_action ?? []}
-                icon={Gauge}
-                showLatency
-                title="Latency leaders"
-              />
-            </div>
+        <div>
+          <div className="grid gap-px bg-border lg:grid-cols-[minmax(18rem,1.25fr)_repeat(3,minmax(0,0.75fr))]">
+            <AccessHealthTile overview={overview} />
+            <AccessKpiCell
+              icon={Radio}
+              label="Events"
+              sub={`${formatNumber(overview?.query_events ?? 0)} query events`}
+              value={formatNumber(overview?.total_events ?? 0)}
+            />
+            <AccessKpiCell
+              icon={Gauge}
+              label="P95 latency"
+              sub={`${formatMs(overview?.avg_latency_ms)} average`}
+              tone="warning"
+              value={formatMs(overview?.p95_latency_ms)}
+            />
+            <AccessKpiCell
+              icon={ShieldCheck}
+              label="Actors"
+              sub="distinct users"
+              value={formatNumber(overview?.unique_users ?? 0)}
+            />
           </div>
-
-          <AccessRecentStream entries={overview?.recent ?? []} />
         </div>
       )}
     </Panel>
   );
 };
 
-const AccessMetric = ({
+const AccessHealthTile = ({ overview }: { overview: AccessLogOverview | undefined }) => {
+  const totalEvents = overview?.total_events ?? 0;
+  const successRate = clampPercent(overview?.success_rate);
+  const errorRate = clampPercent(overview?.error_rate);
+  const errorEvents = Math.round(totalEvents * (errorRate / 100));
+
+  return (
+    <div className="bg-muted/50 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+            <SignalHigh className="size-3.5 text-success" />
+            <span>Access health</span>
+          </div>
+          <div className="mt-3 text-5xl font-semibold leading-none text-foreground tabular-nums">
+            {formatPercent(overview?.success_rate)}
+          </div>
+        </div>
+        <span className="rounded-full bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+          {overview?.window_days ?? 7}d
+        </span>
+      </div>
+
+      <div className="mt-5 flex h-2 overflow-hidden rounded-full bg-background">
+        <div className="bg-success" style={{ width: `${successRate}%` }} />
+        <div className="bg-destructive" style={{ width: `${errorRate}%` }} />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3 text-xs font-semibold text-muted-foreground">
+        <div>
+          <div className="text-foreground">{formatNumber(totalEvents)}</div>
+          total events
+        </div>
+        <div>
+          <div className="text-foreground">{formatNumber(errorEvents)}</div>
+          failed requests
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AccessKpiCell = ({
   icon: Icon,
   label,
   sub,
@@ -432,7 +449,7 @@ const AccessMetric = ({
   tone?: "success" | "warning";
   value: string;
 }) => (
-  <div className="min-w-0 border-l border-border pl-3">
+  <div className="min-w-0 bg-background p-5">
     <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
       <Icon
         className={cn(
@@ -443,102 +460,8 @@ const AccessMetric = ({
       />
       <span className="truncate">{label}</span>
     </div>
-    <div className="mt-2 truncate text-2xl font-semibold tabular-nums">{value}</div>
-    <div className="mt-1 truncate text-xs text-muted-foreground">{sub}</div>
-  </div>
-);
-
-const AccessBucketList = ({
-  buckets,
-  icon: Icon,
-  showLatency,
-  title,
-}: {
-  buckets: AccessLogBucket[];
-  icon: LucideIcon;
-  showLatency?: boolean;
-  title: string;
-}) => {
-  const max = Math.max(1, ...buckets.map((bucket) => bucket.count));
-  return (
-    <div>
-      <div className="mb-3 flex items-center gap-2">
-        <Icon className="size-4 text-muted-foreground" />
-        <h3 className="text-sm font-semibold">{title}</h3>
-      </div>
-      <div className="space-y-2">
-        {buckets.length === 0 ? (
-          <div className="text-sm text-muted-foreground">No data yet</div>
-        ) : (
-          buckets.map((bucket) => (
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3" key={bucket.label}>
-              <div className="min-w-0">
-                <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="truncate font-semibold">{bucket.label}</span>
-                  <span className="text-muted-foreground tabular-nums">
-                    {showLatency && bucket.avg_latency_ms !== null
-                      ? formatMs(bucket.avg_latency_ms)
-                      : formatNumber(bucket.count)}
-                  </span>
-                </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${Math.max(4, (bucket.count / max) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-};
-
-const AccessRecentStream = ({ entries }: { entries: AccessLogEntry[] }) => (
-  <div className="p-5">
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <h3 className="text-sm font-semibold">Recent access stream</h3>
-      <Badge variant="neutral">{entries.length}</Badge>
-    </div>
-    <div className="space-y-2">
-      {entries.length === 0 ? (
-        <div className="text-sm text-muted-foreground">No recent events</div>
-      ) : (
-        entries.slice(0, 7).map((entry) => (
-          <Link
-            className="block rounded-2xl border border-border px-3 py-2.5 hover:bg-muted"
-            href="/access-logs"
-            key={entry.id}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "size-1.5 rounded-full",
-                      entry.success ? "bg-success" : "bg-destructive",
-                    )}
-                  />
-                  <span className="truncate text-sm font-semibold">{entry.action}</span>
-                </div>
-                <div className="mt-1 truncate text-xs text-muted-foreground">
-                  {entry.actor_email ?? entry.api_key_name ?? "anonymous"} /{" "}
-                  {entry.collection_name ?? entry.path}
-                </div>
-              </div>
-              <div className="shrink-0 text-right">
-                <div className="text-xs font-semibold tabular-nums">{entry.status_code}</div>
-                <div className="text-xs text-muted-foreground">
-                  {formatRelative(entry.created_at)}
-                </div>
-              </div>
-            </div>
-          </Link>
-        ))
-      )}
-    </div>
+    <div className="mt-3 truncate text-3xl font-semibold tabular-nums">{value}</div>
+    <div className="mt-1 truncate text-xs font-semibold text-muted-foreground">{sub}</div>
   </div>
 );
 
