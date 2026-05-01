@@ -67,3 +67,15 @@ label[for] {
   scroll-behavior: auto !important;
   transition: none !important;
 }
+
+@keyframes spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-slot="spinner"] {
+    animation: spinner-spin 0.8s linear infinite !important;
+  }
+}

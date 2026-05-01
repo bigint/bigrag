@@ -4,8 +4,9 @@ type Props = { size?: "sm" | "md" | "lg"; className?: string };
 
 export const Spinner = ({ size = "md", className }: Props) => (
   <span
+    data-slot="spinner"
     className={cn(
-      "inline-block rounded-full border-2 border-muted-foreground border-t-transparent",
+      "inline-block rounded-full border-2 border-muted-foreground border-t-transparent motion-safe:animate-spin",
       size === "sm" && "size-3.5 border",
       size === "md" && "size-5",
       size === "lg" && "size-7",
