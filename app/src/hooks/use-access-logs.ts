@@ -7,7 +7,6 @@ import type { AccessLogListResponse, AccessLogOverview } from "@/types/bigrag";
 
 export type AccessLogFilters = {
   action?: string;
-  auth_method?: string;
   collection?: string;
   method?: string;
   path?: string;

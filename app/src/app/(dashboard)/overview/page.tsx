@@ -390,10 +390,10 @@ const AccessCommandCenter = ({
                 sub={`${formatMs(overview?.avg_latency_ms)} average`}
               />
               <AccessMetric
-                icon={KeyRound}
-                label="API key use"
-                value={formatNumber(overview?.api_key_events ?? 0)}
-                sub={`${formatNumber(overview?.unique_users ?? 0)} session users`}
+                icon={ShieldCheck}
+                label="Actors"
+                value={formatNumber(overview?.unique_users ?? 0)}
+                sub="distinct users in this window"
               />
             </div>
 

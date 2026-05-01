@@ -90,8 +90,6 @@ async def _buckets(
 async def list_access_logs(
     action: str | None = Query(default=None, max_length=100),
     actor_id: str | None = Query(default=None),
-    api_key_id: str | None = Query(default=None),
-    auth_method: str | None = Query(default=None, max_length=30),
     collection: str | None = Query(default=None, max_length=120),
     method: str | None = Query(default=None, max_length=10),
     path: str | None = Query(default=None, max_length=300),
@@ -110,13 +108,6 @@ async def list_access_logs(
             filters.append(AccessLog.actor_id == uuid.UUID(actor_id))
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="Invalid actor_id") from exc
-    if api_key_id:
-        try:
-            filters.append(AccessLog.api_key_id == uuid.UUID(api_key_id))
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail="Invalid api_key_id") from exc
-    if auth_method:
-        filters.append(AccessLog.auth_method == auth_method)
     if collection:
         filters.append(AccessLog.collection_name == collection)
     if method:
@@ -163,28 +154,10 @@ async def access_overview(
                     0,
                 ).label("p95_latency"),
                 sa.func.count(sa.distinct(AccessLog.actor_id)).label("unique_users"),
-                sa.func.count().filter(AccessLog.auth_method == "api_key").label("api_key_events"),
                 sa.func.count().filter(AccessLog.action.like("query.%")).label("query_events"),
             ).where(*filters)
         )
     ).one()
-
-    by_status_rows = (
-        await session.execute(
-            sa.select(AccessLog.status_code, sa.func.count().label("count"))
-            .where(*filters)
-            .group_by(AccessLog.status_code)
-            .order_by(sa.desc("count"))
-        )
-    ).all()
-    status_counts: dict[str, int] = {}
-    for row in by_status_rows:
-        label = f"{int(row.status_code) // 100}xx"
-        status_counts[label] = status_counts.get(label, 0) + int(row.count)
-    by_status = [
-        AccessLogBucket(label=label, count=count)
-        for label, count in sorted(status_counts.items(), key=lambda item: item[0])
-    ]
 
     trunc_unit = "hour" if window_days <= 2 else "day"
     bucket_col = sa.func.date_trunc(trunc_unit, AccessLog.created_at).label("bucket")
@@ -219,7 +192,6 @@ async def access_overview(
         avg_latency_ms=round(float(summary.avg_latency or 0), 2),
         p95_latency_ms=round(float(summary.p95_latency or 0), 2),
         unique_users=int(summary.unique_users or 0),
-        api_key_events=int(summary.api_key_events or 0),
         query_events=int(summary.query_events or 0),
         by_action=await _buckets(
             session,
@@ -227,15 +199,6 @@ async def access_overview(
             filters=filters,
             include_latency=False,
         ),
-        by_status=by_status,
-        by_auth_method=await _buckets(session, AccessLog.auth_method, filters=filters, limit=4),
-        top_collections=await _buckets(
-            session,
-            AccessLog.collection_name,
-            filters=filters,
-            limit=6,
-        ),
-        top_paths=await _buckets(session, AccessLog.path, filters=filters, limit=6),
         latency_by_action=await _buckets(
             session,
             AccessLog.action,

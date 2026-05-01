@@ -1,17 +1,6 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
-import {
-  Activity,
-  AlertTriangle,
-  Clock3,
-  Database,
-  KeyRound,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  UserRound,
-} from "lucide-react";
+import { RefreshCw, ShieldCheck } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -25,13 +14,12 @@ import { cn } from "@/lib/cn";
 import { formatNumber, formatRelative } from "@/lib/format";
 import type { AccessLogEntry } from "@/types/bigrag";
 
-type LogMode = "all" | "errors" | "queries" | "api-keys";
+type LogMode = "all" | "errors" | "queries";
 
-const FILTERS: Record<LogMode, { icon: LucideIcon; label: string; params: AccessLogFilters }> = {
-  all: { icon: Activity, label: "All", params: { limit: 100 } },
-  errors: { icon: AlertTriangle, label: "Errors", params: { limit: 100, success: false } },
-  queries: { icon: Search, label: "Queries", params: { limit: 100, path: "query" } },
-  "api-keys": { icon: KeyRound, label: "API keys", params: { auth_method: "api_key", limit: 100 } },
+const FILTERS: Record<LogMode, { label: string; params: AccessLogFilters }> = {
+  all: { label: "All", params: { limit: 100 } },
+  errors: { label: "Errors", params: { limit: 100, success: false } },
+  queries: { label: "Queries", params: { limit: 100, path: "query" } },
 };
 
 const AccessLogsPage = () => {
@@ -53,7 +41,7 @@ const AccessLogsPage = () => {
           <ShieldCheck className="mx-auto size-8 text-muted-foreground" />
           <h1 className="mt-4 text-xl font-semibold">Admin access required</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Access logs include actor, IP, endpoint, and API-key telemetry.
+            Access logs include actor, IP, endpoint, and request outcome.
           </p>
         </div>
       </div>
@@ -78,7 +66,6 @@ const AccessLogsPage = () => {
         {Object.entries(FILTERS).map(([key, item]) => (
           <TabButton
             active={mode === key}
-            icon={item.icon}
             key={key}
             label={item.label}
             onClick={() => setMode(key as LogMode)}
@@ -87,28 +74,18 @@ const AccessLogsPage = () => {
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat label="Events" value={formatNumber(overview.data?.total_events ?? 0)} />
         <Stat
-          icon={Activity}
-          label="Events"
-          value={formatNumber(overview.data?.total_events ?? 0)}
-        />
-        <Stat
-          icon={ShieldCheck}
           label="Success rate"
           tone="success"
           value={`${(overview.data?.success_rate ?? 0).toFixed(1)}%`}
         />
         <Stat
-          icon={Clock3}
           label="P95 latency"
           tone="warning"
           value={`${formatNumber(Math.round(overview.data?.p95_latency_ms ?? 0))} ms`}
         />
-        <Stat
-          icon={KeyRound}
-          label="API key events"
-          value={formatNumber(overview.data?.api_key_events ?? 0)}
-        />
+        <Stat label="Query events" value={formatNumber(overview.data?.query_events ?? 0)} />
       </section>
 
       <section className="overflow-hidden rounded-3xl border border-border bg-background">
@@ -138,12 +115,10 @@ const AccessLogsPage = () => {
 };
 
 const Stat = ({
-  icon: Icon,
   label,
   tone,
   value,
 }: {
-  icon: LucideIcon;
   label: string;
   tone?: "success" | "warning";
   value: string;
@@ -151,15 +126,16 @@ const Stat = ({
   <div className="rounded-3xl border border-border bg-background p-4">
     <div className="flex items-center justify-between gap-3">
       <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-      <Icon
-        className={cn(
-          "size-4 text-muted-foreground",
-          tone === "success" && "text-success",
-          tone === "warning" && "text-warning",
-        )}
-      />
     </div>
-    <div className="mt-3 text-2xl font-semibold tabular-nums">{value}</div>
+    <div
+      className={cn(
+        "mt-3 text-2xl font-semibold tabular-nums",
+        tone === "success" && "text-success",
+        tone === "warning" && "text-warning",
+      )}
+    >
+      {value}
+    </div>
   </div>
 );
 
@@ -180,8 +156,7 @@ const AccessLogTable = ({ entries }: { entries: AccessLogEntry[] }) => {
               <StatusBadge entry={entry} />
               <span className="truncate text-sm font-semibold">{entry.action}</span>
             </div>
-            <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-              <Database className="size-3.5 shrink-0" />
+            <div className="mt-1 flex min-w-0 text-xs text-muted-foreground">
               <span className="truncate">{entry.collection_name ?? entry.resource_type}</span>
             </div>
           </div>
@@ -191,28 +166,19 @@ const AccessLogTable = ({ entries }: { entries: AccessLogEntry[] }) => {
             <div className="mt-1 flex flex-wrap gap-1.5">
               <MetaPill>{entry.method}</MetaPill>
               <MetaPill>{entry.auth_method ?? "anonymous"}</MetaPill>
-              {entry.route && <MetaPill>{entry.route}</MetaPill>}
             </div>
           </div>
 
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              {entry.api_key_id ? (
-                <KeyRound className="size-4" />
-              ) : (
-                <UserRound className="size-4" />
-              )}
-              <span className="truncate">
-                {entry.api_key_name ?? entry.actor_email ?? "anonymous"}
-              </span>
+            <div className="truncate text-sm font-semibold">
+              {entry.api_key_name ?? entry.actor_email ?? "anonymous"}
             </div>
             <div className="mt-1 truncate text-xs text-muted-foreground">{entry.ip ?? "no ip"}</div>
           </div>
 
           <div className="flex items-center justify-start gap-4 xl:justify-end">
             <div className="text-right">
-              <div className="flex items-center justify-end gap-1 text-sm font-semibold tabular-nums">
-                <Clock3 className="size-3.5 text-muted-foreground" />
+              <div className="text-sm font-semibold tabular-nums">
                 {formatNumber(Math.round(entry.latency_ms))} ms
               </div>
               <div className="mt-1 text-xs text-muted-foreground">

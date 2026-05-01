@@ -237,13 +237,8 @@ export type AccessLogOverview = {
   avg_latency_ms: number;
   p95_latency_ms: number;
   unique_users: number;
-  api_key_events: number;
   query_events: number;
   by_action: AccessLogBucket[];
-  by_status: AccessLogBucket[];
-  by_auth_method: AccessLogBucket[];
-  top_collections: AccessLogBucket[];
-  top_paths: AccessLogBucket[];
   latency_by_action: AccessLogBucket[];
   timeline: AccessLogTimelinePoint[];
   recent: AccessLogEntry[];

@@ -55,13 +55,8 @@ class AccessLogOverviewResponse(BaseModel):
     avg_latency_ms: float
     p95_latency_ms: float
     unique_users: int
-    api_key_events: int
     query_events: int
     by_action: list[AccessLogBucket]
-    by_status: list[AccessLogBucket]
-    by_auth_method: list[AccessLogBucket]
-    top_collections: list[AccessLogBucket]
-    top_paths: list[AccessLogBucket]
     latency_by_action: list[AccessLogBucket]
     timeline: list[AccessLogTimelinePoint]
     recent: list[AccessLogEntry]

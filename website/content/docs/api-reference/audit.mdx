@@ -88,7 +88,7 @@ Session-only admin endpoint.
 |-----------|------|-------|
 | `window_days` | integer | 1-90, default 7 |
 
-**Response** `200` includes total RAG events, success/error rate, average and p95 latency, API-key event count, query event count, status buckets, endpoint/action buckets, a timeline, and the most recent access rows.
+**Response** `200` includes total RAG events, success/error rate, average and p95 latency, query event count, action buckets, latency-by-action buckets, a timeline, and the most recent access rows.
 
 ## List Access Logs
 
@@ -102,8 +102,6 @@ GET /v1/admin/access/logs
 |-----------|------|-------|
 | `action` | string | Exact action match, e.g. `query.run` or `vectors.upsert` |
 | `actor_id` | UUID | Filter by user UUID |
-| `api_key_id` | UUID | Filter by API-key UUID |
-| `auth_method` | string | `session` or `api_key` |
 | `collection` | string | Exact collection name |
 | `method` | string | HTTP method |
 | `path` | string | Case-insensitive path contains match |
