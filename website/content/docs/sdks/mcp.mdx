@@ -70,8 +70,8 @@ key in Studio.
 
 Under the hood the endpoint is a FastMCP server with
 `stateless_http=True` and `json_response=True`; every request carries
-the token and is dispatched through the bigRAG REST API, so all
-auth / scope / rate-limit rules apply uniformly.
+the token and is dispatched through the bigRAG REST API, so auth and
+scope rules apply uniformly.
 
 ## Local stdio (Claude Desktop, legacy Cursor)
 
@@ -128,7 +128,7 @@ the tools registered for that key's scope.
 ## Tools
 
 All tools are thin wrappers around `/v1/*` endpoints. They honor the
-same auth, scopes, and rate limits as any other API client.
+same auth and scopes as any other API client.
 
 ### Full-workspace key
 

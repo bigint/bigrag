@@ -38,7 +38,7 @@ export const DataTable = <T,>({
 }: DataTableProps<T>) => {
   if (loading) {
     return (
-      <div className="rounded-xl border border-border p-12 text-center">
+      <div className="rounded-3xl border border-border bg-card p-12 text-center">
         <Spinner className="mx-auto" />
         <p className="mt-3 text-sm text-muted-foreground">{loadingMessage}</p>
       </div>
@@ -55,15 +55,15 @@ export const DataTable = <T,>({
     );
   }
   return (
-    <div className="overflow-hidden overflow-x-auto rounded-xl border border-border">
-      <table className="w-full min-w-[600px] border-collapse text-sm">
+    <div className="overflow-x-auto rounded-3xl border border-border bg-surface p-1.5">
+      <table className="w-full min-w-2xl border-separate border-spacing-y-1 text-sm">
         <thead>
-          <tr className="border-b border-border">
+          <tr>
             {columns.map((col) => (
               <th
                 key={col.key}
                 className={cn(
-                  "px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground sm:px-5 sm:py-3",
+                  "px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground sm:px-5",
                   col.headerClassName,
                 )}
               >
@@ -74,17 +74,14 @@ export const DataTable = <T,>({
         </thead>
         <tbody>
           {data.map((item, idx) => (
-            <tr
-              key={keyExtractor(item)}
-              className={cn(
-                "transition-colors hover:bg-muted/30",
-                idx !== data.length - 1 && "border-b border-border",
-              )}
-            >
+            <tr key={keyExtractor(item)} className="group transition-colors">
               {columns.map((col) => (
                 <td
                   key={col.key}
-                  className={cn("px-3 py-3 tabular-nums sm:px-5 sm:py-4", col.className)}
+                  className={cn(
+                    "bg-background px-3 py-3 tabular-nums transition-colors first:rounded-l-2xl last:rounded-r-2xl group-hover:bg-muted sm:px-5 sm:py-3.5",
+                    col.className,
+                  )}
                 >
                   {col.render(item, idx)}
                 </td>

@@ -14,62 +14,66 @@ Auth is admin accounts + session cookies and minted `bigrag_sk_…` API keys —
 Create a `bigrag.toml` file in the project root:
 
 ```toml
-env = "prod"                  # "dev" (default) or "prod" — prod enables startup safety checks
+# Keys are flat and match `api/bigrag/config.py` field names.
+env = "prod"                         # "dev" (default) or "prod"
 
-[server]
 host = "0.0.0.0"
 port = 4000
-workers = 4
-log_level = "info"            # debug, info, warning, error
-log_format = "json"           # text or json
+workers = 1
+log_level = "info"                   # debug, info, warning, error
+log_format = "json"                  # text or json
 cors_origins = ["https://app.example.com"]
+trusted_proxies = ["10.0.0.0/8"]
 
-[database]
-url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
-pool_min = 5
-pool_max = 50
+database_url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
+db_pool_min = 5
+db_pool_max = 50
+migration_timeout_seconds = 60
 
-[qdrant]
-url = "http://localhost:6333"
+qdrant_url = "http://localhost:6333"
+qdrant_api_key = ""
+qdrant_connect_timeout_seconds = 10
+qdrant_required = false
+qdrant_search_ef = 128
 
-[redis]
-url = "redis://localhost:6379/0"
+redis_url = "redis://localhost:6379/0"
 
-[session]
-expiry_hours = 168
-cookie_name = "bigrag_session"
-cookie_secure = true          # must be true in production
-cookie_samesite = "lax"       # lax, strict, none
-# cookie_domain = ".example.com"
+master_key = ""                      # required in prod
+master_key_previous = []             # old Fernet keys during rotation
 
-[embedding]
-provider = "openai"           # openai, cohere, voyage, openai_compatible
-model = "text-embedding-3-small"
-dimension = 1536
-# api_key = "sk-..."          # Optional server default; usually set per collection
+session_expiry_hours = 168
+session_cookie_name = "bigrag_session"
+session_cookie_secure = true         # must be true in production
+session_cookie_samesite = "lax"      # lax, strict, none
+# session_cookie_domain = ".example.com"
 
-[ingestion]
-workers = 4
-batch_size = 128
-conversion_timeout = 300
+embedding_provider = "openai"        # openai, openai_compatible, cohere, voyage
+embedding_model = "text-embedding-3-small"
+embedding_dimension = 1536
+# embedding_base_url = "http://ollama:11434/v1"
+# embedding_api_key = "sk-..."       # Optional server default; usually per collection
+embedding_concurrency = 8
+
 max_upload_size_mb = 1024
+ingestion_workers = 4
+ingestion_batch_size = 128
+conversion_timeout = 300
 
-[storage]
-backend = "local"             # local, s3
+storage_backend = "local"            # local, s3
 upload_dir = "./data/uploads"
+s3_bucket = ""
+s3_endpoint_url = ""
+s3_region = "us-east-1"
+s3_access_key = ""
+s3_secret_key = ""
 
-[s3]
-bucket = ""
-endpoint_url = ""
-region = "us-east-1"
-access_key = ""
-secret_key = ""
+webhook_delivery_timeout = 10
+webhook_retry_delays = [10, 30, 90]
+webhook_cache_ttl = 60
+webhook_max_count = 50
 
-[webhooks]
-delivery_timeout = 10
-retry_delays = [10, 30, 90]
-cache_ttl = 60
-max_count = 50
+collection_cache_ttl = 30
+queue_max_depth = 10000
 ```
 
 ## Environment variables
@@ -83,15 +87,16 @@ Runtime settings use the `BIGRAG_` prefix. Environment variables override TOML v
 | `BIGRAG_ENV` | `dev` or `prod`. Production mode refuses to start if CORS is `*`, cookies aren't `Secure`, or Postgres still uses the shipped default password | `dev` |
 | `BIGRAG_PORT` | Server port | `4000` |
 | `BIGRAG_HOST` | Bind address | `0.0.0.0` |
-| `BIGRAG_WORKERS` | Uvicorn workers | `4` |
+| `BIGRAG_WORKERS` | Uvicorn workers | `1` |
 | `BIGRAG_CORS_ORIGINS` | Allowed CORS origins (JSON array; `["*"]` rejected in `prod`) | `[]` |
-| `BIGRAG_TRUSTED_PROXIES` | Trusted reverse-proxy CIDRs as a JSON array. When the immediate client is trusted, bigRAG uses the rightmost untrusted `X-Forwarded-For` IP for audit logs and IP rate limits. | `[]` |
+| `BIGRAG_TRUSTED_PROXIES` | Trusted reverse-proxy CIDRs as a JSON array. When the immediate client is trusted, bigRAG uses the rightmost untrusted `X-Forwarded-For` IP for audit and access logs. | `[]` |
 
 ### Infrastructure
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_DATABASE_URL` | Postgres connection URL | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
+| `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration check timeout (`0` disables the timeout) | `60` |
 | `BIGRAG_QDRANT_URL` | Qdrant connection URL | `http://localhost:6333` |
 | `BIGRAG_QDRANT_API_KEY` | Optional Qdrant Cloud/API key | — |
 | `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout (`0` disables the timeout) | `10` |
@@ -110,6 +115,7 @@ Runtime settings use the `BIGRAG_` prefix. Environment variables override TOML v
 | `BIGRAG_SESSION_COOKIE_SAMESITE` | `lax`, `strict`, or `none` | `lax` |
 | `BIGRAG_SESSION_COOKIE_DOMAIN` | Optional cookie scope | — |
 | `BIGRAG_MASTER_KEY` | Fernet key (32-byte urlsafe-base64) used to envelope-encrypt provider credentials stored in Postgres. Required in `prod`. See [Encryption at rest](/docs/deployment/encryption). | — |
+| `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys for staged credential-key rotation | `[]` |
 
 Admins are created via [`POST /v1/auth/setup`](/docs/api-reference/authentication) and API keys are minted via [`POST /v1/admin/api-keys`](/docs/api-reference/api-keys).
 
@@ -122,6 +128,7 @@ Embedding provider, model, and key are normally configured per collection. These
 | `BIGRAG_EMBEDDING_PROVIDER` | `openai`, `cohere`, `voyage`, or `openai_compatible` | `openai` |
 | `BIGRAG_EMBEDDING_MODEL` | Default model name | `text-embedding-3-small` |
 | `BIGRAG_EMBEDDING_DIMENSION` | Default vector dimension | `1536` |
+| `BIGRAG_EMBEDDING_BASE_URL` | Base URL for OpenAI-compatible embedding endpoints | — |
 | `BIGRAG_EMBEDDING_API_KEY` | Default provider API key | — |
 
 ### Ingestion

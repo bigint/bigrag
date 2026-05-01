@@ -72,6 +72,24 @@ POST /v1/admin/webhooks/{id}/test
 
 Sends a `webhook.test` event to verify the endpoint is reachable.
 
+## Replay Delivery
+
+```
+POST /v1/admin/webhooks/{id}/deliveries/{delivery_id}/replay
+```
+
+Re-sends the original stored delivery payload to the webhook URL and records the replay attempt in the audit log. Use this after fixing a subscriber outage or endpoint bug.
+
+**Response** `200`:
+
+```json
+{
+  "status": "delivered",
+  "status_code": 200,
+  "error": null
+}
+```
+
 ## Webhook Payload
 
 ```json

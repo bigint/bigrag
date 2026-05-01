@@ -1,0 +1,140 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=e3]:
+    - link "Skip to main content" [ref=e4] [cursor=pointer]:
+      - /url: "#main"
+    - complementary [ref=e5]:
+      - generic [ref=e7]:
+        - button "Navigation" [ref=e9] [cursor=pointer]:
+          - img [ref=e10]
+        - navigation [ref=e12]:
+          - link "Overview" [ref=e14] [cursor=pointer]:
+            - /url: /overview
+            - img [ref=e15]
+            - generic [ref=e20]: Overview
+          - link "Collections" [ref=e22] [cursor=pointer]:
+            - /url: /collections
+            - img [ref=e23]
+            - generic [ref=e25]: Collections
+          - link "Models" [ref=e27] [cursor=pointer]:
+            - /url: /models
+            - img [ref=e28]
+            - generic [ref=e31]: Models
+          - link "Playground" [ref=e33] [cursor=pointer]:
+            - /url: /playground
+            - img [ref=e34]
+            - generic [ref=e37]: Playground
+          - link "Evals" [ref=e39] [cursor=pointer]:
+            - /url: /evals
+            - img [ref=e40]
+            - generic [ref=e42]: Evals
+          - link "MCP" [ref=e44] [cursor=pointer]:
+            - /url: /mcp
+            - img [ref=e45]
+            - generic [ref=e47]: MCP
+          - link "API Keys" [ref=e50] [cursor=pointer]:
+            - /url: /api-keys
+            - img [ref=e51]
+            - generic [ref=e54]: API Keys
+          - link "Webhooks" [ref=e56] [cursor=pointer]:
+            - /url: /webhooks
+            - img [ref=e57]
+            - generic [ref=e61]: Webhooks
+          - link "Settings" [ref=e63] [cursor=pointer]:
+            - /url: /settings
+            - img [ref=e64]
+            - generic [ref=e67]: Settings
+        - button "YO" [ref=e69] [cursor=pointer]:
+          - generic [ref=e70]: YO
+    - main [ref=e71]:
+      - generic:
+        - navigation [ref=e72]:
+          - link "Overview" [ref=e73] [cursor=pointer]:
+            - /url: /overview
+          - link "Playground" [ref=e74] [cursor=pointer]:
+            - /url: /playground
+        - generic [ref=e75]:
+          - link "Settings" [ref=e76] [cursor=pointer]:
+            - /url: /settings
+          - link "New collection" [ref=e77] [cursor=pointer]:
+            - /url: /collections
+      - generic [ref=e79]:
+        - generic [ref=e81]:
+          - img [ref=e83]
+          - paragraph [ref=e87]: Calcutta · 11:27 am
+          - heading "Your RAG Worker" [level=2] [ref=e88]
+          - paragraph [ref=e89]: Ask a collection and get grounded answers with source citations.
+          - generic [ref=e90]:
+            - link "Collections" [ref=e91] [cursor=pointer]:
+              - /url: /collections
+              - img [ref=e92]
+              - generic [ref=e94]: Collections
+            - link "API keys" [ref=e95] [cursor=pointer]:
+              - /url: /api-keys
+              - img [ref=e96]
+              - generic [ref=e99]: API keys
+            - link "Models" [ref=e100] [cursor=pointer]:
+              - /url: /models
+              - img [ref=e101]
+              - generic [ref=e104]: Models
+            - link "MCP" [ref=e105] [cursor=pointer]:
+              - /url: /mcp
+              - img [ref=e106]
+              - generic [ref=e108]: MCP
+            - link "Ingest" [ref=e109] [cursor=pointer]:
+              - /url: /collections
+              - img [ref=e110]
+              - generic [ref=e114]: Ingest
+          - generic [ref=e115]:
+            - generic [ref=e116]: Watch workflows
+            - generic [ref=e117]:
+              - button "Summarize what this collection is about." [ref=e118] [cursor=pointer]:
+                - img [ref=e119]
+                - generic [ref=e124]: Summarize what this collection is about.
+                - img [ref=e125]
+              - button "What are the three most important concepts?" [ref=e127] [cursor=pointer]:
+                - img [ref=e128]
+                - generic [ref=e130]: What are the three most important concepts?
+                - img [ref=e131]
+              - button "Find references to a specific term." [ref=e133] [cursor=pointer]:
+                - img [ref=e134]
+                - generic [ref=e138]: Find references to a specific term.
+                - img [ref=e139]
+              - button "Compare two ideas mentioned in the docs." [ref=e141] [cursor=pointer]:
+                - img [ref=e142]
+                - generic [ref=e145]: Compare two ideas mentioned in the docs.
+                - img [ref=e146]
+              - button "Which source should I read first?" [ref=e148] [cursor=pointer]:
+                - img [ref=e149]
+                - generic [ref=e151]: Which source should I read first?
+                - img [ref=e152]
+              - button "List the facts that need citations." [ref=e154] [cursor=pointer]:
+                - img [ref=e155]
+                - generic [ref=e157]: List the facts that need citations.
+                - img [ref=e158]
+        - generic [ref=e161]:
+          - textbox "Message input" [ref=e162]:
+            - /placeholder: Ask a question of your collection…
+          - generic [ref=e163]:
+            - generic [ref=e164]:
+              - button "Input options" [ref=e165] [cursor=pointer]:
+                - img [ref=e166]
+              - button "OpenAI key …1234" [ref=e168] [cursor=pointer]:
+                - img [ref=e169]
+                - text: OpenAI key …1234
+              - button "GPT-4o mini" [ref=e173] [cursor=pointer]:
+                - text: GPT-4o mini
+                - img [ref=e174]
+              - button "research_docs" [ref=e177] [cursor=pointer]:
+                - text: research_docs
+                - img [ref=e178]
+              - button "0.2 · top-5" [ref=e181] [cursor=pointer]:
+                - img [ref=e182]
+                - text: "0.2"
+                - generic [ref=e184]: ·
+                - text: top-5
+            - button "Send message" [disabled]:
+              - img
+  - region "Notifications alt+T"
+  - alert [ref=e185]

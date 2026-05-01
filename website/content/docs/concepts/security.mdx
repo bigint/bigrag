@@ -65,16 +65,6 @@ Missing-scope calls return `403` with `{"detail": "API key missing required scop
 
 Collection-pinned keys apply that pin consistently, including the global document-read helpers under `/v1/documents/{id}`.
 
-## Rate limits on API keys
-
-Per-endpoint request-per-minute caps attach to a key:
-
-```json
-{ "rate_limits": { "POST:/v1/collections/{name}/query": 600 } }
-```
-
-Use `{name}` as a literal — the matcher normalizes path parameters. Over-budget requests return `429`.
-
 ## Audit log
 
 Every state-changing admin action writes a row to `audit_log` with actor, IP, user-agent, resource, and metadata. Reads don't. Entries are immutable.
@@ -84,6 +74,14 @@ Every state-changing admin action writes a row to `audit_log` with actor, IP, us
 - **Pipe to SIEM**: scrape on a schedule or run `logout-all` + audit export on the `session.*` events
 
 The [Audit API Reference](/docs/api-reference/audit) lists the full action vocabulary.
+
+## RAG access log
+
+RAG calls write a non-blocking row to `access_log` with actor/API-key context when available, method, path, route, status, latency, IP, user-agent, collection context, and safe endpoint metadata. This covers query, batch query, vector mutation, and evaluation calls. Studio refreshes, admin reads, collection listing, and other control-plane traffic are excluded. Raw request bodies, prompts, document content, and credentials are not stored.
+
+- **Overview**: `GET /v1/admin/access/overview`
+- **Rows**: `GET /v1/admin/access/logs`
+- **Retention**: cleanup removes access-log rows older than 90 days by default
 
 ## Passwords
 

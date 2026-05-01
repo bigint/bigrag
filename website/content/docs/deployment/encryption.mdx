@@ -75,13 +75,16 @@ bigRAG delegates the bulk of at-rest protection to your infrastructure. For a pr
 
 ## Rotation
 
-Single-key rotation isn't automated yet (phase 4 in the roadmap). Manual process:
+bigRAG supports dual-read key rotation: set the new key as `BIGRAG_MASTER_KEY` and pass old keys in `BIGRAG_MASTER_KEY_PREVIOUS` so existing rows can still decrypt while newly written rows use the new key.
 
-1. Drain traffic.
-2. `BIGRAG_MASTER_KEY=$NEW alembic downgrade -1` with the *old* key still reachable as `$OLD` — run a one-off script that reads each ciphertext with `$OLD` and rewrites it with `$NEW`.
-3. Promote `$NEW` as `BIGRAG_MASTER_KEY`, restart.
+Manual process:
 
-A `bigrag crypto rotate` CLI command with `BIGRAG_MASTER_KEY_PREVIOUS` dual-read support is on the roadmap.
+1. Generate `$NEW`.
+2. Restart with `BIGRAG_MASTER_KEY=$NEW` and `BIGRAG_MASTER_KEY_PREVIOUS=["$OLD"]`.
+3. Run a one-off rewrite that reads and updates every encrypted field so rows are re-encrypted under `$NEW`.
+4. Remove `$OLD` from `BIGRAG_MASTER_KEY_PREVIOUS` after the rewrite and backup validation.
+
+A built-in `bigrag crypto rotate` command is not available yet; use a controlled maintenance script for step 3.
 
 ## What's intentionally **not** app-layer encrypted
 

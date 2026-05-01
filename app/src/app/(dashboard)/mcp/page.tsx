@@ -509,7 +509,7 @@ const McpPage = () => {
         actions={
           <div className="flex items-center gap-2">
             <a
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
               href="https://modelcontextprotocol.io"
               rel="noopener noreferrer"
               target="_blank"
@@ -521,7 +521,7 @@ const McpPage = () => {
             </Button>
           </div>
         }
-        description="Each MCP server has its own minted credential. Creating one generates a fresh URL to paste into Claude's custom connector, Claude Desktop, or any MCP client."
+        description="Mint scoped MCP URLs for Claude Desktop, custom connectors, and any MCP client."
         title="MCP"
       />
 

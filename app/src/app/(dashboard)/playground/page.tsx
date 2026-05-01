@@ -6,13 +6,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
-import { PageHeader } from "@/components/ui/page-header";
 import { Spinner } from "@/components/ui/spinner";
 import { useCollections } from "@/hooks/use-collections";
 import { useDocuments } from "@/hooks/use-documents";
 import { usePreferences, useUpdatePreferences } from "@/hooks/use-preferences";
 import { apiClient } from "@/lib/api";
-import { streamOpenAI } from "@/lib/openai-stream";
+import { streamPlaygroundChat } from "@/lib/playground-stream";
 import type { QueryResponse, QueryResult } from "@/types/bigrag";
 import { ChatInput, type PlaygroundState } from "./components/chat-input";
 import type { ChatMessage } from "./components/chat-messages";
@@ -32,7 +31,7 @@ const DEFAULT_SYSTEM =
   "alongside the bracket so the reader can verify quickly.";
 
 const DEFAULT_STATE: PlaygroundState = {
-  openaiKey: "",
+  hasOpenAIKey: false,
   model: "gpt-4o-mini",
   topK: 5,
   temperature: 0.2,
@@ -67,7 +66,7 @@ const PlaygroundPage = () => {
   const state: PlaygroundState = useMemo(() => {
     const p = prefsQuery.data?.data.playground ?? {};
     return {
-      openaiKey: p.openai_key ?? DEFAULT_STATE.openaiKey,
+      hasOpenAIKey: Boolean(p.has_openai_key ?? p.openai_key),
       model: p.model ?? DEFAULT_STATE.model,
       topK: typeof p.top_k === "number" ? p.top_k : DEFAULT_STATE.topK,
       temperature: typeof p.temperature === "number" ? p.temperature : DEFAULT_STATE.temperature,
@@ -75,7 +74,7 @@ const PlaygroundPage = () => {
     };
   }, [prefsQuery.data]);
 
-  const patchState = (patch: Partial<PlaygroundState>) => {
+  const patchState = (patch: Partial<PlaygroundState> & { openaiKey?: string }) => {
     const mapped: Record<string, unknown> = {};
     if (patch.openaiKey !== undefined) mapped.openai_key = patch.openaiKey;
     if (patch.model !== undefined) mapped.model = patch.model;
@@ -98,7 +97,7 @@ const PlaygroundPage = () => {
   };
 
   const handleSend = async (text: string) => {
-    if (!state.openaiKey) {
+    if (!state.hasOpenAIKey) {
       toast.error("Add your OpenAI API key first");
       return;
     }
@@ -168,8 +167,7 @@ const PlaygroundPage = () => {
     abortRef.current = controller;
 
     try {
-      await streamOpenAI({
-        apiKey: state.openaiKey,
+      await streamPlaygroundChat({
         model: state.model,
         temperature: state.temperature,
         signal: controller.signal,
@@ -210,27 +208,21 @@ const PlaygroundPage = () => {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-6 py-8 md:px-10">
-      <PageHeader
-        actions={
-          messages.length > 0 ? (
-            <Button disabled={isStreaming} onClick={clearMessages} size="sm" variant="ghost">
-              <RotateCcw className="size-3.5" />
-              New chat
-            </Button>
-          ) : null
-        }
-        className="mb-4"
-        description="Chat your collection end-to-end — bigRAG retrieves, OpenAI answers."
-        title="Playground"
-      />
-
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      {messages.length > 0 && (
+        <div className="absolute top-5 right-3 z-20 hidden lg:block">
+          <Button disabled={isStreaming} onClick={clearMessages} size="sm" variant="ghost">
+            <RotateCcw className="size-3.5" />
+            New chat
+          </Button>
+        </div>
+      )}
       {collectionsLoading || prefsQuery.isPending ? (
-        <div className="flex flex-1 items-center justify-center rounded-xl border border-border">
+        <div className="flex flex-1 items-center justify-center">
           <Spinner size="lg" />
         </div>
       ) : collections.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center rounded-xl border border-border">
+        <div className="flex flex-1 items-center justify-center">
           <Empty
             action={
               <Link href="/collections">
@@ -247,16 +239,16 @@ const PlaygroundPage = () => {
           />
         </div>
       ) : (
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           {messages.length === 0 ? (
-            <EmptyPrompts onSelect={handleSend} disabled={!state.openaiKey || !collection} />
+            <EmptyPrompts onSelect={handleSend} disabled={!state.hasOpenAIKey || !collection} />
           ) : (
             <ChatMessages documents={documents} isStreaming={isStreaming} messages={messages} />
           )}
           <ChatInput
             collection={collection}
             collections={collections}
-            disabled={!state.openaiKey || !collection}
+            disabled={!state.hasOpenAIKey || !collection}
             isStreaming={isStreaming}
             onCollectionChange={setCollection}
             onPatch={patchState}

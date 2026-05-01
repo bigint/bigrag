@@ -32,7 +32,8 @@ No authentication required. Tests connectivity to Postgres, Qdrant, Redis, and t
   "postgres": true,
   "qdrant": true,
   "redis": true,
-  "embedding": true
+  "embedding": true,
+  "embedding_source": "env"
 }
 ```
 
@@ -46,11 +47,12 @@ When the embedding provider is unreachable or misconfigured:
   "qdrant": true,
   "redis": true,
   "embedding": false,
-  "embedding_error": "Invalid API key"
+  "embedding_error": "auth_failed",
+  "embedding_source": "env"
 }
 ```
 
-Returns HTTP `503` with `"status": "degraded"` when any dependency is unhealthy. The embedding health check result is cached for 60 seconds.
+Returns HTTP `503` with `"status": "degraded"` when any dependency is unhealthy. Embedding errors are categorized as `auth_failed`, `rate_limited`, `timeout`, `unreachable`, or `unknown`. The embedding health check result is cached for 60 seconds.
 
 ## Platform Stats
 

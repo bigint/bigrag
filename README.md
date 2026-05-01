@@ -8,14 +8,14 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 
 - **Document ingestion** — PDF, DOCX, PPTX, HTML, Markdown, images, and more via [Docling](https://github.com/DS4SD/docling)
 - **S3 bucket ingestion** — ingest from S3 or any S3-compatible service (MinIO, R2, Spaces, etc.), including public buckets
-- **Embedding providers** — OpenAI, Cohere, and Voyage
+- **Embedding providers** — OpenAI, OpenAI-compatible gateways, Cohere, and Voyage
 - **Embedding presets** — save named provider/model configs once, reuse across collections
 - **Vector search** — semantic, keyword, and hybrid search modes via [Qdrant](https://qdrant.io)
 - **Reranking** — Cohere reranking for improved result relevance
 - **Multi-collection queries** — search across collections in a single request
 - **Batch operations** — bulk upload, delete, status checks, and queries
 - **Real-time progress** — SSE streaming for document processing status
-- **Auth, audit, scopes** — admin accounts, session cookies, `bigrag_sk_…` API keys with per-scope permissions and rate limits, full audit log
+- **Auth, audit, scopes** — admin accounts, session cookies, scoped `bigrag_sk_…` API keys, and full audit/access logs
 - **Metadata controls** — per-collection metadata schemas, file validation, and content-hash deduplication at ingest
 - **Retrieval evaluation runner** — ship recall@k / MRR / nDCG regressions against a golden set
 - **Analytics** — per-collection query analytics and platform-wide stats
@@ -90,7 +90,7 @@ graph TD
     Redis -->|process| Worker[Ingestion worker]
 
     Worker -->|parse| Docling[Docling<br/>PDF, DOCX, HTML, Images]
-    Worker -->|embed| Embedding[Embedding provider<br/>OpenAI / Cohere / openai_compatible]
+    Worker -->|embed| Embedding[Embedding provider<br/>OpenAI / compatible / Cohere / Voyage]
     Worker -->|store vectors| Qdrant[(Qdrant<br/>Vector DB)]
 
     Query -->|search| Qdrant
@@ -187,6 +187,13 @@ Full interactive docs at `/docs` (Swagger UI) when running.
 | cohere | `embed-multilingual-v3.0` | 1024 |
 | cohere | `embed-english-light-v3.0` | 384 |
 | cohere | `embed-multilingual-light-v3.0` | 384 |
+| voyage | `voyage-3-large` | 1024 |
+| voyage | `voyage-3.5` | 1024 |
+| voyage | `voyage-3.5-lite` | 1024 |
+| voyage | `voyage-code-3` | 1024 |
+| voyage | `voyage-finance-2` | 1024 |
+| voyage | `voyage-law-2` | 1024 |
+| openai_compatible | custom model at `embedding_base_url` | custom |
 
 ## SDKs
 
@@ -298,8 +305,7 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 | `BIGRAG_PORT` | Server port | `4000` |
 | `BIGRAG_WORKERS` | API worker processes | `1` |
 | `BIGRAG_DATABASE_URL` | Postgres URL (`postgres:5432` inside docker-compose, `localhost:5432` for bare-metal dev) | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
-| `BIGRAG_RUN_MIGRATIONS` | Run Alembic migrations during API startup | `true` |
-| `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration timeout (`0` disables the timeout) | `60` |
+| `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration check timeout (`0` disables the timeout) | `60` |
 | `BIGRAG_QDRANT_URL` | Qdrant URL | `http://localhost:6333` |
 | `BIGRAG_QDRANT_API_KEY` | Optional Qdrant Cloud/API key | — |
 | `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout (`0` disables the timeout) | `10` |
@@ -307,9 +313,10 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 | `BIGRAG_QDRANT_SEARCH_EF` | Optional Qdrant HNSW search recall/latency tuning | — |
 | `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
 | `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
-| `BIGRAG_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and IP rate limits | `[]` |
+| `BIGRAG_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and access logs | `[]` |
 | `BIGRAG_SESSION_COOKIE_SECURE` | HTTPS-only session cookies | `false` |
 | `BIGRAG_EMBEDDING_API_KEY` | Default embedding API key | — |
+| `BIGRAG_EMBEDDING_BASE_URL` | Base URL for OpenAI-compatible embedding endpoints | — |
 | `BIGRAG_MASTER_KEY` | Fernet key that encrypts provider credentials at rest (required in `prod`) | — |
 | `BIGRAG_STORAGE_BACKEND` | `local` or `s3` for document blob storage | `local` |
 | `BIGRAG_INGESTION_WORKERS` | Background workers | `4` |

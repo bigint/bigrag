@@ -26,7 +26,6 @@ GET /v1/admin/api-keys?limit=50&offset=0
       "prefix": "bigrag_sk_abcd",
       "active": true,
       "scopes": ["document:*", "collection:read"],
-      "rate_limits": { "POST:/v1/collections/{name}/query": 300 },
       "expires_at": null,
       "last_used_at": "2026-04-12T10:21:44Z",
       "created_at": "2026-04-01T00:00:00Z",
@@ -47,7 +46,6 @@ POST /v1/admin/api-keys
 {
   "name": "ingestion-worker",
   "scopes": ["document:*", "collection:read"],
-  "rate_limits": { "POST:/v1/collections/{name}/query": 300 },
   "expires_at": "2027-01-01T00:00:00Z"
 }
 ```
@@ -56,7 +54,6 @@ POST /v1/admin/api-keys
 |-------|------|----------|-------|
 | `name` | string | yes | Human label |
 | `scopes` | string[] | no | Omit / empty = full access. See [scopes](/docs/api-reference/authentication#scopes) |
-| `rate_limits` | object | no | `"METHOD:PATH" → requests/min` |
 | `expires_at` | string (RFC3339) | no | `null` = never |
 
 **Response** `201`:
@@ -68,7 +65,6 @@ POST /v1/admin/api-keys
   "prefix": "bigrag_sk_abcd",
   "active": true,
   "scopes": ["document:*", "collection:read"],
-  "rate_limits": { "POST:/v1/collections/{name}/query": 300 },
   "expires_at": "2027-01-01T00:00:00Z",
   "created_at": "2026-04-12T10:21:44Z",
   "updated_at": "2026-04-12T10:21:44Z",
@@ -85,10 +81,10 @@ PATCH /v1/admin/api-keys/{key_id}
 ```
 
 ```json
-{ "name": "ingest-prod", "active": false, "scopes": ["query:read"], "rate_limits": null }
+{ "name": "ingest-prod", "active": false, "scopes": ["query:read"] }
 ```
 
-Any combination of the four fields is permitted. Deactivating (`active: false`) is the non-destructive way to freeze a leaked key while you investigate; the audit log still references it.
+Any combination of `name`, `active`, `scopes`, and `collection` is permitted. Deactivating (`active: false`) is the non-destructive way to freeze a leaked key while you investigate; the audit log still references it.
 
 **Response** `200`: updated key (without `key`).
 

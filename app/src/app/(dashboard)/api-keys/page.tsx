@@ -137,7 +137,7 @@ const ApiKeysPage = () => {
     <div>
       <PageHeader
         title="API keys"
-        description="Mint long-lived keys for external services. Keys start with bigrag_sk_ and are shown once."
+        description="Mint long-lived keys for external services, shown once at creation."
         actions={
           <Button onClick={() => setAddOpen(true)}>
             <Plus className="size-4" /> New key

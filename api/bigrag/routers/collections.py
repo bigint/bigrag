@@ -125,7 +125,10 @@ async def create_collection(
             ),
         )
     if provider == "openai_compatible":
-        if not body.embedding_base_url and not (preset and preset.base_url):
+        has_base_url = bool(
+            body.embedding_base_url or (preset and preset.base_url) or settings.embedding_base_url
+        )
+        if not has_base_url:
             raise HTTPException(
                 status_code=400,
                 detail=("embedding_base_url is required when provider='openai_compatible'"),
@@ -147,7 +150,11 @@ async def create_collection(
             status_code=400,
             detail=f"API key is required for the '{provider}' embedding provider",
         )
-    base_url = body.embedding_base_url or (preset.base_url if preset else None)
+    base_url = (
+        body.embedding_base_url
+        or (preset.base_url if preset else None)
+        or settings.embedding_base_url
+    )
     dimension_override = body.dimension or (preset.dimension if preset else None)
 
     try:
@@ -158,6 +165,7 @@ async def create_collection(
             model_name=model,
             dimension=dimension_override,
             api_key=api_key,
+            base_url=base_url,
         )
         dimension = dimension_override or emb.dimension
     except (ImportError, ValueError) as e:

@@ -5,6 +5,10 @@ export const queryKeys = {
     session: () => ["auth", "session"] as const,
   },
   apiKeys: () => ["api-keys"] as const,
+  access: {
+    logs: (filters: Record<string, unknown>) => ["access", "logs", filters] as const,
+    overview: (windowDays: number) => ["access", "overview", windowDays] as const,
+  },
   mcpServers: () => ["mcp-servers"] as const,
   webhooks: () => ["webhooks"] as const,
   embeddingPresets: () => ["embedding-presets"] as const,

@@ -103,7 +103,6 @@ curl "http://localhost:4000/v1/collections/docs/events?token=bigrag_sk_…"
 | `name` | Human-readable label |
 | `prefix` | First 12 chars; safe to display |
 | `scopes` | `["resource:action", …]` — omit / empty = full access |
-| `rate_limits` | Per-endpoint overrides, e.g. `{"POST:/v1/query": 300}` |
 | `expires_at` | RFC3339; `null` = never |
 | `active` | Disable without deleting |
 | `last_used_at` | Updated on each successful auth |
@@ -126,21 +125,6 @@ Scopes use `resource:action` with `*` as a wildcard. Common shapes:
 A key missing a required scope returns `403` with `{"detail": "API key missing required scope: <scope>"}`.
 
 If a key is pinned to a single `collection`, that pin is enforced even on the global read helpers like `/v1/documents/{id}` by resolving the document's owning collection before returning it.
-
-### Rate limits
-
-Rate limits map `METHOD:PATH` to an integer request-per-minute ceiling for that key:
-
-```json
-{
-  "rate_limits": {
-    "POST:/v1/collections/{name}/query": 600,
-    "POST:/v1/collections/{name}/documents": 60
-  }
-}
-```
-
-Hits above the ceiling return `429 Too Many Requests`.
 
 ## Which endpoints accept which auth
 

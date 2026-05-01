@@ -16,8 +16,8 @@ from bigrag.db.bootstrap import run_migrations
 from bigrag.exceptions import NotFoundError, ValidationError
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
 from bigrag.middleware.idempotency import IdempotencyMiddleware
-from bigrag.middleware.rate_limit import RateLimitMiddleware
 from bigrag.services import crypto, redis_cache
+from bigrag.services.access_log import AccessLogMiddleware
 from bigrag.services.event_bus import event_bus
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import init_storage
@@ -52,24 +52,7 @@ async def lifespan(app: FastAPI):
         )
 
     await db_module.configure(s.database_url, pool_min=s.db_pool_min, pool_max=s.db_pool_max)
-    if s.run_migrations:
-        logger.info("startup migrations enabled", timeout_seconds=s.migration_timeout_seconds)
-        try:
-            if s.migration_timeout_seconds > 0:
-                await asyncio.wait_for(
-                    run_migrations(),
-                    timeout=s.migration_timeout_seconds,
-                )
-            else:
-                await run_migrations()
-        except TimeoutError:
-            logger.error(
-                "startup migrations timed out",
-                timeout_seconds=s.migration_timeout_seconds,
-            )
-            raise
-    else:
-        logger.warning("startup migrations disabled; assuming database schema is current")
+    await _check_database_migrations(s, logger)
 
     vector_store.configure(
         s.qdrant_url,
@@ -146,6 +129,24 @@ async def lifespan(app: FastAPI):
     logger.info("shut down")
 
 
+async def _check_database_migrations(s: Settings, logger) -> None:
+    logger.info("checking database migrations", timeout_seconds=s.migration_timeout_seconds)
+    try:
+        if s.migration_timeout_seconds > 0:
+            await asyncio.wait_for(
+                run_migrations(),
+                timeout=s.migration_timeout_seconds,
+            )
+        else:
+            await run_migrations()
+    except TimeoutError:
+        logger.error(
+            "startup migrations timed out",
+            timeout_seconds=s.migration_timeout_seconds,
+        )
+        raise
+
+
 def create_app(settings_override: Settings | None = None) -> FastAPI:
     s = settings_override or settings
 
@@ -158,7 +159,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.state.settings = s
 
     app.add_middleware(RequestLoggingMiddleware)
-    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(AccessLogMiddleware)
     app.add_middleware(IdempotencyMiddleware)
     app.add_middleware(
         CORSMiddleware,
@@ -176,6 +177,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     async def validation_handler(request, exc: ValidationError):
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
+    from bigrag.routers.admin_access import router as admin_access_router
     from bigrag.routers.admin_api_keys import router as admin_api_keys_router
     from bigrag.routers.admin_audit import router as admin_audit_router
     from bigrag.routers.admin_users import router as admin_users_router
@@ -187,6 +189,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     from bigrag.routers.evaluation import router as evaluation_router
     from bigrag.routers.health import router as health_router
     from bigrag.routers.mcp_servers import router as mcp_servers_router
+    from bigrag.routers.playground import router as playground_router
     from bigrag.routers.preferences import router as preferences_router
     from bigrag.routers.query import router as query_router
     from bigrag.routers.s3_jobs import router as s3_jobs_router
@@ -198,12 +201,14 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(preferences_router)
     app.include_router(admin_users_router)
     app.include_router(admin_api_keys_router)
+    app.include_router(admin_access_router)
     app.include_router(mcp_servers_router)
     app.include_router(admin_audit_router)
     app.include_router(embedding_presets_router)
     app.include_router(collections_router)
     app.include_router(documents_router)
     app.include_router(documents_global_router)
+    app.include_router(playground_router)
     app.include_router(query_router)
     app.include_router(s3_jobs_router)
     app.include_router(evaluation_router)

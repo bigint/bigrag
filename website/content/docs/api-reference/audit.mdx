@@ -1,11 +1,19 @@
 ---
 title: Audit Log
-description: Read the immutable audit trail of admin actions.
+description: Read admin audit trails and RAG access telemetry.
 ---
 
 Base path: `/v1/admin`
 
 Session-only. Audit records are immutable.
+
+bigRAG separates two operational trails:
+
+- `audit_log` records privileged state changes such as API-key creation.
+- `access_log` records RAG calls with actor, auth method, endpoint, status, collection context,
+  and latency. Query, batch query, vector mutation, and evaluation calls are included; Studio
+  refreshes and admin/control-plane reads are excluded. Request bodies, raw prompts, document
+  content, secrets, and credentials are not stored.
 
 ## List Audit Entries
 
@@ -65,3 +73,41 @@ Date-range filtering isn't yet supported — paginate and filter `created_at` cl
 Audit emission is **not yet wired into every privileged endpoint** — login/logout, user CRUD, API-key updates and deletes, collection mutations, document mutations, and webhook mutations are not currently recorded. Use the application logs (`bigrag.routers.*`) as a secondary trail until coverage expands.
 
 If you have a compliance requirement that depends on this, prefer scraping the structured `bigrag` log stream alongside the audit log until the gap is closed.
+
+## Access Overview
+
+```
+GET /v1/admin/access/overview
+```
+
+Session-only admin endpoint.
+
+**Query parameters:**
+
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| `window_days` | integer | 1-90, default 7 |
+
+**Response** `200` includes total RAG events, success/error rate, average and p95 latency, query event count, action buckets, latency-by-action buckets, a timeline, and the most recent access rows.
+
+## List Access Logs
+
+```
+GET /v1/admin/access/logs
+```
+
+**Query parameters:**
+
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| `action` | string | Exact action match, e.g. `query.run` or `vectors.upsert` |
+| `actor_id` | UUID | Filter by user UUID |
+| `collection` | string | Exact collection name |
+| `method` | string | HTTP method |
+| `path` | string | Case-insensitive path contains match |
+| `status_family` | string | `2xx`, `3xx`, `4xx`, or `5xx` |
+| `success` | boolean | `true` for 2xx/3xx, `false` for 4xx/5xx |
+| `limit` | integer | 1-1,000, default 100 |
+| `offset` | integer | Default 0 |
+
+Access-log rows include actor/API-key identity when available, route/path, status code, latency, IP, user-agent, request ID, collection context, and safe metadata such as query hash, query length, top-k, result count, evaluation metrics, and cache use.

@@ -60,7 +60,7 @@ curl -X POST $BASE/v1/admin/api-keys \
 export BIGRAG_API_KEY=$(jq -r .key /tmp/api-key.json)
 ```
 
-All further examples use `$BIGRAG_API_KEY` as a bearer token. See [Authentication](/docs/api-reference/authentication) for scopes and rate limits.
+All further examples use `$BIGRAG_API_KEY` as a bearer token. See [Authentication](/docs/api-reference/authentication) for scopes.
 </Step>
 
 <Step>
@@ -108,7 +108,7 @@ const collection = await client.createCollection({
 </Tabs>
 
 <Callout type="info">
-No embedding key handy? Use `embedding_provider: "openai_compatible"` with `embedding_base_url` pointing at Ollama, vLLM, TEI, or any OpenAI-compatible endpoint. See [Embeddings](/docs/concepts/embeddings).
+No managed embedding key handy? Use `embedding_provider: "openai_compatible"` with `embedding_base_url` pointing at Ollama, vLLM, TEI, or any OpenAI-compatible endpoint. For local gateways without auth, set `embedding_api_key` to any non-empty placeholder. See [Embeddings](/docs/concepts/embeddings).
 </Callout>
 </Step>
 

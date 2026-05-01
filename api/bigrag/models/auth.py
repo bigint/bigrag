@@ -118,7 +118,6 @@ class ApiKeyResponse(BaseModel):
             "Cross-collection endpoints return 403."
         ),
     )
-    rate_limits: dict | None = None
     last_used_at: datetime | None = None
     expires_at: datetime | None = None
     created_at: datetime
@@ -144,12 +143,6 @@ class CreateApiKeyRequest(BaseModel):
             "endpoints return 403 when this is set."
         ),
     )
-    rate_limits: dict | None = Field(
-        default=None,
-        description=(
-            "Optional per-bucket overrides, e.g. {'POST:/v1/query': 300, 'POST:/v1/documents': 30}."
-        ),
-    )
 
 
 class CreateApiKeyResponse(ApiKeyResponse):
@@ -165,7 +158,6 @@ class UpdateApiKeyRequest(BaseModel):
         max_length=80,
         description="Empty string clears the scope; a name pins to that collection.",
     )
-    rate_limits: dict | None = None
 
 
 class WhoamiResponse(BaseModel):

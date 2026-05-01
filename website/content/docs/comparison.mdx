@@ -53,7 +53,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 - Robust Redis-based queue with dead letter handling and job recovery
 - Native Cohere reranking with per-collection and per-query configuration
 
-**Choose OpenRAG** if you need an end-to-end platform with chat UI, LLM generation, and cloud connectors for non-technical users. **Choose bigRAG** if you need a powerful headless retrieval API with multi-collection support, batch operations, and webhook-driven workflows.
+**Choose OpenRAG** if you need an end-to-end platform with chat UI, backend LLM generation, and OAuth cloud connectors for non-technical users. **Choose bigRAG** if you need an API-first retrieval platform with optional Studio administration, multi-collection support, batch operations, and webhook-driven workflows.
 
 <Callout type="info">
   For a comprehensive feature-by-feature gap analysis, see [OpenRAG Gap Analysis](/docs/openrag-gap-analysis).
@@ -90,7 +90,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 - Multi-user support with permissions
 
 **Where bigRAG is a better fit:**
-- Purpose-built as a headless API service, not a chat app
+- Purpose-built as an API-first retrieval service with optional Studio administration, not a chat app
 - Docling-based parsing handles complex documents (scanned PDFs, PPTX, XLSX) better
 - Webhook notifications for processing events
 - Designed for programmatic access and backend integration
@@ -178,12 +178,12 @@ bigRAG is a great fit when you:
 - Want **self-hosted** deployment with full control over your data
 - Need **webhook notifications** to trigger downstream workflows when documents are processed
 - Want **multiple search modes** (semantic, keyword, hybrid) with per-collection configuration
-- Prefer a **lean, focused tool** over a feature-heavy platform with a UI you won't use
+- Prefer a **lean, focused platform** with an optional admin UI instead of a feature-heavy end-user chat product
 - Need a **TypeScript SDK** for frontend or Node.js integration
 
 Consider an alternative when you:
 
-- Need a **web UI** for non-technical users to manage documents → RAGFlow or AnythingLLM
+- Need a **ready-made end-user chat UI** for non-technical users → OpenRAG, RAGFlow, or AnythingLLM
 - Require **fully offline** operation with local models → PrivateGPT
 - Need **maximum pipeline customization** with custom components → Haystack or LangChain
 - Want **zero infrastructure management** → Vectara

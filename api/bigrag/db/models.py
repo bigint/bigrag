@@ -62,9 +62,6 @@ class ApiKey(Base):
     permissions: Mapped[dict] = mapped_column(
         JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
     )
-    rate_limits: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
-    )
     active: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default=sa.true())
     expires_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
     last_used_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
@@ -337,6 +334,45 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(sa.Text, nullable=False)
     resource_type: Mapped[str] = mapped_column(sa.Text, nullable=False)
     resource_id: Mapped[str | None] = mapped_column(sa.Text)
+    meta: Mapped[dict] = mapped_column(
+        "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
+    )
+    ip: Mapped[str | None] = mapped_column(sa.Text)
+    user_agent: Mapped[str | None] = mapped_column(sa.Text)
+    created_at: Mapped[TS]
+
+
+class AccessLog(Base):
+    __tablename__ = "access_log"
+    __table_args__ = (
+        sa.Index("idx_access_log_actor", "actor_id"),
+        sa.Index("idx_access_log_api_key_id", "api_key_id"),
+        sa.Index("idx_access_log_action", "action"),
+        sa.Index("idx_access_log_collection", "collection_name"),
+        sa.Index("idx_access_log_created_at", sa.desc("created_at")),
+        sa.Index("idx_access_log_status", "status_code"),
+        sa.Index("idx_access_log_success", "success"),
+    )
+
+    id: Mapped[UUIDpk]
+    actor_id: Mapped[UUID | None] = mapped_column(sa.ForeignKey("users.id", ondelete="SET NULL"))
+    actor_email: Mapped[str | None] = mapped_column(sa.Text)
+    api_key_id: Mapped[UUID | None] = mapped_column(
+        sa.ForeignKey("api_keys.id", ondelete="SET NULL")
+    )
+    api_key_name: Mapped[str | None] = mapped_column(sa.Text)
+    auth_method: Mapped[str | None] = mapped_column(sa.Text)
+    action: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="http.request")
+    resource_type: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="http")
+    resource_id: Mapped[str | None] = mapped_column(sa.Text)
+    collection_name: Mapped[str | None] = mapped_column(sa.Text)
+    method: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    path: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    route: Mapped[str | None] = mapped_column(sa.Text)
+    status_code: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    success: Mapped[bool] = mapped_column(sa.Boolean, nullable=False)
+    latency_ms: Mapped[float] = mapped_column(sa.Double, nullable=False)
+    request_id: Mapped[str | None] = mapped_column(sa.Text)
     meta: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
     )

@@ -5,7 +5,7 @@ description: Mint and manage Model Context Protocol server credentials for Claud
 
 Base path: `/v1/admin/mcp-servers`
 
-Each MCP server is an API key with extra metadata pinned to it (`title`, `server_name`, optional `collection` scope). Under the hood it reuses the same `ApiKey` row, authentication, scope, rate-limit, and audit-logging machinery as ordinary API keys — but the `/v1/admin/api-keys` endpoints filter MCP-tagged keys out, so they don't pollute that list.
+Each MCP server is an API key with extra metadata pinned to it (`title`, `server_name`, optional `collection` scope). Under the hood it reuses the same `ApiKey` row, authentication, scope, and audit/access-logging machinery as ordinary API keys — but the `/v1/admin/api-keys` endpoints filter MCP-tagged keys out, so they don't pollute that list.
 
 Session-only (Studio).
 

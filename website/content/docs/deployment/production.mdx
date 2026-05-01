@@ -24,8 +24,6 @@ Tick these off before pointing real traffic at a bigRAG deployment:
 - [ ] Postgres warm-standby replica for failover.
 - [ ] Backup strategy: daily `pg_dump` + Qdrant backup tool + S3
   replication of the upload volume.
-- [ ] Rate limit overrides: set per-key `rate_limits` JSON on any key
-  that legitimately needs more than the default bucket.
 - [ ] Set `metadata_schema` on collections that accept untrusted
   metadata so uploads with invalid shape are rejected at the edge.
 - [ ] Wire `GET /v1/admin/audit` into your SIEM / log pipeline.
@@ -176,10 +174,7 @@ BIGRAG_S3_SECRET_KEY=...
 Files stored on the local filesystem:
 
 ```toml
-[storage]
-backend = "local"
-
-[ingestion]
+storage_backend = "local"
 upload_dir = "./data/uploads"
 ```
 
@@ -188,15 +183,12 @@ upload_dir = "./data/uploads"
 Files stored in an S3-compatible bucket (AWS S3, MinIO, etc.):
 
 ```toml
-[storage]
-backend = "s3"
-
-[s3]
-bucket = "my-bigrag-bucket"
-endpoint_url = "https://s3.amazonaws.com"
-region = "us-east-1"
-access_key = "AKIA..."
-secret_key = "..."
+storage_backend = "s3"
+s3_bucket = "my-bigrag-bucket"
+s3_endpoint_url = "https://s3.amazonaws.com"
+s3_region = "us-east-1"
+s3_access_key = "AKIA..."
+s3_secret_key = "..."
 ```
 
 <Callout type="info">

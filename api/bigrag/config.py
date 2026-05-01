@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -22,7 +23,6 @@ class Settings(BaseSettings):
     database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
     db_pool_min: int = 5
     db_pool_max: int = 50
-    run_migrations: bool = True
     migration_timeout_seconds: int = 60
 
     qdrant_url: str = "http://localhost:6333"
@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     embedding_provider: str = "openai"
     embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = 1536
+    embedding_base_url: str | None = None
     embedding_api_key: str | None = None
 
     storage_backend: str = "local"
@@ -98,11 +99,15 @@ class Settings(BaseSettings):
         for section, values in data.items():
             if isinstance(values, dict):
                 for k, v in values.items():
-                    flat[f"{section}_{k}"] = v
+                    key = f"{section}_{k}"
+                    if f"BIGRAG_{key.upper()}" not in os.environ:
+                        flat[key] = v
             else:
-                flat[section] = values
+                if f"BIGRAG_{section.upper()}" not in os.environ:
+                    flat[section] = values
         log_level = flat.pop("log_level", None)
         log_format = flat.pop("log_format", None)
+        flat.pop("run_migrations", None)
         settings = cls(**flat)
         if isinstance(log_level, str):
             settings.log_level = log_level

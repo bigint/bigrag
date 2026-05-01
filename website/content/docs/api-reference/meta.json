@@ -15,6 +15,7 @@
     "webhooks",
     "usage",
     "evaluation",
+    "playground",
     "preferences",
     "health"
   ]

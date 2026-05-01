@@ -5,7 +5,7 @@ const EvalsPage = () => (
   <div className="flex flex-col gap-6">
     <PageHeader
       title="Retrieval evaluation"
-      description="Run query-and-relevance batches to measure recall@k, MRR, and nDCG before changing chunking or embeddings."
+      description="Measure recall@k, MRR, and nDCG before changing chunking or embeddings."
     />
     <EvalRunner />
   </div>

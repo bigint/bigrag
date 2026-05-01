@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import math
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
+from bigrag.services import access_log
 from bigrag.services.collection_scope import assert_collection_matches_pin
 from bigrag.services.retrieval import retrieve
 
@@ -76,8 +77,24 @@ def _ndcg_at_k(hit_ids: list[str], expected: set[str]) -> float:
 @router.post("", response_model=EvalResponse)
 async def run_evaluation(
     body: EvalRequest,
+    request: Request,
     user: dict = Depends(get_current_user),
 ) -> EvalResponse:
+    access_log.set_context(
+        request,
+        action="evaluation.run",
+        resource_type="collection",
+        resource_id=body.collection,
+        collection_name=body.collection,
+        metadata={
+            "case_count": len(body.cases),
+            "search_mode": body.search_mode,
+            "top_k": body.top_k,
+            "query_hashes": [
+                access_log.query_fingerprint(case.query)["query_hash"] for case in body.cases[:50]
+            ],
+        },
+    )
     pinned = user.get("collection")
     if pinned:
         assert_collection_matches_pin(pinned, body.collection)
@@ -127,6 +144,14 @@ async def run_evaluation(
         collection=body.collection,
         cases=n,
         recall=round(recall_sum / n, 4),
+    )
+    access_log.set_context(
+        request,
+        metadata={
+            "recall_at_k_avg": round(recall_sum / n, 4),
+            "mrr": round(mrr_sum / n, 4),
+            "ndcg_at_k_avg": round(ndcg_sum / n, 4),
+        },
     )
     return EvalResponse(
         collection=body.collection,
