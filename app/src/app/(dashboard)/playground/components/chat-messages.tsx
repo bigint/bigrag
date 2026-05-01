@@ -104,9 +104,9 @@ const Bubble = memo(
     const chunkCount = message.meta?.chunks.length ?? 0;
 
     return (
-      <div className={cn("flex flex-col", isUser ? "items-center" : "items-stretch")}>
+      <div className={cn("flex flex-col", isUser ? "items-end" : "items-stretch")}>
         {isUser ? (
-          <div className="max-w-full rounded-full bg-muted px-4 py-2 text-center text-sm font-semibold leading-5 text-foreground sm:max-w-xl">
+          <div className="max-w-full rounded-full bg-muted px-4 py-2 text-left text-sm font-semibold leading-5 text-foreground sm:max-w-xl">
             {message.content}
           </div>
         ) : (
