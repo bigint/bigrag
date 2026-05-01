@@ -1,28 +1,10 @@
 from __future__ import annotations
 
-import uuid
-from datetime import datetime
-
 import sqlalchemy as sa
 
-from bigrag.config import settings
 from bigrag.db.engine import session_factory
 from bigrag.db.models import Collection
 from bigrag.exceptions import NotFoundError
-from bigrag.logging import get_logger
-from bigrag.services import redis_cache
-
-logger = get_logger("bigrag.collection_cache")
-
-
-async def invalidate(name: str | None = None) -> None:
-    if name:
-        await redis_cache.delete(f"collection:{name}")
-    else:
-        await redis_cache.delete_pattern("collection:*")
-
-
-_SECRET_FIELDS = ("embedding_api_key", "reranking_api_key")
 
 
 def _serialize(c: Collection) -> dict:
@@ -54,41 +36,9 @@ def _serialize(c: Collection) -> dict:
     }
 
 
-async def _load_secrets(name: str) -> dict:
-    async with session_factory()() as session:
-        row = (
-            await session.execute(
-                sa.select(Collection.embedding_api_key, Collection.reranking_api_key).where(
-                    Collection.name == name
-                )
-            )
-        ).first()
-    if row is None:
-        return dict.fromkeys(_SECRET_FIELDS)
-    return {"embedding_api_key": row[0], "reranking_api_key": row[1]}
-
-
 async def get_or_404(name: str) -> dict:
-    cached = await redis_cache.get(f"collection:{name}")
-    if cached:
-        if "id" in cached and isinstance(cached["id"], str):
-            cached["id"] = uuid.UUID(cached["id"])
-        cached.update(await _load_secrets(name))
-        return cached
-
     async with session_factory()() as session:
         collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
-    if collection is None:
-        raise NotFoundError("Collection", name)
-    data = _serialize(collection)
-    cacheable = {
-        k: str(v) if hasattr(v, "hex") else v.isoformat() if isinstance(v, datetime) else v
-        for k, v in data.items()
-        if k not in _SECRET_FIELDS
-    }
-    await redis_cache.set(
-        f"collection:{name}",
-        cacheable,
-        ttl=settings.collection_cache_ttl,
-    )
-    return data
+        if collection is None:
+            raise NotFoundError("Collection", name)
+        return _serialize(collection)

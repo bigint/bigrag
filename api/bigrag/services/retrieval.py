@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import math
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
@@ -23,12 +22,7 @@ class RetrievalOutcome:
     embed_ms: float = 0.0
     search_ms: float = 0.0
     rerank_ms: float = 0.0
-    hyde_ms: float = 0.0
-    mmr_ms: float = 0.0
     total_ms: float = 0.0
-    facets: dict[str, dict[str, int]] | None = None
-    cached: bool = False
-    query_embedding: list[float] | None = field(default=None, repr=False)
 
 
 def _tokenize_query(query: str) -> list[str]:
@@ -70,133 +64,8 @@ def _reciprocal_rank_fusion(
     return result
 
 
-def _normalize_scores(items: list[dict]) -> list[dict]:
-
-    if not items:
-        return items
-    scores = [i.get("score", 0.0) for i in items]
-    lo, hi = min(scores), max(scores)
-    span = hi - lo
-    out = []
-    for item in items:
-        copy = item.copy()
-        if span <= 0:
-            copy["score"] = 1.0 if item.get("score", 0.0) > 0 else 0.0
-        else:
-            copy["score"] = (item.get("score", 0.0) - lo) / span
-        out.append(copy)
-    return out
-
-
-def _weighted_fusion(
-    ranked_lists: list[list[dict]],
-    weights: list[float] | None = None,
-) -> list[dict]:
-
-    weights = weights or [1.0] * len(ranked_lists)
-    if len(weights) != len(ranked_lists):
-        raise ValueError("weights/lists length mismatch")
-
-    scores: dict[str, float] = {}
-    items: dict[str, dict] = {}
-    for lst, w in zip(ranked_lists, weights, strict=False):
-        normalized = _normalize_scores(lst)
-        for item in normalized:
-            item_id = item["id"]
-            scores[item_id] = scores.get(item_id, 0.0) + w * item.get("score", 0.0)
-            items.setdefault(item_id, item)
-
-    sorted_ids = sorted(scores, key=lambda x: scores[x], reverse=True)
-    out = []
-    for item_id in sorted_ids:
-        entry = items[item_id].copy()
-        entry["score"] = round(scores[item_id], 6)
-        out.append(entry)
-    return out
-
-
-def fuse_results(
-    ranked_lists: list[list[dict]],
-    strategy: str = "rrf",
-    weights: list[float] | None = None,
-) -> list[dict]:
-
-    if strategy == "weighted":
-        return _weighted_fusion(ranked_lists, weights=weights)
-    if strategy == "normalized":
-        normalized = [_normalize_scores(lst) for lst in ranked_lists]
-        return _reciprocal_rank_fusion(normalized)
+def fuse_results(ranked_lists: list[list[dict]]) -> list[dict]:
     return _reciprocal_rank_fusion(ranked_lists)
-
-
-def _dot(a: list[float], b: list[float]) -> float:
-    return sum(x * y for x, y in zip(a, b, strict=False))
-
-
-def _norm(v: list[float]) -> float:
-    return math.sqrt(sum(x * x for x in v))
-
-
-def _cosine(a: list[float], b: list[float]) -> float:
-    denom = _norm(a) * _norm(b)
-    return _dot(a, b) / denom if denom else 0.0
-
-
-def mmr_rerank(
-    results: list[dict],
-    query_embedding: list[float],
-    lambda_: float,
-    top_k: int,
-) -> list[dict]:
-
-    if lambda_ >= 1.0 or top_k >= len(results):
-        return results[:top_k]
-
-    remaining = list(results)
-    picked: list[dict] = []
-    q_norm = _norm(query_embedding)
-    if not q_norm:
-        return results[:top_k]
-
-    while remaining and len(picked) < top_k:
-        best_idx = 0
-        best_score = -float("inf")
-        for idx, candidate in enumerate(remaining):
-            emb = candidate.get("embedding")
-            relevance = candidate.get("score", 0.0)
-            if not picked or not emb:
-                mmr = lambda_ * relevance - (1 - lambda_) * 0.0
-            else:
-                max_sim = (
-                    max(
-                        _cosine(emb, p.get("embedding") or []) for p in picked if p.get("embedding")
-                    )
-                    if any(p.get("embedding") for p in picked)
-                    else 0.0
-                )
-                mmr = lambda_ * relevance - (1 - lambda_) * max_sim
-            if mmr > best_score:
-                best_score = mmr
-                best_idx = idx
-        picked.append(remaining.pop(best_idx))
-    return picked
-
-
-def compute_facets(
-    results: list[dict],
-    fields: list[str],
-) -> dict[str, dict[str, int]]:
-
-    facets: dict[str, dict[str, int]] = {f: {} for f in fields}
-    for result in results:
-        metadata = result.get("metadata") or {}
-        for field_name in fields:
-            value = metadata.get(field_name)
-            if value is None:
-                continue
-            key = str(value) if not isinstance(value, (str, int, float, bool)) else str(value)
-            facets[field_name][key] = facets[field_name].get(key, 0) + 1
-    return facets
 
 
 async def rerank_results(
@@ -287,46 +156,6 @@ async def _log_query(
         logger.warning(f"Failed to log query: {e!r}")
 
 
-async def _hyde_expand(
-    query: str,
-    api_key: str | None,
-) -> tuple[str, float]:
-
-    t0 = time.monotonic()
-    try:
-        import openai
-
-        client = openai.AsyncOpenAI(api_key=api_key)
-        resp = await asyncio.wait_for(
-            client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "Write a concise, factual hypothetical answer "
-                            "(2-4 sentences) that someone looking for this "
-                            "information might write. The answer does NOT "
-                            "need to be correct; it's used to broaden "
-                            "semantic retrieval."
-                        ),
-                    },
-                    {"role": "user", "content": query},
-                ],
-                max_tokens=200,
-                temperature=0.3,
-            ),
-            timeout=15,
-        )
-        text = (resp.choices[0].message.content or "").strip()
-        elapsed = (time.monotonic() - t0) * 1000
-        if text:
-            return f"{query}\n\n{text}", elapsed
-    except Exception as exc:
-        logger.warning("hyde: expansion failed, falling back to raw query", error=str(exc))
-    return query, (time.monotonic() - t0) * 1000
-
-
 async def retrieve(
     collection_name: str,
     query: str,
@@ -337,16 +166,10 @@ async def retrieve(
     search_mode: str = "semantic",
     reranking_config: dict | None = None,
     rerank_override: bool | None = None,
-    diversity: float | None = None,
-    hybrid_strategy: str = "rrf",
-    hyde: bool = False,
-    hyde_api_key: str | None = None,
-    facets: list[str] | None = None,
-    precomputed_embedding: list[float] | None = None,
 ) -> RetrievalOutcome:
 
     _retrieve_start = time.monotonic()
-    timings = {"embed_ms": 0.0, "search_ms": 0.0, "rerank_ms": 0.0, "hyde_ms": 0.0, "mmr_ms": 0.0}
+    timings = {"embed_ms": 0.0, "search_ms": 0.0, "rerank_ms": 0.0}
 
     event_bus.publish(
         IngestionEvent(
@@ -364,12 +187,6 @@ async def retrieve(
         raise ValidationError(str(exc)) from exc
     query_terms = _tokenize_query(query)
 
-    fetch_k = top_k * 3 if (diversity is not None and diversity < 1.0) else top_k
-
-    embed_query = query
-    if hyde:
-        embed_query, timings["hyde_ms"] = await _hyde_expand(query, hyde_api_key)
-
     query_embedding: list[float] | None = None
 
     if search_mode == "keyword":
@@ -377,7 +194,7 @@ async def retrieve(
         raw_results = await vector_store.text_search(
             collection=collection_name,
             query_terms=query_terms,
-            top_k=fetch_k,
+            top_k=top_k,
             filters=filter_expr,
         )
         timings["search_ms"] = (time.monotonic() - t0) * 1000
@@ -388,36 +205,25 @@ async def retrieve(
                 r["score"] = round(score, 4)
                 results.append(r)
         results.sort(key=lambda r: r["score"], reverse=True)
-        results = results[:fetch_k]
+        results = results[:top_k]
 
     elif search_mode == "hybrid":
-        if precomputed_embedding is not None and not hyde:
-            query_embedding = precomputed_embedding
-        else:
-            t0 = time.monotonic()
-            embeddings = await embedding_model.embed([embed_query], input_type="query")
-            query_embedding = embeddings[0]
-            timings["embed_ms"] = (time.monotonic() - t0) * 1000
-
-        want_mmr = diversity is not None and diversity < 1.0
-        search_fields = (
-            ["text", "document_id", "chunk_index", "char_start", "char_end", "page_no", "embedding"]
-            if want_mmr
-            else None
-        )
+        t0 = time.monotonic()
+        embeddings = await embedding_model.embed([query], input_type="query")
+        query_embedding = embeddings[0]
+        timings["embed_ms"] = (time.monotonic() - t0) * 1000
 
         t0 = time.monotonic()
         semantic_task = vector_store.search(
             collection=collection_name,
             query_embedding=query_embedding,
-            top_k=fetch_k,
+            top_k=top_k,
             filters=filter_expr,
-            output_fields=search_fields,
         )
         keyword_task = vector_store.text_search(
             collection=collection_name,
             query_terms=query_terms,
-            top_k=fetch_k,
+            top_k=top_k,
             filters=filter_expr,
         )
         semantic_results, keyword_raw = await asyncio.gather(semantic_task, keyword_task)
@@ -431,35 +237,21 @@ async def retrieve(
                 keyword_results.append(r)
         keyword_results.sort(key=lambda r: r["score"], reverse=True)
 
-        results = fuse_results(
-            [semantic_results, keyword_results],
-            strategy=hybrid_strategy,
-        )
-        results = results[:fetch_k]
+        results = fuse_results([semantic_results, keyword_results])
+        results = results[:top_k]
 
     else:
-        if precomputed_embedding is not None and not hyde:
-            query_embedding = precomputed_embedding
-        else:
-            t0 = time.monotonic()
-            embeddings = await embedding_model.embed([embed_query], input_type="query")
-            query_embedding = embeddings[0]
-            timings["embed_ms"] = (time.monotonic() - t0) * 1000
-
-        want_mmr = diversity is not None and diversity < 1.0
-        search_fields = (
-            ["text", "document_id", "chunk_index", "char_start", "char_end", "page_no", "embedding"]
-            if want_mmr
-            else None
-        )
+        t0 = time.monotonic()
+        embeddings = await embedding_model.embed([query], input_type="query")
+        query_embedding = embeddings[0]
+        timings["embed_ms"] = (time.monotonic() - t0) * 1000
 
         t0 = time.monotonic()
         results = await vector_store.search(
             collection=collection_name,
             query_embedding=query_embedding,
-            top_k=fetch_k,
+            top_k=top_k,
             filters=filter_expr,
-            output_fields=search_fields,
         )
         timings["search_ms"] = (time.monotonic() - t0) * 1000
 
@@ -477,17 +269,7 @@ async def retrieve(
             )
             timings["rerank_ms"] = (time.monotonic() - t0) * 1000
 
-    if diversity is not None and diversity < 1.0 and query_embedding is not None and results:
-        t0 = time.monotonic()
-        results = mmr_rerank(
-            results,
-            query_embedding=query_embedding,
-            lambda_=1.0 - diversity,
-            top_k=top_k,
-        )
-        timings["mmr_ms"] = (time.monotonic() - t0) * 1000
-    else:
-        results = results[:top_k]
+    results = results[:top_k]
 
     if min_score is not None:
         results = [r for r in results if r.get("score", 0) >= min_score]
@@ -495,8 +277,6 @@ async def retrieve(
     total_ms = (time.monotonic() - _retrieve_start) * 1000
     timings["total_ms"] = total_ms
     avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else None
-
-    facet_counts = compute_facets(results, facets) if facets else None
 
     event_bus.publish(
         IngestionEvent(
@@ -531,11 +311,7 @@ async def retrieve(
         embed_ms=round(timings["embed_ms"], 2),
         search_ms=round(timings["search_ms"], 2),
         rerank_ms=round(timings["rerank_ms"], 2),
-        hyde_ms=round(timings["hyde_ms"], 2),
-        mmr_ms=round(timings["mmr_ms"], 2),
         total_ms=round(total_ms, 2),
-        facets=facet_counts,
-        query_embedding=query_embedding,
     )
 
 

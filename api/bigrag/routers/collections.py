@@ -22,7 +22,7 @@ from bigrag.models.collection import (
     UpdateCollectionRequest,
 )
 from bigrag.models.common import StatusResponse
-from bigrag.services import audit, semantic_cache
+from bigrag.services import audit
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.vector_store import vector_store
@@ -285,7 +285,6 @@ async def reembed_collection(
     for job in jobs:
         await ingestion_queue.enqueue(job)
 
-    await semantic_cache.invalidate(name)
     logger.info("reembed: queued", collection=name, docs=len(docs))
     audit.record(
         request,
@@ -403,10 +402,6 @@ async def update_collection(
     await session.commit()
     await session.refresh(collection)
 
-    from bigrag.routers import invalidate_collection_cache
-
-    await invalidate_collection_cache(name)
-    await semantic_cache.invalidate(name)
     audit.record(
         request,
         user=user,
@@ -446,10 +441,6 @@ async def delete_collection(
     await session.commit()
     logger.info(f"delete: postgres records removed name={name}")
 
-    from bigrag.routers import invalidate_collection_cache
-
-    await invalidate_collection_cache(name)
-    await semantic_cache.invalidate(name)
     audit.record(
         request,
         user=user,
@@ -543,7 +534,6 @@ async def truncate_collection(
     )
     await session.commit()
     logger.info(f"truncate: documents removed name={name}")
-    await semantic_cache.invalidate(name)
 
     audit.record(
         request,

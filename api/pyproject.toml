@@ -28,7 +28,6 @@ dependencies = [
     "argon2-cffi>=23.1.0,<26",
     "cryptography>=44.0.0,<48",
     "mcp>=1.12.0,<2",
-    "numpy>=2.0.0,<3",
     "tiktoken>=0.8.0,<1",
 ]
 

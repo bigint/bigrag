@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import struct
-from dataclasses import dataclass
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -12,11 +11,6 @@ from bigrag.db.models import EmbeddingCache
 from bigrag.logging import get_logger
 
 logger = get_logger("bigrag.embedding_cache")
-
-
-@dataclass
-class CacheHit:
-    vector: list[float]
 
 
 def _model_key(provider: str, model: str, dimension: int) -> str:
@@ -55,7 +49,7 @@ async def get_many(
                     .where(EmbeddingCache.content_hash.in_(hashes))
                 )
             ).all()
-    except Exception as exc:  # noqa: BLE001 — cache is optional
+    except Exception as exc:
         logger.debug("embedding_cache: lookup failed", error=str(exc))
         return {}
 
@@ -80,7 +74,7 @@ async def get_many(
                     .values(last_hit_at=sa.func.now())
                 )
                 await session.commit()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("embedding_cache: last_hit_at update failed", error=str(exc))
     return out
 
@@ -114,5 +108,5 @@ async def put_many(
         async with session_factory()() as session:
             await session.execute(stmt)
             await session.commit()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("embedding_cache: insert failed", error=str(exc))

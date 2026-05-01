@@ -41,7 +41,7 @@ async def _insert(
                 )
             )
             await session.commit()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning(
             "audit: insert failed — falling back to stderr",
             action=action,

@@ -41,7 +41,7 @@ from bigrag.routers._documents import (
     read_upload_content,
     recount_collection_documents,
 )
-from bigrag.services import audit, semantic_cache
+from bigrag.services import audit
 from bigrag.services.event_bus import event_bus
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 from bigrag.services.ingestion_job import create_ingestion_job
@@ -128,7 +128,6 @@ async def upload_document(
         content_hash=content_hash,
         raise_on_enqueue_failure=True,
     )
-    await semantic_cache.invalidate(collection_name)
 
     audit.record(
         request,
@@ -224,7 +223,6 @@ async def delete_document(
     await session.commit()
 
     await get_storage().delete(file_path)
-    await semantic_cache.invalidate(collection_name)
 
     audit.record(
         request,
@@ -272,7 +270,6 @@ async def reprocess_document(
     doc.chunk_count = 0
     doc.error_message = None
     await session.commit()
-    await semantic_cache.invalidate(collection_name)
 
     await ingestion_queue.enqueue(
         create_ingestion_job(
@@ -475,7 +472,6 @@ async def batch_upload_documents(
         created.append(document_response(doc))
 
     logger.info(f"batch_upload: collection={collection_name} files={len(created)}")
-    await semantic_cache.invalidate(collection_name)
     audit.record(
         request,
         user=user,
@@ -600,8 +596,6 @@ async def batch_delete_documents(
         await session.execute(sa.delete(Document).where(Document.id.in_(deleted_ids)))
     await recount_collection_documents(session, collection["id"])
     await session.commit()
-    if deleted:
-        await semantic_cache.invalidate(collection_name)
 
     logger.info(
         f"batch_delete: collection={collection_name} deleted={deleted} errors={len(errors)}"

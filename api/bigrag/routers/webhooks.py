@@ -111,7 +111,6 @@ async def create_webhook(
     await session.commit()
     await session.refresh(wh)
 
-    await webhook_dispatcher.invalidate_cache()
     logger.info(f"Webhook created: id={wh.id} url={body.url} events={body.events}")
     audit.record(
         request,
@@ -186,7 +185,6 @@ async def update_webhook(
     await session.commit()
     await session.refresh(wh)
 
-    await webhook_dispatcher.invalidate_cache()
     logger.info(f"Webhook updated: id={webhook_id}")
     audit.record(
         request,
@@ -213,7 +211,6 @@ async def delete_webhook(
     deleted_url = wh.url
     await session.delete(wh)
     await session.commit()
-    await webhook_dispatcher.invalidate_cache()
     logger.info(f"Webhook deleted: id={webhook_id}")
     audit.record(
         request,

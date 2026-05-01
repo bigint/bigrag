@@ -38,7 +38,7 @@ jobs:
           fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push
+      - name: Build and push API
         uses: docker/build-push-action@v6
         with:
           context: ./api
@@ -49,5 +49,19 @@ jobs:
             yoginth/bigrag:${{ steps.version.outputs.version }}
             yoginth/bigrag:latest
             yoginth/bigrag:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=bigrag-api
+          cache-to: type=gha,mode=max,scope=bigrag-api
+
+      - name: Build and push UI
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: app/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            yoginth/bigrag-ui:${{ steps.version.outputs.version }}
+            yoginth/bigrag-ui:latest
+            yoginth/bigrag-ui:${{ github.sha }}
+          cache-from: type=gha,scope=bigrag-ui
+          cache-to: type=gha,mode=max,scope=bigrag-ui

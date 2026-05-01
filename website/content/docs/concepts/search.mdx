@@ -1,11 +1,9 @@
 ---
 title: Search
-description: Semantic, keyword, and hybrid search with HyDE, MMR, facets, and caching.
+description: Semantic, keyword, and hybrid search.
 ---
 
-import { Callout } from "fumadocs-ui/components/callout";
-
-bigRAG exposes three base search modes plus four query-time modifiers. The modifiers compose: you can hybrid-search with MMR diversity, facets, and reranking all in the same call.
+bigRAG exposes three search modes and an optional rerank pass. Keep query-time choices narrow: pick a mode, set `top_k` and filters, and enable reranking only when a collection is configured for it.
 
 ## Modes
 
@@ -13,7 +11,7 @@ bigRAG exposes three base search modes plus four query-time modifiers. The modif
 |------|-------------|
 | `semantic` | Default. Cosine similarity against stored vectors. |
 | `keyword` | Text-based matching using term frequency. No embedding involved. |
-| `hybrid` | Runs semantic and keyword in parallel; merges with `rrf` by default, or `weighted` / `normalized` when requested. |
+| `hybrid` | Runs semantic and keyword in parallel, then merges with reciprocal rank fusion. |
 
 ### Semantic
 
@@ -43,7 +41,7 @@ Best for exact terms, product codes, IDs, proper nouns.
 curl -X POST http://localhost:4000/v1/collections/docs/query \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"query": "error code ERR-4021 authentication", "search_mode": "hybrid", "hybrid_strategy": "rrf"}'
+  -d '{"query": "error code ERR-4021 authentication", "search_mode": "hybrid"}'
 ```
 
 Best for queries that mix natural language with specific terms.
@@ -57,12 +55,7 @@ Best for queries that mix natural language with specific terms.
 | `filters` | object | — | Metadata filters — see below |
 | `min_score` | float | Collection default | Drop hits below this score |
 | `search_mode` | string | Collection default | `semantic`, `keyword`, `hybrid` |
-| `hybrid_strategy` | string | `rrf` | `rrf`, `weighted`, or `normalized` when `search_mode=hybrid` |
 | `rerank` | boolean | Collection setting | Force Cohere rerank on/off |
-| `diversity` | float (0–1) | — | MMR diversity weight |
-| `hyde` | boolean | `false` | Generate a HyDE hypothetical document |
-| `facets` | string[] | — | Metadata keys to aggregate |
-| `use_semantic_cache` | boolean | `true` | Replay near-duplicate queries |
 
 ## Filters
 
@@ -98,62 +91,15 @@ Multiple filters are combined with AND. When a collection was created with `tena
 
 When `reranking_enabled` is set on a collection, retrieved hits are re-scored by a Cohere cross-encoder (`rerank-v3.5` by default). Override per query with `"rerank": false` to measure lift, or `"rerank": true` on a collection that has it disabled.
 
-## MMR diversity
-
-`diversity` turns on Maximal Marginal Relevance re-ranking, a cheap local pass that avoids near-duplicate hits:
-
-```json
-{ "query": "error handling patterns", "top_k": 20, "diversity": 0.4 }
-```
-
-- `0.0` — pure relevance (default hit order)
-- `1.0` — pure diversity (minimally overlapping snippets)
-- `0.3–0.5` — useful middle ground for most Q&A
-
-MMR runs after reranking but before the cache write.
-
-## HyDE (Hypothetical Document Embeddings)
-
-Set `"hyde": true` to generate a short hypothetical answer, embed **that**, and search. Improves recall on sparse / keyword-poor questions where the raw query is far from any stored chunk. Adds one LLM call of latency (`hyde_ms` in the response `timings`).
-
-```json
-{ "query": "Why does HNSW recall collapse at high dimensions?", "hyde": true }
-```
-
-## Facets
-
-Pass metadata keys you want aggregated alongside the hits:
-
-```json
-{ "query": "climate change", "facets": ["author", "year"] }
-```
-
-Response includes:
-
-```json
-"facets": {
-  "author": { "Smith": 8, "Jones": 2 },
-  "year": { "2024": 6, "2025": 4 }
-}
-```
-
-Facet counts are scoped to the current result set, **not** the whole collection — so applying a filter tightens them.
-
-## Semantic cache
-
-Identical / near-duplicate queries within the cache window replay the stored response. The response reports `"cached": true`. Turn it off with `"use_semantic_cache": false` when benchmarking or when you really want a fresh embed (e.g., right after a reprocess).
-
 ## Timings
 
-Every response includes a `timings` breakdown — stages that didn't run report `0`:
+Every response includes a `timings` breakdown:
 
 ```json
 "timings": {
   "embed_ms": 18.2,
   "search_ms": 12.4,
   "rerank_ms": 31.5,
-  "hyde_ms": 0,
-  "mmr_ms": 0.4,
   "total_ms": 62.8
 }
 ```

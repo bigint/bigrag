@@ -24,7 +24,7 @@ from bigrag.models.query import (
     VectorUpsertRequest,
 )
 from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
-from bigrag.services import access_log, semantic_cache
+from bigrag.services import access_log
 from bigrag.services.embedding import AVAILABLE_MODELS
 from bigrag.services.retrieval import retrieve, retrieve_multi
 from bigrag.services.vector_store import vector_store
@@ -50,8 +50,6 @@ async def query_collection(
         metadata={
             **access_log.query_fingerprint(body.query),
             **access_log.filter_summary(body.filters),
-            "facets": body.facets or [],
-            "hyde": bool(body.hyde),
             "requested_top_k": body.top_k,
             "rerank_override": body.rerank,
         },
@@ -82,39 +80,6 @@ async def query_collection(
         },
     )
 
-    use_semcache = body.use_semantic_cache if body.use_semantic_cache is not None else True
-    cache_scope = {
-        "filters": body.filters,
-        "top_k": top_k,
-        "min_score": min_score,
-        "search_mode": search_mode,
-        "rerank": body.rerank,
-        "diversity": body.diversity,
-        "hybrid_strategy": body.hybrid_strategy or "rrf",
-        "facets": body.facets or [],
-    }
-
-    precomputed_embedding: list[float] | None = None
-    if use_semcache and not body.hyde and search_mode in ("semantic", "hybrid"):
-        embeddings = await embedding_model.embed([body.query], input_type="query")
-        precomputed_embedding = embeddings[0]
-        cached = await semantic_cache.lookup(
-            collection_name,
-            precomputed_embedding,
-            scope=cache_scope,
-        )
-        if cached:
-            cached_copy = {**cached, "cached": True}
-            access_log.set_context(
-                request,
-                metadata={
-                    "cached": True,
-                    "result_count": cached_copy.get("total", 0),
-                    "latency_ms": (cached_copy.get("timings") or {}).get("total_ms"),
-                },
-            )
-            return QueryResponse(**cached_copy)
-
     outcome = await retrieve(
         collection_name=collection_name,
         query=body.query,
@@ -125,12 +90,6 @@ async def query_collection(
         search_mode=search_mode,
         reranking_config=get_reranking_config(collection),
         rerank_override=body.rerank,
-        diversity=body.diversity,
-        hybrid_strategy=body.hybrid_strategy or "rrf",
-        hyde=bool(body.hyde),
-        hyde_api_key=collection.get("embedding_api_key"),
-        facets=body.facets,
-        precomputed_embedding=precomputed_embedding,
     )
 
     logger.info(
@@ -146,26 +105,13 @@ async def query_collection(
             embed_ms=outcome.embed_ms,
             search_ms=outcome.search_ms,
             rerank_ms=outcome.rerank_ms,
-            hyde_ms=outcome.hyde_ms,
-            mmr_ms=outcome.mmr_ms,
             total_ms=outcome.total_ms,
         ),
-        facets=outcome.facets,
-        cached=outcome.cached,
     )
-
-    if use_semcache and outcome.query_embedding is not None and outcome.results:
-        await semantic_cache.store(
-            collection_name,
-            outcome.query_embedding,
-            response.model_dump(),
-            scope=cache_scope,
-        )
 
     access_log.set_context(
         request,
         metadata={
-            "cached": response.cached,
             "result_count": response.total,
             "latency_ms": response.timings.total_ms if response.timings else None,
             "avg_score": round(
@@ -340,7 +286,6 @@ async def upsert_vectors(
         metadata=metadata,
     )
     logger.info(f"upsert: collection={collection_name} upserted={count}")
-    await semantic_cache.invalidate(collection_name)
     access_log.set_context(request, metadata={"upserted": count})
 
     return {"status": "ok", "upserted": count}
@@ -364,7 +309,6 @@ async def delete_vectors(
     await get_collection_or_404(collection_name)
     logger.info(f"vectors/delete: collection={collection_name} ids={len(body.ids)}")
     await vector_store.delete_by_ids(collection_name, body.ids)
-    await semantic_cache.invalidate(collection_name)
     access_log.set_context(request, metadata={"deleted": len(body.ids)})
     return {"status": "ok", "deleted": len(body.ids)}
 

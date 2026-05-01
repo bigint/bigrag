@@ -19,6 +19,7 @@ from bigrag._errors import (
 from bigrag._files import FileInput, normalize_file_input
 from bigrag._sse import parse_sse_stream
 from bigrag._version import __version__
+from bigrag import types as _types
 from bigrag.resources import (
     AdminApiKeysResource,
     AdminAuditResource,
@@ -34,7 +35,9 @@ from bigrag.resources import (
     VectorsResource,
     WebhooksResource,
 )
-from bigrag.types import *  # noqa: F401, F403
+
+for _name in _types.__all__:
+    globals()[_name] = getattr(_types, _name)
 
 __all__ = [
     # Client
@@ -72,4 +75,4 @@ __all__ = [
     "QueryResource",
     "VectorsResource",
     "WebhooksResource",
-]
+] + list(_types.__all__)

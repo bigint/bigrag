@@ -125,14 +125,9 @@ client.queries.query(collection, {
   query,
   top_k?, filters?, min_score?,
   search_mode?,             // "semantic" | "keyword" | "hybrid"
-  hybrid_strategy?,         // "rrf" | "weighted" | "normalized" — only when search_mode = "hybrid"
   rerank?,
-  diversity?,               // MMR weight 0–1
-  hyde?,                    // Hypothetical Document Embeddings
-  facets?,                  // metadata keys to aggregate
-  use_semantic_cache?,      // default true
 })
-// Response exposes: results, query, collection, total, timings, cached, facets?
+// Response exposes: results, query, collection, total, timings
 
 client.queries.multiQuery({
   query, collections, top_k?, filters?, min_score?, search_mode?, rerank?

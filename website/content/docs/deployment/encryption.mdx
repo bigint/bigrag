@@ -62,7 +62,7 @@ bigRAG delegates the bulk of at-rest protection to your infrastructure. For a pr
 
 ### Redis
 
-- Redis holds the ingestion queue, the event bus, and the semantic cache — all ephemeral, but queue payloads can contain document IDs and user context.
+- Redis holds the ingestion queue, the event bus, idempotency responses, and short-lived platform caches — all ephemeral, but queue payloads can contain document IDs and user context.
 - Disable RDB/AOF persistence in prod, or put the persistence directory on an encrypted volume.
 - Use TLS (`rediss://`) between bigRAG and Redis.
 

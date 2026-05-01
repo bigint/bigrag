@@ -69,8 +69,6 @@ export type QueryTimings = {
   embed_ms: number;
   search_ms: number;
   rerank_ms: number;
-  hyde_ms: number;
-  mmr_ms: number;
   total_ms: number;
 };
 
@@ -80,8 +78,6 @@ export type QueryResponse = {
   collection: string;
   total: number;
   timings?: QueryTimings;
-  facets?: Record<string, Record<string, number>>;
-  cached?: boolean;
 };
 
 export type EmbeddingPreset = {

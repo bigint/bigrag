@@ -24,7 +24,7 @@ OpenRAG and bigRAG share the same foundation — both use **FastAPI**, **Docling
 | [Web UI & User Experience](#1-web-ui--user-experience) | The admin UI exists for setup, collection/document management, playground, API keys, MCP, webhooks, settings, audit, usage, and evals | No end-user chat history, folder upload, visual workflow builder, or vector DB console |
 | [Agentic RAG & LLM Integration](#2-agentic-rag--llm-integration) | The admin UI playground can retrieve chunks and stream an OpenAI answer through the backend using a saved key | No production LLM generation API, conversation store, agents, tool-call inspection, or built-in prompt orchestration |
 | [Cloud Storage Connectors](#3-cloud-storage-connectors) | File upload and batch upload are implemented | No OAuth-backed Google Drive, SharePoint, OneDrive, IBM COS, or connector abstraction |
-| [Search & Retrieval](#4-search--retrieval) | Semantic, keyword, hybrid fusion strategies, HyDE, MMR diversity, Cohere rerank, metadata filters, facets, batch query, and analytics | No explicit semantic/keyword weight ratios, prefix/autocomplete, saved filters, or one-index multi-model search |
+| [Search & Retrieval](#4-search--retrieval) | Semantic, keyword, hybrid RRF search, Cohere rerank, metadata filters, batch query, and analytics | No explicit semantic/keyword weight ratios, facets, prefix/autocomplete, saved filters, or one-index multi-model search |
 | [Authentication & Multi-Tenancy](#5-authentication--multi-tenancy) | Native admin/member accounts, session cookies, scoped API keys, and audit/access logs | No OAuth/OIDC, external IdP, document ownership, document ACLs, or tenant isolation |
 | [Observability & Operations](#6-observability--operations) | Readiness checks Postgres, Qdrant, Redis, and embedding provider; structlog JSON logging exists | No disk monitoring, container-log TUI, or LLM observability |
 | [Developer Experience & Ecosystem](#7-developer-experience--ecosystem) | TypeScript, Python, Rust SDKs and MCP server exist | No `uvx bigrag` install, flow import/export, config backup/restore, factory reset, or Podman guide |
@@ -293,21 +293,21 @@ OpenRAG has a `base.py` connector class that standardizes how new connectors are
 
 ## 4. Search & Retrieval
 
-Both platforms support hybrid search. bigRAG now covers several advanced retrieval controls — facets, HyDE, MMR diversity, semantic cache, and multiple hybrid fusion strategies — while OpenRAG still has stronger search-as-you-type and saved-filter UX.
+Both platforms support hybrid search. bigRAG keeps retrieval deliberately narrow — semantic, keyword, hybrid RRF, metadata filters, optional Cohere reranking, batch query, and analytics — while OpenRAG still has stronger search-as-you-type, facets, and saved-filter UX.
 
 ### 4.1 Weighted Hybrid Search with Tunable Ratios
 
-**Severity: ~~High~~ Partially resolved**
+**Severity: High**
 
 OpenRAG uses a **70/30 semantic/keyword split** with an additional 25% prefix-fallback weight. The weights are explicitly tuned and the `dis_max` query combining provides nuanced relevance scoring.
 
-**bigRAG status:** Partially resolved — bigRAG's hybrid query path supports `hybrid_strategy: "rrf" | "weighted" | "normalized"`. RRF remains the default because it is stable across different scoring distributions.
+**bigRAG status:** Partially resolved — bigRAG's hybrid query path uses reciprocal rank fusion. RRF is stable across different scoring distributions, but it is not tunable.
 
 **Remaining gap:** The public API does not yet expose explicit semantic/keyword weight ratios comparable to OpenRAG's fixed 70/30 blend, and there is no prefix-fallback boost in the same request.
 
 ### 4.2 Faceted Search Aggregations
 
-**Severity: ~~High~~ Resolved**
+**Severity: High**
 
 OpenRAG returns faceted aggregations with search results:
 - Data sources (filenames)
@@ -318,7 +318,7 @@ OpenRAG returns faceted aggregations with search results:
 
 These power filter UIs and analytics dashboards.
 
-**bigRAG status:** Resolved — single-collection queries accept a `facets` array and return per-field counts alongside ranked chunks. This covers common filter UI and analytics use cases when metadata fields are present.
+**bigRAG status:** Not implemented — queries return ranked chunks and metadata, but do not return aggregation counts.
 
 ### 4.3 Prefix/Autocomplete Fallback
 

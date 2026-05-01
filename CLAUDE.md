@@ -13,7 +13,7 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 
 ### No comments
 
-Don't write comments or docstrings in code under `api/bigrag/`, `sdks/typescript/src/`, `app/`, or `website/`. This includes `#`, `//`, `/* */`, `/** */` JSDoc, and Python `"""docstrings"""`. The diff and well-named identifiers should speak for themselves; surprising invariants belong in commit messages or PR descriptions, not in the code. The only allowed exceptions are functional directives — shebangs, `# noqa`, `# type: ignore`, `# ruff:`, `// @ts-…`, `// biome-ignore`, `// eslint-…`, and similar tool pragmas. If you find yourself wanting to explain code, rename or restructure it instead.
+Don't write comments or docstrings in code under `api/bigrag/`, `sdks/typescript/src/`, `app/`, or `website/`. This includes `#`, `//`, `/* */`, `/** */` JSDoc, and Python `"""docstrings"""`. The diff and well-named identifiers should speak for themselves; surprising invariants belong in commit messages or PR descriptions, not in the code. The only allowed exceptions are functional directives — shebangs, `# type: ignore`, `# ruff:`, `// @ts-…`, `// biome-ignore`, `// eslint-…`, and similar tool pragmas. If you find yourself wanting to explain code, rename or restructure it instead.
 
 ## Tech Stack
 
@@ -108,4 +108,3 @@ Auth is admin-account + session cookie (admin UI) or minted API keys
 (`bigrag_sk_...`, external clients). First admin is created via the admin UI's
 `/setup` page; subsequent admins via `/users`; API keys via `/api-keys`. There
 is no shared-secret env var — do not introduce one.
-

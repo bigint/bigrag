@@ -40,7 +40,7 @@ _current_app: contextvars.ContextVar[FastAPI | None] = contextvars.ContextVar(
 
 
 class _TokenExtractMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: StarletteRequest, call_next):  # noqa: ANN001
+    async def dispatch(self, request: StarletteRequest, call_next):
         token: str | None = None
         auth = request.headers.get("authorization", "")
         if auth.startswith("Bearer "):
@@ -54,7 +54,7 @@ class _TokenExtractMiddleware(BaseHTTPMiddleware):
 
 def _client() -> httpx.AsyncClient:
     app = _current_app.get()
-    if app is None:  # pragma: no cover — defensive
+    if app is None:  # pragma: no cover
         raise RuntimeError("bigrag mcp_http: app context not set")
     token = _current_token.get()
     headers: dict[str, str] = {"User-Agent": "bigrag-mcp-http/1.0"}
@@ -235,7 +235,7 @@ def build_mcp_http_app(parent_app: FastAPI) -> tuple[ASGIApp, Any]:
     http_app = mcp.streamable_http_app()
 
     class _ParentAppBinding(BaseHTTPMiddleware):
-        async def dispatch(self, request: StarletteRequest, call_next):  # noqa: ANN001
+        async def dispatch(self, request: StarletteRequest, call_next):
             reset = _current_app.set(parent_app)
             try:
                 return await call_next(request)

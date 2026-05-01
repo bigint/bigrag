@@ -47,12 +47,10 @@ class Settings(BaseSettings):
 
     embedding_concurrency: int = 8
     qdrant_search_ef: int | None = None
-    collection_cache_ttl: int = 30
     queue_max_depth: int = 10000
     conversion_timeout: int = 300
     webhook_delivery_timeout: int = 10
     webhook_retry_delays: list[int] = [10, 30, 90]
-    webhook_cache_ttl: int = 60
     webhook_max_count: int = 50
 
     embedding_provider: str = "openai"

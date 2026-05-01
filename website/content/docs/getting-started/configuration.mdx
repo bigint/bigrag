@@ -54,7 +54,8 @@ embedding_dimension = 1536
 # embedding_api_key = "sk-..."       # Optional server default; usually per collection
 embedding_concurrency = 8
 
-max_upload_size_mb = 1024
+max_upload_size_mb = 64
+max_batch_upload_size_mb = 128
 ingestion_workers = 4
 ingestion_batch_size = 128
 conversion_timeout = 300
@@ -63,10 +64,8 @@ upload_dir = "./data/uploads"
 
 webhook_delivery_timeout = 10
 webhook_retry_delays = [10, 30, 90]
-webhook_cache_ttl = 60
 webhook_max_count = 50
 
-collection_cache_ttl = 30
 queue_max_depth = 10000
 ```
 

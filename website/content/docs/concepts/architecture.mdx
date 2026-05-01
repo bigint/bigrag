@@ -16,9 +16,8 @@ everything into Postgres with pgvector. Each one earns its keep:
 - **Postgres** — metadata and control plane. Collections, documents,
   users, API keys, webhooks, query logs, audit trail, embedding cache.
   Transactions keep ingestion consistent across stores.
-- **Redis** — the ingestion queue (`BLPOP/BLMOVE` semantics), webhook
-  delivery queue, idempotency-key cache, semantic query cache. All
-  in-flight / TTL'd work.
+- **Redis** — the ingestion queue (`BLPOP/BLMOVE` semantics),
+  idempotency-key cache, and short-lived platform/health caches.
 - **Local disk** — raw uploaded documents. Needed to produce
   citations back into source files and to support re-embedding without
   re-uploading.
@@ -53,7 +52,7 @@ Ingestion worker (4 by default)
   │ f. UPDATE documents status = 'ready', emit SSE progress events
   ▼
 Webhook dispatcher
-  │ document.ready fan-out with retries, circuit breaker, jitter
+  │ document.ready fan-out with signed delivery attempts and retries
 ```
 
 Failure at any step marks the document `failed` with a typed error
@@ -65,22 +64,17 @@ retry (3 attempts, exponential backoff) before permanently failing.
 ```
 Client → FastAPI
   │ 1. auth → scope check (query:read)
-  │ 2. semantic cache lookup — if cosine ≥ 0.97 vs a recent query, replay
-  │ 3. optional HyDE — generate hypothetical answer, embed THAT instead
-  │ 4. embed query (tiktoken-aware truncation)
-  │ 5. Qdrant search (with payload filters)
-  │ 6. optional hybrid fusion — keyword search + fuse (rrf/weighted/normalized)
-  │ 7. optional rerank — Cohere Rerank v3.5
-  │ 8. optional MMR diversity — over-fetched pool, lambda = 1 - diversity
-  │ 9. facets aggregation, attach timings (embed/search/rerank/mmr/total)
-  │ 10. semantic cache put — so the next paraphrase is free
+  │ 2. embed query when search mode needs vectors
+  │ 3. Qdrant search (with payload filters)
+  │ 4. optional hybrid fusion — keyword search + reciprocal rank fusion
+  │ 5. optional rerank — Cohere Rerank v3.5
+  │ 6. attach timings (embed/search/rerank/total)
   ▼
-Response JSON with results, timings, facets, cached flag
+Response JSON with results and timings
 ```
 
-Every phase is optional — a vanilla `POST /query` with just `{query}`
-skips HyDE, MMR, facets, and hybrid, returning the same shape as the
-rest.
+Keyword mode skips embeddings; semantic and hybrid mode use the
+collection's configured embedding model.
 
 ## Why Docling
 

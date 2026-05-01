@@ -365,17 +365,12 @@ the health check.
 
 ---
 
-#### `[x]` I-018 🔴 Semantic cache is checked **after** full retrieval
+#### `[x]` I-018 🔴 Removed semantic result cache
 
 **File:** `api/bigrag/routers/query.py:60-85`
 
-`retrieve(...)` always runs to completion (embed → search → optional rerank →
-optional MMR), and only then does the route consult the semantic cache. The
-"cache hit replay" path early-returns at line 85 — but by then we've paid the
-embedding + search + rerank latency. The cache saves zero compute on hits.
-
-**Fix:** Embed the query first, look up the cache against that embedding, and
-short-circuit before calling `retrieve()` on a hit.
+The semantic result cache was removed. Query execution now goes directly
+through retrieval, so there is no near-duplicate cache lookup path to maintain.
 
 ---
 
@@ -548,19 +543,13 @@ Categories: `webhook.create`, `webhook.update`, `webhook.delete`,
 
 ---
 
-#### `[x]` I-029 🟠 `EncryptedString` plaintext fallback flows into Redis cache
+#### `[x]` I-029 🟠 Removed collection Redis cache for secrets
 
 **Files:** `api/bigrag/services/crypto.py:88-101`,
 `api/bigrag/services/collection_cache.py:_serialize`
 
-If a row contains a plaintext value (legacy data, restored backup, partially
-migrated state), `process_result_value` returns it. The collection cache then
-stores `embedding_api_key` into Redis — unencrypted — for `collection_cache_ttl`
-seconds (30 s by default).
-
-**Fix:** Either return `None` and force a re-upload of the key, or never cache
-`embedding_api_key` server-side (read it on demand, or only cache `has_api_key:
-bool`).
+Collection lookup now reads directly from Postgres and no longer writes
+collection records or provider secrets into Redis.
 
 ---
 
@@ -826,19 +815,13 @@ keep new provider secrets listed in `_SENSITIVE_PATHS`.
 
 ---
 
-#### `[x]` I-047 🟠 MMR has no effect (silent no-op)
+#### `[x]` I-047 🟠 Removed MMR query modifier
 
 **Files:** `api/bigrag/services/retrieval.py:170-202`,
 `api/bigrag/services/vector_store.py:241-248`
 
-`vector_store.search` does not request `embedding` in `output_fields`, so all
-MMR candidates have `embedding=None`. `mmr_rerank` then falls back to
-`lambda * relevance` — i.e. pure relevance, no diversity. The `diversity`
-parameter is silently ignored.
-
-**Fix:** When the caller passes `diversity != None`, request `embedding` in
-`output_fields` (it costs more bytes over the wire — gate it on the request
-flag). Then MMR actually picks novel items.
+The public `diversity`/MMR path was removed during the query simplification
+pass. Search now returns direct semantic, keyword, or hybrid RRF results.
 
 ---
 
@@ -868,22 +851,12 @@ if not collection:
 
 ---
 
-#### `[x]` I-049 🟠 Webhook circuit breaker is per-process; never resets without success
+#### `[x]` I-049 🟠 Removed webhook circuit breaker
 
 **File:** `api/bigrag/services/webhook.py:76-107`
 
-`CircuitBreaker._state` is a Python dict on a per-process dispatcher. Multi
-worker = uncoordinated state. Worse: a permanently-broken endpoint
-- accumulates failures in process A
-- after `cooldown_seconds` enters half-open
-- next attempt fails
-- ...but `record_failure` increments without resetting failures-counter, so
-  the breaker re-opens immediately. It will allow one delivery attempt every
-  `cooldown_seconds` forever.
-
-**Fix:** Move state to Redis with a TTL key per webhook. On success, `DEL` the
-key. On failure, `INCR` with `EX cooldown_seconds`. Standard token-bucket
-breaker.
+The per-process circuit breaker was removed. Webhook delivery now relies on
+bounded retries plus persisted delivery records.
 
 ---
 
@@ -974,20 +947,10 @@ vector, and key the cache on the truncated input.
 
 ---
 
-#### `[x]` I-055 🟠 Semantic-cache cosine on the event loop
+#### `[x]` I-055 🟠 Removed semantic-cache cosine path
 
-**File:** `api/bigrag/services/semantic_cache.py:77-97`
-
-Up to 200 × 1536 multiplications per query, synchronous. At 50 req/s this
-visibly degrades event-loop latency.
-
-**Fix:** Vectorize via numpy and run inside `asyncio.to_thread`:
-```python
-import numpy as np
-mat = np.array([entry["vec"] for entry in raw_entries])  # (N, D)
-q = np.array(query_vec)
-scores = (mat @ q) / (np.linalg.norm(mat, axis=1) * np.linalg.norm(q))
-```
+The semantic cache module was removed, so there is no query-time cosine scan in
+Redis-backed cache entries.
 
 ---
 
@@ -1467,7 +1430,7 @@ way callers can detect dedup. SDK callers cannot.
 
 ---
 
-#### `[x]` I-092 🟠 SDK type drift: `QueryResponse` missing `timings`, `facets`, `cached`
+#### `[x]` I-092 🟠 SDK type drift: `QueryResponse` missing `timings`
 
 **Files:**
 - `sdks/typescript/src/types/query.ts:22-27`
@@ -1477,18 +1440,16 @@ way callers can detect dedup. SDK callers cannot.
 `QueryResult` is also missing `page_no`, `char_start`, `char_end` (citation
 provenance).
 
-**Fix:** Add all six fields across the three SDK types.
+**Fix:** Add query timings and citation provenance fields across SDK types.
 
 ---
 
-#### `[x]` I-093 🟠 SDK type drift: `QueryBody` missing 5 request fields
+#### `[x]` I-093 🟠 Removed experimental query request fields
 
 **Files:** all three SDK `types/query.*`
 
-Server accepts `diversity`, `hybrid_strategy`, `hyde`, `facets`,
-`use_semantic_cache`. None of the SDKs declare them.
-
-**Fix:** Add all five as optional fields.
+The experimental `diversity`, `hybrid_strategy`, `hyde`, `facets`, and
+`use_semantic_cache` request fields were removed from the server and SDK types.
 
 ---
 
@@ -2025,9 +1986,6 @@ For quick "what's outstanding in X" lookups.
 
 ### `api/bigrag/services/embedding_cache.py`
 - I-073
-
-### `api/bigrag/services/semantic_cache.py`
-- I-055
 
 ### `api/bigrag/services/conversion.py`
 - I-052

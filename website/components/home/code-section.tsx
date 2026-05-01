@@ -7,7 +7,6 @@ const client = new BigRAG({
   baseUrl: "http://localhost:4000",
 });
 
-// Upload, embed, and search — all in one platform
 const { results } = await client.query("knowledge_base", {
   query: "What is the PTO policy?",
   top_k: 5,

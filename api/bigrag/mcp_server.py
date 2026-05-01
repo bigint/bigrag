@@ -346,10 +346,9 @@ def cli() -> None:
     args = parser.parse_args()
 
     if not args.api_key:
-        print(  # noqa: T201 — user-facing CLI warning on stderr
+        sys.stderr.write(
             "bigrag-mcp: warning — no API key set (env BIGRAG_API_KEY or --api-key). "
-            "Requests will be unauthenticated and will fail on protected endpoints.",
-            file=sys.stderr,
+            "Requests will be unauthenticated and will fail on protected endpoints.\n"
         )
         collection: str | None = None
     else:
@@ -361,7 +360,7 @@ def cli() -> None:
         try:
             collection = asyncio.run(_probe())
         except RuntimeError as e:
-            print(f"bigrag-mcp: {e}", file=sys.stderr)  # noqa: T201
+            sys.stderr.write(f"bigrag-mcp: {e}\n")
             sys.exit(1)
 
     server = create_server(args.base_url, args.api_key, collection)

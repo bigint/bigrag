@@ -159,7 +159,7 @@ class VectorStore:
                 field_schema=schema,
                 wait=True,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             if "already exists" in str(exc).lower() or "exists" in str(exc).lower():
                 return
             logger.warning(
@@ -267,19 +267,7 @@ class VectorStore:
         return models.SearchParams(hnsw_ef=self._search_ef)
 
     @staticmethod
-    def _vector_from_point(point: Any) -> list[float] | None:
-        vector = getattr(point, "vector", None)
-        if vector is None:
-            return None
-        if isinstance(vector, list):
-            return vector
-        if isinstance(vector, dict):
-            first = next(iter(vector.values()), None)
-            return first if isinstance(first, list) else None
-        return None
-
-    @staticmethod
-    def _row_from_payload(point: Any, want_embedding: bool = False) -> dict:
+    def _row_from_payload(point: Any) -> dict:
         payload = dict(getattr(point, "payload", None) or {})
         point_id = str(getattr(point, "id", ""))
         metadata = {
@@ -293,8 +281,6 @@ class VectorStore:
             "chunk_index": payload.get("chunk_index"),
             "metadata": metadata,
         }
-        if want_embedding:
-            row["embedding"] = VectorStore._vector_from_point(point)
         return row
 
     async def search(
@@ -303,10 +289,8 @@ class VectorStore:
         query_embedding: list[float],
         top_k: int = 10,
         filters: models.Filter | None = None,
-        output_fields: list[str] | None = None,
     ) -> list[dict]:
         col = self._col(collection)
-        want_embedding = bool(output_fields and "embedding" in output_fields)
 
         client = self._client()
         results = await self._run_with_retry(
@@ -317,12 +301,10 @@ class VectorStore:
             query_filter=filters,
             search_params=self._search_params(),
             with_payload=True,
-            with_vectors=want_embedding,
+            with_vectors=False,
         )
 
-        hits = [
-            self._row_from_payload(point, want_embedding=want_embedding) for point in results.points
-        ]
+        hits = [self._row_from_payload(point) for point in results.points]
         logger.info(f"search: collection={col} top_k={top_k} hits={len(hits)} filter={filters}")
         return hits
 

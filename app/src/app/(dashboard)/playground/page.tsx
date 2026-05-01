@@ -144,7 +144,6 @@ const PlaygroundPage = () => {
                 chunks,
                 collection,
                 timings: queryResponse?.timings,
-                cached: queryResponse?.cached,
               },
             }
           : m,

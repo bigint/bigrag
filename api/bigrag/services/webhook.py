@@ -30,12 +30,6 @@ def _delivery_timeout() -> int:
     return settings.webhook_delivery_timeout
 
 
-def _cache_ttl() -> int:
-    from bigrag.config import settings
-
-    return settings.webhook_cache_ttl
-
-
 _STEP_TO_EVENT = {
     "processing": "document.processing",
     "complete": "document.ready",
@@ -72,56 +66,10 @@ def _jittered_delay(base_delay: int, jitter_factor: float = 0.25) -> float:
     return base_delay + _RNG.uniform(-jitter, jitter)
 
 
-class CircuitBreaker:
-    def __init__(self, failure_threshold: int = 5, cooldown_seconds: int = 300) -> None:
-        self._failure_threshold = failure_threshold
-        self._cooldown = cooldown_seconds
-
-    @staticmethod
-    def _key(webhook_id: str) -> str:
-        return f"bigrag:webhook:cb:{webhook_id}"
-
-    async def is_open(self, webhook_id: str) -> bool:
-        from bigrag.services.redis_cache import get_redis
-
-        redis = get_redis()
-        if redis is None:
-            return False
-        raw = await redis.get(self._key(webhook_id))
-        if raw is None:
-            return False
-        try:
-            failures = int(raw)
-        except (TypeError, ValueError):
-            return False
-        return failures >= self._failure_threshold
-
-    async def record_success(self, webhook_id: str) -> None:
-        from bigrag.services.redis_cache import get_redis
-
-        redis = get_redis()
-        if redis is None:
-            return
-        await redis.delete(self._key(webhook_id))
-
-    async def record_failure(self, webhook_id: str) -> None:
-        from bigrag.services.redis_cache import get_redis
-
-        redis = get_redis()
-        if redis is None:
-            return
-        key = self._key(webhook_id)
-        async with redis.pipeline(transaction=True) as pipe:
-            pipe.incr(key)
-            pipe.expire(key, self._cooldown)
-            await pipe.execute()
-
-
 class WebhookDispatcher:
     def __init__(self) -> None:
         self._client: httpx.AsyncClient | None = None
         self._task: asyncio.Task | None = None
-        self._circuit_breaker = CircuitBreaker()
         self._semaphores: dict[str, asyncio.Semaphore] = {}
 
     def _get_semaphore(self, webhook_id: str) -> asyncio.Semaphore:
@@ -145,19 +93,7 @@ class WebhookDispatcher:
             await self._client.aclose()
         logger.info("WebhookDispatcher stopped")
 
-    async def invalidate_cache(self) -> None:
-        from bigrag.services import redis_cache
-
-        await redis_cache.delete("webhooks:active")
-
     async def _get_webhooks(self) -> list[dict]:
-
-        from bigrag.services import redis_cache
-
-        cached = await redis_cache.get("webhooks:active")
-        if cached is not None:
-            return cached
-
         import sqlalchemy as sa
 
         from bigrag.db.engine import session_factory
@@ -180,7 +116,6 @@ class WebhookDispatcher:
             }
             for w in rows
         ]
-        await redis_cache.set("webhooks:active", webhooks, ttl=_cache_ttl())
         return webhooks
 
     async def _listen(self) -> None:
@@ -218,13 +153,6 @@ class WebhookDispatcher:
         for webhook in webhooks:
             if _matches_webhook(webhook, webhook_event, collection):
                 wh_id = str(webhook["id"])
-
-                if await self._circuit_breaker.is_open(wh_id):
-                    logger.warning(
-                        f"Circuit open for webhook={wh_id}, skipping delivery for {webhook_event}"
-                    )
-                    continue
-
                 safe_create_task(
                     self._deliver(webhook, webhook_event, payload),
                     name=f"webhook-deliver-{wh_id}",
@@ -352,7 +280,6 @@ class WebhookDispatcher:
                                 )
                             )
                             await session.commit()
-                        await self._circuit_breaker.record_success(wh_id_str)
                         logger.info(
                             f"Webhook delivered: webhook={webhook_id} event={event} "
                             f"delivery={delivery_id} attempt={attempt} status={last_status_code}"
@@ -389,7 +316,6 @@ class WebhookDispatcher:
                 else:
                     break
 
-            await self._circuit_breaker.record_failure(wh_id_str)
             async with session_factory()() as session:
                 await session.execute(
                     sa.update(WebhookDelivery)
@@ -439,7 +365,7 @@ class WebhookDispatcher:
                 if 200 <= response.status_code < 300
                 else f"HTTP {response.status_code}",
             }
-        except Exception as exc:  # noqa: BLE001 — surface connect errors to the UI
+        except Exception as exc:
             return {
                 "status": "failed",
                 "status_code": None,

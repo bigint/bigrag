@@ -13,7 +13,6 @@ export type ChatMessage = {
     collection: string;
     chunks: QueryResult[];
     timings?: QueryTimings;
-    cached?: boolean;
   };
 };
 
@@ -118,11 +117,6 @@ const Bubble = memo(
                   <span>
                     Retrieved {message.meta.chunks.length} chunks from{" "}
                     <span className="font-semibold text-foreground">{message.meta.collection}</span>
-                    {message.meta.cached && (
-                      <span className="ml-1.5 rounded-full bg-success/15 px-1.5 py-0.5 font-semibold text-success">
-                        cached
-                      </span>
-                    )}
                   </span>
                 </div>
                 {message.meta.timings && (
@@ -140,8 +134,6 @@ const Bubble = memo(
                   ["embed", t.embed_ms],
                   ["search", t.search_ms],
                   ["rerank", t.rerank_ms],
-                  ["hyde", t.hyde_ms],
-                  ["mmr", t.mmr_ms],
                 ] as const;
                 const total = t.total_ms;
                 return (

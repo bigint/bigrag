@@ -1,7 +1,5 @@
 """Python version compatibility for typing imports."""
 
-# ruff: noqa: UP035, UP036
-
 from __future__ import annotations
 
 import sys

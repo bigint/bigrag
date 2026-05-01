@@ -12,7 +12,7 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 - **End-to-end RAG pipeline** — upload documents, auto-chunk, embed, search, and rerank in one platform
 - **Any document format** — PDF, DOCX, PPTX, XLSX, HTML, Markdown, CSV/TSV/XML/JSON, and scanned images (OCR) via [Docling](https://github.com/DS4SD/docling)
 - **Any embedding model** — OpenAI, Cohere, Voyage, or `openai_compatible` gateways (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) configured per collection
-- **Three search modes** plus HyDE, MMR diversity, metadata facets, and a semantic result cache
+- **Three search modes** — semantic, keyword, and hybrid, with optional Cohere reranking
 - **Qdrant vector database** — HNSW vector search with tenant-aware payload indexes
 - **First-class auth** — admin accounts, session cookies, scoped `bigrag_sk_…` API keys, and full audit/access logs
 - **Operational features** — batch ingestion, webhooks with HMAC signatures, metadata-schema validation, an evaluation runner, and per-collection query analytics

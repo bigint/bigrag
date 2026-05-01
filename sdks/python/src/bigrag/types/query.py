@@ -12,11 +12,6 @@ class QueryBody(TypedDict):
     min_score: NotRequired[float]
     search_mode: NotRequired[str]
     rerank: NotRequired[bool]
-    diversity: NotRequired[float]
-    hybrid_strategy: NotRequired[str]
-    hyde: NotRequired[bool]
-    facets: NotRequired[list[str]]
-    use_semantic_cache: NotRequired[bool]
 
 
 class QueryResult(TypedDict):
@@ -35,8 +30,6 @@ class QueryTimings(TypedDict):
     embed_ms: float
     search_ms: float
     rerank_ms: float
-    hyde_ms: float
-    mmr_ms: float
     total_ms: float
 
 
@@ -46,8 +39,6 @@ class QueryResponse(TypedDict):
     collection: str
     total: int
     timings: NotRequired[QueryTimings | None]
-    facets: NotRequired[dict[str, dict[str, int]] | None]
-    cached: NotRequired[bool]
 
 
 class MultiQueryBody(TypedDict):

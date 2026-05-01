@@ -8,7 +8,7 @@ from pathlib import Path
 import redis.asyncio as aioredis
 
 from bigrag.logging import get_logger
-from bigrag.services import embedding_cache, semantic_cache
+from bigrag.services import embedding_cache
 from bigrag.services.conversion import _get_docling_converter
 from bigrag.services.embedding import truncate_to_tokens
 from bigrag.services.event_bus import IngestionEvent, event_bus
@@ -538,7 +538,7 @@ class IngestionQueue:
                     break
                 except _PERMANENT_ERRORS:
                     raise
-                except Exception as exc:  # noqa: BLE001 — retry on anything transient
+                except Exception as exc:
                     if attempt >= max_batch_retries:
                         logger.error(
                             f"{prefix} batch {batch_num}/{total_batches} exhausted "
@@ -651,8 +651,6 @@ class IngestionQueue:
                     )
                 )
                 await session.commit()
-
-            await semantic_cache.invalidate(job.collection_name)
 
             total_elapsed = time.monotonic() - start_time
             await self._redis.hincrby(STATS_KEY, "completed", 1)

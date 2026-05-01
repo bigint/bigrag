@@ -22,12 +22,7 @@ Perform a search against a collection. The query is embedded with the collection
   "filters": { "author": "Smith", "year": { "$gte": 2024 } },
   "min_score": 0.5,
   "search_mode": "hybrid",
-  "hybrid_strategy": "rrf",
-  "rerank": true,
-  "diversity": 0.3,
-  "hyde": false,
-  "facets": ["author", "year"],
-  "use_semantic_cache": true
+  "rerank": true
 }
 ```
 
@@ -38,12 +33,7 @@ Perform a search against a collection. The query is embedded with the collection
 | `filters` | object | no | — | Metadata filters — see [operators](/docs/concepts/search#filters) |
 | `min_score` | float | no | Collection default | Drop results below this score |
 | `search_mode` | string | no | Collection default | `semantic`, `keyword`, or `hybrid` |
-| `hybrid_strategy` | string | no | `rrf` | Fusion strategy when `search_mode=hybrid`: `rrf`, `weighted`, or `normalized`. Ignored otherwise. |
 | `rerank` | boolean | no | Collection setting | Force Cohere reranking on/off for this query |
-| `diversity` | float | no | — | MMR diversity weight `0.0–1.0` (0 = pure relevance, 1 = pure diversity) |
-| `hyde` | boolean | no | `false` | Generate a HyDE hypothetical document to improve recall on sparse queries |
-| `facets` | string[] | no | — | Metadata keys to aggregate alongside the hits |
-| `use_semantic_cache` | boolean | no | `true` | Replay recent near-duplicate queries; disable for benchmarking |
 
 **Response** `200`:
 
@@ -69,14 +59,7 @@ Perform a search against a collection. The query is embedded with the collection
     "embed_ms": 18.2,
     "search_ms": 12.4,
     "rerank_ms": 31.5,
-    "hyde_ms": 0,
-    "mmr_ms": 0.4,
     "total_ms": 62.8
-  },
-  "cached": false,
-  "facets": {
-    "author": { "Smith": 8, "Jones": 2 },
-    "year": { "2024": 6, "2025": 4 }
   }
 }
 ```
@@ -85,7 +68,7 @@ Perform a search against a collection. The query is embedded with the collection
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `results[]` | array | Hits ordered by final score (post-rerank and MMR) |
+| `results[]` | array | Hits ordered by final score |
 | `results[].id` | string | Chunk ID (`{document_id}#{chunk_index}`) |
 | `results[].text` | string | Chunk text |
 | `results[].score` | float | Similarity / fused score (0–1) |
@@ -95,9 +78,7 @@ Perform a search against a collection. The query is embedded with the collection
 | `results[].char_start` | integer? | Inclusive character offset of the chunk inside the source document. |
 | `results[].char_end` | integer? | Exclusive character offset of the chunk inside the source document. |
 | `results[].metadata` | object | Chunk + document metadata merged |
-| `timings` | object | Per-stage latency in milliseconds; stages that didn't run report `0` |
-| `cached` | boolean | `true` when the result came from the semantic cache |
-| `facets` | object | Only present when `facets` was requested; each key maps to a `{value: count}` object |
+| `timings` | object | Per-stage latency in milliseconds |
 
 **Errors:** `404` — collection not found.
 
