@@ -9,8 +9,11 @@ from urllib.parse import quote
 from bigrag._core import BigRAGCore
 from bigrag._files import FileInput
 from bigrag.resources import (
+    AdminResource,
+    AuthResource,
     CollectionsResource,
     DocumentsResource,
+    EvaluationsResource,
     QueryResource,
     VectorsResource,
     WebhooksResource,
@@ -38,6 +41,7 @@ from bigrag.types.query import (
 )
 from bigrag.types.s3 import S3IngestResponse, S3Job, S3JobListResponse, UpdateS3JobBody
 from bigrag.types.sse import ProgressEvent
+from bigrag.types.usage import UsageResponse
 
 
 class BigRAG(BigRAGCore):
@@ -55,6 +59,9 @@ class BigRAG(BigRAGCore):
     queries: QueryResource
     vectors: VectorsResource
     webhooks: WebhooksResource
+    auth: AuthResource
+    admin: AdminResource
+    evaluations: EvaluationsResource
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -63,6 +70,9 @@ class BigRAG(BigRAGCore):
         self.queries = QueryResource(self)
         self.vectors = VectorsResource(self)
         self.webhooks = WebhooksResource(self)
+        self.auth = AuthResource(self)
+        self.admin = AdminResource(self)
+        self.evaluations = EvaluationsResource(self)
 
     async def health(self) -> HealthResponse:
         """Check whether the API server is running."""
@@ -85,6 +95,13 @@ class BigRAG(BigRAGCore):
         return await self._request(
             "GET", f"/v1/collections/{quote(collection, safe='')}/analytics"
         )
+
+    async def get_usage(self, *, window_days: int | None = None) -> UsageResponse:
+        """Retrieve workspace usage analytics."""
+        params: dict[str, str] = {}
+        if window_days is not None:
+            params["window_days"] = str(window_days)
+        return await self._request("GET", "/v1/usage", params=params)
 
     def collection(self, name: str) -> CollectionClient:
         """Create a scoped client for a specific collection."""

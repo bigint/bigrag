@@ -18,9 +18,18 @@ from bigrag._errors import (
 )
 from bigrag._files import FileInput, normalize_file_input
 from bigrag._sse import parse_sse_stream
+from bigrag._version import __version__
 from bigrag.resources import (
+    AdminApiKeysResource,
+    AdminAuditResource,
+    AdminEmbeddingPresetsResource,
+    AdminMcpServersResource,
+    AdminResource,
+    AdminUsersResource,
+    AuthResource,
     CollectionsResource,
     DocumentsResource,
+    EvaluationsResource,
     QueryResource,
     VectorsResource,
     WebhooksResource,
@@ -32,6 +41,7 @@ __all__ = [
     "BigRAG",
     "BigRAGCore",
     "CollectionClient",
+    "__version__",
     # Errors
     "APIConnectionError",
     "APIError",
@@ -49,8 +59,16 @@ __all__ = [
     # SSE
     "parse_sse_stream",
     # Resources
+    "AdminApiKeysResource",
+    "AdminAuditResource",
+    "AdminEmbeddingPresetsResource",
+    "AdminMcpServersResource",
+    "AdminResource",
+    "AdminUsersResource",
+    "AuthResource",
     "CollectionsResource",
     "DocumentsResource",
+    "EvaluationsResource",
     "QueryResource",
     "VectorsResource",
     "WebhooksResource",

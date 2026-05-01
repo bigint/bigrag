@@ -65,7 +65,8 @@ curl -X POST http://localhost:4000/v1/collections/docs/query \
 docker pull yoginth/bigrag:2026.4.30
 ```
 
-Release artifacts use CalVer (`YYYY.M.D`); `latest` is also published for Docker images.
+Release artifacts use CalVer (`YYYY.M.D`). Docker also publishes `latest`; the
+Python SDK publishes dated PyPI releases.
 
 ## Architecture
 
@@ -222,7 +223,7 @@ await client.documents.ingestS3("docs", {
 ### Python
 
 ```bash
-pip install bigrag
+pip install bigrag==2026.5.1
 ```
 
 ```python

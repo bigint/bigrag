@@ -13,8 +13,9 @@ from bigrag._errors import (
     APITimeoutError,
     error_for_status,
 )
+from bigrag._version import __version__
 
-USER_AGENT = "bigrag-python/2026.4.30"
+USER_AGENT = f"bigrag-python/{__version__}"
 
 _DEFAULT_BASE_URL = "http://localhost:4000"
 _DEFAULT_TIMEOUT = 120.0

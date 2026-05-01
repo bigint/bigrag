@@ -3,7 +3,38 @@
 All types are re-exported here for convenience.
 """
 
+from bigrag.types.admin import (
+    ApiKey,
+    ApiKeyListResponse,
+    AuditLogEntry,
+    AuditLogListResponse,
+    CreateApiKeyBody,
+    CreateApiKeyResponse,
+    CreateEmbeddingPresetBody,
+    CreateMcpServerBody,
+    CreateMcpServerResponse,
+    CreateUserBody,
+    EmbeddingPreset,
+    EmbeddingPresetListResponse,
+    McpServer,
+    McpServerListResponse,
+    UpdateApiKeyBody,
+    UpdateEmbeddingPresetBody,
+    UpdateMcpServerBody,
+    UpdateUserBody,
+    UserListResponse,
+)
 from bigrag.types.analytics import AnalyticsResponse, PeriodStats, TopQuery
+from bigrag.types.auth import (
+    ChangePasswordBody,
+    LoginBody,
+    PreferencesResponse,
+    SessionResponse,
+    SetupBody,
+    SetupStatusResponse,
+    User,
+    WhoamiResponse,
+)
 from bigrag.types.collections import (
     Collection,
     CollectionListResponse,
@@ -31,6 +62,7 @@ from bigrag.types.documents import (
     DocumentStatus,
 )
 from bigrag.types.embeddings import EmbeddingModelInfo, EmbeddingModelListResponse
+from bigrag.types.evaluations import EvalBody, EvalCase, EvalPerCase, EvalResponse
 from bigrag.types.query import (
     BatchQueryBody,
     BatchQueryItem,
@@ -42,6 +74,7 @@ from bigrag.types.query import (
     QueryBody,
     QueryResponse,
     QueryResult,
+    QueryTimings,
 )
 from bigrag.types.s3 import (
     S3IngestBody,
@@ -51,6 +84,7 @@ from bigrag.types.s3 import (
     UpdateS3JobBody,
 )
 from bigrag.types.sse import ProgressEvent
+from bigrag.types.usage import CollectionUsage, UsageResponse
 from bigrag.types.vectors import DeleteResponse, UpsertResponse, VectorEntry
 from bigrag.types.webhooks import (
     CreateWebhookBody,
@@ -71,6 +105,35 @@ __all__ = [
     "QueueStatsResponse",
     "DocumentStats",
     "PlatformStatsResponse",
+    # Auth
+    "SetupStatusResponse",
+    "LoginBody",
+    "SetupBody",
+    "ChangePasswordBody",
+    "User",
+    "SessionResponse",
+    "WhoamiResponse",
+    "PreferencesResponse",
+    # Admin
+    "UserListResponse",
+    "CreateUserBody",
+    "UpdateUserBody",
+    "ApiKey",
+    "CreateApiKeyBody",
+    "CreateApiKeyResponse",
+    "UpdateApiKeyBody",
+    "ApiKeyListResponse",
+    "AuditLogEntry",
+    "AuditLogListResponse",
+    "EmbeddingPreset",
+    "CreateEmbeddingPresetBody",
+    "UpdateEmbeddingPresetBody",
+    "EmbeddingPresetListResponse",
+    "McpServer",
+    "CreateMcpServerBody",
+    "UpdateMcpServerBody",
+    "CreateMcpServerResponse",
+    "McpServerListResponse",
     # Collections
     "Collection",
     "CollectionListResponse",
@@ -90,6 +153,7 @@ __all__ = [
     # Query
     "QueryBody",
     "QueryResult",
+    "QueryTimings",
     "QueryResponse",
     "MultiQueryBody",
     "MultiQueryResult",
@@ -98,6 +162,11 @@ __all__ = [
     "BatchQueryBody",
     "BatchQueryResultItem",
     "BatchQueryResponse",
+    # Evaluations
+    "EvalCase",
+    "EvalBody",
+    "EvalPerCase",
+    "EvalResponse",
     # Vectors
     "VectorEntry",
     "UpsertResponse",
@@ -118,6 +187,9 @@ __all__ = [
     # Embeddings
     "EmbeddingModelInfo",
     "EmbeddingModelListResponse",
+    # Usage
+    "CollectionUsage",
+    "UsageResponse",
     # S3
     "S3IngestBody",
     "S3IngestResponse",

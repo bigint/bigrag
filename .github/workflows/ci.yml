@@ -65,6 +65,28 @@ jobs:
         run: pnpm test
         working-directory: sdks/typescript
 
+  python-sdk-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: sdks/python/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --dev
+        working-directory: sdks/python
+
+      - name: SDK tests
+        run: uv run pytest
+        working-directory: sdks/python
+
+      - name: Build package
+        run: uv build
+        working-directory: sdks/python
+
   rust-sdk-test:
     runs-on: ubuntu-latest
     steps:

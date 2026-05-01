@@ -9,10 +9,12 @@ import { Callout } from "fumadocs-ui/components/callout";
 ## Installation
 
 ```bash
-pip install bigrag
+pip install bigrag==2026.5.1
 ```
 
-Requires Python 3.10+. The only runtime dependencies are `httpx` and `httpx-sse`.
+Requires Python 3.10+. The only runtime dependencies are `httpx` and
+`typing-extensions` on Python versions earlier than 3.11. Published SDK releases
+use CalVer (`YYYY.M.D`).
 
 ## Quick Start
 
@@ -70,6 +72,9 @@ The SDK follows a resource namespace pattern:
 | `client.queries` | Single, multi-collection, and batch queries |
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
+| `client.auth` | Setup, login, logout, identity, password, and preferences |
+| `client.admin` | Users, API keys, audit logs, embedding presets, and MCP server keys |
+| `client.evaluations` | Golden-set retrieval evaluation runs |
 
 ## Collections
 

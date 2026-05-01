@@ -47,6 +47,7 @@ class UpdateWebhookBody(TypedDict, total=False):
 
 class WebhookListResponse(TypedDict):
     webhooks: list[Webhook]
+    total: int
 
 
 class WebhookDelivery(TypedDict):
