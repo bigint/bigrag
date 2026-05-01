@@ -44,7 +44,7 @@ def _redact(value: object) -> object:
     return value
 
 
-def redact_secrets(logger, _method_name, event_dict):
+def redact_secrets(_logger, _method_name, event_dict):
 
     return _redact(event_dict)
 

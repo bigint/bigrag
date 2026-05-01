@@ -17,7 +17,8 @@ everything into Postgres with pgvector. Each one earns its keep:
   users, API keys, webhooks, query logs, audit trail, embedding cache.
   Transactions keep ingestion consistent across stores.
 - **Redis** — the ingestion queue (`BLPOP/BLMOVE` semantics),
-  idempotency-key cache, and short-lived platform/health caches.
+  idempotency-key cache, auth/collection/query hot-path caches, and
+  short-lived platform/health caches.
 - **Local disk** — raw uploaded documents. Needed to produce
   citations back into source files and to support re-embedding without
   re-uploading.

@@ -61,9 +61,7 @@ def create_ingestion_job(
     file_path: str,
     collection_name: str,
     collection: dict,
-    fallback_api_key: str | None,
 ) -> IngestionJob:
-
     return IngestionJob(
         document_id=document_id,
         file_path=file_path,

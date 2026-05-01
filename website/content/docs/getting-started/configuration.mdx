@@ -155,6 +155,9 @@ Embedding provider, model, and key are normally configured per collection. These
 | `BIGRAG_EMBEDDING_CONCURRENCY` | Max concurrent embedding requests | `8` |
 | `BIGRAG_QDRANT_SEARCH_EF` | Optional Qdrant HNSW `ef` search value (higher recall, higher latency) | — |
 | `BIGRAG_COLLECTION_CACHE_TTL` | Collection metadata cache TTL (seconds) | `30` |
+| `BIGRAG_AUTH_PRINCIPAL_CACHE_TTL` | Session/API-key principal cache TTL (seconds) | `60` |
+| `BIGRAG_QUERY_EMBEDDING_CACHE_TTL` | Query embedding cache TTL (seconds) | `3600` |
+| `BIGRAG_QUERY_RESULT_CACHE_TTL` | Exact query result cache TTL (seconds) | `30` |
 | `BIGRAG_QUEUE_MAX_DEPTH` | Max pending jobs in the ingestion queue | `10000` |
 
 ## CLI flags

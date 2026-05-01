@@ -192,13 +192,13 @@ export type AccessLogEntry = {
   created_at: string;
 };
 
-export type AccessLogBucket = {
+type AccessLogBucket = {
   label: string;
   count: number;
   avg_latency_ms?: number | null;
 };
 
-export type AccessLogTimelinePoint = {
+type AccessLogTimelinePoint = {
   bucket: string;
   events: number;
   errors: number;

@@ -12,7 +12,7 @@ from bigrag.db.models import Session as DbSession
 from bigrag.db.models import User
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
-from bigrag.middleware.auth import require_admin_session
+from bigrag.middleware.auth import invalidate_auth_principals, require_admin_session
 from bigrag.models.auth import (
     CreateUserRequest,
     UpdateUserRequest,
@@ -113,6 +113,7 @@ async def update_user(
         await session.execute(sa.delete(DbSession).where(DbSession.user_id == target_id))
     await session.commit()
     await session.refresh(target)
+    await invalidate_auth_principals()
 
     logger.info(
         f"User updated: id={user_id} by={admin['email']} "
@@ -163,6 +164,7 @@ async def delete_user(
         await session.rollback()
         raise HTTPException(status_code=400, detail="Cannot delete the last admin")
     await session.commit()
+    await invalidate_auth_principals()
 
     logger.info(f"User deleted: id={user_id} by={admin['email']}")
     audit.record(

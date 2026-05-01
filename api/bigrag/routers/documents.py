@@ -41,11 +41,12 @@ from bigrag.routers._documents import (
     read_upload_content,
     recount_collection_documents,
 )
-from bigrag.services import audit
+from bigrag.services import audit, collection_cache
 from bigrag.services.event_bus import event_bus
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
+from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
 
@@ -221,6 +222,8 @@ async def delete_document(
     await session.delete(doc)
     await recount_collection_documents(session, collection["id"])
     await session.commit()
+    await collection_cache.invalidate(collection_name)
+    await invalidate_collection_query_cache(collection_name)
 
     await get_storage().delete(file_path)
 
@@ -277,7 +280,6 @@ async def reprocess_document(
             file_path=doc.file_path,
             collection_name=collection_name,
             collection=collection,
-            fallback_api_key=settings.embedding_api_key,
         )
     )
 
@@ -596,6 +598,8 @@ async def batch_delete_documents(
         await session.execute(sa.delete(Document).where(Document.id.in_(deleted_ids)))
     await recount_collection_documents(session, collection["id"])
     await session.commit()
+    await collection_cache.invalidate(collection_name)
+    await invalidate_collection_query_cache(collection_name)
 
     logger.info(
         f"batch_delete: collection={collection_name} deleted={deleted} errors={len(errors)}"

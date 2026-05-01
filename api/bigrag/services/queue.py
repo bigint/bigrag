@@ -652,6 +652,9 @@ class IngestionQueue:
                 )
                 await session.commit()
 
+            from bigrag.services.retrieval import invalidate_collection_query_cache
+
+            await invalidate_collection_query_cache(job.collection_name)
             total_elapsed = time.monotonic() - start_time
             await self._redis.hincrby(STATS_KEY, "completed", 1)
             await self._redis.hincrby(STATS_KEY, "processing", -1)

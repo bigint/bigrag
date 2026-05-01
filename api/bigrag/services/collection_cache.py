@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import uuid
+
 import sqlalchemy as sa
 
+from bigrag.config import settings
 from bigrag.db.engine import session_factory
 from bigrag.db.models import Collection
 from bigrag.exceptions import NotFoundError
+from bigrag.services import redis_cache
+
+
+def _cache_key(name: str) -> str:
+    return f"collection:{name}"
 
 
 def _serialize(c: Collection) -> dict:
@@ -36,9 +44,28 @@ def _serialize(c: Collection) -> dict:
     }
 
 
+def _deserialize(data: dict) -> dict:
+    out = dict(data)
+    if isinstance(out.get("id"), str):
+        out["id"] = uuid.UUID(out["id"])
+    return out
+
+
 async def get_or_404(name: str) -> dict:
+    cached = await redis_cache.get(_cache_key(name))
+    if isinstance(cached, dict):
+        return _deserialize(cached)
+
     async with session_factory()() as session:
         collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
         if collection is None:
             raise NotFoundError("Collection", name)
-        return _serialize(collection)
+        serialized = _serialize(collection)
+        ttl = settings.collection_cache_ttl
+        if ttl > 0:
+            await redis_cache.set(_cache_key(name), serialized, ttl=ttl)
+        return serialized
+
+
+async def invalidate(name: str) -> None:
+    await redis_cache.delete(_cache_key(name))

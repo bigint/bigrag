@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 
 from fastapi import Depends, HTTPException, Request
@@ -11,9 +12,28 @@ from bigrag.db.models import ApiKey, User
 from bigrag.db.models import Session as DbSession
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
+from bigrag.services import redis_cache
 from bigrag.services.auth import API_KEY_PREFIX, hash_api_key, hash_session_token
 
 logger = get_logger("bigrag.auth")
+
+
+def _session_cache_key(token_hash: str) -> str:
+    return f"auth:session:{token_hash}"
+
+
+def _api_key_cache_key(key_hash: str) -> str:
+    return f"auth:api_key:{key_hash}"
+
+
+def _ttl_until(expires_at: datetime | None) -> int:
+    ttl = settings.auth_principal_cache_ttl
+    if ttl <= 0:
+        return 0
+    if expires_at is None:
+        return ttl
+    seconds_left = int((expires_at - datetime.now(UTC)).total_seconds())
+    return max(0, min(ttl, seconds_left))
 
 
 def _user_dict(user: User) -> dict:
@@ -42,15 +62,28 @@ async def _user_from_session(request: Request, session: AsyncSession) -> dict | 
         return None
 
     token_hash = hash_session_token(cookie)
-    user = await session.scalar(
-        select(User)
-        .join(DbSession, DbSession.user_id == User.id)
-        .where(DbSession.token_hash == token_hash)
-        .where(DbSession.expires_at > datetime.now(UTC))
-    )
+    cached = await redis_cache.get(_session_cache_key(token_hash))
+    if isinstance(cached, dict):
+        return cached
+
+    row = (
+        await session.execute(
+            select(User, DbSession.expires_at)
+            .join(DbSession, DbSession.user_id == User.id)
+            .where(DbSession.token_hash == token_hash)
+            .where(DbSession.expires_at > datetime.now(UTC))
+        )
+    ).first()
+    if row is None:
+        return None
+    user, expires_at = row
     if user is None:
         return None
-    return _serialize(user, auth="session")
+    principal = _serialize(user, auth="session")
+    ttl = _ttl_until(expires_at)
+    if ttl > 0:
+        await redis_cache.set(_session_cache_key(token_hash), principal, ttl=ttl)
+    return principal
 
 
 _QUERY_TOKEN_SUFFIXES = ("/events", "/progress")
@@ -75,6 +108,11 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
 
     key_hash = hash_api_key(token)
     now = datetime.now(UTC)
+    cached = await redis_cache.get(_api_key_cache_key(key_hash))
+    if isinstance(cached, dict):
+        await _touch_api_key_last_used(session, cached.get("api_key_id"))
+        return cached
+
     row = (
         await session.execute(
             select(ApiKey, User)
@@ -88,11 +126,7 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
         return None
 
     api_key, user = row
-    if api_key.last_used_at is None or (now - api_key.last_used_at).total_seconds() > 60:
-        await session.execute(
-            update(ApiKey).where(ApiKey.id == api_key.id).values(last_used_at=now)
-        )
-        await session.commit()
+    await _touch_api_key_last_used(session, str(api_key.id), last_used_at=api_key.last_used_at)
 
     permissions = api_key.permissions or {}
     scopes = permissions.get("scopes") if isinstance(permissions, dict) else None
@@ -102,7 +136,50 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
     principal["api_key_name"] = api_key.name
     principal["scopes"] = scopes if isinstance(scopes, list) else None
     principal["collection"] = collection
+    ttl = _ttl_until(api_key.expires_at)
+    if ttl > 0:
+        await redis_cache.set(_api_key_cache_key(key_hash), principal, ttl=ttl)
     return principal
+
+
+async def _touch_api_key_last_used(
+    session: AsyncSession,
+    api_key_id: str | None,
+    *,
+    last_used_at: datetime | None = None,
+) -> None:
+    if api_key_id is None:
+        return
+
+    now = datetime.now(UTC)
+    if last_used_at is not None and (now - last_used_at).total_seconds() <= 60:
+        return
+
+    redis = redis_cache.get_redis()
+    if redis is not None:
+        throttle_key = f"bigrag:auth:api_key_touch:{api_key_id}"
+        should_touch = await redis.set(throttle_key, b"1", ex=60, nx=True)
+        if not should_touch:
+            return
+
+    try:
+        target_id = uuid.UUID(api_key_id)
+    except ValueError:
+        return
+    await session.execute(update(ApiKey).where(ApiKey.id == target_id).values(last_used_at=now))
+    await session.commit()
+
+
+async def invalidate_session_principal(token_hash: str) -> None:
+    await redis_cache.delete(_session_cache_key(token_hash))
+
+
+async def invalidate_api_key_principal(key_hash: str) -> None:
+    await redis_cache.delete(_api_key_cache_key(key_hash))
+
+
+async def invalidate_auth_principals() -> None:
+    await redis_cache.delete_pattern("auth:*")
 
 
 async def get_current_user(

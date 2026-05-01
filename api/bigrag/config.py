@@ -44,10 +44,14 @@ class Settings(BaseSettings):
     auth_login_email_rate_limit: int = 5
     auth_login_ip_rate_limit: int = 50
     auth_setup_ip_rate_limit: int = 10
+    auth_principal_cache_ttl: int = 60
 
     embedding_concurrency: int = 8
     qdrant_search_ef: int | None = None
     queue_max_depth: int = 10000
+    collection_cache_ttl: int = 30
+    query_embedding_cache_ttl: int = 3600
+    query_result_cache_ttl: int = 30
     conversion_timeout: int = 300
     webhook_delivery_timeout: int = 10
     webhook_retry_delays: list[int] = [10, 30, 90]

@@ -190,5 +190,5 @@ class BigRAGCore:
     async def __aenter__(self) -> BigRAGCore:
         return self
 
-    async def __aexit__(self, *args: object) -> None:
+    async def __aexit__(self, *_args: object) -> None:
         await self.aclose()

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import ApiKey, Collection
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
-from bigrag.middleware.auth import require_admin_session
+from bigrag.middleware.auth import invalidate_api_key_principal, require_admin_session
 from bigrag.models.common import StatusResponse
 from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
@@ -218,6 +218,7 @@ async def update_mcp_server(
     key = await session.get(ApiKey, target_id)
     if not _is_mcp(key) or key.user_id != uuid.UUID(admin["id"]):
         raise HTTPException(status_code=404, detail="MCP server not found")
+    previous_hash = key.key_hash
 
     permissions = dict(key.permissions or {})
     mcp = dict(permissions.get("mcp") or {})
@@ -254,6 +255,7 @@ async def update_mcp_server(
 
     await session.commit()
     await session.refresh(key)
+    await invalidate_api_key_principal(previous_hash)
     audit.record(
         request,
         user=admin,
@@ -282,12 +284,14 @@ async def rotate_mcp_server_key(
     if not _is_mcp(key) or key.user_id != uuid.UUID(admin["id"]):
         raise HTTPException(status_code=404, detail="MCP server not found")
 
+    previous_hash = key.key_hash
     plaintext, prefix, key_hash = generate_api_key()
     key.key_hash = key_hash
     key.prefix = prefix
     key.active = True
     await session.commit()
     await session.refresh(key)
+    await invalidate_api_key_principal(previous_hash)
 
     logger.info(f"MCP server rotated: id={key.id} by={admin['email']}")
     audit.record(
@@ -320,8 +324,10 @@ async def delete_mcp_server(
         raise HTTPException(status_code=404, detail="MCP server not found")
 
     metadata = key.permissions.get("mcp", {}) if isinstance(key.permissions, dict) else {}
+    deleted_hash = key.key_hash
     await session.delete(key)
     await session.commit()
+    await invalidate_api_key_principal(deleted_hash)
 
     logger.info(f"MCP server deleted: id={server_id} by={admin['email']}")
     audit.record(

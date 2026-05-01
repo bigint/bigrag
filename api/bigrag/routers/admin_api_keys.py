@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import ApiKey, Collection
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
-from bigrag.middleware.auth import require_admin_session
+from bigrag.middleware.auth import invalidate_api_key_principal, require_admin_session
 from bigrag.models.auth import (
     ApiKeyListResponse,
     ApiKeyResponse,
@@ -155,6 +155,7 @@ async def update_api_key(
     key = await session.get(ApiKey, target_id)
     if key is None or _is_mcp_key(key):
         raise HTTPException(status_code=404, detail="API key not found")
+    previous_hash = key.key_hash
 
     fields: list[str] = []
     if body.name is not None:
@@ -186,6 +187,7 @@ async def update_api_key(
 
     await session.commit()
     await session.refresh(key)
+    await invalidate_api_key_principal(previous_hash)
     audit.record(
         request,
         user=admin,
@@ -213,8 +215,10 @@ async def delete_api_key(
     if key is None or _is_mcp_key(key):
         raise HTTPException(status_code=404, detail="API key not found")
     deleted_name = key.name
+    deleted_hash = key.key_hash
     await session.delete(key)
     await session.commit()
+    await invalidate_api_key_principal(deleted_hash)
 
     logger.info(f"API key deleted: id={key_id} by={admin['email']}")
     audit.record(

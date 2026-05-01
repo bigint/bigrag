@@ -179,11 +179,11 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     )
 
     @app.exception_handler(NotFoundError)
-    async def not_found_handler(request, exc: NotFoundError):
+    async def not_found_handler(_request, exc: NotFoundError):
         return JSONResponse(status_code=404, content={"detail": str(exc)})
 
     @app.exception_handler(ValidationError)
-    async def validation_handler(request, exc: ValidationError):
+    async def validation_handler(_request, exc: ValidationError):
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
     from bigrag.routers.admin_access import router as admin_access_router

@@ -3,7 +3,6 @@
 import { Tabs as BaseTabs } from "@base-ui/react/tabs";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
-import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
 type TabSurface = "default" | "inverse";
@@ -129,32 +128,4 @@ export const LinkTabs = ({ tabs, className }: { tabs: LinkTab[]; className?: str
       </Link>
     ))}
   </div>
-);
-
-type TabButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
-  readonly active: boolean;
-  readonly count?: number;
-  readonly icon?: LucideIcon;
-  readonly label: string;
-  readonly surface?: TabSurface;
-};
-
-export const TabButton = ({
-  active,
-  className,
-  count,
-  icon,
-  label,
-  surface = "default",
-  type = "button",
-  ...props
-}: TabButtonProps) => (
-  <button
-    aria-pressed={active}
-    className={getTabClassName({ active, className, surface })}
-    type={type}
-    {...props}
-  >
-    <TabContent active={active} count={count} icon={icon} label={label} surface={surface} />
-  </button>
 );

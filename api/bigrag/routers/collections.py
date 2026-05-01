@@ -22,9 +22,10 @@ from bigrag.models.collection import (
     UpdateCollectionRequest,
 )
 from bigrag.models.common import StatusResponse
-from bigrag.services import audit
+from bigrag.services import audit, collection_cache
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
+from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.vector_store import vector_store
 
 logger = get_logger("bigrag.routers.collections")
@@ -212,6 +213,7 @@ async def create_collection(
         await vector_store.delete_collection(body.name)
         raise
     await session.refresh(collection)
+    await collection_cache.invalidate(body.name)
 
     logger.info(
         f"create: collection={body.name} created provider={provider} model={model} dim={dimension}"
@@ -269,7 +271,6 @@ async def reembed_collection(
             file_path=file_path,
             collection_name=name,
             collection=collection_dict,
-            fallback_api_key=settings.embedding_api_key,
         )
         for doc_id, file_path in docs
     ]
@@ -284,6 +285,7 @@ async def reembed_collection(
 
     for job in jobs:
         await ingestion_queue.enqueue(job)
+    await invalidate_collection_query_cache(name)
 
     logger.info("reembed: queued", collection=name, docs=len(docs))
     audit.record(
@@ -401,6 +403,8 @@ async def update_collection(
 
     await session.commit()
     await session.refresh(collection)
+    await collection_cache.invalidate(name)
+    await invalidate_collection_query_cache(name)
 
     audit.record(
         request,
@@ -439,6 +443,8 @@ async def delete_collection(
     deleted_id = str(collection.id)
     await session.delete(collection)
     await session.commit()
+    await collection_cache.invalidate(name)
+    await invalidate_collection_query_cache(name)
     logger.info(f"delete: postgres records removed name={name}")
 
     audit.record(
@@ -533,6 +539,8 @@ async def truncate_collection(
         sa.update(Collection).where(Collection.id == collection_id).values(document_count=0)
     )
     await session.commit()
+    await collection_cache.invalidate(name)
+    await invalidate_collection_query_cache(name)
     logger.info(f"truncate: documents removed name={name}")
 
     audit.record(

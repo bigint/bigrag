@@ -86,16 +86,6 @@ impl Transport {
             .await
     }
 
-    /// PATCH request with a JSON body.
-    pub async fn patch<B: Serialize, T: DeserializeOwned>(
-        &self,
-        path: &str,
-        body: &B,
-    ) -> Result<T, BigRagError> {
-        self.request_with_retry(Method::PATCH, path, Some(body), vec![])
-            .await
-    }
-
     /// DELETE request.
     pub async fn delete<T: DeserializeOwned>(&self, path: &str) -> Result<T, BigRagError> {
         self.request_with_retry(Method::DELETE, path, None::<&()>, vec![])

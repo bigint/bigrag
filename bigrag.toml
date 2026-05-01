@@ -41,6 +41,7 @@
 # session_cookie_secure = false   # set true behind HTTPS
 # session_cookie_samesite = "lax"
 # session_cookie_domain = ""
+# auth_principal_cache_ttl = 60
 
 # embedding_provider = "openai"   # openai | openai_compatible | cohere | voyage
 # embedding_model = "text-embedding-3-small"
@@ -57,6 +58,9 @@
 # ingestion_batch_size = 128
 # conversion_timeout = 300
 # queue_max_depth = 10000
+# collection_cache_ttl = 30
+# query_embedding_cache_ttl = 3600
+# query_result_cache_ttl = 30
 
 # webhook_delivery_timeout = 10
 # webhook_retry_delays = [10, 30, 90]

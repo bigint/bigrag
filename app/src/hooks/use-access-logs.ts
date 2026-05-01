@@ -5,7 +5,7 @@ import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { AccessLogListResponse, AccessLogOverview } from "@/types/bigrag";
 
-export type AccessLogFilters = {
+type AccessLogFilters = {
   action?: string;
   collection?: string;
   method?: string;

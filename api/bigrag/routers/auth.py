@@ -13,6 +13,8 @@ from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import (
     get_current_user,
+    invalidate_auth_principals,
+    invalidate_session_principal,
     require_session,
     session_expiry,
 )
@@ -218,6 +220,7 @@ async def logout(
         )
         await session.execute(sa.delete(DbSession).where(DbSession.token_hash == token_hash))
         await session.commit()
+        await invalidate_session_principal(token_hash)
     _clear_session_cookie(response)
     if actor_user is not None:
         audit.record(
@@ -242,6 +245,7 @@ async def logout_all(
         raise HTTPException(status_code=403, detail="Session authentication required")
     await session.execute(sa.delete(DbSession).where(DbSession.user_id == uuid.UUID(user["id"])))
     await session.commit()
+    await invalidate_auth_principals()
     _clear_session_cookie(response)
     audit.record(
         request,
@@ -293,6 +297,7 @@ async def change_password(
     target.password_hash = hash_password(body.new_password)
     await session.execute(sa.delete(DbSession).where(DbSession.user_id == target.id))
     await session.commit()
+    await invalidate_auth_principals()
     audit.record(
         request,
         user=user,

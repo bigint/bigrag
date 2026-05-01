@@ -13,7 +13,7 @@ from bigrag.config import settings
 from bigrag.db.models import Collection, Document
 from bigrag.logging import get_logger
 from bigrag.models.document import DocumentResponse
-from bigrag.services import metadata_schema
+from bigrag.services import collection_cache, metadata_schema
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import get_storage
@@ -150,6 +150,7 @@ async def persist_document(
     await session.refresh(doc)
     await recount_collection_documents(session, collection["id"])
     await session.commit()
+    await collection_cache.invalidate(collection_name)
 
     try:
         await ingestion_queue.enqueue(
@@ -158,7 +159,6 @@ async def persist_document(
                 file_path=storage_key,
                 collection_name=collection_name,
                 collection=collection,
-                fallback_api_key=settings.embedding_api_key,
             )
         )
     except Exception as exc:

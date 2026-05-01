@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import io
 import uuid
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import orjson
@@ -12,17 +13,20 @@ from pydantic import TypeAdapter, ValidationError
 from starlette.responses import PlainTextResponse
 
 from bigrag.config import settings
+from bigrag.middleware import auth as auth_middleware
 from bigrag.middleware import idempotency
 from bigrag.models import webhook as webhook_models
 from bigrag.routers import documents
 from bigrag.routers._documents import UploadBudget
 from bigrag.services import (
+    collection_cache,
     collection_scope,
     embedding,
     file_validation,
     mcp_http,
     queue,
     rate_limit,
+    retrieval,
     url_security,
 )
 from bigrag.services.ingestion_job import create_ingestion_job
@@ -144,6 +148,7 @@ def test_embedding_cache_uses_truncated_text_and_deduplicates_misses(monkeypatch
             self.inputs: list[str] = []
 
         async def embed(self, texts: list[str], *, input_type: str = "document"):
+            _ = input_type
             self.inputs.extend(texts)
             return [[1.0] for _ in texts]
 
@@ -154,7 +159,7 @@ def test_embedding_cache_uses_truncated_text_and_deduplicates_misses(monkeypatch
     async def fake_put_many(texts, vectors, _provider, _model, _dimension):
         put_calls.append((list(texts), vectors))
 
-    monkeypatch.setattr(queue, "truncate_to_tokens", lambda texts, _model: (["same", "same"], []))
+    monkeypatch.setattr(queue, "truncate_to_tokens", lambda _texts, _model: (["same", "same"], []))
     monkeypatch.setattr(queue.embedding_cache, "get_many", fake_get_many)
     monkeypatch.setattr(queue.embedding_cache, "put_many", fake_put_many)
 
@@ -282,7 +287,6 @@ def test_ingestion_jobs_do_not_serialize_embedding_api_keys() -> None:
             "chunk_size": 512,
             "chunk_overlap": 50,
         },
-        fallback_api_key="sk-fallback",
     )
 
     payload = orjson.loads(job.serialize())
@@ -338,6 +342,114 @@ def test_auth_rate_limit_raises_after_limit(monkeypatch) -> None:
         )
     assert exc.value.status_code == 429
     assert exc.value.headers == {"Retry-After": "30"}
+
+
+def test_collection_cache_restores_uuid_from_cached_payload(monkeypatch) -> None:
+    collection_id = uuid.uuid4()
+
+    async def fake_get(key):
+        assert key == "collection:docs"
+        return {
+            "id": str(collection_id),
+            "name": "docs",
+            "embedding_provider": "openai",
+            "embedding_model": "text-embedding-3-small",
+            "embedding_api_key": "sk-test",
+            "embedding_base_url": None,
+            "dimension": 1536,
+            "chunk_size": 512,
+            "chunk_overlap": 50,
+            "chunk_strategy": "paragraph",
+            "document_count": 0,
+            "default_top_k": 10,
+            "default_min_score": None,
+            "default_search_mode": "semantic",
+            "reranking_enabled": False,
+            "reranking_model": "rerank-v3.5",
+            "reranking_api_key": None,
+            "index_type": "HNSW",
+            "tenant_field": None,
+            "metadata_schema": None,
+            "metadata": {},
+            "created_at": datetime.now(UTC).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
+        }
+
+    class FailSession:
+        async def __aenter__(self):
+            raise AssertionError("cached collection should not hit Postgres")
+
+    monkeypatch.setattr(collection_cache.redis_cache, "get", fake_get)
+    monkeypatch.setattr(collection_cache, "session_factory", lambda: lambda: FailSession())
+
+    result = _run(collection_cache.get_or_404("docs"))
+
+    assert result["id"] == collection_id
+
+
+def test_auth_session_cache_short_circuits_database(monkeypatch) -> None:
+    token = "session-token"
+    principal = {
+        "id": str(uuid.uuid4()),
+        "email": "admin@example.com",
+        "display_name": "Admin",
+        "role": "admin",
+        "auth_method": "session",
+        "api_key_id": None,
+        "api_key_name": None,
+        "scopes": None,
+        "collection": None,
+    }
+
+    async def fake_get(key):
+        assert key == f"auth:session:{auth_middleware.hash_session_token(token)}"
+        return principal
+
+    class FailSession:
+        async def execute(self, _stmt):
+            raise AssertionError("cached principal should not hit Postgres")
+
+    request = SimpleNamespace(cookies={settings.session_cookie_name: token})
+    monkeypatch.setattr(auth_middleware.redis_cache, "get", fake_get)
+
+    assert _run(auth_middleware._user_from_session(request, FailSession())) == principal
+
+
+def test_query_embedding_cache_hit_skips_provider(monkeypatch) -> None:
+    class FakeModel:
+        dimension = 2
+        name = "fake"
+        provider = "test"
+        cache_identity = "test:fake:2"
+
+        async def embed(self, *_args, **_kwargs):
+            raise AssertionError("cached query embedding should not call provider")
+
+    async def fake_get(key):
+        assert key.startswith("query_embedding:test:fake:2:")
+        return [0.25, 0.75]
+
+    monkeypatch.setattr(settings, "query_embedding_cache_ttl", 60)
+    monkeypatch.setattr(retrieval.redis_cache, "get", fake_get)
+
+    assert _run(retrieval._embed_query_with_cache("what is redis?", FakeModel())) == [0.25, 0.75]
+
+
+def test_query_cache_epoch_invalidation_uses_redis(monkeypatch) -> None:
+    class FakeRedis:
+        def __init__(self) -> None:
+            self.keys: list[str] = []
+
+        async def incr(self, key):
+            self.keys.append(key)
+            return 1
+
+    fake = FakeRedis()
+    monkeypatch.setattr(retrieval.redis_cache, "get_redis", lambda: fake)
+
+    _run(retrieval.invalidate_collection_query_cache("docs"))
+
+    assert fake.keys == ["bigrag:query_epoch:docs"]
 
 
 def test_embedding_semaphores_are_partitioned_by_provider_or_endpoint() -> None:

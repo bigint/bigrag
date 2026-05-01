@@ -124,6 +124,10 @@ class EmbeddingModel(ABC):
     @abstractmethod
     def provider(self) -> str: ...
 
+    @property
+    @abstractmethod
+    def cache_identity(self) -> str: ...
+
 
 class OpenAIEmbedding(EmbeddingModel):
     def __init__(
@@ -145,6 +149,8 @@ class OpenAIEmbedding(EmbeddingModel):
         self._dimension = dimension
         self._base_url = validate_embedding_base_url_sync(base_url)
         self._semaphore_key = f"openai:{self._base_url or 'default'}"
+        base_tag = hashlib.sha256((self._base_url or "").encode()).hexdigest()[:12]
+        self._cache_identity = f"openai:{model_name}:{dimension}:{base_tag}"
         self._client = openai.AsyncOpenAI(
             api_key=api_key or "not-required",
             base_url=self._base_url,
@@ -155,6 +161,7 @@ class OpenAIEmbedding(EmbeddingModel):
         )
 
     async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
+        _ = input_type
         texts, warnings = truncate_to_tokens(texts, self._model_name)
         if any(warnings):
             truncated = sum(1 for w in warnings if w)
@@ -181,6 +188,10 @@ class OpenAIEmbedding(EmbeddingModel):
     def provider(self) -> str:
         return "openai"
 
+    @property
+    def cache_identity(self) -> str:
+        return self._cache_identity
+
 
 class CohereEmbedding(EmbeddingModel):
     _INPUT_TYPE_MAP = {
@@ -205,6 +216,7 @@ class CohereEmbedding(EmbeddingModel):
         self._model_name = model_name
         self._dimension = dimension
         self._semaphore_key = "cohere"
+        self._cache_identity = f"cohere:{model_name}:{dimension}"
         self._client = cohere.AsyncClient(api_key=api_key)
         logger.info(f"Initialized Cohere embedding: {model_name} (dim={dimension})")
 
@@ -241,6 +253,10 @@ class CohereEmbedding(EmbeddingModel):
     def provider(self) -> str:
         return "cohere"
 
+    @property
+    def cache_identity(self) -> str:
+        return self._cache_identity
+
 
 class VoyageEmbedding(EmbeddingModel):
     _API_URL = "https://api.voyageai.com/v1/embeddings"
@@ -258,6 +274,7 @@ class VoyageEmbedding(EmbeddingModel):
         self._dimension = dimension
         self._api_key = api_key
         self._semaphore_key = "voyage"
+        self._cache_identity = f"voyage:{model_name}:{dimension}"
         logger.info(f"Initialized Voyage embedding: {model_name} (dim={dimension})")
 
     async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
@@ -302,6 +319,10 @@ class VoyageEmbedding(EmbeddingModel):
     @property
     def provider(self) -> str:
         return "voyage"
+
+    @property
+    def cache_identity(self) -> str:
+        return self._cache_identity
 
 
 _MODELS_MAX = 32

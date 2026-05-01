@@ -26,7 +26,7 @@ from bigrag.models.query import (
 from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
 from bigrag.services import access_log
 from bigrag.services.embedding import AVAILABLE_MODELS
-from bigrag.services.retrieval import retrieve, retrieve_multi
+from bigrag.services.retrieval import invalidate_collection_query_cache, retrieve, retrieve_multi
 from bigrag.services.vector_store import vector_store
 
 logger = get_logger("bigrag.routers.query")
@@ -285,6 +285,7 @@ async def upsert_vectors(
         texts=texts,
         metadata=metadata,
     )
+    await invalidate_collection_query_cache(collection_name)
     logger.info(f"upsert: collection={collection_name} upserted={count}")
     access_log.set_context(request, metadata={"upserted": count})
 
@@ -309,6 +310,7 @@ async def delete_vectors(
     await get_collection_or_404(collection_name)
     logger.info(f"vectors/delete: collection={collection_name} ids={len(body.ids)}")
     await vector_store.delete_by_ids(collection_name, body.ids)
+    await invalidate_collection_query_cache(collection_name)
     access_log.set_context(request, metadata={"deleted": len(body.ids)})
     return {"status": "ok", "deleted": len(body.ids)}
 
