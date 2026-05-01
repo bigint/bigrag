@@ -5,5 +5,4 @@ data/
 .gitignore
 .env*
 docker-compose*.yml
-milvus.yaml
 sdks/
