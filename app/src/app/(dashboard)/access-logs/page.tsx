@@ -2,33 +2,21 @@
 
 import { RefreshCw, ShieldCheck } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Spinner } from "@/components/ui/spinner";
-import { TabButton } from "@/components/ui/tabs";
-import { type AccessLogFilters, useAccessLogs, useAccessOverview } from "@/hooks/use-access-logs";
+import { useAccessLogs, useAccessOverview } from "@/hooks/use-access-logs";
 import { useSession } from "@/hooks/use-auth";
 import { cn } from "@/lib/cn";
 import { formatNumber, formatRelative } from "@/lib/format";
 import type { AccessLogEntry } from "@/types/bigrag";
 
-type LogMode = "all" | "errors" | "queries";
-
-const FILTERS: Record<LogMode, { label: string; params: AccessLogFilters }> = {
-  all: { label: "All", params: { limit: 100 } },
-  errors: { label: "Errors", params: { limit: 100, success: false } },
-  queries: { label: "Queries", params: { limit: 100, path: "query" } },
-};
-
 const AccessLogsPage = () => {
-  const [mode, setMode] = useState<LogMode>("all");
   const { data: session } = useSession();
   const canSeeAccess = session?.user.role === "admin";
-  const filters = useMemo(() => FILTERS[mode].params, [mode]);
   const overview = useAccessOverview(canSeeAccess, 7);
-  const logs = useAccessLogs(filters, canSeeAccess);
+  const logs = useAccessLogs({ limit: 100 }, canSeeAccess);
   const refresh = () => {
     void logs.refetch();
     void overview.refetch();
@@ -62,17 +50,6 @@ const AccessLogsPage = () => {
         title="Access logs"
       />
 
-      <div className="flex flex-wrap gap-1.5">
-        {Object.entries(FILTERS).map(([key, item]) => (
-          <TabButton
-            active={mode === key}
-            key={key}
-            label={item.label}
-            onClick={() => setMode(key as LogMode)}
-          />
-        ))}
-      </div>
-
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Events" value={formatNumber(overview.data?.total_events ?? 0)} />
         <Stat
@@ -91,9 +68,9 @@ const AccessLogsPage = () => {
       <section className="overflow-hidden rounded-3xl border border-border bg-background">
         <div className="border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold">{FILTERS[mode].label} access stream</h2>
+            <h2 className="text-base font-semibold">Access stream</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {formatNumber(logs.data?.total ?? 0)} matching events, newest first.
+              {formatNumber(logs.data?.total ?? 0)} events, newest first.
             </p>
           </div>
         </div>
