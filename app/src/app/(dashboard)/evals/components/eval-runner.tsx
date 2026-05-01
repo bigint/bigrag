@@ -6,7 +6,10 @@ import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { type Column, DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useCollections } from "@/hooks/use-collections";
 import { apiClient } from "@/lib/api";
@@ -36,9 +39,48 @@ const SAMPLE = `[
   { "query": "what embedding models are supported?", "relevant_ids": ["doc-def"] }
 ]`;
 
+const formatMetric = (value: number) => value.toFixed(3);
+
+const columns: Column<EvalPerCase>[] = [
+  {
+    header: "Query",
+    key: "query",
+    render: (item) => (
+      <div className="min-w-64">
+        <div className="line-clamp-2 font-medium">{item.query}</div>
+        <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
+          {item.expected_ids.join(", ")}
+        </div>
+      </div>
+    ),
+  },
+  {
+    className: "text-right",
+    header: "Recall",
+    headerClassName: "text-right",
+    key: "recall",
+    render: (item) => formatMetric(item.recall_at_k),
+  },
+  {
+    className: "text-right",
+    header: "RR",
+    headerClassName: "text-right",
+    key: "rr",
+    render: (item) => formatMetric(item.reciprocal_rank),
+  },
+  {
+    className: "text-right",
+    header: "nDCG",
+    headerClassName: "text-right",
+    key: "ndcg",
+    render: (item) => formatMetric(item.ndcg_at_k),
+  },
+];
+
 export const EvalRunner = () => {
   const { data: collectionsData } = useCollections();
   const collections = collectionsData?.collections ?? [];
+  const collectionOptions = collections.map((c) => ({ label: c.name, value: c.name }));
 
   const [collection, setCollection] = useState("");
   const [cases, setCases] = useState(SAMPLE);
@@ -77,111 +119,89 @@ export const EvalRunner = () => {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Batch run</CardTitle>
-        <CardDescription>
-          Upload a batch of <code className="text-xs">{"{query, relevant_ids}"}</code> cases and
-          compare retrieved chunks against known relevant IDs.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={run} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="eval-col">
-              Collection
-            </label>
-            <select
-              id="eval-col"
-              value={collection}
-              onChange={(e) => setCollection(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-              required
-            >
-              <option value="" disabled>
-                Pick a collection...
-              </option>
-              {collections.map((c) => (
-                <option key={c.name} value={c.name}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
+    <div className="flex flex-col gap-4">
+      <Card className="overflow-hidden">
+        <CardHeader>
+          <CardTitle>Batch run</CardTitle>
+          <CardDescription>
+            Upload a batch of{" "}
+            <code className="rounded-full bg-muted px-1.5 py-0.5 font-mono text-[11px]">
+              {"{query, relevant_ids}"}
+            </code>{" "}
+            cases and compare retrieved chunks against known relevant IDs.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={run} className="flex flex-col gap-4">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_8rem]">
+              <Select
+                disabled={collectionOptions.length === 0}
+                id="eval-col"
+                label="Collection"
+                onChange={setCollection}
+                options={collectionOptions}
+                placeholder={
+                  collectionOptions.length > 0 ? "Pick a collection..." : "No collections available"
+                }
+                value={collection}
+              />
 
-          <Input
-            label="top_k"
-            type="number"
-            min={1}
-            max={100}
-            value={topK}
-            onChange={(e) => setTopK(Number(e.target.value))}
-          />
+              <Input
+                label="Top K"
+                max={100}
+                min={1}
+                onChange={(e) => setTopK(Number(e.target.value))}
+                type="number"
+                value={topK}
+              />
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <label htmlFor="eval-cases" className="text-sm font-medium text-foreground">
-              Cases (JSON)
-            </label>
             <Textarea
+              className="min-h-52 font-mono text-xs leading-5"
               id="eval-cases"
-              rows={8}
-              value={cases}
+              label="Cases (JSON)"
               onChange={(e) => setCases(e.target.value)}
               placeholder={SAMPLE}
+              rows={10}
               spellCheck={false}
-              className="font-mono text-xs"
+              value={cases}
             />
-          </div>
 
-          <div className="flex justify-end">
-            <Button type="submit" disabled={mutation.isPending || !collection}>
-              <Play className="size-4" />
-              {mutation.isPending ? "Running..." : "Run eval"}
-            </Button>
-          </div>
-        </form>
+            <div className="flex justify-end">
+              <Button disabled={mutation.isPending || !collection || topK < 1} type="submit">
+                {mutation.isPending ? (
+                  <Spinner className="border-primary-foreground border-t-transparent" size="sm" />
+                ) : (
+                  <Play className="size-4" />
+                )}
+                {mutation.isPending ? "Running..." : "Run eval"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
-        {result && (
-          <div className="mt-6 space-y-4">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <StatCard label="Recall@k avg" value={result.recall_at_k_avg.toFixed(3)} />
-              <StatCard label="MRR" value={result.mrr.toFixed(3)} />
-              <StatCard label="nDCG@k avg" value={result.ndcg_at_k_avg.toFixed(3)} />
-            </div>
-            <div className="overflow-hidden rounded-md border border-border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-medium">Query</th>
-                    <th className="px-3 py-2 text-right font-medium">Recall</th>
-                    <th className="px-3 py-2 text-right font-medium">RR</th>
-                    <th className="px-3 py-2 text-right font-medium">nDCG</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.per_case.map((c) => (
-                    <tr key={c.query} className="border-t border-border">
-                      <td className="px-3 py-2 text-xs text-foreground">
-                        <div className="line-clamp-2">{c.query}</div>
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs">{c.recall_at_k}</td>
-                      <td className="px-3 py-2 text-right text-xs">{c.reciprocal_rank}</td>
-                      <td className="px-3 py-2 text-right text-xs">{c.ndcg_at_k}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      {result && (
+        <section aria-live="polite" className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <StatCard label="Recall@k avg" value={formatMetric(result.recall_at_k_avg)} />
+            <StatCard label="MRR" value={formatMetric(result.mrr)} />
+            <StatCard label="nDCG@k avg" value={formatMetric(result.ndcg_at_k_avg)} />
           </div>
-        )}
-      </CardContent>
-    </Card>
+          <DataTable
+            columns={columns}
+            data={result.per_case}
+            keyExtractor={(item) => `${item.query}:${item.expected_ids.join(",")}`}
+          />
+        </section>
+      )}
+    </div>
   );
 };
 
 const StatCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-md border border-border bg-card p-3">
-    <div className="text-xs text-muted-foreground">{label}</div>
-    <div className="mt-1 text-lg font-semibold text-foreground">{value}</div>
+  <div className="rounded-3xl border border-border bg-card p-4">
+    <div className="text-xs font-semibold text-muted-foreground">{label}</div>
+    <div className="mt-2 text-2xl font-semibold tabular-nums text-foreground">{value}</div>
   </div>
 );

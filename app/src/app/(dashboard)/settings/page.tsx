@@ -26,13 +26,14 @@ const COMPONENTS: Record<string, React.FC> = {
 const SettingsPage = () => {
   const router = useRouter();
   const params = useSearchParams();
-  const tab = params.get("tab") ?? "account";
+  const requestedTab = params.get("tab");
+  const tab = requestedTab && COMPONENTS[requestedTab] ? requestedTab : "account";
 
   useEffect(() => {
-    if (tab === "eval") {
+    if (requestedTab === "eval") {
       router.replace("/evals");
     }
-  }, [router, tab]);
+  }, [requestedTab, router]);
 
   const setTab = (value: string) => {
     const next = new URLSearchParams(params.toString());
