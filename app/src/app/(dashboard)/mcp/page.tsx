@@ -59,8 +59,9 @@ const getOrigin = () => (typeof window !== "undefined" ? window.location.origin 
 
 const trimSlash = (s: string) => s.replace(/\/+$/, "");
 
-const buildRemoteUrl = (origin: string, plaintext: string) =>
-  `${trimSlash(origin)}/mcp?token=${encodeURIComponent(plaintext)}`;
+const buildRemoteUrl = (origin: string) => `${trimSlash(origin)}/mcp`;
+
+const buildAuthHeader = (plaintext: string) => `Authorization: Bearer ${plaintext}`;
 
 const buildClaudeDesktopJson = (server: McpServer, origin: string, plaintext: string) =>
   JSON.stringify(
@@ -196,8 +197,8 @@ const CreateDialog = ({ open, onClose, onCreated, collections }: CreateDialogPro
           value={collection}
         />
         <p className="text-xs text-muted-foreground">
-          Creating this MCP mints a fresh bigRAG API key scoped to it. The full URL (with key) is
-          shown once — copy it into your MCP client immediately. You can rotate the key any time.
+          Creating this MCP mints a fresh bigRAG API key scoped to it. The full key is shown once —
+          copy it into your MCP client immediately. You can rotate the key any time.
         </p>
         <div className="flex justify-end gap-2 pt-1">
           <Button onClick={onClose} type="button" variant="secondary">
@@ -222,7 +223,8 @@ interface CredentialDialogProps {
 const CredentialDialog = ({ open, onClose, created, kind }: CredentialDialogProps) => {
   if (!created) return null;
   const origin = getOrigin();
-  const remoteUrl = buildRemoteUrl(origin, created.api_key);
+  const remoteUrl = buildRemoteUrl(origin);
+  const authHeader = buildAuthHeader(created.api_key);
   const jsonSnippet = buildClaudeDesktopJson(created, origin, created.api_key);
   const shellSnippet = buildShellSnippet(origin, created.api_key);
   const isScoped = !!created.collection;
@@ -240,34 +242,29 @@ const CredentialDialog = ({ open, onClose, created, kind }: CredentialDialogProp
       <div className="space-y-6">
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
           <div className="flex items-center gap-2 font-medium">
-            <KeyRound className="size-4" /> This is the only time the full URL / key is shown.
+            <KeyRound className="size-4" /> This is the only time the full key is shown.
           </div>
           <p className="mt-1 text-muted-foreground">
-            Copy what you need now. If you lose it, rotate to mint a new one — the previous token
+            Copy what you need now. If you lose it, rotate to mint a new one — the previous key
             stops working immediately.
           </p>
         </div>
 
         <section>
           <div className="mb-2 flex items-baseline justify-between">
-            <h3 className="font-medium text-sm">Remote URL</h3>
+            <h3 className="font-medium text-sm">Remote HTTP</h3>
             <span className="text-xs text-muted-foreground">
-              Claude custom connector · remote Cursor
+              Clients that can send bearer headers
             </span>
           </div>
           <CodeBlock code={remoteUrl} label="remote MCP URL" />
+          <div className="mt-3">
+            <CodeBlock code={authHeader} label="remote MCP authorization header" />
+          </div>
           <ol className="mt-3 list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
-            <li>
-              In Claude, open <em>Add custom connector</em>.
-            </li>
-            <li>
-              Set <em>Name</em> to{" "}
-              <code className="rounded bg-muted px-1 py-0.5 font-mono">{created.title}</code>.
-            </li>
-            <li>
-              Paste the URL above into <em>Remote MCP server URL</em>.
-            </li>
-            <li>Leave the OAuth fields blank — auth is via the token query param.</li>
+            <li>Set the remote MCP server URL to the endpoint above.</li>
+            <li>Send the bearer header above with every request.</li>
+            <li>If your remote client cannot send headers, use the local stdio config below.</li>
           </ol>
         </section>
 
@@ -317,7 +314,8 @@ const DetailDialog = ({ open, onClose, server, onRotate, rotating }: DetailDialo
   if (!server) return null;
   const origin = getOrigin();
   const redacted = `bigrag_sk_${server.key_prefix.replace(/^bigrag_sk_/, "")}…<REDACTED>`;
-  const remoteUrl = buildRemoteUrl(origin, redacted);
+  const remoteUrl = buildRemoteUrl(origin);
+  const authHeader = buildAuthHeader(redacted);
   const jsonSnippet = buildClaudeDesktopJson(server, origin, redacted);
   const shellSnippet = buildShellSnippet(origin, redacted);
   const isScoped = !!server.collection;
@@ -349,8 +347,8 @@ const DetailDialog = ({ open, onClose, server, onRotate, rotating }: DetailDialo
           <div className="font-medium">The full key is no longer available.</div>
           <p className="mt-1 text-muted-foreground">
             bigRAG only shows each key&apos;s full value at creation time. The snippets below use a
-            placeholder where the token goes. To get a fresh, usable URL, rotate the key — the
-            previous one will stop working.
+            placeholder where the key goes. To get a fresh, usable key, rotate it — the previous one
+            will stop working.
           </p>
           <div className="mt-3">
             <Button disabled={rotating} onClick={onRotate} size="sm" variant="secondary">
@@ -360,8 +358,11 @@ const DetailDialog = ({ open, onClose, server, onRotate, rotating }: DetailDialo
         </div>
 
         <section>
-          <h3 className="mb-2 font-medium text-sm">Remote URL (template)</h3>
+          <h3 className="mb-2 font-medium text-sm">Remote HTTP (template)</h3>
           <CodeBlock code={remoteUrl} label="remote MCP URL template" />
+          <div className="mt-3">
+            <CodeBlock code={authHeader} label="remote MCP authorization header template" />
+          </div>
         </section>
 
         <section>
@@ -521,7 +522,7 @@ const McpPage = () => {
             </Button>
           </div>
         }
-        description="Mint scoped MCP URLs for Claude Desktop, custom connectors, and any MCP client."
+        description="Mint scoped MCP keys for Claude Desktop, remote MCP clients, and local runtimes."
         title="MCP"
       />
 
@@ -533,7 +534,7 @@ const McpPage = () => {
             <Plus className="size-4" /> Create your first MCP
           </Button>
         }
-        emptyDescription="Creating an MCP mints a bigRAG API key scoped to it and renders the full URL you can paste straight into Claude's connector."
+        emptyDescription="Creating an MCP mints a bigRAG API key scoped to it and renders the endpoint plus one-time key for MCP clients."
         emptyIcon={<Plug className="size-6" />}
         emptyTitle="No MCP servers yet"
         keyExtractor={(s) => s.id}

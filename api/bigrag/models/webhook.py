@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import socket
 from datetime import datetime
@@ -23,7 +24,7 @@ def _is_blocked_ip(ip_str: str) -> bool:
     return addr.is_private or addr.is_reserved or addr.is_link_local or addr.is_multicast
 
 
-def resolve_and_validate_url(url: str) -> None:
+async def resolve_and_validate_url(url: str) -> None:
 
     parsed = urlparse(url)
     hostname = parsed.hostname
@@ -31,7 +32,7 @@ def resolve_and_validate_url(url: str) -> None:
         raise ValueError("Webhook URL must have a hostname")
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
     try:
-        addrinfo = socket.getaddrinfo(hostname, port)
+        addrinfo = await asyncio.to_thread(socket.getaddrinfo, hostname, port)
     except socket.gaierror as exc:
         raise ValueError("Cannot resolve webhook URL hostname") from exc
     for _, _, _, _, sockaddr in addrinfo:
@@ -41,10 +42,11 @@ def resolve_and_validate_url(url: str) -> None:
 
 def _validate_webhook_url(url: str) -> None:
     parsed = urlparse(url)
+    if not parsed.hostname:
+        raise ValueError("Webhook URL must have a hostname")
     is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
     if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
         raise ValueError("Webhook URL must use HTTPS (HTTP allowed only for localhost)")
-    resolve_and_validate_url(url)
 
 
 def _validate_webhook_events(events: list[str]) -> None:

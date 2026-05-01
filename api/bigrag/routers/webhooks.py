@@ -20,6 +20,7 @@ from bigrag.models.webhook import (
     WebhookDeliveryResponse,
     WebhookResponse,
     WebhookTestResponse,
+    resolve_and_validate_url,
 )
 from bigrag.services import audit
 from bigrag.services.webhook import generate_secret, webhook_dispatcher
@@ -27,6 +28,13 @@ from bigrag.services.webhook import generate_secret, webhook_dispatcher
 logger = get_logger("bigrag.routers.webhooks")
 
 router = APIRouter(prefix="/v1/admin/webhooks", tags=["webhooks"])
+
+
+async def _validate_webhook_target(url: str) -> None:
+    try:
+        await resolve_and_validate_url(url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def _webhook_response(wh: Webhook) -> WebhookResponse:
@@ -87,6 +95,7 @@ async def create_webhook(
             status_code=400,
             detail=f"Maximum of {max_count} webhooks reached",
         )
+    await _validate_webhook_target(body.url)
 
     secret = generate_secret()
     wh = Webhook(
@@ -158,6 +167,7 @@ async def update_webhook(
 
     fields: list[str] = []
     if body.url is not None:
+        await _validate_webhook_target(body.url)
         wh.url = body.url
         fields.append("url")
     if body.events is not None:

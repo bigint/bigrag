@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import zipfile
+import zlib
 
 _MAGIC_BYTES: dict[str, tuple[bytes, ...]] = {
     ".pdf": (b"%PDF-",),
@@ -45,12 +46,25 @@ def validate_zip_bomb(content: bytes, extension: str) -> None:
         zf = zipfile.ZipFile(io.BytesIO(content))
     except zipfile.BadZipFile as exc:
         raise InvalidFileContentError(f"Not a valid {extension} archive.") from exc
-    total = sum(info.file_size for info in zf.infolist())
-    if total > MAX_DECOMPRESSED_BYTES:
+    try:
+        total = 0
+        for info in zf.infolist():
+            if info.is_dir():
+                continue
+            with zf.open(info) as member:
+                while chunk := member.read(1024 * 1024):
+                    total += len(chunk)
+                    if total > MAX_DECOMPRESSED_BYTES:
+                        raise InvalidFileContentError(
+                            f"Archive too large when decompressed "
+                            f"({total:,} bytes > {MAX_DECOMPRESSED_BYTES:,} limit)."
+                        )
+    except (zipfile.BadZipFile, RuntimeError, EOFError, OSError, zlib.error) as exc:
         raise InvalidFileContentError(
-            f"Archive too large when decompressed "
-            f"({total:,} bytes > {MAX_DECOMPRESSED_BYTES:,} limit)."
-        )
+            f"Invalid compressed content in {extension} archive."
+        ) from exc
+    finally:
+        zf.close()
 
 
 def validate_upload(content: bytes, extension: str) -> None:

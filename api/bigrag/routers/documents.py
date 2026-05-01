@@ -647,20 +647,59 @@ async def get_document_chunks_global(
     return {"chunks": chunks, "total": total}
 
 
+def _parse_progress_document_ids(raw_ids: list[str]) -> tuple[list[str], list[uuid.UUID]]:
+    seen: set[str] = set()
+    doc_ids: list[str] = []
+    doc_uuids: list[uuid.UUID] = []
+    for raw_id in raw_ids:
+        try:
+            parsed = uuid.UUID(raw_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid document ID: {raw_id}") from exc
+        normalized = str(parsed)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        doc_ids.append(normalized)
+        doc_uuids.append(parsed)
+    return doc_ids, doc_uuids
+
+
+async def _ensure_documents_in_collection(
+    session: AsyncSession,
+    collection_id: uuid.UUID,
+    doc_uuids: list[uuid.UUID],
+) -> None:
+    found = set(
+        await session.scalars(
+            sa.select(Document.id)
+            .where(Document.collection_id == collection_id)
+            .where(Document.id.in_(doc_uuids))
+        )
+    )
+    if len(found) != len(doc_uuids):
+        raise HTTPException(status_code=404, detail="Document not found")
+
+
 @router.get("/batch/progress")
 async def batch_progress_sse(
     collection_name: str,
     ids: str = Query(..., description="Comma-separated document IDs"),
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
 
     import orjson
 
-    doc_ids = [d.strip() for d in ids.split(",") if d.strip()]
-    if not doc_ids:
+    raw_doc_ids = [d.strip() for d in ids.split(",") if d.strip()]
+    if not raw_doc_ids:
         raise HTTPException(status_code=400, detail="No document IDs provided")
-    if len(doc_ids) > 100:
+    if len(raw_doc_ids) > 100:
         raise HTTPException(status_code=400, detail="Max 100 document IDs per stream")
+    collection = await get_collection_or_404(collection_name)
+    assert_collection_pin_matches(user, collection_name=collection_name)
+    doc_ids, doc_uuids = _parse_progress_document_ids(raw_doc_ids)
+    await _ensure_documents_in_collection(session, collection["id"], doc_uuids)
 
     async def generate():
         yield (
@@ -674,51 +713,82 @@ async def batch_progress_sse(
         }
         completed_set: set[str] = set()
 
-        q = event_bus.subscribe("*")
+        queues = {doc_id: event_bus.subscribe(doc_id) for doc_id in doc_ids}
+        pending = {asyncio.create_task(q.get()): doc_id for doc_id, q in queues.items()}
         try:
             async with asyncio.timeout(600):
-                while len(completed_set) < len(doc_ids):
-                    event = await q.get()
-                    if event is None:
-                        break
-                    if event.document_id not in progress_map:
-                        continue
+                while len(completed_set) < len(doc_ids) and pending:
+                    done_tasks, _ = await asyncio.wait(
+                        pending,
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    for task in done_tasks:
+                        event_doc_id = pending.pop(task)
+                        event = task.result()
+                        if event is None:
+                            progress_map[event_doc_id] = {
+                                "progress": 1.0,
+                                "status": "complete",
+                                "step": "complete",
+                                "message": "Complete",
+                            }
+                            completed_set.add(event_doc_id)
+                            document_id = event_doc_id
+                            document_status = "complete"
+                            document_step = "complete"
+                            document_progress = 1.0
+                        else:
+                            progress_map[event_doc_id] = {
+                                "progress": event.progress,
+                                "status": event.status,
+                                "step": event.step,
+                                "message": event.message,
+                            }
+                            document_id = event.document_id
+                            document_status = event.status
+                            document_step = event.step
+                            document_progress = event.progress
 
-                    progress_map[event.document_id] = {
-                        "progress": event.progress,
-                        "status": event.status,
-                        "step": event.step,
-                        "message": event.message,
-                    }
+                            if event.status not in ("complete", "failed"):
+                                pending[asyncio.create_task(queues[event_doc_id].get())] = (
+                                    event_doc_id
+                                )
 
-                    if event.status in ("complete", "failed"):
-                        completed_set.add(event.document_id)
+                        if document_status in ("complete", "failed"):
+                            completed_set.add(event_doc_id)
 
-                    done = len(completed_set)
-                    failed = sum(1 for d in progress_map.values() if d["status"] == "failed")
-                    avg_progress = sum(d["progress"] for d in progress_map.values()) / len(doc_ids)
+                        done = len(completed_set)
+                        failed = sum(1 for d in progress_map.values() if d["status"] == "failed")
+                        avg_progress = sum(d["progress"] for d in progress_map.values()) / len(
+                            doc_ids
+                        )
 
-                    summary = {
-                        "step": "batch_progress",
-                        "status": "complete" if done == len(doc_ids) else "processing",
-                        "message": f"{done}/{len(doc_ids)} documents done",
-                        "progress": round(avg_progress, 3),
-                        "total": len(doc_ids),
-                        "completed": done - failed,
-                        "failed": failed,
-                        "document_id": event.document_id,
-                        "document_status": event.status,
-                        "document_step": event.step,
-                        "document_progress": event.progress,
-                    }
-                    yield f"data: {orjson.dumps(summary).decode()}\n\n"
+                        summary = {
+                            "step": "batch_progress",
+                            "status": "complete" if done == len(doc_ids) else "processing",
+                            "message": f"{done}/{len(doc_ids)} documents done",
+                            "progress": round(avg_progress, 3),
+                            "total": len(doc_ids),
+                            "completed": done - failed,
+                            "failed": failed,
+                            "document_id": document_id,
+                            "document_status": document_status,
+                            "document_step": document_step,
+                            "document_progress": document_progress,
+                        }
+                        yield f"data: {orjson.dumps(summary).decode()}\n\n"
         except TimeoutError:
             yield (
                 'data: {"step":"timeout","status":"timeout",'
                 '"message":"Stream timed out after 10 minutes","progress":0}\n\n'
             )
         finally:
-            event_bus.unsubscribe("*", q)
+            for task in pending:
+                task.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+            for doc_id, q in queues.items():
+                event_bus.unsubscribe(doc_id, q)
 
     return StreamingResponse(
         generate(),
@@ -731,8 +801,14 @@ async def batch_progress_sse(
 async def document_progress_sse(
     collection_name: str,
     document_id: str,
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
+    collection = await get_collection_or_404(collection_name)
+    assert_collection_pin_matches(user, collection_name=collection_name)
+    doc_ids, doc_uuids = _parse_progress_document_ids([document_id])
+    await _ensure_documents_in_collection(session, collection["id"], doc_uuids)
+    document_id = doc_ids[0]
 
     async def generate():
         yield (

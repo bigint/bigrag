@@ -301,7 +301,7 @@ class WebhookDispatcher:
             try:
                 from bigrag.models.webhook import resolve_and_validate_url
 
-                resolve_and_validate_url(webhook["url"])
+                await resolve_and_validate_url(webhook["url"])
             except ValueError as e:
                 logger.warning(
                     f"Webhook blocked: webhook={webhook_id} url={webhook['url']} reason={e}"
@@ -326,7 +326,7 @@ class WebhookDispatcher:
                     try:
                         from bigrag.models.webhook import resolve_and_validate_url
 
-                        resolve_and_validate_url(webhook["url"])
+                        await resolve_and_validate_url(webhook["url"])
                     except ValueError as exc:
                         last_error = f"Blocked: {exc}"
                         break
@@ -413,7 +413,7 @@ class WebhookDispatcher:
         try:
             from bigrag.models.webhook import resolve_and_validate_url
 
-            resolve_and_validate_url(webhook["url"])
+            await resolve_and_validate_url(webhook["url"])
         except ValueError:
             return {
                 "status": "failed",
@@ -451,7 +451,7 @@ class WebhookDispatcher:
         try:
             from bigrag.models.webhook import resolve_and_validate_url
 
-            resolve_and_validate_url(webhook["url"])
+            await resolve_and_validate_url(webhook["url"])
         except ValueError:
             return {
                 "status": "failed",

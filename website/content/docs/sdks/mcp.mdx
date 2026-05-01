@@ -6,9 +6,9 @@ description: Expose a bigRAG instance over the Model Context Protocol so Claude 
 bigRAG ships an [MCP](https://modelcontextprotocol.io) server in two
 shapes:
 
-- **Remote HTTP** — mounted on the bigRAG API at `/mcp`, works with
-  Claude's custom connector, remote Cursor, and any streamable-http
-  client. No local install.
+- **Remote HTTP** — mounted on the bigRAG API at `/mcp`, for
+  streamable-http clients that can send an `Authorization: Bearer ...`
+  header. No local install.
 - **Local stdio** — the `bigrag-mcp` CLI, for Claude Desktop's
   `config.json` and older Cursor setups.
 
@@ -22,15 +22,15 @@ Creating an MCP there:
 
 1. mints a fresh bigRAG API key dedicated to that MCP (not shared
    with `/api-keys`);
-2. shows the full URL (with token embedded) exactly once — copy it
-   straight into Claude's custom connector or Claude Desktop config;
+2. shows the full API key exactly once — copy it straight into your
+   MCP client's bearer header or Claude Desktop config;
 3. persists the MCP as a first-class server-side resource (title,
    server name, collection scope, key prefix) that you can later
    rotate or delete.
 
 You do **not** pick from existing keys on `/api-keys` — MCP credentials
-live in their own namespace. If a URL leaks or is lost, click **Rotate
-key** on the MCP's detail dialog. The previous token stops working
+live in their own namespace. If a key leaks or is lost, click **Rotate
+key** on the MCP's detail dialog. The previous key stops working
 immediately on the next request.
 
 ## Scoping to a single collection
@@ -48,29 +48,27 @@ There is no separate `BIGRAG_COLLECTION` env var — the key itself
 carries its scope. To change scope, delete the MCP and create a new
 one (or rotate after editing via the REST API).
 
-## Remote HTTP (Claude custom connector, remote Cursor)
+## Remote HTTP
 
-No local install. The admin UI hands you the full URL at MCP creation time;
-its shape is:
+No local install. The endpoint is stable:
 
 ```
-https://bigrag.example.com/mcp?token=bigrag_sk_...
+https://bigrag.example.com/mcp
 ```
 
-For Claude's custom connector beta:
+Every request must send the MCP key in an HTTP authorization header:
 
-- **Name**: anything you like, e.g. "bigRAG" or "bigRAG runbooks".
-- **Remote MCP server URL**: paste the URL above.
-- **OAuth Client ID / Secret**: leave blank — bigRAG authenticates via
-  the `?token=` query param, not OAuth.
+```http
+Authorization: Bearer bigrag_sk_...
+```
 
-The token appears in the URL. Treat the URL like a password: it may
-end up in reverse-proxy and server logs. If a URL leaks, revoke the
-key in the admin UI.
+Use remote clients that can attach bearer headers. If your client only
+supports URL-only remote servers, use the local stdio bridge below
+until OAuth support is available.
 
 Under the hood the endpoint is a FastMCP server with
 `stateless_http=True` and `json_response=True`; every request carries
-the token and is dispatched through the bigRAG REST API, so auth and
+the bearer key and is dispatched through the bigRAG REST API, so auth and
 scope rules apply uniformly.
 
 ## Local stdio (Claude Desktop, legacy Cursor)
@@ -167,5 +165,6 @@ Once configured:
   SDK, or the admin UI for writes.
 - Streaming SSE endpoints (document progress, collection events) are
   not wrapped — MCP tools are request/response only.
-- OAuth 2.0 flows are not implemented. For URL-based clients, use the
-  token-in-URL pattern above. OAuth is tracked as a future addition.
+- OAuth 2.0 flows are not implemented. Remote HTTP clients must send
+  `Authorization: Bearer ...`; URL query-token authentication is not
+  accepted on `/mcp`.

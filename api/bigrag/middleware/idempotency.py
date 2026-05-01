@@ -10,6 +10,7 @@ logger = get_logger("bigrag.idempotency")
 
 _MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 _DEFAULT_TTL_SECONDS = 24 * 60 * 60
+_MAX_CACHED_BODY_BYTES = 64 * 1024
 
 
 def _cache_key(principal: str, idem_key: str, method: str, path: str) -> str:
@@ -61,10 +62,12 @@ class IdempotencyMiddleware:
 
         status_code = 0
         body_chunks: list[bytes] = []
+        body_size = 0
+        cacheable_body = True
         response_headers: list[list[str]] = []
 
         async def send_wrapper(message):
-            nonlocal status_code, response_headers
+            nonlocal body_size, cacheable_body, response_headers, status_code
             if message["type"] == "http.response.start":
                 status_code = message["status"]
                 response_headers = [
@@ -74,12 +77,17 @@ class IdempotencyMiddleware:
             elif message["type"] == "http.response.body":
                 chunk = message.get("body") or b""
                 if chunk:
-                    body_chunks.append(chunk)
+                    body_size += len(chunk)
+                    if cacheable_body and body_size <= _MAX_CACHED_BODY_BYTES:
+                        body_chunks.append(chunk)
+                    else:
+                        cacheable_body = False
+                        body_chunks.clear()
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
 
-        if 200 <= status_code < 300:
+        if 200 <= status_code < 300 and cacheable_body:
             body = b"".join(body_chunks)
             await redis_cache.set(
                 cache_key,

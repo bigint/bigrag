@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import contextvars
-from typing import TYPE_CHECKING, Annotated, Any, Literal  # noqa: F401 — Any used in return type
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -14,6 +14,23 @@ from starlette.types import ASGIApp
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
+CollectionName = Annotated[
+    str,
+    Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[a-zA-Z][a-zA-Z0-9_]*$",
+        description="Collection name",
+    ),
+]
+DocumentId = Annotated[
+    str,
+    Field(
+        pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+        description="Document UUID",
+    ),
+]
+
 _current_token: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "bigrag_mcp_http_token", default=None
 )
@@ -24,11 +41,10 @@ _current_app: contextvars.ContextVar[FastAPI | None] = contextvars.ContextVar(
 
 class _TokenExtractMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: StarletteRequest, call_next):  # noqa: ANN001
-        token: str | None = request.query_params.get("token")
-        if not token:
-            auth = request.headers.get("authorization", "")
-            if auth.startswith("Bearer "):
-                token = auth[7:]
+        token: str | None = None
+        auth = request.headers.get("authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth[7:]
         tok_reset = _current_token.set(token)
         try:
             return await call_next(request)
@@ -97,7 +113,7 @@ def _build_server() -> FastMCP:
 
     @mcp.tool()
     async def get_collection(
-        name: Annotated[str, Field(description="Collection name")],
+        name: CollectionName,
     ) -> dict[str, Any]:
 
         async with _client() as c:
@@ -107,7 +123,7 @@ def _build_server() -> FastMCP:
 
     @mcp.tool()
     async def get_collection_stats(
-        name: Annotated[str, Field(description="Collection name")],
+        name: CollectionName,
     ) -> dict[str, Any]:
 
         async with _client() as c:
@@ -117,7 +133,7 @@ def _build_server() -> FastMCP:
 
     @mcp.tool()
     async def query(
-        collection: Annotated[str, Field(description="Collection name")],
+        collection: CollectionName,
         query: Annotated[str, Field(min_length=1, description="Natural-language query")],
         top_k: Annotated[int, Field(ge=1, le=100)] = 10,
         search_mode: Literal["semantic", "keyword", "hybrid"] = "semantic",
@@ -145,7 +161,7 @@ def _build_server() -> FastMCP:
 
     @mcp.tool()
     async def multi_collection_query(
-        collections: Annotated[list[str], Field(min_length=1, max_length=20)],
+        collections: Annotated[list[CollectionName], Field(min_length=1, max_length=20)],
         query: Annotated[str, Field(min_length=1)],
         top_k: Annotated[int, Field(ge=1, le=100)] = 10,
         search_mode: Literal["semantic", "keyword", "hybrid"] = "semantic",
@@ -174,7 +190,7 @@ def _build_server() -> FastMCP:
 
     @mcp.tool()
     async def list_documents(
-        collection: Annotated[str, Field(description="Collection name")],
+        collection: CollectionName,
         limit: Annotated[int, Field(ge=1, le=100)] = 50,
         offset: Annotated[int, Field(ge=0)] = 0,
         status: Literal["pending", "processing", "ready", "failed"] | None = None,
@@ -190,8 +206,8 @@ def _build_server() -> FastMCP:
 
     @mcp.tool()
     async def get_document(
-        collection: Annotated[str, Field(description="Collection name")],
-        document_id: Annotated[str, Field(description="Document UUID")],
+        collection: CollectionName,
+        document_id: DocumentId,
     ) -> dict[str, Any]:
 
         async with _client() as c:
@@ -201,8 +217,8 @@ def _build_server() -> FastMCP:
 
     @mcp.tool()
     async def get_document_chunks(
-        collection: Annotated[str, Field(description="Collection name")],
-        document_id: Annotated[str, Field(description="Document UUID")],
+        collection: CollectionName,
+        document_id: DocumentId,
     ) -> dict[str, Any]:
 
         async with _client() as c:

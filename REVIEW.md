@@ -958,7 +958,7 @@ on eviction.
 
 ---
 
-#### `[ ]` I-054 🟠 Embedding cache key vs truncation
+#### `[x]` I-054 🟠 Embedding cache key vs truncation
 
 **Files:** `api/bigrag/services/queue.py:_embed_with_cache`,
 `api/bigrag/services/embedding.py:163,216`
@@ -1081,7 +1081,7 @@ No retention/TTL index. Table grows unboundedly.
 
 ---
 
-#### `[ ]` I-062 🟠 Token leakage in URLs (MCP HTTP)
+#### `[x]` I-062 🟠 Token leakage in URLs (MCP HTTP)
 
 **Files:** `api/bigrag/services/mcp_http.py:49`, `api/bigrag/logging.py:141`
 
@@ -1111,7 +1111,7 @@ hits the loopback ASGI transport which has no network firewalling.
 
 ## Medium-priority issues
 
-#### `[ ]` I-064 🟡 `_models` / global semaphore is shared across providers
+#### `[x]` I-064 🟡 `_models` / global semaphore is shared across providers
 
 **File:** `api/bigrag/services/embedding.py:11-34`
 
@@ -1188,7 +1188,7 @@ Covered by `api/tests/test_client_ip.py`.
 
 ---
 
-#### `[ ]` I-069 🟡 Zip-bomb detection trusts central-directory `file_size`
+#### `[x]` I-069 🟡 Zip-bomb detection trusts central-directory `file_size`
 
 **File:** `api/bigrag/services/file_validation.py:79-85`
 
@@ -1212,7 +1212,7 @@ every encrypted column under the new key.
 
 ---
 
-#### `[ ]` I-071 🟡 `batch_progress_sse` subscribes to `*` (every event in the system)
+#### `[x]` I-071 🟡 `batch_progress_sse` subscribes to `*` (every event in the system)
 
 **Files:** `api/bigrag/routers/documents.py:881-958`
 
@@ -1225,7 +1225,7 @@ collection-scoped channel for the multi-doc case.
 
 ---
 
-#### `[ ]` I-072 🟡 SSE batch progress doesn't validate doc IDs vs the collection
+#### `[x]` I-072 🟡 SSE batch progress doesn't validate doc IDs vs the collection
 
 **File:** `api/bigrag/routers/documents.py:881-958`
 
@@ -1262,7 +1262,7 @@ window boundaries.
 
 ---
 
-#### `[ ]` I-075 🟡 `_handle_event` synchronous DNS lookup blocks the listener
+#### `[x]` I-075 🟡 `_handle_event` synchronous DNS lookup blocks the listener
 
 **File:** `api/bigrag/models/webhook.py:36-42`
 
@@ -1387,7 +1387,7 @@ repo so Docker builds are reproducible.
 
 ---
 
-#### `[ ]` I-085 🟡 Idempotency middleware doesn't bound the cached body size
+#### `[x]` I-085 🟡 Idempotency middleware doesn't bound the cached body size
 
 **File:** `api/bigrag/middleware/idempotency.py:84-114`
 
