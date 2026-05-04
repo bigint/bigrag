@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 import sqlalchemy as sa
 
@@ -17,7 +18,7 @@ def _cache_key(name: str) -> str:
 
 def _serialize(c: Collection) -> dict:
     return {
-        "id": c.id,
+        "id": str(c.id),
         "name": c.name,
         "description": c.description,
         "embedding_provider": c.embedding_provider,
@@ -39,8 +40,8 @@ def _serialize(c: Collection) -> dict:
         "tenant_field": c.tenant_field,
         "metadata_schema": c.metadata_schema,
         "metadata": c.meta or {},
-        "created_at": c.created_at,
-        "updated_at": c.updated_at,
+        "created_at": c.created_at.isoformat(),
+        "updated_at": c.updated_at.isoformat(),
     }
 
 
@@ -48,6 +49,9 @@ def _deserialize(data: dict) -> dict:
     out = dict(data)
     if isinstance(out.get("id"), str):
         out["id"] = uuid.UUID(out["id"])
+    for key in ("created_at", "updated_at"):
+        if isinstance(out.get(key), str):
+            out[key] = datetime.fromisoformat(out[key])
     return out
 
 

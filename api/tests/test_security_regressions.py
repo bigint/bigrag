@@ -387,6 +387,47 @@ def test_collection_cache_restores_uuid_from_cached_payload(monkeypatch) -> None
     assert result["id"] == collection_id
 
 
+def test_collection_cache_serializes_payload_for_redis() -> None:
+    collection_id = uuid.uuid4()
+    now = datetime.now(UTC)
+    collection = SimpleNamespace(
+        id=collection_id,
+        name="docs",
+        description="",
+        embedding_provider="openai",
+        embedding_model="text-embedding-3-small",
+        embedding_api_key="sk-test",
+        embedding_base_url=None,
+        dimension=1536,
+        chunk_size=512,
+        chunk_overlap=50,
+        chunk_strategy="paragraph",
+        document_count=0,
+        default_top_k=10,
+        default_min_score=None,
+        default_search_mode="semantic",
+        reranking_enabled=False,
+        reranking_model="rerank-v3.5",
+        reranking_api_key=None,
+        index_type="HNSW",
+        tenant_field=None,
+        metadata_schema=None,
+        meta={},
+        created_at=now,
+        updated_at=now,
+    )
+
+    payload = collection_cache._serialize(collection)
+    encoded = orjson.dumps(payload)
+    decoded = orjson.loads(encoded)
+    restored = collection_cache._deserialize(decoded)
+
+    assert decoded["id"] == str(collection_id)
+    assert decoded["created_at"] == now.isoformat()
+    assert restored["id"] == collection_id
+    assert restored["created_at"] == now
+
+
 def test_auth_session_cache_short_circuits_database(monkeypatch) -> None:
     token = "session-token"
     principal = {
