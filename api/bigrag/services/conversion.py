@@ -1,22 +1,50 @@
 from __future__ import annotations
 
 import threading
+from pathlib import Path
 
 from bigrag.logging import get_logger
 
 logger = get_logger("bigrag.conversion")
 
-_docling_converter = None
+_docling_converters = {}
 _docling_lock = threading.Lock()
 
 
-def _get_docling_converter():
-    global _docling_converter
-    if _docling_converter is not None:
-        return _docling_converter
+def extract_pdf_text(path: str | Path) -> str:
+    from pypdfium2 import PdfDocument
+
+    pdf = PdfDocument(str(path))
+    pages: list[str] = []
+    try:
+        for page_index in range(len(pdf)):
+            page = pdf[page_index]
+            try:
+                text_page = page.get_textpage()
+                try:
+                    text = text_page.get_text_range().strip()
+                finally:
+                    text_page.close()
+            finally:
+                page.close()
+
+            if text:
+                pages.append(text)
+    finally:
+        pdf.close()
+
+    return "\n\n".join(pages)
+
+
+def _get_docling_converter(*, pdf_ocr_enabled: bool = False):
+    cached = _docling_converters.get(pdf_ocr_enabled)
+    if cached is not None:
+        return cached
+
     with _docling_lock:
-        if _docling_converter is not None:
-            return _docling_converter
+        cached = _docling_converters.get(pdf_ocr_enabled)
+        if cached is not None:
+            return cached
         import os
 
         if os.environ.get("HF_HUB_OFFLINE") is None:
@@ -38,9 +66,9 @@ def _get_docling_converter():
         from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
 
         pdf_opts = PdfPipelineOptions()
-        pdf_opts.do_ocr = True
+        pdf_opts.do_ocr = pdf_ocr_enabled
 
-        _docling_converter = DocumentConverter(
+        converter = DocumentConverter(
             format_options={
                 InputFormat.PDF: PdfFormatOption(
                     pipeline_cls=StandardPdfPipeline,
@@ -48,4 +76,6 @@ def _get_docling_converter():
                 )
             }
         )
-    return _docling_converter
+        _docling_converters[pdf_ocr_enabled] = converter
+
+    return converter

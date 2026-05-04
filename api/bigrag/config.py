@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     query_embedding_cache_ttl: int = 3600
     query_result_cache_ttl: int = 30
     conversion_timeout: int = 300
+    conversion_pdf_ocr_enabled: bool = False
     webhook_delivery_timeout: int = 10
     webhook_retry_delays: list[int] = [10, 30, 90]
     webhook_max_count: int = 50

@@ -9,11 +9,11 @@ Documents are files uploaded to a collection. When uploaded, they are automatica
 
 ## Supported Formats
 
-bigRAG uses [Docling](https://github.com/DS4SD/docling) for document parsing:
+bigRAG extracts embedded text from PDFs directly, and uses [Docling](https://github.com/DS4SD/docling) for other rich document parsing:
 
 | Format | Extensions | Notes |
 |--------|------------|-------|
-| PDF | `.pdf` | With OCR for scanned documents |
+| PDF | `.pdf` | Fast embedded-text extraction; scanned-PDF OCR is opt-in with `BIGRAG_CONVERSION_PDF_OCR_ENABLED=true` |
 | Microsoft Word | `.docx` | Full layout support |
 | Microsoft PowerPoint | `.pptx` | Slide content extraction |
 | Microsoft Excel | `.xlsx` | Table data extraction |
@@ -37,7 +37,7 @@ Regardless of ingestion method, every document goes through the same pipeline:
 
 1. **Store** — file is saved to the local upload directory
 2. **Queue** — document is added to the Redis ingestion queue with status `pending`
-3. **Parse** — a background worker picks up the document and parses it with Docling
+3. **Parse** — a background worker picks up the document and extracts text directly for text PDFs or parses richer formats with Docling
 4. **Chunk** — extracted text is split into chunks based on the collection's `chunk_size` and `chunk_overlap`
 5. **Embed** — each chunk is embedded using the collection's configured embedding model
 6. **Store** — embeddings are batch-inserted into the Qdrant collection

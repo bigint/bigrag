@@ -9,7 +9,7 @@ import redis.asyncio as aioredis
 
 from bigrag.logging import get_logger
 from bigrag.services import embedding_cache
-from bigrag.services.conversion import _get_docling_converter
+from bigrag.services.conversion import _get_docling_converter, extract_pdf_text
 from bigrag.services.embedding import truncate_to_tokens
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import IngestionJob
@@ -310,6 +310,7 @@ class IngestionQueue:
 
         import tempfile
 
+        from bigrag.config import settings as _settings
         from bigrag.services.storage import get_storage
 
         self._emit(
@@ -342,12 +343,56 @@ class IngestionQueue:
             )
             return text
 
+        if suffix == ".pdf":
+            tmp_path = None
+
+            def _write_and_extract_pdf_text():
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                try:
+                    tmp.write(file_data)
+                    tmp.close()
+                    return extract_pdf_text(tmp.name), tmp.name
+                except Exception:
+                    tmp.close()
+                    raise
+
+            try:
+                text, tmp_path = await asyncio.wait_for(
+                    asyncio.to_thread(_write_and_extract_pdf_text),
+                    timeout=min(_settings.conversion_timeout, 60),
+                )
+            finally:
+                if tmp_path:
+                    Path(tmp_path).unlink(missing_ok=True)
+
+            if text.strip():
+                elapsed = time.monotonic() - t0
+                logger.info(f"{prefix} pdf text extracted chars={len(text)} elapsed={elapsed:.2f}s")
+                self._emit(
+                    job.document_id,
+                    "text_extracted",
+                    "processing",
+                    f"Extracted {len(text):,} characters",
+                    0.40,
+                    collection_name=job.collection_name,
+                    chars=len(text),
+                )
+                return text
+
+            if not _settings.conversion_pdf_ocr_enabled:
+                raise ValueError(
+                    "PDF contains no embedded text. Enable "
+                    "BIGRAG_CONVERSION_PDF_OCR_ENABLED=true to OCR scanned PDFs."
+                )
+
         def _write_and_convert():
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
             try:
                 tmp.write(file_data)
                 tmp.close()
-                converter = _get_docling_converter()
+                converter = _get_docling_converter(
+                    pdf_ocr_enabled=_settings.conversion_pdf_ocr_enabled
+                )
                 return converter.convert(tmp.name), tmp.name
             except Exception:
                 tmp.close()
@@ -355,15 +400,11 @@ class IngestionQueue:
 
         tmp_path = None
         try:
-            from bigrag.config import settings as _settings
-
             result, tmp_path = await asyncio.wait_for(
                 asyncio.to_thread(_write_and_convert),
                 timeout=_settings.conversion_timeout,
             )
         except TimeoutError as e:
-            from bigrag.config import settings as _settings
-
             raise ValueError(
                 f"Document conversion timed out after {_settings.conversion_timeout}s"
             ) from e

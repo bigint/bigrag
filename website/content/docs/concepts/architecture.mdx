@@ -87,10 +87,10 @@ Alternatives considered and why we didn't pick them:
   layout structure.
 - **LlamaParse** — hosted only.
 
-Docling runs entirely locally, handles PDF / DOCX / PPTX / HTML /
-Markdown / images via a single API, and exposes layout provenance we
-can thread into citation metadata (`page_no`, `bbox`). OCR is on by
-default for scanned PDFs.
+Docling runs entirely locally, handles DOCX / PPTX / HTML / Markdown /
+images, and exposes layout provenance we can thread into citation metadata
+(`page_no`, `bbox`). PDFs with embedded text use a faster direct extractor;
+local OCR for scanned PDFs is opt-in with `BIGRAG_CONVERSION_PDF_OCR_ENABLED=true`.
 
 ## Why Qdrant, not pgvector
 

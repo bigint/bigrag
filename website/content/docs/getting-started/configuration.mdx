@@ -59,6 +59,7 @@ max_batch_upload_size_mb = 128
 ingestion_workers = 4
 ingestion_batch_size = 128
 conversion_timeout = 300
+conversion_pdf_ocr_enabled = false
 
 upload_dir = "./data/uploads"
 
@@ -132,6 +133,7 @@ Embedding provider, model, and key are normally configured per collection. These
 | `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
 | `BIGRAG_INGESTION_BATCH_SIZE` | Vectors per embedding batch | `128` |
 | `BIGRAG_CONVERSION_TIMEOUT` | Docling conversion timeout (seconds) | `300` |
+| `BIGRAG_CONVERSION_PDF_OCR_ENABLED` | Enable local OCR for scanned PDFs. Embedded-text PDFs are extracted directly without OCR. | `false` |
 
 ### Storage
 

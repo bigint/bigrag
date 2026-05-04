@@ -13,6 +13,7 @@ dependencies = [
     "alembic>=1.14.0,<2",
     "qdrant-client>=1.17.0,<2",
     "docling>=2.25.0,<3",
+    "pypdfium2>=5.7.0,<6",
     "huggingface-hub>=0.36.0,<2",
     "openai>=2.33.0,<3",
     "cohere>=5.13.0,<6",

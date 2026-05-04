@@ -57,6 +57,7 @@
 # ingestion_workers = 4
 # ingestion_batch_size = 128
 # conversion_timeout = 300
+# conversion_pdf_ocr_enabled = false
 # queue_max_depth = 10000
 # collection_cache_ttl = 30
 # query_embedding_cache_ttl = 3600

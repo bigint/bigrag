@@ -298,7 +298,7 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 
 ## Supported Formats
 
-PDF, DOCX, PPTX, XLSX, HTML, Markdown, CSV, TSV, XML, JSON, PNG, JPG, TIFF, BMP, GIF — powered by [Docling](https://github.com/DS4SD/docling) with OCR support for scanned documents and images.
+PDF, DOCX, PPTX, XLSX, HTML, Markdown, CSV, TSV, XML, JSON, PNG, JPG, TIFF, BMP, GIF — text PDFs are extracted directly, while other rich formats are powered by [Docling](https://github.com/DS4SD/docling). Scanned-PDF OCR is available by setting `BIGRAG_CONVERSION_PDF_OCR_ENABLED=true`.
 
 ## Contributing
 
