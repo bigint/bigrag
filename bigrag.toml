@@ -2,8 +2,7 @@
 #
 # Loaded by `bigrag` at startup via `--config bigrag.toml`. Most runtime keys can
 # also be set as environment variables with the BIGRAG_ prefix (env vars override
-# TOML). Logging keys are TOML/CLI only. Keys must match Settings field names —
-# see api/bigrag/config.py.
+# TOML). Keys must match Settings field names — see api/bigrag/config.py.
 #
 # All values shown below are defaults; uncomment to customize.
 
@@ -57,7 +56,7 @@
 # ingestion_workers = 4
 # ingestion_batch_size = 128
 # conversion_timeout = 300
-# conversion_pdf_ocr_enabled = false
+# conversion_pdf_ocr_enabled = true
 # queue_max_depth = 10000
 # collection_cache_ttl = 30
 # query_embedding_cache_ttl = 3600

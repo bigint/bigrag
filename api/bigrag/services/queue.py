@@ -24,8 +24,22 @@ async def _embed_with_cache(
 ) -> list[list[float]]:
 
     cache_texts, _ = truncate_to_tokens(texts, model_name)
+    logger.info(
+        "embedding cache lookup",
+        provider=provider,
+        model=model_name,
+        dimension=dimension,
+        inputs=len(texts),
+    )
     cached = await embedding_cache.get_many(cache_texts, provider, model_name, dimension)
     missing_idx = [i for i in range(len(texts)) if i not in cached]
+    logger.info(
+        "embedding cache result",
+        provider=provider,
+        model=model_name,
+        hits=len(texts) - len(missing_idx),
+        misses=len(missing_idx),
+    )
     if missing_idx:
         missing_by_cache_text: dict[str, int] = {}
         for idx in missing_idx:
@@ -33,7 +47,21 @@ async def _embed_with_cache(
         provider_idx = list(missing_by_cache_text.values())
         missing_texts = [texts[i] for i in provider_idx]
         missing_cache_texts = [cache_texts[i] for i in provider_idx]
+        t0 = time.monotonic()
+        logger.info(
+            "embedding provider request",
+            provider=provider,
+            model=model_name,
+            inputs=len(missing_texts),
+        )
         fresh = await model.embed(missing_texts)
+        logger.info(
+            "embedding provider response",
+            provider=provider,
+            model=model_name,
+            inputs=len(missing_texts),
+            elapsed=round(time.monotonic() - t0, 2),
+        )
         if len(fresh) != len(missing_texts):
             raise ValueError(
                 f"embedding provider returned {len(fresh)} vectors for {len(missing_texts)} inputs"
@@ -269,6 +297,15 @@ class IngestionQueue:
                     continue
 
                 job = IngestionJob.deserialize(data)
+                logger.info(
+                    f"[worker-{worker_id}] dequeued",
+                    job=job.job_id,
+                    doc=job.document_id,
+                    collection=job.collection_name,
+                    file_path=job.file_path,
+                    attempt=job.attempt + 1,
+                    max_attempts=job.max_attempts,
+                )
                 lease_key = _lease_key(job.job_id)
                 await self._redis.set(lease_key, b"1", ex=_LEASE_TTL_SECONDS)
                 try:
@@ -292,6 +329,16 @@ class IngestionQueue:
         collection_name: str = "",
         **detail,
     ) -> None:
+        logger.info(
+            "ingestion event",
+            doc=doc_id,
+            collection=collection_name,
+            step=step,
+            status=status,
+            progress=progress,
+            message=msg,
+            detail=detail,
+        )
         event_bus.publish(
             IngestionEvent(
                 document_id=doc_id,
@@ -325,6 +372,13 @@ class IngestionQueue:
 
         file_data = await get_storage().get(job.file_path)
         suffix = Path(job.file_path).suffix.lower()
+        logger.info(
+            f"{prefix} conversion start",
+            collection=job.collection_name,
+            file_path=job.file_path,
+            suffix=suffix,
+            bytes=len(file_data),
+        )
 
         if suffix in self._PLAIN_TEXT_EXTS:
             text = file_data.decode("utf-8", errors="replace")
@@ -345,6 +399,10 @@ class IngestionQueue:
 
         if suffix == ".pdf":
             tmp_path = None
+            logger.info(
+                f"{prefix} pdf direct text extraction start",
+                timeout=min(_settings.conversion_timeout, 60),
+            )
 
             def _write_and_extract_pdf_text():
                 tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -380,9 +438,13 @@ class IngestionQueue:
                 return text
 
             if not _settings.conversion_pdf_ocr_enabled:
+                logger.warning(
+                    f"{prefix} pdf has no embedded text and OCR is disabled by configuration",
+                    ocr_enabled=_settings.conversion_pdf_ocr_enabled,
+                )
                 raise ValueError(
-                    "PDF contains no embedded text. Enable "
-                    "BIGRAG_CONVERSION_PDF_OCR_ENABLED=true to OCR scanned PDFs."
+                    "PDF contains no embedded text and OCR is disabled by configuration. "
+                    "Remove the override or set conversion_pdf_ocr_enabled=true."
                 )
 
         def _write_and_convert():
@@ -390,6 +452,12 @@ class IngestionQueue:
             try:
                 tmp.write(file_data)
                 tmp.close()
+                logger.info(
+                    f"{prefix} docling converter start",
+                    suffix=suffix,
+                    timeout=_settings.conversion_timeout,
+                    pdf_ocr_enabled=_settings.conversion_pdf_ocr_enabled,
+                )
                 converter = _get_docling_converter(
                     pdf_ocr_enabled=_settings.conversion_pdf_ocr_enabled
                 )
@@ -455,6 +523,7 @@ class IngestionQueue:
         t0 = time.monotonic()
         from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
 
+        logger.info(f"{prefix} loading collection config", collection=job.collection_name)
         collection = await get_collection_or_404(job.collection_name)
         api_key = collection.get("embedding_api_key") or _settings.embedding_api_key
         base_url = collection.get("embedding_base_url") or _settings.embedding_base_url
@@ -515,6 +584,11 @@ class IngestionQueue:
         )
 
         await self._ensure_job_current(job)
+        logger.info(
+            f"{prefix} ensuring vector collection",
+            collection=job.collection_name,
+            dimension=job.embedding_dimension,
+        )
         await vector_store.create_collection(
             job.collection_name,
             job.embedding_dimension,
@@ -544,6 +618,11 @@ class IngestionQueue:
                 attempt += 1
                 try:
                     t0 = time.monotonic()
+                    logger.info(
+                        f"{prefix} batch {batch_num}/{total_batches} embedding start",
+                        chunks=len(batch_texts),
+                        attempt=attempt,
+                    )
                     embeddings = await _embed_with_cache(
                         batch_texts,
                         embedding_model,
@@ -561,6 +640,10 @@ class IngestionQueue:
                     metadata = [
                         {"char_start": c.char_start, "char_end": c.char_end} for c in batch_chunks
                     ]
+                    logger.info(
+                        f"{prefix} batch {batch_num}/{total_batches} vector insert start",
+                        chunks=len(batch_texts),
+                    )
                     count = await vector_store.insert(
                         collection=job.collection_name,
                         ids=ids,

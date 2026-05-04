@@ -97,7 +97,10 @@ def configure_logging(log_level: str = "info", log_format: str = "text") -> None
     root.addHandler(handler)
     root.setLevel(level)
 
-    for name in ("qdrant_client", "httpx", "httpcore", "hpack", "uvicorn.access"):
+    noisy_dependency_level = logging.INFO if level <= logging.DEBUG else logging.WARNING
+    for name in ("qdrant_client", "httpx", "uvicorn.access"):
+        logging.getLogger(name).setLevel(noisy_dependency_level)
+    for name in ("httpcore", "hpack"):
         logging.getLogger(name).setLevel(logging.WARNING)
 
 
@@ -120,6 +123,7 @@ class RequestLoggingMiddleware:
         method = scope["method"]
         path = scope["path"]
         status_code = 0
+        self._logger.info("request_start", method=method, path=path)
 
         async def send_wrapper(message):
             nonlocal status_code

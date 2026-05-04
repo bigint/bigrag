@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Literal
 
 import tomli
-from pydantic import PrivateAttr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +18,8 @@ class Settings(BaseSettings):
     workers: int = 1
     cors_origins: list[str] = []
     trusted_proxies: list[str] = []
+    log_level: str = "info"
+    log_format: Literal["text", "json"] = "text"
 
     database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
     db_pool_min: int = 5
@@ -53,7 +54,7 @@ class Settings(BaseSettings):
     query_embedding_cache_ttl: int = 3600
     query_result_cache_ttl: int = 30
     conversion_timeout: int = 300
-    conversion_pdf_ocr_enabled: bool = False
+    conversion_pdf_ocr_enabled: bool = True
     webhook_delivery_timeout: int = 10
     webhook_retry_delays: list[int] = [10, 30, 90]
     webhook_max_count: int = 50
@@ -73,25 +74,6 @@ class Settings(BaseSettings):
     max_batch_upload_size_mb: int = 128
     ingestion_workers: int = 4
     ingestion_batch_size: int = 128
-
-    _log_level: str = PrivateAttr(default="info")
-    _log_format: str = PrivateAttr(default="text")
-
-    @property
-    def log_level(self) -> str:
-        return self._log_level
-
-    @log_level.setter
-    def log_level(self, value: str) -> None:
-        self._log_level = value
-
-    @property
-    def log_format(self) -> str:
-        return self._log_format
-
-    @log_format.setter
-    def log_format(self, value: str) -> None:
-        self._log_format = value
 
     @classmethod
     def from_toml(cls, path: str | Path) -> Settings:

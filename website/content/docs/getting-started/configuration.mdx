@@ -59,7 +59,7 @@ max_batch_upload_size_mb = 128
 ingestion_workers = 4
 ingestion_batch_size = 128
 conversion_timeout = 300
-conversion_pdf_ocr_enabled = false
+conversion_pdf_ocr_enabled = true
 
 upload_dir = "./data/uploads"
 
@@ -84,6 +84,8 @@ Runtime settings use the `BIGRAG_` prefix. Environment variables override TOML v
 | `BIGRAG_WORKERS` | Uvicorn workers | `1` |
 | `BIGRAG_CORS_ORIGINS` | Allowed CORS origins (JSON array; `["*"]` rejected in `prod`) | `[]` |
 | `BIGRAG_TRUSTED_PROXIES` | Trusted reverse-proxy CIDRs as a JSON array. When the immediate client is trusted, bigRAG uses the rightmost untrusted `X-Forwarded-For` IP for audit and access logs. | `[]` |
+| `BIGRAG_LOG_LEVEL` | Backend log level (`debug`, `info`, `warning`, `error`). `./dev.sh` defaults to `debug`. | `info` |
+| `BIGRAG_LOG_FORMAT` | Backend log format (`text` or `json`) | `text` |
 
 ### Infrastructure
 
@@ -133,7 +135,7 @@ Embedding provider, model, and key are normally configured per collection. These
 | `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
 | `BIGRAG_INGESTION_BATCH_SIZE` | Vectors per embedding batch | `128` |
 | `BIGRAG_CONVERSION_TIMEOUT` | Docling conversion timeout (seconds) | `300` |
-| `BIGRAG_CONVERSION_PDF_OCR_ENABLED` | Enable local OCR for scanned PDFs. Embedded-text PDFs are extracted directly without OCR. | `false` |
+| `BIGRAG_CONVERSION_PDF_OCR_ENABLED` | Toggle local OCR for scanned PDFs. Embedded-text PDFs are extracted directly without OCR. | `true` |
 
 ### Storage
 
