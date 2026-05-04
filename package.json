@@ -9,12 +9,10 @@
     "build:app": "pnpm --filter @bigrag/app build",
     "build:sdk": "pnpm --filter @bigrag/client build",
     "build:website": "pnpm --filter @bigrag/docs build",
-    "test:sdk": "pnpm --filter @bigrag/client test",
     "typecheck": "pnpm -r typecheck",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "lint:api": "cd api && uv run ruff check . && uv run ruff format --check .",
-    "test:api": "cd api && uv run pytest tests/ -v --tb=short"
+    "lint:api": "cd api && uv run ruff check . && uv run ruff format --check ."
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13"

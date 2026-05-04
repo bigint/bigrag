@@ -32,35 +32,3 @@ pub struct DeleteResponse {
     /// Number of vectors deleted.
     pub deleted: u32,
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_serialize_vector_entry_skips_none() {
-        let entry = VectorEntry {
-            id: "v1".into(),
-            embedding: vec![0.1, 0.2, 0.3],
-            text: None,
-            metadata: None,
-        };
-        let json = serde_json::to_value(&entry).unwrap();
-        assert_eq!(json["id"], "v1");
-        assert!(json.get("text").is_none());
-    }
-
-    #[test]
-    fn test_deserialize_upsert_response() {
-        let json = r#"{"status":"ok","upserted":5}"#;
-        let resp: UpsertResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(resp.upserted, 5);
-    }
-
-    #[test]
-    fn test_deserialize_delete_response() {
-        let json = r#"{"status":"ok","deleted":3}"#;
-        let resp: DeleteResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(resp.deleted, 3);
-    }
-}

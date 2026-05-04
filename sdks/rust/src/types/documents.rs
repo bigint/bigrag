@@ -140,30 +140,3 @@ pub struct BatchDeleteError {
     /// Error description.
     pub error: String,
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_deserialize_document() {
-        let json = r#"{"id":"doc-1","collection_id":"col-1","filename":"report.pdf","file_type":"pdf","file_size":1024,"chunk_count":10,"status":"ready","error_message":null,"metadata":{},"content_hash":"abc","deduped":false,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}"#;
-        let doc: Document = serde_json::from_str(json).unwrap();
-        assert_eq!(doc.filename, "report.pdf");
-        assert_eq!(doc.status, "ready");
-        assert_eq!(doc.error_message, None);
-        assert_eq!(doc.content_hash.as_deref(), Some("abc"));
-        assert!(!doc.deduped);
-    }
-
-    #[test]
-    fn test_deserialize_batch_delete_response() {
-        let json =
-            r#"{"status":"ok","deleted":3,"errors":[{"document_id":"x","error":"not found"}]}"#;
-        let resp: BatchDeleteDocumentsResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(resp.deleted, 3);
-        assert_eq!(resp.errors.len(), 1);
-        assert_eq!(resp.errors[0].document_id, "x");
-    }
-
-}

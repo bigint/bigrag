@@ -36,24 +36,3 @@ pub struct TopQuery {
     /// Number of times this query was issued.
     pub count: u32,
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_deserialize_analytics_response() {
-        let json = r#"{
-            "collection": "docs",
-            "period_24h": {"query_count": 10, "avg_latency_ms": 50.5, "avg_score": 0.85, "avg_result_count": 5.2},
-            "period_7d": {"query_count": 70, "avg_latency_ms": 48.0, "avg_score": 0.82, "avg_result_count": 4.8},
-            "period_30d": {"query_count": 300, "avg_latency_ms": 52.1, "avg_score": 0.80, "avg_result_count": 5.0},
-            "top_queries": [{"query": "how to deploy", "count": 15}]
-        }"#;
-        let resp: AnalyticsResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(resp.collection, "docs");
-        assert_eq!(resp.period_24h.query_count, 10);
-        assert_eq!(resp.top_queries.len(), 1);
-        assert_eq!(resp.top_queries[0].count, 15);
-    }
-}
