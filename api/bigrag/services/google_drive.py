@@ -72,6 +72,35 @@ class GoogleDriveNotFoundError(GoogleDriveError):
     pass
 
 
+def _google_error_payload(response: httpx.Response) -> tuple[str, set[str], str | None]:
+    try:
+        payload = response.json()
+    except ValueError:
+        return response.text, set(), None
+
+    error = payload.get("error")
+    if not isinstance(error, dict):
+        return response.text, set(), None
+
+    message = str(error.get("message") or response.text)
+    reasons = {
+        str(item.get("reason"))
+        for item in error.get("errors", [])
+        if isinstance(item, dict) and item.get("reason")
+    }
+    activation_url: str | None = None
+    for detail in error.get("details", []):
+        if not isinstance(detail, dict):
+            continue
+        reason = detail.get("reason")
+        if reason:
+            reasons.add(str(reason))
+        metadata = detail.get("metadata")
+        if isinstance(metadata, dict) and metadata.get("activationUrl"):
+            activation_url = str(metadata["activationUrl"])
+    return message, reasons, activation_url
+
+
 @dataclass(frozen=True)
 class RemoteDriveFile:
     id: str
@@ -423,18 +452,21 @@ class GoogleDriveClient:
             folder_id = parent_id.strip() or "root"
             q = f"'{_escape_drive_query(folder_id)}' in parents and trashed=false"
 
+        params: dict[str, str | int] = {
+            "q": q,
+            "fields": f"nextPageToken,files({GOOGLE_FILE_FIELDS})",
+            "pageSize": max(1, min(page_size, 100)),
+            "includeItemsFromAllDrives": "true",
+            "supportsAllDrives": "true",
+            "orderBy": "folder,name",
+        }
+        if page_token:
+            params["pageToken"] = page_token
+
         async with self._client() as client:
             response = await client.get(
                 "https://www.googleapis.com/drive/v3/files",
-                params={
-                    "q": q,
-                    "fields": f"nextPageToken,files({GOOGLE_FILE_FIELDS})",
-                    "pageSize": max(1, min(page_size, 100)),
-                    "pageToken": page_token,
-                    "includeItemsFromAllDrives": "true",
-                    "supportsAllDrives": "true",
-                    "orderBy": "folder,name",
-                },
+                params=params,
                 headers={"Authorization": f"Bearer {access_token}"},
             )
         payload = self._json_or_raise(response)
@@ -485,11 +517,21 @@ class GoogleDriveClient:
     def _raise_for_status(self, response: httpx.Response) -> None:
         if response.status_code < 400:
             return
+        message, reasons, activation_url = _google_error_payload(response)
         if response.status_code == 401:
-            raise GoogleDriveAuthError(response.text)
+            raise GoogleDriveAuthError(message)
         if response.status_code == 404:
-            raise GoogleDriveNotFoundError(response.text)
-        response.raise_for_status()
+            raise GoogleDriveNotFoundError(message)
+        if response.status_code == 403:
+            if "accessNotConfigured" in reasons or "SERVICE_DISABLED" in reasons:
+                suffix = (
+                    f" Enable it here: {activation_url}"
+                    if activation_url and activation_url not in message
+                    else ""
+                )
+                raise GoogleDriveConfigError(f"{message}{suffix}")
+            raise GoogleDriveAuthError(message)
+        raise GoogleDriveError(message)
 
 
 google_drive_client = GoogleDriveClient()

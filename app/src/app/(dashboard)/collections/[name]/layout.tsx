@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Layers, type Settings } from "lucide-react";
+import { ArrowLeft, Cloud, Layers, type Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { use } from "react";
@@ -26,6 +26,7 @@ const CollectionLayout = ({
   const base = `/collections/${encodeURIComponent(name)}`;
   const tabs = [
     { href: `${base}/documents`, label: "Documents", count: stats?.document_count },
+    { href: `${base}/google-drive`, label: "Google Drive", icon: Cloud },
     { href: `${base}/search`, label: "Search" },
     { href: `${base}/settings`, label: "Settings" },
   ].map((t) => ({ ...t, active: pathname === t.href || pathname.startsWith(`${t.href}/`) }));

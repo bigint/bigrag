@@ -11,6 +11,7 @@ from bigrag.services.google_drive import (
     GOOGLE_FOLDER_MIME,
     GOOGLE_PROVIDER,
     GoogleDriveClient,
+    GoogleDriveConfigError,
     GoogleDriveNotFoundError,
     RemoteDriveFile,
     _manifest_unchanged,
@@ -112,6 +113,7 @@ def test_google_drive_client_lists_browser_files() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/drive/v3/files"
         assert b"%27root%27+in+parents" in request.url.query
+        assert b"pageToken" not in request.url.query
         return httpx.Response(
             200,
             json={
@@ -129,6 +131,35 @@ def test_google_drive_client_lists_browser_files() -> None:
 
     assert [f.id for f in files] == ["folder-1", "file-1"]
     assert next_page_token == "next"
+
+
+def test_google_drive_client_maps_disabled_api_to_config_error() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            403,
+            json={
+                "error": {
+                    "message": "Google Drive API has not been used in project 123 before",
+                    "errors": [{"reason": "accessNotConfigured"}],
+                    "details": [
+                        {
+                            "reason": "SERVICE_DISABLED",
+                            "metadata": {"activationUrl": "https://console.example/enable"},
+                        }
+                    ],
+                }
+            },
+        )
+
+    client = GoogleDriveClient(transport=httpx.MockTransport(handler))
+
+    try:
+        run(client.list_files(access_token="token", parent_id="root"))
+    except GoogleDriveConfigError as exc:
+        assert "Google Drive API has not been used" in str(exc)
+        assert "https://console.example/enable" in str(exc)
+    else:
+        raise AssertionError("Expected GoogleDriveConfigError")
 
 
 def test_google_drive_file_public_marks_unsupported_files() -> None:

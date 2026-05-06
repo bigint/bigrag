@@ -1,6 +1,6 @@
 "use client";
 
-import { Cloud, FileText, Trash2, Upload } from "lucide-react";
+import { FileText, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { use, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -15,7 +15,6 @@ import { cn } from "@/lib/cn";
 import { acceptAttribute, filterBlockedFiles, getAllowedFileTypes } from "@/lib/file-types";
 import { formatBytes, formatRelative } from "@/lib/format";
 import type { DocumentStatus } from "@/types/bigrag";
-import { GoogleDriveModal } from "./components/google-drive-modal";
 
 const statusVariant: Record<DocumentStatus, "success" | "warning" | "info" | "error"> = {
   ready: "success",
@@ -35,7 +34,6 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const [deleteDoc, setDeleteDoc] = useState<{ id: string; filename: string } | null>(null);
-  const [driveOpen, setDriveOpen] = useState(false);
 
   const allowed = getAllowedFileTypes(collection?.metadata);
   const accept = acceptAttribute(allowed);
@@ -67,12 +65,6 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <Button onClick={() => setDriveOpen(true)} variant="outline">
-          <Cloud className="size-4" />
-          Google Drive
-        </Button>
-      </div>
       <label
         htmlFor="doc-upload"
         onDragOver={(e) => {
@@ -195,7 +187,6 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
         open={!!deleteDoc}
         title="Delete document"
       />
-      <GoogleDriveModal collection={name} onClose={() => setDriveOpen(false)} open={driveOpen} />
     </div>
   );
 };

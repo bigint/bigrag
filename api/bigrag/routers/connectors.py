@@ -28,6 +28,7 @@ from bigrag.services.google_drive import (
     GOOGLE_PROVIDER,
     GoogleDriveAuthError,
     GoogleDriveConfigError,
+    GoogleDriveError,
     build_google_oauth_url,
     complete_google_oauth,
     create_google_source,
@@ -101,6 +102,8 @@ async def google_files(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except GoogleDriveAuthError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
+    except GoogleDriveError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.get("/oauth/start")
