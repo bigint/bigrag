@@ -137,7 +137,21 @@ const ChatPage = () => {
     if (patch.searchMode !== undefined) mapped.search_mode = patch.searchMode;
     if (patch.rerank !== undefined) mapped.rerank = patch.rerank;
     if (patch.systemPrompt !== undefined) mapped.system_prompt = patch.systemPrompt;
-    updatePrefs.mutate({ chat: mapped });
+    updatePrefs.mutate(
+      { chat: mapped },
+      {
+        onSuccess: () => {
+          if (patch.openaiKey !== undefined) {
+            toast.success(patch.openaiKey ? "OpenAI key saved" : "OpenAI key cleared");
+          }
+        },
+        onError: (error) => {
+          if (patch.openaiKey !== undefined) {
+            toast.error(error instanceof Error ? error.message : "Could not save OpenAI key");
+          }
+        },
+      },
+    );
   };
 
   const currentCollection = activeConversation?.collection ?? collection;
@@ -182,6 +196,11 @@ const ChatPage = () => {
     const controller = new AbortController();
     abortRef.current = controller;
     let nextConversationId = conversationId;
+    const refreshPreferencesIfCredentialError = (message: string) => {
+      if (message.includes("OpenAI rejected") || message.includes("Save an OpenAI API key")) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.preferences() });
+      }
+    };
 
     try {
       await streamChat({
@@ -271,6 +290,7 @@ const ChatPage = () => {
                   : m,
               ),
             );
+            refreshPreferencesIfCredentialError(event.data.error);
             toast.error(event.data.error);
           }
         },
@@ -284,6 +304,7 @@ const ChatPage = () => {
             m.id === assistantId ? { ...m, status: "error", errorMessage: message } : m,
           ),
         );
+        refreshPreferencesIfCredentialError(message);
         toast.error(message);
       }
     } finally {

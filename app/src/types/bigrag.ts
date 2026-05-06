@@ -9,6 +9,7 @@ export type Collection = {
   chunk_overlap: number;
   document_count: number;
   has_api_key: boolean;
+  embedding_preset_id: string | null;
   reranking_enabled: boolean;
   reranking_model: string;
   has_reranking_api_key: boolean;

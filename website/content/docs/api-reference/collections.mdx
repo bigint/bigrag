@@ -41,6 +41,7 @@ GET /v1/collections
       "metadata_schema": null,
       "document_count": 15,
       "has_api_key": false,
+      "embedding_preset_id": null,
       "reranking_enabled": false,
       "reranking_model": "rerank-v3.5",
       "has_reranking_api_key": false,
@@ -95,7 +96,7 @@ POST /v1/collections
 | `description` | string | no | `""` | — |
 | `embedding_provider` | string | no | Server default | `openai`, `cohere`, `voyage`, `openai_compatible` |
 | `embedding_model` | string | no | Server default | Model name |
-| `embedding_api_key` | string | no | — | Required for all providers; use any non-empty value for local OpenAI-compatible gateways without auth |
+| `embedding_api_key` | string | no | — | Required when `embedding_preset_id` is not provided; validated against the provider before the collection is created. Use any non-empty value for local OpenAI-compatible gateways without auth. Ignored when a preset is supplied — the collection inherits the preset's key live |
 | `embedding_base_url` | string | no | — | Required for `openai_compatible` (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) |
 | `dimension` | integer | no | Provider default | Must match the model |
 | `chunk_size` | integer | no | `512` | 64–10,000 |
@@ -154,13 +155,14 @@ Lightweight endpoint returning document and chunk counts.
 PUT /v1/collections/{name}
 ```
 
-Only the fields below are mutable. Embedding config, chunk size / overlap, `index_type`, and `tenant_field` are fixed at creation — changing them would invalidate existing vectors.
+Only the fields below are mutable. Embedding provider / model / dimension, chunk size / overlap, `index_type`, and `tenant_field` are fixed at creation — changing them would invalidate existing vectors.
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `description` | string | — |
 | `metadata` | object | Replaces entire metadata object |
 | `metadata_schema` | object | Updates JSON Schema validation |
+| `embedding_api_key` | string | Validated against the provider before saving; empty values are rejected. Saving a key here switches the collection to a per-collection override and detaches it from any preset |
 | `reranking_enabled` | boolean | — |
 | `reranking_model` | string | — |
 | `reranking_api_key` | string | — |
@@ -168,7 +170,7 @@ Only the fields below are mutable. Embedding config, chunk size / overlap, `inde
 | `default_min_score` | float | — |
 | `default_search_mode` | string | `semantic`, `keyword`, `hybrid` |
 
-**Response** `200`: Updated collection object. **Errors:** `404`.
+**Response** `200`: Updated collection object. **Errors:** `404`, `422` (when `embedding_api_key` is empty or rejected by the provider).
 
 ## Delete Collection
 

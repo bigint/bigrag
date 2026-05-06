@@ -60,6 +60,7 @@ class CreateCollectionRequest(BaseModel):
 class UpdateCollectionRequest(BaseModel):
     description: str | None = None
     metadata: dict | None = None
+    embedding_api_key: str | None = None
     reranking_enabled: bool | None = None
     reranking_model: str | None = None
     reranking_api_key: str | None = None
@@ -85,6 +86,7 @@ class CollectionResponse(BaseModel):
     has_metadata_schema: bool = False
     document_count: int
     has_api_key: bool = False
+    embedding_preset_id: str | None = None
     reranking_enabled: bool = False
     reranking_model: str = "rerank-v3.5"
     has_reranking_api_key: bool = False

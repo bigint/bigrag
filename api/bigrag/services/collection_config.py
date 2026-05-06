@@ -7,14 +7,27 @@ from bigrag.exceptions import ValidationError
 def get_embedding_model_for(collection: dict):
     from bigrag.services.embedding import get_embedding_model
 
-    api_key = collection.get("embedding_api_key") or settings.embedding_api_key
     provider = collection["embedding_provider"]
-    base_url = collection.get("embedding_base_url") or settings.embedding_base_url
+    if collection.get("embedding_preset_id"):
+        api_key = (
+            collection.get("embedding_preset_api_key")
+            or collection.get("embedding_api_key")
+            or settings.embedding_api_key
+        )
+        base_url = (
+            collection.get("embedding_preset_base_url")
+            or collection.get("embedding_base_url")
+            or settings.embedding_base_url
+        )
+    else:
+        api_key = collection.get("embedding_api_key") or settings.embedding_api_key
+        base_url = collection.get("embedding_base_url") or settings.embedding_base_url
     if not api_key and provider in ("openai", "openai_compatible", "cohere", "voyage"):
         raise ValidationError(
             f"Collection '{collection['name']}' uses "
             f"'{provider}' embeddings but no API key is configured. "
-            "Set BIGRAG_EMBEDDING_API_KEY or recreate the collection with an API key."
+            "Link the collection to an embedding preset with a valid key, "
+            "or save a key on the collection itself."
         )
 
     return get_embedding_model(

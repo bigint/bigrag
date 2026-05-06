@@ -252,6 +252,8 @@ async def create_chat_completion(
         content = await _complete_model(prepared)
     except Exception as exc:
         await _store_assistant_error(session, prepared, _safe_chat_error(exc))
+        if _is_saved_key_auth_error(exc):
+            await _clear_saved_chat_key(session, user)
         logger.warning(
             "chat completion failed",
             conversation_id=str(prepared.conversation.id),
@@ -312,6 +314,8 @@ async def stream_chat_completion(
         message = _safe_chat_error(exc)
         if prepared is not None:
             await _store_assistant_error(session, prepared, message)
+            if _is_saved_key_auth_error(exc):
+                await _clear_saved_chat_key(session, user)
             logger.warning(
                 "chat stream failed",
                 conversation_id=str(prepared.conversation.id),
@@ -780,11 +784,45 @@ def _is_provider_auth_error(exc: Exception) -> bool:
 def _provider_error(exc: Exception, credential: ProviderCredential) -> HTTPException:
     message = _safe_chat_error(exc)
     if _is_provider_auth_error(exc):
-        message = (
-            f"OpenAI rejected the {credential.source}. Save a fresh key in Chat settings "
-            f"or clear the stale key. Upstream said: {message}"
-        )
+        if credential.source == "saved chat key":
+            message = (
+                "OpenAI rejected the saved chat key. It has been cleared; save a fresh "
+                "key generated from the OpenAI API keys page."
+            )
+        else:
+            message = (
+                f"OpenAI rejected the {credential.source}. Use a fresh key generated "
+                "from the OpenAI API keys page."
+            )
     return HTTPException(status_code=502, detail=message)
+
+
+def _is_saved_key_auth_error(exc: Exception) -> bool:
+    if not isinstance(exc, HTTPException):
+        return False
+    detail = exc.detail if isinstance(exc.detail, str) else ""
+    return detail.startswith("OpenAI rejected the saved chat key.")
+
+
+async def _clear_saved_chat_key(session: AsyncSession, user: dict) -> None:
+    user_id = UUID(user["id"])
+    data = await session.scalar(
+        sa.select(UserPreference.data).where(UserPreference.user_id == user_id)
+    )
+    if not isinstance(data, dict):
+        return
+    chat = data.get("chat")
+    if not isinstance(chat, dict) or "openai_key" not in chat:
+        return
+    cleaned_chat = {**chat}
+    cleaned_chat.pop("openai_key", None)
+    cleaned = {**data, "chat": cleaned_chat}
+    await session.execute(
+        sa.update(UserPreference)
+        .where(UserPreference.user_id == user_id)
+        .values(data=cleaned, updated_at=sa.func.now())
+    )
+    await session.commit()
 
 
 async def _store_assistant_message(

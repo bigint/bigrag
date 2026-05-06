@@ -38,8 +38,8 @@ export const useUpdatePreferences = () => {
       const previous = qc.getQueryData<{ data: Preferences }>(KEY);
       const publicPatch = (prefs?: ChatPrefs) => {
         if (prefs?.openai_key === undefined) return prefs;
-        const { openai_key: openaiKey, ...rest } = prefs;
-        return { ...rest, has_openai_key: Boolean(openaiKey) };
+        const { openai_key: _openaiKey, ...rest } = prefs;
+        return rest;
       };
       qc.setQueryData<{ data: Preferences }>(KEY, (old) => ({
         data: {
@@ -55,6 +55,9 @@ export const useUpdatePreferences = () => {
     },
     onError: (_err, _patch, ctx) => {
       if (ctx?.previous) qc.setQueryData(KEY, ctx.previous);
+    },
+    onSuccess: (data) => {
+      qc.setQueryData(KEY, data);
     },
     onSettled: () => qc.invalidateQueries({ queryKey: KEY }),
   });

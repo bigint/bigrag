@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +12,7 @@ from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_session
 from bigrag.services import crypto
+from bigrag.services.credential_check import CredentialCheckError, verify_provider_credentials
 
 logger = get_logger("bigrag.routers.preferences")
 
@@ -31,6 +32,41 @@ def _deep_merge(left: dict, right: dict) -> dict:
     return out
 
 
+def _normalize_sensitive(data: dict) -> dict:
+    out = {**data}
+    for parent, key in _SENSITIVE_PATHS:
+        sub = out.get(parent)
+        if not isinstance(sub, dict) or key not in sub:
+            continue
+        value = sub[key]
+        if isinstance(value, str):
+            out[parent] = {**sub, key: value.strip()}
+    return out
+
+
+async def _validate_sensitive(data: dict) -> None:
+    chat = data.get("chat")
+    if not isinstance(chat, dict) or "openai_key" not in chat:
+        return
+
+    value = chat.get("openai_key")
+    if value is None or value == "":
+        return
+    if not isinstance(value, str):
+        raise HTTPException(status_code=422, detail="OpenAI API key must be a string.")
+
+    try:
+        await verify_provider_credentials("openai", value, None)
+    except CredentialCheckError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "OpenAI rejected this API key. Create a fresh key from the OpenAI API "
+                "keys page and try again."
+            ),
+        ) from exc
+
+
 def _encrypt_sensitive(data: dict) -> dict:
     if not isinstance(data, dict) or not crypto.is_configured():
         return data
@@ -45,6 +81,21 @@ def _encrypt_sensitive(data: dict) -> dict:
         if value.startswith(crypto._FERNET_PREFIX):
             continue
         out[parent] = {**sub, key: crypto.encrypt(value)}
+    return out
+
+
+def _remove_cleared_sensitive(merged: dict, incoming: dict) -> dict:
+    out = {**merged}
+    for parent, key in _SENSITIVE_PATHS:
+        sub_in = incoming.get(parent)
+        if not isinstance(sub_in, dict) or sub_in.get(key) not in ("", None):
+            continue
+        sub_out = out.get(parent)
+        if not isinstance(sub_out, dict):
+            continue
+        cleaned = {**sub_out}
+        cleaned.pop(key, None)
+        out[parent] = cleaned
     return out
 
 
@@ -119,8 +170,10 @@ async def update_preferences(
         sa.select(UserPreference).where(UserPreference.user_id == user_id)
     )
     existing = dict(existing_row.data) if existing_row else {}
+    incoming = _normalize_sensitive(incoming)
+    await _validate_sensitive(incoming)
     incoming = _encrypt_sensitive(incoming)
-    merged = _deep_merge(existing, incoming)
+    merged = _remove_cleared_sensitive(_deep_merge(existing, incoming), incoming)
 
     stmt = pg_insert(UserPreference).values(user_id=user_id, data=merged)
     stmt = stmt.on_conflict_do_update(

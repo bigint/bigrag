@@ -84,6 +84,10 @@ class Collection(Base):
     )
     embedding_api_key: Mapped[str | None] = mapped_column(EncryptedString)
     embedding_base_url: Mapped[str | None] = mapped_column(sa.Text)
+    embedding_preset_id: Mapped[UUID | None] = mapped_column(
+        sa.ForeignKey("embedding_presets.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     dimension: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("1536")
     )
