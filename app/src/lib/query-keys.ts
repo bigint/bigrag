@@ -13,6 +13,16 @@ export const queryKeys = {
   webhooks: () => ["webhooks"] as const,
   embeddingPresets: () => ["embedding-presets"] as const,
   preferences: () => ["preferences"] as const,
+  connectors: {
+    googleConfig: () => ["connectors", "google", "config"] as const,
+    googleAccount: () => ["connectors", "google", "account"] as const,
+    googleFiles: (parentId: string, query: string, pageToken: string) =>
+      ["connectors", "google", "files", parentId, query, pageToken] as const,
+    googleSources: (collection?: string) =>
+      ["connectors", "google", "sources", collection ?? "all"] as const,
+    googleSyncJobs: (sourceId?: string) =>
+      ["connectors", "google", "sync-jobs", sourceId ?? "all"] as const,
+  },
   chat: {
     list: () => ["chat", "list"] as const,
     detail: (id: string | null) => ["chat", "detail", id] as const,

@@ -35,7 +35,11 @@ export const useDocument = (collection: string, docId: string) =>
     },
   });
 
-export const useChunks = (collection: string, docId: string) =>
+export const useChunks = (
+  collection: string,
+  docId: string,
+  options?: { refetchInterval?: number | false },
+) =>
   useQuery({
     queryKey: queryKeys.documents.chunks(collection, docId),
     queryFn: () =>
@@ -44,6 +48,7 @@ export const useChunks = (collection: string, docId: string) =>
         { limit: 200 },
       ),
     enabled: !!collection && !!docId,
+    refetchInterval: options?.refetchInterval ?? false,
   });
 
 export const useUploadDocuments = (collection: string) => {
@@ -86,8 +91,9 @@ export const useReprocessDocument = (collection: string) => {
       apiClient.post<{ status: string }>(
         `v1/collections/${encodeURIComponent(collection)}/documents/${docId}/reprocess`,
       ),
-    onSuccess: () => {
+    onSuccess: (_res, docId) => {
       qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.one(collection, docId) });
       toast.success("Reprocessing queued");
     },
   });

@@ -23,7 +23,7 @@ OpenRAG and bigRAG share the same foundation — both use **FastAPI**, **Docling
 |---|---|---|
 | [Web UI & User Experience](#1-web-ui--user-experience) | The admin UI exists for setup, collection/document management, persistent chat, API keys, MCP, webhooks, settings, audit, usage, and evals | No folder upload, visual workflow builder, or vector DB console |
 | [Agentic RAG & LLM Integration](#2-agentic-rag--llm-integration) | The chat API retrieves, generates cited answers, streams tokens, and stores conversations | No agents, tool-call inspection, contextual nudges, or visual prompt orchestration |
-| [Cloud Storage Connectors](#3-cloud-storage-connectors) | File upload and batch upload are implemented | No OAuth-backed Google Drive, SharePoint, OneDrive, IBM COS, or connector abstraction |
+| [Cloud Storage Connectors](#3-cloud-storage-connectors) | File upload, batch upload, and OAuth-backed Google Drive sync are implemented | No SharePoint, OneDrive, IBM COS, or multi-provider connector catalog |
 | [Search & Retrieval](#4-search--retrieval) | Semantic, keyword, hybrid RRF search, Cohere rerank, metadata filters, batch query, and analytics | No explicit semantic/keyword weight ratios, facets, prefix/autocomplete, saved filters, or one-index multi-model search |
 | [Authentication & Multi-Tenancy](#5-authentication--multi-tenancy) | Native admin/member accounts, session cookies, scoped API keys, and audit/access logs | No OAuth/OIDC, external IdP, document ownership, document ACLs, or tenant isolation |
 | [Observability & Operations](#6-observability--operations) | Readiness checks Postgres, Qdrant, Redis, and embedding provider; structlog JSON logging exists | No disk monitoring, container-log TUI, or LLM observability |
@@ -63,7 +63,7 @@ OpenRAG's UI provides:
 - Cloud connector sync status and controls
 - Real-time ingestion task panel with file-level progress, failure feedback, and cancellation
 
-**bigRAG status:** Partially resolved — The admin UI lists collections, uploads files with drag-and-drop, shows document status and chunk counts, supports document detail/chunk inspection, deletion, and reprocessing, and streams document progress via SSE.
+**bigRAG status:** Partially resolved — The admin UI lists collections, uploads files with drag-and-drop, shows document status and chunk counts, supports document detail/chunk inspection, deletion, and reprocessing, and polls document status over REST.
 
 **Remaining gap:** the admin UI does not yet support folder upload, UI-level bulk delete, cancel/retry controls for in-flight ingestion, or cloud connector sync controls.
 
@@ -231,7 +231,7 @@ OpenRAG allows uploading files directly in a chat message for temporary, one-off
 
 ## 3. Cloud Storage Connectors
 
-OpenRAG has built-in connectors for syncing documents from cloud storage providers. bigRAG keeps ingestion file-based and does not yet have an OAuth connector framework for user-owned cloud drives.
+OpenRAG has built-in connectors for syncing documents from cloud storage providers. bigRAG now has Google Drive as the first OAuth connector while the remaining cloud providers are still outside v1 scope.
 
 ### 3.1 Google Drive Connector
 
@@ -242,7 +242,7 @@ OpenRAG connects to Google Drive via OAuth, allowing users to:
 - Sync documents from Drive into the knowledge base
 - Automatic re-sync on schedule or manual trigger
 
-**bigRAG gap:** No Google Drive integration. Documents must be uploaded through the admin UI or API.
+**bigRAG status:** Partially resolved — bigRAG supports admin-managed Google OAuth setup, an in-app Drive browser, user-owned Drive sources, initial sync, manual sync, and daily scheduled resync into the existing document ingestion pipeline.
 
 ### 3.2 Microsoft SharePoint & OneDrive Connectors
 
@@ -521,7 +521,7 @@ OpenRAG displays LLM usage data (token consumption, costs) in the UI, powered by
 
 **Severity: ~~High~~ Resolved**
 
-OpenRAG provides a Python SDK (`openrag-sdk` on PyPI). bigRAG now also has a Python SDK (`bigrag` on PyPI) with async/await, resource namespaces, full type hints (`py.typed`), SSE streaming, retry logic, and comprehensive error handling — matching the TypeScript SDK's API surface.
+OpenRAG provides a Python SDK (`openrag-sdk` on PyPI). bigRAG now also has a Python SDK (`bigrag` on PyPI) with async/await, resource namespaces, full type hints (`py.typed`), retry logic, SSE support for event/chat streams, and comprehensive error handling — matching the TypeScript SDK's API surface.
 
 ### 7.2 MCP Server (Model Context Protocol)
 

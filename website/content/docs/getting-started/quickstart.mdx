@@ -139,20 +139,28 @@ The document starts as `pending` and transitions to `processing` then `ready`.
 </Step>
 
 <Step>
-### Watch ingestion progress
+### Watch ingestion status
 
-<Tabs items={["curl (SSE)", "TypeScript SDK"]}>
-<Tab value="curl (SSE)">
+<Tabs items={["curl", "TypeScript SDK"]}>
+<Tab value="curl">
 ```bash
-# SSE clients can't set Authorization, so pass the key as ?token=
-curl -N "$BASE/v1/collections/knowledge_base/documents/$DOC_ID/progress?token=$BIGRAG_API_KEY"
+while true; do
+  doc=$(curl -s "$BASE/v1/collections/knowledge_base/documents/$DOC_ID" \
+    -H "Authorization: Bearer $BIGRAG_API_KEY")
+  status=$(jq -r '.status' <<< "$doc")
+  jq -r '.progress.message // .status' <<< "$doc"
+  [[ "$status" == "ready" || "$status" == "failed" ]] && break
+  sleep 2
+done
 ```
 </Tab>
 <Tab value="TypeScript SDK">
 ```typescript
-for await (const event of client.documents.streamProgress("knowledge_base", doc.id)) {
-  console.log(`${event.step}: ${event.progress}%`);
-  if (event.status === "completed") break;
+let current = doc;
+while (current.status === "pending" || current.status === "processing") {
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  current = await client.documents.get("knowledge_base", doc.id);
+  console.log(current.progress?.message ?? current.status);
 }
 ```
 </Tab>

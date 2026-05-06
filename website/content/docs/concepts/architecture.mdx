@@ -50,7 +50,7 @@ Ingestion worker (4 by default)
   │ c. embedding_cache.get_many — skip chunks we've embedded before
   │ d. embed the misses — batched, with tiktoken truncation
   │ e. vector_store.insert — Qdrant upsert with dynamic metadata
-  │ f. UPDATE documents status = 'ready', emit SSE progress events
+  │ f. UPDATE documents status = 'ready' for REST polling
   ▼
 Webhook dispatcher
   │ document.ready fan-out with signed delivery attempts and retries

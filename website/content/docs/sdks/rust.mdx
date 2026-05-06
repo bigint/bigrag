@@ -158,14 +158,6 @@ let chunks = client.documents().get_chunks_by_id("doc-id").await?;
 let statuses = client.documents().batch_get_status("docs", &["id1", "id2"]).await?;
 let docs = client.documents().batch_get("docs", &["id1", "id2"]).await?;
 let result = client.documents().batch_delete("docs", &["id1", "id2"]).await?;
-
-// Stream batch processing progress
-use futures_util::StreamExt;
-let mut stream = client.documents().stream_batch_progress("docs", &["id1", "id2"]).await?;
-while let Some(event) = stream.next().await {
-    let event = event?;
-    println!("[{}/{}] {} failed", event.completed, event.total, event.failed);
-}
 ```
 
 File uploads accept `&str` / `String` paths, `Vec<u8>` bytes with a name tuple, `PathBuf`, or a `FileInput` enum value directly.
@@ -328,17 +320,10 @@ let models = client.embedding_models().await?;
 let analytics = client.analytics("docs").await?;
 ```
 
-## SSE Streaming
+## Collection SSE Streaming
 
 ```rust
 use futures_util::StreamExt;
-
-// Stream document processing progress
-let mut stream = client.documents().stream_progress("docs", "doc-id").await?;
-while let Some(event) = stream.next().await {
-    let event = event?;
-    println!("[{}] {} — {}%", event.step, event.message, event.progress);
-}
 
 // Stream collection events
 let mut events = client.collections().stream_events("docs").await?;

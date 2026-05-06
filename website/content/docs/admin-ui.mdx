@@ -25,7 +25,7 @@ The admin UI proxies every request through `/api/bigrag/[...path]` onto the back
 | `/collections` | List, create, delete, and search collections. |
 | `/collections/[name]` | Redirects to the collection's documents tab. |
 | `/collections/[name]/documents` | Upload (drag & drop or multi-file picker), list, inspect status, and delete documents. |
-| `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, live progress, failed-ingest error, reprocess, and delete. |
+| `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, polled progress, failed-ingest error, reprocess, and delete. |
 | `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, and rerank when enabled. |
 | `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
 | `/chat` | Production chat UI; retrieve from one collection, stream cited answers through the backend, and continue stored conversations. |
@@ -45,9 +45,9 @@ The admin UI proxies every request through `/api/bigrag/[...path]` onto the back
 | **Usage & cost** | `GET /v1/usage` | — |
 | **Audit log** | `GET /v1/admin/audit` | — |
 
-## Real-time progress
+## Status updates
 
-The admin UI subscribes to `GET /v1/collections/{name}/documents/{doc_id}/progress` on the document detail page while a document is pending or processing. The API also exposes `GET /v1/collections/{name}/events` for collection-wide document activity if you are building your own dashboard.
+The admin UI polls `GET /v1/collections/{name}/documents/{doc_id}` on the document detail page while a document is pending or processing. The response includes the latest `progress` snapshot, so the UI can show the current OCR/page/batch message and completed percentage without opening a document-specific SSE stream. The API also exposes `GET /v1/collections/{name}/events` for collection-wide document activity if you are building your own dashboard.
 
 ## Chat specifics
 

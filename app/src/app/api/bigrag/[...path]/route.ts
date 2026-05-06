@@ -72,6 +72,10 @@ const proxy = async (req: NextRequest, { params }: { params: Promise<{ path: str
       headers.set(key, value);
     }
   });
+  const host = req.headers.get("host");
+  if (host) headers.set("x-forwarded-host", host);
+  headers.set("x-forwarded-proto", req.nextUrl.protocol.replace(":", ""));
+  headers.set("x-forwarded-prefix", "/api/bigrag");
 
   let upstream: Response;
   try {

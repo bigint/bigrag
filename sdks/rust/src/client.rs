@@ -418,14 +418,4 @@ impl CollectionClient<'_> {
         self.client.collections().stream_events(&self.name).await
     }
 
-    /// Stream processing progress for a document in this collection.
-    pub async fn stream_document_progress(
-        &self,
-        document_id: &str,
-    ) -> Result<SseStream, BigRagError> {
-        self.client
-            .documents()
-            .stream_progress(&self.name, document_id)
-            .await
-    }
 }

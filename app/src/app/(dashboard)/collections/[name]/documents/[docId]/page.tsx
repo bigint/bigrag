@@ -3,7 +3,7 @@
 import { ArrowLeft, RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState } from "react";
+import { use, useEffect } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,31 +18,76 @@ import {
   useReprocessDocument,
 } from "@/hooks/use-documents";
 import { cn } from "@/lib/cn";
-import { formatBytes, formatRelative } from "@/lib/format";
-import type { ProgressEvent } from "@/types/bigrag";
+import { formatBytes, formatNumber, formatRelative } from "@/lib/format";
+import type { DocumentProgress, DocumentStatus } from "@/types/bigrag";
 
-const useProgressStream = (
-  collection: string,
-  docId: string,
-  enabled: boolean,
-): ProgressEvent | null => {
-  const [event, setEvent] = useState<ProgressEvent | null>(null);
+const statusVariant: Record<DocumentStatus | string, "error" | "info" | "success" | "warning"> = {
+  complete: "success",
+  failed: "error",
+  pending: "warning",
+  processing: "info",
+  ready: "success",
+};
 
-  useEffect(() => {
-    if (!enabled) return;
-    const es = new EventSource(
-      `/api/bigrag/v1/collections/${encodeURIComponent(collection)}/documents/${docId}/progress`,
-    );
-    es.onmessage = (e) => {
-      try {
-        setEvent(JSON.parse(e.data) as ProgressEvent);
-      } catch {}
+const numberDetail = (detail: Record<string, unknown> | undefined, key: string) => {
+  const value = detail?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
+
+const progressDetailText = (progress: DocumentProgress | null | undefined) => {
+  const detail = progress?.detail;
+  const pagesTotal = numberDetail(detail, "pages_total");
+  const pagesDone = numberDetail(detail, "pages_done") ?? numberDetail(detail, "page_end");
+  if (pagesTotal && pagesDone) {
+    return `Pages ${formatNumber(pagesDone)} of ${formatNumber(pagesTotal)}`;
+  }
+
+  const totalBatches = numberDetail(detail, "total_batches");
+  const batch = numberDetail(detail, "batch");
+  if (totalBatches && batch) {
+    return `Batch ${formatNumber(batch)} of ${formatNumber(totalBatches)}`;
+  }
+
+  const inserted = numberDetail(detail, "inserted");
+  if (inserted) {
+    return `${formatNumber(inserted)} vectors inserted`;
+  }
+
+  return null;
+};
+
+const fallbackProgress = (status: DocumentStatus, chunkCount: number): DocumentProgress => {
+  if (status === "ready") {
+    return {
+      collection_name: "",
+      detail: { chunks: chunkCount },
+      document_id: "",
+      message: `Ready — ${formatNumber(chunkCount)} chunks`,
+      progress: 1,
+      status: "complete",
+      step: "complete",
     };
-    es.onerror = () => es.close();
-    return () => es.close();
-  }, [collection, docId, enabled]);
-
-  return event;
+  }
+  if (status === "failed") {
+    return {
+      collection_name: "",
+      detail: {},
+      document_id: "",
+      message: "Ingestion failed",
+      progress: 0,
+      status: "failed",
+      step: "failed",
+    };
+  }
+  return {
+    collection_name: "",
+    detail: {},
+    document_id: "",
+    message: status === "pending" ? "Queued for ingestion" : "Processing document",
+    progress: status === "pending" ? 0 : 0.05,
+    status,
+    step: status === "pending" ? "queued" : "processing",
+  };
 };
 
 const DocumentDetail = ({ params }: { params: Promise<{ name: string; docId: string }> }) => {
@@ -50,14 +95,19 @@ const DocumentDetail = ({ params }: { params: Promise<{ name: string; docId: str
   const name = decodeURIComponent(rawName);
   const router = useRouter();
 
-  const { data: doc, isPending } = useDocument(name, docId);
-  const { data: chunks } = useChunks(name, docId);
+  const { data: doc, dataUpdatedAt, isPending } = useDocument(name, docId);
+  const polling = doc?.status === "pending" || doc?.status === "processing";
+  const { data: chunks, refetch: refetchChunks } = useChunks(name, docId, {
+    refetchInterval: polling ? 5_000 : false,
+  });
   const reprocess = useReprocessDocument(name);
   const remove = useDeleteDocument(name);
 
-  const streaming = doc?.status === "pending" || doc?.status === "processing";
-  const progress = useProgressStream(name, docId, !!streaming);
-  const pct = Math.round((progress?.progress ?? 0) * 100);
+  useEffect(() => {
+    if (doc?.status === "ready") {
+      void refetchChunks();
+    }
+  }, [doc?.status, refetchChunks]);
 
   if (isPending || !doc) {
     return (
@@ -66,6 +116,12 @@ const DocumentDetail = ({ params }: { params: Promise<{ name: string; docId: str
       </div>
     );
   }
+
+  const progress = doc.progress ?? fallbackProgress(doc.status, doc.chunk_count);
+  const progressPct = Math.max(0, Math.min(100, Math.round(progress.progress * 100)));
+  const progressDetail = progressDetailText(progress);
+  const progressVariant = statusVariant[progress.status] ?? statusVariant[doc.status] ?? "info";
+  const checkedAt = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -110,22 +166,35 @@ const DocumentDetail = ({ params }: { params: Promise<{ name: string; docId: str
         }
       />
 
-      {streaming && (
-        <Card>
-          <CardContent className="flex flex-col gap-2 pt-5">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium capitalize">{progress?.step ?? "queued"}</span>
-              <span className="tabular-nums text-muted-foreground">{pct}%</span>
+      <Card>
+        <CardContent className="flex flex-col gap-3 pt-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge dot variant={progressVariant}>
+                  {progress.status}
+                </Badge>
+                <span className="text-sm font-medium capitalize">{progress.step}</span>
+              </div>
+              <p className="text-sm text-muted-foreground">{progress.message}</p>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
-            </div>
-            {progress?.message && (
-              <p className="text-xs text-muted-foreground">{progress.message}</p>
+            {polling ? (
+              <Spinner size="sm" className="mt-1 shrink-0" />
+            ) : (
+              <span className="shrink-0 text-sm font-medium tabular-nums">{progressPct}%</span>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </div>
+
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div className="h-full bg-primary" style={{ width: `${progressPct}%` }} />
+          </div>
+
+          <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span>{progressDetail ?? `${progressPct}% complete`}</span>
+            <span>Last checked {formatRelative(checkedAt)}</span>
+          </div>
+        </CardContent>
+      </Card>
 
       {doc.error_message && (
         <Card className="border-destructive">

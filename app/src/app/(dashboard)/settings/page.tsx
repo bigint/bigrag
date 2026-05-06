@@ -6,12 +6,14 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Tabs } from "@/components/ui/tabs";
 import { AccountTab } from "./tabs/account-tab";
 import { AuditTab } from "./tabs/audit-tab";
+import { ConnectorsTab } from "./tabs/connectors-tab";
 import { ServerTab } from "./tabs/server-tab";
 import { UsageTab } from "./tabs/usage-tab";
 
 const TABS = [
   { label: "Account", value: "account" },
   { label: "Server", value: "server" },
+  { label: "Connectors", value: "connectors" },
   { label: "Usage & cost", value: "usage" },
   { label: "Audit log", value: "audit" },
 ];
@@ -19,6 +21,7 @@ const TABS = [
 const COMPONENTS: Record<string, React.FC> = {
   account: AccountTab,
   server: ServerTab,
+  connectors: ConnectorsTab,
   usage: UsageTab,
   audit: AuditTab,
 };

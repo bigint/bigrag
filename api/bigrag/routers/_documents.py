@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.config import settings
 from bigrag.db.models import Collection, Document
 from bigrag.logging import get_logger
-from bigrag.models.document import DocumentResponse
+from bigrag.models.document import DocumentProgressResponse, DocumentResponse
 from bigrag.services import collection_cache, metadata_schema
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
@@ -56,7 +56,33 @@ class UploadBudget:
             )
 
 
-def document_response(doc: Document, *, deduped: bool = False) -> DocumentResponse:
+def document_progress_response(
+    *,
+    document_id: str,
+    collection_name: str,
+    step: str,
+    status: str,
+    message: str,
+    progress: float,
+    detail: dict | None = None,
+) -> DocumentProgressResponse:
+    return DocumentProgressResponse(
+        document_id=document_id,
+        collection_name=collection_name,
+        step=step,
+        status=status,
+        message=message,
+        progress=max(0.0, min(1.0, progress)),
+        detail=detail or {},
+    )
+
+
+def document_response(
+    doc: Document,
+    *,
+    deduped: bool = False,
+    progress: DocumentProgressResponse | None = None,
+) -> DocumentResponse:
     return DocumentResponse(
         id=str(doc.id),
         collection_id=str(doc.collection_id),
@@ -69,6 +95,7 @@ def document_response(doc: Document, *, deduped: bool = False) -> DocumentRespon
         metadata=doc.meta or {},
         content_hash=doc.content_hash,
         deduped=deduped,
+        progress=progress,
         created_at=doc.created_at,
         updated_at=doc.updated_at,
     )

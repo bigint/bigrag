@@ -5,6 +5,16 @@ from __future__ import annotations
 from bigrag.types._compat import Any, TypedDict
 
 
+class DocumentProgress(TypedDict):
+    document_id: str
+    collection_name: str
+    step: str
+    status: str
+    message: str
+    progress: float
+    detail: dict[str, Any]
+
+
 class Document(TypedDict):
     id: str
     collection_id: str
@@ -17,6 +27,7 @@ class Document(TypedDict):
     metadata: dict[str, Any]
     content_hash: str | None
     deduped: bool
+    progress: DocumentProgress | None
     created_at: str
     updated_at: str
 
@@ -44,6 +55,7 @@ class DocumentStatus(TypedDict):
     status: str
     error_message: str | None
     chunk_count: int
+    progress: DocumentProgress | None
 
 
 class BatchStatusResponse(TypedDict):

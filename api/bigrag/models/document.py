@@ -2,7 +2,17 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class DocumentProgressResponse(BaseModel):
+    document_id: str
+    collection_name: str
+    step: str
+    status: str
+    message: str
+    progress: float
+    detail: dict = Field(default_factory=dict)
 
 
 class DocumentResponse(BaseModel):
@@ -17,6 +27,7 @@ class DocumentResponse(BaseModel):
     metadata: dict
     content_hash: str | None = None
     deduped: bool = False
+    progress: DocumentProgressResponse | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -35,6 +46,7 @@ class DocumentStatusResponse(BaseModel):
     status: str
     error_message: str | None = None
     chunk_count: int
+    progress: DocumentProgressResponse | None = None
 
 
 class BatchStatusResponse(BaseModel):

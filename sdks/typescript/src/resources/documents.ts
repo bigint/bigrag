@@ -1,8 +1,6 @@
 import type { RequestClient } from "../core.js";
-import { USER_AGENT } from "../core.js";
 import { errorForStatus } from "../errors.js";
 import { normalizeFileInput } from "../files.js";
-import { parseSSEStream } from "../sse.js";
 import type {
   BatchDeleteDocumentsResponse,
   BatchGetDocumentsResponse,
@@ -12,7 +10,6 @@ import type {
   DocumentListOptions,
   DocumentListResponse,
   FileInput,
-  ProgressEvent,
   StatusResponse,
 } from "../types.js";
 
@@ -202,45 +199,5 @@ export class DocumentsResource {
     return this._client._request("GET", `/v1/documents/${encodeURIComponent(documentId)}/chunks`, {
       params,
     });
-  }
-
-  async *streamBatchProgress(
-    collection: string,
-    documentIds: string[],
-  ): AsyncGenerator<ProgressEvent> {
-    const ids = documentIds.join(",");
-    const path = `/v1/collections/${encodeURIComponent(collection)}/documents/batch/progress?ids=${encodeURIComponent(ids)}`;
-    const url = `${this._client.baseUrl}${path}`;
-    const headers: Record<string, string> = { "User-Agent": USER_AGENT };
-    if (this._client.apiKey) headers.Authorization = `Bearer ${this._client.apiKey}`;
-
-    const response = await this._client._fetch(url, {
-      method: "GET",
-      headers,
-    });
-
-    if (!response.ok) {
-      throw errorForStatus(response.status, response.statusText);
-    }
-
-    yield* parseSSEStream(response);
-  }
-
-  async *streamProgress(collection: string, documentId: string): AsyncGenerator<ProgressEvent> {
-    const path = `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/progress`;
-    const url = `${this._client.baseUrl}${path}`;
-    const headers: Record<string, string> = { "User-Agent": USER_AGENT };
-    if (this._client.apiKey) headers.Authorization = `Bearer ${this._client.apiKey}`;
-
-    const response = await this._client._fetch(url, {
-      method: "GET",
-      headers,
-    });
-
-    if (!response.ok) {
-      throw errorForStatus(response.status, response.statusText);
-    }
-
-    yield* parseSSEStream(response);
   }
 }

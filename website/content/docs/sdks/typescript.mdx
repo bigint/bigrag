@@ -34,10 +34,12 @@ const collection = await client.collections.create({
 // Upload a document
 const doc = await client.documents.upload("knowledge_base", file);
 
-// Stream processing progress
-for await (const event of client.documents.streamProgress("knowledge_base", doc.id)) {
-  console.log(event.step, event.progress);
-  if (event.status === "completed") break;
+// Poll processing status
+let current = doc;
+while (current.status === "pending" || current.status === "processing") {
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  current = await client.documents.get("knowledge_base", doc.id);
+  console.log(current.progress?.message ?? current.status);
 }
 
 // Query
@@ -108,8 +110,6 @@ client.documents.batchDelete(collection, documentIds)
 client.documents.reprocess(collection, documentId)
 client.documents.getChunks(collection, documentId, { limit?, offset? }?)
 client.documents.getFileUrl(collection, documentId)         // returns URL string
-client.documents.streamProgress(collection, documentId)     // AsyncIterable<ProgressEvent>
-client.documents.streamBatchProgress(collection, ids)       // AsyncIterable<ProgressEvent>
 
 // Global document access (without collection scope)
 client.documents.getById(documentId)

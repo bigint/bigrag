@@ -74,29 +74,32 @@ Chunking splits document text into overlapping segments for embedding and retrie
 - **Larger chunks** (1,000–2,000) provide more context per result
 - **Overlap** ensures important content at chunk boundaries is not lost
 
-## Real-Time Progress (SSE)
+## Status Polling
 
-Monitor document processing in real time via Server-Sent Events:
+Monitor document processing by polling the document record:
 
 ```javascript
-const eventSource = new EventSource(
-  "http://localhost:4000/v1/collections/research/documents/DOC_ID/progress"
-);
+let document = await client.documents.get("research", "DOC_ID");
 
-eventSource.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  console.log(`${data.step}: ${data.progress}% — ${data.message}`);
-};
+while (document.status === "pending" || document.status === "processing") {
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  document = await client.documents.get("research", document.id);
+  console.log(`${document.progress?.message ?? document.status}`);
+}
 ```
 
-Progress events include:
+The document response includes:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `step` | string | Current step (`parsing`, `chunking`, `embedding`, `complete`) |
-| `status` | string | Step status |
-| `message` | string | Human-readable progress message |
-| `progress` | float | Overall progress percentage (0–100) |
+| `status` | string | Current status (`pending`, `processing`, `ready`, `failed`) |
+| `chunk_count` | integer | Number of chunks currently stored for the document |
+| `progress.step` | string | Current ingestion step (`queued`, `ocr`, `embedding`, `complete`, etc.) |
+| `progress.message` | string | Latest human-readable progress update |
+| `progress.progress` | float | Completed fraction from `0` to `1` |
+| `progress.detail` | object | Step-specific counters such as page ranges or batch numbers |
+| `error_message` | string | Failure detail when status is `failed` |
+| `updated_at` | string | Timestamp for the latest document update |
 
 ## Batch Operations
 

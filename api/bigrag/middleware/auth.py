@@ -86,7 +86,7 @@ async def _user_from_session(request: Request, session: AsyncSession) -> dict | 
     return principal
 
 
-_QUERY_TOKEN_SUFFIXES = ("/events", "/progress")
+_QUERY_TOKEN_SUFFIXES = ("/events",)
 
 
 def _query_token_allowed(path: str) -> bool:

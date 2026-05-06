@@ -254,23 +254,21 @@ result = await client.webhooks.test("webhook-id")
 deliveries = await client.webhooks.list_deliveries("webhook-id", limit=10)
 ```
 
-## SSE Progress Streaming
+## Status Polling
 
-Track document processing in real-time:
+Track document processing with REST polling:
 
 ```python
-# Single document progress
-async for event in client.documents.stream_progress("docs", "doc-id"):
-    print(f"[{event['progress']:.0%}] {event['step']}: {event['message']}")
+# Single document status
+doc = await client.documents.get("docs", "doc-id")
+while doc["status"] in ("pending", "processing"):
+    await asyncio.sleep(2)
+    doc = await client.documents.get("docs", doc["id"])
+    print(doc["progress"]["message"] if doc.get("progress") else doc["status"])
 
-# Batch progress (e.g., after batch upload)
+# Batch status (e.g., after batch upload)
 doc_ids = [d["id"] for d in result["documents"]]
-async for event in client.documents.stream_batch_progress("docs", doc_ids):
-    print(
-        f"[{event['progress']:.0%}] "
-        f"{event['completed']}/{event['total']} done, "
-        f"{event['failed']} failed"
-    )
+statuses = await client.documents.batch_get_status("docs", doc_ids)
 ```
 
 ## Collection-Scoped Client

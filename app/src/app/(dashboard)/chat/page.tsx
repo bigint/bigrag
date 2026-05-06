@@ -1,12 +1,20 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { BookOpen, MessageSquare, Plus, RotateCcw, Trash2 } from "lucide-react";
+import {
+  BookOpen,
+  Clock3,
+  FileText,
+  type LucideIcon,
+  MessageSquare,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Empty } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import {
   useChatConversation,
@@ -17,6 +25,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { usePreferences, useUpdatePreferences } from "@/hooks/use-preferences";
 import { streamChat } from "@/lib/chat-stream";
 import { cn } from "@/lib/cn";
+import { formatRelative } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import type {
   ChatConversation,
@@ -155,6 +164,7 @@ const ChatPage = () => {
   };
 
   const currentCollection = activeConversation?.collection ?? collection;
+  const currentCollectionName = currentCollection ?? "";
 
   const stopStreaming = () => {
     abortRef.current?.abort();
@@ -318,6 +328,8 @@ const ChatPage = () => {
   };
 
   const conversations = conversationsQuery.data?.conversations ?? [];
+  const loading = collectionsLoading || prefsQuery.isPending || conversationsQuery.isPending;
+  const disabled = !state.hasOpenAIKey || !currentCollection;
 
   return (
     <div className="relative flex min-h-0 flex-1 overflow-hidden bg-background">
@@ -336,54 +348,41 @@ const ChatPage = () => {
         selectedId={conversationId}
       />
 
-      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        {messages.length > 0 && (
-          <div className="absolute top-5 right-3 z-20 hidden lg:block">
-            <Button disabled={isStreaming} onClick={startNewChat} size="sm" variant="ghost">
-              <RotateCcw className="size-3.5" />
-              New chat
-            </Button>
-          </div>
-        )}
-        {collectionsLoading || prefsQuery.isPending || conversationsQuery.isPending ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Spinner size="lg" />
-          </div>
+      <section className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <MobileConversationStrip
+          conversations={conversations}
+          disabledNew={isStreaming}
+          onNew={startNewChat}
+          onSelect={(id) => {
+            stopStreaming();
+            setConversationId(id);
+          }}
+          selectedId={conversationId}
+        />
+
+        {loading ? (
+          <LoadingState />
         ) : collections.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Empty
-              action={
-                <Link href="/collections">
-                  <Button>
-                    <BookOpen className="size-4" />
-                    Create a collection
-                  </Button>
-                </Link>
-              }
-              bordered={false}
-              description="Ingest documents first, then chat with them here."
-              icon={<BookOpen className="size-6" />}
-              title="No collections yet"
-            />
-          </div>
+          <NoCollectionsState />
         ) : detailQuery.isFetching && conversationId && messages.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Spinner size="lg" />
-          </div>
+          <LoadingState label="Loading conversation" />
         ) : (
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
             {messages.length === 0 ? (
               <EmptyPrompts
+                collection={currentCollectionName}
+                collectionCount={collections.length}
+                disabled={disabled}
+                hasOpenAIKey={state.hasOpenAIKey}
                 onSelect={handleSend}
-                disabled={!state.hasOpenAIKey || !currentCollection}
               />
             ) : (
               <ChatMessages isStreaming={isStreaming} messages={messages} />
             )}
             <ChatInput
-              collection={currentCollection ?? ""}
+              collection={currentCollectionName}
               collections={collections}
-              disabled={!state.hasOpenAIKey || !currentCollection}
+              disabled={disabled}
               isStreaming={isStreaming}
               onCollectionChange={handleCollectionChange}
               onPatch={patchState}
@@ -394,7 +393,7 @@ const ChatPage = () => {
             />
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 };
@@ -414,11 +413,11 @@ const ConversationRail = ({
   onSelect: (id: string) => void;
   selectedId: string | null;
 }) => (
-  <aside className="hidden w-72 shrink-0 flex-col border-r border-border bg-muted/40 lg:flex">
+  <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-muted/35 lg:flex">
     <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-3">
       <div className="flex items-center gap-2 text-sm font-semibold">
         <MessageSquare className="size-4" />
-        Chats
+        Conversations
       </div>
       <Button
         aria-label="New chat"
@@ -430,46 +429,146 @@ const ConversationRail = ({
         <Plus className="size-4" />
       </Button>
     </div>
-    <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
+    <div className="min-h-0 flex-1 overflow-y-auto p-2">
       {conversations.length === 0 ? (
-        <div className="px-2 py-8 text-center text-xs text-muted-foreground">
-          Conversation history will appear here.
+        <div className="rounded-2xl border border-dashed border-border bg-background px-3 py-8 text-center text-xs leading-5 text-muted-foreground">
+          Conversation history will appear here after the first grounded answer.
         </div>
       ) : (
-        conversations.map((conversation) => (
-          <div
-            key={conversation.id}
-            className={cn(
-              "group flex items-center gap-1 rounded-2xl",
-              selectedId === conversation.id && "bg-background",
-            )}
-          >
-            <button
-              type="button"
-              onClick={() => onSelect(conversation.id)}
-              className="min-w-0 flex-1 rounded-2xl px-3 py-2 text-left hover:bg-background"
+        <div className="grid gap-1">
+          {conversations.map((conversation) => (
+            <div
+              key={conversation.id}
+              className={cn(
+                "group grid grid-cols-[minmax(0,1fr)_1.75rem] items-center rounded-2xl border",
+                selectedId === conversation.id
+                  ? "border-foreground bg-background"
+                  : "border-transparent hover:border-border hover:bg-background",
+              )}
             >
-              <div className="truncate text-xs font-semibold">{conversation.title}</div>
-              <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span className="truncate">{conversation.collection ?? "No collection"}</span>
-                <span aria-hidden>·</span>
-                <span>{conversation.message_count}</span>
-              </div>
-            </button>
-            <button
-              type="button"
-              aria-label="Delete conversation"
-              disabled={deletingId === conversation.id}
-              onClick={() => onDelete(conversation.id)}
-              className="mr-1 hidden size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive group-hover:flex focus-visible:flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          </div>
-        ))
+              <button
+                type="button"
+                onClick={() => onSelect(conversation.id)}
+                className="min-w-0 px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="truncate text-xs font-semibold">{conversation.title}</div>
+                <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span className="truncate">{conversation.collection ?? "No collection"}</span>
+                  <span aria-hidden>/</span>
+                  <span>{conversation.message_count}</span>
+                </div>
+                <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                  {formatRelative(conversation.last_message_at ?? conversation.updated_at)}
+                </div>
+              </button>
+              <button
+                type="button"
+                aria-label="Delete conversation"
+                disabled={deletingId === conversation.id}
+                onClick={() => onDelete(conversation.id)}
+                className="mr-1 hidden size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive group-hover:flex focus-visible:flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   </aside>
+);
+
+const MobileConversationStrip = ({
+  conversations,
+  disabledNew,
+  onNew,
+  onSelect,
+  selectedId,
+}: {
+  conversations: ChatConversation[];
+  disabledNew: boolean;
+  onNew: () => void;
+  onSelect: (id: string) => void;
+  selectedId: string | null;
+}) => {
+  if (conversations.length === 0) return null;
+  return (
+    <div className="shrink-0 overflow-x-auto border-b border-border bg-muted/35 px-3 py-2 lg:hidden">
+      <div className="flex w-max gap-2">
+        <button
+          type="button"
+          disabled={disabledNew}
+          onClick={onNew}
+          className="flex min-w-28 items-center justify-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs font-semibold disabled:opacity-50"
+        >
+          <Plus className="size-3.5" />
+          New chat
+        </button>
+        {conversations.slice(0, 12).map((conversation) => (
+          <button
+            type="button"
+            key={conversation.id}
+            onClick={() => onSelect(conversation.id)}
+            className={cn(
+              "max-w-48 rounded-2xl border px-3 py-2 text-left",
+              selectedId === conversation.id
+                ? "border-foreground bg-background"
+                : "border-border bg-background",
+            )}
+          >
+            <span className="block truncate text-xs font-semibold">{conversation.title}</span>
+            <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+              {conversation.collection ?? "No collection"}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const LoadingState = ({ label = "Loading chat" }: { label?: string }) => (
+  <div className="flex flex-1 items-center justify-center">
+    <div className="flex items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3 text-sm font-semibold">
+      <Spinner />
+      {label}
+    </div>
+  </div>
+);
+
+const NoCollectionsState = () => (
+  <div className="flex flex-1 items-center justify-center px-4 py-8">
+    <div className="w-full max-w-xl rounded-3xl border border-border bg-background p-6 text-center">
+      <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl border border-border bg-muted">
+        <BookOpen className="size-6 text-muted-foreground" />
+      </div>
+      <h2 className="text-lg font-semibold">No collections available</h2>
+      <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+        Create or ingest a collection first. Chat needs indexed documents before it can retrieve
+        evidence.
+      </p>
+      <div className="mt-5">
+        <Link href="/collections">
+          <Button>
+            <FileText className="size-4" />
+            Open collections
+          </Button>
+        </Link>
+      </div>
+      <div className="mt-5 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+        <NoCollectionMetric icon={BookOpen} label="Create" />
+        <NoCollectionMetric icon={Clock3} label="Ingest" />
+        <NoCollectionMetric icon={Search} label="Query" />
+      </div>
+    </div>
+  </div>
+);
+
+const NoCollectionMetric = ({ icon: Icon, label }: { icon: LucideIcon; label: string }) => (
+  <div className="rounded-2xl border border-border bg-muted/40 px-2 py-2">
+    <Icon className="mx-auto mb-1 size-3.5" />
+    {label}
+  </div>
 );
 
 export default ChatPage;

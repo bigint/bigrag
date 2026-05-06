@@ -8,7 +8,7 @@ Base path: `/v1/collections/{collection_name}/documents`
 All endpoints require [authentication](/docs/api-reference/authentication). API keys need:
 
 - `document:upload` for upload, batch upload, and reprocess
-- `document:read` for list/get/download/chunks/progress and batch get/status
+- `document:read` for list/get/download/chunks and batch get/status
 - `document:delete` for delete and batch delete
 
 ## Upload Document
@@ -293,37 +293,22 @@ GET /v1/documents/{document_id}/chunks
 
 Convenience read endpoints that resolve the document by UUID without the caller supplying the collection name. They still require `document:read`, and collection-pinned API keys can only use them for documents that belong to their pinned collection.
 
-## Stream Progress
+## Status Polling
 
+Use `GET /v1/collections/{collection_name}/documents/{document_id}` for a single document, or `POST /v1/collections/{collection_name}/documents/batch/status` for multiple documents. Poll while `status` is `pending` or `processing`, then stop once it reaches `ready` or `failed`.
+
+Document status responses include a `progress` object with the latest ingestion event snapshot:
+
+```json
+{
+  "status": "processing",
+  "chunk_count": 0,
+  "progress": {
+    "step": "ocr",
+    "status": "processing",
+    "message": "OCR pages 1-10 of 652",
+    "progress": 0.12,
+    "detail": { "page_start": 1, "page_end": 10, "pages_total": 652 }
+  }
+}
 ```
-GET /v1/collections/{collection_name}/documents/{document_id}/progress
-```
-
-Stream real-time processing progress via Server-Sent Events (SSE).
-
-```
-data: {"step": "parsing", "status": "in_progress", "message": "Parsing document with Docling", "progress": 25.0}
-data: {"step": "chunking", "status": "in_progress", "message": "Splitting into 24 chunks", "progress": 50.0}
-data: {"step": "embedding", "status": "in_progress", "message": "Generating embeddings", "progress": 75.0}
-data: {"step": "complete", "status": "completed", "message": "Document ready", "progress": 100.0}
-```
-
-## Stream Batch Progress
-
-```
-GET /v1/collections/{collection_name}/documents/batch/progress?ids=id1,id2,id3
-```
-
-Stream aggregated progress for multiple documents via SSE. Useful after batch ingestion to track all documents in a single stream.
-
-| Parameter | Type | Required | Notes |
-|-----------|------|----------|-------|
-| `ids` | string | yes | Comma-separated document IDs (max 100) |
-
-Each SSE event includes both per-document and batch-level progress:
-
-```
-data: {"step":"batch_progress","status":"processing","message":"2/5 documents done","progress":0.45,"total":5,"completed":2,"failed":0,"document_id":"abc","document_status":"complete","document_step":"complete","document_progress":1.0}
-```
-
-The stream completes when all documents reach `complete` or `failed` status.
