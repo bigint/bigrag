@@ -24,6 +24,13 @@ from bigrag.types.admin import (
     UpdateUserBody,
     UserListResponse,
 )
+from bigrag.types.access import (
+    AccessLogBucket,
+    AccessLogEntry,
+    AccessLogListResponse,
+    AccessLogOverviewResponse,
+    AccessLogTimelinePoint,
+)
 from bigrag.types.analytics import AnalyticsResponse, PeriodStats, TopQuery
 from bigrag.types.auth import (
     ChangePasswordBody,
@@ -59,6 +66,26 @@ from bigrag.types.common import (
     QueueStatsResponse,
     ReadinessResponse,
     StatusResponse,
+)
+from bigrag.types.connectors import (
+    ConnectorAccountStatus,
+    ConnectorSourceStatus,
+    ConnectorSourceType,
+    ConnectorSyncStatus,
+    ConnectorSyncTrigger,
+    CreateGoogleSourceBody,
+    GoogleAccount,
+    GoogleConnectorConfig,
+    GoogleDriveFile,
+    GoogleDriveFileListResponse,
+    GoogleOAuthStartUrlResponse,
+    GoogleProvider,
+    GoogleSource,
+    GoogleSourceListResponse,
+    GoogleSyncJob,
+    GoogleSyncJobListResponse,
+    UpdateGoogleConnectorConfigBody,
+    UpdateGoogleSourceBody,
 )
 from bigrag.types.documents import (
     BatchDeleteDocumentsResponse,
@@ -146,12 +173,36 @@ __all__ = [
     "UpdateMcpServerBody",
     "CreateMcpServerResponse",
     "McpServerListResponse",
+    "AccessLogEntry",
+    "AccessLogListResponse",
+    "AccessLogBucket",
+    "AccessLogTimelinePoint",
+    "AccessLogOverviewResponse",
     # Collections
     "Collection",
     "CollectionListResponse",
     "CollectionStatsResponse",
     "CreateCollectionBody",
     "UpdateCollectionBody",
+    # Connectors
+    "GoogleProvider",
+    "ConnectorAccountStatus",
+    "ConnectorSourceStatus",
+    "ConnectorSourceType",
+    "ConnectorSyncTrigger",
+    "ConnectorSyncStatus",
+    "GoogleConnectorConfig",
+    "UpdateGoogleConnectorConfigBody",
+    "GoogleAccount",
+    "GoogleDriveFile",
+    "GoogleDriveFileListResponse",
+    "GoogleOAuthStartUrlResponse",
+    "CreateGoogleSourceBody",
+    "UpdateGoogleSourceBody",
+    "GoogleSource",
+    "GoogleSourceListResponse",
+    "GoogleSyncJob",
+    "GoogleSyncJobListResponse",
     # Documents
     "Document",
     "DocumentListResponse",

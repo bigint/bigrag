@@ -13,6 +13,7 @@ from bigrag.resources import (
     AuthResource,
     ChatResource,
     CollectionsResource,
+    ConnectorsResource,
     DocumentsResource,
     EvaluationsResource,
     QueryResource,
@@ -62,6 +63,7 @@ class BigRAG(BigRAGCore):
     """
 
     collections: CollectionsResource
+    connectors: ConnectorsResource
     documents: DocumentsResource
     queries: QueryResource
     vectors: VectorsResource
@@ -74,6 +76,7 @@ class BigRAG(BigRAGCore):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.collections = CollectionsResource(self)
+        self.connectors = ConnectorsResource(self)
         self.documents = DocumentsResource(self)
         self.queries = QueryResource(self)
         self.vectors = VectorsResource(self)

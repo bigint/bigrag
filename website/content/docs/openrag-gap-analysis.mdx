@@ -65,7 +65,7 @@ OpenRAG's UI provides:
 
 **bigRAG status:** Partially resolved — The admin UI lists collections, uploads files with drag-and-drop, shows document status and chunk counts, supports document detail/chunk inspection, deletion, and reprocessing, and polls document status over REST.
 
-**Remaining gap:** the admin UI does not yet support folder upload, UI-level bulk delete, cancel/retry controls for in-flight ingestion, or cloud connector sync controls.
+**Remaining gap:** the admin UI does not yet support local folder upload, UI-level bulk delete, or cancel/retry controls for in-flight ingestion. Google Drive has UI sync controls, but the broader connector catalog is still narrow.
 
 ### 1.3 Settings & Configuration UI
 
@@ -165,7 +165,7 @@ OpenRAG's agent (powered by Langflow) can:
 - Execute complex multi-step workflows
 - Coordinate across multiple Langflow flows
 
-**bigRAG gap:** No agent capabilities. bigRAG is stateless retrieval — one query in, ranked results out.
+**bigRAG gap:** No multi-agent orchestration. bigRAG has retrieval-grounded chat, but it does not expose agent tool calls, workflow traces, or multi-step tool execution.
 
 ### 2.3 Conversation Management
 
@@ -279,7 +279,7 @@ OpenRAG provides endpoints for:
 - Disconnecting connectors
 - Webhook notifications when connector syncs complete
 
-**bigRAG gap:** No connector abstraction layer.
+**bigRAG gap:** The shipped connector APIs are Google Drive-specific. A provider-neutral connector abstraction is still missing before adding more cloud providers.
 
 ### 3.6 Connector Base Class Architecture
 
@@ -287,7 +287,7 @@ OpenRAG provides endpoints for:
 
 OpenRAG has a `base.py` connector class that standardizes how new connectors are built. Adding a new cloud provider means implementing a well-defined interface.
 
-**bigRAG gap:** No connector abstraction. If bigRAG adds connectors in the future, it would need to design this from scratch.
+**bigRAG gap:** No provider-neutral connector base class yet. Additional providers would need a shared interface rather than copying the Google Drive-specific path.
 
 ---
 
@@ -766,7 +766,7 @@ Based on this analysis, here are the recommended priorities for closing the most
 
 ### Tier 1 — Critical (addresses fundamental competitive gaps)
 
-1. **LLM Integration & Chat API** — Add an optional LLM generation layer that accepts a query, retrieves context, and returns a generated answer with citations. Support OpenAI and Anthropic as providers. This is the single most impactful feature for competitive positioning.
+1. **Agent / Workflow Transparency** — Extend the existing chat layer with tool-call inspection, agent/workflow traces, and provider coverage beyond OpenAI-compatible models. The chat API exists; the competitive gap is now orchestration depth and transparency.
 
 2. **OAuth / OIDC Authentication** — Add external identity-provider support (Google OIDC at minimum, with extensibility for other providers) alongside the existing native accounts and `bigrag_sk_` API keys.
 
@@ -776,7 +776,7 @@ Based on this analysis, here are the recommended priorities for closing the most
 
 4. **Admin UI Onboarding Completion** — Extend `/setup` beyond first-admin creation: provider selection, API-key entry, health validation, sample collection creation, and a guided first query.
 
-5. **Cloud Storage Connectors** — Build a connector abstraction and add Google Drive / SharePoint / OneDrive OAuth sync only if the product intentionally expands beyond file uploads.
+5. **Cloud Storage Connectors** — Formalize the connector abstraction and add SharePoint / OneDrive OAuth sync only if the product intentionally expands beyond file uploads and the shipped Google Drive connector.
 
 6. **URL Ingestion** — Accept URLs as document sources, fetch and parse the content, and store canonical source metadata for dedupe and refresh.
 
@@ -810,6 +810,6 @@ Based on this analysis, here are the recommended priorities for closing the most
 
 OpenRAG and bigRAG are at different points on the RAG platform spectrum. OpenRAG is a **full-stack, end-user-facing platform** with chat, agents, workflow editing, and cloud connectors. bigRAG is a **developer-focused retrieval platform** with an optional admin UI, stronger multi-collection architecture, batch operations, SDKs, MCP, webhooks, audit, and operational controls.
 
-The highest-impact remaining gaps are **backend LLM generation/chat**, **OAuth/OIDC**, and **document-level ownership/ACLs**. Closing those would position bigRAG as a serious alternative that combines OpenRAG's end-to-end capabilities with bigRAG's existing strengths in API design, multi-collection architecture, admin operations, and operational robustness.
+The highest-impact remaining gaps are **agent/workflow transparency**, **OAuth/OIDC**, and **document-level ownership/ACLs**. Closing those would position bigRAG as a serious alternative that combines OpenRAG's end-to-end capabilities with bigRAG's existing strengths in API design, multi-collection architecture, admin operations, and operational robustness.
 
 bigRAG's core architecture is sound and in several areas more sophisticated than OpenRAG's. The gaps are now primarily in the **application and identity layer** (chat, agents, OAuth, ACLs, connectors) rather than the **infrastructure layer** (search, ingestion, storage, SDKs, MCP, webhooks), which is already strong.

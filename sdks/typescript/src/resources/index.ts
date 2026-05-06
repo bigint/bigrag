@@ -1,6 +1,10 @@
+export { AdminResource } from "./admin.js";
+export { AuthResource } from "./auth.js";
 export { ChatResource } from "./chat.js";
 export { CollectionsResource } from "./collections.js";
+export { ConnectorsResource } from "./connectors.js";
 export { DocumentsResource } from "./documents.js";
+export { EvaluationsResource } from "./evaluations.js";
 export { QueryResource } from "./query.js";
 export { VectorsResource } from "./vectors.js";
 export { WebhooksResource } from "./webhooks.js";

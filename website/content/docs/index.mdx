@@ -15,8 +15,8 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 - **Three search modes** — semantic, keyword, and hybrid, with optional Cohere reranking
 - **Qdrant vector database** — HNSW vector search with tenant-aware payload indexes
 - **First-class auth** — admin accounts, session cookies, scoped `bigrag_sk_…` API keys, and full audit/access logs
-- **Operational features** — batch ingestion, webhooks with HMAC signatures, metadata-schema validation, an evaluation runner, and per-collection query analytics
-- **Admin UI** — first-run setup, collection browser, persistent chat, API-key minter, webhook manager
+- **Operational features** — batch ingestion, Google Drive sync, webhooks with HMAC signatures, metadata-schema validation, an evaluation runner, and per-collection query analytics
+- **Admin UI** — first-run setup, collection browser, persistent chat, connector management, access logs, MCP credentials, and API-key minting
 - **Self-hostable** — Docker Compose, no external dependencies
 - **MIT licensed** — run it anywhere, forever free
 
@@ -31,8 +31,10 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
     API --> Collections[Collections]
     API --> Documents[Documents]
     API --> Query[Query]
+    API --> Chat[Chat]
     API --> Webhooks[Webhooks]
     Documents -->|store files| Storage[(Local disk)]
+    Documents -->|sync source files| Drive[Google Drive]
     Documents -->|enqueue| Redis[(Redis)]
     Redis -->|process| Worker[Ingestion worker]
     Worker -->|parse| Docling[Docling]
@@ -40,6 +42,8 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
     Worker -->|store vectors| Qdrant[(Qdrant)]
     Query -->|search| Qdrant
     Query -->|embed query| Embedding
+    Chat -->|retrieve context| Query
+    Chat -->|generate answer| LLM[Chat provider]
     Collections --> Postgres[(Postgres)]
     Documents --> Postgres
     Webhooks --> Postgres

@@ -26,14 +26,17 @@ The admin UI proxies every request through `/api/bigrag/[...path]` onto the back
 | `/collections/[name]` | Redirects to the collection's documents tab. |
 | `/collections/[name]/documents` | Upload (drag & drop or multi-file picker), list, inspect status, and delete documents. |
 | `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, polled progress, failed-ingest error, reprocess, and delete. |
+| `/collections/[name]/connectors` | Redirects to the collection's connector tabs. |
+| `/collections/[name]/connectors/google-drive` | Browse Google Drive, sync selected files/folders, trigger manual resync, and manage sync schedules. |
 | `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, and rerank when enabled. |
 | `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
 | `/chat` | Production chat UI; retrieve from one collection, stream cited answers through the backend, and continue stored conversations. |
 | `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets) — reusable provider + model + key tuples. |
 | `/mcp` | Mint, scope, rotate, and revoke [MCP server](/docs/api-reference/mcp-servers) credentials for Claude Desktop / Cursor / custom MCP clients. |
 | `/api-keys` | Mint, scope, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
+| `/access-logs` | Access-log explorer for query, vector, chat, and evaluation traffic. |
 | `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. |
-| `/settings` | Tabs: Account · Server · Usage & cost · Audit log. |
+| `/settings` | Tabs: Account · Server · Connectors · Usage & cost · Audit log. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
 ## Settings tabs
@@ -42,6 +45,7 @@ The admin UI proxies every request through `/api/bigrag/[...path]` onto the back
 |-----|-----------|-----------|
 | **Account** | `GET /v1/auth/me` | `POST /v1/auth/password`, `POST /v1/auth/logout-all` |
 | **Server** | `GET /health/ready`, `GET /v1/stats` | — |
+| **Connectors** | `GET /v1/admin/connectors/google`, `GET /v1/connectors/google/account` | `PUT /v1/admin/connectors/google`, `POST /v1/connectors/google/disconnect` |
 | **Usage & cost** | `GET /v1/usage` | — |
 | **Audit log** | `GET /v1/admin/audit` | — |
 

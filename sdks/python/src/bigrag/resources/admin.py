@@ -25,8 +25,10 @@ from bigrag.types.admin import (
     UpdateUserBody,
     UserListResponse,
 )
+from bigrag.types.access import AccessLogListResponse, AccessLogOverviewResponse
 from bigrag.types.auth import User
 from bigrag.types.common import StatusResponse
+from bigrag.types.connectors import GoogleConnectorConfig, UpdateGoogleConnectorConfigBody
 
 if TYPE_CHECKING:
     from bigrag._core import BigRAGCore
@@ -37,14 +39,18 @@ class AdminResource:
 
     users: AdminUsersResource
     api_keys: AdminApiKeysResource
+    access: AdminAccessResource
     audit: AdminAuditResource
+    connectors: AdminConnectorsResource
     embedding_presets: AdminEmbeddingPresetsResource
     mcp_servers: AdminMcpServersResource
 
     def __init__(self, client: BigRAGCore) -> None:
         self.users = AdminUsersResource(client)
         self.api_keys = AdminApiKeysResource(client)
+        self.access = AdminAccessResource(client)
         self.audit = AdminAuditResource(client)
+        self.connectors = AdminConnectorsResource(client)
         self.embedding_presets = AdminEmbeddingPresetsResource(client)
         self.mcp_servers = AdminMcpServersResource(client)
 
@@ -109,6 +115,51 @@ class AdminApiKeysResource:
         )
 
 
+class AdminAccessResource:
+    """Admin access log analytics."""
+
+    def __init__(self, client: BigRAGCore) -> None:
+        self._client = client
+
+    async def logs(
+        self,
+        *,
+        action: str | None = None,
+        actor_id: str | None = None,
+        collection: str | None = None,
+        method: str | None = None,
+        path: str | None = None,
+        status_family: str | None = None,
+        success: bool | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> AccessLogListResponse:
+        """List RAG access log entries."""
+        params = _pagination(limit=limit, offset=offset)
+        if action is not None:
+            params["action"] = action
+        if actor_id is not None:
+            params["actor_id"] = actor_id
+        if collection is not None:
+            params["collection"] = collection
+        if method is not None:
+            params["method"] = method
+        if path is not None:
+            params["path"] = path
+        if status_family is not None:
+            params["status_family"] = status_family
+        if success is not None:
+            params["success"] = "true" if success else "false"
+        return await self._client._request("GET", "/v1/admin/access/logs", params=params)
+
+    async def overview(self, *, window_days: int | None = None) -> AccessLogOverviewResponse:
+        """Retrieve access log overview metrics."""
+        params: dict[str, str] = {}
+        if window_days is not None:
+            params["window_days"] = str(window_days)
+        return await self._client._request("GET", "/v1/admin/access/overview", params=params)
+
+
 class AdminAuditResource:
     """Admin audit log access."""
 
@@ -133,6 +184,30 @@ class AdminAuditResource:
         if resource_type is not None:
             params["resource_type"] = resource_type
         return await self._client._request("GET", "/v1/admin/audit", params=params)
+
+
+class AdminConnectorsResource:
+    """Admin connector configuration resources."""
+
+    google: AdminGoogleConnectorResource
+
+    def __init__(self, client: BigRAGCore) -> None:
+        self.google = AdminGoogleConnectorResource(client)
+
+
+class AdminGoogleConnectorResource:
+    """Admin Google Drive connector configuration."""
+
+    def __init__(self, client: BigRAGCore) -> None:
+        self._client = client
+
+    async def get(self) -> GoogleConnectorConfig:
+        """Get Google Drive connector config."""
+        return await self._client._request("GET", "/v1/admin/connectors/google")
+
+    async def update(self, body: UpdateGoogleConnectorConfigBody) -> GoogleConnectorConfig:
+        """Update Google Drive connector config."""
+        return await self._client._request("PUT", "/v1/admin/connectors/google", json=body)
 
 
 class AdminEmbeddingPresetsResource:

@@ -12,6 +12,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 - **Vector search** — semantic, keyword, and hybrid search modes via [Qdrant](https://qdrant.io)
 - **Reranking** — Cohere reranking for improved result relevance
 - **Multi-collection queries** — search across collections in a single request
+- **Generated chat** — backend-grounded chat with streaming, citations, and persisted conversations
 - **Batch operations** — bulk upload, delete, status checks, and queries
 - **Google Drive connector** — OAuth, in-app Drive browsing, and manual/scheduled resync
 - **Status polling** — REST endpoints for document and batch processing status
@@ -78,6 +79,7 @@ graph TD
     API --> Collections[Collections]
     API --> Documents[Documents]
     API --> Query[Query]
+    API --> Chat[Chat]
     API --> Webhooks[Webhooks]
 
     Documents -->|store files| Storage[(Storage<br/>Local disk)]
@@ -92,6 +94,8 @@ graph TD
     Query -->|search| Qdrant
     Query -->|embed query| Embedding
     Query -->|rerank| Reranker[Cohere Rerank]
+    Chat -->|retrieve context| Query
+    Chat -->|generate answer| LLM[Chat provider<br/>OpenAI / compatible]
 
     Auth --> Postgres
     Collections --> Postgres[(Postgres<br/>Metadata + audit + deliveries)]
@@ -113,6 +117,7 @@ graph TD
 | `POST` | `/v1/auth/logout` | Revoke current session |
 | `POST` | `/v1/auth/logout-all` | Revoke all sessions for user |
 | `GET` | `/v1/auth/me` | Current session |
+| `GET` | `/v1/auth/whoami` | Current principal, auth method, scopes, and collection pin |
 | `POST` | `/v1/auth/password` | Change password |
 | `GET`/`PUT` | `/v1/auth/preferences` | Per-user admin UI preferences |
 | **Collections** | | |
@@ -142,11 +147,18 @@ graph TD
 | **Connectors** | | |
 | `GET`/`PUT` | `/v1/admin/connectors/google` | Configure Google OAuth |
 | `GET` | `/v1/connectors/google/account` | Current Google account status |
+| `GET` | `/v1/connectors/google/oauth/start` | Redirect into Google OAuth |
 | `GET` | `/v1/connectors/google/oauth/start-url` | Get Google OAuth redirect URL |
+| `GET` | `/v1/connectors/google/oauth/callback` | Google OAuth callback |
+| `POST` | `/v1/connectors/google/disconnect` | Disconnect the current Google account |
 | `GET` | `/v1/connectors/google/files` | Browse Drive files and folders |
 | `GET`/`POST` | `/v1/connectors/google/sources` | List or create Drive sources |
 | `PATCH`/`DELETE` | `/v1/connectors/google/sources/{id}` | Update or remove a Drive source |
 | `POST` | `/v1/connectors/google/sources/{id}/sync` | Manual Drive resync |
+| `GET` | `/v1/connectors/google/sync-jobs` | Google Drive sync job history |
+| **Chat** | | |
+| `GET`/`POST` | `/v1/chat` | List conversations or create a chat turn |
+| `GET`/`PATCH`/`DELETE` | `/v1/chat/{conversation_id}` | Read, rename, or delete a conversation |
 | **Query** | | |
 | `POST` | `/v1/collections/{name}/query` | Query collection |
 | `POST` | `/v1/query` | Multi-collection query |
@@ -164,9 +176,17 @@ graph TD
 | `POST` | `/v1/admin/webhooks/{id}/deliveries/{did}/replay` | Replay a past delivery |
 | **Admin** | | |
 | `GET`/`POST` | `/v1/admin/users` | Manage admin accounts |
+| `PATCH`/`DELETE` | `/v1/admin/users/{id}` | Update or delete an admin/member account |
 | `GET`/`POST` | `/v1/admin/api-keys` | Mint `bigrag_sk_…` API keys with scopes |
+| `PATCH`/`DELETE` | `/v1/admin/api-keys/{id}` | Update, disable, or delete an API key |
 | `GET` | `/v1/admin/audit` | Audit log |
+| `GET` | `/v1/admin/access/overview` | Access-log rollup |
+| `GET` | `/v1/admin/access/logs` | RAG access logs |
 | `GET`/`POST` | `/v1/admin/embedding-presets` | Saved embedding provider configs |
+| `PATCH`/`DELETE` | `/v1/admin/embedding-presets/{id}` | Update or delete an embedding preset |
+| `GET`/`POST` | `/v1/admin/mcp-servers` | Manage MCP server credentials |
+| `PATCH`/`DELETE` | `/v1/admin/mcp-servers/{id}` | Update or delete an MCP server |
+| `POST` | `/v1/admin/mcp-servers/{id}/rotate` | Rotate an MCP server credential |
 | `GET` | `/v1/stats` | Platform stats |
 | `GET` | `/v1/usage` | Usage analytics |
 | `GET` | `/v1/embeddings/models` | List embedding models |
@@ -288,8 +308,14 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_PORT` | Server port | `4000` |
+| `BIGRAG_HOST` | Bind address | `127.0.0.1` |
 | `BIGRAG_WORKERS` | API worker processes | `1` |
+| `BIGRAG_CORS_ORIGINS` | JSON array of allowed browser origins | `[]` |
+| `BIGRAG_LOG_LEVEL` | Backend log level | `info` |
+| `BIGRAG_LOG_FORMAT` | Backend log format (`text` or `json`) | `text` |
 | `BIGRAG_DATABASE_URL` | Postgres URL (`postgres:5432` inside docker-compose, `localhost:5432` for bare-metal dev) | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
+| `BIGRAG_DB_POOL_MIN` | Min Postgres pool size | `5` |
+| `BIGRAG_DB_POOL_MAX` | Max Postgres pool size | `50` |
 | `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration check timeout (`0` disables the timeout) | `60` |
 | `BIGRAG_QDRANT_URL` | Qdrant URL | `http://localhost:6333` |
 | `BIGRAG_QDRANT_API_KEY` | Optional Qdrant Cloud/API key | — |
@@ -299,13 +325,49 @@ All settings use the `BIGRAG_` prefix as environment variables, or configure via
 | `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
 | `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
 | `BIGRAG_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and access logs | `[]` |
+| `BIGRAG_SESSION_EXPIRY_HOURS` | Session cookie lifetime | `168` |
+| `BIGRAG_SESSION_COOKIE_NAME` | Session cookie name | `bigrag_session` |
 | `BIGRAG_SESSION_COOKIE_SECURE` | HTTPS-only session cookies | `false` |
+| `BIGRAG_SESSION_COOKIE_SAMESITE` | Session cookie SameSite policy | `lax` |
+| `BIGRAG_SESSION_COOKIE_DOMAIN` | Optional session cookie domain | — |
+| `BIGRAG_AUTH_RATE_LIMIT_WINDOW_SECONDS` | Login/setup rate-limit window | `60` |
+| `BIGRAG_AUTH_LOGIN_EMAIL_RATE_LIMIT` | Login attempts per email per window | `5` |
+| `BIGRAG_AUTH_LOGIN_IP_RATE_LIMIT` | Login attempts per IP per window | `50` |
+| `BIGRAG_AUTH_SETUP_IP_RATE_LIMIT` | First-admin setup attempts per IP per window | `10` |
+| `BIGRAG_AUTH_PRINCIPAL_CACHE_TTL` | Principal cache TTL in seconds | `60` |
 | `BIGRAG_EMBEDDING_API_KEY` | Default embedding API key | — |
+| `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider | `openai` |
+| `BIGRAG_EMBEDDING_MODEL` | Default embedding model | `text-embedding-3-small` |
+| `BIGRAG_EMBEDDING_DIMENSION` | Default embedding vector dimension | `1536` |
 | `BIGRAG_EMBEDDING_BASE_URL` | Base URL for OpenAI-compatible embedding endpoints | — |
+| `BIGRAG_EMBEDDING_CONCURRENCY` | Max concurrent embedding requests | `8` |
+| `BIGRAG_ALLOWED_EMBEDDING_BASE_URLS` | JSON allow-list for embedding base URLs | `[]` |
+| `BIGRAG_ALLOW_PRIVATE_EMBEDDING_BASE_URLS` | Allow private-network embedding endpoints | `false` |
+| `BIGRAG_CHAT_PROVIDER` | Chat provider | `openai` |
+| `BIGRAG_CHAT_MODEL` | Default chat model | `gpt-4o-mini` |
+| `BIGRAG_CHAT_BASE_URL` | Base URL for OpenAI-compatible chat endpoints | — |
+| `BIGRAG_CHAT_TEMPERATURE` | Default chat temperature | `0.2` |
+| `BIGRAG_CHAT_MAX_HISTORY_MESSAGES` | Max conversation history messages used for context | `12` |
+| `BIGRAG_CHAT_MAX_CONTEXT_CHARS` | Max retrieved-context characters per chat call | `120000` |
+| `BIGRAG_ALLOWED_CHAT_BASE_URLS` | JSON allow-list for chat base URLs | `[]` |
+| `BIGRAG_ALLOW_PRIVATE_CHAT_BASE_URLS` | Allow private-network chat endpoints | `false` |
 | `BIGRAG_MASTER_KEY` | Fernet key that encrypts provider credentials at rest (required in `prod`) | — |
+| `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys for staged rotation | `[]` |
 | `BIGRAG_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
 | `BIGRAG_INGESTION_WORKERS` | Background workers | `4` |
-| `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max upload size | `1024` |
+| `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max single-file upload size | `64` |
+| `BIGRAG_MAX_BATCH_UPLOAD_SIZE_MB` | Max total batch-upload size | `128` |
+| `BIGRAG_INGESTION_BATCH_SIZE` | Vectors per embedding batch | `128` |
+| `BIGRAG_CONVERSION_TIMEOUT` | Docling conversion timeout in seconds | `300` |
+| `BIGRAG_CONVERSION_PDF_OCR_ENABLED` | Enable OCR for scanned PDFs | `true` |
+| `BIGRAG_QUEUE_MAX_DEPTH` | Max pending jobs in the ingestion queue | `10000` |
+| `BIGRAG_COLLECTION_CACHE_TTL` | Collection metadata cache TTL in seconds | `30` |
+| `BIGRAG_QUERY_EMBEDDING_CACHE_TTL` | Query embedding cache TTL in seconds | `3600` |
+| `BIGRAG_QUERY_RESULT_CACHE_TTL` | Exact query-result cache TTL in seconds | `30` |
+| `BIGRAG_WEBHOOK_DELIVERY_TIMEOUT` | Webhook HTTP timeout in seconds | `10` |
+| `BIGRAG_WEBHOOK_RETRY_DELAYS` | JSON array of webhook retry delays in seconds | `[10,30,90]` |
+| `BIGRAG_WEBHOOK_MAX_COUNT` | Max configured webhooks | `50` |
+| `BIGRAG_ALLOW_LOCAL_WEBHOOKS` | Allow webhook URLs on private/local networks | `false` |
 
 ## Supported Formats
 

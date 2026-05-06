@@ -4,11 +4,11 @@
 # also be set as environment variables with the BIGRAG_ prefix (env vars override
 # TOML). Keys must match Settings field names — see api/bigrag/config.py.
 #
-# All values shown below are defaults; uncomment to customize.
+# Most values shown below are defaults; optional unset values show common examples.
 
 # env = "dev"                   # dev | prod (prod enables startup safety checks)
 
-# host = "0.0.0.0"
+# host = "127.0.0.1"
 # port = 4000
 # workers = 1
 # log_level = "info"
@@ -25,7 +25,7 @@
 # qdrant_api_key = ""
 # qdrant_connect_timeout_seconds = 10
 # qdrant_required = false
-# qdrant_search_ef = 128
+# qdrant_search_ef = 128           # optional Qdrant HNSW ef override; unset by default
 
 # redis_url = "redis://localhost:6379/0"
 
@@ -40,6 +40,10 @@
 # session_cookie_secure = false   # set true behind HTTPS
 # session_cookie_samesite = "lax"
 # session_cookie_domain = ""
+# auth_rate_limit_window_seconds = 60
+# auth_login_email_rate_limit = 5
+# auth_login_ip_rate_limit = 50
+# auth_setup_ip_rate_limit = 10
 # auth_principal_cache_ttl = 60
 
 # embedding_provider = "openai"   # openai | openai_compatible | cohere | voyage
@@ -48,6 +52,17 @@
 # embedding_base_url = ""          # required for openai_compatible endpoints
 # embedding_concurrency = 8
 # embedding_api_key = ""           # use BIGRAG_EMBEDDING_API_KEY in production
+# allowed_embedding_base_urls = []
+# allow_private_embedding_base_urls = false
+
+# chat_provider = "openai"         # openai | openai_compatible
+# chat_model = "gpt-4o-mini"
+# chat_base_url = ""               # required for openai_compatible endpoints
+# chat_temperature = 0.2
+# chat_max_history_messages = 12
+# chat_max_context_chars = 120000
+# allowed_chat_base_urls = []
+# allow_private_chat_base_urls = false
 
 # upload_dir = "./data/uploads"
 
@@ -65,3 +80,4 @@
 # webhook_delivery_timeout = 10
 # webhook_retry_delays = [10, 30, 90]
 # webhook_max_count = 50
+# allow_local_webhooks = false

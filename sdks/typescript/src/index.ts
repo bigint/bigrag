@@ -4,9 +4,13 @@ export { BigRAGCore } from "./core.js";
 export * from "./errors.js";
 export { normalizeFileInput } from "./files.js";
 export {
+  AdminResource,
+  AuthResource,
   ChatResource,
   CollectionsResource,
+  ConnectorsResource,
   DocumentsResource,
+  EvaluationsResource,
   QueryResource,
   VectorsResource,
   WebhooksResource,

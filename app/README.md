@@ -1,7 +1,8 @@
 # bigRAG
 
 A Next.js admin console for bigRAG — manage collections, upload documents,
-watch ingestion live, run RAG queries, and mint API keys for external clients.
+watch ingestion live, chat with citations, sync Google Drive sources, inspect
+access logs, and mint API/MCP keys for external clients.
 
 ## Running
 
