@@ -717,72 +717,62 @@ async def batch_progress_sse(
         queues = {doc_id: event_bus.subscribe(doc_id) for doc_id in doc_ids}
         pending = {asyncio.create_task(q.get()): doc_id for doc_id, q in queues.items()}
         try:
-            async with asyncio.timeout(600):
-                while len(completed_set) < len(doc_ids) and pending:
-                    done_tasks, _ = await asyncio.wait(
-                        pending,
-                        return_when=asyncio.FIRST_COMPLETED,
-                    )
-                    for task in done_tasks:
-                        event_doc_id = pending.pop(task)
-                        event = task.result()
-                        if event is None:
-                            progress_map[event_doc_id] = {
-                                "progress": 1.0,
-                                "status": "complete",
-                                "step": "complete",
-                                "message": "Complete",
-                            }
-                            completed_set.add(event_doc_id)
-                            document_id = event_doc_id
-                            document_status = "complete"
-                            document_step = "complete"
-                            document_progress = 1.0
-                        else:
-                            progress_map[event_doc_id] = {
-                                "progress": event.progress,
-                                "status": event.status,
-                                "step": event.step,
-                                "message": event.message,
-                            }
-                            document_id = event.document_id
-                            document_status = event.status
-                            document_step = event.step
-                            document_progress = event.progress
-
-                            if event.status not in ("complete", "failed"):
-                                pending[asyncio.create_task(queues[event_doc_id].get())] = (
-                                    event_doc_id
-                                )
-
-                        if document_status in ("complete", "failed"):
-                            completed_set.add(event_doc_id)
-
-                        done = len(completed_set)
-                        failed = sum(1 for d in progress_map.values() if d["status"] == "failed")
-                        avg_progress = sum(d["progress"] for d in progress_map.values()) / len(
-                            doc_ids
-                        )
-
-                        summary = {
-                            "step": "batch_progress",
-                            "status": "complete" if done == len(doc_ids) else "processing",
-                            "message": f"{done}/{len(doc_ids)} documents done",
-                            "progress": round(avg_progress, 3),
-                            "total": len(doc_ids),
-                            "completed": done - failed,
-                            "failed": failed,
-                            "document_id": document_id,
-                            "document_status": document_status,
-                            "document_step": document_step,
-                            "document_progress": document_progress,
+            while len(completed_set) < len(doc_ids) and pending:
+                done_tasks, _ = await asyncio.wait(
+                    pending,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                for task in done_tasks:
+                    event_doc_id = pending.pop(task)
+                    event = task.result()
+                    if event is None:
+                        progress_map[event_doc_id] = {
+                            "progress": 1.0,
+                            "status": "complete",
+                            "step": "complete",
+                            "message": "Complete",
                         }
-                        yield f"data: {orjson.dumps(summary).decode()}\n\n"
-        except TimeoutError:
-            yield (
-                'data: {"step":"timeout","status":"timeout",'
-                '"message":"Stream timed out after 10 minutes","progress":0}\n\n'
-            )
+                        completed_set.add(event_doc_id)
+                        document_id = event_doc_id
+                        document_status = "complete"
+                        document_step = "complete"
+                        document_progress = 1.0
+                    else:
+                        progress_map[event_doc_id] = {
+                            "progress": event.progress,
+                            "status": event.status,
+                            "step": event.step,
+                            "message": event.message,
+                        }
+                        document_id = event.document_id
+                        document_status = event.status
+                        document_step = event.step
+                        document_progress = event.progress
+
+                        if event.status not in ("complete", "failed"):
+                            pending[asyncio.create_task(queues[event_doc_id].get())] = event_doc_id
+
+                    if document_status in ("complete", "failed"):
+                        completed_set.add(event_doc_id)
+
+                    done = len(completed_set)
+                    failed = sum(1 for d in progress_map.values() if d["status"] == "failed")
+                    avg_progress = sum(d["progress"] for d in progress_map.values()) / len(doc_ids)
+
+                    summary = {
+                        "step": "batch_progress",
+                        "status": "complete" if done == len(doc_ids) else "processing",
+                        "message": f"{done}/{len(doc_ids)} documents done",
+                        "progress": round(avg_progress, 3),
+                        "total": len(doc_ids),
+                        "completed": done - failed,
+                        "failed": failed,
+                        "document_id": document_id,
+                        "document_status": document_status,
+                        "document_step": document_step,
+                        "document_progress": document_progress,
+                    }
+                    yield f"data: {orjson.dumps(summary).decode()}\n\n"
         finally:
             for task in pending:
                 task.cancel()
@@ -816,15 +806,8 @@ async def document_progress_sse(
             'data: {"step":"connected","status":"connected",'
             '"message":"Listening for progress","progress":0}\n\n'
         )
-        try:
-            async with asyncio.timeout(600):
-                async for event in event_bus.stream(document_id):
-                    yield event.to_sse()
-        except TimeoutError:
-            yield (
-                'data: {"step":"timeout","status":"timeout",'
-                '"message":"Stream timed out after 10 minutes","progress":0}\n\n'
-            )
+        async for event in event_bus.stream(document_id):
+            yield event.to_sse()
 
     return StreamingResponse(
         generate(),

@@ -9,7 +9,7 @@ import redis.asyncio as aioredis
 
 from bigrag.logging import get_logger
 from bigrag.services import embedding_cache
-from bigrag.services.conversion import _get_docling_converter, extract_pdf_text
+from bigrag.services.conversion import _get_docling_converter, extract_pdf_text, get_pdf_page_count
 from bigrag.services.embedding import truncate_to_tokens
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import IngestionJob
@@ -85,6 +85,16 @@ LEASE_KEY_PREFIX = "bigrag:ingestion:lease:"
 COLLECTION_EPOCH_KEY_PREFIX = "bigrag:ingestion:collection_epoch:"
 DOCUMENT_EPOCH_KEY_PREFIX = "bigrag:ingestion:document_epoch:"
 _LEASE_TTL_SECONDS = 30 * 60
+_PDF_OCR_CHUNK_PAGES = 10
+_PDF_OCR_PROGRESS_START = 0.16
+_PDF_OCR_PROGRESS_END = 0.35
+
+
+def _docling_result_text(result) -> str:
+    text = result.document.export_to_markdown()
+    if not text.strip():
+        text = result.document.export_to_text()
+    return text
 
 
 def _lease_key(job_id: str) -> str:
@@ -353,6 +363,172 @@ class IngestionQueue:
 
     _PLAIN_TEXT_EXTS = {".txt", ".csv", ".tsv", ".md", ".json", ".xml"}
 
+    async def _ocr_scanned_pdf(
+        self,
+        *,
+        file_data: bytes,
+        suffix: str,
+        job: IngestionJob,
+        prefix: str,
+        start_time: float,
+    ) -> str:
+        import tempfile
+
+        from bigrag.config import settings as _settings
+
+        def _write_pdf() -> str:
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+            try:
+                tmp.write(file_data)
+                tmp.close()
+                return tmp.name
+            except Exception:
+                tmp.close()
+                raise
+
+        tmp_path = await asyncio.to_thread(_write_pdf)
+        current_start = 0
+        current_end = 0
+        try:
+            total_pages = await asyncio.to_thread(get_pdf_page_count, tmp_path)
+            if total_pages <= 0:
+                raise ValueError("PDF contains no pages")
+
+            chunk_pages = _PDF_OCR_CHUNK_PAGES
+            total_chunks = (total_pages + chunk_pages - 1) // chunk_pages
+            logger.info(
+                f"{prefix} scanned pdf OCR start",
+                pages=total_pages,
+                chunk_pages=chunk_pages,
+                timeout_per_chunk=_settings.conversion_timeout,
+            )
+            self._emit(
+                job.document_id,
+                "ocr",
+                "processing",
+                f"OCRing scanned PDF ({total_pages:,} pages)",
+                _PDF_OCR_PROGRESS_START,
+                collection_name=job.collection_name,
+                pages_total=total_pages,
+                chunk_pages=chunk_pages,
+            )
+
+            converter = await asyncio.to_thread(_get_docling_converter, pdf_ocr_enabled=True)
+            texts: list[str] = []
+
+            for chunk_index, current_start in enumerate(
+                range(1, total_pages + 1, chunk_pages),
+                start=1,
+            ):
+                current_end = min(current_start + chunk_pages - 1, total_pages)
+                await self._ensure_job_current(job)
+                chunk_progress = _PDF_OCR_PROGRESS_START + (
+                    (_PDF_OCR_PROGRESS_END - _PDF_OCR_PROGRESS_START)
+                    * ((current_start - 1) / total_pages)
+                )
+                self._emit(
+                    job.document_id,
+                    "ocr",
+                    "processing",
+                    f"OCR pages {current_start:,}-{current_end:,} of {total_pages:,}",
+                    chunk_progress,
+                    collection_name=job.collection_name,
+                    page_start=current_start,
+                    page_end=current_end,
+                    pages_total=total_pages,
+                    chunk=chunk_index,
+                    total_chunks=total_chunks,
+                )
+
+                chunk_start_time = time.monotonic()
+                try:
+                    result = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            converter.convert,
+                            tmp_path,
+                            page_range=(current_start, current_end),
+                        ),
+                        timeout=_settings.conversion_timeout,
+                    )
+                except TimeoutError as e:
+                    raise ValueError(
+                        "Scanned PDF OCR timed out while processing "
+                        f"pages {current_start}-{current_end} after "
+                        f"{_settings.conversion_timeout}s"
+                    ) from e
+
+                chunk_text = _docling_result_text(result).strip()
+                if chunk_text:
+                    texts.append(chunk_text)
+
+                elapsed = time.monotonic() - chunk_start_time
+                pages_done = current_end
+                progress = _PDF_OCR_PROGRESS_START + (
+                    (_PDF_OCR_PROGRESS_END - _PDF_OCR_PROGRESS_START) * (pages_done / total_pages)
+                )
+                logger.info(
+                    f"{prefix} scanned pdf OCR chunk complete",
+                    page_start=current_start,
+                    page_end=current_end,
+                    pages_total=total_pages,
+                    chunk=chunk_index,
+                    total_chunks=total_chunks,
+                    chars=len(chunk_text),
+                    elapsed=round(elapsed, 2),
+                )
+                self._emit(
+                    job.document_id,
+                    "ocr",
+                    "processing",
+                    f"OCRed pages {current_start:,}-{current_end:,} of {total_pages:,}",
+                    progress,
+                    collection_name=job.collection_name,
+                    page_start=current_start,
+                    page_end=current_end,
+                    pages_done=pages_done,
+                    pages_total=total_pages,
+                    chunk=chunk_index,
+                    total_chunks=total_chunks,
+                    chars=len(chunk_text),
+                    elapsed=round(elapsed, 2),
+                )
+
+            text = "\n\n".join(texts)
+            if not text.strip():
+                raise ValueError("Document produced no extractable text")
+
+            elapsed = time.monotonic() - start_time
+            logger.info(
+                f"{prefix} scanned pdf OCR complete",
+                pages_total=total_pages,
+                chunks=total_chunks,
+                chars=len(text),
+                elapsed=round(elapsed, 2),
+            )
+            self._emit(
+                job.document_id,
+                "converted",
+                "processing",
+                f"OCR parsed {total_pages:,} pages in {elapsed:.1f}s",
+                _PDF_OCR_PROGRESS_END,
+                collection_name=job.collection_name,
+                pages_total=total_pages,
+                chunks=total_chunks,
+                elapsed=round(elapsed, 2),
+            )
+            self._emit(
+                job.document_id,
+                "text_extracted",
+                "processing",
+                f"Extracted {len(text):,} characters",
+                0.40,
+                collection_name=job.collection_name,
+                chars=len(text),
+            )
+            return text
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
+
     async def _convert_document(self, job: IngestionJob, prefix: str) -> str:
 
         import tempfile
@@ -447,6 +623,14 @@ class IngestionQueue:
                     "Remove the override or set conversion_pdf_ocr_enabled=true."
                 )
 
+            return await self._ocr_scanned_pdf(
+                file_data=file_data,
+                suffix=suffix,
+                job=job,
+                prefix=prefix,
+                start_time=t0,
+            )
+
         def _write_and_convert():
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
             try:
@@ -492,9 +676,7 @@ class IngestionQueue:
             elapsed=round(elapsed, 2),
         )
 
-        text = result.document.export_to_markdown()
-        if not text.strip():
-            text = result.document.export_to_text()
+        text = _docling_result_text(result)
         if not text.strip():
             raise ValueError("Document produced no extractable text")
 

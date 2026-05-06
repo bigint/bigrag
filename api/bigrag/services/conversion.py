@@ -56,6 +56,16 @@ def extract_pdf_text(path: str | Path) -> str:
     return text
 
 
+def get_pdf_page_count(path: str | Path) -> int:
+    from pypdfium2 import PdfDocument
+
+    pdf = PdfDocument(str(path))
+    try:
+        return len(pdf)
+    finally:
+        pdf.close()
+
+
 def _get_docling_converter(*, pdf_ocr_enabled: bool = True):
     cached = _docling_converters.get(pdf_ocr_enabled)
     if cached is not None:
