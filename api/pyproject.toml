@@ -6,7 +6,7 @@ license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0,<1",
-    "starlette>=0.40.0,<1",
+    "starlette>=1.0.0,<2",
     "uvicorn[standard]>=0.34.0,<1",
     "asyncpg>=0.30.0,<1",
     "sqlalchemy[asyncio]>=2.0.36,<3",
@@ -27,7 +27,7 @@ dependencies = [
     "orjson>=3.10.0,<4",
     "structlog>=24.4.0,<26",
     "argon2-cffi>=23.1.0,<26",
-    "cryptography>=44.0.0,<48",
+    "cryptography>=48.0.0,<49",
     "mcp>=1.12.0,<2",
     "tiktoken>=0.8.0,<1",
 ]

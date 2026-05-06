@@ -32,6 +32,7 @@
       "website/**/*.mjs",
       "app/src/**/*.ts",
       "app/src/**/*.tsx",
+      "!**/.venv",
       "!**/.source",
       "!**/.next",
       "!**/dist"
