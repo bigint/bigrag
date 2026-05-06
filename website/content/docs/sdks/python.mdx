@@ -69,6 +69,7 @@ The SDK follows a resource namespace pattern:
 |---|---|
 | `client.collections` | Collection CRUD and stats |
 | `client.documents` | Document upload, list, delete, batch ops |
+| `client.chat` | Generated answers, streaming, and conversation CRUD |
 | `client.queries` | Single, multi-collection, and batch queries |
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
@@ -156,6 +157,39 @@ doc = await client.documents.get_by_id("doc-id")
 chunks = await client.documents.get_chunks_by_id("doc-id")
 ```
 
+## Chat
+
+```python
+# Non-streaming generated answer with citations
+answer = await client.chat.create({
+    "collection": "docs",
+    "message": "What is the PTO policy?",
+    "top_k": 8,
+    "search_mode": "hybrid",
+})
+print(answer["assistant_message"]["content"])
+
+# Continue the same conversation
+followup = await client.chat.create({
+    "conversation_id": answer["conversation"]["id"],
+    "message": "Summarize that in two bullets.",
+})
+
+# Stream SSE events
+async for event in client.chat.stream({
+    "collection": "docs",
+    "message": "Answer with citations",
+}):
+    if event["event"] == "delta":
+        print(event["data"]["delta"], end="")
+
+# Conversation CRUD
+chats = await client.chat.list(limit=20)
+detail = await client.chat.get(chats["conversations"][0]["id"])
+await client.chat.update(detail["conversation"]["id"], title="Policy Q&A")
+await client.chat.delete(detail["conversation"]["id"])
+```
+
 ## Queries
 
 ```python
@@ -220,23 +254,21 @@ result = await client.webhooks.test("webhook-id")
 deliveries = await client.webhooks.list_deliveries("webhook-id", limit=10)
 ```
 
-## SSE Progress Streaming
+## Status Polling
 
-Track document processing in real-time:
+Track document processing with REST polling:
 
 ```python
-# Single document progress
-async for event in client.documents.stream_progress("docs", "doc-id"):
-    print(f"[{event['progress']:.0%}] {event['step']}: {event['message']}")
+# Single document status
+doc = await client.documents.get("docs", "doc-id")
+while doc["status"] in ("pending", "processing"):
+    await asyncio.sleep(2)
+    doc = await client.documents.get("docs", doc["id"])
+    print(doc["progress"]["message"] if doc.get("progress") else doc["status"])
 
-# Batch progress (e.g., after batch upload)
+# Batch status (e.g., after batch upload)
 doc_ids = [d["id"] for d in result["documents"]]
-async for event in client.documents.stream_batch_progress("docs", doc_ids):
-    print(
-        f"[{event['progress']:.0%}] "
-        f"{event['completed']}/{event['total']} done, "
-        f"{event['failed']} failed"
-    )
+statuses = await client.documents.batch_get_status("docs", doc_ids)
 ```
 
 ## Collection-Scoped Client

@@ -79,17 +79,17 @@ curl -X POST http://localhost:4000/v1/admin/api-keys \
 
 Send the key as a bearer token:
 
-<Tabs items={["Header", "Query (SSE only)"]}>
+<Tabs items={["Header", "Query (collection SSE only)"]}>
 <Tab value="Header">
 ```bash
 curl http://localhost:4000/v1/collections \
   -H "Authorization: Bearer bigrag_sk_…"
 ```
 </Tab>
-<Tab value="Query (SSE only)">
+<Tab value="Query (collection SSE only)">
 ```bash
-# For EventSource / SSE clients that can't set headers. Only paths ending
-# in /events or /progress accept ?token= — every other endpoint requires
+# For EventSource / SSE clients that can't set headers. Only collection
+# event paths ending in /events accept ?token= — every other endpoint requires
 # the Authorization header so the secret never lands in URL access logs.
 curl "http://localhost:4000/v1/collections/docs/events?token=bigrag_sk_…"
 ```
@@ -116,7 +116,7 @@ Scopes use `resource:action` with `*` as a wildcard. Common shapes:
 | `collection:read` | List / get collections |
 | `collection:write` | Create / update / reembed / truncate collections, plus direct vector upsert/delete |
 | `document:upload` | Upload documents, batch upload, and reprocess |
-| `document:read` | List / get / download documents, chunks / progress, batch get/status, and global `/v1/documents/{id}` lookups |
+| `document:read` | List / get / download documents, chunks, batch get/status, and global `/v1/documents/{id}` lookups |
 | `document:delete` | Delete documents, including batch delete |
 | `query:read` | Run queries |
 | `webhook:*` | Manage webhooks |

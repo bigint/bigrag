@@ -1,0 +1,102 @@
+import type {
+  ChatConversation,
+  ChatCreateBody,
+  ChatMessage,
+  ChatSource,
+  QueryTimings,
+} from "@/types/bigrag";
+
+export type ChatStreamEvent =
+  | { event: "conversation"; data: ChatConversation }
+  | { event: "user_message"; data: ChatMessage }
+  | {
+      event: "sources";
+      data: { collection: string | null; sources: ChatSource[]; timings?: QueryTimings };
+    }
+  | { event: "delta"; data: { delta: string } }
+  | { event: "assistant_message"; data: ChatMessage }
+  | { event: "done"; data: { conversation: ChatConversation } }
+  | { event: "error"; data: { error: string } };
+
+type StreamOptions = {
+  body: ChatCreateBody;
+  signal?: AbortSignal;
+  onEvent: (event: ChatStreamEvent) => void;
+};
+
+class ChatStreamError extends Error {
+  constructor(
+    message: string,
+    public status?: number,
+  ) {
+    super(message);
+  }
+}
+
+export const streamChat = async (opts: StreamOptions): Promise<void> => {
+  const res = await fetch("/api/bigrag/v1/chat", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ ...opts.body, stream: true }),
+    signal: opts.signal,
+  });
+
+  if (!res.ok || !res.body) {
+    let detail = "Chat request failed";
+    try {
+      const err = (await res.json()) as { detail?: string };
+      if (err.detail) detail = err.detail;
+    } catch {
+      detail = `${res.status} ${res.statusText}`;
+    }
+    throw new ChatStreamError(detail, res.status);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const frames = buffer.split("\n\n");
+    buffer = frames.pop() ?? "";
+
+    for (const frame of frames) {
+      const parsed = parseFrame(frame);
+      if (!parsed) continue;
+      if ("done" in parsed) return;
+      opts.onEvent(parsed.event);
+    }
+  }
+};
+
+const parseFrame = (frame: string): { done: true } | { event: ChatStreamEvent } | null => {
+  let eventName = "message";
+  const data: string[] = [];
+  for (const line of frame.split("\n")) {
+    if (line.startsWith("event: ")) {
+      eventName = line.slice(7).trim();
+    } else if (line.startsWith("data: ")) {
+      data.push(line.slice(6));
+    }
+  }
+  const payload = data.join("\n");
+  if (!payload) return null;
+  if (payload === "[DONE]") return { done: true };
+  try {
+    return {
+      event: {
+        event: eventName,
+        data: JSON.parse(payload) as unknown,
+      } as ChatStreamEvent,
+    };
+  } catch {
+    return null;
+  }
+};

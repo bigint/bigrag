@@ -71,7 +71,7 @@ Under the hood the endpoint is a FastMCP server with
 the bearer key and is dispatched through the bigRAG REST API, so auth and
 scope rules apply uniformly.
 
-## Local stdio (Claude Desktop, legacy Cursor)
+## Local stdio (Claude Desktop, older Cursor)
 
 Install the CLI:
 
@@ -163,8 +163,8 @@ Once configured:
 - Ingestion (upload and webhooks) is intentionally not exposed —
   MCP tools target retrieval workflows. Use the HTTP API, a language
   SDK, or the admin UI for writes.
-- Streaming SSE endpoints (document progress, collection events) are
-  not wrapped — MCP tools are request/response only.
+- Streaming SSE endpoints (collection events) are not wrapped — MCP tools
+  are request/response only.
 - OAuth 2.0 flows are not implemented. Remote HTTP clients must send
   `Authorization: Bearer ...`; URL query-token authentication is not
   accepted on `/mcp`.

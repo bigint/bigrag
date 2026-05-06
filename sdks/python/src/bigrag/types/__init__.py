@@ -35,6 +35,16 @@ from bigrag.types.auth import (
     User,
     WhoamiResponse,
 )
+from bigrag.types.chat import (
+    ChatBody,
+    ChatConversation,
+    ChatCreateResponse,
+    ChatDetailResponse,
+    ChatListResponse,
+    ChatMessage,
+    ChatSource,
+    ChatStreamEvent,
+)
 from bigrag.types.collections import (
     Collection,
     CollectionListResponse,
@@ -107,6 +117,15 @@ __all__ = [
     "SessionResponse",
     "WhoamiResponse",
     "PreferencesResponse",
+    # Chat
+    "ChatBody",
+    "ChatSource",
+    "ChatMessage",
+    "ChatConversation",
+    "ChatListResponse",
+    "ChatDetailResponse",
+    "ChatCreateResponse",
+    "ChatStreamEvent",
     # Admin
     "UserListResponse",
     "CreateUserBody",

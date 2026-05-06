@@ -93,6 +93,11 @@ async def lifespan(app: FastAPI):
     await dispatcher.start()
     app.state.webhook_dispatcher = dispatcher
 
+    from bigrag.services.google_drive import google_drive_scheduler
+
+    await google_drive_scheduler.start()
+    app.state.google_drive_scheduler = google_drive_scheduler
+
     from bigrag.services.cleanup import cleanup_old_data
     from bigrag.utils import safe_create_task
 
@@ -113,6 +118,7 @@ async def lifespan(app: FastAPI):
         await cleanup_task
     except asyncio.CancelledError:
         pass
+    await google_drive_scheduler.stop()
     await ingestion_queue.stop()
     await dispatcher.stop()
     await event_bus.close()
@@ -189,16 +195,18 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     from bigrag.routers.admin_access import router as admin_access_router
     from bigrag.routers.admin_api_keys import router as admin_api_keys_router
     from bigrag.routers.admin_audit import router as admin_audit_router
+    from bigrag.routers.admin_connectors import router as admin_connectors_router
     from bigrag.routers.admin_users import router as admin_users_router
     from bigrag.routers.auth import router as auth_router
+    from bigrag.routers.chat import router as chat_router
     from bigrag.routers.collections import router as collections_router
+    from bigrag.routers.connectors import router as connectors_router
     from bigrag.routers.documents import global_router as documents_global_router
     from bigrag.routers.documents import router as documents_router
     from bigrag.routers.embedding_presets import router as embedding_presets_router
     from bigrag.routers.evaluation import router as evaluation_router
     from bigrag.routers.health import router as health_router
     from bigrag.routers.mcp_servers import router as mcp_servers_router
-    from bigrag.routers.playground import router as playground_router
     from bigrag.routers.preferences import router as preferences_router
     from bigrag.routers.query import router as query_router
     from bigrag.routers.usage import router as usage_router
@@ -209,14 +217,16 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(preferences_router)
     app.include_router(admin_users_router)
     app.include_router(admin_api_keys_router)
+    app.include_router(admin_connectors_router)
     app.include_router(admin_access_router)
     app.include_router(mcp_servers_router)
     app.include_router(admin_audit_router)
     app.include_router(embedding_presets_router)
     app.include_router(collections_router)
+    app.include_router(connectors_router)
     app.include_router(documents_router)
     app.include_router(documents_global_router)
-    app.include_router(playground_router)
+    app.include_router(chat_router)
     app.include_router(query_router)
     app.include_router(evaluation_router)
     app.include_router(usage_router)

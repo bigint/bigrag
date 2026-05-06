@@ -11,6 +11,7 @@ from bigrag._files import FileInput
 from bigrag.resources import (
     AdminResource,
     AuthResource,
+    ChatResource,
     CollectionsResource,
     DocumentsResource,
     EvaluationsResource,
@@ -19,6 +20,13 @@ from bigrag.resources import (
     WebhooksResource,
 )
 from bigrag.types.analytics import AnalyticsResponse
+from bigrag.types.chat import (
+    ChatBody,
+    ChatCreateResponse,
+    ChatDetailResponse,
+    ChatListResponse,
+    ChatStreamEvent,
+)
 from bigrag.types.collections import CollectionStatsResponse
 from bigrag.types.common import (
     HealthResponse,
@@ -58,6 +66,7 @@ class BigRAG(BigRAGCore):
     queries: QueryResource
     vectors: VectorsResource
     webhooks: WebhooksResource
+    chat: ChatResource
     auth: AuthResource
     admin: AdminResource
     evaluations: EvaluationsResource
@@ -69,6 +78,7 @@ class BigRAG(BigRAGCore):
         self.queries = QueryResource(self)
         self.vectors = VectorsResource(self)
         self.webhooks = WebhooksResource(self)
+        self.chat = ChatResource(self)
         self.auth = AuthResource(self)
         self.admin = AdminResource(self)
         self.evaluations = EvaluationsResource(self)
@@ -102,6 +112,30 @@ class BigRAG(BigRAGCore):
             params["window_days"] = str(window_days)
         return await self._request("GET", "/v1/usage", params=params)
 
+    async def chat_create(self, body: ChatBody) -> ChatCreateResponse:
+        """Create a non-streaming chat turn."""
+        return await self.chat.create(body)
+
+    async def chat_stream(
+        self, body: ChatBody
+    ) -> AsyncGenerator[ChatStreamEvent, None]:
+        """Stream a chat turn as SSE events."""
+        async for event in self.chat.stream(body):
+            yield event
+
+    async def list_chats(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> ChatListResponse:
+        """List owned chat conversations."""
+        return await self.chat.list(limit=limit, offset=offset)
+
+    async def get_chat(self, conversation_id: str) -> ChatDetailResponse:
+        """Get a chat conversation and messages."""
+        return await self.chat.get(conversation_id)
+
     def collection(self, name: str) -> CollectionClient:
         """Create a scoped client for a specific collection."""
         return CollectionClient(self, name)
@@ -121,9 +155,7 @@ class CollectionClient:
         self, file: FileInput, *, metadata: dict[str, Any] | None = None
     ) -> Document:
         """Upload a document to this collection."""
-        return await self._client.documents.upload(
-            self._name, file, metadata=metadata
-        )
+        return await self._client.documents.upload(self._name, file, metadata=metadata)
 
     async def list_documents(
         self,
@@ -155,9 +187,7 @@ class CollectionClient:
 
     async def batch_get_status(self, document_ids: list[str]) -> BatchStatusResponse:
         """Get the processing status of multiple documents."""
-        return await self._client.documents.batch_get_status(
-            self._name, document_ids
-        )
+        return await self._client.documents.batch_get_status(self._name, document_ids)
 
     async def batch_get_documents(
         self, document_ids: list[str]
@@ -202,24 +232,6 @@ class CollectionClient:
     async def analytics(self) -> AnalyticsResponse:
         """Get analytics for this collection."""
         return await self._client.get_analytics(self._name)
-
-    async def stream_document_progress(
-        self, document_id: str
-    ) -> AsyncGenerator[ProgressEvent, None]:
-        """Stream real-time processing progress for a document."""
-        async for event in self._client.documents.stream_progress(
-            self._name, document_id
-        ):
-            yield event
-
-    async def stream_batch_progress(
-        self, document_ids: list[str]
-    ) -> AsyncGenerator[ProgressEvent, None]:
-        """Stream aggregated progress for multiple documents."""
-        async for event in self._client.documents.stream_batch_progress(
-            self._name, document_ids
-        ):
-            yield event
 
     async def stream_events(self) -> AsyncGenerator[ProgressEvent, None]:
         """Stream real-time events for this collection via SSE."""

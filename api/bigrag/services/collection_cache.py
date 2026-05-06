@@ -7,7 +7,7 @@ import sqlalchemy as sa
 
 from bigrag.config import settings
 from bigrag.db.engine import session_factory
-from bigrag.db.models import Collection
+from bigrag.db.models import Collection, EmbeddingPreset
 from bigrag.exceptions import NotFoundError
 from bigrag.services import redis_cache
 
@@ -16,7 +16,7 @@ def _cache_key(name: str) -> str:
     return f"collection:{name}"
 
 
-def _serialize(c: Collection) -> dict:
+def _serialize(c: Collection, preset: EmbeddingPreset | None = None) -> dict:
     return {
         "id": str(c.id),
         "name": c.name,
@@ -25,6 +25,9 @@ def _serialize(c: Collection) -> dict:
         "embedding_model": c.embedding_model,
         "embedding_api_key": c.embedding_api_key,
         "embedding_base_url": c.embedding_base_url,
+        "embedding_preset_id": str(c.embedding_preset_id) if c.embedding_preset_id else None,
+        "embedding_preset_api_key": preset.api_key if preset else None,
+        "embedding_preset_base_url": preset.base_url if preset else None,
         "dimension": c.dimension,
         "chunk_size": c.chunk_size,
         "chunk_overlap": c.chunk_overlap,
@@ -64,7 +67,10 @@ async def get_or_404(name: str) -> dict:
         collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
         if collection is None:
             raise NotFoundError("Collection", name)
-        serialized = _serialize(collection)
+        preset: EmbeddingPreset | None = None
+        if collection.embedding_preset_id is not None:
+            preset = await session.get(EmbeddingPreset, collection.embedding_preset_id)
+        serialized = _serialize(collection, preset)
         ttl = settings.collection_cache_ttl
         if ttl > 0:
             await redis_cache.set(_cache_key(name), serialized, ttl=ttl)
@@ -73,3 +79,14 @@ async def get_or_404(name: str) -> dict:
 
 async def invalidate(name: str) -> None:
     await redis_cache.delete(_cache_key(name))
+
+
+async def invalidate_for_preset(preset_id: uuid.UUID) -> None:
+    async with session_factory()() as session:
+        names = (
+            await session.scalars(
+                sa.select(Collection.name).where(Collection.embedding_preset_id == preset_id)
+            )
+        ).all()
+    for name in names:
+        await invalidate(name)

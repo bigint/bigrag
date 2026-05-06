@@ -21,21 +21,23 @@ const client = new BigRAG({
 });
 
 // List collections
-const { collections } = await client.listCollections();
+const { collections } = await client.collections.list();
 
 // Upload a document
-const doc = await client.uploadDocument("my_collection", file);
+const doc = await client.documents.upload("my_collection", file);
 
 // Query
-const results = await client.query("my_collection", {
+const results = await client.queries.query("my_collection", {
   query: "What is RAG?",
   top_k: 5,
 });
 
-// Stream document processing progress
-for await (const event of client.streamDocumentProgress("my_collection", doc.id)) {
-  console.log(event.step, event.progress);
-  if (event.status === "complete") break;
+// Poll document processing status
+let current = doc;
+while (current.status === "pending" || current.status === "processing") {
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  current = await client.documents.get("my_collection", doc.id);
+  console.log(current.progress?.message ?? current.status);
 }
 ```
 

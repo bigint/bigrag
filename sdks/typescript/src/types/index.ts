@@ -1,4 +1,5 @@
 export * from "./analytics.js";
+export * from "./chat.js";
 export * from "./collections.js";
 export * from "./common.js";
 export * from "./documents.js";

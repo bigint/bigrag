@@ -12,6 +12,8 @@ from bigrag.logging import get_logger
 logger = get_logger("bigrag.event_bus")
 
 CHANNEL_PREFIX = "bigrag:events:"
+LATEST_PREFIX = "bigrag:progress:"
+LATEST_TTL_SECONDS = 7 * 24 * 60 * 60
 
 _COMPLETE_MARKER = b'{"_complete":true}'
 
@@ -61,6 +63,7 @@ class EventBus:
         self._pubsub: aioredis.client.PubSub | None = None
         self._listener: asyncio.Task | None = None
         self._subs: dict[str, list[asyncio.Queue[IngestionEvent | None]]] = {}
+        self._latest: dict[str, IngestionEvent] = {}
 
     async def connect(self, redis_url: str) -> None:
         self._redis = aioredis.from_url(redis_url, decode_responses=False)
@@ -100,6 +103,7 @@ class EventBus:
                         q.put_nowait(None)
                     continue
                 event = IngestionEvent.deserialize(message["data"])
+                self._latest[event.document_id] = event
                 self._dispatch(key, event)
             except asyncio.CancelledError:
                 raise
@@ -126,21 +130,32 @@ class EventBus:
             self._subs.pop(key, None)
 
     def publish(self, event: IngestionEvent) -> None:
+        self._latest[event.document_id] = event
         if not self._redis:
             return
         data = event.serialize()
 
-        async def _safe_publish(channel: str) -> None:
+        async def _safe_publish() -> None:
             try:
-                await self._redis.publish(channel, data)
+                await self._redis.set(
+                    f"{LATEST_PREFIX}{event.document_id}",
+                    data,
+                    ex=LATEST_TTL_SECONDS,
+                )
+                await self._redis.publish(f"{CHANNEL_PREFIX}{event.document_id}", data)
+                if event.collection_name:
+                    await self._redis.publish(
+                        f"{CHANNEL_PREFIX}collection:{event.collection_name}",
+                        data,
+                    )
             except Exception as e:
-                logger.warning("event bus: publish failed", channel=channel, error=str(e))
+                logger.warning(
+                    "event bus: publish failed",
+                    document_id=event.document_id,
+                    error=str(e),
+                )
 
-        asyncio.ensure_future(_safe_publish(f"{CHANNEL_PREFIX}{event.document_id}"))
-        if event.collection_name:
-            asyncio.ensure_future(
-                _safe_publish(f"{CHANNEL_PREFIX}collection:{event.collection_name}")
-            )
+        asyncio.ensure_future(_safe_publish())
 
     def complete(self, document_id: str) -> None:
         for q in self._subs.get(document_id, []):
@@ -159,6 +174,31 @@ class EventBus:
                 )
 
         asyncio.ensure_future(_safe_publish())
+
+    async def latest(self, document_id: str) -> IngestionEvent | None:
+        if self._redis:
+            try:
+                raw = await self._redis.get(f"{LATEST_PREFIX}{document_id}")
+            except Exception as e:
+                logger.warning(
+                    "event bus: latest lookup failed",
+                    document_id=document_id,
+                    error=str(e),
+                )
+            else:
+                if raw is not None:
+                    try:
+                        event = IngestionEvent.deserialize(raw)
+                    except Exception as e:
+                        logger.warning(
+                            "event bus: latest payload invalid",
+                            document_id=document_id,
+                            error=str(e),
+                        )
+                    else:
+                        self._latest[document_id] = event
+                        return event
+        return self._latest.get(document_id)
 
     async def stream(self, document_id: str) -> AsyncIterator[IngestionEvent]:
         q = self.subscribe(document_id)

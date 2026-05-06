@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import json as _json
-from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
-from bigrag._errors import error_for_status
 from bigrag._files import FileInput, normalize_file_input
-from bigrag._sse import parse_sse_stream
 from bigrag.types.common import StatusResponse
 from bigrag.types.documents import (
     BatchDeleteDocumentsResponse,
@@ -19,20 +16,17 @@ from bigrag.types.documents import (
     DocumentChunkListResponse,
     DocumentListResponse,
 )
-from bigrag.types.sse import ProgressEvent
 
 if TYPE_CHECKING:
     from bigrag._core import BigRAGCore
+
 
 def _col_path(collection: str) -> str:
     return f"/v1/collections/{quote(collection, safe='')}"
 
 
 def _doc_path(collection: str, document_id: str) -> str:
-    return (
-        f"{_col_path(collection)}"
-        f"/documents/{quote(document_id, safe='')}"
-    )
+    return f"{_col_path(collection)}/documents/{quote(document_id, safe='')}"
 
 
 class DocumentsResource:
@@ -101,7 +95,9 @@ class DocumentsResource:
         if offset is not None:
             params["offset"] = str(offset)
         return await self._client._request(
-            "GET", f"{_col_path(collection)}/documents", params=params,
+            "GET",
+            f"{_col_path(collection)}/documents",
+            params=params,
         )
 
     async def get(self, collection: str, document_id: str) -> Document:
@@ -111,7 +107,8 @@ class DocumentsResource:
     async def get_by_id(self, document_id: str) -> Document:
         """Retrieve a document by ID (without specifying collection)."""
         return await self._client._request(
-            "GET", f"/v1/documents/{quote(document_id, safe='')}",
+            "GET",
+            f"/v1/documents/{quote(document_id, safe='')}",
         )
 
     async def delete(self, collection: str, document_id: str) -> StatusResponse:
@@ -121,7 +118,8 @@ class DocumentsResource:
     async def reprocess(self, collection: str, document_id: str) -> StatusResponse:
         """Trigger reprocessing of a document."""
         return await self._client._request(
-            "POST", f"{_doc_path(collection, document_id)}/reprocess",
+            "POST",
+            f"{_doc_path(collection, document_id)}/reprocess",
         )
 
     async def get_chunks(
@@ -139,7 +137,9 @@ class DocumentsResource:
         if offset is not None:
             params["offset"] = str(offset)
         return await self._client._request(
-            "GET", f"{_doc_path(collection, document_id)}/chunks", params=params,
+            "GET",
+            f"{_doc_path(collection, document_id)}/chunks",
+            params=params,
         )
 
     async def get_chunks_by_id(
@@ -171,7 +171,9 @@ class DocumentsResource:
         return f"{self._client.base_url}{path}"
 
     async def batch_get_status(
-        self, collection: str, document_ids: list[str],
+        self,
+        collection: str,
+        document_ids: list[str],
     ) -> BatchStatusResponse:
         """Get the processing status of multiple documents."""
         return await self._client._request(
@@ -181,7 +183,9 @@ class DocumentsResource:
         )
 
     async def batch_get(
-        self, collection: str, document_ids: list[str],
+        self,
+        collection: str,
+        document_ids: list[str],
     ) -> BatchGetDocumentsResponse:
         """Retrieve multiple documents at once."""
         return await self._client._request(
@@ -191,7 +195,9 @@ class DocumentsResource:
         )
 
     async def batch_delete(
-        self, collection: str, document_ids: list[str],
+        self,
+        collection: str,
+        document_ids: list[str],
     ) -> BatchDeleteDocumentsResponse:
         """Delete multiple documents at once."""
         return await self._client._request(
@@ -199,39 +205,3 @@ class DocumentsResource:
             f"{_col_path(collection)}/documents/batch/delete",
             json={"document_ids": document_ids},
         )
-
-    async def stream_batch_progress(
-        self, collection: str, document_ids: list[str],
-    ) -> AsyncGenerator[ProgressEvent, None]:
-        """Stream aggregated progress for multiple documents via SSE."""
-        ids_param = ",".join(document_ids)
-        path = f"{_col_path(collection)}/documents/batch/progress"
-        url = f"{self._client.base_url}{path}?ids={quote(ids_param, safe='')}"
-        async for event in self._stream_sse(url):
-            yield event
-
-    async def stream_progress(
-        self, collection: str, document_id: str,
-    ) -> AsyncGenerator[ProgressEvent, None]:
-        """Stream real-time processing progress for a document."""
-        path = f"{_doc_path(collection, document_id)}/progress"
-        url = f"{self._client.base_url}{path}"
-        async for event in self._stream_sse(url):
-            yield event
-
-    async def _stream_sse(
-        self, url: str,
-    ) -> AsyncGenerator[ProgressEvent, None]:
-        """Internal helper to stream SSE from a URL."""
-        request = self._client._client.build_request(
-            "GET", url, headers=self._client._headers(),
-        )
-        response = await self._client._client.send(request, stream=True)
-        if response.status_code >= 400:
-            await response.aread()
-            raise error_for_status(
-                response.status_code,
-                response.reason_phrase or "Unknown error",
-            )
-        async for event in parse_sse_stream(response):
-            yield event

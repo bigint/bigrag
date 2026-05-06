@@ -4,7 +4,6 @@ use crate::client::BigRag;
 use crate::core::urlencode;
 use crate::error::BigRagError;
 use crate::files::FileInput;
-use crate::sse::SseStream;
 use crate::types::common::StatusResponse;
 use crate::types::documents::{
     BatchDeleteDocumentsResponse, BatchGetDocumentsResponse, BatchStatusResponse, Document,
@@ -247,38 +246,4 @@ impl Documents<'_> {
         self.client.transport.get(&path, query).await
     }
 
-    /// Stream processing progress for a single document via SSE.
-    pub async fn stream_progress(
-        &self,
-        collection: &str,
-        document_id: &str,
-    ) -> Result<SseStream, BigRagError> {
-        let path = format!(
-            "/v1/collections/{}/documents/{}/progress",
-            urlencode(collection),
-            urlencode(document_id)
-        );
-        let response = self.client.transport.get_stream(&path).await?;
-        Ok(SseStream::new(response))
-    }
-
-    /// Stream processing progress for multiple documents via SSE.
-    pub async fn stream_batch_progress(
-        &self,
-        collection: &str,
-        document_ids: &[&str],
-    ) -> Result<SseStream, BigRagError> {
-        let ids = document_ids
-            .iter()
-            .map(|id| urlencode(id))
-            .collect::<Vec<_>>()
-            .join(",");
-        let path = format!(
-            "/v1/collections/{}/documents/batch/progress?ids={}",
-            urlencode(collection),
-            ids
-        );
-        let response = self.client.transport.get_stream(&path).await?;
-        Ok(SseStream::new(response))
-    }
 }

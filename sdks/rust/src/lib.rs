@@ -16,5 +16,5 @@ pub mod types;
 pub use client::{BigRag, BigRagBuilder, BigRagConfig, CollectionClient};
 pub use error::BigRagError;
 pub use files::FileInput;
-pub use resources::{Collections, Documents, Queries, Vectors, Webhooks};
+pub use resources::{Chats, Collections, Documents, Queries, Vectors, Webhooks};
 pub use sse::SseStream;

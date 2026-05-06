@@ -695,7 +695,8 @@ class IngestionQueue:
     async def _chunk_and_embed(self, job: IngestionJob, text: str, prefix: str) -> tuple[int, int]:
 
         from bigrag.config import settings as _settings
-        from bigrag.services.embedding import get_embedding_model
+        from bigrag.exceptions import ValidationError
+        from bigrag.services.collection_config import get_embedding_model_for
         from bigrag.services.ingestion import chunk_document
 
         vector_store = self._vector_store
@@ -707,25 +708,10 @@ class IngestionQueue:
 
         logger.info(f"{prefix} loading collection config", collection=job.collection_name)
         collection = await get_collection_or_404(job.collection_name)
-        api_key = collection.get("embedding_api_key") or _settings.embedding_api_key
-        base_url = collection.get("embedding_base_url") or _settings.embedding_base_url
-        if not api_key and job.embedding_provider in (
-            "openai",
-            "openai_compatible",
-            "cohere",
-            "voyage",
-        ):
-            raise ValueError(
-                f"Collection '{job.collection_name}' uses '{job.embedding_provider}' "
-                "embeddings but no API key is configured"
-            )
-        embedding_model = get_embedding_model(
-            provider=job.embedding_provider,
-            model_name=job.embedding_model,
-            dimension=job.embedding_dimension,
-            api_key=api_key,
-            base_url=base_url,
-        )
+        try:
+            embedding_model = get_embedding_model_for(collection)
+        except ValidationError as exc:
+            raise ValueError(str(exc)) from exc
         elapsed = time.monotonic() - t0
         logger.info(
             f"{prefix} model loaded provider={job.embedding_provider} "

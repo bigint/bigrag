@@ -1,5 +1,7 @@
 /// Analytics response types.
 pub mod analytics;
+/// Chat types (generated answers and persisted conversations).
+pub mod chat;
 /// Collection types (create, update, list, stats).
 pub mod collections;
 /// Common response types (status, pagination, health).
@@ -18,6 +20,7 @@ pub mod vectors;
 pub mod webhooks;
 
 pub use analytics::*;
+pub use chat::*;
 pub use collections::*;
 pub use common::*;
 pub use documents::*;

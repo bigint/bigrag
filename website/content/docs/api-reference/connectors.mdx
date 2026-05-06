@@ -1,0 +1,72 @@
+---
+title: Connectors
+description: Google Drive connector configuration, OAuth, source selection, and resync APIs.
+---
+
+Cloud connectors import remote files into the normal bigRAG document pipeline. Google Drive files are downloaded or exported, stored as source files, mapped to documents, and then ingested by the existing workers.
+
+## Admin Google Config
+
+```
+GET /v1/admin/connectors/google
+PUT /v1/admin/connectors/google
+```
+
+Session-only admin endpoints. The `PUT` body stores Google OAuth credentials:
+
+```json
+{
+  "enabled": true,
+  "client_id": "…apps.googleusercontent.com",
+  "client_secret": "…"
+}
+```
+
+Responses mask secret values and include `callback_url`, which must be registered in Google Cloud.
+
+## User Connection
+
+```
+GET /v1/connectors/google/account
+GET /v1/connectors/google/oauth/start?redirect_path=/collections/docs/documents
+GET /v1/connectors/google/oauth/start-url?redirect_path=/collections/docs/documents
+GET /v1/connectors/google/oauth/callback
+POST /v1/connectors/google/disconnect
+```
+
+These endpoints require session authentication. The OAuth flow uses `openid email profile` and `https://www.googleapis.com/auth/drive.readonly` so bigRAG can render an in-app Drive browser and sync selected files/folders.
+
+## Drive Browser
+
+```
+GET /v1/connectors/google/files?parent_id=root
+GET /v1/connectors/google/files?query=handbook
+```
+
+Returns the connected user's visible Drive files and folders, plus whether each item is supported by the ingestion pipeline.
+
+## Sources
+
+```
+GET /v1/connectors/google/sources?collection=docs
+POST /v1/connectors/google/sources
+PATCH /v1/connectors/google/sources/{source_id}
+DELETE /v1/connectors/google/sources/{source_id}
+POST /v1/connectors/google/sources/{source_id}/sync
+GET /v1/connectors/google/sync-jobs?source_id=…
+```
+
+Create a source from an in-app Drive browser selection:
+
+```json
+{
+  "collection_name": "docs",
+  "root_id": "drive-file-or-folder-id",
+  "root_name": "Handbook",
+  "root_mime_type": "application/vnd.google-apps.folder",
+  "source_type": "folder",
+  "metadata": { "team": "ops" }
+}
+```
+
+New sources start an initial sync and default to daily scheduled resync. Manual syncs detect additions, updates, and remote removals. If Drive returns a successful listing and a previously synced file is missing, bigRAG deletes the document, vectors, stored file, and connector manifest row.

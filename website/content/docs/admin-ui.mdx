@@ -1,6 +1,6 @@
 ---
 title: Admin UI
-description: Setup, collections, playground, API keys, webhooks, and settings.
+description: Setup, collections, chat, API keys, webhooks, and settings.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
@@ -25,10 +25,10 @@ The admin UI proxies every request through `/api/bigrag/[...path]` onto the back
 | `/collections` | List, create, delete, and search collections. |
 | `/collections/[name]` | Redirects to the collection's documents tab. |
 | `/collections/[name]/documents` | Upload (drag & drop or multi-file picker), list, inspect status, and delete documents. |
-| `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, live progress, failed-ingest error, reprocess, and delete. |
+| `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, polled progress, failed-ingest error, reprocess, and delete. |
 | `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, and rerank when enabled. |
 | `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
-| `/playground` | Chat-like playground; retrieve from one collection, then stream an OpenAI answer through the backend using your saved playground key. |
+| `/chat` | Production chat UI; retrieve from one collection, stream cited answers through the backend, and continue stored conversations. |
 | `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets) — reusable provider + model + key tuples. |
 | `/mcp` | Mint, scope, rotate, and revoke [MCP server](/docs/api-reference/mcp-servers) credentials for Claude Desktop / Cursor / custom MCP clients. |
 | `/api-keys` | Mint, scope, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
@@ -45,17 +45,17 @@ The admin UI proxies every request through `/api/bigrag/[...path]` onto the back
 | **Usage & cost** | `GET /v1/usage` | — |
 | **Audit log** | `GET /v1/admin/audit` | — |
 
-## Real-time progress
+## Status updates
 
-The admin UI subscribes to `GET /v1/collections/{name}/documents/{doc_id}/progress` on the document detail page while a document is pending or processing. The API also exposes `GET /v1/collections/{name}/events` for collection-wide document activity if you are building your own dashboard.
+The admin UI polls `GET /v1/collections/{name}/documents/{doc_id}` on the document detail page while a document is pending or processing. The response includes the latest `progress` snapshot, so the UI can show the current OCR/page/batch message and completed percentage without opening a document-specific SSE stream. The API also exposes `GET /v1/collections/{name}/events` for collection-wide document activity if you are building your own dashboard.
 
-## Playground specifics
+## Chat specifics
 
-The playground sends a single-collection retrieval request to `POST /v1/collections/{name}/query`, renders retrieved chunks and timings, and then streams the OpenAI answer through `POST /v1/playground/chat`. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, and system prompt persist via `/v1/auth/preferences`.
+The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, citations, and conversation persistence all happen on the backend. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
 
 ### Citations
 
-Retrieved chunks carry citation provenance — `document_id`, `chunk_index`, and Docling-derived `page_no` / `char_start` / `char_end` (see [`QueryResult`](/docs/api-reference/query)). The playground hands every chunk to the LLM as `[N] (filename, page X) <text>` and instructs the model to cite with bracketed numbers. In the rendered answer, every `[N]` token is a clickable link that expands the **View sources** panel and scrolls to the matching source card; the card itself shows the document filename, chunk index, page badge, and character offsets when present.
+Retrieved chunks carry citation provenance — `document_id`, `document_filename`, `chunk_index`, and Docling-derived `page_no` / `char_start` / `char_end` (see [`ChatSource`](/docs/api-reference/chat)). The backend hands every chunk to the LLM as `[N] (filename, page X) <text>` and instructs the model to cite with bracketed numbers. In the rendered answer, every `[N]` token is a clickable link that expands the **View sources** panel and scrolls to the matching source card; the card itself shows the document filename, chunk index, page badge, and character offsets when present.
 
 <Callout type="info">
 The admin UI uses session cookies exclusively. To automate anything the admin UI does, mint an API key at `/api-keys` and use it with one of the [SDKs](/docs/sdks/typescript) — or with raw HTTP using the same REST endpoints.
@@ -65,4 +65,4 @@ The admin UI uses session cookies exclusively. To automate anything the admin UI
 
 - **Pure backend deployment** — no admin UI process, everything via API keys and SDKs. Set `BIGRAG_ENV=prod` and use [`POST /v1/auth/setup`](/docs/api-reference/authentication) from an admin workstation to bootstrap.
 - **Embedded experiences** — if you're surfacing search inside your own app, skip admin UI and build against the [query API](/docs/api-reference/query).
-- **Read-only operators** — create a `member` account; they get `/overview`, `/collections` (read), and `/playground` but can't mutate.
+- **Read-only operators** — create a `member` account; they get `/overview`, `/collections` (read), and `/chat` but can't mutate.

@@ -15,7 +15,6 @@ import {
   Radio,
   ShieldCheck,
   SignalHigh,
-  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +30,7 @@ import type { AccessLogOverview } from "@/types/bigrag";
 const QUICK_ACTIONS = [
   {
     description: "Test retrieval with citations",
-    href: "/playground",
+    href: "/chat",
     icon: MessageCircle,
     title: "Run a query",
   },
@@ -85,7 +84,7 @@ const OverviewPage = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <PillLink href="/playground" icon={Sparkles} label="Ask bigRAG" />
+            <PillLink href="/chat" icon={MessageCircle} label="Ask bigRAG" />
             <PillLink href="/collections" icon={BookOpen} label="New collection" primary />
           </div>
         </header>

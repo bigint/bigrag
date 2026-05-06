@@ -95,7 +95,7 @@ class UserListResponse(BaseModel):
 
 
 VALID_RESOURCES = frozenset(
-    {"*", "collection", "document", "query", "webhook", "api_key", "user", "audit"}
+    {"*", "collection", "document", "query", "chat", "webhook", "api_key", "user", "audit"}
 )
 VALID_ACTIONS = frozenset({"*", "read", "write", "upload", "delete", "admin"})
 
@@ -125,7 +125,7 @@ class CreateApiKeyRequest(BaseModel):
     scopes: list[str] | None = Field(
         default=None,
         description=(
-            "List of 'resource:action' strings. Omit for a legacy "
+            "List of 'resource:action' strings. Omit for a "
             "full-access key. Examples: ['collection:read', "
             "'document:upload'] — or ['*:*'] for unrestricted."
         ),

@@ -1,4 +1,4 @@
-"""Server-Sent Events (SSE) stream parser for document progress."""
+"""Server-Sent Events (SSE) stream parser."""
 
 from __future__ import annotations
 
@@ -10,7 +10,9 @@ import httpx
 from bigrag.types.sse import ProgressEvent
 
 
-async def parse_sse_stream(response: httpx.Response) -> AsyncGenerator[ProgressEvent, None]:
+async def parse_sse_stream(
+    response: httpx.Response,
+) -> AsyncGenerator[ProgressEvent, None]:
     """Iterate over an SSE response and yield :class:`ProgressEvent` dicts.
 
     Lines that do not start with ``data: `` are silently skipped, as are

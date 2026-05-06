@@ -23,6 +23,10 @@ from bigrag.models.collection import (
 )
 from bigrag.models.common import StatusResponse
 from bigrag.services import audit, collection_cache
+from bigrag.services.credential_check import (
+    CredentialCheckError,
+    verify_provider_credentials,
+)
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
@@ -31,6 +35,28 @@ from bigrag.services.vector_store import vector_store
 logger = get_logger("bigrag.routers.collections")
 
 router = APIRouter(prefix="/v1/collections", tags=["collections"])
+
+
+async def _verify_embedding_credentials(
+    provider: str,
+    api_key: str,
+    base_url: str | None,
+    model: str | None,
+) -> None:
+    if provider not in ("openai", "openai_compatible", "cohere", "voyage"):
+        return
+    try:
+        await verify_provider_credentials(
+            provider,  # type: ignore[arg-type]
+            api_key,
+            base_url,
+            model=model,
+        )
+    except CredentialCheckError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Embedding provider rejected the API key: {exc.message}",
+        ) from exc
 
 
 def _collection_response(c: Collection) -> CollectionResponse:
@@ -48,7 +74,8 @@ def _collection_response(c: Collection) -> CollectionResponse:
         tenant_field=c.tenant_field,
         has_metadata_schema=bool(c.metadata_schema),
         document_count=c.document_count,
-        has_api_key=bool(c.embedding_api_key),
+        has_api_key=bool(c.embedding_api_key) or c.embedding_preset_id is not None,
+        embedding_preset_id=str(c.embedding_preset_id) if c.embedding_preset_id else None,
         reranking_enabled=c.reranking_enabled,
         reranking_model=c.reranking_model,
         has_reranking_api_key=bool(c.reranking_api_key),
@@ -158,6 +185,7 @@ async def create_collection(
     )
     dimension_override = body.dimension or (preset.dimension if preset else None)
 
+    await _verify_embedding_credentials(provider, api_key, base_url, model)
     try:
         from bigrag.services.embedding import get_embedding_model
 
@@ -192,8 +220,9 @@ async def create_collection(
         tenant_field=body.tenant_field,
         meta=body.metadata,
         metadata_schema=body.metadata_schema,
-        embedding_api_key=api_key,
-        embedding_base_url=base_url,
+        embedding_api_key=None if preset else api_key,
+        embedding_base_url=None if preset else base_url,
+        embedding_preset_id=preset.id if preset else None,
         reranking_enabled=body.reranking_enabled,
         reranking_model=body.reranking_model,
         reranking_api_key=body.reranking_api_key,
@@ -376,6 +405,24 @@ async def update_collection(
     if body.metadata is not None:
         collection.meta = body.metadata
         fields.append("metadata")
+    if body.embedding_api_key is not None:
+        new_key = body.embedding_api_key.strip()
+        if not new_key:
+            raise HTTPException(
+                status_code=422,
+                detail="embedding_api_key cannot be empty.",
+            )
+        await _verify_embedding_credentials(
+            collection.embedding_provider,
+            new_key,
+            collection.embedding_base_url,
+            collection.embedding_model,
+        )
+        collection.embedding_api_key = new_key
+        if collection.embedding_preset_id is not None:
+            collection.embedding_preset_id = None
+            fields.append("embedding_preset_id")
+        fields.append("embedding_api_key")
     if body.reranking_enabled is not None:
         collection.reranking_enabled = body.reranking_enabled
         fields.append("reranking_enabled")

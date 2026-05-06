@@ -26,10 +26,10 @@ export const features = [
   },
   {
     description:
-      "Stream document processing progress via Server-Sent Events. Track parsing, chunking, and embedding in real time.",
+      "Poll document and batch status over REST. Track queued, processing, ready, and failed ingest states.",
     href: "/docs/api-reference/documents",
     icon: <Upload className="size-5" />,
-    title: "Real-Time Progress",
+    title: "Status Polling",
   },
   {
     description:

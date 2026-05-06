@@ -1,3 +1,5 @@
+/// Chats resource.
+pub mod chat;
 /// Collections resource.
 pub mod collections;
 /// Documents resource.
@@ -9,6 +11,7 @@ pub mod vectors;
 /// Webhooks resource.
 pub mod webhooks;
 
+pub use chat::Chats;
 pub use collections::Collections;
 pub use documents::Documents;
 pub use queries::Queries;

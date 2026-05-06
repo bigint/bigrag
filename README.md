@@ -13,7 +13,8 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 - **Reranking** — Cohere reranking for improved result relevance
 - **Multi-collection queries** — search across collections in a single request
 - **Batch operations** — bulk upload, delete, status checks, and queries
-- **Real-time progress** — SSE streaming for document processing status
+- **Google Drive connector** — OAuth, in-app Drive browsing, and manual/scheduled resync
+- **Status polling** — REST endpoints for document and batch processing status
 - **Auth, audit, scopes** — admin accounts, session cookies, scoped `bigrag_sk_…` API keys, and full audit/access logs
 - **Metadata controls** — per-collection metadata schemas, file validation, and content-hash deduplication at ingest
 - **Retrieval evaluation runner** — ship recall@k / MRR / nDCG regressions against a golden set
@@ -80,6 +81,7 @@ graph TD
     API --> Webhooks[Webhooks]
 
     Documents -->|store files| Storage[(Storage<br/>Local disk)]
+    Documents -->|sync source files| Drive[Google Drive<br/>OAuth + in-app browser]
     Documents -->|enqueue| Redis[(Redis<br/>Job queue + event bus)]
     Redis -->|process| Worker[Ingestion worker]
 
@@ -131,14 +133,20 @@ graph TD
 | `POST` | `/v1/collections/{name}/documents/{id}/reprocess` | Reprocess document |
 | `GET` | `/v1/collections/{name}/documents/{id}/chunks` | Get document chunks |
 | `GET` | `/v1/collections/{name}/documents/{id}/file` | Download original file |
-| `GET` | `/v1/collections/{name}/documents/{id}/progress` | Stream processing progress (SSE) |
 | `POST` | `/v1/collections/{name}/documents/batch/upload` | Batch upload (up to 100) |
 | `POST` | `/v1/collections/{name}/documents/batch/status` | Batch status check |
 | `POST` | `/v1/collections/{name}/documents/batch/get` | Batch get documents |
 | `POST` | `/v1/collections/{name}/documents/batch/delete` | Batch delete |
-| `GET` | `/v1/collections/{name}/documents/batch/progress` | Stream batch progress (SSE) |
 | `GET` | `/v1/documents/{id}` | Cross-collection document lookup |
 | `GET` | `/v1/documents/{id}/chunks` | Cross-collection chunks lookup |
+| **Connectors** | | |
+| `GET`/`PUT` | `/v1/admin/connectors/google` | Configure Google OAuth |
+| `GET` | `/v1/connectors/google/account` | Current Google account status |
+| `GET` | `/v1/connectors/google/oauth/start-url` | Get Google OAuth redirect URL |
+| `GET` | `/v1/connectors/google/files` | Browse Drive files and folders |
+| `GET`/`POST` | `/v1/connectors/google/sources` | List or create Drive sources |
+| `PATCH`/`DELETE` | `/v1/connectors/google/sources/{id}` | Update or remove a Drive source |
+| `POST` | `/v1/connectors/google/sources/{id}/sync` | Manual Drive resync |
 | **Query** | | |
 | `POST` | `/v1/collections/{name}/query` | Query collection |
 | `POST` | `/v1/query` | Multi-collection query |
@@ -200,9 +208,12 @@ const client = new BigRAG({ apiKey: "your-key", baseUrl: "http://localhost:4000"
 // Upload a document
 const doc = await client.documents.upload("docs", new File([pdf], "paper.pdf"));
 
-// Stream processing progress
-for await (const event of client.documents.streamProgress("docs", doc.id)) {
-  console.log(event.step, event.progress);
+// Poll processing status
+let current = doc;
+while (current.status === "pending" || current.status === "processing") {
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  current = await client.documents.get("docs", doc.id);
+  console.log(current.progress?.message ?? current.status, current.progress?.progress ?? 0);
 }
 
 // Query

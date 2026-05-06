@@ -7,6 +7,8 @@
     "audit",
     "collections",
     "documents",
+    "connectors",
+    "chat",
     "query",
     "vectors",
     "embedding-presets",
@@ -14,7 +16,6 @@
     "webhooks",
     "usage",
     "evaluation",
-    "playground",
     "preferences",
     "health"
   ]

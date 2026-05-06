@@ -1,0 +1,81 @@
+---
+title: Chat
+description: Production chat API with retrieval, generated answers, citations, and persisted conversations.
+---
+
+Base path: `/v1/chat`
+
+The chat API retrieves chunks from a collection, builds the grounded prompt on the backend, calls the configured chat provider, returns cited answers, and stores the conversation. It supports session auth and API-key auth. Scoped API keys can use chat when granted `chat:read`, `chat:write`, or `chat:delete`; collection-pinned keys can only chat against their pinned collection.
+
+Supported providers are `openai` and `openai_compatible`. Save the provider key in the admin UI at `chat.openai_key`. API clients can also pass `provider_api_key` per request when they do not want to use the user's saved key.
+
+## Create Chat Turn
+
+```
+POST /v1/chat
+```
+
+Start a conversation:
+
+```json
+{
+  "collection": "handbook",
+  "message": "What is the PTO approval policy?",
+  "model": "gpt-4o-mini",
+  "top_k": 8,
+  "search_mode": "hybrid",
+  "rerank": true,
+  "stream": false
+}
+```
+
+Continue a conversation:
+
+```json
+{
+  "conversation_id": "2f8d0f1f-5484-4f04-9a6c-4d8acb5c4f14",
+  "message": "Summarize that in two bullets.",
+  "stream": false
+}
+```
+
+Non-streaming responses include the saved user message, saved assistant message, sources, timings, and conversation metadata.
+
+## Stream Chat Turn
+
+Set `stream: true` to receive Server-Sent Events:
+
+```text
+event: conversation
+data: {"id":"...","title":"..."}
+
+event: user_message
+data: {"id":"...","role":"user","content":"..."}
+
+event: sources
+data: {"collection":"handbook","sources":[...],"timings":{"total_ms":42.1}}
+
+event: delta
+data: {"delta":"PTO"}
+
+event: assistant_message
+data: {"id":"...","role":"assistant","content":"PTO requires..."}
+
+event: done
+data: {"conversation":{"id":"..."}}
+
+data: [DONE]
+```
+
+If provider generation fails after streaming starts, the API emits an `error` event followed by `data: [DONE]`.
+
+## Conversations
+
+```
+GET /v1/chat?limit=50&offset=0
+GET /v1/chat/{conversation_id}
+PATCH /v1/chat/{conversation_id}
+DELETE /v1/chat/{conversation_id}
+```
+
+`PATCH` accepts `{ "title": "PTO policy Q&A" }`. `DELETE` returns `{ "status": "deleted" }`.

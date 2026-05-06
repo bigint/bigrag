@@ -27,7 +27,7 @@ The SDK is fully typed, ships `py.typed`, and uses CalVer releases like `2026.5.
 ## Namespaces
 
 - `client.collections` for collection CRUD, stats, re-embedding, and event streams.
-- `client.documents` for uploads, batch operations, file URLs, and progress streams.
+- `client.documents` for uploads, batch operations, file URLs, and status polling.
 - `client.queries` for single, multi-collection, and batch retrieval queries.
 - `client.vectors` for raw vector upsert and delete.
 - `client.webhooks` for webhook management and delivery replay.

@@ -21,9 +21,9 @@ OpenRAG and bigRAG share the same foundation — both use **FastAPI**, **Docling
 
 | Category | Current bigRAG status | Remaining strategic gap |
 |---|---|---|
-| [Web UI & User Experience](#1-web-ui--user-experience) | The admin UI exists for setup, collection/document management, playground, API keys, MCP, webhooks, settings, audit, usage, and evals | No end-user chat history, folder upload, visual workflow builder, or vector DB console |
-| [Agentic RAG & LLM Integration](#2-agentic-rag--llm-integration) | The admin UI playground can retrieve chunks and stream an OpenAI answer through the backend using a saved key | No production LLM generation API, conversation store, agents, tool-call inspection, or built-in prompt orchestration |
-| [Cloud Storage Connectors](#3-cloud-storage-connectors) | File upload and batch upload are implemented | No OAuth-backed Google Drive, SharePoint, OneDrive, IBM COS, or connector abstraction |
+| [Web UI & User Experience](#1-web-ui--user-experience) | The admin UI exists for setup, collection/document management, persistent chat, API keys, MCP, webhooks, settings, audit, usage, and evals | No folder upload, visual workflow builder, or vector DB console |
+| [Agentic RAG & LLM Integration](#2-agentic-rag--llm-integration) | The chat API retrieves, generates cited answers, streams tokens, and stores conversations | No agents, tool-call inspection, contextual nudges, or visual prompt orchestration |
+| [Cloud Storage Connectors](#3-cloud-storage-connectors) | File upload, batch upload, and OAuth-backed Google Drive sync are implemented | No SharePoint, OneDrive, IBM COS, or multi-provider connector catalog |
 | [Search & Retrieval](#4-search--retrieval) | Semantic, keyword, hybrid RRF search, Cohere rerank, metadata filters, batch query, and analytics | No explicit semantic/keyword weight ratios, facets, prefix/autocomplete, saved filters, or one-index multi-model search |
 | [Authentication & Multi-Tenancy](#5-authentication--multi-tenancy) | Native admin/member accounts, session cookies, scoped API keys, and audit/access logs | No OAuth/OIDC, external IdP, document ownership, document ACLs, or tenant isolation |
 | [Observability & Operations](#6-observability--operations) | Readiness checks Postgres, Qdrant, Redis, and embedding provider; structlog JSON logging exists | No disk monitoring, container-log TUI, or LLM observability |
@@ -34,7 +34,7 @@ OpenRAG and bigRAG share the same foundation — both use **FastAPI**, **Docling
 
 ## 1. Web UI & User Experience
 
-OpenRAG ships a full **Next.js frontend** with chat interface, knowledge management, settings, onboarding wizard, and an embedded Langflow visual editor. bigRAG now ships an **admin UI** for setup, collections, documents, query playground, embedding presets, MCP servers, API keys, webhooks, settings, audit, usage, and retrieval evals. The remaining UI gap is less about administration and more about end-user chat, workflow editing, and connector management.
+OpenRAG ships a full **Next.js frontend** with chat interface, knowledge management, settings, onboarding wizard, and an embedded Langflow visual editor. bigRAG now ships an **admin UI** for setup, collections, documents, persistent chat, embedding presets, MCP servers, API keys, webhooks, settings, audit, usage, and retrieval evals. The remaining UI gap is less about administration and more about workflow editing and connector management.
 
 ### 1.1 Chat Interface
 
@@ -48,9 +48,9 @@ OpenRAG provides a conversational chat interface where users can:
 - Receive contextual "nudges" — auto-generated suggested prompts based on knowledge base themes
 - Manage conversation history (list, continue, delete conversations)
 
-**bigRAG gap:** No chat interface. bigRAG is a retrieval API — it returns ranked document chunks, not generated answers. Users must build their own chat layer on top of the query API.
+**bigRAG status:** Mostly resolved — bigRAG has a persistent chat UI backed by `POST /v1/chat`, with server-side retrieval, streamed generated answers, citations, and conversation history.
 
-**Impact:** Teams evaluating RAG platforms for end-user-facing applications will choose OpenRAG for its out-of-the-box chat experience. bigRAG requires significant additional development to achieve parity.
+**Remaining gap:** No temporary file upload inside chat, contextual nudges, or tool-call inspection.
 
 ### 1.2 Knowledge Management Dashboard
 
@@ -63,7 +63,7 @@ OpenRAG's UI provides:
 - Cloud connector sync status and controls
 - Real-time ingestion task panel with file-level progress, failure feedback, and cancellation
 
-**bigRAG status:** Partially resolved — The admin UI lists collections, uploads files with drag-and-drop, shows document status and chunk counts, supports document detail/chunk inspection, deletion, and reprocessing, and streams document progress via SSE.
+**bigRAG status:** Partially resolved — The admin UI lists collections, uploads files with drag-and-drop, shows document status and chunk counts, supports document detail/chunk inspection, deletion, and reprocessing, and polls document status over REST.
 
 **Remaining gap:** the admin UI does not yet support folder upload, UI-level bulk delete, cancel/retry controls for in-flight ingestion, or cloud connector sync controls.
 
@@ -137,7 +137,7 @@ OpenRAG exposes OpenSearch Dashboards on port 5601, giving operators a full anal
 
 ## 2. Agentic RAG & LLM Integration
 
-This is the largest philosophical gap. OpenRAG is an **agentic RAG platform** — it has an LLM in the backend loop that generates answers. bigRAG is primarily a **retrieval platform** — the API returns document chunks, while the admin UI's playground can optionally use a saved OpenAI key on the backend to turn retrieved chunks into a streamed answer for prototyping.
+This is still a philosophical gap, but it narrowed. OpenRAG is an **agentic RAG platform** with workflow-driven tools. bigRAG now has a production chat API for generated, cited answers, while its deeper agent and workflow orchestration story remains intentionally smaller.
 
 ### 2.1 Built-in LLM Generation
 
@@ -151,9 +151,9 @@ OpenRAG integrates LLM providers directly:
 
 The chat endpoint accepts a user query, retrieves relevant documents, feeds them as context to the LLM, and returns a generated answer with source citations.
 
-**bigRAG gap:** No production LLM generation API. The core API returns raw retrieval results; the admin UI can stream OpenAI answers through a backend playground endpoint, but production applications still integrate their own LLM layer.
+**bigRAG status:** Mostly resolved — `POST /v1/chat` accepts a message, retrieves relevant chunks, feeds them to an OpenAI or OpenAI-compatible chat model, streams token deltas, persists the user and assistant messages, and returns source citations.
 
-**Impact:** This is the single largest gap. Most teams evaluating end-user RAG platforms expect a production chat API with generated answers, citations, and stored conversations, not just retrieval plus a prototype playground.
+**Remaining gap:** Provider coverage is narrower than OpenRAG's Langflow-backed set, and there is no agent/tool-call graph yet.
 
 ### 2.2 Multi-Agent Orchestration
 
@@ -177,7 +177,7 @@ OpenRAG maintains persistent conversation history:
 - Conversation CRUD (create, list, get, delete)
 - Session-based authentication binding
 
-**bigRAG gap:** No conversation state. Each query is independent with no memory of prior interactions.
+**bigRAG status:** Resolved for normal chat — conversations are persisted, owned by the authenticated user, listable, retrievable, renameable, deleteable, and used for follow-up context.
 
 ### 2.4 Contextual Nudges
 
@@ -193,7 +193,7 @@ OpenRAG auto-generates suggested prompts from knowledge base content via a dedic
 
 OpenRAG streams LLM-generated answers via Server-Sent Events, providing real-time token-by-token output with source attribution.
 
-**bigRAG gap:** bigRAG has SSE for ingestion progress, but no LLM response streaming (since there is no LLM integration).
+**bigRAG status:** Resolved for chat — `POST /v1/chat` streams `conversation`, `user_message`, `sources`, `delta`, `assistant_message`, `done`, and `error` SSE events.
 
 ### 2.6 Tool Call Inspection
 
@@ -209,7 +209,7 @@ OpenRAG's chat UI shows the agent's tool calls — users can see which tools wer
 
 OpenRAG allows users to customize the system prompt / agent instructions via the settings UI, controlling how the agent behaves, what tone it uses, and what constraints it follows.
 
-**bigRAG gap:** No agent to instruct.
+**bigRAG status:** Partially resolved — chat requests and the admin UI support a system prompt override. There is still no broader agent instruction/workflow layer.
 
 ### 2.8 URL Ingestion
 
@@ -225,13 +225,13 @@ OpenRAG can ingest web pages by URL — paste a link and the content is fetched 
 
 OpenRAG allows uploading files directly in a chat message for temporary, one-off context — the file is processed and used for that conversation but not persisted to the knowledge base.
 
-**bigRAG gap:** No chat interface, no temporary file context.
+**bigRAG gap:** No temporary file context. The chat interface exists, but files must still be ingested into a collection before chat can use them.
 
 ---
 
 ## 3. Cloud Storage Connectors
 
-OpenRAG has built-in connectors for syncing documents from cloud storage providers. bigRAG keeps ingestion file-based and does not yet have an OAuth connector framework for user-owned cloud drives.
+OpenRAG has built-in connectors for syncing documents from cloud storage providers. bigRAG now has Google Drive as the first OAuth connector while the remaining cloud providers are still outside v1 scope.
 
 ### 3.1 Google Drive Connector
 
@@ -242,7 +242,7 @@ OpenRAG connects to Google Drive via OAuth, allowing users to:
 - Sync documents from Drive into the knowledge base
 - Automatic re-sync on schedule or manual trigger
 
-**bigRAG gap:** No Google Drive integration. Documents must be uploaded through the admin UI or API.
+**bigRAG status:** Partially resolved — bigRAG supports admin-managed Google OAuth setup, an in-app Drive browser, user-owned Drive sources, initial sync, manual sync, and daily scheduled resync into the existing document ingestion pipeline.
 
 ### 3.2 Microsoft SharePoint & OneDrive Connectors
 
@@ -521,7 +521,7 @@ OpenRAG displays LLM usage data (token consumption, costs) in the UI, powered by
 
 **Severity: ~~High~~ Resolved**
 
-OpenRAG provides a Python SDK (`openrag-sdk` on PyPI). bigRAG now also has a Python SDK (`bigrag` on PyPI) with async/await, resource namespaces, full type hints (`py.typed`), SSE streaming, retry logic, and comprehensive error handling — matching the TypeScript SDK's API surface.
+OpenRAG provides a Python SDK (`openrag-sdk` on PyPI). bigRAG now also has a Python SDK (`bigrag` on PyPI) with async/await, resource namespaces, full type hints (`py.typed`), retry logic, SSE support for event/chat streams, and comprehensive error handling — matching the TypeScript SDK's API surface.
 
 ### 7.2 MCP Server (Model Context Protocol)
 

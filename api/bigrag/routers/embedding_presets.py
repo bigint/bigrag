@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import EmbeddingPreset
+from bigrag.db.models import Collection, EmbeddingPreset
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_admin_session
@@ -19,11 +19,12 @@ from bigrag.models.embedding_preset import (
     EmbeddingPresetResponse,
     UpdateEmbeddingPresetRequest,
 )
-from bigrag.services import audit
+from bigrag.services import audit, collection_cache
 from bigrag.services.credential_check import (
     CredentialCheckError,
     verify_provider_credentials,
 )
+from bigrag.services.retrieval import invalidate_collection_query_cache
 
 logger = get_logger("bigrag.routers.embedding_presets")
 
@@ -165,6 +166,17 @@ async def update_preset(
             ) from e
         raise
     await session.refresh(preset)
+
+    if any(f in fields for f in ("api_key", "base_url", "model", "provider", "dimension")):
+        await collection_cache.invalidate_for_preset(preset.id)
+        names = (
+            await session.scalars(
+                sa.select(Collection.name).where(Collection.embedding_preset_id == preset.id)
+            )
+        ).all()
+        for name in names:
+            await invalidate_collection_query_cache(name)
+
     audit.record(
         request,
         user=admin,
@@ -191,6 +203,21 @@ async def delete_preset(
     preset = await session.get(EmbeddingPreset, target_id)
     if preset is None:
         raise HTTPException(status_code=404, detail="Preset not found")
+
+    referencing = (
+        await session.scalars(
+            sa.select(Collection.name).where(Collection.embedding_preset_id == target_id)
+        )
+    ).all()
+    if referencing:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Preset is in use by {len(referencing)} collection(s): "
+                f"{', '.join(referencing)}. Switch them to a different preset first."
+            ),
+        )
+
     deleted_name = preset.name
     await session.delete(preset)
     await session.commit()

@@ -9,9 +9,9 @@ import {
   FlaskConical,
   KeyRound,
   LayoutDashboard,
+  MessageSquare,
   Plug,
   Settings,
-  Sparkles,
   Webhook,
 } from "lucide-react";
 import Link from "next/link";
@@ -32,7 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/overview", icon: LayoutDashboard, label: "Overview" },
   { href: "/collections", icon: BookOpen, label: "Collections" },
   { href: "/models", icon: Cpu, label: "Models" },
-  { href: "/playground", icon: Sparkles, label: "Playground" },
+  { href: "/chat", icon: MessageSquare, label: "Chat" },
   { admin: true, href: "/evals", icon: FlaskConical, label: "Evals" },
   { href: "/mcp", icon: Plug, label: "MCP" },
   { admin: true, href: "/api-keys", icon: KeyRound, label: "API Keys", separated: true },

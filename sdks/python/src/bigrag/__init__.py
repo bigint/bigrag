@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from bigrag import types as _types
 from bigrag._client import BigRAG, CollectionClient
 from bigrag._core import BigRAGCore
 from bigrag._errors import (
@@ -19,7 +20,6 @@ from bigrag._errors import (
 from bigrag._files import FileInput, normalize_file_input
 from bigrag._sse import parse_sse_stream
 from bigrag._version import __version__
-from bigrag import types as _types
 from bigrag.resources import (
     AdminApiKeysResource,
     AdminAuditResource,
@@ -28,6 +28,7 @@ from bigrag.resources import (
     AdminResource,
     AdminUsersResource,
     AuthResource,
+    ChatResource,
     CollectionsResource,
     DocumentsResource,
     EvaluationsResource,
@@ -69,6 +70,7 @@ __all__ = [
     "AdminResource",
     "AdminUsersResource",
     "AuthResource",
+    "ChatResource",
     "CollectionsResource",
     "DocumentsResource",
     "EvaluationsResource",

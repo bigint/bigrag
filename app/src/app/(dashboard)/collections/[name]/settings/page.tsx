@@ -1,6 +1,7 @@
 "use client";
 
-import { Trash2, TriangleAlert } from "lucide-react";
+import { KeyRound, Trash2, TriangleAlert } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -19,6 +20,7 @@ import {
   useTruncateCollection,
   useUpdateCollection,
 } from "@/hooks/use-collections";
+import { useEmbeddingPresets } from "@/hooks/use-embedding-presets";
 import { ALL_FILE_TYPES, FILE_TYPE_CATEGORIES, getAllowedFileTypes } from "@/lib/file-types";
 
 const CollectionSettings = ({ params }: { params: Promise<{ name: string }> }) => {
@@ -26,6 +28,7 @@ const CollectionSettings = ({ params }: { params: Promise<{ name: string }> }) =
   const name = decodeURIComponent(rawName);
   const router = useRouter();
   const { data: collection } = useCollection(name);
+  const presetsQuery = useEmbeddingPresets();
   const update = useUpdateCollection(name);
   const truncate = useTruncateCollection(name);
   const remove = useDeleteCollection();
@@ -34,6 +37,7 @@ const CollectionSettings = ({ params }: { params: Promise<{ name: string }> }) =
   const [topK, setTopK] = useState(10);
   const [searchMode, setSearchMode] = useState<"semantic" | "keyword" | "hybrid">("semantic");
   const [rerankingEnabled, setRerankingEnabled] = useState(false);
+  const [embeddingKeyDraft, setEmbeddingKeyDraft] = useState("");
   const [allowedTypes, setAllowedTypes] = useState<Set<string>>(new Set(ALL_FILE_TYPES));
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [confirmTruncateOpen, setConfirmTruncateOpen] = useState(false);
@@ -85,6 +89,18 @@ const CollectionSettings = ({ params }: { params: Promise<{ name: string }> }) =
         default_search_mode: searchMode,
         reranking_enabled: rerankingEnabled,
       });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    }
+  };
+
+  const saveEmbeddingKey = async () => {
+    const trimmed = embeddingKeyDraft.trim();
+    if (!trimmed) return;
+    try {
+      await update.mutateAsync({ embedding_api_key: trimmed });
+      setEmbeddingKeyDraft("");
+      toast.success("Embedding API key updated");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Save failed");
     }
@@ -163,6 +179,68 @@ const CollectionSettings = ({ params }: { params: Promise<{ name: string }> }) =
           <div className="flex justify-end">
             <Button onClick={saveDefaults} disabled={update.isPending}>
               {update.isPending ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <KeyRound className="size-4" />
+            Embedding API key
+          </CardTitle>
+          <CardDescription>
+            {collection.embedding_preset_id ? (
+              <>
+                Inherits from preset{" "}
+                <strong>
+                  {presetsQuery.data?.presets.find((p) => p.id === collection.embedding_preset_id)
+                    ?.name ?? "(loading…)"}
+                </strong>
+                . Update the key on the preset and every linked collection picks it up
+                automatically. Saving a key below switches this collection to a per-collection
+                override.
+              </>
+            ) : (
+              <>
+                Used to embed query text and ingested chunks. Updates here are validated against{" "}
+                {collection.embedding_provider} before saving.{" "}
+                <strong>
+                  {collection.has_api_key ? "A key is currently saved." : "No key is saved."}
+                </strong>
+              </>
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {collection.embedding_preset_id && (
+            <div className="flex justify-end">
+              <Link href="/models">
+                <Button size="sm" variant="outline">
+                  Manage preset
+                </Button>
+              </Link>
+            </div>
+          )}
+          <Input
+            label={
+              collection.embedding_preset_id
+                ? `Override with a per-collection ${collection.embedding_provider} key`
+                : `New ${collection.embedding_provider} API key`
+            }
+            type="password"
+            autoComplete="off"
+            placeholder={collection.has_api_key ? "Paste a replacement key" : "sk-..."}
+            value={embeddingKeyDraft}
+            onChange={(e) => setEmbeddingKeyDraft(e.target.value)}
+          />
+          <div className="flex justify-end">
+            <Button
+              onClick={saveEmbeddingKey}
+              disabled={update.isPending || !embeddingKeyDraft.trim()}
+            >
+              {update.isPending ? "Validating…" : "Save key"}
             </Button>
           </div>
         </CardContent>

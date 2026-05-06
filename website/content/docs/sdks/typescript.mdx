@@ -34,10 +34,12 @@ const collection = await client.collections.create({
 // Upload a document
 const doc = await client.documents.upload("knowledge_base", file);
 
-// Stream processing progress
-for await (const event of client.documents.streamProgress("knowledge_base", doc.id)) {
-  console.log(event.step, event.progress);
-  if (event.status === "completed") break;
+// Poll processing status
+let current = doc;
+while (current.status === "pending" || current.status === "processing") {
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  current = await client.documents.get("knowledge_base", doc.id);
+  console.log(current.progress?.message ?? current.status);
 }
 
 // Query
@@ -47,7 +49,7 @@ const { results } = await client.queries.query("knowledge_base", {
 });
 ```
 
-The client follows a Stripe-style **resource namespace** layout: `client.collections`, `client.documents`, `client.queries`, `client.vectors`, `client.webhooks`.
+The client follows a Stripe-style **resource namespace** layout: `client.collections`, `client.documents`, `client.chat`, `client.queries`, `client.vectors`, `client.webhooks`.
 
 ## Configuration
 
@@ -108,8 +110,6 @@ client.documents.batchDelete(collection, documentIds)
 client.documents.reprocess(collection, documentId)
 client.documents.getChunks(collection, documentId, { limit?, offset? }?)
 client.documents.getFileUrl(collection, documentId)         // returns URL string
-client.documents.streamProgress(collection, documentId)     // AsyncIterable<ProgressEvent>
-client.documents.streamBatchProgress(collection, ids)       // AsyncIterable<ProgressEvent>
 
 // Global document access (without collection scope)
 client.documents.getById(documentId)
@@ -117,6 +117,30 @@ client.documents.getChunksById(documentId, { limit?, offset? }?)
 ```
 
 File uploads accept `File`, `Blob`, `Buffer`, `Uint8Array`, or `{ path: string; name?: string }`.
+
+## Chat
+
+```typescript
+const answer = await client.chat.create({
+  collection: "docs",
+  message: "What is the PTO policy?",
+  top_k: 8,
+  search_mode: "hybrid",
+});
+console.log(answer.assistant_message.content);
+
+for await (const event of client.chat.stream({
+  collection: "docs",
+  message: "Answer with citations",
+})) {
+  if (event.event === "delta") process.stdout.write(event.data.delta);
+}
+
+const chats = await client.chat.list({ limit: 20 });
+const detail = await client.chat.get(chats.conversations[0].id);
+await client.chat.update(detail.conversation.id, { title: "Policy Q&A" });
+await client.chat.delete(detail.conversation.id);
+```
 
 ## Queries
 

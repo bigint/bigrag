@@ -27,7 +27,7 @@ export const Input = ({
         className={cn(
           "h-10 w-full rounded-full border border-input bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           "data-[invalid]:border-destructive data-[invalid]:focus-visible:ring-destructive",
-          trailing && "pr-9",
+          trailing && "pr-12",
           className,
         )}
         ref={ref}
@@ -35,7 +35,7 @@ export const Input = ({
         {...props}
       />
       {trailing && (
-        <div className="absolute inset-y-0 right-0 flex items-center pr-2 text-muted-foreground">
+        <div className="absolute inset-y-0 right-4 flex items-center text-muted-foreground">
           {trailing}
         </div>
       )}

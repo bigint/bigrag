@@ -1,3 +1,13 @@
+export interface DocumentProgress {
+  document_id: string;
+  collection_name: string;
+  step: string;
+  status: string;
+  message: string;
+  progress: number;
+  detail: Record<string, unknown>;
+}
+
 export interface Document {
   id: string;
   collection_id: string;
@@ -10,6 +20,7 @@ export interface Document {
   metadata: Record<string, unknown>;
   content_hash: string | null;
   deduped: boolean;
+  progress: DocumentProgress | null;
   created_at: string;
   updated_at: string;
 }
@@ -47,6 +58,7 @@ export interface DocumentStatus {
   status: string;
   error_message: string | null;
   chunk_count: number;
+  progress: DocumentProgress | null;
 }
 
 export interface BatchStatusResponse {

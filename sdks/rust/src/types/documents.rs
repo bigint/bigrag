@@ -1,5 +1,24 @@
 use serde::{Deserialize, Serialize};
 
+/// Latest ingestion progress snapshot for a document.
+#[derive(Debug, Clone, Deserialize)]
+pub struct DocumentProgress {
+    /// Document ID.
+    pub document_id: String,
+    /// Collection name.
+    pub collection_name: String,
+    /// Current ingestion step.
+    pub step: String,
+    /// Step status.
+    pub status: String,
+    /// Human-readable progress message.
+    pub message: String,
+    /// Completed fraction from 0.0 to 1.0.
+    pub progress: f64,
+    /// Step-specific progress detail.
+    pub detail: serde_json::Value,
+}
+
 /// A document ingested into a collection.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Document {
@@ -26,6 +45,9 @@ pub struct Document {
     /// Whether this response points at an existing deduplicated document.
     #[serde(default)]
     pub deduped: bool,
+    /// Latest ingestion progress snapshot.
+    #[serde(default)]
+    pub progress: Option<DocumentProgress>,
     /// Creation timestamp.
     pub created_at: String,
     /// Last update timestamp.
@@ -101,6 +123,9 @@ pub struct BatchStatusItem {
     pub error_message: Option<String>,
     /// Number of chunks produced.
     pub chunk_count: u32,
+    /// Latest ingestion progress snapshot.
+    #[serde(default)]
+    pub progress: Option<DocumentProgress>,
 }
 
 /// Response from batch status check.

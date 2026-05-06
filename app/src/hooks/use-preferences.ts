@@ -4,17 +4,19 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-type PlaygroundPrefs = {
+type ChatPrefs = {
   openai_key?: string;
   has_openai_key?: boolean;
   model?: string;
   top_k?: number;
   temperature?: number;
   system_prompt?: string;
+  search_mode?: "semantic" | "keyword" | "hybrid";
+  rerank?: boolean;
 };
 
 type Preferences = {
-  playground?: PlaygroundPrefs;
+  chat?: ChatPrefs;
 };
 
 const KEY = queryKeys.preferences();
@@ -34,18 +36,18 @@ export const useUpdatePreferences = () => {
     onMutate: async (patch) => {
       await qc.cancelQueries({ queryKey: KEY });
       const previous = qc.getQueryData<{ data: Preferences }>(KEY);
-      let playgroundPatch = patch.playground;
-      if (patch.playground?.openai_key !== undefined) {
-        const { openai_key: openaiKey, ...rest } = patch.playground;
-        playgroundPatch = { ...rest, has_openai_key: Boolean(openaiKey) };
-      }
+      const publicPatch = (prefs?: ChatPrefs) => {
+        if (prefs?.openai_key === undefined) return prefs;
+        const { openai_key: _openaiKey, ...rest } = prefs;
+        return rest;
+      };
       qc.setQueryData<{ data: Preferences }>(KEY, (old) => ({
         data: {
           ...(old?.data ?? {}),
           ...patch,
-          playground: {
-            ...(old?.data?.playground ?? {}),
-            ...(playgroundPatch ?? {}),
+          chat: {
+            ...(old?.data?.chat ?? {}),
+            ...(publicPatch(patch.chat) ?? {}),
           },
         },
       }));
@@ -53,6 +55,9 @@ export const useUpdatePreferences = () => {
     },
     onError: (_err, _patch, ctx) => {
       if (ctx?.previous) qc.setQueryData(KEY, ctx.previous);
+    },
+    onSuccess: (data) => {
+      qc.setQueryData(KEY, data);
     },
     onSettled: () => qc.invalidateQueries({ queryKey: KEY }),
   });

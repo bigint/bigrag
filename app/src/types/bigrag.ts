@@ -9,6 +9,7 @@ export type Collection = {
   chunk_overlap: number;
   document_count: number;
   has_api_key: boolean;
+  embedding_preset_id: string | null;
   reranking_enabled: boolean;
   reranking_model: string;
   has_reranking_api_key: boolean;
@@ -31,6 +32,16 @@ export type CollectionStats = {
 
 export type DocumentStatus = "pending" | "processing" | "ready" | "failed";
 
+export type DocumentProgress = {
+  document_id: string;
+  collection_name: string;
+  step: string;
+  status: string;
+  message: string;
+  progress: number;
+  detail: Record<string, unknown>;
+};
+
 export type Document = {
   id: string;
   collection_id: string;
@@ -41,6 +52,89 @@ export type Document = {
   status: DocumentStatus;
   error_message: string | null;
   metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  progress: DocumentProgress | null;
+};
+
+export type GoogleConnectorConfig = {
+  provider: "google_drive";
+  configured: boolean;
+  enabled: boolean;
+  client_id: string;
+  has_client_secret: boolean;
+  callback_url: string;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type GoogleAccount = {
+  provider: "google_drive";
+  configured: boolean;
+  connected: boolean;
+  status: "pending" | "connected" | "needs_reauth" | "revoked" | null;
+  email: string | null;
+  scopes: string[];
+  token_expires_at: string | null;
+  last_connected_at: string | null;
+};
+
+export type GoogleDriveFile = {
+  id: string;
+  name: string;
+  mime_type: string;
+  source_type: "file" | "folder";
+  modified_time: string | null;
+  size: number | null;
+  web_url: string | null;
+  sync_supported: boolean;
+  unsupported_reason: string | null;
+};
+
+export type GoogleDriveFileList = {
+  provider: "google_drive";
+  parent_id: string;
+  query: string;
+  files: GoogleDriveFile[];
+  next_page_token: string | null;
+};
+
+export type GoogleDriveSource = {
+  id: string;
+  provider: "google_drive";
+  collection_name: string;
+  root_id: string;
+  root_name: string;
+  root_mime_type: string;
+  source_type: "file" | "folder";
+  status: "idle" | "syncing" | "needs_reauth" | "error";
+  schedule_enabled: boolean;
+  sync_interval_hours: number;
+  last_sync_at: string | null;
+  next_sync_at: string | null;
+  last_error: string | null;
+  account_email: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GoogleDriveSyncJob = {
+  id: string;
+  provider: "google_drive";
+  source_id: string | null;
+  trigger: "initial" | "manual" | "scheduled";
+  status: "pending" | "running" | "complete" | "failed";
+  total_found: number;
+  total_created: number;
+  total_updated: number;
+  total_skipped: number;
+  total_deleted: number;
+  total_failed: number;
+  error_message: string | null;
+  details: Record<string, unknown>;
+  started_at: string | null;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -78,6 +172,86 @@ export type QueryResponse = {
   collection: string;
   total: number;
   timings?: QueryTimings;
+};
+
+export type ChatSource = {
+  id: string;
+  text: string;
+  score: number;
+  document_id: string | null;
+  document_filename: string | null;
+  chunk_index: number | null;
+  page_no?: number | null;
+  char_start?: number | null;
+  char_end?: number | null;
+  metadata: Record<string, unknown>;
+};
+
+export type ChatMessage = {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  status: "complete" | "error";
+  error_message: string | null;
+  model_provider: string | null;
+  model: string | null;
+  retrieval: Record<string, unknown>;
+  sources: ChatSource[];
+  created_at: string;
+};
+
+export type ChatConversation = {
+  id: string;
+  title: string;
+  collection: string | null;
+  model_provider: string;
+  model: string;
+  temperature: number;
+  top_k: number;
+  search_mode: "semantic" | "keyword" | "hybrid" | string;
+  min_score: number | null;
+  rerank: boolean | null;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
+  last_message_at: string | null;
+};
+
+export type ChatListResponse = {
+  conversations: ChatConversation[];
+  total: number;
+};
+
+export type ChatDetailResponse = {
+  conversation: ChatConversation;
+  messages: ChatMessage[];
+};
+
+export type ChatCreateBody = {
+  message: string;
+  conversation_id?: string | null;
+  collection?: string | null;
+  stream?: boolean;
+  model_provider?: "openai" | "openai_compatible";
+  model?: string;
+  temperature?: number;
+  top_k?: number;
+  search_mode?: "semantic" | "keyword" | "hybrid";
+  min_score?: number | null;
+  rerank?: boolean | null;
+  filters?: Record<string, unknown> | null;
+  system_prompt?: string;
+  provider_api_key?: string;
+  provider_base_url?: string | null;
+};
+
+export type ChatCreateResponse = {
+  conversation: ChatConversation;
+  message: ChatMessage;
+  assistant_message: ChatMessage;
+  sources: ChatSource[];
+  timings?: QueryTimings | null;
 };
 
 export type EmbeddingPreset = {
@@ -146,15 +320,6 @@ export type PlatformStats = {
   };
   webhooks: number;
   queue: Record<string, number>;
-};
-
-export type ProgressEvent = {
-  document_id: string;
-  step: string;
-  status: string;
-  message: string;
-  progress: number;
-  detail?: Record<string, unknown>;
 };
 
 export type ReadinessReport = {
