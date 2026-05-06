@@ -527,9 +527,7 @@ async def _resolve_api_credentials(
     )
     prefs = decrypt_preferences(dict(data)) if isinstance(data, dict) else {}
     chat = prefs.get("chat") if isinstance(prefs.get("chat"), dict) else {}
-    playground = prefs.get("playground") if isinstance(prefs.get("playground"), dict) else {}
     _append_credential(credentials, chat.get("openai_key"), "saved chat key")
-    _append_credential(credentials, playground.get("openai_key"), "saved playground key")
 
     if not credentials:
         raise HTTPException(

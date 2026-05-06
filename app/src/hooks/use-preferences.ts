@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-type PlaygroundPrefs = {
+type ChatPrefs = {
   openai_key?: string;
   has_openai_key?: boolean;
   model?: string;
@@ -16,8 +16,7 @@ type PlaygroundPrefs = {
 };
 
 type Preferences = {
-  chat?: PlaygroundPrefs;
-  playground?: PlaygroundPrefs;
+  chat?: ChatPrefs;
 };
 
 const KEY = queryKeys.preferences();
@@ -37,7 +36,7 @@ export const useUpdatePreferences = () => {
     onMutate: async (patch) => {
       await qc.cancelQueries({ queryKey: KEY });
       const previous = qc.getQueryData<{ data: Preferences }>(KEY);
-      const publicPatch = (prefs?: PlaygroundPrefs) => {
+      const publicPatch = (prefs?: ChatPrefs) => {
         if (prefs?.openai_key === undefined) return prefs;
         const { openai_key: openaiKey, ...rest } = prefs;
         return { ...rest, has_openai_key: Boolean(openaiKey) };
@@ -49,10 +48,6 @@ export const useUpdatePreferences = () => {
           chat: {
             ...(old?.data?.chat ?? {}),
             ...(publicPatch(patch.chat) ?? {}),
-          },
-          playground: {
-            ...(old?.data?.playground ?? {}),
-            ...(publicPatch(patch.playground) ?? {}),
           },
         },
       }));

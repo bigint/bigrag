@@ -23,10 +23,10 @@ import type {
   QueryTimings,
   ChatMessage as ServerChatMessage,
 } from "@/types/bigrag";
-import { ChatInput, type PlaygroundState } from "../playground/components/chat-input";
-import type { ChatMessage } from "../playground/components/chat-messages";
-import { ChatMessages } from "../playground/components/chat-messages";
-import { EmptyPrompts } from "../playground/components/empty-prompts";
+import { ChatInput, type ChatState } from "./components/chat-input";
+import type { ChatMessage } from "./components/chat-messages";
+import { ChatMessages } from "./components/chat-messages";
+import { EmptyPrompts } from "./components/empty-prompts";
 
 const newId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -38,7 +38,7 @@ const DEFAULT_SYSTEM =
   "If the context does not contain the answer, say you do not know. Cite every factual " +
   "claim with bracketed source numbers like [1] or [2].";
 
-const DEFAULT_STATE: PlaygroundState = {
+const DEFAULT_STATE: ChatState = {
   hasOpenAIKey: false,
   model: "gpt-4o-mini",
   topK: 5,
@@ -114,36 +114,21 @@ const ChatPage = () => {
     );
   }, [conversationId, detailQuery.data, isStreaming]);
 
-  const state: PlaygroundState = useMemo(() => {
+  const state: ChatState = useMemo(() => {
     const chat = prefsQuery.data?.data.chat ?? {};
-    const legacy = prefsQuery.data?.data.playground ?? {};
     return {
-      hasOpenAIKey: Boolean(chat.has_openai_key ?? chat.openai_key ?? legacy.has_openai_key),
-      model: chat.model ?? legacy.model ?? DEFAULT_STATE.model,
-      topK:
-        typeof chat.top_k === "number"
-          ? chat.top_k
-          : typeof legacy.top_k === "number"
-            ? legacy.top_k
-            : DEFAULT_STATE.topK,
+      hasOpenAIKey: Boolean(chat.has_openai_key || chat.openai_key),
+      model: chat.model ?? DEFAULT_STATE.model,
+      topK: typeof chat.top_k === "number" ? chat.top_k : DEFAULT_STATE.topK,
       temperature:
-        typeof chat.temperature === "number"
-          ? chat.temperature
-          : typeof legacy.temperature === "number"
-            ? legacy.temperature
-            : DEFAULT_STATE.temperature,
-      searchMode: chat.search_mode ?? legacy.search_mode ?? DEFAULT_STATE.searchMode,
-      rerank:
-        typeof chat.rerank === "boolean"
-          ? chat.rerank
-          : typeof legacy.rerank === "boolean"
-            ? legacy.rerank
-            : DEFAULT_STATE.rerank,
-      systemPrompt: chat.system_prompt ?? legacy.system_prompt ?? DEFAULT_STATE.systemPrompt,
+        typeof chat.temperature === "number" ? chat.temperature : DEFAULT_STATE.temperature,
+      searchMode: chat.search_mode ?? DEFAULT_STATE.searchMode,
+      rerank: typeof chat.rerank === "boolean" ? chat.rerank : DEFAULT_STATE.rerank,
+      systemPrompt: chat.system_prompt ?? DEFAULT_STATE.systemPrompt,
     };
   }, [prefsQuery.data]);
 
-  const patchState = (patch: Partial<PlaygroundState> & { openaiKey?: string }) => {
+  const patchState = (patch: Partial<ChatState> & { openaiKey?: string }) => {
     const mapped: Record<string, unknown> = {};
     if (patch.openaiKey !== undefined) mapped.openai_key = patch.openaiKey;
     if (patch.model !== undefined) mapped.model = patch.model;

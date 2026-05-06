@@ -17,9 +17,7 @@ logger = get_logger("bigrag.routers.preferences")
 
 router = APIRouter(prefix="/v1/auth/preferences", tags=["auth"])
 
-_SENSITIVE_PATHS: frozenset[tuple[str, str]] = frozenset(
-    {("chat", "openai_key"), ("playground", "openai_key")}
-)
+_SENSITIVE_PATHS: frozenset[tuple[str, str]] = frozenset({("chat", "openai_key")})
 
 
 def _deep_merge(left: dict, right: dict) -> dict:

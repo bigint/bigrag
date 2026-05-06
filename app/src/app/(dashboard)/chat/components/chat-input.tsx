@@ -34,7 +34,7 @@ const OPENAI_MODELS = [
   { value: "gpt-3.5-turbo", label: "GPT-3.5 turbo" },
 ];
 
-export type PlaygroundState = {
+export type ChatState = {
   hasOpenAIKey: boolean;
   model: string;
   topK: number;
@@ -44,13 +44,13 @@ export type PlaygroundState = {
   systemPrompt: string;
 };
 
-type PlaygroundPatch = Partial<PlaygroundState> & { openaiKey?: string };
+type ChatPatch = Partial<ChatState> & { openaiKey?: string };
 
 type PopoverName = "model" | "collection" | "settings" | "key" | null;
 
 interface Props {
-  state: PlaygroundState;
-  onPatch: (patch: PlaygroundPatch) => void;
+  state: ChatState;
+  onPatch: (patch: ChatPatch) => void;
   saving: boolean;
   collections: Collection[];
   collection: string;
