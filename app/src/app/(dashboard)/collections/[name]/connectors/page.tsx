@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { use, useEffect } from "react";
 import { Spinner } from "@/components/ui/spinner";
 
-const LegacyGoogleDriveTab = ({ params }: { params: Promise<{ name: string }> }) => {
+const ConnectorsIndex = ({ params }: { params: Promise<{ name: string }> }) => {
   const { name } = use(params);
   const router = useRouter();
 
@@ -19,4 +19,4 @@ const LegacyGoogleDriveTab = ({ params }: { params: Promise<{ name: string }> })
   );
 };
 
-export default LegacyGoogleDriveTab;
+export default ConnectorsIndex;
