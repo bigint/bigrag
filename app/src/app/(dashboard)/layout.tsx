@@ -8,7 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useSession, useSetupStatus } from "@/hooks/use-auth";
 import { MobileSidebar, Sidebar } from "./components/sidebar";
 
-const FULL_HEIGHT_ROUTES = ["/overview", "/playground"];
+const FULL_HEIGHT_ROUTES = ["/overview", "/chat", "/playground"];
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();

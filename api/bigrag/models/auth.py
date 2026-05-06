@@ -95,7 +95,7 @@ class UserListResponse(BaseModel):
 
 
 VALID_RESOURCES = frozenset(
-    {"*", "collection", "document", "query", "webhook", "api_key", "user", "audit"}
+    {"*", "collection", "document", "query", "chat", "webhook", "api_key", "user", "audit"}
 )
 VALID_ACTIONS = frozenset({"*", "read", "write", "upload", "delete", "admin"})
 

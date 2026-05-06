@@ -39,6 +39,8 @@ export type PlaygroundState = {
   model: string;
   topK: number;
   temperature: number;
+  searchMode: "semantic" | "keyword" | "hybrid";
+  rerank: boolean;
   systemPrompt: string;
 };
 
@@ -164,7 +166,7 @@ export const ChatInput = ({
                 <div>
                   <div className="text-xs font-semibold">OpenAI API key</div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Saved on the backend and used there for playground responses.
+                    Saved on the backend and used there for chat responses.
                   </p>
                 </div>
                 <input
@@ -282,6 +284,36 @@ export const ChatInput = ({
                     onChange={(e) => onPatch({ topK: Number.parseInt(e.target.value, 10) })}
                   />
                 </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-xs font-semibold">Search mode</span>
+                  <div className="grid grid-cols-3 gap-1 rounded-full border border-border p-1">
+                    {(["semantic", "keyword", "hybrid"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        className={cn(
+                          "h-7 rounded-full px-2 text-xs font-medium capitalize hover:bg-accent",
+                          state.searchMode === mode && "bg-foreground text-background",
+                        )}
+                        onClick={() => onPatch({ searchMode: mode })}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-border px-3 py-2">
+                  <span className="text-xs font-semibold">Use reranker when configured</span>
+                  <input
+                    aria-label="Use reranker when configured"
+                    className="accent-primary"
+                    checked={state.rerank}
+                    type="checkbox"
+                    onChange={(e) => onPatch({ rerank: e.target.checked })}
+                  />
+                </label>
 
                 <div className="space-y-1.5">
                   <span className="text-xs font-semibold">System prompt</span>

@@ -11,9 +11,12 @@ type PlaygroundPrefs = {
   top_k?: number;
   temperature?: number;
   system_prompt?: string;
+  search_mode?: "semantic" | "keyword" | "hybrid";
+  rerank?: boolean;
 };
 
 type Preferences = {
+  chat?: PlaygroundPrefs;
   playground?: PlaygroundPrefs;
 };
 
@@ -34,18 +37,22 @@ export const useUpdatePreferences = () => {
     onMutate: async (patch) => {
       await qc.cancelQueries({ queryKey: KEY });
       const previous = qc.getQueryData<{ data: Preferences }>(KEY);
-      let playgroundPatch = patch.playground;
-      if (patch.playground?.openai_key !== undefined) {
-        const { openai_key: openaiKey, ...rest } = patch.playground;
-        playgroundPatch = { ...rest, has_openai_key: Boolean(openaiKey) };
-      }
+      const publicPatch = (prefs?: PlaygroundPrefs) => {
+        if (prefs?.openai_key === undefined) return prefs;
+        const { openai_key: openaiKey, ...rest } = prefs;
+        return { ...rest, has_openai_key: Boolean(openaiKey) };
+      };
       qc.setQueryData<{ data: Preferences }>(KEY, (old) => ({
         data: {
           ...(old?.data ?? {}),
           ...patch,
+          chat: {
+            ...(old?.data?.chat ?? {}),
+            ...(publicPatch(patch.chat) ?? {}),
+          },
           playground: {
             ...(old?.data?.playground ?? {}),
-            ...(playgroundPatch ?? {}),
+            ...(publicPatch(patch.playground) ?? {}),
           },
         },
       }));

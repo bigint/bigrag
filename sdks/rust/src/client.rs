@@ -3,6 +3,7 @@ use std::time::Duration;
 use crate::core::Transport;
 use crate::error::BigRagError;
 use crate::files::FileInput;
+use crate::resources::chat::Chats;
 use crate::resources::collections::Collections;
 use crate::resources::documents::Documents;
 use crate::resources::queries::Queries;
@@ -10,6 +11,7 @@ use crate::resources::vectors::Vectors;
 use crate::resources::webhooks::Webhooks;
 use crate::sse::SseStream;
 use crate::types::analytics::AnalyticsResponse;
+use crate::types::chat::{ChatBody, ChatCreateResponse};
 use crate::types::collections::CollectionStatsResponse;
 use crate::types::common::{
     HealthResponse, PlatformStatsResponse, ReadinessResponse, StatusResponse,
@@ -100,6 +102,11 @@ impl BigRag {
     /// Create a builder for fine-grained configuration.
     pub fn builder() -> BigRagBuilder {
         BigRagBuilder::default()
+    }
+
+    /// Access the collections resource.
+    pub fn chat(&self) -> Chats<'_> {
+        Chats { client: self }
     }
 
     /// Access the collections resource.
@@ -377,6 +384,14 @@ impl CollectionClient<'_> {
     /// Query this collection.
     pub async fn query(&self, body: QueryBody) -> Result<QueryResponse, BigRagError> {
         self.client.queries().query(&self.name, body).await
+    }
+
+    /// Create a chat turn against this collection.
+    pub async fn chat(&self, mut body: ChatBody) -> Result<ChatCreateResponse, BigRagError> {
+        if body.collection.is_none() {
+            body.collection = Some(self.name.clone());
+        }
+        self.client.chat().create(body).await
     }
 
     /// Get collection statistics.

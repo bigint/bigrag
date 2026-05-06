@@ -1,11 +1,11 @@
 ---
 title: Playground
-description: Session-only playground generation endpoint for the admin UI.
+description: Legacy session-only playground generation endpoint.
 ---
 
 Base path: `/v1/playground`
 
-Session-only. The admin UI uses this endpoint to stream generated answers without exposing the saved OpenAI key to the browser. Save or replace the key through `/v1/auth/preferences` using `playground.openai_key`; preference responses only return `playground.has_openai_key`.
+Session-only. This is the legacy low-level generation endpoint. New applications should use the production [`/v1/chat`](/docs/api-reference/chat) API, which performs retrieval on the backend, stores conversations, and returns citations.
 
 ## Stream Chat
 

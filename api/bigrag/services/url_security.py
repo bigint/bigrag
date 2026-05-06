@@ -168,6 +168,19 @@ def validate_embedding_base_url_sync(base_url: str | None) -> str | None:
     )
 
 
+def validate_chat_base_url_sync(base_url: str | None) -> str | None:
+    if not base_url:
+        return None
+    from bigrag.config import settings
+
+    return validate_outbound_url_sync(
+        base_url,
+        purpose="Chat provider base URL",
+        allowed_urls=settings.allowed_chat_base_urls,
+        allow_private=settings.allow_private_chat_base_urls,
+    )
+
+
 async def validate_embedding_base_url(base_url: str | None) -> str | None:
     if not base_url:
         return None
@@ -178,6 +191,19 @@ async def validate_embedding_base_url(base_url: str | None) -> str | None:
         purpose="Embedding base URL",
         allowed_urls=settings.allowed_embedding_base_urls,
         allow_private=settings.allow_private_embedding_base_urls,
+    )
+
+
+async def validate_chat_base_url(base_url: str | None) -> str | None:
+    if not base_url:
+        return None
+    from bigrag.config import settings
+
+    return await validate_outbound_url(
+        base_url,
+        purpose="Chat provider base URL",
+        allowed_urls=settings.allowed_chat_base_urls,
+        allow_private=settings.allow_private_chat_base_urls,
     )
 
 

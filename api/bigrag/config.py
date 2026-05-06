@@ -68,6 +68,15 @@ class Settings(BaseSettings):
     allow_private_embedding_base_urls: bool = False
     allow_local_webhooks: bool = False
 
+    chat_provider: str = "openai"
+    chat_model: str = "gpt-4o-mini"
+    chat_base_url: str | None = None
+    chat_temperature: float = 0.2
+    chat_max_history_messages: int = 12
+    chat_max_context_chars: int = 120_000
+    allowed_chat_base_urls: list[str] = []
+    allow_private_chat_base_urls: bool = False
+
     upload_dir: str = "./data/uploads"
 
     max_upload_size_mb: int = 64

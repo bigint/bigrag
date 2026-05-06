@@ -13,6 +13,10 @@ export const queryKeys = {
   webhooks: () => ["webhooks"] as const,
   embeddingPresets: () => ["embedding-presets"] as const,
   preferences: () => ["preferences"] as const,
+  chat: {
+    list: () => ["chat", "list"] as const,
+    detail: (id: string | null) => ["chat", "detail", id] as const,
+  },
   collections: {
     all: () => ["collections"] as const,
     one: (name: string) => ["collections", name] as const,

@@ -1,6 +1,7 @@
 import type { BigRAGOptions } from "./core.js";
 import { BigRAGCore } from "./core.js";
 import {
+  ChatResource,
   CollectionsResource,
   DocumentsResource,
   QueryResource,
@@ -16,6 +17,7 @@ import type {
 
 export class BigRAG extends BigRAGCore {
   readonly collections: CollectionsResource;
+  readonly chat: ChatResource;
   readonly documents: DocumentsResource;
   readonly queries: QueryResource;
   readonly vectors: VectorsResource;
@@ -23,6 +25,7 @@ export class BigRAG extends BigRAGCore {
 
   constructor(options: BigRAGOptions = {}) {
     super(options);
+    this.chat = new ChatResource(this);
     this.collections = new CollectionsResource(this);
     this.documents = new DocumentsResource(this);
     this.queries = new QueryResource(this);

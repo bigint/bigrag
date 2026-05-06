@@ -69,6 +69,7 @@ The SDK follows a resource namespace pattern:
 |---|---|
 | `client.collections` | Collection CRUD and stats |
 | `client.documents` | Document upload, list, delete, batch ops |
+| `client.chat` | Generated answers, streaming, and conversation CRUD |
 | `client.queries` | Single, multi-collection, and batch queries |
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
@@ -154,6 +155,39 @@ result = await client.documents.batch_delete("docs", ["id1", "id2"])
 # Global document access (without collection scope)
 doc = await client.documents.get_by_id("doc-id")
 chunks = await client.documents.get_chunks_by_id("doc-id")
+```
+
+## Chat
+
+```python
+# Non-streaming generated answer with citations
+answer = await client.chat.create({
+    "collection": "docs",
+    "message": "What is the PTO policy?",
+    "top_k": 8,
+    "search_mode": "hybrid",
+})
+print(answer["assistant_message"]["content"])
+
+# Continue the same conversation
+followup = await client.chat.create({
+    "conversation_id": answer["conversation"]["id"],
+    "message": "Summarize that in two bullets.",
+})
+
+# Stream SSE events
+async for event in client.chat.stream({
+    "collection": "docs",
+    "message": "Answer with citations",
+}):
+    if event["event"] == "delta":
+        print(event["data"]["delta"], end="")
+
+# Conversation CRUD
+chats = await client.chat.list(limit=20)
+detail = await client.chat.get(chats["conversations"][0]["id"])
+await client.chat.update(detail["conversation"]["id"], title="Policy Q&A")
+await client.chat.delete(detail["conversation"]["id"])
 ```
 
 ## Queries

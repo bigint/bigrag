@@ -20,7 +20,7 @@ GET /v1/auth/preferences
   "data": {
     "sidebar_collapsed": false,
     "default_collection": "knowledge_base",
-    "playground": { "search_mode": "hybrid", "top_k": 10 }
+    "chat": { "search_mode": "hybrid", "top_k": 10 }
   }
 }
 ```
@@ -43,6 +43,6 @@ The body may be either `{"data": {...}}` or a bare object — both are accepted.
 
 **Response** `200`: echoes the merged public `data`.
 
-Sensitive paths (currently `playground.openai_key`) are Fernet-encrypted at rest when `BIGRAG_MASTER_KEY` is configured. Preference responses do not return the key; they return `playground.has_openai_key` instead.
+Sensitive paths (`chat.openai_key` and legacy `playground.openai_key`) are Fernet-encrypted at rest when `BIGRAG_MASTER_KEY` is configured. Preference responses do not return the key; they return `chat.has_openai_key` or `playground.has_openai_key` instead.
 
 There is no size validation beyond the standard request-body limit, but keep payloads small (&lt;64 KB) — this isn't a document store.

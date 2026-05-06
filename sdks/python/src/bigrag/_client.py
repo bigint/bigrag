@@ -11,6 +11,7 @@ from bigrag._files import FileInput
 from bigrag.resources import (
     AdminResource,
     AuthResource,
+    ChatResource,
     CollectionsResource,
     DocumentsResource,
     EvaluationsResource,
@@ -19,6 +20,13 @@ from bigrag.resources import (
     WebhooksResource,
 )
 from bigrag.types.analytics import AnalyticsResponse
+from bigrag.types.chat import (
+    ChatBody,
+    ChatCreateResponse,
+    ChatDetailResponse,
+    ChatListResponse,
+    ChatStreamEvent,
+)
 from bigrag.types.collections import CollectionStatsResponse
 from bigrag.types.common import (
     HealthResponse,
@@ -58,6 +66,7 @@ class BigRAG(BigRAGCore):
     queries: QueryResource
     vectors: VectorsResource
     webhooks: WebhooksResource
+    chat: ChatResource
     auth: AuthResource
     admin: AdminResource
     evaluations: EvaluationsResource
@@ -69,6 +78,7 @@ class BigRAG(BigRAGCore):
         self.queries = QueryResource(self)
         self.vectors = VectorsResource(self)
         self.webhooks = WebhooksResource(self)
+        self.chat = ChatResource(self)
         self.auth = AuthResource(self)
         self.admin = AdminResource(self)
         self.evaluations = EvaluationsResource(self)
@@ -101,6 +111,28 @@ class BigRAG(BigRAGCore):
         if window_days is not None:
             params["window_days"] = str(window_days)
         return await self._request("GET", "/v1/usage", params=params)
+
+    async def chat_create(self, body: ChatBody) -> ChatCreateResponse:
+        """Create a non-streaming chat turn."""
+        return await self.chat.create(body)
+
+    async def chat_stream(self, body: ChatBody) -> AsyncGenerator[ChatStreamEvent, None]:
+        """Stream a chat turn as SSE events."""
+        async for event in self.chat.stream(body):
+            yield event
+
+    async def list_chats(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> ChatListResponse:
+        """List owned chat conversations."""
+        return await self.chat.list(limit=limit, offset=offset)
+
+    async def get_chat(self, conversation_id: str) -> ChatDetailResponse:
+        """Get a chat conversation and messages."""
+        return await self.chat.get(conversation_id)
 
     def collection(self, name: str) -> CollectionClient:
         """Create a scoped client for a specific collection."""

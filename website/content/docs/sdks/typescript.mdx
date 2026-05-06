@@ -47,7 +47,7 @@ const { results } = await client.queries.query("knowledge_base", {
 });
 ```
 
-The client follows a Stripe-style **resource namespace** layout: `client.collections`, `client.documents`, `client.queries`, `client.vectors`, `client.webhooks`.
+The client follows a Stripe-style **resource namespace** layout: `client.collections`, `client.documents`, `client.chat`, `client.queries`, `client.vectors`, `client.webhooks`.
 
 ## Configuration
 
@@ -117,6 +117,30 @@ client.documents.getChunksById(documentId, { limit?, offset? }?)
 ```
 
 File uploads accept `File`, `Blob`, `Buffer`, `Uint8Array`, or `{ path: string; name?: string }`.
+
+## Chat
+
+```typescript
+const answer = await client.chat.create({
+  collection: "docs",
+  message: "What is the PTO policy?",
+  top_k: 8,
+  search_mode: "hybrid",
+});
+console.log(answer.assistant_message.content);
+
+for await (const event of client.chat.stream({
+  collection: "docs",
+  message: "Answer with citations",
+})) {
+  if (event.event === "delta") process.stdout.write(event.data.delta);
+}
+
+const chats = await client.chat.list({ limit: 20 });
+const detail = await client.chat.get(chats.conversations[0].id);
+await client.chat.update(detail.conversation.id, { title: "Policy Q&A" });
+await client.chat.delete(detail.conversation.id);
+```
 
 ## Queries
 

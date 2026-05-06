@@ -9,6 +9,7 @@ from bigrag.resources.admin import (
     AdminUsersResource,
 )
 from bigrag.resources.auth import AuthResource
+from bigrag.resources.chat import ChatResource
 from bigrag.resources.collections import CollectionsResource
 from bigrag.resources.documents import DocumentsResource
 from bigrag.resources.evaluations import EvaluationsResource
@@ -24,6 +25,7 @@ __all__ = [
     "AdminResource",
     "AdminUsersResource",
     "AuthResource",
+    "ChatResource",
     "CollectionsResource",
     "DocumentsResource",
     "EvaluationsResource",
