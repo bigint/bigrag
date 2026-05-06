@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import hmac
 import secrets
 
 from argon2 import PasswordHasher
@@ -54,7 +53,3 @@ def generate_api_key() -> tuple[str, str, str]:
 
 def hash_api_key(plaintext: str) -> str:
     return hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
-
-
-def constant_time_eq(a: str, b: str) -> bool:
-    return hmac.compare_digest(a, b)

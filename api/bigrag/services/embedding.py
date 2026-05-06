@@ -40,24 +40,6 @@ def _get_semaphore(key: str) -> asyncio.Semaphore:
     return _embed_semaphores[key]
 
 
-def count_tokens(text: str, model: str | None = None) -> int:
-
-    try:
-        import tiktoken
-
-        try:
-            enc = (
-                tiktoken.encoding_for_model(model)
-                if model
-                else tiktoken.get_encoding("cl100k_base")
-            )
-        except KeyError:
-            enc = tiktoken.get_encoding("cl100k_base")
-        return len(enc.encode(text))
-    except Exception:
-        return max(1, len(text) // 4)
-
-
 def truncate_to_tokens(
     texts: list[str],
     model: str | None,

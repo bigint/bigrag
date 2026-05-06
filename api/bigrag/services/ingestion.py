@@ -194,8 +194,3 @@ def chunk_document(
     else:
         chunks = _paragraph_chunks(text, chunk_size)
     return _apply_overlap(chunks, chunk_overlap)
-
-
-def _chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
-
-    return [c.text for c in chunk_document(text, chunk_size, chunk_overlap, strategy="paragraph")]

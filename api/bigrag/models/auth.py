@@ -94,11 +94,6 @@ class UserListResponse(BaseModel):
     total: int
 
 
-class ApiKeyScope(BaseModel):
-    resource: str = Field(min_length=1, max_length=40)
-    action: str = Field(min_length=1, max_length=40)
-
-
 VALID_RESOURCES = frozenset(
     {"*", "collection", "document", "query", "webhook", "api_key", "user", "audit"}
 )
