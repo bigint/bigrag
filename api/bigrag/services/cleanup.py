@@ -53,15 +53,15 @@ async def cleanup_old_data() -> None:
                     sa.delete(UploadSession).where(UploadSession.updated_at < upload_cutoff)
                 )
                 await session.commit()
-            logger.info(f"query_log cleanup: {ql_result.rowcount or 0}")
-            logger.info(f"access_log cleanup: {al_result.rowcount or 0}")
-            logger.info(f"webhook_deliveries cleanup: {wd_result.rowcount or 0}")
-            logger.info(f"upload_sessions cleanup: {us_result.rowcount or 0}")
+            logger.info("query_log cleanup", deleted=ql_result.rowcount or 0)
+            logger.info("access_log cleanup", deleted=al_result.rowcount or 0)
+            logger.info("webhook_deliveries cleanup", deleted=wd_result.rowcount or 0)
+            logger.info("upload_sessions cleanup", deleted=us_result.rowcount or 0)
             purged_embeddings = await embedding_cache.purge_stale(
                 int(retention["embedding_cache_retention_days"])
             )
-            logger.info(f"embedding_cache cleanup: {purged_embeddings}")
+            logger.info("embedding_cache cleanup", deleted=purged_embeddings)
         except asyncio.CancelledError:
             return
-        except Exception as e:
-            logger.warning(f"Cleanup failed: {e!r}")
+        except Exception as exc:
+            logger.warning("cleanup failed", error=repr(exc))

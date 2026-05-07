@@ -6,23 +6,20 @@ A comprehensive guide for writing clean, maintainable, and type-safe code for th
 
 **Every rule can and will be broken in certain cases.** When you deviate from these guidelines:
 
-1. ✅ **Leave a comment in the code** explaining why
+1. ✅ **Document the reason outside source code** in the commit message, PR description, or docs
 2. ✅ **Make it intentional** - not accidental
 3. ✅ **Document the trade-off** - what you gained vs what you gave up
 
 ```typescript
-// ✅ GOOD - Rule break is documented
-function processLargeDataset(data: any) { // Using 'any' because third-party library has no types
-  return transform(data)
-}
-
-// ❌ BAD - Silent rule break
-function processLargeDataset(data: any) {
+function processLargeDataset(data: unknown) {
+  if (!isLargeDataset(data)) {
+    throw new Error("Invalid dataset")
+  }
   return transform(data)
 }
 ```
 
-**Rule breaks should always be intentional, not accidental.**
+**Rule breaks should always be intentional, not accidental.** Do not add explanatory source comments or docstrings under `api/bigrag/`, `sdks/typescript/src/`, `app/`, or `website/`; use clearer names, smaller functions, or external review notes instead. Functional tool directives such as `# type: ignore`, `# ruff:`, `// @ts-...`, `// biome-ignore`, and `// eslint-...` are allowed when the tool requires them.
 
 ## Table of Contents
 
@@ -1498,9 +1495,8 @@ const myVar = tw`text-red-500`
 <div className="w-8 h-6 text-primary" />
 
 // ✅ ACCEPTABLE - When design system doesn't have the value
-// Always leave a comment explaining why
 <div 
-  className="w-[120px]" // Specific width needed to align with external component
+  className="w-[120px]"
 />
 ```
 
@@ -1513,7 +1509,7 @@ const myVar = tw`text-red-500`
 **When arbitrary values are justified:**
 - ✅ Interfacing with third-party components with fixed dimensions
 - ✅ Dynamic values from props/API that can't use tokens
-- ✅ One-off exceptions that don't fit the design system (document why!)
+- ✅ One-off exceptions that don't fit the design system
 
 **Always ask**: "Could this use a design token instead?"
 
@@ -1804,27 +1800,27 @@ Biome is a fast, unified toolchain for formatting and linting. It replaces ESLin
 Project uses Biome for formatting and linting. See `biome.jsonc` in the root.
 
 **Key Settings:**
-- **Formatter**: 2 spaces, single quotes, semicolons as needed
+- **Formatter**: 2 spaces, double quotes, semicolons always
 - **Linter**: All recommended rules + custom a11y rules
 - **Auto-organize imports**: Enabled
 
 ### Formatting Rules
 
 - **Indentation**: 2 spaces
-- **Quotes**: Single quotes
-- **Semicolons**: As needed (ASI-safe)
+- **Quotes**: Double quotes
+- **Semicolons**: Always
 - **Import Organization**: Automatic (type imports → external → internal)
 
 ```typescript
 // Format example
-const name = 'alice'
-const config = { timeout: 5000, retries: 3 }
+const name = "alice";
+const config = { timeout: 5000, retries: 3 };
 
 // Imports auto-organized
-import type { Profile } from '@bigrag/db'
-import { useQuery } from '@tanstack/react-query'
+import type { Profile } from "@bigrag/db";
+import { useQuery } from "@tanstack/react-query";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 ```
 
 ### Key Linting Rules
@@ -1926,7 +1922,7 @@ const data: any = externalLibrary.getData()
 #### Code Formatting
 
 34. **Use Biome** - Format and lint with one tool (🔴 Must)
-35. **Single quotes** - For string literals (🟢 Guideline)
+35. **Double quotes** - For string literals (🟢 Guideline)
 36. **2-space indentation** - Consistent formatting (🟢 Guideline)
 37. **Organize imports** - Let Biome handle import sorting (🟢 Guideline)
 
@@ -2007,7 +2003,7 @@ Every Python file must start with future annotations:
 from __future__ import annotations
 ```
 
-Every module with public exports defines `__all__`:
+Package boundary modules that intentionally re-export symbols define `__all__`:
 
 ```python
 __all__ = ["EventBus", "IngestionEvent", "event_bus"]
@@ -2038,7 +2034,7 @@ logger.info("job complete", job_id=job_id, chunks=total, elapsed=round(elapsed, 
 
 ### Type Annotations
 
-All function signatures must have type annotations on parameters and return values:
+Public APIs, service boundaries, and non-trivial helpers must have type annotations on parameters and return values. Route handlers must type parameters and declare `response_model` or `response_class`; return annotations are preferred when they add information beyond the decorator. Small framework callbacks may use the framework's conventional signature when annotation would add noise:
 
 ```python
 # GOOD
@@ -2212,7 +2208,7 @@ def get_embedding_model(provider: str, model_name: str, ...) -> EmbeddingModel:
 
 ### Route Handlers
 
-Always use `async def`. Always set `response_model`. Use `Depends()` for shared concerns:
+Always use `async def`. Always set `response_model` on JSON endpoints. Streaming, redirect, and file-response endpoints should instead declare the appropriate response class or return a concrete `Response`. Use `Depends()` for shared concerns:
 
 ```python
 @router.get("", response_model=CollectionListResponse)
@@ -2457,18 +2453,12 @@ export class BigRAG extends BigRAGCore {
 
 ### Resource Classes
 
-Resources receive a `RequestClient` interface, not the concrete class. Every public method has JSDoc:
+Resources receive a `RequestClient` interface, not the concrete class. Public method names and types should be self-explanatory; keep detailed API guidance in the docs site instead of JSDoc under `sdks/typescript/src/`:
 
 ```typescript
 export class CollectionsResource {
   constructor(private readonly _client: RequestClient) {}
 
-  /**
-   * List collections with optional filtering and pagination.
-   *
-   * @param options - Optional filters such as `name`, `limit`, and `offset`.
-   * @returns A paginated list of collections.
-   */
   list(options?: CollectionListOptions): Promise<CollectionListResponse> {
     return this._client._request("GET", "/v1/collections", { params });
   }

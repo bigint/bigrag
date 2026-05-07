@@ -143,7 +143,7 @@ def _public_preferences(data: dict) -> dict:
     return out
 
 
-@router.get("")
+@router.get("", response_model=dict[str, dict])
 async def get_preferences(
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
@@ -154,7 +154,7 @@ async def get_preferences(
     return {"data": _public_preferences(dict(row.data)) if row else {}}
 
 
-@router.put("")
+@router.put("", response_model=dict[str, dict])
 async def update_preferences(
     body: dict,
     user: dict = Depends(require_session),

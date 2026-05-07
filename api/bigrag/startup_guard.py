@@ -36,8 +36,8 @@ def check_production_safety(s: Settings) -> None:
     logger.error(
         "Refusing to start in BIGRAG_ENV=prod with insecure defaults:",
     )
-    for i, line in enumerate(problems, 1):
-        logger.error(f"  {i}. {line}")
+    for index, line in enumerate(problems, 1):
+        logger.error("startup guard failed", index=index, problem=line)
     logger.error(
         "Set BIGRAG_ENV=dev if you really intend to run in this state, or fix the items above.",
     )

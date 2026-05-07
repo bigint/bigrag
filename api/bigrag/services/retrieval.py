@@ -22,6 +22,7 @@ logger = get_logger("bigrag.retrieval")
 
 _QUERY_EPOCH_PREFIX = "bigrag:query_epoch:"
 _QUERY_CACHE_VERSION = 1
+_EMBEDDING_TIMEOUT_SECONDS = 60
 
 
 @dataclass
@@ -114,7 +115,10 @@ async def _embed_query_with_cache(
 ) -> list[float]:
     ttl = await get_value("query_embedding_cache_ttl")
     if ttl <= 0:
-        embeddings = await embedding_model.embed([query], input_type="query")
+        embeddings = await asyncio.wait_for(
+            embedding_model.embed([query], input_type="query"),
+            timeout=_EMBEDDING_TIMEOUT_SECONDS,
+        )
         return embeddings[0]
 
     identity = _embedding_identity(embedding_model)
@@ -123,7 +127,10 @@ async def _embed_query_with_cache(
     if isinstance(cached, list) and len(cached) == embedding_model.dimension:
         return [float(v) for v in cached]
 
-    embeddings = await embedding_model.embed([query], input_type="query")
+    embeddings = await asyncio.wait_for(
+        embedding_model.embed([query], input_type="query"),
+        timeout=_EMBEDDING_TIMEOUT_SECONDS,
+    )
     vector = embeddings[0]
     await redis_cache.set(cache_key, vector, ttl=ttl)
     return vector
@@ -227,8 +234,8 @@ async def rerank_results(
             result["score"] = round(item.relevance_score, 6)
             reranked.append(result)
         return reranked
-    except Exception as e:
-        logger.error(f"Reranking failed: {e!r}, returning original results")
+    except Exception as exc:
+        logger.error("reranking failed", error=repr(exc))
         return results
     finally:
         await client.close()
@@ -276,8 +283,8 @@ async def _log_query(
                 )
             )
             await session.commit()
-    except Exception as e:
-        logger.warning(f"Failed to log query: {e!r}")
+    except Exception as exc:
+        logger.warning("failed to log query", error=repr(exc))
 
 
 async def retrieve(

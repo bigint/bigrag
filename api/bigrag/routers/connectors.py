@@ -116,7 +116,7 @@ async def google_files(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
-@router.get("/oauth/start")
+@router.get("/oauth/start", response_class=RedirectResponse)
 async def google_oauth_start(
     request: Request,
     redirect_path: str | None = Query(default="/"),
@@ -136,7 +136,7 @@ async def google_oauth_start(
     return RedirectResponse(auth_url)
 
 
-@router.get("/oauth/start-url")
+@router.get("/oauth/start-url", response_model=dict[str, str])
 async def google_oauth_start_url(
     request: Request,
     redirect_path: str | None = Query(default="/"),
@@ -156,7 +156,7 @@ async def google_oauth_start_url(
     return {"auth_url": auth_url}
 
 
-@router.get("/oauth/callback", name="google_oauth_callback")
+@router.get("/oauth/callback", name="google_oauth_callback", response_class=RedirectResponse)
 async def google_oauth_callback(
     request: Request,
     code: str | None = Query(default=None),

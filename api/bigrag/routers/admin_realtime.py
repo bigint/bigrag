@@ -199,7 +199,7 @@ def _google_jobs_interval(payload: Any | None) -> float:
     )
 
 
-@router.get("/collections/{collection_name}/documents")
+@router.get("/collections/{collection_name}/documents", response_class=StreamingResponse)
 async def collection_documents_stream(
     collection_name: str,
     status: str | None = Query(default=None),
@@ -231,7 +231,10 @@ async def collection_documents_stream(
     )
 
 
-@router.get("/collections/{collection_name}/documents/batch-status")
+@router.get(
+    "/collections/{collection_name}/documents/batch-status",
+    response_class=StreamingResponse,
+)
 async def collection_documents_batch_status_stream(
     collection_name: str,
     document_ids: list[str] = Query(default_factory=list),
@@ -261,7 +264,9 @@ async def collection_documents_batch_status_stream(
     )
 
 
-@router.get("/collections/{collection_name}/documents/{document_id}")
+@router.get(
+    "/collections/{collection_name}/documents/{document_id}", response_class=StreamingResponse
+)
 async def collection_document_stream(
     collection_name: str,
     document_id: str,
@@ -282,7 +287,10 @@ async def collection_document_stream(
     return _stream_response(_event_stream(topic, load, document_id, _fixed(2.0), _document_done))
 
 
-@router.get("/collections/{collection_name}/upload-sessions/{session_id}")
+@router.get(
+    "/collections/{collection_name}/upload-sessions/{session_id}",
+    response_class=StreamingResponse,
+)
 async def collection_upload_session_stream(
     collection_name: str,
     session_id: str,
@@ -303,7 +311,7 @@ async def collection_upload_session_stream(
     return _stream_response(_interval_stream(topic, load, _fixed(2.0), _upload_session_done))
 
 
-@router.get("/collections/{collection_name}/stats")
+@router.get("/collections/{collection_name}/stats", response_class=StreamingResponse)
 async def collection_stats_stream(
     collection_name: str,
     user: dict = Depends(require_admin_session),
@@ -329,7 +337,7 @@ async def collection_stats_stream(
     )
 
 
-@router.get("/google/sources")
+@router.get("/google/sources", response_class=StreamingResponse)
 async def google_sources_stream(
     collection: str | None = Query(default=None, max_length=120),
     user: dict = Depends(require_admin_session),
@@ -348,7 +356,7 @@ async def google_sources_stream(
     return _stream_response(_interval_stream(topic, load, _google_sources_interval))
 
 
-@router.get("/google/sync-jobs")
+@router.get("/google/sync-jobs", response_class=StreamingResponse)
 async def google_sync_jobs_stream(
     source_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
@@ -369,7 +377,7 @@ async def google_sync_jobs_stream(
     return _stream_response(_interval_stream(topic, load, _google_jobs_interval))
 
 
-@router.get("/access/overview")
+@router.get("/access/overview", response_class=StreamingResponse)
 async def access_overview_stream(
     window_days: int = Query(default=7, ge=1, le=90),
     user: dict = Depends(require_admin_session),
@@ -388,7 +396,7 @@ async def access_overview_stream(
     return _stream_response(_interval_stream(topic, load, _fixed(20.0)))
 
 
-@router.get("/access/logs")
+@router.get("/access/logs", response_class=StreamingResponse)
 async def access_logs_stream(
     action: str | None = Query(default=None, max_length=100),
     actor_id: str | None = Query(default=None),
@@ -435,7 +443,7 @@ async def access_logs_stream(
     return _stream_response(_interval_stream(topic, load, _fixed(20.0)))
 
 
-@router.get("/audit")
+@router.get("/audit", response_class=StreamingResponse)
 async def audit_stream(
     action: str | None = Query(default=None, max_length=100),
     actor_id: str | None = Query(default=None),
@@ -462,7 +470,7 @@ async def audit_stream(
     return _stream_response(_interval_stream(topic, load, _fixed(60.0)))
 
 
-@router.get("/usage")
+@router.get("/usage", response_class=StreamingResponse)
 async def usage_stream(
     window_days: int = Query(default=30, ge=1, le=365),
     user: dict = Depends(require_admin_session),
@@ -481,7 +489,7 @@ async def usage_stream(
     return _stream_response(_interval_stream(topic, load, _fixed(60.0)))
 
 
-@router.get("/platform/stats")
+@router.get("/platform/stats", response_class=StreamingResponse)
 async def platform_stats_stream(
     request: Request,
     user: dict = Depends(require_admin_session),
@@ -500,7 +508,7 @@ async def platform_stats_stream(
     return _stream_response(_interval_stream(topic, load, _fixed(15.0)))
 
 
-@router.get("/platform/readiness")
+@router.get("/platform/readiness", response_class=StreamingResponse)
 async def platform_readiness_stream(
     request: Request,
     _: dict = Depends(require_admin_session),

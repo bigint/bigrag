@@ -145,7 +145,7 @@ async def upload_document(
         get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    logger.info(f"upload: collection={collection_name} file={file.filename}")
+    logger.info("document upload", collection=collection_name, filename=file.filename)
 
     file_ext = Path(file.filename or "").suffix.lower()
     if file_ext and file_ext not in SUPPORTED_EXTENSIONS:
@@ -376,7 +376,7 @@ async def reprocess_document(
     return StatusResponse(status="ok", message="Document reprocessing started")
 
 
-@router.get("/{document_id}/chunks")
+@router.get("/{document_id}/chunks", response_model=dict[str, object])
 async def get_document_chunks(
     collection_name: str,
     document_id: str,
@@ -384,7 +384,7 @@ async def get_document_chunks(
     offset: int = Query(default=0, ge=0),
     _: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
-):
+) -> dict[str, object]:
     collection = await get_collection_or_404(collection_name)
     exists = await session.scalar(
         sa.select(Document.id)
@@ -403,7 +403,7 @@ async def get_document_chunks(
     return {"chunks": chunks, "total": total}
 
 
-@router.get("/{document_id}/file")
+@router.get("/{document_id}/file", response_class=Response)
 async def download_document_file(
     collection_name: str,
     document_id: str,
@@ -564,7 +564,7 @@ async def batch_upload_documents(
             document_response(doc, progress=await _document_progress(doc, collection_name))
         )
 
-    logger.info(f"batch_upload: collection={collection_name} files={len(created)}")
+    logger.info("batch upload", collection=collection_name, files=len(created))
     audit.record(
         request,
         user=user,
@@ -640,7 +640,10 @@ async def batch_get_documents(
         document_response(d, progress=await _document_progress(d, collection_name)) for d in docs
     ]
     logger.info(
-        f"batch_get: collection={collection_name} requested={len(uuids)} found={len(documents)}"
+        "batch get",
+        collection=collection_name,
+        requested=len(uuids),
+        found=len(documents),
     )
     return BatchGetResponse(documents=documents, total=len(documents))
 
@@ -679,9 +682,9 @@ async def batch_delete_documents(
             await vector_store.delete_by_document(collection_name, doc_id)
             await get_storage().delete(doc.file_path)
             return True
-        except Exception as e:
-            logger.error(f"batch_delete: failed to delete doc={doc_id}: {e!r}")
-            errors.append({"document_id": doc_id, "error": str(e)})
+        except Exception as exc:
+            logger.error("batch delete failed", document_id=doc_id, error=repr(exc))
+            errors.append({"document_id": doc_id, "error": str(exc)})
             return False
 
     await ingestion_queue.cancel_documents(list(by_id))
@@ -696,9 +699,7 @@ async def batch_delete_documents(
     await collection_cache.invalidate(collection_name)
     await invalidate_collection_query_cache(collection_name)
 
-    logger.info(
-        f"batch_delete: collection={collection_name} deleted={deleted} errors={len(errors)}"
-    )
+    logger.info("batch delete", collection=collection_name, deleted=deleted, errors=len(errors))
     audit.record(
         request,
         user=user,

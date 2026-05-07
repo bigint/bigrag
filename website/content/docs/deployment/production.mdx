@@ -176,6 +176,10 @@ upload_dir = "./data/uploads"
 Backend logging is always enabled at debug level with text output. It is not controlled
 through environment variables or CLI flags.
 
+API logs are emitted through `structlog` with stable event names and key-value
+fields for request, ingestion, vector-store, webhook, and auth activity. Secrets
+are redacted before log rendering.
+
 ## Troubleshooting
 
 ### Connection refused on startup

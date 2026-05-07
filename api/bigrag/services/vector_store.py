@@ -55,13 +55,13 @@ class VectorStore:
             api_key=self.api_key,
             timeout=self._connect_timeout_seconds,
         )
-        logger.info(f"Connected to Qdrant at {self.url}")
+        logger.info("connected to qdrant", url=self.url)
 
     async def reconnect(self) -> None:
-        logger.warning(f"Reconnecting to Qdrant at {self.url}")
+        logger.warning("reconnecting to qdrant", url=self.url)
         await self.close()
         self.connect()
-        logger.info(f"Reconnected to Qdrant at {self.url}")
+        logger.info("reconnected to qdrant", url=self.url)
 
     async def _run_with_retry(
         self,
@@ -78,8 +78,10 @@ class VectorStore:
                 last_error = e
                 if attempt < self._max_retries:
                     logger.warning(
-                        f"Qdrant transient error (attempt {attempt + 1}/{self._max_retries + 1}): "
-                        f"{e!r}, reconnecting..."
+                        "qdrant transient error",
+                        attempt=attempt + 1,
+                        max_attempts=self._max_retries + 1,
+                        error=repr(e),
                     )
                     await self.reconnect()
                 else:
@@ -90,8 +92,10 @@ class VectorStore:
                     last_error = e
                     if attempt < self._max_retries:
                         logger.warning(
-                            f"Qdrant likely transient error (attempt {attempt + 1}/"
-                            f"{self._max_retries + 1}): {e!r}, reconnecting..."
+                            "qdrant likely transient error",
+                            attempt=attempt + 1,
+                            max_attempts=self._max_retries + 1,
+                            error=repr(e),
                         )
                         await self.reconnect()
                     else:
@@ -218,7 +222,12 @@ class VectorStore:
                     distance=models.Distance.COSINE,
                 ),
             )
-            logger.info(f"Created Qdrant collection: {col} (dim={dimension}, index={index_type})")
+            logger.info(
+                "created qdrant collection",
+                collection=col,
+                dimension=dimension,
+                index=index_type,
+            )
 
         await self._ensure_payload_indexes(col, tenant_field=tenant_field)
 
@@ -227,7 +236,7 @@ class VectorStore:
         client = self._client()
         if await self._run_with_retry(client.collection_exists, col):
             await self._run_with_retry(client.delete_collection, col)
-            logger.info(f"Dropped Qdrant collection: {col}")
+            logger.info("dropped qdrant collection", collection=col)
 
     async def insert(
         self,
@@ -258,7 +267,7 @@ class VectorStore:
 
         client = self._client()
         await self._run_with_retry(client.upsert, collection_name=col, points=points, wait=True)
-        logger.info(f"insert: collection={col} count={len(points)}")
+        logger.info("inserted vectors", collection=col, count=len(points))
         return len(points)
 
     def _search_params(self) -> models.SearchParams | None:
@@ -305,7 +314,7 @@ class VectorStore:
         )
 
         hits = [self._row_from_payload(point) for point in results.points]
-        logger.info(f"search: collection={col} top_k={top_k} hits={len(hits)} filter={filters}")
+        logger.info("vector search", collection=col, top_k=top_k, hits=len(hits), filters=filters)
         return hits
 
     async def get_chunks(
@@ -347,8 +356,13 @@ class VectorStore:
         total = len(all_chunks)
         page = all_chunks[offset : offset + limit]
         logger.info(
-            f"get_chunks: collection={col} document_id={document_id} "
-            f"total={total} offset={offset} limit={limit} returned={len(page)}"
+            "get chunks",
+            collection=col,
+            document_id=document_id,
+            total=total,
+            offset=offset,
+            limit=limit,
+            returned=len(page),
         )
         return [
             {
@@ -377,7 +391,7 @@ class VectorStore:
             ),
             wait=True,
         )
-        logger.info(f"delete_by_document: collection={col} document_id={document_id}")
+        logger.info("delete vectors by document", collection=col, document_id=document_id)
 
     async def delete_by_ids(self, collection: str, ids: list[str]) -> None:
         col = self._col(collection)
@@ -389,7 +403,7 @@ class VectorStore:
             points_selector=point_ids,
             wait=True,
         )
-        logger.info(f"delete_by_ids: collection={col} count={len(ids)}")
+        logger.info("delete vectors by ids", collection=col, count=len(ids))
 
     @staticmethod
     def _combine_filters(*filters: models.Filter | None) -> models.Filter | None:
@@ -433,11 +447,11 @@ class VectorStore:
             )
         except _TRANSIENT_ERRORS:
             raise
-        except Exception as e:
-            logger.warning(f"text_search query failed: {e!r}, returning empty results")
+        except Exception as exc:
+            logger.warning("text search query failed", collection=col, error=repr(exc))
             return []
 
-        logger.info(f"text_search: collection={col} terms={len(terms)} hits={len(results)}")
+        logger.info("text search", collection=col, terms=len(terms), hits=len(results))
         return [self._row_from_payload(point) for point in results]
 
     async def upsert(
@@ -467,7 +481,7 @@ class VectorStore:
 
         client = self._client()
         await self._run_with_retry(client.upsert, collection_name=col, points=points, wait=True)
-        logger.info(f"upsert: collection={col} count={len(points)}")
+        logger.info("upserted vectors", collection=col, count=len(points))
         return len(points)
 
 

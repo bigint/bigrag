@@ -82,6 +82,10 @@ class WebhookResponse(BaseModel):
     updated_at: datetime
 
 
+class WebhookListResponse(BaseModel):
+    webhooks: list[WebhookResponse]
+
+
 class CreateWebhookResponse(WebhookResponse):
     secret: str
 

@@ -7,7 +7,7 @@ import os
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from bigrag import __version__
@@ -15,7 +15,14 @@ from bigrag import config as config_module
 from bigrag import db as db_module
 from bigrag.config import Settings
 from bigrag.db.bootstrap import run_migrations
-from bigrag.exceptions import NotFoundError, ValidationError
+from bigrag.exceptions import (
+    ForbiddenError,
+    NotFoundError,
+    RateLimitError,
+    ServerError,
+    UpstreamError,
+    ValidationError,
+)
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
 from bigrag.middleware.cors import RuntimeCorsMiddleware
 from bigrag.middleware.csrf import SessionCsrfMiddleware
@@ -75,7 +82,8 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning(
             "Qdrant startup connection failed; API will start degraded",
-            error=f"{exc.__class__.__name__}: {exc}",
+            error_type=exc.__class__.__name__,
+            error=str(exc),
         )
         if s.qdrant_required:
             raise
@@ -185,12 +193,32 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.add_middleware(RuntimeCorsMiddleware)
 
     @app.exception_handler(NotFoundError)
-    async def not_found_handler(_request, exc: NotFoundError):
+    async def not_found_handler(_request: Request, exc: NotFoundError) -> JSONResponse:
         return JSONResponse(status_code=404, content={"detail": str(exc)})
 
     @app.exception_handler(ValidationError)
-    async def validation_handler(_request, exc: ValidationError):
+    async def validation_handler(_request: Request, exc: ValidationError) -> JSONResponse:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    @app.exception_handler(ForbiddenError)
+    async def forbidden_handler(_request: Request, exc: ForbiddenError) -> JSONResponse:
+        return JSONResponse(status_code=403, content={"detail": str(exc)})
+
+    @app.exception_handler(RateLimitError)
+    async def rate_limit_handler(_request: Request, exc: RateLimitError) -> JSONResponse:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": str(exc)},
+            headers={"Retry-After": str(exc.retry_after)},
+        )
+
+    @app.exception_handler(UpstreamError)
+    async def upstream_handler(_request: Request, exc: UpstreamError) -> JSONResponse:
+        return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+    @app.exception_handler(ServerError)
+    async def server_handler(_request: Request, exc: ServerError) -> JSONResponse:
+        return JSONResponse(status_code=500, content={"detail": str(exc)})
 
     from bigrag.routers.admin_access import router as admin_access_router
     from bigrag.routers.admin_api_keys import router as admin_api_keys_router
@@ -247,7 +275,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     return app
 
 
-def cli():
+def cli() -> None:
     parser = argparse.ArgumentParser(description="bigRAG server")
     parser.add_argument("--config", default="bigrag.toml", help="Config file path")
     parser.add_argument("--host", help="Server host")

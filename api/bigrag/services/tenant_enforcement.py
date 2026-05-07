@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import HTTPException
+from bigrag.exceptions import ValidationError
 
 
 def tenant_field(collection: dict) -> str | None:
@@ -14,9 +14,8 @@ def require_tenant_metadata(collection: dict, metadata: dict, *, label: str = "m
         return
     value = metadata.get(field)
     if value is None or value == "":
-        raise HTTPException(
-            status_code=400,
-            detail=f"{label}.{field} is required because collection tenant_field is {field!r}",
+        raise ValidationError(
+            f"{label}.{field} is required because collection tenant_field is {field!r}"
         )
 
 
@@ -25,9 +24,8 @@ def require_tenant_filters(collection: dict, filters: dict | None) -> None:
     if not field:
         return
     if not _has_tenant_filter(field, filters):
-        raise HTTPException(
-            status_code=400,
-            detail=f"filters.{field} is required because collection tenant_field is {field!r}",
+        raise ValidationError(
+            f"filters.{field} is required because collection tenant_field is {field!r}"
         )
 
 

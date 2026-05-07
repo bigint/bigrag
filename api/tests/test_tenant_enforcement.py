@@ -4,8 +4,8 @@ import asyncio
 import uuid
 
 import pytest
-from fastapi import HTTPException
 
+from bigrag.exceptions import ValidationError
 from bigrag.models.chat import ChatCreateRequest
 from bigrag.models.query import (
     BatchQueryItem,
@@ -34,11 +34,10 @@ def tenant_collection() -> dict:
 
 
 def test_tenant_metadata_is_required_for_uploads() -> None:
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(ValidationError) as exc:
         require_tenant_metadata(tenant_collection(), {"source": "upload"})
 
-    assert exc.value.status_code == 400
-    assert "metadata.tenant_id" in exc.value.detail
+    assert "metadata.tenant_id" in str(exc.value)
 
 
 def test_tenant_metadata_accepts_present_value() -> None:
@@ -46,16 +45,15 @@ def test_tenant_metadata_accepts_present_value() -> None:
 
 
 def test_prepare_document_metadata_enforces_tenant_field() -> None:
-    with pytest.raises(HTTPException):
+    with pytest.raises(ValidationError):
         _documents.prepare_document_metadata(tenant_collection(), {})
 
 
 def test_tenant_filter_is_required_for_queries() -> None:
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(ValidationError) as exc:
         require_tenant_filters(tenant_collection(), {"source": "docs"})
 
-    assert exc.value.status_code == 400
-    assert "filters.tenant_id" in exc.value.detail
+    assert "filters.tenant_id" in str(exc.value)
 
 
 def test_tenant_filter_accepts_eq_and_in() -> None:
@@ -70,7 +68,7 @@ def test_query_route_rejects_missing_tenant_filter(monkeypatch) -> None:
     monkeypatch.setattr(query_router, "get_collection_or_404", fake_get_collection_or_404)
     monkeypatch.setattr(query_router.access_log, "set_context", lambda *args, **kwargs: None)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(ValidationError):
         asyncio.run(
             query_router.query_collection(
                 "docs",
@@ -80,8 +78,6 @@ def test_query_route_rejects_missing_tenant_filter(monkeypatch) -> None:
             )
         )
 
-    assert exc.value.status_code == 400
-
 
 def test_multi_query_route_rejects_missing_tenant_filter(monkeypatch) -> None:
     async def fake_get_collection_or_404(name: str) -> dict:
@@ -90,7 +86,7 @@ def test_multi_query_route_rejects_missing_tenant_filter(monkeypatch) -> None:
     monkeypatch.setattr(query_router, "get_collection_or_404", fake_get_collection_or_404)
     monkeypatch.setattr(query_router.access_log, "set_context", lambda *args, **kwargs: None)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(ValidationError):
         asyncio.run(
             query_router.multi_collection_query(
                 MultiQueryRequest(query="find contracts", collections=["docs"]),
@@ -98,8 +94,6 @@ def test_multi_query_route_rejects_missing_tenant_filter(monkeypatch) -> None:
                 {},
             )
         )
-
-    assert exc.value.status_code == 400
 
 
 def test_batch_query_route_rejects_missing_tenant_filter(monkeypatch) -> None:
@@ -109,7 +103,7 @@ def test_batch_query_route_rejects_missing_tenant_filter(monkeypatch) -> None:
     monkeypatch.setattr(query_router, "get_collection_or_404", fake_get_collection_or_404)
     monkeypatch.setattr(query_router.access_log, "set_context", lambda *args, **kwargs: None)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(ValidationError):
         asyncio.run(
             query_router.batch_query(
                 BatchQueryRequest(
@@ -120,8 +114,6 @@ def test_batch_query_route_rejects_missing_tenant_filter(monkeypatch) -> None:
             )
         )
 
-    assert exc.value.status_code == 400
-
 
 def test_vector_upsert_route_rejects_missing_tenant_metadata(monkeypatch) -> None:
     async def fake_get_collection_or_404(name: str) -> dict:
@@ -130,7 +122,7 @@ def test_vector_upsert_route_rejects_missing_tenant_metadata(monkeypatch) -> Non
     monkeypatch.setattr(query_router, "get_collection_or_404", fake_get_collection_or_404)
     monkeypatch.setattr(query_router.access_log, "set_context", lambda *args, **kwargs: None)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(ValidationError):
         asyncio.run(
             query_router.upsert_vectors(
                 "docs",
@@ -141,8 +133,6 @@ def test_vector_upsert_route_rejects_missing_tenant_metadata(monkeypatch) -> Non
                 {},
             )
         )
-
-    assert exc.value.status_code == 400
 
 
 def test_chat_turn_rejects_missing_tenant_filter(monkeypatch) -> None:
@@ -169,7 +159,7 @@ def test_chat_turn_rejects_missing_tenant_filter(monkeypatch) -> None:
     monkeypatch.setattr(chat_service, "get_values", fake_get_values)
     monkeypatch.setattr(chat_service, "get_collection_or_404", fake_get_collection_or_404)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(ValidationError):
         asyncio.run(
             chat_service._prepare_chat_turn(
                 Session(),
@@ -177,5 +167,3 @@ def test_chat_turn_rejects_missing_tenant_filter(monkeypatch) -> None:
                 ChatCreateRequest(collection="docs", message="find contracts", stream=False),
             )
         )
-
-    assert exc.value.status_code == 400

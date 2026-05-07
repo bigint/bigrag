@@ -167,7 +167,7 @@ async def setup(
     await session.refresh(user)
 
     await _set_session_cookie(response, token)
-    logger.info(f"First admin created: {body.email}")
+    logger.info("first admin created", email=body.email)
     audit.record(
         request,
         user={"id": str(user.id), "email": user.email},

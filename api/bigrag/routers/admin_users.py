@@ -67,7 +67,7 @@ async def create_user(
             raise HTTPException(status_code=409, detail="Email is already registered") from e
         raise
     await session.refresh(user)
-    logger.info(f"User created: {body.email} role={body.role}")
+    logger.info("user created", email=body.email, role=body.role)
     audit.record(
         request,
         user=admin,
@@ -116,9 +116,12 @@ async def update_user(
     await invalidate_auth_principals()
 
     logger.info(
-        f"User updated: id={user_id} by={admin['email']} "
-        f"display_name={body.display_name is not None} "
-        f"role={body.role is not None} password={password_changed}"
+        "user updated",
+        id=user_id,
+        actor=admin["email"],
+        display_name=body.display_name is not None,
+        role=body.role is not None,
+        password=password_changed,
     )
     audit.record(
         request,
@@ -166,7 +169,7 @@ async def delete_user(
     await session.commit()
     await invalidate_auth_principals()
 
-    logger.info(f"User deleted: id={user_id} by={admin['email']}")
+    logger.info("user deleted", id=user_id, actor=admin["email"])
     audit.record(
         request,
         user=admin,

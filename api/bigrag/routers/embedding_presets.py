@@ -108,7 +108,7 @@ async def create_preset(
             ) from e
         raise
     await session.refresh(preset)
-    logger.info(f"Embedding preset created: name={body.name} by={admin['email']}")
+    logger.info("embedding preset created", name=body.name, actor=admin["email"])
     audit.record(
         request,
         user=admin,
@@ -222,7 +222,7 @@ async def delete_preset(
     await session.delete(preset)
     await session.commit()
 
-    logger.info(f"Embedding preset deleted: id={preset_id} by={admin['email']}")
+    logger.info("embedding preset deleted", id=preset_id, actor=admin["email"])
     audit.record(
         request,
         user=admin,

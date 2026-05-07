@@ -154,13 +154,13 @@ def _categorize_provider_error(exc: Exception) -> str:
     return "unknown"
 
 
-@router.get("/health")
-async def health():
+@router.get("/health", response_model=dict[str, str])
+async def health() -> dict[str, str]:
     return {"status": "ok", "version": __version__}
 
 
-@router.get("/health/ready")
-async def readiness(request: Request):
+@router.get("/health/ready", response_model=dict[str, object])
+async def readiness(request: Request) -> JSONResponse:
     vs = request.app.state.vector_store
     queue = request.app.state.queue
 
@@ -207,12 +207,12 @@ async def readiness(request: Request):
     return JSONResponse(content=checks, status_code=200 if healthy else 503)
 
 
-@router.get("/v1/stats")
+@router.get("/v1/stats", response_model=dict[str, object])
 async def platform_stats(
     request: Request,
     _: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
-):
+) -> dict[str, object]:
     cached = await redis_cache.get("stats:platform")
     if cached:
         return cached

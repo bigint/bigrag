@@ -13,6 +13,7 @@ from bigrag.models.query import (
     BatchQueryResponse,
     BatchQueryResultItem,
     EmbeddingModelInfo,
+    EmbeddingModelListResponse,
     MultiQueryRequest,
     MultiQueryResponse,
     MultiQueryResult,
@@ -21,7 +22,9 @@ from bigrag.models.query import (
     QueryResult,
     QueryTimings,
     VectorDeleteRequest,
+    VectorDeleteResponse,
     VectorUpsertRequest,
+    VectorUpsertResponse,
 )
 from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
 from bigrag.services import access_log
@@ -58,8 +61,11 @@ async def query_collection(
     collection = await get_collection_or_404(collection_name)
     require_tenant_filters(collection, body.filters)
     logger.info(
-        f"query: collection={collection_name} q={body.query!r:.80s} "
-        f"top_k={body.top_k} filters={body.filters}"
+        "query collection",
+        collection=collection_name,
+        query=body.query[:80],
+        top_k=body.top_k,
+        filters=body.filters,
     )
 
     try:
@@ -95,8 +101,10 @@ async def query_collection(
     )
 
     logger.info(
-        f"query: collection={collection_name} results={len(outcome.results)} "
-        f"total_ms={outcome.total_ms}"
+        "query complete",
+        collection=collection_name,
+        results=len(outcome.results),
+        total_ms=outcome.total_ms,
     )
     response = QueryResponse(
         results=[QueryResult(**_result_to_dict(r)) for r in outcome.results],
@@ -157,7 +165,10 @@ async def multi_collection_query(
         },
     )
     logger.info(
-        f"multi-query: collections={body.collections} q={body.query!r:.80s} top_k={body.top_k}"
+        "multi-query",
+        collections=body.collections,
+        query=body.query[:80],
+        top_k=body.top_k,
     )
 
     embedding_models = {}
@@ -183,7 +194,7 @@ async def multi_collection_query(
         rerank_override=body.rerank,
     )
 
-    logger.info(f"multi-query: collections={body.collections} results={len(results)}")
+    logger.info("multi-query complete", collections=body.collections, results=len(results))
     access_log.set_context(
         request,
         metadata={
@@ -217,7 +228,7 @@ async def batch_query(
             ],
         },
     )
-    logger.info(f"batch-query: {len(body.queries)} queries")
+    logger.info("batch-query", queries=len(body.queries))
 
     async def run_one(item: BatchQueryItem) -> BatchQueryResultItem:
         collection = await get_collection_or_404(item.collection)
@@ -259,7 +270,10 @@ async def batch_query(
     return BatchQueryResponse(results=list(results))
 
 
-@router.post("/v1/collections/{collection_name}/vectors/upsert")
+@router.post(
+    "/v1/collections/{collection_name}/vectors/upsert",
+    response_model=VectorUpsertResponse,
+)
 async def upsert_vectors(
     collection_name: str,
     body: VectorUpsertRequest,
@@ -275,7 +289,7 @@ async def upsert_vectors(
         metadata={"vector_count": len(body.vectors)},
     )
     collection = await get_collection_or_404(collection_name)
-    logger.info(f"upsert: collection={collection_name} vectors={len(body.vectors)}")
+    logger.info("vector upsert", collection=collection_name, vectors=len(body.vectors))
 
     ids = [v.id for v in body.vectors]
     embeddings = [v.embedding for v in body.vectors]
@@ -292,13 +306,16 @@ async def upsert_vectors(
         metadata=metadata,
     )
     await invalidate_collection_query_cache(collection_name)
-    logger.info(f"upsert: collection={collection_name} upserted={count}")
+    logger.info("vector upsert complete", collection=collection_name, upserted=count)
     access_log.set_context(request, metadata={"upserted": count})
 
-    return {"status": "ok", "upserted": count}
+    return VectorUpsertResponse(upserted=count)
 
 
-@router.post("/v1/collections/{collection_name}/vectors/delete")
+@router.post(
+    "/v1/collections/{collection_name}/vectors/delete",
+    response_model=VectorDeleteResponse,
+)
 async def delete_vectors(
     collection_name: str,
     body: VectorDeleteRequest,
@@ -314,11 +331,11 @@ async def delete_vectors(
         metadata={"vector_count": len(body.ids)},
     )
     await get_collection_or_404(collection_name)
-    logger.info(f"vectors/delete: collection={collection_name} ids={len(body.ids)}")
+    logger.info("vector delete", collection=collection_name, ids=len(body.ids))
     await vector_store.delete_by_ids(collection_name, body.ids)
     await invalidate_collection_query_cache(collection_name)
     access_log.set_context(request, metadata={"deleted": len(body.ids)})
-    return {"status": "ok", "deleted": len(body.ids)}
+    return VectorDeleteResponse(deleted=len(body.ids))
 
 
 @router.get("/v1/collections/{collection_name}/analytics", response_model=AnalyticsResponse)
@@ -401,6 +418,8 @@ async def collection_analytics(
     return AnalyticsResponse(**result)
 
 
-@router.get("/v1/embeddings/models")
-async def list_embedding_models(_: dict = Depends(get_current_user)):
-    return {"models": [EmbeddingModelInfo(**m).model_dump() for m in AVAILABLE_MODELS]}
+@router.get("/v1/embeddings/models", response_model=EmbeddingModelListResponse)
+async def list_embedding_models(
+    _: dict = Depends(get_current_user),
+) -> EmbeddingModelListResponse:
+    return EmbeddingModelListResponse(models=[EmbeddingModelInfo(**m) for m in AVAILABLE_MODELS])

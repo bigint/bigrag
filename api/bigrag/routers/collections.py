@@ -96,7 +96,7 @@ async def list_collections(
     _: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    logger.info(f"list: fetching collections name={name} limit={limit} offset={offset}")
+    logger.info("list collections", name=name, limit=limit, offset=offset)
     stmt = sa.select(Collection).order_by(Collection.created_at.desc())
     count_stmt = sa.select(sa.func.count()).select_from(Collection)
     if name:
@@ -106,7 +106,7 @@ async def list_collections(
     rows = (await session.scalars(stmt.limit(limit).offset(offset))).all()
     total = await session.scalar(count_stmt)
 
-    logger.info(f"list: found {len(rows)} collections")
+    logger.info("list collections complete", count=len(rows))
     return CollectionListResponse(
         collections=[_collection_response(c) for c in rows],
         total=total or 0,
@@ -121,7 +121,10 @@ async def create_collection(
     session: AsyncSession = Depends(get_session),
 ):
     logger.info(
-        f"create: name={body.name} provider={body.embedding_provider} model={body.embedding_model}"
+        "create collection",
+        name=body.name,
+        provider=body.embedding_provider,
+        model=body.embedding_model,
     )
     existing = await session.scalar(sa.select(Collection.id).where(Collection.name == body.name))
     if existing is not None:
@@ -262,7 +265,11 @@ async def create_collection(
     await collection_cache.invalidate(body.name)
 
     logger.info(
-        f"create: collection={body.name} created provider={provider} model={model} dim={dimension}"
+        "collection created",
+        collection=body.name,
+        provider=provider,
+        model=model,
+        dimension=dimension,
     )
     audit.record(
         request,
@@ -354,7 +361,7 @@ async def get_collection(
     _: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    logger.info(f"get: collection={name}")
+    logger.info("get collection", collection=name)
     collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
@@ -367,7 +374,7 @@ async def get_collection_stats(
     _: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    logger.info(f"stats: collection={name}")
+    logger.info("collection stats", collection=name)
     collection_id = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
     if collection_id is None:
         raise HTTPException(status_code=404, detail="Collection not found")
@@ -410,7 +417,7 @@ async def update_collection(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    logger.info(f"update: collection={name}")
+    logger.info("update collection", collection=name)
     collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
@@ -488,28 +495,28 @@ async def delete_collection(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    logger.info(f"delete: collection={name}")
+    logger.info("delete collection", collection=name)
     collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
     flushed = await ingestion_queue.cancel_collection(name)
-    logger.info(f"delete: cancelled/flushed {flushed} queued jobs name={name}")
+    logger.info("delete collection jobs cancelled", collection=name, flushed=flushed)
 
     await vector_store.delete_collection(name)
-    logger.info(f"delete: qdrant collection dropped name={name}")
+    logger.info("delete collection vectors dropped", collection=name)
 
     from bigrag.services.storage import get_storage
 
     deleted = await get_storage().delete_prefix(f"{name}/")
-    logger.info(f"delete: storage files removed name={name} count={deleted}")
+    logger.info("delete collection storage removed", collection=name, count=deleted)
 
     deleted_id = str(collection.id)
     await session.delete(collection)
     await session.commit()
     await collection_cache.invalidate(name)
     await invalidate_collection_query_cache(name)
-    logger.info(f"delete: postgres records removed name={name}")
+    logger.info("delete collection database records removed", collection=name)
 
     audit.record(
         request,
@@ -523,7 +530,7 @@ async def delete_collection(
     return StatusResponse(status="ok", message=f"Collection '{name}' deleted")
 
 
-@router.get("/{name}/events")
+@router.get("/{name}/events", response_class=StreamingResponse)
 async def collection_events_sse(
     name: str,
     _: dict = Depends(get_current_user),
@@ -582,21 +589,21 @@ async def truncate_collection(
     session: AsyncSession = Depends(get_session),
 ):
 
-    logger.info(f"truncate: collection={name}")
+    logger.info("truncate collection", collection=name)
     collection_id = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
     if collection_id is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
     flushed = await ingestion_queue.cancel_collection(name)
-    logger.info(f"truncate: cancelled/flushed {flushed} queued jobs name={name}")
+    logger.info("truncate collection jobs cancelled", collection=name, flushed=flushed)
 
     await vector_store.delete_collection(name)
-    logger.info(f"truncate: vectors cleared name={name}")
+    logger.info("truncate collection vectors cleared", collection=name)
 
     from bigrag.services.storage import get_storage
 
     deleted = await get_storage().delete_prefix(f"{name}/")
-    logger.info(f"truncate: storage files removed name={name} count={deleted}")
+    logger.info("truncate collection storage removed", collection=name, count=deleted)
 
     await session.execute(sa.delete(Document).where(Document.collection_id == collection_id))
     await session.execute(
@@ -605,7 +612,7 @@ async def truncate_collection(
     await session.commit()
     await collection_cache.invalidate(name)
     await invalidate_collection_query_cache(name)
-    logger.info(f"truncate: documents removed name={name}")
+    logger.info("truncate collection documents removed", collection=name)
 
     audit.record(
         request,

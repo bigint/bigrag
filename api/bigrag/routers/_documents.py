@@ -176,7 +176,7 @@ async def persist_document(
     storage = get_storage()
 
     await storage.put(storage_key, content)
-    logger.info(f"upload: stored key={storage_key} size={len(content)}")
+    logger.info("upload stored", key=storage_key, size=len(content))
 
     doc = Document(
         id=doc_id,

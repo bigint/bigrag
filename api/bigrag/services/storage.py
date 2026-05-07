@@ -52,7 +52,7 @@ class LocalStorage(StorageBackend):
             path.write_bytes(data)
 
         await asyncio.to_thread(_write)
-        logger.info(f"local put: key={key} size={len(data)}")
+        logger.info("local put", key=key, size=len(data))
 
     async def get(self, key: str) -> bytes:
         path = self._safe_path(key)
@@ -63,7 +63,7 @@ class LocalStorage(StorageBackend):
             return path.read_bytes()
 
         data = await asyncio.to_thread(_read)
-        logger.info(f"local get: key={key} size={len(data)}")
+        logger.info("local get", key=key, size=len(data))
         return data
 
     async def delete(self, key: str) -> None:
@@ -74,7 +74,7 @@ class LocalStorage(StorageBackend):
                 path.unlink()
 
         await asyncio.to_thread(_delete)
-        logger.info(f"local delete: key={key}")
+        logger.info("local delete", key=key)
 
     async def delete_prefix(self, prefix: str) -> int:
         import shutil
@@ -93,7 +93,7 @@ class LocalStorage(StorageBackend):
 
         count = await asyncio.to_thread(_delete_prefix)
         if count:
-            logger.info(f"local delete_prefix: prefix={prefix} count={count}")
+            logger.info("local delete_prefix", prefix=prefix, count=count)
         return count
 
     async def exists(self, key: str) -> bool:
@@ -150,7 +150,7 @@ class S3Storage(StorageBackend):
             Key=object_key,
             Body=data,
         )
-        logger.info(f"s3 put: key={object_key} size={len(data)}")
+        logger.info("s3 put", key=object_key, size=len(data))
 
     async def get(self, key: str) -> bytes:
         object_key = self._key(key)
@@ -160,13 +160,13 @@ class S3Storage(StorageBackend):
             return response["Body"].read()
 
         data = await asyncio.to_thread(_read)
-        logger.info(f"s3 get: key={object_key} size={len(data)}")
+        logger.info("s3 get", key=object_key, size=len(data))
         return data
 
     async def delete(self, key: str) -> None:
         object_key = self._key(key)
         await asyncio.to_thread(self._client.delete_object, Bucket=self._bucket, Key=object_key)
-        logger.info(f"s3 delete: key={object_key}")
+        logger.info("s3 delete", key=object_key)
 
     async def delete_prefix(self, prefix: str) -> int:
         object_prefix = self._key(prefix).rstrip("/") + "/"
@@ -182,7 +182,7 @@ class S3Storage(StorageBackend):
 
         count = await asyncio.to_thread(_delete)
         if count:
-            logger.info(f"s3 delete_prefix: prefix={object_prefix} count={count}")
+            logger.info("s3 delete_prefix", prefix=object_prefix, count=count)
         return count
 
     def _list_keys(self, prefix: str) -> Iterator[list[str]]:
@@ -239,7 +239,7 @@ def init_storage(upload_dir: str = "./data/uploads") -> StorageBackend:
     global _storage
 
     _storage = LocalStorage(upload_dir)
-    logger.info(f"Local storage initialized dir={upload_dir}")
+    logger.info("local storage initialized", upload_dir=upload_dir)
 
     return _storage
 
@@ -254,9 +254,9 @@ def init_storage_from_values(upload_dir: str, values: dict[str, Any]) -> Storage
 
     _storage = build_storage_from_values(upload_dir, values)
     if isinstance(_storage, LocalStorage):
-        logger.info(f"Local storage initialized dir={upload_dir}")
+        logger.info("local storage initialized", upload_dir=upload_dir)
     else:
-        logger.info(f"S3 storage initialized bucket={values.get('storage_s3_bucket')}")
+        logger.info("s3 storage initialized", bucket=values.get("storage_s3_bucket"))
     return _storage
 
 
