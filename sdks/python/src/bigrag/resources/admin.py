@@ -28,7 +28,10 @@ from bigrag.types.admin import (
 )
 from bigrag.types.auth import User
 from bigrag.types.common import StatusResponse
-from bigrag.types.connectors import GoogleConnectorConfig, UpdateGoogleConnectorConfigBody
+from bigrag.types.connectors import (
+    GoogleConnectorConfig,
+    UpdateGoogleConnectorConfigBody,
+)
 
 if TYPE_CHECKING:
     from bigrag._core import BigRAGCore
@@ -150,14 +153,20 @@ class AdminAccessResource:
             params["status_family"] = status_family
         if success is not None:
             params["success"] = "true" if success else "false"
-        return await self._client._request("GET", "/v1/admin/access/logs", params=params)
+        return await self._client._request(
+            "GET", "/v1/admin/access/logs", params=params
+        )
 
-    async def overview(self, *, window_days: int | None = None) -> AccessLogOverviewResponse:
+    async def overview(
+        self, *, window_days: int | None = None
+    ) -> AccessLogOverviewResponse:
         """Retrieve access log overview metrics."""
         params: dict[str, str] = {}
         if window_days is not None:
             params["window_days"] = str(window_days)
-        return await self._client._request("GET", "/v1/admin/access/overview", params=params)
+        return await self._client._request(
+            "GET", "/v1/admin/access/overview", params=params
+        )
 
 
 class AdminAuditResource:
@@ -205,9 +214,13 @@ class AdminGoogleConnectorResource:
         """Get Google Drive connector config."""
         return await self._client._request("GET", "/v1/admin/connectors/google")
 
-    async def update(self, body: UpdateGoogleConnectorConfigBody) -> GoogleConnectorConfig:
+    async def update(
+        self, body: UpdateGoogleConnectorConfigBody
+    ) -> GoogleConnectorConfig:
         """Update Google Drive connector config."""
-        return await self._client._request("PUT", "/v1/admin/connectors/google", json=body)
+        return await self._client._request(
+            "PUT", "/v1/admin/connectors/google", json=body
+        )
 
 
 class AdminEmbeddingPresetsResource:

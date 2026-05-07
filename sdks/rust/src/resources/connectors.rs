@@ -82,10 +82,7 @@ impl GoogleDrive<'_> {
     pub async fn disconnect(&self) -> Result<StatusResponse, BigRagError> {
         self.client
             .transport
-            .post(
-                "/v1/connectors/google/disconnect",
-                &serde_json::Value::Null,
-            )
+            .post("/v1/connectors/google/disconnect", &serde_json::Value::Null)
             .await
     }
 

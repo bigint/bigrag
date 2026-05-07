@@ -14,7 +14,10 @@ pub struct Auth<'a> {
 impl Auth<'_> {
     /// Get first-admin setup status.
     pub async fn setup_status(&self) -> Result<SetupStatusResponse, BigRagError> {
-        self.client.transport.get("/v1/auth/setup-status", vec![]).await
+        self.client
+            .transport
+            .get("/v1/auth/setup-status", vec![])
+            .await
     }
 
     /// Create the first admin and session.

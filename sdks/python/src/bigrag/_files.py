@@ -6,9 +6,7 @@ import os
 from pathlib import Path
 from typing import BinaryIO
 
-FileInput = (
-    str | Path | bytes | BinaryIO | tuple[str, bytes] | tuple[str, BinaryIO]
-)
+FileInput = str | Path | bytes | BinaryIO | tuple[str, bytes] | tuple[str, BinaryIO]
 """Accepted file input types for document upload.
 
 - ``str`` / :class:`~pathlib.Path` -- a filesystem path; the file is read

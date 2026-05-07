@@ -1,7 +1,9 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { toast } from "sonner";
+import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
@@ -14,6 +16,20 @@ import type {
 } from "@/types/bigrag";
 
 type GoogleSourceListResponse = { sources: GoogleDriveSource[]; total: number };
+type GoogleSyncJobListResponse = { jobs: GoogleDriveSyncJob[]; total: number };
+
+const updateGoogleSourcesCache = (
+  queryClient: QueryClient,
+  collection: string,
+  update: (data: GoogleSourceListResponse | undefined) => GoogleSourceListResponse | undefined,
+) => {
+  for (const key of [
+    queryKeys.connectors.googleSources(collection),
+    queryKeys.connectors.googleSources(),
+  ]) {
+    queryClient.setQueryData<GoogleSourceListResponse>(key, update);
+  }
+};
 
 export const useGoogleConnectorConfig = () =>
   useQuery({
@@ -66,18 +82,40 @@ export const useGoogleDriveFiles = ({
     retry: false,
   });
 
-export const useGoogleSources = (collection?: string) =>
-  useQuery({
-    queryKey: queryKeys.connectors.googleSources(collection),
+export const useGoogleSources = (collection?: string) => {
+  const queryKey = useMemo(() => queryKeys.connectors.googleSources(collection), [collection]);
+  const path = useMemo(() => {
+    const params = new URLSearchParams();
+    if (collection) params.set("collection", collection);
+    return `v1/admin/realtime/google/sources?${params}`;
+  }, [collection]);
+  return useSseSnapshotQuery<GoogleSourceListResponse>({
+    queryKey,
     queryFn: () =>
       apiClient.get<GoogleSourceListResponse>("v1/connectors/google/sources", {
         ...(collection ? { collection } : {}),
       }),
-    refetchInterval: (q) => {
-      const data = q.state.data as GoogleSourceListResponse | undefined;
-      return data?.sources.some((source) => source.status === "syncing") ? 2_500 : 10_000;
-    },
+    path,
   });
+};
+
+export const useGoogleSyncJobs = (sourceId?: string, limit = 20) => {
+  const queryKey = useMemo(() => queryKeys.connectors.googleSyncJobs(sourceId), [sourceId]);
+  const path = useMemo(() => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (sourceId) params.set("source_id", sourceId);
+    return `v1/admin/realtime/google/sync-jobs?${params}`;
+  }, [limit, sourceId]);
+  return useSseSnapshotQuery<GoogleSyncJobListResponse>({
+    queryKey,
+    queryFn: () =>
+      apiClient.get<GoogleSyncJobListResponse>("v1/connectors/google/sync-jobs", {
+        limit,
+        ...(sourceId ? { source_id: sourceId } : {}),
+      }),
+    path,
+  });
+};
 
 export const useCreateGoogleSource = (collection: string) => {
   const qc = useQueryClient();
@@ -93,7 +131,12 @@ export const useCreateGoogleSource = (collection: string) => {
         collection_name: collection,
         ...body,
       }),
-    onSuccess: () => {
+    onSuccess: (source) => {
+      updateGoogleSourcesCache(qc, collection, (data) => {
+        if (!data) return data;
+        const sources = data.sources.filter((item) => item.id !== source.id);
+        return { sources: [source, ...sources], total: sources.length + 1 };
+      });
       qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources(collection) });
       qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
       toast.success("Google Drive source syncing");
@@ -108,6 +151,15 @@ export const useSyncGoogleSource = (collection: string) => {
     mutationFn: (sourceId: string) =>
       apiClient.post<GoogleDriveSyncJob>(`v1/connectors/google/sources/${sourceId}/sync`),
     onSuccess: (_job, sourceId) => {
+      updateGoogleSourcesCache(qc, collection, (data) => {
+        if (!data) return data;
+        return {
+          ...data,
+          sources: data.sources.map((source) =>
+            source.id === sourceId ? { ...source, status: "syncing" } : source,
+          ),
+        };
+      });
       qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources(collection) });
       qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSyncJobs(sourceId) });
       qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
@@ -127,7 +179,14 @@ export const useUpdateGoogleSource = (collection: string) => {
       sourceId: string;
       body: { schedule_enabled?: boolean; sync_interval_hours?: number };
     }) => apiClient.patch<GoogleDriveSource>(`v1/connectors/google/sources/${sourceId}`, body),
-    onSuccess: () => {
+    onSuccess: (source) => {
+      updateGoogleSourcesCache(qc, collection, (data) => {
+        if (!data) return data;
+        return {
+          ...data,
+          sources: data.sources.map((item) => (item.id === source.id ? source : item)),
+        };
+      });
       qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources(collection) });
       toast.success("Google Drive source updated");
     },
@@ -140,7 +199,12 @@ export const useDeleteGoogleSource = (collection: string) => {
   return useMutation({
     mutationFn: (sourceId: string) =>
       apiClient.delete<{ status: string }>(`v1/connectors/google/sources/${sourceId}`),
-    onSuccess: () => {
+    onSuccess: (_res, sourceId) => {
+      updateGoogleSourcesCache(qc, collection, (data) => {
+        if (!data) return data;
+        const sources = data.sources.filter((source) => source.id !== sourceId);
+        return { sources, total: sources.length };
+      });
       qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources(collection) });
       toast.success("Google Drive source removed");
     },

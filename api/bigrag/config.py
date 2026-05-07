@@ -110,7 +110,6 @@ class Settings(BaseSettings):
             else:
                 if f"BIGRAG_{section.upper()}" not in os.environ:
                     flat[section] = values
-        # Logging is always enabled from source defaults; ignore legacy config keys.
         flat.pop("log_level", None)
         flat.pop("log_format", None)
         flat.pop("run_migrations", None)

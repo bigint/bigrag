@@ -5,6 +5,7 @@
     "users",
     "api-keys",
     "audit",
+    "admin-realtime",
     "collections",
     "documents",
     "connectors",

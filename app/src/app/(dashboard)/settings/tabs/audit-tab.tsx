@@ -1,9 +1,10 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
+import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 
@@ -27,10 +28,11 @@ type AuditList = {
 };
 
 export const AuditTab = () => {
-  const { data, isPending, error } = useQuery({
-    queryKey: ["audit", "recent"],
+  const queryKey = useMemo(() => ["audit", "recent"] as const, []);
+  const { data, isPending, error } = useSseSnapshotQuery<AuditList>({
+    queryKey,
     queryFn: () => apiClient.get<AuditList>("v1/admin/audit", { limit: 100 }),
-    refetchInterval: 60_000,
+    path: "v1/admin/realtime/audit?limit=100",
   });
 
   return (

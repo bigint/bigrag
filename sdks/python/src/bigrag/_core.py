@@ -45,7 +45,9 @@ class BigRAGCore:
         max_retries: int = _DEFAULT_MAX_RETRIES,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
-        self.api_key = api_key if api_key is not None else (os.environ.get("BIGRAG_API_KEY") or "")
+        self.api_key = (
+            api_key if api_key is not None else (os.environ.get("BIGRAG_API_KEY") or "")
+        )
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
@@ -68,7 +70,7 @@ class BigRAGCore:
 
         for attempt in range(self.max_retries + 1):
             if attempt > 0:
-                delay = min(0.5 * (2 ** attempt), 4.0)
+                delay = min(0.5 * (2**attempt), 4.0)
                 await asyncio.sleep(delay)
 
             try:

@@ -1,20 +1,25 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { PlatformStats, ReadinessReport } from "@/types/bigrag";
 
-export const usePlatformStats = () =>
-  useQuery({
-    queryKey: queryKeys.platform.stats(),
+export const usePlatformStats = () => {
+  const queryKey = useMemo(() => queryKeys.platform.stats(), []);
+  return useSseSnapshotQuery<PlatformStats>({
+    queryKey,
     queryFn: () => apiClient.get<PlatformStats>("v1/stats"),
-    refetchInterval: 15_000,
+    path: "v1/admin/realtime/platform/stats",
   });
+};
 
-export const useReadiness = () =>
-  useQuery({
-    queryKey: queryKeys.platform.readiness(),
+export const useReadiness = () => {
+  const queryKey = useMemo(() => queryKeys.platform.readiness(), []);
+  return useSseSnapshotQuery<ReadinessReport>({
+    queryKey,
     queryFn: async (): Promise<ReadinessReport> => {
       const res = await fetch("/api/bigrag/health/ready", {
         credentials: "include",
@@ -25,9 +30,9 @@ export const useReadiness = () =>
       }
       return (await res.json()) as ReadinessReport;
     },
-    refetchInterval: 30_000,
-    retry: false,
+    path: "v1/admin/realtime/platform/readiness",
   });
+};
 
 export const useEmbeddingModels = () =>
   useQuery({

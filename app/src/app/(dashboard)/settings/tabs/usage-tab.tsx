@@ -1,10 +1,10 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
 
 type PerCollection = {
@@ -39,10 +39,11 @@ const humanBytes = (n: number): string => {
 
 export const UsageTab = () => {
   const [windowDays, setWindowDays] = useState(30);
-  const { data, isPending, error } = useQuery({
-    queryKey: ["usage", windowDays],
+  const queryKey = useMemo(() => ["usage", windowDays] as const, [windowDays]);
+  const { data, isPending, error } = useSseSnapshotQuery<UsageReport>({
+    queryKey,
     queryFn: () => apiClient.get<UsageReport>("v1/usage", { window_days: windowDays }),
-    refetchInterval: 60_000,
+    path: `v1/admin/realtime/usage?window_days=${windowDays}`,
   });
 
   return (

@@ -63,7 +63,7 @@ OpenRAG's UI provides:
 - Cloud connector sync status and controls
 - Real-time ingestion task panel with file-level progress, failure feedback, and cancellation
 
-**bigRAG status:** Partially resolved — The admin UI lists collections, uploads files with drag-and-drop, shows document status and chunk counts, supports document detail/chunk inspection, deletion, and reprocessing, and polls document status over REST.
+**bigRAG status:** Partially resolved — The admin UI lists collections, uploads files with drag-and-drop, shows document status and chunk counts, supports document detail/chunk inspection, deletion, and reprocessing, and streams realtime document status over session-cookie SSE.
 
 **Remaining gap:** the admin UI does not yet support local folder upload, UI-level bulk delete, or cancel/retry controls for in-flight ingestion. Google Drive has UI sync controls, but the broader connector catalog is still narrow.
 
@@ -735,7 +735,7 @@ bigRAG's multi-collection model with per-collection embedding configuration is m
 bigRAG has a mature webhook system with HMAC signature verification, retry logic with exponential backoff, delivery history tracking, and test endpoints. OpenRAG only has basic webhook support for knowledge filter subscriptions.
 
 ### 10.3 Batch Operations
-bigRAG supports batch upload (100 files), batch queries (20 per request), batch status checks, and batch deletes. OpenRAG's batch support is limited to ingestion batching.
+bigRAG supports batch upload (100 files), SSE-backed admin batch progress, batch queries (20 per request), batch status checks, and batch deletes. OpenRAG's batch support is limited to ingestion batching.
 
 ### 10.4 Query Analytics
 bigRAG tracks query performance over 24h/7d/30d windows with average latency, score, result count, and top queries per collection. OpenRAG has no equivalent.

@@ -1,20 +1,26 @@
 "use client";
 
-import { FileText, Trash2, Upload } from "lucide-react";
+import { CheckCircle2, CircleAlert, FileText, Trash2, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { use, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { useCollection } from "@/hooks/use-collections";
-import { useDeleteDocument, useDocuments, useUploadDocuments } from "@/hooks/use-documents";
+import {
+  useBatchDocumentProgress,
+  useDeleteDocument,
+  useDocuments,
+  useUploadDocuments,
+} from "@/hooks/use-documents";
 import { cn } from "@/lib/cn";
 import { acceptAttribute, filterBlockedFiles, getAllowedFileTypes } from "@/lib/file-types";
 import { formatBytes, formatRelative } from "@/lib/format";
-import type { DocumentStatus } from "@/types/bigrag";
+import type { Document, DocumentStatus } from "@/types/bigrag";
 
 const statusVariant: Record<DocumentStatus, "success" | "warning" | "info" | "error"> = {
   ready: "success",
@@ -34,6 +40,8 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const [deleteDoc, setDeleteDoc] = useState<{ id: string; filename: string } | null>(null);
+  const [batchDocuments, setBatchDocuments] = useState<Document[]>([]);
+  const batchProgress = useBatchDocumentProgress(name, batchDocuments);
 
   const allowed = getAllowedFileTypes(collection?.metadata);
   const accept = acceptAttribute(allowed);
@@ -48,7 +56,11 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
           `${rejected.length} file${rejected.length === 1 ? "" : "s"} skipped — not allowed in this collection.`,
         );
       }
-      if (accepted.length) await upload.mutateAsync(accepted);
+      if (accepted.length) {
+        const res = await upload.mutateAsync(accepted);
+        setBatchDocuments(res.documents);
+        if (fileInput.current) fileInput.current.value = "";
+      }
     },
     [upload, allowed],
   );
@@ -97,6 +109,10 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
           onChange={(e) => e.target.files && onFiles(e.target.files)}
         />
       </label>
+
+      {batchProgress.total > 0 && (
+        <BatchProgressPanel onDismiss={() => setBatchDocuments([])} summary={batchProgress} />
+      )}
 
       {isPending ? (
         <div className="flex justify-center py-8">
@@ -194,6 +210,145 @@ const DocumentsTab = ({ params }: { params: Promise<{ name: string }> }) => {
 const FileType = ({ type }: { type: string }) => (
   <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
     {type.slice(0, 4) || "?"}
+  </div>
+);
+
+type BatchProgressSummary = ReturnType<typeof useBatchDocumentProgress>;
+
+const batchProgressVariant = (
+  item: BatchProgressSummary["active"],
+): "success" | "warning" | "info" | "error" | "neutral" => {
+  if (!item) return "neutral";
+  if (item.status === "failed" || item.document_status === "failed") return "error";
+  if (item.status === "complete" || item.document_status === "ready") return "success";
+  if (item.status === "processing") return "info";
+  return "warning";
+};
+
+const BatchProgressPanel = ({
+  onDismiss,
+  summary,
+}: {
+  onDismiss: () => void;
+  summary: BatchProgressSummary;
+}) => {
+  const active = summary.active;
+  const progressPct = Math.max(0, Math.min(100, summary.progress));
+  const remaining = Math.max(summary.total - summary.completedCount - summary.failedCount, 0);
+  const failedItems = summary.items.filter(
+    (item) => item.status === "failed" || item.document_status === "failed",
+  );
+  const statusLabel = summary.done
+    ? summary.failedCount
+      ? "finished with failures"
+      : "complete"
+    : summary.streaming
+      ? "streaming"
+      : "connecting";
+
+  return (
+    <Card className="overflow-hidden rounded-xl">
+      <CardContent className="flex flex-col gap-4 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold">Batch ingest</span>
+              <Badge
+                dot
+                variant={summary.failedCount ? "error" : summary.done ? "success" : "info"}
+              >
+                {statusLabel}
+              </Badge>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {summary.total} file{summary.total === 1 ? "" : "s"} queued
+            </span>
+          </div>
+          <Button
+            aria-label="Dismiss batch progress"
+            onClick={onDismiss}
+            size="icon"
+            variant="ghost"
+          >
+            <X className="size-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <BatchMetric
+            icon={<CheckCircle2 className="size-3.5" />}
+            label="Completed"
+            value={summary.completedCount}
+          />
+          <BatchMetric
+            icon={<CircleAlert className="size-3.5" />}
+            label="Failed"
+            value={summary.failedCount}
+            variant={summary.failedCount ? "error" : "neutral"}
+          />
+          <BatchMetric label="Remaining" value={remaining} />
+        </div>
+
+        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-full bg-primary" style={{ width: `${progressPct}%` }} />
+        </div>
+
+        {active && (
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/60 p-3">
+            <FileType type={active.file_type} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium">{active.filename}</div>
+              <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+                <Badge dot variant={batchProgressVariant(active)}>
+                  {active.step}
+                </Badge>
+                <span className="truncate text-xs text-muted-foreground">{active.message}</span>
+              </div>
+            </div>
+            {!summary.done && summary.streaming && <Spinner size="sm" className="shrink-0" />}
+          </div>
+        )}
+
+        {failedItems.length > 0 && (
+          <div className="flex flex-col gap-1 border-border border-t pt-3">
+            {failedItems.slice(0, 2).map((item) => (
+              <div key={item.document_id} className="flex min-w-0 items-center gap-2 text-xs">
+                <Badge variant="error">failed</Badge>
+                <span className="truncate font-medium">{item.filename}</span>
+                <span className="truncate text-destructive">
+                  {item.error_message ?? item.message}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+const BatchMetric = ({
+  icon,
+  label,
+  value,
+  variant = "neutral",
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  value: number;
+  variant?: "neutral" | "error";
+}) => (
+  <div
+    className={cn(
+      "flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-muted/50 px-3 py-2",
+      variant === "error" && "border-destructive/30 bg-destructive/5 text-destructive",
+    )}
+  >
+    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      {icon}
+      {label}
+    </span>
+    <span className="text-lg font-semibold tabular-nums leading-none">{value}</span>
   </div>
 );
 

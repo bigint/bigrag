@@ -57,7 +57,9 @@ class GoogleDriveResource:
             params["page_token"] = page_token
         if page_size is not None:
             params["page_size"] = str(page_size)
-        return await self._client._request("GET", "/v1/connectors/google/files", params=params)
+        return await self._client._request(
+            "GET", "/v1/connectors/google/files", params=params
+        )
 
     async def oauth_start_url(
         self, *, redirect_path: str | None = None
@@ -76,18 +78,26 @@ class GoogleDriveResource:
         """Disconnect the current user's Google Drive account."""
         return await self._client._request("POST", "/v1/connectors/google/disconnect")
 
-    async def sources(self, *, collection: str | None = None) -> GoogleSourceListResponse:
+    async def sources(
+        self, *, collection: str | None = None
+    ) -> GoogleSourceListResponse:
         """List Google Drive sync sources."""
         params: dict[str, str] = {}
         if collection is not None:
             params["collection"] = collection
-        return await self._client._request("GET", "/v1/connectors/google/sources", params=params)
+        return await self._client._request(
+            "GET", "/v1/connectors/google/sources", params=params
+        )
 
     async def create_source(self, body: CreateGoogleSourceBody) -> GoogleSource:
         """Create a Google Drive sync source."""
-        return await self._client._request("POST", "/v1/connectors/google/sources", json=body)
+        return await self._client._request(
+            "POST", "/v1/connectors/google/sources", json=body
+        )
 
-    async def update_source(self, source_id: str, body: UpdateGoogleSourceBody) -> GoogleSource:
+    async def update_source(
+        self, source_id: str, body: UpdateGoogleSourceBody
+    ) -> GoogleSource:
         """Update a Google Drive sync source."""
         return await self._client._request(
             "PATCH",

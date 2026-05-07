@@ -245,5 +245,4 @@ impl Documents<'_> {
         let path = format!("/v1/documents/{}/chunks", urlencode(document_id));
         self.client.transport.get(&path, query).await
     }
-
 }

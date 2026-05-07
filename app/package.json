@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",
+    "postbuild": "node ../scripts/strip-next-env-comments.mjs next-env.d.ts",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
     "lint": "biome check --write src/"

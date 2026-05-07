@@ -4,6 +4,8 @@
 
 - `api/` — Python/FastAPI backend (Docling ingestion + Qdrant vector DB)
 - `sdks/typescript/` — TypeScript SDK (`@bigrag/client`)
+- `sdks/python/` — Python SDK (`bigrag`)
+- `sdks/rust/` — Rust SDK (`bigrag`)
 - `app/` — admin UI (Next.js 16 + Tailwind v4 + Base UI, `@bigrag/app`)
 - `website/` — Documentation site (Next.js + Fumadocs, content in `website/content/docs/`)
 
@@ -21,27 +23,38 @@ Don't write comments or docstrings in code under `api/bigrag/`, `sdks/typescript
 - **Vector DB**: Qdrant (via Docker)
 - **Metadata DB**: PostgreSQL 17
 - **Ingestion**: Docling (PDF, DOCX, PPTX, HTML, Markdown, images)
-- **Embedding**: OpenAI and Cohere
+- **Embedding**: OpenAI, Cohere, Voyage, and OpenAI-compatible providers
 
 ## Package Management
 
 - **Python backend**: `uv` (lockfile at `api/uv.lock`)
-- **TypeScript SDK + Website**: `pnpm` workspaces (root `pnpm-workspace.yaml`)
+- **Python SDK**: `uv` (lockfile at `sdks/python/uv.lock`)
+- **TypeScript SDK + Website + App**: `pnpm` workspaces (root `pnpm-workspace.yaml`)
+- **Rust SDK**: `cargo` (lockfile at `sdks/rust/Cargo.lock`)
 
 ## Linting
 
 - **Python**: `ruff` (config in `api/pyproject.toml`)
 - **TypeScript/JS**: `biome` (config in `biome.jsonc`)
+- **Rust**: `cargo fmt` and `cargo test`
 
 **Always run lint + format before committing.** Either let the pre-commit hook run them, or invoke them manually — never commit unformatted code:
 
 ```bash
 # Python (api/)
-uv run --project api ruff check --fix .
-uv run --project api ruff format .
+cd api && uv run ruff check --fix .
+cd api && uv run ruff format .
+
+# Python SDK
+uv run --project api ruff check --fix sdks/python/src
+uv run --project api ruff format sdks/python/src
 
 # TS / JS / JSON / CSS (everything else)
 pnpm exec biome check --write .
+
+# Rust SDK
+cargo fmt --manifest-path sdks/rust/Cargo.toml
+cargo test --manifest-path sdks/rust/Cargo.toml
 ```
 
 ### Pre-commit hook
@@ -53,7 +66,7 @@ uv tool install pre-commit   # or: brew install pre-commit
 pre-commit install
 ```
 
-After that, every `git commit` runs the same checks CI runs (`.github/workflows/ci.yml`). If a hook auto-fixes a file, the commit aborts — re-stage and commit again.
+After that, every `git commit` runs the same formatters for API Python and TS/JS/CSS files that CI enforces. Run SDK build/test commands manually when touching `sdks/python/` or `sdks/rust/`. If a hook auto-fixes a file, the commit aborts — re-stage and commit again.
 
 ## Architecture Notes
 

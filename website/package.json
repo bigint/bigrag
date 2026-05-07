@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev --port 3100",
     "build": "next build",
+    "postbuild": "node ../scripts/strip-next-env-comments.mjs next-env.d.ts",
     "start": "next start",
     "typecheck": "fumadocs-mdx && tsc --noEmit"
   },

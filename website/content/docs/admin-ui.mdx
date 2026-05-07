@@ -25,7 +25,7 @@ The admin UI proxies every request through `/api/bigrag/[...path]` onto the back
 | `/collections` | List, create, delete, and search collections. |
 | `/collections/[name]` | Redirects to the collection's documents tab. |
 | `/collections/[name]/documents` | Upload (drag & drop or multi-file picker), list, inspect status, and delete documents. |
-| `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, polled progress, failed-ingest error, reprocess, and delete. |
+| `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, SSE progress, failed-ingest error, reprocess, and delete. |
 | `/collections/[name]/connectors` | Redirects to the collection's connector tabs. |
 | `/collections/[name]/connectors/google-drive` | Browse Google Drive, sync selected files/folders, trigger manual resync, and manage sync schedules. |
 | `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, and rerank when enabled. |
@@ -49,9 +49,13 @@ The admin UI proxies every request through `/api/bigrag/[...path]` onto the back
 | **Usage & cost** | `GET /v1/usage` | — |
 | **Audit log** | `GET /v1/admin/audit` | — |
 
-## Status updates
+## Realtime updates
 
-The admin UI polls `GET /v1/collections/{name}/documents/{doc_id}` on the document detail page while a document is pending or processing. The response includes the latest `progress` snapshot, so the UI can show the current OCR/page/batch message and completed percentage without opening a document-specific SSE stream. The API also exposes `GET /v1/collections/{name}/events` for collection-wide document activity if you are building your own dashboard.
+The admin UI uses session-cookie [admin realtime SSE streams](/docs/api-reference/admin-realtime) for live document progress, batch upload progress, collection stats, Google Drive sync state, access logs, audit log, usage, platform stats, and readiness. Each stream sends an immediate full `snapshot` payload that matches the related REST response, then sends later snapshots as data changes.
+
+After batch upload, the collection documents page opens `GET /v1/admin/realtime/collections/{name}/documents/batch-status` for the returned document IDs. The panel shows completed and failed counts plus the active file, ingestion step, and latest progress message, then closes the stream when all watched documents are `ready` or `failed`.
+
+REST document status endpoints remain available for API clients and SDKs that prefer polling. `GET /v1/collections/{name}/events` remains available for collection-wide ingestion events outside the admin UI.
 
 ## Chat specifics
 

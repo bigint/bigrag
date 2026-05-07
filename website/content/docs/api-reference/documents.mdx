@@ -219,7 +219,7 @@ Check status of up to 100 documents.
 { "document_ids": ["doc-id-1", "doc-id-2"] }
 ```
 
-Returns `id`, `status`, `chunk_count`, and `error_message` for each found document.
+Returns `id`, `status`, `chunk_count`, `error_message`, and the latest `progress` snapshot for each found document. API clients can poll this endpoint after batch upload until every requested document is `ready` or `failed`; the admin UI uses the session-cookie admin realtime batch stream instead.
 
 ## Batch Get
 
@@ -293,9 +293,9 @@ GET /v1/documents/{document_id}/chunks
 
 Convenience read endpoints that resolve the document by UUID without the caller supplying the collection name. They still require `document:read`, and collection-pinned API keys can only use them for documents that belong to their pinned collection.
 
-## Status Polling
+## API-Client Status Polling
 
-Use `GET /v1/collections/{collection_name}/documents/{document_id}` for a single document, or `POST /v1/collections/{collection_name}/documents/batch/status` for multiple documents. Poll while `status` is `pending` or `processing`, then stop once it reaches `ready` or `failed`.
+Use `GET /v1/collections/{collection_name}/documents/{document_id}` for a single document, or `POST /v1/collections/{collection_name}/documents/batch/status` for multiple documents. API clients can poll while `status` is `pending` or `processing`, then stop once it reaches `ready` or `failed`. The admin UI uses [admin realtime SSE streams](/docs/api-reference/admin-realtime) for the same full payloads.
 
 Document status responses include a `progress` object with the latest ingestion event snapshot:
 

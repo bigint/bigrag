@@ -95,11 +95,8 @@ const DocumentDetail = ({ params }: { params: Promise<{ name: string; docId: str
   const name = decodeURIComponent(rawName);
   const router = useRouter();
 
-  const { data: doc, dataUpdatedAt, isPending } = useDocument(name, docId);
-  const polling = doc?.status === "pending" || doc?.status === "processing";
-  const { data: chunks, refetch: refetchChunks } = useChunks(name, docId, {
-    refetchInterval: polling ? 5_000 : false,
-  });
+  const { data: doc, dataUpdatedAt, isPending, streaming } = useDocument(name, docId);
+  const { data: chunks, refetch: refetchChunks } = useChunks(name, docId);
   const reprocess = useReprocessDocument(name);
   const remove = useDeleteDocument(name);
 
@@ -178,7 +175,7 @@ const DocumentDetail = ({ params }: { params: Promise<{ name: string; docId: str
               </div>
               <p className="text-sm text-muted-foreground">{progress.message}</p>
             </div>
-            {polling ? (
+            {streaming ? (
               <Spinner size="sm" className="mt-1 shrink-0" />
             ) : (
               <span className="shrink-0 text-sm font-medium tabular-nums">{progressPct}%</span>
@@ -191,7 +188,7 @@ const DocumentDetail = ({ params }: { params: Promise<{ name: string; docId: str
 
           <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span>{progressDetail ?? `${progressPct}% complete`}</span>
-            <span>Last checked {formatRelative(checkedAt)}</span>
+            <span>Last updated {formatRelative(checkedAt)}</span>
           </div>
         </CardContent>
       </Card>

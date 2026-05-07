@@ -21,6 +21,7 @@ from bigrag.types.sse import ProgressEvent
 if TYPE_CHECKING:
     from bigrag._core import BigRAGCore
 
+
 class CollectionsResource:
     """Resource namespace for collection management.
 
@@ -92,7 +93,9 @@ class CollectionsResource:
         path = f"/v1/collections/{quote(name, safe='')}/events"
         url = f"{self._client.base_url}{path}"
         request = self._client._client.build_request(
-            "GET", url, headers=self._client._headers(),
+            "GET",
+            url,
+            headers=self._client._headers(),
         )
         response = await self._client._client.send(request, stream=True)
         if response.status_code >= 400:

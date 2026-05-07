@@ -36,6 +36,8 @@ export const queryKeys = {
     list: (collection: string) => ["documents", collection] as const,
     one: (collection: string, id: string) => ["documents", collection, id] as const,
     chunks: (collection: string, id: string) => ["documents", collection, id, "chunks"] as const,
+    batchStatus: (collection: string, ids: string) =>
+      ["documents", collection, "batch-status", ids] as const,
   },
   platform: {
     stats: () => ["platform", "stats"] as const,

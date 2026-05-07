@@ -74,9 +74,9 @@ Chunking splits document text into overlapping segments for embedding and retrie
 - **Larger chunks** (1,000–2,000) provide more context per result
 - **Overlap** ensures important content at chunk boundaries is not lost
 
-## Status Polling
+## API-Client Status Polling
 
-Monitor document processing by polling the document record:
+API clients can monitor document processing by polling the document record:
 
 ```javascript
 let document = await client.documents.get("research", "DOC_ID");
@@ -133,7 +133,7 @@ curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/delete \
 ```
 
 <Callout type="info">
-  Batch operations support up to 100 items per request. Partial success is supported for batch delete — failed items are reported in the `errors` array.
+  Batch operations support up to 100 items per request. API clients can poll batch status after upload to read each document's latest progress snapshot until every document is ready or failed. The admin UI uses session-cookie SSE snapshots for the same batch progress panel. Partial success is supported for batch delete — failed items are reported in the `errors` array.
 </Callout>
 
 ## Reprocessing

@@ -1,7 +1,9 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { toast } from "sonner";
+import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
@@ -23,14 +25,16 @@ export const useCollection = (name: string) =>
     enabled: !!name,
   });
 
-export const useCollectionStats = (name: string) =>
-  useQuery({
-    queryKey: queryKeys.collections.stats(name),
+export const useCollectionStats = (name: string) => {
+  const queryKey = useMemo(() => queryKeys.collections.stats(name), [name]);
+  return useSseSnapshotQuery<CollectionStats>({
+    queryKey,
     queryFn: () =>
       apiClient.get<CollectionStats>(`v1/collections/${encodeURIComponent(name)}/stats`),
     enabled: !!name,
-    refetchInterval: 10_000,
+    path: `v1/admin/realtime/collections/${encodeURIComponent(name)}/stats`,
   });
+};
 
 type CreateCollectionBody = {
   name: string;

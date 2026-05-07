@@ -56,6 +56,9 @@ logger = get_logger("bigrag.routers.documents")
 
 router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["documents"])
 
+TERMINAL_DOCUMENT_STATUSES = {"ready", "failed"}
+TERMINAL_PROGRESS_STATUSES = {"complete", "failed"}
+
 
 def _fallback_progress(doc: Document, collection_name: str) -> DocumentProgressResponse:
     doc_id = str(doc.id)
@@ -99,7 +102,9 @@ def _fallback_progress(doc: Document, collection_name: str) -> DocumentProgressR
 
 async def _document_progress(doc: Document, collection_name: str) -> DocumentProgressResponse:
     event = await event_bus.latest(str(doc.id))
-    if event is None:
+    if event is None or (
+        doc.status in TERMINAL_DOCUMENT_STATUSES and event.status not in TERMINAL_PROGRESS_STATUSES
+    ):
         return _fallback_progress(doc, collection_name)
     return document_progress_response(
         document_id=event.document_id,
