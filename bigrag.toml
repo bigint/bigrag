@@ -11,8 +11,7 @@
 # host = "127.0.0.1"
 # port = 4000
 # workers = 1
-# log_level = "info"
-# log_format = "text"
+# Backend logging is always enabled at debug level with text output.
 # cors_origins = []
 # trusted_proxies = []              # CIDRs allowed to supply X-Forwarded-For
 

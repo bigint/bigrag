@@ -154,6 +154,8 @@ def _load_runtime_settings() -> Settings:
     raw_overrides = os.environ.get(_CLI_OVERRIDES_ENV)
     if raw_overrides:
         for key, value in json.loads(raw_overrides).items():
+            if key in {"log_level", "log_format"}:
+                continue
             setattr(s, key, value)
     return s
 
@@ -249,8 +251,6 @@ def cli():
     parser.add_argument("--database-url", help="Postgres connection URL")
     parser.add_argument("--qdrant-url", help="Qdrant connection URL")
     parser.add_argument("--redis-url", help="Redis connection URL")
-    parser.add_argument("--log-level", help="Log level")
-    parser.add_argument("--log-format", choices=["text", "json"], help="Log format")
     args = parser.parse_args()
 
     s = Settings.from_toml(args.config)
@@ -266,10 +266,6 @@ def cli():
         overrides["qdrant_url"] = args.qdrant_url
     if args.redis_url is not None:
         overrides["redis_url"] = args.redis_url
-    if args.log_level is not None:
-        overrides["log_level"] = args.log_level
-    if args.log_format is not None:
-        overrides["log_format"] = args.log_format
     for key, value in overrides.items():
         setattr(s, key, value)
 

@@ -49,7 +49,7 @@ def redact_secrets(_logger, _method_name, event_dict):
     return _redact(event_dict)
 
 
-def configure_logging(log_level: str = "info", log_format: str = "text") -> None:
+def configure_logging(log_level: str = "debug", log_format: str = "text") -> None:
 
     level = getattr(logging, log_level.upper(), logging.INFO)
 

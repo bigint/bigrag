@@ -173,13 +173,8 @@ upload_dir = "./data/uploads"
 
 ## Logging
 
-```bash
-# Development (colorized text)
-python -m bigrag.main --log-level debug --log-format text
-
-# Production (structured JSON)
-python -m bigrag.main --log-level info --log-format json
-```
+Backend logging is always enabled at debug level with text output. It is not controlled
+through environment variables or CLI flags.
 
 ## Troubleshooting
 

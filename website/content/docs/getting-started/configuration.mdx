@@ -5,7 +5,7 @@ description: Configure bigRAG with TOML files and environment variables.
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-bigRAG reads configuration from a `bigrag.toml` file and/or environment variables. Environment variables take precedence over TOML values, and CLI flags passed to `python -m bigrag.main` override both. Logging is configured through TOML or CLI flags.
+bigRAG reads configuration from a `bigrag.toml` file and/or environment variables. Environment variables take precedence over TOML values, and CLI flags passed to `python -m bigrag.main` override both. Backend logging is always enabled at debug level with text output.
 
 Auth is admin accounts + session cookies and minted `bigrag_sk_…` API keys — see [Authentication](/docs/api-reference/authentication).
 
@@ -20,8 +20,6 @@ env = "prod"                         # "dev" (default) or "prod"
 host = "0.0.0.0"
 port = 4000
 workers = 1
-log_level = "info"                   # debug, info, warning, error
-log_format = "json"                  # text or json
 cors_origins = ["https://app.example.com"]
 trusted_proxies = ["10.0.0.0/8"]
 
@@ -100,8 +98,6 @@ Runtime settings use the `BIGRAG_` prefix. Environment variables override TOML v
 | `BIGRAG_WORKERS` | Uvicorn workers | `1` |
 | `BIGRAG_CORS_ORIGINS` | Allowed CORS origins (JSON array; `["*"]` rejected in `prod`) | `[]` |
 | `BIGRAG_TRUSTED_PROXIES` | Trusted reverse-proxy CIDRs as a JSON array. When the immediate client is trusted, bigRAG uses the rightmost untrusted `X-Forwarded-For` IP for audit and access logs. | `[]` |
-| `BIGRAG_LOG_LEVEL` | Backend log level (`debug`, `info`, `warning`, `error`). `./dev.sh` defaults to `debug`. | `info` |
-| `BIGRAG_LOG_FORMAT` | Backend log format (`text` or `json`) | `text` |
 
 ### Infrastructure
 
@@ -213,8 +209,6 @@ Chat provider settings are used by `POST /v1/chat` unless a request or saved adm
 --database-url URL       Override Postgres URL
 --qdrant-url URL         Override Qdrant URL
 --redis-url URL          Override Redis URL
---log-level LEVEL        Override log level
---log-format FORMAT      text | json
 ```
 
 <Callout type="info">

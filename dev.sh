@@ -154,13 +154,11 @@ if [ "$START_BACKEND" = true ]; then
   BIGRAG_QDRANT_URL="$QDRANT_URL" \
   BIGRAG_REDIS_URL="$REDIS_URL" \
   BIGRAG_MASTER_KEY="$DEV_MASTER_KEY" \
-  BIGRAG_LOG_LEVEL="${BIGRAG_LOG_LEVEL:-debug}" \
-  BIGRAG_LOG_FORMAT="${BIGRAG_LOG_FORMAT:-text}" \
   PYTHONUNBUFFERED=1 \
   uv run --directory "$ROOT_DIR/api" uvicorn bigrag.main:create_app \
     --factory --host 0.0.0.0 --port 4000 \
     --reload --reload-dir "$ROOT_DIR/api/bigrag" \
-    --log-level "${BIGRAG_LOG_LEVEL:-debug}" 2>&1 | while IFS= read -r line; do printf '[backend] %s\n' "$line"; done &
+    --log-level debug 2>&1 | while IFS= read -r line; do printf '[backend] %s\n' "$line"; done &
   PIDS+=($!)
 
   # Wait for backend

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Literal
+from typing import ClassVar, Literal
 
 import tomli
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -11,6 +11,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="BIGRAG_", env_nested_delimiter="__")
 
+    LOG_LEVEL: ClassVar[Literal["debug"]] = "debug"
+    LOG_FORMAT: ClassVar[Literal["text"]] = "text"
+
     env: Literal["dev", "prod"] = "dev"
 
     host: str = "127.0.0.1"
@@ -18,8 +21,6 @@ class Settings(BaseSettings):
     workers: int = 1
     cors_origins: list[str] = []
     trusted_proxies: list[str] = []
-    log_level: str = "info"
-    log_format: Literal["text", "json"] = "text"
 
     database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
     db_pool_min: int = 5
@@ -84,6 +85,14 @@ class Settings(BaseSettings):
     ingestion_workers: int = 4
     ingestion_batch_size: int = 128
 
+    @property
+    def log_level(self) -> Literal["debug"]:
+        return self.LOG_LEVEL
+
+    @property
+    def log_format(self) -> Literal["text"]:
+        return self.LOG_FORMAT
+
     @classmethod
     def from_toml(cls, path: str | Path) -> Settings:
         p = Path(path)
@@ -101,15 +110,11 @@ class Settings(BaseSettings):
             else:
                 if f"BIGRAG_{section.upper()}" not in os.environ:
                     flat[section] = values
-        log_level = flat.pop("log_level", None)
-        log_format = flat.pop("log_format", None)
+        # Logging is always enabled from source defaults; ignore legacy config keys.
+        flat.pop("log_level", None)
+        flat.pop("log_format", None)
         flat.pop("run_migrations", None)
-        settings = cls(**flat)
-        if isinstance(log_level, str):
-            settings.log_level = log_level
-        if isinstance(log_format, str):
-            settings.log_format = log_format
-        return settings
+        return cls(**flat)
 
 
 settings = Settings()
