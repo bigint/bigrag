@@ -3,14 +3,14 @@ title: Instance Settings
 description: Admin-only runtime configuration registry.
 ---
 
-Base path: `/v1/admin/settings`
+Base path: `/admin/settings`
 
 Session admin only. These endpoints manage database-backed runtime settings used by the API and admin UI. Secret settings are Fernet-encrypted at rest and redacted on read.
 
 ## List Settings
 
 ```
-GET /v1/admin/settings
+GET /admin/settings
 ```
 
 Returns the setting registry plus current public values.
@@ -46,7 +46,7 @@ Secret values return `value: null` and `has_value: true` when saved.
 ## Update Settings
 
 ```
-PUT /v1/admin/settings
+PUT /admin/settings
 ```
 
 ```json
@@ -64,7 +64,7 @@ Unknown keys and invalid values return `400`. Successful updates are audited as 
 ## Test Settings
 
 ```
-POST /v1/admin/settings/test
+POST /admin/settings/test
 ```
 
 Validates the submitted values without saving them. Storage settings also run a lightweight backend construction/probe when S3 is selected.
@@ -76,7 +76,7 @@ Validates the submitted values without saving them. Storage settings also run a 
 ## Reset Settings
 
 ```
-POST /v1/admin/settings/reset
+POST /admin/settings/reset
 ```
 
 ```json

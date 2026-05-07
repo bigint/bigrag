@@ -26,7 +26,7 @@ from bigrag.services.runtime_settings import (
 )
 from bigrag.services.storage import build_storage_from_values
 
-router = APIRouter(prefix="/v1/admin/settings", tags=["admin:settings"])
+router = APIRouter(prefix="/admin/settings", tags=["admin:settings"])
 
 
 @router.get("", response_model=InstanceSettingsResponse)
@@ -54,7 +54,7 @@ async def update_instance_settings(
     except Exception as exc:
         raise HTTPException(
             status_code=400,
-            detail=f"Settings test failed: {exc.__class__.__name__}: {exc}",
+            detail=f"Settings update failed: {exc.__class__.__name__}: {exc}",
         ) from exc
     audit.record(
         request,
