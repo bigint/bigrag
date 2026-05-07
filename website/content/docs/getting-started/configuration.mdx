@@ -28,7 +28,7 @@ Bootstrap config is the small set of values the API needs before it can connect 
 | `BIGRAG_QDRANT_API_KEY` | Optional Qdrant API key. | — |
 | `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout. | `10` |
 | `BIGRAG_QDRANT_REQUIRED` | Fail startup if Qdrant cannot be reached. | `false` |
-| `BIGRAG_MASTER_KEY` | Fernet key for encrypted provider secrets and instance-setting secrets. Required for production. | — |
+| `BIGRAG_MASTER_KEY` | Fernet key for encrypted provider secrets, instance-setting secrets, embedding-cache rows, and Redis cache payloads. Required for production. | — |
 | `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys during staged key rotation. | `[]` |
 | `BIGRAG_UPLOAD_DIR` | Local document upload directory when storage backend is `local`. | `./data/uploads` |
 
@@ -65,7 +65,7 @@ The same surface is available through [`/admin/settings`](/docs/api-reference/in
 
 | Area | Examples |
 |------|----------|
-| Security | CORS origins, trusted proxies, session cookie policy, provider URL allow-lists, private-network escape hatches. |
+| Security | CORS origins, trusted proxies, session cookie policy, provider URL allow-lists, embedding-cache mode, private-network escape hatches. |
 | Rate limits | Login/setup windows and per-email/per-IP limits. |
 | Ingestion | Upload limits, upload-session limits, upload-session UI concurrency, OCR toggle, Docling timeout, ingestion workers, vector batch size. |
 | Queue | Maximum pending ingestion jobs before uploads are rejected. |
@@ -73,7 +73,7 @@ The same surface is available through [`/admin/settings`](/docs/api-reference/in
 | Search | Qdrant `ef`, embedding concurrency, collection/query cache TTLs. |
 | Chat | Default provider, model, base URL, temperature, history count, context budget. |
 | Webhooks | Max webhooks, delivery timeout, retry delays, local/private URL policy. |
-| Retention | Query log, access log, webhook delivery, progress snapshot, upload-session history, and audit retention windows. |
+| Retention | Query log, access log, webhook delivery, progress snapshot, upload-session history, embedding cache, and audit retention windows. |
 
 Some settings apply immediately. Settings that affect process startup or long-lived clients are marked as restart-bound in the UI.
 

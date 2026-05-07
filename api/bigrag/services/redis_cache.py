@@ -4,10 +4,12 @@ import orjson
 import redis.asyncio as aioredis
 
 from bigrag.logging import get_logger
+from bigrag.services import crypto
 
 logger = get_logger("bigrag.redis_cache")
 
 PREFIX = "bigrag:cache:"
+ENCRYPTED_PREFIX = b"bigrag-fernet:"
 
 _redis: aioredis.Redis | None = None
 
@@ -36,14 +38,14 @@ async def get(key: str) -> dict | list | None:
     raw = await _redis.get(f"{PREFIX}{key}")
     if raw is None:
         return None
-    return orjson.loads(raw)
+    return _decode_value(raw)
 
 
 async def set(key: str, value: dict | list, ttl: int) -> None:
 
     if not _redis:
         return
-    await _redis.set(f"{PREFIX}{key}", orjson.dumps(value), ex=ttl)
+    await _redis.set(f"{PREFIX}{key}", _encode_value(value), ex=ttl)
 
 
 async def delete(key: str) -> None:
@@ -62,3 +64,25 @@ async def delete_pattern(pattern: str) -> int:
         await _redis.delete(key)
         count += 1
     return count
+
+
+def _encode_value(value: dict | list) -> bytes:
+    raw = orjson.dumps(value)
+    if not crypto.is_configured():
+        return raw
+    return ENCRYPTED_PREFIX + crypto.encrypt_bytes(raw)
+
+
+def _decode_value(raw: bytes) -> dict | list | None:
+    payload = raw
+    if raw.startswith(ENCRYPTED_PREFIX):
+        try:
+            payload = crypto.decrypt_bytes(raw[len(ENCRYPTED_PREFIX) :])
+        except Exception as exc:
+            logger.debug("redis cache decrypt failed", error=str(exc))
+            return None
+    try:
+        return orjson.loads(payload)
+    except Exception as exc:
+        logger.debug("redis cache decode failed", error=str(exc))
+        return None

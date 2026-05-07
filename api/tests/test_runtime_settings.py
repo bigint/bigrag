@@ -28,6 +28,13 @@ def test_runtime_settings_include_upload_session_limits() -> None:
     assert validate_setting_value("upload_session_item_retention_hours", 168) == 168
 
 
+def test_runtime_settings_include_embedding_cache_security_settings() -> None:
+    assert validate_setting_value("embedding_cache_mode", "encrypted") == "encrypted"
+    assert validate_setting_value("embedding_cache_mode", "disabled") == "disabled"
+    assert validate_setting_value("embedding_cache_retention_days", 30) == 30
+    assert REGISTRY["query_embedding_cache_ttl"].default == 300
+
+
 def test_runtime_settings_redacts_secret_public_value() -> None:
     row = InstanceSetting(key="embedding_api_key", secret_value="sk-secret")
 

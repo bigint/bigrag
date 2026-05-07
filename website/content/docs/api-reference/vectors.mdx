@@ -7,6 +7,8 @@ import { Callout } from "fumadocs-ui/components/callout";
 
 For advanced use cases, you can directly manage vectors without going through the document ingestion pipeline. This is useful for custom embeddings or integrating with external embedding services.
 
+Scoped API keys need `vector:write` for upsert and `vector:delete` for delete. `collection:write` no longer grants raw vector mutation.
+
 ## Upsert Vectors
 
 ```
@@ -38,6 +40,8 @@ Insert or update vectors directly.
 | `vectors[].text` | string | no | Associated text content |
 | `vectors[].metadata` | object | no | Arbitrary metadata |
 
+If the collection was created with `tenant_field`, each vector's metadata must include that field.
+
 **Response** `200`:
 
 ```json
@@ -46,7 +50,7 @@ Insert or update vectors directly.
 
 **Errors:**
 
-- `400` — Dimension mismatch, invalid vectors
+- `400` — Dimension mismatch, invalid vectors, or missing tenant metadata
 - `404` — Collection not found
 
 ## Delete Vectors

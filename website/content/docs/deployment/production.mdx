@@ -39,7 +39,7 @@ config mistakes that would otherwise ship silently:
 - `BIGRAG_CORS_ORIGINS` contains `*` — set an explicit list (e.g. `https://admin.example.com`).
 - `BIGRAG_SESSION_COOKIE_SECURE` is `false` — set to `true` so cookies are HTTPS-only.
 - `BIGRAG_DATABASE_URL` still uses the shipped `bigrag:bigrag` credentials — rotate the Postgres password.
-- `BIGRAG_MASTER_KEY` is unset — bigRAG needs a Fernet key to envelope-encrypt provider credentials stored in Postgres. See [Encryption at rest](/docs/deployment/encryption).
+- `BIGRAG_MASTER_KEY` is unset — bigRAG needs a Fernet key to envelope-encrypt provider credentials, embedding-cache rows, and Redis cache payloads. See [Encryption at rest](/docs/deployment/encryption).
 
 When the guard trips, it logs every violation before exiting so you can fix the whole
 list in one edit. If you intentionally want to run with the development defaults (e.g.

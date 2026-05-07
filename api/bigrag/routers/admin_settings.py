@@ -15,7 +15,7 @@ from bigrag.models.instance_settings import (
     TestInstanceSettingsRequest,
     UpdateInstanceSettingsRequest,
 )
-from bigrag.services import audit
+from bigrag.services import audit, embedding_cache
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import (
     all_runtime_values,
@@ -125,3 +125,20 @@ async def reset_instance_settings(
         metadata={"keys": reset_keys},
     )
     return StatusResponse(status="ok", message="Settings reset")
+
+
+@router.post("/embedding-cache/purge", response_model=StatusResponse)
+async def purge_embedding_cache(
+    request: Request,
+    admin: dict = Depends(require_admin_session),
+) -> StatusResponse:
+    purged = await embedding_cache.purge_all()
+    audit.record(
+        request,
+        user=admin,
+        action="embedding_cache.purge",
+        resource_type="embedding_cache",
+        resource_id="embedding_cache",
+        metadata={"purged": purged},
+    )
+    return StatusResponse(status="ok", message=f"Purged {purged} embedding cache rows")

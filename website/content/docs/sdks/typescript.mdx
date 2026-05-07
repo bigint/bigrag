@@ -76,7 +76,7 @@ client.collections.create({
   dimension?,
   chunk_size?, chunk_overlap?, chunk_strategy?,    // "paragraph" | "recursive"
   index_type?,              // "HNSW"
-  tenant_field?,            // metadata key for indexed tenant filtering
+  tenant_field?,            // metadata key required for tenant filtering
   metadata_schema?,         // JSON Schema
   reranking_enabled?, reranking_model?, reranking_api_key?,
   default_top_k?, default_min_score?, default_search_mode?,

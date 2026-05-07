@@ -60,7 +60,8 @@ so one Qdrant collection can use indexed tenant payload filters.
 
 One collection, tenant isolation via a required metadata filter. Setting
 `tenant_field` tells bigRAG to create a Qdrant payload index for that
-field.
+field and reject uploads, raw vector upserts, queries, and chat calls that
+omit the tenant field.
 
 ```python
 client.collections.create({
@@ -83,10 +84,7 @@ results = client.queries.search("shared_tenants", {
 })
 ```
 
-You still need the `filters` clause on every tenant-scoped query.
-Forgetting it yields cross-tenant results, which is a critical bug.
-Enforce this in your application layer the same way you would enforce a
-SQL tenant predicate.
+You still need to pass the tenant filter on every tenant-scoped query and chat request. bigRAG rejects missing filters, but your application still owns mapping the authenticated tenant to the exact allowed tenant value.
 
 ## Per-tenant usage + billing
 

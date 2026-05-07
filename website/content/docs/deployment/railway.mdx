@@ -93,7 +93,7 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 ```
 
 <Callout type="error">
-Back the master key up immediately. It encrypts provider secrets stored in Postgres, and losing it loses decrypt access.
+Back the master key up immediately. It encrypts provider secrets, webhook secrets, embedding-cache rows, and Redis cache payloads; losing it loses decrypt access.
 </Callout>
 
 ## First Run

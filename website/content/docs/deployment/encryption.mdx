@@ -7,19 +7,21 @@ import { Callout } from "fumadocs-ui/components/callout";
 
 bigRAG treats "at-rest encryption" as a split responsibility:
 
-- **App-layer envelope encryption** (handled by bigRAG) — a handful of highly-sensitive credential columns in Postgres are Fernet-encrypted before they ever touch disk.
-- **Storage-layer encryption** (handled by the operator) — everything else (document chunks, vectors, uploaded files, Redis, backups) relies on the disk or object-store encrypting its own data.
+- **App-layer envelope encryption** (handled by bigRAG) — sensitive credential columns, persistent embedding-cache rows, and Redis cache payloads are Fernet-encrypted before they ever touch disk.
+- **Storage-layer encryption** (handled by the operator) — document chunks, Qdrant vectors and payloads, uploaded files, Redis persistence, and backups still rely on the disk or object-store encrypting its own data.
 
 Both layers are required for a defensible "encrypted at rest" posture.
 
 ## What bigRAG encrypts at the app layer
 
-These columns are encrypted transparently by the ORM using a single Fernet master key:
+These values are encrypted transparently using a single Fernet master key:
 
-| Table | Column | What it holds |
-|-------|--------|---------------|
+| Location | Field | What it holds |
+|----------|-------|---------------|
 | `embedding_presets` | `api_key` | OpenAI / Cohere / compatible provider key |
 | `webhooks` | `secret` | HMAC signing secret issued to the webhook subscriber |
+| `embedding_cache` | `vector` | Persistent chunk embeddings reused during ingestion |
+| Redis cache | value envelope | Query embeddings, query results, principals, idempotency payloads, and short-lived platform cache values |
 
 Ciphertext looks like `gAAAAABl...` — the Fernet v1 envelope. Decryption is HMAC-authenticated, so a tampered row fails to load rather than returning corrupt data.
 
@@ -39,7 +41,7 @@ Hand the value to the process via env var, a secrets file mounted from your secr
 export BIGRAG_MASTER_KEY="<paste-the-output-of-the-fernet-generate-command>"
 ```
 
-In `BIGRAG_ENV=dev`, an unset key only prints a warning — dev contributors don't need a real secret store. `dev.sh` ships a fixed dev key so fresh clones start cleanly.
+In `BIGRAG_ENV=dev`, an unset key leaves secret encryption unavailable and disables the persistent embedding cache. `dev.sh` ships a fixed dev key so fresh clones start cleanly.
 
 <Callout type="warn">
 	Losing `BIGRAG_MASTER_KEY` means the encrypted columns above become permanently unreadable. Back it up the same way you back up your Postgres root credentials — offline, split across owners.
@@ -62,7 +64,7 @@ bigRAG delegates the bulk of at-rest protection to your infrastructure. For a pr
 
 ### Redis
 
-- Redis holds the ingestion queue, the event bus, idempotency responses, and short-lived platform caches — all ephemeral, but queue payloads can contain document IDs and user context.
+- Redis holds the ingestion queue, the event bus, idempotency responses, and short-lived platform caches. bigRAG encrypts cache values when `BIGRAG_MASTER_KEY` is configured, but queue and event-bus payloads still need infrastructure protection.
 - Disable RDB/AOF persistence in prod, or put the persistence directory on an encrypted volume.
 - Use TLS (`rediss://`) between bigRAG and Redis.
 
@@ -78,7 +80,7 @@ Manual process:
 
 1. Generate `$NEW`.
 2. Restart with `BIGRAG_MASTER_KEY=$NEW` and `BIGRAG_MASTER_KEY_PREVIOUS=["$OLD"]`.
-3. Run a one-off rewrite that reads and updates every encrypted field so rows are re-encrypted under `$NEW`.
+3. Run a one-off rewrite that reads and updates every encrypted credential field, then purge or warm the embedding cache so new rows are written under `$NEW`.
 4. Remove `$OLD` from `BIGRAG_MASTER_KEY_PREVIOUS` after the rewrite and backup validation.
 
 A built-in `bigrag crypto rotate` command is not available yet; use a controlled maintenance script for step 3.
@@ -88,7 +90,7 @@ A built-in `bigrag crypto rotate` command is not available yet; use a controlled
 | Data | Why |
 |------|-----|
 | Document chunks (`document_chunks.content`) | Per-query decrypt kills search latency; rely on disk encryption. |
-| Vectors in Qdrant | Same — search needs raw floats, not ciphertext. |
+| Vectors and text payloads in Qdrant | Search needs raw floats and filterable payloads, so use Qdrant auth, tenant filters, network isolation, and encrypted storage. |
 | Audit log rows | Append-only. Store encrypted at the disk layer; querying encrypted metadata is prohibitive. |
 | User display names / emails | PII, not credentials. Disk-layer + column-level access control is the right split. |
 

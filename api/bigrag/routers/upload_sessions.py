@@ -23,6 +23,7 @@ from bigrag.models.upload_session import (
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
 from bigrag.routers._documents import (
     SUPPORTED_EXTENSIONS,
+    content_hash_match,
     document_response,
     persist_document,
     prepare_document_metadata,
@@ -453,10 +454,7 @@ async def upload_session_file(
             session=response,
         )
     existing_doc = await db.scalar(
-        sa.select(Document)
-        .where(Document.collection_id == collection["id"])
-        .where(Document.content_hash == content_hash)
-        .limit(1)
+        content_hash_match(collection, content_hash, upload_session.meta or {})
     )
     if existing_doc is None:
         doc = await persist_document(

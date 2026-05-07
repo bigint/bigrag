@@ -5,6 +5,7 @@ export type Collection = {
   embedding_provider: string;
   embedding_model: string;
   dimension: number;
+  tenant_field: string | null;
   chunk_size: number;
   chunk_overlap: number;
   document_count: number;

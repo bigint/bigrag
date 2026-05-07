@@ -33,6 +33,7 @@ from bigrag.routers._documents import (
     SUPPORTED_EXTENSIONS,
     UploadBudget,
     assert_collection_pin_matches,
+    content_hash_match,
     document_progress_response,
     document_response,
     get_document_with_collection,
@@ -182,12 +183,7 @@ async def upload_document(
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
 
     content_hash = hashlib.sha256(content).hexdigest()
-    existing = await session.scalar(
-        sa.select(Document)
-        .where(Document.collection_id == collection["id"])
-        .where(Document.content_hash == content_hash)
-        .limit(1)
-    )
+    existing = await session.scalar(content_hash_match(collection, content_hash, meta))
     if existing is not None:
         logger.info(
             "upload: dedup hit — returning existing doc",
@@ -538,10 +534,7 @@ async def batch_upload_documents(
         existing = seen_by_hash.get(content_hash)
         if existing is None:
             existing = await session.scalar(
-                sa.select(Document)
-                .where(Document.collection_id == collection["id"])
-                .where(Document.content_hash == content_hash)
-                .limit(1)
+                content_hash_match(collection, content_hash, shared_meta)
             )
             if existing is not None:
                 seen_by_hash[content_hash] = existing

@@ -15,7 +15,7 @@ copy and an API-layer search-and-replace.
 | Pinecone | bigRAG |
 | --- | --- |
 | Index | Collection |
-| Namespace | Metadata field `namespace` (optionally indexed via `tenant_field`) |
+| Namespace | Metadata field `namespace` (set `tenant_field` when every upload/query must include it) |
 | Vector (id, values, metadata) | Chunk (`id`, `embedding`, `metadata`) |
 | `upsert` | `POST /v1/collections/{name}/vectors/upsert` |
 | `query(vector, topK, filter)` | `POST /v1/collections/{name}/query` |
@@ -93,7 +93,8 @@ Recommended if you're in the middle of a chunking rethink anyway.
 - **Namespaces → metadata filters**. Pinecone's `namespace="docs"`
   becomes `metadata.namespace = "docs"`. Set
   `tenant_field: "namespace"` on the collection when that field should
-  get a Qdrant payload index for tenant-scoped searches.
+  get a Qdrant payload index and become required on uploads, raw vector
+  upserts, queries, and chat requests.
 - **Hybrid search is built-in**. `search_mode: "hybrid"` runs keyword
   + vector in parallel and fuses with RRF / normalized / weighted.
   No separate "sparse" vectors to maintain.

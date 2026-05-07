@@ -1,4 +1,4 @@
-import { RotateCcw, Save, ShieldCheck, TestTube2 } from "lucide-react";
+import { RotateCcw, Save, ShieldCheck, TestTube2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useInstanceSettings,
+  usePurgeEmbeddingCache,
   useResetInstanceSettings,
   useTestInstanceSettings,
   useUpdateInstanceSettings,
@@ -65,6 +66,7 @@ export const InstanceSettingsTab = ({ group }: { group: InstanceSettingGroup }) 
   const save = useUpdateInstanceSettings();
   const test = useTestInstanceSettings();
   const reset = useResetInstanceSettings();
+  const purgeEmbeddingCache = usePurgeEmbeddingCache();
   const [draft, setDraft] = useState<Record<string, DraftValue>>({});
   const groupSpecs = useMemo(
     () => data?.specs.filter((spec) => spec.group === group) ?? [],
@@ -145,6 +147,20 @@ export const InstanceSettingsTab = ({ group }: { group: InstanceSettingGroup }) 
             <RotateCcw className="size-4" />
             Reset tab
           </Button>
+          {group === "security" && (
+            <Button
+              disabled={purgeEmbeddingCache.isPending}
+              onClick={() => {
+                if (window.confirm("Purge every persistent embedding cache row?")) {
+                  purgeEmbeddingCache.mutate();
+                }
+              }}
+              variant="destructive"
+            >
+              <Trash2 className="size-4" />
+              Purge embedding cache
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

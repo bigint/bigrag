@@ -27,6 +27,7 @@ from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_r
 from bigrag.services import access_log
 from bigrag.services.embedding import AVAILABLE_MODELS
 from bigrag.services.retrieval import invalidate_collection_query_cache, retrieve, retrieve_multi
+from bigrag.services.tenant_enforcement import require_tenant_filters, require_tenant_metadata
 from bigrag.services.vector_store import vector_store
 
 logger = get_logger("bigrag.routers.query")
@@ -55,6 +56,7 @@ async def query_collection(
         },
     )
     collection = await get_collection_or_404(collection_name)
+    require_tenant_filters(collection, body.filters)
     logger.info(
         f"query: collection={collection_name} q={body.query!r:.80s} "
         f"top_k={body.top_k} filters={body.filters}"
@@ -162,6 +164,7 @@ async def multi_collection_query(
     reranking_configs = {}
     for col_name in body.collections:
         collection = await get_collection_or_404(col_name)
+        require_tenant_filters(collection, body.filters)
         try:
             embedding_models[col_name] = get_embedding_model_for(collection)
         except (ImportError, ValueError) as e:
@@ -218,6 +221,7 @@ async def batch_query(
 
     async def run_one(item: BatchQueryItem) -> BatchQueryResultItem:
         collection = await get_collection_or_404(item.collection)
+        require_tenant_filters(collection, item.filters)
         try:
             embedding_model = get_embedding_model_for(collection)
         except (ImportError, ValueError) as e:
@@ -270,13 +274,15 @@ async def upsert_vectors(
         collection_name=collection_name,
         metadata={"vector_count": len(body.vectors)},
     )
-    await get_collection_or_404(collection_name)
+    collection = await get_collection_or_404(collection_name)
     logger.info(f"upsert: collection={collection_name} vectors={len(body.vectors)}")
 
     ids = [v.id for v in body.vectors]
     embeddings = [v.embedding for v in body.vectors]
     texts = [v.text for v in body.vectors]
     metadata = [v.metadata for v in body.vectors]
+    for index, meta in enumerate(metadata):
+        require_tenant_metadata(collection, meta, label=f"vectors[{index}].metadata")
 
     count = await vector_store.upsert(
         collection=collection_name,

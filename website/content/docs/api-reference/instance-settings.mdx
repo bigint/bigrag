@@ -84,3 +84,17 @@ POST /admin/settings/reset
 ```
 
 An empty `keys` array resets every UI-managed instance setting back to its default/bootstrap value. Successful resets are audited as `instance_settings.reset`.
+
+## Purge Embedding Cache
+
+```
+POST /admin/settings/embedding-cache/purge
+```
+
+Deletes every row from the persistent embedding cache. Use this after key rotation, before handing a backup to another environment, or when an operator wants to force all future ingestion to re-embed.
+
+**Response** `200`:
+
+```json
+{ "status": "ok", "message": "Purged 128 embedding cache rows" }
+```

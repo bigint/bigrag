@@ -53,3 +53,16 @@ export const useResetInstanceSettings = () => {
     onError: errorToast("Could not reset settings"),
   });
 };
+
+export const usePurgeEmbeddingCache = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiClient.post<{ status: string; message: string }>("admin/settings/embedding-cache/purge"),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: queryKeys.instanceSettings() });
+      toast.success(result.message || "Embedding cache purged");
+    },
+    onError: errorToast("Could not purge embedding cache"),
+  });
+};

@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from bigrag.db.engine import session_factory
 from bigrag.db.models import AccessLog, QueryLog, UploadSession, WebhookDelivery
 from bigrag.logging import get_logger
+from bigrag.services import embedding_cache
 from bigrag.services.runtime_settings import get_values
 
 logger = get_logger("bigrag.cleanup")
@@ -23,6 +24,7 @@ async def cleanup_old_data() -> None:
                     "access_log_retention_days",
                     "webhook_delivery_retention_days",
                     "upload_session_item_retention_hours",
+                    "embedding_cache_retention_days",
                 ]
             )
             async with session_factory()() as session:
@@ -55,6 +57,10 @@ async def cleanup_old_data() -> None:
             logger.info(f"access_log cleanup: {al_result.rowcount or 0}")
             logger.info(f"webhook_deliveries cleanup: {wd_result.rowcount or 0}")
             logger.info(f"upload_sessions cleanup: {us_result.rowcount or 0}")
+            purged_embeddings = await embedding_cache.purge_stale(
+                int(retention["embedding_cache_retention_days"])
+            )
+            logger.info(f"embedding_cache cleanup: {purged_embeddings}")
         except asyncio.CancelledError:
             return
         except Exception as e:

@@ -52,8 +52,10 @@ class Settings(BaseSettings):
     qdrant_search_ef: int | None = None
     queue_max_depth: int = 10000
     collection_cache_ttl: int = 30
-    query_embedding_cache_ttl: int = 3600
+    query_embedding_cache_ttl: int = 300
     query_result_cache_ttl: int = 30
+    embedding_cache_mode: Literal["encrypted", "disabled"] = "encrypted"
+    embedding_cache_retention_days: int = 30
     conversion_timeout: int = 300
     conversion_pdf_ocr_enabled: bool = True
     webhook_delivery_timeout: int = 10

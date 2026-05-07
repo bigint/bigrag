@@ -31,6 +31,7 @@ from bigrag.services.collection_config import get_embedding_model_for, get_reran
 from bigrag.services.collection_scope import assert_collection_matches_pin
 from bigrag.services.retrieval import retrieve
 from bigrag.services.runtime_settings import get_values
+from bigrag.services.tenant_enforcement import require_tenant_filters
 from bigrag.services.url_security import UnsafeOutboundUrlError, validate_chat_base_url
 
 logger = get_logger("bigrag.chat")
@@ -408,6 +409,7 @@ async def _prepare_chat_turn(
         await session.flush()
 
     collection = await get_collection_or_404(collection_name)
+    require_tenant_filters(collection, body.filters)
     _apply_turn_overrides(conversation, body, collection, runtime["chat_provider"])
     provider = _resolve_provider(conversation.model_provider, runtime["chat_provider"])
     credentials = await _resolve_api_credentials(session, user, body)
