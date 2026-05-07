@@ -261,7 +261,13 @@ class IngestionQueue:
             raise IngestionCancelledError(f"Ingestion cancelled for document '{job.document_id}'")
 
     async def enqueue(self, job: IngestionJob) -> None:
+        from bigrag.services.maintenance import MaintenanceActiveError, ensure_writes_allowed
         from bigrag.services.runtime_settings import get_value
+
+        try:
+            await ensure_writes_allowed()
+        except MaintenanceActiveError as exc:
+            raise ValueError(str(exc)) from exc
 
         if job.attempt == 0:
             job.collection_epoch = await self._collection_epoch(job.collection_name)
@@ -332,10 +338,20 @@ class IngestionQueue:
         logger.info("worker started", worker_id=worker_id)
         while self._running:
             try:
+                from bigrag.services.maintenance import is_active
+
+                if await is_active():
+                    await asyncio.sleep(1)
+                    continue
                 data = await self._redis.blmove(
                     QUEUE_KEY, PROCESSING_KEY, timeout=1, src="RIGHT", dest="LEFT"
                 )
                 if data is None:
+                    continue
+                if await is_active():
+                    await self._redis.lrem(PROCESSING_KEY, 1, data)
+                    await self._redis.rpush(QUEUE_KEY, data)
+                    await asyncio.sleep(1)
                     continue
 
                 job = IngestionJob.deserialize(data)

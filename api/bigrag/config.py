@@ -81,6 +81,13 @@ class Settings(BaseSettings):
     allow_private_chat_base_urls: bool = False
 
     upload_dir: str = "./data/uploads"
+    backup_s3_bucket: str = ""
+    backup_s3_endpoint_url: str | None = None
+    backup_s3_region: str = "us-east-1"
+    backup_s3_prefix: str = ""
+    backup_s3_access_key_id: str | None = None
+    backup_s3_secret_access_key: str | None = None
+    backup_s3_force_path_style: bool = False
 
     max_upload_size_mb: int = 64
     max_batch_upload_size_mb: int = 128

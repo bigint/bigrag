@@ -17,6 +17,7 @@ from bigrag.middleware.auth import require_admin_session
 from bigrag.models.document import BatchStatusRequest
 from bigrag.routers.admin_access import access_overview, list_access_logs
 from bigrag.routers.admin_audit import list_audit_log
+from bigrag.routers.admin_backups import list_backup_jobs
 from bigrag.routers.collections import get_collection_stats
 from bigrag.routers.connectors import google_sources, google_sync_jobs
 from bigrag.routers.documents import batch_get_status, get_document, list_documents
@@ -30,6 +31,7 @@ router = APIRouter(prefix="/v1/admin/realtime", tags=["admin:realtime"])
 HEARTBEAT_SECONDS = 30.0
 TERMINAL_DOCUMENT_STATUSES = {"ready", "failed"}
 ACTIVE_SYNC_JOB_STATUSES = {"pending", "running"}
+ACTIVE_BACKUP_JOB_STATUSES = {"pending", "running"}
 
 SnapshotLoader = Callable[[], Awaitable[Any]]
 SnapshotDone = Callable[[Any], bool]
@@ -197,6 +199,12 @@ def _google_jobs_interval(payload: Any | None) -> float:
         if any(getattr(job, "status", None) in ACTIVE_SYNC_JOB_STATUSES for job in jobs)
         else 10.0
     )
+
+
+def _backup_jobs_interval(payload: Any | None) -> float:
+    jobs = getattr(payload, "jobs", []) if payload is not None else []
+    active = any(getattr(job, "status", None) in ACTIVE_BACKUP_JOB_STATUSES for job in jobs)
+    return 2.0 if active else 15.0
 
 
 @router.get("/collections/{collection_name}/documents", response_class=StreamingResponse)
@@ -375,6 +383,27 @@ async def google_sync_jobs_stream(
         )
 
     return _stream_response(_interval_stream(topic, load, _google_jobs_interval))
+
+
+@router.get("/backups", response_class=StreamingResponse)
+async def backup_jobs_stream(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    user: dict = Depends(require_admin_session),
+):
+    topic = f"backups:{limit}:{offset}"
+
+    async def load():
+        return await _with_session(
+            lambda session: list_backup_jobs(
+                limit=limit,
+                offset=offset,
+                _=user,
+                session=session,
+            )
+        )
+
+    return _stream_response(_interval_stream(topic, load, _backup_jobs_interval))
 
 
 @router.get("/access/overview", response_class=StreamingResponse)

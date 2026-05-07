@@ -59,6 +59,10 @@ const GROUP_COPY: Record<InstanceSettingGroup, { title: string; description: str
     title: "Retention",
     description: "Operational log retention policies.",
   },
+  backups: {
+    title: "Backups",
+    description: "S3-compatible destination for readable full-instance backup exports.",
+  },
 };
 
 export const InstanceSettingsTab = ({ group }: { group: InstanceSettingGroup }) => {

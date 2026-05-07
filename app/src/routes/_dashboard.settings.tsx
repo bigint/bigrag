@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Tabs } from "@/components/ui/tabs";
 import { AccountTab } from "@/features/settings/tabs/account-tab";
 import { AuditTab } from "@/features/settings/tabs/audit-tab";
+import { BackupsTab } from "@/features/settings/tabs/backups-tab";
 import { ConnectorsTab } from "@/features/settings/tabs/connectors-tab";
 import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 import { ServerTab } from "@/features/settings/tabs/server-tab";
@@ -35,6 +36,7 @@ const TABS = [
   { label: "Webhooks", value: "webhooks" },
   { label: "Rate limits", value: "rate_limits" },
   { label: "Retention", value: "retention" },
+  { label: "Backups", value: "backups" },
   { label: "Connectors", value: "connectors" },
   { label: "Usage & cost", value: "usage" },
   { label: "Audit log", value: "audit" },
@@ -54,6 +56,7 @@ const COMPONENTS: Record<string, React.FC> = {
   webhooks: settingsTab("webhooks"),
   rate_limits: settingsTab("rate_limits"),
   retention: settingsTab("retention"),
+  backups: BackupsTab,
   connectors: ConnectorsTab,
   usage: UsageTab,
   audit: AuditTab,

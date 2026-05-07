@@ -35,6 +35,13 @@ def test_runtime_settings_include_embedding_cache_security_settings() -> None:
     assert REGISTRY["query_embedding_cache_ttl"].default == 300
 
 
+def test_runtime_settings_include_backup_destination_settings() -> None:
+    assert validate_setting_value("backup_s3_bucket", "bigrag-backups") == "bigrag-backups"
+    assert validate_setting_value("backup_s3_region", "auto") == "auto"
+    assert validate_setting_value("backup_s3_force_path_style", True) is True
+    assert REGISTRY["backup_s3_secret_access_key"].secret is True
+
+
 def test_runtime_settings_redacts_secret_public_value() -> None:
     row = InstanceSetting(key="embedding_api_key", secret_value="sk-secret")
 

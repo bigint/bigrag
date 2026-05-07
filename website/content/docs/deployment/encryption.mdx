@@ -72,6 +72,10 @@ bigRAG delegates the bulk of at-rest protection to your infrastructure. For a pr
 
 The upload directory (default `./data/uploads`) must live on an encrypted volume.
 
+### Readable backups
+
+Readable backups created from Settings → Backups are intentionally not client-side encrypted. They export decrypted provider settings, embedding vectors, logs, chats, Qdrant payloads, and raw uploaded files so operators can inspect the backup directly. Put the backup bucket behind strict IAM/R2 token policy, bucket encryption, private networking where available, lifecycle retention, and access logging.
+
 ## Rotation
 
 bigRAG supports dual-read key rotation: set the new key as `BIGRAG_MASTER_KEY` and pass old keys in `BIGRAG_MASTER_KEY_PREVIOUS` so existing rows can still decrypt while newly written rows use the new key.

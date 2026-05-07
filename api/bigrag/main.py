@@ -27,6 +27,7 @@ from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logg
 from bigrag.middleware.cors import RuntimeCorsMiddleware
 from bigrag.middleware.csrf import SessionCsrfMiddleware
 from bigrag.middleware.idempotency import IdempotencyMiddleware
+from bigrag.middleware.maintenance import MaintenanceWriteLockMiddleware
 from bigrag.services import crypto, redis_cache, runtime_settings
 from bigrag.services.access_log import AccessLogMiddleware
 from bigrag.services.event_bus import event_bus
@@ -189,6 +190,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(AccessLogMiddleware)
     app.add_middleware(IdempotencyMiddleware)
+    app.add_middleware(MaintenanceWriteLockMiddleware)
     app.add_middleware(SessionCsrfMiddleware)
     app.add_middleware(RuntimeCorsMiddleware)
 
@@ -223,6 +225,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     from bigrag.routers.admin_access import router as admin_access_router
     from bigrag.routers.admin_api_keys import router as admin_api_keys_router
     from bigrag.routers.admin_audit import router as admin_audit_router
+    from bigrag.routers.admin_backups import router as admin_backups_router
     from bigrag.routers.admin_connectors import router as admin_connectors_router
     from bigrag.routers.admin_realtime import router as admin_realtime_router
     from bigrag.routers.admin_settings import router as admin_settings_router
@@ -249,6 +252,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(admin_users_router)
     app.include_router(admin_api_keys_router)
     app.include_router(admin_connectors_router)
+    app.include_router(admin_backups_router)
     app.include_router(admin_settings_router)
     app.include_router(admin_access_router)
     app.include_router(admin_realtime_router)

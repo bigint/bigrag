@@ -16,6 +16,7 @@ from bigrag.models.instance_settings import (
     UpdateInstanceSettingsRequest,
 )
 from bigrag.services import audit, embedding_cache
+from bigrag.services.backup import test_backup_target
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import (
     all_runtime_values,
@@ -49,7 +50,7 @@ async def update_instance_settings(
         changed = await update_settings(session, body.values, updated_by=user_id)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=f"Unknown setting: {exc.args[0]}") from exc
-    except ValueError as exc:
+    except (RuntimeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(
@@ -94,6 +95,16 @@ async def test_instance_settings(
                     await probe.exists("__bigrag_settings_probe__")
                 finally:
                     await probe.close()
+        if any(key.startswith("backup_") for key in body.values):
+            backup_values = await all_runtime_values()
+            backup_values.update(
+                {
+                    key: validate_setting_value(key, body.values[key])
+                    for key in body.values
+                    if key.startswith("backup_")
+                }
+            )
+            await test_backup_target(backup_values)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=f"Unknown setting: {exc.args[0]}") from exc
     except ValueError as exc:

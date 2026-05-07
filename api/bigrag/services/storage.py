@@ -29,6 +29,9 @@ class StorageBackend(ABC):
     async def exists(self, key: str) -> bool: ...
 
     @abstractmethod
+    async def write_to_path(self, key: str, path: Path) -> int: ...
+
+    @abstractmethod
     async def close(self) -> None: ...
 
 
@@ -99,6 +102,22 @@ class LocalStorage(StorageBackend):
     async def exists(self, key: str) -> bool:
         path = self._safe_path(key)
         return await asyncio.to_thread(path.exists)
+
+    async def write_to_path(self, key: str, path: Path) -> int:
+        source = self._safe_path(key)
+
+        def _copy() -> int:
+            if not source.exists():
+                raise FileNotFoundError(f"File not found: {key}")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            import shutil
+
+            shutil.copyfile(source, path)
+            return path.stat().st_size
+
+        size = await asyncio.to_thread(_copy)
+        logger.info(f"local write_to_path: key={key} size={size}")
+        return size
 
     async def close(self) -> None:
         pass
@@ -219,6 +238,24 @@ class S3Storage(StorageBackend):
                 raise
 
         return await asyncio.to_thread(_exists)
+
+    async def write_to_path(self, key: str, path: Path) -> int:
+        object_key = self._key(key)
+
+        def _write() -> int:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            response = self._client.get_object(Bucket=self._bucket, Key=object_key)
+            size = 0
+            with path.open("wb") as out:
+                for chunk in response["Body"].iter_chunks(chunk_size=1024 * 1024):
+                    if chunk:
+                        out.write(chunk)
+                        size += len(chunk)
+            return size
+
+        size = await asyncio.to_thread(_write)
+        logger.info(f"s3 write_to_path: key={object_key} size={size}")
+        return size
 
     async def close(self) -> None:
         close = getattr(self._client, "close", None)

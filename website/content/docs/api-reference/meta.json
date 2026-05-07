@@ -5,6 +5,7 @@
     "users",
     "api-keys",
     "audit",
+    "backups",
     "admin-realtime",
     "instance-settings",
     "collections",

@@ -18,6 +18,7 @@ SettingGroup = Literal[
     "webhooks",
     "rate_limits",
     "retention",
+    "backups",
 ]
 
 

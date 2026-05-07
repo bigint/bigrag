@@ -260,6 +260,54 @@ class UploadSessionItem(Base):
     updated_at: Mapped[TSupd]
 
 
+class MaintenanceLock(Base):
+    __tablename__ = "maintenance_locks"
+    __table_args__ = (sa.Index("idx_maintenance_locks_expires_at", "expires_at"),)
+
+    name: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    owner_id: Mapped[UUID | None] = mapped_column(sa.Uuid)
+    reason: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
+    expires_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    meta: Mapped[dict] = mapped_column(
+        "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
+    )
+    created_at: Mapped[TS]
+    updated_at: Mapped[TSupd]
+
+
+class BackupJob(Base):
+    __tablename__ = "backup_jobs"
+    __table_args__ = (
+        sa.Index("idx_backup_jobs_created_at", "created_at"),
+        sa.Index("idx_backup_jobs_status", "status"),
+        sa.CheckConstraint(
+            "status IN ('pending', 'running', 'succeeded', 'failed')",
+            name="backup_jobs_status_check",
+        ),
+    )
+
+    id: Mapped[UUIDpk]
+    label: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
+    status: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="pending")
+    progress: Mapped[float] = mapped_column(sa.Double, nullable=False, server_default=sa.text("0"))
+    destination_prefix: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
+    object_count: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    byte_count: Mapped[int] = mapped_column(
+        sa.BigInteger, nullable=False, server_default=sa.text("0")
+    )
+    manifest: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
+    )
+    error_message: Mapped[str | None] = mapped_column(sa.Text)
+    created_by: Mapped[UUID | None] = mapped_column(sa.ForeignKey("users.id", ondelete="SET NULL"))
+    started_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    created_at: Mapped[TS]
+    updated_at: Mapped[TSupd]
+
+
 class ConnectorProviderConfig(Base):
     __tablename__ = "connector_provider_configs"
     __table_args__ = (
