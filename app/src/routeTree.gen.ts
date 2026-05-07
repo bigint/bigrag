@@ -20,6 +20,7 @@ import { Route as DashboardApiKeysRouteImport } from "./routes/_dashboard.api-ke
 import { Route as DashboardAccessLogsRouteImport } from "./routes/_dashboard.access-logs";
 import { Route as AuthSetupRouteImport } from "./routes/_auth.setup";
 import { Route as AuthLoginRouteImport } from "./routes/_auth.login";
+import { Route as DashboardCollectionsIndexRouteImport } from "./routes/_dashboard.collections.index";
 import { Route as DashboardCollectionsNameRouteImport } from "./routes/_dashboard.collections.$name";
 import { Route as DashboardCollectionsNameIndexRouteImport } from "./routes/_dashboard.collections.$name.index";
 import { Route as DashboardCollectionsNameSettingsRouteImport } from "./routes/_dashboard.collections.$name.settings";
@@ -27,6 +28,7 @@ import { Route as DashboardCollectionsNameSearchRouteImport } from "./routes/_da
 import { Route as DashboardCollectionsNameGoogleDriveRouteImport } from "./routes/_dashboard.collections.$name.google-drive";
 import { Route as DashboardCollectionsNameDocumentsRouteImport } from "./routes/_dashboard.collections.$name.documents";
 import { Route as DashboardCollectionsNameConnectorsRouteImport } from "./routes/_dashboard.collections.$name.connectors";
+import { Route as DashboardCollectionsNameDocumentsIndexRouteImport } from "./routes/_dashboard.collections.$name.documents.index";
 import { Route as DashboardCollectionsNameConnectorsIndexRouteImport } from "./routes/_dashboard.collections.$name.connectors.index";
 import { Route as DashboardCollectionsNameDocumentsDocIdRouteImport } from "./routes/_dashboard.collections.$name.documents.$docId";
 import { Route as DashboardCollectionsNameConnectorsGoogleDriveRouteImport } from "./routes/_dashboard.collections.$name.connectors.google-drive";
@@ -104,6 +106,12 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
   path: "/login",
   getParentRoute: () => AuthRoute,
 } as any);
+const DashboardCollectionsIndexRoute =
+  DashboardCollectionsIndexRouteImport.update({
+    id: "/",
+    path: "/",
+    getParentRoute: () => DashboardCollectionsRoute,
+  } as any);
 const DashboardCollectionsNameRoute =
   DashboardCollectionsNameRouteImport.update({
     id: "/$name",
@@ -146,6 +154,12 @@ const DashboardCollectionsNameConnectorsRoute =
     path: "/connectors",
     getParentRoute: () => DashboardCollectionsNameRoute,
   } as any);
+const DashboardCollectionsNameDocumentsIndexRoute =
+  DashboardCollectionsNameDocumentsIndexRouteImport.update({
+    id: "/",
+    path: "/",
+    getParentRoute: () => DashboardCollectionsNameDocumentsRoute,
+  } as any);
 const DashboardCollectionsNameConnectorsIndexRoute =
   DashboardCollectionsNameConnectorsIndexRouteImport.update({
     id: "/",
@@ -180,6 +194,7 @@ export interface FileRoutesByFullPath {
   "/settings": typeof DashboardSettingsRoute;
   "/webhooks": typeof DashboardWebhooksRoute;
   "/collections/$name": typeof DashboardCollectionsNameRouteWithChildren;
+  "/collections/": typeof DashboardCollectionsIndexRoute;
   "/collections/$name/connectors": typeof DashboardCollectionsNameConnectorsRouteWithChildren;
   "/collections/$name/documents": typeof DashboardCollectionsNameDocumentsRouteWithChildren;
   "/collections/$name/google-drive": typeof DashboardCollectionsNameGoogleDriveRoute;
@@ -189,6 +204,7 @@ export interface FileRoutesByFullPath {
   "/collections/$name/connectors/google-drive": typeof DashboardCollectionsNameConnectorsGoogleDriveRoute;
   "/collections/$name/documents/$docId": typeof DashboardCollectionsNameDocumentsDocIdRoute;
   "/collections/$name/connectors/": typeof DashboardCollectionsNameConnectorsIndexRoute;
+  "/collections/$name/documents/": typeof DashboardCollectionsNameDocumentsIndexRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
@@ -197,14 +213,13 @@ export interface FileRoutesByTo {
   "/access-logs": typeof DashboardAccessLogsRoute;
   "/api-keys": typeof DashboardApiKeysRoute;
   "/chat": typeof DashboardChatRoute;
-  "/collections": typeof DashboardCollectionsRouteWithChildren;
   "/evals": typeof DashboardEvalsRoute;
   "/mcp": typeof DashboardMcpRoute;
   "/models": typeof DashboardModelsRoute;
   "/overview": typeof DashboardOverviewRoute;
   "/settings": typeof DashboardSettingsRoute;
   "/webhooks": typeof DashboardWebhooksRoute;
-  "/collections/$name/documents": typeof DashboardCollectionsNameDocumentsRouteWithChildren;
+  "/collections": typeof DashboardCollectionsIndexRoute;
   "/collections/$name/google-drive": typeof DashboardCollectionsNameGoogleDriveRoute;
   "/collections/$name/search": typeof DashboardCollectionsNameSearchRoute;
   "/collections/$name/settings": typeof DashboardCollectionsNameSettingsRoute;
@@ -212,6 +227,7 @@ export interface FileRoutesByTo {
   "/collections/$name/connectors/google-drive": typeof DashboardCollectionsNameConnectorsGoogleDriveRoute;
   "/collections/$name/documents/$docId": typeof DashboardCollectionsNameDocumentsDocIdRoute;
   "/collections/$name/connectors": typeof DashboardCollectionsNameConnectorsIndexRoute;
+  "/collections/$name/documents": typeof DashboardCollectionsNameDocumentsIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -231,6 +247,7 @@ export interface FileRoutesById {
   "/_dashboard/settings": typeof DashboardSettingsRoute;
   "/_dashboard/webhooks": typeof DashboardWebhooksRoute;
   "/_dashboard/collections/$name": typeof DashboardCollectionsNameRouteWithChildren;
+  "/_dashboard/collections/": typeof DashboardCollectionsIndexRoute;
   "/_dashboard/collections/$name/connectors": typeof DashboardCollectionsNameConnectorsRouteWithChildren;
   "/_dashboard/collections/$name/documents": typeof DashboardCollectionsNameDocumentsRouteWithChildren;
   "/_dashboard/collections/$name/google-drive": typeof DashboardCollectionsNameGoogleDriveRoute;
@@ -240,6 +257,7 @@ export interface FileRoutesById {
   "/_dashboard/collections/$name/connectors/google-drive": typeof DashboardCollectionsNameConnectorsGoogleDriveRoute;
   "/_dashboard/collections/$name/documents/$docId": typeof DashboardCollectionsNameDocumentsDocIdRoute;
   "/_dashboard/collections/$name/connectors/": typeof DashboardCollectionsNameConnectorsIndexRoute;
+  "/_dashboard/collections/$name/documents/": typeof DashboardCollectionsNameDocumentsIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -258,6 +276,7 @@ export interface FileRouteTypes {
     | "/settings"
     | "/webhooks"
     | "/collections/$name"
+    | "/collections/"
     | "/collections/$name/connectors"
     | "/collections/$name/documents"
     | "/collections/$name/google-drive"
@@ -266,7 +285,8 @@ export interface FileRouteTypes {
     | "/collections/$name/"
     | "/collections/$name/connectors/google-drive"
     | "/collections/$name/documents/$docId"
-    | "/collections/$name/connectors/";
+    | "/collections/$name/connectors/"
+    | "/collections/$name/documents/";
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
@@ -275,21 +295,21 @@ export interface FileRouteTypes {
     | "/access-logs"
     | "/api-keys"
     | "/chat"
-    | "/collections"
     | "/evals"
     | "/mcp"
     | "/models"
     | "/overview"
     | "/settings"
     | "/webhooks"
-    | "/collections/$name/documents"
+    | "/collections"
     | "/collections/$name/google-drive"
     | "/collections/$name/search"
     | "/collections/$name/settings"
     | "/collections/$name"
     | "/collections/$name/connectors/google-drive"
     | "/collections/$name/documents/$docId"
-    | "/collections/$name/connectors";
+    | "/collections/$name/connectors"
+    | "/collections/$name/documents";
   id:
     | "__root__"
     | "/"
@@ -308,6 +328,7 @@ export interface FileRouteTypes {
     | "/_dashboard/settings"
     | "/_dashboard/webhooks"
     | "/_dashboard/collections/$name"
+    | "/_dashboard/collections/"
     | "/_dashboard/collections/$name/connectors"
     | "/_dashboard/collections/$name/documents"
     | "/_dashboard/collections/$name/google-drive"
@@ -316,7 +337,8 @@ export interface FileRouteTypes {
     | "/_dashboard/collections/$name/"
     | "/_dashboard/collections/$name/connectors/google-drive"
     | "/_dashboard/collections/$name/documents/$docId"
-    | "/_dashboard/collections/$name/connectors/";
+    | "/_dashboard/collections/$name/connectors/"
+    | "/_dashboard/collections/$name/documents/";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -432,6 +454,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AuthLoginRouteImport;
       parentRoute: typeof AuthRoute;
     };
+    "/_dashboard/collections/": {
+      id: "/_dashboard/collections/";
+      path: "/";
+      fullPath: "/collections/";
+      preLoaderRoute: typeof DashboardCollectionsIndexRouteImport;
+      parentRoute: typeof DashboardCollectionsRoute;
+    };
     "/_dashboard/collections/$name": {
       id: "/_dashboard/collections/$name";
       path: "/$name";
@@ -480,6 +509,13 @@ declare module "@tanstack/react-router" {
       fullPath: "/collections/$name/connectors";
       preLoaderRoute: typeof DashboardCollectionsNameConnectorsRouteImport;
       parentRoute: typeof DashboardCollectionsNameRoute;
+    };
+    "/_dashboard/collections/$name/documents/": {
+      id: "/_dashboard/collections/$name/documents/";
+      path: "/";
+      fullPath: "/collections/$name/documents/";
+      preLoaderRoute: typeof DashboardCollectionsNameDocumentsIndexRouteImport;
+      parentRoute: typeof DashboardCollectionsNameDocumentsRoute;
     };
     "/_dashboard/collections/$name/connectors/": {
       id: "/_dashboard/collections/$name/connectors/";
@@ -537,12 +573,15 @@ const DashboardCollectionsNameConnectorsRouteWithChildren =
 
 interface DashboardCollectionsNameDocumentsRouteChildren {
   DashboardCollectionsNameDocumentsDocIdRoute: typeof DashboardCollectionsNameDocumentsDocIdRoute;
+  DashboardCollectionsNameDocumentsIndexRoute: typeof DashboardCollectionsNameDocumentsIndexRoute;
 }
 
 const DashboardCollectionsNameDocumentsRouteChildren: DashboardCollectionsNameDocumentsRouteChildren =
   {
     DashboardCollectionsNameDocumentsDocIdRoute:
       DashboardCollectionsNameDocumentsDocIdRoute,
+    DashboardCollectionsNameDocumentsIndexRoute:
+      DashboardCollectionsNameDocumentsIndexRoute,
   };
 
 const DashboardCollectionsNameDocumentsRouteWithChildren =
@@ -580,10 +619,12 @@ const DashboardCollectionsNameRouteWithChildren =
 
 interface DashboardCollectionsRouteChildren {
   DashboardCollectionsNameRoute: typeof DashboardCollectionsNameRouteWithChildren;
+  DashboardCollectionsIndexRoute: typeof DashboardCollectionsIndexRoute;
 }
 
 const DashboardCollectionsRouteChildren: DashboardCollectionsRouteChildren = {
   DashboardCollectionsNameRoute: DashboardCollectionsNameRouteWithChildren,
+  DashboardCollectionsIndexRoute: DashboardCollectionsIndexRoute,
 };
 
 const DashboardCollectionsRouteWithChildren =

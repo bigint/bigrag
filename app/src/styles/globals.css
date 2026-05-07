@@ -3,6 +3,12 @@
 @source "../**/*.tsx";
 
 @theme {
+  --font-sans:
+    "Outfit Variable",
+    Outfit,
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
   --color-background: #ffffff;
   --color-foreground: #0a0a0a;
   --color-card: #ffffff;
@@ -37,6 +43,12 @@ body {
   background:
     radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.025) 1px, transparent 0) 0 0 / 32px 32px,
     #ffffff;
+  font-family:
+    "Outfit Variable",
+    Outfit,
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
   font-feature-settings:
     "rlig" 1,
     "calt" 1;

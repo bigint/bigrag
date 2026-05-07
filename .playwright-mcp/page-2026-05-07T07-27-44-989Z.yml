@@ -1,0 +1,5 @@
+- generic [ref=e2]:
+  - link "Skip to content" [ref=e3] [cursor=pointer]:
+    - /url: "#main"
+  - status "Loading" [ref=e5]
+  - region "Notifications alt+T"
