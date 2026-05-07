@@ -1,3 +1,4 @@
+import { apiUrl } from "@/config/runtime";
 import type {
   ChatConversation,
   ChatCreateBody,
@@ -34,7 +35,7 @@ class ChatStreamError extends Error {
 }
 
 export const streamChat = async (opts: StreamOptions): Promise<void> => {
-  const res = await fetch("/api/bigrag/v1/chat", {
+  const res = await fetch(apiUrl("v1/chat"), {
     method: "POST",
     credentials: "include",
     headers: {

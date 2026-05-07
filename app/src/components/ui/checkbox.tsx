@@ -1,5 +1,3 @@
-"use client";
-
 import { Checkbox as BaseCheckbox } from "@base-ui/react/checkbox";
 import { CheckIcon, MinusIcon } from "lucide-react";
 import { useId } from "react";

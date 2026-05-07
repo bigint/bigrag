@@ -52,6 +52,7 @@ services:
       BIGRAG_QDRANT_URL: http://qdrant:6333
       BIGRAG_REDIS_URL: redis://redis:6379/0
       BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
+      BIGRAG_CORS_ORIGINS: '${BIGRAG_CORS_ORIGINS:-["http://localhost:3000"]}'
       BIGRAG_UPLOAD_DIR: /data/uploads
     depends_on:
       postgres:
@@ -100,6 +101,24 @@ volumes:
   qdrant_data:
   redis_data:
 ```
+
+## Admin UI Image
+
+The admin UI is a static Vite app served by Nginx. Build it from the repository root:
+
+```bash
+docker build -f app/Dockerfile -t bigrag-admin-ui .
+```
+
+Run it with the API URL and matching backend CORS origin:
+
+```bash
+docker run --rm -p 3000:3000 \
+  -e BIGRAG_URL=http://localhost:4000 \
+  bigrag-admin-ui
+```
+
+Set `BIGRAG_CORS_ORIGINS='["http://localhost:3000"]'` on the API when running the UI locally. In production, set the exact public admin UI origin and use secure cookies.
 
 ## Service Ports
 

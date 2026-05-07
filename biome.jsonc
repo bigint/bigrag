@@ -32,6 +32,7 @@
       "website/**/*.mjs",
       "app/src/**/*.ts",
       "app/src/**/*.tsx",
+      "!app/src/routeTree.gen.ts",
       "!**/.venv",
       "!**/.source",
       "!**/.next",

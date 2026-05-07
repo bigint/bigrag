@@ -1,5 +1,3 @@
-"use client";
-
 import { Tooltip as BaseTooltip } from "@base-ui/react/tooltip";
 import type { ReactNode } from "react";
 

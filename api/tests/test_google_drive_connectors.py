@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from datetime import UTC, datetime
 
 import httpx
 
-from bigrag.db.models import ConnectorDocument, ConnectorProviderConfig
+from bigrag.db.models import ConnectorAccount, ConnectorDocument, ConnectorProviderConfig
 from bigrag.services.google_drive import (
     GOOGLE_DOC_MIME,
     GOOGLE_FOLDER_MIME,
@@ -15,6 +16,7 @@ from bigrag.services.google_drive import (
     GoogleDriveNotFoundError,
     RemoteDriveFile,
     _manifest_unchanged,
+    _oauth_redirect_url,
     google_config_public,
     google_drive_file_public,
 )
@@ -40,6 +42,19 @@ def test_google_config_public_masks_secrets() -> None:
     assert public["client_id"] == "client-id.apps.googleusercontent.com"
     assert public["has_client_secret"] is True
     assert "secret" not in public.values()
+
+
+def test_oauth_redirect_url_uses_admin_origin() -> None:
+    account = ConnectorAccount(
+        provider=GOOGLE_PROVIDER,
+        user_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+        meta={"redirect_origin": "https://admin.example.com"},
+    )
+
+    assert (
+        _oauth_redirect_url(account, "/collections/docs/connectors/google-drive")
+        == "https://admin.example.com/collections/docs/connectors/google-drive"
+    )
 
 
 def test_google_drive_client_exports_workspace_document() -> None:

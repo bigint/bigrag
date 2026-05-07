@@ -1,5 +1,3 @@
-"use client";
-
 import { Field } from "@base-ui/react/field";
 import type { InputHTMLAttributes, Ref } from "react";
 import { cn } from "@/lib/cn";

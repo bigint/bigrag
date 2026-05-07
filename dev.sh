@@ -154,6 +154,7 @@ if [ "$START_BACKEND" = true ]; then
   BIGRAG_QDRANT_URL="$QDRANT_URL" \
   BIGRAG_REDIS_URL="$REDIS_URL" \
   BIGRAG_MASTER_KEY="$DEV_MASTER_KEY" \
+  BIGRAG_CORS_ORIGINS="${BIGRAG_CORS_ORIGINS:-[\"http://localhost:3000\"]}" \
   PYTHONUNBUFFERED=1 \
   uv run --directory "$ROOT_DIR/api" uvicorn bigrag.main:create_app \
     --factory --host 0.0.0.0 --port 4000 \

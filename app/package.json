@@ -4,34 +4,42 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
-    "postbuild": "node ../scripts/strip-next-env-comments.mjs next-env.d.ts",
-    "start": "next start --port 3000",
-    "typecheck": "tsc --noEmit",
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "build": "pnpm run routes:generate && vite build && node scripts/strip-tanstack-route-tree-comments.mjs src/routeTree.gen.ts",
+    "preview": "vite preview --host 0.0.0.0 --port 3000",
+    "routes:generate": "tsr generate && node scripts/strip-tanstack-route-tree-comments.mjs src/routeTree.gen.ts",
+    "start": "serve dist --single --listen tcp://0.0.0.0:${PORT:-3000}",
+    "typecheck": "pnpm run routes:generate && tsc --noEmit",
     "lint": "biome check --write src/"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
+    "@fontsource-variable/outfit": "^5.2.8",
     "@tanstack/react-query": "^5.100.9",
+    "@tanstack/react-router": "^1.169.2",
+    "@tanstack/react-router-devtools": "^1.166.13",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "ky": "^2.0.2",
     "lucide-react": "^1.14.0",
-    "next": "^16.2.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "serve": "^14.2.6",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.4",
+    "@tanstack/router-cli": "^1.166.43",
+    "@tanstack/router-plugin": "^1.167.35",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
     "postcss": "^8.5.14",
     "tailwindcss": "^4.2.4",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vite": "^8.0.11"
   }
 }

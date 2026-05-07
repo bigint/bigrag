@@ -1,5 +1,3 @@
-"use client";
-
 import { Switch as BaseSwitch } from "@base-ui/react/switch";
 import { useId } from "react";
 import { cn } from "@/lib/cn";

@@ -17,6 +17,7 @@ services:
       BIGRAG_REDIS_URL: redis://redis:6379/0
       BIGRAG_HOST: 0.0.0.0
       BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
+      BIGRAG_CORS_ORIGINS: '${BIGRAG_CORS_ORIGINS:-["http://localhost:3000"]}'
       BIGRAG_UPLOAD_DIR: /data/uploads
     deploy:
       resources:

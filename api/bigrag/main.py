@@ -18,6 +18,7 @@ from bigrag.config import Settings
 from bigrag.db.bootstrap import run_migrations
 from bigrag.exceptions import NotFoundError, ValidationError
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
+from bigrag.middleware.csrf import SessionCsrfMiddleware
 from bigrag.middleware.idempotency import IdempotencyMiddleware
 from bigrag.services import crypto, redis_cache
 from bigrag.services.access_log import AccessLogMiddleware
@@ -178,6 +179,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(AccessLogMiddleware)
     app.add_middleware(IdempotencyMiddleware)
+    app.add_middleware(SessionCsrfMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=s.cors_origins,

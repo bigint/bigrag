@@ -6,7 +6,7 @@
 - `sdks/typescript/` — TypeScript SDK (`@bigrag/client`)
 - `sdks/python/` — Python SDK (`bigrag`)
 - `sdks/rust/` — Rust SDK (`bigrag`)
-- `app/` — admin UI (Next.js 16 + Tailwind v4 + Base UI, `@bigrag/app`)
+- `app/` — admin UI (Vite + TanStack Router + Tailwind v4 + Base UI, `@bigrag/app`)
 - `website/` — Documentation site (Next.js + Fumadocs, content in `website/content/docs/`)
 
 ## Style Guide

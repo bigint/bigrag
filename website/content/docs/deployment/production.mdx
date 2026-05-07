@@ -137,7 +137,7 @@ BIGRAG_ENV=prod                     # refuses to boot with insecure defaults
 
 # Sessions
 BIGRAG_SESSION_COOKIE_SECURE=true   # HTTPS-only
-BIGRAG_SESSION_COOKIE_SAMESITE=lax
+BIGRAG_SESSION_COOKIE_SAMESITE=lax      # use none when API and admin UI are cross-site
 BIGRAG_CORS_ORIGINS=["https://admin.example.com"]
 BIGRAG_TRUSTED_PROXIES=["10.0.0.0/8"]  # your reverse-proxy/load-balancer CIDRs
 

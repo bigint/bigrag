@@ -1,7 +1,6 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { apiUrl } from "@/config/runtime";
 import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
@@ -21,7 +20,7 @@ export const useReadiness = () => {
   return useSseSnapshotQuery<ReadinessReport>({
     queryKey,
     queryFn: async (): Promise<ReadinessReport> => {
-      const res = await fetch("/api/bigrag/health/ready", {
+      const res = await fetch(apiUrl("health/ready"), {
         credentials: "include",
       });
 

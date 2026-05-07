@@ -99,6 +99,8 @@ Runtime settings use the `BIGRAG_` prefix. Environment variables override TOML v
 | `BIGRAG_CORS_ORIGINS` | Allowed CORS origins (JSON array; `["*"]` rejected in `prod`) | `[]` |
 | `BIGRAG_TRUSTED_PROXIES` | Trusted reverse-proxy CIDRs as a JSON array. When the immediate client is trusted, bigRAG uses the rightmost untrusted `X-Forwarded-For` IP for audit and access logs. | `[]` |
 
+`./dev.sh` and the default Docker Compose file set `BIGRAG_CORS_ORIGINS` to `["http://localhost:3000"]` for the bundled admin UI. For production, set the exact public admin UI origin.
+
 ### Infrastructure
 
 | Variable | Description | Default |
@@ -128,6 +130,8 @@ Runtime settings use the `BIGRAG_` prefix. Environment variables override TOML v
 | `BIGRAG_AUTH_SETUP_IP_RATE_LIMIT` | First-admin setup attempts per IP per window | `10` |
 | `BIGRAG_MASTER_KEY` | Fernet key (32-byte urlsafe-base64) used to envelope-encrypt provider credentials stored in Postgres. Required in `prod`. See [Encryption at rest](/docs/deployment/encryption). | — |
 | `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys for staged credential-key rotation | `[]` |
+
+When the API and admin UI are on different sites, set `BIGRAG_SESSION_COOKIE_SAMESITE=none` with `BIGRAG_SESSION_COOKIE_SECURE=true`.
 
 Admins are created via [`POST /v1/auth/setup`](/docs/api-reference/authentication) and API keys are minted via [`POST /v1/admin/api-keys`](/docs/api-reference/api-keys).
 

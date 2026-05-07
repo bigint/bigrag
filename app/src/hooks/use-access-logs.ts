@@ -1,5 +1,3 @@
-"use client";
-
 import { useMemo } from "react";
 import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";

@@ -5,7 +5,7 @@ description: Setup, collections, chat, API keys, webhooks, and settings.
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-The admin UI is the Next.js web interface packaged with bigRAG. Every control is also a REST API, so the admin UI is optional — you can run bigRAG headless — but it's the fastest way to bootstrap, prototype, and operate the platform.
+The admin UI is the Vite + TanStack Router single-page app packaged with bigRAG. Every control is also a REST API, so the admin UI is optional — you can run bigRAG headless — but it's the fastest way to bootstrap, prototype, and operate the platform.
 
 ## Running the Admin UI
 
@@ -13,7 +13,9 @@ The admin UI is the Next.js web interface packaged with bigRAG. Every control is
 pnpm dev:app        # admin UI on http://localhost:3000
 ```
 
-The admin UI proxies every request through `/api/bigrag/[...path]` onto the backend (default `http://localhost:4000`). Session cookies are forwarded automatically.
+The admin UI calls the FastAPI backend directly. The default API URL is `http://localhost:4000`; override it with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container. The backend must include the app origin in `BIGRAG_CORS_ORIGINS`, for example `["http://localhost:3000"]` in local development.
+
+For cross-site production deployments, set `BIGRAG_SESSION_COOKIE_SECURE=true` and usually `BIGRAG_SESSION_COOKIE_SAMESITE=none`. Same-site subdomain deployments can usually keep `SameSite=lax`.
 
 ## Route map
 

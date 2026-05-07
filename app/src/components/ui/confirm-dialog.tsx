@@ -1,5 +1,3 @@
-"use client";
-
 import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { Button } from "./button";
 

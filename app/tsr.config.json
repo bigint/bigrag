@@ -1,0 +1,7 @@
+{
+  "autoCodeSplitting": true,
+  "quoteStyle": "double",
+  "routeTreeFileHeader": ["// @ts-nocheck"],
+  "semicolons": true,
+  "target": "react"
+}

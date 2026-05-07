@@ -338,6 +338,12 @@ Backend logging is always enabled at debug level with text output and does not u
 | `BIGRAG_AUTH_LOGIN_IP_RATE_LIMIT` | Login attempts per IP per window | `50` |
 | `BIGRAG_AUTH_SETUP_IP_RATE_LIMIT` | First-admin setup attempts per IP per window | `10` |
 | `BIGRAG_AUTH_PRINCIPAL_CACHE_TTL` | Principal cache TTL in seconds | `60` |
+
+`./dev.sh` and the default Docker Compose setup allow the local admin UI origin
+`http://localhost:3000`. For production, set `BIGRAG_CORS_ORIGINS` to the exact
+admin UI origin. Cross-site admin UI deployments also need
+`BIGRAG_SESSION_COOKIE_SECURE=true` and usually
+`BIGRAG_SESSION_COOKIE_SAMESITE=none`.
 | `BIGRAG_EMBEDDING_API_KEY` | Default embedding API key | — |
 | `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider | `openai` |
 | `BIGRAG_EMBEDDING_MODEL` | Default embedding model | `text-embedding-3-small` |

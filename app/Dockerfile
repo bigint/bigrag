@@ -16,21 +16,14 @@ COPY app app
 
 RUN pnpm --filter @bigrag/app build
 
-FROM node:22-alpine AS runtime
+FROM nginx:1.29-alpine AS runtime
 
-WORKDIR /app
+ENV BIGRAG_URL=http://localhost:4000
 
-ENV NODE_ENV=production
-ENV HOSTNAME=0.0.0.0
-ENV PORT=3000
+COPY app/nginx.conf /etc/nginx/conf.d/default.conf
+COPY app/docker-entrypoint.sh /docker-entrypoint.d/40-bigrag-config.sh
+COPY --from=build /workspace/app/dist /usr/share/nginx/html
 
-RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
-
-COPY --from=build --chown=nextjs:nodejs /workspace/app/.next/standalone ./
-COPY --from=build --chown=nextjs:nodejs /workspace/app/.next/static ./app/.next/static
-
-USER nextjs
+RUN chmod +x /docker-entrypoint.d/40-bigrag-config.sh
 
 EXPOSE 3000
-
-CMD ["node", "app/server.js"]

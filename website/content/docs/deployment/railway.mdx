@@ -48,7 +48,8 @@ Qdrant exposes HTTP on `6333` and gRPC on `6334`. The API uses HTTP.
 |---|---|
 | Source | GitHub repo, **Root Directory `/app`** |
 | Builder | Nixpacks |
-| Start command | `pnpm --filter @bigrag/app exec next start --port $PORT` |
+| Build command | `pnpm build` |
+| Start command | `pnpm start` |
 | Public domain | yes |
 
 Environment:
@@ -78,6 +79,7 @@ BIGRAG_QDRANT_URL=http://${{Qdrant.RAILWAY_PRIVATE_DOMAIN}}:6333
 BIGRAG_EMBEDDING_API_KEY=<your embedding key>
 BIGRAG_MASTER_KEY=<generated Fernet key>
 BIGRAG_SESSION_COOKIE_SECURE=true
+BIGRAG_SESSION_COOKIE_SAMESITE=none
 BIGRAG_CORS_ORIGINS=["https://${{App.RAILWAY_PUBLIC_DOMAIN}}"]
 BIGRAG_UPLOAD_DIR=/data/uploads
 ```
@@ -108,4 +110,4 @@ Back the master key up immediately. It encrypts provider secrets stored in Postg
 
 **App loads but API calls fail with CORS errors.** Check `BIGRAG_CORS_ORIGINS` on `API`; it must match the app public domain exactly.
 
-**App build fails with workspace errors.** Use `pnpm --filter @bigrag/app exec next start --port $PORT` as the start command and confirm the root directory is `/app`.
+**App build fails with workspace errors.** Confirm the root directory is `/app`, the build command is `pnpm build`, and the start command is `pnpm start`.

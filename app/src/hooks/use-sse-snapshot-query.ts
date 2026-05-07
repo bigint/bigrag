@@ -1,7 +1,6 @@
-"use client";
-
 import { type QueryFunction, type QueryKey, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { apiUrl } from "@/config/runtime";
 
 type SnapshotEvent<T> = {
   topic: string;
@@ -17,7 +16,7 @@ type SseSnapshotQueryOptions<T> = {
   queryKey: QueryKey;
 };
 
-const eventSourcePath = (path: string) => `/api/bigrag/${path.replace(/^\/+/, "")}`;
+const eventSourcePath = (path: string) => apiUrl(path);
 
 export const useSseSnapshotQuery = <T>({
   closeWhen,
@@ -54,7 +53,7 @@ export const useSseSnapshotQuery = <T>({
     }
 
     fallbackStartedRef.current = false;
-    const source = new EventSource(eventSourcePath(path));
+    const source = new EventSource(eventSourcePath(path), { withCredentials: true });
     let closed = false;
 
     const close = () => {

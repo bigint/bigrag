@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bigrag import config as config_module
 from bigrag.db.models import ConnectorAccount, ConnectorSource, ConnectorSyncJob
 from bigrag.db.session import get_session
 from bigrag.middleware.auth import require_session
@@ -37,6 +38,7 @@ from bigrag.services.google_drive import (
     get_google_account,
     get_google_config,
     google_account_public,
+    google_oauth_error_redirect_url,
     google_source_public,
     google_sync_job_public,
     list_google_drive_files,
@@ -61,6 +63,13 @@ def _safe_redirect_path(path: str | None) -> str:
     if not path or not path.startswith("/") or path.startswith("//"):
         return "/"
     return path
+
+
+def _allowed_spa_origin(request: Request) -> str | None:
+    origin = request.headers.get("origin")
+    if origin and origin in config_module.settings.cors_origins:
+        return origin.rstrip("/")
+    return None
 
 
 @router.get("/account", response_model=GoogleAccountResponse)
@@ -119,6 +128,7 @@ async def google_oauth_start(
             user_id=user["id"],
             redirect_uri=_redirect_uri(request),
             redirect_path=_safe_redirect_path(redirect_path),
+            redirect_origin=_allowed_spa_origin(request),
         )
     except GoogleDriveConfigError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -138,6 +148,7 @@ async def google_oauth_start_url(
             user_id=user["id"],
             redirect_uri=_redirect_uri(request),
             redirect_path=_safe_redirect_path(redirect_path),
+            redirect_origin=_allowed_spa_origin(request),
         )
     except GoogleDriveConfigError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -154,7 +165,13 @@ async def google_oauth_callback(
     session: AsyncSession = Depends(get_session),
 ):
     if error:
-        return RedirectResponse(f"/settings?tab=connectors&google_error={quote(error)}")
+        redirect_url = await google_oauth_error_redirect_url(
+            session,
+            user_id=user["id"],
+            state=state,
+            path=f"/settings?tab=connectors&google_error={quote(error)}",
+        )
+        return RedirectResponse(redirect_url)
     if not code or not state:
         raise HTTPException(status_code=400, detail="Missing Google OAuth code or state")
     try:
@@ -166,8 +183,14 @@ async def google_oauth_callback(
             redirect_uri=_redirect_uri(request),
         )
     except (GoogleDriveAuthError, GoogleDriveConfigError) as exc:
-        return RedirectResponse(f"/settings?tab=connectors&google_error={quote(str(exc))}")
-    return RedirectResponse(_safe_redirect_path(redirect_path))
+        redirect_url = await google_oauth_error_redirect_url(
+            session,
+            user_id=user["id"],
+            state=state,
+            path=f"/settings?tab=connectors&google_error={quote(str(exc))}",
+        )
+        return RedirectResponse(redirect_url)
+    return RedirectResponse(redirect_path)
 
 
 @router.post("/disconnect", response_model=StatusResponse)

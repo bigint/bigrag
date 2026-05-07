@@ -633,6 +633,7 @@ async def build_google_oauth_url(
     user_id: str,
     redirect_uri: str,
     redirect_path: str,
+    redirect_origin: str | None = None,
 ) -> str:
     config = await get_google_config(session)
     if not _configured(config) or config is None:
@@ -650,7 +651,11 @@ async def build_google_oauth_url(
         session.add(account)
     account.oauth_state = state
     account.status = "pending" if account.status != "connected" else account.status
-    account.meta = {**dict(account.meta or {}), "redirect_path": redirect_path or "/"}
+    account.meta = {
+        **dict(account.meta or {}),
+        "redirect_origin": redirect_origin,
+        "redirect_path": redirect_path or "/",
+    }
     await session.commit()
 
     params = {
@@ -705,9 +710,34 @@ async def complete_google_oauth(
     account.status = "connected"
     account.oauth_state = None
     account.last_connected_at = _now()
-    redirect_path = str((account.meta or {}).get("redirect_path") or "/")
+    redirect_path = _oauth_redirect_url(
+        account,
+        str((account.meta or {}).get("redirect_path") or "/"),
+    )
     await session.commit()
     return redirect_path
+
+
+async def google_oauth_error_redirect_url(
+    session,
+    *,
+    user_id: str,
+    state: str | None,
+    path: str,
+) -> str:
+    if not state:
+        return path
+    account = await get_google_account(session, user_id)
+    if account is None or account.oauth_state != state:
+        return path
+    return _oauth_redirect_url(account, path)
+
+
+def _oauth_redirect_url(account: ConnectorAccount, path: str) -> str:
+    origin = str((account.meta or {}).get("redirect_origin") or "").rstrip("/")
+    if not origin:
+        return path
+    return f"{origin}{path}"
 
 
 async def disconnect_google_account(session, *, user_id: str) -> None:

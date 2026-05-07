@@ -40,7 +40,7 @@ function processLargeDataset(data: any) {
 - [Performance Guidelines](#performance-guidelines)
 - [Error Boundaries](#error-boundaries)
 - [Styling with Tailwind CSS](#styling-with-tailwind-css)
-- [Routing with Next.js App Router](#routing-with-nextjs-app-router)
+- [Routing with TanStack Router](#routing-with-tanstack-router)
 - [Accessibility](#accessibility)
 - [General TypeScript/JavaScript Coding Guidelines](#general-typescriptjavascript-coding-guidelines)
 - [Code Formatting \& Linting with Biome](#code-formatting--linting-with-biome)
@@ -150,7 +150,7 @@ The app uses modern web technologies:
 ### Core Framework
 - **React 19** - UI framework with modern hooks and concurrent features
 - **TypeScript 6** - Type-safe JavaScript with strict mode
-- **Next.js 16 (App Router)** - Full-stack React framework with file-based routing, server components, and API routes
+- **Vite** - Client-side React build tool and dev server for the admin UI
 
 ### API & Data Management
 - **FastAPI** - Python backend framework (API server, in `api/` directory)
@@ -159,7 +159,7 @@ The app uses modern web technologies:
 - **Zod** - Runtime schema validation for API inputs and form data
 
 ### Routing
-- **Next.js App Router** - File-based routing with route groups, layouts, and `page.tsx` conventions
+- **TanStack Router** - File-based client-side routing for the admin UI
 
 ### UI & Styling
 - **Tailwind CSS 4** - Utility-first CSS framework
@@ -177,7 +177,7 @@ The app uses modern web technologies:
 - **Utility Files**: `kebab-case.ts` (e.g., `format-date.ts`)
 - **Hooks**: `use-*.ts` (e.g., `use-profile.ts`)
 - **Types**: `*.types.ts` (e.g., `profile.types.ts`)
-- **Route Files**: Next.js App Router conventions (`page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`)
+- **Route Files**: TanStack Router file route conventions in `app/src/routes/` (e.g., `_dashboard.collections.$name.documents.tsx`)
 
 ## Naming Conventions
 
@@ -881,11 +881,14 @@ export const MultiProfileCard = ({ names }: { names: string[] }) => {
   )
 }
 
-// ✅ Preloading in Next.js page component
-// app/[name]/records/page.tsx
-export default function RecordsPage({ params }: { params: { name: string } }) {
-  // Data is prefetched via server component or loaded client-side
-  return <ProfilePage name={params.name} />
+// ✅ Route component receives typed params from TanStack Router
+export const Route = createFileRoute('/collections/$name/documents')({
+  component: RecordsPage,
+})
+
+function RecordsPage() {
+  const { name } = Route.useParams()
+  return <ProfilePage name={name} />
 }
 ```
 
@@ -1247,7 +1250,7 @@ export const Parent = () => {
 
 Before optimizing, check these first:
 
-1. **Code splitting** - Use route-based code splitting with Next.js App Router (automatic per-route splitting)
+1. **Code splitting** - Use route-based code splitting with TanStack Router and Vite
 2. **Bundle analysis** - Remove unused dependencies (`pnpm why <package>`)
 3. **Image optimization** - Use WebP, lazy loading, proper sizing
 4. **Query management** - Set appropriate `staleTime` and `gcTime` for TanStack Query
@@ -1280,11 +1283,7 @@ Error boundaries catch rendering errors that escape normal error handling.
 ```typescript
 import { ErrorBoundary } from 'react-error-boundary'
 
-// Route-level error boundary using Next.js error.tsx convention
-// app/[name]/error.tsx
-'use client'
-
-export default function NameError({ error, reset }: { error: Error; reset: () => void }) {
+function NameError({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div role="alert" className="p-4">
       <h2>Something went wrong</h2>
@@ -1533,95 +1532,69 @@ import { CalendarIcon } from 'lucide-react'
 <CalendarIcon size={16} />
 ```
 
-## Routing with Next.js App Router
+## Routing with TanStack Router
 
 ### File-Based Routing
 
-Next.js App Router uses file-system-based routing with special file conventions:
+The admin UI uses TanStack Router file-based routing in `app/src/routes/`:
 
 ```
-app/
-├── layout.tsx                # Root layout (wraps all pages)
-├── page.tsx                  # / route
-├── loading.tsx               # Loading UI for / route
-├── error.tsx                 # Error UI for / route
-├── (dashboard)/              # Route group (no URL segment)
-│   ├── layout.tsx            # Shared layout for dashboard pages
-│   ├── settings/
-│   │   └── page.tsx          # /settings
-│   └── analytics/
-│       └── page.tsx          # /analytics
-├── [name]/                   # Dynamic segment (/:name)
-│   ├── page.tsx              # /:name route
-│   ├── layout.tsx            # Layout for /:name and children
-│   ├── records/
-│   │   └── page.tsx          # /:name/records
-│   └── history/
-│       └── page.tsx          # /:name/history
-└── api/                      # API routes (Next.js API routes if needed)
-    └── [...slug]/
-        └── route.ts
+src/routes/
+├── __root.tsx                                      # Root providers and outlet
+├── index.tsx                                       # /
+├── _auth.tsx                                       # Pathless auth layout
+├── _auth.login.tsx                                 # /login
+├── _auth.setup.tsx                                 # /setup
+├── _dashboard.tsx                                  # Pathless dashboard layout
+├── _dashboard.overview.tsx                         # /overview
+├── _dashboard.collections.tsx                      # /collections
+├── _dashboard.collections.$name.tsx                # /collections/:name layout
+├── _dashboard.collections.$name.documents.tsx      # /collections/:name/documents
+└── _dashboard.collections.$name.documents.$docId.tsx
 ```
 
-### Route Groups
+### Route Groups And Params
 
-Use route groups `(groupName)` to organize routes without affecting the URL structure:
+Use `_`-prefixed pathless routes for layouts that should not add URL segments, and `$` segments for dynamic params:
 
 ```
-app/
-├── (marketing)/              # Marketing pages
-│   ├── layout.tsx            # Marketing-specific layout
-│   ├── page.tsx              # / (home)
-│   └── about/
-│       └── page.tsx          # /about
-├── (app)/                    # Application pages
-│   ├── layout.tsx            # App layout with sidebar/nav
-│   ├── dashboard/
-│   │   └── page.tsx          # /dashboard
-│   └── [name]/
-│       └── page.tsx          # /:name
+_dashboard.tsx
+_dashboard.collections.$name.tsx
+_dashboard.collections.$name.documents.$docId.tsx
 ```
 
 ### Page Components
 
 ```typescript
-// app/[name]/page.tsx
-import { useParams } from 'next/navigation'
+import { createFileRoute } from '@tanstack/react-router'
 
-// Server component (default in App Router)
-export default function NamePage({ params }: { params: { name: string } }) {
-  return <ProfileView name={params.name} />
-}
+export const Route = createFileRoute('/_dashboard/collections/$name/search')({
+  component: SearchPage,
+})
 
-// Client component (when you need hooks/interactivity)
-'use client'
+function SearchPage() {
+  const { name } = Route.useParams()
 
-import { useParams, useSearchParams } from 'next/navigation'
-
-export default function NamePage() {
-  const params = useParams<{ name: string }>()
-  const searchParams = useSearchParams()
-  const tab = searchParams.get('tab') ?? 'profile'
-
-  return <div>...</div>
+  return <CollectionSearch name={name} />
 }
 ```
 
 ### Layouts
 
 ```typescript
-// app/[name]/layout.tsx
-export default function NameLayout({
-  children,
-  params
-}: {
-  children: React.ReactNode
-  params: { name: string }
-}) {
+import { Outlet, createFileRoute } from '@tanstack/react-router'
+
+export const Route = createFileRoute('/_dashboard/collections/$name')({
+  component: CollectionLayout,
+})
+
+function CollectionLayout() {
+  const { name } = Route.useParams()
+
   return (
     <div>
-      <ProfileHeader name={params.name} />
-      <main>{children}</main>
+      <CollectionHeader name={name} />
+      <Outlet />
     </div>
   )
 }
@@ -1630,27 +1603,23 @@ export default function NameLayout({
 ### Navigation
 
 ```typescript
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { Link, useNavigate } from '@tanstack/react-router'
 
 export const Navigation = () => {
-  const router = useRouter()
+  const navigate = useNavigate()
 
   return (
     <nav>
-      {/* Link component */}
-      <Link href={`/alice`}>
-        View Profile
+      <Link to="/collections/$name" params={{ name: 'docs' }}>
+        View collection
       </Link>
-
-      {/* Programmatic navigation */}
       <button
         type="button"
         onClick={() => {
-          router.push('/alice?tab=records')
+          navigate({ to: '/collections/$name/documents', params: { name: 'docs' } })
         }}
       >
-        Go to Records
+        Go to documents
       </button>
     </nav>
   )
@@ -2571,7 +2540,8 @@ async *streamEvents(name: string): AsyncGenerator<ProgressEvent> {
 - **Ruff**: [docs.astral.sh/ruff](https://docs.astral.sh/ruff/)
 - **React 19**: [react.dev](https://react.dev)
 - **TypeScript**: [typescriptlang.org](https://www.typescriptlang.org/)
-- **Next.js 16**: [nextjs.org](https://nextjs.org/)
+- **Vite**: [vite.dev](https://vite.dev/)
+- **TanStack Router**: [tanstack.com/router](https://tanstack.com/router/latest)
 - **TanStack Query**: [tanstack.com/query](https://tanstack.com/query/latest)
 - **Tailwind CSS**: [tailwindcss.com](https://tailwindcss.com/)
 - **Base UI**: [base-ui.com](https://base-ui.com/)

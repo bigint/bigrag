@@ -1,8 +1,6 @@
-"use client";
-
 import { Tabs as BaseTabs } from "@base-ui/react/tabs";
+import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
-import Link from "next/link";
 import { cn } from "@/lib/cn";
 
 type TabSurface = "default" | "inverse";
@@ -121,7 +119,7 @@ export const LinkTabs = ({ tabs, className }: { tabs: LinkTab[]; className?: str
       <Link
         aria-current={t.active ? "page" : undefined}
         key={t.href}
-        href={t.href}
+        to={t.href}
         className={getTabClassName({ active: t.active })}
       >
         <TabContent active={t.active} count={t.count} icon={t.icon} label={t.label} />

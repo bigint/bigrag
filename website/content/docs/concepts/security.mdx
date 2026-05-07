@@ -31,6 +31,10 @@ Two roles only. RBAC is intentionally coarse — fine-grained control lives on A
 
 `member` accounts are useful for admin UI users who need a read-only pane of glass.
 
+## Browser origin checks
+
+Session-cookie mutating requests must include an `Origin` header that matches the API origin or one of the configured `BIGRAG_CORS_ORIGINS`. This protects the direct-CORS admin UI from cross-site request forgery while still allowing API-key clients to use normal bearer authentication.
+
 ## Session-only endpoints
 
 A session cookie is strictly stronger than an API key. The following endpoints refuse API keys (even admin-scoped ones) to prevent a compromised key from escalating:
