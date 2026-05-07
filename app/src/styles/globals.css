@@ -9,6 +9,9 @@
     ui-sans-serif,
     system-ui,
     sans-serif;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 540;
+  --font-weight-bold: 640;
   --color-background: #ffffff;
   --color-foreground: #0a0a0a;
   --color-card: #ffffff;
@@ -52,7 +55,9 @@ body {
   font-feature-settings:
     "rlig" 1,
     "calt" 1;
-  font-weight: 500;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {
