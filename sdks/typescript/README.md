@@ -51,13 +51,26 @@ while (current.status === "pending" || current.status === "processing") {
 | `maxRetries` | `2` | Max retries on 5xx, 429, and network errors |
 | `fetch` | `globalThis.fetch` | Custom fetch implementation |
 
+## Namespaces
+
+- `client.collections` for collection CRUD, stats, re-embedding, analytics, and event streams.
+- `client.documents` for uploads, batch operations, file URLs, and status polling.
+- `client.queries` for single, multi-collection, and batch retrieval queries.
+- `client.chat` for generated answers, streaming, and conversation CRUD.
+- `client.vectors` for raw vector upsert and delete.
+- `client.webhooks` for webhook management and delivery replay.
+- `client.auth` for setup, login, identity, password, and preferences.
+- `client.admin` for users, API keys, access logs, audit logs, connectors, embedding presets, and MCP server keys.
+- `client.connectors.google` for Google Drive account, file browsing, sources, and sync jobs.
+- `client.evaluations` for golden-set retrieval evaluations.
+
 ## Error Handling
 
 ```typescript
 import { BigRAG, AuthenticationError, NotFoundError } from "@bigrag/client";
 
 try {
-  await client.getCollection("missing");
+  await client.collections.get("missing");
 } catch (err) {
   if (err instanceof NotFoundError) {
     console.log("Collection not found");

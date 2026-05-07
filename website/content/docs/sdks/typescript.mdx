@@ -49,7 +49,7 @@ const { results } = await client.queries.query("knowledge_base", {
 });
 ```
 
-The client follows a Stripe-style **resource namespace** layout: `client.collections`, `client.documents`, `client.chat`, `client.queries`, `client.vectors`, `client.webhooks`.
+The client follows a Stripe-style **resource namespace** layout: `client.collections`, `client.documents`, `client.chat`, `client.queries`, `client.vectors`, `client.webhooks`, `client.auth`, `client.admin`, `client.connectors`, and `client.evaluations`.
 
 ## Configuration
 
@@ -178,6 +178,80 @@ client.webhooks.update(id, { url?, events?, collections?, description?, active? 
 client.webhooks.delete(id)
 client.webhooks.listDeliveries(id, { limit?, offset? })
 client.webhooks.test(id)
+client.webhooks.replayDelivery(id, deliveryId)
+```
+
+## Auth
+
+```typescript
+client.auth.setupStatus()
+client.auth.setup({ email, password, display_name? })
+client.auth.login({ email, password })
+client.auth.logout()
+client.auth.logoutAll()
+client.auth.me()
+client.auth.whoami()
+client.auth.changePassword({ current_password, new_password })
+client.auth.preferences()
+client.auth.updatePreferences({ data })
+```
+
+## Admin
+
+```typescript
+client.admin.users.list({ limit?, offset? })
+client.admin.users.create({ email, password, display_name?, role? })
+client.admin.users.update(userId, { display_name?, role?, password? })
+client.admin.users.delete(userId)
+
+client.admin.apiKeys.list({ limit?, offset? })
+client.admin.apiKeys.create({ name, expires_at?, scopes?, collection? })
+client.admin.apiKeys.update(keyId, { name?, active?, scopes?, collection? })
+client.admin.apiKeys.delete(keyId)
+
+client.admin.access.logs({ action?, actorId?, collection?, statusFamily?, success?, limit?, offset? })
+client.admin.access.overview({ windowDays? })
+client.admin.audit.list({ action?, actorId?, resourceType?, limit?, offset? })
+
+client.admin.connectors.google.get()
+client.admin.connectors.google.update({ enabled?, client_id?, client_secret? })
+
+client.admin.embeddingPresets.list({ limit?, offset? })
+client.admin.embeddingPresets.create({ name, provider, model, api_key, base_url?, dimension })
+client.admin.embeddingPresets.update(presetId, { name?, provider?, model?, api_key?, base_url?, dimension? })
+client.admin.embeddingPresets.delete(presetId)
+
+client.admin.mcpServers.list()
+client.admin.mcpServers.create({ title, server_name, collection? })
+client.admin.mcpServers.update(serverId, { title?, server_name?, collection? })
+client.admin.mcpServers.rotate(serverId)
+client.admin.mcpServers.delete(serverId)
+```
+
+## Connectors
+
+```typescript
+client.connectors.google.account()
+client.connectors.google.files({ parentId?, query?, pageToken?, pageSize? })
+client.connectors.google.oauthStartUrl({ redirectPath? })
+client.connectors.google.disconnect()
+client.connectors.google.sources({ collection? })
+client.connectors.google.createSource({ collection_name, root_id, root_name, root_mime_type?, source_type?, metadata? })
+client.connectors.google.updateSource(sourceId, { schedule_enabled?, sync_interval_hours? })
+client.connectors.google.deleteSource(sourceId)
+client.connectors.google.syncSource(sourceId)
+client.connectors.google.syncJobs({ sourceId?, limit? })
+```
+
+## Evaluations
+
+```typescript
+client.evaluations.run({
+  collection: "docs",
+  cases: [{ query: "What is RAG?", relevant_ids: ["doc-id"] }],
+  top_k: 10,
+  search_mode: "hybrid",
+})
 ```
 
 ## Platform
@@ -187,11 +261,12 @@ client.health()                          // GET /health
 client.readiness()                       // GET /health/ready
 client.getStats()                        // GET /v1/stats
 client.listEmbeddingModels()             // GET /v1/embeddings/models
+client.getUsage({ windowDays? })          // GET /v1/usage
 client.collections.analytics(collection) // GET /v1/collections/{name}/analytics
 ```
 
 <Callout type="info">
-Admin endpoints (`/v1/admin/*`, most of `/v1/auth/*`) are session-only — mint an API key for read/query/ingest workloads, and use the browser / a browser-authenticated session for mutating admin calls.
+Admin endpoints (`/v1/admin/*`, most of `/v1/auth/*`, and Google Drive connector OAuth flows) are session-only. API keys remain the right fit for read/query/ingest workloads.
 </Callout>
 
 ## Error Handling

@@ -12,7 +12,7 @@ Add `bigrag` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bigrag = "2026.4.30"
+bigrag = "2026.5.7"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -77,6 +77,21 @@ let client = BigRag::builder()
     .max_retries(3)
     .build()?;
 ```
+
+## Resource Namespaces
+
+| Resource | Description |
+|---|---|
+| `client.collections()` | Collection CRUD, stats, re-embedding, and event streams |
+| `client.documents()` | Document upload, list, delete, batch ops |
+| `client.chat()` | Generated answers and conversation CRUD |
+| `client.queries()` | Single, multi-collection, and batch queries |
+| `client.vectors()` | Raw vector upsert and delete |
+| `client.webhooks()` | Webhook management |
+| `client.auth()` | Setup, login, logout, identity, password, and preferences |
+| `client.admin()` | Users, API keys, access logs, audit logs, connector config, embedding presets, and MCP server keys |
+| `client.connectors().google()` | Google Drive account, file browsing, sources, and sync jobs |
+| `client.evaluations()` | Golden-set retrieval evaluation runs |
 
 ## Collections
 

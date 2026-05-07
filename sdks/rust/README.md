@@ -6,7 +6,7 @@ Rust client for [bigRAG](https://github.com/bigint/bigrag) — a self-hostable R
 
 ```toml
 [dependencies]
-bigrag = "2026.4.30"
+bigrag = "2026.5.7"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -50,6 +50,19 @@ async fn main() -> Result<(), bigrag::BigRagError> {
 | `BIGRAG_API_KEY` | — | API key for authentication |
 
 Use `BigRag::from_env()` to read these automatically.
+
+## Resources
+
+- `client.collections()` for collection CRUD, stats, re-embedding, and event streams.
+- `client.documents()` for uploads, batch operations, file URLs, and status polling.
+- `client.queries()` for single, multi-collection, and batch retrieval queries.
+- `client.chat()` for generated answers and conversation CRUD.
+- `client.vectors()` for raw vector upsert and delete.
+- `client.webhooks()` for webhook management and delivery replay.
+- `client.auth()` for setup, login, identity, password, and preferences.
+- `client.admin()` for users, API keys, access logs, audit logs, connector config, embedding presets, and MCP server keys.
+- `client.connectors().google()` for Google Drive account, file browsing, sources, and sync jobs.
+- `client.evaluations()` for golden-set retrieval evaluations.
 
 ## Builder API
 

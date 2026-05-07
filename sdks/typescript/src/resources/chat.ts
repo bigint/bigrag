@@ -1,4 +1,4 @@
-import type { RequestClient } from "../core.js";
+import { type RequestClient, USER_AGENT } from "../core.js";
 import type {
   ChatCreateBody,
   ChatCreateResponse,
@@ -17,7 +17,7 @@ export class ChatResource {
   async *stream(body: ChatCreateBody): AsyncGenerator<ChatStreamEvent> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "User-Agent": "bigrag-typescript/2026.4.30",
+      "User-Agent": USER_AGENT,
     };
     if (this._client.apiKey) headers.Authorization = `Bearer ${this._client.apiKey}`;
     const response = await this._client._fetch(`${this._client.baseUrl}/v1/chat`, {

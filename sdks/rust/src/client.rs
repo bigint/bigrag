@@ -3,9 +3,13 @@ use std::time::Duration;
 use crate::core::Transport;
 use crate::error::BigRagError;
 use crate::files::FileInput;
+use crate::resources::admin::Admin;
+use crate::resources::auth::Auth;
 use crate::resources::chat::Chats;
 use crate::resources::collections::Collections;
+use crate::resources::connectors::Connectors;
 use crate::resources::documents::Documents;
+use crate::resources::evaluations::Evaluations;
 use crate::resources::queries::Queries;
 use crate::resources::vectors::Vectors;
 use crate::resources::webhooks::Webhooks;
@@ -22,6 +26,7 @@ use crate::types::documents::{
 };
 use crate::types::embeddings::EmbeddingModelListResponse;
 use crate::types::query::{QueryBody, QueryResponse};
+use crate::types::usage::UsageResponse;
 
 const DEFAULT_BASE_URL: &str = "http://localhost:6100";
 const DEFAULT_TIMEOUT_SECS: u64 = 120;
@@ -104,7 +109,17 @@ impl BigRag {
         BigRagBuilder::default()
     }
 
-    /// Access the collections resource.
+    /// Access the admin resource.
+    pub fn admin(&self) -> Admin<'_> {
+        Admin { client: self }
+    }
+
+    /// Access the auth resource.
+    pub fn auth(&self) -> Auth<'_> {
+        Auth { client: self }
+    }
+
+    /// Access the chat resource.
     pub fn chat(&self) -> Chats<'_> {
         Chats { client: self }
     }
@@ -114,9 +129,19 @@ impl BigRag {
         Collections { client: self }
     }
 
+    /// Access the connectors resource.
+    pub fn connectors(&self) -> Connectors<'_> {
+        Connectors { client: self }
+    }
+
     /// Access the documents resource.
     pub fn documents(&self) -> Documents<'_> {
         Documents { client: self }
+    }
+
+    /// Access the evaluations resource.
+    pub fn evaluations(&self) -> Evaluations<'_> {
+        Evaluations { client: self }
     }
 
     /// Access the queries resource.
@@ -169,6 +194,15 @@ impl BigRag {
             crate::core::urlencode(collection)
         );
         self.transport.get(&path, vec![]).await
+    }
+
+    /// Get workspace usage analytics.
+    pub async fn usage(&self, window_days: Option<u32>) -> Result<UsageResponse, BigRagError> {
+        let mut query = Vec::new();
+        if let Some(window_days) = window_days {
+            query.push(("window_days".to_string(), window_days.to_string()));
+        }
+        self.transport.get("/v1/usage", query).await
     }
 }
 
@@ -417,5 +451,4 @@ impl CollectionClient<'_> {
     pub async fn stream_events(&self) -> Result<SseStream, BigRagError> {
         self.client.collections().stream_events(&self.name).await
     }
-
 }

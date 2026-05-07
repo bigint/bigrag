@@ -243,7 +243,7 @@ const { results } = await client.queries.query("docs", { query: "What is RAG?" }
 ### Python
 
 ```bash
-pip install bigrag==2026.5.1
+pip install bigrag==2026.5.7
 ```
 
 ```python
@@ -263,14 +263,18 @@ result = await client.queries.query("docs", {"query": "What is RAG?"})
 ```toml
 # Cargo.toml
 [dependencies]
-bigrag = "2026.4.30"
+bigrag = "2026.5.7"
 ```
 
 ```rust
-use bigrag::BigRAG;
+use bigrag::BigRag;
 
-let client = BigRAG::new("http://localhost:4000").with_api_key("your-key");
-let result = client.query("docs", "What is RAG?").top_k(10).send().await?;
+let client = BigRag::new("http://localhost:4000", "your-key");
+let result = client.queries().query("docs", bigrag::types::QueryBody {
+    query: "What is RAG?".into(),
+    top_k: Some(10),
+    ..Default::default()
+}).await?;
 ```
 
 ## MCP server

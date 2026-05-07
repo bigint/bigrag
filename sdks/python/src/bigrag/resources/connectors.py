@@ -59,7 +59,9 @@ class GoogleDriveResource:
             params["page_size"] = str(page_size)
         return await self._client._request("GET", "/v1/connectors/google/files", params=params)
 
-    async def oauth_start_url(self, *, redirect_path: str | None = None) -> GoogleOAuthStartUrlResponse:
+    async def oauth_start_url(
+        self, *, redirect_path: str | None = None
+    ) -> GoogleOAuthStartUrlResponse:
         """Build a Google OAuth URL for the current user."""
         params: dict[str, str] = {}
         if redirect_path is not None:

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
+from bigrag.types.access import AccessLogListResponse, AccessLogOverviewResponse
 from bigrag.types.admin import (
     ApiKey,
     ApiKeyListResponse,
@@ -25,7 +26,6 @@ from bigrag.types.admin import (
     UpdateUserBody,
     UserListResponse,
 )
-from bigrag.types.access import AccessLogListResponse, AccessLogOverviewResponse
 from bigrag.types.auth import User
 from bigrag.types.common import StatusResponse
 from bigrag.types.connectors import GoogleConnectorConfig, UpdateGoogleConnectorConfigBody

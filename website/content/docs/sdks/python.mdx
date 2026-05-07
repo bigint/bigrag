@@ -9,7 +9,7 @@ import { Callout } from "fumadocs-ui/components/callout";
 ## Installation
 
 ```bash
-pip install bigrag==2026.5.1
+pip install bigrag==2026.5.7
 ```
 
 Requires Python 3.10+. The only runtime dependencies are `httpx` and
@@ -74,7 +74,8 @@ The SDK follows a resource namespace pattern:
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
 | `client.auth` | Setup, login, logout, identity, password, and preferences |
-| `client.admin` | Users, API keys, audit logs, embedding presets, and MCP server keys |
+| `client.admin` | Users, API keys, access logs, audit logs, connector config, embedding presets, and MCP server keys |
+| `client.connectors.google` | Google Drive account, file browsing, sources, and sync jobs |
 | `client.evaluations` | Golden-set retrieval evaluation runs |
 
 ## Collections
