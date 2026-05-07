@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import hashlib
 
-from fastapi import HTTPException
-
+from bigrag.exceptions import RateLimitError
 from bigrag.services.redis_cache import get_redis
 
 
@@ -35,8 +34,4 @@ async def consume_rate_limit(
 
     ttl = await redis.ttl(key)
     retry_after = ttl if isinstance(ttl, int) and ttl > 0 else window_seconds
-    raise HTTPException(
-        status_code=429,
-        detail=message,
-        headers={"Retry-After": str(retry_after)},
-    )
+    raise RateLimitError(message, retry_after=retry_after)

@@ -27,6 +27,16 @@ class VectorDeleteRequest(BaseModel):
     ids: list[str]
 
 
+class VectorUpsertResponse(BaseModel):
+    status: str = "ok"
+    upserted: int
+
+
+class VectorDeleteResponse(BaseModel):
+    status: str = "ok"
+    deleted: int
+
+
 class QueryResult(BaseModel):
     id: str
     text: str
@@ -111,6 +121,10 @@ class EmbeddingModelInfo(BaseModel):
     model: str
     dimension: int
     description: str = ""
+
+
+class EmbeddingModelListResponse(BaseModel):
+    models: list[EmbeddingModelInfo]
 
 
 class AnalyticsResponse(BaseModel):

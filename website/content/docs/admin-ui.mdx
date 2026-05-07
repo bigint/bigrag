@@ -15,9 +15,9 @@ The bundled interface uses normal-weight body text with slightly restrained emph
 pnpm dev:app        # admin UI on http://localhost:3000
 ```
 
-The admin UI calls the FastAPI backend directly. The default API URL is `http://localhost:4000`; override it with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container. The backend must include the app origin in `BIGRAG_CORS_ORIGINS`, for example `["http://localhost:3000"]` in local development.
+The admin UI calls the FastAPI backend directly. The default API URL is `http://localhost:4000`; override it with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container. Configure browser origins in `/settings → Security` after the API has its bootstrap database wiring.
 
-For cross-site production deployments, set `BIGRAG_SESSION_COOKIE_SECURE=true` and usually `BIGRAG_SESSION_COOKIE_SAMESITE=none`. Same-site subdomain deployments can usually keep `SameSite=lax`.
+For cross-site production deployments, enable secure session cookies and usually set `SameSite=none` in `/settings → Security`. Same-site subdomain deployments can usually keep `SameSite=lax`.
 
 ## Route map
 
@@ -28,7 +28,7 @@ For cross-site production deployments, set `BIGRAG_SESSION_COOKIE_SECURE=true` a
 | `/overview` | Platform-wide stats — collection count, document states, queue depth, readiness. |
 | `/collections` | List, create, delete, and search collections. |
 | `/collections/[name]` | Redirects to the collection's documents tab. |
-| `/collections/[name]/documents` | Upload (drag & drop or multi-file picker), list, inspect status, and delete documents. |
+| `/collections/[name]/documents` | Upload files or folders through resumable upload sessions, list, inspect status, and delete documents. |
 | `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, SSE progress, failed-ingest error, reprocess, and delete. |
 | `/collections/[name]/connectors` | Redirects to the collection's connector tabs. |
 | `/collections/[name]/connectors/google-drive` | Browse Google Drive, sync selected files/folders, trigger manual resync, and manage sync schedules. |
@@ -40,7 +40,7 @@ For cross-site production deployments, set `BIGRAG_SESSION_COOKIE_SECURE=true` a
 | `/api-keys` | Mint, scope, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
 | `/access-logs` | Access-log explorer for query, vector, chat, and evaluation traffic. |
 | `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. |
-| `/settings` | Tabs: Account · Server · Connectors · Usage & cost · Audit log. |
+| `/settings` | Tabs: Account, Server, Security, Ingestion, Storage, Queue, Search, Chat, Webhooks, Rate limits, Retention, Backups, Connectors, Usage & cost, Audit log. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
 ## Settings tabs
@@ -49,6 +49,16 @@ For cross-site production deployments, set `BIGRAG_SESSION_COOKIE_SECURE=true` a
 |-----|-----------|-----------|
 | **Account** | `GET /v1/auth/me` | `POST /v1/auth/password`, `POST /v1/auth/logout-all` |
 | **Server** | `GET /health/ready`, `GET /v1/stats` | — |
+| **Security** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Ingestion** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Storage** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Queue** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Search** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Chat** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Webhooks** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Rate limits** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Retention** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Backups** | `GET /admin/settings`, `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset`, `POST /v1/admin/backups` |
 | **Connectors** | `GET /v1/admin/connectors/google`, `GET /v1/connectors/google/account` | `PUT /v1/admin/connectors/google`, `POST /v1/connectors/google/disconnect` |
 | **Usage & cost** | `GET /v1/usage` | — |
 | **Audit log** | `GET /v1/admin/audit` | — |
@@ -57,7 +67,7 @@ For cross-site production deployments, set `BIGRAG_SESSION_COOKIE_SECURE=true` a
 
 The admin UI uses session-cookie [admin realtime SSE streams](/docs/api-reference/admin-realtime) for live document progress, batch upload progress, collection stats, Google Drive sync state, access logs, audit log, usage, platform stats, and readiness. Each stream sends an immediate full `snapshot` payload that matches the related REST response, then sends later snapshots as data changes.
 
-After batch upload, the collection documents page opens `GET /v1/admin/realtime/collections/{name}/documents/batch-status` for the returned document IDs. The panel shows completed and failed counts plus the active file, ingestion step, and latest progress message, then closes the stream when all watched documents are `ready` or `failed`.
+After a large local upload starts, the collection documents page opens `GET /v1/admin/realtime/collections/{name}/upload-sessions/{session_id}`. The panel shows received, queued, ingesting, completed, failed, and canceled counts plus a small recent item window, so 10,000-file uploads do not require a 10,000-ID status stream.
 
 REST document status endpoints remain available for API clients and SDKs that prefer polling. `GET /v1/collections/{name}/events` remains available for collection-wide ingestion events outside the admin UI.
 

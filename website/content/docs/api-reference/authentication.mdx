@@ -114,11 +114,13 @@ Scopes use `resource:action` with `*` as a wildcard. Common shapes:
 | Scope | Grants |
 |-------|--------|
 | `collection:read` | List / get collections |
-| `collection:write` | Create / update / reembed / truncate collections, plus direct vector upsert/delete |
-| `document:upload` | Upload documents, batch upload, and reprocess |
-| `document:read` | List / get / download documents, chunks, batch get/status, and global `/v1/documents/{id}` lookups |
-| `document:delete` | Delete documents, including batch delete |
+| `collection:write` | Create / update / reembed / truncate collections |
+| `document:upload` | Upload documents, batch upload, upload-session create/file/complete, and reprocess |
+| `document:read` | List / get / download documents, chunks, batch get/status, upload-session status, and global `/v1/documents/{id}` lookups |
+| `document:delete` | Delete documents, cancel upload sessions, and batch delete |
 | `query:read` | Run queries |
+| `vector:write` | Direct raw vector upsert |
+| `vector:delete` | Direct raw vector delete |
 | `webhook:*` | Manage webhooks |
 | `*:*` | Full access (equivalent to no `scopes`) |
 

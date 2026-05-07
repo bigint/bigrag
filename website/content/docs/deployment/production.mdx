@@ -22,8 +22,9 @@ Tick these off before pointing real traffic at a bigRAG deployment:
   a mounted volume.
 - [ ] Qdrant in cluster mode if you expect >10M vectors or need HA.
 - [ ] Postgres warm-standby replica for failover.
-- [ ] Backup strategy: daily `pg_dump`, Qdrant backup tool, and encrypted
-  replication of the upload volume.
+- [ ] Backup strategy: configure readable S3/R2 backups in Settings → Backups,
+  protect that bucket as sensitive, and separately keep encrypted infrastructure
+  snapshots for Postgres, Qdrant, Redis, and uploads.
 - [ ] Set `metadata_schema` on collections that accept untrusted
   metadata so uploads with invalid shape are rejected at the edge.
 - [ ] Wire `GET /v1/admin/audit` into your SIEM / log pipeline.
@@ -39,7 +40,7 @@ config mistakes that would otherwise ship silently:
 - `BIGRAG_CORS_ORIGINS` contains `*` — set an explicit list (e.g. `https://admin.example.com`).
 - `BIGRAG_SESSION_COOKIE_SECURE` is `false` — set to `true` so cookies are HTTPS-only.
 - `BIGRAG_DATABASE_URL` still uses the shipped `bigrag:bigrag` credentials — rotate the Postgres password.
-- `BIGRAG_MASTER_KEY` is unset — bigRAG needs a Fernet key to envelope-encrypt provider credentials stored in Postgres. See [Encryption at rest](/docs/deployment/encryption).
+- `BIGRAG_MASTER_KEY` is unset — bigRAG needs a Fernet key to envelope-encrypt provider credentials, embedding-cache rows, and Redis cache payloads. See [Encryption at rest](/docs/deployment/encryption).
 
 When the guard trips, it logs every violation before exiting so you can fix the whole
 list in one edit. If you intentionally want to run with the development defaults (e.g.
@@ -171,10 +172,26 @@ Files are stored on the local filesystem:
 upload_dir = "./data/uploads"
 ```
 
+## Readable backups
+
+The admin UI can create backup-only full-instance exports from Settings → Backups.
+The destination is S3-compatible, so AWS S3, Cloudflare R2, and MinIO all work.
+Use a bucket or prefix dedicated to backups rather than reusing the upload bucket.
+
+Readable backups are plain JSON, JSONL, SQL, and raw files. They include Postgres
+rows, Qdrant vectors and payloads, uploaded files, chats, logs, embedding cache
+rows, and decrypted provider settings. They are useful for inspection and data
+portability, but they are not a substitute for encrypted infrastructure snapshots
+or tested disaster recovery runbooks.
+
 ## Logging
 
 Backend logging is always enabled at debug level with text output. It is not controlled
 through environment variables or CLI flags.
+
+API logs are emitted through `structlog` with stable event names and key-value
+fields for request, ingestion, vector-store, webhook, and auth activity. Secrets
+are redacted before log rendering.
 
 ## Troubleshooting
 

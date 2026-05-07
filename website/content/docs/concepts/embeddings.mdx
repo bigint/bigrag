@@ -139,9 +139,13 @@ Any gateway that speaks the OpenAI `/embeddings` shape works. Common choices:
 2. The chunker produces chunks according to the collection's `chunk_size`, `chunk_overlap`, and `chunk_strategy`.
 3. Each chunk's SHA-256 content hash is looked up in the persistent `embedding_cache`. Hits are reused; misses are sent to the provider.
 4. New vectors are batched at `BIGRAG_INGESTION_BATCH_SIZE` and written to Qdrant.
-5. Queries embed the same way, so the cache also accelerates re-running identical queries.
+5. Queries embed the same way, with short-lived Redis caching for repeated query embeddings.
 
 The cache key is `(content_hash, provider, model, dimension)`. Switching a collection's model invalidates cache hits automatically — on re-embed, unchanged chunks under the **new** model still start cold, but if you switch back they're hot again.
+
+Persistent embedding-cache rows are encrypted by default with `BIGRAG_MASTER_KEY`. Set `embedding_cache_mode` to `disabled` in `/settings` when you prefer provider cost over storing reusable vectors. The default retention window is 30 days after last use, and admins can purge the cache from the Security settings tab.
+
+Redis query caches are also encrypted when `BIGRAG_MASTER_KEY` is configured. The default query embedding TTL is 300 seconds; set `query_embedding_cache_ttl` to `0` to disable it.
 
 ## Concurrency & throughput
 

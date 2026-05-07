@@ -1,0 +1,104 @@
+---
+title: Instance Settings
+description: Admin-only runtime configuration registry.
+---
+
+Base path: `/admin/settings`
+
+Session admin only. These endpoints manage database-backed runtime settings used by the API and admin UI. Secret settings are Fernet-encrypted at rest and redacted on read.
+
+## List Settings
+
+```
+GET /admin/settings
+```
+
+Returns the setting registry plus current public values.
+
+```json
+{
+  "specs": [
+    {
+      "key": "cors_origins",
+      "group": "security",
+      "label": "CORS origins",
+      "kind": "string_list",
+      "default": [],
+      "secret": false,
+      "restart_required": false
+    }
+  ],
+  "values": {
+    "cors_origins": {
+      "key": "cors_origins",
+      "value": ["https://admin.example.com"],
+      "has_value": true,
+      "source": "database",
+      "updated_at": "2026-05-07T12:00:00Z",
+      "updated_by": "..."
+    }
+  }
+}
+```
+
+Secret values return `value: null` and `has_value: true` when saved.
+
+## Update Settings
+
+```
+PUT /admin/settings
+```
+
+```json
+{
+  "values": {
+    "session_cookie_secure": true,
+    "cors_origins": ["https://admin.example.com"],
+    "webhook_retry_delays": [10, 30, 90]
+  }
+}
+```
+
+Unknown keys and invalid values return `400`. Successful updates are audited as `instance_settings.update`.
+
+## Test Settings
+
+```
+POST /admin/settings/test
+```
+
+Validates the submitted values without saving them. Storage settings run a lightweight backend construction/probe when S3 is selected. Backup settings run a lightweight S3-compatible bucket probe.
+
+```json
+{ "values": { "storage_backend": "s3", "storage_s3_bucket": "bigrag-documents" } }
+```
+
+```json
+{ "values": { "backup_s3_bucket": "bigrag-backups", "backup_s3_endpoint_url": "https://ACCOUNT.r2.cloudflarestorage.com", "backup_s3_region": "auto" } }
+```
+
+## Reset Settings
+
+```
+POST /admin/settings/reset
+```
+
+```json
+{ "keys": ["cors_origins", "session_cookie_secure"] }
+```
+
+An empty `keys` array resets every UI-managed instance setting back to its default/bootstrap value. Successful resets are audited as `instance_settings.reset`.
+
+## Purge Embedding Cache
+
+```
+POST /admin/settings/embedding-cache/purge
+```
+
+Deletes every row from the persistent embedding cache. Use this after key rotation, before handing a backup to another environment, or when an operator wants to force all future ingestion to re-embed.
+
+**Response** `200`:
+
+```json
+{ "status": "ok", "message": "Purged 128 embedding cache rows" }
+```

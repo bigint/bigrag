@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 import ipaddress
-from functools import lru_cache
 
 from starlette.requests import Request
 from starlette.types import Scope
 
 from bigrag.config import settings
+from bigrag.services import runtime_settings
 
 
-@lru_cache(maxsize=1)
 def _trusted_networks() -> tuple[ipaddress._BaseNetwork, ...]:
     nets: list[ipaddress._BaseNetwork] = []
-    for raw in settings.trusted_proxies:
+    raw_proxies = runtime_settings.sync_value("trusted_proxies") or settings.trusted_proxies
+    for raw in raw_proxies:
         try:
             nets.append(ipaddress.ip_network(raw, strict=False))
         except ValueError:

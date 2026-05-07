@@ -103,7 +103,7 @@ POST /v1/collections
 | `chunk_overlap` | integer | no | `50` | 0–5,000, must be `< chunk_size` |
 | `chunk_strategy` | string | no | `"paragraph"` | `paragraph` (split on blank lines) or `recursive` (hierarchical) |
 | `index_type` | string | no | `"HNSW"` | Qdrant HNSW dense-vector search |
-| `tenant_field` | string | no | — | Metadata key that gets a Qdrant payload index for tenant-aware filtering |
+| `tenant_field` | string | no | — | Metadata key that gets a Qdrant payload index and is required on uploads, raw vector upserts, query filters, and chat filters |
 | `metadata_schema` | object | no | — | JSON Schema validated on every upload / upsert |
 | `default_top_k` | integer | no | `10` | 1–1,000 |
 | `default_min_score` | float | no | `null` | Minimum similarity score |

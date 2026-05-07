@@ -28,7 +28,7 @@ OpenRAG and bigRAG share the same foundation — both use **FastAPI**, **Docling
 | [Authentication & Multi-Tenancy](#5-authentication--multi-tenancy) | Native admin/member accounts, session cookies, scoped API keys, and audit/access logs | No OAuth/OIDC, external IdP, document ownership, document ACLs, or tenant isolation |
 | [Observability & Operations](#6-observability--operations) | Readiness checks Postgres, Qdrant, Redis, and embedding provider; structlog JSON logging exists | No disk monitoring, container-log TUI, or LLM observability |
 | [Developer Experience & Ecosystem](#7-developer-experience--ecosystem) | TypeScript, Python, Rust SDKs and MCP server exist | No `uvx bigrag` install, flow import/export, config backup/restore, factory reset, or Podman guide |
-| [Security & Compliance](#8-security--compliance) | Sensitive provider credentials and webhook secrets are Fernet-encrypted at rest | No document/vector content encryption, password strength scoring, or asymmetric JWT key system |
+| [Security & Compliance](#8-security--compliance) | Sensitive provider credentials, webhook secrets, embedding-cache rows, and Redis cache payloads are Fernet-encrypted at rest | No Qdrant payload encryption, password strength scoring, or asymmetric JWT key system |
 
 ---
 
@@ -599,7 +599,7 @@ OpenRAG supports Podman as an alternative to Docker, including Podman Compose.
 
 OpenRAG supports AES-256-GCM encryption for OpenSearch index payloads via the `OPENRAG_ENCRYPTION_KEY` environment variable. This encrypts document content stored in the search index.
 
-**bigRAG gap (narrower):** bigRAG now Fernet-encrypts sensitive provider secrets at rest (`embedding_presets.api_key` and `webhooks.secret`) when `BIGRAG_MASTER_KEY` is configured, and refuses `prod` startup without a master key. Document text, uploaded files, metadata payloads, and Qdrant vector payloads still rely on database/filesystem/provider encryption rather than application-level content encryption.
+**bigRAG gap (narrower):** bigRAG now Fernet-encrypts sensitive provider secrets, webhook secrets, persistent embedding-cache rows, and Redis cache payloads when `BIGRAG_MASTER_KEY` is configured, and refuses `prod` startup without a master key. Document text, uploaded files, metadata payloads, and Qdrant vector payloads still rely on database/filesystem/provider encryption rather than application-level content encryption.
 
 ### 8.2 Password Complexity Validation
 
@@ -782,7 +782,7 @@ Based on this analysis, here are the recommended priorities for closing the most
 
 7. **Search UX Expansion** — Add prefix/autocomplete search, saved filters, and explicit semantic/keyword weight knobs for hybrid search.
 
-8. **Document/Vector Content Encryption** — Extend current secret encryption to document payloads and vector-store payload metadata where compliance requires it.
+8. **Qdrant Payload Encryption** — Extend current cache and secret encryption to document payloads and vector-store payload metadata where compliance requires it.
 
 9. **LLM Observability** — If backend generation lands, add Langfuse/OpenTelemetry-style traces for prompts, retrieved chunks, model latency, token counts, and cost.
 

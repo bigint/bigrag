@@ -5,6 +5,7 @@ export const queryKeys = {
     session: () => ["auth", "session"] as const,
   },
   apiKeys: () => ["api-keys"] as const,
+  backups: () => ["backups"] as const,
   access: {
     logs: (filters: Record<string, unknown>) => ["access", "logs", filters] as const,
     overview: (windowDays: number) => ["access", "overview", windowDays] as const,
@@ -13,6 +14,7 @@ export const queryKeys = {
   webhooks: () => ["webhooks"] as const,
   embeddingPresets: () => ["embedding-presets"] as const,
   preferences: () => ["preferences"] as const,
+  instanceSettings: () => ["instance-settings"] as const,
   connectors: {
     googleConfig: () => ["connectors", "google", "config"] as const,
     googleAccount: () => ["connectors", "google", "account"] as const,
@@ -38,6 +40,8 @@ export const queryKeys = {
     chunks: (collection: string, id: string) => ["documents", collection, id, "chunks"] as const,
     batchStatus: (collection: string, ids: string) =>
       ["documents", collection, "batch-status", ids] as const,
+    uploadSession: (collection: string, id: string | null) =>
+      ["documents", collection, "upload-session", id] as const,
   },
   platform: {
     stats: () => ["platform", "stats"] as const,

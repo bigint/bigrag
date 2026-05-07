@@ -23,6 +23,7 @@ use crate::types::common::{
 use crate::types::documents::{
     BatchDeleteDocumentsResponse, BatchGetDocumentsResponse, BatchStatusResponse, Document,
     DocumentChunkListResponse, DocumentChunkOptions, DocumentListOptions, DocumentListResponse,
+    UploadSession, UploadSessionCreateRequest, UploadSessionFileResponse,
 };
 use crate::types::embeddings::EmbeddingModelListResponse;
 use crate::types::query::{QueryBody, QueryResponse};
@@ -326,6 +327,60 @@ impl CollectionClient<'_> {
         self.client
             .documents()
             .batch_upload(&self.name, files, metadata)
+            .await
+    }
+
+    /// Create an upload session for this collection.
+    pub async fn create_upload_session(
+        &self,
+        body: UploadSessionCreateRequest,
+    ) -> Result<UploadSession, BigRagError> {
+        self.client
+            .documents()
+            .create_upload_session(&self.name, body)
+            .await
+    }
+
+    /// Get an upload session.
+    pub async fn get_upload_session(&self, session_id: &str) -> Result<UploadSession, BigRagError> {
+        self.client
+            .documents()
+            .get_upload_session(&self.name, session_id)
+            .await
+    }
+
+    /// Upload one file into an upload session.
+    pub async fn upload_session_file(
+        &self,
+        session_id: &str,
+        file: impl Into<FileInput>,
+        client_item_id: Option<&str>,
+    ) -> Result<UploadSessionFileResponse, BigRagError> {
+        self.client
+            .documents()
+            .upload_session_file(&self.name, session_id, file, client_item_id)
+            .await
+    }
+
+    /// Complete an upload session.
+    pub async fn complete_upload_session(
+        &self,
+        session_id: &str,
+    ) -> Result<UploadSession, BigRagError> {
+        self.client
+            .documents()
+            .complete_upload_session(&self.name, session_id)
+            .await
+    }
+
+    /// Cancel an upload session.
+    pub async fn cancel_upload_session(
+        &self,
+        session_id: &str,
+    ) -> Result<StatusResponse, BigRagError> {
+        self.client
+            .documents()
+            .cancel_upload_session(&self.name, session_id)
             .await
     }
 

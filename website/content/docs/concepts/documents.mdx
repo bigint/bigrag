@@ -29,7 +29,16 @@ bigRAG extracts embedded text from PDFs directly, and uses [Docling](https://git
 
 ### File Upload
 
-Upload documents directly via the API or SDKs. Accepts single files or batch uploads of up to 100 files.
+Upload documents directly via the API or SDKs:
+
+| Method | Best for |
+|--------|----------|
+| Single upload | One interactive file |
+| Batch upload | Small API batches of up to 100 files |
+| Upload session | Large local folder/file imports up to the configured session limits |
+| Connector sync | Cloud files managed by a provider such as Google Drive |
+
+Upload sessions accept one file per request under a durable session ID. The admin UI uses this path for local files and folders so it can keep browser memory bounded, retry individual failures, and restore progress after navigation.
 
 ## Ingestion Pipeline
 
@@ -133,8 +142,29 @@ curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/delete \
 ```
 
 <Callout type="info">
-  Batch operations support up to 100 items per request. API clients can poll batch status after upload to read each document's latest progress snapshot until every document is ready or failed. The admin UI uses session-cookie SSE snapshots for the same batch progress panel. Partial success is supported for batch delete — failed items are reported in the `errors` array.
+  Batch operations support up to 100 items per request. API clients can poll batch status after upload to read each document's latest progress snapshot until every document is ready or failed. Partial success is supported for batch delete — failed items are reported in the `errors` array.
 </Callout>
+
+## Large Upload Sessions
+
+Use upload sessions for local imports that are too large for one multipart request:
+
+```bash
+curl -X POST http://localhost:4000/v1/collections/docs/upload-sessions \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"total_files": 10000, "total_bytes": 2147483648, "metadata": {"source": "folder"}}'
+
+curl -X POST http://localhost:4000/v1/collections/docs/upload-sessions/SESSION_ID/files \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -F "client_item_id=000001" \
+  -F "file=@paper.pdf"
+
+curl -X POST http://localhost:4000/v1/collections/docs/upload-sessions/SESSION_ID/complete \
+  -H "Authorization: Bearer $BIGRAG_API_KEY"
+```
+
+`GET /v1/collections/{collection}/upload-sessions/{session_id}` returns aggregate progress and recent failures. The old batch upload endpoint remains useful for small API imports; upload sessions are the scalable path for thousands of browser-selected files.
 
 ## Reprocessing
 

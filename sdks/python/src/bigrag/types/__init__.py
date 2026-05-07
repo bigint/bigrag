@@ -97,6 +97,10 @@ from bigrag.types.documents import (
     DocumentChunkListResponse,
     DocumentListResponse,
     DocumentStatus,
+    UploadSession,
+    UploadSessionCreateRequest,
+    UploadSessionFileResponse,
+    UploadSessionItem,
 )
 from bigrag.types.embeddings import EmbeddingModelInfo, EmbeddingModelListResponse
 from bigrag.types.evaluations import EvalBody, EvalCase, EvalPerCase, EvalResponse
@@ -213,6 +217,10 @@ __all__ = [
     "BatchGetDocumentsResponse",
     "BatchDeleteError",
     "BatchDeleteDocumentsResponse",
+    "UploadSessionCreateRequest",
+    "UploadSessionItem",
+    "UploadSession",
+    "UploadSessionFileResponse",
     # Query
     "QueryBody",
     "QueryResult",

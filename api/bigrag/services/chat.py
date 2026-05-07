@@ -9,12 +9,10 @@ from typing import Any
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.config import settings
 from bigrag.db.models import ChatConversation, ChatMessage, Document, UserPreference
-from bigrag.exceptions import ValidationError
+from bigrag.exceptions import NotFoundError, ServerError, UpstreamError, ValidationError
 from bigrag.logging import get_logger
 from bigrag.models.chat import (
     ChatConversationResponse,
@@ -31,12 +29,15 @@ from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
 from bigrag.services.collection_config import get_embedding_model_for, get_reranking_config
 from bigrag.services.collection_scope import assert_collection_matches_pin
 from bigrag.services.retrieval import retrieve
+from bigrag.services.runtime_settings import get_values
+from bigrag.services.tenant_enforcement import require_tenant_filters
 from bigrag.services.url_security import UnsafeOutboundUrlError, validate_chat_base_url
 
 logger = get_logger("bigrag.chat")
 
 _SECRET_RE = re.compile(r"sk-[A-Za-z0-9_-]{8,}")
 _PROVIDERS = {"openai", "openai_compatible"}
+_MODEL_TIMEOUT_SECONDS = 60
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are bigRAG's grounded chat assistant. Answer using only the retrieved context. "
@@ -68,10 +69,7 @@ class PreparedChatTurn:
 
 
 def _safe_chat_error(exc: Exception) -> str:
-    if isinstance(exc, HTTPException):
-        detail = exc.detail
-        message = detail if isinstance(detail, str) else "Chat request failed"
-    elif isinstance(exc, ValidationError):
+    if isinstance(exc, (ValidationError, NotFoundError, ServerError, UpstreamError)):
         message = str(exc)
     else:
         message = getattr(exc, "message", None) or str(exc) or "Chat request failed"
@@ -257,9 +255,10 @@ async def create_chat_completion(
         logger.warning(
             "chat completion failed",
             conversation_id=str(prepared.conversation.id),
-            error=f"{exc.__class__.__name__}: {_safe_chat_error(exc)}",
+            error_type=exc.__class__.__name__,
+            error=_safe_chat_error(exc),
         )
-        raise HTTPException(status_code=502, detail=_safe_chat_error(exc)) from exc
+        raise UpstreamError(_safe_chat_error(exc)) from exc
 
     assistant = await _store_assistant_message(session, prepared, content)
     conversation, messages = await get_conversation_detail(session, user, prepared.conversation.id)
@@ -319,10 +318,15 @@ async def stream_chat_completion(
             logger.warning(
                 "chat stream failed",
                 conversation_id=str(prepared.conversation.id),
-                error=f"{exc.__class__.__name__}: {message}",
+                error_type=exc.__class__.__name__,
+                error=message,
             )
         else:
-            logger.warning("chat stream setup failed", error=f"{exc.__class__.__name__}: {message}")
+            logger.warning(
+                "chat stream setup failed",
+                error_type=exc.__class__.__name__,
+                error=message,
+            )
         yield _sse("error", {"error": message})
         yield _done_sse()
 
@@ -339,7 +343,7 @@ async def _get_owned_conversation(
         .where(ChatConversation.owner_id == owner_id)
     )
     if conversation is None:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+        raise NotFoundError("Conversation", str(conversation_id))
     pinned = user.get("collection")
     if pinned and conversation.collection_name:
         assert_collection_matches_pin(pinned, conversation.collection_name)
@@ -353,6 +357,16 @@ async def _prepare_chat_turn(
 ) -> PreparedChatTurn:
     owner_id = UUID(user["id"])
     pinned = user.get("collection")
+    runtime = await get_values(
+        [
+            "chat_provider",
+            "chat_model",
+            "chat_base_url",
+            "chat_temperature",
+            "chat_max_history_messages",
+            "chat_max_context_chars",
+        ]
+    )
 
     if body.conversation_id is not None:
         conversation = await _get_owned_conversation(session, user, body.conversation_id)
@@ -361,17 +375,16 @@ async def _prepare_chat_turn(
             and conversation.collection_name
             and body.collection != conversation.collection_name
         ):
-            raise HTTPException(
-                status_code=400,
-                detail="A conversation cannot switch collections. Start a new chat instead.",
+            raise ValidationError(
+                "A conversation cannot switch collections. Start a new chat instead."
             )
         if not conversation.collection_name:
-            raise HTTPException(status_code=400, detail="Conversation is missing its collection")
+            raise ValidationError("Conversation is missing its collection")
         collection_name = conversation.collection_name
     else:
         collection_name = body.collection or pinned
         if not collection_name:
-            raise HTTPException(status_code=400, detail="collection is required")
+            raise ValidationError("collection is required")
         if pinned:
             assert_collection_matches_pin(pinned, collection_name)
         collection = await get_collection_or_404(collection_name)
@@ -380,8 +393,8 @@ async def _prepare_chat_turn(
             title=_title_from_message(body.message),
             collection_id=collection.get("id"),
             collection_name=collection_name,
-            model_provider=_resolve_provider(body.model_provider),
-            model=body.model or settings.chat_model,
+            model_provider=_resolve_provider(body.model_provider, runtime["chat_provider"]),
+            model=body.model or runtime["chat_model"],
             system_prompt=body.system_prompt or DEFAULT_SYSTEM_PROMPT,
             default_top_k=body.top_k or min(int(collection.get("default_top_k") or 5), 100),
             default_search_mode=body.search_mode
@@ -392,23 +405,28 @@ async def _prepare_chat_turn(
             default_rerank=body.rerank,
             temperature=body.temperature
             if body.temperature is not None
-            else settings.chat_temperature,
+            else runtime["chat_temperature"],
         )
         session.add(conversation)
         await session.flush()
 
     collection = await get_collection_or_404(collection_name)
-    _apply_turn_overrides(conversation, body, collection)
-    provider = _resolve_provider(conversation.model_provider)
+    require_tenant_filters(collection, body.filters)
+    _apply_turn_overrides(conversation, body, collection, runtime["chat_provider"])
+    provider = _resolve_provider(conversation.model_provider, runtime["chat_provider"])
     credentials = await _resolve_api_credentials(session, user, body)
-    base_url = await _resolve_base_url(body.provider_base_url)
+    base_url = await _resolve_base_url(body.provider_base_url, runtime["chat_base_url"])
 
-    prior_messages = await _recent_history(session, conversation.id)
+    prior_messages = await _recent_history(
+        session,
+        conversation.id,
+        int(runtime["chat_max_history_messages"] or 0),
+    )
 
     try:
         embedding_model = get_embedding_model_for(collection)
     except (ImportError, ValueError, ValidationError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise ValidationError(str(exc)) from exc
 
     top_k = max(1, min(int(conversation.default_top_k or 5), 100))
     search_mode = conversation.default_search_mode or collection.get(
@@ -464,6 +482,7 @@ async def _prepare_chat_turn(
         sources=sources,
         prior_messages=prior_messages,
         user_message=body.message,
+        max_context_chars=int(runtime["chat_max_context_chars"] or 120000),
     )
     return PreparedChatTurn(
         conversation=conversation,
@@ -480,13 +499,10 @@ async def _prepare_chat_turn(
     )
 
 
-def _resolve_provider(provider: str | None) -> str:
-    value = (provider or settings.chat_provider or "openai").strip().lower()
+def _resolve_provider(provider: str | None, default_provider: str | None = "openai") -> str:
+    value = (provider or default_provider or "openai").strip().lower()
     if value not in _PROVIDERS:
-        raise HTTPException(
-            status_code=400,
-            detail="Only openai and openai_compatible chat providers are supported",
-        )
+        raise ValidationError("Only openai and openai_compatible chat providers are supported")
     return value
 
 
@@ -494,9 +510,10 @@ def _apply_turn_overrides(
     conversation: ChatConversation,
     body: ChatCreateRequest,
     collection: dict,
+    default_provider: str | None,
 ) -> None:
     if body.model_provider is not None:
-        conversation.model_provider = _resolve_provider(body.model_provider)
+        conversation.model_provider = _resolve_provider(body.model_provider, default_provider)
     if body.model is not None:
         conversation.model = body.model
     if body.system_prompt is not None:
@@ -534,12 +551,9 @@ async def _resolve_api_credentials(
     _append_credential(credentials, chat.get("openai_key"), "saved chat key")
 
     if not credentials:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Save an OpenAI API key in Chat settings, or pass provider_api_key "
-                "with the chat request."
-            ),
+        raise ValidationError(
+            "Save an OpenAI API key in Chat settings, or pass provider_api_key "
+            "with the chat request."
         )
     return credentials
 
@@ -553,30 +567,28 @@ def _append_credential(
         return
     api_key = raw_api_key.strip()
     if api_key.startswith(crypto._FERNET_PREFIX):
-        raise HTTPException(
-            status_code=500,
-            detail=f"{source} cannot be decrypted. Configure BIGRAG_MASTER_KEY.",
-        )
+        raise ServerError(f"{source} cannot be decrypted. Configure BIGRAG_MASTER_KEY.")
     if any(existing.api_key == api_key for existing in credentials):
         return
     credentials.append(ProviderCredential(api_key=api_key, source=source))
 
 
-async def _resolve_base_url(raw_base_url: str | None) -> str | None:
-    candidate = raw_base_url if raw_base_url is not None else settings.chat_base_url
+async def _resolve_base_url(raw_base_url: str | None, default_base_url: str | None) -> str | None:
+    candidate = raw_base_url if raw_base_url is not None else default_base_url
     if not candidate:
         return None
     try:
         return await validate_chat_base_url(candidate)
     except UnsafeOutboundUrlError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise ValidationError(str(exc)) from exc
 
 
 async def _recent_history(
     session: AsyncSession,
     conversation_id: UUID,
+    limit: int,
 ) -> list[ChatMessage]:
-    limit = max(0, settings.chat_max_history_messages)
+    limit = max(0, limit)
     if limit == 0:
         return []
     rows = list(
@@ -643,8 +655,9 @@ def _model_messages(
     sources: list[ChatSource],
     prior_messages: list[ChatMessage],
     user_message: str,
+    max_context_chars: int,
 ) -> list[dict[str, str]]:
-    context = _context_block(sources)
+    context = _context_block(sources, max_context_chars)
     messages: list[dict[str, str]] = [
         {"role": "system", "content": system_prompt},
         {
@@ -660,10 +673,10 @@ def _model_messages(
     return messages
 
 
-def _context_block(sources: list[ChatSource]) -> str:
+def _context_block(sources: list[ChatSource], max_context_chars: int) -> str:
     if not sources:
         return "(no matching chunks were found)"
-    remaining = max(1_000, settings.chat_max_context_chars)
+    remaining = max(1_000, max_context_chars)
     parts: list[str] = []
     for idx, source in enumerate(sources, start=1):
         label_parts = []
@@ -686,7 +699,7 @@ async def _complete_model(prepared: PreparedChatTurn) -> str:
     try:
         import openai
     except ImportError as exc:
-        raise HTTPException(status_code=500, detail="openai package is required for chat") from exc
+        raise ServerError("openai package is required for chat") from exc
 
     last_error: Exception | None = None
     for credential in prepared.credentials:
@@ -721,7 +734,7 @@ async def _stream_model(prepared: PreparedChatTurn) -> AsyncIterator[str]:
     try:
         import openai
     except ImportError as exc:
-        raise HTTPException(status_code=500, detail="openai package is required for chat") from exc
+        raise ServerError("openai package is required for chat") from exc
 
     last_error: Exception | None = None
     for credential in prepared.credentials:
@@ -757,7 +770,7 @@ async def _stream_model(prepared: PreparedChatTurn) -> AsyncIterator[str]:
 
 
 def _openai_client(openai_module, prepared: PreparedChatTurn, credential: ProviderCredential):
-    kwargs: dict[str, Any] = {"api_key": credential.api_key}
+    kwargs: dict[str, Any] = {"api_key": credential.api_key, "timeout": _MODEL_TIMEOUT_SECONDS}
     if prepared.base_url:
         kwargs["base_url"] = prepared.base_url
     return openai_module.AsyncOpenAI(**kwargs)
@@ -781,7 +794,7 @@ def _is_provider_auth_error(exc: Exception) -> bool:
     return "invalid_api_key" in message or "incorrect api key" in message
 
 
-def _provider_error(exc: Exception, credential: ProviderCredential) -> HTTPException:
+def _provider_error(exc: Exception, credential: ProviderCredential) -> UpstreamError:
     message = _safe_chat_error(exc)
     if _is_provider_auth_error(exc):
         if credential.source == "saved chat key":
@@ -794,14 +807,13 @@ def _provider_error(exc: Exception, credential: ProviderCredential) -> HTTPExcep
                 f"OpenAI rejected the {credential.source}. Use a fresh key generated "
                 "from the OpenAI API keys page."
             )
-    return HTTPException(status_code=502, detail=message)
+    return UpstreamError(message)
 
 
 def _is_saved_key_auth_error(exc: Exception) -> bool:
-    if not isinstance(exc, HTTPException):
-        return False
-    detail = exc.detail if isinstance(exc.detail, str) else ""
-    return detail.startswith("OpenAI rejected the saved chat key.")
+    return isinstance(exc, UpstreamError) and str(exc).startswith(
+        "OpenAI rejected the saved chat key."
+    )
 
 
 async def _clear_saved_chat_key(session: AsyncSession, user: dict) -> None:

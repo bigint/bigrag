@@ -9,14 +9,15 @@ import sqlalchemy as sa
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.config import settings
 from bigrag.db.models import Collection, Document
 from bigrag.logging import get_logger
 from bigrag.models.document import DocumentProgressResponse, DocumentResponse
 from bigrag.services import collection_cache, metadata_schema
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
+from bigrag.services.runtime_settings import sync_value
 from bigrag.services.storage import get_storage
+from bigrag.services.tenant_enforcement import require_tenant_metadata, tenant_field
 
 logger = get_logger("bigrag.routers.documents")
 
@@ -50,9 +51,10 @@ class UploadBudget:
     def consume(self, size: int) -> None:
         self.used += size
         if self.used > self.max_size:
+            max_mb = sync_value("max_batch_upload_size_mb")
             raise HTTPException(
                 status_code=413,
-                detail=f"Batch upload too large. Max size: {settings.max_batch_upload_size_mb}MB",
+                detail=f"Batch upload too large. Max size: {max_mb}MB",
             )
 
 
@@ -111,7 +113,25 @@ def parse_form_metadata(raw_metadata: str) -> dict:
 
 def prepare_document_metadata(collection: dict, metadata: dict) -> dict:
     metadata_schema.validate(metadata, collection.get("metadata_schema"))
+    require_tenant_metadata(collection, metadata)
     return metadata
+
+
+def content_hash_match(
+    collection: dict,
+    content_hash: str,
+    metadata: dict,
+) -> sa.Select:
+    stmt = (
+        sa.select(Document)
+        .where(Document.collection_id == collection["id"])
+        .where(Document.content_hash == content_hash)
+        .limit(1)
+    )
+    field = tenant_field(collection)
+    if field:
+        stmt = stmt.where(Document.meta.contains({field: metadata[field]}))
+    return stmt
 
 
 async def read_upload_content(
@@ -128,9 +148,10 @@ async def read_upload_content(
             break
         total_size += len(chunk)
         if total_size > max_size:
+            max_mb = sync_value("max_upload_size_mb")
             raise HTTPException(
                 status_code=413,
-                detail=f"File too large. Max size: {settings.max_upload_size_mb}MB",
+                detail=f"File too large. Max size: {max_mb}MB",
             )
         if budget is not None:
             budget.consume(len(chunk))
@@ -155,7 +176,7 @@ async def persist_document(
     storage = get_storage()
 
     await storage.put(storage_key, content)
-    logger.info(f"upload: stored key={storage_key} size={len(content)}")
+    logger.info("upload stored", key=storage_key, size=len(content))
 
     doc = Document(
         id=doc_id,

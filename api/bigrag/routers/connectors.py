@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag import config as config_module
 from bigrag.db.models import ConnectorAccount, ConnectorSource, ConnectorSyncJob
 from bigrag.db.session import get_session
 from bigrag.middleware.auth import require_session
@@ -46,6 +45,7 @@ from bigrag.services.google_drive import (
     trigger_google_sync,
     update_google_source,
 )
+from bigrag.services.runtime_settings import get_value
 
 router = APIRouter(prefix="/v1/connectors/google", tags=["connectors:google"])
 
@@ -65,9 +65,10 @@ def _safe_redirect_path(path: str | None) -> str:
     return path
 
 
-def _allowed_spa_origin(request: Request) -> str | None:
+async def _allowed_spa_origin(request: Request) -> str | None:
     origin = request.headers.get("origin")
-    if origin and origin in config_module.settings.cors_origins:
+    cors_origins = await get_value("cors_origins")
+    if origin and origin in cors_origins:
         return origin.rstrip("/")
     return None
 
@@ -115,7 +116,7 @@ async def google_files(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
-@router.get("/oauth/start")
+@router.get("/oauth/start", response_class=RedirectResponse)
 async def google_oauth_start(
     request: Request,
     redirect_path: str | None = Query(default="/"),
@@ -128,14 +129,14 @@ async def google_oauth_start(
             user_id=user["id"],
             redirect_uri=_redirect_uri(request),
             redirect_path=_safe_redirect_path(redirect_path),
-            redirect_origin=_allowed_spa_origin(request),
+            redirect_origin=await _allowed_spa_origin(request),
         )
     except GoogleDriveConfigError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return RedirectResponse(auth_url)
 
 
-@router.get("/oauth/start-url")
+@router.get("/oauth/start-url", response_model=dict[str, str])
 async def google_oauth_start_url(
     request: Request,
     redirect_path: str | None = Query(default="/"),
@@ -148,14 +149,14 @@ async def google_oauth_start_url(
             user_id=user["id"],
             redirect_uri=_redirect_uri(request),
             redirect_path=_safe_redirect_path(redirect_path),
-            redirect_origin=_allowed_spa_origin(request),
+            redirect_origin=await _allowed_spa_origin(request),
         )
     except GoogleDriveConfigError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"auth_url": auth_url}
 
 
-@router.get("/oauth/callback", name="google_oauth_callback")
+@router.get("/oauth/callback", name="google_oauth_callback", response_class=RedirectResponse)
 async def google_oauth_callback(
     request: Request,
     code: str | None = Query(default=None),

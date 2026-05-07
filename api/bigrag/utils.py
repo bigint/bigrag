@@ -16,7 +16,7 @@ def safe_create_task(coro, *, name: str = "background") -> asyncio.Task:
             return
         exc = t.exception()
         if exc:
-            logger.warning(f"Background task '{name}' failed: {exc!r}")
+            logger.warning("background task failed", task=name, error=repr(exc))
 
     task.add_done_callback(_on_done)
     return task

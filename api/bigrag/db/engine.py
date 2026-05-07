@@ -51,7 +51,7 @@ async def configure(database_url: str, pool_min: int = 5, pool_max: int = 50) ->
         future=True,
     )
     _session_factory = async_sessionmaker(_engine, expire_on_commit=False, class_=AsyncSession)
-    logger.info(f"SQLAlchemy engine ready (pool_min={pool_min} pool_max={pool_max})")
+    logger.info("sqlalchemy engine ready", pool_min=pool_min, pool_max=pool_max)
 
 
 def engine() -> AsyncEngine:

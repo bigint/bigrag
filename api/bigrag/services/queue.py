@@ -14,6 +14,8 @@ from bigrag.services.embedding import truncate_to_tokens
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import IngestionJob
 
+_EMBEDDING_TIMEOUT_SECONDS = 60
+
 
 async def _embed_with_cache(
     texts: list[str],
@@ -54,7 +56,10 @@ async def _embed_with_cache(
             model=model_name,
             inputs=len(missing_texts),
         )
-        fresh = await model.embed(missing_texts)
+        fresh = await asyncio.wait_for(
+            model.embed(missing_texts),
+            timeout=_EMBEDDING_TIMEOUT_SECONDS,
+        )
         logger.info(
             "embedding provider response",
             provider=provider,
@@ -125,10 +130,10 @@ class IngestionQueue:
         self._redis = aioredis.from_url(
             redis_url,
             decode_responses=False,
-            max_connections=self._num_workers + 4,
+            max_connections=max(self._num_workers + 4, 260),
         )
         await self._redis.ping()
-        logger.info(f"Queue connected to Redis at {redis_url}")
+        logger.info("queue connected to redis", redis_url=redis_url)
 
     async def start(self, vector_store=None) -> None:
         if vector_store is not None:
@@ -137,12 +142,36 @@ class IngestionQueue:
         self._running = True
         recovered = await self._recover_stuck_jobs()
         if recovered:
-            logger.info(f"[queue] recovered {recovered} stuck jobs from previous run")
+            logger.info("queue recovered stuck jobs", recovered=recovered)
 
         for i in range(self._num_workers):
             task = asyncio.create_task(self._worker(i))
             self._workers.append(task)
-        logger.info(f"[queue] started {self._num_workers} workers")
+        logger.info("queue started workers", workers=self._num_workers)
+
+    async def resize_workers(self, num_workers: int) -> None:
+        target = max(1, int(num_workers))
+        if not self._running:
+            self._num_workers = target
+            return
+        current = len(self._workers)
+        if target == current:
+            self._num_workers = target
+            return
+        if target > current:
+            for worker_id in range(current, target):
+                task = asyncio.create_task(self._worker(worker_id))
+                self._workers.append(task)
+            self._num_workers = target
+            logger.info("queue resized workers", previous=current, target=target)
+            return
+        removed = self._workers[target:]
+        self._workers = self._workers[:target]
+        for task in removed:
+            task.cancel()
+        await asyncio.gather(*removed, return_exceptions=True)
+        self._num_workers = target
+        logger.info("queue resized workers", previous=current, target=target)
 
     async def stop(self) -> None:
         self._running = False
@@ -161,7 +190,8 @@ class IngestionQueue:
             except (ValueError, TypeError, KeyError) as exc:
                 logger.warning(
                     "queue: malformed processing payload, dropping",
-                    error=f"{exc.__class__.__name__}: {exc}",
+                    error_type=exc.__class__.__name__,
+                    error=str(exc),
                 )
                 await self._redis.lrem(PROCESSING_KEY, 1, raw)
                 continue
@@ -231,24 +261,34 @@ class IngestionQueue:
             raise IngestionCancelledError(f"Ingestion cancelled for document '{job.document_id}'")
 
     async def enqueue(self, job: IngestionJob) -> None:
-        from bigrag.config import settings as _settings
+        from bigrag.services.maintenance import MaintenanceActiveError, ensure_writes_allowed
+        from bigrag.services.runtime_settings import get_value
+
+        try:
+            await ensure_writes_allowed()
+        except MaintenanceActiveError as exc:
+            raise ValueError(str(exc)) from exc
 
         if job.attempt == 0:
             job.collection_epoch = await self._collection_epoch(job.collection_name)
             job.document_epoch = await self._document_epoch(job.document_id)
+        queue_max_depth = await get_value("queue_max_depth")
         pending = await self._redis.eval(
             self._ENQUEUE_LUA,
             2,
             QUEUE_KEY,
             STATS_KEY,
             job.serialize(),
-            _settings.queue_max_depth,
+            queue_max_depth,
         )
         if pending == -1:
             raise ValueError("Ingestion queue is full. Try again later.")
         logger.info(
-            f"[queue] enqueued job={job.job_id} doc={job.document_id} "
-            f"collection={job.collection_name} pending={pending}"
+            "queue enqueued job",
+            job=job.job_id,
+            doc=job.document_id,
+            collection=job.collection_name,
+            pending=pending,
         )
 
     async def flush_collection(self, collection_name: str) -> int:
@@ -261,7 +301,7 @@ class IngestionQueue:
             collection_name,
         )
         if removed:
-            logger.info(f"[queue] flushed {removed} jobs for collection={collection_name}")
+            logger.info("queue flushed jobs", collection=collection_name, removed=removed)
         return int(removed)
 
     async def cancel_collection(self, collection_name: str) -> int:
@@ -269,9 +309,7 @@ class IngestionQueue:
             return 0
         removed = await self.flush_collection(collection_name)
         await self._redis.incr(_collection_epoch_key(collection_name))
-        logger.info(
-            f"[queue] cancelled in-flight jobs for collection={collection_name} flushed={removed}"
-        )
+        logger.info("queue cancelled collection jobs", collection=collection_name, flushed=removed)
         return removed
 
     async def cancel_documents(self, document_ids: list[str]) -> None:
@@ -281,7 +319,7 @@ class IngestionQueue:
         for document_id in document_ids:
             pipe.incr(_document_epoch_key(document_id))
         await pipe.execute()
-        logger.info(f"[queue] cancelled in-flight document jobs count={len(document_ids)}")
+        logger.info("queue cancelled document jobs", count=len(document_ids))
 
     @property
     async def stats(self) -> dict:
@@ -297,18 +335,29 @@ class IngestionQueue:
         }
 
     async def _worker(self, worker_id: int) -> None:
-        logger.info(f"[worker-{worker_id}] started")
+        logger.info("worker started", worker_id=worker_id)
         while self._running:
             try:
+                from bigrag.services.maintenance import is_active
+
+                if await is_active():
+                    await asyncio.sleep(1)
+                    continue
                 data = await self._redis.blmove(
                     QUEUE_KEY, PROCESSING_KEY, timeout=1, src="RIGHT", dest="LEFT"
                 )
                 if data is None:
                     continue
+                if await is_active():
+                    await self._redis.lrem(PROCESSING_KEY, 1, data)
+                    await self._redis.rpush(QUEUE_KEY, data)
+                    await asyncio.sleep(1)
+                    continue
 
                 job = IngestionJob.deserialize(data)
                 logger.info(
-                    f"[worker-{worker_id}] dequeued",
+                    "worker dequeued job",
+                    worker_id=worker_id,
                     job=job.job_id,
                     doc=job.document_id,
                     collection=job.collection_name,
@@ -324,10 +373,10 @@ class IngestionQueue:
                     await self._redis.lrem(PROCESSING_KEY, 1, data)
                     await self._redis.delete(lease_key)
             except Exception as e:
-                logger.error(f"[worker-{worker_id}] loop error: {e!r}")
+                logger.error("worker loop error", worker_id=worker_id, error=repr(e))
                 await asyncio.sleep(1)
 
-        logger.info(f"[worker-{worker_id}] stopped")
+        logger.info("worker stopped", worker_id=worker_id)
 
     def _emit(
         self,
@@ -374,7 +423,7 @@ class IngestionQueue:
     ) -> str:
         import tempfile
 
-        from bigrag.config import settings as _settings
+        from bigrag.services.runtime_settings import get_values
 
         def _write_pdf() -> str:
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -387,6 +436,8 @@ class IngestionQueue:
                 raise
 
         tmp_path = await asyncio.to_thread(_write_pdf)
+        runtime = await get_values(["conversion_timeout"])
+        conversion_timeout = runtime["conversion_timeout"]
         current_start = 0
         current_end = 0
         try:
@@ -397,10 +448,11 @@ class IngestionQueue:
             chunk_pages = _PDF_OCR_CHUNK_PAGES
             total_chunks = (total_pages + chunk_pages - 1) // chunk_pages
             logger.info(
-                f"{prefix} scanned pdf OCR start",
+                "scanned pdf OCR start",
+                prefix=prefix,
                 pages=total_pages,
                 chunk_pages=chunk_pages,
-                timeout_per_chunk=_settings.conversion_timeout,
+                timeout_per_chunk=conversion_timeout,
             )
             self._emit(
                 job.document_id,
@@ -448,13 +500,13 @@ class IngestionQueue:
                             tmp_path,
                             page_range=(current_start, current_end),
                         ),
-                        timeout=_settings.conversion_timeout,
+                        timeout=conversion_timeout,
                     )
                 except TimeoutError as e:
                     raise ValueError(
                         "Scanned PDF OCR timed out while processing "
                         f"pages {current_start}-{current_end} after "
-                        f"{_settings.conversion_timeout}s"
+                        f"{conversion_timeout}s"
                     ) from e
 
                 chunk_text = _docling_result_text(result).strip()
@@ -467,7 +519,8 @@ class IngestionQueue:
                     (_PDF_OCR_PROGRESS_END - _PDF_OCR_PROGRESS_START) * (pages_done / total_pages)
                 )
                 logger.info(
-                    f"{prefix} scanned pdf OCR chunk complete",
+                    "scanned pdf OCR chunk complete",
+                    prefix=prefix,
                     page_start=current_start,
                     page_end=current_end,
                     pages_total=total_pages,
@@ -499,7 +552,8 @@ class IngestionQueue:
 
             elapsed = time.monotonic() - start_time
             logger.info(
-                f"{prefix} scanned pdf OCR complete",
+                "scanned pdf OCR complete",
+                prefix=prefix,
                 pages_total=total_pages,
                 chunks=total_chunks,
                 chars=len(text),
@@ -533,7 +587,7 @@ class IngestionQueue:
 
         import tempfile
 
-        from bigrag.config import settings as _settings
+        from bigrag.services.runtime_settings import get_values
         from bigrag.services.storage import get_storage
 
         self._emit(
@@ -547,9 +601,13 @@ class IngestionQueue:
         t0 = time.monotonic()
 
         file_data = await get_storage().get(job.file_path)
+        runtime = await get_values(["conversion_timeout", "conversion_pdf_ocr_enabled"])
+        conversion_timeout = runtime["conversion_timeout"]
+        pdf_ocr_enabled = runtime["conversion_pdf_ocr_enabled"]
         suffix = Path(job.file_path).suffix.lower()
         logger.info(
-            f"{prefix} conversion start",
+            "conversion start",
+            prefix=prefix,
             collection=job.collection_name,
             file_path=job.file_path,
             suffix=suffix,
@@ -561,7 +619,7 @@ class IngestionQueue:
             if not text.strip():
                 raise ValueError("Document produced no extractable text")
             elapsed = time.monotonic() - t0
-            logger.info(f"{prefix} plain text read elapsed={elapsed:.2f}s")
+            logger.info("plain text read", prefix=prefix, elapsed=round(elapsed, 2))
             self._emit(
                 job.document_id,
                 "text_extracted",
@@ -576,8 +634,9 @@ class IngestionQueue:
         if suffix == ".pdf":
             tmp_path = None
             logger.info(
-                f"{prefix} pdf direct text extraction start",
-                timeout=min(_settings.conversion_timeout, 60),
+                "pdf direct text extraction start",
+                prefix=prefix,
+                timeout=min(conversion_timeout, 60),
             )
 
             def _write_and_extract_pdf_text():
@@ -593,7 +652,7 @@ class IngestionQueue:
             try:
                 text, tmp_path = await asyncio.wait_for(
                     asyncio.to_thread(_write_and_extract_pdf_text),
-                    timeout=min(_settings.conversion_timeout, 60),
+                    timeout=min(conversion_timeout, 60),
                 )
             finally:
                 if tmp_path:
@@ -601,7 +660,12 @@ class IngestionQueue:
 
             if text.strip():
                 elapsed = time.monotonic() - t0
-                logger.info(f"{prefix} pdf text extracted chars={len(text)} elapsed={elapsed:.2f}s")
+                logger.info(
+                    "pdf text extracted",
+                    prefix=prefix,
+                    chars=len(text),
+                    elapsed=round(elapsed, 2),
+                )
                 self._emit(
                     job.document_id,
                     "text_extracted",
@@ -613,10 +677,11 @@ class IngestionQueue:
                 )
                 return text
 
-            if not _settings.conversion_pdf_ocr_enabled:
+            if not pdf_ocr_enabled:
                 logger.warning(
-                    f"{prefix} pdf has no embedded text and OCR is disabled by configuration",
-                    ocr_enabled=_settings.conversion_pdf_ocr_enabled,
+                    "pdf has no embedded text and OCR is disabled by configuration",
+                    prefix=prefix,
+                    ocr_enabled=pdf_ocr_enabled,
                 )
                 raise ValueError(
                     "PDF contains no embedded text and OCR is disabled by configuration. "
@@ -637,14 +702,13 @@ class IngestionQueue:
                 tmp.write(file_data)
                 tmp.close()
                 logger.info(
-                    f"{prefix} docling converter start",
+                    "docling converter start",
+                    prefix=prefix,
                     suffix=suffix,
-                    timeout=_settings.conversion_timeout,
-                    pdf_ocr_enabled=_settings.conversion_pdf_ocr_enabled,
+                    timeout=conversion_timeout,
+                    pdf_ocr_enabled=pdf_ocr_enabled,
                 )
-                converter = _get_docling_converter(
-                    pdf_ocr_enabled=_settings.conversion_pdf_ocr_enabled
-                )
+                converter = _get_docling_converter(pdf_ocr_enabled=pdf_ocr_enabled)
                 return converter.convert(tmp.name), tmp.name
             except Exception:
                 tmp.close()
@@ -654,18 +718,16 @@ class IngestionQueue:
         try:
             result, tmp_path = await asyncio.wait_for(
                 asyncio.to_thread(_write_and_convert),
-                timeout=_settings.conversion_timeout,
+                timeout=conversion_timeout,
             )
         except TimeoutError as e:
-            raise ValueError(
-                f"Document conversion timed out after {_settings.conversion_timeout}s"
-            ) from e
+            raise ValueError(f"Document conversion timed out after {conversion_timeout}s") from e
         finally:
             if tmp_path:
                 Path(tmp_path).unlink(missing_ok=True)
 
         elapsed = time.monotonic() - t0
-        logger.info(f"{prefix} docling conversion elapsed={elapsed:.2f}s")
+        logger.info("docling conversion complete", prefix=prefix, elapsed=round(elapsed, 2))
         self._emit(
             job.document_id,
             "converted",
@@ -680,7 +742,7 @@ class IngestionQueue:
         if not text.strip():
             raise ValueError("Document produced no extractable text")
 
-        logger.info(f"{prefix} text extracted chars={len(text)}")
+        logger.info("text extracted", prefix=prefix, chars=len(text))
         self._emit(
             job.document_id,
             "text_extracted",
@@ -694,7 +756,6 @@ class IngestionQueue:
 
     async def _chunk_and_embed(self, job: IngestionJob, text: str, prefix: str) -> tuple[int, int]:
 
-        from bigrag.config import settings as _settings
         from bigrag.exceptions import ValidationError
         from bigrag.services.collection_config import get_embedding_model_for
         from bigrag.services.ingestion import chunk_document
@@ -706,7 +767,7 @@ class IngestionQueue:
         t0 = time.monotonic()
         from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
 
-        logger.info(f"{prefix} loading collection config", collection=job.collection_name)
+        logger.info("loading collection config", prefix=prefix, collection=job.collection_name)
         collection = await get_collection_or_404(job.collection_name)
         try:
             embedding_model = get_embedding_model_for(collection)
@@ -714,8 +775,11 @@ class IngestionQueue:
             raise ValueError(str(exc)) from exc
         elapsed = time.monotonic() - t0
         logger.info(
-            f"{prefix} model loaded provider={job.embedding_provider} "
-            f"model={job.embedding_model} elapsed={elapsed:.2f}s"
+            "model loaded",
+            prefix=prefix,
+            provider=job.embedding_provider,
+            model=job.embedding_model,
+            elapsed=round(elapsed, 2),
         )
         self._emit(
             job.document_id,
@@ -739,7 +803,7 @@ class IngestionQueue:
         )
         if not chunks:
             raise ValueError("Document produced no chunks")
-        logger.info(f"{prefix} chunked into {len(chunks)} chunks (strategy={strategy})")
+        logger.info("document chunked", prefix=prefix, chunks=len(chunks), strategy=strategy)
         self._emit(
             job.document_id,
             "chunked",
@@ -753,7 +817,8 @@ class IngestionQueue:
 
         await self._ensure_job_current(job)
         logger.info(
-            f"{prefix} ensuring vector collection",
+            "ensuring vector collection",
+            prefix=prefix,
             collection=job.collection_name,
             dimension=job.embedding_dimension,
         )
@@ -764,7 +829,9 @@ class IngestionQueue:
         )
         await self._ensure_job_current(job)
 
-        batch_size = _settings.ingestion_batch_size
+        from bigrag.services.runtime_settings import get_value
+
+        batch_size = await get_value("ingestion_batch_size")
         total_inserted = 0
         total_batches = (len(chunks) + batch_size - 1) // batch_size
         doc = job.document_id
@@ -787,7 +854,10 @@ class IngestionQueue:
                 try:
                     t0 = time.monotonic()
                     logger.info(
-                        f"{prefix} batch {batch_num}/{total_batches} embedding start",
+                        "batch embedding start",
+                        prefix=prefix,
+                        batch=batch_num,
+                        total_batches=total_batches,
                         chunks=len(batch_texts),
                         attempt=attempt,
                     )
@@ -809,7 +879,10 @@ class IngestionQueue:
                         {"char_start": c.char_start, "char_end": c.char_end} for c in batch_chunks
                     ]
                     logger.info(
-                        f"{prefix} batch {batch_num}/{total_batches} vector insert start",
+                        "batch vector insert start",
+                        prefix=prefix,
+                        batch=batch_num,
+                        total_batches=total_batches,
                         chunks=len(batch_texts),
                     )
                     count = await vector_store.insert(
@@ -833,24 +906,38 @@ class IngestionQueue:
                 except Exception as exc:
                     if attempt >= max_batch_retries:
                         logger.error(
-                            f"{prefix} batch {batch_num}/{total_batches} exhausted "
-                            f"retries, skipping {len(batch_texts)} chunks: {exc!r}"
+                            "batch exhausted retries",
+                            prefix=prefix,
+                            batch=batch_num,
+                            total_batches=total_batches,
+                            chunks=len(batch_texts),
+                            error=repr(exc),
                         )
                         count = 0
                         break
                     delay = batch_backoff_base**attempt
                     logger.warning(
-                        f"{prefix} batch {batch_num}/{total_batches} attempt "
-                        f"{attempt}/{max_batch_retries} failed ({exc!r}), "
-                        f"retrying in {delay}s"
+                        "batch attempt failed",
+                        prefix=prefix,
+                        batch=batch_num,
+                        total_batches=total_batches,
+                        attempt=attempt,
+                        max_attempts=max_batch_retries,
+                        error=repr(exc),
+                        retrying_in=delay,
                     )
                     await asyncio.sleep(delay)
             total_inserted += count
 
             progress = 0.45 + (0.45 * batch_num / total_batches)
             logger.info(
-                f"{prefix} batch {batch_num}/{total_batches} inserted={count} "
-                f"embed={embed_elapsed:.2f}s insert={insert_elapsed:.2f}s"
+                "batch inserted",
+                prefix=prefix,
+                batch=batch_num,
+                total_batches=total_batches,
+                inserted=count,
+                embed_elapsed=round(embed_elapsed, 2),
+                insert_elapsed=round(insert_elapsed, 2),
             )
             self._emit(
                 doc,
@@ -891,7 +978,12 @@ class IngestionQueue:
         doc = job.document_id
 
         await self._redis.hincrby(STATS_KEY, "processing", 1)
-        logger.info(f"{prefix} starting attempt={job.attempt}/{job.max_attempts}")
+        logger.info(
+            "job starting",
+            prefix=prefix,
+            attempt=job.attempt,
+            max_attempts=job.max_attempts,
+        )
         self._emit(
             doc,
             "queued",
@@ -950,7 +1042,12 @@ class IngestionQueue:
             total_elapsed = time.monotonic() - start_time
             await self._redis.hincrby(STATS_KEY, "completed", 1)
             await self._redis.hincrby(STATS_KEY, "processing", -1)
-            logger.info(f"{prefix} complete chunks={total_inserted} elapsed={total_elapsed:.2f}s")
+            logger.info(
+                "job complete",
+                prefix=prefix,
+                chunks=total_inserted,
+                elapsed=round(total_elapsed, 2),
+            )
             self._emit(
                 doc,
                 "complete",
@@ -967,8 +1064,12 @@ class IngestionQueue:
             total_elapsed = time.monotonic() - start_time
             await self._redis.hincrby(STATS_KEY, "processing", -1)
             logger.error(
-                f"{prefix} failed attempt={job.attempt}/{job.max_attempts} "
-                f"error={e!r} elapsed={total_elapsed:.2f}s"
+                "job failed",
+                prefix=prefix,
+                attempt=job.attempt,
+                max_attempts=job.max_attempts,
+                error=repr(e),
+                elapsed=round(total_elapsed, 2),
             )
 
             is_permanent = isinstance(e, _PERMANENT_ERRORS)
@@ -978,7 +1079,9 @@ class IngestionQueue:
                     await vector_store.delete_by_document(job.collection_name, doc)
                 except Exception as cleanup_err:
                     logger.warning(
-                        f"{prefix} failed to clean up cancelled vectors: {cleanup_err!r}"
+                        "failed to clean up cancelled vectors",
+                        prefix=prefix,
+                        error=repr(cleanup_err),
                     )
                 await _update_doc(status="failed", error_message=str(e))
                 self._emit(
@@ -994,7 +1097,11 @@ class IngestionQueue:
                 try:
                     await vector_store.delete_by_document(job.collection_name, doc)
                 except Exception as cleanup_err:
-                    logger.warning(f"{prefix} failed to clean up partial vectors: {cleanup_err!r}")
+                    logger.warning(
+                        "failed to clean up partial vectors",
+                        prefix=prefix,
+                        error=repr(cleanup_err),
+                    )
 
                 delay = min(2**job.attempt, 30)
                 self._emit(
@@ -1021,7 +1128,7 @@ class IngestionQueue:
                 await self._redis.lpush(DEAD_LETTER_KEY, job.serialize())
                 await self._redis.ltrim(DEAD_LETTER_KEY, 0, 999)
                 await _update_doc(status="failed", error_message=str(e))
-                logger.error(f"{prefix} permanently failed: {reason}")
+                logger.error("job permanently failed", prefix=prefix, reason=reason)
                 self._emit(
                     doc,
                     "failed",

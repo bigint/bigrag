@@ -122,7 +122,7 @@ async def create_api_key(
     await session.commit()
     await session.refresh(key)
 
-    logger.info(f"API key created: id={key.id} name={body.name} by={admin['email']}")
+    logger.info("api key created", id=str(key.id), name=body.name, actor=admin["email"])
     audit.record(
         request,
         user=admin,
@@ -220,7 +220,7 @@ async def delete_api_key(
     await session.commit()
     await invalidate_api_key_principal(deleted_hash)
 
-    logger.info(f"API key deleted: id={key_id} by={admin['email']}")
+    logger.info("api key deleted", id=key_id, actor=admin["email"])
     audit.record(
         request,
         user=admin,

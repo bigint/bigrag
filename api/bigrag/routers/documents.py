@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Reques
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.config import settings
 from bigrag.db.models import Document
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
@@ -34,6 +33,7 @@ from bigrag.routers._documents import (
     SUPPORTED_EXTENSIONS,
     UploadBudget,
     assert_collection_pin_matches,
+    content_hash_match,
     document_progress_response,
     document_response,
     get_document_with_collection,
@@ -49,6 +49,7 @@ from bigrag.services.file_validation import InvalidFileContentError, validate_up
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
+from bigrag.services.runtime_settings import get_values
 from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
 
@@ -144,7 +145,7 @@ async def upload_document(
         get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    logger.info(f"upload: collection={collection_name} file={file.filename}")
+    logger.info("document upload", collection=collection_name, filename=file.filename)
 
     file_ext = Path(file.filename or "").suffix.lower()
     if file_ext and file_ext not in SUPPORTED_EXTENSIONS:
@@ -156,12 +157,14 @@ async def upload_document(
             ),
         )
 
-    max_size = settings.max_upload_size_mb * 1024 * 1024
+    upload_limits = await get_values(["max_upload_size_mb"])
+    max_upload_size_mb = upload_limits["max_upload_size_mb"]
+    max_size = max_upload_size_mb * 1024 * 1024
     content_length = request.headers.get("content-length")
     if content_length and int(content_length) > max_size:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large. Max size: {settings.max_upload_size_mb}MB",
+            detail=f"File too large. Max size: {max_upload_size_mb}MB",
         )
 
     content = await read_upload_content(file, max_size=max_size)
@@ -180,12 +183,7 @@ async def upload_document(
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
 
     content_hash = hashlib.sha256(content).hexdigest()
-    existing = await session.scalar(
-        sa.select(Document)
-        .where(Document.collection_id == collection["id"])
-        .where(Document.content_hash == content_hash)
-        .limit(1)
-    )
+    existing = await session.scalar(content_hash_match(collection, content_hash, meta))
     if existing is not None:
         logger.info(
             "upload: dedup hit — returning existing doc",
@@ -378,7 +376,7 @@ async def reprocess_document(
     return StatusResponse(status="ok", message="Document reprocessing started")
 
 
-@router.get("/{document_id}/chunks")
+@router.get("/{document_id}/chunks", response_model=dict[str, object])
 async def get_document_chunks(
     collection_name: str,
     document_id: str,
@@ -386,7 +384,7 @@ async def get_document_chunks(
     offset: int = Query(default=0, ge=0),
     _: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
-):
+) -> dict[str, object]:
     collection = await get_collection_or_404(collection_name)
     exists = await session.scalar(
         sa.select(Document.id)
@@ -405,7 +403,7 @@ async def get_document_chunks(
     return {"chunks": chunks, "total": total}
 
 
-@router.get("/{document_id}/file")
+@router.get("/{document_id}/file", response_class=Response)
 async def download_document_file(
     collection_name: str,
     document_id: str,
@@ -483,13 +481,16 @@ async def batch_upload_documents(
     if len(files) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 files per batch upload")
 
-    max_size = settings.max_upload_size_mb * 1024 * 1024
-    batch_max_size = settings.max_batch_upload_size_mb * 1024 * 1024
+    upload_limits = await get_values(["max_upload_size_mb", "max_batch_upload_size_mb"])
+    max_upload_size_mb = upload_limits["max_upload_size_mb"]
+    max_batch_upload_size_mb = upload_limits["max_batch_upload_size_mb"]
+    max_size = max_upload_size_mb * 1024 * 1024
+    batch_max_size = max_batch_upload_size_mb * 1024 * 1024
     content_length = request.headers.get("content-length")
     if content_length and int(content_length) > batch_max_size:
         raise HTTPException(
             status_code=413,
-            detail=f"Batch upload too large. Max size: {settings.max_batch_upload_size_mb}MB",
+            detail=f"Batch upload too large. Max size: {max_batch_upload_size_mb}MB",
         )
     budget = UploadBudget(batch_max_size)
     try:
@@ -533,10 +534,7 @@ async def batch_upload_documents(
         existing = seen_by_hash.get(content_hash)
         if existing is None:
             existing = await session.scalar(
-                sa.select(Document)
-                .where(Document.collection_id == collection["id"])
-                .where(Document.content_hash == content_hash)
-                .limit(1)
+                content_hash_match(collection, content_hash, shared_meta)
             )
             if existing is not None:
                 seen_by_hash[content_hash] = existing
@@ -566,7 +564,7 @@ async def batch_upload_documents(
             document_response(doc, progress=await _document_progress(doc, collection_name))
         )
 
-    logger.info(f"batch_upload: collection={collection_name} files={len(created)}")
+    logger.info("batch upload", collection=collection_name, files=len(created))
     audit.record(
         request,
         user=user,
@@ -642,7 +640,10 @@ async def batch_get_documents(
         document_response(d, progress=await _document_progress(d, collection_name)) for d in docs
     ]
     logger.info(
-        f"batch_get: collection={collection_name} requested={len(uuids)} found={len(documents)}"
+        "batch get",
+        collection=collection_name,
+        requested=len(uuids),
+        found=len(documents),
     )
     return BatchGetResponse(documents=documents, total=len(documents))
 
@@ -681,9 +682,9 @@ async def batch_delete_documents(
             await vector_store.delete_by_document(collection_name, doc_id)
             await get_storage().delete(doc.file_path)
             return True
-        except Exception as e:
-            logger.error(f"batch_delete: failed to delete doc={doc_id}: {e!r}")
-            errors.append({"document_id": doc_id, "error": str(e)})
+        except Exception as exc:
+            logger.error("batch delete failed", document_id=doc_id, error=repr(exc))
+            errors.append({"document_id": doc_id, "error": str(exc)})
             return False
 
     await ingestion_queue.cancel_documents(list(by_id))
@@ -698,9 +699,7 @@ async def batch_delete_documents(
     await collection_cache.invalidate(collection_name)
     await invalidate_collection_query_cache(collection_name)
 
-    logger.info(
-        f"batch_delete: collection={collection_name} deleted={deleted} errors={len(errors)}"
-    )
+    logger.info("batch delete", collection=collection_name, deleted=deleted, errors=len(errors))
     audit.record(
         request,
         user=user,

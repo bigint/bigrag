@@ -165,3 +165,94 @@ pub struct BatchDeleteError {
     /// Error description.
     pub error: String,
 }
+
+/// Request body for creating an upload session.
+#[derive(Debug, Clone, Serialize)]
+pub struct UploadSessionCreateRequest {
+    /// Number of files expected in the session.
+    pub total_files: u32,
+    /// Aggregate expected upload size in bytes.
+    pub total_bytes: u64,
+    /// Metadata applied to every document created by the session.
+    #[serde(default)]
+    pub metadata: serde_json::Value,
+}
+
+/// One file tracked by an upload session.
+#[derive(Debug, Clone, Deserialize)]
+pub struct UploadSessionItem {
+    /// Upload-session item ID.
+    pub id: String,
+    /// Client-supplied idempotency key for this file.
+    pub client_item_id: String,
+    /// Document created or reused for this file.
+    pub document_id: Option<String>,
+    /// Uploaded filename.
+    pub filename: String,
+    /// Uploaded file extension without the leading dot.
+    pub file_type: String,
+    /// Uploaded file size in bytes.
+    pub file_size: u64,
+    /// SHA-256 content hash.
+    pub content_hash: Option<String>,
+    /// Effective item status.
+    pub status: String,
+    /// Linked document status when available.
+    pub document_status: Option<String>,
+    /// Failure message when the item failed.
+    pub error_message: Option<String>,
+    /// Creation timestamp.
+    pub created_at: String,
+    /// Last update timestamp.
+    pub updated_at: String,
+}
+
+/// Aggregate state for a resumable upload session.
+#[derive(Debug, Clone, Deserialize)]
+pub struct UploadSession {
+    /// Upload session ID.
+    pub id: String,
+    /// Collection ID.
+    pub collection_id: String,
+    /// Collection name.
+    pub collection_name: String,
+    /// Session status.
+    pub status: String,
+    /// Expected file count.
+    pub total_files: u32,
+    /// Expected aggregate size in bytes.
+    pub total_bytes: u64,
+    /// Number of files received by the API.
+    pub uploaded_files: u32,
+    /// Files queued for ingestion.
+    pub queued_files: u32,
+    /// Files currently processing.
+    pub processing_files: u32,
+    /// Files that finished ingestion.
+    pub completed_files: u32,
+    /// Files that failed upload or ingestion.
+    pub failed_files: u32,
+    /// Files canceled by the session.
+    pub canceled_files: u32,
+    /// Files still active in the queue or workers.
+    pub active_files: u32,
+    /// Recent active or failed items.
+    pub recent_items: Vec<UploadSessionItem>,
+    /// Session-level document metadata.
+    pub metadata: serde_json::Value,
+    /// Creation timestamp.
+    pub created_at: String,
+    /// Last update timestamp.
+    pub updated_at: String,
+    /// Close timestamp for terminal sessions.
+    pub closed_at: Option<String>,
+}
+
+/// Response from uploading one file into a session.
+#[derive(Debug, Clone, Deserialize)]
+pub struct UploadSessionFileResponse {
+    /// File item result.
+    pub item: UploadSessionItem,
+    /// Updated session aggregate.
+    pub session: UploadSession,
+}

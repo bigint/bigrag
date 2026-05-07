@@ -6,7 +6,6 @@ import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.config import settings
 from bigrag.db.models import Webhook, WebhookDelivery
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
@@ -18,11 +17,13 @@ from bigrag.models.webhook import (
     UpdateWebhookRequest,
     WebhookDeliveryListResponse,
     WebhookDeliveryResponse,
+    WebhookListResponse,
     WebhookResponse,
     WebhookTestResponse,
     resolve_and_validate_url,
 )
 from bigrag.services import audit
+from bigrag.services.runtime_settings import get_value
 from bigrag.services.webhook import generate_secret, webhook_dispatcher
 
 logger = get_logger("bigrag.routers.webhooks")
@@ -89,7 +90,7 @@ async def create_webhook(
     session: AsyncSession = Depends(get_session),
 ):
     count = await session.scalar(sa.select(sa.func.count()).select_from(Webhook))
-    max_count = settings.webhook_max_count
+    max_count = await get_value("webhook_max_count")
     if (count or 0) >= max_count:
         raise HTTPException(
             status_code=400,
@@ -111,7 +112,7 @@ async def create_webhook(
     await session.commit()
     await session.refresh(wh)
 
-    logger.info(f"Webhook created: id={wh.id} url={body.url} events={body.events}")
+    logger.info("webhook created", id=str(wh.id), url=body.url, events=body.events)
     audit.record(
         request,
         user=admin,
@@ -125,7 +126,7 @@ async def create_webhook(
     return CreateWebhookResponse(**base.model_dump(), secret=secret)
 
 
-@router.get("")
+@router.get("", response_model=WebhookListResponse)
 async def list_webhooks(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
@@ -137,7 +138,7 @@ async def list_webhooks(
             sa.select(Webhook).order_by(Webhook.created_at.desc()).limit(limit).offset(offset)
         )
     ).all()
-    return {"webhooks": [_webhook_response(w) for w in webhooks]}
+    return WebhookListResponse(webhooks=[_webhook_response(w) for w in webhooks])
 
 
 @router.get("/{webhook_id}", response_model=WebhookResponse)
@@ -185,7 +186,7 @@ async def update_webhook(
     await session.commit()
     await session.refresh(wh)
 
-    logger.info(f"Webhook updated: id={webhook_id}")
+    logger.info("webhook updated", id=webhook_id)
     audit.record(
         request,
         user=admin,
@@ -211,7 +212,7 @@ async def delete_webhook(
     deleted_url = wh.url
     await session.delete(wh)
     await session.commit()
-    logger.info(f"Webhook deleted: id={webhook_id}")
+    logger.info("webhook deleted", id=webhook_id)
     audit.record(
         request,
         user=admin,

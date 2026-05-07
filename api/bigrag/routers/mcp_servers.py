@@ -182,8 +182,11 @@ async def create_mcp_server(
     await session.refresh(key)
 
     logger.info(
-        f"MCP server created: id={key.id} server_name={body.server_name} "
-        f"collection={collection or '-'} by={admin['email']}"
+        "mcp server created",
+        id=str(key.id),
+        server_name=body.server_name,
+        collection=collection,
+        actor=admin["email"],
     )
     audit.record(
         request,
@@ -293,7 +296,7 @@ async def rotate_mcp_server_key(
     await session.refresh(key)
     await invalidate_api_key_principal(previous_hash)
 
-    logger.info(f"MCP server rotated: id={key.id} by={admin['email']}")
+    logger.info("mcp server rotated", id=str(key.id), actor=admin["email"])
     audit.record(
         request,
         user=admin,
@@ -329,7 +332,7 @@ async def delete_mcp_server(
     await session.commit()
     await invalidate_api_key_principal(deleted_hash)
 
-    logger.info(f"MCP server deleted: id={server_id} by={admin['email']}")
+    logger.info("mcp server deleted", id=server_id, actor=admin["email"])
     audit.record(
         request,
         user=admin,

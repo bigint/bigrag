@@ -45,6 +45,17 @@ class Session(Base):
     created_at: Mapped[TS]
 
 
+class InstanceSetting(Base):
+    __tablename__ = "instance_settings"
+
+    key: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    value: Mapped[dict | list | str | int | float | bool | None] = mapped_column(JSONB)
+    secret_value: Mapped[str | None] = mapped_column(EncryptedString)
+    updated_by: Mapped[UUID | None] = mapped_column(sa.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[TS]
+    updated_at: Mapped[TSupd]
+
+
 class ApiKey(Base):
     __tablename__ = "api_keys"
     __table_args__ = (
@@ -164,6 +175,135 @@ class Document(Base):
     meta: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
     )
+    created_at: Mapped[TS]
+    updated_at: Mapped[TSupd]
+
+
+class UploadSession(Base):
+    __tablename__ = "upload_sessions"
+    __table_args__ = (
+        sa.Index("idx_upload_sessions_collection_created", "collection_id", "created_at"),
+        sa.Index("idx_upload_sessions_status", "status"),
+        sa.CheckConstraint(
+            "status IN ('preparing', 'uploading', 'ingesting', 'complete', 'failed', 'canceled')",
+            name="upload_sessions_status_check",
+        ),
+    )
+
+    id: Mapped[UUIDpk]
+    collection_id: Mapped[UUID] = mapped_column(
+        sa.ForeignKey("collections.id", ondelete="CASCADE"), nullable=False
+    )
+    collection_name: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    status: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="preparing")
+    total_files: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    total_bytes: Mapped[int] = mapped_column(
+        sa.BigInteger, nullable=False, server_default=sa.text("0")
+    )
+    uploaded_files: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    queued_files: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    completed_files: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    failed_files: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    canceled_files: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    created_by: Mapped[UUID | None] = mapped_column(sa.ForeignKey("users.id", ondelete="SET NULL"))
+    closed_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    meta: Mapped[dict] = mapped_column(
+        "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
+    )
+    created_at: Mapped[TS]
+    updated_at: Mapped[TSupd]
+
+
+class UploadSessionItem(Base):
+    __tablename__ = "upload_session_items"
+    __table_args__ = (
+        sa.Index("idx_upload_session_items_session", "session_id"),
+        sa.Index("idx_upload_session_items_document", "document_id"),
+        sa.Index("idx_upload_session_items_status", "status"),
+        sa.UniqueConstraint("session_id", "client_item_id", name="uq_upload_items_session_client"),
+        sa.CheckConstraint(
+            "status IN ('queued', 'complete', 'failed', 'canceled')",
+            name="upload_session_items_status_check",
+        ),
+    )
+
+    id: Mapped[UUIDpk]
+    session_id: Mapped[UUID] = mapped_column(
+        sa.ForeignKey("upload_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    client_item_id: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    document_id: Mapped[UUID | None] = mapped_column(
+        sa.ForeignKey("documents.id", ondelete="SET NULL")
+    )
+    filename: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    file_type: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
+    file_size: Mapped[int] = mapped_column(
+        sa.BigInteger, nullable=False, server_default=sa.text("0")
+    )
+    content_hash: Mapped[str | None] = mapped_column(sa.Text)
+    storage_key: Mapped[str | None] = mapped_column(sa.Text)
+    status: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="queued")
+    error_message: Mapped[str | None] = mapped_column(sa.Text)
+    created_at: Mapped[TS]
+    updated_at: Mapped[TSupd]
+
+
+class MaintenanceLock(Base):
+    __tablename__ = "maintenance_locks"
+    __table_args__ = (sa.Index("idx_maintenance_locks_expires_at", "expires_at"),)
+
+    name: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    owner_id: Mapped[UUID | None] = mapped_column(sa.Uuid)
+    reason: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
+    expires_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    meta: Mapped[dict] = mapped_column(
+        "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
+    )
+    created_at: Mapped[TS]
+    updated_at: Mapped[TSupd]
+
+
+class BackupJob(Base):
+    __tablename__ = "backup_jobs"
+    __table_args__ = (
+        sa.Index("idx_backup_jobs_created_at", "created_at"),
+        sa.Index("idx_backup_jobs_status", "status"),
+        sa.CheckConstraint(
+            "status IN ('pending', 'running', 'succeeded', 'failed')",
+            name="backup_jobs_status_check",
+        ),
+    )
+
+    id: Mapped[UUIDpk]
+    label: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
+    status: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="pending")
+    progress: Mapped[float] = mapped_column(sa.Double, nullable=False, server_default=sa.text("0"))
+    destination_prefix: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
+    object_count: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    byte_count: Mapped[int] = mapped_column(
+        sa.BigInteger, nullable=False, server_default=sa.text("0")
+    )
+    manifest: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
+    )
+    error_message: Mapped[str | None] = mapped_column(sa.Text)
+    created_by: Mapped[UUID | None] = mapped_column(sa.ForeignKey("users.id", ondelete="SET NULL"))
+    started_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
     created_at: Mapped[TS]
     updated_at: Mapped[TSupd]
 

@@ -1,0 +1,107 @@
+---
+title: Backups
+description: Admin endpoints for readable S3-compatible full-instance backups.
+---
+
+Readable backups export Postgres rows, Qdrant points, and uploaded source files to an S3-compatible bucket. They are backup-only; bigRAG does not expose restore endpoints.
+
+Backups are plain JSON, JSONL, SQL, and raw files. They are not client-side encrypted, so the destination bucket must be treated as sensitive.
+
+Base path: `/v1/admin/backups`
+
+## List backups
+
+```http
+GET /v1/admin/backups
+```
+
+Query parameters:
+
+| Name | Type | Default | Notes |
+|------|------|---------|-------|
+| `limit` | integer | `20` | 1-100 |
+| `offset` | integer | `0` | Pagination offset |
+
+Response:
+
+```json
+{
+  "jobs": [
+    {
+      "id": "9f4d2c2e-2a41-4de4-9b14-7e6b1d6b7d7b",
+      "label": "Before model migration",
+      "status": "succeeded",
+      "progress": 1,
+      "destination_prefix": "prod/backups/9f4d2c2e-2a41-4de4-9b14-7e6b1d6b7d7b",
+      "object_count": 42,
+      "byte_count": 1048576,
+      "manifest": {},
+      "error_message": null,
+      "created_by": "8a80d21f-0e1a-4d18-93ae-4d2c1b5ed5f4",
+      "started_at": "2026-05-07T10:00:00Z",
+      "completed_at": "2026-05-07T10:01:12Z",
+      "created_at": "2026-05-07T10:00:00Z",
+      "updated_at": "2026-05-07T10:01:12Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+## Get backup
+
+```http
+GET /v1/admin/backups/{backup_id}
+```
+
+Returns one backup job or `404` if it does not exist.
+
+## Start backup
+
+```http
+POST /v1/admin/backups
+Content-Type: application/json
+
+{ "label": "Before model migration" }
+```
+
+Creates a backup job and starts it in the API process. Only one backup can be pending or running at a time.
+
+While the job runs, bigRAG acquires a maintenance lock. Mutating API requests are rejected with `423`, new ingestion jobs are rejected, workers pause before dequeuing new jobs, and scheduled Google Drive syncs do not start.
+
+The backup fails if:
+
+- The backup bucket settings are incomplete or invalid.
+- Qdrant cannot be reached.
+- A stored upload file referenced by a document row is missing.
+- An encrypted field or embedding-cache vector cannot be decoded.
+
+## Realtime stream
+
+```http
+GET /v1/admin/realtime/backups
+```
+
+Session-cookie SSE stream used by the admin UI. Each `snapshot` payload has the same shape as `GET /v1/admin/backups`.
+
+## Object layout
+
+Each backup is written below:
+
+```txt
+{backup_s3_prefix}/backups/{backup_id}/
+```
+
+Objects:
+
+```txt
+manifest.json
+checksums.json
+postgres/schema.sql
+postgres/tables/{table}.jsonl
+qdrant/collections.json
+qdrant/points/{collection_name}.jsonl
+uploads/{collection}/{document_id}.{ext}
+```
+
+`manifest.json` includes the app version, format version, generated timestamp, destination details without secrets, table counts, vector counts, upload counts, object count, byte count, and `"encryption": "none"`.

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, CircleAlert, FileText, Trash2, Upload, X } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { CheckCircle2, CircleAlert, FileText, FolderOpen, Trash2, Upload, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,15 +10,16 @@ import { Empty } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { useCollection } from "@/hooks/use-collections";
 import {
-  useBatchDocumentProgress,
+  useCancelUploadSession,
   useDeleteDocument,
   useDocuments,
-  useUploadDocuments,
+  useUploadSession,
+  useUploadSessionDocuments,
 } from "@/hooks/use-documents";
 import { cn } from "@/lib/cn";
 import { acceptAttribute, filterBlockedFiles, getAllowedFileTypes } from "@/lib/file-types";
 import { formatBytes, formatRelative } from "@/lib/format";
-import type { Document, DocumentStatus } from "@/types/bigrag";
+import type { DocumentStatus, UploadSession } from "@/types/bigrag";
 
 export const Route = createFileRoute("/_dashboard/collections/$name/documents/")({
   component: () => <DocumentsTab />,
@@ -34,19 +35,34 @@ const statusVariant: Record<DocumentStatus, "success" | "warning" | "info" | "er
 const DocumentsTab = () => {
   const { name: rawName } = Route.useParams();
   const name = decodeURIComponent(rawName);
+  const sessionStorageKey = useMemo(() => `bigrag:upload-session:${name}`, [name]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : window.localStorage.getItem(sessionStorageKey),
+  );
 
   const { data: collection } = useCollection(name);
   const { data, isPending } = useDocuments(name);
-  const upload = useUploadDocuments(name);
+  const uploadSession = useUploadSession(name, activeSessionId);
+  const upload = useUploadSessionDocuments(name, {
+    onSessionStart: (session) => setActiveSessionId(session.id),
+  });
+  const cancelSession = useCancelUploadSession(name);
   const remove = useDeleteDocument(name);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const folderInput = useRef<HTMLInputElement>(null);
   const [deleteDoc, setDeleteDoc] = useState<{ id: string; filename: string } | null>(null);
-  const [batchDocuments, setBatchDocuments] = useState<Document[]>([]);
-  const batchProgress = useBatchDocumentProgress(name, batchDocuments);
 
   const allowed = getAllowedFileTypes(collection?.metadata);
   const accept = acceptAttribute(allowed);
+
+  useEffect(() => {
+    if (!activeSessionId) {
+      window.localStorage.removeItem(sessionStorageKey);
+      return;
+    }
+    window.localStorage.setItem(sessionStorageKey, activeSessionId);
+  }, [activeSessionId, sessionStorageKey]);
 
   const onFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -59,9 +75,20 @@ const DocumentsTab = () => {
         );
       }
       if (accepted.length) {
+        const duplicateCount = countDuplicateNames(accepted);
+        if (duplicateCount) {
+          toast.info(
+            `${duplicateCount} duplicate filename${duplicateCount === 1 ? "" : "s"} selected`,
+          );
+        }
+        const totalSize = accepted.reduce((sum, file) => sum + file.size, 0);
+        toast.info(
+          `${accepted.length} file${accepted.length === 1 ? "" : "s"} selected (${formatBytes(totalSize)})`,
+        );
         const res = await upload.mutateAsync(accepted);
-        setBatchDocuments(res.documents);
+        setActiveSessionId(res.session.id);
         if (fileInput.current) fileInput.current.value = "";
+        if (folderInput.current) folderInput.current.value = "";
       }
     },
     [upload, allowed],
@@ -79,8 +106,8 @@ const DocumentsTab = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <label
-        htmlFor="doc-upload"
+      <fieldset
+        aria-label="Document upload"
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -88,18 +115,35 @@ const DocumentsTab = () => {
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={cn(
-          "flex cursor-pointer items-center justify-center gap-3 rounded-xl border border-dashed px-6 py-8 text-sm",
+          "flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed px-6 py-8 text-sm",
           "border-border bg-card hover:border-primary hover:bg-accent/50",
           dragging && "border-primary bg-accent",
           upload.isPending && "pointer-events-none opacity-60",
         )}
       >
-        <Upload className="size-5 text-muted-foreground" />
-        <div className="flex flex-col items-center gap-0.5 text-center">
-          <span className="font-medium">
-            {upload.isPending ? "Uploading…" : "Drop files or click to upload"}
-          </span>
-          <span className="text-xs text-muted-foreground">{acceptedDescription}</span>
+        <div className="flex items-center gap-3">
+          <Upload className="size-5 text-muted-foreground" />
+          <div className="flex flex-col items-start gap-0.5">
+            <span className="font-medium">
+              {upload.isPending ? "Uploading…" : "Drop files here"}
+            </span>
+            <span className="text-xs text-muted-foreground">{acceptedDescription}</span>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Button disabled={upload.isPending} onClick={() => fileInput.current?.click()} size="sm">
+            <Upload className="size-4" />
+            Files
+          </Button>
+          <Button
+            disabled={upload.isPending}
+            onClick={() => folderInput.current?.click()}
+            size="sm"
+            variant="secondary"
+          >
+            <FolderOpen className="size-4" />
+            Folder
+          </Button>
         </div>
         <input
           ref={fileInput}
@@ -110,10 +154,34 @@ const DocumentsTab = () => {
           accept={accept}
           onChange={(e) => e.target.files && onFiles(e.target.files)}
         />
-      </label>
+        <input
+          ref={folderInput}
+          type="file"
+          multiple
+          className="sr-only"
+          accept={accept}
+          onChange={(e) => e.target.files && onFiles(e.target.files)}
+          {...{ webkitdirectory: "", directory: "" }}
+        />
+      </fieldset>
 
-      {batchProgress.total > 0 && (
-        <BatchProgressPanel onDismiss={() => setBatchDocuments([])} summary={batchProgress} />
+      {activeSessionId && uploadSession.data && (
+        <UploadSessionProgressPanel
+          loadingCancel={cancelSession.isPending}
+          onCancel={() => cancelSession.mutate(activeSessionId)}
+          onDismiss={() => setActiveSessionId(null)}
+          session={uploadSession.data}
+          streaming={uploadSession.streaming}
+        />
+      )}
+
+      {activeSessionId && !uploadSession.data && (
+        <Card className="overflow-hidden rounded-xl">
+          <CardContent className="flex items-center gap-3 p-4">
+            <Spinner size="sm" />
+            <span className="text-sm text-muted-foreground">Loading upload session…</span>
+          </CardContent>
+        </Card>
       )}
 
       {isPending ? (
@@ -216,38 +284,76 @@ const FileType = ({ type }: { type: string }) => (
   </div>
 );
 
-type BatchProgressSummary = ReturnType<typeof useBatchDocumentProgress>;
+const fileDisplayName = (file: File) =>
+  (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
 
-const batchProgressVariant = (
-  item: BatchProgressSummary["active"],
-): "success" | "warning" | "info" | "error" | "neutral" => {
-  if (!item) return "neutral";
-  if (item.status === "failed" || item.document_status === "failed") return "error";
-  if (item.status === "complete" || item.document_status === "ready") return "success";
-  if (item.status === "processing") return "info";
-  return "warning";
+const countDuplicateNames = (files: File[]) => {
+  const seen = new Set<string>();
+  let count = 0;
+  for (const file of files) {
+    const name = fileDisplayName(file);
+    if (seen.has(name)) count += 1;
+    seen.add(name);
+  }
+  return count;
 };
 
-const BatchProgressPanel = ({
+const sessionVariant = (
+  status: UploadSession["status"],
+): "success" | "warning" | "info" | "error" | "neutral" => {
+  if (status === "complete") return "success";
+  if (status === "failed") return "error";
+  if (status === "canceled") return "warning";
+  if (status === "ingesting" || status === "uploading") return "info";
+  return "neutral";
+};
+
+const itemVariant = (
+  status: UploadSession["recent_items"][number]["status"],
+): "success" | "warning" | "info" | "error" | "neutral" => {
+  if (status === "complete") return "success";
+  if (status === "failed") return "error";
+  if (status === "canceled") return "warning";
+  if (status === "ingesting") return "info";
+  return "neutral";
+};
+
+const sessionProgress = (session: UploadSession) => {
+  if (!session.total_files) return 0;
+  const weighted =
+    session.completed_files +
+    session.failed_files +
+    session.canceled_files +
+    session.processing_files * 0.6 +
+    session.queued_files * 0.25;
+  return Math.round(Math.max(0, Math.min(1, weighted / session.total_files)) * 100);
+};
+
+const UploadSessionProgressPanel = ({
+  loadingCancel,
+  onCancel,
   onDismiss,
-  summary,
+  session,
+  streaming,
 }: {
+  loadingCancel: boolean;
+  onCancel: () => void;
   onDismiss: () => void;
-  summary: BatchProgressSummary;
+  session: UploadSession;
+  streaming: boolean;
 }) => {
-  const active = summary.active;
-  const progressPct = Math.max(0, Math.min(100, summary.progress));
-  const remaining = Math.max(summary.total - summary.completedCount - summary.failedCount, 0);
-  const failedItems = summary.items.filter(
-    (item) => item.status === "failed" || item.document_status === "failed",
+  const progressPct = sessionProgress(session);
+  const remaining = Math.max(session.total_files - session.uploaded_files, 0);
+  const terminal =
+    session.status === "complete" || session.status === "failed" || session.status === "canceled";
+  const active = session.recent_items.find(
+    (item) => item.status === "queued" || item.status === "ingesting",
   );
-  const statusLabel = summary.done
-    ? summary.failedCount
+  const failedItems = session.recent_items.filter((item) => item.status === "failed");
+  const statusLabel =
+    session.status === "complete" && session.failed_files
       ? "finished with failures"
-      : "complete"
-    : summary.streaming
-      ? "streaming"
-      : "connecting";
+      : session.status;
 
   return (
     <Card className="overflow-hidden rounded-xl">
@@ -255,41 +361,56 @@ const BatchProgressPanel = ({
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-semibold">Batch ingest</span>
-              <Badge
-                dot
-                variant={summary.failedCount ? "error" : summary.done ? "success" : "info"}
-              >
+              <span className="text-sm font-semibold">Upload session</span>
+              <Badge dot variant={sessionVariant(session.status)}>
                 {statusLabel}
               </Badge>
             </div>
             <span className="text-xs text-muted-foreground">
-              {summary.total} file{summary.total === 1 ? "" : "s"} queued
+              {session.uploaded_files} of {session.total_files} file
+              {session.total_files === 1 ? "" : "s"} received
             </span>
           </div>
-          <Button
-            aria-label="Dismiss batch progress"
-            onClick={onDismiss}
-            size="icon"
-            variant="ghost"
-          >
-            <X className="size-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {!terminal && (
+              <Button
+                aria-label="Cancel upload session"
+                disabled={loadingCancel}
+                onClick={onCancel}
+                size="sm"
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+            )}
+            <Button
+              aria-label="Dismiss upload session"
+              onClick={onDismiss}
+              size="icon"
+              variant="ghost"
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <BatchMetric
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <SessionMetric
             icon={<CheckCircle2 className="size-3.5" />}
             label="Completed"
-            value={summary.completedCount}
+            value={session.completed_files}
           />
-          <BatchMetric
+          <SessionMetric
+            label="Ingesting"
+            value={session.processing_files + session.queued_files}
+          />
+          <SessionMetric label="Uploading" value={remaining} />
+          <SessionMetric
             icon={<CircleAlert className="size-3.5" />}
             label="Failed"
-            value={summary.failedCount}
-            variant={summary.failedCount ? "error" : "neutral"}
+            value={session.failed_files}
+            variant={session.failed_files ? "error" : "neutral"}
           />
-          <BatchMetric label="Remaining" value={remaining} />
         </div>
 
         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -302,13 +423,15 @@ const BatchProgressPanel = ({
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium">{active.filename}</div>
               <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
-                <Badge dot variant={batchProgressVariant(active)}>
-                  {active.step}
+                <Badge dot variant={itemVariant(active.status)}>
+                  {active.status}
                 </Badge>
-                <span className="truncate text-xs text-muted-foreground">{active.message}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {formatBytes(active.file_size)}
+                </span>
               </div>
             </div>
-            {!summary.done && summary.streaming && <Spinner size="sm" className="shrink-0" />}
+            {!terminal && streaming && <Spinner size="sm" className="shrink-0" />}
           </div>
         )}
 
@@ -319,7 +442,7 @@ const BatchProgressPanel = ({
                 <Badge variant="error">failed</Badge>
                 <span className="truncate font-medium">{item.filename}</span>
                 <span className="truncate text-destructive">
-                  {item.error_message ?? item.message}
+                  {item.error_message ?? "Upload failed"}
                 </span>
               </div>
             ))}
@@ -330,7 +453,7 @@ const BatchProgressPanel = ({
   );
 };
 
-const BatchMetric = ({
+const SessionMetric = ({
   icon,
   label,
   value,

@@ -1160,7 +1160,8 @@ async def sync_google_drive_job(job_id: str) -> None:
                         "google_drive: file sync failed",
                         source_id=str(source.id),
                         remote_id=remote.id,
-                        error=f"{exc.__class__.__name__}: {exc}",
+                        error_type=exc.__class__.__name__,
+                        error=str(exc),
                     )
                     counters.add_error(remote.id, remote.name, str(exc))
 
@@ -1437,6 +1438,10 @@ class GoogleDriveScheduler:
 
 
 async def run_due_google_syncs(limit: int = 10) -> int:
+    from bigrag.services.maintenance import is_active
+
+    if await is_active():
+        return 0
     job_ids: list[str] = []
     async with session_factory()() as session:
         rows = (

@@ -19,15 +19,15 @@ _RNG = secrets.SystemRandom()
 
 
 def _retry_delays() -> list[int]:
-    from bigrag.config import settings
+    from bigrag.services.runtime_settings import sync_value
 
-    return settings.webhook_retry_delays
+    return sync_value("webhook_retry_delays")
 
 
 def _delivery_timeout() -> int:
-    from bigrag.config import settings
+    from bigrag.services.runtime_settings import sync_value
 
-    return settings.webhook_delivery_timeout
+    return sync_value("webhook_delivery_timeout")
 
 
 _STEP_TO_EVENT = {
@@ -130,8 +130,8 @@ class WebhookDispatcher:
                     await self._handle_event(event)
                 except asyncio.CancelledError:
                     raise
-                except Exception as e:
-                    logger.error(f"Error handling event: {e!r}")
+                except Exception as exc:
+                    logger.error("error handling webhook event", error=repr(exc))
         finally:
             event_bus.unsubscribe("*", queue)
 
@@ -230,9 +230,12 @@ class WebhookDispatcher:
                 from bigrag.models.webhook import resolve_and_validate_url
 
                 await resolve_and_validate_url(webhook["url"])
-            except ValueError as e:
+            except ValueError as exc:
                 logger.warning(
-                    f"Webhook blocked: webhook={webhook_id} url={webhook['url']} reason={e}"
+                    "webhook blocked",
+                    webhook=webhook_id,
+                    url=webhook["url"],
+                    reason=str(exc),
                 )
                 async with session_factory()() as session:
                     await session.execute(
@@ -281,23 +284,31 @@ class WebhookDispatcher:
                             )
                             await session.commit()
                         logger.info(
-                            f"Webhook delivered: webhook={webhook_id} event={event} "
-                            f"delivery={delivery_id} attempt={attempt} status={last_status_code}"
+                            "webhook delivered",
+                            webhook=webhook_id,
+                            event=event,
+                            delivery=str(delivery_id),
+                            attempt=attempt,
+                            status=last_status_code,
                         )
                         return
 
                     last_error = f"HTTP {response.status_code}"
 
-                except Exception as e:
-                    last_error = str(e)
+                except Exception as exc:
+                    last_error = str(exc)
 
                 retry_index = attempt - 1
                 if retry_index < len(retry_delays):
                     delay = _jittered_delay(retry_delays[retry_index])
                     logger.warning(
-                        f"Webhook delivery failed: webhook={webhook_id} event={event} "
-                        f"delivery={delivery_id} attempt={attempt} error={last_error} "
-                        f"retrying_in={delay:.1f}s"
+                        "webhook delivery failed",
+                        webhook=webhook_id,
+                        event=event,
+                        delivery=str(delivery_id),
+                        attempt=attempt,
+                        error=last_error,
+                        retrying_in=round(delay, 1),
                     )
                     async with session_factory()() as session:
                         await session.execute(
@@ -330,8 +341,11 @@ class WebhookDispatcher:
                 )
                 await session.commit()
             logger.error(
-                f"Webhook delivery permanently failed: webhook={webhook_id} event={event} "
-                f"delivery={delivery_id} error={last_error}"
+                "webhook delivery permanently failed",
+                webhook=webhook_id,
+                event=event,
+                delivery=str(delivery_id),
+                error=last_error,
             )
 
     async def deliver_once(self, webhook: dict, event: str, payload: str) -> dict:

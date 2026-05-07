@@ -5,11 +5,11 @@ from datetime import datetime
 
 import sqlalchemy as sa
 
-from bigrag.config import settings
 from bigrag.db.engine import session_factory
 from bigrag.db.models import Collection, EmbeddingPreset
 from bigrag.exceptions import NotFoundError
 from bigrag.services import redis_cache
+from bigrag.services.runtime_settings import get_value
 
 
 def _cache_key(name: str) -> str:
@@ -71,7 +71,7 @@ async def get_or_404(name: str) -> dict:
         if collection.embedding_preset_id is not None:
             preset = await session.get(EmbeddingPreset, collection.embedding_preset_id)
         serialized = _serialize(collection, preset)
-        ttl = settings.collection_cache_ttl
+        ttl = await get_value("collection_cache_ttl")
         if ttl > 0:
             await redis_cache.set(_cache_key(name), serialized, ttl=ttl)
         return serialized

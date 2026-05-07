@@ -52,8 +52,10 @@ class Settings(BaseSettings):
     qdrant_search_ef: int | None = None
     queue_max_depth: int = 10000
     collection_cache_ttl: int = 30
-    query_embedding_cache_ttl: int = 3600
+    query_embedding_cache_ttl: int = 300
     query_result_cache_ttl: int = 30
+    embedding_cache_mode: Literal["encrypted", "disabled"] = "encrypted"
+    embedding_cache_retention_days: int = 30
     conversion_timeout: int = 300
     conversion_pdf_ocr_enabled: bool = True
     webhook_delivery_timeout: int = 10
@@ -79,9 +81,20 @@ class Settings(BaseSettings):
     allow_private_chat_base_urls: bool = False
 
     upload_dir: str = "./data/uploads"
+    backup_s3_bucket: str = ""
+    backup_s3_endpoint_url: str | None = None
+    backup_s3_region: str = "us-east-1"
+    backup_s3_prefix: str = ""
+    backup_s3_access_key_id: str | None = None
+    backup_s3_secret_access_key: str | None = None
+    backup_s3_force_path_style: bool = False
 
     max_upload_size_mb: int = 64
     max_batch_upload_size_mb: int = 128
+    max_upload_session_files: int = 10000
+    max_upload_session_size_mb: int = 102400
+    upload_session_item_retention_hours: int = 168
+    upload_session_upload_concurrency: int = 4
     ingestion_workers: int = 4
     ingestion_batch_size: int = 128
 

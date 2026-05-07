@@ -8,6 +8,7 @@ from sqlalchemy.types import Text, TypeDecorator
 _fernet: Fernet | None = None
 _previous_fernets: list[Fernet] = []
 _FERNET_PREFIX = "gAAAA"
+_FERNET_BYTES_PREFIX = b"gAAAA"
 
 logger = logging.getLogger("bigrag.crypto")
 
@@ -71,6 +72,30 @@ def decrypt(ciphertext: str) -> str:
             "Encrypted column failed to decrypt — wrong BIGRAG_MASTER_KEY "
             "(set BIGRAG_MASTER_KEY_PREVIOUS to read values written under the old key)."
         ) from None
+
+
+def encrypt_bytes(plaintext: bytes) -> bytes:
+    return _require().encrypt(plaintext)
+
+
+def decrypt_bytes(ciphertext: bytes) -> bytes:
+    primary = _require()
+    try:
+        return primary.decrypt(ciphertext)
+    except InvalidToken:
+        for prev in _previous_fernets:
+            try:
+                return prev.decrypt(ciphertext)
+            except InvalidToken:
+                continue
+        raise ValueError(
+            "Encrypted value failed to decrypt — wrong BIGRAG_MASTER_KEY "
+            "(set BIGRAG_MASTER_KEY_PREVIOUS to read values written under the old key)."
+        ) from None
+
+
+def looks_encrypted_bytes(value: bytes) -> bool:
+    return value.startswith(_FERNET_BYTES_PREFIX)
 
 
 class EncryptedString(TypeDecorator):

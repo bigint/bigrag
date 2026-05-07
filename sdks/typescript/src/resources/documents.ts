@@ -11,6 +11,9 @@ import type {
   DocumentListResponse,
   FileInput,
   StatusResponse,
+  UploadSession,
+  UploadSessionCreateRequest,
+  UploadSessionFileResponse,
 } from "../types.js";
 
 export class DocumentsResource {
@@ -86,6 +89,54 @@ export class DocumentsResource {
     return this._client._requestFormData(
       `/v1/collections/${encodeURIComponent(collection)}/documents/batch/upload`,
       form,
+    );
+  }
+
+  createUploadSession(
+    collection: string,
+    body: UploadSessionCreateRequest,
+  ): Promise<UploadSession> {
+    return this._client._request(
+      "POST",
+      `/v1/collections/${encodeURIComponent(collection)}/upload-sessions`,
+      { json: { ...body, metadata: body.metadata ?? {} } },
+    );
+  }
+
+  getUploadSession(collection: string, sessionId: string): Promise<UploadSession> {
+    return this._client._request(
+      "GET",
+      `/v1/collections/${encodeURIComponent(collection)}/upload-sessions/${encodeURIComponent(sessionId)}`,
+    );
+  }
+
+  async uploadSessionFile(
+    collection: string,
+    sessionId: string,
+    file: FileInput,
+    options?: { clientItemId?: string; filename?: string },
+  ): Promise<UploadSessionFileResponse> {
+    const form = new FormData();
+    const { blob, name } = await normalizeFileInput(file);
+    if (options?.clientItemId) form.append("client_item_id", options.clientItemId);
+    form.append("file", blob, options?.filename ?? name);
+    return this._client._requestFormData(
+      `/v1/collections/${encodeURIComponent(collection)}/upload-sessions/${encodeURIComponent(sessionId)}/files`,
+      form,
+    );
+  }
+
+  completeUploadSession(collection: string, sessionId: string): Promise<UploadSession> {
+    return this._client._request(
+      "POST",
+      `/v1/collections/${encodeURIComponent(collection)}/upload-sessions/${encodeURIComponent(sessionId)}/complete`,
+    );
+  }
+
+  cancelUploadSession(collection: string, sessionId: string): Promise<StatusResponse> {
+    return this._client._request(
+      "POST",
+      `/v1/collections/${encodeURIComponent(collection)}/upload-sessions/${encodeURIComponent(sessionId)}/cancel`,
     );
   }
 

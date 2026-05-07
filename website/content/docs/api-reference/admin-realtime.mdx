@@ -24,6 +24,7 @@ Streams also send heartbeat comments (`: heartbeat`) to keep proxies from closin
 | `GET /v1/admin/realtime/collections/{name}/documents` | `GET /v1/collections/{name}/documents` | stays open |
 | `GET /v1/admin/realtime/collections/{name}/documents/{document_id}` | `GET /v1/collections/{name}/documents/{document_id}` | closes when the document is `ready` or `failed` |
 | `GET /v1/admin/realtime/collections/{name}/documents/batch-status?document_ids=...` | `POST /v1/collections/{name}/documents/batch/status` | closes when all watched documents are `ready` or `failed` |
+| `GET /v1/admin/realtime/collections/{name}/upload-sessions/{session_id}` | `GET /v1/collections/{name}/upload-sessions/{session_id}` | closes when the upload session is `complete`, `failed`, or `canceled` |
 | `GET /v1/admin/realtime/collections/{name}/stats` | `GET /v1/collections/{name}/stats` | stays open |
 
 Document list streams accept the same `status`, `limit`, and `offset` filters as the REST list. Batch streams accept repeated or comma-separated `document_ids` values, up to 100 IDs.
@@ -46,6 +47,7 @@ Google Drive source streams accept `collection`. Sync-job streams accept `source
 | `GET /v1/admin/realtime/access/overview` | `GET /v1/admin/access/overview` |
 | `GET /v1/admin/realtime/access/logs` | `GET /v1/admin/access/logs` |
 | `GET /v1/admin/realtime/audit` | `GET /v1/admin/audit` |
+| `GET /v1/admin/realtime/backups` | `GET /v1/admin/backups` |
 | `GET /v1/admin/realtime/usage` | `GET /v1/usage` |
 | `GET /v1/admin/realtime/platform/stats` | `GET /v1/stats` |
 | `GET /v1/admin/realtime/platform/readiness` | `GET /health/ready` |

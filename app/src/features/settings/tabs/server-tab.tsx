@@ -65,18 +65,18 @@ export const ServerTab = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Environment</CardTitle>
+          <CardTitle>Bootstrap wiring</CardTitle>
           <CardDescription>
-            Server-side configuration toggles. Change these via env vars and restart the backend.
+            These coordinates must exist before the API can read database-backed settings.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
-          <EnvRow label="BIGRAG_ENV" value="dev | prod" />
-          <EnvRow label="BIGRAG_EMBEDDING_API_KEY" value="(required for OpenAI/Cohere)" />
-          <EnvRow label="BIGRAG_SESSION_COOKIE_SECURE" value="true recommended" />
-          <EnvRow label="BIGRAG_CORS_ORIGINS" value="explicit list, not '*'" />
-          <EnvRow label="BIGRAG_WEBHOOK_MAX_COUNT" value="default 50" />
-          <EnvRow label="BIGRAG_INGESTION_WORKERS" value="default 4" />
+          <EnvRow label="Postgres" value="BIGRAG_DATABASE_URL" />
+          <EnvRow label="Redis" value="BIGRAG_REDIS_URL" />
+          <EnvRow label="Qdrant" value="BIGRAG_QDRANT_URL" />
+          <EnvRow label="Encryption" value="BIGRAG_MASTER_KEY" />
+          <EnvRow label="Bind address" value="BIGRAG_HOST / BIGRAG_PORT" />
+          <EnvRow label="Split admin UI" value="admin UI backend URL" />
         </CardContent>
       </Card>
     </div>

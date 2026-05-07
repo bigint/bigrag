@@ -21,7 +21,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 - **Retrieval evaluation runner** — ship recall@k / MRR / nDCG regressions against a golden set
 - **Analytics** — per-collection query analytics and platform-wide stats
 - **Webhooks** — HMAC-signed delivery, retries, circuit breaker, admin replay
-- **Encrypted credentials at rest** — provider API keys and webhook secrets sealed with Fernet (`BIGRAG_MASTER_KEY`)
+- **Encrypted sensitive caches at rest** — provider API keys, webhook secrets, embedding-cache rows, and Redis cache payloads sealed with Fernet (`BIGRAG_MASTER_KEY`)
 - **Self-hostable** — single `docker compose up` to run everything
 - **Clients** — [TypeScript](sdks/typescript), [Python](sdks/python), and [Rust](sdks/rust) SDKs plus an [MCP server](#mcp-server) for Claude Desktop, Cursor, and any MCP-aware runtime
 
@@ -360,7 +360,7 @@ admin UI origin. Cross-site admin UI deployments also need
 | `BIGRAG_CHAT_MAX_CONTEXT_CHARS` | Max retrieved-context characters per chat call | `120000` |
 | `BIGRAG_ALLOWED_CHAT_BASE_URLS` | JSON allow-list for chat base URLs | `[]` |
 | `BIGRAG_ALLOW_PRIVATE_CHAT_BASE_URLS` | Allow private-network chat endpoints | `false` |
-| `BIGRAG_MASTER_KEY` | Fernet key that encrypts provider credentials at rest (required in `prod`) | — |
+| `BIGRAG_MASTER_KEY` | Fernet key that encrypts provider credentials, embedding cache rows, and Redis cache payloads (required in `prod`) | — |
 | `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys for staged rotation | `[]` |
 | `BIGRAG_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
 | `BIGRAG_INGESTION_WORKERS` | Background workers | `4` |
@@ -371,8 +371,10 @@ admin UI origin. Cross-site admin UI deployments also need
 | `BIGRAG_CONVERSION_PDF_OCR_ENABLED` | Enable OCR for scanned PDFs | `true` |
 | `BIGRAG_QUEUE_MAX_DEPTH` | Max pending jobs in the ingestion queue | `10000` |
 | `BIGRAG_COLLECTION_CACHE_TTL` | Collection metadata cache TTL in seconds | `30` |
-| `BIGRAG_QUERY_EMBEDDING_CACHE_TTL` | Query embedding cache TTL in seconds | `3600` |
+| `BIGRAG_QUERY_EMBEDDING_CACHE_TTL` | Query embedding cache TTL in seconds | `300` |
 | `BIGRAG_QUERY_RESULT_CACHE_TTL` | Exact query-result cache TTL in seconds | `30` |
+| `BIGRAG_EMBEDDING_CACHE_MODE` | Persistent chunk embedding cache mode (`encrypted` or `disabled`) | `encrypted` |
+| `BIGRAG_EMBEDDING_CACHE_RETENTION_DAYS` | Days to keep persistent embedding-cache rows after last use | `30` |
 | `BIGRAG_WEBHOOK_DELIVERY_TIMEOUT` | Webhook HTTP timeout in seconds | `10` |
 | `BIGRAG_WEBHOOK_RETRY_DELAYS` | JSON array of webhook retry delays in seconds | `[10,30,90]` |
 | `BIGRAG_WEBHOOK_MAX_COUNT` | Max configured webhooks | `50` |

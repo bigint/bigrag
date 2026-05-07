@@ -73,6 +73,7 @@ def _fake_loaders(monkeypatch) -> None:
         "list_audit_log",
         "list_documents",
         "platform_stats",
+        "upload_session_detail",
     ):
         monkeypatch.setattr(admin_realtime, name, payload)
     monkeypatch.setattr(admin_realtime, "get_usage", usage_payload)
@@ -85,6 +86,7 @@ def _fake_loaders(monkeypatch) -> None:
         "/v1/admin/realtime/collections/docs/documents",
         "/v1/admin/realtime/collections/docs/documents/doc-id-1",
         "/v1/admin/realtime/collections/docs/documents/batch-status?document_ids=doc-id-1",
+        "/v1/admin/realtime/collections/docs/upload-sessions/session-id-1",
         "/v1/admin/realtime/collections/docs/stats",
         "/v1/admin/realtime/google/sources",
         "/v1/admin/realtime/google/sync-jobs",
@@ -140,6 +142,12 @@ def test_batch_stream_done_when_documents_terminal() -> None:
     payload = type("Batch", (), {"documents": docs})()
 
     assert admin_realtime._batch_done(payload) is True
+
+
+def test_upload_session_stream_done_when_terminal() -> None:
+    payload = type("Session", (), {"status": "complete"})()
+
+    assert admin_realtime._upload_session_done(payload) is True
 
 
 def test_event_stream_emits_snapshot_after_event_bus_message(monkeypatch) -> None:

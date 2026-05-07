@@ -34,9 +34,9 @@ _TOKEN_LIMITS: dict[str, int] = {
 
 def _get_semaphore(key: str) -> asyncio.Semaphore:
     if key not in _embed_semaphores:
-        from bigrag.config import settings
+        from bigrag.services.runtime_settings import sync_value
 
-        _embed_semaphores[key] = asyncio.Semaphore(settings.embedding_concurrency)
+        _embed_semaphores[key] = asyncio.Semaphore(sync_value("embedding_concurrency"))
     return _embed_semaphores[key]
 
 
@@ -138,8 +138,10 @@ class OpenAIEmbedding(EmbeddingModel):
             base_url=self._base_url,
         )
         logger.info(
-            f"Initialized OpenAI-compatible embedding: {model_name} "
-            f"(dim={dimension}, base_url={self._base_url or 'default'})"
+            "initialized openai-compatible embedding",
+            model=model_name,
+            dimension=dimension,
+            base_url=self._base_url or "default",
         )
 
     async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
@@ -148,8 +150,10 @@ class OpenAIEmbedding(EmbeddingModel):
         if any(warnings):
             truncated = sum(1 for w in warnings if w)
             logger.warning(
-                f"openai_embed: {truncated}/{len(texts)} inputs exceeded token "
-                f"limit and were truncated (model={self._model_name})"
+                "openai inputs exceeded token limit and were truncated",
+                truncated=truncated,
+                inputs=len(texts),
+                model=self._model_name,
             )
         async with _get_semaphore(self._semaphore_key):
             response = await asyncio.wait_for(
@@ -200,15 +204,17 @@ class CohereEmbedding(EmbeddingModel):
         self._semaphore_key = "cohere"
         self._cache_identity = f"cohere:{model_name}:{dimension}"
         self._client = cohere.AsyncClient(api_key=api_key)
-        logger.info(f"Initialized Cohere embedding: {model_name} (dim={dimension})")
+        logger.info("initialized cohere embedding", model=model_name, dimension=dimension)
 
     async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
         texts, warnings = truncate_to_tokens(texts, self._model_name)
         if any(warnings):
             truncated = sum(1 for w in warnings if w)
             logger.warning(
-                f"cohere_embed: {truncated}/{len(texts)} inputs exceeded token "
-                f"limit and were truncated (model={self._model_name})"
+                "cohere inputs exceeded token limit and were truncated",
+                truncated=truncated,
+                inputs=len(texts),
+                model=self._model_name,
             )
         cohere_input_type = self._INPUT_TYPE_MAP.get(input_type, "search_document")
         async with _get_semaphore(self._semaphore_key):
@@ -257,7 +263,7 @@ class VoyageEmbedding(EmbeddingModel):
         self._api_key = api_key
         self._semaphore_key = "voyage"
         self._cache_identity = f"voyage:{model_name}:{dimension}"
-        logger.info(f"Initialized Voyage embedding: {model_name} (dim={dimension})")
+        logger.info("initialized voyage embedding", model=model_name, dimension=dimension)
 
     async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
         import httpx
@@ -266,8 +272,10 @@ class VoyageEmbedding(EmbeddingModel):
         if any(warnings):
             truncated = sum(1 for w in warnings if w)
             logger.warning(
-                f"voyage_embed: {truncated}/{len(texts)} inputs exceeded token "
-                f"limit and were truncated (model={self._model_name})"
+                "voyage inputs exceeded token limit and were truncated",
+                truncated=truncated,
+                inputs=len(texts),
+                model=self._model_name,
             )
         voyage_input_type = input_type if input_type in self._INPUT_TYPES else "document"
         payload = {

@@ -81,4 +81,51 @@ export interface BatchDeleteDocumentsResponse {
   errors: Array<{ document_id: string; error: string }>;
 }
 
+export interface UploadSessionCreateRequest {
+  total_files: number;
+  total_bytes: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UploadSessionItem {
+  id: string;
+  client_item_id: string;
+  document_id: string | null;
+  filename: string;
+  file_type: string;
+  file_size: number;
+  content_hash: string | null;
+  status: string;
+  document_status: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UploadSession {
+  id: string;
+  collection_id: string;
+  collection_name: string;
+  status: string;
+  total_files: number;
+  total_bytes: number;
+  uploaded_files: number;
+  queued_files: number;
+  processing_files: number;
+  completed_files: number;
+  failed_files: number;
+  canceled_files: number;
+  active_files: number;
+  recent_items: UploadSessionItem[];
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  closed_at: string | null;
+}
+
+export interface UploadSessionFileResponse {
+  item: UploadSessionItem;
+  session: UploadSession;
+}
+
 export type FileInput = File | Blob | Buffer | Uint8Array | { path: string; name?: string };
