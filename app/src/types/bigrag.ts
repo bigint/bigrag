@@ -139,6 +139,55 @@ export type GoogleDriveSyncJob = {
   updated_at: string;
 };
 
+export type InstanceSettingKind =
+  | "bool"
+  | "int"
+  | "float"
+  | "string"
+  | "string_list"
+  | "int_list"
+  | "select"
+  | "secret";
+
+export type InstanceSettingGroup =
+  | "security"
+  | "ingestion"
+  | "storage"
+  | "queue"
+  | "search"
+  | "chat"
+  | "webhooks"
+  | "rate_limits"
+  | "retention";
+
+export type InstanceSettingSpec = {
+  key: string;
+  group: InstanceSettingGroup;
+  label: string;
+  description: string;
+  kind: InstanceSettingKind;
+  default: unknown;
+  options: string[];
+  min: number | null;
+  max: number | null;
+  secret: boolean;
+  restart_required: boolean;
+};
+
+export type InstanceSettingValue = {
+  key: string;
+  value: unknown;
+  has_value: boolean;
+  source: "default" | "database" | "bootstrap";
+  updated_at: string | null;
+  updated_by: string | null;
+};
+
+export type InstanceSettingsResponse = {
+  specs: InstanceSettingSpec[];
+  values: Record<string, InstanceSettingValue>;
+};
+
 export type Chunk = {
   id: string;
   text: string;

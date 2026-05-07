@@ -34,9 +34,9 @@ _TOKEN_LIMITS: dict[str, int] = {
 
 def _get_semaphore(key: str) -> asyncio.Semaphore:
     if key not in _embed_semaphores:
-        from bigrag.config import settings
+        from bigrag.services.runtime_settings import sync_value
 
-        _embed_semaphores[key] = asyncio.Semaphore(settings.embedding_concurrency)
+        _embed_semaphores[key] = asyncio.Semaphore(sync_value("embedding_concurrency"))
     return _embed_semaphores[key]
 
 

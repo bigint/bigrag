@@ -19,15 +19,15 @@ _RNG = secrets.SystemRandom()
 
 
 def _retry_delays() -> list[int]:
-    from bigrag.config import settings
+    from bigrag.services.runtime_settings import sync_value
 
-    return settings.webhook_retry_delays
+    return sync_value("webhook_retry_delays")
 
 
 def _delivery_timeout() -> int:
-    from bigrag.config import settings
+    from bigrag.services.runtime_settings import sync_value
 
-    return settings.webhook_delivery_timeout
+    return sync_value("webhook_delivery_timeout")
 
 
 _STEP_TO_EVENT = {

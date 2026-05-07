@@ -125,7 +125,7 @@ class IngestionQueue:
         self._redis = aioredis.from_url(
             redis_url,
             decode_responses=False,
-            max_connections=self._num_workers + 4,
+            max_connections=max(self._num_workers + 4, 260),
         )
         await self._redis.ping()
         logger.info(f"Queue connected to Redis at {redis_url}")
@@ -143,6 +143,30 @@ class IngestionQueue:
             task = asyncio.create_task(self._worker(i))
             self._workers.append(task)
         logger.info(f"[queue] started {self._num_workers} workers")
+
+    async def resize_workers(self, num_workers: int) -> None:
+        target = max(1, int(num_workers))
+        if not self._running:
+            self._num_workers = target
+            return
+        current = len(self._workers)
+        if target == current:
+            self._num_workers = target
+            return
+        if target > current:
+            for worker_id in range(current, target):
+                task = asyncio.create_task(self._worker(worker_id))
+                self._workers.append(task)
+            self._num_workers = target
+            logger.info(f"[queue] resized workers from {current} to {target}")
+            return
+        removed = self._workers[target:]
+        self._workers = self._workers[:target]
+        for task in removed:
+            task.cancel()
+        await asyncio.gather(*removed, return_exceptions=True)
+        self._num_workers = target
+        logger.info(f"[queue] resized workers from {current} to {target}")
 
     async def stop(self) -> None:
         self._running = False
@@ -231,18 +255,19 @@ class IngestionQueue:
             raise IngestionCancelledError(f"Ingestion cancelled for document '{job.document_id}'")
 
     async def enqueue(self, job: IngestionJob) -> None:
-        from bigrag.config import settings as _settings
+        from bigrag.services.runtime_settings import get_value
 
         if job.attempt == 0:
             job.collection_epoch = await self._collection_epoch(job.collection_name)
             job.document_epoch = await self._document_epoch(job.document_id)
+        queue_max_depth = await get_value("queue_max_depth")
         pending = await self._redis.eval(
             self._ENQUEUE_LUA,
             2,
             QUEUE_KEY,
             STATS_KEY,
             job.serialize(),
-            _settings.queue_max_depth,
+            queue_max_depth,
         )
         if pending == -1:
             raise ValueError("Ingestion queue is full. Try again later.")
@@ -374,7 +399,7 @@ class IngestionQueue:
     ) -> str:
         import tempfile
 
-        from bigrag.config import settings as _settings
+        from bigrag.services.runtime_settings import get_values
 
         def _write_pdf() -> str:
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -387,6 +412,8 @@ class IngestionQueue:
                 raise
 
         tmp_path = await asyncio.to_thread(_write_pdf)
+        runtime = await get_values(["conversion_timeout"])
+        conversion_timeout = runtime["conversion_timeout"]
         current_start = 0
         current_end = 0
         try:
@@ -400,7 +427,7 @@ class IngestionQueue:
                 f"{prefix} scanned pdf OCR start",
                 pages=total_pages,
                 chunk_pages=chunk_pages,
-                timeout_per_chunk=_settings.conversion_timeout,
+                timeout_per_chunk=conversion_timeout,
             )
             self._emit(
                 job.document_id,
@@ -448,13 +475,13 @@ class IngestionQueue:
                             tmp_path,
                             page_range=(current_start, current_end),
                         ),
-                        timeout=_settings.conversion_timeout,
+                        timeout=conversion_timeout,
                     )
                 except TimeoutError as e:
                     raise ValueError(
                         "Scanned PDF OCR timed out while processing "
                         f"pages {current_start}-{current_end} after "
-                        f"{_settings.conversion_timeout}s"
+                        f"{conversion_timeout}s"
                     ) from e
 
                 chunk_text = _docling_result_text(result).strip()
@@ -533,7 +560,7 @@ class IngestionQueue:
 
         import tempfile
 
-        from bigrag.config import settings as _settings
+        from bigrag.services.runtime_settings import get_values
         from bigrag.services.storage import get_storage
 
         self._emit(
@@ -547,6 +574,9 @@ class IngestionQueue:
         t0 = time.monotonic()
 
         file_data = await get_storage().get(job.file_path)
+        runtime = await get_values(["conversion_timeout", "conversion_pdf_ocr_enabled"])
+        conversion_timeout = runtime["conversion_timeout"]
+        pdf_ocr_enabled = runtime["conversion_pdf_ocr_enabled"]
         suffix = Path(job.file_path).suffix.lower()
         logger.info(
             f"{prefix} conversion start",
@@ -577,7 +607,7 @@ class IngestionQueue:
             tmp_path = None
             logger.info(
                 f"{prefix} pdf direct text extraction start",
-                timeout=min(_settings.conversion_timeout, 60),
+                timeout=min(conversion_timeout, 60),
             )
 
             def _write_and_extract_pdf_text():
@@ -593,7 +623,7 @@ class IngestionQueue:
             try:
                 text, tmp_path = await asyncio.wait_for(
                     asyncio.to_thread(_write_and_extract_pdf_text),
-                    timeout=min(_settings.conversion_timeout, 60),
+                    timeout=min(conversion_timeout, 60),
                 )
             finally:
                 if tmp_path:
@@ -613,10 +643,10 @@ class IngestionQueue:
                 )
                 return text
 
-            if not _settings.conversion_pdf_ocr_enabled:
+            if not pdf_ocr_enabled:
                 logger.warning(
                     f"{prefix} pdf has no embedded text and OCR is disabled by configuration",
-                    ocr_enabled=_settings.conversion_pdf_ocr_enabled,
+                    ocr_enabled=pdf_ocr_enabled,
                 )
                 raise ValueError(
                     "PDF contains no embedded text and OCR is disabled by configuration. "
@@ -639,12 +669,10 @@ class IngestionQueue:
                 logger.info(
                     f"{prefix} docling converter start",
                     suffix=suffix,
-                    timeout=_settings.conversion_timeout,
-                    pdf_ocr_enabled=_settings.conversion_pdf_ocr_enabled,
+                    timeout=conversion_timeout,
+                    pdf_ocr_enabled=pdf_ocr_enabled,
                 )
-                converter = _get_docling_converter(
-                    pdf_ocr_enabled=_settings.conversion_pdf_ocr_enabled
-                )
+                converter = _get_docling_converter(pdf_ocr_enabled=pdf_ocr_enabled)
                 return converter.convert(tmp.name), tmp.name
             except Exception:
                 tmp.close()
@@ -654,12 +682,10 @@ class IngestionQueue:
         try:
             result, tmp_path = await asyncio.wait_for(
                 asyncio.to_thread(_write_and_convert),
-                timeout=_settings.conversion_timeout,
+                timeout=conversion_timeout,
             )
         except TimeoutError as e:
-            raise ValueError(
-                f"Document conversion timed out after {_settings.conversion_timeout}s"
-            ) from e
+            raise ValueError(f"Document conversion timed out after {conversion_timeout}s") from e
         finally:
             if tmp_path:
                 Path(tmp_path).unlink(missing_ok=True)
@@ -694,7 +720,6 @@ class IngestionQueue:
 
     async def _chunk_and_embed(self, job: IngestionJob, text: str, prefix: str) -> tuple[int, int]:
 
-        from bigrag.config import settings as _settings
         from bigrag.exceptions import ValidationError
         from bigrag.services.collection_config import get_embedding_model_for
         from bigrag.services.ingestion import chunk_document
@@ -764,7 +789,9 @@ class IngestionQueue:
         )
         await self._ensure_job_current(job)
 
-        batch_size = _settings.ingestion_batch_size
+        from bigrag.services.runtime_settings import get_value
+
+        batch_size = await get_value("ingestion_batch_size")
         total_inserted = 0
         total_batches = (len(chunks) + batch_size - 1) // batch_size
         doc = job.document_id

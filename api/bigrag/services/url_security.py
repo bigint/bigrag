@@ -158,60 +158,64 @@ async def validate_outbound_url(
 def validate_embedding_base_url_sync(base_url: str | None) -> str | None:
     if not base_url:
         return None
-    from bigrag.config import settings
+    from bigrag.services.runtime_settings import sync_value
 
     return validate_outbound_url_sync(
         base_url,
         purpose="Embedding base URL",
-        allowed_urls=settings.allowed_embedding_base_urls,
-        allow_private=settings.allow_private_embedding_base_urls,
+        allowed_urls=sync_value("allowed_embedding_base_urls"),
+        allow_private=sync_value("allow_private_embedding_base_urls"),
     )
 
 
 def validate_chat_base_url_sync(base_url: str | None) -> str | None:
     if not base_url:
         return None
-    from bigrag.config import settings
+    from bigrag.services.runtime_settings import sync_value
 
     return validate_outbound_url_sync(
         base_url,
         purpose="Chat provider base URL",
-        allowed_urls=settings.allowed_chat_base_urls,
-        allow_private=settings.allow_private_chat_base_urls,
+        allowed_urls=sync_value("allowed_chat_base_urls"),
+        allow_private=sync_value("allow_private_chat_base_urls"),
     )
 
 
 async def validate_embedding_base_url(base_url: str | None) -> str | None:
     if not base_url:
         return None
-    from bigrag.config import settings
+    from bigrag.services.runtime_settings import get_values
+
+    runtime = await get_values(["allowed_embedding_base_urls", "allow_private_embedding_base_urls"])
 
     return await validate_outbound_url(
         base_url,
         purpose="Embedding base URL",
-        allowed_urls=settings.allowed_embedding_base_urls,
-        allow_private=settings.allow_private_embedding_base_urls,
+        allowed_urls=runtime["allowed_embedding_base_urls"],
+        allow_private=runtime["allow_private_embedding_base_urls"],
     )
 
 
 async def validate_chat_base_url(base_url: str | None) -> str | None:
     if not base_url:
         return None
-    from bigrag.config import settings
+    from bigrag.services.runtime_settings import get_values
+
+    runtime = await get_values(["allowed_chat_base_urls", "allow_private_chat_base_urls"])
 
     return await validate_outbound_url(
         base_url,
         purpose="Chat provider base URL",
-        allowed_urls=settings.allowed_chat_base_urls,
-        allow_private=settings.allow_private_chat_base_urls,
+        allowed_urls=runtime["allowed_chat_base_urls"],
+        allow_private=runtime["allow_private_chat_base_urls"],
     )
 
 
 async def validate_webhook_url(url: str) -> str:
-    from bigrag.config import settings
+    from bigrag.services.runtime_settings import get_value
 
     return await validate_outbound_url(
         url,
         purpose="Webhook URL",
-        allow_loopback=settings.allow_local_webhooks,
+        allow_loopback=await get_value("allow_local_webhooks"),
     )

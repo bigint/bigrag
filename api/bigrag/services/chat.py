@@ -12,7 +12,6 @@ import sqlalchemy as sa
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.config import settings
 from bigrag.db.models import ChatConversation, ChatMessage, Document, UserPreference
 from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
@@ -31,6 +30,7 @@ from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
 from bigrag.services.collection_config import get_embedding_model_for, get_reranking_config
 from bigrag.services.collection_scope import assert_collection_matches_pin
 from bigrag.services.retrieval import retrieve
+from bigrag.services.runtime_settings import get_values
 from bigrag.services.url_security import UnsafeOutboundUrlError, validate_chat_base_url
 
 logger = get_logger("bigrag.chat")
@@ -353,6 +353,16 @@ async def _prepare_chat_turn(
 ) -> PreparedChatTurn:
     owner_id = UUID(user["id"])
     pinned = user.get("collection")
+    runtime = await get_values(
+        [
+            "chat_provider",
+            "chat_model",
+            "chat_base_url",
+            "chat_temperature",
+            "chat_max_history_messages",
+            "chat_max_context_chars",
+        ]
+    )
 
     if body.conversation_id is not None:
         conversation = await _get_owned_conversation(session, user, body.conversation_id)
@@ -380,8 +390,8 @@ async def _prepare_chat_turn(
             title=_title_from_message(body.message),
             collection_id=collection.get("id"),
             collection_name=collection_name,
-            model_provider=_resolve_provider(body.model_provider),
-            model=body.model or settings.chat_model,
+            model_provider=_resolve_provider(body.model_provider, runtime["chat_provider"]),
+            model=body.model or runtime["chat_model"],
             system_prompt=body.system_prompt or DEFAULT_SYSTEM_PROMPT,
             default_top_k=body.top_k or min(int(collection.get("default_top_k") or 5), 100),
             default_search_mode=body.search_mode
@@ -392,18 +402,22 @@ async def _prepare_chat_turn(
             default_rerank=body.rerank,
             temperature=body.temperature
             if body.temperature is not None
-            else settings.chat_temperature,
+            else runtime["chat_temperature"],
         )
         session.add(conversation)
         await session.flush()
 
     collection = await get_collection_or_404(collection_name)
-    _apply_turn_overrides(conversation, body, collection)
-    provider = _resolve_provider(conversation.model_provider)
+    _apply_turn_overrides(conversation, body, collection, runtime["chat_provider"])
+    provider = _resolve_provider(conversation.model_provider, runtime["chat_provider"])
     credentials = await _resolve_api_credentials(session, user, body)
-    base_url = await _resolve_base_url(body.provider_base_url)
+    base_url = await _resolve_base_url(body.provider_base_url, runtime["chat_base_url"])
 
-    prior_messages = await _recent_history(session, conversation.id)
+    prior_messages = await _recent_history(
+        session,
+        conversation.id,
+        int(runtime["chat_max_history_messages"] or 0),
+    )
 
     try:
         embedding_model = get_embedding_model_for(collection)
@@ -464,6 +478,7 @@ async def _prepare_chat_turn(
         sources=sources,
         prior_messages=prior_messages,
         user_message=body.message,
+        max_context_chars=int(runtime["chat_max_context_chars"] or 120000),
     )
     return PreparedChatTurn(
         conversation=conversation,
@@ -480,8 +495,8 @@ async def _prepare_chat_turn(
     )
 
 
-def _resolve_provider(provider: str | None) -> str:
-    value = (provider or settings.chat_provider or "openai").strip().lower()
+def _resolve_provider(provider: str | None, default_provider: str | None = "openai") -> str:
+    value = (provider or default_provider or "openai").strip().lower()
     if value not in _PROVIDERS:
         raise HTTPException(
             status_code=400,
@@ -494,9 +509,10 @@ def _apply_turn_overrides(
     conversation: ChatConversation,
     body: ChatCreateRequest,
     collection: dict,
+    default_provider: str | None,
 ) -> None:
     if body.model_provider is not None:
-        conversation.model_provider = _resolve_provider(body.model_provider)
+        conversation.model_provider = _resolve_provider(body.model_provider, default_provider)
     if body.model is not None:
         conversation.model = body.model
     if body.system_prompt is not None:
@@ -562,8 +578,8 @@ def _append_credential(
     credentials.append(ProviderCredential(api_key=api_key, source=source))
 
 
-async def _resolve_base_url(raw_base_url: str | None) -> str | None:
-    candidate = raw_base_url if raw_base_url is not None else settings.chat_base_url
+async def _resolve_base_url(raw_base_url: str | None, default_base_url: str | None) -> str | None:
+    candidate = raw_base_url if raw_base_url is not None else default_base_url
     if not candidate:
         return None
     try:
@@ -575,8 +591,9 @@ async def _resolve_base_url(raw_base_url: str | None) -> str | None:
 async def _recent_history(
     session: AsyncSession,
     conversation_id: UUID,
+    limit: int,
 ) -> list[ChatMessage]:
-    limit = max(0, settings.chat_max_history_messages)
+    limit = max(0, limit)
     if limit == 0:
         return []
     rows = list(
@@ -643,8 +660,9 @@ def _model_messages(
     sources: list[ChatSource],
     prior_messages: list[ChatMessage],
     user_message: str,
+    max_context_chars: int,
 ) -> list[dict[str, str]]:
-    context = _context_block(sources)
+    context = _context_block(sources, max_context_chars)
     messages: list[dict[str, str]] = [
         {"role": "system", "content": system_prompt},
         {
@@ -660,10 +678,10 @@ def _model_messages(
     return messages
 
 
-def _context_block(sources: list[ChatSource]) -> str:
+def _context_block(sources: list[ChatSource], max_context_chars: int) -> str:
     if not sources:
         return "(no matching chunks were found)"
-    remaining = max(1_000, settings.chat_max_context_chars)
+    remaining = max(1_000, max_context_chars)
     parts: list[str] = []
     for idx, source in enumerate(sources, start=1):
         label_parts = []

@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Reques
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.config import settings
 from bigrag.db.models import Document
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
@@ -49,6 +48,7 @@ from bigrag.services.file_validation import InvalidFileContentError, validate_up
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
+from bigrag.services.runtime_settings import get_values
 from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
 
@@ -156,12 +156,14 @@ async def upload_document(
             ),
         )
 
-    max_size = settings.max_upload_size_mb * 1024 * 1024
+    upload_limits = await get_values(["max_upload_size_mb"])
+    max_upload_size_mb = upload_limits["max_upload_size_mb"]
+    max_size = max_upload_size_mb * 1024 * 1024
     content_length = request.headers.get("content-length")
     if content_length and int(content_length) > max_size:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large. Max size: {settings.max_upload_size_mb}MB",
+            detail=f"File too large. Max size: {max_upload_size_mb}MB",
         )
 
     content = await read_upload_content(file, max_size=max_size)
@@ -483,13 +485,16 @@ async def batch_upload_documents(
     if len(files) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 files per batch upload")
 
-    max_size = settings.max_upload_size_mb * 1024 * 1024
-    batch_max_size = settings.max_batch_upload_size_mb * 1024 * 1024
+    upload_limits = await get_values(["max_upload_size_mb", "max_batch_upload_size_mb"])
+    max_upload_size_mb = upload_limits["max_upload_size_mb"]
+    max_batch_upload_size_mb = upload_limits["max_batch_upload_size_mb"]
+    max_size = max_upload_size_mb * 1024 * 1024
+    batch_max_size = max_batch_upload_size_mb * 1024 * 1024
     content_length = request.headers.get("content-length")
     if content_length and int(content_length) > batch_max_size:
         raise HTTPException(
             status_code=413,
-            detail=f"Batch upload too large. Max size: {settings.max_batch_upload_size_mb}MB",
+            detail=f"Batch upload too large. Max size: {max_batch_upload_size_mb}MB",
         )
     budget = UploadBudget(batch_max_size)
     try:

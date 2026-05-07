@@ -9,7 +9,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
-from bigrag.config import settings
 from bigrag.db.models import Collection, Document, EmbeddingPreset
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
@@ -30,6 +29,7 @@ from bigrag.services.credential_check import (
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
+from bigrag.services.runtime_settings import get_values
 from bigrag.services.vector_store import vector_store
 
 logger = get_logger("bigrag.routers.collections")
@@ -137,12 +137,23 @@ async def create_collection(
         if preset is None:
             raise HTTPException(status_code=400, detail="Embedding preset not found")
 
+    defaults = await get_values(
+        [
+            "embedding_provider",
+            "embedding_model",
+            "embedding_dimension",
+            "embedding_base_url",
+            "embedding_api_key",
+        ]
+    )
     provider = (
         body.embedding_provider
         or (preset.provider if preset else None)
-        or settings.embedding_provider
+        or defaults["embedding_provider"]
     )
-    model = body.embedding_model or (preset.model if preset else None) or settings.embedding_model
+    model = (
+        body.embedding_model or (preset.model if preset else None) or defaults["embedding_model"]
+    )
 
     if provider not in ("openai", "openai_compatible", "cohere", "voyage"):
         raise HTTPException(
@@ -154,7 +165,9 @@ async def create_collection(
         )
     if provider == "openai_compatible":
         has_base_url = bool(
-            body.embedding_base_url or (preset and preset.base_url) or settings.embedding_base_url
+            body.embedding_base_url
+            or (preset and preset.base_url)
+            or defaults["embedding_base_url"]
         )
         if not has_base_url:
             raise HTTPException(
@@ -171,7 +184,9 @@ async def create_collection(
             )
 
     api_key = (
-        body.embedding_api_key or (preset.api_key if preset else None) or settings.embedding_api_key
+        body.embedding_api_key
+        or (preset.api_key if preset else None)
+        or defaults["embedding_api_key"]
     )
     if not api_key:
         raise HTTPException(
@@ -181,9 +196,11 @@ async def create_collection(
     base_url = (
         body.embedding_base_url
         or (preset.base_url if preset else None)
-        or settings.embedding_base_url
+        or defaults["embedding_base_url"]
     )
-    dimension_override = body.dimension or (preset.dimension if preset else None)
+    dimension_override = (
+        body.dimension or (preset.dimension if preset else None) or defaults["embedding_dimension"]
+    )
 
     await _verify_embedding_credentials(provider, api_key, base_url, model)
     try:

@@ -15,9 +15,9 @@ The bundled interface uses normal-weight body text with slightly restrained emph
 pnpm dev:app        # admin UI on http://localhost:3000
 ```
 
-The admin UI calls the FastAPI backend directly. The default API URL is `http://localhost:4000`; override it with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container. The backend must include the app origin in `BIGRAG_CORS_ORIGINS`, for example `["http://localhost:3000"]` in local development.
+The admin UI calls the FastAPI backend directly. The default API URL is `http://localhost:4000`; override it with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container. Configure browser origins in `/settings → Security` after the API has its bootstrap database wiring.
 
-For cross-site production deployments, set `BIGRAG_SESSION_COOKIE_SECURE=true` and usually `BIGRAG_SESSION_COOKIE_SAMESITE=none`. Same-site subdomain deployments can usually keep `SameSite=lax`.
+For cross-site production deployments, enable secure session cookies and usually set `SameSite=none` in `/settings → Security`. Same-site subdomain deployments can usually keep `SameSite=lax`.
 
 ## Route map
 
@@ -40,7 +40,7 @@ For cross-site production deployments, set `BIGRAG_SESSION_COOKIE_SECURE=true` a
 | `/api-keys` | Mint, scope, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
 | `/access-logs` | Access-log explorer for query, vector, chat, and evaluation traffic. |
 | `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. |
-| `/settings` | Tabs: Account · Server · Connectors · Usage & cost · Audit log. |
+| `/settings` | Tabs: Account, Server, Security, Ingestion, Storage, Queue, Search, Chat, Webhooks, Rate limits, Retention, Connectors, Usage & cost, Audit log. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
 ## Settings tabs
@@ -49,6 +49,15 @@ For cross-site production deployments, set `BIGRAG_SESSION_COOKIE_SECURE=true` a
 |-----|-----------|-----------|
 | **Account** | `GET /v1/auth/me` | `POST /v1/auth/password`, `POST /v1/auth/logout-all` |
 | **Server** | `GET /health/ready`, `GET /v1/stats` | — |
+| **Security** | `GET /v1/admin/settings` | `PUT /v1/admin/settings`, `POST /v1/admin/settings/test`, `POST /v1/admin/settings/reset` |
+| **Ingestion** | `GET /v1/admin/settings` | `PUT /v1/admin/settings`, `POST /v1/admin/settings/test`, `POST /v1/admin/settings/reset` |
+| **Storage** | `GET /v1/admin/settings` | `PUT /v1/admin/settings`, `POST /v1/admin/settings/test`, `POST /v1/admin/settings/reset` |
+| **Queue** | `GET /v1/admin/settings` | `PUT /v1/admin/settings`, `POST /v1/admin/settings/test`, `POST /v1/admin/settings/reset` |
+| **Search** | `GET /v1/admin/settings` | `PUT /v1/admin/settings`, `POST /v1/admin/settings/test`, `POST /v1/admin/settings/reset` |
+| **Chat** | `GET /v1/admin/settings` | `PUT /v1/admin/settings`, `POST /v1/admin/settings/test`, `POST /v1/admin/settings/reset` |
+| **Webhooks** | `GET /v1/admin/settings` | `PUT /v1/admin/settings`, `POST /v1/admin/settings/test`, `POST /v1/admin/settings/reset` |
+| **Rate limits** | `GET /v1/admin/settings` | `PUT /v1/admin/settings`, `POST /v1/admin/settings/test`, `POST /v1/admin/settings/reset` |
+| **Retention** | `GET /v1/admin/settings` | `PUT /v1/admin/settings`, `POST /v1/admin/settings/test`, `POST /v1/admin/settings/reset` |
 | **Connectors** | `GET /v1/admin/connectors/google`, `GET /v1/connectors/google/account` | `PUT /v1/admin/connectors/google`, `POST /v1/connectors/google/disconnect` |
 | **Usage & cost** | `GET /v1/usage` | — |
 | **Audit log** | `GET /v1/admin/audit` | — |

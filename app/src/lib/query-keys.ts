@@ -13,6 +13,7 @@ export const queryKeys = {
   webhooks: () => ["webhooks"] as const,
   embeddingPresets: () => ["embedding-presets"] as const,
   preferences: () => ["preferences"] as const,
+  instanceSettings: () => ["instance-settings"] as const,
   connectors: {
     googleConfig: () => ["connectors", "google", "config"] as const,
     googleAccount: () => ["connectors", "google", "account"] as const,

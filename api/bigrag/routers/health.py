@@ -14,6 +14,7 @@ from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.services import redis_cache
+from bigrag.services.runtime_settings import get_values
 
 logger = get_logger("bigrag.routers.health")
 
@@ -22,18 +23,27 @@ router = APIRouter(tags=["health"])
 _EMBEDDING_HEALTH_TTL = 60
 
 
-async def _resolve_embedding_target(
-    settings,
-) -> tuple[str, str, int | None, str, str | None, str | None] | None:
+async def _resolve_embedding_target() -> (
+    tuple[str, str, int | None, str, str | None, str | None] | None
+):
+    runtime = await get_values(
+        [
+            "embedding_provider",
+            "embedding_model",
+            "embedding_dimension",
+            "embedding_api_key",
+            "embedding_base_url",
+        ]
+    )
 
-    if settings.embedding_api_key:
+    if runtime["embedding_api_key"]:
         return (
-            settings.embedding_provider,
-            settings.embedding_model,
-            settings.embedding_dimension,
-            settings.embedding_api_key,
-            settings.embedding_base_url,
-            "env",
+            runtime["embedding_provider"],
+            runtime["embedding_model"],
+            runtime["embedding_dimension"],
+            runtime["embedding_api_key"],
+            runtime["embedding_base_url"],
+            "settings",
         )
 
     from bigrag.db.models import Collection, EmbeddingPreset
@@ -76,9 +86,9 @@ async def _resolve_embedding_target(
     return None
 
 
-async def _check_embedding_provider(settings) -> dict[str, object]:
+async def _check_embedding_provider() -> dict[str, object]:
 
-    target = await _resolve_embedding_target(settings)
+    target = await _resolve_embedding_target()
     if target is None:
         return {"embedding": False, "embedding_error": "no API key configured"}
 
@@ -153,7 +163,6 @@ async def health():
 async def readiness(request: Request):
     vs = request.app.state.vector_store
     queue = request.app.state.queue
-    s = request.app.state.settings
 
     checks: dict[str, object] = {"version": __version__}
     healthy = True
@@ -189,7 +198,7 @@ async def readiness(request: Request):
         else:
             checks[name] = True
 
-    embedding_result = await _check_embedding_provider(s)
+    embedding_result = await _check_embedding_provider()
     checks.update(embedding_result)
     if not embedding_result.get("embedding"):
         healthy = False

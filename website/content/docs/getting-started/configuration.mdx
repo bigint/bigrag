@@ -1,220 +1,95 @@
 ---
 title: Configuration
-description: Configure bigRAG with TOML files and environment variables.
+description: Bootstrap bigRAG, then manage runtime settings from the admin UI.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-bigRAG reads configuration from a `bigrag.toml` file and/or environment variables. Environment variables take precedence over TOML values, and CLI flags passed to `python -m bigrag.main` override both. Backend logging is always enabled at debug level with text output.
+bigRAG uses a UI-first configuration model. Operators provide only the wiring needed before the API can read Postgres, then admins manage product/runtime settings from `/settings`.
 
 Auth is admin accounts + session cookies and minted `bigrag_sk_…` API keys — see [Authentication](/docs/api-reference/authentication).
 
-## TOML configuration
+## Bootstrap config
 
-Create a `bigrag.toml` file in the project root:
+Bootstrap config is the small set of values the API needs before it can connect to the database and decrypt saved settings.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BIGRAG_ENV` | `dev` or `prod`. Production mode enforces safe startup checks. | `dev` |
+| `BIGRAG_HOST` | API bind address. | `127.0.0.1` |
+| `BIGRAG_PORT` | API bind port. | `4000` |
+| `BIGRAG_WORKERS` | Uvicorn process count. | `1` |
+| `BIGRAG_DATABASE_URL` | Postgres connection URL. | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
+| `BIGRAG_DB_POOL_MIN` | Minimum Postgres pool size. | `5` |
+| `BIGRAG_DB_POOL_MAX` | Maximum Postgres pool size. | `50` |
+| `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration timeout. Set `0` to disable the timeout. | `60` |
+| `BIGRAG_REDIS_URL` | Redis connection URL. | `redis://localhost:6379/0` |
+| `BIGRAG_QDRANT_URL` | Qdrant connection URL. | `http://localhost:6333` |
+| `BIGRAG_QDRANT_API_KEY` | Optional Qdrant API key. | — |
+| `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout. | `10` |
+| `BIGRAG_QDRANT_REQUIRED` | Fail startup if Qdrant cannot be reached. | `false` |
+| `BIGRAG_MASTER_KEY` | Fernet key for encrypted provider secrets and instance-setting secrets. Required for production. | — |
+| `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys during staged key rotation. | `[]` |
+| `BIGRAG_UPLOAD_DIR` | Local document upload directory when storage backend is `local`. | `./data/uploads` |
+
+The admin UI has one frontend bootstrap value: point it at the API with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container when frontend and backend are deployed separately.
+
+## TOML bootstrap file
+
+The CLI can also read a `bigrag.toml` file. Keep this file to bootstrap wiring:
 
 ```toml
-# Keys are flat and match `api/bigrag/config.py` field names.
-env = "prod"                         # "dev" (default) or "prod"
-
+env = "prod"
 host = "0.0.0.0"
 port = 4000
 workers = 1
-cors_origins = ["https://app.example.com"]
-trusted_proxies = ["10.0.0.0/8"]
 
-database_url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
-db_pool_min = 5
-db_pool_max = 50
-migration_timeout_seconds = 60
-
-qdrant_url = "http://localhost:6333"
+database_url = "postgres://bigrag:change-me@postgres:5432/bigrag?sslmode=disable"
+redis_url = "redis://redis:6379/0"
+qdrant_url = "http://qdrant:6333"
 qdrant_api_key = ""
-qdrant_connect_timeout_seconds = 10
-qdrant_required = false
-qdrant_search_ef = 128              # optional; unset by default
 
-redis_url = "redis://localhost:6379/0"
-
-master_key = ""                      # required in prod
-master_key_previous = []             # old Fernet keys during rotation
-
-session_expiry_hours = 168
-session_cookie_name = "bigrag_session"
-session_cookie_secure = true         # must be true in production
-session_cookie_samesite = "lax"      # lax, strict, none
-# session_cookie_domain = ".example.com"
-auth_rate_limit_window_seconds = 60
-auth_login_email_rate_limit = 5
-auth_login_ip_rate_limit = 50
-auth_setup_ip_rate_limit = 10
-
-embedding_provider = "openai"        # openai, openai_compatible, cohere, voyage
-embedding_model = "text-embedding-3-small"
-embedding_dimension = 1536
-# embedding_base_url = "http://ollama:11434/v1"
-# embedding_api_key = "sk-..."       # Optional server default; usually per collection
-embedding_concurrency = 8
-allowed_embedding_base_urls = []
-allow_private_embedding_base_urls = false
-
-chat_provider = "openai"             # openai, openai_compatible
-chat_model = "gpt-4o-mini"
-# chat_base_url = "http://llm-gateway:4000/v1"
-chat_temperature = 0.2
-chat_max_history_messages = 12
-chat_max_context_chars = 120000
-allowed_chat_base_urls = []
-allow_private_chat_base_urls = false
-
-max_upload_size_mb = 64
-max_batch_upload_size_mb = 128
-ingestion_workers = 4
-ingestion_batch_size = 128
-conversion_timeout = 300
-conversion_pdf_ocr_enabled = true
+master_key = "generate-a-fernet-key"
+master_key_previous = []
 
 upload_dir = "./data/uploads"
-
-webhook_delivery_timeout = 10
-webhook_retry_delays = [10, 30, 90]
-webhook_max_count = 50
-allow_local_webhooks = false
-
-queue_max_depth = 10000
 ```
 
-## Environment variables
+Environment variables override TOML values. CLI flags passed to `python -m bigrag.main` override both.
 
-Runtime settings use the `BIGRAG_` prefix. Environment variables override TOML values.
+## Runtime settings
 
-### Server
+After the first admin account exists, go to `/settings` to manage runtime settings. Runtime settings are stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BIGRAG_ENV` | `dev` or `prod`. Production mode refuses to start if CORS is `*`, cookies aren't `Secure`, or Postgres still uses the shipped default password | `dev` |
-| `BIGRAG_PORT` | Server port | `4000` |
-| `BIGRAG_HOST` | Bind address | `127.0.0.1` |
-| `BIGRAG_WORKERS` | Uvicorn workers | `1` |
-| `BIGRAG_CORS_ORIGINS` | Allowed CORS origins (JSON array; `["*"]` rejected in `prod`) | `[]` |
-| `BIGRAG_TRUSTED_PROXIES` | Trusted reverse-proxy CIDRs as a JSON array. When the immediate client is trusted, bigRAG uses the rightmost untrusted `X-Forwarded-For` IP for audit and access logs. | `[]` |
+The same surface is available through [`/v1/admin/settings`](/docs/api-reference/instance-settings).
 
-`./dev.sh` and the default Docker Compose file set `BIGRAG_CORS_ORIGINS` to `["http://localhost:3000"]` for the bundled admin UI. For production, set the exact public admin UI origin.
+| Area | Examples |
+|------|----------|
+| Security | CORS origins, trusted proxies, session cookie policy, provider URL allow-lists, private-network escape hatches. |
+| Rate limits | Login/setup windows and per-email/per-IP limits. |
+| Ingestion | Upload limits, OCR toggle, Docling timeout, ingestion workers, vector batch size. |
+| Queue | Maximum pending ingestion jobs before uploads are rejected. |
+| Storage | Local vs S3/MinIO backend, bucket, endpoint, region, prefix, credentials, signed URL TTL. |
+| Search | Qdrant `ef`, embedding concurrency, collection/query cache TTLs. |
+| Chat | Default provider, model, base URL, temperature, history count, context budget. |
+| Webhooks | Max webhooks, delivery timeout, retry delays, local/private URL policy. |
+| Retention | Query log, access log, webhook delivery, progress snapshot, and audit retention windows. |
 
-### Infrastructure
+Some settings apply immediately. Settings that affect process startup or long-lived clients are marked as restart-bound in the UI.
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BIGRAG_DATABASE_URL` | Postgres connection URL | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
-| `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration check timeout (`0` disables the timeout) | `60` |
-| `BIGRAG_QDRANT_URL` | Qdrant connection URL | `http://localhost:6333` |
-| `BIGRAG_QDRANT_API_KEY` | Optional Qdrant Cloud/API key | — |
-| `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout (`0` disables the timeout) | `10` |
-| `BIGRAG_QDRANT_REQUIRED` | Fail API startup if Qdrant cannot be reached | `false` |
-| `BIGRAG_REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
-| `BIGRAG_DB_POOL_MIN` | Min Postgres pool size | `5` |
-| `BIGRAG_DB_POOL_MAX` | Max Postgres pool size | `50` |
-
-### Sessions & auth
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BIGRAG_SESSION_EXPIRY_HOURS` | Session cookie lifetime | `168` (7 days) |
-| `BIGRAG_SESSION_COOKIE_NAME` | Cookie name | `bigrag_session` |
-| `BIGRAG_SESSION_COOKIE_SECURE` | Set `Secure` flag. Must be `true` in production | `false` |
-| `BIGRAG_SESSION_COOKIE_SAMESITE` | `lax`, `strict`, or `none` | `lax` |
-| `BIGRAG_SESSION_COOKIE_DOMAIN` | Optional cookie scope | — |
-| `BIGRAG_AUTH_RATE_LIMIT_WINDOW_SECONDS` | Login/setup rate-limit window | `60` |
-| `BIGRAG_AUTH_LOGIN_EMAIL_RATE_LIMIT` | Login attempts per email per window | `5` |
-| `BIGRAG_AUTH_LOGIN_IP_RATE_LIMIT` | Login attempts per IP per window | `50` |
-| `BIGRAG_AUTH_SETUP_IP_RATE_LIMIT` | First-admin setup attempts per IP per window | `10` |
-| `BIGRAG_MASTER_KEY` | Fernet key (32-byte urlsafe-base64) used to envelope-encrypt provider credentials stored in Postgres. Required in `prod`. See [Encryption at rest](/docs/deployment/encryption). | — |
-| `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys for staged credential-key rotation | `[]` |
-
-When the API and admin UI are on different sites, set `BIGRAG_SESSION_COOKIE_SAMESITE=none` with `BIGRAG_SESSION_COOKIE_SECURE=true`.
-
-Admins are created via [`POST /v1/auth/setup`](/docs/api-reference/authentication) and API keys are minted via [`POST /v1/admin/api-keys`](/docs/api-reference/api-keys).
-
-### Embedding (server defaults)
-
-Embedding provider, model, and key are normally configured per collection. These server-level defaults are used only when a collection is created without them (for example by the `/setup` flow or the first admin UI run).
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BIGRAG_EMBEDDING_PROVIDER` | `openai`, `cohere`, `voyage`, or `openai_compatible` | `openai` |
-| `BIGRAG_EMBEDDING_MODEL` | Default model name | `text-embedding-3-small` |
-| `BIGRAG_EMBEDDING_DIMENSION` | Default vector dimension | `1536` |
-| `BIGRAG_EMBEDDING_BASE_URL` | Base URL for OpenAI-compatible embedding endpoints | — |
-| `BIGRAG_EMBEDDING_API_KEY` | Default provider API key | — |
-| `BIGRAG_ALLOWED_EMBEDDING_BASE_URLS` | JSON allow-list for embedding base URLs | `[]` |
-| `BIGRAG_ALLOW_PRIVATE_EMBEDDING_BASE_URLS` | Allow private-network embedding endpoints | `false` |
-
-### Chat
-
-Chat provider settings are used by `POST /v1/chat` unless a request or saved admin preference overrides them.
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BIGRAG_CHAT_PROVIDER` | `openai` or `openai_compatible` | `openai` |
-| `BIGRAG_CHAT_MODEL` | Default chat model | `gpt-4o-mini` |
-| `BIGRAG_CHAT_BASE_URL` | Base URL for OpenAI-compatible chat endpoints | — |
-| `BIGRAG_CHAT_TEMPERATURE` | Default generation temperature | `0.2` |
-| `BIGRAG_CHAT_MAX_HISTORY_MESSAGES` | Max prior conversation messages included in context | `12` |
-| `BIGRAG_CHAT_MAX_CONTEXT_CHARS` | Max retrieved-context characters included in a chat call | `120000` |
-| `BIGRAG_ALLOWED_CHAT_BASE_URLS` | JSON allow-list for chat base URLs | `[]` |
-| `BIGRAG_ALLOW_PRIVATE_CHAT_BASE_URLS` | Allow private-network chat endpoints | `false` |
-
-### Ingestion
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max single-file upload size in MB | `64` |
-| `BIGRAG_MAX_BATCH_UPLOAD_SIZE_MB` | Max total batch-upload size in MB | `128` |
-| `BIGRAG_INGESTION_WORKERS` | Background processing workers | `4` |
-| `BIGRAG_INGESTION_BATCH_SIZE` | Vectors per embedding batch | `128` |
-| `BIGRAG_CONVERSION_TIMEOUT` | Docling conversion timeout (seconds) | `300` |
-| `BIGRAG_CONVERSION_PDF_OCR_ENABLED` | Toggle local OCR for scanned PDFs. Embedded-text PDFs are extracted directly without OCR. | `true` |
-
-### Storage
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BIGRAG_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
-
-### Webhooks
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BIGRAG_WEBHOOK_DELIVERY_TIMEOUT` | Per-request HTTP timeout (seconds) | `10` |
-| `BIGRAG_WEBHOOK_RETRY_DELAYS` | Exponential retry delays, seconds (JSON array) | `[10, 30, 90]` |
-| `BIGRAG_WEBHOOK_MAX_COUNT` | Max webhooks per instance | `50` |
-| `BIGRAG_ALLOW_LOCAL_WEBHOOKS` | Allow webhook URLs on local/private networks | `false` |
-
-### Tuning
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BIGRAG_EMBEDDING_CONCURRENCY` | Max concurrent embedding requests | `8` |
-| `BIGRAG_QDRANT_SEARCH_EF` | Optional Qdrant HNSW `ef` search value (higher recall, higher latency) | — |
-| `BIGRAG_COLLECTION_CACHE_TTL` | Collection metadata cache TTL (seconds) | `30` |
-| `BIGRAG_AUTH_PRINCIPAL_CACHE_TTL` | Session/API-key principal cache TTL (seconds) | `60` |
-| `BIGRAG_QUERY_EMBEDDING_CACHE_TTL` | Query embedding cache TTL (seconds) | `3600` |
-| `BIGRAG_QUERY_RESULT_CACHE_TTL` | Exact query result cache TTL (seconds) | `30` |
-| `BIGRAG_QUEUE_MAX_DEPTH` | Max pending jobs in the ingestion queue | `10000` |
+<Callout type="info">
+Legacy runtime environment variables are still read as initial defaults for compatibility, but enterprise installs should treat `/settings` as the control plane after bootstrap.
+</Callout>
 
 ## CLI flags
 
-`python -m bigrag.main` accepts overrides that take precedence over TOML and env:
+`python -m bigrag.main` accepts bootstrap overrides:
 
-```
---config PATH            Path to bigrag.toml (default: bigrag.toml)
+```bash
+--config PATH            Path to bigrag.toml
 --host HOST              Override server host
 --port PORT              Override server port
 --database-url URL       Override Postgres URL
 --qdrant-url URL         Override Qdrant URL
 --redis-url URL          Override Redis URL
 ```
-
-<Callout type="info">
-Embedding provider, model, dimension, chunk size, and chunk overlap are normally configured **per collection** via the API. The server-level values above are only used as defaults when a collection is created without them.
-</Callout>

@@ -8,13 +8,13 @@ from dataclasses import dataclass
 
 import orjson
 
-from bigrag.config import settings
 from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
 from bigrag.services import redis_cache
 from bigrag.services._retrieval_filters import build_filter
 from bigrag.services.embedding import EmbeddingModel
 from bigrag.services.event_bus import IngestionEvent, event_bus
+from bigrag.services.runtime_settings import get_value, get_values
 from bigrag.services.vector_store import vector_store
 from bigrag.utils import safe_create_task
 
@@ -112,7 +112,7 @@ async def _embed_query_with_cache(
     query: str,
     embedding_model: EmbeddingModel,
 ) -> list[float]:
-    ttl = settings.query_embedding_cache_ttl
+    ttl = await get_value("query_embedding_cache_ttl")
     if ttl <= 0:
         embeddings = await embedding_model.embed([query], input_type="query")
         return embeddings[0]
@@ -176,7 +176,7 @@ async def _cached_query_result(cache_key: str) -> RetrievalOutcome | None:
 
 
 async def _store_query_result(cache_key: str, outcome: RetrievalOutcome) -> None:
-    ttl = settings.query_result_cache_ttl
+    ttl = await get_value("query_result_cache_ttl")
     if ttl <= 0:
         return
     await redis_cache.set(
@@ -313,7 +313,8 @@ async def retrieve(
 
     query_embedding: list[float] | None = None
     result_cache_key: str | None = None
-    if settings.query_result_cache_ttl > 0:
+    cache_settings = await get_values(["query_result_cache_ttl"])
+    if cache_settings["query_result_cache_ttl"] > 0:
         result_cache_key = await _query_result_cache_key(
             collection_name=collection_name,
             query=query,

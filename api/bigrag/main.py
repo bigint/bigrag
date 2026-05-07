@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from bigrag import __version__
@@ -18,13 +17,14 @@ from bigrag.config import Settings
 from bigrag.db.bootstrap import run_migrations
 from bigrag.exceptions import NotFoundError, ValidationError
 from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
+from bigrag.middleware.cors import RuntimeCorsMiddleware
 from bigrag.middleware.csrf import SessionCsrfMiddleware
 from bigrag.middleware.idempotency import IdempotencyMiddleware
-from bigrag.services import crypto, redis_cache
+from bigrag.services import crypto, redis_cache, runtime_settings
 from bigrag.services.access_log import AccessLogMiddleware
 from bigrag.services.event_bus import event_bus
 from bigrag.services.queue import ingestion_queue
-from bigrag.services.storage import init_storage
+from bigrag.services.storage import init_storage_from_runtime
 from bigrag.services.vector_store import vector_store
 from bigrag.services.webhook import WebhookDispatcher
 from bigrag.startup_guard import check_production_safety
@@ -61,11 +61,13 @@ async def lifespan(app: FastAPI):
     await db_module.configure(s.database_url, pool_min=s.db_pool_min, pool_max=s.db_pool_max)
     await _check_database_migrations(s, logger)
 
+    runtime = await runtime_settings.get_values(["qdrant_search_ef", "ingestion_workers"])
+
     vector_store.configure(
         s.qdrant_url,
         api_key=s.qdrant_api_key,
         connect_timeout_seconds=s.qdrant_connect_timeout_seconds,
-        search_ef=s.qdrant_search_ef,
+        search_ef=runtime["qdrant_search_ef"],
     )
     try:
         vector_store.connect()
@@ -79,13 +81,13 @@ async def lifespan(app: FastAPI):
             raise
     app.state.vector_store = vector_store
 
-    storage = init_storage(upload_dir=s.upload_dir)
+    storage = await init_storage_from_runtime(upload_dir=s.upload_dir)
     app.state.storage = storage
 
     await redis_cache.connect(s.redis_url)
     await event_bus.connect(s.redis_url)
 
-    ingestion_queue._num_workers = s.ingestion_workers
+    ingestion_queue._num_workers = runtime["ingestion_workers"]
     await ingestion_queue.connect(s.redis_url)
     await ingestion_queue.start(vector_store=vector_store)
     app.state.queue = ingestion_queue
@@ -180,13 +182,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.add_middleware(AccessLogMiddleware)
     app.add_middleware(IdempotencyMiddleware)
     app.add_middleware(SessionCsrfMiddleware)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=s.cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    app.add_middleware(RuntimeCorsMiddleware)
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_request, exc: NotFoundError):
@@ -201,6 +197,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     from bigrag.routers.admin_audit import router as admin_audit_router
     from bigrag.routers.admin_connectors import router as admin_connectors_router
     from bigrag.routers.admin_realtime import router as admin_realtime_router
+    from bigrag.routers.admin_settings import router as admin_settings_router
     from bigrag.routers.admin_users import router as admin_users_router
     from bigrag.routers.auth import router as auth_router
     from bigrag.routers.chat import router as chat_router
@@ -223,6 +220,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(admin_users_router)
     app.include_router(admin_api_keys_router)
     app.include_router(admin_connectors_router)
+    app.include_router(admin_settings_router)
     app.include_router(admin_access_router)
     app.include_router(admin_realtime_router)
     app.include_router(mcp_servers_router)

@@ -5,8 +5,10 @@ import { Tabs } from "@/components/ui/tabs";
 import { AccountTab } from "@/features/settings/tabs/account-tab";
 import { AuditTab } from "@/features/settings/tabs/audit-tab";
 import { ConnectorsTab } from "@/features/settings/tabs/connectors-tab";
+import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 import { ServerTab } from "@/features/settings/tabs/server-tab";
 import { UsageTab } from "@/features/settings/tabs/usage-tab";
+import type { InstanceSettingGroup } from "@/types/bigrag";
 
 type SettingsSearch = {
   google_error?: string;
@@ -24,14 +26,34 @@ export const Route = createFileRoute("/_dashboard/settings")({
 const TABS = [
   { label: "Account", value: "account" },
   { label: "Server", value: "server" },
+  { label: "Security", value: "security" },
+  { label: "Ingestion", value: "ingestion" },
+  { label: "Storage", value: "storage" },
+  { label: "Queue", value: "queue" },
+  { label: "Search", value: "search" },
+  { label: "Chat", value: "chat" },
+  { label: "Webhooks", value: "webhooks" },
+  { label: "Rate limits", value: "rate_limits" },
+  { label: "Retention", value: "retention" },
   { label: "Connectors", value: "connectors" },
   { label: "Usage & cost", value: "usage" },
   { label: "Audit log", value: "audit" },
 ];
 
+const settingsTab = (group: InstanceSettingGroup) => () => <InstanceSettingsTab group={group} />;
+
 const COMPONENTS: Record<string, React.FC> = {
   account: AccountTab,
   server: ServerTab,
+  security: settingsTab("security"),
+  ingestion: settingsTab("ingestion"),
+  storage: settingsTab("storage"),
+  queue: settingsTab("queue"),
+  search: settingsTab("search"),
+  chat: settingsTab("chat"),
+  webhooks: settingsTab("webhooks"),
+  rate_limits: settingsTab("rate_limits"),
+  retention: settingsTab("retention"),
   connectors: ConnectorsTab,
   usage: UsageTab,
   audit: AuditTab,
@@ -66,7 +88,7 @@ const SettingsPage = () => {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Instance settings"
-        description="Manage account, infrastructure health, and audit trails."
+        description="Manage account, runtime configuration, infrastructure health, and audit trails."
       />
       <Tabs tabs={TABS} value={tab} onChange={setTab} />
       <div>

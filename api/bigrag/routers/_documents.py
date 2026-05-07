@@ -9,13 +9,13 @@ import sqlalchemy as sa
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.config import settings
 from bigrag.db.models import Collection, Document
 from bigrag.logging import get_logger
 from bigrag.models.document import DocumentProgressResponse, DocumentResponse
 from bigrag.services import collection_cache, metadata_schema
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
+from bigrag.services.runtime_settings import sync_value
 from bigrag.services.storage import get_storage
 
 logger = get_logger("bigrag.routers.documents")
@@ -50,9 +50,10 @@ class UploadBudget:
     def consume(self, size: int) -> None:
         self.used += size
         if self.used > self.max_size:
+            max_mb = sync_value("max_batch_upload_size_mb")
             raise HTTPException(
                 status_code=413,
-                detail=f"Batch upload too large. Max size: {settings.max_batch_upload_size_mb}MB",
+                detail=f"Batch upload too large. Max size: {max_mb}MB",
             )
 
 
@@ -128,9 +129,10 @@ async def read_upload_content(
             break
         total_size += len(chunk)
         if total_size > max_size:
+            max_mb = sync_value("max_upload_size_mb")
             raise HTTPException(
                 status_code=413,
-                detail=f"File too large. Max size: {settings.max_upload_size_mb}MB",
+                detail=f"File too large. Max size: {max_mb}MB",
             )
         if budget is not None:
             budget.consume(len(chunk))

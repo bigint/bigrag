@@ -45,6 +45,17 @@ class Session(Base):
     created_at: Mapped[TS]
 
 
+class InstanceSetting(Base):
+    __tablename__ = "instance_settings"
+
+    key: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    value: Mapped[dict | list | str | int | float | bool | None] = mapped_column(JSONB)
+    secret_value: Mapped[str | None] = mapped_column(EncryptedString)
+    updated_by: Mapped[UUID | None] = mapped_column(sa.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[TS]
+    updated_at: Mapped[TSupd]
+
+
 class ApiKey(Base):
     __tablename__ = "api_keys"
     __table_args__ = (

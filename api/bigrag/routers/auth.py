@@ -39,29 +39,42 @@ from bigrag.services.auth import (
 )
 from bigrag.services.client_ip import client_ip
 from bigrag.services.rate_limit import consume_rate_limit
+from bigrag.services.runtime_settings import get_values
 
 logger = get_logger("bigrag.routers.auth")
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
 
-def _set_session_cookie(response: Response, token: str) -> None:
+async def _session_cookie_options() -> dict:
+    return await get_values(
+        [
+            "session_cookie_secure",
+            "session_cookie_samesite",
+            "session_cookie_domain",
+        ]
+    )
+
+
+async def _set_session_cookie(response: Response, token: str) -> None:
+    cookie = await _session_cookie_options()
     response.set_cookie(
         key=settings.session_cookie_name,
         value=token,
         max_age=settings.session_expiry_hours * 3600,
         httponly=True,
-        secure=settings.session_cookie_secure,
-        samesite=settings.session_cookie_samesite,
-        domain=settings.session_cookie_domain,
+        secure=bool(cookie["session_cookie_secure"]),
+        samesite=cookie["session_cookie_samesite"] or "lax",
+        domain=cookie["session_cookie_domain"],
         path="/",
     )
 
 
-def _clear_session_cookie(response: Response) -> None:
+async def _clear_session_cookie(response: Response) -> None:
+    cookie = await _session_cookie_options()
     response.delete_cookie(
         key=settings.session_cookie_name,
-        domain=settings.session_cookie_domain,
+        domain=cookie["session_cookie_domain"],
         path="/",
     )
 
@@ -84,28 +97,36 @@ def _request_ip(request: Request) -> str:
 
 
 async def _check_setup_rate_limit(request: Request) -> None:
+    limits = await get_values(["auth_setup_ip_rate_limit", "auth_rate_limit_window_seconds"])
     await consume_rate_limit(
         bucket="auth:setup:ip",
         identifier=_request_ip(request),
-        limit=settings.auth_setup_ip_rate_limit,
-        window_seconds=settings.auth_rate_limit_window_seconds,
+        limit=limits["auth_setup_ip_rate_limit"],
+        window_seconds=limits["auth_rate_limit_window_seconds"],
         message="Too many setup attempts. Try again later.",
     )
 
 
 async def _check_login_rate_limit(request: Request, email: str) -> None:
-    window = settings.auth_rate_limit_window_seconds
+    limits = await get_values(
+        [
+            "auth_rate_limit_window_seconds",
+            "auth_login_email_rate_limit",
+            "auth_login_ip_rate_limit",
+        ]
+    )
+    window = limits["auth_rate_limit_window_seconds"]
     await consume_rate_limit(
         bucket="auth:login:email",
         identifier=email,
-        limit=settings.auth_login_email_rate_limit,
+        limit=limits["auth_login_email_rate_limit"],
         window_seconds=window,
         message="Too many login attempts. Try again later.",
     )
     await consume_rate_limit(
         bucket="auth:login:ip",
         identifier=_request_ip(request),
-        limit=settings.auth_login_ip_rate_limit,
+        limit=limits["auth_login_ip_rate_limit"],
         window_seconds=window,
         message="Too many login attempts. Try again later.",
     )
@@ -145,7 +166,7 @@ async def setup(
     await session.commit()
     await session.refresh(user)
 
-    _set_session_cookie(response, token)
+    await _set_session_cookie(response, token)
     logger.info(f"First admin created: {body.email}")
     audit.record(
         request,
@@ -191,7 +212,7 @@ async def login(
     token = await _issue_session(session, user.id)
     await session.commit()
     await session.refresh(user)
-    _set_session_cookie(response, token)
+    await _set_session_cookie(response, token)
     audit.record(
         request,
         user={"id": str(user.id), "email": user.email},
@@ -221,7 +242,7 @@ async def logout(
         await session.execute(sa.delete(DbSession).where(DbSession.token_hash == token_hash))
         await session.commit()
         await invalidate_session_principal(token_hash)
-    _clear_session_cookie(response)
+    await _clear_session_cookie(response)
     if actor_user is not None:
         audit.record(
             request,
@@ -246,7 +267,7 @@ async def logout_all(
     await session.execute(sa.delete(DbSession).where(DbSession.user_id == uuid.UUID(user["id"])))
     await session.commit()
     await invalidate_auth_principals()
-    _clear_session_cookie(response)
+    await _clear_session_cookie(response)
     audit.record(
         request,
         user=user,

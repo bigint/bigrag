@@ -6,7 +6,6 @@ import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.config import settings
 from bigrag.db.models import Webhook, WebhookDelivery
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
@@ -23,6 +22,7 @@ from bigrag.models.webhook import (
     resolve_and_validate_url,
 )
 from bigrag.services import audit
+from bigrag.services.runtime_settings import get_value
 from bigrag.services.webhook import generate_secret, webhook_dispatcher
 
 logger = get_logger("bigrag.routers.webhooks")
@@ -89,7 +89,7 @@ async def create_webhook(
     session: AsyncSession = Depends(get_session),
 ):
     count = await session.scalar(sa.select(sa.func.count()).select_from(Webhook))
-    max_count = settings.webhook_max_count
+    max_count = await get_value("webhook_max_count")
     if (count or 0) >= max_count:
         raise HTTPException(
             status_code=400,
