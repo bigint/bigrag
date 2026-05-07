@@ -211,6 +211,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     from bigrag.routers.mcp_servers import router as mcp_servers_router
     from bigrag.routers.preferences import router as preferences_router
     from bigrag.routers.query import router as query_router
+    from bigrag.routers.upload_sessions import router as upload_sessions_router
     from bigrag.routers.usage import router as usage_router
     from bigrag.routers.webhooks import router as webhooks_router
 
@@ -230,6 +231,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(connectors_router)
     app.include_router(documents_router)
     app.include_router(documents_global_router)
+    app.include_router(upload_sessions_router)
     app.include_router(chat_router)
     app.include_router(query_router)
     app.include_router(evaluation_router)

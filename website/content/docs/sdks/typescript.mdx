@@ -100,6 +100,11 @@ client.collections.streamEvents(name)    // AsyncIterable of collection events (
 ```typescript
 client.documents.upload(collection, file, metadata?, { onUploadProgress? }?)
 client.documents.batchUpload(collection, files, metadata?)
+client.documents.createUploadSession(collection, { total_files, total_bytes, metadata? })
+client.documents.uploadSessionFile(collection, sessionId, file, { clientItemId?, filename? })
+client.documents.getUploadSession(collection, sessionId)
+client.documents.completeUploadSession(collection, sessionId)
+client.documents.cancelUploadSession(collection, sessionId)
 client.documents.list(collection, { status?, limit?, offset? })
 client.documents.listAll(collection, { status?, limit? })  // AsyncGenerator
 client.documents.get(collection, documentId)

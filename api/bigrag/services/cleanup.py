@@ -5,7 +5,7 @@ import asyncio
 import sqlalchemy as sa
 
 from bigrag.db.engine import session_factory
-from bigrag.db.models import AccessLog, QueryLog, WebhookDelivery
+from bigrag.db.models import AccessLog, QueryLog, UploadSession, WebhookDelivery
 from bigrag.logging import get_logger
 from bigrag.services.runtime_settings import get_values
 
@@ -22,6 +22,7 @@ async def cleanup_old_data() -> None:
                     "query_log_retention_days",
                     "access_log_retention_days",
                     "webhook_delivery_retention_days",
+                    "upload_session_item_retention_hours",
                 ]
             )
             async with session_factory()() as session:
@@ -34,6 +35,9 @@ async def cleanup_old_data() -> None:
                 webhook_cutoff = sa.func.now() - sa.text("make_interval(days => :days)").bindparams(
                     days=retention["webhook_delivery_retention_days"]
                 )
+                upload_cutoff = sa.func.now() - sa.text(
+                    "make_interval(hours => :hours)"
+                ).bindparams(hours=retention["upload_session_item_retention_hours"])
                 ql_result = await session.execute(
                     sa.delete(QueryLog).where(QueryLog.created_at < query_cutoff)
                 )
@@ -43,10 +47,14 @@ async def cleanup_old_data() -> None:
                 wd_result = await session.execute(
                     sa.delete(WebhookDelivery).where(WebhookDelivery.created_at < webhook_cutoff)
                 )
+                us_result = await session.execute(
+                    sa.delete(UploadSession).where(UploadSession.updated_at < upload_cutoff)
+                )
                 await session.commit()
             logger.info(f"query_log cleanup: {ql_result.rowcount or 0}")
             logger.info(f"access_log cleanup: {al_result.rowcount or 0}")
             logger.info(f"webhook_deliveries cleanup: {wd_result.rowcount or 0}")
+            logger.info(f"upload_sessions cleanup: {us_result.rowcount or 0}")
         except asyncio.CancelledError:
             return
         except Exception as e:

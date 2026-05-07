@@ -8,6 +8,7 @@ use crate::types::common::StatusResponse;
 use crate::types::documents::{
     BatchDeleteDocumentsResponse, BatchGetDocumentsResponse, BatchStatusResponse, Document,
     DocumentChunkListResponse, DocumentChunkOptions, DocumentListOptions, DocumentListResponse,
+    UploadSession, UploadSessionCreateRequest, UploadSessionFileResponse,
 };
 
 /// Documents resource — upload, manage, and retrieve documents.
@@ -53,6 +54,86 @@ impl Documents<'_> {
             urlencode(collection)
         );
         self.client.transport.post_multipart(&path, form).await
+    }
+
+    /// Create a resumable upload session.
+    pub async fn create_upload_session(
+        &self,
+        collection: &str,
+        body: UploadSessionCreateRequest,
+    ) -> Result<UploadSession, BigRagError> {
+        let path = format!("/v1/collections/{}/upload-sessions", urlencode(collection));
+        self.client.transport.post(&path, &body).await
+    }
+
+    /// Get a resumable upload session.
+    pub async fn get_upload_session(
+        &self,
+        collection: &str,
+        session_id: &str,
+    ) -> Result<UploadSession, BigRagError> {
+        let path = format!(
+            "/v1/collections/{}/upload-sessions/{}",
+            urlencode(collection),
+            urlencode(session_id)
+        );
+        self.client.transport.get(&path, vec![]).await
+    }
+
+    /// Upload one file into a resumable upload session.
+    pub async fn upload_session_file(
+        &self,
+        collection: &str,
+        session_id: &str,
+        file: impl Into<FileInput>,
+        client_item_id: Option<&str>,
+    ) -> Result<UploadSessionFileResponse, BigRagError> {
+        let file_input: FileInput = file.into();
+        let part = file_input.into_multipart_part().await?;
+        let mut form = Form::new().part("file", part);
+        if let Some(client_item_id) = client_item_id {
+            form = form.text("client_item_id", client_item_id.to_string());
+        }
+        let path = format!(
+            "/v1/collections/{}/upload-sessions/{}/files",
+            urlencode(collection),
+            urlencode(session_id)
+        );
+        self.client.transport.post_multipart(&path, form).await
+    }
+
+    /// Mark a resumable upload session complete.
+    pub async fn complete_upload_session(
+        &self,
+        collection: &str,
+        session_id: &str,
+    ) -> Result<UploadSession, BigRagError> {
+        let path = format!(
+            "/v1/collections/{}/upload-sessions/{}/complete",
+            urlencode(collection),
+            urlencode(session_id)
+        );
+        self.client
+            .transport
+            .post(&path, &serde_json::Value::Null)
+            .await
+    }
+
+    /// Cancel a resumable upload session.
+    pub async fn cancel_upload_session(
+        &self,
+        collection: &str,
+        session_id: &str,
+    ) -> Result<StatusResponse, BigRagError> {
+        let path = format!(
+            "/v1/collections/{}/upload-sessions/{}/cancel",
+            urlencode(collection),
+            urlencode(session_id)
+        );
+        self.client
+            .transport
+            .post(&path, &serde_json::Value::Null)
+            .await
     }
 
     /// List documents in a collection.

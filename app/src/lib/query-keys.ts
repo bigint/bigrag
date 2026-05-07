@@ -39,6 +39,8 @@ export const queryKeys = {
     chunks: (collection: string, id: string) => ["documents", collection, id, "chunks"] as const,
     batchStatus: (collection: string, ids: string) =>
       ["documents", collection, "batch-status", ids] as const,
+    uploadSession: (collection: string, id: string | null) =>
+      ["documents", collection, "upload-session", id] as const,
   },
   platform: {
     stats: () => ["platform", "stats"] as const,

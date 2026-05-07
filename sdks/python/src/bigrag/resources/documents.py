@@ -15,6 +15,8 @@ from bigrag.types.documents import (
     Document,
     DocumentChunkListResponse,
     DocumentListResponse,
+    UploadSession,
+    UploadSessionFileResponse,
 )
 
 if TYPE_CHECKING:
@@ -27,6 +29,11 @@ def _col_path(collection: str) -> str:
 
 def _doc_path(collection: str, document_id: str) -> str:
     return f"{_col_path(collection)}/documents/{quote(document_id, safe='')}"
+
+
+def _upload_session_path(collection: str, session_id: str | None = None) -> str:
+    base = f"{_col_path(collection)}/upload-sessions"
+    return base if session_id is None else f"{base}/{quote(session_id, safe='')}"
 
 
 class DocumentsResource:
@@ -76,6 +83,67 @@ class DocumentsResource:
             f"{_col_path(collection)}/documents/batch/upload",
             files=file_list,
             data=form_data,
+        )
+
+    async def create_upload_session(
+        self,
+        collection: str,
+        *,
+        total_files: int,
+        total_bytes: int,
+        metadata: dict[str, Any] | None = None,
+    ) -> UploadSession:
+        return await self._client._request(
+            "POST",
+            _upload_session_path(collection),
+            json={
+                "total_files": total_files,
+                "total_bytes": total_bytes,
+                "metadata": metadata or {},
+            },
+        )
+
+    async def get_upload_session(
+        self, collection: str, session_id: str
+    ) -> UploadSession:
+        return await self._client._request(
+            "GET",
+            _upload_session_path(collection, session_id),
+        )
+
+    async def upload_session_file(
+        self,
+        collection: str,
+        session_id: str,
+        file: FileInput,
+        *,
+        client_item_id: str | None = None,
+        filename: str | None = None,
+    ) -> UploadSessionFileResponse:
+        name, data = normalize_file_input(file)
+        form_data = (
+            {"client_item_id": client_item_id} if client_item_id is not None else None
+        )
+        return await self._client._request_form(
+            f"{_upload_session_path(collection, session_id)}/files",
+            files={"file": (filename or name, data)},
+            data=form_data,
+        )
+
+    async def complete_upload_session(
+        self, collection: str, session_id: str
+    ) -> UploadSession:
+        return await self._client._request(
+            "POST",
+            f"{_upload_session_path(collection, session_id)}/complete",
+        )
+
+    async def cancel_upload_session(
+        self, collection: str, session_id: str
+    ) -> StatusResponse:
+        return await self._client._request(
+            "POST",
+            f"{_upload_session_path(collection, session_id)}/cancel",
         )
 
     async def list(

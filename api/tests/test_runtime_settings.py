@@ -23,6 +23,11 @@ def test_runtime_settings_reject_invalid_select_option() -> None:
         validate_setting_value("storage_backend", "ftp")
 
 
+def test_runtime_settings_include_upload_session_limits() -> None:
+    assert validate_setting_value("max_upload_session_files", 10000) == 10000
+    assert validate_setting_value("upload_session_item_retention_hours", 168) == 168
+
+
 def test_runtime_settings_redacts_secret_public_value() -> None:
     row = InstanceSetting(key="embedding_api_key", secret_value="sk-secret")
 

@@ -207,6 +207,61 @@ curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/upload \
 
 If queueing fails for an item, that document is still returned but with `status: "failed"` plus an `error_message`, rather than being left stuck in `pending`.
 
+## Upload Sessions
+
+Upload sessions are the large-upload path for thousands of local files. They create one durable session, then upload files one request at a time so browsers and proxies never build a giant multipart body.
+
+```
+POST /v1/collections/{collection_name}/upload-sessions
+```
+
+```json
+{
+  "total_files": 10000,
+  "total_bytes": 2147483648,
+  "metadata": { "source": "folder-import" }
+}
+```
+
+**Response** `201`:
+
+```json
+{
+  "id": "upload-session-id",
+  "status": "preparing",
+  "total_files": 10000,
+  "uploaded_files": 0,
+  "queued_files": 0,
+  "processing_files": 0,
+  "completed_files": 0,
+  "failed_files": 0,
+  "recent_items": []
+}
+```
+
+```
+POST /v1/collections/{collection_name}/upload-sessions/{session_id}/files
+```
+
+Upload one file with `multipart/form-data`:
+
+```bash
+curl -X POST http://localhost:4000/v1/collections/docs/upload-sessions/$SESSION_ID/files \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -F "client_item_id=folder-000001" \
+  -F "file=@contract.pdf"
+```
+
+Each accepted file is validated, deduped by `content_hash`, stored, converted into a `Document`, and queued for ingestion. Failed files are recorded as upload-session items and do not abort the session.
+
+```
+GET /v1/collections/{collection_name}/upload-sessions/{session_id}
+POST /v1/collections/{collection_name}/upload-sessions/{session_id}/complete
+POST /v1/collections/{collection_name}/upload-sessions/{session_id}/cancel
+```
+
+`GET` returns aggregate counts plus the latest active or failed items. `complete` marks the upload phase closed; ingestion can still continue until all linked documents are `ready` or `failed`. `cancel` closes the session and cancels active queued documents created by that session.
+
 ## Batch Status
 
 ```

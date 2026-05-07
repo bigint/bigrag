@@ -21,6 +21,7 @@ from bigrag.routers.collections import get_collection_stats
 from bigrag.routers.connectors import google_sources, google_sync_jobs
 from bigrag.routers.documents import batch_get_status, get_document, list_documents
 from bigrag.routers.health import platform_stats, readiness
+from bigrag.routers.upload_sessions import get_upload_session as upload_session_detail
 from bigrag.routers.usage import get_usage
 from bigrag.services.event_bus import event_bus
 
@@ -180,6 +181,10 @@ def _batch_done(payload: Any) -> bool:
     )
 
 
+def _upload_session_done(payload: Any) -> bool:
+    return getattr(payload, "status", None) in {"complete", "failed", "canceled"}
+
+
 def _google_sources_interval(payload: Any | None) -> float:
     sources = getattr(payload, "sources", []) if payload is not None else []
     return 2.5 if any(getattr(source, "status", None) == "syncing" for source in sources) else 10.0
@@ -275,6 +280,27 @@ async def collection_document_stream(
         )
 
     return _stream_response(_event_stream(topic, load, document_id, _fixed(2.0), _document_done))
+
+
+@router.get("/collections/{collection_name}/upload-sessions/{session_id}")
+async def collection_upload_session_stream(
+    collection_name: str,
+    session_id: str,
+    user: dict = Depends(require_admin_session),
+):
+    topic = f"upload-session:{collection_name}:{session_id}"
+
+    async def load():
+        return await _with_session(
+            lambda session: upload_session_detail(
+                collection_name=collection_name,
+                session_id=session_id,
+                _=user,
+                db=session,
+            )
+        )
+
+    return _stream_response(_interval_stream(topic, load, _fixed(2.0), _upload_session_done))
 
 
 @router.get("/collections/{collection_name}/stats")

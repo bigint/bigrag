@@ -147,6 +147,20 @@ let files = vec![
 ];
 let docs = client.documents().batch_upload("docs", files, None).await?;
 
+// Large upload session
+let session = client.documents().create_upload_session("docs", UploadSessionCreateRequest {
+    total_files: 2,
+    total_bytes: 123456,
+    metadata: serde_json::json!({"source": "folder"}),
+}).await?;
+client.documents().upload_session_file(
+    "docs",
+    &session.id,
+    "/path/to/a.pdf",
+    Some("000001"),
+).await?;
+let session = client.documents().complete_upload_session("docs", &session.id).await?;
+
 // List documents
 let docs = client.documents().list("docs", None).await?;
 

@@ -42,6 +42,8 @@ from bigrag.types.documents import (
     Document,
     DocumentChunkListResponse,
     DocumentListResponse,
+    UploadSession,
+    UploadSessionFileResponse,
 )
 from bigrag.types.embeddings import EmbeddingModelListResponse
 from bigrag.types.query import (
@@ -186,6 +188,49 @@ class CollectionClient:
         """Upload multiple documents to this collection."""
         return await self._client.documents.batch_upload(
             self._name, files, metadata=metadata
+        )
+
+    async def create_upload_session(
+        self,
+        *,
+        total_files: int,
+        total_bytes: int,
+        metadata: dict[str, Any] | None = None,
+    ) -> UploadSession:
+        return await self._client.documents.create_upload_session(
+            self._name,
+            total_files=total_files,
+            total_bytes=total_bytes,
+            metadata=metadata,
+        )
+
+    async def get_upload_session(self, session_id: str) -> UploadSession:
+        return await self._client.documents.get_upload_session(self._name, session_id)
+
+    async def upload_session_file(
+        self,
+        session_id: str,
+        file: FileInput,
+        *,
+        client_item_id: str | None = None,
+        filename: str | None = None,
+    ) -> UploadSessionFileResponse:
+        return await self._client.documents.upload_session_file(
+            self._name,
+            session_id,
+            file,
+            client_item_id=client_item_id,
+            filename=filename,
+        )
+
+    async def complete_upload_session(self, session_id: str) -> UploadSession:
+        return await self._client.documents.complete_upload_session(
+            self._name, session_id
+        )
+
+    async def cancel_upload_session(self, session_id: str) -> StatusResponse:
+        return await self._client.documents.cancel_upload_session(
+            self._name, session_id
         )
 
     async def batch_get_status(self, document_ids: list[str]) -> BatchStatusResponse:

@@ -134,6 +134,21 @@ result = await client.documents.batch_upload("docs", [
     "/path/to/b.docx",
 ])
 
+# Large upload session
+session = await client.documents.create_upload_session(
+    "docs",
+    total_files=2,
+    total_bytes=123456,
+    metadata={"source": "folder"},
+)
+await client.documents.upload_session_file(
+    "docs",
+    session["id"],
+    "/path/to/a.pdf",
+    client_item_id="000001",
+)
+session = await client.documents.complete_upload_session("docs", session["id"])
+
 # List documents
 docs = await client.documents.list("docs", status="ready", limit=20)
 

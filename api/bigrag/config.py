@@ -82,6 +82,10 @@ class Settings(BaseSettings):
 
     max_upload_size_mb: int = 64
     max_batch_upload_size_mb: int = 128
+    max_upload_session_files: int = 10000
+    max_upload_session_size_mb: int = 102400
+    upload_session_item_retention_hours: int = 168
+    upload_session_upload_concurrency: int = 4
     ingestion_workers: int = 4
     ingestion_batch_size: int = 128
 
