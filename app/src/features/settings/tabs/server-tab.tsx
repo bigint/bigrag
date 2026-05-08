@@ -46,7 +46,14 @@ export const ServerTab = () => {
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <StatusRow label="Postgres" ok={readiness?.postgres} />
-          <StatusRow label="Qdrant" ok={readiness?.qdrant} />
+          <StatusRow
+            label={
+              readiness?.vector_store_provider
+                ? `Vector store (${readiness.vector_store_provider})`
+                : "Vector store"
+            }
+            ok={readiness?.vector_store}
+          />
           <StatusRow label="Redis" ok={readiness?.redis} />
           <StatusRow
             label="Embeddings"
@@ -73,7 +80,7 @@ export const ServerTab = () => {
         <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
           <EnvRow label="Postgres" value="BIGRAG_DATABASE_URL" />
           <EnvRow label="Redis" value="BIGRAG_REDIS_URL" />
-          <EnvRow label="Qdrant" value="BIGRAG_QDRANT_URL" />
+          <EnvRow label="Vector store" value="Admin Settings / Vector store" />
           <EnvRow label="Encryption" value="BIGRAG_MASTER_KEY" />
           <EnvRow label="Bind address" value="BIGRAG_HOST / BIGRAG_PORT" />
           <EnvRow label="Split admin UI" value="admin UI backend URL" />

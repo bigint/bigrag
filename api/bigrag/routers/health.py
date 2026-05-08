@@ -171,18 +171,18 @@ async def readiness(request: Request) -> JSONResponse:
         async with session_factory()() as session:
             await session.execute(sa.text("SELECT 1"))
 
-    async def _check_qdrant():
+    async def _check_vector_store():
         if vs.client:
             await vs.health_check()
         else:
-            raise RuntimeError("qdrant client not connected")
+            raise RuntimeError("vector store client not connected")
 
     async def _check_redis():
         await queue._redis.ping()
 
     infra_checks = {
         "postgres": _check_postgres(),
-        "qdrant": _check_qdrant(),
+        "vector_store": _check_vector_store(),
         "redis": _check_redis(),
     }
 
@@ -197,6 +197,8 @@ async def readiness(request: Request) -> JSONResponse:
             healthy = False
         else:
             checks[name] = True
+    checks["vector_store_provider"] = vs.provider
+    checks["qdrant"] = checks["vector_store"] if vs.provider == "qdrant" else None
 
     embedding_result = await _check_embedding_provider()
     checks.update(embedding_result)

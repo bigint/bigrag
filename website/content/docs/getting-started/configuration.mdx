@@ -24,10 +24,11 @@ Bootstrap config is the small set of values the API needs before it can connect 
 | `BIGRAG_DB_POOL_MAX` | Maximum Postgres pool size. | `50` |
 | `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration timeout. Set `0` to disable the timeout. | `60` |
 | `BIGRAG_REDIS_URL` | Redis connection URL. | `redis://localhost:6379/0` |
+| `BIGRAG_VECTOR_STORE_PROVIDER` | Vector backend: `qdrant`, `s3_vectors`, or `turbopuffer`. | `qdrant` |
 | `BIGRAG_QDRANT_URL` | Qdrant connection URL. | `http://localhost:6333` |
 | `BIGRAG_QDRANT_API_KEY` | Optional Qdrant API key. | — |
 | `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout. | `10` |
-| `BIGRAG_QDRANT_REQUIRED` | Fail startup if Qdrant cannot be reached. | `false` |
+| `BIGRAG_QDRANT_REQUIRED` | Fail startup if the configured vector store cannot be reached. | `false` |
 | `BIGRAG_MASTER_KEY` | Fernet key for encrypted provider secrets, instance-setting secrets, embedding-cache rows, and Redis cache payloads. Required for production. | — |
 | `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys during staged key rotation. | `[]` |
 | `BIGRAG_UPLOAD_DIR` | Local document upload directory when storage backend is `local`. | `./data/uploads` |
@@ -46,6 +47,7 @@ workers = 1
 
 database_url = "postgres://bigrag:change-me@postgres:5432/bigrag?sslmode=disable"
 redis_url = "redis://redis:6379/0"
+vector_store_provider = "qdrant"
 qdrant_url = "http://qdrant:6333"
 qdrant_api_key = ""
 
@@ -70,8 +72,9 @@ The same surface is available through [`/admin/settings`](/docs/api-reference/in
 | Ingestion | Upload limits, upload-session limits, upload-session UI concurrency, OCR toggle, Docling timeout, ingestion workers, vector batch size. |
 | Queue | Maximum pending ingestion jobs before uploads are rejected. |
 | Storage | Local vs S3/MinIO backend, bucket, endpoint, region, prefix, credentials, signed URL TTL. |
+| Vector store | Qdrant, S3 Vectors, or turbopuffer backend selection, cloud credentials, and backend prefixes. |
 | Backups | S3-compatible readable backup bucket, endpoint, region, prefix, and credentials for S3, R2, or MinIO. |
-| Search | Qdrant `ef`, embedding concurrency, collection/query cache TTLs. |
+| Search | Embedding concurrency, collection/query cache TTLs, and default embedding model settings. |
 | Chat | Default provider, model, base URL, temperature, history count, context budget. |
 | Webhooks | Max webhooks, delivery timeout, retry delays, local/private URL policy. |
 | Retention | Query log, access log, webhook delivery, progress snapshot, upload-session history, embedding cache, and audit retention windows. |

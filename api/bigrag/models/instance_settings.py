@@ -12,6 +12,7 @@ SettingGroup = Literal[
     "security",
     "ingestion",
     "storage",
+    "vector_store",
     "queue",
     "search",
     "chat",

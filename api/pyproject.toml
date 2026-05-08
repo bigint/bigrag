@@ -1,7 +1,7 @@
 [project]
 name = "bigrag"
 version = "2026.4.30"
-description = "Self-hostable RAG platform with Docling ingestion and Qdrant vector DB"
+description = "Self-hostable RAG platform with Docling ingestion and pluggable vector storage"
 license = "MIT"
 requires-python = ">=3.12"
 dependencies = [

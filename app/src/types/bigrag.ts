@@ -195,6 +195,7 @@ export type InstanceSettingGroup =
   | "security"
   | "ingestion"
   | "storage"
+  | "vector_store"
   | "queue"
   | "search"
   | "chat"
@@ -439,7 +440,9 @@ export type PlatformStats = {
 export type ReadinessReport = {
   version: string;
   postgres: boolean;
-  qdrant: boolean;
+  qdrant: boolean | null;
+  vector_store: boolean;
+  vector_store_provider: "qdrant" | "s3_vectors" | "turbopuffer";
   redis: boolean;
   embedding: boolean;
   embedding_error?: string;

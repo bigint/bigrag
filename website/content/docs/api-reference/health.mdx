@@ -21,7 +21,7 @@ No authentication required. Returns 200 if the server is running.
 GET /health/ready
 ```
 
-No authentication required. Tests connectivity to Postgres, Qdrant, Redis, and the configured embedding provider.
+No authentication required. Tests connectivity to Postgres, the configured vector store, Redis, and the configured embedding provider.
 
 **Response** `200`:
 
@@ -30,6 +30,8 @@ No authentication required. Tests connectivity to Postgres, Qdrant, Redis, and t
   "status": "ok",
   "version": "2026.4.30",
   "postgres": true,
+  "vector_store": true,
+  "vector_store_provider": "qdrant",
   "qdrant": true,
   "redis": true,
   "embedding": true,
@@ -44,6 +46,8 @@ When the embedding provider is unreachable or misconfigured:
   "status": "degraded",
   "version": "2026.4.30",
   "postgres": true,
+  "vector_store": true,
+  "vector_store_provider": "qdrant",
   "qdrant": true,
   "redis": true,
   "embedding": false,

@@ -20,11 +20,11 @@ Tick these off before pointing real traffic at a bigRAG deployment:
   proxies if bigRAG sits behind nginx, Caddy, Traefik, or a load balancer.
 - [ ] Redis with `requirepass` set and `appendonly yes` persisted to
   a mounted volume.
-- [ ] Qdrant in cluster mode if you expect >10M vectors or need HA.
+- [ ] Qdrant cluster mode, S3 Vectors, or turbopuffer if you expect >10M vectors or need managed HA.
 - [ ] Postgres warm-standby replica for failover.
 - [ ] Backup strategy: configure readable S3/R2 backups in Settings → Backups,
   protect that bucket as sensitive, and separately keep encrypted infrastructure
-  snapshots for Postgres, Qdrant, Redis, and uploads.
+  snapshots for Postgres, the configured vector store, Redis, and uploads.
 - [ ] Set `metadata_schema` on collections that accept untrusted
   metadata so uploads with invalid shape are rejected at the edge.
 - [ ] Wire `GET /v1/admin/audit` into your SIEM / log pipeline.
@@ -179,7 +179,7 @@ The destination is S3-compatible, so AWS S3, Cloudflare R2, and MinIO all work.
 Use a bucket or prefix dedicated to backups rather than reusing the upload bucket.
 
 Readable backups are plain JSON, JSONL, SQL, and raw files. They include Postgres
-rows, Qdrant vectors and payloads, uploaded files, chats, logs, embedding cache
+rows, vector-store points and payloads, uploaded files, chats, logs, embedding cache
 rows, and decrypted provider settings. They are useful for inspection and data
 portability, but they are not a substitute for encrypted infrastructure snapshots
 or tested disaster recovery runbooks.

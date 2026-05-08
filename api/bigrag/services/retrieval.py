@@ -15,7 +15,7 @@ from bigrag.services._retrieval_filters import build_filter
 from bigrag.services.embedding import EmbeddingModel
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.runtime_settings import get_value, get_values
-from bigrag.services.vector_store import vector_store
+from bigrag.services.vector_store import VectorStoreFeatureError, vector_store
 from bigrag.utils import safe_create_task
 
 logger = get_logger("bigrag.retrieval")
@@ -316,6 +316,10 @@ async def retrieve(
         filter_expr = build_filter(filters) if filters else None
     except ValueError as exc:
         raise ValidationError(str(exc)) from exc
+    if search_mode in {"keyword", "hybrid"} and not vector_store.supports_text_search:
+        raise ValidationError(
+            f"{vector_store.provider} does not support {search_mode} search in v1"
+        )
     query_terms = _tokenize_query(query)
 
     query_embedding: list[float] | None = None
@@ -356,12 +360,15 @@ async def retrieve(
 
     if search_mode == "keyword":
         t0 = time.monotonic()
-        raw_results = await vector_store.text_search(
-            collection=collection_name,
-            query_terms=query_terms,
-            top_k=top_k,
-            filters=filter_expr,
-        )
+        try:
+            raw_results = await vector_store.text_search(
+                collection=collection_name,
+                query_terms=query_terms,
+                top_k=top_k,
+                filters=filter_expr,
+            )
+        except VectorStoreFeatureError as exc:
+            raise ValidationError(str(exc)) from exc
         timings["search_ms"] = (time.monotonic() - t0) * 1000
         results = []
         for r in raw_results:
@@ -390,7 +397,10 @@ async def retrieve(
             top_k=top_k,
             filters=filter_expr,
         )
-        semantic_results, keyword_raw = await asyncio.gather(semantic_task, keyword_task)
+        try:
+            semantic_results, keyword_raw = await asyncio.gather(semantic_task, keyword_task)
+        except VectorStoreFeatureError as exc:
+            raise ValidationError(str(exc)) from exc
         timings["search_ms"] = (time.monotonic() - t0) * 1000
 
         keyword_results = []
