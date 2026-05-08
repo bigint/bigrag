@@ -155,3 +155,7 @@ docker exec bigrag-redis redis-cli ping
 <Callout type="warn">
   `/health/ready` also validates the embedding provider. If no collection has an `embedding_api_key` configured, it returns `503`. Use `/health` if you just need to check the server is running.
 </Callout>
+
+## Startup Troubleshooting
+
+If the API exits with `ImportError: Can't find Python file .../site-packages/alembic/env.py`, rebuild or pull a current API image. The container must include the bundled Alembic environment so startup migrations can run before FastAPI begins serving traffic.

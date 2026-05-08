@@ -19,7 +19,7 @@ from bigrag.routers.admin_access import access_overview, list_access_logs
 from bigrag.routers.admin_audit import list_audit_log
 from bigrag.routers.admin_backups import list_backup_jobs
 from bigrag.routers.collections import get_collection_stats
-from bigrag.routers.connectors import google_sources, google_sync_jobs
+from bigrag.routers.connectors import connector_sources, connector_sync_jobs
 from bigrag.routers.documents import batch_get_status, get_document, list_documents
 from bigrag.routers.health import platform_stats, readiness
 from bigrag.routers.upload_sessions import get_upload_session as upload_session_detail
@@ -187,12 +187,12 @@ def _upload_session_done(payload: Any) -> bool:
     return getattr(payload, "status", None) in {"complete", "failed", "canceled"}
 
 
-def _google_sources_interval(payload: Any | None) -> float:
+def _connector_sources_interval(payload: Any | None) -> float:
     sources = getattr(payload, "sources", []) if payload is not None else []
     return 2.5 if any(getattr(source, "status", None) == "syncing" for source in sources) else 10.0
 
 
-def _google_jobs_interval(payload: Any | None) -> float:
+def _connector_jobs_interval(payload: Any | None) -> float:
     jobs = getattr(payload, "jobs", []) if payload is not None else []
     return (
         2.5
@@ -345,36 +345,40 @@ async def collection_stats_stream(
     )
 
 
-@router.get("/google/sources", response_class=StreamingResponse)
-async def google_sources_stream(
+@router.get("/{provider_slug}/sources", response_class=StreamingResponse)
+async def connector_sources_stream(
+    provider_slug: str,
     collection: str | None = Query(default=None, max_length=120),
     user: dict = Depends(require_admin_session),
 ):
-    topic = f"google:sources:{collection or 'all'}"
+    topic = f"{provider_slug}:sources:{collection or 'all'}"
 
     async def load():
         return await _with_session(
-            lambda session: google_sources(
+            lambda session: connector_sources(
+                provider_slug=provider_slug,
                 collection=collection,
                 user=user,
                 session=session,
             )
         )
 
-    return _stream_response(_interval_stream(topic, load, _google_sources_interval))
+    return _stream_response(_interval_stream(topic, load, _connector_sources_interval))
 
 
-@router.get("/google/sync-jobs", response_class=StreamingResponse)
-async def google_sync_jobs_stream(
+@router.get("/{provider_slug}/sync-jobs", response_class=StreamingResponse)
+async def connector_sync_jobs_stream(
+    provider_slug: str,
     source_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     user: dict = Depends(require_admin_session),
 ):
-    topic = f"google:sync-jobs:{source_id or 'all'}"
+    topic = f"{provider_slug}:sync-jobs:{source_id or 'all'}"
 
     async def load():
         return await _with_session(
-            lambda session: google_sync_jobs(
+            lambda session: connector_sync_jobs(
+                provider_slug=provider_slug,
                 source_id=source_id,
                 limit=limit,
                 user=user,
@@ -382,7 +386,7 @@ async def google_sync_jobs_stream(
             )
         )
 
-    return _stream_response(_interval_stream(topic, load, _google_jobs_interval))
+    return _stream_response(_interval_stream(topic, load, _connector_jobs_interval))
 
 
 @router.get("/backups", response_class=StreamingResponse)

@@ -14,13 +14,17 @@ logger = get_logger("bigrag.db.bootstrap")
 def _alembic_config() -> Config:
     pkg_dir = Path(__file__).resolve().parent.parent
     bundled = pkg_dir / "_alembic"
-    if (bundled / "env.py").exists():
-        ini_path = bundled / "alembic.ini"
-        script_dir = bundled
+    api_root = pkg_dir.parent
+    candidates = (
+        (bundled / "alembic.ini", bundled),
+        (api_root / "alembic.ini", api_root / "alembic"),
+    )
+    for ini_path, script_dir in candidates:
+        if ini_path.exists() and (script_dir / "env.py").exists():
+            break
     else:
-        api_root = pkg_dir.parent
-        ini_path = api_root / "alembic.ini"
-        script_dir = api_root / "alembic"
+        searched = ", ".join(str(script_dir) for _, script_dir in candidates)
+        raise FileNotFoundError(f"Alembic env.py was not found in: {searched}")
 
     cfg = Config(str(ini_path))
     cfg.set_main_option("script_location", str(script_dir))

@@ -1,53 +1,57 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.session import get_session
 from bigrag.middleware.auth import require_admin_session
-from bigrag.models.connector import (
-    GoogleConnectorConfigResponse,
-    UpdateGoogleConnectorConfigRequest,
-)
+from bigrag.models.connector import ConnectorConfigResponse, UpdateConnectorConfigRequest
 from bigrag.services import audit
-from bigrag.services.google_drive import (
-    get_google_config,
-    google_config_public,
-    upsert_google_config,
-)
+from bigrag.services.connector_registry import ConnectorRuntime, connector_runtime
 
 router = APIRouter(prefix="/v1/admin/connectors", tags=["admin:connectors"])
 
 
-def _callback_url(request: Request) -> str:
+def _route_or_404(provider_slug: str) -> ConnectorRuntime:
+    route = connector_runtime(provider_slug)
+    if route is None:
+        raise HTTPException(status_code=404, detail="Connector provider not found")
+    return route
+
+
+def _callback_url(request: Request, route: ConnectorRuntime) -> str:
     forwarded_host = request.headers.get("x-forwarded-host")
     if forwarded_host:
         proto = request.headers.get("x-forwarded-proto") or request.url.scheme
         prefix = request.headers.get("x-forwarded-prefix", "").rstrip("/")
-        return f"{proto}://{forwarded_host}{prefix}/v1/connectors/google/oauth/callback"
-    return str(request.url_for("google_oauth_callback"))
+        return f"{proto}://{forwarded_host}{prefix}/v1/connectors/{route.slug}/oauth/callback"
+    return str(request.url_for("connector_oauth_callback", provider_slug=route.slug))
 
 
-@router.get("/google", response_model=GoogleConnectorConfigResponse)
-async def get_google_connector_config(
+@router.get("/{provider_slug}", response_model=ConnectorConfigResponse)
+async def get_connector_config(
+    provider_slug: str,
     request: Request,
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
-) -> GoogleConnectorConfigResponse:
-    config = await get_google_config(session)
-    return GoogleConnectorConfigResponse(
-        **google_config_public(config, callback_url=_callback_url(request))
+) -> ConnectorConfigResponse:
+    route = _route_or_404(provider_slug)
+    config = await route.get_config(session)
+    return ConnectorConfigResponse(
+        **route.config_public(config, callback_url=_callback_url(request, route))
     )
 
 
-@router.put("/google", response_model=GoogleConnectorConfigResponse)
-async def update_google_connector_config(
-    body: UpdateGoogleConnectorConfigRequest,
+@router.put("/{provider_slug}", response_model=ConnectorConfigResponse)
+async def update_connector_config(
+    provider_slug: str,
+    body: UpdateConnectorConfigRequest,
     request: Request,
     user: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
-) -> GoogleConnectorConfigResponse:
-    config = await upsert_google_config(
+) -> ConnectorConfigResponse:
+    route = _route_or_404(provider_slug)
+    config = await route.upsert_config(
         session,
         enabled=body.enabled,
         client_id=body.client_id,
@@ -56,11 +60,11 @@ async def update_google_connector_config(
     audit.record(
         request,
         user=user,
-        action="connector.google_config.update",
+        action=f"connector.{route.slug}_config.update",
         resource_type="connector",
-        resource_id="google_drive",
+        resource_id=route.provider,
         metadata={"enabled": config.enabled, "has_client_id": bool(config.client_id)},
     )
-    return GoogleConnectorConfigResponse(
-        **google_config_public(config, callback_url=_callback_url(request))
+    return ConnectorConfigResponse(
+        **route.config_public(config, callback_url=_callback_url(request, route))
     )

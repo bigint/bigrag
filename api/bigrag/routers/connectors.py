@@ -3,60 +3,47 @@ from __future__ import annotations
 import uuid
 from urllib.parse import quote
 
-import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import ConnectorAccount, ConnectorSource, ConnectorSyncJob
+from bigrag.db.models import ConnectorAccount
 from bigrag.db.session import get_session
 from bigrag.middleware.auth import require_session
 from bigrag.models.common import StatusResponse
 from bigrag.models.connector import (
-    CreateGoogleSourceRequest,
-    GoogleAccountResponse,
-    GoogleDriveFileListResponse,
-    GoogleDriveFileResponse,
-    GoogleSourceListResponse,
-    GoogleSourceResponse,
-    GoogleSyncJobListResponse,
-    GoogleSyncJobResponse,
-    UpdateGoogleSourceRequest,
+    ConnectorAccountResponse,
+    ConnectorFileListResponse,
+    ConnectorFileResponse,
+    ConnectorSourceListResponse,
+    ConnectorSourceResponse,
+    ConnectorSyncJobListResponse,
+    ConnectorSyncJobResponse,
+    CreateConnectorSourceRequest,
+    UpdateConnectorSourceRequest,
 )
 from bigrag.services import audit
-from bigrag.services.google_drive import (
-    GOOGLE_PROVIDER,
-    GoogleDriveAuthError,
-    GoogleDriveConfigError,
-    GoogleDriveError,
-    build_google_oauth_url,
-    complete_google_oauth,
-    create_google_source,
-    delete_google_source,
-    disconnect_google_account,
-    get_google_account,
-    get_google_config,
-    google_account_public,
-    google_oauth_error_redirect_url,
-    google_source_public,
-    google_sync_job_public,
-    list_google_drive_files,
-    list_google_sources,
-    trigger_google_sync,
-    update_google_source,
-)
+from bigrag.services.connector_core import list_sync_jobs as list_connector_sync_jobs
+from bigrag.services.connector_registry import ConnectorRuntime, connector_runtime
 from bigrag.services.runtime_settings import get_value
 
-router = APIRouter(prefix="/v1/connectors/google", tags=["connectors:google"])
+router = APIRouter(prefix="/v1/connectors", tags=["connectors"])
 
 
-def _redirect_uri(request: Request) -> str:
+def _route_or_404(provider_slug: str) -> ConnectorRuntime:
+    route = connector_runtime(provider_slug)
+    if route is None:
+        raise HTTPException(status_code=404, detail="Connector provider not found")
+    return route
+
+
+def _redirect_uri(request: Request, route: ConnectorRuntime) -> str:
     forwarded_host = request.headers.get("x-forwarded-host")
     if forwarded_host:
         proto = request.headers.get("x-forwarded-proto") or request.url.scheme
         prefix = request.headers.get("x-forwarded-prefix", "").rstrip("/")
-        return f"{proto}://{forwarded_host}{prefix}/v1/connectors/google/oauth/callback"
-    return str(request.url_for("google_oauth_callback"))
+        return f"{proto}://{forwarded_host}{prefix}/v1/connectors/{route.slug}/oauth/callback"
+    return str(request.url_for("connector_oauth_callback", provider_slug=route.slug))
 
 
 def _safe_redirect_path(path: str | None) -> str:
@@ -73,27 +60,31 @@ async def _allowed_spa_origin(request: Request) -> str | None:
     return None
 
 
-@router.get("/account", response_model=GoogleAccountResponse)
-async def google_account(
+@router.get("/{provider_slug}/account", response_model=ConnectorAccountResponse)
+async def connector_account(
+    provider_slug: str,
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
-) -> GoogleAccountResponse:
-    config = await get_google_config(session)
-    account = await get_google_account(session, user["id"])
-    return GoogleAccountResponse(**google_account_public(config=config, account=account))
+) -> ConnectorAccountResponse:
+    route = _route_or_404(provider_slug)
+    config = await route.get_config(session)
+    account = await route.get_account(session, user["id"])
+    return ConnectorAccountResponse(**route.account_public(config=config, account=account))
 
 
-@router.get("/files", response_model=GoogleDriveFileListResponse)
-async def google_files(
+@router.get("/{provider_slug}/files", response_model=ConnectorFileListResponse)
+async def connector_files(
+    provider_slug: str,
     parent_id: str = Query(default="root", min_length=1, max_length=500),
     query: str | None = Query(default=None, max_length=200),
     page_token: str | None = Query(default=None, max_length=1000),
     page_size: int = Query(default=100, ge=1, le=100),
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
-) -> GoogleDriveFileListResponse:
+) -> ConnectorFileListResponse:
+    route = _route_or_404(provider_slug)
     try:
-        data = await list_google_drive_files(
+        data = await route.list_files(
             session,
             user_id=user["id"],
             parent_id=parent_id,
@@ -101,63 +92,72 @@ async def google_files(
             page_token=page_token,
             page_size=page_size,
         )
-        return GoogleDriveFileListResponse(
+        return ConnectorFileListResponse(
             provider=data["provider"],
             parent_id=data["parent_id"],
             query=data["query"],
-            files=[GoogleDriveFileResponse(**item) for item in data["files"]],
+            files=[ConnectorFileResponse(**item) for item in data["files"]],
             next_page_token=data["next_page_token"],
         )
-    except GoogleDriveConfigError as exc:
+    except route.config_error as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except GoogleDriveAuthError as exc:
+    except route.auth_error as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
-    except GoogleDriveError as exc:
+    except route.service_error as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
-@router.get("/oauth/start", response_class=RedirectResponse)
-async def google_oauth_start(
+@router.get("/{provider_slug}/oauth/start", response_class=RedirectResponse)
+async def connector_oauth_start(
+    provider_slug: str,
     request: Request,
     redirect_path: str | None = Query(default="/"),
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ):
+    route = _route_or_404(provider_slug)
     try:
-        auth_url = await build_google_oauth_url(
+        auth_url = await route.build_oauth_url(
             session,
             user_id=user["id"],
-            redirect_uri=_redirect_uri(request),
+            redirect_uri=_redirect_uri(request, route),
             redirect_path=_safe_redirect_path(redirect_path),
             redirect_origin=await _allowed_spa_origin(request),
         )
-    except GoogleDriveConfigError as exc:
+    except route.config_error as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return RedirectResponse(auth_url)
 
 
-@router.get("/oauth/start-url", response_model=dict[str, str])
-async def google_oauth_start_url(
+@router.get("/{provider_slug}/oauth/start-url", response_model=dict[str, str])
+async def connector_oauth_start_url(
+    provider_slug: str,
     request: Request,
     redirect_path: str | None = Query(default="/"),
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, str]:
+    route = _route_or_404(provider_slug)
     try:
-        auth_url = await build_google_oauth_url(
+        auth_url = await route.build_oauth_url(
             session,
             user_id=user["id"],
-            redirect_uri=_redirect_uri(request),
+            redirect_uri=_redirect_uri(request, route),
             redirect_path=_safe_redirect_path(redirect_path),
             redirect_origin=await _allowed_spa_origin(request),
         )
-    except GoogleDriveConfigError as exc:
+    except route.config_error as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"auth_url": auth_url}
 
 
-@router.get("/oauth/callback", name="google_oauth_callback", response_class=RedirectResponse)
-async def google_oauth_callback(
+@router.get(
+    "/{provider_slug}/oauth/callback",
+    name="connector_oauth_callback",
+    response_class=RedirectResponse,
+)
+async def connector_oauth_callback(
+    provider_slug: str,
     request: Request,
     code: str | None = Query(default=None),
     state: str | None = Query(default=None),
@@ -165,79 +165,86 @@ async def google_oauth_callback(
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ):
+    route = _route_or_404(provider_slug)
     if error:
-        redirect_url = await google_oauth_error_redirect_url(
+        redirect_url = await route.oauth_error_redirect_url(
             session,
             user_id=user["id"],
             state=state,
-            path=f"/settings?tab=connectors&google_error={quote(error)}",
+            path=f"/settings?tab=connectors&{route.error_query_param}={quote(error)}",
         )
         return RedirectResponse(redirect_url)
     if not code or not state:
-        raise HTTPException(status_code=400, detail="Missing Google OAuth code or state")
+        raise HTTPException(status_code=400, detail="Missing OAuth code or state")
     try:
-        redirect_path = await complete_google_oauth(
+        redirect_path = await route.complete_oauth(
             session,
             user_id=user["id"],
             code=code,
             state=state,
-            redirect_uri=_redirect_uri(request),
+            redirect_uri=_redirect_uri(request, route),
         )
-    except (GoogleDriveAuthError, GoogleDriveConfigError) as exc:
-        redirect_url = await google_oauth_error_redirect_url(
+    except (route.auth_error, route.config_error) as exc:
+        redirect_url = await route.oauth_error_redirect_url(
             session,
             user_id=user["id"],
             state=state,
-            path=f"/settings?tab=connectors&google_error={quote(str(exc))}",
+            path=f"/settings?tab=connectors&{route.error_query_param}={quote(str(exc))}",
         )
         return RedirectResponse(redirect_url)
     return RedirectResponse(redirect_path)
 
 
-@router.post("/disconnect", response_model=StatusResponse)
-async def google_disconnect(
+@router.post("/{provider_slug}/disconnect", response_model=StatusResponse)
+async def connector_disconnect(
+    provider_slug: str,
     request: Request,
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
-    await disconnect_google_account(session, user_id=user["id"])
+    route = _route_or_404(provider_slug)
+    await route.disconnect_account(session, user_id=user["id"])
     audit.record(
         request,
         user=user,
-        action="connector.google.disconnect",
+        action=f"connector.{route.slug}.disconnect",
         resource_type="connector",
-        resource_id="google_drive",
+        resource_id=route.provider,
         metadata={},
     )
-    return StatusResponse(status="ok", message="Google Drive disconnected")
+    return StatusResponse(status="ok", message=f"{route.display_name} disconnected")
 
 
-@router.get("/sources", response_model=GoogleSourceListResponse)
-async def google_sources(
+@router.get("/{provider_slug}/sources", response_model=ConnectorSourceListResponse)
+async def connector_sources(
+    provider_slug: str,
     collection: str | None = Query(default=None, max_length=120),
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
-) -> GoogleSourceListResponse:
-    sources, total = await list_google_sources(
+) -> ConnectorSourceListResponse:
+    route = _route_or_404(provider_slug)
+    sources, total = await route.list_sources(
         session,
         user_id=user["id"],
         collection_name=collection,
     )
-    return GoogleSourceListResponse(
-        sources=[GoogleSourceResponse(**s) for s in sources],
+    return ConnectorSourceListResponse(
+        sources=[ConnectorSourceResponse(**s) for s in sources],
         total=total,
     )
 
 
-@router.post("/sources", response_model=GoogleSourceResponse, status_code=201)
-async def google_source_create(
-    body: CreateGoogleSourceRequest,
+@router.post("/{provider_slug}/sources", response_model=ConnectorSourceResponse, status_code=201)
+async def connector_source_create(
+    provider_slug: str,
+    body: CreateConnectorSourceRequest,
     request: Request,
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
-) -> GoogleSourceResponse:
+) -> ConnectorSourceResponse:
+    route = _route_or_404(provider_slug)
     try:
-        source, job = await create_google_source(
+        source, job = await route.create_source(
             session,
             user_id=user["id"],
             collection_name=body.collection_name,
@@ -247,9 +254,9 @@ async def google_source_create(
             source_type=body.source_type,
             metadata=body.metadata,
         )
-    except GoogleDriveConfigError as exc:
+    except route.config_error as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except GoogleDriveAuthError as exc:
+    except route.auth_error as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -257,7 +264,7 @@ async def google_source_create(
     audit.record(
         request,
         user=user,
-        action="connector.google_source.create",
+        action=f"connector.{route.slug}_source.create",
         resource_type="connector_source",
         resource_id=str(source.id),
         metadata={
@@ -267,18 +274,20 @@ async def google_source_create(
             "sync_job_id": str(job.id),
         },
     )
-    return GoogleSourceResponse(**google_source_public((source, account)))
+    return ConnectorSourceResponse(**route.source_public((source, account)))
 
 
-@router.patch("/sources/{source_id}", response_model=GoogleSourceResponse)
-async def google_source_update(
+@router.patch("/{provider_slug}/sources/{source_id}", response_model=ConnectorSourceResponse)
+async def connector_source_update(
+    provider_slug: str,
     source_id: str,
-    body: UpdateGoogleSourceRequest,
+    body: UpdateConnectorSourceRequest,
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
-) -> GoogleSourceResponse:
+) -> ConnectorSourceResponse:
+    route = _route_or_404(provider_slug)
     try:
-        source = await update_google_source(
+        source = await route.update_source(
             session,
             user_id=user["id"],
             source_id=source_id,
@@ -288,40 +297,44 @@ async def google_source_update(
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     account = await session.get(ConnectorAccount, source.account_id)
-    return GoogleSourceResponse(**google_source_public((source, account)))
+    return ConnectorSourceResponse(**route.source_public((source, account)))
 
 
-@router.delete("/sources/{source_id}", response_model=StatusResponse)
-async def google_source_delete(
+@router.delete("/{provider_slug}/sources/{source_id}", response_model=StatusResponse)
+async def connector_source_delete(
+    provider_slug: str,
     source_id: str,
     request: Request,
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
+    route = _route_or_404(provider_slug)
     try:
-        await delete_google_source(session, user_id=user["id"], source_id=source_id)
+        await route.delete_source(session, user_id=user["id"], source_id=source_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     audit.record(
         request,
         user=user,
-        action="connector.google_source.delete",
+        action=f"connector.{route.slug}_source.delete",
         resource_type="connector_source",
         resource_id=source_id,
         metadata={},
     )
-    return StatusResponse(status="ok", message="Google Drive source removed")
+    return StatusResponse(status="ok", message=f"{route.display_name} source removed")
 
 
-@router.post("/sources/{source_id}/sync", response_model=GoogleSyncJobResponse)
-async def google_source_sync(
+@router.post("/{provider_slug}/sources/{source_id}/sync", response_model=ConnectorSyncJobResponse)
+async def connector_source_sync(
+    provider_slug: str,
     source_id: str,
     request: Request,
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
-) -> GoogleSyncJobResponse:
+) -> ConnectorSyncJobResponse:
+    route = _route_or_404(provider_slug)
     try:
-        job = await trigger_google_sync(
+        job = await route.trigger_sync(
             session,
             user_id=user["id"],
             source_id=source_id,
@@ -332,47 +345,35 @@ async def google_source_sync(
     audit.record(
         request,
         user=user,
-        action="connector.google_source.sync",
+        action=f"connector.{route.slug}_source.sync",
         resource_type="connector_sync_job",
         resource_id=str(job.id),
         metadata={"source_id": source_id},
     )
-    return GoogleSyncJobResponse(**google_sync_job_public(job))
+    return ConnectorSyncJobResponse(**route.sync_job_public(job))
 
 
-@router.get("/sync-jobs", response_model=GoogleSyncJobListResponse)
-async def google_sync_jobs(
+@router.get("/{provider_slug}/sync-jobs", response_model=ConnectorSyncJobListResponse)
+async def connector_sync_jobs(
+    provider_slug: str,
     source_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
-) -> GoogleSyncJobListResponse:
-    stmt = (
-        sa.select(ConnectorSyncJob)
-        .join(ConnectorSource, ConnectorSource.id == ConnectorSyncJob.source_id)
-        .join(ConnectorAccount, ConnectorAccount.id == ConnectorSource.account_id)
-        .where(ConnectorAccount.user_id == uuid.UUID(user["id"]))
-        .where(ConnectorSyncJob.provider == GOOGLE_PROVIDER)
-        .order_by(ConnectorSyncJob.created_at.desc())
-        .limit(limit)
-    )
-    count_stmt = (
-        sa.select(sa.func.count())
-        .select_from(ConnectorSyncJob)
-        .join(ConnectorSource, ConnectorSource.id == ConnectorSyncJob.source_id)
-        .join(ConnectorAccount, ConnectorAccount.id == ConnectorSource.account_id)
-        .where(ConnectorAccount.user_id == uuid.UUID(user["id"]))
-        .where(ConnectorSyncJob.provider == GOOGLE_PROVIDER)
-    )
+) -> ConnectorSyncJobListResponse:
+    route = _route_or_404(provider_slug)
     if source_id:
-        sid = uuid_or_400(source_id)
-        stmt = stmt.where(ConnectorSyncJob.source_id == sid)
-        count_stmt = count_stmt.where(ConnectorSyncJob.source_id == sid)
-    rows = (await session.scalars(stmt)).all()
-    total = await session.scalar(count_stmt)
-    return GoogleSyncJobListResponse(
-        jobs=[GoogleSyncJobResponse(**google_sync_job_public(job)) for job in rows],
-        total=total or 0,
+        uuid_or_400(source_id)
+    jobs, total = await list_connector_sync_jobs(
+        session,
+        provider=route.provider,
+        user_id=user["id"],
+        source_id=source_id,
+        limit=limit,
+    )
+    return ConnectorSyncJobListResponse(
+        jobs=[ConnectorSyncJobResponse(**job) for job in jobs],
+        total=total,
     )
 
 

@@ -313,7 +313,7 @@ class ConnectorProviderConfig(Base):
     __table_args__ = (
         sa.Index("idx_connector_provider_configs_provider", "provider"),
         sa.CheckConstraint(
-            "provider IN ('google_drive')",
+            "provider <> ''",
             name="connector_provider_configs_provider_check",
         ),
     )
@@ -336,7 +336,7 @@ class ConnectorAccount(Base):
         sa.Index("idx_connector_accounts_user_provider", "user_id", "provider"),
         sa.UniqueConstraint("user_id", "provider", name="uq_connector_accounts_user_provider"),
         sa.CheckConstraint(
-            "provider IN ('google_drive')",
+            "provider <> ''",
             name="connector_accounts_provider_check",
         ),
         sa.CheckConstraint(
@@ -380,7 +380,7 @@ class ConnectorSource(Base):
             name="uq_connector_sources_account_collection_root",
         ),
         sa.CheckConstraint(
-            "provider IN ('google_drive')",
+            "provider <> ''",
             name="connector_sources_provider_check",
         ),
         sa.CheckConstraint(
@@ -464,7 +464,7 @@ class ConnectorSyncJob(Base):
         sa.Index("idx_connector_sync_jobs_source_created", "source_id", "created_at"),
         sa.Index("idx_connector_sync_jobs_status", "status"),
         sa.CheckConstraint(
-            "provider IN ('google_drive')",
+            "provider <> ''",
             name="connector_sync_jobs_provider_check",
         ),
         sa.CheckConstraint(

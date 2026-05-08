@@ -108,6 +108,8 @@ Back the master key up immediately. It encrypts provider secrets, webhook secret
 
 **API deploy logs stop while connecting to Qdrant.** Keep the default optional Qdrant readiness behavior so the API can boot and `/health` can respond while `/health/ready` reports the degraded vector-store dependency. Fix the Qdrant service URL or credentials, then redeploy.
 
+**API exits with `ImportError: Can't find Python file .../site-packages/alembic/env.py`.** Rebuild from the latest repo revision and clear Railway's build cache if it keeps reusing an old image. The API image bundles bigRAG's Alembic migration environment into the installed package; this error means the deployed image was built without that migration environment.
+
 **App loads but API calls fail with CORS errors.** Check `BIGRAG_CORS_ORIGINS` on `API`; it must match the app public domain exactly.
 
 **App build fails with workspace errors.** Confirm the root directory is `/app`, the build command is `pnpm build`, and the start command is `pnpm start`.
