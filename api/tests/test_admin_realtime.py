@@ -65,10 +65,10 @@ def _fake_loaders(monkeypatch) -> None:
     for name in (
         "access_overview",
         "batch_get_status",
+        "connector_sources",
+        "connector_sync_jobs",
         "get_collection_stats",
         "get_document",
-        "google_sources",
-        "google_sync_jobs",
         "list_access_logs",
         "list_audit_log",
         "list_documents",

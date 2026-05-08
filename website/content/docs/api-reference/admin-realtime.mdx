@@ -31,14 +31,14 @@ Document list streams accept the same `status`, `limit`, and `offset` filters as
 
 Ingestion-backed streams subscribe to the ingestion event bus and re-read the database before emitting a full snapshot.
 
-## Google Drive Streams
+## Connector Streams
 
 | Endpoint | Payload shape |
 |----------|---------------|
-| `GET /v1/admin/realtime/google/sources` | `GET /v1/connectors/google/sources` |
-| `GET /v1/admin/realtime/google/sync-jobs` | `GET /v1/connectors/google/sync-jobs` |
+| `GET /v1/admin/realtime/{provider}/sources` | `GET /v1/connectors/{provider}/sources` |
+| `GET /v1/admin/realtime/{provider}/sync-jobs` | `GET /v1/connectors/{provider}/sync-jobs` |
 
-Google Drive source streams accept `collection`. Sync-job streams accept `source_id` and `limit`.
+Connector source streams accept `collection`. Sync-job streams accept `source_id` and `limit`. Google Drive uses the `google` provider slug.
 
 ## Admin/System Streams
 

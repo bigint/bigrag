@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+ConnectorProvider = str
 GoogleProvider = Literal["google_drive"]
 ConnectorAccountStatus = Literal["pending", "connected", "needs_reauth", "revoked"]
 ConnectorSourceStatus = Literal["idle", "syncing", "needs_reauth", "error"]
@@ -13,8 +14,8 @@ ConnectorSyncTrigger = Literal["initial", "manual", "scheduled"]
 ConnectorSyncStatus = Literal["pending", "running", "complete", "failed"]
 
 
-class GoogleConnectorConfigResponse(BaseModel):
-    provider: GoogleProvider = "google_drive"
+class ConnectorConfigResponse(BaseModel):
+    provider: ConnectorProvider
     configured: bool
     enabled: bool
     client_id: str
@@ -24,14 +25,14 @@ class GoogleConnectorConfigResponse(BaseModel):
     updated_at: datetime | None = None
 
 
-class UpdateGoogleConnectorConfigRequest(BaseModel):
+class UpdateConnectorConfigRequest(BaseModel):
     enabled: bool = True
     client_id: str = Field(default="", max_length=500)
     client_secret: str | None = Field(default=None, max_length=5000)
 
 
-class GoogleAccountResponse(BaseModel):
-    provider: GoogleProvider = "google_drive"
+class ConnectorAccountResponse(BaseModel):
+    provider: ConnectorProvider
     configured: bool
     connected: bool
     status: ConnectorAccountStatus | None = None
@@ -41,7 +42,7 @@ class GoogleAccountResponse(BaseModel):
     last_connected_at: datetime | None = None
 
 
-class GoogleDriveFileResponse(BaseModel):
+class ConnectorFileResponse(BaseModel):
     id: str
     name: str
     mime_type: str
@@ -53,15 +54,15 @@ class GoogleDriveFileResponse(BaseModel):
     unsupported_reason: str | None = None
 
 
-class GoogleDriveFileListResponse(BaseModel):
-    provider: GoogleProvider = "google_drive"
+class ConnectorFileListResponse(BaseModel):
+    provider: ConnectorProvider
     parent_id: str
     query: str
-    files: list[GoogleDriveFileResponse]
+    files: list[ConnectorFileResponse]
     next_page_token: str | None = None
 
 
-class CreateGoogleSourceRequest(BaseModel):
+class CreateConnectorSourceRequest(BaseModel):
     collection_name: str = Field(min_length=1, max_length=120)
     root_id: str = Field(min_length=1, max_length=500)
     root_name: str = Field(min_length=1, max_length=500)
@@ -70,14 +71,14 @@ class CreateGoogleSourceRequest(BaseModel):
     metadata: dict = Field(default_factory=dict)
 
 
-class UpdateGoogleSourceRequest(BaseModel):
+class UpdateConnectorSourceRequest(BaseModel):
     schedule_enabled: bool | None = None
     sync_interval_hours: int | None = Field(default=None, ge=1, le=24 * 30)
 
 
-class GoogleSourceResponse(BaseModel):
+class ConnectorSourceResponse(BaseModel):
     id: str
-    provider: GoogleProvider = "google_drive"
+    provider: ConnectorProvider
     collection_name: str
     root_id: str
     root_name: str
@@ -95,14 +96,14 @@ class GoogleSourceResponse(BaseModel):
     updated_at: datetime
 
 
-class GoogleSourceListResponse(BaseModel):
-    sources: list[GoogleSourceResponse]
+class ConnectorSourceListResponse(BaseModel):
+    sources: list[ConnectorSourceResponse]
     total: int
 
 
-class GoogleSyncJobResponse(BaseModel):
+class ConnectorSyncJobResponse(BaseModel):
     id: str
-    provider: GoogleProvider = "google_drive"
+    provider: ConnectorProvider
     source_id: str | None
     trigger: ConnectorSyncTrigger
     status: ConnectorSyncStatus
@@ -120,6 +121,19 @@ class GoogleSyncJobResponse(BaseModel):
     updated_at: datetime
 
 
-class GoogleSyncJobListResponse(BaseModel):
-    jobs: list[GoogleSyncJobResponse]
+class ConnectorSyncJobListResponse(BaseModel):
+    jobs: list[ConnectorSyncJobResponse]
     total: int
+
+
+GoogleConnectorConfigResponse = ConnectorConfigResponse
+UpdateGoogleConnectorConfigRequest = UpdateConnectorConfigRequest
+GoogleAccountResponse = ConnectorAccountResponse
+GoogleDriveFileResponse = ConnectorFileResponse
+GoogleDriveFileListResponse = ConnectorFileListResponse
+CreateGoogleSourceRequest = CreateConnectorSourceRequest
+UpdateGoogleSourceRequest = UpdateConnectorSourceRequest
+GoogleSourceResponse = ConnectorSourceResponse
+GoogleSourceListResponse = ConnectorSourceListResponse
+GoogleSyncJobResponse = ConnectorSyncJobResponse
+GoogleSyncJobListResponse = ConnectorSyncJobListResponse

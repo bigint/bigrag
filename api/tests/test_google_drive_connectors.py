@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import httpx
 
 from bigrag.db.models import ConnectorAccount, ConnectorDocument, ConnectorProviderConfig
+from bigrag.services.connector_registry import connector_runtime
 from bigrag.services.google_drive import (
     GOOGLE_DOC_MIME,
     GOOGLE_FOLDER_MIME,
@@ -24,6 +25,15 @@ from bigrag.services.google_drive import (
 
 def run(coro):
     return asyncio.run(coro)
+
+
+def test_google_connector_runtime_uses_shared_route_shape() -> None:
+    runtime = connector_runtime("google")
+
+    assert runtime is not None
+    assert runtime.provider == GOOGLE_PROVIDER
+    assert runtime.display_name == "Google Drive"
+    assert connector_runtime("sharepoint") is None
 
 
 def test_google_config_public_masks_secrets() -> None:
