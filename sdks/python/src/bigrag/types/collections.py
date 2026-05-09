@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from bigrag.types._compat import Any, NotRequired, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 
 class Collection(TypedDict):

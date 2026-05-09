@@ -17,6 +17,8 @@ const RootLayout = () => (
       Skip to content
     </a>
     <Outlet />
-    {import.meta.env.DEV && <TanStackRouterDevtools position="bottom-left" />}
+    {import.meta.env.VITE_SHOW_ROUTER_DEVTOOLS === "true" && (
+      <TanStackRouterDevtools position="bottom-left" />
+    )}
   </Providers>
 );

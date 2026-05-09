@@ -15,7 +15,7 @@ export const PageHeader = ({ title, description, actions, eyebrow, className }: 
       <div className="min-w-0 flex-1">
         <h1 className="text-3xl leading-tight font-semibold tracking-normal">{title}</h1>
         {description && (
-          <p className="mt-2 max-w-4xl truncate text-sm leading-6 text-muted-foreground">
+          <p className="mt-2 max-w-4xl text-pretty text-sm leading-6 text-muted-foreground">
             {description}
           </p>
         )}

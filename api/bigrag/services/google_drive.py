@@ -33,8 +33,6 @@ from bigrag.services.connector_core import (
     get_connector_account,
     get_provider_config,
     list_sources,
-    manifest_unchanged,
-    next_sync_at,
     oauth_error_redirect_url,
     oauth_redirect_url,
     parse_dt,
@@ -113,10 +111,6 @@ def _google_error_payload(response: httpx.Response) -> tuple[str, set[str], str 
 
 RemoteDriveFile = RemoteConnectorFile
 DownloadedDriveFile = DownloadedConnectorFile
-_now = utcnow
-_parse_dt = parse_dt
-_next_sync_at = next_sync_at
-_configured = configured
 
 
 def _remote_from_payload(payload: dict[str, Any]) -> RemoteDriveFile:
@@ -124,7 +118,7 @@ def _remote_from_payload(payload: dict[str, Any]) -> RemoteDriveFile:
         id=str(payload.get("id") or ""),
         name=str(payload.get("name") or "Untitled"),
         mime_type=str(payload.get("mimeType") or ""),
-        modified_time=_parse_dt(payload.get("modifiedTime")),
+        modified_time=parse_dt(payload.get("modifiedTime")),
         md5_checksum=payload.get("md5Checksum"),
         size=int(payload["size"]) if str(payload.get("size") or "").isdigit() else None,
         version=str(payload.get("version")) if payload.get("version") is not None else None,
@@ -529,7 +523,7 @@ async def build_google_oauth_url(
     redirect_origin: str | None = None,
 ) -> str:
     config = await get_google_config(session)
-    if not _configured(config) or config is None:
+    if not configured(config) or config is None:
         raise GoogleDriveConfigError("Google Drive connector is not configured")
 
     _, state = await prepare_oauth_account(
@@ -563,7 +557,7 @@ async def complete_google_oauth(
     redirect_uri: str,
 ) -> str:
     config = await get_google_config(session)
-    if not _configured(config) or config is None:
+    if not configured(config) or config is None:
         raise GoogleDriveConfigError("Google Drive connector is not configured")
 
     account = await get_google_account(session, user_id)
@@ -587,11 +581,11 @@ async def complete_google_oauth(
     account.account_email = info.get("email") or account.account_email
     account.access_token = access_token
     account.refresh_token = refresh_token
-    account.token_expires_at = _now() + timedelta(seconds=max(60, expires_in - 60))
+    account.token_expires_at = utcnow() + timedelta(seconds=max(60, expires_in - 60))
     account.scopes = str(token_payload.get("scope") or " ".join(GOOGLE_OAUTH_SCOPES)).split()
     account.status = "connected"
     account.oauth_state = None
-    account.last_connected_at = _now()
+    account.last_connected_at = utcnow()
     redirect_path = oauth_redirect_url(
         account,
         str((account.meta or {}).get("redirect_path") or "/"),
@@ -625,9 +619,6 @@ async def disconnect_google_account(session, *, user_id: str) -> None:
     )
 
 
-_oauth_redirect_url = oauth_redirect_url
-
-
 async def _access_token_for_account(
     session,
     *,
@@ -650,7 +641,7 @@ async def _access_token_for_account(
         await session.commit()
         raise GoogleDriveAuthError("Reconnect Google Drive to grant read-only access")
 
-    if account.access_token and account.token_expires_at and account.token_expires_at > _now():
+    if account.access_token and account.token_expires_at and account.token_expires_at > utcnow():
         return account.access_token
 
     try:
@@ -671,7 +662,7 @@ async def _access_token_for_account(
 
     account.access_token = payload["access_token"]
     expires_in = int(payload.get("expires_in") or 3600)
-    account.token_expires_at = _now() + timedelta(seconds=max(60, expires_in - 60))
+    account.token_expires_at = utcnow() + timedelta(seconds=max(60, expires_in - 60))
     if payload.get("scope"):
         account.scopes = str(payload["scope"]).split()
     await session.commit()
@@ -689,7 +680,7 @@ async def list_google_drive_files(
 ) -> dict[str, Any]:
     config = await get_google_config(session)
     account = await get_google_account(session, user_id)
-    if not _configured(config) or config is None:
+    if not configured(config) or config is None:
         raise GoogleDriveConfigError("Google Drive connector is not configured")
     if account is None or account.status != "connected":
         raise GoogleDriveAuthError("Connect Google Drive before browsing files")
@@ -754,7 +745,7 @@ async def create_google_source(
     metadata: dict,
 ) -> tuple[ConnectorSource, ConnectorSyncJob]:
     config = await get_google_config(session)
-    if not _configured(config):
+    if not configured(config):
         raise GoogleDriveConfigError("Google Drive connector is not configured")
     account = await get_google_account(session, user_id)
     if account is None or account.status != "connected":
@@ -894,9 +885,6 @@ google_drive_sync_adapter = GoogleDriveSyncAdapter()
 
 async def sync_google_drive_job(job_id: str) -> None:
     await sync_connector_job(job_id, google_drive_sync_adapter)
-
-
-_manifest_unchanged = manifest_unchanged
 
 
 async def run_due_google_syncs(limit: int = 10) -> int:

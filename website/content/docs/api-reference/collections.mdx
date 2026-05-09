@@ -228,7 +228,19 @@ GET /v1/collections/{name}/events
 
 Server-Sent Events stream for **every** document event in the collection — useful for admin UI integrations, dashboards, and multi-document status panels.
 
-SSE clients that can't set headers can pass the API key as `?token=bigrag_sk_…`.
+SSE clients that can't set headers should first mint a short-lived event token and then pass it as `?token=...`.
+
+```http
+POST /v1/collections/{name}/events/token
+```
+
+**Response** `200`:
+
+```json
+{ "token": "br_evt_...", "expires_in": 300 }
+```
+
+Only short-lived event tokens are accepted in the query string. Long-lived API keys must be sent in the `Authorization` header.
 
 **Event shape:**
 

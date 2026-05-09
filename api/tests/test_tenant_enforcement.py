@@ -4,6 +4,7 @@ import asyncio
 import uuid
 
 import pytest
+from fastapi import HTTPException
 
 from bigrag.exceptions import ValidationError
 from bigrag.models.chat import ChatCreateRequest
@@ -119,7 +120,15 @@ def test_vector_upsert_route_rejects_missing_tenant_metadata(monkeypatch) -> Non
     async def fake_get_collection_or_404(name: str) -> dict:
         return tenant_collection()
 
+    async def fake_get_values(keys: list[str]) -> dict:
+        return {
+            "max_vector_upsert_count": 1000,
+            "max_vector_text_chars": 100000,
+            "max_vector_metadata_bytes": 65536,
+        }
+
     monkeypatch.setattr(query_router, "get_collection_or_404", fake_get_collection_or_404)
+    monkeypatch.setattr(query_router, "get_values", fake_get_values)
     monkeypatch.setattr(query_router.access_log, "set_context", lambda *args, **kwargs: None)
 
     with pytest.raises(ValidationError):
@@ -133,6 +142,49 @@ def test_vector_upsert_route_rejects_missing_tenant_metadata(monkeypatch) -> Non
                 {},
             )
         )
+
+
+def test_vector_upsert_route_rejects_too_many_vectors(monkeypatch) -> None:
+    async def fake_get_collection_or_404(name: str) -> dict:
+        return tenant_collection()
+
+    async def fake_get_values(keys: list[str]) -> dict:
+        return {
+            "max_vector_upsert_count": 1,
+            "max_vector_text_chars": 100000,
+            "max_vector_metadata_bytes": 65536,
+        }
+
+    monkeypatch.setattr(query_router, "get_collection_or_404", fake_get_collection_or_404)
+    monkeypatch.setattr(query_router, "get_values", fake_get_values)
+    monkeypatch.setattr(query_router.access_log, "set_context", lambda *args, **kwargs: None)
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(
+            query_router.upsert_vectors(
+                "docs",
+                VectorUpsertRequest(
+                    vectors=[
+                        VectorEntry(
+                            id="v1",
+                            embedding=[0.1, 0.2, 0.3],
+                            text="hello",
+                            metadata={"tenant_id": "acme"},
+                        ),
+                        VectorEntry(
+                            id="v2",
+                            embedding=[0.1, 0.2, 0.3],
+                            text="hello",
+                            metadata={"tenant_id": "acme"},
+                        ),
+                    ]
+                ),
+                object(),
+                {},
+            )
+        )
+
+    assert exc.value.status_code == 413
 
 
 def test_chat_turn_rejects_missing_tenant_filter(monkeypatch) -> None:

@@ -86,7 +86,7 @@ const OverviewPage = () => {
             <h1 className="text-3xl font-semibold leading-tight tracking-normal">
               Good to see you, {firstName}
             </h1>
-            <p className="mt-2 max-w-4xl truncate text-sm leading-6 text-muted-foreground">
+            <p className="mt-2 max-w-4xl text-pretty text-sm leading-6 text-muted-foreground">
               Live readout of retrieval coverage, ingestion health, and the systems behind bigRAG.
             </p>
           </div>
@@ -269,7 +269,7 @@ const OverviewPage = () => {
 };
 
 const Panel = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={cn("rounded-3xl border border-border bg-background p-5", className)}>
+  <div className={cn("rounded-xl border border-border bg-background p-5", className)}>
     {children}
   </div>
 );
@@ -288,7 +288,7 @@ const PillLink = ({
   <Link
     to={to}
     className={cn(
-      "inline-flex h-9 items-center justify-center gap-2 rounded-full border px-3 text-xs font-semibold",
+      "inline-flex h-9 items-center justify-center gap-2 rounded-md border px-3 text-xs font-semibold",
       primary
         ? "border-primary bg-primary text-primary-foreground"
         : "border-border bg-background text-foreground hover:bg-muted",
@@ -355,7 +355,7 @@ const AccessCommandCenter = ({
           </div>
           <Link
             to="/access-logs"
-            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-background px-3 text-xs font-semibold hover:bg-muted"
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-background px-3 text-xs font-semibold hover:bg-muted"
           >
             Open logs
             <ArrowUpRight className="size-3.5" />
@@ -594,7 +594,7 @@ const QuickAction = ({
 }) => (
   <Link
     to={href}
-    className="group flex items-center gap-3 rounded-3xl border border-border bg-background p-4 hover:border-neutral-200"
+    className="group flex items-center gap-3 rounded-xl border border-border bg-background p-4 hover:border-neutral-200"
   >
     <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground">
       <Icon className="size-4" />

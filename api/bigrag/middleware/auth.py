@@ -86,22 +86,11 @@ async def _user_from_session(request: Request, session: AsyncSession) -> dict | 
     return principal
 
 
-_QUERY_TOKEN_SUFFIXES = ("/events",)
-
-
-def _query_token_allowed(path: str) -> bool:
-    return any(path.endswith(suffix) for suffix in _QUERY_TOKEN_SUFFIXES)
-
-
 async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | None:
     auth_header = request.headers.get("authorization", "")
     token: str | None = None
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
-    elif _query_token_allowed(request.url.path):
-        query_token = request.query_params.get("token")
-        if query_token:
-            token = query_token
 
     if not token or not token.startswith(API_KEY_PREFIX):
         return None

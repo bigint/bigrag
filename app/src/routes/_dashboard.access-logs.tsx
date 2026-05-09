@@ -67,7 +67,7 @@ const AccessLogsPage = () => {
         <Stat label="Query events" value={formatNumber(overview.data?.query_events ?? 0)} />
       </section>
 
-      <section className="overflow-hidden rounded-3xl border border-border bg-background">
+      <section className="overflow-hidden rounded-xl border border-border bg-background">
         <div className="border-b border-border px-5 py-4">
           <div>
             <h2 className="text-base font-semibold">Access stream</h2>
@@ -102,7 +102,7 @@ const Stat = ({
   tone?: "success" | "warning";
   value: string;
 }) => (
-  <div className="rounded-3xl border border-border bg-background p-4">
+  <div className="rounded-xl border border-border bg-background p-4">
     <div className="flex items-center justify-between gap-3">
       <span className="text-xs font-semibold text-muted-foreground">{label}</span>
     </div>

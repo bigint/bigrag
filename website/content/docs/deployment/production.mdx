@@ -37,10 +37,11 @@ bigRAG refuses to boot when `BIGRAG_ENV=prod` is set **and** any of the followin
 insecure defaults are still active. Setting `BIGRAG_ENV=prod` in production catches
 config mistakes that would otherwise ship silently:
 
-- `BIGRAG_CORS_ORIGINS` contains `*` — set an explicit list (e.g. `https://admin.example.com`).
 - `BIGRAG_SESSION_COOKIE_SECURE` is `false` — set to `true` so cookies are HTTPS-only.
 - `BIGRAG_DATABASE_URL` still uses the shipped `bigrag:bigrag` credentials — rotate the Postgres password.
 - `BIGRAG_MASTER_KEY` is unset — bigRAG needs a Fernet key to envelope-encrypt provider credentials, embedding-cache rows, and Redis cache payloads. See [Encryption at rest](/docs/deployment/encryption).
+- `BIGRAG_HOST` binds to `0.0.0.0` or `::` without `BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD=true` after you have confirmed the service sits behind TLS and a network boundary.
+- `BIGRAG_SESSION_COOKIE_DOMAIN` is set while `BIGRAG_TRUSTED_PROXIES` is empty.
 
 When the guard trips, it logs every violation before exiting so you can fix the whole
 list in one edit. If you intentionally want to run with the development defaults (e.g.
@@ -179,10 +180,11 @@ The destination is S3-compatible, so AWS S3, Cloudflare R2, and MinIO all work.
 Use a bucket or prefix dedicated to backups rather than reusing the upload bucket.
 
 Readable backups are plain JSON, JSONL, SQL, and raw files. They include Postgres
-rows, vector-store points and payloads, uploaded files, chats, logs, embedding cache
-rows, and decrypted provider settings. They are useful for inspection and data
-portability, but they are not a substitute for encrypted infrastructure snapshots
-or tested disaster recovery runbooks.
+rows, vector-store points and payloads, uploaded files, chats, and logs. Provider
+secrets, token/hash columns, S3 credentials, and embedding-cache vectors are
+redacted. They are useful for inspection and data portability, but they are not a
+substitute for encrypted infrastructure snapshots or tested disaster recovery
+runbooks.
 
 ## Logging
 

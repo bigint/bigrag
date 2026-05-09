@@ -25,6 +25,8 @@ _ENDPOINT_SCOPES: list[tuple[str, str, str]] = [
     ("POST", "/v1/collections/{name}/vectors/upsert", "vector:write"),
     ("POST", "/v1/collections/{name}/vectors/delete", "vector:delete"),
     ("GET", "/v1/collections/{name}/analytics", "collection:read"),
+    ("GET", "/v1/collections/{name}/events", "collection:read"),
+    ("POST", "/v1/collections/{name}/events/token", "collection:read"),
     ("GET", "/v1/documents/{id}/chunks", "document:read"),
     ("GET", "/v1/documents/{id}", "document:read"),
     ("GET", "/v1/documents/", "document:read"),

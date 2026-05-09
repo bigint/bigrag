@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import orjson
 import pytest
 from cryptography.fernet import Fernet
 
@@ -25,11 +24,9 @@ def test_redis_cache_encrypts_payloads_when_key_is_configured() -> None:
     assert redis_cache._decode_value(encoded) == value
 
 
-def test_redis_cache_reads_legacy_json_payloads() -> None:
+def test_redis_cache_rejects_unencrypted_payloads_when_key_is_configured() -> None:
     crypto.configure(Fernet.generate_key().decode())
-    raw = orjson.dumps({"status": "ok"})
-
-    assert redis_cache._decode_value(raw) == {"status": "ok"}
+    assert redis_cache._decode_value(b'{"status":"ok"}') is None
 
 
 def test_redis_cache_returns_none_when_encrypted_payload_cannot_decrypt() -> None:

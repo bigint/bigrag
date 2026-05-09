@@ -244,11 +244,15 @@ async def get_document_with_collection(
     session: AsyncSession,
     document_id: str,
 ) -> tuple[Document, str]:
+    try:
+        target_id = uuid.UUID(document_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Document not found") from exc
     row = (
         await session.execute(
             sa.select(Document, Collection.name)
             .join(Collection, Collection.id == Document.collection_id)
-            .where(Document.id == uuid.UUID(document_id))
+            .where(Document.id == target_id)
         )
     ).first()
     if row is None:

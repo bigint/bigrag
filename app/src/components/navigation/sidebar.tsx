@@ -65,7 +65,7 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
                 aria-current={active ? "page" : undefined}
                 onClick={onNavigate}
                 className={cn(
-                  "flex h-8 items-center gap-2.5 rounded-full px-2.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "flex h-8 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active
                     ? "bg-background text-foreground"
                     : "text-muted-foreground hover:bg-background hover:text-foreground",
@@ -87,8 +87,8 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
 };
 
 export const Sidebar = ({ role }: { role: string }) => (
-  <aside className="hidden h-full w-60 shrink-0 overflow-hidden rounded-3xl border-2 border-border bg-background p-0.5 lg:flex">
-    <div className="flex size-full flex-col overflow-hidden rounded-2xl bg-muted">
+  <aside className="hidden h-full w-60 shrink-0 overflow-hidden rounded-xl border border-border bg-background p-0.5 lg:flex">
+    <div className="flex size-full flex-col overflow-hidden rounded-lg bg-muted">
       <SidebarBody role={role} />
     </div>
   </aside>

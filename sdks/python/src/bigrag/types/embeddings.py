@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from bigrag.types._compat import TypedDict
+from typing import TypedDict
 
 
 class EmbeddingModelInfo(TypedDict):

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import os
+import tomllib
 from pathlib import Path
 from typing import ClassVar, Literal
 
-import tomli
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     auth_login_ip_rate_limit: int = 50
     auth_setup_ip_rate_limit: int = 10
     auth_principal_cache_ttl: int = 60
+    allow_public_bind_in_prod: bool = False
 
     embedding_concurrency: int = 8
     qdrant_search_ef: int | None = None
@@ -102,10 +103,16 @@ class Settings(BaseSettings):
     max_batch_upload_size_mb: int = 128
     max_upload_session_files: int = 10000
     max_upload_session_size_mb: int = 102400
+    upload_rate_limit_files_per_hour: int = 1000
+    upload_rate_limit_mb_per_hour: int = 10240
     upload_session_item_retention_hours: int = 168
     upload_session_upload_concurrency: int = 4
     ingestion_workers: int = 4
     ingestion_batch_size: int = 128
+    max_vector_upsert_count: int = 1000
+    max_vector_delete_count: int = 10000
+    max_vector_text_chars: int = 100000
+    max_vector_metadata_bytes: int = 65536
 
     @property
     def log_level(self) -> Literal["debug"]:
@@ -121,7 +128,7 @@ class Settings(BaseSettings):
         if not p.exists():
             return cls()
         with open(p, "rb") as f:
-            data = tomli.load(f)
+            data = tomllib.load(f)
         flat: dict = {}
         for section, values in data.items():
             if isinstance(values, dict):

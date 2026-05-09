@@ -36,7 +36,7 @@ export const DataTable = <T,>({
 }: DataTableProps<T>) => {
   if (loading) {
     return (
-      <div className="rounded-3xl border border-border bg-card p-12 text-center">
+      <div className="rounded-xl border border-border bg-card p-12 text-center">
         <Spinner className="mx-auto" />
         <p className="mt-3 text-sm text-muted-foreground">{loadingMessage}</p>
       </div>
@@ -53,7 +53,7 @@ export const DataTable = <T,>({
     );
   }
   return (
-    <div className="overflow-x-auto rounded-3xl border border-border bg-surface p-1.5">
+    <div className="overflow-x-auto rounded-xl border border-border bg-surface p-1.5">
       <table className="w-full min-w-2xl border-separate border-spacing-y-1 text-sm">
         <thead>
           <tr>
@@ -77,7 +77,7 @@ export const DataTable = <T,>({
                 <td
                   key={col.key}
                   className={cn(
-                    "bg-background px-3 py-3 tabular-nums first:rounded-l-2xl last:rounded-r-2xl group-hover:bg-muted sm:px-5 sm:py-3.5",
+                    "bg-background px-3 py-3 tabular-nums first:rounded-l-lg last:rounded-r-lg group-hover:bg-muted sm:px-5 sm:py-3.5",
                     col.className,
                   )}
                 >

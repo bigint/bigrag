@@ -154,6 +154,25 @@ def _stream_response(stream) -> StreamingResponse:
     )
 
 
+def _interval_response(
+    topic: str,
+    load: SnapshotLoader,
+    interval_for: SnapshotInterval,
+    done: SnapshotDone | None = None,
+) -> StreamingResponse:
+    return _stream_response(_interval_stream(topic, load, interval_for, done))
+
+
+def _event_response(
+    topic: str,
+    load: SnapshotLoader,
+    event_key: str,
+    interval_for: SnapshotInterval,
+    done: SnapshotDone | None = None,
+) -> StreamingResponse:
+    return _stream_response(_event_stream(topic, load, event_key, interval_for, done))
+
+
 async def _with_session(load: Callable[[Any], Awaitable[Any]]) -> Any:
     async with session_factory()() as session:
         return await load(session)
@@ -229,14 +248,7 @@ async def collection_documents_stream(
             )
         )
 
-    return _stream_response(
-        _event_stream(
-            topic,
-            load,
-            f"collection:{collection_name}",
-            _fixed(5.0),
-        )
-    )
+    return _event_response(topic, load, f"collection:{collection_name}", _fixed(5.0))
 
 
 @router.get(
@@ -261,15 +273,7 @@ async def collection_documents_batch_status_stream(
             )
         )
 
-    return _stream_response(
-        _event_stream(
-            topic,
-            load,
-            f"collection:{collection_name}",
-            _fixed(2.0),
-            _batch_done,
-        )
-    )
+    return _event_response(topic, load, f"collection:{collection_name}", _fixed(2.0), _batch_done)
 
 
 @router.get(
@@ -292,7 +296,7 @@ async def collection_document_stream(
             )
         )
 
-    return _stream_response(_event_stream(topic, load, document_id, _fixed(2.0), _document_done))
+    return _event_response(topic, load, document_id, _fixed(2.0), _document_done)
 
 
 @router.get(
@@ -316,7 +320,7 @@ async def collection_upload_session_stream(
             )
         )
 
-    return _stream_response(_interval_stream(topic, load, _fixed(2.0), _upload_session_done))
+    return _interval_response(topic, load, _fixed(2.0), _upload_session_done)
 
 
 @router.get("/collections/{collection_name}/stats", response_class=StreamingResponse)
@@ -335,14 +339,7 @@ async def collection_stats_stream(
             )
         )
 
-    return _stream_response(
-        _event_stream(
-            topic,
-            load,
-            f"collection:{collection_name}",
-            _fixed(10.0),
-        )
-    )
+    return _event_response(topic, load, f"collection:{collection_name}", _fixed(10.0))
 
 
 @router.get("/{provider_slug}/sources", response_class=StreamingResponse)
@@ -363,7 +360,7 @@ async def connector_sources_stream(
             )
         )
 
-    return _stream_response(_interval_stream(topic, load, _connector_sources_interval))
+    return _interval_response(topic, load, _connector_sources_interval)
 
 
 @router.get("/{provider_slug}/sync-jobs", response_class=StreamingResponse)
@@ -386,7 +383,7 @@ async def connector_sync_jobs_stream(
             )
         )
 
-    return _stream_response(_interval_stream(topic, load, _connector_jobs_interval))
+    return _interval_response(topic, load, _connector_jobs_interval)
 
 
 @router.get("/backups", response_class=StreamingResponse)
@@ -407,7 +404,7 @@ async def backup_jobs_stream(
             )
         )
 
-    return _stream_response(_interval_stream(topic, load, _backup_jobs_interval))
+    return _interval_response(topic, load, _backup_jobs_interval)
 
 
 @router.get("/access/overview", response_class=StreamingResponse)
@@ -426,7 +423,7 @@ async def access_overview_stream(
             )
         )
 
-    return _stream_response(_interval_stream(topic, load, _fixed(20.0)))
+    return _interval_response(topic, load, _fixed(20.0))
 
 
 @router.get("/access/logs", response_class=StreamingResponse)
@@ -473,7 +470,7 @@ async def access_logs_stream(
             )
         )
 
-    return _stream_response(_interval_stream(topic, load, _fixed(20.0)))
+    return _interval_response(topic, load, _fixed(20.0))
 
 
 @router.get("/audit", response_class=StreamingResponse)
@@ -500,7 +497,7 @@ async def audit_stream(
             )
         )
 
-    return _stream_response(_interval_stream(topic, load, _fixed(60.0)))
+    return _interval_response(topic, load, _fixed(60.0))
 
 
 @router.get("/usage", response_class=StreamingResponse)
@@ -519,7 +516,7 @@ async def usage_stream(
             )
         )
 
-    return _stream_response(_interval_stream(topic, load, _fixed(60.0)))
+    return _interval_response(topic, load, _fixed(60.0))
 
 
 @router.get("/platform/stats", response_class=StreamingResponse)
@@ -538,7 +535,7 @@ async def platform_stats_stream(
             )
         )
 
-    return _stream_response(_interval_stream(topic, load, _fixed(15.0)))
+    return _interval_response(topic, load, _fixed(15.0))
 
 
 @router.get("/platform/readiness", response_class=StreamingResponse)
@@ -552,4 +549,4 @@ async def platform_readiness_stream(
         response = await readiness(request)
         return json.loads(response.body)
 
-    return _stream_response(_interval_stream(topic, load, _fixed(30.0)))
+    return _interval_response(topic, load, _fixed(30.0))

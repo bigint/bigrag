@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import threading
 import time
+from multiprocessing import Pipe, get_context
+from multiprocessing.connection import Connection
 from pathlib import Path
 
 from bigrag.logging import get_logger
@@ -112,3 +114,100 @@ def _get_docling_converter(*, pdf_ocr_enabled: bool = True):
         logger.info("docling converter load complete", pdf_ocr_enabled=pdf_ocr_enabled)
 
     return converter
+
+
+def _docling_result_text(result) -> str:
+    doc = getattr(result, "document", None)
+    if doc is not None:
+        for method in ("export_to_markdown", "export_to_text"):
+            fn = getattr(doc, method, None)
+            if callable(fn):
+                try:
+                    text = fn()
+                    if text:
+                        return str(text)
+                except Exception:
+                    continue
+    return str(result)
+
+
+def _convert_file_path(path: str, suffix: str, pdf_ocr_enabled: bool) -> str:
+    if suffix == ".pdf":
+        text = extract_pdf_text(path)
+        if text.strip() or not pdf_ocr_enabled:
+            return text
+    converter = _get_docling_converter(pdf_ocr_enabled=pdf_ocr_enabled)
+    return _docling_result_text(converter.convert(path))
+
+
+def _conversion_worker(
+    conn: Connection,
+    path: str,
+    suffix: str,
+    pdf_ocr_enabled: bool,
+) -> None:
+    try:
+        conn.send(("ok", _convert_file_path(path, suffix, pdf_ocr_enabled)))
+    except Exception as exc:
+        conn.send(("error", f"{exc.__class__.__name__}: {exc}"))
+    finally:
+        conn.close()
+
+
+def convert_document_isolated(
+    file_data: bytes,
+    suffix: str,
+    *,
+    pdf_ocr_enabled: bool,
+    timeout: int,
+) -> str:
+    import tempfile
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    tmp_path = tmp.name
+    try:
+        tmp.write(file_data)
+        tmp.close()
+        return _convert_document_path_isolated(
+            tmp_path,
+            suffix,
+            pdf_ocr_enabled=pdf_ocr_enabled,
+            timeout=timeout,
+        )
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+
+def _convert_document_path_isolated(
+    path: str,
+    suffix: str,
+    *,
+    pdf_ocr_enabled: bool,
+    timeout: int,
+) -> str:
+    ctx = get_context("spawn")
+    parent_conn, child_conn = Pipe(duplex=False)
+    process = ctx.Process(
+        target=_conversion_worker,
+        args=(child_conn, path, suffix, pdf_ocr_enabled),
+    )
+    process.start()
+    child_conn.close()
+    try:
+        if not parent_conn.poll(timeout):
+            process.terminate()
+            process.join(5)
+            if process.is_alive():
+                process.kill()
+                process.join(5)
+            raise TimeoutError(f"Document conversion timed out after {timeout}s")
+        status, payload = parent_conn.recv()
+        process.join(5)
+        if status == "ok":
+            return payload
+        raise ValueError(payload)
+    finally:
+        parent_conn.close()
+        if process.is_alive():
+            process.terminate()
+            process.join(5)

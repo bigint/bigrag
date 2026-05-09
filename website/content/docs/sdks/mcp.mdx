@@ -21,7 +21,8 @@ The admin UI's **MCP** page (`/mcp`) is the canonical way to set one up.
 Creating an MCP there:
 
 1. mints a fresh bigRAG API key dedicated to that MCP (not shared
-   with `/api-keys`);
+   with `/api-keys`) scoped to `collection:read`, `document:read`, and
+   `query:read`;
 2. shows the full API key exactly once — copy it straight into your
    MCP client's bearer header or Claude Desktop config;
 3. persists the MCP as a first-class server-side resource (title,

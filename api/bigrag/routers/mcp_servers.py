@@ -92,7 +92,10 @@ def _to_response(key: ApiKey) -> McpServerResponse:
 
 
 def _permissions(title: str, server_name: str, collection: str | None) -> dict:
-    permissions: dict = {"mcp": {"title": title, "server_name": server_name}}
+    permissions: dict = {
+        "mcp": {"title": title, "server_name": server_name},
+        "scopes": ["collection:read", "document:read", "query:read"],
+    }
     if collection:
         permissions["collection"] = collection
     return permissions

@@ -79,22 +79,24 @@ curl -X POST http://localhost:4000/v1/admin/api-keys \
 
 Send the key as a bearer token:
 
-<Tabs items={["Header", "Query (collection SSE only)"]}>
+<Tabs items={["Header", "Event token (collection SSE)"]}>
 <Tab value="Header">
 ```bash
 curl http://localhost:4000/v1/collections \
   -H "Authorization: Bearer bigrag_sk_…"
 ```
 </Tab>
-<Tab value="Query (collection SSE only)">
+<Tab value="Event token (collection SSE)">
 ```bash
-# For EventSource / SSE clients that can't set headers. Only collection
-# event paths ending in /events accept ?token= — every other endpoint requires
-# the Authorization header so the secret never lands in URL access logs.
-curl "http://localhost:4000/v1/collections/docs/events?token=bigrag_sk_…"
+EVENT_TOKEN=$(curl -s -X POST http://localhost:4000/v1/collections/docs/events/token \
+  -H "Authorization: Bearer bigrag_sk_…" | jq -r .token)
+
+curl "http://localhost:4000/v1/collections/docs/events?token=$EVENT_TOKEN"
 ```
 </Tab>
 </Tabs>
+
+Collection SSE accepts bearer headers or short-lived event tokens. Long-lived API keys are not accepted in the query string.
 
 ### Key fields
 

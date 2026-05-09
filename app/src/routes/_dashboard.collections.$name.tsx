@@ -79,7 +79,7 @@ const Stat = ({
   value: string;
   icon?: typeof Settings;
 }) => (
-  <div className="rounded-3xl border border-border bg-card p-4">
+  <div className="rounded-xl border border-border bg-card p-4">
     <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
       <span>{label}</span>
       {Icon && <Icon className="h-3.5 w-3.5" />}

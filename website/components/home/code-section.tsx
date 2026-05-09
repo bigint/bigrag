@@ -50,7 +50,7 @@ export function CodeSection() {
               </div>
             </div>
           </div>
-          <div className="overflow-hidden rounded-xl border border-fd-border bg-fd-card shadow-sm">
+          <div className="overflow-hidden rounded-lg border border-fd-border bg-fd-card shadow-sm">
             <div className="flex items-center gap-1.5 border-b border-fd-border bg-fd-muted/50 px-4 py-3">
               <div className="size-2.5 rounded-full bg-fd-border" />
               <div className="size-2.5 rounded-full bg-fd-border" />

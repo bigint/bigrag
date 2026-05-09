@@ -513,7 +513,7 @@ const McpPage = () => {
         actions={
           <div className="flex items-center gap-2">
             <a
-              className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-semibold text-foreground hover:bg-accent"
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-semibold text-foreground hover:bg-accent"
               href="https://modelcontextprotocol.io"
               rel="noopener noreferrer"
               target="_blank"

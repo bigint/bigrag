@@ -51,6 +51,7 @@ from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.storage import get_storage
+from bigrag.services.upload_rate_limit import consume_upload_budget
 from bigrag.services.vector_store import vector_store
 
 logger = get_logger("bigrag.routers.documents")
@@ -59,6 +60,13 @@ router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["
 
 TERMINAL_DOCUMENT_STATUSES = {"ready", "failed"}
 TERMINAL_PROGRESS_STATUSES = {"complete", "failed"}
+
+
+def _uuid_or_404(value: str, label: str) -> uuid.UUID:
+    try:
+        return uuid.UUID(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=f"{label} not found") from exc
 
 
 def _fallback_progress(doc: Document, collection_name: str) -> DocumentProgressResponse:
@@ -171,6 +179,7 @@ async def upload_document(
 
     if len(content) == 0:
         raise HTTPException(status_code=400, detail="File is empty")
+    await consume_upload_budget(user, files=1, bytes_=len(content))
 
     try:
         validate_upload(content, file_ext)
@@ -270,7 +279,7 @@ async def get_document(
     collection = await get_collection_or_404(collection_name)
     doc = await session.scalar(
         sa.select(Document)
-        .where(Document.id == uuid.UUID(document_id))
+        .where(Document.id == _uuid_or_404(document_id, "Document"))
         .where(Document.collection_id == collection["id"])
     )
     if doc is None:
@@ -289,7 +298,7 @@ async def delete_document(
     collection = await get_collection_or_404(collection_name)
     doc = await session.scalar(
         sa.select(Document)
-        .where(Document.id == uuid.UUID(document_id))
+        .where(Document.id == _uuid_or_404(document_id, "Document"))
         .where(Document.collection_id == collection["id"])
     )
     if doc is None:
@@ -330,7 +339,7 @@ async def reprocess_document(
     collection = await get_collection_or_404(collection_name)
     doc = await session.scalar(
         sa.select(Document)
-        .where(Document.id == uuid.UUID(document_id))
+        .where(Document.id == _uuid_or_404(document_id, "Document"))
         .where(Document.collection_id == collection["id"])
     )
     if doc is None:
@@ -388,7 +397,7 @@ async def get_document_chunks(
     collection = await get_collection_or_404(collection_name)
     exists = await session.scalar(
         sa.select(Document.id)
-        .where(Document.id == uuid.UUID(document_id))
+        .where(Document.id == _uuid_or_404(document_id, "Document"))
         .where(Document.collection_id == collection["id"])
     )
     if exists is None:
@@ -413,7 +422,7 @@ async def download_document_file(
     collection = await get_collection_or_404(collection_name)
     doc = await session.scalar(
         sa.select(Document)
-        .where(Document.id == uuid.UUID(document_id))
+        .where(Document.id == _uuid_or_404(document_id, "Document"))
         .where(Document.collection_id == collection["id"])
     )
     if doc is None:
@@ -498,8 +507,7 @@ async def batch_upload_documents(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
 
-    created: list[DocumentResponse] = []
-    seen_by_hash: dict[str, Document] = {}
+    pending: list[tuple[UploadFile, str, bytes]] = []
     for file in files:
         file_ext = Path(file.filename or "").suffix.lower()
         if file_ext and file_ext not in SUPPORTED_EXTENSIONS:
@@ -530,6 +538,17 @@ async def batch_upload_documents(
                 status_code=400,
                 detail=f"File '{file.filename}': {exc}",
             ) from exc
+        pending.append((file, file_ext, content))
+
+    await consume_upload_budget(
+        user,
+        files=len(pending),
+        bytes_=sum(len(content) for _file, _file_ext, content in pending),
+    )
+
+    created: list[DocumentResponse] = []
+    seen_by_hash: dict[str, Document] = {}
+    for file, _file_ext, content in pending:
         content_hash = hashlib.sha256(content).hexdigest()
         existing = seen_by_hash.get(content_hash)
         if existing is None:
@@ -591,7 +610,7 @@ async def batch_get_status(
     if len(body.document_ids) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 documents per batch status")
 
-    uuids = [uuid.UUID(d) for d in body.document_ids]
+    uuids = [_uuid_or_404(d, "Document") for d in body.document_ids]
     docs = (
         await session.scalars(
             sa.select(Document)
@@ -627,7 +646,7 @@ async def batch_get_documents(
     if len(body.document_ids) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 documents per batch get")
 
-    uuids = [uuid.UUID(d) for d in body.document_ids]
+    uuids = [_uuid_or_404(d, "Document") for d in body.document_ids]
     docs = (
         await session.scalars(
             sa.select(Document)
@@ -661,7 +680,7 @@ async def batch_delete_documents(
     if len(body.document_ids) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 documents per batch delete")
 
-    uuids = [uuid.UUID(d) for d in body.document_ids]
+    uuids = [_uuid_or_404(d, "Document") for d in body.document_ids]
     docs = (
         await session.scalars(
             sa.select(Document)
@@ -691,7 +710,9 @@ async def batch_delete_documents(
     results = await asyncio.gather(*[_delete_one(doc_id, doc) for doc_id, doc in by_id.items()])
     deleted = sum(1 for r in results if r)
 
-    deleted_ids = [uuid.UUID(d) for d, ok in zip(by_id.keys(), results, strict=True) if ok]
+    deleted_ids = [
+        _uuid_or_404(d, "Document") for d, ok in zip(by_id.keys(), results, strict=True) if ok
+    ]
     if deleted_ids:
         await session.execute(sa.delete(Document).where(Document.id.in_(deleted_ids)))
     await recount_collection_documents(session, collection["id"])
