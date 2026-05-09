@@ -193,21 +193,21 @@ async def _run_locked_backup(job_id: uuid.UUID) -> None:
             byte_count=stats.bytes,
         )
 
-        vector_counts = await _export_qdrant(temp_dir)
+        vector_counts = await _export_vector_store(temp_dir)
         await _upload(
             target,
             stats,
             backup_prefix,
-            "qdrant/collections.json",
-            temp_dir / "qdrant" / "collections.json",
+            "vector_store/collections.json",
+            temp_dir / "vector_store" / "collections.json",
         )
         for collection_name in sorted(vector_counts):
-            source = temp_dir / "qdrant" / "points" / f"{collection_name}.jsonl"
+            source = temp_dir / "vector_store" / "points" / f"{collection_name}.jsonl"
             await _upload(
                 target,
                 stats,
                 backup_prefix,
-                f"qdrant/points/{collection_name}.jsonl",
+                f"vector_store/points/{collection_name}.jsonl",
                 source,
             )
         await _update_job(
@@ -313,9 +313,8 @@ def _row_payload(row: Any, mapper: Any) -> dict[str, Any]:
     return payload
 
 
-async def _export_qdrant(temp_dir: Path) -> dict[str, int]:
-    client = vector_store._client()
-    points_dir = temp_dir / "qdrant" / "points"
+async def _export_vector_store(temp_dir: Path) -> dict[str, int]:
+    points_dir = temp_dir / "vector_store" / "points"
     points_dir.mkdir(parents=True, exist_ok=True)
     collections_meta = []
     counts: dict[str, int] = {}
@@ -324,42 +323,36 @@ async def _export_qdrant(temp_dir: Path) -> dict[str, int]:
             await session.scalars(sa.select(Collection).order_by(Collection.name.asc()))
         ).all()
     for collection in collections:
-        qdrant_name = f"bigrag_{collection.name}"
-        exists = await client.collection_exists(qdrant_name)
-        count = 0
+        points = await vector_store.export_collection_points(collection.name)
+        exists = bool(points) or collection.document_count == 0
+        count = len(points)
         target = points_dir / f"{collection.name}.jsonl"
         with target.open("wb") as f:
-            if exists:
-                offset = None
-                while True:
-                    points, offset = await client.scroll(
-                        collection_name=qdrant_name,
-                        limit=256,
-                        offset=offset,
-                        with_payload=True,
-                        with_vectors=True,
-                    )
-                    for point in points:
-                        f.write(orjson.dumps(_point_payload(point)) + b"\n")
-                        count += 1
-                    if offset is None:
-                        break
-            elif collection.document_count > 0:
-                raise RuntimeError(f"Qdrant collection missing: {qdrant_name}")
+            for point in points:
+                f.write(orjson.dumps(_point_payload(point)) + b"\n")
+        if not exists and collection.document_count > 0:
+            raise RuntimeError(f"Vector store collection missing: {collection.name}")
         counts[collection.name] = count
         collections_meta.append(
             {
                 "collection": collection.name,
-                "qdrant_collection": qdrant_name,
+                "provider": vector_store.provider,
+                "vector_store_collection": collection.name,
                 "exists": exists,
                 "points": count,
             }
         )
-    _write_json(temp_dir / "qdrant" / "collections.json", collections_meta)
+    _write_json(temp_dir / "vector_store" / "collections.json", collections_meta)
     return counts
 
 
 def _point_payload(point: Any) -> dict[str, Any]:
+    if isinstance(point, dict):
+        return {
+            "id": str(point.get("id", "")),
+            "payload": _readable_value(point.get("payload") or {}),
+            "vector": _readable_value(point.get("vector")),
+        }
     return {
         "id": str(getattr(point, "id", "")),
         "payload": _readable_value(getattr(point, "payload", {}) or {}),
@@ -464,6 +457,7 @@ def _manifest(
             "prefix": backup_prefix,
         },
         "tables": table_counts,
+        "vector_store": {"provider": vector_store.provider},
         "vectors": vector_counts,
         "uploads": {"files": upload_count},
         "object_count": stats.object_count,

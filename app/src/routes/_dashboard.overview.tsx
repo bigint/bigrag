@@ -66,7 +66,12 @@ const OverviewPage = () => {
   const failedPct = docs?.total ? Math.round((docs.failed / docs.total) * 100) : 0;
   const services = [
     { label: "Postgres", ok: readiness?.postgres },
-    { label: "Qdrant", ok: readiness?.qdrant },
+    {
+      label: readiness?.vector_store_provider
+        ? `Vector store (${readiness.vector_store_provider})`
+        : "Vector store",
+      ok: readiness?.vector_store,
+    },
     { label: "Redis", ok: readiness?.redis },
     { detail: readiness?.embedding_error, label: "Embeddings", ok: readiness?.embedding },
   ];

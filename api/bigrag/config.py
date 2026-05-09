@@ -31,6 +31,15 @@ class Settings(BaseSettings):
     qdrant_api_key: str | None = None
     qdrant_connect_timeout_seconds: int = 10
     qdrant_required: bool = False
+    vector_store_provider: Literal["qdrant", "s3_vectors", "turbopuffer"] = "qdrant"
+    s3_vectors_bucket: str = ""
+    s3_vectors_region: str = "us-east-1"
+    s3_vectors_index_prefix: str = "bigrag_"
+    s3_vectors_access_key_id: str | None = None
+    s3_vectors_secret_access_key: str | None = None
+    turbopuffer_api_key: str | None = None
+    turbopuffer_region: str = "aws-us-east-1"
+    turbopuffer_namespace_prefix: str = "bigrag_"
 
     redis_url: str = "redis://localhost:6379/0"
 

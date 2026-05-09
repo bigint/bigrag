@@ -35,13 +35,17 @@ const GROUP_COPY: Record<InstanceSettingGroup, { title: string; description: str
     title: "Storage",
     description: "Document binary storage for local disk, S3, and MinIO deployments.",
   },
+  vector_store: {
+    title: "Vector store",
+    description: "Vector backend selection, cloud credentials, and provider-specific indexes.",
+  },
   queue: {
     title: "Queue",
     description: "Queue backpressure and ingestion job limits.",
   },
   search: {
     title: "Search",
-    description: "Query caches, collection caches, embedding concurrency, and Qdrant search hints.",
+    description: "Query caches, collection caches, and embedding concurrency.",
   },
   chat: {
     title: "Chat",

@@ -69,24 +69,52 @@ async def lifespan(app: FastAPI):
     await db_module.configure(s.database_url, pool_min=s.db_pool_min, pool_max=s.db_pool_max)
     await _check_database_migrations(s, logger)
 
-    runtime = await runtime_settings.get_values(["qdrant_search_ef", "ingestion_workers"])
+    runtime = await runtime_settings.get_values(
+        [
+            "ingestion_workers",
+            "qdrant_api_key",
+            "qdrant_connect_timeout_seconds",
+            "qdrant_required",
+            "qdrant_search_ef",
+            "qdrant_url",
+            "s3_vectors_access_key_id",
+            "s3_vectors_bucket",
+            "s3_vectors_index_prefix",
+            "s3_vectors_region",
+            "s3_vectors_secret_access_key",
+            "turbopuffer_api_key",
+            "turbopuffer_namespace_prefix",
+            "turbopuffer_region",
+            "vector_store_provider",
+        ]
+    )
 
     vector_store.configure(
-        s.qdrant_url,
-        api_key=s.qdrant_api_key,
-        connect_timeout_seconds=s.qdrant_connect_timeout_seconds,
+        provider=runtime["vector_store_provider"],
+        qdrant_url=runtime["qdrant_url"],
+        qdrant_api_key=runtime["qdrant_api_key"],
+        connect_timeout_seconds=runtime["qdrant_connect_timeout_seconds"],
         search_ef=runtime["qdrant_search_ef"],
+        s3_vectors_bucket=runtime["s3_vectors_bucket"],
+        s3_vectors_region=runtime["s3_vectors_region"],
+        s3_vectors_index_prefix=runtime["s3_vectors_index_prefix"],
+        s3_vectors_access_key_id=runtime["s3_vectors_access_key_id"],
+        s3_vectors_secret_access_key=runtime["s3_vectors_secret_access_key"],
+        turbopuffer_api_key=runtime["turbopuffer_api_key"],
+        turbopuffer_region=runtime["turbopuffer_region"],
+        turbopuffer_namespace_prefix=runtime["turbopuffer_namespace_prefix"],
     )
     try:
         vector_store.connect()
         await vector_store.health_check()
     except Exception as exc:
         logger.warning(
-            "Qdrant startup connection failed; API will start degraded",
+            "Vector store startup connection failed; API will start degraded",
+            provider=runtime["vector_store_provider"],
             error_type=exc.__class__.__name__,
             error=str(exc),
         )
-        if s.qdrant_required:
+        if runtime["qdrant_required"]:
             raise
     app.state.vector_store = vector_store
 

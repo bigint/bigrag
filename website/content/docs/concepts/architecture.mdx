@@ -1,6 +1,6 @@
 ---
 title: Architecture deep-dive
-description: Why Qdrant + Postgres + Redis + Docling, how requests flow end-to-end, and where the ingestion pipeline actually does its work.
+description: Why vector storage + Postgres + Redis + Docling, how requests flow end-to-end, and where the ingestion pipeline actually does its work.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
@@ -10,9 +10,10 @@ import { Callout } from "fumadocs-ui/components/callout";
 bigRAG intentionally keeps four distinct stores instead of shoving
 everything into Postgres with pgvector. Each one earns its keep:
 
-- **Qdrant** — the vector index. Purpose-built HNSW search with
-  payload indexes so tenant-aware filtered search stays fast at
-  scale.
+- **Vector store** — Qdrant by default, with S3 Vectors and
+  turbopuffer available as instance-level cloud backends. The vector
+  store owns dense embeddings, payload metadata, and filtered semantic
+  search.
 - **Postgres** — metadata and control plane. Collections, documents,
   users, API keys, webhooks, query logs, audit trail, embedding cache.
   Transactions keep ingestion consistent across stores.
@@ -25,8 +26,9 @@ everything into Postgres with pgvector. Each one earns its keep:
 
 <Callout type="info">
 bigRAG can run entirely from `docker compose up` on a single machine
-for up to ~10M vectors. Past that, Qdrant wants its distributed mode
-and you'll want Postgres replicas.
+with Qdrant. Managed cloud backends move vector operations out of the
+local deployment when you prefer AWS-native or turbopuffer-managed
+infrastructure.
 </Callout>
 
 ## Request flow — `POST /v1/collections/{name}/documents`
@@ -49,7 +51,7 @@ Ingestion worker (4 by default)
   │ b. chunk_document — paragraph or recursive strategy; tracks char offsets
   │ c. embedding_cache.get_many — skip chunks we've embedded before
   │ d. embed the misses — batched, with tiktoken truncation
-  │ e. vector_store.insert — Qdrant upsert with dynamic metadata
+  │ e. vector_store.insert — backend upsert with dynamic metadata
   │ f. UPDATE documents status = 'ready' and publish progress snapshots
   ▼
 Webhook dispatcher
@@ -66,16 +68,18 @@ retry (3 attempts, exponential backoff) before permanently failing.
 Client → FastAPI
   │ 1. auth → scope check (query:read)
   │ 2. embed query when search mode needs vectors
-  │ 3. Qdrant search (with payload filters)
-  │ 4. optional hybrid fusion — keyword search + reciprocal rank fusion
+  │ 3. vector search (with metadata filters)
+  │ 4. optional hybrid fusion — Qdrant keyword search + reciprocal rank fusion
   │ 5. optional rerank — Cohere Rerank v3.5
   │ 6. attach timings (embed/search/rerank/total)
   ▼
 Response JSON with results and timings
 ```
 
-Keyword mode skips embeddings; semantic and hybrid mode use the
-collection's configured embedding model.
+Keyword mode skips embeddings. Semantic and hybrid mode use the
+collection's configured embedding model. In v1, keyword and hybrid
+search are available on Qdrant; S3 Vectors and turbopuffer support
+semantic search and return a clear error for keyword or hybrid mode.
 
 ## Why Docling
 
@@ -92,7 +96,7 @@ images, and exposes layout provenance we can thread into citation metadata
 (`page_no`, `bbox`). PDFs with embedded text use a faster direct extractor;
 local OCR for scanned PDFs is enabled by default.
 
-## Why Qdrant, not pgvector
+## Why Qdrant by default
 
 pgvector is tempting — one less store, one less deploy. But at scale
 the gap widens:
@@ -116,9 +120,10 @@ a future pgvector backend.
 
 - **Horizontal API workers**: FastAPI is stateless past the lifespan.
   Run N replicas behind a load balancer; they share Postgres, Redis,
-  and Qdrant.
-- **Qdrant cluster mode**: ship to `qdrant-cluster` when you hit
-  ~10M vectors or need multi-AZ resilience.
+  and the configured vector store.
+- **Vector backend choice**: use local Qdrant for self-hosted installs,
+  S3 Vectors for AWS-native managed storage, or turbopuffer for a
+  managed vector search service.
 - **Postgres replication**: the control plane is read-light; a
   warm-standby suffices for failover.
 - **Redis persistence**: enable `appendonly yes` (already set in the

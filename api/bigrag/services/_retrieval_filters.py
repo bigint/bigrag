@@ -1,10 +1,25 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
+from typing import Literal
 
-from qdrant_client import models
+Scalar = str | int | float | bool
+FilterOperator = Literal["eq", "ne", "gt", "gte", "lt", "lte", "in"]
 
 _SAFE_FIELD_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+
+@dataclass(frozen=True)
+class FilterCondition:
+    field: str
+    operator: FilterOperator
+    value: Scalar | list[Scalar]
+
+
+@dataclass(frozen=True)
+class FilterExpression:
+    conditions: tuple[FilterCondition, ...]
 
 
 def validate_field(key: str) -> str:
@@ -18,56 +33,36 @@ def validate_scalar(val: object, op: str) -> None:
         raise ValueError(f"Filter operator {op} requires a scalar value, got {type(val).__name__}")
 
 
-def _match_condition(field: str, value: str | int | float | bool) -> models.FieldCondition:
-    return models.FieldCondition(key=field, match=models.MatchValue(value=value))
-
-
-def build_filter(filters: dict) -> models.Filter | None:
-    must: list[models.Condition] = []
-    must_not: list[models.Condition] = []
+def build_filter(filters: dict) -> FilterExpression | None:
+    conditions: list[FilterCondition] = []
 
     for key, value in filters.items():
         field = validate_field(key)
         if isinstance(value, (str, int, float, bool)):
-            must.append(_match_condition(field, value))
+            conditions.append(FilterCondition(field, "eq", value))
         elif isinstance(value, dict):
             if not value:
                 raise ValueError(f"Filter field {field!r} has no operators")
             for op, val in value.items():
                 if op == "$eq":
                     validate_scalar(val, op)
-                    must.append(_match_condition(field, val))
+                    conditions.append(FilterCondition(field, "eq", val))
                 elif op == "$ne":
                     validate_scalar(val, op)
-                    must_not.append(_match_condition(field, val))
+                    conditions.append(FilterCondition(field, "ne", val))
                 elif op in ("$gt", "$gte", "$lt", "$lte"):
                     if not isinstance(val, (int, float)) or isinstance(val, bool):
                         raise ValueError(
                             f"Filter operator {op} requires a numeric value, "
                             f"got {type(val).__name__}"
                         )
-                    must.append(
-                        models.FieldCondition(
-                            key=field,
-                            range=models.Range(
-                                gt=val if op == "$gt" else None,
-                                gte=val if op == "$gte" else None,
-                                lt=val if op == "$lt" else None,
-                                lte=val if op == "$lte" else None,
-                            ),
-                        )
-                    )
+                    conditions.append(FilterCondition(field, op.removeprefix("$"), val))
                 elif op == "$in":
                     if not isinstance(val, list):
                         raise ValueError("Filter operator $in requires a list value")
                     for item in val:
                         validate_scalar(item, "$in")
-                    must.append(
-                        models.FieldCondition(
-                            key=field,
-                            match=models.MatchAny(any=val),
-                        )
-                    )
+                    conditions.append(FilterCondition(field, "in", val))
                 else:
                     raise ValueError(f"Unsupported filter operator {op!r} for field {field!r}")
         else:
@@ -76,6 +71,6 @@ def build_filter(filters: dict) -> models.Filter | None:
                 f"got {type(value).__name__}"
             )
 
-    if not must and not must_not:
+    if not conditions:
         return None
-    return models.Filter(must=must or None, must_not=must_not or None)
+    return FilterExpression(tuple(conditions))

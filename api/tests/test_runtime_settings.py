@@ -42,6 +42,20 @@ def test_runtime_settings_include_backup_destination_settings() -> None:
     assert REGISTRY["backup_s3_secret_access_key"].secret is True
 
 
+def test_runtime_settings_include_vector_store_settings() -> None:
+    assert validate_setting_value("vector_store_provider", "qdrant") == "qdrant"
+    assert validate_setting_value("vector_store_provider", "s3_vectors") == "s3_vectors"
+    assert validate_setting_value("vector_store_provider", "turbopuffer") == "turbopuffer"
+    assert REGISTRY["s3_vectors_secret_access_key"].secret is True
+    assert REGISTRY["turbopuffer_api_key"].secret is True
+    assert REGISTRY["vector_store_provider"].restart_required is True
+
+
+def test_runtime_settings_reject_invalid_vector_store_provider() -> None:
+    with pytest.raises(ValueError):
+        validate_setting_value("vector_store_provider", "pinecone")
+
+
 def test_runtime_settings_redacts_secret_public_value() -> None:
     row = InstanceSetting(key="embedding_api_key", secret_value="sk-secret")
 
