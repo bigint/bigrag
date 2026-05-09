@@ -35,3 +35,6 @@ packages = ["src/bigrag"]
 
 [tool.deptry]
 known_first_party = ["bigrag"]
+
+[dependency-groups]
+dev = ["pytest>=8.0.0"]

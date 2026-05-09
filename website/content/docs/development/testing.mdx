@@ -1,0 +1,44 @@
+---
+title: "Testing"
+description: "Local and CI test commands for bigRAG backend, SDKs, admin UI, and docs."
+---
+
+## Local checks
+
+Run the backend tests from `api/`:
+
+```bash
+uv run pytest tests/ -q
+uv run ruff check .
+uv run ruff format --check .
+```
+
+Run TypeScript and admin UI checks from the repository root:
+
+```bash
+pnpm --filter @bigrag/client test
+pnpm --filter @bigrag/app test
+pnpm typecheck
+pnpm exec biome check .
+```
+
+Run SDK-specific checks:
+
+```bash
+cd sdks/python && uv sync --dev && uv run pytest -q
+cargo test --manifest-path sdks/rust/Cargo.toml
+```
+
+Run the docs build:
+
+```bash
+pnpm --filter @bigrag/docs build
+```
+
+## Coverage expectations
+
+Backend route tests should use dependency overrides and fake service/session objects unless the scenario is specifically testing live infrastructure integration.
+
+SDK tests should exercise request construction, retries, error mapping, multipart uploads, and SSE parsing as runtime behavior, not only typechecking.
+
+Admin UI tests should cover pure utilities and API helpers first. UI workflows should be added when component behavior becomes risky enough to justify browser-oriented tests.

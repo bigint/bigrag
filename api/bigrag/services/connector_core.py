@@ -147,6 +147,21 @@ def next_sync_at(source: ConnectorSource, *, from_time: datetime | None = None) 
     return (from_time or utcnow()) + timedelta(hours=interval)
 
 
+async def run_due_syncs_logged(
+    *,
+    provider: str,
+    start_sync_job: Callable[[str], None],
+) -> None:
+    try:
+        await run_due_syncs(provider=provider, start_sync_job=start_sync_job)
+    except Exception as exc:
+        logger.warning(
+            "connector: scheduler tick failed",
+            provider=provider,
+            error=str(exc),
+        )
+
+
 def configured(config: ConnectorProviderConfig | None) -> bool:
     return bool(config and config.enabled and config.client_id and config.client_secret)
 
@@ -670,14 +685,10 @@ class ConnectorScheduler:
 
     async def _loop(self) -> None:
         while self._running:
-            try:
-                await run_due_syncs(provider=self.provider, start_sync_job=self.start_sync_job)
-            except Exception as exc:
-                logger.warning(
-                    "connector: scheduler tick failed",
-                    provider=self.provider,
-                    error=str(exc),
-                )
+            await run_due_syncs_logged(
+                provider=self.provider,
+                start_sync_job=self.start_sync_job,
+            )
             await asyncio.sleep(self.interval_seconds)
 
 

@@ -76,7 +76,11 @@ jobs:
           cache-dependency-glob: sdks/python/uv.lock
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --dev
+        working-directory: sdks/python
+
+      - name: Python SDK tests
+        run: uv run pytest -q
         working-directory: sdks/python
 
       - name: Build package
@@ -132,6 +136,9 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Type check
         run: pnpm typecheck
+        working-directory: app
+      - name: App tests
+        run: pnpm test
         working-directory: app
       - name: Build
         run: pnpm build

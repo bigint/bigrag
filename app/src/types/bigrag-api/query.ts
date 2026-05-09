@@ -1,3 +1,9 @@
+import type {
+  QueryResponse as SdkQueryResponse,
+  QueryResult as SdkQueryResult,
+  QueryTimings as SdkQueryTimings,
+} from "@bigrag/client";
+
 export type Chunk = {
   id: string;
   text: string;
@@ -6,29 +12,15 @@ export type Chunk = {
   metadata: Record<string, unknown>;
 };
 
-export type QueryResult = {
-  id: string;
-  text: string;
-  score: number;
-  document_id: string | null;
-  chunk_index: number | null;
+export type QueryResult = SdkQueryResult & {
   page_no?: number | null;
   char_start?: number | null;
   char_end?: number | null;
-  metadata: Record<string, unknown>;
 };
 
-export type QueryTimings = {
-  embed_ms: number;
-  search_ms: number;
-  rerank_ms: number;
-  total_ms: number;
-};
+export type QueryTimings = Required<SdkQueryTimings>;
 
-export type QueryResponse = {
+export type QueryResponse = Omit<SdkQueryResponse, "results" | "timings"> & {
   results: QueryResult[];
-  query: string;
-  collection: string;
-  total: number;
   timings?: QueryTimings;
 };

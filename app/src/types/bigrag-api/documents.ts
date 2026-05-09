@@ -1,67 +1,31 @@
+import type {
+  Document as SdkDocument,
+  DocumentProgress as SdkDocumentProgress,
+  UploadSession as SdkUploadSession,
+  UploadSessionFileResponse as SdkUploadSessionFileResponse,
+  UploadSessionItem as SdkUploadSessionItem,
+} from "@bigrag/client";
+
 export type DocumentStatus = "pending" | "processing" | "ready" | "failed";
 
-export type DocumentProgress = {
-  document_id: string;
-  collection_name: string;
-  step: string;
-  status: string;
-  message: string;
-  progress: number;
-  detail: Record<string, unknown>;
-};
+export type DocumentProgress = SdkDocumentProgress;
 
-export type Document = {
-  id: string;
-  collection_id: string;
-  filename: string;
-  file_type: string;
-  file_size: number;
-  chunk_count: number;
+export type Document = Omit<SdkDocument, "status" | "progress"> & {
   status: DocumentStatus;
-  error_message: string | null;
-  metadata: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
   progress: DocumentProgress | null;
 };
 
-export type UploadSessionItem = {
-  id: string;
-  client_item_id: string;
-  document_id: string | null;
-  filename: string;
-  file_type: string;
-  file_size: number;
-  content_hash: string | null;
+export type UploadSessionItem = Omit<SdkUploadSessionItem, "status" | "document_status"> & {
   status: "queued" | "ingesting" | "complete" | "failed" | "canceled";
   document_status: DocumentStatus | null;
-  error_message: string | null;
-  created_at: string;
-  updated_at: string;
 };
 
-export type UploadSession = {
-  id: string;
-  collection_id: string;
-  collection_name: string;
+export type UploadSession = Omit<SdkUploadSession, "status" | "recent_items"> & {
   status: "preparing" | "uploading" | "ingesting" | "complete" | "failed" | "canceled";
-  total_files: number;
-  total_bytes: number;
-  uploaded_files: number;
-  queued_files: number;
-  processing_files: number;
-  completed_files: number;
-  failed_files: number;
-  canceled_files: number;
-  active_files: number;
   recent_items: UploadSessionItem[];
-  metadata: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-  closed_at: string | null;
 };
 
-export type UploadSessionFileResponse = {
+export type UploadSessionFileResponse = Omit<SdkUploadSessionFileResponse, "item" | "session"> & {
   item: UploadSessionItem;
   session: UploadSession;
 };

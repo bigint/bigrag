@@ -10,10 +10,12 @@
     "routes:generate": "tsr generate",
     "start": "serve dist --single --listen tcp://0.0.0.0:${PORT:-3000}",
     "typecheck": "pnpm run routes:generate && tsc --noEmit",
-    "lint": "biome check --write src/"
+    "lint": "biome check --write src/",
+    "test": "vitest run"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
+    "@bigrag/client": "workspace:*",
     "@fontsource-variable/outfit": "^5.2.8",
     "@tanstack/react-query": "^5.100.9",
     "@tanstack/react-router": "^1.169.2",
@@ -40,6 +42,7 @@
     "postcss": "^8.5.14",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
-    "vite": "^8.0.11"
+    "vite": "^8.0.11",
+    "vitest": "^4.1.0"
   }
 }

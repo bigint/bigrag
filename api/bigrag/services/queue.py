@@ -118,6 +118,20 @@ def _document_epoch_key(document_id: str) -> str:
     return f"{DOCUMENT_EPOCH_KEY_PREFIX}{document_id}"
 
 
+async def _delete_document_vectors_after_failure(
+    store,
+    collection_name: str,
+    document_id: str,
+    *,
+    prefix: str,
+    log_message: str,
+) -> None:
+    try:
+        await store.delete_by_document(collection_name, document_id)
+    except Exception as cleanup_err:
+        logger.warning(log_message, prefix=prefix, error=repr(cleanup_err))
+
+
 class IngestionCancelledError(RuntimeError):
     pass
 
@@ -999,14 +1013,13 @@ class IngestionQueue:
             is_permanent = isinstance(e, _PERMANENT_ERRORS)
 
             if isinstance(e, IngestionCancelledError):
-                try:
-                    await vector_store.delete_by_document(job.collection_name, doc)
-                except Exception as cleanup_err:
-                    logger.warning(
-                        "failed to clean up cancelled vectors",
-                        prefix=prefix,
-                        error=repr(cleanup_err),
-                    )
+                await _delete_document_vectors_after_failure(
+                    vector_store,
+                    job.collection_name,
+                    doc,
+                    prefix=prefix,
+                    log_message="failed to clean up cancelled vectors",
+                )
                 await _update_doc(status="failed", error_message=str(e))
                 self._emit(
                     doc,
@@ -1018,14 +1031,13 @@ class IngestionQueue:
                 )
                 event_bus.complete(doc)
             elif not is_permanent and job.attempt < job.max_attempts:
-                try:
-                    await vector_store.delete_by_document(job.collection_name, doc)
-                except Exception as cleanup_err:
-                    logger.warning(
-                        "failed to clean up partial vectors",
-                        prefix=prefix,
-                        error=repr(cleanup_err),
-                    )
+                await _delete_document_vectors_after_failure(
+                    vector_store,
+                    job.collection_name,
+                    doc,
+                    prefix=prefix,
+                    log_message="failed to clean up partial vectors",
+                )
 
                 delay = min(2**job.attempt, 30)
                 self._emit(
