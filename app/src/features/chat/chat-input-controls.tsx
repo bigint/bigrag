@@ -49,7 +49,7 @@ export const KeyMenu = ({
     <input
       aria-label="OpenAI API key"
       autoComplete="off"
-      className="h-10 w-full rounded-full border border-input bg-background px-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onChange={(e) => setKeyDraft(e.target.value)}
       placeholder={keyIsSet ? "Paste a replacement key" : "sk-..."}
       type="password"
@@ -87,7 +87,7 @@ export const ModelMenu = ({
         key={model.value}
         onClick={() => onChange(model.value)}
         className={cn(
-          "flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-sm hover:bg-accent",
+          "flex h-10 w-full items-center gap-3 rounded-md px-3 text-left text-sm hover:bg-accent",
           model.value === value && "bg-accent font-semibold text-foreground",
         )}
       >
@@ -118,7 +118,7 @@ export const CollectionMenu = ({
         key={collection.id}
         onClick={() => onChange(collection.name)}
         className={cn(
-          "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm hover:bg-accent",
+          "flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-sm hover:bg-accent",
           collection.name === value && "bg-accent font-semibold text-foreground",
         )}
       >
@@ -168,7 +168,7 @@ export const SettingsMenu = ({
       <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         Search mode
       </span>
-      <div className="grid grid-cols-3 overflow-hidden rounded-full border border-border">
+      <div className="grid grid-cols-3 overflow-hidden rounded-md border border-border">
         {(["semantic", "keyword", "hybrid"] as const).map((mode) => (
           <button
             key={mode}
@@ -185,7 +185,7 @@ export const SettingsMenu = ({
       </div>
     </div>
 
-    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-border px-3 py-2.5">
+    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
       <span>
         <span className="block text-sm font-semibold">Rerank when configured</span>
         <span className="block text-xs text-muted-foreground">
@@ -207,7 +207,7 @@ export const SettingsMenu = ({
       </span>
       <textarea
         aria-label="System prompt"
-        className="min-h-28 w-full resize-y rounded-2xl border border-input bg-background px-3 py-2 text-xs leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="min-h-28 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-xs leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onChange={(e) => onPatch({ systemPrompt: e.target.value })}
         value={state.systemPrompt}
       />
@@ -270,7 +270,7 @@ export const ToolbarPopover = ({
     <Popover.Trigger render={trigger} />
     <Popover.Portal>
       <Popover.Positioner align={align} className="z-50" side="top" sideOffset={8}>
-        <Popover.Popup className="overflow-hidden rounded-3xl border border-border bg-popover shadow-sm outline-none">
+        <Popover.Popup className="overflow-hidden rounded-xl border border-border bg-popover shadow-sm outline-none">
           {children}
         </Popover.Popup>
       </Popover.Positioner>

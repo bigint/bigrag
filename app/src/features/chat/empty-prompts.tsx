@@ -75,7 +75,7 @@ export const EmptyPrompts = ({
             audit the result.
           </p>
           {notice && (
-            <div className="mx-auto mt-4 inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-muted/60 px-3 py-2 text-xs font-semibold text-muted-foreground">
+            <div className="mx-auto mt-4 inline-flex max-w-full items-center gap-2 rounded-md border border-border bg-muted/60 px-3 py-2 text-xs font-semibold text-muted-foreground">
               <TriangleAlert className="size-3.5 shrink-0" />
               <span className="truncate">{notice}</span>
             </div>
@@ -88,7 +88,7 @@ export const EmptyPrompts = ({
             return (
               <div
                 key={group.title}
-                className="overflow-hidden rounded-3xl border border-border bg-background"
+                className="overflow-hidden rounded-xl border border-border bg-background"
               >
                 <div className="flex items-center gap-2 border-b border-border px-4 py-3">
                   <GroupIcon className="size-4 text-muted-foreground" />

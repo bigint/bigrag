@@ -35,7 +35,7 @@ export const Modal = ({ open, onClose, title, children, footer, size = "md" }: M
             render={
               <div
                 className={cn(
-                  "fixed inset-x-4 top-1/2 z-50 max-h-dvh -translate-y-1/2 overflow-y-auto rounded-3xl border border-border bg-background sm:left-1/2 sm:right-auto sm:w-full sm:-translate-x-1/2",
+                  "fixed inset-x-4 top-1/2 z-50 max-h-dvh -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-background sm:left-1/2 sm:right-auto sm:w-full sm:-translate-x-1/2",
                   sizeMap[size],
                 )}
               />
@@ -45,7 +45,7 @@ export const Modal = ({ open, onClose, title, children, footer, size = "md" }: M
               <Dialog.Title className="text-base font-semibold">{title}</Dialog.Title>
               <Dialog.Close
                 aria-label="Close"
-                className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               >
                 <svg
                   aria-hidden="true"

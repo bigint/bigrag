@@ -540,7 +540,7 @@ const LoadingState = ({ label = "Loading chat" }: { label?: string }) => (
 
 const NoCollectionsState = () => (
   <div className="flex flex-1 items-center justify-center px-4 py-8">
-    <div className="w-full max-w-xl rounded-3xl border border-border bg-background p-6 text-center">
+    <div className="w-full max-w-xl rounded-xl border border-border bg-background p-6 text-center">
       <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl border border-border bg-muted">
         <BookOpen className="size-6 text-muted-foreground" />
       </div>

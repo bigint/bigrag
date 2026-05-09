@@ -152,7 +152,7 @@ const AssistantMessage = memo(
 
         {message.meta && message.meta.sources.length > 0 && (
           <details ref={detailsRef} className="mt-4 text-xs">
-            <summary className="flex w-fit cursor-pointer list-none items-center gap-2 rounded-full border border-border bg-background px-3 py-2 font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
+            <summary className="flex w-fit cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-background px-3 py-2 font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
               <ChevronRight className="size-3.5" />
               View evidence in this answer
             </summary>
@@ -179,7 +179,7 @@ const AssistantMessage = memo(
 AssistantMessage.displayName = "AssistantMessage";
 
 const UserMessage = ({ content }: { content: string }) => (
-  <article className="ml-auto max-w-2xl rounded-3xl border border-border bg-muted px-4 py-3 text-sm font-semibold leading-6 text-foreground">
+  <article className="ml-auto max-w-2xl rounded-xl border border-border bg-muted px-4 py-3 text-sm font-semibold leading-6 text-foreground">
     {content}
   </article>
 );
@@ -194,11 +194,11 @@ const LatencyLedger = ({ timings }: { timings: QueryTimings }) => {
 
   return (
     <details className="mb-3 text-xs text-muted-foreground">
-      <summary className="flex w-fit cursor-pointer list-none items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 font-semibold hover:bg-muted hover:text-foreground">
+      <summary className="flex w-fit cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 font-semibold hover:bg-muted hover:text-foreground">
         <Gauge className="size-3.5" />
         Retrieval latency
       </summary>
-      <div className="mt-2 grid max-w-lg gap-1.5 rounded-2xl border border-border bg-card p-3">
+      <div className="mt-2 grid max-w-lg gap-1.5 rounded-lg border border-border bg-card p-3">
         {phases.map(([name, ms]) => {
           const pct = total > 0 ? Math.min(100, (ms / total) * 100) : 0;
           const dim = ms < 0.05;

@@ -21,7 +21,7 @@ export const Empty = ({
   <div
     className={cn(
       "p-12 text-center",
-      bordered && "rounded-3xl border border-border bg-card",
+      bordered && "rounded-xl border border-border bg-card",
       className,
     )}
   >
