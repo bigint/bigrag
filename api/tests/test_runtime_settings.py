@@ -26,6 +26,8 @@ def test_runtime_settings_reject_invalid_select_option() -> None:
 def test_runtime_settings_include_upload_session_limits() -> None:
     assert validate_setting_value("max_upload_session_files", 10000) == 10000
     assert validate_setting_value("upload_session_item_retention_hours", 168) == 168
+    assert validate_setting_value("upload_rate_limit_files_per_hour", 1000) == 1000
+    assert validate_setting_value("upload_rate_limit_mb_per_hour", 10240) == 10240
 
 
 def test_runtime_settings_include_embedding_cache_security_settings() -> None:
@@ -49,6 +51,13 @@ def test_runtime_settings_include_vector_store_settings() -> None:
     assert REGISTRY["s3_vectors_secret_access_key"].secret is True
     assert REGISTRY["turbopuffer_api_key"].secret is True
     assert REGISTRY["vector_store_provider"].restart_required is True
+
+
+def test_runtime_settings_include_vector_api_limits() -> None:
+    assert validate_setting_value("max_vector_upsert_count", 1000) == 1000
+    assert validate_setting_value("max_vector_delete_count", 10000) == 10000
+    assert validate_setting_value("max_vector_text_chars", 100000) == 100000
+    assert validate_setting_value("max_vector_metadata_bytes", 65536) == 65536
 
 
 def test_runtime_settings_reject_invalid_vector_store_provider() -> None:

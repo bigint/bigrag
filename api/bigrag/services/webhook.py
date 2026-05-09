@@ -78,7 +78,7 @@ class WebhookDispatcher:
         return self._semaphores[webhook_id]
 
     async def start(self) -> None:
-        self._client = httpx.AsyncClient(timeout=_delivery_timeout())
+        self._client = httpx.AsyncClient(timeout=_delivery_timeout(), follow_redirects=False)
         self._task = asyncio.create_task(self._listen())
         logger.info("WebhookDispatcher started")
 
@@ -226,43 +226,14 @@ class WebhookDispatcher:
             last_error = None
             last_status_code = None
 
-            try:
-                from bigrag.models.webhook import resolve_and_validate_url
-
-                await resolve_and_validate_url(webhook["url"])
-            except ValueError as exc:
-                logger.warning(
-                    "webhook blocked",
-                    webhook=webhook_id,
-                    url=webhook["url"],
-                    reason=str(exc),
-                )
-                async with session_factory()() as session:
-                    await session.execute(
-                        sa.update(WebhookDelivery)
-                        .where(WebhookDelivery.id == delivery_id)
-                        .values(
-                            status="failed",
-                            attempts=1,
-                            last_error="Blocked: URL targets a private or internal network",
-                            completed_at=sa.func.now(),
-                        )
-                    )
-                    await session.commit()
-                return
-
             retry_delays = _retry_delays()
+            attempts_done = 0
             for attempt in range(1, len(retry_delays) + 2):
-                if attempt > 1:
-                    try:
-                        from bigrag.models.webhook import resolve_and_validate_url
-
-                        await resolve_and_validate_url(webhook["url"])
-                    except ValueError as exc:
-                        last_error = f"Blocked: {exc}"
-                        break
-
+                attempts_done = attempt
                 try:
+                    from bigrag.models.webhook import resolve_and_validate_url
+
+                    await resolve_and_validate_url(webhook["url"])
                     response = await self._client.post(
                         webhook["url"],
                         content=payload,
@@ -295,6 +266,9 @@ class WebhookDispatcher:
 
                     last_error = f"HTTP {response.status_code}"
 
+                except ValueError as exc:
+                    last_error = f"Blocked: {exc}"
+                    break
                 except Exception as exc:
                     last_error = str(exc)
 
@@ -333,7 +307,7 @@ class WebhookDispatcher:
                     .where(WebhookDelivery.id == delivery_id)
                     .values(
                         status="failed",
-                        attempts=len(retry_delays) + 1,
+                        attempts=attempts_done,
                         last_status_code=last_status_code,
                         last_error=last_error,
                         completed_at=sa.func.now(),
@@ -370,7 +344,10 @@ class WebhookDispatcher:
             "User-Agent": "bigrag-webhooks/1.0",
         }
         try:
-            async with httpx.AsyncClient(timeout=_delivery_timeout()) as client:
+            async with httpx.AsyncClient(
+                timeout=_delivery_timeout(),
+                follow_redirects=False,
+            ) as client:
                 response = await client.post(webhook["url"], content=payload, headers=headers)
             return {
                 "status": "delivered" if 200 <= response.status_code < 300 else "failed",
@@ -417,7 +394,13 @@ class WebhookDispatcher:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=_delivery_timeout()) as client:
+            from bigrag.models.webhook import resolve_and_validate_url
+
+            await resolve_and_validate_url(webhook["url"])
+            async with httpx.AsyncClient(
+                timeout=_delivery_timeout(),
+                follow_redirects=False,
+            ) as client:
                 response = await client.post(webhook["url"], content=payload, headers=headers)
             return {
                 "status": "delivered" if 200 <= response.status_code < 300 else "failed",

@@ -102,8 +102,10 @@ RAG calls write a non-blocking row to `access_log` with actor/API-key context wh
 
 Run with `BIGRAG_ENV=prod` — the server refuses to boot if:
 
-- `BIGRAG_CORS_ORIGINS` contains `*`
 - `BIGRAG_SESSION_COOKIE_SECURE` is `false`
+- `BIGRAG_HOST` binds publicly without `BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD=true`
+- `BIGRAG_SESSION_COOKIE_DOMAIN` is set without trusted proxies
+- `BIGRAG_MASTER_KEY` is unset
 - Postgres is still using the shipped `bigrag:bigrag` default password
 
 See [Production](/docs/deployment/production) for the full hardening checklist.

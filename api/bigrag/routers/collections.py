@@ -26,6 +26,11 @@ from bigrag.services.credential_check import (
     CredentialCheckError,
     verify_provider_credentials,
 )
+from bigrag.services.event_tokens import (
+    EVENT_TOKEN_TTL_SECONDS,
+    create_event_token,
+    validate_event_token,
+)
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
@@ -533,11 +538,15 @@ async def delete_collection(
 @router.get("/{name}/events", response_class=StreamingResponse)
 async def collection_events_sse(
     name: str,
-    _: dict = Depends(get_current_user),
+    request: Request,
+    token: str | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ):
 
     from bigrag.services.event_bus import event_bus
+
+    if not await validate_event_token(token, name):
+        await get_current_user(request, session)
 
     exists = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
     if exists is None:
@@ -579,6 +588,22 @@ async def collection_events_sse(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.post("/{name}/events/token", response_model=dict[str, str | int])
+async def create_collection_event_token(
+    name: str,
+    user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, str | int]:
+    exists = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
+    if exists is None:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    try:
+        token = await create_event_token(user, name)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {"token": token, "expires_in": EVENT_TOKEN_TTL_SECONDS}
 
 
 @router.post("/{name}/truncate", response_model=StatusResponse)

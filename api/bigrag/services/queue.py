@@ -9,7 +9,11 @@ import redis.asyncio as aioredis
 
 from bigrag.logging import get_logger
 from bigrag.services import embedding_cache
-from bigrag.services.conversion import _get_docling_converter, extract_pdf_text, get_pdf_page_count
+from bigrag.services.conversion import (
+    _get_docling_converter,
+    convert_document_isolated,
+    get_pdf_page_count,
+)
 from bigrag.services.embedding import truncate_to_tokens
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import IngestionJob
@@ -585,8 +589,6 @@ class IngestionQueue:
 
     async def _convert_document(self, job: IngestionJob, prefix: str) -> str:
 
-        import tempfile
-
         from bigrag.services.runtime_settings import get_values
         from bigrag.services.storage import get_storage
 
@@ -631,103 +633,26 @@ class IngestionQueue:
             )
             return text
 
-        if suffix == ".pdf":
-            tmp_path = None
-            logger.info(
-                "pdf direct text extraction start",
-                prefix=prefix,
-                timeout=min(conversion_timeout, 60),
-            )
-
-            def _write_and_extract_pdf_text():
-                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-                try:
-                    tmp.write(file_data)
-                    tmp.close()
-                    return extract_pdf_text(tmp.name), tmp.name
-                except Exception:
-                    tmp.close()
-                    raise
-
-            try:
-                text, tmp_path = await asyncio.wait_for(
-                    asyncio.to_thread(_write_and_extract_pdf_text),
-                    timeout=min(conversion_timeout, 60),
-                )
-            finally:
-                if tmp_path:
-                    Path(tmp_path).unlink(missing_ok=True)
-
-            if text.strip():
-                elapsed = time.monotonic() - t0
-                logger.info(
-                    "pdf text extracted",
-                    prefix=prefix,
-                    chars=len(text),
-                    elapsed=round(elapsed, 2),
-                )
-                self._emit(
-                    job.document_id,
-                    "text_extracted",
-                    "processing",
-                    f"Extracted {len(text):,} characters",
-                    0.40,
-                    collection_name=job.collection_name,
-                    chars=len(text),
-                )
-                return text
-
-            if not pdf_ocr_enabled:
-                logger.warning(
-                    "pdf has no embedded text and OCR is disabled by configuration",
-                    prefix=prefix,
-                    ocr_enabled=pdf_ocr_enabled,
-                )
-                raise ValueError(
-                    "PDF contains no embedded text and OCR is disabled by configuration. "
-                    "Remove the override or set conversion_pdf_ocr_enabled=true."
-                )
-
-            return await self._ocr_scanned_pdf(
-                file_data=file_data,
-                suffix=suffix,
-                job=job,
-                prefix=prefix,
-                start_time=t0,
-            )
-
-        def _write_and_convert():
-            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-            try:
-                tmp.write(file_data)
-                tmp.close()
-                logger.info(
-                    "docling converter start",
-                    prefix=prefix,
-                    suffix=suffix,
-                    timeout=conversion_timeout,
-                    pdf_ocr_enabled=pdf_ocr_enabled,
-                )
-                converter = _get_docling_converter(pdf_ocr_enabled=pdf_ocr_enabled)
-                return converter.convert(tmp.name), tmp.name
-            except Exception:
-                tmp.close()
-                raise
-
-        tmp_path = None
+        logger.info(
+            "isolated converter start",
+            prefix=prefix,
+            suffix=suffix,
+            timeout=conversion_timeout,
+            pdf_ocr_enabled=pdf_ocr_enabled,
+        )
         try:
-            result, tmp_path = await asyncio.wait_for(
-                asyncio.to_thread(_write_and_convert),
+            text = await asyncio.to_thread(
+                convert_document_isolated,
+                file_data,
+                suffix,
+                pdf_ocr_enabled=pdf_ocr_enabled,
                 timeout=conversion_timeout,
             )
         except TimeoutError as e:
-            raise ValueError(f"Document conversion timed out after {conversion_timeout}s") from e
-        finally:
-            if tmp_path:
-                Path(tmp_path).unlink(missing_ok=True)
+            raise ValueError(str(e)) from e
 
         elapsed = time.monotonic() - t0
-        logger.info("docling conversion complete", prefix=prefix, elapsed=round(elapsed, 2))
+        logger.info("isolated conversion complete", prefix=prefix, elapsed=round(elapsed, 2))
         self._emit(
             job.document_id,
             "converted",
@@ -738,7 +663,6 @@ class IngestionQueue:
             elapsed=round(elapsed, 2),
         )
 
-        text = _docling_result_text(result)
         if not text.strip():
             raise ValueError("Document produced no extractable text")
 

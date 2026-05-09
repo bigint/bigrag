@@ -23,6 +23,7 @@ from bigrag.models.connector import (
     UpdateConnectorSourceRequest,
 )
 from bigrag.services import audit
+from bigrag.services.client_ip import is_trusted_proxy
 from bigrag.services.connector_core import list_sync_jobs as list_connector_sync_jobs
 from bigrag.services.connector_registry import ConnectorRuntime, connector_runtime
 from bigrag.services.runtime_settings import get_value
@@ -39,7 +40,8 @@ def _route_or_404(provider_slug: str) -> ConnectorRuntime:
 
 def _redirect_uri(request: Request, route: ConnectorRuntime) -> str:
     forwarded_host = request.headers.get("x-forwarded-host")
-    if forwarded_host:
+    immediate = request.client[0] if request.client else None
+    if forwarded_host and is_trusted_proxy(immediate):
         proto = request.headers.get("x-forwarded-proto") or request.url.scheme
         prefix = request.headers.get("x-forwarded-prefix", "").rstrip("/")
         return f"{proto}://{forwarded_host}{prefix}/v1/connectors/{route.slug}/oauth/callback"

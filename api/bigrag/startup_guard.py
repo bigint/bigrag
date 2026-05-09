@@ -29,6 +29,30 @@ def check_production_safety(s: Settings) -> None:
             "print(Fernet.generate_key().decode())'`."
         )
 
+    if not s.session_cookie_secure:
+        problems.append(
+            "BIGRAG_SESSION_COOKIE_SECURE must be true in BIGRAG_ENV=prod so "
+            "admin session cookies are only sent over HTTPS."
+        )
+
+    if s.session_cookie_samesite == "none" and not s.session_cookie_secure:
+        problems.append(
+            "BIGRAG_SESSION_COOKIE_SAMESITE=none requires BIGRAG_SESSION_COOKIE_SECURE=true."
+        )
+
+    if s.host in {"0.0.0.0", "::"} and not s.allow_public_bind_in_prod:
+        problems.append(
+            "BIGRAG_HOST binds to every interface in prod. Set "
+            "BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD=true after confirming a TLS reverse "
+            "proxy or network boundary protects the service."
+        )
+
+    if s.session_cookie_domain and not s.trusted_proxies:
+        problems.append(
+            "BIGRAG_SESSION_COOKIE_DOMAIN is set but BIGRAG_TRUSTED_PROXIES is empty. "
+            "Configure trusted proxy CIDRs before relying on forwarded browser origins."
+        )
+
     if not problems:
         logger.info("startup guard: production checks passed")
         return

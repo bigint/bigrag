@@ -31,7 +31,7 @@ def reset_crypto() -> None:
     crypto.configure(None)
 
 
-def test_manifest_records_readable_unencrypted_backup() -> None:
+def test_manifest_records_readable_redacted_backup() -> None:
     stats = BackupUploadStats()
     target = SimpleNamespace(
         bucket="bigrag-backups",
@@ -50,14 +50,19 @@ def test_manifest_records_readable_unencrypted_backup() -> None:
     )
 
     assert manifest["format_version"] == BACKUP_FORMAT_VERSION
-    assert manifest["encryption"] == "none"
+    assert manifest["encryption"] == "redacted"
+    assert manifest["redaction"] == {
+        "secret_columns": True,
+        "embedding_cache_vectors": True,
+        "raw_uploads": False,
+    }
     assert manifest["destination"]["bucket"] == "bigrag-backups"
     assert manifest["tables"] == {"collections": 1}
     assert manifest["vectors"] == {"docs": 2}
     assert manifest["uploads"] == {"files": 3}
 
 
-def test_embedding_cache_row_exports_decrypted_vector() -> None:
+def test_embedding_cache_row_redacts_vector() -> None:
     crypto.configure(Fernet.generate_key().decode())
     row = EmbeddingCache(
         content_hash="hash",
@@ -70,7 +75,7 @@ def test_embedding_cache_row_exports_decrypted_vector() -> None:
 
     payload = _row_payload(row, sa.inspect(EmbeddingCache))
 
-    assert payload["vector"] == pytest.approx([0.1, -0.2, 3.5])
+    assert payload["vector"] == "[REDACTED]"
     assert payload["content_hash"] == "hash"
 
 

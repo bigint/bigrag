@@ -21,7 +21,6 @@ from bigrag.db.base import Base
 from bigrag.db.engine import session_factory
 from bigrag.db.models import AuditLog, BackupJob, Collection, Document, EmbeddingCache
 from bigrag.logging import get_logger
-from bigrag.services.embedding_cache import _decode_vector
 from bigrag.services.maintenance import acquire_backup_lock, release_backup_lock
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import all_runtime_values
@@ -32,6 +31,25 @@ logger = get_logger("bigrag.backup")
 
 BACKUP_FORMAT_VERSION = 1
 BACKUP_ROOT = "backups"
+REDACTED = "[REDACTED]"
+_SENSITIVE_COLUMN_NAMES = frozenset(
+    {
+        "access_token",
+        "api_key",
+        "client_secret",
+        "embedding_api_key",
+        "key_hash",
+        "password_hash",
+        "qdrant_api_key",
+        "refresh_token",
+        "reranking_api_key",
+        "secret",
+        "secret_value",
+        "session_token",
+        "token_hash",
+        "vector",
+    }
+)
 
 
 @dataclass
@@ -303,14 +321,21 @@ def _row_payload(row: Any, mapper: Any) -> dict[str, Any]:
     for attr in mapper.column_attrs:
         column = attr.columns[0]
         value = getattr(row, attr.key)
-        if isinstance(row, EmbeddingCache) and column.name == "vector":
-            vector, _legacy = _decode_vector(value, row.dimension)
-            if vector is None:
-                raise RuntimeError("embedding_cache.vector cannot be decoded")
-            payload[column.name] = vector
+        if _redact_column(row, column):
+            payload[column.name] = REDACTED if value is not None else None
+        elif isinstance(row, EmbeddingCache) and column.name == "vector":
+            payload[column.name] = REDACTED
         else:
             payload[column.name] = _readable_value(value)
     return payload
+
+
+def _redact_column(row: Any, column: Any) -> bool:
+    if column.name in _SENSITIVE_COLUMN_NAMES:
+        return True
+    if isinstance(row, EmbeddingCache) and column.name == "vector":
+        return True
+    return column.type.__class__.__name__ == "EncryptedString"
 
 
 async def _export_vector_store(temp_dir: Path) -> dict[str, int]:
@@ -449,7 +474,12 @@ def _manifest(
         "format_version": BACKUP_FORMAT_VERSION,
         "app_version": __version__,
         "generated_at": datetime.now(UTC).isoformat(),
-        "encryption": "none",
+        "encryption": "redacted",
+        "redaction": {
+            "secret_columns": True,
+            "embedding_cache_vectors": True,
+            "raw_uploads": False,
+        },
         "destination": {
             "bucket": target.bucket,
             "endpoint_url": target.endpoint_url,

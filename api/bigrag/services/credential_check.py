@@ -27,7 +27,7 @@ class CredentialCheckError(Exception):
 
 def _build_client(timeout: float) -> httpx.AsyncClient:
 
-    return httpx.AsyncClient(timeout=timeout)
+    return httpx.AsyncClient(timeout=timeout, follow_redirects=False)
 
 
 async def verify_provider_credentials(
