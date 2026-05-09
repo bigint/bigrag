@@ -21,7 +21,7 @@ interface SelectProps {
 }
 
 const TRIGGER_CLASS =
-  "flex h-10 w-full items-center justify-between gap-2 rounded-full border border-input bg-background px-4 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+  "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 const ChevronIcon = () => (
   <svg
@@ -97,13 +97,13 @@ export const Select = ({
       <BaseSelect.Portal>
         <BaseSelect.Positioner alignItemWithTrigger={false} className="z-50" sideOffset={4}>
           <BaseSelect.Popup
-            className="max-h-60 overflow-y-auto rounded-3xl border border-border bg-popover p-1.5"
+            className="max-h-60 overflow-y-auto rounded-xl border border-border bg-popover p-1.5"
             style={{ width: "var(--anchor-width)" }}
           >
             <BaseSelect.List>
               {options.map((option) => (
                 <BaseSelect.Item
-                  className="flex w-full cursor-default select-none items-center gap-2 rounded-xl px-3 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
+                  className="flex w-full cursor-default select-none items-center gap-2 rounded-md px-3 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
                   key={option.value}
                   value={option.value}
                 >
