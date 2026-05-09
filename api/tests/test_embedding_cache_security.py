@@ -20,30 +20,27 @@ def test_embedding_cache_encrypts_vectors_when_key_is_configured() -> None:
     vector = [0.1, -0.2, 3.5]
 
     blob = embedding_cache._encode_vector(vector)
-    decoded, legacy = embedding_cache._decode_vector(blob, 3)
+    decoded = embedding_cache._decode_vector(blob, 3)
 
     assert blob.startswith(b"gAAAA")
     assert blob != embedding_cache._pack(vector)
     assert decoded == pytest.approx(vector)
-    assert legacy is False
 
 
-def test_embedding_cache_decodes_legacy_plaintext_vectors() -> None:
+def test_embedding_cache_rejects_plaintext_vectors() -> None:
     vector = [0.1, -0.2, 3.5]
 
-    decoded, legacy = embedding_cache._decode_vector(embedding_cache._pack(vector), 3)
+    decoded = embedding_cache._decode_vector(embedding_cache._pack(vector), 3)
 
-    assert decoded == pytest.approx(vector)
-    assert legacy is True
+    assert decoded is None
 
 
 def test_embedding_cache_skips_corrupt_ciphertext() -> None:
     crypto.configure(Fernet.generate_key().decode())
 
-    decoded, legacy = embedding_cache._decode_vector(b"gAAAAbad", 3)
+    decoded = embedding_cache._decode_vector(b"gAAAAbad", 3)
 
     assert decoded is None
-    assert legacy is False
 
 
 def test_embedding_cache_disabled_mode_turns_cache_off(monkeypatch) -> None:

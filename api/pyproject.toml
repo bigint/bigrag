@@ -22,7 +22,6 @@ dependencies = [
     "python-multipart>=0.0.18,<1",
 
     "httpx>=0.28.0,<1",
-    "tomli>=2.2.0,<3",
     "redis[hiredis]>=5.2.0,<8",
     "orjson>=3.10.0,<4",
     "structlog>=24.4.0,<26",

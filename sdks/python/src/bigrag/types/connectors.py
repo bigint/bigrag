@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
-
-from bigrag.types._compat import Any, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 GoogleProvider = Literal["google_drive"]
 ConnectorAccountStatus = Literal["pending", "connected", "needs_reauth", "revoked"]

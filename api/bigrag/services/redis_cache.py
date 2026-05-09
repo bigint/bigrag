@@ -74,13 +74,16 @@ def _encode_value(value: dict | list) -> bytes:
 
 
 def _decode_value(raw: bytes) -> dict | list | None:
-    payload = raw
-    if raw.startswith(ENCRYPTED_PREFIX):
+    if crypto.is_configured():
+        if not raw.startswith(ENCRYPTED_PREFIX):
+            return None
         try:
             payload = crypto.decrypt_bytes(raw[len(ENCRYPTED_PREFIX) :])
         except Exception as exc:
             logger.debug("redis cache decrypt failed", error=str(exc))
             return None
+    else:
+        payload = raw
     try:
         return orjson.loads(payload)
     except Exception as exc:

@@ -240,7 +240,7 @@ POST /v1/collections/{name}/events/token
 { "token": "br_evt_...", "expires_in": 300 }
 ```
 
-Passing a long-lived API key as `?token=bigrag_sk_...` is still accepted for compatibility, but it is deprecated.
+Only short-lived event tokens are accepted in the query string. Long-lived API keys must be sent in the `Authorization` header.
 
 **Event shape:**
 

@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import httpx
 
 from bigrag.db.models import ConnectorAccount, ConnectorDocument, ConnectorProviderConfig
+from bigrag.services.connector_core import manifest_unchanged, oauth_redirect_url
 from bigrag.services.connector_registry import connector_runtime
 from bigrag.services.google_drive import (
     GOOGLE_DOC_MIME,
@@ -16,8 +17,6 @@ from bigrag.services.google_drive import (
     GoogleDriveConfigError,
     GoogleDriveNotFoundError,
     RemoteDriveFile,
-    _manifest_unchanged,
-    _oauth_redirect_url,
     google_config_public,
     google_drive_file_public,
 )
@@ -62,7 +61,7 @@ def test_oauth_redirect_url_uses_admin_origin() -> None:
     )
 
     assert (
-        _oauth_redirect_url(account, "/collections/docs/connectors/google-drive")
+        oauth_redirect_url(account, "/collections/docs/connectors/google-drive")
         == "https://admin.example.com/collections/docs/connectors/google-drive"
     )
 
@@ -234,7 +233,7 @@ def test_manifest_unchanged_uses_remote_signature_before_hash() -> None:
         version="v8",
     )
 
-    assert _manifest_unchanged(
+    assert manifest_unchanged(
         manifest,
         type(
             "Downloaded",

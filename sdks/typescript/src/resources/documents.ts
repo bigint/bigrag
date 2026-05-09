@@ -1,5 +1,4 @@
 import type { RequestClient } from "../core.js";
-import { errorForStatus } from "../errors.js";
 import { normalizeFileInput } from "../files.js";
 import type {
   BatchDeleteDocumentsResponse,
@@ -23,7 +22,6 @@ export class DocumentsResource {
     collection: string,
     file: FileInput,
     metadata?: Record<string, unknown>,
-    options?: { onUploadProgress?: (ev: { loaded: number; total: number }) => void },
   ): Promise<Document> {
     const form = new FormData();
     const { blob, name } = await normalizeFileInput(file);
@@ -31,46 +29,10 @@ export class DocumentsResource {
     if (metadata) {
       form.append("metadata", JSON.stringify(metadata));
     }
-    if (options?.onUploadProgress && typeof XMLHttpRequest !== "undefined") {
-      return this._uploadWithProgress(collection, form, options.onUploadProgress);
-    }
     return this._client._requestFormData(
       `/v1/collections/${encodeURIComponent(collection)}/documents`,
       form,
     );
-  }
-
-  private _uploadWithProgress(
-    collection: string,
-    form: FormData,
-    onProgress: (ev: { loaded: number; total: number }) => void,
-  ): Promise<Document> {
-    return new Promise<Document>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      const url = `${this._client.baseUrl}/v1/collections/${encodeURIComponent(collection)}/documents`;
-      xhr.open("POST", url);
-      if (this._client.apiKey) {
-        xhr.setRequestHeader("Authorization", `Bearer ${this._client.apiKey}`);
-      }
-      xhr.upload.onprogress = (ev) => {
-        if (ev.lengthComputable) {
-          onProgress({ loaded: ev.loaded, total: ev.total });
-        }
-      };
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            resolve(JSON.parse(xhr.responseText) as Document);
-          } catch (err) {
-            reject(err instanceof Error ? err : new Error(String(err)));
-          }
-        } else {
-          reject(errorForStatus(xhr.status, xhr.responseText || xhr.statusText));
-        }
-      };
-      xhr.onerror = () => reject(new Error("Network error during upload"));
-      xhr.send(form);
-    });
   }
 
   async batchUpload(

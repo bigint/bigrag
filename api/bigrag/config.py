@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import os
+import tomllib
 from pathlib import Path
 from typing import ClassVar, Literal
 
-import tomli
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -128,7 +128,7 @@ class Settings(BaseSettings):
         if not p.exists():
             return cls()
         with open(p, "rb") as f:
-            data = tomli.load(f)
+            data = tomllib.load(f)
         flat: dict = {}
         for section, values in data.items():
             if isinstance(values, dict):

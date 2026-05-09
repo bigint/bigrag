@@ -96,7 +96,7 @@ curl "http://localhost:4000/v1/collections/docs/events?token=$EVENT_TOKEN"
 </Tab>
 </Tabs>
 
-Collection SSE still accepts long-lived API keys in `?token=` for older clients, but that form is deprecated because URL tokens can land in proxy logs. New EventSource clients should mint a short-lived event token first.
+Collection SSE accepts bearer headers or short-lived event tokens. Long-lived API keys are not accepted in the query string.
 
 ### Key fields
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from bigrag.types._compat import NotRequired, TypedDict
+from typing import NotRequired, TypedDict
 
 
 class StatusResponse(TypedDict):

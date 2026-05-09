@@ -35,17 +35,14 @@ def _encode_vector(vec: list[float]) -> bytes:
     return crypto.encrypt_bytes(_pack(vec))
 
 
-def _decode_vector(blob: bytes, dimension: int) -> tuple[list[float] | None, bool]:
-    if crypto.looks_encrypted_bytes(blob):
-        try:
-            return _unpack(crypto.decrypt_bytes(blob), dimension), False
-        except Exception as exc:
-            logger.debug("embedding_cache: decrypt failed", error=str(exc))
-            return None, False
+def _decode_vector(blob: bytes, dimension: int) -> list[float] | None:
+    if not crypto.looks_encrypted_bytes(blob):
+        return None
     try:
-        return _unpack(blob, dimension), True
-    except struct.error:
-        return None, False
+        return _unpack(crypto.decrypt_bytes(blob), dimension)
+    except Exception as exc:
+        logger.debug("embedding_cache: decrypt failed", error=str(exc))
+        return None
 
 
 async def _cache_enabled() -> bool:
@@ -90,17 +87,14 @@ async def get_many(
 
     by_hash = {r.content_hash: r.vector for r in rows}
     out: dict[int, list[float]] = {}
-    legacy: dict[str, list[float]] = {}
     for i, h in enumerate(hashes):
         blob = by_hash.get(h)
         if blob is None:
             continue
-        vector, needs_reencrypt = _decode_vector(blob, dimension)
+        vector = _decode_vector(blob, dimension)
         if vector is None:
             continue
         out[i] = vector
-        if needs_reencrypt:
-            legacy[h] = vector
     if out:
         hit_hashes = [hashes[i] for i in out]
         try:
@@ -114,28 +108,7 @@ async def get_many(
                 await session.commit()
         except Exception as exc:
             logger.debug("embedding_cache: last_hit_at update failed", error=str(exc))
-    if legacy:
-        await _reencrypt_legacy_vectors(model_key, dimension, legacy)
     return out
-
-
-async def _reencrypt_legacy_vectors(
-    model_key: str,
-    dimension: int,
-    vectors_by_hash: dict[str, list[float]],
-) -> None:
-    try:
-        async with session_factory()() as session:
-            for content_hash, vector in vectors_by_hash.items():
-                await session.execute(
-                    sa.update(EmbeddingCache)
-                    .where(EmbeddingCache.model_key == model_key)
-                    .where(EmbeddingCache.content_hash == content_hash)
-                    .values(vector=_encode_vector(vector), dimension=dimension)
-                )
-            await session.commit()
-    except Exception as exc:
-        logger.debug("embedding_cache: legacy reencrypt failed", error=str(exc))
 
 
 async def put_many(
