@@ -3,10 +3,24 @@
 import { useEffect, useRef } from "react";
 import { mermaidThemeVariables } from "./mermaid-themes";
 
-export function Mermaid({ chart }: { chart: string }) {
+export const Mermaid = ({ chart }: { chart: string }) => {
   const ref = useRef<HTMLDivElement>(null);
   const renderIdRef = useRef(0);
 
+  useMermaidRender(chart, ref, renderIdRef);
+
+  return (
+    <div className="not-prose my-8 overflow-hidden rounded-xl border border-fd-border bg-fd-card">
+      <div className="flex justify-center overflow-x-auto px-6 py-8 [&_svg]:max-w-full" ref={ref} />
+    </div>
+  );
+};
+
+const useMermaidRender = (
+  chart: string,
+  ref: { current: HTMLDivElement | null },
+  renderIdRef: { current: number },
+) => {
   useEffect(() => {
     const currentRender = ++renderIdRef.current;
 
@@ -37,12 +51,6 @@ export function Mermaid({ chart }: { chart: string }) {
       ref.current.appendChild(svgElement);
     };
 
-    render();
-  }, [chart]);
-
-  return (
-    <div className="not-prose my-8 overflow-hidden rounded-xl border border-fd-border bg-fd-card">
-      <div className="flex justify-center overflow-x-auto px-6 py-8 [&_svg]:max-w-full" ref={ref} />
-    </div>
-  );
-}
+    void render();
+  }, [chart, ref, renderIdRef]);
+};

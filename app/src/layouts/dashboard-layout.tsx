@@ -15,17 +15,15 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   const { data: session, isPending, isError } = useSession();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  useEffect(() => {
-    if (isPending) return;
-    if (session) return;
-    if (setupStatus?.needs_setup) {
-      navigate({ to: "/setup", replace: true });
-      return;
-    }
-    if (isError || !session) {
-      navigate({ to: "/login", replace: true });
-    }
-  }, [session, isPending, isError, setupStatus, navigate]);
+  useDashboardAuthRedirect(
+    {
+      hasSession: Boolean(session),
+      isError,
+      isPending,
+      needsSetup: setupStatus?.needs_setup,
+    },
+    navigate,
+  );
 
   if (isPending || !session) {
     return (
@@ -71,4 +69,28 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </main>
     </div>
   );
+};
+
+type DashboardAuthState = {
+  readonly hasSession: boolean;
+  readonly isError: boolean;
+  readonly isPending: boolean;
+  readonly needsSetup: boolean | undefined;
+};
+
+const useDashboardAuthRedirect = (
+  { hasSession, isError, isPending, needsSetup }: DashboardAuthState,
+  navigate: ReturnType<typeof useNavigate>,
+) => {
+  useEffect(() => {
+    if (isPending) return;
+    if (hasSession) return;
+    if (needsSetup) {
+      navigate({ to: "/setup", replace: true });
+      return;
+    }
+    if (isError || !hasSession) {
+      navigate({ to: "/login", replace: true });
+    }
+  }, [hasSession, isPending, isError, needsSetup, navigate]);
 };

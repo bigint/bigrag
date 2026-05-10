@@ -57,11 +57,11 @@ export const EmptyPrompts = ({
   onSelect,
 }: Props) => {
   const missingCollection = collectionCount === 0 || !collection;
-  const notice = !hasOpenAIKey
-    ? "Add an API key to start asking questions."
-    : missingCollection
+  const notice = hasOpenAIKey
+    ? missingCollection
       ? "Choose a collection to start asking questions."
-      : null;
+      : null
+    : "Add an API key to start asking questions.";
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-8 md:px-6 lg:px-8">

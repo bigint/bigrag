@@ -70,6 +70,22 @@ const useSelectFirstCollection = (
   }, [collections, current, setCurrent]);
 };
 
+const useSelectedConversationMessages = (
+  conversationId: string | null,
+  detail: ReturnType<typeof useChatConversation>["data"],
+  isStreaming: boolean,
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
+) => {
+  useEffect(() => {
+    if (!conversationId || isStreaming || !detail) return;
+    setMessages(
+      detail.messages
+        .map((message) => toUiMessage(message, detail.conversation))
+        .filter((message): message is ChatMessage => Boolean(message)),
+    );
+  }, [conversationId, detail, isStreaming, setMessages]);
+};
+
 const timingsFromRetrieval = (message: ServerChatMessage): QueryTimings | undefined => {
   const timings = message.retrieval.timings;
   if (!timings || typeof timings !== "object") return undefined;
@@ -115,15 +131,7 @@ const ChatPage = () => {
   const abortRef = useRef<AbortController | null>(null);
 
   useSelectFirstCollection(collections, collection, setCollection);
-
-  useEffect(() => {
-    if (!conversationId || isStreaming || !detailQuery.data) return;
-    setMessages(
-      detailQuery.data.messages
-        .map((message) => toUiMessage(message, detailQuery.data.conversation))
-        .filter((message): message is ChatMessage => Boolean(message)),
-    );
-  }, [conversationId, detailQuery.data, isStreaming]);
+  useSelectedConversationMessages(conversationId, detailQuery.data, isStreaming, setMessages);
 
   const state: ChatState = useMemo(() => {
     const chat = prefsQuery.data?.data.chat ?? {};
@@ -324,7 +332,9 @@ const ChatPage = () => {
       abortRef.current = null;
       queryClient.invalidateQueries({ queryKey: queryKeys.chat.list() });
       if (nextConversationId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.chat.detail({ id: nextConversationId }) });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.chat.detail({ id: nextConversationId }),
+        });
       }
     }
   };

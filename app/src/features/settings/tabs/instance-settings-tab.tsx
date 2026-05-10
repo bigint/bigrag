@@ -17,6 +17,7 @@ import {
 import type {
   InstanceSettingGroup,
   InstanceSettingSpec,
+  InstanceSettingsResponse,
   InstanceSettingValue,
 } from "@/types/bigrag";
 
@@ -71,20 +72,11 @@ export const InstanceSettingsTab = ({ group }: { group: InstanceSettingGroup }) 
   const test = useTestInstanceSettings();
   const reset = useResetInstanceSettings();
   const purgeEmbeddingCache = usePurgeEmbeddingCache();
-  const [draft, setDraft] = useState<Record<string, DraftValue>>({});
+  const [draft, setDraft] = useInstanceSettingsDraft(data, group);
   const groupSpecs = useMemo(
     () => data?.specs.filter((spec) => spec.group === group) ?? [],
     [data, group],
   );
-
-  useEffect(() => {
-    if (!data) return;
-    const next: Record<string, DraftValue> = {};
-    for (const spec of data.specs.filter((item) => item.group === group)) {
-      next[spec.key] = draftValue(spec, data.values[spec.key]);
-    }
-    setDraft(next);
-  }, [data, group]);
 
   const body = () => ({ values: valuesForSubmit(groupSpecs, draft) });
   const copy = GROUP_COPY[group];
@@ -169,6 +161,24 @@ export const InstanceSettingsTab = ({ group }: { group: InstanceSettingGroup }) 
       </CardContent>
     </Card>
   );
+};
+
+const useInstanceSettingsDraft = (
+  data: InstanceSettingsResponse | undefined,
+  group: InstanceSettingGroup,
+) => {
+  const [draft, setDraft] = useState<Record<string, DraftValue>>({});
+
+  useEffect(() => {
+    if (!data) return;
+    const next: Record<string, DraftValue> = {};
+    for (const spec of data.specs.filter((item) => item.group === group)) {
+      next[spec.key] = draftValue(spec, data.values[spec.key]);
+    }
+    setDraft(next);
+  }, [data, group]);
+
+  return [draft, setDraft] as const;
 };
 
 const SettingField = ({

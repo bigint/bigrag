@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Check, Copy, ExternalLink, KeyRound, Plug, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,7 @@ const slugify = (s: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
 
-const getOrigin = () => (typeof window !== "undefined" ? window.location.origin : "");
+const getOrigin = () => (typeof window === "undefined" ? "" : window.location.origin);
 
 const trimSlash = (s: string) => s.replace(/\/+$/, "");
 
@@ -131,6 +131,11 @@ interface CreateDialogProps {
   collections: { name: string }[];
 }
 
+type CredentialNotice = {
+  server: CreatedMcpServer;
+  kind: "created" | "rotated";
+};
+
 const CreateDialog = ({ open, onClose, onCreated, collections }: CreateDialogProps) => {
   const create = useCreateMcpServer();
   const [title, setTitle] = useState("");
@@ -138,18 +143,8 @@ const CreateDialog = ({ open, onClose, onCreated, collections }: CreateDialogPro
   const [collection, setCollection] = useState(UNSCOPED);
   const [autoSlug, setAutoSlug] = useState(true);
 
-  useEffect(() => {
-    if (!open) {
-      setTitle("");
-      setServerName("");
-      setCollection(UNSCOPED);
-      setAutoSlug(true);
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (autoSlug) setServerName(slugify(title) || "bigrag");
-  }, [title, autoSlug]);
+  useResetCreateDialog(open, setTitle, setServerName, setCollection, setAutoSlug);
+  useAutoServerName(title, autoSlug, setServerName);
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -214,6 +209,33 @@ const CreateDialog = ({ open, onClose, onCreated, collections }: CreateDialogPro
       </form>
     </Modal>
   );
+};
+
+const useResetCreateDialog = (
+  open: boolean,
+  setTitle: Dispatch<SetStateAction<string>>,
+  setServerName: Dispatch<SetStateAction<string>>,
+  setCollection: Dispatch<SetStateAction<string>>,
+  setAutoSlug: Dispatch<SetStateAction<boolean>>,
+) => {
+  useEffect(() => {
+    if (!open) {
+      setTitle("");
+      setServerName("");
+      setCollection(UNSCOPED);
+      setAutoSlug(true);
+    }
+  }, [open, setTitle, setServerName, setCollection, setAutoSlug]);
+};
+
+const useAutoServerName = (
+  title: string,
+  autoSlug: boolean,
+  setServerName: Dispatch<SetStateAction<string>>,
+) => {
+  useEffect(() => {
+    if (autoSlug) setServerName(slugify(title) || "bigrag");
+  }, [title, autoSlug, setServerName]);
 };
 
 interface CredentialDialogProps {
@@ -408,16 +430,9 @@ const McpPage = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [deleteFor, setDeleteFor] = useState<McpServer | null>(null);
-  const [credential, setCredential] = useState<{
-    server: CreatedMcpServer;
-    kind: "created" | "rotated";
-  } | null>(null);
+  const [credential, setCredential] = useState<CredentialNotice | null>(null);
 
-  useEffect(() => {
-    if (!credential) return;
-    const timer = setTimeout(() => setCredential(null), 5 * 60 * 1000);
-    return () => clearTimeout(timer);
-  }, [credential]);
+  useCredentialExpiry(credential, setCredential);
 
   const handleRotate = async () => {
     if (!detailId) return;
@@ -582,4 +597,15 @@ const McpPage = () => {
       />
     </div>
   );
+};
+
+const useCredentialExpiry = (
+  credential: CredentialNotice | null,
+  setCredential: Dispatch<SetStateAction<CredentialNotice | null>>,
+) => {
+  useEffect(() => {
+    if (!credential) return;
+    const timer = setTimeout(() => setCredential(null), 5 * 60 * 1000);
+    return () => clearTimeout(timer);
+  }, [credential, setCredential]);
 };

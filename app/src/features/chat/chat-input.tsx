@@ -56,9 +56,7 @@ export const ChatInput = ({
   const [keyDraft, setKeyDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    if (!state.hasOpenAIKey) setKeyDraft("");
-  }, [state.hasOpenAIKey]);
+  useClearKeyDraft(state.hasOpenAIKey, setKeyDraft);
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
@@ -227,4 +225,10 @@ export const ChatInput = ({
       </div>
     </div>
   );
+};
+
+const useClearKeyDraft = (hasOpenAIKey: boolean, setKeyDraft: (value: string) => void) => {
+  useEffect(() => {
+    if (!hasOpenAIKey) setKeyDraft("");
+  }, [hasOpenAIKey, setKeyDraft]);
 };

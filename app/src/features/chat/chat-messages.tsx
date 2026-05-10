@@ -9,7 +9,16 @@ import {
   Search,
   Zap,
 } from "lucide-react";
-import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type MutableRefObject,
+  memo,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { cn } from "@/lib/cn";
 import type { ChatSource, QueryTimings } from "@/types/bigrag";
 
@@ -80,12 +89,7 @@ const AssistantMessage = memo(
     const highlightTimer = useRef<number | null>(null);
     const [highlight, setHighlight] = useState<number | null>(null);
 
-    useEffect(
-      () => () => {
-        if (highlightTimer.current !== null) window.clearTimeout(highlightTimer.current);
-      },
-      [],
-    );
+    useHighlightTimerCleanup(highlightTimer);
 
     const jumpToSource = (n: number) => {
       const sources = message.meta?.sources;
@@ -337,12 +341,7 @@ export const ChatMessages = ({ isStreaming, messages }: Props) => {
     [messages],
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-scroll on every messages change
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({
-      behavior: "instant",
-    });
-  }, [messages, isStreaming]);
+  useAutoScrollChat(bottomRef, messages, isStreaming);
 
   return (
     <div className="min-h-0 flex-1 overflow-hidden">
@@ -369,4 +368,26 @@ export const ChatMessages = ({ isStreaming, messages }: Props) => {
       </div>
     </div>
   );
+};
+
+const useHighlightTimerCleanup = (highlightTimer: MutableRefObject<number | null>) => {
+  useEffect(
+    () => () => {
+      if (highlightTimer.current !== null) window.clearTimeout(highlightTimer.current);
+    },
+    [highlightTimer],
+  );
+};
+
+const useAutoScrollChat = (
+  bottomRef: RefObject<HTMLDivElement | null>,
+  messages: ChatMessage[],
+  isStreaming: boolean,
+) => {
+  useEffect(() => {
+    if (messages.length === 0 && !isStreaming) return;
+    bottomRef.current?.scrollIntoView({
+      behavior: "instant",
+    });
+  }, [bottomRef, messages, isStreaming]);
 };

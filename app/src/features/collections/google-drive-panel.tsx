@@ -9,7 +9,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ import {
 import { apiClient } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatRelative } from "@/lib/format";
-import type { GoogleDriveFile, GoogleDriveSource } from "@/types/bigrag";
+import type { GoogleDriveFile, GoogleDriveFileList, GoogleDriveSource } from "@/types/bigrag";
 
 const ROOT_FOLDER = { id: "root", name: "My Drive" };
 
@@ -83,14 +83,7 @@ export const GoogleDrivePanel = ({
       ? files.error.message
       : "Could not load Google Drive files. Try again.";
 
-  useEffect(() => {
-    if (!files.data) return;
-    setVisibleFiles((current) => {
-      if (!pageToken) return files.data.files;
-      const seen = new Set(current.map((item) => item.id));
-      return [...current, ...files.data.files.filter((item) => !seen.has(item.id))];
-    });
-  }, [files.data, pageToken]);
+  useVisibleGoogleDriveFiles(files.data, pageToken, setVisibleFiles);
 
   const connect = async () => {
     const redirect = `${window.location.pathname}${window.location.search}`;
@@ -146,140 +139,142 @@ export const GoogleDrivePanel = ({
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
       <div className="flex min-h-[520px] flex-col gap-4">
-        {!configured ? (
-          <SetupRequired />
-        ) : !connected ? (
-          <ConnectRequired
-            needsReauth={account.data?.status === "needs_reauth"}
-            onConnect={() => void connect()}
-          />
-        ) : (
-          <>
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3">
-              <div>
-                <div className="text-sm font-medium">{account.data?.email ?? "Google Drive"}</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  Select files or folders to sync into this collection.
+        {configured ? (
+          connected ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3">
+                <div>
+                  <div className="text-sm font-medium">{account.data?.email ?? "Google Drive"}</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    Select files or folders to sync into this collection.
+                  </div>
                 </div>
-              </div>
-              <Button
-                disabled={selectedItems.length === 0 || createSource.isPending}
-                onClick={addSelected}
-              >
-                {createSource.isPending ? <Spinner /> : <Cloud className="size-4" />}
-                Add selected
-              </Button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                aria-label="Back"
-                disabled={folderStack.length === 1 || !!query}
-                onClick={goBack}
-                size="icon"
-                variant="outline"
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <div className="min-w-0 flex-1 text-sm font-medium">
-                <span className="text-muted-foreground">Location / </span>
-                <span className="truncate">{query ? "Search results" : currentFolder.name}</span>
-              </div>
-            </div>
-
-            <Input
-              label="Search Drive"
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPageToken(undefined);
-                setVisibleFiles([]);
-              }}
-              placeholder="Search files and folders"
-              trailing={files.isFetching ? <Spinner /> : <Search className="size-4" />}
-              value={search}
-            />
-
-            <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
-              {files.isPending ? (
-                <div className="flex h-64 items-center justify-center">
-                  <Spinner />
-                </div>
-              ) : files.isError ? (
-                <div className="px-4 py-8 text-center text-sm text-destructive">{fileError}</div>
-              ) : visibleFiles.length ? (
-                <ul className="max-h-[390px] divide-y divide-border overflow-y-auto">
-                  {visibleFiles.map((item) => {
-                    const checked = Boolean(selected[item.id]);
-                    const canSelect = item.sync_supported;
-                    return (
-                      <li
-                        className={cn(
-                          "flex items-center gap-3 px-4 py-3",
-                          !canSelect && "bg-muted/35",
-                        )}
-                        key={item.id}
-                      >
-                        <Checkbox
-                          aria-label={`Select ${item.name}`}
-                          checked={checked}
-                          disabled={!canSelect}
-                          onCheckedChange={(isChecked) => toggleSelected(item, isChecked)}
-                        />
-                        {item.source_type === "folder" ? (
-                          <Folder className="size-4 shrink-0 text-muted-foreground" />
-                        ) : (
-                          <FileText className="size-4 shrink-0 text-muted-foreground" />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-medium">{item.name}</div>
-                          <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                            <span>{item.source_type}</span>
-                            {item.size !== null && <span>{formatBytes(item.size)}</span>}
-                            {item.modified_time && (
-                              <span>modified {formatRelative(item.modified_time)}</span>
-                            )}
-                            {item.unsupported_reason && (
-                              <span className="text-warning">{item.unsupported_reason}</span>
-                            )}
-                          </div>
-                        </div>
-                        {item.web_url && (
-                          <Button
-                            aria-label="Open in Google Drive"
-                            onClick={() => window.open(item.web_url ?? undefined, "_blank")}
-                            size="icon"
-                            variant="ghost"
-                          >
-                            <ExternalLink className="size-4" />
-                          </Button>
-                        )}
-                        {item.source_type === "folder" && (
-                          <Button onClick={() => openFolder(item)} size="sm" variant="outline">
-                            Open
-                          </Button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                  No Drive files found.
-                </div>
-              )}
-            </div>
-
-            {files.data?.next_page_token && (
-              <div className="flex justify-center">
                 <Button
-                  onClick={() => setPageToken(files.data?.next_page_token ?? undefined)}
-                  variant="outline"
+                  disabled={selectedItems.length === 0 || createSource.isPending}
+                  onClick={addSelected}
                 >
-                  Load more
+                  {createSource.isPending ? <Spinner /> : <Cloud className="size-4" />}
+                  Add selected
                 </Button>
               </div>
-            )}
-          </>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  aria-label="Back"
+                  disabled={folderStack.length === 1 || !!query}
+                  onClick={goBack}
+                  size="icon"
+                  variant="outline"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <div className="min-w-0 flex-1 text-sm font-medium">
+                  <span className="text-muted-foreground">Location / </span>
+                  <span className="truncate">{query ? "Search results" : currentFolder.name}</span>
+                </div>
+              </div>
+
+              <Input
+                label="Search Drive"
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPageToken(undefined);
+                  setVisibleFiles([]);
+                }}
+                placeholder="Search files and folders"
+                trailing={files.isFetching ? <Spinner /> : <Search className="size-4" />}
+                value={search}
+              />
+
+              <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+                {files.isPending ? (
+                  <div className="flex h-64 items-center justify-center">
+                    <Spinner />
+                  </div>
+                ) : files.isError ? (
+                  <div className="px-4 py-8 text-center text-sm text-destructive">{fileError}</div>
+                ) : visibleFiles.length ? (
+                  <ul className="max-h-[390px] divide-y divide-border overflow-y-auto">
+                    {visibleFiles.map((item) => {
+                      const checked = Boolean(selected[item.id]);
+                      const canSelect = item.sync_supported;
+                      return (
+                        <li
+                          className={cn(
+                            "flex items-center gap-3 px-4 py-3",
+                            !canSelect && "bg-muted/35",
+                          )}
+                          key={item.id}
+                        >
+                          <Checkbox
+                            aria-label={`Select ${item.name}`}
+                            checked={checked}
+                            disabled={!canSelect}
+                            onCheckedChange={(isChecked) => toggleSelected(item, isChecked)}
+                          />
+                          {item.source_type === "folder" ? (
+                            <Folder className="size-4 shrink-0 text-muted-foreground" />
+                          ) : (
+                            <FileText className="size-4 shrink-0 text-muted-foreground" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-medium">{item.name}</div>
+                            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                              <span>{item.source_type}</span>
+                              {item.size !== null && <span>{formatBytes(item.size)}</span>}
+                              {item.modified_time && (
+                                <span>modified {formatRelative(item.modified_time)}</span>
+                              )}
+                              {item.unsupported_reason && (
+                                <span className="text-warning">{item.unsupported_reason}</span>
+                              )}
+                            </div>
+                          </div>
+                          {item.web_url && (
+                            <Button
+                              aria-label="Open in Google Drive"
+                              onClick={() => window.open(item.web_url ?? undefined, "_blank")}
+                              size="icon"
+                              variant="ghost"
+                            >
+                              <ExternalLink className="size-4" />
+                            </Button>
+                          )}
+                          {item.source_type === "folder" && (
+                            <Button onClick={() => openFolder(item)} size="sm" variant="outline">
+                              Open
+                            </Button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                    No Drive files found.
+                  </div>
+                )}
+              </div>
+
+              {files.data?.next_page_token && (
+                <div className="flex justify-center">
+                  <Button
+                    onClick={() => setPageToken(files.data?.next_page_token ?? undefined)}
+                    variant="outline"
+                  >
+                    Load more
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
+            <ConnectRequired
+              needsReauth={account.data?.status === "needs_reauth"}
+              onConnect={() => void connect()}
+            />
+          )
+        ) : (
+          <SetupRequired />
         )}
       </div>
 
@@ -414,3 +409,18 @@ const ConnectRequired = ({
     <Button onClick={onConnect}>{needsReauth ? "Reconnect" : "Connect Google"}</Button>
   </div>
 );
+
+const useVisibleGoogleDriveFiles = (
+  fileList: GoogleDriveFileList | undefined,
+  pageToken: string | undefined,
+  setVisibleFiles: Dispatch<SetStateAction<GoogleDriveFile[]>>,
+) => {
+  useEffect(() => {
+    if (!fileList) return;
+    setVisibleFiles((current) => {
+      if (!pageToken) return fileList.files;
+      const seen = new Set(current.map((item) => item.id));
+      return [...current, ...fileList.files.filter((item) => !seen.has(item.id))];
+    });
+  }, [fileList, pageToken, setVisibleFiles]);
+};

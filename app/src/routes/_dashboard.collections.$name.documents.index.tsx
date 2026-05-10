@@ -56,13 +56,7 @@ const DocumentsTab = () => {
   const allowed = getAllowedFileTypes(collection?.metadata);
   const accept = acceptAttribute(allowed);
 
-  useEffect(() => {
-    if (!activeSessionId) {
-      window.localStorage.removeItem(sessionStorageKey);
-      return;
-    }
-    window.localStorage.setItem(sessionStorageKey, activeSessionId);
-  }, [activeSessionId, sessionStorageKey]);
+  useUploadSessionStorage(activeSessionId, sessionStorageKey);
 
   const onFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -276,6 +270,16 @@ const DocumentsTab = () => {
       />
     </div>
   );
+};
+
+const useUploadSessionStorage = (activeSessionId: string | null, sessionStorageKey: string) => {
+  useEffect(() => {
+    if (!activeSessionId) {
+      window.localStorage.removeItem(sessionStorageKey);
+      return;
+    }
+    window.localStorage.setItem(sessionStorageKey, activeSessionId);
+  }, [activeSessionId, sessionStorageKey]);
 };
 
 const FileType = ({ type }: { type: string }) => (

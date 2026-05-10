@@ -14,12 +14,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Layout({ children }: { children: ReactNode }) {
-  return (
-    <html className={`${GeistSans.variable} ${GeistMono.variable}`} lang="en">
-      <body className="flex min-h-screen flex-col font-sans">
-        <RootProvider theme={{ enabled: false }}>{children}</RootProvider>
-      </body>
-    </html>
-  );
-}
+const Layout = ({ children }: { children: ReactNode }) => (
+  <html className={`${GeistSans.variable} ${GeistMono.variable}`} lang="en">
+    <body className="flex min-h-screen flex-col font-sans">
+      <RootProvider theme={{ enabled: false }}>{children}</RootProvider>
+    </body>
+  </html>
+);
+
+export default Layout;

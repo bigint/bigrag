@@ -16,10 +16,6 @@ type WindowDaysParams = {
   readonly windowDays: number;
 };
 
-type CollectionParams = {
-  readonly collection: string;
-};
-
 type CollectionNameParams = {
   readonly name: string;
 };
@@ -58,8 +54,7 @@ export const queryKeys = {
   backups: () => ["backups"] as const,
   access: {
     logs: (filters: Record<string, unknown>) => ["access", "logs", filters] as const,
-    overview: ({ windowDays }: WindowDaysParams) =>
-      ["access", "overview", { windowDays }] as const,
+    overview: ({ windowDays }: WindowDaysParams) => ["access", "overview", { windowDays }] as const,
   },
   audit: {
     recent: () => ["audit", "recent"] as const,
@@ -92,7 +87,8 @@ export const queryKeys = {
   documents: {
     list: ({ collection, status }: DocumentListParams) =>
       ["documents", "list", { collection, ...(status ? { status } : {}) }] as const,
-    one: ({ collection, id }: DocumentParams) => ["documents", "detail", { collection, id }] as const,
+    one: ({ collection, id }: DocumentParams) =>
+      ["documents", "detail", { collection, id }] as const,
     chunks: ({ collection, id }: DocumentParams) =>
       ["documents", "chunks", { collection, id }] as const,
     batchStatus: ({ collection, ids }: BatchStatusParams) =>

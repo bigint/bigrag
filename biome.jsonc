@@ -21,7 +21,25 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "a11y": {
+        "useButtonType": "error",
+        "useKeyWithClickEvents": "error"
+      },
+      "complexity": {
+        "noForEach": "error"
+      },
+      "correctness": {
+        "noNestedComponentDefinitions": "error"
+      },
+      "style": {
+        "noNegationElse": "error",
+        "noNonNullAssertion": "error",
+        "noUselessElse": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error"
+      }
     }
   },
   "files": {

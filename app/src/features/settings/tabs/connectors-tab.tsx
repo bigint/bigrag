@@ -11,6 +11,7 @@ import {
   useGoogleConnectorConfig,
   useUpdateGoogleConnectorConfig,
 } from "@/hooks/use-google-drive";
+import type { GoogleConnectorConfig } from "@/types/bigrag";
 
 export const ConnectorsTab = () => {
   const { data: config, isPending } = useGoogleConnectorConfig();
@@ -21,11 +22,7 @@ export const ConnectorsTab = () => {
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
 
-  useEffect(() => {
-    if (!config) return;
-    setEnabled(config.enabled);
-    setClientId(config.client_id);
-  }, [config]);
+  useGoogleConnectorConfigDraft(config, setEnabled, setClientId);
 
   const configured = config?.configured ?? false;
   const callbackUrl = config?.callback_url ?? "";
@@ -130,4 +127,16 @@ export const ConnectorsTab = () => {
       </Card>
     </div>
   );
+};
+
+const useGoogleConnectorConfigDraft = (
+  config: GoogleConnectorConfig | undefined,
+  setEnabled: (enabled: boolean) => void,
+  setClientId: (clientId: string) => void,
+) => {
+  useEffect(() => {
+    if (!config) return;
+    setEnabled(config.enabled);
+    setClientId(config.client_id);
+  }, [config, setEnabled, setClientId]);
 };

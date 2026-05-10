@@ -61,9 +61,9 @@ export class BigRAGCore implements RequestClient {
   constructor(options: BigRAGOptions = {}) {
     this.apiKey =
       options.apiKey ??
-      (typeof process !== "undefined"
-        ? ((process.env as Record<string, string | undefined>).BIGRAG_API_KEY ?? "")
-        : "");
+      (typeof process === "undefined"
+        ? ""
+        : ((process.env as Record<string, string | undefined>).BIGRAG_API_KEY ?? ""));
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;

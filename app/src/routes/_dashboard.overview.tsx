@@ -195,45 +195,49 @@ const OverviewPage = () => {
                 View all
               </Link>
             </div>
-            {!collectionsData ? (
+            {collectionsData ? (
+              collections.length === 0 ? (
+                <div className="px-5 py-6 text-sm text-muted-foreground">
+                  No collections yet. Create one to start tracking coverage.
+                </div>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {collections.slice(0, 6).map((collection) => (
+                    <li key={collection.id}>
+                      <Link
+                        params={{ name: collection.name }}
+                        to="/collections/$name"
+                        className="flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-muted"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="truncate text-sm font-semibold">
+                              {collection.name}
+                            </span>
+                            <Badge variant="primary">{collection.default_search_mode}</Badge>
+                          </div>
+                          <div className="mt-1 truncate text-xs text-muted-foreground">
+                            {collection.description || collection.embedding_model}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-4 text-xs text-muted-foreground">
+                          <span className="tabular-nums">
+                            {formatNumber(collection.document_count)} docs
+                          </span>
+                          <span className="hidden w-24 text-right sm:inline">
+                            {formatRelative(collection.updated_at)}
+                          </span>
+                          <ArrowUpRight className="size-4" />
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : (
               <div className="px-5 py-6">
                 <Spinner />
               </div>
-            ) : collections.length === 0 ? (
-              <div className="px-5 py-6 text-sm text-muted-foreground">
-                No collections yet. Create one to start tracking coverage.
-              </div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {collections.slice(0, 6).map((collection) => (
-                  <li key={collection.id}>
-                    <Link
-                      params={{ name: collection.name }}
-                      to="/collections/$name"
-                      className="flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-muted"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span className="truncate text-sm font-semibold">{collection.name}</span>
-                          <Badge variant="primary">{collection.default_search_mode}</Badge>
-                        </div>
-                        <div className="mt-1 truncate text-xs text-muted-foreground">
-                          {collection.description || collection.embedding_model}
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-4 text-xs text-muted-foreground">
-                        <span className="tabular-nums">
-                          {formatNumber(collection.document_count)} docs
-                        </span>
-                        <span className="hidden w-24 text-right sm:inline">
-                          {formatRelative(collection.updated_at)}
-                        </span>
-                        <ArrowUpRight className="size-4" />
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
             )}
           </Panel>
 

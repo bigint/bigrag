@@ -7,15 +7,15 @@ import {
   StatsSection,
 } from "@/components/home";
 
-export default function Page() {
-  return (
-    <main>
-      <Hero />
-      <FeaturesSection />
-      <CodeSection />
-      <StatsSection />
-      <CtaSection />
-      <Footer />
-    </main>
-  );
-}
+const Page = () => (
+  <main>
+    <Hero />
+    <FeaturesSection />
+    <CodeSection />
+    <StatsSection />
+    <CtaSection />
+    <Footer />
+  </main>
+);
+
+export default Page;

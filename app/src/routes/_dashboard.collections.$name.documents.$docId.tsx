@@ -210,22 +210,24 @@ const DocumentDetail = () => {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Chunks
         </h2>
-        {!chunks ? (
-          <Spinner />
-        ) : chunks.chunks.length === 0 ? (
-          <Empty title="No chunks yet" description="Ingestion may still be in progress." />
+        {chunks ? (
+          chunks.chunks.length === 0 ? (
+            <Empty title="No chunks yet" description="Ingestion may still be in progress." />
+          ) : (
+            <div className="flex flex-col gap-2">
+              {chunks.chunks.map((c) => (
+                <article key={c.id} className={cn("rounded-xl border border-border bg-card p-4")}>
+                  <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="neutral">#{c.chunk_index}</Badge>
+                    <span className="font-mono">{c.id.slice(0, 8)}</span>
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{c.text}</p>
+                </article>
+              ))}
+            </div>
+          )
         ) : (
-          <div className="flex flex-col gap-2">
-            {chunks.chunks.map((c) => (
-              <article key={c.id} className={cn("rounded-xl border border-border bg-card p-4")}>
-                <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant="neutral">#{c.chunk_index}</Badge>
-                  <span className="font-mono">{c.id.slice(0, 8)}</span>
-                </div>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">{c.text}</p>
-              </article>
-            ))}
-          </div>
+          <Spinner />
         )}
       </div>
     </div>

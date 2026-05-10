@@ -47,7 +47,7 @@ export const features = [
   },
 ];
 
-export function FeatureCard({
+export const FeatureCard = ({
   icon,
   title,
   description,
@@ -57,17 +57,15 @@ export function FeatureCard({
   title: string;
   description: string;
   href: string;
-}) {
-  return (
-    <Link
-      className="group relative rounded-lg border border-fd-border bg-fd-card p-6 hover:border-fd-foreground/15 hover:shadow-sm"
-      href={href}
-    >
-      <div className="mb-4 inline-flex rounded-md border border-fd-border bg-fd-background p-2.5 text-fd-foreground group-hover:border-fd-foreground/15 group-hover:bg-fd-accent">
-        {icon}
-      </div>
-      <h3 className="mb-2 text-[15px] font-semibold text-fd-foreground">{title}</h3>
-      <p className="text-sm leading-relaxed text-fd-muted-foreground">{description}</p>
-    </Link>
-  );
-}
+}) => (
+  <Link
+    className="group relative rounded-lg border border-fd-border bg-fd-card p-6 hover:border-fd-foreground/15 hover:shadow-sm"
+    href={href}
+  >
+    <div className="mb-4 inline-flex rounded-md border border-fd-border bg-fd-background p-2.5 text-fd-foreground group-hover:border-fd-foreground/15 group-hover:bg-fd-accent">
+      {icon}
+    </div>
+    <h3 className="mb-2 text-[15px] font-semibold text-fd-foreground">{title}</h3>
+    <p className="text-sm leading-relaxed text-fd-muted-foreground">{description}</p>
+  </Link>
+);

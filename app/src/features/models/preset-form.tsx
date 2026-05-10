@@ -31,28 +31,18 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
   const create = useCreateEmbeddingPreset();
   const update = useUpdateEmbeddingPreset();
   const { data: catalog } = useEmbeddingModels();
-
-  const [name, setName] = useState("");
-  const [provider, setProvider] = useState<Provider>("openai");
-  const [model, setModel] = useState("text-embedding-3-small");
-  const [apiKey, setApiKey] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `open` triggers reset
-  useEffect(() => {
-    if (editing) {
-      setName(editing.name);
-      setProvider(editing.provider);
-      setModel(editing.model);
-      setApiKey("");
-    } else {
-      setName("");
-      setProvider("openai");
-      setModel(DEFAULT_MODELS.openai.model);
-      setApiKey("");
-    }
-    setError(null);
-  }, [editing, open]);
+  const {
+    apiKey,
+    error,
+    model,
+    name,
+    provider,
+    setApiKey,
+    setError,
+    setModel,
+    setName,
+    setProvider,
+  } = usePresetFormDraft(open, editing);
 
   const modelOptions =
     catalog?.models
@@ -176,4 +166,41 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
       </form>
     </Modal>
   );
+};
+
+const usePresetFormDraft = (open: boolean, editing: EmbeddingPreset | null) => {
+  const [name, setName] = useState("");
+  const [provider, setProvider] = useState<Provider>("openai");
+  const [model, setModel] = useState("text-embedding-3-small");
+  const [apiKey, setApiKey] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    if (editing) {
+      setName(editing.name);
+      setProvider(editing.provider);
+      setModel(editing.model);
+      setApiKey("");
+    } else {
+      setName("");
+      setProvider("openai");
+      setModel(DEFAULT_MODELS.openai.model);
+      setApiKey("");
+    }
+    setError(null);
+  }, [editing, open]);
+
+  return {
+    apiKey,
+    error,
+    model,
+    name,
+    provider,
+    setApiKey,
+    setError,
+    setModel,
+    setName,
+    setProvider,
+  };
 };

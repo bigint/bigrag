@@ -41,10 +41,7 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
     [presets],
   );
 
-  useEffect(() => {
-    const first = presets[0];
-    if (open && first && !presetId) setPresetId(first.id);
-  }, [open, presets, presetId]);
+  useDefaultEmbeddingPreset(open, presets, presetId, setPresetId);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,4 +144,16 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
       </form>
     </Modal>
   );
+};
+
+const useDefaultEmbeddingPreset = (
+  open: boolean,
+  presets: readonly { id: string }[],
+  presetId: string,
+  setPresetId: (presetId: string) => void,
+) => {
+  useEffect(() => {
+    const first = presets[0];
+    if (open && first && !presetId) setPresetId(first.id);
+  }, [open, presets, presetId, setPresetId]);
 };
