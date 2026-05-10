@@ -18,7 +18,6 @@ from bigrag.db.bootstrap import run_migrations
 from bigrag.exceptions import (
     ForbiddenError,
     NotFoundError,
-    RateLimitError,
     ServerError,
     UpstreamError,
     ValidationError,
@@ -233,14 +232,6 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     @app.exception_handler(ForbiddenError)
     async def forbidden_handler(_request: Request, exc: ForbiddenError) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(exc)})
-
-    @app.exception_handler(RateLimitError)
-    async def rate_limit_handler(_request: Request, exc: RateLimitError) -> JSONResponse:
-        return JSONResponse(
-            status_code=429,
-            content={"detail": str(exc)},
-            headers={"Retry-After": str(exc.retry_after)},
-        )
 
     @app.exception_handler(UpstreamError)
     async def upstream_handler(_request: Request, exc: UpstreamError) -> JSONResponse:

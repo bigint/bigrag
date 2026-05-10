@@ -58,7 +58,7 @@ The client follows a Stripe-style **resource namespace** layout: `client.collect
 | `apiKey` | `BIGRAG_API_KEY` env var | `bigrag_sk_…` key minted at [`/v1/admin/api-keys`](/docs/api-reference/api-keys). Omit for session-cookie auth (browser contexts). |
 | `baseUrl` | `http://localhost:4000` | bigRAG server URL |
 | `timeout` | `120000` | Request timeout in ms |
-| `maxRetries` | `2` | Max retries on 5xx, 429, network errors |
+| `maxRetries` | `2` | Max retries on 5xx, infrastructure 429 responses, network errors |
 | `fetch` | `globalThis.fetch` | Custom fetch implementation |
 
 ## Collections
@@ -313,7 +313,7 @@ try {
 
 ## Retry Behavior
 
-- **Retried:** HTTP 500+, HTTP 429, connection errors, timeouts
+- **Retried:** HTTP 500+, HTTP 429 from proxy/infrastructure layers, connection errors, timeouts
 - **Not retried:** HTTP 400, 401, 403, 404
 - **Backoff:** `min(0.5 * 2^attempt, 4.0)` seconds
 - **Default retries:** 2 (configurable via `maxRetries`)

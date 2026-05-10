@@ -35,7 +35,7 @@ pub enum BigRagError {
         message: String,
     },
 
-    /// 429 — rate limited.
+    /// 429 from proxy or infrastructure layers.
     #[error("rate limited")]
     RateLimited,
 

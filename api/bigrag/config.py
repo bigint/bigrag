@@ -51,10 +51,6 @@ class Settings(BaseSettings):
     session_cookie_secure: bool = False
     session_cookie_samesite: str = "lax"
     session_cookie_domain: str | None = None
-    auth_rate_limit_window_seconds: int = 60
-    auth_login_email_rate_limit: int = 5
-    auth_login_ip_rate_limit: int = 50
-    auth_setup_ip_rate_limit: int = 10
     auth_principal_cache_ttl: int = 60
     allow_public_bind_in_prod: bool = False
 
@@ -103,8 +99,6 @@ class Settings(BaseSettings):
     max_batch_upload_size_mb: int = 128
     max_upload_session_files: int = 10000
     max_upload_session_size_mb: int = 102400
-    upload_rate_limit_files_per_hour: int = 1000
-    upload_rate_limit_mb_per_hour: int = 10240
     upload_session_item_retention_hours: int = 168
     upload_session_upload_concurrency: int = 4
     ingestion_workers: int = 4

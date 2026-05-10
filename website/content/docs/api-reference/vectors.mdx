@@ -42,7 +42,7 @@ Insert or update vectors directly.
 
 If the collection was created with `tenant_field`, each vector's metadata must include that field.
 
-Default runtime limits reject requests above 1,000 vectors per upsert, 100,000 text characters per vector, or 65,536 JSON metadata bytes per vector. Admins can tune these in instance settings.
+Default request safety caps reject requests above 1,000 vectors per upsert, 100,000 text characters per vector, or 65,536 JSON metadata bytes per vector. Admins can tune these in instance settings.
 
 **Response** `200`:
 
@@ -64,7 +64,7 @@ POST /v1/collections/{collection_name}/vectors/delete
 
 Delete vectors by their IDs.
 
-The default runtime limit rejects requests above 10,000 IDs per delete. Admins can tune this in instance settings.
+The default request safety cap rejects requests above 10,000 IDs per delete. Admins can tune this in instance settings.
 
 **Request body:**
 

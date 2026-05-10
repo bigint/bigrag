@@ -8,13 +8,11 @@ import httpx
 import pytest
 from starlette.requests import Request
 
-from bigrag.exceptions import RateLimitError
 from bigrag.services import (
     client_ip,
     credential_check,
     file_validation,
     metadata_schema,
-    rate_limit,
     redis_cache,
 )
 from bigrag.services.url_security import UnsafeOutboundUrlError
@@ -255,39 +253,6 @@ def test_redis_cache_plaintext_operations(monkeypatch) -> None:
 
         await redis_cache.close()
         assert redis_cache.get_redis() is None
-
-    asyncio.run(run())
-
-
-def test_rate_limit_consumes_and_rejects(monkeypatch) -> None:
-    async def run() -> None:
-        redis = FakeRedis()
-        monkeypatch.setattr(rate_limit, "get_redis", lambda: redis)
-
-        await rate_limit.consume_rate_limit(
-            bucket="login",
-            identifier="user@example.com",
-            limit=1,
-            window_seconds=60,
-            message="slow down",
-        )
-        with pytest.raises(RateLimitError) as exc:
-            await rate_limit.consume_rate_limit(
-                bucket="login",
-                identifier="user@example.com",
-                limit=1,
-                window_seconds=60,
-                message="slow down",
-            )
-        assert exc.value.retry_after == 7
-
-        await rate_limit.consume_rate_limit(
-            bucket="disabled",
-            identifier="x",
-            limit=0,
-            window_seconds=60,
-            message="no",
-        )
 
     asyncio.run(run())
 

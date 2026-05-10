@@ -51,7 +51,6 @@ from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.storage import get_storage
-from bigrag.services.upload_rate_limit import consume_upload_budget
 from bigrag.services.vector_store import vector_store
 
 logger = get_logger("bigrag.routers.documents")
@@ -179,8 +178,6 @@ async def upload_document(
 
     if len(content) == 0:
         raise HTTPException(status_code=400, detail="File is empty")
-    await consume_upload_budget(user, files=1, bytes_=len(content))
-
     try:
         validate_upload(content, file_ext)
     except InvalidFileContentError as exc:
@@ -539,12 +536,6 @@ async def batch_upload_documents(
                 detail=f"File '{file.filename}': {exc}",
             ) from exc
         pending.append((file, file_ext, content))
-
-    await consume_upload_budget(
-        user,
-        files=len(pending),
-        bytes_=sum(len(content) for _file, _file_ext, content in pending),
-    )
 
     created: list[DocumentResponse] = []
     seen_by_hash: dict[str, Document] = {}

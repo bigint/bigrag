@@ -17,7 +17,6 @@ SettingGroup = Literal[
     "search",
     "chat",
     "webhooks",
-    "rate_limits",
     "retention",
     "backups",
 ]

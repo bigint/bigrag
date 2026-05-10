@@ -53,7 +53,7 @@ client = BigRAG(
     api_key="...",                  # or set BIGRAG_API_KEY env var
     base_url="http://localhost:4000",  # API server URL
     timeout=120.0,                  # request timeout in seconds
-    max_retries=2,                  # retries on 429/5xx/connection errors
+    max_retries=2,                  # retries on infrastructure 429/5xx/connection errors
 )
 ```
 
@@ -345,7 +345,7 @@ analytics = await client.get_analytics("docs")
 ## Retry Behavior
 
 The SDK automatically retries on:
-- HTTP 429 (rate limited)
+- HTTP 429 from proxy or infrastructure layers
 - HTTP 5xx (server errors)
 - Connection errors and timeouts
 

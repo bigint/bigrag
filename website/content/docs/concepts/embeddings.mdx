@@ -149,7 +149,7 @@ Redis query caches are also encrypted when `BIGRAG_MASTER_KEY` is configured. Th
 
 ## Concurrency & throughput
 
-Embedding requests are guarded by a semaphore (`BIGRAG_EMBEDDING_CONCURRENCY`, default 8). Raise it for high-QPS providers; lower it if you're hitting rate limits. Token counting uses `tiktoken` where the provider ships a tokenizer and falls back to a 4-character-per-token heuristic otherwise.
+Embedding requests are guarded by a semaphore (`BIGRAG_EMBEDDING_CONCURRENCY`, default 8). Raise it for high-QPS providers; lower it if your embedding provider throttles requests. Token counting uses `tiktoken` where the provider ships a tokenizer and falls back to a 4-character-per-token heuristic otherwise.
 
 ## Reranking
 

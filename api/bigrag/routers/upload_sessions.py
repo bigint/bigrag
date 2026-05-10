@@ -35,7 +35,6 @@ from bigrag.services.file_validation import InvalidFileContentError, validate_up
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
-from bigrag.services.upload_rate_limit import consume_upload_budget
 
 logger = get_logger("bigrag.routers.upload_sessions")
 
@@ -283,7 +282,6 @@ async def create_upload_session(
             status_code=413,
             detail=f"Upload session too large. Max size: {limits['max_upload_session_size_mb']}MB",
         )
-    await consume_upload_budget(user, files=body.total_files, bytes_=0)
     try:
         meta = prepare_document_metadata(collection, body.metadata)
     except ValueError as exc:
@@ -416,7 +414,6 @@ async def upload_session_file(
             item=_item_response(item, None, item.error_message),
             session=response,
         )
-    await consume_upload_budget(user, files=0, bytes_=len(content))
     uploaded_bytes = sum(
         item.file_size for item, _status, _error in rows if item.status != "failed"
     )

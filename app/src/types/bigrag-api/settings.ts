@@ -17,7 +17,6 @@ export type InstanceSettingGroup =
   | "search"
   | "chat"
   | "webhooks"
-  | "rate_limits"
   | "retention"
   | "backups";
 

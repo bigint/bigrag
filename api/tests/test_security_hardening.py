@@ -6,11 +6,9 @@ from types import SimpleNamespace
 import pytest
 
 from bigrag.config import Settings
-from bigrag.exceptions import RateLimitError
 from bigrag.routers.connectors import _redirect_uri
 from bigrag.services import runtime_settings
 from bigrag.services.event_tokens import create_event_token, validate_event_token
-from bigrag.services.upload_rate_limit import consume_upload_budget, principal_upload_bucket
 from bigrag.services.url_security import UnsafeOutboundUrlError, validate_outbound_url_sync
 from bigrag.startup_guard import check_production_safety
 
@@ -123,37 +121,3 @@ def test_event_tokens_are_collection_bound(monkeypatch) -> None:
 
     assert asyncio.run(validate_event_token(token, "docs")) is True
     assert asyncio.run(validate_event_token(token, "other")) is False
-
-
-def test_upload_rate_limit_uses_api_key_bucket_and_rejects_overage(monkeypatch) -> None:
-    class Redis:
-        def __init__(self) -> None:
-            self.values = {}
-
-        async def incrby(self, key, amount):
-            self.values[key] = self.values.get(key, 0) + amount
-            return self.values[key]
-
-        async def expire(self, key, ttl):
-            self.expires = (key, ttl)
-
-        async def ttl(self, key):
-            return 120
-
-    async def fake_get_values(keys):
-        return {
-            "upload_rate_limit_files_per_hour": 1,
-            "upload_rate_limit_mb_per_hour": 1,
-        }
-
-    redis = Redis()
-    user = {"id": "user-1", "api_key_id": "key-1"}
-    monkeypatch.setattr("bigrag.services.upload_rate_limit.get_redis", lambda: redis)
-    monkeypatch.setattr("bigrag.services.upload_rate_limit.get_values", fake_get_values)
-
-    assert principal_upload_bucket(user) == "api_key:key-1"
-    asyncio.run(consume_upload_budget(user, files=1, bytes_=0))
-    with pytest.raises(RateLimitError) as exc:
-        asyncio.run(consume_upload_budget(user, files=1, bytes_=0))
-
-    assert exc.value.retry_after == 120

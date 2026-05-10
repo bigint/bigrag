@@ -108,8 +108,8 @@ class BigRAGCore:
     ) -> Any:
         """Issue a JSON request and return the parsed response body.
 
-        Retries on 429, 5xx, and connection/timeout errors using exponential
-        back-off: ``min(0.5 * 2^attempt, 4)`` seconds.
+        Retries on infrastructure 429 responses, 5xx, and connection/timeout
+        errors using exponential back-off: ``min(0.5 * 2^attempt, 4)`` seconds.
         """
         url = f"{self.base_url}{path}"
         headers = self._headers()

@@ -26,8 +26,19 @@ def test_runtime_settings_reject_invalid_select_option() -> None:
 def test_runtime_settings_include_upload_session_limits() -> None:
     assert validate_setting_value("max_upload_session_files", 10000) == 10000
     assert validate_setting_value("upload_session_item_retention_hours", 168) == 168
-    assert validate_setting_value("upload_rate_limit_files_per_hour", 1000) == 1000
-    assert validate_setting_value("upload_rate_limit_mb_per_hour", 10240) == 10240
+
+
+def test_runtime_settings_reject_removed_rate_limit_settings() -> None:
+    for key in (
+        "auth_rate_limit_window_seconds",
+        "auth_login_email_rate_limit",
+        "auth_login_ip_rate_limit",
+        "auth_setup_ip_rate_limit",
+        "upload_rate_limit_files_per_hour",
+        "upload_rate_limit_mb_per_hour",
+    ):
+        with pytest.raises(KeyError):
+            validate_setting_value(key, 1)
 
 
 def test_runtime_settings_include_embedding_cache_security_settings() -> None:
@@ -58,6 +69,7 @@ def test_runtime_settings_include_vector_api_limits() -> None:
     assert validate_setting_value("max_vector_delete_count", 10000) == 10000
     assert validate_setting_value("max_vector_text_chars", 100000) == 100000
     assert validate_setting_value("max_vector_metadata_bytes", 65536) == 65536
+    assert REGISTRY["max_vector_upsert_count"].group == "ingestion"
 
 
 def test_runtime_settings_reject_invalid_vector_store_provider() -> None:

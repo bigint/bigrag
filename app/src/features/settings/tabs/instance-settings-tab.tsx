@@ -55,10 +55,6 @@ const GROUP_COPY: Record<InstanceSettingGroup, { title: string; description: str
     title: "Webhooks",
     description: "Webhook limits, delivery timeouts, and retry cadence.",
   },
-  rate_limits: {
-    title: "Rate limits",
-    description: "Admin auth throttles for setup and login endpoints.",
-  },
   retention: {
     title: "Retention",
     description: "Operational log retention policies.",

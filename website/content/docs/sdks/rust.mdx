@@ -384,14 +384,14 @@ match client.collections().get("my-col").await {
 | `Authentication` | 401/403 | No |
 | `NotFound` | 404 | No |
 | `Conflict` | 409 | No |
-| `RateLimited` | 429 | Yes |
+| `RateLimited` | 429 from proxy or infrastructure layers | Yes |
 | `ServerError` | 5xx | Yes |
 | `Timeout` | — | Yes |
 | `Connection` | — | Yes |
 
 ## Retry Behavior
 
-The SDK automatically retries on transient errors (429, 5xx, timeouts, connection failures) with exponential backoff:
+The SDK automatically retries on transient errors (proxy or infrastructure 429 responses, 5xx, timeouts, connection failures) with exponential backoff:
 
 - **Backoff**: 500ms, 1s, 2s, 4s (capped)
 - **Default retries**: 2

@@ -37,8 +37,6 @@ from bigrag.services.auth import (
     needs_rehash,
     verify_password,
 )
-from bigrag.services.client_ip import client_ip
-from bigrag.services.rate_limit import consume_rate_limit
 from bigrag.services.runtime_settings import get_values
 
 logger = get_logger("bigrag.routers.auth")
@@ -92,46 +90,6 @@ async def _issue_session(session: AsyncSession, user_id: uuid.UUID) -> str:
     return token
 
 
-def _request_ip(request: Request) -> str:
-    return client_ip(request) or "unknown"
-
-
-async def _check_setup_rate_limit(request: Request) -> None:
-    limits = await get_values(["auth_setup_ip_rate_limit", "auth_rate_limit_window_seconds"])
-    await consume_rate_limit(
-        bucket="auth:setup:ip",
-        identifier=_request_ip(request),
-        limit=limits["auth_setup_ip_rate_limit"],
-        window_seconds=limits["auth_rate_limit_window_seconds"],
-        message="Too many setup attempts. Try again later.",
-    )
-
-
-async def _check_login_rate_limit(request: Request, email: str) -> None:
-    limits = await get_values(
-        [
-            "auth_rate_limit_window_seconds",
-            "auth_login_email_rate_limit",
-            "auth_login_ip_rate_limit",
-        ]
-    )
-    window = limits["auth_rate_limit_window_seconds"]
-    await consume_rate_limit(
-        bucket="auth:login:email",
-        identifier=email,
-        limit=limits["auth_login_email_rate_limit"],
-        window_seconds=window,
-        message="Too many login attempts. Try again later.",
-    )
-    await consume_rate_limit(
-        bucket="auth:login:ip",
-        identifier=_request_ip(request),
-        limit=limits["auth_login_ip_rate_limit"],
-        window_seconds=window,
-        message="Too many login attempts. Try again later.",
-    )
-
-
 @router.get("/setup-status", response_model=SetupStatusResponse)
 async def setup_status(
     session: AsyncSession = Depends(get_session),
@@ -147,7 +105,6 @@ async def setup(
     response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> SessionResponse:
-    await _check_setup_rate_limit(request)
     existing = await session.scalar(sa.select(sa.func.count()).select_from(User))
     if existing > 0:
         raise HTTPException(status_code=409, detail="Setup has already been completed")
@@ -187,7 +144,6 @@ async def login(
     session: AsyncSession = Depends(get_session),
 ) -> SessionResponse:
     email = body.email.lower()
-    await _check_login_rate_limit(request, email)
     user = await session.scalar(sa.select(User).where(User.email == email))
     if user is None:
         verify_password(body.password, DUMMY_PASSWORD_HASH)

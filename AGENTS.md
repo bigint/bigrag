@@ -68,6 +68,34 @@ pre-commit install
 
 After that, every `git commit` runs the same formatters for API Python and TS/JS/CSS files that CI enforces. Run SDK build/test commands manually when touching `sdks/python/` or `sdks/rust/`. If a hook auto-fixes a file, the commit aborts — re-stage and commit again.
 
+## Testing and Coverage
+
+Every feature, helper, and utility change must include or update tests in the package it touches. Prefer focused unit tests for helpers and utilities, route/service tests for backend behavior, resource/request tests for SDK changes, and hook/component tests for admin UI changes. Bug fixes should add a regression test that fails without the fix.
+
+Maintain or improve package-level coverage when adding code. Run the relevant test and coverage command before handing off, and investigate coverage drops instead of accepting them silently:
+
+```bash
+# Backend API
+cd api && uv run pytest tests/ --cov --cov-report=term-missing
+
+# Python SDK
+cd sdks/python && uv run pytest --cov --cov-report=term-missing
+
+# TypeScript SDK
+pnpm --filter @bigrag/client test
+pnpm --filter @bigrag/client coverage
+
+# Admin UI
+pnpm --filter @bigrag/app test
+pnpm --filter @bigrag/app coverage
+
+# Rust SDK
+cargo test --manifest-path sdks/rust/Cargo.toml
+cargo llvm-cov --manifest-path sdks/rust/Cargo.toml --summary-only
+```
+
+If coverage tooling is unavailable, still run the package tests and call out the coverage gap in the handoff. Keep `website/content/docs/development/testing.mdx` in sync when test or coverage commands change, and do not commit generated coverage artifacts.
+
 ## Architecture Notes
 
 - Backend uses FastAPI dependency injection via `bigrag/deps.py` and `app.state`

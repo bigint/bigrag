@@ -333,10 +333,6 @@ Backend logging is always enabled at debug level with text output and does not u
 | `BIGRAG_SESSION_COOKIE_SECURE` | HTTPS-only session cookies | `false` |
 | `BIGRAG_SESSION_COOKIE_SAMESITE` | Session cookie SameSite policy | `lax` |
 | `BIGRAG_SESSION_COOKIE_DOMAIN` | Optional session cookie domain | — |
-| `BIGRAG_AUTH_RATE_LIMIT_WINDOW_SECONDS` | Login/setup rate-limit window | `60` |
-| `BIGRAG_AUTH_LOGIN_EMAIL_RATE_LIMIT` | Login attempts per email per window | `5` |
-| `BIGRAG_AUTH_LOGIN_IP_RATE_LIMIT` | Login attempts per IP per window | `50` |
-| `BIGRAG_AUTH_SETUP_IP_RATE_LIMIT` | First-admin setup attempts per IP per window | `10` |
 | `BIGRAG_AUTH_PRINCIPAL_CACHE_TTL` | Principal cache TTL in seconds | `60` |
 
 `./dev.sh` and the default Docker Compose setup allow the local admin UI origin

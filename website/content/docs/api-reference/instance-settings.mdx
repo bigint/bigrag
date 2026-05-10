@@ -61,7 +61,7 @@ PUT /admin/settings
 
 Unknown keys and invalid values return `400`. Successful updates are audited as `instance_settings.update`.
 
-Security hardening settings include `allow_public_bind_in_prod`, upload rate limits (`upload_rate_limit_files_per_hour`, `upload_rate_limit_mb_per_hour`), and raw vector API limits (`max_vector_upsert_count`, `max_vector_delete_count`, `max_vector_text_chars`, `max_vector_metadata_bytes`). These are returned in the same registry as the other settings and can be changed from the admin UI.
+Security hardening settings include `allow_public_bind_in_prod`. Ingestion settings include raw vector API request caps (`max_vector_upsert_count`, `max_vector_delete_count`, `max_vector_text_chars`, `max_vector_metadata_bytes`). These are returned in the same registry as the other settings and can be changed from the admin UI.
 
 ## Test Settings
 

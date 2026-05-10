@@ -127,11 +127,11 @@ def test_test_webhook_dispatches(route_client, monkeypatch) -> None:
 def test_instance_settings_test_validates_values(route_client) -> None:
     response = route_client().post(
         "/admin/settings/test",
-        json={"values": {"auth_login_email_rate_limit": 5}},
+        json={"values": {"session_cookie_secure": True}},
     )
 
     assert response.status_code == 200
-    assert response.json()["checked"] == ["auth_login_email_rate_limit"]
+    assert response.json()["checked"] == ["session_cookie_secure"]
 
 
 def test_instance_settings_test_rejects_unknown_key(route_client) -> None:

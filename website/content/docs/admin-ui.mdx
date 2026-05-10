@@ -40,7 +40,7 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/api-keys` | Mint, scope, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
 | `/access-logs` | Access-log explorer for query, vector, chat, and evaluation traffic. |
 | `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. |
-| `/settings` | Tabs: Account, Server, Security, Ingestion, Storage, Queue, Search, Chat, Webhooks, Rate limits, Retention, Backups, Connectors, Usage & cost, Audit log. |
+| `/settings` | Tabs: Account, Server, Security, Ingestion, Storage, Queue, Search, Chat, Webhooks, Retention, Backups, Connectors, Usage & cost, Audit log. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
 ## Settings tabs
@@ -56,7 +56,6 @@ For cross-site production deployments, enable secure session cookies and usually
 | **Search** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
 | **Chat** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
 | **Webhooks** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Rate limits** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
 | **Retention** | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
 | **Backups** | `GET /admin/settings`, `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset`, `POST /v1/admin/backups` |
 | **Connectors** | `GET /v1/admin/connectors/{provider}`, `GET /v1/connectors/{provider}/account` | `PUT /v1/admin/connectors/{provider}`, `POST /v1/connectors/{provider}/disconnect` |

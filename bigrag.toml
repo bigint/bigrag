@@ -39,10 +39,6 @@
 # session_cookie_secure = false   # set true behind HTTPS
 # session_cookie_samesite = "lax"
 # session_cookie_domain = ""
-# auth_rate_limit_window_seconds = 60
-# auth_login_email_rate_limit = 5
-# auth_login_ip_rate_limit = 50
-# auth_setup_ip_rate_limit = 10
 # auth_principal_cache_ttl = 60
 
 # embedding_provider = "openai"   # openai | openai_compatible | cohere | voyage

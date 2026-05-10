@@ -2488,7 +2488,7 @@ export class APITimeoutError extends BigRAGError {}
 
 ### Retry Policy
 
-Retry on connection errors and 5xx/429 responses. Never retry timeouts:
+Retry on connection errors, 5xx responses, and infrastructure 429 responses. Never retry timeouts:
 
 ```typescript
 // Retryable

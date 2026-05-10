@@ -48,7 +48,7 @@ while (current.status === "pending" || current.status === "processing") {
 | `apiKey` | `BIGRAG_API_KEY` env var | API key or session token |
 | `baseUrl` | `http://localhost:4000` | bigRAG server URL |
 | `timeout` | `120000` | Request timeout in milliseconds |
-| `maxRetries` | `2` | Max retries on 5xx, 429, and network errors |
+| `maxRetries` | `2` | Max retries on 5xx, infrastructure 429 responses, and network errors |
 | `fetch` | `globalThis.fetch` | Custom fetch implementation |
 
 ## Namespaces
