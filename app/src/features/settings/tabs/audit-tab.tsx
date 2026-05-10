@@ -5,6 +5,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
+import { queryKeys } from "@/lib/query-keys";
 
 type AuditEntry = {
   id: string;
@@ -26,7 +27,7 @@ type AuditList = {
 };
 
 export const AuditTab = () => {
-  const queryKey = useMemo(() => ["audit", "recent"] as const, []);
+  const queryKey = useMemo(() => queryKeys.audit.recent(), []);
   const { data, isPending, error } = useSseSnapshotQuery<AuditList>({
     queryKey,
     queryFn: () => apiClient.get<AuditList>("v1/admin/audit", { limit: 100 }),

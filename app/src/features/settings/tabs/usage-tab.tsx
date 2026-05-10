@@ -4,6 +4,7 @@ import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 
 type PerCollection = {
   collection: string;
@@ -37,7 +38,7 @@ const humanBytes = (n: number): string => {
 
 export const UsageTab = () => {
   const [windowDays, setWindowDays] = useState(30);
-  const queryKey = useMemo(() => ["usage", windowDays] as const, [windowDays]);
+  const queryKey = useMemo(() => queryKeys.usage({ windowDays }), [windowDays]);
   const { data, isPending, error } = useSseSnapshotQuery<UsageReport>({
     queryKey,
     queryFn: () => apiClient.get<UsageReport>("v1/usage", { window_days: windowDays }),

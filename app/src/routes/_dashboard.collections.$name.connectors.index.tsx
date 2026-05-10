@@ -10,6 +10,19 @@ const ConnectorsIndex = () => {
   const { name } = Route.useParams();
   const navigate = useNavigate();
 
+  useRedirectToGoogleDriveConnector(name, navigate);
+
+  return (
+    <div className="flex justify-center py-12">
+      <Spinner />
+    </div>
+  );
+};
+
+const useRedirectToGoogleDriveConnector = (
+  name: string,
+  navigate: ReturnType<typeof useNavigate>,
+) => {
   useEffect(() => {
     navigate({
       to: "/collections/$name/connectors/google-drive",
@@ -17,10 +30,4 @@ const ConnectorsIndex = () => {
       replace: true,
     });
   }, [name, navigate]);
-
-  return (
-    <div className="flex justify-center py-12">
-      <Spinner />
-    </div>
-  );
 };

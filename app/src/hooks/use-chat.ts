@@ -14,7 +14,7 @@ export const useChatConversations = () =>
 
 export const useChatConversation = (id: string | null) =>
   useQuery({
-    queryKey: queryKeys.chat.detail(id),
+    queryKey: queryKeys.chat.detail({ id }),
     queryFn: () => apiClient.get<ChatDetailResponse>(`v1/chat/${id}`),
     enabled: Boolean(id),
   });

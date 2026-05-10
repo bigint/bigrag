@@ -72,7 +72,7 @@ describe("admin app hooks", () => {
     expect(sseOptions()).toMatchObject({
       enabled: true,
       path: "v1/admin/realtime/access/overview?window_days=14",
-      queryKey: queryKeys.access.overview(14),
+      queryKey: queryKeys.access.overview({ windowDays: 14 }),
     });
     await sseOptions<{ queryFn: () => Promise<unknown> }>().queryFn();
     expect(apiClient.get).toHaveBeenLastCalledWith("v1/admin/access/overview", {
@@ -219,7 +219,7 @@ describe("admin app hooks", () => {
     useCollectionStats("team docs");
     expect(sseOptions()).toMatchObject({
       path: "v1/admin/realtime/collections/team%20docs/stats",
-      queryKey: queryKeys.collections.stats("team docs"),
+      queryKey: queryKeys.collections.stats({ name: "team docs" }),
     });
 
     useCreateCollection();
@@ -418,13 +418,13 @@ describe("admin app hooks", () => {
     useGoogleSources("docs");
     expect(sseOptions()).toMatchObject({
       path: "v1/admin/realtime/google/sources?collection=docs",
-      queryKey: queryKeys.connectors.googleSources("docs"),
+      queryKey: queryKeys.connectors.googleSources({ collection: "docs" }),
     });
 
     useGoogleSyncJobs("source_1", 5);
     expect(sseOptions()).toMatchObject({
       path: "v1/admin/realtime/google/sync-jobs?limit=5&source_id=source_1",
-      queryKey: queryKeys.connectors.googleSyncJobs("source_1"),
+      queryKey: queryKeys.connectors.googleSyncJobs({ sourceId: "source_1" }),
     });
 
     useCreateGoogleSource("docs");
@@ -443,7 +443,7 @@ describe("admin app hooks", () => {
       id: "source_1",
     });
     expect(queryClient.setQueryData).toHaveBeenCalledWith(
-      queryKeys.connectors.googleSources("docs"),
+      queryKeys.connectors.googleSources({ collection: "docs" }),
       expect.any(Function),
     );
 

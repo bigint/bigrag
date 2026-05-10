@@ -3,12 +3,15 @@ import { queryKeys } from "./query-keys";
 
 describe("queryKeys", () => {
   it("keeps collection and document keys stable", () => {
-    expect(queryKeys.collections.one("docs")).toEqual(["collections", "docs"]);
-    expect(queryKeys.documents.chunks("docs", "doc_1")).toEqual([
+    expect(queryKeys.collections.one({ name: "docs" })).toEqual([
+      "collections",
+      "detail",
+      { name: "docs" },
+    ]);
+    expect(queryKeys.documents.chunks({ collection: "docs", id: "doc_1" })).toEqual([
       "documents",
-      "docs",
-      "doc_1",
       "chunks",
+      { collection: "docs", id: "doc_1" },
     ]);
   });
 
@@ -17,13 +20,13 @@ describe("queryKeys", () => {
       "connectors",
       "google",
       "sources",
-      "all",
+      { collection: "all" },
     ]);
     expect(queryKeys.connectors.googleSyncJobs()).toEqual([
       "connectors",
       "google",
       "sync-jobs",
-      "all",
+      { sourceId: "all" },
     ]);
   });
 
@@ -36,7 +39,12 @@ describe("queryKeys", () => {
     expect(queryKeys.apiKeys()).toEqual(["api-keys"]);
     expect(queryKeys.backups()).toEqual(["backups"]);
     expect(queryKeys.access.logs(filters)).toEqual(["access", "logs", filters]);
-    expect(queryKeys.access.overview(30)).toEqual(["access", "overview", 30]);
+    expect(queryKeys.access.overview({ windowDays: 30 })).toEqual([
+      "access",
+      "overview",
+      { windowDays: 30 },
+    ]);
+    expect(queryKeys.audit.recent()).toEqual(["audit", "recent"]);
     expect(queryKeys.mcpServers()).toEqual(["mcp-servers"]);
     expect(queryKeys.webhooks()).toEqual(["webhooks"]);
     expect(queryKeys.embeddingPresets()).toEqual(["embedding-presets"]);
@@ -44,46 +52,58 @@ describe("queryKeys", () => {
     expect(queryKeys.instanceSettings()).toEqual(["instance-settings"]);
     expect(queryKeys.connectors.googleConfig()).toEqual(["connectors", "google", "config"]);
     expect(queryKeys.connectors.googleAccount()).toEqual(["connectors", "google", "account"]);
-    expect(queryKeys.connectors.googleFiles("folder", "pdf", "next")).toEqual([
+    expect(queryKeys.connectors.googleFilesRoot()).toEqual(["connectors", "google", "files"]);
+    expect(
+      queryKeys.connectors.googleFiles({ pageToken: "next", parentId: "folder", query: "pdf" }),
+    ).toEqual([
       "connectors",
       "google",
       "files",
-      "folder",
-      "pdf",
-      "next",
+      { pageToken: "next", parentId: "folder", query: "pdf" },
     ]);
-    expect(queryKeys.connectors.googleSources("docs")).toEqual([
+    expect(queryKeys.connectors.googleSources({ collection: "docs" })).toEqual([
       "connectors",
       "google",
       "sources",
-      "docs",
+      { collection: "docs" },
     ]);
-    expect(queryKeys.connectors.googleSyncJobs("source")).toEqual([
+    expect(queryKeys.connectors.googleSyncJobs({ sourceId: "source" })).toEqual([
       "connectors",
       "google",
       "sync-jobs",
-      "source",
+      { sourceId: "source" },
     ]);
     expect(queryKeys.chat.list()).toEqual(["chat", "list"]);
-    expect(queryKeys.chat.detail(null)).toEqual(["chat", "detail", null]);
+    expect(queryKeys.chat.detail({ id: null })).toEqual(["chat", "detail", { id: null }]);
     expect(queryKeys.collections.all()).toEqual(["collections"]);
-    expect(queryKeys.collections.stats("docs")).toEqual(["collections", "docs", "stats"]);
-    expect(queryKeys.documents.list("docs")).toEqual(["documents", "docs"]);
-    expect(queryKeys.documents.one("docs", "doc")).toEqual(["documents", "docs", "doc"]);
-    expect(queryKeys.documents.batchStatus("docs", "a,b")).toEqual([
-      "documents",
-      "docs",
-      "batch-status",
-      "a,b",
+    expect(queryKeys.collections.stats({ name: "docs" })).toEqual([
+      "collections",
+      "stats",
+      { name: "docs" },
     ]);
-    expect(queryKeys.documents.uploadSession("docs", null)).toEqual([
+    expect(queryKeys.documents.list({ collection: "docs" })).toEqual([
       "documents",
-      "docs",
+      "list",
+      { collection: "docs" },
+    ]);
+    expect(queryKeys.documents.one({ collection: "docs", id: "doc" })).toEqual([
+      "documents",
+      "detail",
+      { collection: "docs", id: "doc" },
+    ]);
+    expect(queryKeys.documents.batchStatus({ collection: "docs", ids: "a,b" })).toEqual([
+      "documents",
+      "batch-status",
+      { collection: "docs", ids: "a,b" },
+    ]);
+    expect(queryKeys.documents.uploadSession({ collection: "docs", id: null })).toEqual([
+      "documents",
       "upload-session",
-      null,
+      { collection: "docs", id: null },
     ]);
     expect(queryKeys.platform.stats()).toEqual(["platform", "stats"]);
     expect(queryKeys.platform.readiness()).toEqual(["platform", "readiness"]);
     expect(queryKeys.platform.embeddingModels()).toEqual(["platform", "embedding-models"]);
+    expect(queryKeys.usage({ windowDays: 30 })).toEqual(["usage", { windowDays: 30 }]);
   });
 });

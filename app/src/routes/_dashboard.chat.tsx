@@ -290,7 +290,7 @@ const ChatPage = () => {
           if (event.event === "done") {
             queryClient.invalidateQueries({ queryKey: queryKeys.chat.list() });
             queryClient.invalidateQueries({
-              queryKey: queryKeys.chat.detail(event.data.conversation.id),
+              queryKey: queryKeys.chat.detail({ id: event.data.conversation.id }),
             });
             return;
           }
@@ -324,7 +324,7 @@ const ChatPage = () => {
       abortRef.current = null;
       queryClient.invalidateQueries({ queryKey: queryKeys.chat.list() });
       if (nextConversationId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.chat.detail(nextConversationId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.chat.detail({ id: nextConversationId }) });
       }
     }
   };

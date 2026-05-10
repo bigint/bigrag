@@ -101,11 +101,7 @@ const DocumentDetail = () => {
   const reprocess = useReprocessDocument(name);
   const remove = useDeleteDocument(name);
 
-  useEffect(() => {
-    if (doc?.status === "ready") {
-      void refetchChunks();
-    }
-  }, [doc?.status, refetchChunks]);
+  useRefreshChunksWhenReady(doc?.status, refetchChunks);
 
   if (isPending || !doc) {
     return (
@@ -234,4 +230,15 @@ const DocumentDetail = () => {
       </div>
     </div>
   );
+};
+
+const useRefreshChunksWhenReady = (
+  status: DocumentStatus | undefined,
+  refetchChunks: ReturnType<typeof useChunks>["refetch"],
+) => {
+  useEffect(() => {
+    if (status === "ready") {
+      void refetchChunks();
+    }
+  }, [status, refetchChunks]);
 };

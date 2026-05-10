@@ -18,13 +18,13 @@ export const useCollections = () =>
 
 export const useCollection = (name: string) =>
   useQuery({
-    queryKey: queryKeys.collections.one(name),
+    queryKey: queryKeys.collections.one({ name }),
     queryFn: () => apiClient.get<Collection>(`v1/collections/${encodeURIComponent(name)}`),
     enabled: !!name,
   });
 
 export const useCollectionStats = (name: string) => {
-  const queryKey = useMemo(() => queryKeys.collections.stats(name), [name]);
+  const queryKey = useMemo(() => queryKeys.collections.stats({ name }), [name]);
   return useSseSnapshotQuery<CollectionStats>({
     queryKey,
     queryFn: () =>

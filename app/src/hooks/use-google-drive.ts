@@ -22,7 +22,7 @@ const updateGoogleSourcesCache = (
   update: (data: GoogleSourceListResponse | undefined) => GoogleSourceListResponse | undefined,
 ) => {
   for (const key of [
-    queryKeys.connectors.googleSources(collection),
+    queryKeys.connectors.googleSources({ collection }),
     queryKeys.connectors.googleSources(),
   ]) {
     queryClient.setQueryData<GoogleSourceListResponse>(key, update);
@@ -69,7 +69,11 @@ export const useGoogleDriveFiles = ({
   query?: string;
 }) =>
   useQuery({
-    queryKey: queryKeys.connectors.googleFiles(parentId, query ?? "", pageToken ?? ""),
+    queryKey: queryKeys.connectors.googleFiles({
+      pageToken: pageToken ?? "",
+      parentId,
+      query: query ?? "",
+    }),
     queryFn: () =>
       apiClient.get<GoogleDriveFileList>("v1/connectors/google/files", {
         parent_id: parentId,
@@ -81,7 +85,7 @@ export const useGoogleDriveFiles = ({
   });
 
 export const useGoogleSources = (collection?: string) => {
-  const queryKey = useMemo(() => queryKeys.connectors.googleSources(collection), [collection]);
+  const queryKey = useMemo(() => queryKeys.connectors.googleSources({ collection }), [collection]);
   const path = useMemo(() => {
     const params = new URLSearchParams();
     if (collection) params.set("collection", collection);
@@ -98,7 +102,7 @@ export const useGoogleSources = (collection?: string) => {
 };
 
 export const useGoogleSyncJobs = (sourceId?: string, limit = 20) => {
-  const queryKey = useMemo(() => queryKeys.connectors.googleSyncJobs(sourceId), [sourceId]);
+  const queryKey = useMemo(() => queryKeys.connectors.googleSyncJobs({ sourceId }), [sourceId]);
   const path = useMemo(() => {
     const params = new URLSearchParams({ limit: String(limit) });
     if (sourceId) params.set("source_id", sourceId);
@@ -135,8 +139,8 @@ export const useCreateGoogleSource = (collection: string) => {
         const sources = data.sources.filter((item) => item.id !== source.id);
         return { sources: [source, ...sources], total: sources.length + 1 };
       });
-      qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources(collection) });
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
+      qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources({ collection }) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
       toast.success("Google Drive source syncing");
     },
     onError: errorToast("Could not add Google Drive source"),
@@ -158,9 +162,9 @@ export const useSyncGoogleSource = (collection: string) => {
           ),
         };
       });
-      qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources(collection) });
-      qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSyncJobs(sourceId) });
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
+      qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources({ collection }) });
+      qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSyncJobs({ sourceId }) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
       toast.success("Google Drive sync queued");
     },
     onError: errorToast("Could not sync Google Drive source"),
@@ -185,7 +189,7 @@ export const useUpdateGoogleSource = (collection: string) => {
           sources: data.sources.map((item) => (item.id === source.id ? source : item)),
         };
       });
-      qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources(collection) });
+      qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources({ collection }) });
       toast.success("Google Drive source updated");
     },
     onError: errorToast("Could not update Google Drive source"),
@@ -203,7 +207,7 @@ export const useDeleteGoogleSource = (collection: string) => {
         const sources = data.sources.filter((source) => source.id !== sourceId);
         return { sources, total: sources.length };
       });
-      qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources(collection) });
+      qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources({ collection }) });
       toast.success("Google Drive source removed");
     },
     onError: errorToast("Could not remove Google Drive source"),
@@ -216,7 +220,7 @@ export const useDisconnectGoogle = () => {
     mutationFn: () => apiClient.post<{ status: string }>("v1/connectors/google/disconnect"),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.connectors.googleAccount() });
-      qc.invalidateQueries({ queryKey: ["connectors", "google", "files"] });
+      qc.invalidateQueries({ queryKey: queryKeys.connectors.googleFilesRoot() });
       qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources() });
       toast.success("Google Drive disconnected");
     },

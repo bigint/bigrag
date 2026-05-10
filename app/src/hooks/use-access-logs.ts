@@ -22,7 +22,7 @@ const compactFilters = (filters: AccessLogFilters) =>
   ) as Record<string, string | number | boolean>;
 
 export const useAccessOverview = (enabled: boolean, windowDays = 7) => {
-  const queryKey = useMemo(() => queryKeys.access.overview(windowDays), [windowDays]);
+  const queryKey = useMemo(() => queryKeys.access.overview({ windowDays }), [windowDays]);
   return useSseSnapshotQuery<AccessLogOverview>({
     queryKey,
     queryFn: () =>

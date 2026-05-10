@@ -10,6 +10,16 @@ const CollectionIndex = () => {
   const { name } = Route.useParams();
   const navigate = useNavigate();
 
+  useRedirectToDocuments(name, navigate);
+
+  return (
+    <div className="flex justify-center py-12">
+      <Spinner />
+    </div>
+  );
+};
+
+const useRedirectToDocuments = (name: string, navigate: ReturnType<typeof useNavigate>) => {
   useEffect(() => {
     navigate({
       to: "/collections/$name/documents",
@@ -17,10 +27,4 @@ const CollectionIndex = () => {
       replace: true,
     });
   }, [name, navigate]);
-
-  return (
-    <div className="flex justify-center py-12">
-      <Spinner />
-    </div>
-  );
 };

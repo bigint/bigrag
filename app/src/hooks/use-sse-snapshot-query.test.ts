@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { queryKeys } from "@/lib/query-keys";
 import { useSseSnapshotQuery } from "./use-sse-snapshot-query";
 
 const queryClient = {
@@ -60,7 +61,7 @@ describe("useSseSnapshotQuery", () => {
       closeWhen: (payload: { status: string }) => payload.status === "ready",
       path: "v1/admin/realtime/platform/stats",
       queryFn,
-      queryKey: ["platform", "stats"],
+      queryKey: queryKeys.platform.stats(),
     });
 
     const source = FakeEventSource.instances[0];
@@ -69,7 +70,7 @@ describe("useSseSnapshotQuery", () => {
     expect(useQuery).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: false,
-        queryKey: ["platform", "stats"],
+        queryKey: queryKeys.platform.stats(),
         retry: false,
       }),
     );
@@ -86,7 +87,7 @@ describe("useSseSnapshotQuery", () => {
       }),
     });
 
-    expect(queryClient.setQueryData).toHaveBeenCalledWith(["platform", "stats"], {
+    expect(queryClient.setQueryData).toHaveBeenCalledWith(queryKeys.platform.stats(), {
       status: "ready",
     });
     expect(source.close).toHaveBeenCalled();
@@ -100,7 +101,7 @@ describe("useSseSnapshotQuery", () => {
     useSseSnapshotQuery({
       path: "v1/admin/realtime/backups",
       queryFn,
-      queryKey: ["backups"],
+      queryKey: queryKeys.backups(),
     });
 
     const source = FakeEventSource.instances[0];
@@ -111,7 +112,7 @@ describe("useSseSnapshotQuery", () => {
     expect(queryClient.fetchQuery).toHaveBeenCalledTimes(1);
     expect(queryClient.fetchQuery).toHaveBeenCalledWith({
       queryFn: expect.any(Function),
-      queryKey: ["backups"],
+      queryKey: queryKeys.backups(),
     });
     expect(setStreaming).toHaveBeenCalledWith(false);
   });
@@ -121,7 +122,7 @@ describe("useSseSnapshotQuery", () => {
       enabled: false,
       path: "v1/admin/realtime/backups",
       queryFn: vi.fn(),
-      queryKey: ["backups"],
+      queryKey: queryKeys.backups(),
     });
 
     expect(FakeEventSource.instances).toEqual([]);

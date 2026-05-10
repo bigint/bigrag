@@ -19,6 +19,7 @@ import {
 } from "@/hooks/use-collections";
 import { useEmbeddingPresets } from "@/hooks/use-embedding-presets";
 import { ALL_FILE_TYPES, FILE_TYPE_CATEGORIES, getAllowedFileTypes } from "@/lib/file-types";
+import type { Collection } from "@/types/bigrag";
 
 export const Route = createFileRoute("/_dashboard/collections/$name/settings")({
   component: () => <CollectionSettings />,
@@ -43,15 +44,13 @@ const CollectionSettings = () => {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [confirmTruncateOpen, setConfirmTruncateOpen] = useState(false);
 
-  useEffect(() => {
-    if (!collection) return;
-    setDescription(collection.description);
-    setTopK(collection.default_top_k);
-    setSearchMode(collection.default_search_mode);
-    setRerankingEnabled(collection.reranking_enabled);
-    const stored = getAllowedFileTypes(collection.metadata);
-    setAllowedTypes(new Set(stored.length ? stored : ALL_FILE_TYPES));
-  }, [collection]);
+  useCollectionSettingsDraft(collection, {
+    setAllowedTypes,
+    setDescription,
+    setRerankingEnabled,
+    setSearchMode,
+    setTopK,
+  });
 
   if (!collection) {
     return (
@@ -128,6 +127,215 @@ const CollectionSettings = () => {
   };
 
   const allSelected = allowedTypes.size === ALL_FILE_TYPES.length;
+  const noneSelected = allowedTypes.size === 0;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <Link
+          to="/collections/$name/documents"
+          params={{ name }}
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
+          ← Back to collection
+        </Link>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Retrieval defaults</CardTitle>
+          <CardDescription>Update query defaults and reranking for this collection.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <Textarea
+            label="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Input
+              label="Default top K"
+              type="number"
+              min={1}
+              max={100}
+              value={topK}
+              onChange={(e) => setTopK(Number(e.target.value))}
+            />
+            <Select
+              label="Search mode"
+              value={searchMode}
+              onChange={(v) => setSearchMode(v as typeof searchMode)}
+              options={[
+                { value: "semantic", label: "Semantic" },
+                { value: "keyword", label: "Keyword" },
+                { value: "hybrid", label: "Hybrid" },
+              ]}
+            />
+            <Switch
+              label="Reranking enabled"
+              checked={rerankingEnabled}
+              onCheckedChange={setRerankingEnabled}
+            />
+          </div>
+          <div>
+            <Button onClick={saveDefaults} disabled={update.isPending}>
+              Save defaults
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <KeyRound className="size-4" />
+            Embedding key
+          </CardTitle>
+          <CardDescription>
+            Replace the collection-specific embedding key without changing the model.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <Input
+            label="New API key"
+            type="password"
+            value={embeddingKeyDraft}
+            onChange={(e) => setEmbeddingKeyDraft(e.target.value)}
+            placeholder="sk-..."
+          />
+          <div>
+            <Button
+              onClick={saveEmbeddingKey}
+              disabled={update.isPending || !embeddingKeyDraft.trim()}
+            >
+              Update embedding key
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Allowed file types</CardTitle>
+          <CardDescription>
+            Restrict uploads by extension. Leave all selected to allow the default ingest set.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setAllowedTypes(new Set(ALL_FILE_TYPES))}
+              disabled={allSelected}
+            >
+              Select all
+            </Button>
+            <Button variant="secondary" onClick={() => setAllowedTypes(new Set())} disabled={noneSelected}>
+              Clear all
+            </Button>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {Object.entries(FILE_TYPE_CATEGORIES).map(([category, types]) => {
+              const allInCategory = types.every((t) => allowedTypes.has(t));
+              return (
+                <div key={category} className="rounded-md border border-border p-3">
+                  <Checkbox
+                    checked={allInCategory}
+                    label={category}
+                    onCheckedChange={() => toggleCategory(types)}
+                  />
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {types.map((t) => (
+                      <Checkbox
+                        key={t}
+                        checked={allowedTypes.has(t)}
+                        label={`.${t}`}
+                        onCheckedChange={() => toggleType(t)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div>
+            <Button onClick={saveFileTypes} disabled={update.isPending}>
+              Save file types
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-destructive">
+            <TriangleAlert className="size-4" />
+            Danger zone
+          </CardTitle>
+          <CardDescription>Destructive actions cannot be undone.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setConfirmTruncateOpen(true)}>
+            <Trash2 className="size-4" />
+            Remove all documents
+          </Button>
+          <Button variant="destructive" onClick={() => setConfirmDeleteOpen(true)}>
+            <Trash2 className="size-4" />
+            Delete collection
+          </Button>
+        </CardContent>
+      </Card>
+
+      <ConfirmDialog
+        open={confirmTruncateOpen}
+        onOpenChange={setConfirmTruncateOpen}
+        title="Remove all documents?"
+        description="The collection stays, but all documents and vectors are removed."
+        confirmLabel="Remove documents"
+        loading={truncate.isPending}
+        onConfirm={async () => {
+          await truncate.mutateAsync();
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title={`Delete ${collection.name}?`}
+        description="This permanently removes the collection, documents, and vectors."
+        confirmLabel="Delete collection"
+        variant="destructive"
+        loading={remove.isPending}
+        onConfirm={async () => {
+          await remove.mutateAsync(collection.name);
+          navigate({ to: "/collections", replace: true });
+        }}
+      />
+    </div>
+  );
+};
+
+type CollectionSettingsDraftSetters = {
+  readonly setAllowedTypes: (types: Set<string>) => void;
+  readonly setDescription: (description: string) => void;
+  readonly setRerankingEnabled: (enabled: boolean) => void;
+  readonly setSearchMode: (mode: "semantic" | "keyword" | "hybrid") => void;
+  readonly setTopK: (topK: number) => void;
+};
+
+const useCollectionSettingsDraft = (
+  collection: Collection | undefined,
+  setters: CollectionSettingsDraftSetters,
+) => {
+  useEffect(() => {
+    if (!collection) return;
+    setters.setDescription(collection.description);
+    setters.setTopK(collection.default_top_k);
+    setters.setSearchMode(collection.default_search_mode);
+    setters.setRerankingEnabled(collection.reranking_enabled);
+    const stored = getAllowedFileTypes(collection.metadata);
+    setters.setAllowedTypes(new Set(stored.length ? stored : ALL_FILE_TYPES));
+  }, [collection, setters]);
 
   return (
     <div className="space-y-4">

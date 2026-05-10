@@ -68,11 +68,7 @@ const SettingsPage = () => {
   const requestedTab = search.tab;
   const tab = requestedTab && COMPONENTS[requestedTab] ? requestedTab : "account";
 
-  useEffect(() => {
-    if (requestedTab === "eval") {
-      navigate({ to: "/evals", replace: true });
-    }
-  }, [requestedTab, navigate]);
+  useRedirectLegacyEvalTab(requestedTab, navigate);
 
   const setTab = (value: string) => {
     navigate({
@@ -99,4 +95,15 @@ const SettingsPage = () => {
       </div>
     </div>
   );
+};
+
+const useRedirectLegacyEvalTab = (
+  requestedTab: string | undefined,
+  navigate: ReturnType<typeof useNavigate>,
+) => {
+  useEffect(() => {
+    if (requestedTab === "eval") {
+      navigate({ to: "/evals", replace: true });
+    }
+  }, [requestedTab, navigate]);
 };

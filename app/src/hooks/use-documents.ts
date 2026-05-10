@@ -135,7 +135,7 @@ const uploadConcurrency = 4;
 
 export const useDocuments = (collection: string, status?: string) => {
   const queryKey = useMemo(
-    () => [...queryKeys.documents.list(collection), { status: status ?? "all" }],
+    () => queryKeys.documents.list({ collection, status }),
     [collection, status],
   );
   const path = useMemo(() => {
@@ -156,7 +156,10 @@ export const useDocuments = (collection: string, status?: string) => {
 };
 
 export const useDocument = (collection: string, docId: string) => {
-  const queryKey = useMemo(() => queryKeys.documents.one(collection, docId), [collection, docId]);
+  const queryKey = useMemo(
+    () => queryKeys.documents.one({ collection, id: docId }),
+    [collection, docId],
+  );
   return useSseSnapshotQuery<Document>({
     queryKey,
     queryFn: () =>
@@ -171,7 +174,7 @@ export const useDocument = (collection: string, docId: string) => {
 
 export const useChunks = (collection: string, docId: string) =>
   useQuery({
-    queryKey: queryKeys.documents.chunks(collection, docId),
+    queryKey: queryKeys.documents.chunks({ collection, id: docId }),
     queryFn: () =>
       apiClient.get<{ chunks: Chunk[]; total: number }>(
         `v1/collections/${encodeURIComponent(collection)}/documents/${docId}/chunks`,
@@ -192,7 +195,7 @@ export const useUploadDocuments = (collection: string) => {
       );
     },
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
       toast.success(`Queued ${res.total} document${res.total === 1 ? "" : "s"} for ingestion`);
     },
     onError: errorToast("Upload failed"),
@@ -201,7 +204,7 @@ export const useUploadDocuments = (collection: string) => {
 
 export const useUploadSession = (collection: string, sessionId: string | null) => {
   const queryKey = useMemo(
-    () => queryKeys.documents.uploadSession(collection, sessionId),
+    () => queryKeys.documents.uploadSession({ collection, id: sessionId }),
     [collection, sessionId],
   );
   const enabled = Boolean(collection && sessionId);
@@ -266,8 +269,10 @@ export const useUploadSessionDocuments = (
       return { errors, session: completed };
     },
     onSuccess: ({ errors, session }) => {
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
-      qc.invalidateQueries({ queryKey: queryKeys.documents.uploadSession(collection, session.id) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
+      qc.invalidateQueries({
+        queryKey: queryKeys.documents.uploadSession({ collection, id: session.id }),
+      });
       if (errors.length) {
         toast.warning(`${errors.length} file${errors.length === 1 ? "" : "s"} need retry`);
       } else {
@@ -288,8 +293,10 @@ export const useCancelUploadSession = (collection: string) => {
         `v1/collections/${encodeURIComponent(collection)}/upload-sessions/${sessionId}/cancel`,
       ),
     onSuccess: (_res, sessionId) => {
-      qc.invalidateQueries({ queryKey: queryKeys.documents.uploadSession(collection, sessionId) });
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
+      qc.invalidateQueries({
+        queryKey: queryKeys.documents.uploadSession({ collection, id: sessionId }),
+      });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
       toast.success("Upload session canceled");
     },
     onError: errorToast("Cancel failed"),
@@ -306,7 +313,7 @@ export const useBatchDocumentProgress = (collection: string, documents: Document
   const batchKey = `${collection}:${idsKey}`;
   const enabled = Boolean(collection && documentIds.length);
   const queryKey = useMemo(
-    () => queryKeys.documents.batchStatus(collection, idsKey),
+    () => queryKeys.documents.batchStatus({ collection, ids: idsKey }),
     [collection, idsKey],
   );
   const path = useMemo(() => {
@@ -354,16 +361,16 @@ export const useBatchDocumentProgress = (collection: string, documents: Document
     for (const item of items) {
       if (isFailedProgress(item) && !failedRef.current.has(item.document_id)) {
         failedRef.current.add(item.document_id);
-        void qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
+        void qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
         void qc.invalidateQueries({
-          queryKey: queryKeys.documents.one(collection, item.document_id),
+          queryKey: queryKeys.documents.one({ collection, id: item.document_id }),
         });
       }
     }
 
     if (done && completedBatchRef.current !== batchKey) {
       completedBatchRef.current = batchKey;
-      void qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
+      void qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
     }
   }, [batchKey, collection, done, items, qc]);
 
@@ -398,7 +405,7 @@ export const useDeleteDocument = (collection: string) => {
         `v1/collections/${encodeURIComponent(collection)}/documents/${docId}`,
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
       toast.success("Document deleted");
     },
   });
@@ -412,8 +419,8 @@ export const useReprocessDocument = (collection: string) => {
         `v1/collections/${encodeURIComponent(collection)}/documents/${docId}/reprocess`,
       ),
     onSuccess: (_res, docId) => {
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list(collection) });
-      qc.invalidateQueries({ queryKey: queryKeys.documents.one(collection, docId) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.one({ collection, id: docId }) });
       toast.success("Reprocessing queued");
     },
   });
