@@ -56,6 +56,6 @@ Backend route tests should use dependency overrides and fake service/session obj
 
 Ingestion queue tests should stay dependency-free by default. Cover Redis state helpers, conversion helpers, embedding/vector payload behavior, and orchestration regressions with fake Redis, storage, embedding, and vector-store objects unless a test explicitly opts into live infrastructure.
 
-SDK tests should exercise request construction, retries, error mapping, multipart uploads, and SSE parsing as runtime behavior, not only typechecking.
+SDK tests should exercise request construction, retries, error mapping, multipart uploads, SSE parsing, and resource namespace path/query/body shaping as runtime behavior, not only typechecking.
 
-Admin UI tests should cover pure utilities and API helpers first. UI workflows should be added when component behavior becomes risky enough to justify browser-oriented tests.
+Admin UI tests should cover pure utilities, query-key builders, API helpers, and toast/error adapters first. UI workflows should be added when component behavior becomes risky enough to justify browser-oriented tests.
