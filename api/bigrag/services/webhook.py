@@ -257,7 +257,7 @@ class WebhookDispatcher:
                         logger.info(
                             "webhook delivered",
                             webhook=webhook_id,
-                            event=event,
+                            webhook_event=event,
                             delivery=str(delivery_id),
                             attempt=attempt,
                             status=last_status_code,
@@ -278,7 +278,7 @@ class WebhookDispatcher:
                     logger.warning(
                         "webhook delivery failed",
                         webhook=webhook_id,
-                        event=event,
+                        webhook_event=event,
                         delivery=str(delivery_id),
                         attempt=attempt,
                         error=last_error,
@@ -317,7 +317,7 @@ class WebhookDispatcher:
             logger.error(
                 "webhook delivery permanently failed",
                 webhook=webhook_id,
-                event=event,
+                webhook_event=event,
                 delivery=str(delivery_id),
                 error=last_error,
             )

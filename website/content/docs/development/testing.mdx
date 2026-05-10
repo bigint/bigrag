@@ -40,11 +40,13 @@ Coverage commands print a terminal percentage and can write HTML reports for loc
 
 | Area | Command | HTML output |
 | --- | --- | --- |
-| Backend API | `cd api && uv run pytest tests/ --cov --cov-report=term-missing --cov-report=html` | `api/htmlcov/index.html` |
+| Backend API | `cd api && uv run pytest --cov=bigrag --cov-report=term-missing --cov-report=html` | `api/htmlcov/index.html` |
 | Python SDK | `cd sdks/python && uv run pytest --cov --cov-report=term-missing --cov-report=html` | `sdks/python/htmlcov/index.html` |
 | TypeScript SDK | `pnpm --filter @bigrag/client coverage` | `sdks/typescript/coverage/index.html` |
 | Rust SDK | `cargo llvm-cov --manifest-path sdks/rust/Cargo.toml --html` | `sdks/rust/target/llvm-cov/html/index.html` |
 | Admin UI | `pnpm --filter @bigrag/app coverage` | `app/coverage/index.html` |
+
+The backend API suite currently reports 60% statement coverage with service-level regression coverage for retrieval caching, embedding adapters, storage backends, MCP wrappers, webhook delivery, Qdrant vector operations, ingestion queue orchestration, auth middleware, CORS, and idempotency replay.
 
 Run the docs build:
 
@@ -60,4 +62,4 @@ Ingestion queue tests should stay dependency-free by default. Cover Redis state 
 
 SDK tests should exercise request construction, retries, error mapping, multipart uploads, SSE parsing, and resource namespace path/query/body shaping as runtime behavior, not only typechecking.
 
-Admin UI tests should cover pure utilities, query-key builders, API helpers, and toast/error adapters first. UI workflows should be added when component behavior becomes risky enough to justify browser-oriented tests.
+Admin UI tests should cover pure utilities, query-key builders, API helpers, hook wiring, and toast/error adapters first. Keep non-visual hook coverage in `.test.ts` files with React Query and SSE dependencies mocked; UI workflows should be added when component behavior becomes risky enough to justify browser-oriented tests.
