@@ -33,7 +33,11 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.0.0", "ruff>=0.8.0"]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.8.0",
+]
 
 [project.scripts]
 bigrag = "bigrag.main:cli"
@@ -64,3 +68,11 @@ python-multipart = "python_multipart"
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["python-multipart"]
+
+[tool.coverage.run]
+source = ["bigrag"]
+omit = ["bigrag/_alembic/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

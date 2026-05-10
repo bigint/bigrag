@@ -11,7 +11,8 @@
     "start": "serve dist --single --listen tcp://0.0.0.0:${PORT:-3000}",
     "typecheck": "pnpm run routes:generate && tsc --noEmit",
     "lint": "biome check --write src/",
-    "test": "vitest run"
+    "test": "vitest run",
+    "coverage": "vitest run --coverage --coverage.all=true --coverage.include='src/**/*.{ts,tsx}' --coverage.exclude='src/routeTree.gen.ts'"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -39,6 +40,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.5",
     "postcss": "^8.5.14",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",

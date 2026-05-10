@@ -9,6 +9,7 @@ Run the backend tests from `api/`:
 
 ```bash
 uv run pytest tests/ -q
+uv run pytest tests/ --cov --cov-report=term-missing
 uv run ruff check .
 uv run ruff format --check .
 ```
@@ -17,7 +18,9 @@ Run TypeScript and admin UI checks from the repository root:
 
 ```bash
 pnpm --filter @bigrag/client test
+pnpm --filter @bigrag/client coverage
 pnpm --filter @bigrag/app test
+pnpm --filter @bigrag/app coverage
 pnpm typecheck
 pnpm exec biome check .
 ```
@@ -26,8 +29,20 @@ Run SDK-specific checks:
 
 ```bash
 cd sdks/python && uv sync --dev && uv run pytest -q
+cd sdks/python && uv run pytest --cov --cov-report=term-missing
 cargo test --manifest-path sdks/rust/Cargo.toml
 ```
+
+## Coverage reports
+
+Coverage commands print a terminal percentage and can write HTML reports for local inspection:
+
+| Area | Command | HTML output |
+| --- | --- | --- |
+| Backend API | `cd api && uv run pytest tests/ --cov --cov-report=term-missing --cov-report=html` | `api/htmlcov/index.html` |
+| Python SDK | `cd sdks/python && uv run pytest --cov --cov-report=term-missing --cov-report=html` | `sdks/python/htmlcov/index.html` |
+| TypeScript SDK | `pnpm --filter @bigrag/client coverage` | `sdks/typescript/coverage/index.html` |
+| Admin UI | `pnpm --filter @bigrag/app coverage` | `app/coverage/index.html` |
 
 Run the docs build:
 
