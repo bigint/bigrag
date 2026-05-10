@@ -15,7 +15,7 @@
     "lint:api": "cd api && uv run ruff check . && uv run ruff format --check ."
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.14"
+    "@biomejs/biome": "^2.4.15"
   },
   "pnpm": {
     "overrides": {

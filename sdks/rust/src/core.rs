@@ -278,7 +278,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(result, json!({"id": "col"}));
-        mock.assert_hits_async(1).await;
+        mock.assert_calls_async(1).await;
     }
 
     #[tokio::test]
@@ -294,8 +294,10 @@ mod tests {
 
         let error = transport.get::<Value>("/health", vec![]).await.unwrap_err();
 
-        assert!(matches!(error, BigRagError::ServerError { message, status: 503 } if message == "temporary"));
-        mock.assert_hits_async(2).await;
+        assert!(
+            matches!(error, BigRagError::ServerError { message, status: 503 } if message == "temporary")
+        );
+        mock.assert_calls_async(2).await;
     }
 
     #[tokio::test]
@@ -309,7 +311,10 @@ mod tests {
             .await;
         let transport = Transport::new(&server.base_url(), None, Duration::from_secs(5), 0);
 
-        let error = transport.get::<Value>("/missing", vec![]).await.unwrap_err();
+        let error = transport
+            .get::<Value>("/missing", vec![])
+            .await
+            .unwrap_err();
 
         assert!(matches!(error, BigRagError::NotFound { message } if message == "Missing"));
     }
