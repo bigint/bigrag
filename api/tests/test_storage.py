@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from bigrag.services import storage
+from rag_computer.services import storage
 
 
 class FakeBody:

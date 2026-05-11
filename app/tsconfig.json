@@ -21,7 +21,7 @@
       "node"
     ],
     "paths": {
-      "@bigrag/client": [
+      "@rag.computer/client": [
         "../sdks/typescript/src/index.ts"
       ],
       "@/*": [

@@ -3,7 +3,7 @@ title: Search
 description: Semantic, keyword, and hybrid search.
 ---
 
-bigRAG exposes three search modes and an optional rerank pass. Keep query-time choices narrow: pick a mode, set `top_k` and filters, and enable reranking only when a collection is configured for it.
+rag.computer exposes three search modes and an optional rerank pass. Keep query-time choices narrow: pick a mode, set `top_k` and filters, and enable reranking only when a collection is configured for it.
 
 ## Modes
 
@@ -17,7 +17,7 @@ bigRAG exposes three search modes and an optional rerank pass. Keep query-time c
 
 ```bash
 curl -X POST http://localhost:4000/v1/collections/docs/query \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query": "What are the main findings about climate change?"}'
 ```
@@ -28,7 +28,7 @@ Best for natural language questions and conceptual queries.
 
 ```bash
 curl -X POST http://localhost:4000/v1/collections/docs/query \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query": "ERR-4021", "search_mode": "keyword"}'
 ```
@@ -39,7 +39,7 @@ Best for exact terms, product codes, IDs, proper nouns.
 
 ```bash
 curl -X POST http://localhost:4000/v1/collections/docs/query \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query": "error code ERR-4021 authentication", "search_mode": "hybrid"}'
 ```
@@ -85,7 +85,7 @@ Pass a plain value for exact match, or use operators for more control.
 }
 ```
 
-Multiple filters are combined with AND. When a collection was created with `tenant_field`, bigRAG configures that field for backend filtering where supported and requires the tenant field in every query and chat filter. Missing tenant filters return `400`.
+Multiple filters are combined with AND. When a collection was created with `tenant_field`, rag.computer configures that field for backend filtering where supported and requires the tenant field in every query and chat filter. Missing tenant filters return `400`.
 
 Keyword and hybrid search require the default Qdrant backend in v1. S3 Vectors and turbopuffer support semantic search and return a clear error for keyword or hybrid mode.
 
@@ -110,7 +110,7 @@ Every response includes a `timings` breakdown:
 
 ```bash
 curl -X POST http://localhost:4000/v1/query \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query":"machine learning","collections":["docs","papers"],"top_k":20}'
 ```
@@ -123,7 +123,7 @@ Up to 20 independent queries, executed in parallel:
 
 ```bash
 curl -X POST http://localhost:4000/v1/batch/query \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "queries": [
@@ -137,7 +137,7 @@ curl -X POST http://localhost:4000/v1/batch/query \
 
 ```bash
 curl http://localhost:4000/v1/collections/docs/analytics \
-  -H "Authorization: Bearer $BIGRAG_API_KEY"
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY"
 ```
 
 Returns 24h / 7d / 30d aggregates — query count, average latency, average score, top queries. Cached for five minutes.

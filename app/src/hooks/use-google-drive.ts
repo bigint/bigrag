@@ -11,7 +11,7 @@ import type {
   GoogleDriveFileList,
   GoogleDriveSource,
   GoogleDriveSyncJob,
-} from "@/types/bigrag";
+} from "@/types/rag-computer";
 
 type GoogleSourceListResponse = { sources: GoogleDriveSource[]; total: number };
 type GoogleSyncJobListResponse = { jobs: GoogleDriveSyncJob[]; total: number };

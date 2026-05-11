@@ -27,7 +27,7 @@ describe("normalizeFileInput", () => {
   });
 
   it("normalizes path inputs with default and explicit filenames", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "bigrag-files-"));
+    const dir = await mkdtemp(join(tmpdir(), "rag-computer-files-"));
     const path = join(dir, "note.txt");
     await writeFile(path, "hello");
 

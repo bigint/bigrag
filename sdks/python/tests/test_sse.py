@@ -5,10 +5,10 @@ import asyncio
 import httpx
 import pytest
 
-from bigrag import BigRAG
-from bigrag._errors import APIError, AuthenticationError
-from bigrag._sse import parse_sse_stream
-from bigrag.resources.chat import _parse_frame
+from rag_computer import RagComputer
+from rag_computer._errors import APIError, AuthenticationError
+from rag_computer._sse import parse_sse_stream
+from rag_computer.resources.chat import _parse_frame
 
 
 def run(coro):
@@ -87,8 +87,8 @@ def test_chat_resource_stream_parses_split_frames_and_done() -> None:
         )
 
     async def scenario() -> list[dict]:
-        client = BigRAG(
-            api_key="bigrag_sk_test",
+        client = RagComputer(
+            api_key="ragc_sk_test",
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )
@@ -108,7 +108,7 @@ def test_chat_resource_stream_parses_split_frames_and_done() -> None:
     ]
     assert seen[0].method == "POST"
     assert str(seen[0].url) == "http://api.local/v1/chat"
-    assert seen[0].headers["authorization"] == "Bearer bigrag_sk_test"
+    assert seen[0].headers["authorization"] == "Bearer ragc_sk_test"
     assert seen[0].headers["content-type"] == "application/json"
     assert b'"stream":true' in seen[0].content.replace(b" ", b"")
 
@@ -122,7 +122,7 @@ def test_chat_resource_stream_wraps_malformed_json_as_raw() -> None:
         )
 
     async def scenario() -> list[dict]:
-        client = BigRAG(
+        client = RagComputer(
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )
@@ -155,7 +155,7 @@ def test_chat_resource_stream_maps_http_errors() -> None:
         )
 
     async def scenario() -> None:
-        client = BigRAG(
+        client = RagComputer(
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )
@@ -188,8 +188,8 @@ def test_collection_resource_streams_events_and_maps_errors() -> None:
         return response
 
     async def success_scenario() -> list[dict]:
-        client = BigRAG(
-            api_key="bigrag_sk_test",
+        client = RagComputer(
+            api_key="ragc_sk_test",
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )
@@ -202,7 +202,7 @@ def test_collection_resource_streams_events_and_maps_errors() -> None:
             await client.aclose()
 
     async def error_scenario() -> None:
-        client = BigRAG(
+        client = RagComputer(
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )
@@ -214,7 +214,7 @@ def test_collection_resource_streams_events_and_maps_errors() -> None:
 
     assert run(success_scenario()) == [{"event": "progress"}]
     assert str(seen[0].url) == "http://api.local/v1/collections/team%20docs/events"
-    assert seen[0].headers["authorization"] == "Bearer bigrag_sk_test"
+    assert seen[0].headers["authorization"] == "Bearer ragc_sk_test"
 
     with pytest.raises(APIError, match="Service Unavailable"):
         run(error_scenario())

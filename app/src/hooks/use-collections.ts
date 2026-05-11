@@ -5,7 +5,7 @@ import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
-import type { Collection, CollectionStats } from "@/types/bigrag";
+import type { Collection, CollectionStats } from "@/types/rag-computer";
 
 type ListResponse = { collections: Collection[]; total: number };
 

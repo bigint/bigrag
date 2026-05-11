@@ -1,4 +1,4 @@
-# bigRAG
+# rag.computer
 
 Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, and search — all behind a simple REST API.
 
@@ -16,12 +16,12 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 - **Batch operations** — bulk upload, delete, status checks, and queries
 - **Google Drive connector** — OAuth, in-app Drive browsing, and manual/scheduled resync
 - **Status polling** — REST endpoints for document and batch processing status
-- **Auth, audit, scopes** — admin accounts, session cookies, scoped `bigrag_sk_…` API keys, and full audit/access logs
+- **Auth, audit, scopes** — admin accounts, session cookies, scoped `ragc_sk_…` API keys, and full audit/access logs
 - **Metadata controls** — per-collection metadata schemas, file validation, and content-hash deduplication at ingest
 - **Retrieval evaluation runner** — ship recall@k / MRR / nDCG regressions against a golden set
 - **Analytics** — per-collection query analytics and platform-wide stats
 - **Webhooks** — HMAC-signed delivery, retries, circuit breaker, admin replay
-- **Encrypted sensitive caches at rest** — provider API keys, webhook secrets, embedding-cache rows, and Redis cache payloads sealed with Fernet (`BIGRAG_MASTER_KEY`)
+- **Encrypted sensitive caches at rest** — provider API keys, webhook secrets, embedding-cache rows, and Redis cache payloads sealed with Fernet (`RAG_COMPUTER_MASTER_KEY`)
 - **Self-hostable** — single `docker compose up` to run everything
 - **Clients** — [TypeScript](sdks/typescript), [Python](sdks/python), and [Rust](sdks/rust) SDKs plus an [MCP server](#mcp-server) for Claude Desktop, Cursor, and any MCP-aware runtime
 
@@ -31,7 +31,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 docker compose up -d
 ```
 
-This starts bigRAG API, Postgres, Redis, and Qdrant. Open http://localhost:4000/docs for the interactive API docs.
+This starts rag.computer API, Postgres, Redis, and Qdrant. Open http://localhost:4000/docs for the interactive API docs.
 
 ```bash
 # Create a collection
@@ -58,7 +58,7 @@ curl -X POST http://localhost:4000/v1/collections/docs/query \
 ### Docker Images
 
 ```bash
-docker pull yoginth/bigrag:2026.4.30
+docker pull yoginth/rag-computer:2026.4.30
 ```
 
 Release artifacts use CalVer (`YYYY.M.D`). Docker also publishes `latest`; the
@@ -68,12 +68,12 @@ Python SDK publishes dated PyPI releases.
 
 ```mermaid
 graph TD
-    MCP([MCP client<br/>Claude / Cursor]) -->|bigrag-mcp| API
+    MCP([MCP client<br/>Claude / Cursor]) -->|rag-computer-mcp| API
     AdminUI([Admin UI]) -->|session cookie| API
-    SDK([TS / Python / Rust SDK]) -->|bigrag_sk_… key| API
-    Curl([curl / any HTTP client]) -->|bigrag_sk_… key| API
+    SDK([TS / Python / Rust SDK]) -->|ragc_sk_… key| API
+    Curl([curl / any HTTP client]) -->|ragc_sk_… key| API
 
-    API[bigRAG API<br/>Python / FastAPI]
+    API[rag.computer API<br/>Python / FastAPI]
 
     API --> Auth[Auth, scopes, audit]
     API --> Collections[Collections]
@@ -177,7 +177,7 @@ graph TD
 | **Admin** | | |
 | `GET`/`POST` | `/v1/admin/users` | Manage admin accounts |
 | `PATCH`/`DELETE` | `/v1/admin/users/{id}` | Update or delete an admin/member account |
-| `GET`/`POST` | `/v1/admin/api-keys` | Mint `bigrag_sk_…` API keys with scopes |
+| `GET`/`POST` | `/v1/admin/api-keys` | Mint `ragc_sk_…` API keys with scopes |
 | `PATCH`/`DELETE` | `/v1/admin/api-keys/{id}` | Update, disable, or delete an API key |
 | `GET` | `/v1/admin/audit` | Audit log |
 | `GET` | `/v1/admin/access/overview` | Access-log rollup |
@@ -217,13 +217,13 @@ Full interactive docs at `/docs` (Swagger UI) when running.
 ### TypeScript
 
 ```bash
-npm install @bigrag/client
+npm install @rag.computer/client
 ```
 
 ```typescript
-import { BigRAG } from "@bigrag/client";
+import { RagComputer } from "@rag.computer/client";
 
-const client = new BigRAG({ apiKey: "your-key", baseUrl: "http://localhost:4000" });
+const client = new RagComputer({ apiKey: "your-key", baseUrl: "http://localhost:4000" });
 
 // Upload a document
 const doc = await client.documents.upload("docs", new File([pdf], "paper.pdf"));
@@ -243,13 +243,13 @@ const { results } = await client.queries.query("docs", { query: "What is RAG?" }
 ### Python
 
 ```bash
-pip install bigrag==2026.5.7
+pip install rag-computer==2026.5.7
 ```
 
 ```python
-from bigrag import BigRAG
+from rag_computer import RagComputer
 
-client = BigRAG(api_key="your-key", base_url="http://localhost:4000")
+client = RagComputer(api_key="your-key", base_url="http://localhost:4000")
 
 # Upload a document
 doc = await client.documents.upload("docs", "/path/to/paper.pdf")
@@ -263,14 +263,14 @@ result = await client.queries.query("docs", {"query": "What is RAG?"})
 ```toml
 # Cargo.toml
 [dependencies]
-bigrag = "2026.5.7"
+rag-computer = "2026.5.7"
 ```
 
 ```rust
-use bigrag::BigRag;
+use rag_computer::RagComputer;
 
-let client = BigRag::new("http://localhost:4000", "your-key");
-let result = client.queries().query("docs", bigrag::types::QueryBody {
+let client = RagComputer::new("http://localhost:4000", "your-key");
+let result = client.queries().query("docs", rag_computer::types::QueryBody {
     query: "What is RAG?".into(),
     top_k: Some(10),
     ..Default::default()
@@ -279,12 +279,12 @@ let result = client.queries().query("docs", bigrag::types::QueryBody {
 
 ## MCP server
 
-Expose bigRAG to Claude Desktop, Cursor, and any MCP-aware runtime:
+Expose rag.computer to Claude Desktop, Cursor, and any MCP-aware runtime:
 
 ```bash
-BIGRAG_URL=https://bigrag.example.com \
-BIGRAG_API_KEY=bigrag_sk_... \
-bigrag-mcp
+RAG_COMPUTER_URL=https://rag.computer \
+RAG_COMPUTER_API_KEY=ragc_sk_... \
+rag-computer-mcp
 ```
 
 Drop this into `claude_desktop_config.json`:
@@ -292,11 +292,11 @@ Drop this into `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "bigrag": {
-      "command": "bigrag-mcp",
+    "rag-computer": {
+      "command": "rag-computer-mcp",
       "env": {
-        "BIGRAG_URL": "https://bigrag.example.com",
-        "BIGRAG_API_KEY": "bigrag_sk_..."
+        "RAG_COMPUTER_URL": "https://rag.computer",
+        "RAG_COMPUTER_API_KEY": "ragc_sk_..."
       }
     }
   }
@@ -307,74 +307,74 @@ Full-workspace keys expose 8 tools — `list_collections`, `get_collection`, `ge
 
 ## Configuration
 
-Most settings use the `BIGRAG_` prefix as environment variables, or configure via `bigrag.toml`.
+Most settings use the `RAG_COMPUTER_` prefix as environment variables, or configure via `rag-computer.toml`.
 Backend logging is always enabled at debug level with text output and does not use logging env vars.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BIGRAG_PORT` | Server port | `4000` |
-| `BIGRAG_HOST` | Bind address | `127.0.0.1` |
-| `BIGRAG_WORKERS` | API worker processes | `1` |
-| `BIGRAG_CORS_ORIGINS` | JSON array of allowed browser origins | `[]` |
-| `BIGRAG_DATABASE_URL` | Postgres URL (`postgres:5432` inside docker-compose, `localhost:5432` for bare-metal dev) | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
-| `BIGRAG_DB_POOL_MIN` | Min Postgres pool size | `5` |
-| `BIGRAG_DB_POOL_MAX` | Max Postgres pool size | `50` |
-| `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration check timeout (`0` disables the timeout) | `60` |
-| `BIGRAG_QDRANT_URL` | Qdrant URL | `http://localhost:6333` |
-| `BIGRAG_QDRANT_API_KEY` | Optional Qdrant Cloud/API key | — |
-| `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout (`0` disables the timeout) | `10` |
-| `BIGRAG_QDRANT_REQUIRED` | Fail API startup if Qdrant cannot be reached | `false` |
-| `BIGRAG_QDRANT_SEARCH_EF` | Optional Qdrant HNSW search recall/latency tuning | — |
-| `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
-| `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
-| `BIGRAG_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and access logs | `[]` |
-| `BIGRAG_SESSION_EXPIRY_HOURS` | Session cookie lifetime | `168` |
-| `BIGRAG_SESSION_COOKIE_NAME` | Session cookie name | `bigrag_session` |
-| `BIGRAG_SESSION_COOKIE_SECURE` | HTTPS-only session cookies | `false` |
-| `BIGRAG_SESSION_COOKIE_SAMESITE` | Session cookie SameSite policy | `lax` |
-| `BIGRAG_SESSION_COOKIE_DOMAIN` | Optional session cookie domain | — |
-| `BIGRAG_AUTH_PRINCIPAL_CACHE_TTL` | Principal cache TTL in seconds | `60` |
+| `RAG_COMPUTER_PORT` | Server port | `4000` |
+| `RAG_COMPUTER_HOST` | Bind address | `127.0.0.1` |
+| `RAG_COMPUTER_WORKERS` | API worker processes | `1` |
+| `RAG_COMPUTER_CORS_ORIGINS` | JSON array of allowed browser origins | `[]` |
+| `RAG_COMPUTER_DATABASE_URL` | Postgres URL (`postgres:5432` inside docker-compose, `localhost:5432` for bare-metal dev) | `postgres://rag_computer:rag_computer@localhost:5432/rag_computer?sslmode=disable` |
+| `RAG_COMPUTER_DB_POOL_MIN` | Min Postgres pool size | `5` |
+| `RAG_COMPUTER_DB_POOL_MAX` | Max Postgres pool size | `50` |
+| `RAG_COMPUTER_MIGRATION_TIMEOUT_SECONDS` | Startup migration check timeout (`0` disables the timeout) | `60` |
+| `RAG_COMPUTER_QDRANT_URL` | Qdrant URL | `http://localhost:6333` |
+| `RAG_COMPUTER_QDRANT_API_KEY` | Optional Qdrant Cloud/API key | — |
+| `RAG_COMPUTER_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout (`0` disables the timeout) | `10` |
+| `RAG_COMPUTER_QDRANT_REQUIRED` | Fail API startup if Qdrant cannot be reached | `false` |
+| `RAG_COMPUTER_QDRANT_SEARCH_EF` | Optional Qdrant HNSW search recall/latency tuning | — |
+| `RAG_COMPUTER_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
+| `RAG_COMPUTER_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
+| `RAG_COMPUTER_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and access logs | `[]` |
+| `RAG_COMPUTER_SESSION_EXPIRY_HOURS` | Session cookie lifetime | `168` |
+| `RAG_COMPUTER_SESSION_COOKIE_NAME` | Session cookie name | `rag_computer_session` |
+| `RAG_COMPUTER_SESSION_COOKIE_SECURE` | HTTPS-only session cookies | `false` |
+| `RAG_COMPUTER_SESSION_COOKIE_SAMESITE` | Session cookie SameSite policy | `lax` |
+| `RAG_COMPUTER_SESSION_COOKIE_DOMAIN` | Optional session cookie domain | — |
+| `RAG_COMPUTER_AUTH_PRINCIPAL_CACHE_TTL` | Principal cache TTL in seconds | `60` |
 
 `./dev.sh` and the default Docker Compose setup allow the local admin UI origin
-`http://localhost:3000`. For production, set `BIGRAG_CORS_ORIGINS` to the exact
+`http://localhost:3000`. For production, set `RAG_COMPUTER_CORS_ORIGINS` to the exact
 admin UI origin. Cross-site admin UI deployments also need
-`BIGRAG_SESSION_COOKIE_SECURE=true` and usually
-`BIGRAG_SESSION_COOKIE_SAMESITE=none`.
-| `BIGRAG_EMBEDDING_API_KEY` | Default embedding API key | — |
-| `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider | `openai` |
-| `BIGRAG_EMBEDDING_MODEL` | Default embedding model | `text-embedding-3-small` |
-| `BIGRAG_EMBEDDING_DIMENSION` | Default embedding vector dimension | `1536` |
-| `BIGRAG_EMBEDDING_BASE_URL` | Base URL for OpenAI-compatible embedding endpoints | — |
-| `BIGRAG_EMBEDDING_CONCURRENCY` | Max concurrent embedding requests | `8` |
-| `BIGRAG_ALLOWED_EMBEDDING_BASE_URLS` | JSON allow-list for embedding base URLs | `[]` |
-| `BIGRAG_ALLOW_PRIVATE_EMBEDDING_BASE_URLS` | Allow private-network embedding endpoints | `false` |
-| `BIGRAG_CHAT_PROVIDER` | Chat provider | `openai` |
-| `BIGRAG_CHAT_MODEL` | Default chat model | `gpt-4o-mini` |
-| `BIGRAG_CHAT_BASE_URL` | Base URL for OpenAI-compatible chat endpoints | — |
-| `BIGRAG_CHAT_TEMPERATURE` | Default chat temperature | `0.2` |
-| `BIGRAG_CHAT_MAX_HISTORY_MESSAGES` | Max conversation history messages used for context | `12` |
-| `BIGRAG_CHAT_MAX_CONTEXT_CHARS` | Max retrieved-context characters per chat call | `120000` |
-| `BIGRAG_ALLOWED_CHAT_BASE_URLS` | JSON allow-list for chat base URLs | `[]` |
-| `BIGRAG_ALLOW_PRIVATE_CHAT_BASE_URLS` | Allow private-network chat endpoints | `false` |
-| `BIGRAG_MASTER_KEY` | Fernet key that encrypts provider credentials, embedding cache rows, and Redis cache payloads (required in `prod`) | — |
-| `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys for staged rotation | `[]` |
-| `BIGRAG_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
-| `BIGRAG_INGESTION_WORKERS` | Background workers | `4` |
-| `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max single-file upload size | `64` |
-| `BIGRAG_MAX_BATCH_UPLOAD_SIZE_MB` | Max total batch-upload size | `128` |
-| `BIGRAG_INGESTION_BATCH_SIZE` | Vectors per embedding batch | `128` |
-| `BIGRAG_CONVERSION_TIMEOUT` | Docling conversion timeout in seconds | `300` |
-| `BIGRAG_CONVERSION_PDF_OCR_ENABLED` | Enable OCR for scanned PDFs | `true` |
-| `BIGRAG_QUEUE_MAX_DEPTH` | Max pending jobs in the ingestion queue | `10000` |
-| `BIGRAG_COLLECTION_CACHE_TTL` | Collection metadata cache TTL in seconds | `30` |
-| `BIGRAG_QUERY_EMBEDDING_CACHE_TTL` | Query embedding cache TTL in seconds | `300` |
-| `BIGRAG_QUERY_RESULT_CACHE_TTL` | Exact query-result cache TTL in seconds | `30` |
-| `BIGRAG_EMBEDDING_CACHE_MODE` | Persistent chunk embedding cache mode (`encrypted` or `disabled`) | `encrypted` |
-| `BIGRAG_EMBEDDING_CACHE_RETENTION_DAYS` | Days to keep persistent embedding-cache rows after last use | `30` |
-| `BIGRAG_WEBHOOK_DELIVERY_TIMEOUT` | Webhook HTTP timeout in seconds | `10` |
-| `BIGRAG_WEBHOOK_RETRY_DELAYS` | JSON array of webhook retry delays in seconds | `[10,30,90]` |
-| `BIGRAG_WEBHOOK_MAX_COUNT` | Max configured webhooks | `50` |
-| `BIGRAG_ALLOW_LOCAL_WEBHOOKS` | Allow webhook URLs on private/local networks | `false` |
+`RAG_COMPUTER_SESSION_COOKIE_SECURE=true` and usually
+`RAG_COMPUTER_SESSION_COOKIE_SAMESITE=none`.
+| `RAG_COMPUTER_EMBEDDING_API_KEY` | Default embedding API key | — |
+| `RAG_COMPUTER_EMBEDDING_PROVIDER` | Default embedding provider | `openai` |
+| `RAG_COMPUTER_EMBEDDING_MODEL` | Default embedding model | `text-embedding-3-small` |
+| `RAG_COMPUTER_EMBEDDING_DIMENSION` | Default embedding vector dimension | `1536` |
+| `RAG_COMPUTER_EMBEDDING_BASE_URL` | Base URL for OpenAI-compatible embedding endpoints | — |
+| `RAG_COMPUTER_EMBEDDING_CONCURRENCY` | Max concurrent embedding requests | `8` |
+| `RAG_COMPUTER_ALLOWED_EMBEDDING_BASE_URLS` | JSON allow-list for embedding base URLs | `[]` |
+| `RAG_COMPUTER_ALLOW_PRIVATE_EMBEDDING_BASE_URLS` | Allow private-network embedding endpoints | `false` |
+| `RAG_COMPUTER_CHAT_PROVIDER` | Chat provider | `openai` |
+| `RAG_COMPUTER_CHAT_MODEL` | Default chat model | `gpt-4o-mini` |
+| `RAG_COMPUTER_CHAT_BASE_URL` | Base URL for OpenAI-compatible chat endpoints | — |
+| `RAG_COMPUTER_CHAT_TEMPERATURE` | Default chat temperature | `0.2` |
+| `RAG_COMPUTER_CHAT_MAX_HISTORY_MESSAGES` | Max conversation history messages used for context | `12` |
+| `RAG_COMPUTER_CHAT_MAX_CONTEXT_CHARS` | Max retrieved-context characters per chat call | `120000` |
+| `RAG_COMPUTER_ALLOWED_CHAT_BASE_URLS` | JSON allow-list for chat base URLs | `[]` |
+| `RAG_COMPUTER_ALLOW_PRIVATE_CHAT_BASE_URLS` | Allow private-network chat endpoints | `false` |
+| `RAG_COMPUTER_MASTER_KEY` | Fernet key that encrypts provider credentials, embedding cache rows, and Redis cache payloads (required in `prod`) | — |
+| `RAG_COMPUTER_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys for staged rotation | `[]` |
+| `RAG_COMPUTER_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
+| `RAG_COMPUTER_INGESTION_WORKERS` | Background workers | `4` |
+| `RAG_COMPUTER_MAX_UPLOAD_SIZE_MB` | Max single-file upload size | `64` |
+| `RAG_COMPUTER_MAX_BATCH_UPLOAD_SIZE_MB` | Max total batch-upload size | `128` |
+| `RAG_COMPUTER_INGESTION_BATCH_SIZE` | Vectors per embedding batch | `128` |
+| `RAG_COMPUTER_CONVERSION_TIMEOUT` | Docling conversion timeout in seconds | `300` |
+| `RAG_COMPUTER_CONVERSION_PDF_OCR_ENABLED` | Enable OCR for scanned PDFs | `true` |
+| `RAG_COMPUTER_QUEUE_MAX_DEPTH` | Max pending jobs in the ingestion queue | `10000` |
+| `RAG_COMPUTER_COLLECTION_CACHE_TTL` | Collection metadata cache TTL in seconds | `30` |
+| `RAG_COMPUTER_QUERY_EMBEDDING_CACHE_TTL` | Query embedding cache TTL in seconds | `300` |
+| `RAG_COMPUTER_QUERY_RESULT_CACHE_TTL` | Exact query-result cache TTL in seconds | `30` |
+| `RAG_COMPUTER_EMBEDDING_CACHE_MODE` | Persistent chunk embedding cache mode (`encrypted` or `disabled`) | `encrypted` |
+| `RAG_COMPUTER_EMBEDDING_CACHE_RETENTION_DAYS` | Days to keep persistent embedding-cache rows after last use | `30` |
+| `RAG_COMPUTER_WEBHOOK_DELIVERY_TIMEOUT` | Webhook HTTP timeout in seconds | `10` |
+| `RAG_COMPUTER_WEBHOOK_RETRY_DELAYS` | JSON array of webhook retry delays in seconds | `[10,30,90]` |
+| `RAG_COMPUTER_WEBHOOK_MAX_COUNT` | Max configured webhooks | `50` |
+| `RAG_COMPUTER_ALLOW_LOCAL_WEBHOOKS` | Allow webhook URLs on private/local networks | `false` |
 
 ## Supported Formats
 
@@ -386,7 +386,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 ## Sponsor
 
-If bigRAG is useful to you, consider [sponsoring the project](https://github.com/sponsors/bigint).
+If rag.computer is useful to you, consider [sponsoring the project](https://github.com/sponsors/yoginth).
 
 ## License
 

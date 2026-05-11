@@ -1,6 +1,6 @@
 ---
 title: Python SDK
-description: Async Python client for the bigRAG API with full type hints and zero config.
+description: Async Python client for the rag.computer API with full type hints and zero config.
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
@@ -9,7 +9,7 @@ import { Callout } from "fumadocs-ui/components/callout";
 ## Installation
 
 ```bash
-pip install bigrag==2026.5.7
+pip install rag-computer==2026.5.7
 ```
 
 Requires Python 3.11+. The only runtime dependency is `httpx`. Published SDK releases use CalVer (`YYYY.M.D`).
@@ -18,10 +18,10 @@ Requires Python 3.11+. The only runtime dependency is `httpx`. Published SDK rel
 
 ```python
 import asyncio
-from bigrag import BigRAG
+from rag_computer import RagComputer
 
 async def main():
-    async with BigRAG(api_key="bigrag_sk_…") as client:  # minted at /v1/admin/api-keys
+    async with RagComputer(api_key="ragc_sk_…") as client:  # minted at /v1/admin/api-keys
         # Create a collection
         collection = await client.collections.create({
             "name": "knowledge_base",
@@ -49,15 +49,15 @@ asyncio.run(main())
 ## Client Options
 
 ```python
-client = BigRAG(
-    api_key="...",                  # or set BIGRAG_API_KEY env var
+client = RagComputer(
+    api_key="...",                  # or set RAG_COMPUTER_API_KEY env var
     base_url="http://localhost:4000",  # API server URL
     timeout=120.0,                  # request timeout in seconds
     max_retries=2,                  # retries on infrastructure 429/5xx/connection errors
 )
 ```
 
-The client reads `BIGRAG_API_KEY` from the environment if `api_key` is not passed.
+The client reads `RAG_COMPUTER_API_KEY` from the environment if `api_key` is not passed.
 
 ## Resource Namespaces
 
@@ -303,8 +303,8 @@ analytics = await col.analytics()
 ## Error Handling
 
 ```python
-from bigrag import (
-    BigRAGError,        # base for all errors
+from rag_computer import (
+    RagComputerError,        # base for all errors
     APIError,           # any HTTP error
     BadRequestError,    # 400
     AuthenticationError, # 401

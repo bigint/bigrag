@@ -7,8 +7,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from bigrag.exceptions import NotFoundError
-from bigrag.services import collection_cache
+from rag_computer.exceptions import NotFoundError
+from rag_computer.services import collection_cache
 
 
 def run(coro):

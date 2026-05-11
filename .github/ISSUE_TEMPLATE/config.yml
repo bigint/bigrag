@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/bigint/bigrag/security/policy
+    url: https://github.com/yoginth/rag-computer/security/policy
     about: Please report security issues privately — see SECURITY.md.
   - name: Question or discussion
-    url: https://github.com/bigint/bigrag/discussions
+    url: https://github.com/yoginth/rag-computer/discussions
     about: Ask questions and discuss ideas in GitHub Discussions.

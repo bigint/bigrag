@@ -11,17 +11,17 @@ from cryptography.fernet import Fernet
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from bigrag.db.models import EmbeddingCache
-from bigrag.middleware.maintenance import MaintenanceWriteLockMiddleware
-from bigrag.services import crypto, embedding_cache
-from bigrag.services.backup import (
+from rag_computer.db.models import EmbeddingCache
+from rag_computer.middleware.maintenance import MaintenanceWriteLockMiddleware
+from rag_computer.services import crypto, embedding_cache
+from rag_computer.services.backup import (
     BACKUP_FORMAT_VERSION,
     BackupUploadStats,
     _manifest,
     _point_payload,
     _row_payload,
 )
-from bigrag.services.storage import LocalStorage
+from rag_computer.services.storage import LocalStorage
 
 
 @pytest.fixture(autouse=True)
@@ -34,7 +34,7 @@ def reset_crypto() -> None:
 def test_manifest_records_readable_redacted_backup() -> None:
     stats = BackupUploadStats()
     target = SimpleNamespace(
-        bucket="bigrag-backups",
+        bucket="rag-computer-backups",
         endpoint_url="https://example.r2.cloudflarestorage.com",
         region="auto",
     )
@@ -56,7 +56,7 @@ def test_manifest_records_readable_redacted_backup() -> None:
         "embedding_cache_vectors": True,
         "raw_uploads": False,
     }
-    assert manifest["destination"]["bucket"] == "bigrag-backups"
+    assert manifest["destination"]["bucket"] == "rag-computer-backups"
     assert manifest["tables"] == {"collections": 1}
     assert manifest["vectors"] == {"docs": 2}
     assert manifest["uploads"] == {"files": 3}
@@ -106,7 +106,7 @@ def test_maintenance_lock_blocks_mutating_routes(monkeypatch) -> None:
     async def fake_active_lock():
         return SimpleNamespace(reason="readable backup")
 
-    monkeypatch.setattr("bigrag.middleware.maintenance.active_lock", fake_active_lock)
+    monkeypatch.setattr("rag_computer.middleware.maintenance.active_lock", fake_active_lock)
 
     @app.post("/v1/collections")
     async def mutate():

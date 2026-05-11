@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/cn";
 import { acceptAttribute, filterBlockedFiles, getAllowedFileTypes } from "@/lib/file-types";
 import { formatBytes, formatRelative } from "@/lib/format";
-import type { DocumentStatus, UploadSession } from "@/types/bigrag";
+import type { DocumentStatus, UploadSession } from "@/types/rag-computer";
 
 export const Route = createFileRoute("/_dashboard/collections/$name/documents/")({
   component: () => <DocumentsTab />,
@@ -35,7 +35,7 @@ const statusVariant: Record<DocumentStatus, "success" | "warning" | "info" | "er
 const DocumentsTab = () => {
   const { name: rawName } = Route.useParams();
   const name = decodeURIComponent(rawName);
-  const sessionStorageKey = useMemo(() => `bigrag:upload-session:${name}`, [name]);
+  const sessionStorageKey = useMemo(() => `rag-computer:upload-session:${name}`, [name]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() =>
     typeof window === "undefined" ? null : window.localStorage.getItem(sessionStorageKey),
   );

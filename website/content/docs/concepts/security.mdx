@@ -5,14 +5,14 @@ description: Admin accounts, sessions, API keys, scopes, and audit.
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-bigRAG's auth model has two credential types, one scope system, and an immutable audit log. This page is the high-level map; the API shapes live under [API Reference → Authentication](/docs/api-reference/authentication).
+rag.computer's auth model has two credential types, one scope system, and an immutable audit log. This page is the high-level map; the API shapes live under [API Reference → Authentication](/docs/api-reference/authentication).
 
 ## The two credentials
 
 | Credential | Used by | Lifetime | Revocation |
 |------------|---------|----------|-----------|
-| **Session cookie** | admin UI, browser flows | `BIGRAG_SESSION_EXPIRY_HOURS` (default 7 days) | `/v1/auth/logout`, `/v1/auth/logout-all`, or cleanup sweeper |
-| **API key** (`bigrag_sk_…`) | SDKs, backend services, CI | Indefinite unless `expires_at` set | `DELETE /v1/admin/api-keys/{id}` or `active: false` |
+| **Session cookie** | admin UI, browser flows | `RAG_COMPUTER_SESSION_EXPIRY_HOURS` (default 7 days) | `/v1/auth/logout`, `/v1/auth/logout-all`, or cleanup sweeper |
+| **API key** (`ragc_sk_…`) | SDKs, backend services, CI | Indefinite unless `expires_at` set | `DELETE /v1/admin/api-keys/{id}` or `active: false` |
 
 ## First-run setup
 
@@ -33,7 +33,7 @@ Two roles only. RBAC is intentionally coarse — fine-grained control lives on A
 
 ## Browser origin checks
 
-Session-cookie mutating requests must include an `Origin` header that matches the API origin or one of the configured `BIGRAG_CORS_ORIGINS`. This protects the direct-CORS admin UI from cross-site request forgery while still allowing API-key clients to use normal bearer authentication.
+Session-cookie mutating requests must include an `Origin` header that matches the API origin or one of the configured `RAG_COMPUTER_CORS_ORIGINS`. This protects the direct-CORS admin UI from cross-site request forgery while still allowing API-key clients to use normal bearer authentication.
 
 ## Session-only endpoints
 
@@ -100,13 +100,13 @@ RAG calls write a non-blocking row to `access_log` with actor/API-key context wh
 
 ## Production posture
 
-Run with `BIGRAG_ENV=prod` — the server refuses to boot if:
+Run with `RAG_COMPUTER_ENV=prod` — the server refuses to boot if:
 
-- `BIGRAG_SESSION_COOKIE_SECURE` is `false`
-- `BIGRAG_HOST` binds publicly without `BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD=true`
-- `BIGRAG_SESSION_COOKIE_DOMAIN` is set without trusted proxies
-- `BIGRAG_MASTER_KEY` is unset
-- Postgres is still using the shipped `bigrag:bigrag` default password
+- `RAG_COMPUTER_SESSION_COOKIE_SECURE` is `false`
+- `RAG_COMPUTER_HOST` binds publicly without `RAG_COMPUTER_ALLOW_PUBLIC_BIND_IN_PROD=true`
+- `RAG_COMPUTER_SESSION_COOKIE_DOMAIN` is set without trusted proxies
+- `RAG_COMPUTER_MASTER_KEY` is unset
+- Postgres is still using the shipped `rag_computer:rag_computer` default password
 
 See [Production](/docs/deployment/production) for the full hardening checklist.
 

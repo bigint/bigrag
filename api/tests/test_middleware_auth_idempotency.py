@@ -8,8 +8,8 @@ import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
 
-from bigrag.middleware import _principal, auth, cors, idempotency
-from bigrag.services.auth import API_KEY_PREFIX
+from rag_computer.middleware import _principal, auth, cors, idempotency
+from rag_computer.services.auth import API_KEY_PREFIX
 
 
 class ExecuteRows:
@@ -69,7 +69,7 @@ def request_for(*, headers=None, cookies=None, method="GET", path="/v1/collectio
 def test_principal_id_prefers_api_key_query_cookie_and_ip(monkeypatch) -> None:
     monkeypatch.setattr(_principal, "hash_api_key", lambda token: f"h-{token[-4:]}")
     monkeypatch.setattr(_principal, "hash_session_token", lambda token: f"s-{token}")
-    monkeypatch.setattr(_principal.settings, "session_cookie_name", "bigrag_session")
+    monkeypatch.setattr(_principal.settings, "session_cookie_name", "rag_computer_session")
 
     assert (
         _principal.principal_id(
@@ -88,7 +88,7 @@ def test_principal_id_prefers_api_key_query_cookie_and_ip(monkeypatch) -> None:
     )
     assert (
         _principal.principal_id(
-            {"type": "http", "headers": [(b"cookie", b"bigrag_session=session-token")]}
+            {"type": "http", "headers": [(b"cookie", b"rag_computer_session=session-token")]}
         )
         == "sess:s-session-token"
     )
@@ -149,7 +149,7 @@ def test_auth_loads_session_and_api_key_principals(monkeypatch) -> None:
         monkeypatch.setattr(auth.redis_cache, "get_redis", lambda: None)
         monkeypatch.setattr(auth, "hash_session_token", lambda token: f"s-{token}")
         monkeypatch.setattr(auth, "hash_api_key", lambda token: f"k-{token[-4:]}")
-        monkeypatch.setattr(auth.settings, "session_cookie_name", "bigrag_session")
+        monkeypatch.setattr(auth.settings, "session_cookie_name", "rag_computer_session")
         monkeypatch.setattr(auth.settings, "auth_principal_cache_ttl", 120)
 
         user = SimpleNamespace(
@@ -159,7 +159,7 @@ def test_auth_loads_session_and_api_key_principals(monkeypatch) -> None:
             role="admin",
         )
         session_principal = await auth._user_from_session(
-            request_for(cookies={"bigrag_session": "token"}),
+            request_for(cookies={"rag_computer_session": "token"}),
             FakeSession((user, datetime.now(UTC) + timedelta(minutes=5))),
         )
         assert session_principal["auth_method"] == "session"
@@ -210,7 +210,10 @@ def test_auth_current_user_requirements_and_scope_enforcement(monkeypatch) -> No
 
         monkeypatch.setattr(auth, "_user_from_session", no_session)
         monkeypatch.setattr(auth, "_user_from_api_key", api_user)
-        monkeypatch.setattr("bigrag.services.collection_scope.enforce_collection_scope", enforce)
+        monkeypatch.setattr(
+            "rag_computer.services.collection_scope.enforce_collection_scope",
+            enforce,
+        )
 
         principal = await auth.get_current_user(
             request_for(method="GET", path="/v1/collections/docs"),

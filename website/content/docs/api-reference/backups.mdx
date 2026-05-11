@@ -3,7 +3,7 @@ title: Backups
 description: Admin endpoints for readable S3-compatible full-instance backups.
 ---
 
-Readable backups export Postgres rows, vector-store points, and uploaded source files to an S3-compatible bucket. They are backup-only; bigRAG does not expose restore endpoints.
+Readable backups export Postgres rows, vector-store points, and uploaded source files to an S3-compatible bucket. They are backup-only; rag.computer does not expose restore endpoints.
 
 Backups are plain JSON, JSONL, SQL, and raw files. They are not client-side encrypted, so the destination bucket must be treated as sensitive. Secret-bearing database columns and embedding-cache vectors are redacted during export.
 
@@ -67,7 +67,7 @@ Content-Type: application/json
 
 Creates a backup job and starts it in the API process. Only one backup can be pending or running at a time.
 
-While the job runs, bigRAG acquires a maintenance lock. Mutating API requests are rejected with `423`, new ingestion jobs are rejected, workers pause before dequeuing new jobs, and scheduled Google Drive syncs do not start.
+While the job runs, rag.computer acquires a maintenance lock. Mutating API requests are rejected with `423`, new ingestion jobs are rejected, workers pause before dequeuing new jobs, and scheduled Google Drive syncs do not start.
 
 The backup fails if:
 

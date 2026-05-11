@@ -38,7 +38,7 @@ export const ServerTab = () => {
           <CardTitle>System health</CardTitle>
           <CardDescription>
             {readiness
-              ? `Running bigRAG v${readiness.version} — status: ${status}`
+              ? `Running rag.computer v${readiness.version} — status: ${status}`
               : error
                 ? "Could not reach the API."
                 : "Checking readiness…"}
@@ -78,11 +78,11 @@ export const ServerTab = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
-          <EnvRow label="Postgres" value="BIGRAG_DATABASE_URL" />
-          <EnvRow label="Redis" value="BIGRAG_REDIS_URL" />
+          <EnvRow label="Postgres" value="RAG_COMPUTER_DATABASE_URL" />
+          <EnvRow label="Redis" value="RAG_COMPUTER_REDIS_URL" />
           <EnvRow label="Vector store" value="Admin Settings / Vector store" />
-          <EnvRow label="Encryption" value="BIGRAG_MASTER_KEY" />
-          <EnvRow label="Bind address" value="BIGRAG_HOST / BIGRAG_PORT" />
+          <EnvRow label="Encryption" value="RAG_COMPUTER_MASTER_KEY" />
+          <EnvRow label="Bind address" value="RAG_COMPUTER_HOST / RAG_COMPUTER_PORT" />
           <EnvRow label="Split admin UI" value="admin UI backend URL" />
         </CardContent>
       </Card>

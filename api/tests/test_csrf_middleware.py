@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from starlette.datastructures import URL, Headers
 
-from bigrag.middleware.csrf import _allowed_origin
+from rag_computer.middleware.csrf import _allowed_origin
 
 
 def make_request(url: str, host: str):

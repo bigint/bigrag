@@ -1,11 +1,11 @@
 ---
 title: Cookbook — multi-tenant SaaS
-description: Patterns for serving many customers from one bigRAG deployment — isolation, per-tenant API keys, usage metering, and cost controls.
+description: Patterns for serving many customers from one rag.computer deployment — isolation, per-tenant API keys, usage metering, and cost controls.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-This recipe turns bigRAG into a per-tenant RAG backbone for a typical
+This recipe turns rag.computer into a per-tenant RAG backbone for a typical
 SaaS app — one collection per customer (or one collection shared with
 tenant filtering), scoped API keys, usage dashboards, and cost caps.
 
@@ -44,7 +44,7 @@ key = client.api_keys.create({
     "name": f"tenant-{tenant_id}",
     "scopes": ["query:read", f"document:upload"],
 })
-# key.key is the plaintext bigrag_sk_... — hand it to the tenant once.
+# key.key is the plaintext ragc_sk_... — hand it to the tenant once.
 ```
 
 The middleware enforces the scopes so a leaked tenant key can only
@@ -59,14 +59,14 @@ so one Qdrant collection can use indexed tenant payload filters.
 ## Pattern B — shared collection with tenant filters
 
 One collection, tenant isolation via a required metadata filter. Setting
-`tenant_field` tells bigRAG to create a Qdrant payload index for that
+`tenant_field` tells rag.computer to create a Qdrant payload index for that
 field and reject uploads, raw vector upserts, queries, and chat calls that
 omit the tenant field.
 
 ```python
 client.collections.create({
     "name": "shared_tenants",
-    "tenant_field": "tenant_id",   # bigRAG indexes this payload field
+    "tenant_field": "tenant_id",   # rag.computer indexes this payload field
     # ... other config
 })
 
@@ -84,7 +84,7 @@ results = client.queries.search("shared_tenants", {
 })
 ```
 
-You still need to pass the tenant filter on every tenant-scoped query and chat request. bigRAG rejects missing filters, but your application still owns mapping the authenticated tenant to the exact allowed tenant value.
+You still need to pass the tenant filter on every tenant-scoped query and chat request. rag.computer rejects missing filters, but your application still owns mapping the authenticated tenant to the exact allowed tenant value.
 
 ## Per-tenant usage + billing
 

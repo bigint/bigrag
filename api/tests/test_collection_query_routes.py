@@ -59,7 +59,7 @@ def test_list_collections_rejects_unauthenticated(route_client) -> None:
 
 
 def test_create_collection_rejects_unsupported_provider(route_client, monkeypatch) -> None:
-    from bigrag.routers import collections
+    from rag_computer.routers import collections
 
     async def fake_get_values(_keys):
         return {
@@ -87,7 +87,7 @@ def test_create_collection_rejects_unsupported_provider(route_client, monkeypatc
 
 
 def test_query_collection_success_sets_response_shape(route_client, monkeypatch) -> None:
-    from bigrag.routers import query
+    from rag_computer.routers import query
 
     async def fake_get_collection_or_404(_name):
         return {
@@ -130,7 +130,7 @@ def test_query_collection_success_sets_response_shape(route_client, monkeypatch)
 
 
 def test_query_collection_maps_embedding_errors(route_client, monkeypatch) -> None:
-    from bigrag.routers import query
+    from rag_computer.routers import query
 
     async def fake_get_collection_or_404(_name):
         return {"id": "col", "tenant_field": None}
@@ -149,7 +149,7 @@ def test_query_collection_maps_embedding_errors(route_client, monkeypatch) -> No
 
 
 def test_vector_upsert_enforces_limits(route_client, monkeypatch) -> None:
-    from bigrag.routers import query
+    from rag_computer.routers import query
 
     async def fake_get_collection_or_404(_name):
         return {"id": "col", "dimension": 2, "tenant_field": None}

@@ -1,7 +1,7 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { GitHubIcon, SponsorIcon } from "@/components/icons";
 
-const BigRAGLogo = () => (
+const RagComputerLogo = () => (
   <svg
     aria-hidden="true"
     className="size-6 text-primary"
@@ -23,21 +23,21 @@ export function baseOptions(): BaseLayoutProps {
         label: "GitHub",
         text: "GitHub",
         type: "icon",
-        url: "https://github.com/bigint/bigrag",
+        url: "https://github.com/yoginth/rag-computer",
       },
       {
         icon: <SponsorIcon className="size-5" />,
         label: "Sponsor",
         text: "Sponsor",
         type: "icon",
-        url: "https://github.com/sponsors/bigint",
+        url: "https://github.com/sponsors/yoginth",
       },
     ],
     nav: {
       title: (
         <div className="flex items-center gap-2">
-          <BigRAGLogo />
-          <span className="font-semibold tracking-tight">bigRAG</span>
+          <RagComputerLogo />
+          <span className="font-semibold tracking-tight">rag.computer</span>
         </div>
       ),
       transparentMode: "top",

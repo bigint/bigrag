@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-/// A bigRAG collection.
+/// A rag.computer collection.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Collection {
     /// Unique collection ID.

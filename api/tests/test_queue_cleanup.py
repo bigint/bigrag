@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from bigrag.services import queue
+from rag_computer.services import queue
 
 
 def test_delete_document_vectors_after_failure_swallows_cleanup_errors(monkeypatch) -> None:

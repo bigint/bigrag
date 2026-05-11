@@ -1,18 +1,18 @@
 ---
 title: Migrate from Pinecone
-description: Move an existing Pinecone index to bigRAG with one importer script — API mapping, chunking considerations, and a reusable migration pattern.
+description: Move an existing Pinecone index to rag.computer with one importer script — API mapping, chunking considerations, and a reusable migration pattern.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-bigRAG's data model is a superset of Pinecone's — every Pinecone
+rag.computer's data model is a superset of Pinecone's — every Pinecone
 concept has a direct equivalent, plus a few extras (persistent chunk
 text, ingestion pipeline, webhooks). Migrating is primarily a data
 copy and an API-layer search-and-replace.
 
 ## Concept mapping
 
-| Pinecone | bigRAG |
+| Pinecone | rag.computer |
 | --- | --- |
 | Index | Collection |
 | Namespace | Metadata field `namespace` (set `tenant_field` when every upload/query must include it) |
@@ -23,7 +23,7 @@ copy and an API-layer search-and-replace.
 | `describe_index_stats` | `GET /v1/collections/{name}/stats` |
 
 <Callout type="info">
-bigRAG stores chunk **text** alongside the vector — so results carry
+rag.computer stores chunk **text** alongside the vector — so results carry
 the source passage natively. Pinecone only keeps metadata; if your
 pipeline previously embedded text elsewhere, you can drop that storage.
 </Callout>
@@ -33,12 +33,12 @@ pipeline previously embedded text elsewhere, you can drop that storage.
 ```python
 # examples/migrate_from_pinecone.py
 from pinecone import Pinecone
-from bigrag import BigRAG
+from rag_computer import RagComputer
 
 pc = Pinecone(api_key="pcsk_...")
 source = pc.Index("prod-docs")
 
-client = BigRAG(api_key="bigrag_sk_...")
+client = RagComputer(api_key="ragc_sk_...")
 
 # Create the target collection using the same embedding provider you used
 # in Pinecone so vectors stay comparable. Dimension MUST match.
@@ -88,7 +88,7 @@ Recommended if you're in the middle of a chunking rethink anyway.
 ## API differences to watch
 
 - **Filters stay as JSON objects**. Pass a dict like
-  `{"department": "sales"}` and bigRAG translates it into Qdrant
+  `{"department": "sales"}` and rag.computer translates it into Qdrant
   payload filters.
 - **Namespaces → metadata filters**. Pinecone's `namespace="docs"`
   becomes `metadata.namespace = "docs"`. Set
@@ -102,8 +102,8 @@ Recommended if you're in the middle of a chunking rethink anyway.
 ## Cut-over
 
 1. Run the importer with `BATCH=100` overnight.
-2. Update your application's search code to hit bigRAG. Filters, top_k,
+2. Update your application's search code to hit rag.computer. Filters, top_k,
    and metadata pass through.
 3. Dual-read for 24h (query both, log discrepancies) to verify parity.
-4. Flip reads fully to bigRAG, stop writes to Pinecone, and once dust
+4. Flip reads fully to rag.computer, stop writes to Pinecone, and once dust
    settles, delete the Pinecone index.

@@ -1,11 +1,11 @@
-export class BigRAGError extends Error {
+export class RagComputerError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "BigRAGError";
+    this.name = "RagComputerError";
   }
 }
 
-export class APIError extends BigRAGError {
+export class APIError extends RagComputerError {
   readonly status: number;
   readonly code: string | undefined;
 
@@ -52,14 +52,14 @@ export class InternalServerError extends APIError {
   }
 }
 
-export class APIConnectionError extends BigRAGError {
+export class APIConnectionError extends RagComputerError {
   constructor(message: string = "Connection error") {
     super(message);
     this.name = "APIConnectionError";
   }
 }
 
-export class APITimeoutError extends BigRAGError {
+export class APITimeoutError extends RagComputerError {
   constructor(message: string = "Request timed out") {
     super(message);
     this.name = "APITimeoutError";

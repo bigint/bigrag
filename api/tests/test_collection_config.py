@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from bigrag.services.collection_config import get_embedding_model_for
+from rag_computer.services.collection_config import get_embedding_model_for
 
 
 def test_get_embedding_model_for_uses_preset_api_key(monkeypatch) -> None:
@@ -10,7 +10,10 @@ def test_get_embedding_model_for_uses_preset_api_key(monkeypatch) -> None:
         captured.update(kwargs)
         return object()
 
-    monkeypatch.setattr("bigrag.services.embedding.get_embedding_model", fake_get_embedding_model)
+    monkeypatch.setattr(
+        "rag_computer.services.embedding.get_embedding_model",
+        fake_get_embedding_model,
+    )
 
     get_embedding_model_for(
         {

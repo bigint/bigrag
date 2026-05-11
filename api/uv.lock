@@ -188,7 +188,7 @@ wheels = [
 ]
 
 [[package]]
-name = "bigrag"
+name = "rag-computer"
 version = "2026.4.30"
 source = { editable = "." }
 dependencies = [

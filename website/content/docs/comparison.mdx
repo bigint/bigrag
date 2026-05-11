@@ -1,15 +1,15 @@
 ---
 title: Comparison
-description: How bigRAG compares to other RAG platforms, frameworks, and vector databases.
+description: How rag.computer compares to other RAG platforms, frameworks, and vector databases.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-There are many ways to build a RAG pipeline. This page compares bigRAG to popular alternatives so you can pick the right tool for your use case.
+There are many ways to build a RAG pipeline. This page compares rag.computer to popular alternatives so you can pick the right tool for your use case.
 
 ## At a Glance
 
-| | bigRAG | OpenRAG | RAGFlow | AnythingLLM | PrivateGPT | Haystack | LangChain | LlamaIndex | Vectara |
+| | rag.computer | OpenRAG | RAGFlow | AnythingLLM | PrivateGPT | Haystack | LangChain | LlamaIndex | Vectara |
 |---|---|---|---|---|---|---|---|---|---|
 | **Type** | Platform | Platform | Platform | Platform | Platform | Framework | Framework | Framework | Managed SaaS |
 | **Self-hostable** | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Enterprise only |
@@ -28,7 +28,7 @@ There are many ways to build a RAG pipeline. This page compares bigRAG to popula
 
 ## RAG Platforms
 
-These are the closest alternatives to bigRAG — self-hostable platforms that handle the full RAG pipeline.
+These are the closest alternatives to rag.computer — self-hostable platforms that handle the full RAG pipeline.
 
 ### OpenRAG
 
@@ -42,7 +42,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 - OAuth/OIDC authentication with per-user document ownership
 - Single-command install via `uvx openrag`
 
-**Where bigRAG is a better fit:**
+**Where rag.computer is a better fit:**
 - Multi-collection architecture with per-collection embedding configuration (OpenRAG uses a single index)
 - Mature webhook system with HMAC signatures, retry logic, and delivery tracking
 - Batch operations — 100-file upload, SSE admin progress, 20-query batch, bulk status/delete
@@ -53,7 +53,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 - Robust Redis-based queue with dead letter handling and job recovery
 - Native Cohere reranking with per-collection and per-query configuration
 
-**Choose OpenRAG** if you need an end-to-end platform with chat UI, backend LLM generation, and OAuth cloud connectors for non-technical users. **Choose bigRAG** if you need an API-first retrieval platform with optional admin operations, multi-collection support, batch operations, and webhook-driven workflows.
+**Choose OpenRAG** if you need an end-to-end platform with chat UI, backend LLM generation, and OAuth cloud connectors for non-technical users. **Choose rag.computer** if you need an API-first retrieval platform with optional admin operations, multi-collection support, batch operations, and webhook-driven workflows.
 
 <Callout type="info">
   For a comprehensive feature-by-feature gap analysis, see [OpenRAG Gap Analysis](/docs/openrag-gap-analysis).
@@ -69,14 +69,14 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 - Agent and workflow orchestration
 - Data sync from Confluence, Notion, Google Drive, and cloud storage
 
-**Where bigRAG is a better fit:**
+**Where rag.computer is a better fit:**
 - Lighter footprint — RAGFlow requires 4+ cores and 16 GB RAM minimum
 - API-first design for developers building integrations, not end-user apps
 - Purpose-built vector storage: Qdrant by default, with S3 Vectors and turbopuffer as managed cloud backends
 - Webhook-driven architecture for event-based workflows
 - Simpler deployment and configuration
 
-**Choose RAGFlow** if you need a UI for non-technical users or agent workflows. **Choose bigRAG** if you want a lean, API-first backend to integrate into your own application.
+**Choose RAGFlow** if you need a UI for non-technical users or agent workflows. **Choose rag.computer** if you want a lean, API-first backend to integrate into your own application.
 
 ### AnythingLLM
 
@@ -89,13 +89,13 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 - Built-in chat widget for embedding in websites
 - Multi-user support with permissions
 
-**Where bigRAG is a better fit:**
+**Where rag.computer is a better fit:**
 - Purpose-built as an API-first retrieval and grounded-chat service with optional admin operations
 - Docling-based parsing handles complex documents (scanned PDFs, PPTX, XLSX) better
 - Webhook notifications for processing events
 - Designed for programmatic access and backend integration
 
-**Choose AnythingLLM** if you want a ready-made chat interface or desktop app. **Choose bigRAG** if you're building your own application and need a reliable document retrieval API.
+**Choose AnythingLLM** if you want a ready-made chat interface or desktop app. **Choose rag.computer** if you're building your own application and need a reliable document retrieval API.
 
 ### PrivateGPT
 
@@ -107,14 +107,14 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 - OpenAI-compatible API format
 - Strong privacy and compliance story
 
-**Where bigRAG is a better fit:**
+**Where rag.computer is a better fit:**
 - More robust document parsing via Docling
 - Hybrid and keyword search modes alongside semantic search
 - Webhook notifications and event-driven architecture
 - TypeScript SDK for frontend and Node.js integration
 - Query analytics and collection-level defaults
 
-**Choose PrivateGPT** if offline/air-gapped operation is a hard requirement. **Choose bigRAG** if you need a production RAG API with advanced search modes and developer tooling.
+**Choose PrivateGPT** if offline/air-gapped operation is a hard requirement. **Choose rag.computer** if you need a production RAG API with advanced search modes and developer tooling.
 
 ## Frameworks
 
@@ -126,7 +126,7 @@ Frameworks give you maximum flexibility but require writing code to build a work
 
 **Best for:** teams that need maximum customization, complex agent workflows, or integrations with niche data sources.
 
-**bigRAG replaces:** the document loader → text splitter → embedding → vector store → retriever chain that you would otherwise assemble yourself. If your RAG needs fit bigRAG's pipeline, you skip hundreds of lines of glue code.
+**rag.computer replaces:** the document loader → text splitter → embedding → vector store → retriever chain that you would otherwise assemble yourself. If your RAG needs fit rag.computer's pipeline, you skip hundreds of lines of glue code.
 
 ### LlamaIndex
 
@@ -134,7 +134,7 @@ Frameworks give you maximum flexibility but require writing code to build a work
 
 **Best for:** complex data structures (knowledge graphs, multi-index queries) or when you need LlamaParse for advanced document parsing.
 
-**bigRAG replaces:** the data ingestion → index → query engine pipeline. LlamaIndex is more flexible but requires more assembly.
+**rag.computer replaces:** the data ingestion → index → query engine pipeline. LlamaIndex is more flexible but requires more assembly.
 
 ### Haystack
 
@@ -142,10 +142,10 @@ Frameworks give you maximum flexibility but require writing code to build a work
 
 **Best for:** enterprise teams that need fine-grained pipeline control, custom components, or MCP server deployment.
 
-**bigRAG replaces:** the file converter → splitter → embedder → writer → retriever pipeline. Haystack is more composable but requires Hayhooks to expose a REST API.
+**rag.computer replaces:** the file converter → splitter → embedder → writer → retriever pipeline. Haystack is more composable but requires Hayhooks to expose a REST API.
 
 <Callout type="info">
-  If you're evaluating frameworks, the key question is: **do you need to customize every step of the pipeline?** If yes, use a framework. If you want a working RAG API in minutes, use bigRAG.
+  If you're evaluating frameworks, the key question is: **do you need to customize every step of the pipeline?** If yes, use a framework. If you want a working RAG API in minutes, use rag.computer.
 </Callout>
 
 ## Managed Services
@@ -160,19 +160,19 @@ Frameworks give you maximum flexibility but require writing code to build a work
 - 100+ language support
 - SOC 2-aligned compliance
 
-**Where bigRAG is a better fit:**
+**Where rag.computer is a better fit:**
 - Fully open source — inspect, modify, and extend the code
 - Self-hosted — your data stays on your infrastructure
 - No vendor lock-in on embedding models or vector storage
 - No per-query pricing — run as many queries as your hardware supports
 
-**Choose Vectara** if you want zero-ops managed RAG and don't mind vendor lock-in. **Choose bigRAG** if you want full control over your data and infrastructure.
+**Choose Vectara** if you want zero-ops managed RAG and don't mind vendor lock-in. **Choose rag.computer** if you want full control over your data and infrastructure.
 
-## When to Use bigRAG
+## When to Use rag.computer
 
-bigRAG is built for developers who want a **production-ready RAG API** without assembling a pipeline from scratch or deploying a heavy platform with features they don't need.
+rag.computer is built for developers who want a **production-ready RAG API** without assembling a pipeline from scratch or deploying a heavy platform with features they don't need.
 
-bigRAG is a great fit when you:
+rag.computer is a great fit when you:
 
 - Need a **REST API** for document ingestion and retrieval in your own application
 - Want **self-hosted** deployment with full control over your data

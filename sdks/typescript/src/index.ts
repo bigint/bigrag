@@ -1,6 +1,6 @@
-export { BigRAG } from "./client.js";
-export type { BigRAGOptions, RequestClient } from "./core.js";
-export { BigRAGCore } from "./core.js";
+export { RagComputer } from "./client.js";
+export type { RagComputerOptions, RequestClient } from "./core.js";
+export { RagComputerCore } from "./core.js";
 export * from "./errors.js";
 export { normalizeFileInput } from "./files.js";
 export {

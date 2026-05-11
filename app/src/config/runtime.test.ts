@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { apiUrl, bigragApiUrl } from "./runtime";
+import { apiUrl, ragComputerApiUrl } from "./runtime";
 
 describe("runtime config", () => {
   it("uses the default API URL in tests", () => {
-    expect(bigragApiUrl).toBe("http://localhost:4000");
+    expect(ragComputerApiUrl).toBe("http://localhost:4000");
   });
 
   it("joins API paths without duplicate slashes", () => {

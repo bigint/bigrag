@@ -20,7 +20,7 @@ import {
 } from "@/hooks/use-api-keys";
 import { useCollections } from "@/hooks/use-collections";
 import { formatRelative } from "@/lib/format";
-import type { ApiKey, CreatedApiKey } from "@/types/bigrag";
+import type { ApiKey, CreatedApiKey } from "@/types/rag-computer";
 
 const UNSCOPED = "__all__";
 
@@ -158,7 +158,7 @@ const ApiKeysPage = () => {
         }
         emptyIcon={<KeyRound className="size-6" />}
         emptyTitle="No API keys yet"
-        emptyDescription="Create a key for external services that need to call the bigRAG API."
+        emptyDescription="Create a key for external services that need to call the rag.computer API."
         keyExtractor={(k) => k.id}
         loading={isPending}
         loadingMessage="Loading keys…"

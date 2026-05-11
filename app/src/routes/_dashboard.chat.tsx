@@ -33,7 +33,7 @@ import type {
   ChatConversation,
   QueryTimings,
   ChatMessage as ServerChatMessage,
-} from "@/types/bigrag";
+} from "@/types/rag-computer";
 
 export const Route = createFileRoute("/_dashboard/chat")({
   component: () => <ChatPage />,
@@ -45,7 +45,7 @@ const newId = () =>
     : Math.random().toString(36).slice(2);
 
 const DEFAULT_SYSTEM =
-  "You are bigRAG's grounded chat assistant. Answer using only the retrieved context. " +
+  "You are rag.computer's grounded chat assistant. Answer using only the retrieved context. " +
   "If the context does not contain the answer, say you do not know. Cite every factual " +
   "claim with bracketed source numbers like [1] or [2].";
 

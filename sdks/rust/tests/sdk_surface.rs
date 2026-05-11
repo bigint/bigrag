@@ -1,34 +1,36 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use bigrag::types::admin::{
+use httpmock::MockServer;
+use rag_computer::types::admin::{
     CreateApiKeyBody, CreateEmbeddingPresetBody, CreateMcpServerBody, CreateUserBody,
     UpdateApiKeyBody, UpdateEmbeddingPresetBody, UpdateMcpServerBody, UpdateUserBody,
 };
-use bigrag::types::auth::{ChangePasswordBody, LoginBody, SetupBody, UpdatePreferencesBody};
-use bigrag::types::chat::ChatBody;
-use bigrag::types::collections::{
+use rag_computer::types::auth::{ChangePasswordBody, LoginBody, SetupBody, UpdatePreferencesBody};
+use rag_computer::types::chat::ChatBody;
+use rag_computer::types::collections::{
     CollectionListOptions, CreateCollectionBody, UpdateCollectionBody,
 };
-use bigrag::types::common::PaginationOptions;
-use bigrag::types::connectors::{
+use rag_computer::types::common::PaginationOptions;
+use rag_computer::types::connectors::{
     CreateGoogleSourceBody, UpdateGoogleConnectorConfigBody, UpdateGoogleSourceBody,
 };
-use bigrag::types::documents::{
+use rag_computer::types::documents::{
     DocumentChunkOptions, DocumentListOptions, UploadSessionCreateRequest,
 };
-use bigrag::types::evaluations::{EvalBody, EvalCase};
-use bigrag::types::query::{BatchQueryBody, BatchQueryItem, MultiQueryBody, QueryBody, SearchMode};
-use bigrag::types::vectors::VectorEntry;
-use bigrag::types::webhooks::{CreateWebhookBody, UpdateWebhookBody};
-use bigrag::{AccessLogOptions, AuditLogOptions, BigRag, BigRagError, FileInput};
-use httpmock::MockServer;
+use rag_computer::types::evaluations::{EvalBody, EvalCase};
+use rag_computer::types::query::{
+    BatchQueryBody, BatchQueryItem, MultiQueryBody, QueryBody, SearchMode,
+};
+use rag_computer::types::vectors::VectorEntry;
+use rag_computer::types::webhooks::{CreateWebhookBody, UpdateWebhookBody};
+use rag_computer::{AccessLogOptions, AuditLogOptions, FileInput, RagComputer, RagComputerError};
 use serde_json::json;
 
-fn client(server: &MockServer) -> BigRag {
-    BigRag::builder()
+fn client(server: &MockServer) -> RagComputer {
+    RagComputer::builder()
         .base_url(&format!("{}/", server.base_url()))
-        .api_key("bigrag_sk_test")
+        .api_key("ragc_sk_test")
         .timeout(Duration::from_secs(5))
         .max_retries(0)
         .reqwest_client(reqwest::Client::new())
@@ -607,30 +609,30 @@ fn covers_file_input_filenames_and_error_helpers() {
     assert_eq!(stream.filename(), "stream.txt");
 
     let errors = [
-        BigRagError::BadRequest {
+        RagComputerError::BadRequest {
             message: "bad".into(),
             status: 422,
         },
-        BigRagError::Authentication {
+        RagComputerError::Authentication {
             message: "no".into(),
         },
-        BigRagError::NotFound {
+        RagComputerError::NotFound {
             message: "missing".into(),
         },
-        BigRagError::Conflict {
+        RagComputerError::Conflict {
             message: "duplicate".into(),
         },
-        BigRagError::RateLimited,
-        BigRagError::ServerError {
+        RagComputerError::RateLimited,
+        RagComputerError::ServerError {
             message: "down".into(),
             status: 503,
         },
-        BigRagError::Api {
+        RagComputerError::Api {
             status: 418,
             message: "teapot".into(),
         },
-        BigRagError::Timeout(Duration::from_secs(1)),
-        BigRagError::Connection("closed".into()),
+        RagComputerError::Timeout(Duration::from_secs(1)),
+        RagComputerError::Connection("closed".into()),
     ];
 
     assert_eq!(errors[0].status(), Some(422));

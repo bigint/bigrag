@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import importlib
 
-from bigrag.services import queue
-from bigrag.services.ingestion_job import IngestionJob
+from rag_computer.services import queue
+from rag_computer.services.ingestion_job import IngestionJob
 
 
 class FakeRedis:
@@ -94,8 +94,11 @@ def configure_queue_process(monkeypatch):
     async def invalidate(collection_name):
         events.completed.append(f"invalidate:{collection_name}")
 
-    monkeypatch.setattr(importlib.import_module("bigrag.db.engine"), "session_factory", outer)
-    monkeypatch.setattr("bigrag.services.retrieval.invalidate_collection_query_cache", invalidate)
+    monkeypatch.setattr(importlib.import_module("rag_computer.db.engine"), "session_factory", outer)
+    monkeypatch.setattr(
+        "rag_computer.services.retrieval.invalidate_collection_query_cache",
+        invalidate,
+    )
     monkeypatch.setattr(queue, "event_bus", events)
     return sessions, events
 
@@ -179,10 +182,10 @@ def test_queue_enqueue_flush_cancel_and_full_queue(monkeypatch) -> None:
             enqueued.append(("cancel", document_ids))
 
         monkeypatch.setattr(
-            "bigrag.services.maintenance.ensure_writes_allowed",
+            "rag_computer.services.maintenance.ensure_writes_allowed",
             ensure_writes_allowed,
         )
-        monkeypatch.setattr("bigrag.services.runtime_settings.get_value", get_value)
+        monkeypatch.setattr("rag_computer.services.runtime_settings.get_value", get_value)
         monkeypatch.setattr(queue.queue_state, "collection_epoch", collection_epoch)
         monkeypatch.setattr(queue.queue_state, "document_epoch", document_epoch)
         monkeypatch.setattr(queue.queue_state, "enqueue_job", enqueue_job)

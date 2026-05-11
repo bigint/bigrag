@@ -6,10 +6,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from bigrag.db.models import ChatMessage
-from bigrag.exceptions import ServerError, UpstreamError, ValidationError
-from bigrag.models.chat import ChatSource
-from bigrag.services import chat
+from rag_computer.db.models import ChatMessage
+from rag_computer.exceptions import ServerError, UpstreamError, ValidationError
+from rag_computer.models.chat import ChatSource
+from rag_computer.services import chat
 
 
 def run(coro):

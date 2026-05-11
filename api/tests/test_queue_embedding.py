@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 
-from bigrag.services import queue_embedding
-from bigrag.services.ingestion_job import IngestionJob
+from rag_computer.services import queue_embedding
+from rag_computer.services.ingestion_job import IngestionJob
 
 
 @dataclass
@@ -145,13 +145,13 @@ def test_chunk_and_embed_writes_expected_vector_payload(monkeypatch) -> None:
         async def ensure_job_current(job):
             checks.append(job.document_id)
 
-        monkeypatch.setattr("bigrag.services.collection_cache.get_or_404", get_collection)
+        monkeypatch.setattr("rag_computer.services.collection_cache.get_or_404", get_collection)
         monkeypatch.setattr(
-            "bigrag.services.collection_config.get_embedding_model_for",
+            "rag_computer.services.collection_config.get_embedding_model_for",
             get_embedding_model,
         )
-        monkeypatch.setattr("bigrag.services.ingestion.chunk_document", chunk_document)
-        monkeypatch.setattr("bigrag.services.runtime_settings.get_value", get_value)
+        monkeypatch.setattr("rag_computer.services.ingestion.chunk_document", chunk_document)
+        monkeypatch.setattr("rag_computer.services.runtime_settings.get_value", get_value)
         monkeypatch.setattr(queue_embedding, "embedding_cache", FakeEmbeddingCache())
         monkeypatch.setattr(
             queue_embedding,

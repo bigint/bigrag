@@ -1,6 +1,6 @@
-# bigRAG Platform Style Guide
+# rag.computer Platform Style Guide
 
-A comprehensive guide for writing clean, maintainable, and type-safe code for the bigRAG application.
+A comprehensive guide for writing clean, maintainable, and type-safe code for the rag.computer application.
 
 ## Breaking the Rules
 
@@ -19,7 +19,7 @@ function processLargeDataset(data: unknown) {
 }
 ```
 
-**Rule breaks should always be intentional, not accidental.** Do not add explanatory source comments or docstrings under `api/bigrag/`, `sdks/typescript/src/`, `app/`, or `website/`; use clearer names, smaller functions, or external review notes instead. Functional tool directives such as `# type: ignore`, `# ruff:`, `// @ts-...`, `// biome-ignore`, and `// eslint-...` are allowed when the tool requires them.
+**Rule breaks should always be intentional, not accidental.** Do not add explanatory source comments or docstrings under `api/rag_computer/`, `sdks/typescript/src/`, `app/`, or `website/`; use clearer names, smaller functions, or external review notes instead. Functional tool directives such as `# type: ignore`, `# ruff:`, `// @ts-...`, `// biome-ignore`, and `// eslint-...` are allowed when the tool requires them.
 
 ## Table of Contents
 
@@ -51,7 +51,7 @@ function processLargeDataset(data: unknown) {
 
 ## Core Principles
 
-The bigRAG codebase is built on these fundamental principles:
+The rag.computer codebase is built on these fundamental principles:
 
 ### 1. Thin React Layer
 
@@ -245,7 +245,7 @@ Use `UPPER_SNAKE_CASE` for true constants:
 // Constants that represent fixed values
 const MAX_NAME_LENGTH = 253
 const MAX_FILE_SIZE = 10_485_760
-const API_BASE_URL = 'https://api.bigrag.xyz' as const
+const API_BASE_URL = 'https://api.rag.computer' as const
 ```
 
 ## TypeScript Usage
@@ -1817,7 +1817,7 @@ const name = "alice";
 const config = { timeout: 5000, retries: 3 };
 
 // Imports auto-organized
-import type { Profile } from "@bigrag/db";
+import type { Profile } from "@rag.computer/db";
 import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -2012,9 +2012,9 @@ __all__ = ["EventBus", "IngestionEvent", "event_bus"]
 Never use `print()` in production code. Use structlog:
 
 ```python
-from bigrag.logging import get_logger
+from rag_computer.logging import get_logger
 
-logger = get_logger("bigrag.services.queue")
+logger = get_logger("rag_computer.services.queue")
 
 # Structured key-value pairs, not f-strings in logger calls
 logger.info("job complete", job_id=job_id, chunks=total, elapsed=round(elapsed, 2))
@@ -2088,9 +2088,9 @@ from pathlib import Path
 import orjson
 from fastapi import APIRouter, Depends, HTTPException
 
-from bigrag.config import settings
-from bigrag.database import db
-from bigrag.services.event_bus import event_bus
+from rag_computer.config import settings
+from rag_computer.database import db
+from rag_computer.services.event_bus import event_bus
 ```
 
 Prefer deferred imports for heavy or circular dependencies:
@@ -2098,7 +2098,7 @@ Prefer deferred imports for heavy or circular dependencies:
 ```python
 async def _process_job(self, worker_id: int, job: IngestionJob) -> None:
     # Import at use-site to avoid circular imports and speed up module loading
-    from bigrag.services.vector_store import vector_store
+    from rag_computer.services.vector_store import vector_store
 ```
 
 ### Error Handling
@@ -2107,11 +2107,11 @@ Domain exceptions live in `exceptions.py`. Services raise domain exceptions, nev
 
 ```python
 # exceptions.py
-class BigRAGError(Exception): ...
-class NotFoundError(BigRAGError):
+class RagComputerError(Exception): ...
+class NotFoundError(RagComputerError):
     def __init__(self, resource: str, identifier: str): ...
-class ConflictError(BigRAGError): ...
-class ValidationError(BigRAGError): ...
+class ConflictError(RagComputerError): ...
+class ValidationError(RagComputerError): ...
 ```
 
 Exception handlers in `main.py` translate domain errors to HTTP:
@@ -2272,7 +2272,7 @@ async def readiness(request: Request):
 For cross-cutting concerns (auth, validation), use `Depends()`:
 
 ```python
-from bigrag.middleware.auth import get_current_user
+from rag_computer.middleware.auth import get_current_user
 
 @router.post("", response_model=CollectionResponse)
 async def create_collection(
@@ -2380,7 +2380,7 @@ asyncio.create_task(_run_job(job))  # no reference stored
 All caches go through `redis_cache` module. Never use in-memory dicts for caching:
 
 ```python
-from bigrag.services import redis_cache
+from rag_computer.services import redis_cache
 
 # Read
 cached = await redis_cache.get("collection:mydata")
@@ -2436,7 +2436,7 @@ The SDK follows the resource namespace pattern (like Stripe, Anthropic):
 
 ```typescript
 // Transport layer (handles HTTP, retries, auth)
-export class BigRAGCore implements RequestClient {
+export class RagComputerCore implements RequestClient {
   readonly apiKey: string;
   readonly baseUrl: string;
   readonly timeout: number;
@@ -2444,7 +2444,7 @@ export class BigRAGCore implements RequestClient {
 }
 
 // Client with resource namespaces
-export class BigRAG extends BigRAGCore {
+export class RagComputer extends RagComputerCore {
   readonly collections: CollectionsResource;
   readonly documents: DocumentsResource;
   readonly queries: QueryResource;
@@ -2470,8 +2470,8 @@ export class CollectionsResource {
 Map HTTP status codes to typed error classes:
 
 ```typescript
-export class BigRAGError extends Error {}
-export class APIError extends BigRAGError {
+export class RagComputerError extends Error {}
+export class APIError extends RagComputerError {
   readonly status: number;
   readonly code: string | undefined;
 }
@@ -2482,8 +2482,8 @@ export class RateLimitError extends APIError {}       // 429
 export class InternalServerError extends APIError {}  // 500
 
 // Connection-level errors (no HTTP status)
-export class APIConnectionError extends BigRAGError {}
-export class APITimeoutError extends BigRAGError {}
+export class APIConnectionError extends RagComputerError {}
+export class APITimeoutError extends RagComputerError {}
 ```
 
 ### Retry Policy
@@ -2544,4 +2544,4 @@ async *streamEvents(name: string): AsyncGenerator<ProgressEvent> {
 
 ---
 
-*This style guide is a living document. As bigRAG evolves, so should these guidelines. When in doubt, follow existing patterns in the codebase and prioritize clarity and maintainability.*
+*This style guide is a living document. As rag.computer evolves, so should these guidelines. When in doubt, follow existing patterns in the codebase and prioritize clarity and maintainability.*

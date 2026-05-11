@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from bigrag.services import maintenance
+from rag_computer.services import maintenance
 
 
 def run(coro):

@@ -11,9 +11,9 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from bigrag.db.session import get_session
-from bigrag.main import create_app
-from bigrag.middleware.auth import get_current_user, require_admin_session, require_session
+from rag_computer.db.session import get_session
+from rag_computer.main import create_app
+from rag_computer.middleware.auth import get_current_user, require_admin_session, require_session
 
 
 def now() -> datetime:
@@ -107,7 +107,7 @@ def route_unit_middleware_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     async def no_active_lock() -> None:
         return None
 
-    monkeypatch.setattr("bigrag.middleware.maintenance.active_lock", no_active_lock)
+    monkeypatch.setattr("rag_computer.middleware.maintenance.active_lock", no_active_lock)
 
 
 @pytest.fixture

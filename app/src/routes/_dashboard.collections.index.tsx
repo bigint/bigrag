@@ -10,7 +10,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { CreateCollectionModal } from "@/features/collections/create-collection-modal";
 import { useCollections } from "@/hooks/use-collections";
 import { formatNumber, formatRelative } from "@/lib/format";
-import type { Collection } from "@/types/bigrag";
+import type { Collection } from "@/types/rag-computer";
 
 export const Route = createFileRoute("/_dashboard/collections/")({
   component: () => <CollectionsPage />,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from bigrag.services.ingestion import chunk_document
+from rag_computer.services.ingestion import chunk_document
 
 
 def test_paragraph_chunks_preserve_offsets_and_join_small_paragraphs() -> None:

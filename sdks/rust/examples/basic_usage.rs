@@ -1,14 +1,14 @@
-//! Basic bigRAG usage: create a collection, upload a document, and query.
+//! Basic rag.computer usage: create a collection, upload a document, and query.
 //!
 //! Run with: `cargo run --example basic_usage`
-//! Requires a running bigRAG server at localhost:6100.
+//! Requires a running rag.computer server at localhost:6100.
 
-use bigrag::types::{CreateCollectionBody, QueryBody};
-use bigrag::BigRag;
+use rag_computer::types::{CreateCollectionBody, QueryBody};
+use rag_computer::RagComputer;
 
 #[tokio::main]
-async fn main() -> Result<(), bigrag::BigRagError> {
-    let client = BigRag::from_env()?;
+async fn main() -> Result<(), rag_computer::RagComputerError> {
+    let client = RagComputer::from_env()?;
 
     // Check health
     let health = client.health().await?;
@@ -42,7 +42,7 @@ async fn main() -> Result<(), bigrag::BigRagError> {
         .query(
             "example_docs",
             QueryBody {
-                query: "What is bigRAG?".into(),
+                query: "What is rag.computer?".into(),
                 top_k: Some(3),
                 ..Default::default()
             },

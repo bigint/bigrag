@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
-import type { CreatedMcpServer, McpServer } from "@/types/bigrag";
+import type { CreatedMcpServer, McpServer } from "@/types/rag-computer";
 
 const KEY = queryKeys.mcpServers();
 

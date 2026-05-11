@@ -1,6 +1,6 @@
-# bigRAG Admin UI
+# rag.computer Admin UI
 
-A Vite + TanStack Router admin console for bigRAG. It manages collections,
+A Vite + TanStack Router admin console for rag.computer. It manages collections,
 documents, live ingestion status, chat with citations, Google Drive sources,
 access logs, and API/MCP keys.
 
@@ -18,13 +18,13 @@ The SPA calls the FastAPI server directly. In development, either leave the app
 default at `http://localhost:4000` or set:
 
 ```bash
-VITE_BIGRAG_URL=http://localhost:4000
+VITE_RAG_COMPUTER_URL=http://localhost:4000
 ```
 
 The API must allow the app origin:
 
 ```bash
-BIGRAG_CORS_ORIGINS='["http://localhost:3000"]'
+RAG_COMPUTER_CORS_ORIGINS='["http://localhost:3000"]'
 ```
 
 ## Stack
@@ -34,6 +34,6 @@ BIGRAG_CORS_ORIGINS='["http://localhost:3000"]'
 - Base UI for accessible primitives
 - TanStack Query + Ky for data · Sonner for toasts
 
-Production containers serve static `dist` assets with Nginx. Set `BIGRAG_URL`
+Production containers serve static `dist` assets with Nginx. Set `RAG_COMPUTER_URL`
 on the app container to write runtime `config.js`; build-time
-`VITE_BIGRAG_URL` remains supported for non-container static hosting.
+`VITE_RAG_COMPUTER_URL` remains supported for non-container static hosting.

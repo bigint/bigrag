@@ -5,7 +5,7 @@ import type {
   ChatMessage,
   ChatSource,
   QueryTimings,
-} from "@/types/bigrag";
+} from "@/types/rag-computer";
 
 export type ChatStreamEvent =
   | { event: "conversation"; data: ChatConversation }

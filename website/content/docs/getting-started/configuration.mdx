@@ -1,13 +1,13 @@
 ---
 title: Configuration
-description: Bootstrap bigRAG, then manage runtime settings from the admin UI.
+description: Bootstrap rag.computer, then manage runtime settings from the admin UI.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-bigRAG uses a UI-first configuration model. Operators provide only the wiring needed before the API can read Postgres, then admins manage product/runtime settings from `/settings`.
+rag.computer uses a UI-first configuration model. Operators provide only the wiring needed before the API can read Postgres, then admins manage product/runtime settings from `/settings`.
 
-Auth is admin accounts + session cookies and minted `bigrag_sk_…` API keys — see [Authentication](/docs/api-reference/authentication).
+Auth is admin accounts + session cookies and minted `ragc_sk_…` API keys — see [Authentication](/docs/api-reference/authentication).
 
 ## Bootstrap config
 
@@ -15,29 +15,29 @@ Bootstrap config is the small set of values the API needs before it can connect 
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BIGRAG_ENV` | `dev` or `prod`. Production mode enforces safe startup checks. | `dev` |
-| `BIGRAG_HOST` | API bind address. | `127.0.0.1` |
-| `BIGRAG_PORT` | API bind port. | `4000` |
-| `BIGRAG_WORKERS` | Uvicorn process count. | `1` |
-| `BIGRAG_DATABASE_URL` | Postgres connection URL. | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
-| `BIGRAG_DB_POOL_MIN` | Minimum Postgres pool size. | `5` |
-| `BIGRAG_DB_POOL_MAX` | Maximum Postgres pool size. | `50` |
-| `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration timeout. Set `0` to disable the timeout. | `60` |
-| `BIGRAG_REDIS_URL` | Redis connection URL. | `redis://localhost:6379/0` |
-| `BIGRAG_VECTOR_STORE_PROVIDER` | Vector backend: `qdrant`, `s3_vectors`, or `turbopuffer`. | `qdrant` |
-| `BIGRAG_QDRANT_URL` | Qdrant connection URL. | `http://localhost:6333` |
-| `BIGRAG_QDRANT_API_KEY` | Optional Qdrant API key. | — |
-| `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout. | `10` |
-| `BIGRAG_QDRANT_REQUIRED` | Fail startup if the configured vector store cannot be reached. | `false` |
-| `BIGRAG_MASTER_KEY` | Fernet key for encrypted provider secrets, instance-setting secrets, embedding-cache rows, and Redis cache payloads. Required for production. | — |
-| `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys during staged key rotation. | `[]` |
-| `BIGRAG_UPLOAD_DIR` | Local document upload directory when storage backend is `local`. | `./data/uploads` |
+| `RAG_COMPUTER_ENV` | `dev` or `prod`. Production mode enforces safe startup checks. | `dev` |
+| `RAG_COMPUTER_HOST` | API bind address. | `127.0.0.1` |
+| `RAG_COMPUTER_PORT` | API bind port. | `4000` |
+| `RAG_COMPUTER_WORKERS` | Uvicorn process count. | `1` |
+| `RAG_COMPUTER_DATABASE_URL` | Postgres connection URL. | `postgres://rag_computer:rag_computer@localhost:5432/rag_computer?sslmode=disable` |
+| `RAG_COMPUTER_DB_POOL_MIN` | Minimum Postgres pool size. | `5` |
+| `RAG_COMPUTER_DB_POOL_MAX` | Maximum Postgres pool size. | `50` |
+| `RAG_COMPUTER_MIGRATION_TIMEOUT_SECONDS` | Startup migration timeout. Set `0` to disable the timeout. | `60` |
+| `RAG_COMPUTER_REDIS_URL` | Redis connection URL. | `redis://localhost:6379/0` |
+| `RAG_COMPUTER_VECTOR_STORE_PROVIDER` | Vector backend: `qdrant`, `s3_vectors`, or `turbopuffer`. | `qdrant` |
+| `RAG_COMPUTER_QDRANT_URL` | Qdrant connection URL. | `http://localhost:6333` |
+| `RAG_COMPUTER_QDRANT_API_KEY` | Optional Qdrant API key. | — |
+| `RAG_COMPUTER_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout. | `10` |
+| `RAG_COMPUTER_QDRANT_REQUIRED` | Fail startup if the configured vector store cannot be reached. | `false` |
+| `RAG_COMPUTER_MASTER_KEY` | Fernet key for encrypted provider secrets, instance-setting secrets, embedding-cache rows, and Redis cache payloads. Required for production. | — |
+| `RAG_COMPUTER_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys during staged key rotation. | `[]` |
+| `RAG_COMPUTER_UPLOAD_DIR` | Local document upload directory when storage backend is `local`. | `./data/uploads` |
 
-The admin UI has one frontend bootstrap value: point it at the API with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container when frontend and backend are deployed separately.
+The admin UI has one frontend bootstrap value: point it at the API with `VITE_RAG_COMPUTER_URL` at build/dev time or `RAG_COMPUTER_URL` in the app container when frontend and backend are deployed separately.
 
 ## TOML bootstrap file
 
-The CLI can also read a `bigrag.toml` file. Keep this file to bootstrap wiring:
+The CLI can also read a `rag-computer.toml` file. Keep this file to bootstrap wiring:
 
 ```toml
 env = "prod"
@@ -45,7 +45,7 @@ host = "0.0.0.0"
 port = 4000
 workers = 1
 
-database_url = "postgres://bigrag:change-me@postgres:5432/bigrag?sslmode=disable"
+database_url = "postgres://rag_computer:change-me@postgres:5432/rag_computer?sslmode=disable"
 redis_url = "redis://redis:6379/0"
 vector_store_provider = "qdrant"
 qdrant_url = "http://qdrant:6333"
@@ -57,11 +57,11 @@ master_key_previous = []
 upload_dir = "./data/uploads"
 ```
 
-Environment variables override TOML values. CLI flags passed to `python -m bigrag.main` override both.
+Environment variables override TOML values. CLI flags passed to `python -m rag_computer.main` override both.
 
 ## Runtime settings
 
-After the first admin account exists, go to `/settings` to manage runtime settings. Runtime settings are stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
+After the first admin account exists, go to `/settings` to manage runtime settings. Runtime settings are stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `RAG_COMPUTER_MASTER_KEY` and redacted on read.
 
 The same surface is available through [`/admin/settings`](/docs/api-reference/instance-settings).
 
@@ -86,10 +86,10 @@ Legacy runtime environment variables are still read as initial defaults for comp
 
 ## CLI flags
 
-`python -m bigrag.main` accepts bootstrap overrides:
+`python -m rag_computer.main` accepts bootstrap overrides:
 
 ```bash
---config PATH            Path to bigrag.toml
+--config PATH            Path to rag-computer.toml
 --host HOST              Override server host
 --port PORT              Override server port
 --database-url URL       Override Postgres URL

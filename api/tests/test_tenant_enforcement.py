@@ -6,9 +6,9 @@ import uuid
 import pytest
 from fastapi import HTTPException
 
-from bigrag.exceptions import ValidationError
-from bigrag.models.chat import ChatCreateRequest
-from bigrag.models.query import (
+from rag_computer.exceptions import ValidationError
+from rag_computer.models.chat import ChatCreateRequest
+from rag_computer.models.query import (
     BatchQueryItem,
     BatchQueryRequest,
     MultiQueryRequest,
@@ -16,10 +16,10 @@ from bigrag.models.query import (
     VectorEntry,
     VectorUpsertRequest,
 )
-from bigrag.routers import _documents
-from bigrag.routers import query as query_router
-from bigrag.services import chat as chat_service
-from bigrag.services.tenant_enforcement import require_tenant_filters, require_tenant_metadata
+from rag_computer.routers import _documents
+from rag_computer.routers import query as query_router
+from rag_computer.services import chat as chat_service
+from rag_computer.services.tenant_enforcement import require_tenant_filters, require_tenant_metadata
 
 
 def tenant_collection() -> dict:

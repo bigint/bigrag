@@ -12,7 +12,7 @@ import type {
   DocumentStatus,
   UploadSession,
   UploadSessionFileResponse,
-} from "@/types/bigrag";
+} from "@/types/rag-computer";
 
 type DocListResponse = { documents: Document[]; total: number };
 

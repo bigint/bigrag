@@ -19,7 +19,7 @@ import type {
   InstanceSettingSpec,
   InstanceSettingsResponse,
   InstanceSettingValue,
-} from "@/types/bigrag";
+} from "@/types/rag-computer";
 
 type DraftValue = boolean | string;
 

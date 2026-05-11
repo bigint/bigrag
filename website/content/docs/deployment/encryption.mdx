@@ -1,18 +1,18 @@
 ---
 title: Encryption at Rest
-description: How bigRAG protects secrets on disk, and what the operator is responsible for.
+description: How rag.computer protects secrets on disk, and what the operator is responsible for.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-bigRAG treats "at-rest encryption" as a split responsibility:
+rag.computer treats "at-rest encryption" as a split responsibility:
 
-- **App-layer envelope encryption** (handled by bigRAG) — sensitive credential columns, persistent embedding-cache rows, and Redis cache payloads are Fernet-encrypted before they ever touch disk.
+- **App-layer envelope encryption** (handled by rag.computer) — sensitive credential columns, persistent embedding-cache rows, and Redis cache payloads are Fernet-encrypted before they ever touch disk.
 - **Storage-layer encryption** (handled by the operator) — document chunks, Qdrant vectors and payloads, uploaded files, Redis persistence, and backups still rely on the disk or object-store encrypting its own data.
 
 Both layers are required for a defensible "encrypted at rest" posture.
 
-## What bigRAG encrypts at the app layer
+## What rag.computer encrypts at the app layer
 
 These values are encrypted transparently using a single Fernet master key:
 
@@ -25,31 +25,31 @@ These values are encrypted transparently using a single Fernet master key:
 
 Ciphertext looks like `gAAAAABl...` — the Fernet v1 envelope. Decryption is HMAC-authenticated, so a tampered row fails to load rather than returning corrupt data.
 
-User passwords are already Argon2id-hashed and API keys (`bigrag_sk_…`) are SHA-256-hashed; neither is reversible, so no envelope is needed.
+User passwords are already Argon2id-hashed and API keys (`ragc_sk_…`) are SHA-256-hashed; neither is reversible, so no envelope is needed.
 
 ## Configuring the master key
 
-bigRAG refuses to start in `BIGRAG_ENV=prod` without `BIGRAG_MASTER_KEY`. Generate one:
+rag.computer refuses to start in `RAG_COMPUTER_ENV=prod` without `RAG_COMPUTER_MASTER_KEY`. Generate one:
 
 ```bash
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-Hand the value to the process via env var, a secrets file mounted from your secret store, or an entrypoint that pulls from KMS before exec'ing bigRAG. **Do not** commit it to the repo or to your docker-compose file.
+Hand the value to the process via env var, a secrets file mounted from your secret store, or an entrypoint that pulls from KMS before exec'ing rag.computer. **Do not** commit it to the repo or to your docker-compose file.
 
 ```bash
-export BIGRAG_MASTER_KEY="<paste-the-output-of-the-fernet-generate-command>"
+export RAG_COMPUTER_MASTER_KEY="<paste-the-output-of-the-fernet-generate-command>"
 ```
 
-In `BIGRAG_ENV=dev`, an unset key leaves secret encryption unavailable and disables the persistent embedding cache. `dev.sh` ships a fixed dev key so fresh clones start cleanly.
+In `RAG_COMPUTER_ENV=dev`, an unset key leaves secret encryption unavailable and disables the persistent embedding cache. `dev.sh` ships a fixed dev key so fresh clones start cleanly.
 
 <Callout type="warn">
-	Losing `BIGRAG_MASTER_KEY` means the encrypted columns above become permanently unreadable. Back it up the same way you back up your Postgres root credentials — offline, split across owners.
+	Losing `RAG_COMPUTER_MASTER_KEY` means the encrypted columns above become permanently unreadable. Back it up the same way you back up your Postgres root credentials — offline, split across owners.
 </Callout>
 
 ## What the operator must encrypt
 
-bigRAG delegates the bulk of at-rest protection to your infrastructure. For a production deployment you must configure at least the following:
+rag.computer delegates the bulk of at-rest protection to your infrastructure. For a production deployment you must configure at least the following:
 
 ### Postgres
 
@@ -60,13 +60,13 @@ bigRAG delegates the bulk of at-rest protection to your infrastructure. For a pr
 ### Qdrant
 
 - Qdrant stores vectors, payloads, and indexes under `/qdrant/storage` in the Docker deployment. Put that volume on encrypted storage.
-- For Qdrant Cloud, enable the provider's encryption controls and restrict API keys to the bigRAG service.
+- For Qdrant Cloud, enable the provider's encryption controls and restrict API keys to the rag.computer service.
 
 ### Redis
 
-- Redis holds the ingestion queue, the event bus, idempotency responses, and short-lived platform caches. bigRAG encrypts cache values when `BIGRAG_MASTER_KEY` is configured, but queue and event-bus payloads still need infrastructure protection.
+- Redis holds the ingestion queue, the event bus, idempotency responses, and short-lived platform caches. rag.computer encrypts cache values when `RAG_COMPUTER_MASTER_KEY` is configured, but queue and event-bus payloads still need infrastructure protection.
 - Disable RDB/AOF persistence in prod, or put the persistence directory on an encrypted volume.
-- Use TLS (`rediss://`) between bigRAG and Redis.
+- Use TLS (`rediss://`) between rag.computer and Redis.
 
 ### Stored files
 
@@ -78,16 +78,16 @@ Readable backups created from Settings → Backups are intentionally not client-
 
 ## Rotation
 
-bigRAG supports dual-read key rotation: set the new key as `BIGRAG_MASTER_KEY` and pass old keys in `BIGRAG_MASTER_KEY_PREVIOUS` so existing rows can still decrypt while newly written rows use the new key.
+rag.computer supports dual-read key rotation: set the new key as `RAG_COMPUTER_MASTER_KEY` and pass old keys in `RAG_COMPUTER_MASTER_KEY_PREVIOUS` so existing rows can still decrypt while newly written rows use the new key.
 
 Manual process:
 
 1. Generate `$NEW`.
-2. Restart with `BIGRAG_MASTER_KEY=$NEW` and `BIGRAG_MASTER_KEY_PREVIOUS=["$OLD"]`.
+2. Restart with `RAG_COMPUTER_MASTER_KEY=$NEW` and `RAG_COMPUTER_MASTER_KEY_PREVIOUS=["$OLD"]`.
 3. Run a one-off rewrite that reads and updates every encrypted credential field, then purge or warm the embedding cache so new rows are written under `$NEW`.
-4. Remove `$OLD` from `BIGRAG_MASTER_KEY_PREVIOUS` after the rewrite and backup validation.
+4. Remove `$OLD` from `RAG_COMPUTER_MASTER_KEY_PREVIOUS` after the rewrite and backup validation.
 
-A built-in `bigrag crypto rotate` command is not available yet; use a controlled maintenance script for step 3.
+A built-in `rag-computer crypto rotate` command is not available yet; use a controlled maintenance script for step 3.
 
 ## What's intentionally **not** app-layer encrypted
 

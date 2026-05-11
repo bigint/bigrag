@@ -1,6 +1,6 @@
-use crate::client::BigRag;
+use crate::client::RagComputer;
 use crate::core::urlencode;
-use crate::error::BigRagError;
+use crate::error::RagComputerError;
 use crate::types::access::{AccessLogListResponse, AccessLogOverviewResponse};
 use crate::types::admin::{
     ApiKey, ApiKeyListResponse, AuditLogListResponse, CreateApiKeyBody, CreateApiKeyResponse,
@@ -15,7 +15,7 @@ use crate::types::connectors::{GoogleConnectorConfig, UpdateGoogleConnectorConfi
 
 /// Admin resource.
 pub struct Admin<'a> {
-    pub(crate) client: &'a BigRag,
+    pub(crate) client: &'a RagComputer,
 }
 
 impl Admin<'_> {
@@ -71,7 +71,7 @@ impl Admin<'_> {
 
 /// Admin users resource.
 pub struct AdminUsers<'a> {
-    pub(crate) client: &'a BigRag,
+    pub(crate) client: &'a RagComputer,
 }
 
 impl AdminUsers<'_> {
@@ -79,7 +79,7 @@ impl AdminUsers<'_> {
     pub async fn list(
         &self,
         options: Option<PaginationOptions>,
-    ) -> Result<UserListResponse, BigRagError> {
+    ) -> Result<UserListResponse, RagComputerError> {
         self.client
             .transport
             .get("/v1/admin/users", pagination(options))
@@ -87,18 +87,22 @@ impl AdminUsers<'_> {
     }
 
     /// Create a user.
-    pub async fn create(&self, body: CreateUserBody) -> Result<User, BigRagError> {
+    pub async fn create(&self, body: CreateUserBody) -> Result<User, RagComputerError> {
         self.client.transport.post("/v1/admin/users", &body).await
     }
 
     /// Update a user.
-    pub async fn update(&self, user_id: &str, body: UpdateUserBody) -> Result<User, BigRagError> {
+    pub async fn update(
+        &self,
+        user_id: &str,
+        body: UpdateUserBody,
+    ) -> Result<User, RagComputerError> {
         let path = format!("/v1/admin/users/{}", urlencode(user_id));
         self.client.transport.patch(&path, &body).await
     }
 
     /// Delete a user.
-    pub async fn delete(&self, user_id: &str) -> Result<StatusResponse, BigRagError> {
+    pub async fn delete(&self, user_id: &str) -> Result<StatusResponse, RagComputerError> {
         let path = format!("/v1/admin/users/{}", urlencode(user_id));
         self.client.transport.delete(&path).await
     }
@@ -106,7 +110,7 @@ impl AdminUsers<'_> {
 
 /// Admin API keys resource.
 pub struct AdminApiKeys<'a> {
-    pub(crate) client: &'a BigRag,
+    pub(crate) client: &'a RagComputer,
 }
 
 impl AdminApiKeys<'_> {
@@ -114,7 +118,7 @@ impl AdminApiKeys<'_> {
     pub async fn list(
         &self,
         options: Option<PaginationOptions>,
-    ) -> Result<ApiKeyListResponse, BigRagError> {
+    ) -> Result<ApiKeyListResponse, RagComputerError> {
         self.client
             .transport
             .get("/v1/admin/api-keys", pagination(options))
@@ -125,7 +129,7 @@ impl AdminApiKeys<'_> {
     pub async fn create(
         &self,
         body: CreateApiKeyBody,
-    ) -> Result<CreateApiKeyResponse, BigRagError> {
+    ) -> Result<CreateApiKeyResponse, RagComputerError> {
         self.client
             .transport
             .post("/v1/admin/api-keys", &body)
@@ -137,13 +141,13 @@ impl AdminApiKeys<'_> {
         &self,
         key_id: &str,
         body: UpdateApiKeyBody,
-    ) -> Result<ApiKey, BigRagError> {
+    ) -> Result<ApiKey, RagComputerError> {
         let path = format!("/v1/admin/api-keys/{}", urlencode(key_id));
         self.client.transport.patch(&path, &body).await
     }
 
     /// Delete an API key.
-    pub async fn delete(&self, key_id: &str) -> Result<StatusResponse, BigRagError> {
+    pub async fn delete(&self, key_id: &str) -> Result<StatusResponse, RagComputerError> {
         let path = format!("/v1/admin/api-keys/{}", urlencode(key_id));
         self.client.transport.delete(&path).await
     }
@@ -174,7 +178,7 @@ pub struct AccessLogOptions {
 
 /// Admin access log resource.
 pub struct AdminAccess<'a> {
-    pub(crate) client: &'a BigRag,
+    pub(crate) client: &'a RagComputer,
 }
 
 impl AdminAccess<'_> {
@@ -182,7 +186,7 @@ impl AdminAccess<'_> {
     pub async fn logs(
         &self,
         options: Option<AccessLogOptions>,
-    ) -> Result<AccessLogListResponse, BigRagError> {
+    ) -> Result<AccessLogListResponse, RagComputerError> {
         let mut query = Vec::new();
         if let Some(options) = options {
             push_opt(&mut query, "action", options.action);
@@ -211,7 +215,7 @@ impl AdminAccess<'_> {
     pub async fn overview(
         &self,
         window_days: Option<u32>,
-    ) -> Result<AccessLogOverviewResponse, BigRagError> {
+    ) -> Result<AccessLogOverviewResponse, RagComputerError> {
         let mut query = Vec::new();
         if let Some(window_days) = window_days {
             query.push(("window_days".to_string(), window_days.to_string()));
@@ -240,7 +244,7 @@ pub struct AuditLogOptions {
 
 /// Admin audit log resource.
 pub struct AdminAudit<'a> {
-    pub(crate) client: &'a BigRag,
+    pub(crate) client: &'a RagComputer,
 }
 
 impl AdminAudit<'_> {
@@ -248,7 +252,7 @@ impl AdminAudit<'_> {
     pub async fn list(
         &self,
         options: Option<AuditLogOptions>,
-    ) -> Result<AuditLogListResponse, BigRagError> {
+    ) -> Result<AuditLogListResponse, RagComputerError> {
         let mut query = Vec::new();
         if let Some(options) = options {
             push_opt(&mut query, "action", options.action);
@@ -267,7 +271,7 @@ impl AdminAudit<'_> {
 
 /// Admin connectors resource.
 pub struct AdminConnectors<'a> {
-    pub(crate) client: &'a BigRag,
+    pub(crate) client: &'a RagComputer,
 }
 
 impl AdminConnectors<'_> {
@@ -281,12 +285,12 @@ impl AdminConnectors<'_> {
 
 /// Admin Google connector config resource.
 pub struct AdminGoogleConnector<'a> {
-    pub(crate) client: &'a BigRag,
+    pub(crate) client: &'a RagComputer,
 }
 
 impl AdminGoogleConnector<'_> {
     /// Get Google connector config.
-    pub async fn get(&self) -> Result<GoogleConnectorConfig, BigRagError> {
+    pub async fn get(&self) -> Result<GoogleConnectorConfig, RagComputerError> {
         self.client
             .transport
             .get("/v1/admin/connectors/google", vec![])
@@ -297,7 +301,7 @@ impl AdminGoogleConnector<'_> {
     pub async fn update(
         &self,
         body: UpdateGoogleConnectorConfigBody,
-    ) -> Result<GoogleConnectorConfig, BigRagError> {
+    ) -> Result<GoogleConnectorConfig, RagComputerError> {
         self.client
             .transport
             .put("/v1/admin/connectors/google", &body)
@@ -307,7 +311,7 @@ impl AdminGoogleConnector<'_> {
 
 /// Admin embedding presets resource.
 pub struct AdminEmbeddingPresets<'a> {
-    pub(crate) client: &'a BigRag,
+    pub(crate) client: &'a RagComputer,
 }
 
 impl AdminEmbeddingPresets<'_> {
@@ -315,7 +319,7 @@ impl AdminEmbeddingPresets<'_> {
     pub async fn list(
         &self,
         options: Option<PaginationOptions>,
-    ) -> Result<EmbeddingPresetListResponse, BigRagError> {
+    ) -> Result<EmbeddingPresetListResponse, RagComputerError> {
         self.client
             .transport
             .get("/v1/admin/embedding-presets", pagination(options))
@@ -326,7 +330,7 @@ impl AdminEmbeddingPresets<'_> {
     pub async fn create(
         &self,
         body: CreateEmbeddingPresetBody,
-    ) -> Result<EmbeddingPreset, BigRagError> {
+    ) -> Result<EmbeddingPreset, RagComputerError> {
         self.client
             .transport
             .post("/v1/admin/embedding-presets", &body)
@@ -338,13 +342,13 @@ impl AdminEmbeddingPresets<'_> {
         &self,
         preset_id: &str,
         body: UpdateEmbeddingPresetBody,
-    ) -> Result<EmbeddingPreset, BigRagError> {
+    ) -> Result<EmbeddingPreset, RagComputerError> {
         let path = format!("/v1/admin/embedding-presets/{}", urlencode(preset_id));
         self.client.transport.patch(&path, &body).await
     }
 
     /// Delete an embedding preset.
-    pub async fn delete(&self, preset_id: &str) -> Result<StatusResponse, BigRagError> {
+    pub async fn delete(&self, preset_id: &str) -> Result<StatusResponse, RagComputerError> {
         let path = format!("/v1/admin/embedding-presets/{}", urlencode(preset_id));
         self.client.transport.delete(&path).await
     }
@@ -352,12 +356,12 @@ impl AdminEmbeddingPresets<'_> {
 
 /// Admin MCP servers resource.
 pub struct AdminMcpServers<'a> {
-    pub(crate) client: &'a BigRag,
+    pub(crate) client: &'a RagComputer,
 }
 
 impl AdminMcpServers<'_> {
     /// List MCP servers.
-    pub async fn list(&self) -> Result<McpServerListResponse, BigRagError> {
+    pub async fn list(&self) -> Result<McpServerListResponse, RagComputerError> {
         self.client
             .transport
             .get("/v1/admin/mcp-servers", vec![])
@@ -368,7 +372,7 @@ impl AdminMcpServers<'_> {
     pub async fn create(
         &self,
         body: CreateMcpServerBody,
-    ) -> Result<CreateMcpServerResponse, BigRagError> {
+    ) -> Result<CreateMcpServerResponse, RagComputerError> {
         self.client
             .transport
             .post("/v1/admin/mcp-servers", &body)
@@ -380,13 +384,16 @@ impl AdminMcpServers<'_> {
         &self,
         server_id: &str,
         body: UpdateMcpServerBody,
-    ) -> Result<McpServer, BigRagError> {
+    ) -> Result<McpServer, RagComputerError> {
         let path = format!("/v1/admin/mcp-servers/{}", urlencode(server_id));
         self.client.transport.patch(&path, &body).await
     }
 
     /// Rotate an MCP server key.
-    pub async fn rotate(&self, server_id: &str) -> Result<CreateMcpServerResponse, BigRagError> {
+    pub async fn rotate(
+        &self,
+        server_id: &str,
+    ) -> Result<CreateMcpServerResponse, RagComputerError> {
         let path = format!("/v1/admin/mcp-servers/{}/rotate", urlencode(server_id));
         self.client
             .transport
@@ -395,7 +402,7 @@ impl AdminMcpServers<'_> {
     }
 
     /// Delete an MCP server.
-    pub async fn delete(&self, server_id: &str) -> Result<StatusResponse, BigRagError> {
+    pub async fn delete(&self, server_id: &str) -> Result<StatusResponse, RagComputerError> {
         let path = format!("/v1/admin/mcp-servers/{}", urlencode(server_id));
         self.client.transport.delete(&path).await
     }

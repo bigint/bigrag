@@ -10,20 +10,20 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY app/package.json app/package.json
 
-RUN pnpm install --filter @bigrag/app --frozen-lockfile
+RUN pnpm install --filter @rag.computer/app --frozen-lockfile
 
 COPY app app
 
-RUN pnpm --filter @bigrag/app build
+RUN pnpm --filter @rag.computer/app build
 
 FROM nginx:1.29-alpine AS runtime
 
-ENV BIGRAG_URL=http://localhost:4000
+ENV RAG_COMPUTER_URL=http://localhost:4000
 
 COPY app/nginx.conf /etc/nginx/conf.d/default.conf
-COPY app/docker-entrypoint.sh /docker-entrypoint.d/40-bigrag-config.sh
+COPY app/docker-entrypoint.sh /docker-entrypoint.d/40-rag-computer-config.sh
 COPY --from=build /workspace/app/dist /usr/share/nginx/html
 
-RUN chmod +x /docker-entrypoint.d/40-bigrag-config.sh
+RUN chmod +x /docker-entrypoint.d/40-rag-computer-config.sh
 
 EXPOSE 3000

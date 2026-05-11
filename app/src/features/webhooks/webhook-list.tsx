@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { type Column, DataTable } from "@/components/ui/data-table";
 import { Tooltip } from "@/components/ui/tooltip";
-import type { Webhook } from "@/types/bigrag";
+import type { Webhook } from "@/types/rag-computer";
 
 interface Props {
   webhooks: Webhook[];

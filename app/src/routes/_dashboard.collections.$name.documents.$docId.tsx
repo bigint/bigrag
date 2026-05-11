@@ -16,7 +16,7 @@ import {
 } from "@/hooks/use-documents";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatNumber, formatRelative } from "@/lib/format";
-import type { DocumentProgress, DocumentStatus } from "@/types/bigrag";
+import type { DocumentProgress, DocumentStatus } from "@/types/rag-computer";
 
 export const Route = createFileRoute("/_dashboard/collections/$name/documents/$docId")({
   component: () => <DocumentDetail />,

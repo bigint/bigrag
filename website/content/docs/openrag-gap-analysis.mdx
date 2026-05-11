@@ -1,25 +1,25 @@
 ---
 title: "OpenRAG Gap Analysis"
-description: "Comprehensive feature gap analysis comparing bigRAG against OpenRAG (langflow-ai/openrag) — identifying missing capabilities, architectural differences, and strategic opportunities."
+description: "Comprehensive feature gap analysis comparing rag.computer against OpenRAG (langflow-ai/openrag) — identifying missing capabilities, architectural differences, and strategic opportunities."
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-This document is a deep-dive competitive analysis comparing **bigRAG** against **[OpenRAG](https://github.com/langflow-ai/openrag)** by Langflow/IBM. It catalogs the meaningful product gaps, architectural differences, and strategic opportunities from bigRAG's perspective.
+This document is a deep-dive competitive analysis comparing **rag.computer** against **[OpenRAG](https://github.com/langflow-ai/openrag)** by Langflow/IBM. It catalogs the meaningful product gaps, architectural differences, and strategic opportunities from rag.computer's perspective.
 
 OpenRAG is an Apache 2.0-licensed RAG platform backed by IBM that bundles [Langflow](https://github.com/langflow-ai/langflow) (agentic workflows), [OpenSearch](https://opensearch.org/) (hybrid search), and [Docling](https://github.com/DS4SD/docling) (document parsing) into a single deployable package.
 
 <Callout type="info">
-  This analysis is written from bigRAG's perspective. Items marked with severity levels indicate the competitive impact of each gap.
+  This analysis is written from rag.computer's perspective. Items marked with severity levels indicate the competitive impact of each gap.
 </Callout>
 
 ---
 
 ## Executive Summary
 
-OpenRAG and bigRAG share the same foundation — both use **FastAPI**, **Docling**, and a vector/search database for RAG pipelines. However, OpenRAG takes a different product stance: it is an **end-user chat and workflow platform**, while bigRAG is an **API-first retrieval platform with an optional admin UI**. The admin UI now closes several earlier UI, API-key, MCP, audit, and operations gaps; the remaining gaps are concentrated in LLM/agent behavior, OAuth-backed collaboration, document-level authorization, and richer search UX.
+OpenRAG and rag.computer share the same foundation — both use **FastAPI**, **Docling**, and a vector/search database for RAG pipelines. However, OpenRAG takes a different product stance: it is an **end-user chat and workflow platform**, while rag.computer is an **API-first retrieval platform with an optional admin UI**. The admin UI now closes several earlier UI, API-key, MCP, audit, and operations gaps; the remaining gaps are concentrated in LLM/agent behavior, OAuth-backed collaboration, document-level authorization, and richer search UX.
 
-| Category | Current bigRAG status | Remaining strategic gap |
+| Category | Current rag.computer status | Remaining strategic gap |
 |---|---|---|
 | [Web UI & User Experience](#1-web-ui--user-experience) | The admin UI exists for setup, collection/document management, persistent chat, API keys, MCP, webhooks, settings, audit, usage, and evals | No folder upload, visual workflow builder, or vector DB console |
 | [Agentic RAG & LLM Integration](#2-agentic-rag--llm-integration) | The chat API retrieves, generates cited answers, streams tokens, and stores conversations | No agents, tool-call inspection, contextual nudges, or visual prompt orchestration |
@@ -27,14 +27,14 @@ OpenRAG and bigRAG share the same foundation — both use **FastAPI**, **Docling
 | [Search & Retrieval](#4-search--retrieval) | Semantic, keyword, hybrid RRF search, Cohere rerank, metadata filters, batch query, and analytics | No explicit semantic/keyword weight ratios, facets, prefix/autocomplete, saved filters, or one-index multi-model search |
 | [Authentication & Multi-Tenancy](#5-authentication--multi-tenancy) | Native admin/member accounts, session cookies, scoped API keys, and audit/access logs | No OAuth/OIDC, external IdP, document ownership, document ACLs, or tenant isolation |
 | [Observability & Operations](#6-observability--operations) | Readiness checks Postgres, Qdrant, Redis, and embedding provider; structlog JSON logging exists | No disk monitoring, container-log TUI, or LLM observability |
-| [Developer Experience & Ecosystem](#7-developer-experience--ecosystem) | TypeScript, Python, Rust SDKs and MCP server exist | No `uvx bigrag` install, flow import/export, config backup/restore, factory reset, or Podman guide |
+| [Developer Experience & Ecosystem](#7-developer-experience--ecosystem) | TypeScript, Python, Rust SDKs and MCP server exist | No `uvx rag-computer` install, flow import/export, config backup/restore, factory reset, or Podman guide |
 | [Security & Compliance](#8-security--compliance) | Sensitive provider credentials, webhook secrets, embedding-cache rows, and Redis cache payloads are Fernet-encrypted at rest | No Qdrant payload encryption, password strength scoring, or asymmetric JWT key system |
 
 ---
 
 ## 1. Web UI & User Experience
 
-OpenRAG ships a full **Next.js frontend** with chat interface, knowledge management, settings, onboarding wizard, and an embedded Langflow visual editor. bigRAG now ships an **admin UI** for setup, collections, documents, persistent chat, embedding presets, MCP servers, API keys, webhooks, settings, audit, usage, and retrieval evals. The remaining UI gap is less about administration and more about workflow editing and connector management.
+OpenRAG ships a full **Next.js frontend** with chat interface, knowledge management, settings, onboarding wizard, and an embedded Langflow visual editor. rag.computer now ships an **admin UI** for setup, collections, documents, persistent chat, embedding presets, MCP servers, API keys, webhooks, settings, audit, usage, and retrieval evals. The remaining UI gap is less about administration and more about workflow editing and connector management.
 
 ### 1.1 Chat Interface
 
@@ -48,7 +48,7 @@ OpenRAG provides a conversational chat interface where users can:
 - Receive contextual "nudges" — auto-generated suggested prompts based on knowledge base themes
 - Manage conversation history (list, continue, delete conversations)
 
-**bigRAG status:** Mostly resolved — bigRAG has a persistent chat UI backed by `POST /v1/chat`, with server-side retrieval, streamed generated answers, citations, and conversation history.
+**rag.computer status:** Mostly resolved — rag.computer has a persistent chat UI backed by `POST /v1/chat`, with server-side retrieval, streamed generated answers, citations, and conversation history.
 
 **Remaining gap:** No temporary file upload inside chat, contextual nudges, or tool-call inspection.
 
@@ -63,7 +63,7 @@ OpenRAG's UI provides:
 - Cloud connector sync status and controls
 - Real-time ingestion task panel with file-level progress, failure feedback, and cancellation
 
-**bigRAG status:** Partially resolved — The admin UI lists collections, uploads files with drag-and-drop, shows document status and chunk counts, supports document detail/chunk inspection, deletion, and reprocessing, and streams realtime document status over session-cookie SSE.
+**rag.computer status:** Partially resolved — The admin UI lists collections, uploads files with drag-and-drop, shows document status and chunk counts, supports document detail/chunk inspection, deletion, and reprocessing, and streams realtime document status over session-cookie SSE.
 
 **Remaining gap:** the admin UI does not yet support local folder upload, UI-level bulk delete, or cancel/retry controls for in-flight ingestion. Google Drive has UI sync controls, but the broader connector catalog is still narrow.
 
@@ -79,9 +79,9 @@ OpenRAG exposes a settings page for:
 - OCR toggle and Docling presets
 - API key generation and management
 
-**bigRAG status:** Partially resolved — The admin UI has pages for embedding presets, collection settings, API keys, MCP server credentials, webhooks, account settings, server health, usage, and audit logs.
+**rag.computer status:** Partially resolved — The admin UI has pages for embedding presets, collection settings, API keys, MCP server credentials, webhooks, account settings, server health, usage, and audit logs.
 
-**Remaining gap:** Deployment/runtime settings such as database, Redis, Qdrant, CORS, worker counts, and global environment config still live in env vars or `bigrag.toml`. There is no single visual system-settings editor comparable to OpenRAG's full settings surface.
+**Remaining gap:** Deployment/runtime settings such as database, Redis, Qdrant, CORS, worker counts, and global environment config still live in env vars or `rag-computer.toml`. There is no single visual system-settings editor comparable to OpenRAG's full settings surface.
 
 ### 1.4 Onboarding Wizard
 
@@ -93,7 +93,7 @@ OpenRAG includes a guided onboarding flow:
 3. Enter API keys
 4. Verify connectivity
 
-**bigRAG status:** Partially resolved — the first run routes to `/setup`, creates the first admin, and then sends the operator into the admin UI.
+**rag.computer status:** Partially resolved — the first run routes to `/setup`, creates the first admin, and then sends the operator into the admin UI.
 
 **Remaining gap:** The setup flow does not yet guide the operator through embedding provider selection, API-key entry, sample collection creation, or provider connectivity validation.
 
@@ -110,7 +110,7 @@ OpenRAG embeds the full Langflow visual editor, allowing users to:
 - Apply runtime "tweaks" to modify parameters without permanent config changes
 - Access the flow editor directly from the UI via "Edit in Langflow" buttons
 
-**bigRAG gap:** No visual workflow builder. Pipeline behavior is fixed in code. Users cannot customize retrieval logic, add re-ranking steps, or chain agent actions without modifying the backend source code.
+**rag.computer gap:** No visual workflow builder. Pipeline behavior is fixed in code. Users cannot customize retrieval logic, add re-ranking steps, or chain agent actions without modifying the backend source code.
 
 ### 1.6 Terminal UI (TUI)
 
@@ -123,7 +123,7 @@ OpenRAG includes a rich terminal interface built with Python's Textual library:
 - Factory reset capability
 - Service status monitoring
 
-**bigRAG gap:** bigRAG has a `dev.sh` shell script for development but no interactive TUI for production management.
+**rag.computer gap:** rag.computer has a `dev.sh` shell script for development but no interactive TUI for production management.
 
 ### 1.7 OpenSearch Dashboards
 
@@ -131,13 +131,13 @@ OpenRAG includes a rich terminal interface built with Python's Textual library:
 
 OpenRAG exposes OpenSearch Dashboards on port 5601, giving operators a full analytics and monitoring UI for the search layer — query inspection, index health, shard distribution, etc.
 
-**bigRAG gap:** No equivalent. Qdrant exposes an admin dashboard for vector-store inspection, but bigRAG does not bundle a dedicated vector database UI.
+**rag.computer gap:** No equivalent. Qdrant exposes an admin dashboard for vector-store inspection, but rag.computer does not bundle a dedicated vector database UI.
 
 ---
 
 ## 2. Agentic RAG & LLM Integration
 
-This is still a philosophical gap, but it narrowed. OpenRAG is an **agentic RAG platform** with workflow-driven tools. bigRAG now has a production chat API for generated, cited answers, while its deeper agent and workflow orchestration story remains intentionally smaller.
+This is still a philosophical gap, but it narrowed. OpenRAG is an **agentic RAG platform** with workflow-driven tools. rag.computer now has a production chat API for generated, cited answers, while its deeper agent and workflow orchestration story remains intentionally smaller.
 
 ### 2.1 Built-in LLM Generation
 
@@ -151,7 +151,7 @@ OpenRAG integrates LLM providers directly:
 
 The chat endpoint accepts a user query, retrieves relevant documents, feeds them as context to the LLM, and returns a generated answer with source citations.
 
-**bigRAG status:** Mostly resolved — `POST /v1/chat` accepts a message, retrieves relevant chunks, feeds them to an OpenAI or OpenAI-compatible chat model, streams token deltas, persists the user and assistant messages, and returns source citations.
+**rag.computer status:** Mostly resolved — `POST /v1/chat` accepts a message, retrieves relevant chunks, feeds them to an OpenAI or OpenAI-compatible chat model, streams token deltas, persists the user and assistant messages, and returns source citations.
 
 **Remaining gap:** Provider coverage is narrower than OpenRAG's Langflow-backed set, and there is no agent/tool-call graph yet.
 
@@ -165,7 +165,7 @@ OpenRAG's agent (powered by Langflow) can:
 - Execute complex multi-step workflows
 - Coordinate across multiple Langflow flows
 
-**bigRAG gap:** No multi-agent orchestration. bigRAG has retrieval-grounded chat, but it does not expose agent tool calls, workflow traces, or multi-step tool execution.
+**rag.computer gap:** No multi-agent orchestration. rag.computer has retrieval-grounded chat, but it does not expose agent tool calls, workflow traces, or multi-step tool execution.
 
 ### 2.3 Conversation Management
 
@@ -177,7 +177,7 @@ OpenRAG maintains persistent conversation history:
 - Conversation CRUD (create, list, get, delete)
 - Session-based authentication binding
 
-**bigRAG status:** Resolved for normal chat — conversations are persisted, owned by the authenticated user, listable, retrievable, renameable, deleteable, and used for follow-up context.
+**rag.computer status:** Resolved for normal chat — conversations are persisted, owned by the authenticated user, listable, retrievable, renameable, deleteable, and used for follow-up context.
 
 ### 2.4 Contextual Nudges
 
@@ -185,7 +185,7 @@ OpenRAG maintains persistent conversation history:
 
 OpenRAG auto-generates suggested prompts from knowledge base content via a dedicated "Nudges" Langflow flow. These appear in the chat UI as conversation starters based on themes in the ingested documents.
 
-**bigRAG gap:** No equivalent feature. Users must know what to ask.
+**rag.computer gap:** No equivalent feature. Users must know what to ask.
 
 ### 2.5 Streaming LLM Responses
 
@@ -193,7 +193,7 @@ OpenRAG auto-generates suggested prompts from knowledge base content via a dedic
 
 OpenRAG streams LLM-generated answers via Server-Sent Events, providing real-time token-by-token output with source attribution.
 
-**bigRAG status:** Resolved for chat — `POST /v1/chat` streams `conversation`, `user_message`, `sources`, `delta`, `assistant_message`, `done`, and `error` SSE events.
+**rag.computer status:** Resolved for chat — `POST /v1/chat` streams `conversation`, `user_message`, `sources`, `delta`, `assistant_message`, `done`, and `error` SSE events.
 
 ### 2.6 Tool Call Inspection
 
@@ -201,7 +201,7 @@ OpenRAG streams LLM-generated answers via Server-Sent Events, providing real-tim
 
 OpenRAG's chat UI shows the agent's tool calls — users can see which tools were invoked, what parameters were used, and what results were returned. This provides transparency into the RAG agent's reasoning.
 
-**bigRAG gap:** No agent, no tool calls, no inspection.
+**rag.computer gap:** No agent, no tool calls, no inspection.
 
 ### 2.7 Custom Agent Instructions
 
@@ -209,7 +209,7 @@ OpenRAG's chat UI shows the agent's tool calls — users can see which tools wer
 
 OpenRAG allows users to customize the system prompt / agent instructions via the settings UI, controlling how the agent behaves, what tone it uses, and what constraints it follows.
 
-**bigRAG status:** Partially resolved — chat requests and the admin UI support a system prompt override. There is still no broader agent instruction/workflow layer.
+**rag.computer status:** Partially resolved — chat requests and the admin UI support a system prompt override. There is still no broader agent instruction/workflow layer.
 
 ### 2.8 URL Ingestion
 
@@ -217,7 +217,7 @@ OpenRAG allows users to customize the system prompt / agent instructions via the
 
 OpenRAG can ingest web pages by URL — paste a link and the content is fetched and added to the knowledge base.
 
-**bigRAG gap:** No URL ingestion support. Documents must be uploaded as files.
+**rag.computer gap:** No URL ingestion support. Documents must be uploaded as files.
 
 ### 2.9 Chat-Context File Upload
 
@@ -225,13 +225,13 @@ OpenRAG can ingest web pages by URL — paste a link and the content is fetched 
 
 OpenRAG allows uploading files directly in a chat message for temporary, one-off context — the file is processed and used for that conversation but not persisted to the knowledge base.
 
-**bigRAG gap:** No temporary file context. The chat interface exists, but files must still be ingested into a collection before chat can use them.
+**rag.computer gap:** No temporary file context. The chat interface exists, but files must still be ingested into a collection before chat can use them.
 
 ---
 
 ## 3. Cloud Storage Connectors
 
-OpenRAG has built-in connectors for syncing documents from cloud storage providers. bigRAG now has Google Drive as the first OAuth connector while the remaining cloud providers are still outside v1 scope.
+OpenRAG has built-in connectors for syncing documents from cloud storage providers. rag.computer now has Google Drive as the first OAuth connector while the remaining cloud providers are still outside v1 scope.
 
 ### 3.1 Google Drive Connector
 
@@ -242,7 +242,7 @@ OpenRAG connects to Google Drive via OAuth, allowing users to:
 - Sync documents from Drive into the knowledge base
 - Automatic re-sync on schedule or manual trigger
 
-**bigRAG status:** Partially resolved — bigRAG supports admin-managed Google OAuth setup, an in-app Drive browser, user-owned Drive sources, initial sync, manual sync, and daily scheduled resync into the existing document ingestion pipeline.
+**rag.computer status:** Partially resolved — rag.computer supports admin-managed Google OAuth setup, an in-app Drive browser, user-owned Drive sources, initial sync, manual sync, and daily scheduled resync into the existing document ingestion pipeline.
 
 ### 3.2 Microsoft SharePoint & OneDrive Connectors
 
@@ -253,13 +253,13 @@ OpenRAG integrates with Microsoft Graph API for:
 - OneDrive file access
 - OAuth-based authentication with Microsoft accounts
 
-**bigRAG gap:** No Microsoft Drive/SharePoint integration.
+**rag.computer gap:** No Microsoft Drive/SharePoint integration.
 
 ### 3.3 Object Storage Connector
 
 **Severity: Medium**
 
-OpenRAG can sync documents from object-storage buckets. bigRAG intentionally does not expose a bucket-sync feature; use explicit file or batch uploads so ingestion stays simple and operator-owned.
+OpenRAG can sync documents from object-storage buckets. rag.computer intentionally does not expose a bucket-sync feature; use explicit file or batch uploads so ingestion stays simple and operator-owned.
 
 ### 3.4 IBM Cloud Object Storage Connector
 
@@ -267,7 +267,7 @@ OpenRAG can sync documents from object-storage buckets. bigRAG intentionally doe
 
 OpenRAG integrates with IBM COS for enterprise IBM customers.
 
-**bigRAG gap:** No IBM COS integration. Lower priority unless targeting IBM enterprise customers.
+**rag.computer gap:** No IBM COS integration. Lower priority unless targeting IBM enterprise customers.
 
 ### 3.5 Connector Management API
 
@@ -279,7 +279,7 @@ OpenRAG provides endpoints for:
 - Disconnecting connectors
 - Webhook notifications when connector syncs complete
 
-**bigRAG gap:** The shipped connector APIs are Google Drive-specific. A provider-neutral connector abstraction is still missing before adding more cloud providers.
+**rag.computer gap:** The shipped connector APIs are Google Drive-specific. A provider-neutral connector abstraction is still missing before adding more cloud providers.
 
 ### 3.6 Connector Base Class Architecture
 
@@ -287,13 +287,13 @@ OpenRAG provides endpoints for:
 
 OpenRAG has a `base.py` connector class that standardizes how new connectors are built. Adding a new cloud provider means implementing a well-defined interface.
 
-**bigRAG gap:** No provider-neutral connector base class yet. Additional providers would need a shared interface rather than copying the Google Drive-specific path.
+**rag.computer gap:** No provider-neutral connector base class yet. Additional providers would need a shared interface rather than copying the Google Drive-specific path.
 
 ---
 
 ## 4. Search & Retrieval
 
-Both platforms support hybrid search. bigRAG keeps retrieval deliberately narrow — semantic, keyword, hybrid RRF, metadata filters, optional Cohere reranking, batch query, and analytics — while OpenRAG still has stronger search-as-you-type, facets, and saved-filter UX.
+Both platforms support hybrid search. rag.computer keeps retrieval deliberately narrow — semantic, keyword, hybrid RRF, metadata filters, optional Cohere reranking, batch query, and analytics — while OpenRAG still has stronger search-as-you-type, facets, and saved-filter UX.
 
 ### 4.1 Weighted Hybrid Search with Tunable Ratios
 
@@ -301,7 +301,7 @@ Both platforms support hybrid search. bigRAG keeps retrieval deliberately narrow
 
 OpenRAG uses a **70/30 semantic/keyword split** with an additional 25% prefix-fallback weight. The weights are explicitly tuned and the `dis_max` query combining provides nuanced relevance scoring.
 
-**bigRAG status:** Partially resolved — bigRAG's hybrid query path uses reciprocal rank fusion. RRF is stable across different scoring distributions, but it is not tunable.
+**rag.computer status:** Partially resolved — rag.computer's hybrid query path uses reciprocal rank fusion. RRF is stable across different scoring distributions, but it is not tunable.
 
 **Remaining gap:** The public API does not yet expose explicit semantic/keyword weight ratios comparable to OpenRAG's fixed 70/30 blend, and there is no prefix-fallback boost in the same request.
 
@@ -318,7 +318,7 @@ OpenRAG returns faceted aggregations with search results:
 
 These power filter UIs and analytics dashboards.
 
-**bigRAG status:** Not implemented — queries return ranked chunks and metadata, but do not return aggregation counts.
+**rag.computer status:** Not implemented — queries return ranked chunks and metadata, but do not return aggregation counts.
 
 ### 4.3 Prefix/Autocomplete Fallback
 
@@ -326,7 +326,7 @@ These power filter UIs and analytics dashboards.
 
 OpenRAG includes a `match_phrase_prefix` query that provides partial-word completion, useful for search-as-you-type interfaces.
 
-**bigRAG gap:** No autocomplete or prefix matching. Keyword search uses exact term matching.
+**rag.computer gap:** No autocomplete or prefix matching. Keyword search uses exact term matching.
 
 ### 4.4 Post-Retrieval Re-Ranking Boost
 
@@ -334,7 +334,7 @@ OpenRAG includes a `match_phrase_prefix` query that provides partial-word comple
 
 Beyond Cohere-based re-ranking (which both platforms support), OpenRAG applies a post-retrieval boost: exact filename and text matches are promoted to avoid "semantic spillover" where semantically similar but irrelevant documents outrank exact matches.
 
-**bigRAG gap:** bigRAG's re-ranking is purely via Cohere's API. No post-retrieval boost logic for exact matches.
+**rag.computer gap:** rag.computer's re-ranking is purely via Cohere's API. No post-retrieval boost logic for exact matches.
 
 ### 4.5 Multi-Model Embedding Search
 
@@ -345,7 +345,7 @@ OpenRAG auto-detects all embedding models present in the corpus and parallelizes
 - Gradual model migration (new documents use new model, old documents keep old embeddings)
 - Cross-model retrieval from a single query
 
-**bigRAG gap:** Each bigRAG collection is locked to a single embedding provider and model. Querying across models requires separate collections and multi-collection queries.
+**rag.computer gap:** Each rag.computer collection is locked to a single embedding provider and model. Querying across models requires separate collections and multi-collection queries.
 
 ### 4.6 Wildcard/Global Facet Query
 
@@ -353,7 +353,7 @@ OpenRAG auto-detects all embedding models present in the corpus and parallelizes
 
 OpenRAG supports a `*` wildcard query that skips semantic search and returns global facet aggregations — useful for populating filter dropdowns before the user types anything.
 
-**bigRAG gap:** No wildcard query mode. The query endpoint requires a non-empty query string.
+**rag.computer gap:** No wildcard query mode. The query endpoint requires a non-empty query string.
 
 ### 4.7 Knowledge Filters with Subscriptions
 
@@ -364,7 +364,7 @@ OpenRAG's "Knowledge Filters" are named, reusable filter configurations (scoping
 - Subscriptions: get notified when new documents match a filter
 - Webhook notifications tied to filter matches via OpenSearch document-level monitors
 
-**bigRAG gap:** bigRAG has per-query filter expressions but no saved/named filters, no filter subscriptions, and no document-level monitoring with alerts.
+**rag.computer gap:** rag.computer has per-query filter expressions but no saved/named filters, no filter subscriptions, and no document-level monitoring with alerts.
 
 ---
 
@@ -383,9 +383,9 @@ OpenRAG supports:
 - OIDC discovery endpoint (`/.well-known/openid-configuration`)
 - Token introspection endpoint
 
-**bigRAG gap (narrower):** bigRAG now has admin accounts, session cookies, per-user passwords (Argon2id), and minted `bigrag_sk_` API keys with scopes — but it does **not** yet support OAuth/OIDC, external IdP login, or JWT token introspection. Integrations with Google / Okta / Microsoft / IBM still have to happen at a reverse proxy in front of bigRAG.
+**rag.computer gap (narrower):** rag.computer now has admin accounts, session cookies, per-user passwords (Argon2id), and minted `ragc_sk_` API keys with scopes — but it does **not** yet support OAuth/OIDC, external IdP login, or JWT token introspection. Integrations with Google / Okta / Microsoft / IBM still have to happen at a reverse proxy in front of rag.computer.
 
-**Impact:** Multi-user deployments work today via bigRAG-native accounts; OAuth-backed SSO still requires fronting bigRAG with an auth proxy.
+**Impact:** Multi-user deployments work today via rag.computer-native accounts; OAuth-backed SSO still requires fronting rag.computer with an auth proxy.
 
 ### 5.2 Per-User Document Ownership
 
@@ -393,7 +393,7 @@ OpenRAG supports:
 
 In OAuth mode, OpenRAG tags every document with its uploader's identity. Users only see their own documents by default. Admins can see everything.
 
-**bigRAG gap:** No document ownership. All documents in a collection are visible to all authenticated users.
+**rag.computer gap:** No document ownership. All documents in a collection are visible to all authenticated users.
 
 ### 5.3 Document-Level Security (DLS)
 
@@ -404,7 +404,7 @@ OpenRAG stores `allowed_users` and `allowed_groups` fields in OpenSearch, enabli
 - Per-document group whitelists
 - Automatic filtering at query time
 
-**bigRAG gap:** No document-level access control. Qdrant stores metadata but there is no ACL filtering layer.
+**rag.computer gap:** No document-level access control. Qdrant stores metadata but there is no ACL filtering layer.
 
 ### 5.4 API Key System
 
@@ -417,7 +417,7 @@ OpenRAG's API key system includes:
 - Create, list, revoke operations via API and UI
 - Separate auth tier: API keys access the public `/v1/*` endpoints
 
-**bigRAG parity (resolved):** bigRAG ships `bigrag_sk_…` prefixed keys, SHA-256 hashed at rest, with `last_used_at` usage tracking, create/list/update/revoke through [`/v1/admin/api-keys`](/docs/api-reference/api-keys) and the admin UI. Scopes attach to each key.
+**rag.computer parity (resolved):** rag.computer ships `ragc_sk_…` prefixed keys, SHA-256 hashed at rest, with `last_used_at` usage tracking, create/list/update/revoke through [`/v1/admin/api-keys`](/docs/api-reference/api-keys) and the admin UI. Scopes attach to each key.
 
 ### 5.5 Session Management
 
@@ -428,7 +428,7 @@ OpenRAG tracks user sessions with:
 - Session-based JWT tokens with configurable expiry
 - Session secrets auto-generated per deployment
 
-**bigRAG parity (resolved):** bigRAG tracks `sessions` in Postgres with configurable expiry (`BIGRAG_SESSION_EXPIRY_HOURS`), `Secure`/`SameSite`/`Domain` cookie flags, `/v1/auth/logout-all` for bulk revocation, and a periodic cleanup sweep for expired rows.
+**rag.computer parity (resolved):** rag.computer tracks `sessions` in Postgres with configurable expiry (`RAG_COMPUTER_SESSION_EXPIRY_HOURS`), `Secure`/`SameSite`/`Domain` cookie flags, `/v1/auth/logout-all` for bulk revocation, and a periodic cleanup sweep for expired rows.
 
 ### 5.6 Tenant Isolation
 
@@ -436,7 +436,7 @@ OpenRAG tracks user sessions with:
 
 OpenRAG has a `OPENRAG_TENANT_ID` setting for AAD (Azure Active Directory) tenant binding. While not full multi-tenancy, it provides tenant scoping.
 
-**bigRAG gap:** No tenant concept. Single-tenant only.
+**rag.computer gap:** No tenant concept. Single-tenant only.
 
 ### 5.7 Role-Based Access Control
 
@@ -447,7 +447,7 @@ OpenRAG distinguishes between:
 - Authenticated users (document access scoped to their uploads)
 - Admin users (full access including settings and user management)
 
-**bigRAG gap (narrower):** bigRAG has native `admin` and `member` users plus scoped API keys. Admin-only endpoints cover users, API keys, audit, webhooks, embedding presets, and preferences; members can use read/query flows. It does **not** yet have fine-grained, per-resource user roles, document ownership, or document ACL enforcement.
+**rag.computer gap (narrower):** rag.computer has native `admin` and `member` users plus scoped API keys. Admin-only endpoints cover users, API keys, audit, webhooks, embedding presets, and preferences; members can use read/query flows. It does **not** yet have fine-grained, per-resource user roles, document ownership, or document ACL enforcement.
 
 ### 5.8 Microsoft Graph OAuth
 
@@ -455,7 +455,7 @@ OpenRAG distinguishes between:
 
 OpenRAG integrates with Microsoft Graph for SharePoint/OneDrive access, including OAuth token management for Microsoft services.
 
-**bigRAG gap:** No Microsoft OAuth integration.
+**rag.computer gap:** No Microsoft OAuth integration.
 
 ---
 
@@ -471,7 +471,7 @@ OpenRAG integrates with [Langfuse](https://langfuse.com) via environment variabl
 - Prompt versioning and evaluation
 - Session-level observability
 
-**bigRAG gap:** No LLM observability integration. bigRAG has query analytics (latency, score, result count) but no LLM-level tracing since it doesn't call LLMs.
+**rag.computer gap:** No LLM observability integration. rag.computer has query analytics (latency, score, result count) but no LLM-level tracing since it doesn't call LLMs.
 
 ### 6.2 Structured Logging (structlog)
 
@@ -479,7 +479,7 @@ OpenRAG integrates with [Langfuse](https://langfuse.com) via environment variabl
 
 OpenRAG uses [structlog](https://www.structlog.org/) for structured, machine-parseable logging with configurable format (JSON or text), service name tagging, and consistent key-value pairs across all log messages.
 
-**bigRAG status:** Resolved — bigRAG uses `structlog` with secret redaction, context merging, and always-on debug text output.
+**rag.computer status:** Resolved — rag.computer uses `structlog` with secret redaction, context merging, and always-on debug text output.
 
 ### 6.3 Container Log Streaming
 
@@ -487,7 +487,7 @@ OpenRAG uses [structlog](https://www.structlog.org/) for structured, machine-par
 
 OpenRAG's TUI streams container logs in real-time, making it easy to monitor all services from a single terminal.
 
-**bigRAG gap:** No log aggregation. Each service (Postgres, Redis, Qdrant, API) logs independently. Users must use `docker logs` or `docker compose logs` manually.
+**rag.computer gap:** No log aggregation. Each service (Postgres, Redis, Qdrant, API) logs independently. Users must use `docker logs` or `docker compose logs` manually.
 
 ### 6.4 Disk Space Monitoring
 
@@ -495,7 +495,7 @@ OpenRAG's TUI streams container logs in real-time, making it easy to monitor all
 
 OpenRAG monitors disk space and alerts at 90% threshold to prevent out-of-space failures in OpenSearch.
 
-**bigRAG gap:** No disk space monitoring. Qdrant or Postgres could fill the disk without warning.
+**rag.computer gap:** No disk space monitoring. Qdrant or Postgres could fill the disk without warning.
 
 ### 6.5 Provider Health Checks
 
@@ -503,7 +503,7 @@ OpenRAG monitors disk space and alerts at 90% threshold to prevent out-of-space 
 
 OpenRAG has a `/provider/health` endpoint that validates connectivity to the configured LLM and embedding providers, including API key validation and model availability.
 
-**bigRAG status:** Resolved for embeddings — `/health/ready` checks Postgres, Qdrant, Redis, and the configured embedding provider. It resolves an env-level key, then an embedding preset key, then a collection key, performs a short embedding call, categorizes provider failures, and caches the result for 60 seconds.
+**rag.computer status:** Resolved for embeddings — `/health/ready` checks Postgres, Qdrant, Redis, and the configured embedding provider. It resolves an env-level key, then an embedding preset key, then a collection key, performs a short embedding call, categorizes provider failures, and caches the result for 60 seconds.
 
 ### 6.6 LLM Usage Analytics
 
@@ -511,7 +511,7 @@ OpenRAG has a `/provider/health` endpoint that validates connectivity to the con
 
 OpenRAG displays LLM usage data (token consumption, costs) in the UI, powered by Langfuse.
 
-**bigRAG gap:** No LLM usage tracking (no LLM integration).
+**rag.computer gap:** No LLM usage tracking (no LLM integration).
 
 ---
 
@@ -521,7 +521,7 @@ OpenRAG displays LLM usage data (token consumption, costs) in the UI, powered by
 
 **Severity: ~~High~~ Resolved**
 
-OpenRAG provides a Python SDK (`openrag-sdk` on PyPI). bigRAG now also has a Python SDK (`bigrag` on PyPI) with async/await, resource namespaces, full type hints (`py.typed`), retry logic, SSE support for event/chat streams, and comprehensive error handling — matching the TypeScript SDK's API surface.
+OpenRAG provides a Python SDK (`openrag-sdk` on PyPI). rag.computer now also has a Python SDK (`rag-computer` on PyPI) with async/await, resource namespaces, full type hints (`py.typed`), retry logic, SSE support for event/chat streams, and comprehensive error handling — matching the TypeScript SDK's API surface.
 
 ### 7.2 MCP Server (Model Context Protocol)
 
@@ -534,7 +534,7 @@ OpenRAG publishes an MCP server (`openrag-mcp` on PyPI / `uvx openrag-mcp`) that
 
 Tools exposed: `openrag_chat`, `openrag_search`, `openrag_get_settings`, `openrag_update_settings`, `openrag_list_models`.
 
-**bigRAG status:** Resolved — bigRAG ships an MCP server (`bigrag-mcp`) that exposes 6 tools to collection-pinned keys and 8 to full-workspace keys. See the [MCP integration docs](/docs/sdks/mcp).
+**rag.computer status:** Resolved — rag.computer ships an MCP server (`rag-computer-mcp`) that exposes 6 tools to collection-pinned keys and 8 to full-workspace keys. See the [MCP integration docs](/docs/sdks/mcp).
 
 ### 7.3 Single-Command Installation
 
@@ -552,7 +552,7 @@ This command:
 3. Pulls and starts all Docker containers
 4. Opens the frontend in the browser
 
-**bigRAG gap:** bigRAG requires cloning the repo, configuring environment variables, and running `./dev.sh` or `docker compose up`. There is no published package on PyPI or npm for one-command deployment.
+**rag.computer gap:** rag.computer requires cloning the repo, configuring environment variables, and running `./dev.sh` or `docker compose up`. There is no published package on PyPI or npm for one-command deployment.
 
 ### 7.4 Flow Import/Export
 
@@ -563,7 +563,7 @@ OpenRAG allows exporting and importing Langflow flows as JSON, enabling:
 - Version-controlling pipeline configurations
 - Backup and restore of customizations
 
-**bigRAG gap:** bigRAG's pipeline is hardcoded. There is no way to export, share, or version-control retrieval pipeline configurations independently of the source code.
+**rag.computer gap:** rag.computer's pipeline is hardcoded. There is no way to export, share, or version-control retrieval pipeline configurations independently of the source code.
 
 ### 7.5 Flow Backup & Restore
 
@@ -571,7 +571,7 @@ OpenRAG allows exporting and importing Langflow flows as JSON, enabling:
 
 OpenRAG automatically backs up flows every 5 minutes to `~/.openrag/flows/backup/` and provides a restore mechanism to revert to original configurations.
 
-**bigRAG gap:** No configuration backup system.
+**rag.computer gap:** No configuration backup system.
 
 ### 7.6 Factory Reset
 
@@ -579,7 +579,7 @@ OpenRAG automatically backs up flows every 5 minutes to `~/.openrag/flows/backup
 
 OpenRAG provides a factory reset capability that cleans up all containers and volumes while preserving configuration files.
 
-**bigRAG gap:** No factory reset. Users must manually `docker compose down -v` and clean up data directories.
+**rag.computer gap:** No factory reset. Users must manually `docker compose down -v` and clean up data directories.
 
 ### 7.7 Podman Support
 
@@ -587,7 +587,7 @@ OpenRAG provides a factory reset capability that cleans up all containers and vo
 
 OpenRAG supports Podman as an alternative to Docker, including Podman Compose.
 
-**bigRAG gap:** bigRAG's `dev.sh` and Docker Compose files assume Docker. No Podman support documented.
+**rag.computer gap:** rag.computer's `dev.sh` and Docker Compose files assume Docker. No Podman support documented.
 
 ---
 
@@ -599,7 +599,7 @@ OpenRAG supports Podman as an alternative to Docker, including Podman Compose.
 
 OpenRAG supports AES-256-GCM encryption for OpenSearch index payloads via the `OPENRAG_ENCRYPTION_KEY` environment variable. This encrypts document content stored in the search index.
 
-**bigRAG gap (narrower):** bigRAG now Fernet-encrypts sensitive provider secrets, webhook secrets, persistent embedding-cache rows, and Redis cache payloads when `BIGRAG_MASTER_KEY` is configured, and refuses `prod` startup without a master key. Document text, uploaded files, metadata payloads, and Qdrant vector payloads still rely on database/filesystem/provider encryption rather than application-level content encryption.
+**rag.computer gap (narrower):** rag.computer now Fernet-encrypts sensitive provider secrets, webhook secrets, persistent embedding-cache rows, and Redis cache payloads when `RAG_COMPUTER_MASTER_KEY` is configured, and refuses `prod` startup without a master key. Document text, uploaded files, metadata payloads, and Qdrant vector payloads still rely on database/filesystem/provider encryption rather than application-level content encryption.
 
 ### 8.2 Password Complexity Validation
 
@@ -607,7 +607,7 @@ OpenRAG supports AES-256-GCM encryption for OpenSearch index payloads via the `O
 
 OpenRAG validates password strength using the `zxcvbn` library, preventing weak passwords for the admin account and OpenSearch.
 
-**bigRAG gap:** bigRAG enforces a minimum password length of 8 characters and hashes with Argon2id, but there is no `zxcvbn`-style complexity scoring or dictionary-attack resistance warning on `/v1/auth/setup` and user-create flows.
+**rag.computer gap:** rag.computer enforces a minimum password length of 8 characters and hashes with Argon2id, but there is no `zxcvbn`-style complexity scoring or dictionary-attack resistance warning on `/v1/auth/setup` and user-create flows.
 
 ### 8.3 JWT Key Management
 
@@ -615,7 +615,7 @@ OpenRAG validates password strength using the `zxcvbn` library, preventing weak 
 
 OpenRAG auto-generates RSA key pairs for JWT signing and stores them in `~/.openrag/keys/`. Keys are EC curve-based with automatic algorithm selection.
 
-**bigRAG gap:** bigRAG uses SHA-256 hashed API keys (`bigrag_sk_…`) and session cookies, not asymmetric JWT signing. There is no asymmetric key management system.
+**rag.computer gap:** rag.computer uses SHA-256 hashed API keys (`ragc_sk_…`) and session cookies, not asymmetric JWT signing. There is no asymmetric key management system.
 
 ### 8.4 Secret Auto-Generation
 
@@ -627,7 +627,7 @@ OpenRAG auto-generates secrets for:
 - OpenSearch admin password (with complexity validation)
 - JWT signing keys
 
-**bigRAG gap:** bigRAG auto-generates session tokens and API key material, but the first admin password is still operator-supplied via `/v1/auth/setup`. No auto-generation of Langflow-style superuser credentials (bigRAG does not bundle Langflow).
+**rag.computer gap:** rag.computer auto-generates session tokens and API key material, but the first admin password is still operator-supplied via `/v1/auth/setup`. No auto-generation of Langflow-style superuser credentials (rag.computer does not bundle Langflow).
 
 ### 8.5 Audit Trail
 
@@ -635,7 +635,7 @@ OpenRAG auto-generates secrets for:
 
 OpenRAG's API key system tracks `last_used_at` timestamps, and session ownership provides basic audit trail capabilities for who accessed what.
 
-**bigRAG status:** Resolved — every state-changing call is recorded in the `audit_logs` table (actor, action, resource, IP, user agent), exposed at `/v1/admin/audit`, and API keys carry `last_used_at`.
+**rag.computer status:** Resolved — every state-changing call is recorded in the `audit_logs` table (actor, action, resource, IP, user agent), exposed at `/v1/admin/audit`, and API keys carry `last_used_at`.
 
 ---
 
@@ -643,24 +643,24 @@ OpenRAG's API key system tracks `last_used_at` timestamps, and session ownership
 
 A complete feature-by-feature comparison:
 
-| Feature | bigRAG | OpenRAG | Gap Severity |
+| Feature | rag.computer | OpenRAG | Gap Severity |
 |---|---|---|---|
 | **Core RAG** | | | |
 | Document ingestion (file upload) | Yes | Yes | -- |
-| Batch document upload | Yes (100 files) | Yes (25 batch) | bigRAG ahead |
-| Supported file formats | 18 (PDF, DOCX, PPTX, XLSX, HTML, MD, TXT, CSV, TSV, XML, JSON, images) | 7 (PDF, DOCX, PPTX, HTML, MD, TXT, images) | bigRAG ahead |
-| Document reprocessing | Yes | No | bigRAG ahead |
-| Chunk retrieval per document | Yes | No | bigRAG ahead |
-| Original file download | Yes | No | bigRAG ahead |
+| Batch document upload | Yes (100 files) | Yes (25 batch) | rag.computer ahead |
+| Supported file formats | 18 (PDF, DOCX, PPTX, XLSX, HTML, MD, TXT, CSV, TSV, XML, JSON, images) | 7 (PDF, DOCX, PPTX, HTML, MD, TXT, images) | rag.computer ahead |
+| Document reprocessing | Yes | No | rag.computer ahead |
+| Chunk retrieval per document | Yes | No | rag.computer ahead |
+| Original file download | Yes | No | rag.computer ahead |
 | URL ingestion | No | Yes | High |
 | Cloud storage connectors | No | Yes (5 providers) | High |
 | **Search** | | | |
 | Semantic search | Yes | Yes | -- |
 | Keyword search | Yes | Yes | -- |
 | Hybrid search | Yes (`rrf`, `weighted`, `normalized`) | Yes (weighted 70/30 + prefix fallback) | Different approach |
-| Reranking (Cohere) | Yes | No (Langflow-based) | bigRAG ahead |
-| Multi-collection query | Yes | No (single index) | bigRAG ahead |
-| Batch queries | Yes (20 per request) | No | bigRAG ahead |
+| Reranking (Cohere) | Yes | No (Langflow-based) | rag.computer ahead |
+| Multi-collection query | Yes | No (single index) | rag.computer ahead |
+| Batch queries | Yes (20 per request) | No | rag.computer ahead |
 | Faceted aggregations | Yes | Yes | Resolved |
 | Prefix/autocomplete | No | Yes | Medium |
 | Multi-model embedding search | No | Yes | High |
@@ -674,14 +674,14 @@ A complete feature-by-feature comparison:
 | Custom agent instructions | No | Yes | Medium |
 | Tool call inspection | No | Yes | Medium |
 | **Data Management** | | | |
-| Collections/namespaces | Yes (multi-collection) | Single index | bigRAG ahead |
-| Per-collection embedding config | Yes | Global only | bigRAG ahead |
-| Collection-level defaults | Yes | No | bigRAG ahead |
-| Collection analytics | Yes | No | bigRAG ahead |
-| Document metadata (custom) | Yes | Limited | bigRAG ahead |
-| Raw vector upsert | Yes | No | bigRAG ahead |
+| Collections/namespaces | Yes (multi-collection) | Single index | rag.computer ahead |
+| Per-collection embedding config | Yes | Global only | rag.computer ahead |
+| Collection-level defaults | Yes | No | rag.computer ahead |
+| Collection analytics | Yes | No | rag.computer ahead |
+| Document metadata (custom) | Yes | Limited | rag.computer ahead |
+| Raw vector upsert | Yes | No | rag.computer ahead |
 | **Authentication** | | | |
-| API key auth | Yes (`bigrag_sk_` per-key, scoped) | Yes (per-user keys) | -- |
+| API key auth | Yes (`ragc_sk_` per-key, scoped) | Yes (per-user keys) | -- |
 | OAuth / OIDC | No | Yes (Google, IBM) | Critical |
 | Per-user document ownership | No | Yes | High |
 | Document-level ACL | No | Yes (DLS) | High |
@@ -696,8 +696,8 @@ A complete feature-by-feature comparison:
 | Podman support | No | Yes | Low |
 | **Observability** | | | |
 | Health checks | Yes | Yes | -- |
-| Query analytics | Yes (24h/7d/30d) | No | bigRAG ahead |
-| Webhook delivery tracking | Yes | No | bigRAG ahead |
+| Query analytics | Yes (24h/7d/30d) | No | rag.computer ahead |
+| Webhook delivery tracking | Yes | No | rag.computer ahead |
 | Structured logging (JSON) | Yes (structlog) | Yes (structlog) | Resolved |
 | LLM observability (Langfuse) | No | Yes | High |
 | Disk space monitoring | No | Yes | Medium |
@@ -714,49 +714,49 @@ A complete feature-by-feature comparison:
 | MCP server | Yes | Yes | Resolved |
 | Visual workflow builder | No | Yes (Langflow) | High |
 | Web UI | Yes (admin UI) | Yes | Resolved |
-| Webhook system | Yes | Partial (filter subs) | bigRAG ahead |
+| Webhook system | Yes | Partial (filter subs) | rag.computer ahead |
 | **Ecosystem** | | | |
 | License | MIT | Apache-2.0 | -- |
 | Enterprise support | No | Yes (IBM Elite) | Medium |
 | GitHub stars | -- | 3,700+ | -- |
 | Vector database | Qdrant | OpenSearch | Different |
-| Metadata database | PostgreSQL | None (OpenSearch) | bigRAG ahead |
+| Metadata database | PostgreSQL | None (OpenSearch) | rag.computer ahead |
 
 ---
 
-## 10. Where bigRAG Is Ahead
+## 10. Where rag.computer Is Ahead
 
-Not everything favors OpenRAG. bigRAG has significant advantages in several areas:
+Not everything favors OpenRAG. rag.computer has significant advantages in several areas:
 
 ### 10.1 Collection Architecture
-bigRAG's multi-collection model with per-collection embedding configuration is more flexible than OpenRAG's single-index approach. Different teams can use different embedding models in the same deployment.
+rag.computer's multi-collection model with per-collection embedding configuration is more flexible than OpenRAG's single-index approach. Different teams can use different embedding models in the same deployment.
 
 ### 10.2 Webhook System
-bigRAG has a mature webhook system with HMAC signature verification, retry logic with exponential backoff, delivery history tracking, and test endpoints. OpenRAG only has basic webhook support for knowledge filter subscriptions.
+rag.computer has a mature webhook system with HMAC signature verification, retry logic with exponential backoff, delivery history tracking, and test endpoints. OpenRAG only has basic webhook support for knowledge filter subscriptions.
 
 ### 10.3 Batch Operations
-bigRAG supports batch upload (100 files), SSE-backed admin batch progress, batch queries (20 per request), batch status checks, and batch deletes. OpenRAG's batch support is limited to ingestion batching.
+rag.computer supports batch upload (100 files), SSE-backed admin batch progress, batch queries (20 per request), batch status checks, and batch deletes. OpenRAG's batch support is limited to ingestion batching.
 
 ### 10.4 Query Analytics
-bigRAG tracks query performance over 24h/7d/30d windows with average latency, score, result count, and top queries per collection. OpenRAG has no equivalent.
+rag.computer tracks query performance over 24h/7d/30d windows with average latency, score, result count, and top queries per collection. OpenRAG has no equivalent.
 
 ### 10.5 Document Lifecycle
-bigRAG provides document reprocessing, chunk retrieval, original file download, and granular status tracking. OpenRAG's document management is more basic.
+rag.computer provides document reprocessing, chunk retrieval, original file download, and granular status tracking. OpenRAG's document management is more basic.
 
 ### 10.6 File Format Support
-bigRAG supports 18+ file formats including XLSX, CSV, TSV, XML, and JSON. OpenRAG supports ~7 formats.
+rag.computer supports 18+ file formats including XLSX, CSV, TSV, XML, and JSON. OpenRAG supports ~7 formats.
 
 ### 10.7 Raw Vector API
-bigRAG's vector upsert/delete endpoints allow users to bring their own embeddings from custom models. OpenRAG has no equivalent.
+rag.computer's vector upsert/delete endpoints allow users to bring their own embeddings from custom models. OpenRAG has no equivalent.
 
 ### 10.8 Dedicated Metadata Database
-bigRAG uses PostgreSQL for metadata, giving it transactional consistency, complex queries, and relational integrity. OpenRAG stores everything in OpenSearch, which is eventually consistent.
+rag.computer uses PostgreSQL for metadata, giving it transactional consistency, complex queries, and relational integrity. OpenRAG stores everything in OpenSearch, which is eventually consistent.
 
 ### 10.9 Queue Architecture
-bigRAG's Redis-based queue with dead letter handling, job recovery, and configurable retry logic is more robust than OpenRAG's semaphore-limited task processing.
+rag.computer's Redis-based queue with dead letter handling, job recovery, and configurable retry logic is more robust than OpenRAG's semaphore-limited task processing.
 
 ### 10.10 Cohere Reranking
-bigRAG has native Cohere reranking with per-collection and per-query configuration. OpenRAG relies on Langflow flows for reranking, which is less integrated.
+rag.computer has native Cohere reranking with per-collection and per-query configuration. OpenRAG relies on Langflow flows for reranking, which is less integrated.
 
 ---
 
@@ -768,7 +768,7 @@ Based on this analysis, here are the recommended priorities for closing the most
 
 1. **Agent / Workflow Transparency** — Extend the existing chat layer with tool-call inspection, agent/workflow traces, and provider coverage beyond OpenAI-compatible models. The chat API exists; the competitive gap is now orchestration depth and transparency.
 
-2. **OAuth / OIDC Authentication** — Add external identity-provider support (Google OIDC at minimum, with extensibility for other providers) alongside the existing native accounts and `bigrag_sk_` API keys.
+2. **OAuth / OIDC Authentication** — Add external identity-provider support (Google OIDC at minimum, with extensibility for other providers) alongside the existing native accounts and `ragc_sk_` API keys.
 
 3. **Document Ownership & ACLs** — Add owner, group, and policy fields to document metadata and enforce them consistently in listing, chunk, download, query, MCP, and global document lookup paths.
 
@@ -786,7 +786,7 @@ Based on this analysis, here are the recommended priorities for closing the most
 
 9. **LLM Observability** — If backend generation lands, add Langfuse/OpenTelemetry-style traces for prompts, retrieved chunks, model latency, token counts, and cost.
 
-10. **Single-Command Install** — Publish a `uvx bigrag` or equivalent command that sets up the API, admin UI, and Docker services.
+10. **Single-Command Install** — Publish a `uvx rag-computer` or equivalent command that sets up the API, admin UI, and Docker services.
 
 ### Tier 3 — Medium (nice-to-have improvements)
 
@@ -808,8 +808,8 @@ Based on this analysis, here are the recommended priorities for closing the most
 
 ## 12. Conclusion
 
-OpenRAG and bigRAG are at different points on the RAG platform spectrum. OpenRAG is a **full-stack, end-user-facing platform** with chat, agents, workflow editing, and cloud connectors. bigRAG is a **developer-focused retrieval platform** with an optional admin UI, stronger multi-collection architecture, batch operations, SDKs, MCP, webhooks, audit, and operational controls.
+OpenRAG and rag.computer are at different points on the RAG platform spectrum. OpenRAG is a **full-stack, end-user-facing platform** with chat, agents, workflow editing, and cloud connectors. rag.computer is a **developer-focused retrieval platform** with an optional admin UI, stronger multi-collection architecture, batch operations, SDKs, MCP, webhooks, audit, and operational controls.
 
-The highest-impact remaining gaps are **agent/workflow transparency**, **OAuth/OIDC**, and **document-level ownership/ACLs**. Closing those would position bigRAG as a serious alternative that combines OpenRAG's end-to-end capabilities with bigRAG's existing strengths in API design, multi-collection architecture, admin operations, and operational robustness.
+The highest-impact remaining gaps are **agent/workflow transparency**, **OAuth/OIDC**, and **document-level ownership/ACLs**. Closing those would position rag.computer as a serious alternative that combines OpenRAG's end-to-end capabilities with rag.computer's existing strengths in API design, multi-collection architecture, admin operations, and operational robustness.
 
-bigRAG's core architecture is sound and in several areas more sophisticated than OpenRAG's. The gaps are now primarily in the **application and identity layer** (chat, agents, OAuth, ACLs, connectors) rather than the **infrastructure layer** (search, ingestion, storage, SDKs, MCP, webhooks), which is already strong.
+rag.computer's core architecture is sound and in several areas more sophisticated than OpenRAG's. The gaps are now primarily in the **application and identity layer** (chat, agents, OAuth, ACLs, connectors) rather than the **infrastructure layer** (search, ingestion, storage, SDKs, MCP, webhooks), which is already strong.

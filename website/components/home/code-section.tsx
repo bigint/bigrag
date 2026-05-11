@@ -1,8 +1,8 @@
 import { BookOpen, Database, Terminal } from "lucide-react";
 
-const codeExample = `import { BigRAG } from "@bigrag/client";
+const codeExample = `import { RagComputer } from "@rag.computer/client";
 
-const client = new BigRAG({
+const client = new RagComputer({
   apiSecret: "your-api-secret",
   baseUrl: "http://localhost:4000",
 });
@@ -24,9 +24,9 @@ export const CodeSection = () => (
             Upload, embed, and search in minutes
           </h2>
           <p className="mb-8 text-fd-muted-foreground md:text-lg md:leading-relaxed">
-            bigRAG handles the entire RAG pipeline. Upload any document format, and it automatically
-            parses, chunks, embeds, and indexes for vector search. Use the TypeScript SDK or REST
-            API.
+            rag.computer handles the entire RAG pipeline. Upload any document format, and it
+            automatically parses, chunks, embeds, and indexes for vector search. Use the TypeScript
+            SDK or REST API.
           </p>
           <div className="flex flex-col gap-3 text-sm text-fd-muted-foreground">
             <div className="flex items-center gap-3">

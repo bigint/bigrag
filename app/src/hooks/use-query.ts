@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
-import type { QueryResult } from "@/types/bigrag";
+import type { QueryResult } from "@/types/rag-computer";
 
 type QueryBody = {
   query: string;

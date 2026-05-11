@@ -1,15 +1,15 @@
 ---
 title: MCP Server
-description: Expose a bigRAG instance over the Model Context Protocol so Claude Desktop, Cursor, and other MCP clients can retrieve from your collections natively.
+description: Expose a rag.computer instance over the Model Context Protocol so Claude Desktop, Cursor, and other MCP clients can retrieve from your collections natively.
 ---
 
-bigRAG ships an [MCP](https://modelcontextprotocol.io) server in two
+rag.computer ships an [MCP](https://modelcontextprotocol.io) server in two
 shapes:
 
-- **Remote HTTP** — mounted on the bigRAG API at `/mcp`, for
+- **Remote HTTP** — mounted on the rag.computer API at `/mcp`, for
   streamable-http clients that can send an `Authorization: Bearer ...`
   header. No local install.
-- **Local stdio** — the `bigrag-mcp` CLI, for Claude Desktop's
+- **Local stdio** — the `rag-computer-mcp` CLI, for Claude Desktop's
   `config.json` and older Cursor setups.
 
 Both share the same toolset. Scope (all-collections vs pinned to one
@@ -20,7 +20,7 @@ collection) is derived from the API key.
 The admin UI's **MCP** page (`/mcp`) is the canonical way to set one up.
 Creating an MCP there:
 
-1. mints a fresh bigRAG API key dedicated to that MCP (not shared
+1. mints a fresh rag.computer API key dedicated to that MCP (not shared
    with `/api-keys`) scoped to `collection:read`, `document:read`, and
    `query:read`;
 2. shows the full API key exactly once — copy it straight into your
@@ -37,7 +37,7 @@ immediately on the next request.
 ## Scoping to a single collection
 
 When creating the MCP in the admin UI, set **Collection scope** to pin it to
-one collection. The bigRAG API blocks cross-collection endpoints for
+one collection. The rag.computer API blocks cross-collection endpoints for
 scoped MCPs with a 403, and both transports adjust their toolset:
 
 | MCP scope | Tools exposed |
@@ -45,7 +45,7 @@ scoped MCPs with a 403, and both transports adjust their toolset:
 | **All collections** | 8 tools including `list_collections` and `multi_collection_query`. |
 | **Pinned to `X`** | 6 tools, all with `collection` pre-bound to `X`. `list_collections` and `multi_collection_query` are hidden. |
 
-There is no separate `BIGRAG_COLLECTION` env var — the key itself
+There is no separate `RAG_COMPUTER_COLLECTION` env var — the key itself
 carries its scope. To change scope, delete the MCP and create a new
 one (or rotate after editing via the REST API).
 
@@ -54,13 +54,13 @@ one (or rotate after editing via the REST API).
 No local install. The endpoint is stable:
 
 ```
-https://bigrag.example.com/mcp
+https://rag.computer/mcp
 ```
 
 Every request must send the MCP key in an HTTP authorization header:
 
 ```http
-Authorization: Bearer bigrag_sk_...
+Authorization: Bearer ragc_sk_...
 ```
 
 Use remote clients that can attach bearer headers. If your client only
@@ -69,7 +69,7 @@ until OAuth support is available.
 
 Under the hood the endpoint is a FastMCP server with
 `stateless_http=True` and `json_response=True`; every request carries
-the bearer key and is dispatched through the bigRAG REST API, so auth and
+the bearer key and is dispatched through the rag.computer REST API, so auth and
 scope rules apply uniformly.
 
 ## Local stdio (Claude Desktop, older Cursor)
@@ -77,24 +77,24 @@ scope rules apply uniformly.
 Install the CLI:
 
 ```bash
-uv tool install bigrag
-# or: pip install bigrag
+uv tool install rag-computer
+# or: pip install rag-computer
 ```
 
 Run directly:
 
 ```bash
-BIGRAG_URL=https://bigrag.example.com \
-BIGRAG_API_KEY=bigrag_sk_... \
-bigrag-mcp
+RAG_COMPUTER_URL=https://rag.computer \
+RAG_COMPUTER_API_KEY=ragc_sk_... \
+rag-computer-mcp
 ```
 
 Flags:
 
 | Flag | Default | Notes |
 |------|---------|-------|
-| `--base-url` | `http://localhost:4000` | also read from `BIGRAG_URL` |
-| `--api-key` | _(none)_ | also read from `BIGRAG_API_KEY` |
+| `--base-url` | `http://localhost:4000` | also read from `RAG_COMPUTER_URL` |
+| `--api-key` | _(none)_ | also read from `RAG_COMPUTER_API_KEY` |
 | `--transport` | `stdio` | alt: `streamable-http` |
 | `--port` | `6101` | for streamable-http only |
 
@@ -110,11 +110,11 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`
 ```json
 {
   "mcpServers": {
-    "bigrag": {
-      "command": "bigrag-mcp",
+    "rag-computer": {
+      "command": "rag-computer-mcp",
       "env": {
-        "BIGRAG_URL": "https://bigrag.example.com",
-        "BIGRAG_API_KEY": "bigrag_sk_..."
+        "RAG_COMPUTER_URL": "https://rag.computer",
+        "RAG_COMPUTER_API_KEY": "ragc_sk_..."
       }
     }
   }

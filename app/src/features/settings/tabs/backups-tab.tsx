@@ -7,7 +7,7 @@ import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { useBackups, useStartBackup } from "@/hooks/use-backups";
 import { formatBytes, formatRelative } from "@/lib/format";
-import type { BackupJob } from "@/types/bigrag";
+import type { BackupJob } from "@/types/rag-computer";
 import { InstanceSettingsTab } from "./instance-settings-tab";
 
 export const BackupsTab = () => {

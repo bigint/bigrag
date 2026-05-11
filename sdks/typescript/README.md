@@ -1,21 +1,21 @@
-# @bigrag/client
+# @rag.computer/client
 
-TypeScript client for [bigRAG](https://github.com/yoginth/bigrag) — a self-hostable RAG platform.
+TypeScript client for [rag.computer](https://github.com/yoginth/rag-computer) — a self-hostable RAG platform.
 
 Zero dependencies. Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes.
 
 ## Installation
 
 ```bash
-npm install @bigrag/client
+npm install @rag.computer/client
 ```
 
 ## Quick Start
 
 ```typescript
-import { BigRAG } from "@bigrag/client";
+import { RagComputer } from "@rag.computer/client";
 
-const client = new BigRAG({
+const client = new RagComputer({
   apiKey: "your-api-key",
   baseUrl: "http://localhost:4000",
 });
@@ -45,8 +45,8 @@ while (current.status === "pending" || current.status === "processing") {
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `apiKey` | `BIGRAG_API_KEY` env var | API key or session token |
-| `baseUrl` | `http://localhost:4000` | bigRAG server URL |
+| `apiKey` | `RAG_COMPUTER_API_KEY` env var | API key or session token |
+| `baseUrl` | `http://localhost:4000` | rag.computer server URL |
 | `timeout` | `120000` | Request timeout in milliseconds |
 | `maxRetries` | `2` | Max retries on 5xx, infrastructure 429 responses, and network errors |
 | `fetch` | `globalThis.fetch` | Custom fetch implementation |
@@ -67,7 +67,7 @@ while (current.status === "pending" || current.status === "processing") {
 ## Error Handling
 
 ```typescript
-import { BigRAG, AuthenticationError, NotFoundError } from "@bigrag/client";
+import { RagComputer, AuthenticationError, NotFoundError } from "@rag.computer/client";
 
 try {
   await client.collections.get("missing");

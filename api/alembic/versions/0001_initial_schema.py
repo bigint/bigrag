@@ -4,7 +4,7 @@ Revision ID: 0001
 Revises:
 Create Date: 2026-04-12
 
-Explicit baseline. Mirrors ``bigrag.db.models`` table-by-table so that future
+Explicit baseline. Mirrors ``rag_computer.db.models`` table-by-table so that future
 ``alembic revision --autogenerate`` runs see no pending diff against an empty
 database.
 """
@@ -17,7 +17,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 from alembic import op
-from bigrag.services.crypto import EncryptedString
+from rag_computer.services.crypto import EncryptedString
 
 revision: str = "0001"
 down_revision: str | None = None

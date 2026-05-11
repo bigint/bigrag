@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from bigrag.db.bootstrap import _alembic_config
+from rag_computer.db.bootstrap import _alembic_config
 
 
 def test_alembic_config_points_to_runnable_script_directory() -> None:

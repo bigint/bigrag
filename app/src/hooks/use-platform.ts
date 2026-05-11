@@ -4,7 +4,7 @@ import { apiUrl } from "@/config/runtime";
 import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import type { PlatformStats, ReadinessReport } from "@/types/bigrag";
+import type { PlatformStats, ReadinessReport } from "@/types/rag-computer";
 
 export const usePlatformStats = () => {
   const queryKey = useMemo(() => queryKeys.platform.stats(), []);

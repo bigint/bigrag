@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
-import type { InstanceSettingsResponse } from "@/types/bigrag";
+import type { InstanceSettingsResponse } from "@/types/rag-computer";
 
 type SettingsBody = { values: Record<string, unknown> };
 

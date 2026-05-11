@@ -1,6 +1,6 @@
-use crate::client::BigRag;
+use crate::client::RagComputer;
 use crate::core::urlencode;
-use crate::error::BigRagError;
+use crate::error::RagComputerError;
 use crate::types::query::{
     BatchQueryBody, BatchQueryResponse, MultiQueryBody, MultiQueryResponse, QueryBody,
     QueryResponse,
@@ -8,7 +8,7 @@ use crate::types::query::{
 
 /// Queries resource — search collections.
 pub struct Queries<'a> {
-    pub(crate) client: &'a BigRag,
+    pub(crate) client: &'a RagComputer,
 }
 
 impl Queries<'_> {
@@ -17,7 +17,7 @@ impl Queries<'_> {
         &self,
         collection: &str,
         body: QueryBody,
-    ) -> Result<QueryResponse, BigRagError> {
+    ) -> Result<QueryResponse, RagComputerError> {
         let path = format!("/v1/collections/{}/query", urlencode(collection));
         self.client.transport.post(&path, &body).await
     }
@@ -26,7 +26,7 @@ impl Queries<'_> {
     pub async fn multi_query(
         &self,
         body: MultiQueryBody,
-    ) -> Result<MultiQueryResponse, BigRagError> {
+    ) -> Result<MultiQueryResponse, RagComputerError> {
         self.client.transport.post("/v1/query", &body).await
     }
 
@@ -34,7 +34,7 @@ impl Queries<'_> {
     pub async fn batch_query(
         &self,
         body: BatchQueryBody,
-    ) -> Result<BatchQueryResponse, BigRagError> {
+    ) -> Result<BatchQueryResponse, RagComputerError> {
         self.client.transport.post("/v1/batch/query", &body).await
     }
 }

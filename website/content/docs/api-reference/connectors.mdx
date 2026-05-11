@@ -3,7 +3,7 @@ title: Connectors
 description: Provider-neutral connector configuration, OAuth, source selection, and resync APIs.
 ---
 
-Cloud connectors import remote files into the normal bigRAG document pipeline. The connector core owns provider config, user accounts, sources, sync jobs, manifests, scheduling, document replacement, and remote deletion handling. Provider adapters own OAuth details, remote listing, export/download behavior, and provider-specific metadata.
+Cloud connectors import remote files into the normal rag.computer document pipeline. The connector core owns provider config, user accounts, sources, sync jobs, manifests, scheduling, document replacement, and remote deletion handling. Provider adapters own OAuth details, remote listing, export/download behavior, and provider-specific metadata.
 
 Google Drive is the first provider and uses the `google` route slug with `google_drive` as the stored provider id. Future providers such as SharePoint or OneDrive should plug into the same route shape instead of cloning the source and sync job flow.
 
@@ -36,7 +36,7 @@ GET /v1/connectors/{provider}/oauth/callback
 POST /v1/connectors/{provider}/disconnect
 ```
 
-These endpoints require session authentication. For Google Drive, the OAuth flow uses `openid email profile` and `https://www.googleapis.com/auth/drive.readonly` so bigRAG can render an in-app Drive browser and sync selected files/folders.
+These endpoints require session authentication. For Google Drive, the OAuth flow uses `openid email profile` and `https://www.googleapis.com/auth/drive.readonly` so rag.computer can render an in-app Drive browser and sync selected files/folders.
 
 ## Drive Browser
 
@@ -71,7 +71,7 @@ Create a source from an in-app browser selection:
 }
 ```
 
-New sources start an initial sync and default to daily scheduled resync. Manual syncs detect additions, updates, and remote removals. If a provider returns a successful listing and a previously synced file is missing, bigRAG deletes the document, vectors, stored file, and connector manifest row.
+New sources start an initial sync and default to daily scheduled resync. Manual syncs detect additions, updates, and remote removals. If a provider returns a successful listing and a previously synced file is missing, rag.computer deletes the document, vectors, stored file, and connector manifest row.
 
 Sync jobs can be filtered by `collection`, `source_id`, and `limit`. While a Google Drive job runs, `details.progress` reports Drive-sync progress only:
 

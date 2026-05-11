@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from types import SimpleNamespace
 
-from bigrag.services import conversion
+from rag_computer.services import conversion
 
 
 class FakeTextPage:

@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
-import type { Webhook } from "@/types/bigrag";
+import type { Webhook } from "@/types/rag-computer";
 
 const KEY = queryKeys.webhooks();
 

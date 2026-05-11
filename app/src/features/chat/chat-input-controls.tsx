@@ -3,7 +3,7 @@ import { Check, Sparkles } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import type { Collection } from "@/types/bigrag";
+import type { Collection } from "@/types/rag-computer";
 
 export const OPENAI_MODELS = [
   { value: "gpt-4o-mini", label: "GPT-4o mini" },

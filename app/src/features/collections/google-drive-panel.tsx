@@ -59,7 +59,7 @@ import type {
   GoogleDriveSource,
   GoogleDriveSyncJob,
   GoogleSyncProgress,
-} from "@/types/bigrag";
+} from "@/types/rag-computer";
 
 const ROOT_FOLDER = { id: "root", name: "My Drive" };
 

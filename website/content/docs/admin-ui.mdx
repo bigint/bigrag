@@ -5,7 +5,7 @@ description: Setup, collections, chat, API keys, webhooks, and settings.
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-The admin UI is the Vite + TanStack Router single-page app packaged with bigRAG. Every control is also a REST API, so the admin UI is optional — you can run bigRAG headless — but it's the fastest way to bootstrap, prototype, and operate the platform.
+The admin UI is the Vite + TanStack Router single-page app packaged with rag.computer. Every control is also a REST API, so the admin UI is optional — you can run rag.computer headless — but it's the fastest way to bootstrap, prototype, and operate the platform.
 
 The bundled interface uses normal-weight body text with slightly restrained emphasis weights so dense admin screens stay readable without feeling visually heavy.
 
@@ -15,7 +15,7 @@ The bundled interface uses normal-weight body text with slightly restrained emph
 pnpm dev:app        # admin UI on http://localhost:3000
 ```
 
-The admin UI calls the FastAPI backend directly. The default API URL is `http://localhost:4000`; override it with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container. Configure browser origins in `/settings → Security` after the API has its bootstrap database wiring.
+The admin UI calls the FastAPI backend directly. The default API URL is `http://localhost:4000`; override it with `VITE_RAG_COMPUTER_URL` at build/dev time or `RAG_COMPUTER_URL` in the app container. Configure browser origins in `/settings → Security` after the API has its bootstrap database wiring.
 
 For cross-site production deployments, enable secure session cookies and usually set `SameSite=none` in `/settings → Security`. Same-site subdomain deployments can usually keep `SameSite=lax`.
 
@@ -37,7 +37,7 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/chat` | Production chat UI; retrieve from one collection, stream cited answers through the backend, and continue stored conversations. |
 | `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets) — reusable provider + model + key tuples. |
 | `/mcp` | Mint, scope, rotate, and revoke [MCP server](/docs/api-reference/mcp-servers) credentials for Claude Desktop / Cursor / custom MCP clients. |
-| `/api-keys` | Mint, scope, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
+| `/api-keys` | Mint, scope, and revoke `ragc_sk_…` keys. Plaintext shown once at creation. |
 | `/access-logs` | Access-log explorer for query, vector, chat, and evaluation traffic. |
 | `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. |
 | `/settings` | Grouped settings navigation for Account, System, Pipeline, and Operations sections. |
@@ -89,6 +89,6 @@ The admin UI uses session cookies exclusively. To automate anything the admin UI
 
 ## When to skip the Admin UI
 
-- **Pure backend deployment** — no admin UI process, everything via API keys and SDKs. Set `BIGRAG_ENV=prod` and use [`POST /v1/auth/setup`](/docs/api-reference/authentication) from an admin workstation to bootstrap.
+- **Pure backend deployment** — no admin UI process, everything via API keys and SDKs. Set `RAG_COMPUTER_ENV=prod` and use [`POST /v1/auth/setup`](/docs/api-reference/authentication) from an admin workstation to bootstrap.
 - **Embedded experiences** — if you're surfacing search inside your own app, skip admin UI and build against the [query API](/docs/api-reference/query).
 - **Read-only operators** — create a `member` account; they get `/overview`, `/collections` (read), and `/chat` but can't mutate.

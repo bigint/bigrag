@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import type { AccessLogListResponse, AccessLogOverview } from "@/types/bigrag";
+import type { AccessLogListResponse, AccessLogOverview } from "@/types/rag-computer";
 
 type AccessLogFilters = {
   action?: string;

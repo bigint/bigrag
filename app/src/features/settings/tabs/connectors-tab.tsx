@@ -12,7 +12,7 @@ import {
   useGoogleConnectorConfig,
   useUpdateGoogleConnectorConfig,
 } from "@/hooks/use-google-drive";
-import type { GoogleConnectorConfig } from "@/types/bigrag";
+import type { GoogleConnectorConfig } from "@/types/rag-computer";
 
 export const ConnectorsTab = () => {
   const { data: config, isPending } = useGoogleConnectorConfig();

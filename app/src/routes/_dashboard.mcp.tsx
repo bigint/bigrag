@@ -19,7 +19,7 @@ import {
   useRotateMcpServer,
 } from "@/hooks/use-mcp-servers";
 import { formatRelative } from "@/lib/format";
-import type { CreatedMcpServer, McpServer } from "@/types/bigrag";
+import type { CreatedMcpServer, McpServer } from "@/types/rag-computer";
 
 export const Route = createFileRoute("/_dashboard/mcp")({
   component: () => <McpPage />,
@@ -71,10 +71,10 @@ const buildClaudeDesktopJson = (server: McpServer, origin: string, plaintext: st
     {
       mcpServers: {
         [server.server_name]: {
-          command: "bigrag-mcp",
+          command: "rag-computer-mcp",
           env: {
-            BIGRAG_URL: trimSlash(origin),
-            BIGRAG_API_KEY: plaintext,
+            RAG_COMPUTER_URL: trimSlash(origin),
+            RAG_COMPUTER_API_KEY: plaintext,
           },
         },
       },
@@ -86,9 +86,9 @@ const buildClaudeDesktopJson = (server: McpServer, origin: string, plaintext: st
 const shellQuote = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
 
 const buildShellSnippet = (origin: string, plaintext: string) =>
-  `BIGRAG_URL=${shellQuote(trimSlash(origin))} \\
-  BIGRAG_API_KEY=${shellQuote(plaintext)} \\
-  bigrag-mcp`;
+  `RAG_COMPUTER_URL=${shellQuote(trimSlash(origin))} \\
+  RAG_COMPUTER_API_KEY=${shellQuote(plaintext)} \\
+  rag-computer-mcp`;
 
 const CopyButton = ({ code, label }: { code: string; label: string }) => {
   const [copied, setCopied] = useState(false);
@@ -181,7 +181,7 @@ const CreateDialog = ({ open, onClose, onCreated, collections }: CreateDialogPro
             setAutoSlug(false);
             setServerName(slugify(e.target.value));
           }}
-          placeholder="bigrag-product-docs"
+          placeholder="rag-computer-product-docs"
           required
           value={serverName}
         />
@@ -195,8 +195,8 @@ const CreateDialog = ({ open, onClose, onCreated, collections }: CreateDialogPro
           value={collection}
         />
         <p className="text-xs text-muted-foreground">
-          Creating this MCP mints a fresh bigRAG API key scoped to it. The full key is shown once —
-          copy it into your MCP client immediately. You can rotate the key any time.
+          Creating this MCP mints a fresh rag.computer API key scoped to it. The full key is shown
+          once — copy it into your MCP client immediately. You can rotate the key any time.
         </p>
         <div className="flex justify-end gap-2 pt-1">
           <Button onClick={onClose} type="button" variant="secondary">
@@ -234,7 +234,7 @@ const useAutoServerName = (
   setServerName: Dispatch<SetStateAction<string>>,
 ) => {
   useEffect(() => {
-    if (autoSlug) setServerName(slugify(title) || "bigrag");
+    if (autoSlug) setServerName(slugify(title) || "rag-computer");
   }, [title, autoSlug, setServerName]);
 };
 
@@ -338,7 +338,7 @@ interface DetailDialogProps {
 const DetailDialog = ({ open, onClose, server, onRotate, rotating }: DetailDialogProps) => {
   if (!server) return null;
   const origin = getOrigin();
-  const redacted = `bigrag_sk_${server.key_prefix.replace(/^bigrag_sk_/, "")}…<REDACTED>`;
+  const redacted = `ragc_sk_${server.key_prefix.replace(/^ragc_sk_/, "")}…<REDACTED>`;
   const remoteUrl = buildRemoteUrl(origin);
   const authHeader = buildAuthHeader(redacted);
   const jsonSnippet = buildClaudeDesktopJson(server, origin, redacted);
@@ -371,9 +371,9 @@ const DetailDialog = ({ open, onClose, server, onRotate, rotating }: DetailDialo
         <div className="rounded-md border border-border bg-muted/30 p-4 text-sm">
           <div className="font-medium">The full key is no longer available.</div>
           <p className="mt-1 text-muted-foreground">
-            bigRAG only shows each key&apos;s full value at creation time. The snippets below use a
-            placeholder where the key goes. To get a fresh, usable key, rotate it — the previous one
-            will stop working.
+            rag.computer only shows each key&apos;s full value at creation time. The snippets below
+            use a placeholder where the key goes. To get a fresh, usable key, rotate it — the
+            previous one will stop working.
           </p>
           <div className="mt-3">
             <Button disabled={rotating} onClick={onRotate} size="sm" variant="secondary">
@@ -552,7 +552,7 @@ const McpPage = () => {
             <Plus className="size-4" /> Create your first MCP
           </Button>
         }
-        emptyDescription="Creating an MCP mints a bigRAG API key scoped to it and renders the endpoint plus one-time key for MCP clients."
+        emptyDescription="Creating an MCP mints a rag.computer API key scoped to it and renders the endpoint plus one-time key for MCP clients."
         emptyIcon={<Plug className="size-6" />}
         emptyTitle="No MCP servers yet"
         keyExtractor={(s) => s.id}

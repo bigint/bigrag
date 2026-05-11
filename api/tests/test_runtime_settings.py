@@ -6,11 +6,11 @@ import uuid
 
 import pytest
 
-from bigrag.db.models import InstanceSetting
-from bigrag.services import runtime_settings
-from bigrag.services.runtime_settings import REGISTRY, _public_value, validate_setting_value
+from rag_computer.db.models import InstanceSetting
+from rag_computer.services import runtime_settings
+from rag_computer.services.runtime_settings import REGISTRY, _public_value, validate_setting_value
 
-db_engine = importlib.import_module("bigrag.db.engine")
+db_engine = importlib.import_module("rag_computer.db.engine")
 
 
 def test_runtime_settings_validate_string_list_from_text() -> None:
@@ -56,7 +56,9 @@ def test_runtime_settings_include_embedding_cache_security_settings() -> None:
 
 
 def test_runtime_settings_include_backup_destination_settings() -> None:
-    assert validate_setting_value("backup_s3_bucket", "bigrag-backups") == "bigrag-backups"
+    assert (
+        validate_setting_value("backup_s3_bucket", "rag-computer-backups") == "rag-computer-backups"
+    )
     assert validate_setting_value("backup_s3_region", "auto") == "auto"
     assert validate_setting_value("backup_s3_force_path_style", True) is True
     assert REGISTRY["backup_s3_secret_access_key"].secret is True

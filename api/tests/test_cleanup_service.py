@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from bigrag.services import cleanup
+from rag_computer.services import cleanup
 
 
 class FakeDeleteResult:

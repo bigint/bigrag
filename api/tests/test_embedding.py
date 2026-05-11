@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from bigrag.services import embedding
+from rag_computer.services import embedding
 
 
 class FakeSemaphore:

@@ -37,19 +37,20 @@ const LoginPage = () => {
   if (isError) {
     return (
       <div className="w-full max-w-sm rounded-xl border border-destructive/40 bg-card p-6">
-        <h1 className="font-semibold text-base">Can't reach bigRAG</h1>
+        <h1 className="font-semibold text-base">Can't reach rag.computer</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {error instanceof Error ? error.message : "Unknown error"}
         </p>
         {import.meta.env.DEV ? (
           <p className="mt-3 text-xs text-muted-foreground">
-            Make sure the bigRAG server is running and{" "}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono">VITE_BIGRAG_URL</code> points
-            to the API.
+            Make sure the rag.computer server is running and{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono">VITE_RAG_COMPUTER_URL</code>{" "}
+            points to the API.
           </p>
         ) : (
           <p className="mt-3 text-xs text-muted-foreground">
-            The bigRAG API is not reachable. Try again in a moment, or contact your administrator.
+            The rag.computer API is not reachable. Try again in a moment, or contact your
+            administrator.
           </p>
         )}
       </div>

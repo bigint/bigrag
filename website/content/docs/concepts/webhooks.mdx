@@ -19,7 +19,7 @@ Webhooks push notifications when document processing state changes. They're usef
 
 ```bash
 curl -X POST http://localhost:4000/v1/admin/webhooks \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com/webhook",
@@ -56,12 +56,12 @@ curl -X POST http://localhost:4000/v1/admin/webhooks \
 
 ## Signature Verification
 
-Each delivery includes an `X-BigRAG-Signature` header with an HMAC-SHA256 signature:
+Each delivery includes an `X-Rag-Computer-Signature` header with an HMAC-SHA256 signature:
 
 ```
-X-BigRAG-Signature: sha256=<hex digest>
-X-BigRAG-Event: document.ready
-X-BigRAG-Delivery: <delivery-uuid>
+X-Rag-Computer-Signature: sha256=<hex digest>
+X-Rag-Computer-Event: document.ready
+X-Rag-Computer-Delivery: <delivery-uuid>
 ```
 
 Verify by computing `HMAC-SHA256(webhook_secret, raw_body)`:
@@ -85,7 +85,7 @@ Check delivery history:
 
 ```bash
 curl http://localhost:4000/v1/admin/webhooks/{id}/deliveries \
-  -H "Authorization: Bearer $BIGRAG_API_KEY"
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY"
 ```
 
 ## Testing
@@ -94,10 +94,10 @@ Send a `webhook.test` event to verify your endpoint is reachable:
 
 ```bash
 curl -X POST http://localhost:4000/v1/admin/webhooks/{id}/test \
-  -H "Authorization: Bearer $BIGRAG_API_KEY"
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY"
 ```
 
 ## Limits
 
 - Maximum 50 webhooks per instance
-- Delivery timeout: 10 seconds (configurable via `BIGRAG_WEBHOOK_DELIVERY_TIMEOUT`)
+- Delivery timeout: 10 seconds (configurable via `RAG_COMPUTER_WEBHOOK_DELIVERY_TIMEOUT`)

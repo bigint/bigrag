@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from cryptography.fernet import Fernet
 
-from bigrag.services import crypto, redis_cache
+from rag_computer.services import crypto, redis_cache
 
 
 @pytest.fixture(autouse=True)

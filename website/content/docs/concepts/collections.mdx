@@ -21,7 +21,7 @@ All documents within a collection use the same embedding model, ensuring consist
 
 ```bash
 curl -X POST http://localhost:4000/v1/collections \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "research_papers",
@@ -62,7 +62,7 @@ Get a lightweight summary of a collection's document and chunk counts without fe
 
 ```bash
 curl http://localhost:4000/v1/collections/research_papers/stats \
-  -H "Authorization: Bearer $BIGRAG_API_KEY"
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY"
 ```
 
 Returns `document_count`, `total_chunks`, `total_tokens`, `total_size_bytes`, and per-status counts.
@@ -73,7 +73,7 @@ Each collection can define default query settings that apply when not specified 
 
 ```bash
 curl -X POST http://localhost:4000/v1/collections \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "docs",
@@ -91,7 +91,7 @@ Collections can enable server-side reranking using the Cohere Rerank API:
 
 ```bash
 curl -X POST http://localhost:4000/v1/collections \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "docs",
@@ -115,7 +115,7 @@ You can update a collection's description, metadata, reranking settings, and def
 
 ```bash
 curl -X PUT http://localhost:4000/v1/collections/research_papers \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "description": "Updated description",
@@ -151,5 +151,5 @@ Deleting a collection removes all its documents and vectors:
 
 ```bash
 curl -X DELETE http://localhost:4000/v1/collections/research_papers \
-  -H "Authorization: Bearer $BIGRAG_API_KEY"
+  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY"
 ```

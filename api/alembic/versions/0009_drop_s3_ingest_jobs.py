@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 from alembic import op
-from bigrag.services.crypto import EncryptedString
+from rag_computer.services.crypto import EncryptedString
 
 revision: str = "0009"
 down_revision: str | None = "0008"
