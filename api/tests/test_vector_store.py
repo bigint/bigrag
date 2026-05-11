@@ -9,6 +9,7 @@ from bigrag.services.vector_store import (
     QdrantVectorStore,
     S3VectorsStore,
     TurbopufferVectorStore,
+    VectorStore,
     VectorStoreFeatureError,
     _to_s3_filter,
     _to_turbopuffer_filter,
@@ -55,6 +56,12 @@ class FakeS3VectorsClient:
         self.put_calls = []
         self.query_calls = []
         self.delete_calls = []
+        self.create_calls = []
+        self.delete_index_calls = []
+        self.list_index_calls = []
+        self.list_vector_calls = []
+        self.list_vector_pages = []
+        self.closed = False
 
     def put_vectors(self, **kwargs):
         self.put_calls.append(kwargs)
@@ -81,6 +88,27 @@ class FakeS3VectorsClient:
     def delete_vectors(self, **kwargs):
         self.delete_calls.append(kwargs)
         return {}
+
+    def list_indexes(self, **kwargs):
+        self.list_index_calls.append(kwargs)
+        return {}
+
+    def create_index(self, **kwargs):
+        self.create_calls.append(kwargs)
+        return {}
+
+    def delete_index(self, **kwargs):
+        self.delete_index_calls.append(kwargs)
+        return {}
+
+    def list_vectors(self, **kwargs):
+        self.list_vector_calls.append(kwargs)
+        if self.list_vector_pages:
+            return self.list_vector_pages.pop(0)
+        return {"vectors": []}
+
+    def close(self):
+        self.closed = True
 
 
 def test_s3_vectors_adapter_maps_upsert_query_and_delete() -> None:
@@ -113,6 +141,68 @@ async def _test_s3_vectors_adapter_maps_upsert_query_and_delete() -> None:
     assert fake.delete_calls[0]["indexName"] == "bigrag_docs"
 
 
+def test_s3_vectors_adapter_handles_collection_lifecycle_and_exports() -> None:
+    asyncio.run(_test_s3_vectors_adapter_handles_collection_lifecycle_and_exports())
+
+
+async def _test_s3_vectors_adapter_handles_collection_lifecycle_and_exports() -> None:
+    store = S3VectorsStore(bucket="bucket", region="us-east-1")
+    fake = FakeS3VectorsClient()
+    store.client = fake
+
+    fake.list_vector_pages = [
+        {
+            "vectors": [
+                {
+                    "key": "k1",
+                    "metadata": {"document_id": "doc-1", "chunk_index": 2, "text": "two"},
+                },
+                {
+                    "key": "k2",
+                    "metadata": {"document_id": "doc-1", "chunk_index": 1, "text": "one"},
+                },
+            ],
+            "nextToken": "next",
+        },
+        {"vectors": [{"key": "k3", "metadata": {"document_id": "doc-2"}}]},
+        {
+            "vectors": [
+                {"key": "k1", "metadata": {"document_id": "doc-1"}},
+                {"key": "k2", "metadata": {"document_id": "doc-2"}},
+            ]
+        },
+        {
+            "vectors": [
+                {
+                    "key": "k1",
+                    "metadata": {"document_id": "doc-1"},
+                    "data": {"float32": [0.1, 0.2]},
+                }
+            ]
+        },
+    ]
+
+    await store.health_check()
+    await store.create_collection("docs", 2)
+    chunks, total = await store.get_chunks("docs", "doc-1", limit=1, offset=1)
+    await store.delete_by_document("docs", "doc-1")
+    upserted = await store.upsert("docs", ["chunk-2"], [[0.3]], ["text"], [{"kind": "note"}])
+    exported = await store.export_collection_points("docs")
+    await store.delete_collection("docs")
+    await store.close()
+
+    assert fake.list_index_calls[0] == {"vectorBucketName": "bucket", "maxResults": 1}
+    assert fake.create_calls[0]["dimension"] == 2
+    assert fake.list_vector_calls[1]["nextToken"] == "next"
+    assert chunks == [{"id": "", "text": "two", "chunk_index": 2}]
+    assert total == 2
+    assert fake.delete_calls[0]["keys"] == ["k1"]
+    assert upserted == 1
+    assert exported == [{"id": "k1", "payload": {"document_id": "doc-1"}, "vector": [0.1, 0.2]}]
+    assert fake.delete_index_calls[0]["indexName"] == "bigrag_docs"
+    assert fake.closed is True
+
+
 class FakeResponse:
     def __init__(self, payload: dict | None = None, status_code: int = 200) -> None:
         self.payload = payload or {}
@@ -130,6 +220,13 @@ class FakeResponse:
 class FakeTurbopufferClient:
     def __init__(self) -> None:
         self.posts = []
+        self.gets = []
+        self.deletes = []
+        self.closed = False
+
+    async def get(self, path: str):
+        self.gets.append(path)
+        return FakeResponse()
 
     async def post(self, path: str, json: dict):
         self.posts.append((path, json))
@@ -148,6 +245,13 @@ class FakeTurbopufferClient:
                 }
             )
         return FakeResponse()
+
+    async def delete(self, path: str):
+        self.deletes.append(path)
+        return FakeResponse(status_code=404)
+
+    async def aclose(self):
+        self.closed = True
 
 
 def test_turbopuffer_adapter_maps_write_query_and_delete() -> None:
@@ -171,15 +275,193 @@ async def _test_turbopuffer_adapter_maps_write_query_and_delete() -> None:
     assert fake.posts[2][1] == {"delete_by_filter": ["document_id", "Eq", "doc-1"]}
 
 
+def test_turbopuffer_adapter_handles_lifecycle_chunks_and_exports() -> None:
+    asyncio.run(_test_turbopuffer_adapter_handles_lifecycle_chunks_and_exports())
+
+
+async def _test_turbopuffer_adapter_handles_lifecycle_chunks_and_exports() -> None:
+    store = TurbopufferVectorStore(api_key="tpuf", region="aws-us-east-1")
+    fake = FakeTurbopufferClient()
+    store.client = fake
+
+    await store.health_check()
+    await store.create_collection("docs", 2)
+    chunks, total = await store.get_chunks("docs", "doc-1")
+    await store.delete_by_ids("docs", ["chunk-1"])
+    upserted = await store.upsert("docs", ["chunk-2"], [[0.3]], ["text"], [{"kind": "note"}])
+    exported = await store.export_collection_points("docs")
+    await store.delete_collection("docs")
+    await store.close()
+
+    assert fake.gets == ["/v1/namespaces"]
+    assert fake.posts[0][1]["schema"] == {"vector": {"type": "[2]f32", "ann": True}}
+    assert chunks == [{"id": "point-1", "text": "hello", "chunk_index": 0}]
+    assert total == 1
+    assert fake.posts[2][1]["deletes"]
+    assert upserted == 1
+    assert exported == [
+        {
+            "id": "point-1",
+            "payload": {
+                "$dist": 0.25,
+                "text": "hello",
+                "document_id": "doc-1",
+                "chunk_index": 0,
+            },
+            "vector": None,
+        }
+    ]
+    assert fake.deletes == ["/v1/namespaces/bigrag_docs"]
+    assert fake.closed is True
+
+
 def test_cloud_adapters_fail_keyword_search_clearly() -> None:
     asyncio.run(_test_cloud_adapters_fail_keyword_search_clearly())
 
 
 async def _test_cloud_adapters_fail_keyword_search_clearly() -> None:
     store = S3VectorsStore(bucket="bucket", region="us-east-1")
+    turbo = TurbopufferVectorStore(api_key="tpuf", region="aws-us-east-1")
 
     with pytest.raises(VectorStoreFeatureError):
         await store.text_search("docs", ["hello"])
+    with pytest.raises(VectorStoreFeatureError):
+        await turbo.text_search("docs", ["hello"])
+    with pytest.raises(RuntimeError, match="API key"):
+        TurbopufferVectorStore(api_key=None, region="aws-us-east-1").connect()
+
+
+class FakeVectorBackend:
+    provider = "s3_vectors"
+    supports_text_search = True
+
+    def __init__(self) -> None:
+        self.client = None
+        self.calls = []
+
+    def connect(self) -> None:
+        self.calls.append(("connect",))
+        self.client = "client"
+
+    async def close(self) -> None:
+        self.calls.append(("close",))
+        self.client = None
+
+    async def health_check(self) -> None:
+        self.calls.append(("health_check",))
+
+    async def create_collection(
+        self,
+        name,
+        dimension,
+        index_type="HNSW",
+        tenant_field=None,
+    ) -> None:
+        self.calls.append(("create_collection", name, dimension, index_type, tenant_field))
+
+    async def delete_collection(self, name) -> None:
+        self.calls.append(("delete_collection", name))
+
+    async def insert(
+        self,
+        collection,
+        ids,
+        document_ids,
+        chunk_indices,
+        texts,
+        embeddings,
+        metadata=None,
+    ):
+        self.calls.append(
+            ("insert", collection, ids, document_ids, chunk_indices, texts, embeddings, metadata)
+        )
+        return len(ids)
+
+    async def search(self, collection, query_embedding, top_k=10, filters=None):
+        self.calls.append(("search", collection, query_embedding, top_k, filters))
+        return [{"id": "chunk"}]
+
+    async def get_chunks(self, collection, document_id, limit=10000, offset=0):
+        self.calls.append(("get_chunks", collection, document_id, limit, offset))
+        return ([{"id": "chunk"}], 1)
+
+    async def delete_by_document(self, collection, document_id) -> None:
+        self.calls.append(("delete_by_document", collection, document_id))
+
+    async def delete_by_ids(self, collection, ids) -> None:
+        self.calls.append(("delete_by_ids", collection, ids))
+
+    async def text_search(self, collection, query_terms, top_k=10, filters=None):
+        self.calls.append(("text_search", collection, query_terms, top_k, filters))
+        return [{"id": "text"}]
+
+    async def upsert(self, collection, ids, embeddings, texts, metadata=None):
+        self.calls.append(("upsert", collection, ids, embeddings, texts, metadata))
+        return len(ids)
+
+    async def export_collection_points(self, collection):
+        self.calls.append(("export_collection_points", collection))
+        return [{"id": "point"}]
+
+
+def test_vector_store_configures_providers_and_rejects_unknown() -> None:
+    store = VectorStore()
+
+    store.configure(qdrant_url="http://qdrant", qdrant_api_key="qk", search_ef=32)
+    assert isinstance(store.backend, QdrantVectorStore)
+
+    store.configure(
+        provider="s3_vectors",
+        s3_vectors_bucket="bucket",
+        s3_vectors_region="us-west-2",
+        s3_vectors_index_prefix="idx_",
+    )
+    assert isinstance(store.backend, S3VectorsStore)
+    assert store.backend.bucket == "bucket"
+
+    store.configure(
+        provider="turbopuffer",
+        turbopuffer_api_key="tpuf",
+        turbopuffer_region="aws-eu-west-1",
+        turbopuffer_namespace_prefix="ns_",
+    )
+    assert isinstance(store.backend, TurbopufferVectorStore)
+    assert store.backend.region == "aws-eu-west-1"
+
+    with pytest.raises(ValueError, match="Unsupported"):
+        store.configure(provider="unknown")
+
+
+def test_vector_store_delegates_backend_operations() -> None:
+    asyncio.run(_test_vector_store_delegates_backend_operations())
+
+
+async def _test_vector_store_delegates_backend_operations() -> None:
+    store = VectorStore()
+    backend = FakeVectorBackend()
+    store.backend = backend
+
+    assert store.supports_text_search is True
+    assert store._client() == "client"
+    assert store.client is None
+
+    store.connect()
+    await store.health_check()
+    await store.create_collection("docs", 2, tenant_field="tenant_id")
+    assert await store.insert("docs", ["id"], ["doc"], [0], ["text"], [[0.1]]) == 1
+    assert await store.search("docs", [0.1]) == [{"id": "chunk"}]
+    assert await store.get_chunks("docs", "doc") == ([{"id": "chunk"}], 1)
+    await store.delete_by_document("docs", "doc")
+    await store.delete_by_ids("docs", ["id"])
+    assert await store.text_search("docs", ["text"]) == [{"id": "text"}]
+    assert await store.upsert("docs", ["id"], [[0.1]], ["text"]) == 1
+    assert await store.export_collection_points("docs") == [{"id": "point"}]
+    await store.delete_collection("docs")
+    await store.close()
+
+    assert ("create_collection", "docs", 2, "HNSW", "tenant_id") in backend.calls
+    assert ("delete_collection", "docs") in backend.calls
+    assert store.client is None
 
 
 class FakeQdrantPoint:

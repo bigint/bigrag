@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --port 3100",
+    "prebuild": "fumadocs-mdx",
     "build": "next build",
     "postbuild": "node ../scripts/strip-next-env-comments.mjs next-env.d.ts",
     "start": "next start",

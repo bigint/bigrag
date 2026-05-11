@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import asyncio
+import importlib
+import uuid
+
 import pytest
 
 from bigrag.db.models import InstanceSetting
+from bigrag.services import runtime_settings
 from bigrag.services.runtime_settings import REGISTRY, _public_value, validate_setting_value
+
+db_engine = importlib.import_module("bigrag.db.engine")
 
 
 def test_runtime_settings_validate_string_list_from_text() -> None:
@@ -84,3 +91,99 @@ def test_runtime_settings_redacts_secret_public_value() -> None:
 
     assert public.value is None
     assert public.has_value is True
+
+
+def test_runtime_settings_validate_scalar_edge_cases() -> None:
+    assert validate_setting_value("session_cookie_secure", " true ") is True
+    assert validate_setting_value("session_cookie_secure", "false") is False
+    assert validate_setting_value("max_upload_size_mb", "") == 64
+    assert validate_setting_value("qdrant_search_ef", "") is None
+    assert validate_setting_value("chat_temperature", "1.5") == 1.5
+    assert validate_setting_value("session_cookie_domain", "") is None
+    assert validate_setting_value("embedding_api_key", "") is None
+    assert validate_setting_value("webhook_retry_delays", "1\n2, 3") == [1, 2, 3]
+
+    invalid_cases = [
+        ("session_cookie_secure", "yes", "boolean"),
+        ("max_upload_size_mb", True, "integer"),
+        ("max_upload_size_mb", "bad", "integer"),
+        ("chat_temperature", True, "number"),
+        ("chat_temperature", "bad", "number"),
+        ("webhook_retry_delays", "1,bad", "integer values"),
+    ]
+    for key, value, message in invalid_cases:
+        with pytest.raises(ValueError, match=message):
+            validate_setting_value(key, value)
+
+
+def test_runtime_settings_public_update_and_reset(fake_session) -> None:
+    actor_id = uuid.uuid4()
+    existing = InstanceSetting(
+        key="session_cookie_secure",
+        value=False,
+        secret_value=None,
+        updated_by=actor_id,
+    )
+    secret = InstanceSetting(key="embedding_api_key", secret_value="sk-live")
+    fake_session.scalars_values = [[existing, secret], [existing]]
+
+    async def run() -> None:
+        public = await runtime_settings.get_public_settings(fake_session)
+        changed = await runtime_settings.update_settings(
+            fake_session,
+            {
+                "session_cookie_secure": True,
+                "embedding_api_key": "sk-new",
+            },
+            updated_by=actor_id,
+        )
+        reset = await runtime_settings.reset_settings(fake_session, ["session_cookie_secure"])
+
+        assert public.values["session_cookie_secure"].value is False
+        assert public.values["session_cookie_secure"].source == "database"
+        assert public.values["embedding_api_key"].value is None
+        assert public.values["embedding_api_key"].has_value is True
+        assert changed == ["session_cookie_secure", "embedding_api_key"]
+        assert existing.value is True
+        assert fake_session.added[0].key == "embedding_api_key"
+        assert fake_session.added[0].secret_value == "sk-new"
+        assert reset == ["session_cookie_secure"]
+
+    asyncio.run(run())
+    assert fake_session.commits == 2
+
+
+def test_runtime_settings_update_and_reset_reject_unknown_keys(fake_session) -> None:
+    async def run() -> None:
+        with pytest.raises(KeyError):
+            await runtime_settings.update_settings(fake_session, {"missing": "x"}, updated_by=None)
+        with pytest.raises(KeyError):
+            await runtime_settings.reset_settings(fake_session, ["missing"])
+
+    asyncio.run(run())
+
+
+def test_runtime_settings_cached_values_and_sync_lookup(monkeypatch, fake_session) -> None:
+    class SessionContext:
+        async def __aenter__(self):
+            return fake_session
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    fake_session.scalars_values = [[InstanceSetting(key="session_cookie_secure", value=True)]]
+    monkeypatch.setattr(db_engine, "session_factory", lambda: lambda: SessionContext())
+    runtime_settings.invalidate_runtime_settings_cache()
+
+    async def run() -> None:
+        values = await runtime_settings.get_values(["session_cookie_secure"])
+        all_values = await runtime_settings.all_runtime_values()
+
+        assert values == {"session_cookie_secure": True}
+        assert all_values["session_cookie_secure"] is True
+        assert runtime_settings.sync_value("session_cookie_secure") is True
+
+    asyncio.run(run())
+
+    runtime_settings.invalidate_runtime_settings_cache()
+    assert runtime_settings.sync_value("session_cookie_secure") is False

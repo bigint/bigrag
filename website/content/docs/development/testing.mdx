@@ -54,6 +54,8 @@ Run the docs build:
 pnpm --filter @bigrag/docs build
 ```
 
+The docs package runs `fumadocs-mdx` before `next build`, so a clean checkout or container build generates `website/.source` before Turbopack resolves the docs source imports.
+
 ## Coverage expectations
 
 Backend route tests should use dependency overrides and fake service/session objects unless the scenario is specifically testing live infrastructure integration.
