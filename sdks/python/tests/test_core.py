@@ -20,7 +20,9 @@ def run(coro):
     return asyncio.run(coro)
 
 
-def json_response(status_code: int, body: dict, request: httpx.Request) -> httpx.Response:
+def json_response(
+    status_code: int, body: dict, request: httpx.Request
+) -> httpx.Response:
     return httpx.Response(status_code, json=body, request=request)
 
 
@@ -58,7 +60,9 @@ def test_error_responses_map_to_typed_errors() -> None:
     for status_code, error_type in cases:
 
         def handler(request: httpx.Request) -> httpx.Response:
-            return json_response(status_code, {"detail": f"status {status_code}"}, request)
+            return json_response(
+                status_code, {"detail": f"status {status_code}"}, request
+            )
 
         async def scenario() -> None:
             client = BigRAG(
@@ -83,7 +87,9 @@ def test_timeout_and_connection_errors_map_to_typed_errors() -> None:
         client = BigRAG(
             base_url="http://api.local",
             max_retries=0,
-            http_client=httpx.AsyncClient(transport=httpx.MockTransport(timeout_handler)),
+            http_client=httpx.AsyncClient(
+                transport=httpx.MockTransport(timeout_handler)
+            ),
         )
         try:
             await client.health()
@@ -100,7 +106,9 @@ def test_timeout_and_connection_errors_map_to_typed_errors() -> None:
         client = BigRAG(
             base_url="http://api.local",
             max_retries=0,
-            http_client=httpx.AsyncClient(transport=httpx.MockTransport(connection_handler)),
+            http_client=httpx.AsyncClient(
+                transport=httpx.MockTransport(connection_handler)
+            ),
         )
         try:
             await client.health()

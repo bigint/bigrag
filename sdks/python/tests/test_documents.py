@@ -24,7 +24,9 @@ def test_documents_resource_encodes_paths_and_query_params() -> None:
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )
         try:
-            return await client.documents.list("team docs", status="ready", limit=5, offset=10)
+            return await client.documents.list(
+                "team docs", status="ready", limit=5, offset=10
+            )
         finally:
             await client.aclose()
 

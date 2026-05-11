@@ -74,6 +74,32 @@ describe("BigRAGCore", () => {
     expect(init.headers).not.toHaveProperty("Idempotency-Key");
   });
 
+  it("adds automatic idempotency keys to mutating requests", async () => {
+    const fetch = vi.fn(async () => jsonResponse({ id: "col" }, { status: 201 }));
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch });
+
+    await client._request("POST", "/v1/collections", { json: { name: "docs" } });
+
+    const init = (fetch.mock.calls as unknown as Array<[string, RequestInit]>)[0][1];
+    expect(init.headers).toHaveProperty("Idempotency-Key");
+  });
+
+  it("maps empty and no-content responses to ok status", async () => {
+    const noContent = new BigRAG({
+      baseUrl: "http://api.local",
+      fetch: vi.fn(async () => new Response(null, { status: 204 })),
+    });
+    const empty = new BigRAG({
+      baseUrl: "http://api.local",
+      fetch: vi.fn(async () => new Response("", { status: 200 })),
+    });
+
+    await expect(noContent._request("DELETE", "/v1/collections/docs")).resolves.toEqual({
+      status: "ok",
+    });
+    await expect(empty._request("GET", "/health")).resolves.toEqual({ status: "ok" });
+  });
+
   it("submits multipart uploads with auth and idempotency", async () => {
     const fetch = vi.fn(async () => jsonResponse({ id: "doc" }, { status: 201 }));
     const client = new BigRAG({

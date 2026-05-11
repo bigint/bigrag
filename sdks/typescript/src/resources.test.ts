@@ -3,6 +3,7 @@ import type { RequestClient } from "./core.js";
 import {
   AdminResource,
   AuthResource,
+  ChatResource,
   CollectionsResource,
   ConnectorsResource,
   DocumentsResource,
@@ -33,6 +34,16 @@ function createClient() {
   };
   return { client: client as unknown as RequestClient, requestCalls, formCalls };
 }
+
+const streamResponse = (chunks: string[]) =>
+  new Response(
+    new ReadableStream({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk));
+        controller.close();
+      },
+    }),
+  );
 
 describe("resource wrappers", () => {
   it("builds admin resource requests", async () => {
@@ -180,6 +191,90 @@ describe("resource wrappers", () => {
       ["PUT", "/v1/auth/preferences", { json: { theme: "dark" } }],
       ["POST", "/v1/evaluation", { json: { collection: "docs", questions: [] } }],
     ]);
+  });
+
+  it("builds chat resource requests", async () => {
+    const { client, requestCalls } = createClient();
+    const chat = new ChatResource(client);
+
+    await chat.create({ message: "hello", collection: "docs" });
+    await chat.list({ limit: 10, offset: 20 });
+    await chat.get("conversation/1");
+    await chat.update("conversation/1", { title: "Renamed" });
+    await chat.delete("conversation/1");
+
+    expect(requestCalls).toEqual([
+      ["POST", "/v1/chat", { json: { message: "hello", collection: "docs", stream: false } }],
+      ["GET", "/v1/chat", { params: { limit: "10", offset: "20" } }],
+      ["GET", "/v1/chat/conversation/1"],
+      ["PATCH", "/v1/chat/conversation/1", { json: { title: "Renamed" } }],
+      ["DELETE", "/v1/chat/conversation/1"],
+    ]);
+  });
+
+  it("streams chat events with auth and split frames", async () => {
+    const fetch = vi.fn(async () =>
+      streamResponse([
+        'event: delta\ndata: {"delta":"hel',
+        'lo"}\n\ndata: [DONE]\n\n',
+        'event: done\ndata: {"ok":true}\n\n',
+      ]),
+    );
+    const client = {
+      apiKey: "bigrag_sk_test",
+      baseUrl: "http://api.local",
+      _fetch: fetch,
+      _request: vi.fn(),
+      _requestFormData: vi.fn(),
+    } as unknown as RequestClient;
+    const chat = new ChatResource(client);
+
+    const events = [];
+    for await (const event of chat.stream({ message: "hello", collection: "docs" })) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([
+      { event: "delta", data: { delta: "hello" } },
+      { event: "done", data: { ok: true } },
+    ]);
+    expect(fetch).toHaveBeenCalledWith(
+      "http://api.local/v1/chat",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer bigrag_sk_test",
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({ message: "hello", collection: "docs", stream: true }),
+      }),
+    );
+  });
+
+  it("surfaces chat stream response and parse errors", async () => {
+    const errorClient = {
+      apiKey: "",
+      baseUrl: "http://api.local",
+      _fetch: vi.fn(async () => new Response("bad key", { status: 401, statusText: "Nope" })),
+      _request: vi.fn(),
+      _requestFormData: vi.fn(),
+    } as unknown as RequestClient;
+
+    await expect(
+      new ChatResource(errorClient).stream({ message: "hello", collection: "docs" }).next(),
+    ).rejects.toThrow("bad key");
+
+    const malformedClient = {
+      apiKey: "",
+      baseUrl: "http://api.local",
+      _fetch: vi.fn(async () => streamResponse(["event: delta\ndata: nope\n\n"])),
+      _request: vi.fn(),
+      _requestFormData: vi.fn(),
+    } as unknown as RequestClient;
+
+    await expect(
+      new ChatResource(malformedClient).stream({ message: "hello", collection: "docs" }).next(),
+    ).rejects.toThrow();
   });
 
   it("builds collection and connector resource requests", async () => {
