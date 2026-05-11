@@ -215,7 +215,7 @@ const SettingsPage = () => {
 
   return (
     <div className="-mt-6 -mx-4 flex flex-col md:-mx-8 lg:-mx-10 lg:flex-row lg:gap-10">
-      <aside className="shrink-0 border-b border-border px-4 py-6 md:px-8 lg:sticky lg:top-0 lg:max-h-dvh lg:w-64 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:py-8 lg:pr-6 lg:pl-10">
+      <aside className="shrink-0 border-b border-border px-4 py-6 md:px-8 lg:sticky lg:top-0 lg:max-h-dvh lg:w-64 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:pr-6 lg:pl-10">
         <div className="mb-5">
           <h2 className="text-base font-semibold tracking-normal">Settings</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">Instance configuration</p>
@@ -254,7 +254,7 @@ const SettingsPage = () => {
         </nav>
       </aside>
 
-      <section className="min-w-0 flex-1 px-4 py-6 md:px-8 lg:py-8 lg:pl-0 lg:pr-10">
+      <section className="min-w-0 flex-1 px-4 py-6 md:px-8 lg:pl-0 lg:pr-10">
         <header className="mb-6 flex items-start gap-3">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-foreground">
             <ActiveIcon className="size-4" />

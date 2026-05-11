@@ -66,7 +66,7 @@ export const InstanceSettingsTab = ({ group }: { group: InstanceSettingGroup }) 
         </div>
       )}
 
-      <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:-mx-8 md:px-8 lg:-mx-0 lg:rounded-md lg:border lg:px-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-2">
           <Button disabled={isPending || save.isPending} onClick={() => save.mutate(body())}>
             <Save className="size-3.5" />

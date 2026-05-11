@@ -37,7 +37,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   const role = session.user.role;
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background p-2">
+    <div className="flex h-dvh overflow-hidden bg-background py-2 pl-2">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
