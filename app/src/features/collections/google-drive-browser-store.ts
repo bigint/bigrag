@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { GoogleDriveFile, GoogleDriveFileList } from "@/types/rag-computer";
 
-export type GoogleDriveFolder = {
+type GoogleDriveFolder = {
   id: string;
   name: string;
 };

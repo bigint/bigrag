@@ -68,7 +68,7 @@ def configure_logging(log_level: str = "debug", log_format: str = "text") -> Non
     else:
         renderer = structlog.dev.ConsoleRenderer(
             colors=sys.stderr.isatty(),
-            pad_event=32,
+            pad_event_to=32,
         )
 
     structlog.configure(

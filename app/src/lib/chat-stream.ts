@@ -7,7 +7,7 @@ import type {
   QueryTimings,
 } from "@/types/rag-computer";
 
-export type ChatStreamEvent =
+type ChatStreamEvent =
   | { event: "conversation"; data: ChatConversation }
   | { event: "user_message"; data: ChatMessage }
   | {

@@ -1,7 +1,6 @@
 import type {
   ChatConversation,
   ChatCreateBody,
-  ChatCreateResponse,
   ChatMessage,
   ChatSource,
 } from "@rag.computer/client";
@@ -16,4 +15,4 @@ export type ChatDetailResponse = {
   messages: ChatMessage[];
 };
 
-export type { ChatConversation, ChatCreateBody, ChatCreateResponse, ChatMessage, ChatSource };
+export type { ChatConversation, ChatCreateBody, ChatMessage, ChatSource };

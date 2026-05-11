@@ -40,7 +40,7 @@ export type GoogleDriveFileList = {
   next_page_token: string | null;
 };
 
-export type GoogleSyncProgressPhase =
+type GoogleSyncProgressPhase =
   | "queued"
   | "authenticating"
   | "scanning"
@@ -67,7 +67,7 @@ export type GoogleSyncProgress = {
   };
 };
 
-export type GoogleSyncJobDetails = Record<string, unknown> & {
+type GoogleSyncJobDetails = Record<string, unknown> & {
   errors?: Array<Record<string, string>>;
   progress?: GoogleSyncProgress;
 };

@@ -15,7 +15,7 @@ export type Document = Omit<SdkDocument, "status" | "progress"> & {
   progress: DocumentProgress | null;
 };
 
-export type UploadSessionItem = Omit<SdkUploadSessionItem, "status" | "document_status"> & {
+type UploadSessionItem = Omit<SdkUploadSessionItem, "status" | "document_status"> & {
   status: "queued" | "ingesting" | "complete" | "failed" | "canceled";
   document_status: DocumentStatus | null;
 };

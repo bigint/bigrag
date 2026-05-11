@@ -22,7 +22,7 @@ import {
   ToolbarPopover,
 } from "./chat-input-controls";
 
-export type { ChatPatch, ChatState } from "./chat-input-controls";
+export type { ChatState } from "./chat-input-controls";
 
 type PopoverName = "model" | "collection" | "settings" | "key" | null;
 

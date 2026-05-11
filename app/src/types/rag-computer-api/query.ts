@@ -1,5 +1,4 @@
 import type {
-  QueryResponse as SdkQueryResponse,
   QueryResult as SdkQueryResult,
   QueryTimings as SdkQueryTimings,
 } from "@rag.computer/client";
@@ -19,8 +18,3 @@ export type QueryResult = SdkQueryResult & {
 };
 
 export type QueryTimings = Required<SdkQueryTimings>;
-
-export type QueryResponse = Omit<SdkQueryResponse, "results" | "timings"> & {
-  results: QueryResult[];
-  timings?: QueryTimings;
-};
