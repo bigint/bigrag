@@ -90,3 +90,62 @@ def test_get_file_url_uses_encoded_path() -> None:
     assert client.documents.get_file_url("team docs", "doc/1") == (
         "http://api.local/v1/collections/team%20docs/documents/doc%2F1/file"
     )
+
+
+def test_documents_batch_upload_sends_metadata() -> None:
+    seen: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        body = await request.aread()
+        assert b'name="metadata"' in body
+        assert b'{"batch": true}' in body
+        assert b'name="files"; filename="one.txt"' in body
+        return httpx.Response(
+            200,
+            json={"documents": [], "total": 0},
+            request=request,
+        )
+
+    async def scenario() -> dict:
+        client = BigRAG(
+            base_url="http://api.local",
+            http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        )
+        try:
+            return await client.documents.batch_upload(
+                "team docs",
+                [("one.txt", b"one")],
+                metadata={"batch": True},
+            )
+        finally:
+            await client.aclose()
+
+    assert run(scenario()) == {"documents": [], "total": 0}
+    assert str(seen[0].url) == (
+        "http://api.local/v1/collections/team%20docs/documents/batch/upload"
+    )
+
+
+def test_documents_get_chunks_by_id_encodes_pagination() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"chunks": [], "total": 0}, request=request)
+
+    async def scenario() -> dict:
+        client = BigRAG(
+            base_url="http://api.local",
+            http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        )
+        try:
+            return await client.documents.get_chunks_by_id("doc/1", limit=2, offset=4)
+        finally:
+            await client.aclose()
+
+    assert run(scenario()) == {"chunks": [], "total": 0}
+    assert (
+        str(seen[0].url)
+        == "http://api.local/v1/documents/doc%2F1/chunks?limit=2&offset=4"
+    )

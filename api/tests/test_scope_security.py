@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+import asyncio
+from types import SimpleNamespace
+
+import pytest
+
+from bigrag.exceptions import ForbiddenError
 from bigrag.routers.mcp_servers import _permissions
+from bigrag.services.collection_scope import _extract_collection_name, enforce_collection_scope
 from bigrag.services.scopes import has_scope, required_scope, validate_scope_string
 
 
@@ -30,3 +37,38 @@ def test_mcp_permissions_are_read_query_only_by_default() -> None:
     assert has_scope(permissions["scopes"], "document:delete") is False
     assert has_scope(permissions["scopes"], "vector:write") is False
     assert has_scope(permissions["scopes"], "vector:delete") is False
+
+
+def test_collection_scope_extracts_collection_names() -> None:
+    assert _extract_collection_name("/v1/collections/docs/documents") == "docs"
+    assert _extract_collection_name("/v1/collections") is None
+    assert _extract_collection_name("/v1/query") is None
+
+
+def test_collection_scope_blocks_cross_collection_and_root_mutations() -> None:
+    allowed = SimpleNamespace(method="GET", url=SimpleNamespace(path="/v1/collections/docs/query"))
+    asyncio.run(enforce_collection_scope(allowed, "docs"))
+
+    with pytest.raises(ForbiddenError, match="cross-collection"):
+        asyncio.run(
+            enforce_collection_scope(
+                SimpleNamespace(method="GET", url=SimpleNamespace(path="/v1/stats")),
+                "docs",
+            )
+        )
+
+    with pytest.raises(ForbiddenError, match="targeted 'api'"):
+        asyncio.run(
+            enforce_collection_scope(
+                SimpleNamespace(method="GET", url=SimpleNamespace(path="/v1/collections/api")),
+                "docs",
+            )
+        )
+
+    with pytest.raises(ForbiddenError, match="reconfiguring"):
+        asyncio.run(
+            enforce_collection_scope(
+                SimpleNamespace(method="DELETE", url=SimpleNamespace(path="/v1/collections/docs")),
+                "docs",
+            )
+        )

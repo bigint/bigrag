@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RequestClient } from "./core.js";
+import { NotFoundError } from "./errors.js";
 import {
   AdminResource,
   AuthResource,
@@ -336,6 +337,38 @@ describe("resource wrappers", () => {
       ["POST", "/v1/connectors/google/sources/source%2F1/sync"],
       ["GET", "/v1/connectors/google/sync-jobs", { params: { source_id: "source/1", limit: "5" } }],
     ]);
+  });
+
+  it("streams collection events with auth and maps errors", async () => {
+    const { client } = createClient();
+    client._fetch = vi.fn(async () =>
+      streamResponse([
+        'data: {"step":"chunking","message":"working","progress":50}\n\n',
+        'data: {"step":"done","message":"ok","progress":100,"status":"complete"}\n\n',
+      ]),
+    );
+    const collections = new CollectionsResource(client);
+
+    const events = [];
+    for await (const event of collections.streamEvents("team docs")) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([
+      { step: "chunking", message: "working", progress: 50 },
+      { step: "done", message: "ok", progress: 100, status: "complete" },
+    ]);
+    expect(client._fetch).toHaveBeenCalledWith(
+      "http://api.local/v1/collections/team%20docs/events",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({ Authorization: "Bearer bigrag_sk_test" }),
+      }),
+    );
+
+    client._fetch = vi.fn(async () => new Response("missing", { status: 404, statusText: "Gone" }));
+
+    await expect(collections.streamEvents("missing").next()).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("builds document resource requests", async () => {

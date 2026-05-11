@@ -269,6 +269,7 @@ def test_collection_connector_query_vector_and_webhook_resources_build_requests(
         await collections.stats("team docs")
         await collections.truncate("team docs")
         await collections.reembed("team docs")
+        await collections.stream_events("team docs").aclose()
         await connectors.google.account()
         await connectors.google.files(
             parent_id="folder", query="pdf", page_token="next", page_size=50

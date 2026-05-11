@@ -2,8 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { BigRAG } from "./client.js";
 import {
   APIConnectionError,
+  APIError,
   APITimeoutError,
   AuthenticationError,
+  BadRequestError,
+  InternalServerError,
   NotFoundError,
   RateLimitError,
 } from "./errors.js";
@@ -36,6 +39,47 @@ describe("BigRAGCore", () => {
         }),
       }),
     );
+  });
+
+  it("builds platform endpoint requests", async () => {
+    const fetch = vi.fn(async () => jsonResponse({ status: "ok" }));
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch });
+
+    await client.health();
+    await client.readiness();
+    await client.getStats();
+    await client.listEmbeddingModels();
+
+    expect(fetch.mock.calls.map(([url, init]) => [url, init.method])).toEqual([
+      ["http://api.local/health", "GET"],
+      ["http://api.local/health/ready", "GET"],
+      ["http://api.local/v1/stats", "GET"],
+      ["http://api.local/v1/embeddings/models", "GET"],
+    ]);
+  });
+
+  it("uses environment API keys and default error messages", async () => {
+    const previous = process.env.BIGRAG_API_KEY;
+    process.env.BIGRAG_API_KEY = "bigrag_sk_env";
+    const fetch = vi.fn(async () => jsonResponse({ status: "ok" }));
+
+    try {
+      const client = new BigRAG({ baseUrl: "http://api.local", fetch });
+      await client.health();
+
+      expect(fetch).toHaveBeenCalledWith(
+        "http://api.local/health",
+        expect.objectContaining({
+          headers: expect.objectContaining({ Authorization: "Bearer bigrag_sk_env" }),
+        }),
+      );
+    } finally {
+      if (previous === undefined) delete process.env.BIGRAG_API_KEY;
+      else process.env.BIGRAG_API_KEY = previous;
+    }
+
+    expect(new APIConnectionError().message).toBe("Connection error");
+    expect(new APITimeoutError().message).toBe("Request timed out");
   });
 
   it("adds explicit idempotency keys to mutating JSON requests", async () => {
@@ -84,6 +128,33 @@ describe("BigRAGCore", () => {
     expect(init.headers).toHaveProperty("Idempotency-Key");
   });
 
+  it("falls back to Math.random for idempotency keys without Web Crypto", async () => {
+    vi.stubGlobal("crypto", undefined);
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    const fetch = vi.fn(async () => jsonResponse({ id: "col" }, { status: 201 }));
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch });
+
+    try {
+      await client._request("POST", "/v1/collections", { json: { name: "docs" } });
+    } finally {
+      random.mockRestore();
+      vi.unstubAllGlobals();
+    }
+
+    const init = (fetch.mock.calls as unknown as Array<[string, RequestInit]>)[0][1];
+    expect(init.headers).toHaveProperty("Idempotency-Key", "00000000-0000-0000-0000-000000000000");
+  });
+
+  it("can explicitly suppress idempotency keys", async () => {
+    const fetch = vi.fn(async () => jsonResponse({ id: "col" }, { status: 201 }));
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch });
+
+    await client._request("DELETE", "/v1/collections/docs", { idempotencyKey: null });
+
+    const init = (fetch.mock.calls as unknown as Array<[string, RequestInit]>)[0][1];
+    expect(init.headers).not.toHaveProperty("Idempotency-Key");
+  });
+
   it("maps empty and no-content responses to ok status", async () => {
     const noContent = new BigRAG({
       baseUrl: "http://api.local",
@@ -127,9 +198,11 @@ describe("BigRAGCore", () => {
 
   it("maps structured error bodies to typed errors", async () => {
     const cases: Array<[number, new (...args: never[]) => Error]> = [
+      [400, BadRequestError],
       [401, AuthenticationError],
       [404, NotFoundError],
       [429, RateLimitError],
+      [500, InternalServerError],
     ];
 
     for (const [status, errorClass] of cases) {
@@ -138,6 +211,19 @@ describe("BigRAGCore", () => {
 
       await expect(client.health()).rejects.toBeInstanceOf(errorClass);
     }
+  });
+
+  it("falls back to status text when error bodies are not JSON", async () => {
+    const fetch = vi.fn(
+      async () => new Response("not-json", { status: 418, statusText: "Teapot" }),
+    );
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch, maxRetries: 0 });
+
+    await expect(client.health()).rejects.toMatchObject({
+      name: "APIError",
+      status: 418,
+      message: "Teapot",
+    });
   });
 
   it("maps timeout and connection failures", async () => {
@@ -178,5 +264,29 @@ describe("BigRAGCore", () => {
     await expect(result).resolves.toEqual({ status: "ok" });
     expect(fetch).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
+  });
+
+  it("retries rate limited responses", async () => {
+    vi.useFakeTimers();
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ detail: "slow down" }, { status: 429 }))
+      .mockResolvedValueOnce(jsonResponse({ status: "ok" }));
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch, maxRetries: 1 });
+
+    const result = client.health();
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(result).resolves.toEqual({ status: "ok" });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it("preserves error codes on mapped API errors", () => {
+    const error = new APIError(499, "custom", "CUSTOM_CODE");
+
+    expect(error.name).toBe("APIError");
+    expect(error.status).toBe(499);
+    expect(error.code).toBe("CUSTOM_CODE");
   });
 });

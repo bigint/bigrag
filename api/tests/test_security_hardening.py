@@ -7,7 +7,7 @@ import pytest
 
 from bigrag.config import Settings
 from bigrag.routers.connectors import _redirect_uri
-from bigrag.services import runtime_settings
+from bigrag.services import runtime_settings, url_security
 from bigrag.services.event_tokens import create_event_token, validate_event_token
 from bigrag.services.url_security import UnsafeOutboundUrlError, validate_outbound_url_sync
 from bigrag.startup_guard import check_production_safety
@@ -98,6 +98,138 @@ def test_outbound_url_rejects_private_resolution(monkeypatch) -> None:
 
     with pytest.raises(UnsafeOutboundUrlError):
         validate_outbound_url_sync("https://storage.example", purpose="Webhook URL")
+
+
+def test_outbound_url_normalization_and_parse_rejections() -> None:
+    assert url_security.normalize_url_root("HTTPS://Example.COM:443/api///?x=1#frag") == (
+        "https://example.com/api"
+    )
+    assert url_security.normalize_url_root("http://[::1]:8080/root/") == "http://[::1]:8080/root"
+
+    for raw_url, message in [
+        ("ftp://example.com", "must use http or https"),
+        ("https:///missing", "must include a hostname"),
+        ("https://user:pass@example.com", "must not include credentials"),
+    ]:
+        with pytest.raises(UnsafeOutboundUrlError, match=message):
+            url_security.normalize_url_root(raw_url)
+
+
+def test_outbound_url_allows_explicit_match_without_resolution(monkeypatch) -> None:
+    def fail_resolution(*_args, **_kwargs):
+        raise AssertionError("explicit allowlist should skip DNS")
+
+    monkeypatch.setattr("socket.getaddrinfo", fail_resolution)
+
+    assert (
+        validate_outbound_url_sync(
+            "http://allowed.internal/root/",
+            purpose="Embedding base URL",
+            allowed_urls=["http://allowed.internal/root"],
+        )
+        == "http://allowed.internal/root"
+    )
+
+
+def test_outbound_url_rejects_dns_and_public_cleartext(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "socket.getaddrinfo",
+        lambda *_args, **_kwargs: [(None, None, None, None, ("93.184.216.34", 80))],
+    )
+
+    with pytest.raises(UnsafeOutboundUrlError, match="must use HTTPS"):
+        validate_outbound_url_sync("http://example.com", purpose="Webhook URL")
+
+    with pytest.raises(UnsafeOutboundUrlError, match="must use HTTPS for public endpoints"):
+        validate_outbound_url_sync(
+            "http://example.com",
+            purpose="Webhook URL",
+            allow_private=True,
+        )
+
+    assert (
+        validate_outbound_url_sync("https://example.com", purpose="Webhook URL")
+        == "https://example.com"
+    )
+
+    monkeypatch.setattr(
+        "socket.getaddrinfo",
+        lambda *_args, **_kwargs: [(None, None, None, None, ("10.0.0.5", 80))],
+    )
+
+    assert (
+        validate_outbound_url_sync(
+            "http://internal.example",
+            purpose="Embedding base URL",
+            allow_private=True,
+        )
+        == "http://internal.example"
+    )
+
+
+def test_outbound_url_rejects_unresolvable_and_special_ips(monkeypatch) -> None:
+    import socket
+
+    def unresolved(*_args, **_kwargs):
+        raise socket.gaierror("missing")
+
+    monkeypatch.setattr("socket.getaddrinfo", unresolved)
+
+    with pytest.raises(UnsafeOutboundUrlError, match="could not be resolved"):
+        validate_outbound_url_sync("https://missing.example", purpose="Webhook URL")
+
+    assert url_security._is_blocked_ip("not-an-ip", allow_private=False, allow_loopback=False)
+    assert url_security._is_blocked_ip("0.0.0.0", allow_private=True, allow_loopback=True)
+    assert url_security._is_blocked_ip("127.0.0.1", allow_private=False, allow_loopback=False)
+    assert not url_security._is_blocked_ip("127.0.0.1", allow_private=False, allow_loopback=True)
+    assert url_security._is_cleartext_allowed_ip(
+        "10.0.0.5", allow_private=True, allow_loopback=False
+    )
+    assert not url_security._is_cleartext_allowed_ip(
+        "93.184.216.34", allow_private=True, allow_loopback=True
+    )
+    assert not url_security._is_cleartext_allowed_ip(
+        "not-an-ip", allow_private=True, allow_loopback=True
+    )
+
+
+def test_outbound_url_runtime_wrappers(monkeypatch) -> None:
+    async def get_values(keys):
+        if keys == ["allowed_embedding_base_urls", "allow_private_embedding_base_urls"]:
+            return {
+                "allowed_embedding_base_urls": ["https://embed.example"],
+                "allow_private_embedding_base_urls": False,
+            }
+        return {
+            "allowed_chat_base_urls": ["https://chat.example"],
+            "allow_private_chat_base_urls": False,
+        }
+
+    async def get_value(_key):
+        return True
+
+    monkeypatch.setattr("bigrag.services.runtime_settings.get_values", get_values)
+    monkeypatch.setattr("bigrag.services.runtime_settings.get_value", get_value)
+
+    assert asyncio.run(url_security.validate_embedding_base_url(None)) is None
+    assert asyncio.run(url_security.validate_chat_base_url(None)) is None
+    assert (
+        asyncio.run(url_security.validate_embedding_base_url("https://embed.example/"))
+        == "https://embed.example"
+    )
+    assert (
+        asyncio.run(url_security.validate_chat_base_url("https://chat.example/"))
+        == "https://chat.example"
+    )
+
+    monkeypatch.setattr(
+        "socket.getaddrinfo",
+        lambda *_args, **_kwargs: [(None, None, None, None, ("127.0.0.1", 80))],
+    )
+
+    assert asyncio.run(url_security.validate_webhook_url("http://localhost:4000/hook")) == (
+        "http://localhost:4000/hook"
+    )
 
 
 def test_event_tokens_are_collection_bound(monkeypatch) -> None:
