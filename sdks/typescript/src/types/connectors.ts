@@ -4,6 +4,37 @@ export type ConnectorSourceStatus = "idle" | "syncing" | "needs_reauth" | "error
 export type ConnectorSourceType = "file" | "folder";
 export type ConnectorSyncTrigger = "initial" | "manual" | "scheduled";
 export type ConnectorSyncStatus = "pending" | "running" | "complete" | "failed";
+export type GoogleSyncProgressPhase =
+  | "queued"
+  | "authenticating"
+  | "scanning"
+  | "syncing"
+  | "removing"
+  | "finalizing"
+  | "complete"
+  | "failed";
+
+export interface GoogleSyncProgress {
+  phase: GoogleSyncProgressPhase;
+  message: string;
+  current_item_name: string | null;
+  current_item_id: string | null;
+  progress_percent: number;
+  processed_items: number;
+  total_items: number;
+  counts: {
+    created: number;
+    updated: number;
+    skipped: number;
+    deleted: number;
+    failed: number;
+  };
+}
+
+export type GoogleSyncJobDetails = Record<string, unknown> & {
+  errors?: Array<Record<string, string>>;
+  progress?: GoogleSyncProgress;
+};
 
 export interface GoogleConnectorConfig {
   provider: GoogleProvider;
@@ -109,7 +140,7 @@ export interface GoogleSyncJob {
   total_deleted: number;
   total_failed: number;
   error_message: string | null;
-  details: Record<string, unknown>;
+  details: GoogleSyncJobDetails;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;

@@ -80,9 +80,10 @@ export class GoogleDriveResource {
   }
 
   syncJobs(
-    options: { sourceId?: string; limit?: number } = {},
+    options: { collection?: string; sourceId?: string; limit?: number } = {},
   ): Promise<GoogleSyncJobListResponse> {
     const params: Record<string, string> = {};
+    if (options.collection !== undefined) params.collection = options.collection;
     if (options.sourceId !== undefined) params.source_id = options.sourceId;
     if (options.limit !== undefined) params.limit = String(options.limit);
     return this._client._request("GET", "/v1/connectors/google/sync-jobs", { params });

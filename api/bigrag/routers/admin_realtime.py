@@ -366,16 +366,18 @@ async def connector_sources_stream(
 @router.get("/{provider_slug}/sync-jobs", response_class=StreamingResponse)
 async def connector_sync_jobs_stream(
     provider_slug: str,
+    collection: str | None = Query(default=None, max_length=120),
     source_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     user: dict = Depends(require_admin_session),
 ):
-    topic = f"{provider_slug}:sync-jobs:{source_id or 'all'}"
+    topic = f"{provider_slug}:sync-jobs:{collection or 'all'}:{source_id or 'all'}"
 
     async def load():
         return await _with_session(
             lambda session: connector_sync_jobs(
                 provider_slug=provider_slug,
+                collection=collection,
                 source_id=source_id,
                 limit=limit,
                 user=user,

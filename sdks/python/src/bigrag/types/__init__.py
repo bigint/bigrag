@@ -83,7 +83,11 @@ from bigrag.types.connectors import (
     GoogleSource,
     GoogleSourceListResponse,
     GoogleSyncJob,
+    GoogleSyncJobDetails,
     GoogleSyncJobListResponse,
+    GoogleSyncProgress,
+    GoogleSyncProgressCounts,
+    GoogleSyncProgressPhase,
     UpdateGoogleConnectorConfigBody,
     UpdateGoogleSourceBody,
 )
@@ -206,7 +210,11 @@ __all__ = [
     "GoogleSource",
     "GoogleSourceListResponse",
     "GoogleSyncJob",
+    "GoogleSyncJobDetails",
     "GoogleSyncJobListResponse",
+    "GoogleSyncProgress",
+    "GoogleSyncProgressCounts",
+    "GoogleSyncProgressPhase",
     # Documents
     "Document",
     "DocumentListResponse",

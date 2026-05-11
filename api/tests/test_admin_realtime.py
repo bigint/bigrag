@@ -120,6 +120,69 @@ def test_usage_stream_payload_matches_rest_shape(monkeypatch) -> None:
     assert '"window_days":7' in response.text
 
 
+def test_connector_sync_jobs_stream_filters_collection_and_keeps_progress(monkeypatch) -> None:
+    _finite_streams(monkeypatch)
+    _fake_loaders(monkeypatch)
+    captured = {}
+
+    async def connector_jobs_payload(**kwargs):
+        captured.update(kwargs)
+        return {
+            "jobs": [
+                {
+                    "id": "job_1",
+                    "provider": "google_drive",
+                    "source_id": "source_1",
+                    "trigger": "manual",
+                    "status": "running",
+                    "total_found": 2,
+                    "total_created": 1,
+                    "total_updated": 0,
+                    "total_skipped": 0,
+                    "total_deleted": 0,
+                    "total_failed": 0,
+                    "error_message": None,
+                    "details": {
+                        "progress": {
+                            "phase": "syncing",
+                            "message": "Syncing Contract.pdf",
+                            "current_item_name": "Contract.pdf",
+                            "current_item_id": "file_1",
+                            "progress_percent": 50,
+                            "processed_items": 1,
+                            "total_items": 2,
+                            "counts": {
+                                "created": 1,
+                                "updated": 0,
+                                "skipped": 0,
+                                "deleted": 0,
+                                "failed": 0,
+                            },
+                        }
+                    },
+                    "started_at": None,
+                    "completed_at": None,
+                    "created_at": "2026-05-11T00:00:00Z",
+                    "updated_at": "2026-05-11T00:00:00Z",
+                }
+            ],
+            "total": 1,
+        }
+
+    monkeypatch.setattr(admin_realtime, "connector_sync_jobs", connector_jobs_payload)
+
+    response = _client(monkeypatch).get(
+        "/v1/admin/realtime/google/sync-jobs?collection=docs&limit=5"
+    )
+
+    assert response.status_code == 200
+    assert captured["collection"] == "docs"
+    assert captured["limit"] == 5
+    assert '"topic":"google:sync-jobs:docs:all"' in response.text
+    assert '"phase":"syncing"' in response.text
+    assert '"progress_percent":50' in response.text
+
+
 def test_realtime_stream_rejects_non_admin_session(monkeypatch) -> None:
     app = FastAPI()
 

@@ -55,7 +55,7 @@ POST /v1/connectors/{provider}/sources
 PATCH /v1/connectors/{provider}/sources/{source_id}
 DELETE /v1/connectors/{provider}/sources/{source_id}
 POST /v1/connectors/{provider}/sources/{source_id}/sync
-GET /v1/connectors/{provider}/sync-jobs?source_id=…
+GET /v1/connectors/{provider}/sync-jobs?collection=docs&source_id=…
 ```
 
 Create a source from an in-app browser selection:
@@ -72,3 +72,26 @@ Create a source from an in-app browser selection:
 ```
 
 New sources start an initial sync and default to daily scheduled resync. Manual syncs detect additions, updates, and remote removals. If a provider returns a successful listing and a previously synced file is missing, bigRAG deletes the document, vectors, stored file, and connector manifest row.
+
+Sync jobs can be filtered by `collection`, `source_id`, and `limit`. While a Google Drive job runs, `details.progress` reports Drive-sync progress only:
+
+```json
+{
+  "phase": "syncing",
+  "message": "Syncing Contract.pdf",
+  "current_item_name": "Contract.pdf",
+  "current_item_id": "drive-file-id",
+  "progress_percent": 50,
+  "processed_items": 1,
+  "total_items": 2,
+  "counts": {
+    "created": 1,
+    "updated": 0,
+    "skipped": 0,
+    "deleted": 0,
+    "failed": 0
+  }
+}
+```
+
+Terminal `complete` jobs mean Drive files were scanned, downloaded or updated, remote deletions were applied, and changed documents were queued for the normal ingestion pipeline. Conversion, chunking, embedding, and indexing continue through document status progress.

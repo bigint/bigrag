@@ -93,6 +93,8 @@ let client = BigRag::builder()
 | `client.connectors().google()` | Google Drive account, file browsing, sources, and sync jobs |
 | `client.evaluations()` | Golden-set retrieval evaluation runs |
 
+Google Drive sync jobs can be listed with source and collection filters. Use `sync_jobs` for the existing source/limit call shape or `sync_jobs_filtered` when a collection filter is needed.
+
 ## Collections
 
 ```rust

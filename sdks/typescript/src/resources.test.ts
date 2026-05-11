@@ -306,7 +306,7 @@ describe("resource wrappers", () => {
     await connectors.google.updateSource("source/1", { enabled: false });
     await connectors.google.deleteSource("source/1");
     await connectors.google.syncSource("source/1");
-    await connectors.google.syncJobs({ sourceId: "source/1", limit: 5 });
+    await connectors.google.syncJobs({ collection: "docs", sourceId: "source/1", limit: 5 });
 
     expect(requestCalls).toEqual([
       ["GET", "/v1/collections", { params: { name: "docs", limit: "2", offset: "4" } }],
@@ -335,7 +335,11 @@ describe("resource wrappers", () => {
       ["PATCH", "/v1/connectors/google/sources/source%2F1", { json: { enabled: false } }],
       ["DELETE", "/v1/connectors/google/sources/source%2F1"],
       ["POST", "/v1/connectors/google/sources/source%2F1/sync"],
-      ["GET", "/v1/connectors/google/sync-jobs", { params: { source_id: "source/1", limit: "5" } }],
+      [
+        "GET",
+        "/v1/connectors/google/sync-jobs",
+        { params: { collection: "docs", source_id: "source/1", limit: "5" } },
+      ],
     ]);
   });
 

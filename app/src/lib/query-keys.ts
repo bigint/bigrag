@@ -9,6 +9,7 @@ type OptionalCollectionParams = {
 };
 
 type GoogleSyncJobsParams = {
+  readonly collection?: string;
   readonly sourceId?: string;
 };
 
@@ -72,8 +73,13 @@ export const queryKeys = {
       ["connectors", "google", "files", { pageToken, parentId, query }] as const,
     googleSources: ({ collection }: OptionalCollectionParams = {}) =>
       ["connectors", "google", "sources", { collection: collection ?? "all" }] as const,
-    googleSyncJobs: ({ sourceId }: GoogleSyncJobsParams = {}) =>
-      ["connectors", "google", "sync-jobs", { sourceId: sourceId ?? "all" }] as const,
+    googleSyncJobs: ({ collection, sourceId }: GoogleSyncJobsParams = {}) =>
+      [
+        "connectors",
+        "google",
+        "sync-jobs",
+        { collection: collection ?? "all", sourceId: sourceId ?? "all" },
+      ] as const,
   },
   chat: {
     list: () => ["chat", "list"] as const,

@@ -101,18 +101,31 @@ export const useGoogleSources = (collection?: string) => {
   });
 };
 
-export const useGoogleSyncJobs = (sourceId?: string, limit = 20) => {
-  const queryKey = useMemo(() => queryKeys.connectors.googleSyncJobs({ sourceId }), [sourceId]);
+export const useGoogleSyncJobs = ({
+  collection,
+  limit = 20,
+  sourceId,
+}: {
+  collection?: string;
+  limit?: number;
+  sourceId?: string;
+} = {}) => {
+  const queryKey = useMemo(
+    () => queryKeys.connectors.googleSyncJobs({ collection, sourceId }),
+    [collection, sourceId],
+  );
   const path = useMemo(() => {
     const params = new URLSearchParams({ limit: String(limit) });
+    if (collection) params.set("collection", collection);
     if (sourceId) params.set("source_id", sourceId);
     return `v1/admin/realtime/google/sync-jobs?${params}`;
-  }, [limit, sourceId]);
+  }, [collection, limit, sourceId]);
   return useSseSnapshotQuery<GoogleSyncJobListResponse>({
     queryKey,
     queryFn: () =>
       apiClient.get<GoogleSyncJobListResponse>("v1/connectors/google/sync-jobs", {
         limit,
+        ...(collection ? { collection } : {}),
         ...(sourceId ? { source_id: sourceId } : {}),
       }),
     path,

@@ -245,7 +245,7 @@ client.connectors.google.createSource({ collection_name, root_id, root_name, roo
 client.connectors.google.updateSource(sourceId, { schedule_enabled?, sync_interval_hours? })
 client.connectors.google.deleteSource(sourceId)
 client.connectors.google.syncSource(sourceId)
-client.connectors.google.syncJobs({ sourceId?, limit? })
+client.connectors.google.syncJobs({ collection?, sourceId?, limit? })
 ```
 
 ## Evaluations

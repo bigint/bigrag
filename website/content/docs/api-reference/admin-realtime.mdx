@@ -38,7 +38,7 @@ Ingestion-backed streams subscribe to the ingestion event bus and re-read the da
 | `GET /v1/admin/realtime/{provider}/sources` | `GET /v1/connectors/{provider}/sources` |
 | `GET /v1/admin/realtime/{provider}/sync-jobs` | `GET /v1/connectors/{provider}/sync-jobs` |
 
-Connector source streams accept `collection`. Sync-job streams accept `source_id` and `limit`. Google Drive uses the `google` provider slug.
+Connector source streams accept `collection`. Sync-job streams accept `collection`, `source_id`, and `limit`. Google Drive uses the `google` provider slug and includes the same `details.progress` object as the sync-job REST response.
 
 ## Admin/System Streams
 

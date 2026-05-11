@@ -283,7 +283,9 @@ def test_collection_connector_query_vector_and_webhook_resources_build_requests(
         await connectors.google.update_source("source/1", {"enabled": False})
         await connectors.google.delete_source("source/1")
         await connectors.google.sync_source("source/1")
-        await connectors.google.sync_jobs(source_id="source/1", limit=5)
+        await connectors.google.sync_jobs(
+            collection="docs", source_id="source/1", limit=5
+        )
         await queries.query("team docs", {"query": "hello"})
         await queries.multi_query({"collections": ["docs"], "query": "hello"})
         await queries.batch_query(
@@ -357,7 +359,7 @@ def test_collection_connector_query_vector_and_webhook_resources_build_requests(
         (
             "GET",
             "/v1/connectors/google/sync-jobs",
-            {"params": {"source_id": "source/1", "limit": "5"}},
+            {"params": {"collection": "docs", "source_id": "source/1", "limit": "5"}},
         ),
         ("POST", "/v1/collections/team%20docs/query", {"json": {"query": "hello"}}),
         ("POST", "/v1/query", {"json": {"collections": ["docs"], "query": "hello"}}),

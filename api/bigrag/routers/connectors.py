@@ -358,6 +358,7 @@ async def connector_source_sync(
 @router.get("/{provider_slug}/sync-jobs", response_model=ConnectorSyncJobListResponse)
 async def connector_sync_jobs(
     provider_slug: str,
+    collection: str | None = Query(default=None, max_length=120),
     source_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     user: dict = Depends(require_session),
@@ -370,6 +371,7 @@ async def connector_sync_jobs(
         session,
         provider=route.provider,
         user_id=user["id"],
+        collection_name=collection,
         source_id=source_id,
         limit=limit,
     )

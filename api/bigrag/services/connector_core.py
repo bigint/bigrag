@@ -91,6 +91,99 @@ class ConnectorSyncCounters:
             self.errors.append({"remote_id": remote_id, "name": name, "error": error})
 
 
+SYNC_PROGRESS_FIXED_PERCENT = {
+    "queued": 0,
+    "authenticating": 5,
+    "scanning": 12,
+    "finalizing": 98,
+    "complete": 100,
+    "failed": 100,
+}
+
+SYNC_PROGRESS_RANGES = {
+    "syncing": (15, 85),
+    "removing": (85, 95),
+}
+
+
+def sync_progress_percent(phase: str, processed_items: int = 0, total_items: int = 0) -> int:
+    if phase in SYNC_PROGRESS_FIXED_PERCENT:
+        return SYNC_PROGRESS_FIXED_PERCENT[phase]
+    start, end = SYNC_PROGRESS_RANGES.get(phase, (0, 0))
+    if total_items <= 0:
+        return start
+    ratio = min(1.0, max(0.0, processed_items / total_items))
+    return round(start + ((end - start) * ratio))
+
+
+def sync_counter_details(counters: ConnectorSyncCounters) -> dict[str, int]:
+    return {
+        "created": counters.created,
+        "updated": counters.updated,
+        "skipped": counters.skipped,
+        "deleted": counters.deleted,
+        "failed": counters.failed,
+    }
+
+
+def sync_progress_details(
+    *,
+    phase: str,
+    message: str,
+    counters: ConnectorSyncCounters | None = None,
+    current_item: RemoteConnectorFile | ConnectorDocument | None = None,
+    processed_items: int = 0,
+    total_items: int = 0,
+) -> dict[str, Any]:
+    current_item_id = getattr(current_item, "id", None) or getattr(current_item, "remote_id", None)
+    current_item_name = getattr(current_item, "name", None) or getattr(
+        current_item, "remote_name", None
+    )
+    counts = sync_counter_details(counters or ConnectorSyncCounters())
+    return {
+        "phase": phase,
+        "message": message,
+        "current_item_id": str(current_item_id) if current_item_id else None,
+        "current_item_name": current_item_name,
+        "progress_percent": sync_progress_percent(phase, processed_items, total_items),
+        "processed_items": processed_items,
+        "total_items": total_items,
+        "counts": counts,
+    }
+
+
+async def update_sync_progress(
+    session: Any,
+    *,
+    job: ConnectorSyncJob,
+    counters: ConnectorSyncCounters,
+    phase: str,
+    message: str,
+    current_item: RemoteConnectorFile | ConnectorDocument | None = None,
+    processed_items: int = 0,
+    total_items: int = 0,
+) -> None:
+    job.total_found = counters.found
+    job.total_created = counters.created
+    job.total_updated = counters.updated
+    job.total_skipped = counters.skipped
+    job.total_deleted = counters.deleted
+    job.total_failed = counters.failed
+    job.details = {
+        **dict(job.details or {}),
+        "errors": counters.errors,
+        "progress": sync_progress_details(
+            phase=phase,
+            message=message,
+            counters=counters,
+            current_item=current_item,
+            processed_items=processed_items,
+            total_items=total_items,
+        ),
+    }
+    await session.commit()
+
+
 class ConnectorSyncAdapter(Protocol):
     provider: str
     not_configured_message: str
@@ -430,6 +523,13 @@ async def create_sync_job(
         trigger=trigger,
         status="pending",
         started_by=uuid.UUID(user_id) if user_id else None,
+        details={
+            "errors": [],
+            "progress": sync_progress_details(
+                phase="queued",
+                message="Google Drive sync queued",
+            ),
+        },
     )
     session.add(job)
     if commit:
@@ -618,6 +718,7 @@ async def list_sync_jobs(
     *,
     provider: str,
     user_id: str,
+    collection_name: str | None,
     source_id: str | None,
     limit: int,
 ) -> tuple[list[dict[str, Any]], int]:
@@ -642,6 +743,9 @@ async def list_sync_jobs(
         sid = uuid.UUID(source_id)
         stmt = stmt.where(ConnectorSyncJob.source_id == sid)
         count_stmt = count_stmt.where(ConnectorSyncJob.source_id == sid)
+    if collection_name:
+        stmt = stmt.where(ConnectorSource.collection_name == collection_name)
+        count_stmt = count_stmt.where(ConnectorSource.collection_name == collection_name)
     rows = (await session.scalars(stmt)).all()
     total = await session.scalar(count_stmt)
     return [sync_job_public(provider, job) for job in rows], total or 0
@@ -752,7 +856,13 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
         job.started_at = now
         source.status = "syncing"
         source.last_error = None
-        await session.commit()
+        await update_sync_progress(
+            session,
+            job=job,
+            counters=counters,
+            phase="authenticating",
+            message="Connecting to Google Drive",
+        )
 
         if account is None or config is None or not configured(config) or collection is None:
             await fail_sync(
@@ -760,6 +870,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 job=job,
                 source=source,
                 message=adapter.not_configured_message,
+                counters=counters,
             )
             return
 
@@ -769,12 +880,28 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 config=config,
                 account=account,
             )
+            await update_sync_progress(
+                session,
+                job=job,
+                counters=counters,
+                phase="scanning",
+                message="Scanning Drive files",
+            )
             try:
                 remotes = await adapter.iter_files(access_token=access_token, source=source)
             except ConnectorNotFoundError:
                 remotes = []
 
             counters.found = len(remotes)
+            await update_sync_progress(
+                session,
+                job=job,
+                counters=counters,
+                phase="syncing",
+                message=f"Found {len(remotes)} Drive files",
+                processed_items=0,
+                total_items=len(remotes),
+            )
             seen_remote_ids = {remote.id for remote in remotes}
             manifests = {
                 manifest.remote_id: manifest
@@ -785,8 +912,18 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 ).all()
             }
 
-            for remote in remotes:
+            for index, remote in enumerate(remotes, start=1):
                 manifest = manifests.get(remote.id)
+                await update_sync_progress(
+                    session,
+                    job=job,
+                    counters=counters,
+                    phase="syncing",
+                    message=f"Syncing {remote.name}",
+                    current_item=remote,
+                    processed_items=index - 1,
+                    total_items=len(remotes),
+                )
                 try:
                     downloaded = await adapter.download(access_token=access_token, remote=remote)
                     await sync_downloaded_file(
@@ -810,19 +947,66 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                         error=str(exc),
                     )
                     counters.add_error(remote.id, remote.name, str(exc))
+                await update_sync_progress(
+                    session,
+                    job=job,
+                    counters=counters,
+                    phase="syncing",
+                    message=f"Synced {index} of {len(remotes)} Drive files",
+                    current_item=remote,
+                    processed_items=index,
+                    total_items=len(remotes),
+                )
 
             missing = [
                 manifest
                 for remote_id, manifest in manifests.items()
                 if remote_id not in seen_remote_ids
             ]
-            for manifest in missing:
+            await update_sync_progress(
+                session,
+                job=job,
+                counters=counters,
+                phase="removing",
+                message="Checking for removed Drive files",
+                processed_items=0,
+                total_items=len(missing),
+            )
+            for index, manifest in enumerate(missing, start=1):
+                await update_sync_progress(
+                    session,
+                    job=job,
+                    counters=counters,
+                    phase="removing",
+                    message=f"Removing {manifest.remote_name}",
+                    current_item=manifest,
+                    processed_items=index - 1,
+                    total_items=len(missing),
+                )
                 await delete_synced_document(
                     session,
                     source=source,
                     manifest=manifest,
                     counters=counters,
                 )
+                await update_sync_progress(
+                    session,
+                    job=job,
+                    counters=counters,
+                    phase="removing",
+                    message=f"Removed {index} of {len(missing)} missing Drive files",
+                    current_item=manifest,
+                    processed_items=index,
+                    total_items=len(missing),
+                )
+
+            await update_sync_progress(
+                session,
+                job=job,
+                counters=counters,
+                phase="finalizing",
+                message="Queueing synced documents for ingestion",
+            )
 
             completed = utcnow()
             job.status = "complete" if counters.failed == 0 else "failed"
@@ -834,7 +1018,19 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             source.next_sync_at = next_sync_at(source, from_time=completed)
             source.last_error = job.error_message
             await recount_collection_documents(session, source.collection_id)
-            await session.commit()
+            await update_sync_progress(
+                session,
+                job=job,
+                counters=counters,
+                phase="complete" if counters.failed == 0 else "failed",
+                message=(
+                    "Drive sync complete. Documents queued for ingestion."
+                    if counters.failed == 0
+                    else adapter.partial_failure_message
+                ),
+                processed_items=counters.found + counters.deleted,
+                total_items=counters.found + len(missing),
+            )
             await collection_cache.invalidate(source.collection_name)
             await invalidate_collection_query_cache(source.collection_name)
             logger.info(
@@ -853,14 +1049,14 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             account.status = "needs_reauth"
             source.status = "needs_reauth"
             source.last_error = adapter.reauth_message
-            await fail_sync(session, job=job, source=source, message=str(exc))
+            await fail_sync(session, job=job, source=source, message=str(exc), counters=counters)
         except Exception as exc:
             logger.exception(
                 "connector: sync job failed",
                 provider=adapter.provider,
                 job_id=job_id,
             )
-            await fail_sync(session, job=job, source=source, message=str(exc))
+            await fail_sync(session, job=job, source=source, message=str(exc), counters=counters)
 
 
 async def sync_downloaded_file(
@@ -1061,7 +1257,7 @@ def apply_counters(job: ConnectorSyncJob, counters: ConnectorSyncCounters) -> No
     job.total_skipped = counters.skipped
     job.total_deleted = counters.deleted
     job.total_failed = counters.failed
-    job.details = {"errors": counters.errors}
+    job.details = {**dict(job.details or {}), "errors": counters.errors}
 
 
 async def fail_sync(
@@ -1070,11 +1266,19 @@ async def fail_sync(
     job: ConnectorSyncJob,
     source: ConnectorSource,
     message: str,
+    counters: ConnectorSyncCounters | None = None,
 ) -> None:
+    counters = counters or ConnectorSyncCounters()
     job.status = "failed"
     job.error_message = message
     job.completed_at = utcnow()
     source.status = "needs_reauth" if source.status == "needs_reauth" else "error"
     source.last_error = message
     source.next_sync_at = next_sync_at(source)
-    await session.commit()
+    await update_sync_progress(
+        session,
+        job=job,
+        counters=counters,
+        phase="failed",
+        message=message,
+    )

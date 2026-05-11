@@ -40,6 +40,38 @@ export type GoogleDriveFileList = {
   next_page_token: string | null;
 };
 
+export type GoogleSyncProgressPhase =
+  | "queued"
+  | "authenticating"
+  | "scanning"
+  | "syncing"
+  | "removing"
+  | "finalizing"
+  | "complete"
+  | "failed";
+
+export type GoogleSyncProgress = {
+  phase: GoogleSyncProgressPhase;
+  message: string;
+  current_item_name: string | null;
+  current_item_id: string | null;
+  progress_percent: number;
+  processed_items: number;
+  total_items: number;
+  counts: {
+    created: number;
+    updated: number;
+    skipped: number;
+    deleted: number;
+    failed: number;
+  };
+};
+
+export type GoogleSyncJobDetails = Record<string, unknown> & {
+  errors?: Array<Record<string, string>>;
+  progress?: GoogleSyncProgress;
+};
+
 export type GoogleDriveSource = {
   id: string;
   provider: "google_drive";
@@ -73,7 +105,7 @@ export type GoogleDriveSyncJob = {
   total_deleted: number;
   total_failed: number;
   error_message: string | null;
-  details: Record<string, unknown>;
+  details: GoogleSyncJobDetails;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;

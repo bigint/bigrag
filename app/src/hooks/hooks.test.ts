@@ -421,10 +421,10 @@ describe("admin app hooks", () => {
       queryKey: queryKeys.connectors.googleSources({ collection: "docs" }),
     });
 
-    useGoogleSyncJobs("source_1", 5);
+    useGoogleSyncJobs({ collection: "docs", limit: 5, sourceId: "source_1" });
     expect(sseOptions()).toMatchObject({
-      path: "v1/admin/realtime/google/sync-jobs?limit=5&source_id=source_1",
-      queryKey: queryKeys.connectors.googleSyncJobs({ sourceId: "source_1" }),
+      path: "v1/admin/realtime/google/sync-jobs?limit=5&collection=docs&source_id=source_1",
+      queryKey: queryKeys.connectors.googleSyncJobs({ collection: "docs", sourceId: "source_1" }),
     });
 
     useCreateGoogleSource("docs");

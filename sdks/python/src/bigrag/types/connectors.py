@@ -10,6 +10,16 @@ ConnectorSourceStatus = Literal["idle", "syncing", "needs_reauth", "error"]
 ConnectorSourceType = Literal["file", "folder"]
 ConnectorSyncTrigger = Literal["initial", "manual", "scheduled"]
 ConnectorSyncStatus = Literal["pending", "running", "complete", "failed"]
+GoogleSyncProgressPhase = Literal[
+    "queued",
+    "authenticating",
+    "scanning",
+    "syncing",
+    "removing",
+    "finalizing",
+    "complete",
+    "failed",
+]
 
 
 class GoogleConnectorConfig(TypedDict):
@@ -103,6 +113,30 @@ class GoogleSourceListResponse(TypedDict):
     total: int
 
 
+class GoogleSyncProgressCounts(TypedDict):
+    created: int
+    updated: int
+    skipped: int
+    deleted: int
+    failed: int
+
+
+class GoogleSyncProgress(TypedDict):
+    phase: GoogleSyncProgressPhase
+    message: str
+    current_item_name: str | None
+    current_item_id: str | None
+    progress_percent: int
+    processed_items: int
+    total_items: int
+    counts: GoogleSyncProgressCounts
+
+
+class GoogleSyncJobDetails(TypedDict, total=False):
+    errors: list[dict[str, str]]
+    progress: GoogleSyncProgress
+
+
 class GoogleSyncJob(TypedDict):
     id: str
     provider: GoogleProvider
@@ -116,7 +150,7 @@ class GoogleSyncJob(TypedDict):
     total_deleted: int
     total_failed: int
     error_message: str | None
-    details: dict[str, Any]
+    details: GoogleSyncJobDetails
     started_at: str | None
     completed_at: str | None
     created_at: str

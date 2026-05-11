@@ -6,8 +6,20 @@ from datetime import UTC, datetime
 
 import httpx
 
-from bigrag.db.models import ConnectorAccount, ConnectorDocument, ConnectorProviderConfig
-from bigrag.services.connector_core import manifest_unchanged, oauth_redirect_url
+from bigrag.db.models import (
+    ConnectorAccount,
+    ConnectorDocument,
+    ConnectorProviderConfig,
+    ConnectorSyncJob,
+)
+from bigrag.services.connector_core import (
+    ConnectorSyncCounters,
+    apply_counters,
+    manifest_unchanged,
+    oauth_redirect_url,
+    sync_progress_details,
+    sync_progress_percent,
+)
 from bigrag.services.connector_registry import connector_runtime
 from bigrag.services.google_drive import (
     GOOGLE_DOC_MIME,
@@ -241,3 +253,71 @@ def test_manifest_unchanged_uses_remote_signature_before_hash() -> None:
             {"remote": remote, "content_hash": "new-content"},
         )(),
     )
+
+
+def test_sync_progress_percent_uses_phase_ranges() -> None:
+    assert sync_progress_percent("queued") == 0
+    assert sync_progress_percent("authenticating") == 5
+    assert sync_progress_percent("scanning") == 12
+    assert sync_progress_percent("syncing", processed_items=5, total_items=10) == 50
+    assert sync_progress_percent("removing", processed_items=1, total_items=2) == 90
+    assert sync_progress_percent("finalizing") == 98
+    assert sync_progress_percent("complete") == 100
+    assert sync_progress_percent("failed") == 100
+
+
+def test_sync_progress_details_include_counts_and_current_item() -> None:
+    counters = ConnectorSyncCounters(found=2, created=1, updated=1, skipped=2, deleted=3, failed=1)
+    remote = RemoteDriveFile(
+        id="file-1",
+        name="Contract.pdf",
+        mime_type="application/pdf",
+    )
+
+    progress = sync_progress_details(
+        phase="syncing",
+        message="Syncing Contract.pdf",
+        counters=counters,
+        current_item=remote,
+        processed_items=1,
+        total_items=2,
+    )
+
+    assert progress == {
+        "phase": "syncing",
+        "message": "Syncing Contract.pdf",
+        "current_item_id": "file-1",
+        "current_item_name": "Contract.pdf",
+        "progress_percent": 50,
+        "processed_items": 1,
+        "total_items": 2,
+        "counts": {
+            "created": 1,
+            "updated": 1,
+            "skipped": 2,
+            "deleted": 3,
+            "failed": 1,
+        },
+    }
+
+
+def test_apply_counters_preserves_existing_progress_details() -> None:
+    job = ConnectorSyncJob(
+        provider=GOOGLE_PROVIDER,
+        source_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+        trigger="manual",
+        status="running",
+        details={"progress": {"phase": "syncing"}, "other": True},
+    )
+    counters = ConnectorSyncCounters(found=4, created=1)
+    counters.add_error("file-2", "Broken.pdf", "invalid content")
+
+    apply_counters(job, counters)
+
+    assert job.total_found == 4
+    assert job.total_created == 1
+    assert job.total_failed == 1
+    assert job.details["progress"] == {"phase": "syncing"}
+    assert job.details["errors"] == [
+        {"remote_id": "file-2", "name": "Broken.pdf", "error": "invalid content"}
+    ]

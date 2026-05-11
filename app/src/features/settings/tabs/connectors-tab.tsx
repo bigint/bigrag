@@ -1,9 +1,10 @@
-import { CheckCircle2, Copy, Plug, Unplug } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CheckCircle2, Cloud, Copy, KeyRound, Plug, ShieldCheck, Unplug } from "lucide-react";
+import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import {
   useDisconnectGoogle,
@@ -27,42 +28,58 @@ export const ConnectorsTab = () => {
   const configured = config?.configured ?? false;
   const callbackUrl = config?.callback_url ?? "";
   const connected = account?.connected ?? false;
+  const needsReauth = account?.status === "needs_reauth";
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plug className="size-4" />
-            Google Drive
-          </CardTitle>
-          <CardDescription>
-            {configured ? "Configured for Google Drive OAuth." : "OAuth setup required."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
-            <div>
-              <div className="text-sm font-medium">Status</div>
-              <div className="text-xs text-muted-foreground">
-                {connected
-                  ? `Connected as ${account?.email ?? "Google account"}`
-                  : account?.status === "needs_reauth"
-                    ? "Reconnect required"
-                    : configured
-                      ? "Ready for users to connect"
-                      : "Not configured"}
-              </div>
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="overflow-hidden rounded-sm border border-border bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-border border-b bg-muted/35 px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-sm border border-border bg-background">
+              <Plug className="size-5" />
             </div>
-            <span className="flex items-center gap-1.5 text-sm font-medium">
-              {configured && <CheckCircle2 className="size-4 text-success" />}
-              {configured ? "configured" : "missing"}
-            </span>
+            <div>
+              <h3 className="text-base font-semibold">Google Drive</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">OAuth connector</p>
+            </div>
+          </div>
+          <Badge dot variant={configured ? "success" : "warning"}>
+            {configured ? "configured" : "setup required"}
+          </Badge>
+        </div>
+
+        <div className="flex flex-col gap-5 p-5">
+          <div className="grid gap-4 md:grid-cols-3">
+            <ConnectorMetric
+              icon={<ShieldCheck className="size-4" />}
+              label="Provider"
+              value={enabled ? "Enabled" : "Disabled"}
+            />
+            <ConnectorMetric
+              icon={<KeyRound className="size-4" />}
+              label="Credentials"
+              value={configured ? "Saved" : "Missing"}
+            />
+            <ConnectorMetric
+              icon={<Cloud className="size-4" />}
+              label="Account"
+              value={
+                connected
+                  ? "Connected"
+                  : needsReauth
+                    ? "Reconnect"
+                    : configured
+                      ? "Ready"
+                      : "Waiting"
+              }
+            />
+          </div>
+
+          <div className="rounded-sm border border-border bg-background p-4">
+            <Switch checked={enabled} label="Enabled" onCheckedChange={setEnabled} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Switch checked={enabled} label="Enabled" onCheckedChange={setEnabled} />
-            <div className="hidden sm:block" />
             <Input
               label="OAuth client ID"
               onChange={(e) => setClientId(e.target.value)}
@@ -104,13 +121,14 @@ export const ConnectorsTab = () => {
               disabled={isPending || save.isPending}
               onClick={() =>
                 save.mutate({
-                  enabled,
                   client_id: clientId,
                   client_secret: clientSecret || null,
+                  enabled,
                 })
               }
             >
-              Save Google connector
+              {save.isPending ? <Spinner /> : <CheckCircle2 className="size-4" />}
+              Save connector
             </Button>
             {connected && (
               <Button
@@ -118,16 +136,80 @@ export const ConnectorsTab = () => {
                 onClick={() => disconnect.mutate()}
                 variant="outline"
               >
-                <Unplug className="size-4" />
+                {disconnect.isPending ? <Spinner /> : <Unplug className="size-4" />}
                 Disconnect account
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
+
+      <section className="rounded-sm border border-border bg-card p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-sm border border-border bg-background">
+            <Cloud className="size-5" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold">Connection</h3>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {connected
+                ? account?.email
+                : needsReauth
+                  ? "Reconnect required"
+                  : configured
+                    ? "Ready for OAuth"
+                    : "Credentials required"}
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 space-y-3 text-sm">
+          <ConnectorFact label="Status" value={account?.status ?? "not connected"} />
+          <ConnectorFact
+            label="Last connected"
+            value={
+              account?.last_connected_at
+                ? new Date(account.last_connected_at).toLocaleString()
+                : "Never"
+            }
+          />
+          <ConnectorFact
+            label="Token expiry"
+            value={
+              account?.token_expires_at
+                ? new Date(account.token_expires_at).toLocaleString()
+                : "None"
+            }
+          />
+        </div>
+      </section>
     </div>
   );
 };
+
+const ConnectorMetric = ({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}) => (
+  <div className="rounded-sm border border-border bg-background p-3">
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      {icon}
+      {label}
+    </div>
+    <div className="mt-2 text-sm font-semibold">{value}</div>
+  </div>
+);
+
+const ConnectorFact = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex items-center justify-between gap-4 border-border border-b pb-3 last:border-b-0 last:pb-0">
+    <span className="text-muted-foreground">{label}</span>
+    <span className="min-w-0 truncate font-medium">{value}</span>
+  </div>
+);
 
 const useGoogleConnectorConfigDraft = (
   config: GoogleConnectorConfig | undefined,

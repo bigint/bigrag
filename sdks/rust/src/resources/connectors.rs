@@ -146,7 +146,20 @@ impl GoogleDrive<'_> {
         source_id: Option<&str>,
         limit: Option<u32>,
     ) -> Result<GoogleSyncJobListResponse, BigRagError> {
+        self.sync_jobs_filtered(None, source_id, limit).await
+    }
+
+    /// List Google Drive sync jobs with an optional collection filter.
+    pub async fn sync_jobs_filtered(
+        &self,
+        collection: Option<&str>,
+        source_id: Option<&str>,
+        limit: Option<u32>,
+    ) -> Result<GoogleSyncJobListResponse, BigRagError> {
         let mut params = Vec::new();
+        if let Some(collection) = collection {
+            params.push(("collection".to_string(), collection.to_string()));
+        }
         if let Some(source_id) = source_id {
             params.push(("source_id".to_string(), source_id.to_string()));
         }

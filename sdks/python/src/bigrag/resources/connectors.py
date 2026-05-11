@@ -120,11 +120,14 @@ class GoogleDriveResource:
     async def sync_jobs(
         self,
         *,
+        collection: str | None = None,
         source_id: str | None = None,
         limit: int | None = None,
     ) -> GoogleSyncJobListResponse:
         """List Google Drive sync jobs."""
         params: dict[str, str] = {}
+        if collection is not None:
+            params["collection"] = collection
         if source_id is not None:
             params["source_id"] = source_id
         if limit is not None:

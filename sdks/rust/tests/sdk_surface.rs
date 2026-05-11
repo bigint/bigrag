@@ -249,6 +249,9 @@ async fn exercises_public_sdk_methods() {
     let _ = google.delete_source("source/id").await;
     let _ = google.sync_source("source/id").await;
     let _ = google.sync_jobs(Some("source/id"), Some(5)).await;
+    let _ = google
+        .sync_jobs_filtered(Some("docs"), Some("source/id"), Some(5))
+        .await;
 
     let webhooks = client.webhooks();
     let _ = webhooks
