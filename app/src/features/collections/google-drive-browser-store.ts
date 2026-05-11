@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { GoogleDriveFile, GoogleDriveFileList } from "@/types/rag-computer";
+import type { GoogleDriveFile, GoogleDriveFileList } from "@/types/bigrag";
 
 type GoogleDriveFolder = {
   id: string;

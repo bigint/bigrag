@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from rag_computer.resources import (
+from bigrag.resources import (
     AdminResource,
     AuthResource,
     ChatResource,

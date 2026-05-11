@@ -1,14 +1,14 @@
 //! File upload patterns: path, bytes, batch upload.
 //!
 //! Run with: `cargo run --example file_upload`
-//! Requires a running rag.computer server at localhost:6100.
+//! Requires a running bigRAG server at localhost:6100.
 
-use rag_computer::types::CreateCollectionBody;
-use rag_computer::{FileInput, RagComputer};
+use bigrag::types::CreateCollectionBody;
+use bigrag::{BigRag, FileInput};
 
 #[tokio::main]
-async fn main() -> Result<(), rag_computer::RagComputerError> {
-    let client = RagComputer::from_env()?;
+async fn main() -> Result<(), bigrag::BigRagError> {
+    let client = BigRag::from_env()?;
 
     // Create a collection for testing
     client

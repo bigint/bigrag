@@ -1,11 +1,11 @@
-use crate::client::RagComputer;
+use crate::client::BigRag;
 use crate::core::urlencode;
-use crate::error::RagComputerError;
+use crate::error::BigRagError;
 use crate::types::vectors::{DeleteResponse, UpsertResponse, VectorEntry};
 
 /// Vectors resource — manage raw vectors directly.
 pub struct Vectors<'a> {
-    pub(crate) client: &'a RagComputer,
+    pub(crate) client: &'a BigRag,
 }
 
 impl Vectors<'_> {
@@ -14,7 +14,7 @@ impl Vectors<'_> {
         &self,
         collection: &str,
         vectors: Vec<VectorEntry>,
-    ) -> Result<UpsertResponse, RagComputerError> {
+    ) -> Result<UpsertResponse, BigRagError> {
         let path = format!("/v1/collections/{}/vectors/upsert", urlencode(collection));
         let body = serde_json::json!({ "vectors": vectors });
         self.client.transport.post(&path, &body).await
@@ -25,7 +25,7 @@ impl Vectors<'_> {
         &self,
         collection: &str,
         ids: &[&str],
-    ) -> Result<DeleteResponse, RagComputerError> {
+    ) -> Result<DeleteResponse, BigRagError> {
         let path = format!("/v1/collections/{}/vectors/delete", urlencode(collection));
         let body = serde_json::json!({ "ids": ids });
         self.client.transport.post(&path, &body).await

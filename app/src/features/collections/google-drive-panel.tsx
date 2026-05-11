@@ -57,7 +57,7 @@ import type {
   GoogleDriveSource,
   GoogleDriveSyncJob,
   GoogleSyncProgress,
-} from "@/types/rag-computer";
+} from "@/types/bigrag";
 
 const statusVariant: Record<GoogleDriveSource["status"], "success" | "warning" | "info" | "error"> =
   {

@@ -4,8 +4,8 @@ import asyncio
 
 import httpx
 
-from rag_computer import RagComputer
-from rag_computer._client import CollectionClient
+from bigrag import BigRAG
+from bigrag._client import CollectionClient
 
 
 def run(coro):
@@ -124,7 +124,7 @@ class FakeQueries:
         return {"results": []}
 
 
-class FakeRagComputer:
+class FakeBigRAG:
     def __init__(self) -> None:
         self.documents = FakeDocuments()
         self.collections = FakeCollections()
@@ -152,7 +152,7 @@ class FakeChat:
 
 def test_collection_client_delegates_to_scoped_resources() -> None:
     async def scenario():
-        client = FakeRagComputer()
+        client = FakeBigRAG()
         collection = CollectionClient(client, "team docs")
         await collection.upload(b"hello", metadata={"tenant": "acme"})
         await collection.list_documents(status="ready", limit=5, offset=10)
@@ -212,9 +212,9 @@ def test_collection_client_delegates_to_scoped_resources() -> None:
     assert events == [{"event": "progress"}]
 
 
-def test_rag_computer_high_level_wrappers_delegate_to_resources() -> None:
+def test_bigrag_high_level_wrappers_delegate_to_resources() -> None:
     async def scenario():
-        client = RagComputer(base_url="http://api.local")
+        client = BigRAG(base_url="http://api.local")
         client.chat = FakeChat()
         created = await client.chat_create({"message": "hello"})
         streamed = []
@@ -236,7 +236,7 @@ def test_rag_computer_high_level_wrappers_delegate_to_resources() -> None:
     assert scoped._name == "docs"
 
 
-def test_rag_computer_platform_methods_build_requests() -> None:
+def test_bigrag_platform_methods_build_requests() -> None:
     seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -244,7 +244,7 @@ def test_rag_computer_platform_methods_build_requests() -> None:
         return httpx.Response(200, json={"status": "ok"}, request=request)
 
     async def scenario() -> list[dict]:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )

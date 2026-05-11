@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 COPY pyproject.toml .
 COPY alembic.ini .
 COPY alembic/ alembic/
-COPY rag_computer/ rag_computer/
+COPY bigrag/ bigrag/
 RUN pip install --no-cache-dir .
 
 # Strip heavy unnecessary files from the venv
@@ -53,14 +53,14 @@ COPY --from=build /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 RUN mkdir -p /data/uploads && \
-    useradd -r -m -s /bin/false rag_computer && \
-    chown -R rag_computer:rag_computer /data /home/rag_computer
+    useradd -r -m -s /bin/false bigrag && \
+    chown -R bigrag:bigrag /data /home/bigrag
 
-USER rag_computer
+USER bigrag
 
 EXPOSE 4000
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
     CMD curl -f "http://localhost:${PORT:-4000}/health" || exit 1
 
-CMD ["sh", "-c", "exec python -m rag_computer.main --host 0.0.0.0 --port \"${PORT:-4000}\""]
+CMD ["sh", "-c", "exec python -m bigrag.main --host 0.0.0.0 --port \"${PORT:-4000}\""]

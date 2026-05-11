@@ -21,7 +21,7 @@ Upload a document for ingestion. Uses `multipart/form-data`.
 
 ```bash
 curl -X POST http://localhost:4000/v1/collections/research/documents \
-  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -F "file=@paper.pdf" \
   -F 'metadata={"author": "Smith", "year": 2026}'
 ```
@@ -33,7 +33,7 @@ curl -X POST http://localhost:4000/v1/collections/research/documents \
 
 **Supported file types:** `.pdf`, `.docx`, `.pptx`, `.xlsx`, `.html`, `.htm`, `.md`, `.txt`, `.csv`, `.tsv`, `.xml`, `.json`, `.png`, `.jpg`, `.jpeg`, `.tiff`, `.bmp`, `.gif`
 
-**Max file size:** 64 MB by default (configurable via `RAG_COMPUTER_MAX_UPLOAD_SIZE_MB`)
+**Max file size:** 64 MB by default (configurable via `BIGRAG_MAX_UPLOAD_SIZE_MB`)
 
 **Response** `201`:
 
@@ -177,7 +177,7 @@ Upload up to 100 files in one request. Each file goes through the same extension
 
 ```bash
 curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/upload \
-  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -F "files=@paper1.pdf" \
   -F "files=@paper2.pdf" \
   -F 'metadata={"source": "batch-import"}'
@@ -247,7 +247,7 @@ Upload one file with `multipart/form-data`:
 
 ```bash
 curl -X POST http://localhost:4000/v1/collections/docs/upload-sessions/$SESSION_ID/files \
-  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -F "client_item_id=folder-000001" \
   -F "file=@contract.pdf"
 ```

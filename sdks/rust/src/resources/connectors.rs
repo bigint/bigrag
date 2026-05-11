@@ -1,6 +1,6 @@
-use crate::client::RagComputer;
+use crate::client::BigRag;
 use crate::core::urlencode;
-use crate::error::RagComputerError;
+use crate::error::BigRagError;
 use crate::types::common::StatusResponse;
 use crate::types::connectors::{
     CreateGoogleSourceBody, GoogleAccount, GoogleDriveFileListResponse,
@@ -10,7 +10,7 @@ use crate::types::connectors::{
 
 /// Connectors resource.
 pub struct Connectors<'a> {
-    pub(crate) client: &'a RagComputer,
+    pub(crate) client: &'a BigRag,
 }
 
 impl Connectors<'_> {
@@ -24,12 +24,12 @@ impl Connectors<'_> {
 
 /// Google Drive connector resource.
 pub struct GoogleDrive<'a> {
-    pub(crate) client: &'a RagComputer,
+    pub(crate) client: &'a BigRag,
 }
 
 impl GoogleDrive<'_> {
     /// Get current user's Google account status.
-    pub async fn account(&self) -> Result<GoogleAccount, RagComputerError> {
+    pub async fn account(&self) -> Result<GoogleAccount, BigRagError> {
         self.client
             .transport
             .get("/v1/connectors/google/account", vec![])
@@ -43,7 +43,7 @@ impl GoogleDrive<'_> {
         query: Option<&str>,
         page_token: Option<&str>,
         page_size: Option<u32>,
-    ) -> Result<GoogleDriveFileListResponse, RagComputerError> {
+    ) -> Result<GoogleDriveFileListResponse, BigRagError> {
         let mut params = vec![(
             "parent_id".to_string(),
             parent_id.unwrap_or("root").to_string(),
@@ -67,7 +67,7 @@ impl GoogleDrive<'_> {
     pub async fn oauth_start_url(
         &self,
         redirect_path: Option<&str>,
-    ) -> Result<GoogleOAuthStartUrlResponse, RagComputerError> {
+    ) -> Result<GoogleOAuthStartUrlResponse, BigRagError> {
         let mut params = Vec::new();
         if let Some(redirect_path) = redirect_path {
             params.push(("redirect_path".to_string(), redirect_path.to_string()));
@@ -79,7 +79,7 @@ impl GoogleDrive<'_> {
     }
 
     /// Disconnect current user's Google account.
-    pub async fn disconnect(&self) -> Result<StatusResponse, RagComputerError> {
+    pub async fn disconnect(&self) -> Result<StatusResponse, BigRagError> {
         self.client
             .transport
             .post("/v1/connectors/google/disconnect", &serde_json::Value::Null)
@@ -90,7 +90,7 @@ impl GoogleDrive<'_> {
     pub async fn sources(
         &self,
         collection: Option<&str>,
-    ) -> Result<GoogleSourceListResponse, RagComputerError> {
+    ) -> Result<GoogleSourceListResponse, BigRagError> {
         let mut params = Vec::new();
         if let Some(collection) = collection {
             params.push(("collection".to_string(), collection.to_string()));
@@ -105,7 +105,7 @@ impl GoogleDrive<'_> {
     pub async fn create_source(
         &self,
         body: CreateGoogleSourceBody,
-    ) -> Result<GoogleSource, RagComputerError> {
+    ) -> Result<GoogleSource, BigRagError> {
         self.client
             .transport
             .post("/v1/connectors/google/sources", &body)
@@ -117,19 +117,19 @@ impl GoogleDrive<'_> {
         &self,
         source_id: &str,
         body: UpdateGoogleSourceBody,
-    ) -> Result<GoogleSource, RagComputerError> {
+    ) -> Result<GoogleSource, BigRagError> {
         let path = format!("/v1/connectors/google/sources/{}", urlencode(source_id));
         self.client.transport.patch(&path, &body).await
     }
 
     /// Delete a Google Drive sync source.
-    pub async fn delete_source(&self, source_id: &str) -> Result<StatusResponse, RagComputerError> {
+    pub async fn delete_source(&self, source_id: &str) -> Result<StatusResponse, BigRagError> {
         let path = format!("/v1/connectors/google/sources/{}", urlencode(source_id));
         self.client.transport.delete(&path).await
     }
 
     /// Trigger a Google Drive sync source.
-    pub async fn sync_source(&self, source_id: &str) -> Result<GoogleSyncJob, RagComputerError> {
+    pub async fn sync_source(&self, source_id: &str) -> Result<GoogleSyncJob, BigRagError> {
         let path = format!(
             "/v1/connectors/google/sources/{}/sync",
             urlencode(source_id)
@@ -145,7 +145,7 @@ impl GoogleDrive<'_> {
         &self,
         source_id: Option<&str>,
         limit: Option<u32>,
-    ) -> Result<GoogleSyncJobListResponse, RagComputerError> {
+    ) -> Result<GoogleSyncJobListResponse, BigRagError> {
         self.sync_jobs_filtered(None, source_id, limit).await
     }
 
@@ -155,7 +155,7 @@ impl GoogleDrive<'_> {
         collection: Option<&str>,
         source_id: Option<&str>,
         limit: Option<u32>,
-    ) -> Result<GoogleSyncJobListResponse, RagComputerError> {
+    ) -> Result<GoogleSyncJobListResponse, BigRagError> {
         let mut params = Vec::new();
         if let Some(collection) = collection {
             params.push(("collection".to_string(), collection.to_string()));

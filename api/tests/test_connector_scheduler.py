@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from rag_computer.services import connector_core
+from bigrag.services import connector_core
 
 
 def test_run_due_syncs_logged_swallows_scheduler_tick_errors(monkeypatch) -> None:

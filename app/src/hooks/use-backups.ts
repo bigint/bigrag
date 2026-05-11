@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import type { BackupJob, BackupJobListResponse } from "@/types/rag-computer";
+import type { BackupJob, BackupJobListResponse } from "@/types/bigrag";
 
 export const useBackups = () => {
   const queryKey = useMemo(() => queryKeys.backups(), []);

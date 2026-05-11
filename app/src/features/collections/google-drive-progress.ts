@@ -1,4 +1,4 @@
-import type { GoogleDriveSyncJob, GoogleSyncProgress } from "@/types/rag-computer";
+import type { GoogleDriveSyncJob, GoogleSyncProgress } from "@/types/bigrag";
 
 export const activeGoogleSyncStatuses = new Set<GoogleDriveSyncJob["status"]>([
   "pending",

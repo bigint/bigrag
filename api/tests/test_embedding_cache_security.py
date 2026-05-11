@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 from cryptography.fernet import Fernet
 
-from rag_computer.services import crypto, embedding_cache
+from bigrag.services import crypto, embedding_cache
 
 
 @pytest.fixture(autouse=True)

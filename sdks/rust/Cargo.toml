@@ -1,12 +1,12 @@
 [package]
-name = "rag-computer"
+name = "bigrag"
 version = "2026.5.7"
 edition = "2021"
 rust-version = "1.75"
-description = "Rust client for rag.computer — a self-hostable RAG platform"
+description = "Rust client for bigRAG — a self-hostable RAG platform"
 license = "MIT"
-repository = "https://github.com/yoginth/rag-computer"
-documentation = "https://docs.rs/rag-computer"
+repository = "https://github.com/bigint/bigrag"
+documentation = "https://docs.rs/bigrag"
 keywords = ["rag", "vector-search", "embeddings", "ai", "document-ingestion"]
 categories = ["api-bindings", "web-programming::http-client"]
 

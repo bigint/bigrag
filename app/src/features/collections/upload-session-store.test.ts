@@ -40,34 +40,32 @@ describe("useUploadSessionStore", () => {
       docs: "session-1",
       support: "session-2",
     });
-    expect(globalThis.localStorage.getItem("rag-computer:upload-sessions")).toContain("session-1");
+    expect(globalThis.localStorage.getItem("bigrag:upload-sessions")).toContain("session-1");
 
     useUploadSessionStore.getState().clearActiveSessionId("docs");
 
     expect(useUploadSessionStore.getState().activeSessionIds).toEqual({
       support: "session-2",
     });
-    expect(globalThis.localStorage.getItem("rag-computer:upload-sessions")).not.toContain(
-      "session-1",
-    );
+    expect(globalThis.localStorage.getItem("bigrag:upload-sessions")).not.toContain("session-1");
   });
 
   it("migrates legacy per-collection localStorage keys", () => {
-    globalThis.localStorage.setItem("rag-computer:upload-session:docs", "legacy-session");
+    globalThis.localStorage.setItem("bigrag:upload-session:docs", "legacy-session");
 
     useUploadSessionStore.getState().migrateLegacyUploadSession("docs");
 
     expect(useUploadSessionStore.getState().activeSessionIds.docs).toBe("legacy-session");
-    expect(globalThis.localStorage.getItem("rag-computer:upload-session:docs")).toBeNull();
+    expect(globalThis.localStorage.getItem("bigrag:upload-session:docs")).toBeNull();
   });
 
   it("does not overwrite existing persisted sessions during legacy migration", () => {
     useUploadSessionStore.getState().setActiveSessionId("docs", "current-session");
-    globalThis.localStorage.setItem("rag-computer:upload-session:docs", "legacy-session");
+    globalThis.localStorage.setItem("bigrag:upload-session:docs", "legacy-session");
 
     useUploadSessionStore.getState().migrateLegacyUploadSession("docs");
 
     expect(useUploadSessionStore.getState().activeSessionIds.docs).toBe("current-session");
-    expect(globalThis.localStorage.getItem("rag-computer:upload-session:docs")).toBeNull();
+    expect(globalThis.localStorage.getItem("bigrag:upload-session:docs")).toBeNull();
   });
 });

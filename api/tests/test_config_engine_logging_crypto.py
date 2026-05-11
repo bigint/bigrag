@@ -8,18 +8,18 @@ from pathlib import Path
 import pytest
 from cryptography.fernet import Fernet
 
-from rag_computer import config
-from rag_computer.logging import RequestLoggingMiddleware, configure_logging, redact_secrets
-from rag_computer.services import crypto
+from bigrag import config
+from bigrag.logging import RequestLoggingMiddleware, configure_logging, redact_secrets
+from bigrag.services import crypto
 
-db_engine = importlib.import_module("rag_computer.db.engine")
+db_engine = importlib.import_module("bigrag.db.engine")
 
 
 def test_settings_from_toml_flattens_sections_and_respects_env(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings_path = tmp_path / "rag-computer.toml"
+    settings_path = tmp_path / "bigrag.toml"
     settings_path.write_text(
         "\n".join(
             [
@@ -34,7 +34,7 @@ def test_settings_from_toml_flattens_sections_and_respects_env(
             ]
         )
     )
-    monkeypatch.setenv("RAG_COMPUTER_DATABASE_URL", "postgres://env")
+    monkeypatch.setenv("BIGRAG_DATABASE_URL", "postgres://env")
 
     settings = config.Settings.from_toml(settings_path)
 
@@ -54,10 +54,10 @@ def test_db_engine_normalizes_urls_and_requires_configuration(
     monkeypatch.setattr(db_engine, "_session_factory", None)
 
     url, connect_args = db_engine._normalize_url(
-        "postgres://user:pass@localhost:5432/db?sslmode=disable&application_name=rag-computer"
+        "postgres://user:pass@localhost:5432/db?sslmode=disable&application_name=bigrag"
     )
 
-    assert url == "postgresql+asyncpg://user:pass@localhost:5432/db?application_name=rag-computer"
+    assert url == "postgresql+asyncpg://user:pass@localhost:5432/db?application_name=bigrag"
     assert connect_args == {"ssl": False}
     assert (
         db_engine._normalize_url("postgresql://localhost/db")[0]
@@ -146,7 +146,7 @@ def test_request_logging_middleware_logs_http_and_passes_through_non_http(
         if scope["type"] == "http":
             await send({"type": "http.response.start", "status": 204})
 
-    monkeypatch.setattr("rag_computer.logging.get_logger", lambda _name: FakeLogger())
+    monkeypatch.setattr("bigrag.logging.get_logger", lambda _name: FakeLogger())
     middleware = RequestLoggingMiddleware(app)
 
     async def run() -> None:
@@ -195,9 +195,9 @@ def test_crypto_encrypts_decrypts_previous_keys_and_column_values() -> None:
         assert column.process_result_value(None, None) is None
 
         crypto.configure(other_key)
-        with pytest.raises(ValueError, match="wrong RAG_COMPUTER_MASTER_KEY"):
+        with pytest.raises(ValueError, match="wrong BIGRAG_MASTER_KEY"):
             crypto.decrypt(old_ciphertext)
-        with pytest.raises(ValueError, match="wrong RAG_COMPUTER_MASTER_KEY"):
+        with pytest.raises(ValueError, match="wrong BIGRAG_MASTER_KEY"):
             crypto.decrypt_bytes(old_bytes)
     finally:
         crypto.configure(None)

@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from rag_computer import mcp_server
+from bigrag import mcp_server
 
 
 class FakeMCP:
@@ -128,7 +128,7 @@ def test_create_unscoped_server_registers_and_executes_tools(monkeypatch) -> Non
 
         server = mcp_server.create_server("http://api", "key")
 
-        assert server.kwargs["name"] == "rag-computer"
+        assert server.kwargs["name"] == "bigrag"
         assert sorted(server.tools) == [
             "get_collection",
             "get_collection_stats",
@@ -199,7 +199,7 @@ def test_create_scoped_server_uses_pinned_collection(monkeypatch) -> None:
 
         server = mcp_server.create_server("http://api", "key", collection="docs")
 
-        assert server.kwargs["name"] == "rag-computer-docs"
+        assert server.kwargs["name"] == "bigrag-docs"
         assert sorted(server.tools) == [
             "get_collection",
             "get_collection_stats",

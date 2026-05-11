@@ -8,7 +8,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in rag.computer, please report it responsibly.
+If you discover a security vulnerability in bigRAG, please report it responsibly.
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
@@ -35,7 +35,7 @@ Instead, please email **yoginth@hey.com** with:
 
 The following are in scope:
 
-- The rag.computer API server and all Python packages in this repository
+- The bigRAG API server and all Python packages in this repository
 - Official Docker images
 - Official client SDKs (Python, TypeScript)
 
@@ -47,10 +47,10 @@ The following are out of scope:
 
 ## Security Best Practices
 
-When deploying rag.computer in production:
+When deploying bigRAG in production:
 
 - Run behind a reverse proxy (nginx, Caddy) with TLS termination
 - Use network-level access controls to restrict who can reach the API
 - Enable authentication if exposed to untrusted networks
-- Keep rag.computer updated to the latest version
+- Keep bigRAG updated to the latest version
 - Monitor logs for unusual access patterns

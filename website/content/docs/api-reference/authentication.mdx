@@ -9,7 +9,7 @@ import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 Every request is authenticated as either:
 
 - **An admin account** via a session cookie (used by the admin UI and browser-based flows), or
-- **An API key** (`ragc_sk_…`) minted by an admin (used by backend services, SDKs, and automation).
+- **An API key** (`bigrag_sk_…`) minted by an admin (used by backend services, SDKs, and automation).
 
 ## First-run setup
 
@@ -36,7 +36,7 @@ The admin UI exposes the same flow at `http://localhost:3000/setup`.
 
 ## Session auth (admin UI, browser)
 
-Logging in returns a `rag_computer_session` cookie (configurable via `RAG_COMPUTER_SESSION_COOKIE_NAME`). All subsequent requests from that browser are authenticated by the cookie.
+Logging in returns a `bigrag_session` cookie (configurable via `BIGRAG_SESSION_COOKIE_NAME`). All subsequent requests from that browser are authenticated by the cookie.
 
 ```bash
 curl -X POST http://localhost:4000/v1/auth/login \
@@ -58,7 +58,7 @@ Session endpoints:
 | `GET`  | `/v1/auth/whoami` | Return the current principal's identity, auth method, and (for API keys) scopes / collection pin — used by SDKs and the MCP server to self-configure |
 | `POST` | `/v1/auth/password` | Change password; revokes all other sessions |
 
-Session cookie attributes are controlled by `RAG_COMPUTER_SESSION_COOKIE_*` (see [Configuration](/docs/getting-started/configuration)). In production you must set `RAG_COMPUTER_SESSION_COOKIE_SECURE=true` and serve over HTTPS.
+Session cookie attributes are controlled by `BIGRAG_SESSION_COOKIE_*` (see [Configuration](/docs/getting-started/configuration)). In production you must set `BIGRAG_SESSION_COOKIE_SECURE=true` and serve over HTTPS.
 
 <Callout type="info">
 Some endpoints (create user, manage API keys, change passwords) require a **session** and cannot be invoked with an API key — this keeps long-lived keys from being able to self-replicate or escalate.
@@ -73,8 +73,8 @@ curl -X POST http://localhost:4000/v1/admin/api-keys \
   -b cookies.txt \
   -H "Content-Type: application/json" \
   -d '{"name": "ingestion-worker", "scopes": ["collection:read", "document:*"]}'
-# → {"id": "...", "name": "ingestion-worker", "prefix": "ragc_sk_abcd", ...,
-#     "key": "ragc_sk_abcd…_XXXXXXXXXXXXXXXXXXXXXXXX"}
+# → {"id": "...", "name": "ingestion-worker", "prefix": "bigrag_sk_abcd", ...,
+#     "key": "bigrag_sk_abcd…_XXXXXXXXXXXXXXXXXXXXXXXX"}
 ```
 
 Send the key as a bearer token:
@@ -83,13 +83,13 @@ Send the key as a bearer token:
 <Tab value="Header">
 ```bash
 curl http://localhost:4000/v1/collections \
-  -H "Authorization: Bearer ragc_sk_…"
+  -H "Authorization: Bearer bigrag_sk_…"
 ```
 </Tab>
 <Tab value="Event token (collection SSE)">
 ```bash
 EVENT_TOKEN=$(curl -s -X POST http://localhost:4000/v1/collections/docs/events/token \
-  -H "Authorization: Bearer ragc_sk_…" | jq -r .token)
+  -H "Authorization: Bearer bigrag_sk_…" | jq -r .token)
 
 curl "http://localhost:4000/v1/collections/docs/events?token=$EVENT_TOKEN"
 ```
@@ -158,5 +158,5 @@ If a key is pinned to a single `collection`, that pin is enforced even on the gl
 | `409 Conflict` | `/v1/auth/setup` called after initial admin exists |
 
 <Callout type="warn">
-Always run the API behind TLS in production. Session cookies are `Secure`-flagged only when `RAG_COMPUTER_SESSION_COOKIE_SECURE=true`, and API keys are bearer credentials that anyone holding them can use.
+Always run the API behind TLS in production. Session cookies are `Secure`-flagged only when `BIGRAG_SESSION_COOKIE_SECURE=true`, and API keys are bearer credentials that anyone holding them can use.
 </Callout>

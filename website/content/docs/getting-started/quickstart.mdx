@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Upload and search your first document with rag.computer in under 5 minutes.
+description: Upload and search your first document with bigRAG in under 5 minutes.
 ---
 
 import { Steps, Step } from "fumadocs-ui/components/steps";
@@ -11,7 +11,7 @@ Follow these steps to go from zero to searching your documents.
 
 <Steps>
 <Step>
-### Start rag.computer
+### Start bigRAG
 
 ```bash
 docker compose up -d
@@ -42,7 +42,7 @@ curl -X POST $BASE/v1/auth/setup \
   -c cookies.txt
 ```
 
-The response sets a `rag_computer_session` cookie. The admin UI exposes the same flow at `http://localhost:3000/setup`.
+The response sets a `bigrag_session` cookie. The admin UI exposes the same flow at `http://localhost:3000/setup`.
 </Step>
 
 <Step>
@@ -57,10 +57,10 @@ curl -X POST $BASE/v1/admin/api-keys \
   -d '{"name": "quickstart"}' \
   | tee /tmp/api-key.json
 
-export RAG_COMPUTER_API_KEY=$(jq -r .key /tmp/api-key.json)
+export BIGRAG_API_KEY=$(jq -r .key /tmp/api-key.json)
 ```
 
-All further examples use `$RAG_COMPUTER_API_KEY` as a bearer token. See [Authentication](/docs/api-reference/authentication) for scopes.
+All further examples use `$BIGRAG_API_KEY` as a bearer token. See [Authentication](/docs/api-reference/authentication) for scopes.
 </Step>
 
 <Step>
@@ -72,7 +72,7 @@ A collection groups documents that share the same embedding configuration.
 <Tab value="curl">
 ```bash
 curl -X POST $BASE/v1/collections \
-  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "knowledge_base",
@@ -87,10 +87,10 @@ curl -X POST $BASE/v1/collections \
 </Tab>
 <Tab value="TypeScript SDK">
 ```typescript
-import { RagComputer } from "@rag.computer/client";
+import { BigRAG } from "@bigrag/client";
 
-const client = new RagComputer({
-  apiKey: process.env.RAG_COMPUTER_API_KEY!,
+const client = new BigRAG({
+  apiKey: process.env.BIGRAG_API_KEY!,
   baseUrl: "http://localhost:4000",
 });
 
@@ -119,7 +119,7 @@ No managed embedding key handy? Use `embedding_provider: "openai_compatible"` wi
 <Tab value="curl">
 ```bash
 curl -X POST $BASE/v1/collections/knowledge_base/documents \
-  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -F "file=@handbook.pdf" \
   -F 'metadata={"department": "engineering"}'
 ```
@@ -146,7 +146,7 @@ The document starts as `pending` and transitions to `processing` then `ready`.
 ```bash
 while true; do
   doc=$(curl -s "$BASE/v1/collections/knowledge_base/documents/$DOC_ID" \
-    -H "Authorization: Bearer $RAG_COMPUTER_API_KEY")
+    -H "Authorization: Bearer $BIGRAG_API_KEY")
   status=$(jq -r '.status' <<< "$doc")
   jq -r '.progress.message // .status' <<< "$doc"
   [[ "$status" == "ready" || "$status" == "failed" ]] && break
@@ -176,7 +176,7 @@ Once documents are `ready`, you can search:
 <Tab value="curl">
 ```bash
 curl -X POST $BASE/v1/collections/knowledge_base/query \
-  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "What is the PTO policy?",

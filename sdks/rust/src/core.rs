@@ -4,7 +4,7 @@ use reqwest::{Client, Method};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::error::{parse_error_response, RagComputerError};
+use crate::error::{parse_error_response, BigRagError};
 
 /// Internal HTTP transport layer.
 pub(crate) struct Transport {
@@ -23,7 +23,7 @@ impl Transport {
         timeout: Duration,
         max_retries: u32,
     ) -> Self {
-        let ua = format!("rag-computer-rust/{}", env!("CARGO_PKG_VERSION"));
+        let ua = format!("bigrag-rust/{}", env!("CARGO_PKG_VERSION"));
         let http = Client::builder()
             .user_agent(ua)
             .timeout(timeout)
@@ -61,7 +61,7 @@ impl Transport {
         &self,
         path: &str,
         query: Vec<(String, String)>,
-    ) -> Result<T, RagComputerError> {
+    ) -> Result<T, BigRagError> {
         self.request_with_retry(Method::GET, path, None::<&()>, query)
             .await
     }
@@ -71,7 +71,7 @@ impl Transport {
         &self,
         path: &str,
         body: &B,
-    ) -> Result<T, RagComputerError> {
+    ) -> Result<T, BigRagError> {
         self.request_with_retry(Method::POST, path, Some(body), vec![])
             .await
     }
@@ -81,7 +81,7 @@ impl Transport {
         &self,
         path: &str,
         body: &B,
-    ) -> Result<T, RagComputerError> {
+    ) -> Result<T, BigRagError> {
         self.request_with_retry(Method::PUT, path, Some(body), vec![])
             .await
     }
@@ -91,13 +91,13 @@ impl Transport {
         &self,
         path: &str,
         body: &B,
-    ) -> Result<T, RagComputerError> {
+    ) -> Result<T, BigRagError> {
         self.request_with_retry(Method::PATCH, path, Some(body), vec![])
             .await
     }
 
     /// DELETE request.
-    pub async fn delete<T: DeserializeOwned>(&self, path: &str) -> Result<T, RagComputerError> {
+    pub async fn delete<T: DeserializeOwned>(&self, path: &str) -> Result<T, BigRagError> {
         self.request_with_retry(Method::DELETE, path, None::<&()>, vec![])
             .await
     }
@@ -107,7 +107,7 @@ impl Transport {
         &self,
         path: &str,
         form: reqwest::multipart::Form,
-    ) -> Result<T, RagComputerError> {
+    ) -> Result<T, BigRagError> {
         let url = format!("{}{}", self.base_url, path);
         let mut req = self.http.post(&url).multipart(form);
         if let Some(key) = &self.api_key {
@@ -116,14 +116,14 @@ impl Transport {
 
         let response = req.send().await.map_err(|e| {
             if e.is_timeout() {
-                RagComputerError::Timeout(self.timeout)
+                BigRagError::Timeout(self.timeout)
             } else {
-                RagComputerError::Connection(e.to_string())
+                BigRagError::Connection(e.to_string())
             }
         })?;
 
         if response.status().is_success() {
-            response.json().await.map_err(|e| RagComputerError::Api {
+            response.json().await.map_err(|e| BigRagError::Api {
                 status: 0,
                 message: format!("response deserialization failed: {}", e),
             })
@@ -133,7 +133,7 @@ impl Transport {
     }
 
     /// GET request that returns the raw response for SSE streaming. Not retried.
-    pub async fn get_stream(&self, path: &str) -> Result<reqwest::Response, RagComputerError> {
+    pub async fn get_stream(&self, path: &str) -> Result<reqwest::Response, BigRagError> {
         let url = format!("{}{}", self.base_url, path);
         let mut req = self.http.get(&url);
         if let Some(key) = &self.api_key {
@@ -142,9 +142,9 @@ impl Transport {
 
         let response = req.send().await.map_err(|e| {
             if e.is_timeout() {
-                RagComputerError::Timeout(self.timeout)
+                BigRagError::Timeout(self.timeout)
             } else {
-                RagComputerError::Connection(e.to_string())
+                BigRagError::Connection(e.to_string())
             }
         })?;
 
@@ -161,7 +161,7 @@ impl Transport {
         path: &str,
         body: Option<&B>,
         query: Vec<(String, String)>,
-    ) -> Result<T, RagComputerError> {
+    ) -> Result<T, BigRagError> {
         let mut last_err = None;
 
         for attempt in 0..=self.max_retries {
@@ -189,7 +189,7 @@ impl Transport {
         path: &str,
         body: Option<&B>,
         query: &[(String, String)],
-    ) -> Result<T, RagComputerError> {
+    ) -> Result<T, BigRagError> {
         let url = format!("{}{}", self.base_url, path);
         let mut req = self.http.request(method.clone(), &url);
 
@@ -207,14 +207,14 @@ impl Transport {
 
         let response = req.send().await.map_err(|e| {
             if e.is_timeout() {
-                RagComputerError::Timeout(self.timeout)
+                BigRagError::Timeout(self.timeout)
             } else {
-                RagComputerError::Connection(e.to_string())
+                BigRagError::Connection(e.to_string())
             }
         })?;
 
         if response.status().is_success() {
-            response.json().await.map_err(|e| RagComputerError::Api {
+            response.json().await.map_err(|e| BigRagError::Api {
                 status: 0,
                 message: format!("response deserialization failed: {}", e),
             })
@@ -245,7 +245,7 @@ mod tests {
     use serde_json::{json, Value};
 
     use super::{urlencode, Transport};
-    use crate::error::RagComputerError;
+    use crate::error::BigRagError;
 
     #[tokio::test]
     async fn sends_auth_query_and_json_body() {
@@ -255,14 +255,14 @@ mod tests {
                 when.method(POST)
                     .path("/v1/collections")
                     .query_param("dry_run", "true")
-                    .header("authorization", "Bearer ragc_sk_test")
+                    .header("authorization", "Bearer bigrag_sk_test")
                     .json_body(json!({"name": "docs"}));
                 then.status(200).json_body(json!({"id": "col"}));
             })
             .await;
         let transport = Transport::new(
             &server.base_url(),
-            Some("ragc_sk_test".to_string()),
+            Some("bigrag_sk_test".to_string()),
             Duration::from_secs(5),
             0,
         );
@@ -295,7 +295,7 @@ mod tests {
         let error = transport.get::<Value>("/health", vec![]).await.unwrap_err();
 
         assert!(
-            matches!(error, RagComputerError::ServerError { message, status: 503 } if message == "temporary")
+            matches!(error, BigRagError::ServerError { message, status: 503 } if message == "temporary")
         );
         mock.assert_calls_async(2).await;
     }
@@ -316,7 +316,7 @@ mod tests {
             .await
             .unwrap_err();
 
-        assert!(matches!(error, RagComputerError::NotFound { message } if message == "Missing"));
+        assert!(matches!(error, BigRagError::NotFound { message } if message == "Missing"));
     }
 
     #[test]

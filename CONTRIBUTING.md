@@ -1,6 +1,6 @@
-# Contributing to rag.computer
+# Contributing to bigRAG
 
-Thank you for your interest in contributing to rag.computer. This guide will help you get started.
+Thank you for your interest in contributing to bigRAG. This guide will help you get started.
 
 ## Getting Started
 
@@ -14,8 +14,8 @@ Thank you for your interest in contributing to rag.computer. This guide will hel
 
 ```bash
 # Clone the repository
-git clone https://github.com/yoginth/rag-computer.git
-cd rag-computer
+git clone https://github.com/bigint/bigrag.git
+cd bigrag
 
 # Start everything (backend + website + infrastructure)
 ./dev.sh
@@ -36,15 +36,15 @@ docker compose up postgres redis qdrant -d
 # Set up the Python backend
 cd api
 uv sync
-uv run python -m rag_computer.main
+uv run python -m bigrag.main
 ```
 
 ### Project Structure
 
 ```
-rag-computer/
+bigrag/
 ├── api/                   # Python/FastAPI backend
-│   ├── rag_computer/
+│   ├── bigrag/
 │   │   ├── main.py        # App factory + lifespan
 │   │   ├── deps.py        # FastAPI dependency injection
 │   │   ├── config.py      # Settings
@@ -56,13 +56,13 @@ rag-computer/
 │   │   └── middleware/    # Auth middleware
 │   ├── alembic/
 │   └── pyproject.toml
-├── sdks/typescript/       # TypeScript SDK (@rag.computer/client)
+├── sdks/typescript/       # TypeScript SDK (@bigrag/client)
 ├── website/               # Docs site (Next.js + Fumadocs)
 ├── docker-compose.yml     # Full stack (Postgres, Redis, Qdrant, API)
 ├── biome.jsonc            # Biome linting config for TypeScript
 ├── pnpm-workspace.yaml    # pnpm workspace config
 ├── dev.sh                 # One-command dev setup
-└── rag-computer.toml            # Backend configuration
+└── bigrag.toml            # Backend configuration
 ```
 
 ## Making Changes
@@ -82,7 +82,7 @@ rag-computer/
 
 ```bash
 # Website build check
-pnpm --filter @rag.computer/docs build
+pnpm --filter @bigrag/docs build
 
 # Lint everything
 pnpm lint          # TypeScript (Biome)
@@ -103,7 +103,7 @@ test: add ingestion pipeline tests
 
 ### Release Versioning
 
-rag.computer release artifacts use [CalVer](https://calver.org/) with the `YYYY.M.D` scheme, without zero-padding month or day so npm, Cargo, and Python package versions stay compatible. A release on April 30, 2026 is `2026.4.30`.
+bigRAG release artifacts use [CalVer](https://calver.org/) with the `YYYY.M.D` scheme, without zero-padding month or day so npm, Cargo, and Python package versions stay compatible. A release on April 30, 2026 is `2026.4.30`.
 
 When cutting a release, keep the API package, SDK packages, admin UI/docs package metadata, SDK user-agent constants, Docker image tags, and docs examples on the same CalVer version.
 
@@ -127,10 +127,10 @@ When cutting a release, keep the API package, SDK packages, admin UI/docs packag
 
 Open an issue with:
 
-- rag.computer version and how you installed it (Docker, pip, source)
+- bigRAG version and how you installed it (Docker, pip, source)
 - Steps to reproduce
 - Expected vs actual behavior
-- Relevant logs (run `python -m rag_computer.main --log-level debug` for detailed output)
+- Relevant logs (run `python -m bigrag.main --log-level debug` for detailed output)
 
 ## License
 

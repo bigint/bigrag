@@ -4,8 +4,8 @@ import asyncio
 
 import pytest
 
-from rag_computer.services._retrieval_filters import build_filter
-from rag_computer.services.vector_store import (
+from bigrag.services._retrieval_filters import build_filter
+from bigrag.services.vector_store import (
     QdrantVectorStore,
     S3VectorsStore,
     TurbopufferVectorStore,
@@ -14,7 +14,7 @@ from rag_computer.services.vector_store import (
     _to_s3_filter,
     _to_turbopuffer_filter,
 )
-from rag_computer.services.vector_store.qdrant import _to_qdrant_filter
+from bigrag.services.vector_store.qdrant import _to_qdrant_filter
 
 
 def test_s3_filter_translation() -> None:
@@ -133,12 +133,12 @@ async def _test_s3_vectors_adapter_maps_upsert_query_and_delete() -> None:
     await store.delete_by_ids("docs", ["chunk-1"])
 
     assert count == 1
-    assert fake.put_calls[0]["indexName"] == "rag_computer_docs"
+    assert fake.put_calls[0]["indexName"] == "bigrag_docs"
     assert fake.put_calls[0]["vectors"][0]["metadata"]["document_id"] == "doc-1"
     assert fake.query_calls[0]["filter"] == {"tenant_id": {"$eq": "acme"}}
     assert results[0]["id"] == "chunk-1"
     assert results[0]["score"] == pytest.approx(0.8)
-    assert fake.delete_calls[0]["indexName"] == "rag_computer_docs"
+    assert fake.delete_calls[0]["indexName"] == "bigrag_docs"
 
 
 def test_s3_vectors_adapter_handles_collection_lifecycle_and_exports() -> None:
@@ -199,7 +199,7 @@ async def _test_s3_vectors_adapter_handles_collection_lifecycle_and_exports() ->
     assert fake.delete_calls[0]["keys"] == ["k1"]
     assert upserted == 1
     assert exported == [{"id": "k1", "payload": {"document_id": "doc-1"}, "vector": [0.1, 0.2]}]
-    assert fake.delete_index_calls[0]["indexName"] == "rag_computer_docs"
+    assert fake.delete_index_calls[0]["indexName"] == "bigrag_docs"
     assert fake.closed is True
 
 
@@ -268,7 +268,7 @@ async def _test_turbopuffer_adapter_maps_write_query_and_delete() -> None:
     await store.delete_by_document("docs", "doc-1")
 
     assert count == 1
-    assert fake.posts[0][0] == "/v2/namespaces/rag_computer_docs"
+    assert fake.posts[0][0] == "/v2/namespaces/bigrag_docs"
     assert fake.posts[0][1]["upsert_rows"][0]["document_id"] == "doc-1"
     assert fake.posts[1][1]["filters"] == ["tenant_id", "Eq", "acme"]
     assert results[0]["score"] == pytest.approx(0.75)
@@ -311,7 +311,7 @@ async def _test_turbopuffer_adapter_handles_lifecycle_chunks_and_exports() -> No
             "vector": None,
         }
     ]
-    assert fake.deletes == ["/v1/namespaces/rag_computer_docs"]
+    assert fake.deletes == ["/v1/namespaces/bigrag_docs"]
     assert fake.closed is True
 
 
@@ -626,7 +626,7 @@ def test_qdrant_text_search_upsert_export_and_error_paths() -> None:
 
 async def _test_qdrant_text_search_upsert_export_and_error_paths() -> None:
     client = FakeQdrantClient()
-    client.collections.add("rag_computer_docs")
+    client.collections.add("bigrag_docs")
     store = QdrantVectorStore()
     store.client = client
 

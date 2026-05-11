@@ -3,8 +3,8 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from rag_computer.db.models import UploadSession, UploadSessionItem
-from rag_computer.routers.upload_sessions import _counts, _effective_item_status, _session_status
+from bigrag.db.models import UploadSession, UploadSessionItem
+from bigrag.routers.upload_sessions import _counts, _effective_item_status, _session_status
 
 
 def _item(status: str = "queued") -> UploadSessionItem:

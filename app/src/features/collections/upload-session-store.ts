@@ -10,9 +10,9 @@ export type UploadSessionStoreState = {
 
 type PersistedUploadSessionState = Pick<UploadSessionStoreState, "activeSessionIds">;
 
-const STORAGE_KEY = "rag-computer:upload-sessions";
+const STORAGE_KEY = "bigrag:upload-sessions";
 
-const legacyStorageKey = (collection: string) => `rag-computer:upload-session:${collection}`;
+const legacyStorageKey = (collection: string) => `bigrag:upload-session:${collection}`;
 
 const getLocalStorage = () => {
   if (typeof globalThis.localStorage === "undefined") return null;

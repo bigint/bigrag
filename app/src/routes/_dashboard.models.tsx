@@ -11,7 +11,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { PresetForm } from "@/features/models/preset-form";
 import { useDeleteEmbeddingPreset, useEmbeddingPresets } from "@/hooks/use-embedding-presets";
 import { formatRelative } from "@/lib/format";
-import type { EmbeddingPreset } from "@/types/rag-computer";
+import type { EmbeddingPreset } from "@/types/bigrag";
 
 export const Route = createFileRoute("/_dashboard/models")({
   component: () => <ModelsPage />,

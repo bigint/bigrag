@@ -5,8 +5,8 @@ import asyncio
 import pytest
 from fastapi import HTTPException
 
-from rag_computer.routers import preferences
-from rag_computer.services.credential_check import CredentialCheckError
+from bigrag.routers import preferences
+from bigrag.services.credential_check import CredentialCheckError
 
 
 def run(coro):

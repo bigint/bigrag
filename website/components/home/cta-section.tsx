@@ -17,9 +17,9 @@ export const CtaSection = () => (
           <pre className="px-5 py-4 text-left text-sm">
             <code className="text-fd-foreground/85">
               <span className="text-fd-muted-foreground">$</span>
-              {" git clone https://github.com/yoginth/rag-computer"}
+              {" git clone https://github.com/bigint/bigrag"}
               {"\n"}
-              <span className="text-fd-muted-foreground">$</span> cd rag-computer
+              <span className="text-fd-muted-foreground">$</span> cd bigrag
               {"\n"}
               <span className="text-fd-muted-foreground">$</span> docker compose up -d
             </code>

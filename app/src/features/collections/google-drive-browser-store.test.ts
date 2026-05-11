@@ -3,7 +3,7 @@ import {
   GOOGLE_DRIVE_ROOT_FOLDER,
   useGoogleDriveBrowserStore,
 } from "@/features/collections/google-drive-browser-store";
-import type { GoogleDriveFile, GoogleDriveFileList } from "@/types/rag-computer";
+import type { GoogleDriveFile, GoogleDriveFileList } from "@/types/bigrag";
 
 const resetDriveStore = () => {
   useGoogleDriveBrowserStore.setState({ browsers: {} });

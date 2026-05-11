@@ -23,7 +23,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { usePlatformStats, useReadiness } from "@/hooks/use-platform";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatNumber, formatRelative } from "@/lib/format";
-import type { AccessLogOverview } from "@/types/rag-computer";
+import type { AccessLogOverview } from "@/types/bigrag";
 
 export const Route = createFileRoute("/_dashboard/overview")({
   component: () => <OverviewPage />,
@@ -87,12 +87,11 @@ const OverviewPage = () => {
               Good to see you, {firstName}
             </h1>
             <p className="mt-2 max-w-4xl text-pretty text-sm leading-6 text-muted-foreground">
-              Live readout of retrieval coverage, ingestion health, and the systems behind
-              rag.computer.
+              Live readout of retrieval coverage, ingestion health, and the systems behind bigRAG.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <PillLink to="/chat" icon={MessageCircle} label="Ask rag.computer" />
+            <PillLink to="/chat" icon={MessageCircle} label="Ask bigRAG" />
             <PillLink to="/collections" icon={BookOpen} label="New collection" primary />
           </div>
         </header>

@@ -20,7 +20,7 @@ import {
 import { cn } from "@/lib/cn";
 import { acceptAttribute, filterBlockedFiles, getAllowedFileTypes } from "@/lib/file-types";
 import { formatBytes, formatRelative } from "@/lib/format";
-import type { DocumentStatus, UploadSession } from "@/types/rag-computer";
+import type { DocumentStatus, UploadSession } from "@/types/bigrag";
 
 export const Route = createFileRoute("/_dashboard/collections/$name/documents/")({
   component: () => <DocumentsTab />,

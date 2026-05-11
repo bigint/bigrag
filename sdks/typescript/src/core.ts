@@ -4,9 +4,9 @@ const DEFAULT_BASE_URL = "http://localhost:4000";
 const DEFAULT_TIMEOUT = 120_000;
 const DEFAULT_MAX_RETRIES = 2;
 
-export const USER_AGENT = "rag-computer-typescript/2026.5.7";
+export const USER_AGENT = "bigrag-typescript/2026.5.7";
 
-export interface RagComputerOptions {
+export interface BigRAGOptions {
   apiKey?: string;
   baseUrl?: string;
   timeout?: number;
@@ -50,7 +50,7 @@ function randomIdempotencyKey(): string {
   return `${s.slice(0, 8)}-${s.slice(8, 12)}-${s.slice(12, 16)}-${s.slice(16, 20)}-${s.slice(20)}`;
 }
 
-export class RagComputerCore implements RequestClient {
+export class BigRAGCore implements RequestClient {
   readonly apiKey: string;
   readonly baseUrl: string;
   readonly timeout: number;
@@ -58,12 +58,12 @@ export class RagComputerCore implements RequestClient {
   readonly _fetch: typeof globalThis.fetch;
   readonly autoIdempotencyKey: boolean;
 
-  constructor(options: RagComputerOptions = {}) {
+  constructor(options: BigRAGOptions = {}) {
     this.apiKey =
       options.apiKey ??
       (typeof process === "undefined"
         ? ""
-        : ((process.env as Record<string, string | undefined>).RAG_COMPUTER_API_KEY ?? ""));
+        : ((process.env as Record<string, string | undefined>).BIGRAG_API_KEY ?? ""));
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;

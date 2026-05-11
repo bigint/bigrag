@@ -11,7 +11,7 @@ def api_key_row(**overrides):
         "user_id": uuid.uuid4(),
         "name": "worker",
         "key_hash": "hash",
-        "prefix": "ragc_sk_test",
+        "prefix": "bigrag_sk_test",
         "active": True,
         "permissions": {"scopes": ["collection:read"], "collection": "docs"},
         "last_used_at": None,
@@ -35,7 +35,7 @@ def test_list_api_keys_masks_secret_material(route_client) -> None:
 
     assert response.status_code == 200
     payload = response.json()["keys"][0]
-    assert payload["prefix"] == "ragc_sk_test"
+    assert payload["prefix"] == "bigrag_sk_test"
     assert "key" not in payload
     assert "key_hash" not in payload
 

@@ -1,6 +1,6 @@
 ---
 title: Railway
-description: Deploy rag.computer to Railway with managed Postgres and Redis plus self-hosted Qdrant.
+description: Deploy bigRAG to Railway with managed Postgres and Redis plus self-hosted Qdrant.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
@@ -55,7 +55,7 @@ Qdrant exposes HTTP on `6333` and gRPC on `6334`. The API uses HTTP.
 Environment:
 
 ```bash
-RAG_COMPUTER_URL=https://${{API.RAILWAY_PUBLIC_DOMAIN}}
+BIGRAG_URL=https://${{API.RAILWAY_PUBLIC_DOMAIN}}
 ```
 
 ## API
@@ -72,19 +72,19 @@ RAG_COMPUTER_URL=https://${{API.RAILWAY_PUBLIC_DOMAIN}}
 Environment:
 
 ```bash
-RAG_COMPUTER_ENV=prod
-RAG_COMPUTER_DATABASE_URL=${{Postgres.DATABASE_URL}}
-RAG_COMPUTER_REDIS_URL=${{Redis.REDIS_URL}}
-RAG_COMPUTER_QDRANT_URL=http://${{Qdrant.RAILWAY_PRIVATE_DOMAIN}}:6333
-RAG_COMPUTER_EMBEDDING_API_KEY=<your embedding key>
-RAG_COMPUTER_MASTER_KEY=<generated Fernet key>
-RAG_COMPUTER_SESSION_COOKIE_SECURE=true
-RAG_COMPUTER_SESSION_COOKIE_SAMESITE=none
-RAG_COMPUTER_CORS_ORIGINS=["https://${{App.RAILWAY_PUBLIC_DOMAIN}}"]
-RAG_COMPUTER_UPLOAD_DIR=/data/uploads
+BIGRAG_ENV=prod
+BIGRAG_DATABASE_URL=${{Postgres.DATABASE_URL}}
+BIGRAG_REDIS_URL=${{Redis.REDIS_URL}}
+BIGRAG_QDRANT_URL=http://${{Qdrant.RAILWAY_PRIVATE_DOMAIN}}:6333
+BIGRAG_EMBEDDING_API_KEY=<your embedding key>
+BIGRAG_MASTER_KEY=<generated Fernet key>
+BIGRAG_SESSION_COOKIE_SECURE=true
+BIGRAG_SESSION_COOKIE_SAMESITE=none
+BIGRAG_CORS_ORIGINS=["https://${{App.RAILWAY_PUBLIC_DOMAIN}}"]
+BIGRAG_UPLOAD_DIR=/data/uploads
 ```
 
-If using Qdrant Cloud instead of the Railway Qdrant service, set `RAG_COMPUTER_QDRANT_URL` to the cluster URL and set `RAG_COMPUTER_QDRANT_API_KEY`.
+If using Qdrant Cloud instead of the Railway Qdrant service, set `BIGRAG_QDRANT_URL` to the cluster URL and set `BIGRAG_QDRANT_API_KEY`.
 
 ## Generate the master key
 
@@ -108,8 +108,8 @@ Back the master key up immediately. It encrypts provider secrets, webhook secret
 
 **API deploy logs stop while connecting to Qdrant.** Keep the default optional Qdrant readiness behavior so the API can boot and `/health` can respond while `/health/ready` reports the degraded vector-store dependency. Fix the Qdrant service URL or credentials, then redeploy.
 
-**API exits with `ImportError: Can't find Python file .../site-packages/alembic/env.py`.** Rebuild from the latest repo revision and clear Railway's build cache if it keeps reusing an old image. The API image bundles rag.computer's Alembic migration environment into the installed package; this error means the deployed image was built without that migration environment.
+**API exits with `ImportError: Can't find Python file .../site-packages/alembic/env.py`.** Rebuild from the latest repo revision and clear Railway's build cache if it keeps reusing an old image. The API image bundles bigRAG's Alembic migration environment into the installed package; this error means the deployed image was built without that migration environment.
 
-**App loads but API calls fail with CORS errors.** Check `RAG_COMPUTER_CORS_ORIGINS` on `API`; it must match the app public domain exactly.
+**App loads but API calls fail with CORS errors.** Check `BIGRAG_CORS_ORIGINS` on `API`; it must match the app public domain exactly.
 
 **App build fails with workspace errors.** Confirm the root directory is `/app`, the build command is `pnpm build`, and the start command is `pnpm start`.

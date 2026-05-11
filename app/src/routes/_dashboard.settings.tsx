@@ -9,7 +9,7 @@ import { ConnectorsTab } from "@/features/settings/tabs/connectors-tab";
 import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 import { ServerTab } from "@/features/settings/tabs/server-tab";
 import { UsageTab } from "@/features/settings/tabs/usage-tab";
-import type { InstanceSettingGroup } from "@/types/rag-computer";
+import type { InstanceSettingGroup } from "@/types/bigrag";
 
 type SettingsSearch = {
   google_error?: string;

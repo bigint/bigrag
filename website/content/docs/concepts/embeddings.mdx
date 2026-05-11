@@ -6,7 +6,7 @@ description: Supported embedding providers and models for vector search.
 import { Callout } from "fumadocs-ui/components/callout";
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 
-rag.computer supports four provider families. Each collection picks one at creation time and stores its own copy of the config, so different collections on the same instance can use different models.
+bigRAG supports four provider families. Each collection picks one at creation time and stores its own copy of the config, so different collections on the same instance can use different models.
 
 ## Providers
 
@@ -35,7 +35,7 @@ rag.computer supports four provider families. Each collection picks one at creat
 
 ```bash
 curl http://localhost:4000/v1/embeddings/models \
-  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY"
+  -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 
 ## Configuring a collection
@@ -44,7 +44,7 @@ curl http://localhost:4000/v1/embeddings/models \
 <Tab value="OpenAI">
 ```bash
 curl -X POST http://localhost:4000/v1/collections \
-  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "openai_collection",
@@ -58,7 +58,7 @@ curl -X POST http://localhost:4000/v1/collections \
 <Tab value="Cohere">
 ```bash
 curl -X POST http://localhost:4000/v1/collections \
-  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "cohere_collection",
@@ -72,7 +72,7 @@ curl -X POST http://localhost:4000/v1/collections \
 <Tab value="Voyage">
 ```bash
 curl -X POST http://localhost:4000/v1/collections \
-  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "voyage_collection",
@@ -88,7 +88,7 @@ curl -X POST http://localhost:4000/v1/collections \
 <Tab value="Ollama (openai_compatible)">
 ```bash
 curl -X POST http://localhost:4000/v1/collections \
-  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "local_collection",
@@ -103,7 +103,7 @@ curl -X POST http://localhost:4000/v1/collections \
 <Tab value="vLLM / TEI / LiteLLM">
 ```bash
 curl -X POST http://localhost:4000/v1/collections \
-  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "vllm_collection",
@@ -138,18 +138,18 @@ Any gateway that speaks the OpenAI `/embeddings` shape works. Common choices:
 1. Text extraction (via Docling) splits the document into pages and paragraphs.
 2. The chunker produces chunks according to the collection's `chunk_size`, `chunk_overlap`, and `chunk_strategy`.
 3. Each chunk's SHA-256 content hash is looked up in the persistent `embedding_cache`. Hits are reused; misses are sent to the provider.
-4. New vectors are batched at `RAG_COMPUTER_INGESTION_BATCH_SIZE` and written to the configured vector store.
+4. New vectors are batched at `BIGRAG_INGESTION_BATCH_SIZE` and written to the configured vector store.
 5. Queries embed the same way, with short-lived Redis caching for repeated query embeddings.
 
 The cache key is `(content_hash, provider, model, dimension)`. Switching a collection's model invalidates cache hits automatically — on re-embed, unchanged chunks under the **new** model still start cold, but if you switch back they're hot again.
 
-Persistent embedding-cache rows are encrypted by default with `RAG_COMPUTER_MASTER_KEY`. Set `embedding_cache_mode` to `disabled` in `/settings` when you prefer provider cost over storing reusable vectors. The default retention window is 30 days after last use, and admins can purge the cache from the Security settings tab.
+Persistent embedding-cache rows are encrypted by default with `BIGRAG_MASTER_KEY`. Set `embedding_cache_mode` to `disabled` in `/settings` when you prefer provider cost over storing reusable vectors. The default retention window is 30 days after last use, and admins can purge the cache from the Security settings tab.
 
-Redis query caches are also encrypted when `RAG_COMPUTER_MASTER_KEY` is configured. The default query embedding TTL is 300 seconds; set `query_embedding_cache_ttl` to `0` to disable it.
+Redis query caches are also encrypted when `BIGRAG_MASTER_KEY` is configured. The default query embedding TTL is 300 seconds; set `query_embedding_cache_ttl` to `0` to disable it.
 
 ## Concurrency & throughput
 
-Embedding requests are guarded by a semaphore (`RAG_COMPUTER_EMBEDDING_CONCURRENCY`, default 8). Raise it for high-QPS providers; lower it if your embedding provider throttles requests. Token counting uses `tiktoken` where the provider ships a tokenizer and falls back to a 4-character-per-token heuristic otherwise.
+Embedding requests are guarded by a semaphore (`BIGRAG_EMBEDDING_CONCURRENCY`, default 8). Raise it for high-QPS providers; lower it if your embedding provider throttles requests. Token counting uses `tiktoken` where the provider ships a tokenizer and falls back to a 4-character-per-token heuristic otherwise.
 
 ## Reranking
 

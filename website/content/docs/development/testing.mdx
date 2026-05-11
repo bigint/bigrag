@@ -1,6 +1,6 @@
 ---
 title: "Testing"
-description: "Local and CI test commands for rag.computer backend, SDKs, admin UI, and docs."
+description: "Local and CI test commands for bigRAG backend, SDKs, admin UI, and docs."
 ---
 
 ## Local checks
@@ -17,10 +17,10 @@ uv run ruff format --check .
 Run TypeScript and admin UI checks from the repository root:
 
 ```bash
-pnpm --filter @rag.computer/client test
-pnpm --filter @rag.computer/client coverage
-pnpm --filter @rag.computer/app test
-pnpm --filter @rag.computer/app coverage
+pnpm --filter @bigrag/client test
+pnpm --filter @bigrag/client coverage
+pnpm --filter @bigrag/app test
+pnpm --filter @bigrag/app coverage
 pnpm typecheck
 pnpm exec biome check .
 ```
@@ -40,18 +40,18 @@ Coverage commands print a terminal percentage and can write HTML reports for loc
 
 | Area | Command | HTML output |
 | --- | --- | --- |
-| Backend API | `cd api && uv run pytest --cov=rag_computer --cov-report=term-missing --cov-report=html` | `api/htmlcov/index.html` |
+| Backend API | `cd api && uv run pytest --cov=bigrag --cov-report=term-missing --cov-report=html` | `api/htmlcov/index.html` |
 | Python SDK | `cd sdks/python && uv run pytest --cov --cov-report=term-missing --cov-report=html` | `sdks/python/htmlcov/index.html` |
-| TypeScript SDK | `pnpm --filter @rag.computer/client coverage` | `sdks/typescript/coverage/index.html` |
+| TypeScript SDK | `pnpm --filter @bigrag/client coverage` | `sdks/typescript/coverage/index.html` |
 | Rust SDK | `cargo llvm-cov --manifest-path sdks/rust/Cargo.toml --html` | `sdks/rust/target/llvm-cov/html/index.html` |
-| Admin UI | `pnpm --filter @rag.computer/app coverage` | `app/coverage/index.html` |
+| Admin UI | `pnpm --filter @bigrag/app coverage` | `app/coverage/index.html` |
 
 The backend API suite currently reports 60% statement coverage with service-level regression coverage for retrieval caching, embedding adapters, storage backends, MCP wrappers, webhook delivery, Qdrant vector operations, ingestion queue orchestration, auth middleware, CORS, and idempotency replay.
 
 Run the docs build:
 
 ```bash
-pnpm --filter @rag.computer/docs build
+pnpm --filter @bigrag/docs build
 ```
 
 The docs package runs `fumadocs-mdx` before `next build`, so a clean checkout or container build generates `website/.source` before Turbopack resolves the docs source imports.

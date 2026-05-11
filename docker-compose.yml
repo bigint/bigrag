@@ -1,24 +1,24 @@
 services:
-  rag-computer:
+  bigrag:
     build: ./api
-    container_name: rag-computer
+    container_name: bigrag
     restart: unless-stopped
     ports:
       - "127.0.0.1:4000:4000"
     volumes:
-      - rag_computer_data:/data
+      - bigrag_data:/data
     environment:
-      # Default is 'dev'. Set RAG_COMPUTER_ENV=prod in production — this
+      # Default is 'dev'. Set BIGRAG_ENV=prod in production — this
       # enables startup checks that refuse insecure defaults (wildcard
       # CORS, non-secure cookies, default Postgres password).
-      RAG_COMPUTER_ENV: "${RAG_COMPUTER_ENV:-dev}"
-      RAG_COMPUTER_DATABASE_URL: postgres://rag_computer:rag_computer@postgres:5432/rag_computer?sslmode=disable
-      RAG_COMPUTER_QDRANT_URL: http://qdrant:6333
-      RAG_COMPUTER_REDIS_URL: redis://redis:6379/0
-      RAG_COMPUTER_HOST: 0.0.0.0
-      RAG_COMPUTER_SESSION_COOKIE_SECURE: "${RAG_COMPUTER_SESSION_COOKIE_SECURE:-false}"
-      RAG_COMPUTER_CORS_ORIGINS: '${RAG_COMPUTER_CORS_ORIGINS:-["http://localhost:3000"]}'
-      RAG_COMPUTER_UPLOAD_DIR: /data/uploads
+      BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
+      BIGRAG_DATABASE_URL: postgres://bigrag:bigrag@postgres:5432/bigrag?sslmode=disable
+      BIGRAG_QDRANT_URL: http://qdrant:6333
+      BIGRAG_REDIS_URL: redis://redis:6379/0
+      BIGRAG_HOST: 0.0.0.0
+      BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
+      BIGRAG_CORS_ORIGINS: '${BIGRAG_CORS_ORIGINS:-["http://localhost:3000"]}'
+      BIGRAG_UPLOAD_DIR: /data/uploads
     deploy:
       resources:
         limits:
@@ -39,15 +39,15 @@ services:
 
   postgres:
     image: postgres:17
-    container_name: rag-computer-postgres
+    container_name: bigrag-postgres
     restart: unless-stopped
     ports:
       - "127.0.0.1:5432:5432"
     environment:
       # Change these credentials for production deployments
-      POSTGRES_USER: rag_computer
-      POSTGRES_PASSWORD: rag_computer
-      POSTGRES_DB: rag_computer
+      POSTGRES_USER: bigrag
+      POSTGRES_PASSWORD: bigrag
+      POSTGRES_DB: bigrag
     volumes:
       - postgres_data:/var/lib/postgresql/data
     command: postgres -c max_connections=200 -c shared_buffers=256MB -c work_mem=8MB -c effective_cache_size=768MB
@@ -56,14 +56,14 @@ services:
         limits:
           memory: 1g
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rag_computer"]
+      test: ["CMD-SHELL", "pg_isready -U bigrag"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: rag-computer-redis
+    container_name: bigrag-redis
     restart: unless-stopped
     ports:
       - "127.0.0.1:6379:6379"
@@ -82,7 +82,7 @@ services:
 
   qdrant:
     image: qdrant/qdrant:v1.17.1
-    container_name: rag-computer-qdrant
+    container_name: bigrag-qdrant
     restart: unless-stopped
     ports:
       - "127.0.0.1:6333:6333"
@@ -94,7 +94,7 @@ services:
         limits:
           memory: 2g
 volumes:
-  rag_computer_data:
+  bigrag_data:
   postgres_data:
   redis_data:
   qdrant_data:

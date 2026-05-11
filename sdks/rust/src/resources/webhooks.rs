@@ -1,6 +1,6 @@
-use crate::client::RagComputer;
+use crate::client::BigRag;
 use crate::core::urlencode;
-use crate::error::RagComputerError;
+use crate::error::BigRagError;
 use crate::types::common::{PaginationOptions, StatusResponse};
 use crate::types::webhooks::{
     CreateWebhookBody, CreateWebhookResponse, UpdateWebhookBody, Webhook,
@@ -9,7 +9,7 @@ use crate::types::webhooks::{
 
 /// Webhooks resource — manage webhook subscriptions.
 pub struct Webhooks<'a> {
-    pub(crate) client: &'a RagComputer,
+    pub(crate) client: &'a BigRag,
 }
 
 impl Webhooks<'_> {
@@ -17,7 +17,7 @@ impl Webhooks<'_> {
     pub async fn create(
         &self,
         body: CreateWebhookBody,
-    ) -> Result<CreateWebhookResponse, RagComputerError> {
+    ) -> Result<CreateWebhookResponse, BigRagError> {
         self.client
             .transport
             .post("/v1/admin/webhooks", &body)
@@ -25,7 +25,7 @@ impl Webhooks<'_> {
     }
 
     /// List all webhooks.
-    pub async fn list(&self) -> Result<WebhookListResponse, RagComputerError> {
+    pub async fn list(&self) -> Result<WebhookListResponse, BigRagError> {
         self.client
             .transport
             .get("/v1/admin/webhooks", vec![])
@@ -33,23 +33,19 @@ impl Webhooks<'_> {
     }
 
     /// Get a webhook by ID.
-    pub async fn get(&self, id: &str) -> Result<Webhook, RagComputerError> {
+    pub async fn get(&self, id: &str) -> Result<Webhook, BigRagError> {
         let path = format!("/v1/admin/webhooks/{}", urlencode(id));
         self.client.transport.get(&path, vec![]).await
     }
 
     /// Update a webhook.
-    pub async fn update(
-        &self,
-        id: &str,
-        body: UpdateWebhookBody,
-    ) -> Result<Webhook, RagComputerError> {
+    pub async fn update(&self, id: &str, body: UpdateWebhookBody) -> Result<Webhook, BigRagError> {
         let path = format!("/v1/admin/webhooks/{}", urlencode(id));
         self.client.transport.put(&path, &body).await
     }
 
     /// Delete a webhook.
-    pub async fn delete(&self, id: &str) -> Result<StatusResponse, RagComputerError> {
+    pub async fn delete(&self, id: &str) -> Result<StatusResponse, BigRagError> {
         let path = format!("/v1/admin/webhooks/{}", urlencode(id));
         self.client.transport.delete(&path).await
     }
@@ -59,7 +55,7 @@ impl Webhooks<'_> {
         &self,
         id: &str,
         options: Option<PaginationOptions>,
-    ) -> Result<WebhookDeliveryListResponse, RagComputerError> {
+    ) -> Result<WebhookDeliveryListResponse, BigRagError> {
         let mut query = Vec::new();
         if let Some(opts) = options {
             if let Some(limit) = opts.limit {
@@ -74,7 +70,7 @@ impl Webhooks<'_> {
     }
 
     /// Send a test delivery to a webhook.
-    pub async fn test(&self, id: &str) -> Result<WebhookTestResponse, RagComputerError> {
+    pub async fn test(&self, id: &str) -> Result<WebhookTestResponse, BigRagError> {
         let path = format!("/v1/admin/webhooks/{}/test", urlencode(id));
         self.client
             .transport
@@ -87,7 +83,7 @@ impl Webhooks<'_> {
         &self,
         id: &str,
         delivery_id: &str,
-    ) -> Result<WebhookTestResponse, RagComputerError> {
+    ) -> Result<WebhookTestResponse, BigRagError> {
         let path = format!(
             "/v1/admin/webhooks/{}/deliveries/{}/replay",
             urlencode(id),

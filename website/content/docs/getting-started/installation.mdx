@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Install and run rag.computer using Docker Compose or from source.
+description: Install and run bigRAG using Docker Compose or from source.
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
@@ -26,7 +26,7 @@ docker compose up -d
 
 This starts:
 
-- **rag.computer API** on port `4000` (Swagger docs at `/docs`)
+- **bigRAG API** on port `4000` (Swagger docs at `/docs`)
 - **Qdrant** vector database on port `6333`
 - **PostgreSQL** for metadata on port `5432`
 - **Redis** for the ingestion queue on port `6379`
@@ -34,7 +34,7 @@ This starts:
 Pre-built images are published to Docker Hub:
 
 ```bash
-docker pull yoginth/rag-computer:2026.4.30
+docker pull yoginth/bigrag:2026.4.30
 ```
 
 Release artifacts use CalVer (`YYYY.M.D`). Docker also publishes `latest` for convenience, but production deployments should pin the dated tag.
@@ -56,7 +56,7 @@ docker compose up postgres redis qdrant -d
 ```bash
 cd api
 uv sync
-uv run python -m rag_computer.main
+uv run python -m bigrag.main
 ```
 
 Or with pip:
@@ -65,7 +65,7 @@ Or with pip:
 cd api
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
-python -m rag_computer.main
+python -m bigrag.main
 ```
 </Step>
 </Steps>

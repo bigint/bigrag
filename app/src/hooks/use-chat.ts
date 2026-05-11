@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
-import type { ChatDetailResponse, ChatListResponse } from "@/types/rag-computer";
+import type { ChatDetailResponse, ChatListResponse } from "@/types/bigrag";
 
 export const useChatConversations = () =>
   useQuery({

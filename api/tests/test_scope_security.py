@@ -5,13 +5,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from rag_computer.exceptions import ForbiddenError
-from rag_computer.routers.mcp_servers import _permissions
-from rag_computer.services.collection_scope import (
-    _extract_collection_name,
-    enforce_collection_scope,
-)
-from rag_computer.services.scopes import has_scope, required_scope, validate_scope_string
+from bigrag.exceptions import ForbiddenError
+from bigrag.routers.mcp_servers import _permissions
+from bigrag.services.collection_scope import _extract_collection_name, enforce_collection_scope
+from bigrag.services.scopes import has_scope, required_scope, validate_scope_string
 
 
 def test_raw_vector_routes_require_vector_scopes() -> None:

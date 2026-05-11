@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-from rag_computer.routers import admin_realtime
+from bigrag.routers import admin_realtime
 
 
 def _client(monkeypatch, user=None) -> TestClient:

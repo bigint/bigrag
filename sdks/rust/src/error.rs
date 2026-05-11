@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use thiserror::Error;
 
-/// Errors returned by the rag.computer SDK.
+/// Errors returned by the bigRAG SDK.
 #[derive(Error, Debug)]
-pub enum RagComputerError {
+pub enum BigRagError {
     /// 400 Bad Request — validation error or malformed input.
     #[error("bad request: {message}")]
     BadRequest {
@@ -74,7 +74,7 @@ pub enum RagComputerError {
     },
 }
 
-impl RagComputerError {
+impl BigRagError {
     /// Returns the HTTP status code if this was an API error.
     pub fn status(&self) -> Option<u16> {
         match self {
@@ -100,11 +100,11 @@ impl RagComputerError {
     }
 }
 
-/// Parse an HTTP response into a `RagComputerError`.
+/// Parse an HTTP response into a `BigRagError`.
 ///
 /// Extracts the error message from FastAPI's `{"detail": "..."}` format,
 /// with fallbacks to `{"error": {"message": "..."}}` and `{"message": "..."}`.
-pub(crate) async fn parse_error_response(response: reqwest::Response) -> RagComputerError {
+pub(crate) async fn parse_error_response(response: reqwest::Response) -> BigRagError {
     let status = response.status().as_u16();
     let body: serde_json::Value = response.json().await.unwrap_or_default();
 
@@ -121,12 +121,12 @@ pub(crate) async fn parse_error_response(response: reqwest::Response) -> RagComp
         .to_string();
 
     match status {
-        400 => RagComputerError::BadRequest { message, status },
-        401 | 403 => RagComputerError::Authentication { message },
-        404 => RagComputerError::NotFound { message },
-        409 => RagComputerError::Conflict { message },
-        429 => RagComputerError::RateLimited,
-        500..=599 => RagComputerError::ServerError { message, status },
-        _ => RagComputerError::Api { status, message },
+        400 => BigRagError::BadRequest { message, status },
+        401 | 403 => BigRagError::Authentication { message },
+        404 => BigRagError::NotFound { message },
+        409 => BigRagError::Conflict { message },
+        429 => BigRagError::RateLimited,
+        500..=599 => BigRagError::ServerError { message, status },
+        _ => BigRagError::Api { status, message },
     }
 }

@@ -4,7 +4,7 @@ use std::task::{Context, Poll};
 
 use futures_core::Stream;
 
-use crate::error::RagComputerError;
+use crate::error::BigRagError;
 use crate::types::sse::ProgressEvent;
 
 /// Incrementally parses SSE text into `ProgressEvent` values.
@@ -42,9 +42,9 @@ impl SseParser {
     }
 }
 
-/// A stream of SSE progress events from the rag.computer API.
+/// A stream of SSE progress events from the bigRAG API.
 ///
-/// Implements `futures_core::Stream<Item = Result<ProgressEvent, RagComputerError>>`.
+/// Implements `futures_core::Stream<Item = Result<ProgressEvent, BigRagError>>`.
 /// Consume with `StreamExt::next()` from `futures-util` or `tokio-stream`.
 pub struct SseStream {
     inner: Pin<Box<dyn Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send>>,
@@ -64,7 +64,7 @@ impl SseStream {
 }
 
 impl Stream for SseStream {
-    type Item = Result<ProgressEvent, RagComputerError>;
+    type Item = Result<ProgressEvent, BigRagError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // Yield any buffered events first.
@@ -88,7 +88,7 @@ impl Stream for SseStream {
                 }
             }
             Poll::Ready(Some(Err(e))) => {
-                Poll::Ready(Some(Err(RagComputerError::Connection(e.to_string()))))
+                Poll::Ready(Some(Err(BigRagError::Connection(e.to_string()))))
             }
             Poll::Ready(None) => Poll::Ready(None), // Stream ended.
             Poll::Pending => Poll::Pending,

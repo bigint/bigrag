@@ -8,14 +8,14 @@ import httpx
 import pytest
 from starlette.requests import Request
 
-from rag_computer.services import (
+from bigrag.services import (
     client_ip,
     credential_check,
     file_validation,
     metadata_schema,
     redis_cache,
 )
-from rag_computer.services.url_security import UnsafeOutboundUrlError
+from bigrag.services.url_security import UnsafeOutboundUrlError
 
 
 class FakeAsyncClient:
@@ -242,13 +242,13 @@ def test_redis_cache_plaintext_operations(monkeypatch) -> None:
         await redis_cache.set("a", {"ok": True}, ttl=5)
         assert await redis_cache.get("a") == {"ok": True}
         await redis_cache.delete("a")
-        assert redis.deleted == ["rag-computer:cache:a"]
+        assert redis.deleted == ["bigrag:cache:a"]
 
         await redis_cache.set("prefix:1", [1], ttl=5)
         await redis_cache.set("prefix:2", [2], ttl=5)
         assert await redis_cache.delete_pattern("prefix:*") == 2
 
-        redis.values["rag-computer:cache:bad"] = b"{"
+        redis.values["bigrag:cache:bad"] = b"{"
         assert await redis_cache.get("bad") is None
 
         await redis_cache.close()

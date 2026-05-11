@@ -1,11 +1,11 @@
 ---
 title: API Keys
-description: Mint, list, update, and revoke ragc_sk_ keys.
+description: Mint, list, update, and revoke bigrag_sk_ keys.
 ---
 
 Base path: `/v1/admin/api-keys`
 
-API keys are the credential that SDKs and backend services use against rag.computer. Plaintext values are returned **once** on creation and then never re-retrievable; only the prefix and a SHA-256 hash are persisted.
+API keys are the credential that SDKs and backend services use against bigRAG. Plaintext values are returned **once** on creation and then never re-retrievable; only the prefix and a SHA-256 hash are persisted.
 
 Session-only: every endpoint below requires a session cookie. You cannot mint new keys using an existing key.
 
@@ -23,7 +23,7 @@ GET /v1/admin/api-keys?limit=50&offset=0
     {
       "id": "b0f8…",
       "name": "ingestion-worker",
-      "prefix": "ragc_sk_abcd",
+      "prefix": "bigrag_sk_abcd",
       "active": true,
       "scopes": ["document:*", "collection:read"],
       "expires_at": null,
@@ -62,13 +62,13 @@ POST /v1/admin/api-keys
 {
   "id": "b0f8…",
   "name": "ingestion-worker",
-  "prefix": "ragc_sk_abcd",
+  "prefix": "bigrag_sk_abcd",
   "active": true,
   "scopes": ["document:*", "collection:read"],
   "expires_at": "2027-01-01T00:00:00Z",
   "created_at": "2026-04-12T10:21:44Z",
   "updated_at": "2026-04-12T10:21:44Z",
-  "key": "ragc_sk_abcd_…_XXXXXXXXXXXXXXXXXXXXXXXX"
+  "key": "bigrag_sk_abcd_…_XXXXXXXXXXXXXXXXXXXXXXXX"
 }
 ```
 

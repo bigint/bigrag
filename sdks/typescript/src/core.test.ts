@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { RagComputer } from "./client.js";
+import { BigRAG } from "./client.js";
 import {
   APIConnectionError,
   APIError,
@@ -18,11 +18,11 @@ const jsonResponse = (body: unknown, init: ResponseInit = {}) =>
     ...init,
   });
 
-describe("RagComputerCore", () => {
+describe("BigRAGCore", () => {
   it("sends auth, user agent, query params, and parses JSON", async () => {
     const fetch = vi.fn(async () => jsonResponse({ status: "ok" }));
-    const client = new RagComputer({
-      apiKey: "ragc_sk_test",
+    const client = new BigRAG({
+      apiKey: "bigrag_sk_test",
       baseUrl: "http://api.local/",
       fetch,
     });
@@ -34,8 +34,8 @@ describe("RagComputerCore", () => {
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
-          Authorization: "Bearer ragc_sk_test",
-          "User-Agent": "rag-computer-typescript/2026.5.7",
+          Authorization: "Bearer bigrag_sk_test",
+          "User-Agent": "bigrag-typescript/2026.5.7",
         }),
       }),
     );
@@ -43,7 +43,7 @@ describe("RagComputerCore", () => {
 
   it("builds platform endpoint requests", async () => {
     const fetch = vi.fn(async () => jsonResponse({ status: "ok" }));
-    const client = new RagComputer({ baseUrl: "http://api.local", fetch });
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch });
 
     await client.health();
     await client.readiness();
@@ -59,23 +59,23 @@ describe("RagComputerCore", () => {
   });
 
   it("uses environment API keys and default error messages", async () => {
-    const previous = process.env.RAG_COMPUTER_API_KEY;
-    process.env.RAG_COMPUTER_API_KEY = "ragc_sk_env";
+    const previous = process.env.BIGRAG_API_KEY;
+    process.env.BIGRAG_API_KEY = "bigrag_sk_env";
     const fetch = vi.fn(async () => jsonResponse({ status: "ok" }));
 
     try {
-      const client = new RagComputer({ baseUrl: "http://api.local", fetch });
+      const client = new BigRAG({ baseUrl: "http://api.local", fetch });
       await client.health();
 
       expect(fetch).toHaveBeenCalledWith(
         "http://api.local/health",
         expect.objectContaining({
-          headers: expect.objectContaining({ Authorization: "Bearer ragc_sk_env" }),
+          headers: expect.objectContaining({ Authorization: "Bearer bigrag_sk_env" }),
         }),
       );
     } finally {
-      if (previous === undefined) delete process.env.RAG_COMPUTER_API_KEY;
-      else process.env.RAG_COMPUTER_API_KEY = previous;
+      if (previous === undefined) delete process.env.BIGRAG_API_KEY;
+      else process.env.BIGRAG_API_KEY = previous;
     }
 
     expect(new APIConnectionError().message).toBe("Connection error");
@@ -84,7 +84,7 @@ describe("RagComputerCore", () => {
 
   it("adds explicit idempotency keys to mutating JSON requests", async () => {
     const fetch = vi.fn(async () => jsonResponse({ id: "col" }, { status: 201 }));
-    const client = new RagComputer({ baseUrl: "http://api.local", fetch });
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch });
 
     await client._request("POST", "/v1/collections", {
       json: { name: "docs" },
@@ -106,7 +106,7 @@ describe("RagComputerCore", () => {
 
   it("can disable automatic idempotency keys", async () => {
     const fetch = vi.fn(async () => jsonResponse({ id: "col" }, { status: 201 }));
-    const client = new RagComputer({
+    const client = new BigRAG({
       baseUrl: "http://api.local",
       fetch,
       autoIdempotencyKey: false,
@@ -120,7 +120,7 @@ describe("RagComputerCore", () => {
 
   it("adds automatic idempotency keys to mutating requests", async () => {
     const fetch = vi.fn(async () => jsonResponse({ id: "col" }, { status: 201 }));
-    const client = new RagComputer({ baseUrl: "http://api.local", fetch });
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch });
 
     await client._request("POST", "/v1/collections", { json: { name: "docs" } });
 
@@ -132,7 +132,7 @@ describe("RagComputerCore", () => {
     vi.stubGlobal("crypto", undefined);
     const random = vi.spyOn(Math, "random").mockReturnValue(0);
     const fetch = vi.fn(async () => jsonResponse({ id: "col" }, { status: 201 }));
-    const client = new RagComputer({ baseUrl: "http://api.local", fetch });
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch });
 
     try {
       await client._request("POST", "/v1/collections", { json: { name: "docs" } });
@@ -147,7 +147,7 @@ describe("RagComputerCore", () => {
 
   it("can explicitly suppress idempotency keys", async () => {
     const fetch = vi.fn(async () => jsonResponse({ id: "col" }, { status: 201 }));
-    const client = new RagComputer({ baseUrl: "http://api.local", fetch });
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch });
 
     await client._request("DELETE", "/v1/collections/docs", { idempotencyKey: null });
 
@@ -156,11 +156,11 @@ describe("RagComputerCore", () => {
   });
 
   it("maps empty and no-content responses to ok status", async () => {
-    const noContent = new RagComputer({
+    const noContent = new BigRAG({
       baseUrl: "http://api.local",
       fetch: vi.fn(async () => new Response(null, { status: 204 })),
     });
-    const empty = new RagComputer({
+    const empty = new BigRAG({
       baseUrl: "http://api.local",
       fetch: vi.fn(async () => new Response("", { status: 200 })),
     });
@@ -173,8 +173,8 @@ describe("RagComputerCore", () => {
 
   it("submits multipart uploads with auth and idempotency", async () => {
     const fetch = vi.fn(async () => jsonResponse({ id: "doc" }, { status: 201 }));
-    const client = new RagComputer({
-      apiKey: "ragc_sk_test",
+    const client = new BigRAG({
+      apiKey: "bigrag_sk_test",
       baseUrl: "http://api.local",
       fetch,
     });
@@ -189,7 +189,7 @@ describe("RagComputerCore", () => {
     expect(init.body).toBe(form);
     expect(init.headers).toEqual(
       expect.objectContaining({
-        Authorization: "Bearer ragc_sk_test",
+        Authorization: "Bearer bigrag_sk_test",
         "Idempotency-Key": "idem_upload",
       }),
     );
@@ -207,7 +207,7 @@ describe("RagComputerCore", () => {
 
     for (const [status, errorClass] of cases) {
       const fetch = vi.fn(async () => jsonResponse({ detail: `status ${status}` }, { status }));
-      const client = new RagComputer({ baseUrl: "http://api.local", fetch, maxRetries: 0 });
+      const client = new BigRAG({ baseUrl: "http://api.local", fetch, maxRetries: 0 });
 
       await expect(client.health()).rejects.toBeInstanceOf(errorClass);
     }
@@ -217,7 +217,7 @@ describe("RagComputerCore", () => {
     const fetch = vi.fn(
       async () => new Response("not-json", { status: 418, statusText: "Teapot" }),
     );
-    const client = new RagComputer({ baseUrl: "http://api.local", fetch, maxRetries: 0 });
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch, maxRetries: 0 });
 
     await expect(client.health()).rejects.toMatchObject({
       name: "APIError",
@@ -229,7 +229,7 @@ describe("RagComputerCore", () => {
   it("maps timeout and connection failures", async () => {
     const timeout = new Error("deadline");
     timeout.name = "TimeoutError";
-    const timeoutClient = new RagComputer({
+    const timeoutClient = new BigRAG({
       baseUrl: "http://api.local",
       fetch: vi.fn(async () => {
         throw timeout;
@@ -239,7 +239,7 @@ describe("RagComputerCore", () => {
 
     await expect(timeoutClient.health()).rejects.toBeInstanceOf(APITimeoutError);
 
-    const connectionClient = new RagComputer({
+    const connectionClient = new BigRAG({
       baseUrl: "http://api.local",
       fetch: vi.fn(async () => {
         throw new TypeError("socket closed");
@@ -256,7 +256,7 @@ describe("RagComputerCore", () => {
       .fn()
       .mockResolvedValueOnce(jsonResponse({ detail: "temporary" }, { status: 503 }))
       .mockResolvedValueOnce(jsonResponse({ status: "ok" }));
-    const client = new RagComputer({ baseUrl: "http://api.local", fetch, maxRetries: 1 });
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch, maxRetries: 1 });
 
     const result = client.health();
     await vi.advanceTimersByTimeAsync(1000);
@@ -272,7 +272,7 @@ describe("RagComputerCore", () => {
       .fn()
       .mockResolvedValueOnce(jsonResponse({ detail: "slow down" }, { status: 429 }))
       .mockResolvedValueOnce(jsonResponse({ status: "ok" }));
-    const client = new RagComputer({ baseUrl: "http://api.local", fetch, maxRetries: 1 });
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch, maxRetries: 1 });
 
     const result = client.health();
     await vi.advanceTimersByTimeAsync(1000);

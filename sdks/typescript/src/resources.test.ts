@@ -21,7 +21,7 @@ function createClient() {
   const requestCalls: RequestCall[] = [];
   const formCalls: FormCall[] = [];
   const client = {
-    apiKey: "ragc_sk_test",
+    apiKey: "bigrag_sk_test",
     baseUrl: "http://api.local",
     _fetch: vi.fn(),
     _request: vi.fn(async (...args: RequestCall) => {
@@ -222,7 +222,7 @@ describe("resource wrappers", () => {
       ]),
     );
     const client = {
-      apiKey: "ragc_sk_test",
+      apiKey: "bigrag_sk_test",
       baseUrl: "http://api.local",
       _fetch: fetch,
       _request: vi.fn(),
@@ -244,7 +244,7 @@ describe("resource wrappers", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          Authorization: "Bearer ragc_sk_test",
+          Authorization: "Bearer bigrag_sk_test",
           "Content-Type": "application/json",
         }),
         body: JSON.stringify({ message: "hello", collection: "docs", stream: true }),
@@ -366,7 +366,7 @@ describe("resource wrappers", () => {
       "http://api.local/v1/collections/team%20docs/events",
       expect.objectContaining({
         method: "GET",
-        headers: expect.objectContaining({ Authorization: "Bearer ragc_sk_test" }),
+        headers: expect.objectContaining({ Authorization: "Bearer bigrag_sk_test" }),
       }),
     );
 

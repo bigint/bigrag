@@ -1,6 +1,6 @@
 ---
 title: Rust SDK
-description: Install and use the rag.computer Rust client
+description: Install and use the bigRAG Rust client
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
@@ -8,11 +8,11 @@ import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 ## Installation
 
-Add `rag-computer` to your `Cargo.toml`:
+Add `bigrag` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rag-computer = "2026.5.7"
+bigrag = "2026.5.7"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -23,12 +23,12 @@ tokio = { version = "1", features = ["full"] }
 ## Quick Start
 
 ```rust
-use rag_computer::RagComputer;
-use rag_computer::types::{CreateCollectionBody, QueryBody};
+use bigrag::BigRag;
+use bigrag::types::{CreateCollectionBody, QueryBody};
 
 #[tokio::main]
-async fn main() -> Result<(), rag_computer::RagComputerError> {
-    let client = RagComputer::new("http://localhost:4000", "your-api-key");
+async fn main() -> Result<(), bigrag::BigRagError> {
+    let client = BigRag::new("http://localhost:4000", "your-api-key");
 
     // Create a collection
     let col = client.collections().create(CreateCollectionBody {
@@ -57,22 +57,22 @@ async fn main() -> Result<(), rag_computer::RagComputerError> {
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `base_url` | `http://localhost:4000` | rag.computer API URL |
-| `api_key` | `RAG_COMPUTER_API_KEY` env var | API key for authentication |
+| `base_url` | `http://localhost:4000` | bigRAG API URL |
+| `api_key` | `BIGRAG_API_KEY` env var | API key for authentication |
 | `timeout` | `120s` | Request timeout |
 | `max_retries` | `2` | Max retries for transient errors |
 
 ```rust
 use std::time::Duration;
-use rag_computer::RagComputer;
+use bigrag::BigRag;
 
 // From environment variables
-let client = RagComputer::from_env()?;
+let client = BigRag::from_env()?;
 
 // Builder pattern
-let client = RagComputer::builder()
-    .base_url("https://rag.computer")
-    .api_key("ragc_sk_…") // minted at /v1/admin/api-keys
+let client = BigRag::builder()
+    .base_url("https://bigrag.example.com")
+    .api_key("bigrag_sk_…") // minted at /v1/admin/api-keys
     .timeout(Duration::from_secs(60))
     .max_retries(3)
     .build()?;
@@ -98,7 +98,7 @@ Google Drive sync jobs can be listed with source and collection filters. Use `sy
 ## Collections
 
 ```rust
-use rag_computer::types::*;
+use bigrag::types::*;
 
 // List
 let cols = client.collections().list(None).await?;
@@ -196,7 +196,7 @@ File uploads accept `&str` / `String` paths, `Vec<u8>` bytes with a name tuple, 
 ## Chat
 
 ```rust
-use rag_computer::types::*;
+use bigrag::types::*;
 
 let answer = client.chat().create(ChatBody {
     collection: Some("docs".into()),
@@ -217,7 +217,7 @@ client.chat().delete(&detail.conversation.id).await?;
 ## Query & Search
 
 ```rust
-use rag_computer::types::*;
+use bigrag::types::*;
 
 // Single collection query
 let results = client.queries().query("docs", QueryBody {
@@ -247,7 +247,7 @@ let results = client.queries().batch_query(BatchQueryBody {
 ## Vectors
 
 ```rust
-use rag_computer::types::VectorEntry;
+use bigrag::types::VectorEntry;
 
 // Upsert pre-computed vectors
 let resp = client.vectors().upsert("docs", vec![
@@ -294,7 +294,7 @@ while let Some(event) = stream.next().await {
 ## Webhooks
 
 ```rust
-use rag_computer::types::*;
+use bigrag::types::*;
 
 // Create
 let resp = client.webhooks().create(CreateWebhookBody {
@@ -366,15 +366,15 @@ while let Some(event) = events.next().await {
 
 ## Error Handling
 
-All methods return `Result<T, RagComputerError>`. Use pattern matching for specific errors:
+All methods return `Result<T, BigRagError>`. Use pattern matching for specific errors:
 
 ```rust
-use rag_computer::RagComputerError;
+use bigrag::BigRagError;
 
 match client.collections().get("my-col").await {
     Ok(col) => println!("Found: {}", col.name),
-    Err(RagComputerError::NotFound { .. }) => println!("Collection not found"),
-    Err(RagComputerError::Authentication { .. }) => println!("Invalid API key"),
+    Err(BigRagError::NotFound { .. }) => println!("Collection not found"),
+    Err(BigRagError::Authentication { .. }) => println!("Invalid API key"),
     Err(e) if e.is_retryable() => println!("Transient error, retry later"),
     Err(e) => eprintln!("Error: {e}"),
 }

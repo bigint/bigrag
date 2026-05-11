@@ -9,19 +9,19 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import context
-from rag_computer.config import settings
-from rag_computer.db.base import Base
-from rag_computer.db.engine import _normalize_url
-from rag_computer.logging import get_logger
+from bigrag.config import settings
+from bigrag.db.base import Base
+from bigrag.db.engine import _normalize_url
+from bigrag.logging import get_logger
 
-import_module("rag_computer.db.models")
+import_module("bigrag.db.models")
 
 config = context.config
 if config.config_file_name:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
-logger = get_logger("rag_computer.db.migrations")
+logger = get_logger("bigrag.db.migrations")
 
 ADVISORY_LOCK_KEY = 8675309
 LOCK_TIMEOUT_SECONDS = 60
@@ -53,9 +53,9 @@ def do_run_migrations(connection: Connection) -> None:
     )
     if not acquired:
         raise RuntimeError(
-            "Could not acquire the rag.computer migration lock. Another API deployment or "
+            "Could not acquire the bigRAG migration lock. Another API deployment or "
             "worker is probably still running migrations; stop old API deployments or "
-            "set RAG_COMPUTER_WORKERS=1, then redeploy."
+            "set BIGRAG_WORKERS=1, then redeploy."
         )
     logger.info("migration lock acquired", lock_key=ADVISORY_LOCK_KEY)
     try:

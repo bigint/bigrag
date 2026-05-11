@@ -1,5 +1,5 @@
-import type { RagComputerOptions } from "./core.js";
-import { RagComputerCore } from "./core.js";
+import type { BigRAGOptions } from "./core.js";
+import { BigRAGCore } from "./core.js";
 import {
   AdminResource,
   AuthResource,
@@ -20,7 +20,7 @@ import type {
   UsageResponse,
 } from "./types.js";
 
-export class RagComputer extends RagComputerCore {
+export class BigRAG extends BigRAGCore {
   readonly admin: AdminResource;
   readonly auth: AuthResource;
   readonly collections: CollectionsResource;
@@ -32,7 +32,7 @@ export class RagComputer extends RagComputerCore {
   readonly vectors: VectorsResource;
   readonly webhooks: WebhooksResource;
 
-  constructor(options: RagComputerOptions = {}) {
+  constructor(options: BigRAGOptions = {}) {
     super(options);
     this.admin = new AdminResource(this);
     this.auth = new AuthResource(this);

@@ -1,26 +1,26 @@
-# rag-computer
+# bigrag
 
-Rust client for [rag.computer](https://github.com/yoginth/rag-computer) — a self-hostable RAG platform.
+Rust client for [bigRAG](https://github.com/bigint/bigrag) — a self-hostable RAG platform.
 
 ## Installation
 
 ```toml
 [dependencies]
-rag-computer = "2026.5.7"
+bigrag = "2026.5.7"
 tokio = { version = "1", features = ["full"] }
 ```
 
 ## Quick Start
 
 ```rust,no_run
-use rag_computer::RagComputer;
+use bigrag::BigRag;
 
 #[tokio::main]
-async fn main() -> Result<(), rag_computer::RagComputerError> {
-    let client = RagComputer::new("http://localhost:4000", "your-api-key");
+async fn main() -> Result<(), bigrag::BigRagError> {
+    let client = BigRag::new("http://localhost:4000", "your-api-key");
 
     // Create a collection
-    let collection = client.collections().create(rag_computer::types::collections::CreateCollectionBody {
+    let collection = client.collections().create(bigrag::types::collections::CreateCollectionBody {
         name: "my-docs".into(),
         ..Default::default()
     }).await?;
@@ -29,7 +29,7 @@ async fn main() -> Result<(), rag_computer::RagComputerError> {
     let doc = client.documents().upload("my-docs", "/path/to/file.pdf", None).await?;
 
     // Query
-    let results = client.queries().query("my-docs", rag_computer::types::query::QueryBody {
+    let results = client.queries().query("my-docs", bigrag::types::query::QueryBody {
         query: "How does it work?".into(),
         ..Default::default()
     }).await?;
@@ -46,10 +46,10 @@ async fn main() -> Result<(), rag_computer::RagComputerError> {
 
 | Variable | Default | Description |
 |---|---|---|
-| `RAG_COMPUTER_BASE_URL` | `http://localhost:4000` | Base URL of the rag.computer API |
-| `RAG_COMPUTER_API_KEY` | — | API key for authentication |
+| `BIGRAG_BASE_URL` | `http://localhost:4000` | Base URL of the bigRAG API |
+| `BIGRAG_API_KEY` | — | API key for authentication |
 
-Use `RagComputer::from_env()` to read these automatically.
+Use `BigRag::from_env()` to read these automatically.
 
 ## Resources
 
@@ -68,11 +68,11 @@ Use `RagComputer::from_env()` to read these automatically.
 
 ```rust,no_run
 use std::time::Duration;
-use rag_computer::RagComputer;
+use bigrag::BigRag;
 
-# fn main() -> Result<(), rag_computer::RagComputerError> {
-let client = RagComputer::builder()
-    .base_url("https://my-rag.computer")
+# fn main() -> Result<(), bigrag::BigRagError> {
+let client = BigRag::builder()
+    .base_url("https://my-bigrag.example.com")
     .api_key("sk-...")
     .timeout(Duration::from_secs(60))
     .max_retries(3)
@@ -84,10 +84,10 @@ let client = RagComputer::builder()
 ## Collection-Scoped Client
 
 ```rust,no_run
-use rag_computer::RagComputer;
+use bigrag::BigRag;
 
-# async fn example() -> Result<(), rag_computer::RagComputerError> {
-let client = RagComputer::new("http://localhost:4000", "sk-...");
+# async fn example() -> Result<(), bigrag::BigRagError> {
+let client = BigRag::new("http://localhost:4000", "sk-...");
 let col = client.collection("my-docs");
 
 // All methods scoped to "my-docs"

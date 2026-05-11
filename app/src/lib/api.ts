@@ -1,8 +1,8 @@
 import ky, { HTTPError, type KyInstance } from "ky";
-import { ragComputerApiUrl } from "@/config/runtime";
+import { bigragApiUrl } from "@/config/runtime";
 
 const api: KyInstance = ky.create({
-  prefix: ragComputerApiUrl,
+  prefix: bigragApiUrl,
   credentials: "include",
   timeout: 120_000,
   retry: { limit: 1, methods: ["get", "head"] },

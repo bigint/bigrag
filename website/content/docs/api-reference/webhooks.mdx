@@ -22,7 +22,7 @@ POST /v1/admin/webhooks
 
 ```bash
 curl -X POST http://localhost:4000/v1/admin/webhooks \
-  -H "Authorization: Bearer $RAG_COMPUTER_API_KEY" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com/webhook",
@@ -113,9 +113,9 @@ Webhooks deliver **document lifecycle events only**. Admin-plane events (`user.c
 Each delivery includes these headers:
 
 ```
-X-Rag-Computer-Signature: sha256=<hex digest>
-X-Rag-Computer-Event: document.ready
-X-Rag-Computer-Delivery: <delivery-uuid>
+X-BigRAG-Signature: sha256=<hex digest>
+X-BigRAG-Event: document.ready
+X-BigRAG-Delivery: <delivery-uuid>
 ```
 
 ## Retry Policy

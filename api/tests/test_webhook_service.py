@@ -7,8 +7,8 @@ import uuid
 import httpx
 import orjson
 
-from rag_computer.services import webhook
-from rag_computer.services.event_bus import IngestionEvent
+from bigrag.services import webhook
+from bigrag.services.event_bus import IngestionEvent
 
 
 class FakeSession:
@@ -67,7 +67,7 @@ def configure_session_factory(monkeypatch):
 
         return inner
 
-    monkeypatch.setattr(importlib.import_module("rag_computer.db.engine"), "session_factory", outer)
+    monkeypatch.setattr(importlib.import_module("bigrag.db.engine"), "session_factory", outer)
     return sessions
 
 
@@ -197,7 +197,7 @@ def test_webhook_deliver_once_and_test_delivery(monkeypatch) -> None:
             async def __aexit__(self, exc_type, exc, tb):
                 return await self.client.__aexit__(exc_type, exc, tb)
 
-        monkeypatch.setattr("rag_computer.models.webhook.resolve_and_validate_url", resolve)
+        monkeypatch.setattr("bigrag.models.webhook.resolve_and_validate_url", resolve)
         monkeypatch.setattr(webhook.httpx, "AsyncClient", FakeAsyncClientFactory)
         monkeypatch.setattr(webhook, "_delivery_timeout", lambda: 5)
         dispatcher = webhook.WebhookDispatcher()
@@ -232,7 +232,7 @@ def test_webhook_deliver_success_records_database_updates(monkeypatch) -> None:
         async def resolve(url):
             return url
 
-        monkeypatch.setattr("rag_computer.models.webhook.resolve_and_validate_url", resolve)
+        monkeypatch.setattr("bigrag.models.webhook.resolve_and_validate_url", resolve)
         monkeypatch.setattr(webhook, "_retry_delays", lambda: [0])
 
         await dispatcher._deliver(
@@ -250,7 +250,7 @@ def test_webhook_deliver_success_records_database_updates(monkeypatch) -> None:
         assert sessions[0].commits == 1
         assert sessions[1].executed
         assert sessions[1].commits == 1
-        assert dispatcher._client.posts[0][2]["X-Rag-Computer-Event"] == "document.ready"
+        assert dispatcher._client.posts[0][2]["X-BigRAG-Event"] == "document.ready"
 
     asyncio.run(run())
 
@@ -267,7 +267,7 @@ def test_webhook_deliver_retries_and_records_failure(monkeypatch) -> None:
         async def no_sleep(delay):
             return None
 
-        monkeypatch.setattr("rag_computer.models.webhook.resolve_and_validate_url", resolve)
+        monkeypatch.setattr("bigrag.models.webhook.resolve_and_validate_url", resolve)
         monkeypatch.setattr(webhook, "_retry_delays", lambda: [0])
         monkeypatch.setattr(webhook, "_jittered_delay", lambda delay: 0)
         monkeypatch.setattr(webhook.asyncio, "sleep", no_sleep)

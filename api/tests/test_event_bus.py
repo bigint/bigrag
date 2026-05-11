@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from rag_computer.services.event_bus import EventBus, IngestionEvent
+from bigrag.services.event_bus import EventBus, IngestionEvent
 
 
 def test_ingestion_event_serialization_and_sse_shape() -> None:

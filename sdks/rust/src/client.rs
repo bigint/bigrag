@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::core::Transport;
-use crate::error::RagComputerError;
+use crate::error::BigRagError;
 use crate::files::FileInput;
 use crate::resources::admin::Admin;
 use crate::resources::auth::Auth;
@@ -33,10 +33,10 @@ const DEFAULT_BASE_URL: &str = "http://localhost:6100";
 const DEFAULT_TIMEOUT_SECS: u64 = 120;
 const DEFAULT_MAX_RETRIES: u32 = 2;
 
-/// Configuration for the rag.computer client.
+/// Configuration for the bigRAG client.
 #[derive(Debug, Clone)]
-pub struct RagComputerConfig {
-    /// Base URL of the rag.computer API.
+pub struct BigRagConfig {
+    /// Base URL of the bigRAG API.
     pub base_url: String,
     /// API key for authentication.
     pub api_key: Option<String>,
@@ -46,28 +46,28 @@ pub struct RagComputerConfig {
     pub max_retries: u32,
 }
 
-/// The rag.computer client.
+/// The bigRAG client.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// use rag_computer::RagComputer;
+/// use bigrag::BigRag;
 ///
-/// # async fn example() -> Result<(), rag_computer::RagComputerError> {
-/// let client = RagComputer::new("http://localhost:6100", "sk-...");
+/// # async fn example() -> Result<(), bigrag::BigRagError> {
+/// let client = BigRag::new("http://localhost:6100", "sk-...");
 /// let collections = client.collections().list(None).await?;
 /// # Ok(())
 /// # }
 /// ```
-pub struct RagComputer {
+pub struct BigRag {
     pub(crate) transport: Transport,
-    pub(crate) config: RagComputerConfig,
+    pub(crate) config: BigRagConfig,
 }
 
-impl RagComputer {
+impl BigRag {
     /// Create a new client with a base URL and API key.
     pub fn new(base_url: &str, api_key: &str) -> Self {
-        let config = RagComputerConfig {
+        let config = BigRagConfig {
             base_url: base_url.trim_end_matches('/').to_string(),
             api_key: Some(api_key.to_string()),
             timeout: Duration::from_secs(DEFAULT_TIMEOUT_SECS),
@@ -84,13 +84,13 @@ impl RagComputer {
 
     /// Create a new client from environment variables.
     ///
-    /// Reads `RAG_COMPUTER_BASE_URL` (default: `http://localhost:6100`) and
-    /// `RAG_COMPUTER_API_KEY` (optional).
-    pub fn from_env() -> Result<Self, RagComputerError> {
+    /// Reads `BIGRAG_BASE_URL` (default: `http://localhost:6100`) and
+    /// `BIGRAG_API_KEY` (optional).
+    pub fn from_env() -> Result<Self, BigRagError> {
         let base_url =
-            std::env::var("RAG_COMPUTER_BASE_URL").unwrap_or_else(|_| DEFAULT_BASE_URL.to_string());
-        let api_key = std::env::var("RAG_COMPUTER_API_KEY").ok();
-        let config = RagComputerConfig {
+            std::env::var("BIGRAG_BASE_URL").unwrap_or_else(|_| DEFAULT_BASE_URL.to_string());
+        let api_key = std::env::var("BIGRAG_API_KEY").ok();
+        let config = BigRagConfig {
             base_url: base_url.trim_end_matches('/').to_string(),
             api_key,
             timeout: Duration::from_secs(DEFAULT_TIMEOUT_SECS),
@@ -106,8 +106,8 @@ impl RagComputer {
     }
 
     /// Create a builder for fine-grained configuration.
-    pub fn builder() -> RagComputerBuilder {
-        RagComputerBuilder::default()
+    pub fn builder() -> BigRagBuilder {
+        BigRagBuilder::default()
     }
 
     /// Access the admin resource.
@@ -169,27 +169,27 @@ impl RagComputer {
     }
 
     /// Check API health.
-    pub async fn health(&self) -> Result<HealthResponse, RagComputerError> {
+    pub async fn health(&self) -> Result<HealthResponse, BigRagError> {
         self.transport.get("/health", vec![]).await
     }
 
     /// Check API readiness (includes dependency health).
-    pub async fn readiness(&self) -> Result<ReadinessResponse, RagComputerError> {
+    pub async fn readiness(&self) -> Result<ReadinessResponse, BigRagError> {
         self.transport.get("/health/ready", vec![]).await
     }
 
     /// Get platform-wide statistics.
-    pub async fn stats(&self) -> Result<PlatformStatsResponse, RagComputerError> {
+    pub async fn stats(&self) -> Result<PlatformStatsResponse, BigRagError> {
         self.transport.get("/v1/stats", vec![]).await
     }
 
     /// List available embedding models.
-    pub async fn embedding_models(&self) -> Result<EmbeddingModelListResponse, RagComputerError> {
+    pub async fn embedding_models(&self) -> Result<EmbeddingModelListResponse, BigRagError> {
         self.transport.get("/v1/embeddings/models", vec![]).await
     }
 
     /// Get analytics for a collection.
-    pub async fn analytics(&self, collection: &str) -> Result<AnalyticsResponse, RagComputerError> {
+    pub async fn analytics(&self, collection: &str) -> Result<AnalyticsResponse, BigRagError> {
         let path = format!(
             "/v1/collections/{}/analytics",
             crate::core::urlencode(collection)
@@ -198,7 +198,7 @@ impl RagComputer {
     }
 
     /// Get workspace usage analytics.
-    pub async fn usage(&self, window_days: Option<u32>) -> Result<UsageResponse, RagComputerError> {
+    pub async fn usage(&self, window_days: Option<u32>) -> Result<UsageResponse, BigRagError> {
         let mut query = Vec::new();
         if let Some(window_days) = window_days {
             query.push(("window_days".to_string(), window_days.to_string()));
@@ -207,9 +207,9 @@ impl RagComputer {
     }
 }
 
-/// Builder for creating a [`RagComputer`] client with custom configuration.
+/// Builder for creating a [`BigRag`] client with custom configuration.
 #[derive(Default)]
-pub struct RagComputerBuilder {
+pub struct BigRagBuilder {
     base_url: Option<String>,
     api_key: Option<String>,
     timeout: Option<Duration>,
@@ -217,7 +217,7 @@ pub struct RagComputerBuilder {
     reqwest_client: Option<reqwest::Client>,
 }
 
-impl RagComputerBuilder {
+impl BigRagBuilder {
     /// Set the base URL.
     pub fn base_url(mut self, url: &str) -> Self {
         self.base_url = Some(url.to_string());
@@ -249,8 +249,8 @@ impl RagComputerBuilder {
     }
 
     /// Build the client.
-    pub fn build(self) -> Result<RagComputer, RagComputerError> {
-        let config = RagComputerConfig {
+    pub fn build(self) -> Result<BigRag, BigRagError> {
+        let config = BigRagConfig {
             base_url: self
                 .base_url
                 .unwrap_or_else(|| DEFAULT_BASE_URL.to_string())
@@ -280,7 +280,7 @@ impl RagComputerBuilder {
             )
         };
 
-        Ok(RagComputer { transport, config })
+        Ok(BigRag { transport, config })
     }
 }
 
@@ -291,17 +291,17 @@ impl RagComputerBuilder {
 /// # Examples
 ///
 /// ```no_run
-/// use rag_computer::RagComputer;
+/// use bigrag::BigRag;
 ///
-/// # async fn example() -> Result<(), rag_computer::RagComputerError> {
-/// let client = RagComputer::new("http://localhost:6100", "sk-...");
+/// # async fn example() -> Result<(), bigrag::BigRagError> {
+/// let client = BigRag::new("http://localhost:6100", "sk-...");
 /// let col = client.collection("my-collection");
 /// let docs = col.list_documents(None).await?;
 /// # Ok(())
 /// # }
 /// ```
 pub struct CollectionClient<'a> {
-    pub(crate) client: &'a RagComputer,
+    pub(crate) client: &'a BigRag,
     pub(crate) name: String,
 }
 
@@ -311,7 +311,7 @@ impl CollectionClient<'_> {
         &self,
         file: impl Into<FileInput>,
         metadata: Option<serde_json::Value>,
-    ) -> Result<Document, RagComputerError> {
+    ) -> Result<Document, BigRagError> {
         self.client
             .documents()
             .upload(&self.name, file, metadata)
@@ -323,7 +323,7 @@ impl CollectionClient<'_> {
         &self,
         files: Vec<FileInput>,
         metadata: Option<serde_json::Value>,
-    ) -> Result<DocumentListResponse, RagComputerError> {
+    ) -> Result<DocumentListResponse, BigRagError> {
         self.client
             .documents()
             .batch_upload(&self.name, files, metadata)
@@ -334,7 +334,7 @@ impl CollectionClient<'_> {
     pub async fn create_upload_session(
         &self,
         body: UploadSessionCreateRequest,
-    ) -> Result<UploadSession, RagComputerError> {
+    ) -> Result<UploadSession, BigRagError> {
         self.client
             .documents()
             .create_upload_session(&self.name, body)
@@ -342,10 +342,7 @@ impl CollectionClient<'_> {
     }
 
     /// Get an upload session.
-    pub async fn get_upload_session(
-        &self,
-        session_id: &str,
-    ) -> Result<UploadSession, RagComputerError> {
+    pub async fn get_upload_session(&self, session_id: &str) -> Result<UploadSession, BigRagError> {
         self.client
             .documents()
             .get_upload_session(&self.name, session_id)
@@ -358,7 +355,7 @@ impl CollectionClient<'_> {
         session_id: &str,
         file: impl Into<FileInput>,
         client_item_id: Option<&str>,
-    ) -> Result<UploadSessionFileResponse, RagComputerError> {
+    ) -> Result<UploadSessionFileResponse, BigRagError> {
         self.client
             .documents()
             .upload_session_file(&self.name, session_id, file, client_item_id)
@@ -369,7 +366,7 @@ impl CollectionClient<'_> {
     pub async fn complete_upload_session(
         &self,
         session_id: &str,
-    ) -> Result<UploadSession, RagComputerError> {
+    ) -> Result<UploadSession, BigRagError> {
         self.client
             .documents()
             .complete_upload_session(&self.name, session_id)
@@ -380,7 +377,7 @@ impl CollectionClient<'_> {
     pub async fn cancel_upload_session(
         &self,
         session_id: &str,
-    ) -> Result<StatusResponse, RagComputerError> {
+    ) -> Result<StatusResponse, BigRagError> {
         self.client
             .documents()
             .cancel_upload_session(&self.name, session_id)
@@ -391,20 +388,17 @@ impl CollectionClient<'_> {
     pub async fn list_documents(
         &self,
         options: Option<DocumentListOptions>,
-    ) -> Result<DocumentListResponse, RagComputerError> {
+    ) -> Result<DocumentListResponse, BigRagError> {
         self.client.documents().list(&self.name, options).await
     }
 
     /// Get a document by ID in this collection.
-    pub async fn get_document(&self, document_id: &str) -> Result<Document, RagComputerError> {
+    pub async fn get_document(&self, document_id: &str) -> Result<Document, BigRagError> {
         self.client.documents().get(&self.name, document_id).await
     }
 
     /// Delete a document from this collection.
-    pub async fn delete_document(
-        &self,
-        document_id: &str,
-    ) -> Result<StatusResponse, RagComputerError> {
+    pub async fn delete_document(&self, document_id: &str) -> Result<StatusResponse, BigRagError> {
         self.client
             .documents()
             .delete(&self.name, document_id)
@@ -415,7 +409,7 @@ impl CollectionClient<'_> {
     pub async fn reprocess_document(
         &self,
         document_id: &str,
-    ) -> Result<StatusResponse, RagComputerError> {
+    ) -> Result<StatusResponse, BigRagError> {
         self.client
             .documents()
             .reprocess(&self.name, document_id)
@@ -426,7 +420,7 @@ impl CollectionClient<'_> {
     pub async fn get_document_chunks(
         &self,
         document_id: &str,
-    ) -> Result<DocumentChunkListResponse, RagComputerError> {
+    ) -> Result<DocumentChunkListResponse, BigRagError> {
         self.get_document_chunks_with_options(document_id, None)
             .await
     }
@@ -436,7 +430,7 @@ impl CollectionClient<'_> {
         &self,
         document_id: &str,
         options: Option<DocumentChunkOptions>,
-    ) -> Result<DocumentChunkListResponse, RagComputerError> {
+    ) -> Result<DocumentChunkListResponse, BigRagError> {
         self.client
             .documents()
             .get_chunks_with_options(&self.name, document_id, options)
@@ -447,7 +441,7 @@ impl CollectionClient<'_> {
     pub async fn batch_get_status(
         &self,
         document_ids: &[&str],
-    ) -> Result<BatchStatusResponse, RagComputerError> {
+    ) -> Result<BatchStatusResponse, BigRagError> {
         self.client
             .documents()
             .batch_get_status(&self.name, document_ids)
@@ -458,7 +452,7 @@ impl CollectionClient<'_> {
     pub async fn batch_get_documents(
         &self,
         document_ids: &[&str],
-    ) -> Result<BatchGetDocumentsResponse, RagComputerError> {
+    ) -> Result<BatchGetDocumentsResponse, BigRagError> {
         self.client
             .documents()
             .batch_get(&self.name, document_ids)
@@ -469,7 +463,7 @@ impl CollectionClient<'_> {
     pub async fn batch_delete(
         &self,
         document_ids: &[&str],
-    ) -> Result<BatchDeleteDocumentsResponse, RagComputerError> {
+    ) -> Result<BatchDeleteDocumentsResponse, BigRagError> {
         self.client
             .documents()
             .batch_delete(&self.name, document_ids)
@@ -477,12 +471,12 @@ impl CollectionClient<'_> {
     }
 
     /// Query this collection.
-    pub async fn query(&self, body: QueryBody) -> Result<QueryResponse, RagComputerError> {
+    pub async fn query(&self, body: QueryBody) -> Result<QueryResponse, BigRagError> {
         self.client.queries().query(&self.name, body).await
     }
 
     /// Create a chat turn against this collection.
-    pub async fn chat(&self, mut body: ChatBody) -> Result<ChatCreateResponse, RagComputerError> {
+    pub async fn chat(&self, mut body: ChatBody) -> Result<ChatCreateResponse, BigRagError> {
         if body.collection.is_none() {
             body.collection = Some(self.name.clone());
         }
@@ -490,17 +484,17 @@ impl CollectionClient<'_> {
     }
 
     /// Get collection statistics.
-    pub async fn stats(&self) -> Result<CollectionStatsResponse, RagComputerError> {
+    pub async fn stats(&self) -> Result<CollectionStatsResponse, BigRagError> {
         self.client.collections().stats(&self.name).await
     }
 
     /// Queue all ready/failed documents in this collection for re-embedding.
-    pub async fn reembed(&self) -> Result<StatusResponse, RagComputerError> {
+    pub async fn reembed(&self) -> Result<StatusResponse, BigRagError> {
         self.client.collections().reembed(&self.name).await
     }
 
     /// Get collection analytics.
-    pub async fn analytics(&self) -> Result<AnalyticsResponse, RagComputerError> {
+    pub async fn analytics(&self) -> Result<AnalyticsResponse, BigRagError> {
         let path = format!(
             "/v1/collections/{}/analytics",
             crate::core::urlencode(&self.name)
@@ -509,7 +503,7 @@ impl CollectionClient<'_> {
     }
 
     /// Stream real-time events for this collection via SSE.
-    pub async fn stream_events(&self) -> Result<SseStream, RagComputerError> {
+    pub async fn stream_events(&self) -> Result<SseStream, BigRagError> {
         self.client.collections().stream_events(&self.name).await
     }
 }

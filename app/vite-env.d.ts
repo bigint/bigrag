@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_RAG_COMPUTER_URL?: string;
+  readonly VITE_BIGRAG_URL?: string;
 }
 
 interface ImportMeta {

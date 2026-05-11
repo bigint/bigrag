@@ -1,1 +1,1 @@
-window.__RAG_COMPUTER_APP_CONFIG__ = {};
+window.__BIGRAG_APP_CONFIG__ = {};

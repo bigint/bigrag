@@ -8,7 +8,7 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import Response
 
-from rag_computer.services import mcp_http
+from bigrag.services import mcp_http
 
 
 class FakeMCP:
@@ -93,7 +93,7 @@ def test_mcp_http_status_and_client_context(monkeypatch) -> None:
 
 def test_mcp_http_tools_proxy_expected_requests(monkeypatch) -> None:
     async def run() -> None:
-        fake_mcp = FakeMCP(name="rag-computer")
+        fake_mcp = FakeMCP(name="bigrag")
         client = FakeClient(
             [
                 FakeResponse({"collections": []}),
@@ -167,7 +167,7 @@ def test_mcp_http_tools_proxy_expected_requests(monkeypatch) -> None:
 
 def test_mcp_http_binding_middlewares_set_context(monkeypatch) -> None:
     async def run() -> None:
-        fake_mcp = FakeMCP(name="rag-computer")
+        fake_mcp = FakeMCP(name="bigrag")
         parent = Starlette()
         monkeypatch.setattr(mcp_http, "_build_server", lambda: fake_mcp)
 

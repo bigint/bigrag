@@ -5,9 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from rag_computer.exceptions import ValidationError
-from rag_computer.services import retrieval
-from rag_computer.services.vector_store import VectorStoreFeatureError
+from bigrag.exceptions import ValidationError
+from bigrag.services import retrieval
+from bigrag.services.vector_store import VectorStoreFeatureError
 
 
 class FakeEmbeddingModel:
@@ -111,7 +111,7 @@ def test_retrieval_helpers_and_query_cache(monkeypatch) -> None:
         )
 
         await retrieval.invalidate_collection_query_cache("docs")
-        assert context.redis.increments == ["rag-computer:query_epoch:docs"]
+        assert context.redis.increments == ["bigrag:query_epoch:docs"]
 
         vector = await retrieval._embed_query_with_cache("hello", model)
         assert vector == [0.1, 0.2]

@@ -1,16 +1,16 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use bigrag::types::chat::ChatBody;
+use bigrag::{BigRag, BigRagError, FileInput};
 use httpmock::Method::{DELETE, GET, PATCH, POST};
 use httpmock::MockServer;
-use rag_computer::types::chat::ChatBody;
-use rag_computer::{FileInput, RagComputer, RagComputerError};
 use serde_json::{json, Value};
 
-fn client(server: &MockServer) -> RagComputer {
-    RagComputer::builder()
+fn client(server: &MockServer) -> BigRag {
+    BigRag::builder()
         .base_url(&server.base_url())
-        .api_key("ragc_sk_test")
+        .api_key("bigrag_sk_test")
         .timeout(Duration::from_secs(5))
         .max_retries(0)
         .reqwest_client(reqwest::Client::new())
@@ -79,7 +79,7 @@ async fn chat_methods_send_expected_requests() {
         .mock_async(|when, then| {
             when.method(POST)
                 .path("/v1/chat")
-                .header("authorization", "Bearer ragc_sk_test")
+                .header("authorization", "Bearer bigrag_sk_test")
                 .json_body(json!({
                     "message": "hello",
                     "collection": "docs",
@@ -206,10 +206,8 @@ fn file_input_reports_upload_filenames() {
 #[tokio::test]
 async fn upload_uses_multipart_filename_and_body() {
     let server = MockServer::start_async().await;
-    let path = std::env::temp_dir().join(format!(
-        "rag-computer-rust-sdk-{}-note.txt",
-        std::process::id()
-    ));
+    let path =
+        std::env::temp_dir().join(format!("bigrag-rust-sdk-{}-note.txt", std::process::id()));
     tokio::fs::write(&path, b"hello").await.unwrap();
     let mock = server
         .mock_async(|when, then| {
@@ -245,7 +243,7 @@ async fn upload_reports_missing_file_errors_before_request() {
     let server = MockServer::start_async().await;
     let client = client(&server);
     let missing = std::env::temp_dir().join(format!(
-        "rag-computer-rust-sdk-{}-missing.txt",
+        "bigrag-rust-sdk-{}-missing.txt",
         std::process::id()
     ));
 
@@ -255,5 +253,5 @@ async fn upload_reports_missing_file_errors_before_request() {
         .await
         .unwrap_err();
 
-    assert!(matches!(error, RagComputerError::FileRead(_)));
+    assert!(matches!(error, BigRagError::FileRead(_)));
 }

@@ -4,7 +4,7 @@ import asyncio
 
 import httpx
 
-from rag_computer import RagComputer
+from bigrag import BigRAG
 
 
 def run(coro):
@@ -19,7 +19,7 @@ def test_documents_resource_encodes_paths_and_query_params() -> None:
         return httpx.Response(200, json={"documents": [], "total": 0}, request=request)
 
     async def scenario() -> dict:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )
@@ -67,7 +67,7 @@ def test_documents_upload_sends_metadata_and_file() -> None:
         )
 
     async def scenario() -> dict:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )
@@ -85,7 +85,7 @@ def test_documents_upload_sends_metadata_and_file() -> None:
 
 
 def test_get_file_url_uses_encoded_path() -> None:
-    client = RagComputer(base_url="http://api.local/")
+    client = BigRAG(base_url="http://api.local/")
 
     assert client.documents.get_file_url("team docs", "doc/1") == (
         "http://api.local/v1/collections/team%20docs/documents/doc%2F1/file"
@@ -108,7 +108,7 @@ def test_documents_batch_upload_sends_metadata() -> None:
         )
 
     async def scenario() -> dict:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )
@@ -135,7 +135,7 @@ def test_documents_get_chunks_by_id_encodes_pagination() -> None:
         return httpx.Response(200, json={"chunks": [], "total": 0}, request=request)
 
     async def scenario() -> dict:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )

@@ -1,0 +1,78 @@
+# bigRAG configuration file (TOML)
+#
+# Loaded by `bigrag` at startup via `--config bigrag.toml`. Most runtime keys can
+# also be set as environment variables with the BIGRAG_ prefix (env vars override
+# TOML). Keys must match Settings field names — see api/bigrag/config.py.
+#
+# Most values shown below are defaults; optional unset values show common examples.
+
+# env = "dev"                   # dev | prod (prod enables startup safety checks)
+
+# host = "127.0.0.1"
+# port = 4000
+# workers = 1
+# Backend logging is always enabled at debug level with text output.
+# cors_origins = []
+# trusted_proxies = []              # CIDRs allowed to supply X-Forwarded-For
+
+# database_url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
+# db_pool_min = 5
+# db_pool_max = 50
+# migration_timeout_seconds = 60
+
+# qdrant_url = "http://localhost:6333"
+# qdrant_api_key = ""
+# qdrant_connect_timeout_seconds = 10
+# qdrant_required = false
+# qdrant_search_ef = 128           # optional Qdrant HNSW ef override; unset by default
+
+# redis_url = "redis://localhost:6379/0"
+
+# Encryption key for provider secrets at rest. Required in env=prod.
+# Generate with:
+#   python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
+# master_key = ""
+# master_key_previous = []          # old Fernet keys for staged rotation
+
+# session_expiry_hours = 168
+# session_cookie_name = "bigrag_session"
+# session_cookie_secure = false   # set true behind HTTPS
+# session_cookie_samesite = "lax"
+# session_cookie_domain = ""
+# auth_principal_cache_ttl = 60
+
+# embedding_provider = "openai"   # openai | openai_compatible | cohere | voyage
+# embedding_model = "text-embedding-3-small"
+# embedding_dimension = 1536
+# embedding_base_url = ""          # required for openai_compatible endpoints
+# embedding_concurrency = 8
+# embedding_api_key = ""           # use BIGRAG_EMBEDDING_API_KEY in production
+# allowed_embedding_base_urls = []
+# allow_private_embedding_base_urls = false
+
+# chat_provider = "openai"         # openai | openai_compatible
+# chat_model = "gpt-4o-mini"
+# chat_base_url = ""               # required for openai_compatible endpoints
+# chat_temperature = 0.2
+# chat_max_history_messages = 12
+# chat_max_context_chars = 120000
+# allowed_chat_base_urls = []
+# allow_private_chat_base_urls = false
+
+# upload_dir = "./data/uploads"
+
+# max_upload_size_mb = 64
+# max_batch_upload_size_mb = 128
+# ingestion_workers = 4
+# ingestion_batch_size = 128
+# conversion_timeout = 300
+# conversion_pdf_ocr_enabled = true
+# queue_max_depth = 10000
+# collection_cache_ttl = 30
+# query_embedding_cache_ttl = 3600
+# query_result_cache_ttl = 30
+
+# webhook_delivery_timeout = 10
+# webhook_retry_delays = [10, 30, 90]
+# webhook_max_count = 50
+# allow_local_webhooks = false

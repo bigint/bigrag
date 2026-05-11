@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
-from rag_computer.services import queue, queue_state
-from rag_computer.services.ingestion_job import IngestionJob
+from bigrag.services import queue, queue_state
+from bigrag.services.ingestion_job import IngestionJob
 
 
 class FakePipeline:
@@ -107,9 +107,9 @@ def test_queue_module_preserves_public_compatibility_exports() -> None:
     assert queue.QUEUE_KEY == queue_state.QUEUE_KEY
     assert queue.PROCESSING_KEY == queue_state.PROCESSING_KEY
     assert queue.DEAD_LETTER_KEY == queue_state.DEAD_LETTER_KEY
-    assert queue._lease_key("abc") == "rag-computer:ingestion:lease:abc"
-    assert queue._collection_epoch_key("docs") == "rag-computer:ingestion:collection_epoch:docs"
-    assert queue._document_epoch_key("doc") == "rag-computer:ingestion:document_epoch:doc"
+    assert queue._lease_key("abc") == "bigrag:ingestion:lease:abc"
+    assert queue._collection_epoch_key("docs") == "bigrag:ingestion:collection_epoch:docs"
+    assert queue._document_epoch_key("doc") == "bigrag:ingestion:document_epoch:doc"
     assert isinstance(queue.ingestion_queue, queue.IngestionQueue)
 
 

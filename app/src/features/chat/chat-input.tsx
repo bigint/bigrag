@@ -10,7 +10,7 @@ import {
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import type { Collection } from "@/types/rag-computer";
+import type { Collection } from "@/types/bigrag";
 import {
   type ChatPatch,
   type ChatState,

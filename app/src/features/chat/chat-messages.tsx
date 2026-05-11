@@ -20,7 +20,7 @@ import {
   useState,
 } from "react";
 import { cn } from "@/lib/cn";
-import type { ChatSource, QueryTimings } from "@/types/rag-computer";
+import type { ChatSource, QueryTimings } from "@/types/bigrag";
 
 export type ChatMessage = {
   id: string;

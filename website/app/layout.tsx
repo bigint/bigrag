@@ -9,8 +9,8 @@ export const metadata: Metadata = {
   description:
     "The open-source RAG platform you can self-host. Document ingestion, vector search, and retrieval-augmented generation on your own infrastructure.",
   title: {
-    default: "rag.computer Docs",
-    template: "%s — rag.computer",
+    default: "bigRAG Docs",
+    template: "%s — bigRAG",
   },
 };
 

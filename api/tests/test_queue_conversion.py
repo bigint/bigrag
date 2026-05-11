@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
-from rag_computer.services import queue_conversion
-from rag_computer.services.ingestion_job import IngestionJob
+from bigrag.services import queue_conversion
+from bigrag.services.ingestion_job import IngestionJob
 
 
 class FakeDocument:
@@ -69,8 +69,8 @@ def test_convert_document_reads_plain_text_and_emits_extraction(monkeypatch) -> 
         async def get_values(keys):
             return {"conversion_timeout": 30, "conversion_pdf_ocr_enabled": False}
 
-        monkeypatch.setattr("rag_computer.services.storage.get_storage", lambda: storage)
-        monkeypatch.setattr("rag_computer.services.runtime_settings.get_values", get_values)
+        monkeypatch.setattr("bigrag.services.storage.get_storage", lambda: storage)
+        monkeypatch.setattr("bigrag.services.runtime_settings.get_values", get_values)
 
         text = await queue_conversion.convert_document(
             _job(),
@@ -91,8 +91,8 @@ def test_convert_document_rejects_empty_plain_text(monkeypatch) -> None:
         async def get_values(keys):
             return {"conversion_timeout": 30, "conversion_pdf_ocr_enabled": False}
 
-        monkeypatch.setattr("rag_computer.services.storage.get_storage", lambda: FakeStorage(b"  "))
-        monkeypatch.setattr("rag_computer.services.runtime_settings.get_values", get_values)
+        monkeypatch.setattr("bigrag.services.storage.get_storage", lambda: FakeStorage(b"  "))
+        monkeypatch.setattr("bigrag.services.runtime_settings.get_values", get_values)
 
         try:
             await queue_conversion.convert_document(
@@ -121,7 +121,7 @@ def test_ocr_scanned_pdf_chunks_pages_and_emits_progress(monkeypatch) -> None:
         async def ensure_job_current(job):
             checks.append(job.document_id)
 
-        monkeypatch.setattr("rag_computer.services.runtime_settings.get_values", get_values)
+        monkeypatch.setattr("bigrag.services.runtime_settings.get_values", get_values)
         monkeypatch.setattr(queue_conversion, "get_pdf_page_count", lambda path: 12)
         monkeypatch.setattr(
             queue_conversion,
@@ -160,11 +160,8 @@ def test_convert_document_maps_isolated_timeout_to_value_error(monkeypatch) -> N
         async def get_values(keys):
             return {"conversion_timeout": 30, "conversion_pdf_ocr_enabled": True}
 
-        monkeypatch.setattr(
-            "rag_computer.services.storage.get_storage",
-            lambda: FakeStorage(b"%PDF"),
-        )
-        monkeypatch.setattr("rag_computer.services.runtime_settings.get_values", get_values)
+        monkeypatch.setattr("bigrag.services.storage.get_storage", lambda: FakeStorage(b"%PDF"))
+        monkeypatch.setattr("bigrag.services.runtime_settings.get_values", get_values)
 
         def fail(*args, **kwargs):
             raise TimeoutError("conversion timed out")

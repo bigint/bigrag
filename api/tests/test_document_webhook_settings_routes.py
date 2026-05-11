@@ -25,7 +25,7 @@ def document_row(collection_id: uuid.UUID, **overrides):
 
 
 def test_list_documents_success(route_client, monkeypatch) -> None:
-    from rag_computer.routers import documents
+    from bigrag.routers import documents
 
     collection_id = uuid.uuid4()
 
@@ -53,7 +53,7 @@ def test_list_documents_success(route_client, monkeypatch) -> None:
 
 
 def test_download_document_file_returns_storage_bytes(route_client, monkeypatch) -> None:
-    from rag_computer.routers import documents
+    from bigrag.routers import documents
 
     collection_id = uuid.uuid4()
     doc_id = uuid.uuid4()
@@ -93,7 +93,7 @@ def test_create_webhook_rejects_member_session(route_client) -> None:
 
 
 def test_test_webhook_dispatches(route_client, monkeypatch) -> None:
-    from rag_computer.routers import webhooks
+    from bigrag.routers import webhooks
 
     webhook_id = uuid.uuid4()
     webhook = row(

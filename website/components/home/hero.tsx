@@ -39,7 +39,7 @@ export const Hero = () => (
           </Link>
           <Link
             className="inline-flex h-10 items-center gap-2 rounded-md border border-fd-border bg-fd-card px-5 text-sm font-medium text-fd-foreground shadow-sm hover:bg-fd-accent"
-            href="https://github.com/yoginth/rag-computer"
+            href="https://github.com/bigint/bigrag"
             rel="noopener noreferrer"
             target="_blank"
           >

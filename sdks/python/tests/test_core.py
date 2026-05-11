@@ -5,9 +5,9 @@ import asyncio
 import httpx
 import pytest
 
-from rag_computer import RagComputer
-from rag_computer._core import USER_AGENT
-from rag_computer._errors import (
+from bigrag import BigRAG
+from bigrag._core import USER_AGENT
+from bigrag._errors import (
     APIConnectionError,
     APIError,
     APITimeoutError,
@@ -36,8 +36,8 @@ def test_request_sends_auth_user_agent_query_and_parses_json() -> None:
         return json_response(200, {"status": "ok"}, request)
 
     async def scenario() -> dict:
-        client = RagComputer(
-            api_key="ragc_sk_test",
+        client = BigRAG(
+            api_key="bigrag_sk_test",
             base_url="http://api.local/",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )
@@ -48,7 +48,7 @@ def test_request_sends_auth_user_agent_query_and_parses_json() -> None:
 
     assert run(scenario()) == {"status": "ok"}
     assert str(seen[0].url) == "http://api.local/v1/usage?window_days=7"
-    assert seen[0].headers["authorization"] == "Bearer ragc_sk_test"
+    assert seen[0].headers["authorization"] == "Bearer bigrag_sk_test"
     assert seen[0].headers["user-agent"] == USER_AGENT
 
 
@@ -68,7 +68,7 @@ def test_error_responses_map_to_typed_errors() -> None:
             )
 
         async def scenario() -> None:
-            client = RagComputer(
+            client = BigRAG(
                 base_url="http://api.local",
                 max_retries=0,
                 http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
@@ -87,7 +87,7 @@ def test_timeout_and_connection_errors_map_to_typed_errors() -> None:
         raise httpx.TimeoutException("deadline", request=request)
 
     async def timeout_scenario() -> None:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             max_retries=0,
             http_client=httpx.AsyncClient(
@@ -106,7 +106,7 @@ def test_timeout_and_connection_errors_map_to_typed_errors() -> None:
         raise httpx.ConnectError("socket closed", request=request)
 
     async def connection_scenario() -> None:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             max_retries=0,
             http_client=httpx.AsyncClient(
@@ -138,7 +138,7 @@ def test_retries_transient_server_errors(monkeypatch: pytest.MonkeyPatch) -> Non
         return json_response(200, {"status": "ok"}, request)
 
     async def scenario() -> dict:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             max_retries=1,
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
@@ -168,7 +168,7 @@ def test_retries_rate_limit_responses(monkeypatch: pytest.MonkeyPatch) -> None:
         return json_response(200, {"status": "ok"}, request)
 
     async def scenario() -> dict:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             max_retries=1,
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
@@ -190,7 +190,7 @@ def test_request_with_json_sets_content_type() -> None:
         return json_response(200, {"id": "created"}, request)
 
     async def scenario() -> dict:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )
@@ -222,7 +222,7 @@ def test_retries_timeout_and_connection_errors_before_failing(
         raise httpx.TimeoutException("deadline", request=request)
 
     async def timeout_scenario() -> None:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             max_retries=1,
             http_client=httpx.AsyncClient(
@@ -246,7 +246,7 @@ def test_retries_timeout_and_connection_errors_before_failing(
         raise httpx.ConnectError("socket closed", request=request)
 
     async def connection_scenario() -> None:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             max_retries=1,
             http_client=httpx.AsyncClient(
@@ -265,7 +265,7 @@ def test_retries_timeout_and_connection_errors_before_failing(
 
 def test_execute_with_retry_handles_no_attempt_configuration() -> None:
     async def scenario() -> None:
-        client = RagComputer(base_url="http://api.local", max_retries=-1)
+        client = BigRAG(base_url="http://api.local", max_retries=-1)
         try:
             await client._execute_with_retry(lambda: None)
         finally:
@@ -284,7 +284,7 @@ def test_no_content_and_empty_responses_return_ok_status() -> None:
         return response
 
     async def scenario() -> list[dict]:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )
@@ -305,7 +305,7 @@ def test_form_errors_and_non_json_error_fallbacks_map_to_api_errors() -> None:
         )
 
     async def form_scenario() -> None:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(form_handler)),
         )
@@ -324,7 +324,7 @@ def test_form_errors_and_non_json_error_fallbacks_map_to_api_errors() -> None:
         return httpx.Response(418, text="no json", request=request)
 
     async def text_scenario() -> None:
-        client = RagComputer(
+        client = BigRAG(
             base_url="http://api.local",
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(text_handler)),
         )
@@ -341,7 +341,7 @@ def test_form_errors_and_non_json_error_fallbacks_map_to_api_errors() -> None:
 
 def test_owned_client_context_manager_closes_client() -> None:
     async def scenario() -> bool:
-        async with RagComputer(base_url="http://api.local") as client:
+        async with BigRAG(base_url="http://api.local") as client:
             owned = client._client
         return owned.is_closed
 

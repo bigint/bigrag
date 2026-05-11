@@ -6,13 +6,13 @@ from datetime import UTC, datetime
 
 import httpx
 
-from rag_computer.db.models import (
+from bigrag.db.models import (
     ConnectorAccount,
     ConnectorDocument,
     ConnectorProviderConfig,
     ConnectorSyncJob,
 )
-from rag_computer.services.connector_core import (
+from bigrag.services.connector_core import (
     ConnectorSyncCounters,
     apply_counters,
     manifest_unchanged,
@@ -20,8 +20,8 @@ from rag_computer.services.connector_core import (
     sync_progress_details,
     sync_progress_percent,
 )
-from rag_computer.services.connector_registry import connector_runtime
-from rag_computer.services.google_drive import (
+from bigrag.services.connector_registry import connector_runtime
+from bigrag.services.google_drive import (
     GOOGLE_DOC_MIME,
     GOOGLE_FOLDER_MIME,
     GOOGLE_PROVIDER,

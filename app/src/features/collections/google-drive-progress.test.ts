@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { GoogleDriveSyncJob } from "@/types/rag-computer";
+import type { GoogleDriveSyncJob } from "@/types/bigrag";
 import {
   clampGoogleSyncProgress,
   googleSyncCountLabel,

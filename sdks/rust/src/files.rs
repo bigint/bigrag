@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use reqwest::multipart::Part;
 
-use crate::error::RagComputerError;
+use crate::error::BigRagError;
 
 /// Input for file upload operations.
 ///
@@ -49,7 +49,7 @@ impl FileInput {
     }
 
     /// Convert into a `reqwest::multipart::Part` for upload.
-    pub(crate) async fn into_multipart_part(self) -> Result<Part, RagComputerError> {
+    pub(crate) async fn into_multipart_part(self) -> Result<Part, BigRagError> {
         match self {
             Self::Path(path) => {
                 let name = path

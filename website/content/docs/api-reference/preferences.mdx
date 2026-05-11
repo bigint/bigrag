@@ -43,6 +43,6 @@ The body may be either `{"data": {...}}` or a bare object — both are accepted.
 
 **Response** `200`: echoes the merged public `data`.
 
-Sensitive paths such as `chat.openai_key` are Fernet-encrypted at rest when `RAG_COMPUTER_MASTER_KEY` is configured. Preference responses do not return the key; they return `chat.has_openai_key` instead.
+Sensitive paths such as `chat.openai_key` are Fernet-encrypted at rest when `BIGRAG_MASTER_KEY` is configured. Preference responses do not return the key; they return `chat.has_openai_key` instead.
 
 There is no size validation beyond the standard request-body limit, but keep payloads small (&lt;64 KB) — this isn't a document store.

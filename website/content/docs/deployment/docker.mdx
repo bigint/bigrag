@@ -1,6 +1,6 @@
 ---
 title: Docker
-description: Deploy rag.computer with Docker Compose.
+description: Deploy bigRAG with Docker Compose.
 ---
 
 import { Steps, Step } from "fumadocs-ui/components/steps";
@@ -13,7 +13,7 @@ import { Callout } from "fumadocs-ui/components/callout";
 ### Pull the image
 
 ```bash
-docker pull yoginth/rag-computer:2026.4.30
+docker pull yoginth/bigrag:2026.4.30
 ```
 </Step>
 <Step>
@@ -23,7 +23,7 @@ docker pull yoginth/rag-computer:2026.4.30
 docker compose up -d
 ```
 
-This starts rag.computer API, Postgres, Redis, and Qdrant.
+This starts bigRAG API, Postgres, Redis, and Qdrant.
 </Step>
 <Step>
 ### Verify
@@ -40,20 +40,20 @@ The default `docker-compose.yml` runs Qdrant as a single service. Qdrant does no
 
 ```yaml
 services:
-  rag-computer:
-    image: yoginth/rag-computer:2026.4.30
+  bigrag:
+    image: yoginth/bigrag:2026.4.30
     ports:
       - "4000:4000"
     volumes:
-      - rag_computer_data:/data
+      - bigrag_data:/data
     environment:
-      RAG_COMPUTER_ENV: "${RAG_COMPUTER_ENV:-dev}"
-      RAG_COMPUTER_DATABASE_URL: postgres://rag_computer:rag_computer@postgres:5432/rag_computer?sslmode=disable
-      RAG_COMPUTER_QDRANT_URL: http://qdrant:6333
-      RAG_COMPUTER_REDIS_URL: redis://redis:6379/0
-      RAG_COMPUTER_SESSION_COOKIE_SECURE: "${RAG_COMPUTER_SESSION_COOKIE_SECURE:-false}"
-      RAG_COMPUTER_CORS_ORIGINS: '${RAG_COMPUTER_CORS_ORIGINS:-["http://localhost:3000"]}'
-      RAG_COMPUTER_UPLOAD_DIR: /data/uploads
+      BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
+      BIGRAG_DATABASE_URL: postgres://bigrag:bigrag@postgres:5432/bigrag?sslmode=disable
+      BIGRAG_QDRANT_URL: http://qdrant:6333
+      BIGRAG_REDIS_URL: redis://redis:6379/0
+      BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
+      BIGRAG_CORS_ORIGINS: '${BIGRAG_CORS_ORIGINS:-["http://localhost:3000"]}'
+      BIGRAG_UPLOAD_DIR: /data/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,13 +65,13 @@ services:
   postgres:
     image: postgres:17
     environment:
-      POSTGRES_USER: rag_computer
-      POSTGRES_PASSWORD: rag_computer
-      POSTGRES_DB: rag_computer
+      POSTGRES_USER: bigrag
+      POSTGRES_PASSWORD: bigrag
+      POSTGRES_DB: bigrag
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rag_computer"]
+      test: ["CMD-SHELL", "pg_isready -U bigrag"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -96,7 +96,7 @@ services:
       retries: 5
 
 volumes:
-  rag_computer_data:
+  bigrag_data:
   postgres_data:
   qdrant_data:
   redis_data:
@@ -107,24 +107,24 @@ volumes:
 The admin UI is a static Vite app served by Nginx. Build it from the repository root:
 
 ```bash
-docker build -f app/Dockerfile -t rag-computer-admin-ui .
+docker build -f app/Dockerfile -t bigrag-admin-ui .
 ```
 
 Run it with the API URL and matching backend CORS origin:
 
 ```bash
 docker run --rm -p 3000:3000 \
-  -e RAG_COMPUTER_URL=http://localhost:4000 \
-  rag-computer-admin-ui
+  -e BIGRAG_URL=http://localhost:4000 \
+  bigrag-admin-ui
 ```
 
-Set `RAG_COMPUTER_CORS_ORIGINS='["http://localhost:3000"]'` on the API when running the UI locally. In production, set the exact public admin UI origin and use secure cookies.
+Set `BIGRAG_CORS_ORIGINS='["http://localhost:3000"]'` on the API when running the UI locally. In production, set the exact public admin UI origin and use secure cookies.
 
 ## Service Ports
 
 | Service | Default Port |
 |---------|-------------|
-| rag.computer API | 4000 |
+| bigRAG API | 4000 |
 | PostgreSQL | 5432 |
 | Qdrant HTTP | 6333 |
 | Qdrant gRPC | 6334 |
@@ -132,7 +132,7 @@ Set `RAG_COMPUTER_CORS_ORIGINS='["http://localhost:3000"]'` on the API when runn
 
 ## Health Checks
 
-rag.computer exposes two health endpoints:
+bigRAG exposes two health endpoints:
 
 | Endpoint | Purpose | Notes |
 |----------|---------|-------|
@@ -147,9 +147,9 @@ curl http://localhost:4000/health
 curl http://localhost:4000/health/ready
 
 # Infrastructure services
-docker exec rag-computer-postgres pg_isready -U rag_computer
+docker exec bigrag-postgres pg_isready -U bigrag
 curl -f http://localhost:6333/healthz
-docker exec rag-computer-redis redis-cli ping
+docker exec bigrag-redis redis-cli ping
 ```
 
 <Callout type="warn">

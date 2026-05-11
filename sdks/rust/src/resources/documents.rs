@@ -1,8 +1,8 @@
 use reqwest::multipart::Form;
 
-use crate::client::RagComputer;
+use crate::client::BigRag;
 use crate::core::urlencode;
-use crate::error::RagComputerError;
+use crate::error::BigRagError;
 use crate::files::FileInput;
 use crate::types::common::StatusResponse;
 use crate::types::documents::{
@@ -13,7 +13,7 @@ use crate::types::documents::{
 
 /// Documents resource — upload, manage, and retrieve documents.
 pub struct Documents<'a> {
-    pub(crate) client: &'a RagComputer,
+    pub(crate) client: &'a BigRag,
 }
 
 impl Documents<'_> {
@@ -23,7 +23,7 @@ impl Documents<'_> {
         collection: &str,
         file: impl Into<FileInput>,
         metadata: Option<serde_json::Value>,
-    ) -> Result<Document, RagComputerError> {
+    ) -> Result<Document, BigRagError> {
         let file_input: FileInput = file.into();
         let part = file_input.into_multipart_part().await?;
         let mut form = Form::new().part("file", part);
@@ -40,7 +40,7 @@ impl Documents<'_> {
         collection: &str,
         files: Vec<FileInput>,
         metadata: Option<serde_json::Value>,
-    ) -> Result<DocumentListResponse, RagComputerError> {
+    ) -> Result<DocumentListResponse, BigRagError> {
         let mut form = Form::new();
         for file_input in files {
             let part = file_input.into_multipart_part().await?;
@@ -61,7 +61,7 @@ impl Documents<'_> {
         &self,
         collection: &str,
         body: UploadSessionCreateRequest,
-    ) -> Result<UploadSession, RagComputerError> {
+    ) -> Result<UploadSession, BigRagError> {
         let path = format!("/v1/collections/{}/upload-sessions", urlencode(collection));
         self.client.transport.post(&path, &body).await
     }
@@ -71,7 +71,7 @@ impl Documents<'_> {
         &self,
         collection: &str,
         session_id: &str,
-    ) -> Result<UploadSession, RagComputerError> {
+    ) -> Result<UploadSession, BigRagError> {
         let path = format!(
             "/v1/collections/{}/upload-sessions/{}",
             urlencode(collection),
@@ -87,7 +87,7 @@ impl Documents<'_> {
         session_id: &str,
         file: impl Into<FileInput>,
         client_item_id: Option<&str>,
-    ) -> Result<UploadSessionFileResponse, RagComputerError> {
+    ) -> Result<UploadSessionFileResponse, BigRagError> {
         let file_input: FileInput = file.into();
         let part = file_input.into_multipart_part().await?;
         let mut form = Form::new().part("file", part);
@@ -107,7 +107,7 @@ impl Documents<'_> {
         &self,
         collection: &str,
         session_id: &str,
-    ) -> Result<UploadSession, RagComputerError> {
+    ) -> Result<UploadSession, BigRagError> {
         let path = format!(
             "/v1/collections/{}/upload-sessions/{}/complete",
             urlencode(collection),
@@ -124,7 +124,7 @@ impl Documents<'_> {
         &self,
         collection: &str,
         session_id: &str,
-    ) -> Result<StatusResponse, RagComputerError> {
+    ) -> Result<StatusResponse, BigRagError> {
         let path = format!(
             "/v1/collections/{}/upload-sessions/{}/cancel",
             urlencode(collection),
@@ -141,7 +141,7 @@ impl Documents<'_> {
         &self,
         collection: &str,
         options: Option<DocumentListOptions>,
-    ) -> Result<DocumentListResponse, RagComputerError> {
+    ) -> Result<DocumentListResponse, BigRagError> {
         let mut query = Vec::new();
         if let Some(opts) = options {
             if let Some(status) = opts.status {
@@ -159,11 +159,7 @@ impl Documents<'_> {
     }
 
     /// Get a document by ID within a collection.
-    pub async fn get(
-        &self,
-        collection: &str,
-        document_id: &str,
-    ) -> Result<Document, RagComputerError> {
+    pub async fn get(&self, collection: &str, document_id: &str) -> Result<Document, BigRagError> {
         let path = format!(
             "/v1/collections/{}/documents/{}",
             urlencode(collection),
@@ -177,7 +173,7 @@ impl Documents<'_> {
         &self,
         collection: &str,
         document_id: &str,
-    ) -> Result<StatusResponse, RagComputerError> {
+    ) -> Result<StatusResponse, BigRagError> {
         let path = format!(
             "/v1/collections/{}/documents/{}",
             urlencode(collection),
@@ -191,7 +187,7 @@ impl Documents<'_> {
         &self,
         collection: &str,
         document_id: &str,
-    ) -> Result<StatusResponse, RagComputerError> {
+    ) -> Result<StatusResponse, BigRagError> {
         let path = format!(
             "/v1/collections/{}/documents/{}/reprocess",
             urlencode(collection),
@@ -208,7 +204,7 @@ impl Documents<'_> {
         &self,
         collection: &str,
         document_id: &str,
-    ) -> Result<DocumentChunkListResponse, RagComputerError> {
+    ) -> Result<DocumentChunkListResponse, BigRagError> {
         self.get_chunks_with_options(collection, document_id, None)
             .await
     }
@@ -219,7 +215,7 @@ impl Documents<'_> {
         collection: &str,
         document_id: &str,
         options: Option<DocumentChunkOptions>,
-    ) -> Result<DocumentChunkListResponse, RagComputerError> {
+    ) -> Result<DocumentChunkListResponse, BigRagError> {
         let mut query = Vec::new();
         if let Some(opts) = options {
             if let Some(limit) = opts.limit {
@@ -255,7 +251,7 @@ impl Documents<'_> {
         &self,
         collection: &str,
         document_ids: &[&str],
-    ) -> Result<BatchStatusResponse, RagComputerError> {
+    ) -> Result<BatchStatusResponse, BigRagError> {
         let path = format!(
             "/v1/collections/{}/documents/batch/status",
             urlencode(collection)
@@ -271,7 +267,7 @@ impl Documents<'_> {
         &self,
         collection: &str,
         document_ids: &[&str],
-    ) -> Result<BatchGetDocumentsResponse, RagComputerError> {
+    ) -> Result<BatchGetDocumentsResponse, BigRagError> {
         let path = format!(
             "/v1/collections/{}/documents/batch/get",
             urlencode(collection)
@@ -287,7 +283,7 @@ impl Documents<'_> {
         &self,
         collection: &str,
         document_ids: &[&str],
-    ) -> Result<BatchDeleteDocumentsResponse, RagComputerError> {
+    ) -> Result<BatchDeleteDocumentsResponse, BigRagError> {
         let path = format!(
             "/v1/collections/{}/documents/batch/delete",
             urlencode(collection)
@@ -299,7 +295,7 @@ impl Documents<'_> {
     }
 
     /// Get a document by ID (global, no collection scope).
-    pub async fn get_by_id(&self, document_id: &str) -> Result<Document, RagComputerError> {
+    pub async fn get_by_id(&self, document_id: &str) -> Result<Document, BigRagError> {
         let path = format!("/v1/documents/{}", urlencode(document_id));
         self.client.transport.get(&path, vec![]).await
     }
@@ -308,7 +304,7 @@ impl Documents<'_> {
     pub async fn get_chunks_by_id(
         &self,
         document_id: &str,
-    ) -> Result<DocumentChunkListResponse, RagComputerError> {
+    ) -> Result<DocumentChunkListResponse, BigRagError> {
         self.get_chunks_by_id_with_options(document_id, None).await
     }
 
@@ -317,7 +313,7 @@ impl Documents<'_> {
         &self,
         document_id: &str,
         options: Option<DocumentChunkOptions>,
-    ) -> Result<DocumentChunkListResponse, RagComputerError> {
+    ) -> Result<DocumentChunkListResponse, BigRagError> {
         let mut query = Vec::new();
         if let Some(opts) = options {
             if let Some(limit) = opts.limit {

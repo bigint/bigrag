@@ -72,11 +72,11 @@ POST /admin/settings/test
 Validates the submitted values without saving them. Storage settings run a lightweight backend construction/probe when S3 is selected. Backup settings run a lightweight S3-compatible bucket probe.
 
 ```json
-{ "values": { "storage_backend": "s3", "storage_s3_bucket": "rag-computer-documents" } }
+{ "values": { "storage_backend": "s3", "storage_s3_bucket": "bigrag-documents" } }
 ```
 
 ```json
-{ "values": { "backup_s3_bucket": "rag-computer-backups", "backup_s3_endpoint_url": "https://ACCOUNT.r2.cloudflarestorage.com", "backup_s3_region": "auto" } }
+{ "values": { "backup_s3_bucket": "bigrag-backups", "backup_s3_endpoint_url": "https://ACCOUNT.r2.cloudflarestorage.com", "backup_s3_region": "auto" } }
 ```
 
 ## Reset Settings

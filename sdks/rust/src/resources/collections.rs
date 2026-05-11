@@ -1,6 +1,6 @@
-use crate::client::RagComputer;
+use crate::client::BigRag;
 use crate::core::urlencode;
-use crate::error::RagComputerError;
+use crate::error::BigRagError;
 use crate::sse::SseStream;
 use crate::types::collections::{
     Collection, CollectionListOptions, CollectionListResponse, CollectionStatsResponse,
@@ -8,9 +8,9 @@ use crate::types::collections::{
 };
 use crate::types::common::StatusResponse;
 
-/// Collections resource — manage rag.computer collections.
+/// Collections resource — manage bigRAG collections.
 pub struct Collections<'a> {
-    pub(crate) client: &'a RagComputer,
+    pub(crate) client: &'a BigRag,
 }
 
 impl Collections<'_> {
@@ -18,7 +18,7 @@ impl Collections<'_> {
     pub async fn list(
         &self,
         options: Option<CollectionListOptions>,
-    ) -> Result<CollectionListResponse, RagComputerError> {
+    ) -> Result<CollectionListResponse, BigRagError> {
         let mut query = Vec::new();
         if let Some(opts) = options {
             if let Some(name) = opts.name {
@@ -35,13 +35,13 @@ impl Collections<'_> {
     }
 
     /// Get a collection by name.
-    pub async fn get(&self, name: &str) -> Result<Collection, RagComputerError> {
+    pub async fn get(&self, name: &str) -> Result<Collection, BigRagError> {
         let path = format!("/v1/collections/{}", urlencode(name));
         self.client.transport.get(&path, vec![]).await
     }
 
     /// Create a new collection.
-    pub async fn create(&self, body: CreateCollectionBody) -> Result<Collection, RagComputerError> {
+    pub async fn create(&self, body: CreateCollectionBody) -> Result<Collection, BigRagError> {
         self.client.transport.post("/v1/collections", &body).await
     }
 
@@ -50,25 +50,25 @@ impl Collections<'_> {
         &self,
         name: &str,
         body: UpdateCollectionBody,
-    ) -> Result<Collection, RagComputerError> {
+    ) -> Result<Collection, BigRagError> {
         let path = format!("/v1/collections/{}", urlencode(name));
         self.client.transport.put(&path, &body).await
     }
 
     /// Delete a collection and all its data.
-    pub async fn delete(&self, name: &str) -> Result<StatusResponse, RagComputerError> {
+    pub async fn delete(&self, name: &str) -> Result<StatusResponse, BigRagError> {
         let path = format!("/v1/collections/{}", urlencode(name));
         self.client.transport.delete(&path).await
     }
 
     /// Get collection statistics.
-    pub async fn stats(&self, name: &str) -> Result<CollectionStatsResponse, RagComputerError> {
+    pub async fn stats(&self, name: &str) -> Result<CollectionStatsResponse, BigRagError> {
         let path = format!("/v1/collections/{}/stats", urlencode(name));
         self.client.transport.get(&path, vec![]).await
     }
 
     /// Truncate a collection (delete all documents but keep the collection).
-    pub async fn truncate(&self, name: &str) -> Result<StatusResponse, RagComputerError> {
+    pub async fn truncate(&self, name: &str) -> Result<StatusResponse, BigRagError> {
         let path = format!("/v1/collections/{}/truncate", urlencode(name));
         self.client
             .transport
@@ -77,7 +77,7 @@ impl Collections<'_> {
     }
 
     /// Queue all ready/failed documents in a collection for re-embedding.
-    pub async fn reembed(&self, name: &str) -> Result<StatusResponse, RagComputerError> {
+    pub async fn reembed(&self, name: &str) -> Result<StatusResponse, BigRagError> {
         let path = format!("/v1/collections/{}/reembed", urlencode(name));
         self.client
             .transport
@@ -86,7 +86,7 @@ impl Collections<'_> {
     }
 
     /// Stream real-time events for a collection via SSE.
-    pub async fn stream_events(&self, name: &str) -> Result<SseStream, RagComputerError> {
+    pub async fn stream_events(&self, name: &str) -> Result<SseStream, BigRagError> {
         let path = format!("/v1/collections/{}/events", urlencode(name));
         let response = self.client.transport.get_stream(&path).await?;
         Ok(SseStream::new(response))

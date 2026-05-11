@@ -18,7 +18,7 @@ import {
   useUpdateCollection,
 } from "@/hooks/use-collections";
 import { ALL_FILE_TYPES, FILE_TYPE_CATEGORIES, getAllowedFileTypes } from "@/lib/file-types";
-import type { Collection } from "@/types/rag-computer";
+import type { Collection } from "@/types/bigrag";
 
 export const Route = createFileRoute("/_dashboard/collections/$name/settings")({
   component: () => <CollectionSettings />,

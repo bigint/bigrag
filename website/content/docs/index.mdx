@@ -1,11 +1,11 @@
 ---
 title: Introduction
-description: rag.computer is an open-source, self-hostable RAG platform for document ingestion, vector search, and retrieval-augmented generation.
+description: bigRAG is an open-source, self-hostable RAG platform for document ingestion, vector search, and retrieval-augmented generation.
 ---
 
 import { Cards, Card } from "fumadocs-ui/components/card";
 
-rag.computer is an open-source RAG (Retrieval-Augmented Generation) platform. It provides a complete pipeline for document ingestion, chunking, embedding, and vector search — behind a REST API, TypeScript / Python / Rust SDKs, an admin UI, and an MCP server for Claude Desktop, Cursor, and any MCP-aware runtime.
+bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provides a complete pipeline for document ingestion, chunking, embedding, and vector search — behind a REST API, TypeScript / Python / Rust SDKs, an admin UI, and an MCP server for Claude Desktop, Cursor, and any MCP-aware runtime.
 
 ## Key Features
 
@@ -14,7 +14,7 @@ rag.computer is an open-source RAG (Retrieval-Augmented Generation) platform. It
 - **Any embedding model** — OpenAI, Cohere, Voyage, or `openai_compatible` gateways (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) configured per collection
 - **Three search modes** — semantic, keyword, and hybrid, with optional Cohere reranking
 - **Qdrant vector database** — HNSW vector search with tenant-aware payload indexes
-- **First-class auth** — admin accounts, session cookies, scoped `ragc_sk_…` API keys, and full audit/access logs
+- **First-class auth** — admin accounts, session cookies, scoped `bigrag_sk_…` API keys, and full audit/access logs
 - **Operational features** — batch ingestion, Google Drive sync, webhooks with HMAC signatures, metadata-schema validation, an evaluation runner, and per-collection query analytics
 - **Admin UI** — first-run setup, collection browser, persistent chat, connector management, access logs, MCP credentials, and API-key minting
 - **Self-hostable** — Docker Compose, no external dependencies
@@ -23,10 +23,10 @@ rag.computer is an open-source RAG (Retrieval-Augmented Generation) platform. It
 ## Architecture
 
 <Mermaid chart='graph TD
-    MCP([MCP client / Claude / Cursor]) -->|rag-computer-mcp| API
+    MCP([MCP client / Claude / Cursor]) -->|bigrag-mcp| API
     AdminUI([Admin UI]) -->|session cookie| API
-    SDK([TS / Python / Rust SDK]) -->|ragc_sk_… key| API
-    API[rag.computer API]
+    SDK([TS / Python / Rust SDK]) -->|bigrag_sk_… key| API
+    API[bigRAG API]
     API --> Auth[Auth & audit]
     API --> Collections[Collections]
     API --> Documents[Documents]
@@ -51,7 +51,7 @@ rag.computer is an open-source RAG (Retrieval-Augmented Generation) platform. It
 
 | Component | Purpose | Default Address |
 |-----------|---------|-----------------|
-| **rag.computer API** | REST API server (FastAPI) | `http://localhost:4000` |
+| **bigRAG API** | REST API server (FastAPI) | `http://localhost:4000` |
 | **Admin UI** | Admin web app | `http://localhost:3000` |
 | **PostgreSQL** | Users, sessions, API keys, metadata, audit | `localhost:5432` |
 | **Qdrant** | Vector storage and search | `localhost:6333` |
@@ -61,7 +61,7 @@ rag.computer is an open-source RAG (Retrieval-Augmented Generation) platform. It
 
 <Cards>
   <Card title="Installation" href="/docs/getting-started/installation">
-    Set up rag.computer on your machine
+    Set up bigRAG on your machine
   </Card>
   <Card title="Quickstart" href="/docs/getting-started/quickstart">
     Upload and search your first document in minutes
@@ -79,7 +79,7 @@ rag.computer is an open-source RAG (Retrieval-Augmented Generation) platform. It
     Zero-dependency client with full type safety
   </Card>
   <Card title="MCP Server" href="/docs/sdks/mcp">
-    Plug rag.computer into Claude Desktop, Cursor, or any MCP runtime
+    Plug bigRAG into Claude Desktop, Cursor, or any MCP runtime
   </Card>
   <Card title="Deployment" href="/docs/deployment/docker">
     Deploy with Docker Compose

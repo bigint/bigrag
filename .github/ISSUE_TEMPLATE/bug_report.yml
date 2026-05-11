@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible bug in rag.computer
+description: Report a reproducible bug in bigRAG
 labels: ["bug"]
 body:
   - type: markdown
@@ -34,14 +34,14 @@ body:
   - type: input
     id: version
     attributes:
-      label: rag.computer version
+      label: bigRAG version
       placeholder: "0.1.x or commit SHA"
     validations:
       required: true
   - type: dropdown
     id: install
     attributes:
-      label: How did you install rag.computer?
+      label: How did you install bigRAG?
       options:
         - Docker / docker compose
         - From source
@@ -62,5 +62,5 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: Relevant logs. Set `RAG_COMPUTER_LOG_LEVEL=debug` for detailed output.
+      description: Relevant logs. Set `BIGRAG_LOG_LEVEL=debug` for detailed output.
       render: shell

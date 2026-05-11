@@ -1,12 +1,12 @@
-# rag.computer Platform Monorepo - Claude Instructions
+# bigRAG Platform Monorepo - Claude Instructions
 
 ## Project Structure
 
 - `api/` — Python/FastAPI backend (Docling ingestion + Qdrant vector DB)
-- `sdks/typescript/` — TypeScript SDK (`@rag.computer/client`)
-- `sdks/python/` — Python SDK (`rag-computer`)
-- `sdks/rust/` — Rust SDK (`rag-computer`)
-- `app/` — admin UI (Vite + TanStack Router + Tailwind v4 + Base UI, `@rag.computer/app`)
+- `sdks/typescript/` — TypeScript SDK (`@bigrag/client`)
+- `sdks/python/` — Python SDK (`bigrag`)
+- `sdks/rust/` — Rust SDK (`bigrag`)
+- `app/` — admin UI (Vite + TanStack Router + Tailwind v4 + Base UI, `@bigrag/app`)
 - `website/` — Documentation site (Next.js + Fumadocs, content in `website/content/docs/`)
 
 ## Style Guide
@@ -15,7 +15,7 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 
 ### No comments
 
-Don't write comments or docstrings in code under `api/rag_computer/`, `sdks/typescript/src/`, `app/`, or `website/`. This includes `#`, `//`, `/* */`, `/** */` JSDoc, and Python `"""docstrings"""`. The diff and well-named identifiers should speak for themselves; surprising invariants belong in commit messages or PR descriptions, not in the code. The only allowed exceptions are functional directives — shebangs, `# type: ignore`, `# ruff:`, `// @ts-…`, `// biome-ignore`, `// eslint-…`, and similar tool pragmas. If you find yourself wanting to explain code, rename or restructure it instead.
+Don't write comments or docstrings in code under `api/bigrag/`, `sdks/typescript/src/`, `app/`, or `website/`. This includes `#`, `//`, `/* */`, `/** */` JSDoc, and Python `"""docstrings"""`. The diff and well-named identifiers should speak for themselves; surprising invariants belong in commit messages or PR descriptions, not in the code. The only allowed exceptions are functional directives — shebangs, `# type: ignore`, `# ruff:`, `// @ts-…`, `// biome-ignore`, `// eslint-…`, and similar tool pragmas. If you find yourself wanting to explain code, rename or restructure it instead.
 
 ## Tech Stack
 
@@ -82,12 +82,12 @@ cd api && uv run pytest tests/ --cov --cov-report=term-missing
 cd sdks/python && uv run pytest --cov --cov-report=term-missing
 
 # TypeScript SDK
-pnpm --filter @rag.computer/client test
-pnpm --filter @rag.computer/client coverage
+pnpm --filter @bigrag/client test
+pnpm --filter @bigrag/client coverage
 
 # Admin UI
-pnpm --filter @rag.computer/app test
-pnpm --filter @rag.computer/app coverage
+pnpm --filter @bigrag/app test
+pnpm --filter @bigrag/app coverage
 
 # Rust SDK
 cargo test --manifest-path sdks/rust/Cargo.toml
@@ -98,8 +98,8 @@ If coverage tooling is unavailable, still run the package tests and call out the
 
 ## Architecture Notes
 
-- Backend uses FastAPI dependency injection via `rag_computer/deps.py` and `app.state`
-- Database layer lives in `rag_computer/db/`: `engine.py` (async engine), `session.py`
+- Backend uses FastAPI dependency injection via `bigrag/deps.py` and `app.state`
+- Database layer lives in `bigrag/db/`: `engine.py` (async engine), `session.py`
   (FastAPI `get_session` dependency), `models.py` (all 13 ORM models), `bootstrap.py`
   (stamp-or-upgrade on startup). Schema changes go through Alembic (`api/alembic/`)
 - Services: `event_bus.py` (SSE), `ingestion_job.py` (job model), `conversion.py` (Docling), `cleanup.py` (periodic), `queue.py` (Redis workers)
@@ -136,9 +136,9 @@ pnpm dev:app        # admin UI on localhost:3000
 
 ## MCP server
 
-The `rag-computer-mcp` entry point (`api/rag_computer/mcp_server.py`) wraps the REST
+The `bigrag-mcp` entry point (`api/bigrag/mcp_server.py`) wraps the REST
 API as MCP tools for Claude Desktop / Cursor / etc. It's an HTTP client,
-not an in-process bolt-on — auth is via `RAG_COMPUTER_API_KEY`. When adding or
+not an in-process bolt-on — auth is via `BIGRAG_API_KEY`. When adding or
 renaming an API endpoint that retrieval clients care about, update the
 matching tool in `mcp_server.py` and the docs at
 `website/content/docs/sdks/mcp.mdx`.
@@ -146,6 +146,6 @@ matching tool in `mcp_server.py` and the docs at
 ## Auth model
 
 Auth is admin-account + session cookie (admin UI) or minted API keys
-(`ragc_sk_...`, external clients). First admin is created via the admin UI's
+(`bigrag_sk_...`, external clients). First admin is created via the admin UI's
 `/setup` page; subsequent admins via `/users`; API keys via `/api-keys`. There
 is no shared-secret env var — do not introduce one.

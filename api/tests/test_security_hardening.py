@@ -5,18 +5,18 @@ from types import SimpleNamespace
 
 import pytest
 
-from rag_computer.config import Settings
-from rag_computer.routers.connectors import _redirect_uri
-from rag_computer.services import runtime_settings, url_security
-from rag_computer.services.event_tokens import create_event_token, validate_event_token
-from rag_computer.services.url_security import UnsafeOutboundUrlError, validate_outbound_url_sync
-from rag_computer.startup_guard import check_production_safety
+from bigrag.config import Settings
+from bigrag.routers.connectors import _redirect_uri
+from bigrag.services import runtime_settings, url_security
+from bigrag.services.event_tokens import create_event_token, validate_event_token
+from bigrag.services.url_security import UnsafeOutboundUrlError, validate_outbound_url_sync
+from bigrag.startup_guard import check_production_safety
 
 
 def test_prod_guard_rejects_public_bind_without_confirmation() -> None:
     settings = Settings(
         env="prod",
-        database_url="postgres://rag_computer:secret@localhost:5432/rag_computer",
+        database_url="postgres://bigrag:secret@localhost:5432/bigrag",
         master_key="present",
         session_cookie_secure=True,
         host="0.0.0.0",
@@ -29,7 +29,7 @@ def test_prod_guard_rejects_public_bind_without_confirmation() -> None:
 def test_prod_guard_rejects_cookie_domain_without_trusted_proxy() -> None:
     settings = Settings(
         env="prod",
-        database_url="postgres://rag_computer:secret@localhost:5432/rag_computer",
+        database_url="postgres://bigrag:secret@localhost:5432/bigrag",
         master_key="present",
         session_cookie_secure=True,
         host="127.0.0.1",
@@ -44,7 +44,7 @@ def test_prod_guard_rejects_cookie_domain_without_trusted_proxy() -> None:
 def test_prod_guard_allows_hardened_prod_config() -> None:
     settings = Settings(
         env="prod",
-        database_url="postgres://rag_computer:secret@localhost:5432/rag_computer",
+        database_url="postgres://bigrag:secret@localhost:5432/bigrag",
         master_key="present",
         session_cookie_secure=True,
         host="0.0.0.0",
@@ -208,8 +208,8 @@ def test_outbound_url_runtime_wrappers(monkeypatch) -> None:
     async def get_value(_key):
         return True
 
-    monkeypatch.setattr("rag_computer.services.runtime_settings.get_values", get_values)
-    monkeypatch.setattr("rag_computer.services.runtime_settings.get_value", get_value)
+    monkeypatch.setattr("bigrag.services.runtime_settings.get_values", get_values)
+    monkeypatch.setattr("bigrag.services.runtime_settings.get_value", get_value)
 
     assert asyncio.run(url_security.validate_embedding_base_url(None)) is None
     assert asyncio.run(url_security.validate_chat_base_url(None)) is None
@@ -247,7 +247,7 @@ def test_event_tokens_are_collection_bound(monkeypatch) -> None:
             self.expires = (key, ex)
 
     redis = Redis()
-    monkeypatch.setattr("rag_computer.services.event_tokens.get_redis", lambda: redis)
+    monkeypatch.setattr("bigrag.services.event_tokens.get_redis", lambda: redis)
 
     token = asyncio.run(create_event_token({"id": "user"}, "docs"))
 

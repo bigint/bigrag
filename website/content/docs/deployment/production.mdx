@@ -7,17 +7,17 @@ import { Callout } from "fumadocs-ui/components/callout";
 
 ## Production hardening checklist
 
-Tick these off before pointing real traffic at a rag.computer deployment:
+Tick these off before pointing real traffic at a bigRAG deployment:
 
-- [ ] `RAG_COMPUTER_ENV=prod` — enables the startup guard.
-- [ ] `RAG_COMPUTER_MASTER_KEY` set to a 32-byte Fernet key (see [Encryption at rest](/docs/deployment/encryption)).
-- [ ] Rotate `POSTGRES_PASSWORD` from the shipped default (`rag-computer`).
-- [ ] `RAG_COMPUTER_SESSION_COOKIE_SECURE=true` and terminate TLS at your
+- [ ] `BIGRAG_ENV=prod` — enables the startup guard.
+- [ ] `BIGRAG_MASTER_KEY` set to a 32-byte Fernet key (see [Encryption at rest](/docs/deployment/encryption)).
+- [ ] Rotate `POSTGRES_PASSWORD` from the shipped default (`bigrag`).
+- [ ] `BIGRAG_SESSION_COOKIE_SECURE=true` and terminate TLS at your
   reverse proxy (nginx, Caddy, Traefik, Cloudflare).
-- [ ] `RAG_COMPUTER_CORS_ORIGINS` set to an explicit list of your admin UI /
+- [ ] `BIGRAG_CORS_ORIGINS` set to an explicit list of your admin UI /
   app origins — no `*`.
-- [ ] `RAG_COMPUTER_TRUSTED_PROXIES` set to the CIDRs of your own reverse
-  proxies if rag.computer sits behind nginx, Caddy, Traefik, or a load balancer.
+- [ ] `BIGRAG_TRUSTED_PROXIES` set to the CIDRs of your own reverse
+  proxies if bigRAG sits behind nginx, Caddy, Traefik, or a load balancer.
 - [ ] Redis with `requirepass` set and `appendonly yes` persisted to
   a mounted volume.
 - [ ] Qdrant cluster mode, S3 Vectors, or turbopuffer if you expect >10M vectors or need managed HA.
@@ -33,39 +33,39 @@ Tick these off before pointing real traffic at a rag.computer deployment:
 
 ## Startup safety guard
 
-rag.computer refuses to boot when `RAG_COMPUTER_ENV=prod` is set **and** any of the following
-insecure defaults are still active. Setting `RAG_COMPUTER_ENV=prod` in production catches
+bigRAG refuses to boot when `BIGRAG_ENV=prod` is set **and** any of the following
+insecure defaults are still active. Setting `BIGRAG_ENV=prod` in production catches
 config mistakes that would otherwise ship silently:
 
-- `RAG_COMPUTER_SESSION_COOKIE_SECURE` is `false` — set to `true` so cookies are HTTPS-only.
-- `RAG_COMPUTER_DATABASE_URL` still uses the shipped `rag_computer:rag_computer` credentials — rotate the Postgres password.
-- `RAG_COMPUTER_MASTER_KEY` is unset — rag.computer needs a Fernet key to envelope-encrypt provider credentials, embedding-cache rows, and Redis cache payloads. See [Encryption at rest](/docs/deployment/encryption).
-- `RAG_COMPUTER_HOST` binds to `0.0.0.0` or `::` without `RAG_COMPUTER_ALLOW_PUBLIC_BIND_IN_PROD=true` after you have confirmed the service sits behind TLS and a network boundary.
-- `RAG_COMPUTER_SESSION_COOKIE_DOMAIN` is set while `RAG_COMPUTER_TRUSTED_PROXIES` is empty.
+- `BIGRAG_SESSION_COOKIE_SECURE` is `false` — set to `true` so cookies are HTTPS-only.
+- `BIGRAG_DATABASE_URL` still uses the shipped `bigrag:bigrag` credentials — rotate the Postgres password.
+- `BIGRAG_MASTER_KEY` is unset — bigRAG needs a Fernet key to envelope-encrypt provider credentials, embedding-cache rows, and Redis cache payloads. See [Encryption at rest](/docs/deployment/encryption).
+- `BIGRAG_HOST` binds to `0.0.0.0` or `::` without `BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD=true` after you have confirmed the service sits behind TLS and a network boundary.
+- `BIGRAG_SESSION_COOKIE_DOMAIN` is set while `BIGRAG_TRUSTED_PROXIES` is empty.
 
 When the guard trips, it logs every violation before exiting so you can fix the whole
 list in one edit. If you intentionally want to run with the development defaults (e.g.
-on a private network behind a VPN), leave `RAG_COMPUTER_ENV` unset or set it to `dev`.
+on a private network behind a VPN), leave `BIGRAG_ENV` unset or set it to `dev`.
 
 ## Production Docker Compose
 
 ```yaml
 services:
-  rag-computer:
-    image: yoginth/rag-computer:2026.4.30
+  bigrag:
+    image: yoginth/bigrag:2026.4.30
     ports:
       - "4000:4000"
     volumes:
-      - rag_computer_data:/data
+      - bigrag_data:/data
     environment:
-      RAG_COMPUTER_ENV: prod
-      RAG_COMPUTER_DATABASE_URL: postgres://rag_computer:strongpassword@postgres:5432/rag_computer
-      RAG_COMPUTER_QDRANT_URL: http://qdrant:6333
-      RAG_COMPUTER_REDIS_URL: redis://redis:6379/0
-      RAG_COMPUTER_SESSION_COOKIE_SECURE: "true"
-      RAG_COMPUTER_CORS_ORIGINS: '["https://admin.example.com"]'
-      RAG_COMPUTER_TRUSTED_PROXIES: '["10.0.0.0/8"]'
-      RAG_COMPUTER_UPLOAD_DIR: /data/uploads
+      BIGRAG_ENV: prod
+      BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
+      BIGRAG_QDRANT_URL: http://qdrant:6333
+      BIGRAG_REDIS_URL: redis://redis:6379/0
+      BIGRAG_SESSION_COOKIE_SECURE: "true"
+      BIGRAG_CORS_ORIGINS: '["https://admin.example.com"]'
+      BIGRAG_TRUSTED_PROXIES: '["10.0.0.0/8"]'
+      BIGRAG_UPLOAD_DIR: /data/uploads
     deploy:
       resources:
         limits:
@@ -82,9 +82,9 @@ services:
   postgres:
     image: postgres:17
     environment:
-      POSTGRES_USER: rag_computer
+      POSTGRES_USER: bigrag
       POSTGRES_PASSWORD: strongpassword
-      POSTGRES_DB: rag_computer
+      POSTGRES_DB: bigrag
     volumes:
       - postgres_data:/var/lib/postgresql/data
     deploy:
@@ -92,7 +92,7 @@ services:
         limits:
           memory: 1g
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rag_computer"]
+      test: ["CMD-SHELL", "pg_isready -U bigrag"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -125,7 +125,7 @@ services:
       retries: 5
 
 volumes:
-  rag_computer_data:
+  bigrag_data:
   postgres_data:
   qdrant_data:
   redis_data:
@@ -135,30 +135,30 @@ volumes:
 
 ```bash
 # Mode
-RAG_COMPUTER_ENV=prod                     # refuses to boot with insecure defaults
+BIGRAG_ENV=prod                     # refuses to boot with insecure defaults
 
 # Sessions
-RAG_COMPUTER_SESSION_COOKIE_SECURE=true   # HTTPS-only
-RAG_COMPUTER_SESSION_COOKIE_SAMESITE=lax      # use none when API and admin UI are cross-site
-RAG_COMPUTER_CORS_ORIGINS=["https://admin.example.com"]
-RAG_COMPUTER_TRUSTED_PROXIES=["10.0.0.0/8"]  # your reverse-proxy/load-balancer CIDRs
+BIGRAG_SESSION_COOKIE_SECURE=true   # HTTPS-only
+BIGRAG_SESSION_COOKIE_SAMESITE=lax      # use none when API and admin UI are cross-site
+BIGRAG_CORS_ORIGINS=["https://admin.example.com"]
+BIGRAG_TRUSTED_PROXIES=["10.0.0.0/8"]  # your reverse-proxy/load-balancer CIDRs
 
-# Auth is admin accounts + minted ragc_sk_ keys.
+# Auth is admin accounts + minted bigrag_sk_ keys.
 # Bootstrap with POST /v1/auth/setup, then mint service keys at /v1/admin/api-keys.
 
 # Infrastructure
-RAG_COMPUTER_DATABASE_URL=postgres://user:pass@host:5432/rag_computer?sslmode=require
-RAG_COMPUTER_REDIS_URL=redis://redis:6379/0
+BIGRAG_DATABASE_URL=postgres://user:pass@host:5432/bigrag?sslmode=require
+BIGRAG_REDIS_URL=redis://redis:6379/0
 
 # Performance
-RAG_COMPUTER_WORKERS=8                    # Match CPU cores
-RAG_COMPUTER_INGESTION_WORKERS=8          # More workers for heavy ingestion
-RAG_COMPUTER_DB_POOL_MAX=100              # Increase for high concurrency
-RAG_COMPUTER_EMBEDDING_CONCURRENCY=16     # Parallel embedding requests
-RAG_COMPUTER_QDRANT_SEARCH_EF=128         # Optional HNSW recall/latency tuning
+BIGRAG_WORKERS=8                    # Match CPU cores
+BIGRAG_INGESTION_WORKERS=8          # More workers for heavy ingestion
+BIGRAG_DB_POOL_MAX=100              # Increase for high concurrency
+BIGRAG_EMBEDDING_CONCURRENCY=16     # Parallel embedding requests
+BIGRAG_QDRANT_SEARCH_EF=128         # Optional HNSW recall/latency tuning
 
 # Storage
-RAG_COMPUTER_UPLOAD_DIR=/data/uploads
+BIGRAG_UPLOAD_DIR=/data/uploads
 ```
 
 <Callout type="warn">
@@ -202,16 +202,16 @@ are redacted before log rendering.
 Ensure all infrastructure services are running and healthy:
 
 ```bash
-docker exec rag-computer-postgres pg_isready -U rag_computer
+docker exec bigrag-postgres pg_isready -U bigrag
 curl -f http://localhost:6333/healthz
-docker exec rag-computer-redis redis-cli ping
+docker exec bigrag-redis redis-cli ping
 ```
 
 ### Documents stuck in "pending"
 
 - Verify Redis is running and accessible
 - Check backend logs for worker errors
-- Ensure `RAG_COMPUTER_INGESTION_WORKERS` is > 0
+- Ensure `BIGRAG_INGESTION_WORKERS` is > 0
 
 ### Dimension mismatch on query
 
@@ -219,7 +219,7 @@ The query embedding dimension doesn't match the collection's configured dimensio
 
 ### File upload returns 413
 
-File exceeds the max upload size. Increase `RAG_COMPUTER_MAX_UPLOAD_SIZE_MB`.
+File exceeds the max upload size. Increase `BIGRAG_MAX_UPLOAD_SIZE_MB`.
 
 ### `/health/ready` returns 503 but services are running
 
@@ -227,9 +227,9 @@ The readiness endpoint also checks the embedding provider. If no collection has 
 
 ### Document uploads fail with embedding errors
 
-Ensure the collection has a valid `embedding_api_key` set. You can provide it when creating the collection or set `RAG_COMPUTER_EMBEDDING_API_KEY` as a server-wide default.
+Ensure the collection has a valid `embedding_api_key` set. You can provide it when creating the collection or set `BIGRAG_EMBEDDING_API_KEY` as a server-wide default.
 
 ### Slow embedding performance
 
-- Increase `RAG_COMPUTER_INGESTION_BATCH_SIZE` for better throughput
-- Increase `RAG_COMPUTER_EMBEDDING_CONCURRENCY` for more parallelism
+- Increase `BIGRAG_INGESTION_BATCH_SIZE` for better throughput
+- Increase `BIGRAG_EMBEDDING_CONCURRENCY` for more parallelism

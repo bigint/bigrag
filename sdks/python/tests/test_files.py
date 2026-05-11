@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 
-from rag_computer._files import normalize_file_input
+from bigrag._files import normalize_file_input
 
 
 def test_normalize_file_input_reads_paths(tmp_path) -> None:

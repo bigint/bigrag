@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 from conftest import ExecuteRows, row
 
-from rag_computer.routers import health
+from bigrag.routers import health
 
 
 def run(coro):
@@ -175,7 +175,7 @@ def test_check_embedding_provider_caches_success_and_failures(monkeypatch) -> No
     monkeypatch.setattr(health, "_resolve_embedding_target", target)
     monkeypatch.setattr(health, "redis_cache", cache)
     monkeypatch.setattr(
-        "rag_computer.services.embedding.get_embedding_model",
+        "bigrag.services.embedding.get_embedding_model",
         lambda **_kwargs: FakeEmbeddingModel(),
     )
 
@@ -190,7 +190,7 @@ def test_check_embedding_provider_caches_success_and_failures(monkeypatch) -> No
     cache = FakeRedisCache()
     monkeypatch.setattr(health, "redis_cache", cache)
     monkeypatch.setattr(
-        "rag_computer.services.embedding.get_embedding_model",
+        "bigrag.services.embedding.get_embedding_model",
         lambda **_kwargs: FakeEmbeddingModel(fail=True),
     )
 

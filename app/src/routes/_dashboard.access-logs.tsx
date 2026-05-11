@@ -8,7 +8,7 @@ import { useAccessLogs, useAccessOverview } from "@/hooks/use-access-logs";
 import { useSession } from "@/hooks/use-auth";
 import { cn } from "@/lib/cn";
 import { formatNumber, formatRelative } from "@/lib/format";
-import type { AccessLogEntry } from "@/types/rag-computer";
+import type { AccessLogEntry } from "@/types/bigrag";
 
 export const Route = createFileRoute("/_dashboard/access-logs")({
   component: () => <AccessLogsPage />,

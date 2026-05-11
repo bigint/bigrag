@@ -10,7 +10,7 @@ import {
   useUpdateEmbeddingPreset,
 } from "@/hooks/use-embedding-presets";
 import { useEmbeddingModels } from "@/hooks/use-platform";
-import type { EmbeddingPreset } from "@/types/rag-computer";
+import type { EmbeddingPreset } from "@/types/bigrag";
 
 interface Props {
   open: boolean;

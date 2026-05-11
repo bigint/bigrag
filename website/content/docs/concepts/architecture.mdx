@@ -7,7 +7,7 @@ import { Callout } from "fumadocs-ui/components/callout";
 
 ## Four-store design
 
-rag.computer intentionally keeps four distinct stores instead of shoving
+bigRAG intentionally keeps four distinct stores instead of shoving
 everything into Postgres with pgvector. Each one earns its keep:
 
 - **Vector store** — Qdrant by default, with S3 Vectors and
@@ -25,7 +25,7 @@ everything into Postgres with pgvector. Each one earns its keep:
   re-uploading.
 
 <Callout type="info">
-rag.computer can run entirely from `docker compose up` on a single machine
+bigRAG can run entirely from `docker compose up` on a single machine
 with Qdrant. Managed cloud backends move vector operations out of the
 local deployment when you prefer AWS-native or turbopuffer-managed
 infrastructure.
@@ -86,7 +86,7 @@ semantic search and return a clear error for keyword or hybrid mode.
 Alternatives considered and why we didn't pick them:
 
 - **Unstructured.io** — great coverage but requires network calls and
-  a hosted inference server by default. rag.computer needs to run offline.
+  a hosted inference server by default. bigRAG needs to run offline.
 - **PyMuPDF + LangChain** — OK for PDFs but nothing else, and loses
   layout structure.
 - **LlamaParse** — hosted only.
@@ -101,7 +101,7 @@ local OCR for scanned PDFs is enabled by default.
 pgvector is tempting — one less store, one less deploy. But at scale
 the gap widens:
 
-- **Vector engine**: Qdrant gives rag.computer a dedicated HNSW vector
+- **Vector engine**: Qdrant gives bigRAG a dedicated HNSW vector
   store with payload-aware filtering and operational knobs such as
   search `ef`. pgvector can work well, but it shares capacity and
   tuning with the transactional database.
@@ -113,7 +113,7 @@ the gap widens:
   shared buffers during a large ANN scan.
 
 For single-tenant deployments under ~1M vectors, pgvector would work
-— and the `VectorStore` abstraction in rag.computer leaves a door open for
+— and the `VectorStore` abstraction in bigRAG leaves a door open for
 a future pgvector backend.
 
 ## Scaling notes
