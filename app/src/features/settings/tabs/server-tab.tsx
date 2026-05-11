@@ -1,8 +1,33 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useReadiness } from "@/hooks/use-platform";
 import { cn } from "@/lib/cn";
 
-const StatusRow = ({
+type Status = "ok" | "down" | "unknown";
+
+const statusOf = (ok: boolean | undefined): Status => {
+  if (ok === undefined) return "unknown";
+  return ok ? "ok" : "down";
+};
+
+const StatusPill = ({ status }: { status: Status }) => {
+  const map = {
+    ok: { dotColor: "bg-success", label: "Operational", text: "text-success" },
+    down: { dotColor: "bg-destructive", label: "Down", text: "text-destructive" },
+    unknown: {
+      dotColor: "bg-muted-foreground/40",
+      label: "Unknown",
+      text: "text-muted-foreground",
+    },
+  } as const;
+  const tone = map[status];
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium", tone.text)}>
+      <span className={cn("size-1.5 rounded-full", tone.dotColor)} />
+      {tone.label}
+    </span>
+  );
+};
+
+const HealthRow = ({
   label,
   ok,
   hint,
@@ -11,51 +36,64 @@ const StatusRow = ({
   ok: boolean | undefined;
   hint?: string | null;
 }) => (
-  <div className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
-    <div>
-      <div className="font-medium text-foreground">{label}</div>
-      {hint && <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>}
+  <div className="flex items-center justify-between gap-3 px-5 py-4">
+    <div className="min-w-0">
+      <div className="text-sm font-semibold text-foreground">{label}</div>
+      {hint && <div className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</div>}
     </div>
-    <span
-      className={cn(
-        "shrink-0 text-sm font-medium",
-        ok === undefined ? "text-muted-foreground" : ok ? "text-success" : "text-destructive",
-      )}
-    >
-      {ok === undefined ? "—" : ok ? "operational" : "down"}
-    </span>
+    <StatusPill status={statusOf(ok)} />
   </div>
 );
 
+const EnvRow = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex items-center justify-between gap-3 px-5 py-3">
+    <code className="font-mono text-xs text-foreground">{label}</code>
+    <span className="truncate text-xs text-muted-foreground">{value}</span>
+  </div>
+);
+
+const ENV_ROWS: ReadonlyArray<{ label: string; value: string }> = [
+  { label: "Postgres", value: "BIGRAG_DATABASE_URL" },
+  { label: "Redis", value: "BIGRAG_REDIS_URL" },
+  { label: "Vector store", value: "Admin Settings / Vector store" },
+  { label: "Encryption", value: "BIGRAG_MASTER_KEY" },
+  { label: "Bind address", value: "BIGRAG_HOST / BIGRAG_PORT" },
+  { label: "Split admin UI", value: "admin UI backend URL" },
+];
+
 export const ServerTab = () => {
   const { data: readiness, error } = useReadiness();
-  const status = readiness?.status ?? "unknown";
+  const overallStatus = readiness ? statusOf(readiness.status === "ok") : "unknown";
+  const version = readiness?.version;
 
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>System health</CardTitle>
-          <CardDescription>
-            {readiness
-              ? `Running bigRAG v${readiness.version} — status: ${status}`
-              : error
-                ? "Could not reach the API."
-                : "Checking readiness…"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2">
-          <StatusRow label="Postgres" ok={readiness?.postgres} />
-          <StatusRow
+      <section className="rounded-xl border border-border bg-card">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold tracking-normal">System health</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {readiness
+                ? `bigRAG v${version}`
+                : error
+                  ? "Could not reach the API."
+                  : "Checking readiness…"}
+            </p>
+          </div>
+          <StatusPill status={overallStatus} />
+        </header>
+        <div className="divide-y divide-border">
+          <HealthRow label="Postgres" ok={readiness?.postgres} />
+          <HealthRow label="Redis" ok={readiness?.redis} />
+          <HealthRow
             label={
               readiness?.vector_store_provider
-                ? `Vector store (${readiness.vector_store_provider})`
+                ? `Vector store · ${readiness.vector_store_provider}`
                 : "Vector store"
             }
             ok={readiness?.vector_store}
           />
-          <StatusRow label="Redis" ok={readiness?.redis} />
-          <StatusRow
+          <HealthRow
             label="Embeddings"
             ok={readiness?.embedding}
             hint={
@@ -64,35 +102,32 @@ export const ServerTab = () => {
                 ? "via embedding preset"
                 : readiness?.embedding_source === "collection"
                   ? "via collection-level key"
-                  : undefined)
+                  : null)
             }
           />
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bootstrap wiring</CardTitle>
-          <CardDescription>
+      <section className="rounded-xl border border-border bg-card">
+        <header className="flex flex-col gap-1 border-b border-border p-5">
+          <h3 className="text-sm font-semibold tracking-normal">Bootstrap wiring</h3>
+          <p className="text-xs text-muted-foreground">
             These coordinates must exist before the API can read database-backed settings.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
-          <EnvRow label="Postgres" value="BIGRAG_DATABASE_URL" />
-          <EnvRow label="Redis" value="BIGRAG_REDIS_URL" />
-          <EnvRow label="Vector store" value="Admin Settings / Vector store" />
-          <EnvRow label="Encryption" value="BIGRAG_MASTER_KEY" />
-          <EnvRow label="Bind address" value="BIGRAG_HOST / BIGRAG_PORT" />
-          <EnvRow label="Split admin UI" value="admin UI backend URL" />
-        </CardContent>
-      </Card>
+          </p>
+        </header>
+        <div className="grid divide-border sm:grid-cols-2 sm:divide-x">
+          <div className="divide-y divide-border">
+            {ENV_ROWS.slice(0, 3).map((row) => (
+              <EnvRow key={row.label} label={row.label} value={row.value} />
+            ))}
+          </div>
+          <div className="divide-y divide-border border-t border-border sm:border-t-0">
+            {ENV_ROWS.slice(3).map((row) => (
+              <EnvRow key={row.label} label={row.label} value={row.value} />
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
-
-const EnvRow = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
-    <code className="font-mono text-xs text-foreground">{label}</code>
-    <span className="truncate text-xs text-muted-foreground">{value}</span>
-  </div>
-);
