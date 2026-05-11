@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, CircleAlert, FileText, FolderOpen, Trash2, Upload, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
+import { useUploadSessionStore } from "@/features/collections/upload-session-store";
 import { useCollection } from "@/hooks/use-collections";
 import {
   useCancelUploadSession,
@@ -35,16 +36,18 @@ const statusVariant: Record<DocumentStatus, "success" | "warning" | "info" | "er
 const DocumentsTab = () => {
   const { name: rawName } = Route.useParams();
   const name = decodeURIComponent(rawName);
-  const sessionStorageKey = useMemo(() => `rag-computer:upload-session:${name}`, [name]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(() =>
-    typeof window === "undefined" ? null : window.localStorage.getItem(sessionStorageKey),
+  const activeSessionId = useUploadSessionStore((state) => state.activeSessionIds[name] ?? null);
+  const clearActiveSessionId = useUploadSessionStore((state) => state.clearActiveSessionId);
+  const migrateLegacyUploadSession = useUploadSessionStore(
+    (state) => state.migrateLegacyUploadSession,
   );
+  const setActiveSessionId = useUploadSessionStore((state) => state.setActiveSessionId);
 
   const { data: collection } = useCollection(name);
   const { data, isPending } = useDocuments(name);
   const uploadSession = useUploadSession(name, activeSessionId);
   const upload = useUploadSessionDocuments(name, {
-    onSessionStart: (session) => setActiveSessionId(session.id),
+    onSessionStart: (session) => setActiveSessionId(name, session.id),
   });
   const cancelSession = useCancelUploadSession(name);
   const remove = useDeleteDocument(name);
@@ -56,7 +59,7 @@ const DocumentsTab = () => {
   const allowed = getAllowedFileTypes(collection?.metadata);
   const accept = acceptAttribute(allowed);
 
-  useUploadSessionStorage(activeSessionId, sessionStorageKey);
+  useMigrateLegacyUploadSession(name, migrateLegacyUploadSession);
 
   const onFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -80,12 +83,12 @@ const DocumentsTab = () => {
           `${accepted.length} file${accepted.length === 1 ? "" : "s"} selected (${formatBytes(totalSize)})`,
         );
         const res = await upload.mutateAsync(accepted);
-        setActiveSessionId(res.session.id);
+        setActiveSessionId(name, res.session.id);
         if (fileInput.current) fileInput.current.value = "";
         if (folderInput.current) folderInput.current.value = "";
       }
     },
-    [upload, allowed],
+    [upload, allowed, name, setActiveSessionId],
   );
 
   const onDrop = (e: React.DragEvent) => {
@@ -163,7 +166,7 @@ const DocumentsTab = () => {
         <UploadSessionProgressPanel
           loadingCancel={cancelSession.isPending}
           onCancel={() => cancelSession.mutate(activeSessionId)}
-          onDismiss={() => setActiveSessionId(null)}
+          onDismiss={() => clearActiveSessionId(name)}
           session={uploadSession.data}
           streaming={uploadSession.streaming}
         />
@@ -272,14 +275,13 @@ const DocumentsTab = () => {
   );
 };
 
-const useUploadSessionStorage = (activeSessionId: string | null, sessionStorageKey: string) => {
+const useMigrateLegacyUploadSession = (
+  collection: string,
+  migrateLegacyUploadSession: (collection: string) => void,
+) => {
   useEffect(() => {
-    if (!activeSessionId) {
-      window.localStorage.removeItem(sessionStorageKey);
-      return;
-    }
-    window.localStorage.setItem(sessionStorageKey, activeSessionId);
-  }, [activeSessionId, sessionStorageKey]);
+    migrateLegacyUploadSession(collection);
+  }, [collection, migrateLegacyUploadSession]);
 };
 
 const FileType = ({ type }: { type: string }) => (

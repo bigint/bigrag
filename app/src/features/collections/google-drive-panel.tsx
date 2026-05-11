@@ -14,14 +14,7 @@ import {
   Trash2,
   TriangleAlert,
 } from "lucide-react";
-import {
-  type Dispatch,
-  type ReactNode,
-  type SetStateAction,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { type ReactNode, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +25,11 @@ import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
+import {
+  DEFAULT_GOOGLE_DRIVE_BROWSER_STATE,
+  GOOGLE_DRIVE_ROOT_FOLDER,
+  useGoogleDriveBrowserStore,
+} from "@/features/collections/google-drive-browser-store";
 import {
   activeGoogleSyncStatuses,
   clampGoogleSyncProgress,
@@ -60,8 +58,6 @@ import type {
   GoogleDriveSyncJob,
   GoogleSyncProgress,
 } from "@/types/rag-computer";
-
-const ROOT_FOLDER = { id: "root", name: "My Drive" };
 
 const statusVariant: Record<GoogleDriveSource["status"], "success" | "warning" | "info" | "error"> =
   {
@@ -98,15 +94,32 @@ export const GoogleDrivePanel = ({
   const syncSource = useSyncGoogleSource(collection);
   const updateSource = useUpdateGoogleSource(collection);
   const deleteSource = useDeleteGoogleSource(collection);
-  const [folderStack, setFolderStack] = useState([ROOT_FOLDER]);
-  const [pageToken, setPageToken] = useState<string | undefined>();
-  const [search, setSearch] = useState("");
-  const [visibleFiles, setVisibleFiles] = useState<GoogleDriveFile[]>([]);
-  const [selected, setSelected] = useState<Record<string, GoogleDriveFile>>({});
+  const folderStack = useGoogleDriveBrowserStore(
+    (state) =>
+      state.browsers[collection]?.folderStack ?? DEFAULT_GOOGLE_DRIVE_BROWSER_STATE.folderStack,
+  );
+  const pageToken = useGoogleDriveBrowserStore((state) => state.browsers[collection]?.pageToken);
+  const search = useGoogleDriveBrowserStore(
+    (state) => state.browsers[collection]?.search ?? DEFAULT_GOOGLE_DRIVE_BROWSER_STATE.search,
+  );
+  const visibleFiles = useGoogleDriveBrowserStore(
+    (state) =>
+      state.browsers[collection]?.visibleFiles ?? DEFAULT_GOOGLE_DRIVE_BROWSER_STATE.visibleFiles,
+  );
+  const selected = useGoogleDriveBrowserStore(
+    (state) => state.browsers[collection]?.selected ?? DEFAULT_GOOGLE_DRIVE_BROWSER_STATE.selected,
+  );
+  const clearSelected = useGoogleDriveBrowserStore((state) => state.clearSelected);
+  const goBack = useGoogleDriveBrowserStore((state) => state.goBack);
+  const openFolder = useGoogleDriveBrowserStore((state) => state.openFolder);
+  const setPageToken = useGoogleDriveBrowserStore((state) => state.setPageToken);
+  const setSearch = useGoogleDriveBrowserStore((state) => state.setSearch);
+  const syncVisibleFiles = useGoogleDriveBrowserStore((state) => state.syncVisibleFiles);
+  const toggleSelected = useGoogleDriveBrowserStore((state) => state.toggleSelected);
 
   const configured = account.data?.configured ?? false;
   const connected = account.data?.connected ?? false;
-  const currentFolder = folderStack.at(-1) ?? ROOT_FOLDER;
+  const currentFolder = folderStack.at(-1) ?? GOOGLE_DRIVE_ROOT_FOLDER;
   const query = search.trim();
   const files = useGoogleDriveFiles({
     enabled: active && connected,
@@ -128,7 +141,7 @@ export const GoogleDrivePanel = ({
       ? files.error.message
       : "Could not load Google Drive files. Try again.";
 
-  useVisibleGoogleDriveFiles(files.data, pageToken, setVisibleFiles);
+  useVisibleGoogleDriveFiles(collection, files.data, pageToken, syncVisibleFiles);
 
   const connect = async () => {
     const redirect = `${window.location.pathname}${window.location.search}`;
@@ -152,33 +165,7 @@ export const GoogleDrivePanel = ({
         source_type: item.source_type,
       });
     }
-    setSelected({});
-  };
-
-  const openFolder = (item: GoogleDriveFile) => {
-    if (item.source_type !== "folder") return;
-    setFolderStack((stack) => [...stack, { id: item.id, name: item.name }]);
-    setPageToken(undefined);
-    setSearch("");
-    setVisibleFiles([]);
-  };
-
-  const goBack = () => {
-    setFolderStack((stack) => (stack.length > 1 ? stack.slice(0, -1) : stack));
-    setPageToken(undefined);
-    setVisibleFiles([]);
-  };
-
-  const toggleSelected = (item: GoogleDriveFile, checked: boolean) => {
-    setSelected((current) => {
-      const next = { ...current };
-      if (checked) {
-        next[item.id] = item;
-      } else {
-        delete next[item.id];
-      }
-      return next;
-    });
+    clearSelected(collection);
   };
 
   if (!configured) return <SetupRequired />;
@@ -206,14 +193,12 @@ export const GoogleDrivePanel = ({
             <DriveBreadcrumb
               canGoBack={folderStack.length > 1 && !query}
               currentFolder={query ? "Search results" : currentFolder.name}
-              onBack={goBack}
+              onBack={() => goBack(collection)}
             />
             <Input
               aria-label="Search Drive"
               onChange={(e) => {
-                setSearch(e.target.value);
-                setPageToken(undefined);
-                setVisibleFiles([]);
+                setSearch(collection, e.target.value);
               }}
               placeholder="Search Drive"
               trailing={files.isFetching ? <Spinner /> : <Search className="size-4" />}
@@ -226,15 +211,15 @@ export const GoogleDrivePanel = ({
             files={visibleFiles}
             isError={files.isError}
             isPending={files.isPending}
-            onOpenFolder={openFolder}
-            onToggleSelected={toggleSelected}
+            onOpenFolder={(item) => openFolder(collection, item)}
+            onToggleSelected={(item, checked) => toggleSelected(collection, item, checked)}
             selected={selected}
           />
 
           {files.data?.next_page_token && (
             <div className="flex justify-center">
               <Button
-                onClick={() => setPageToken(files.data?.next_page_token ?? undefined)}
+                onClick={() => setPageToken(collection, files.data?.next_page_token ?? undefined)}
                 variant="outline"
               >
                 Load more
@@ -245,7 +230,7 @@ export const GoogleDrivePanel = ({
         <SelectedBar
           isAdding={createSource.isPending}
           onAddSelected={addSelected}
-          onClear={() => setSelected({})}
+          onClear={() => clearSelected(collection)}
           selectedBytes={selectedBytes}
           selectedCount={selectedItems.length}
         />
@@ -820,16 +805,16 @@ const useSyncJobsBySource = (jobs: GoogleDriveSyncJob[] | undefined) =>
   }, [jobs]);
 
 const useVisibleGoogleDriveFiles = (
+  collection: string,
   fileList: GoogleDriveFileList | undefined,
   pageToken: string | undefined,
-  setVisibleFiles: Dispatch<SetStateAction<GoogleDriveFile[]>>,
+  syncVisibleFiles: (
+    collection: string,
+    fileList: GoogleDriveFileList | undefined,
+    pageToken: string | undefined,
+  ) => void,
 ) => {
   useEffect(() => {
-    if (!fileList) return;
-    setVisibleFiles((current) => {
-      if (!pageToken) return fileList.files;
-      const seen = new Set(current.map((item) => item.id));
-      return [...current, ...fileList.files.filter((item) => !seen.has(item.id))];
-    });
-  }, [fileList, pageToken, setVisibleFiles]);
+    syncVisibleFiles(collection, fileList, pageToken);
+  }, [collection, fileList, pageToken, syncVisibleFiles]);
 };

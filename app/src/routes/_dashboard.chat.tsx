@@ -10,13 +10,14 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ChatInput, type ChatState } from "@/features/chat/chat-input";
 import type { ChatMessage } from "@/features/chat/chat-messages";
 import { ChatMessages } from "@/features/chat/chat-messages";
+import { useChatStore } from "@/features/chat/chat-store";
 import { EmptyPrompts } from "@/features/chat/empty-prompts";
 import {
   useChatConversation,
@@ -62,28 +63,28 @@ const DEFAULT_STATE: ChatState = {
 const useSelectFirstCollection = (
   collections: { name: string }[],
   current: string,
-  setCurrent: (name: string) => void,
+  selectFirstCollection: (collections: readonly { name: string }[]) => void,
 ) => {
   useEffect(() => {
-    const first = collections[0];
-    if (!current && first) setCurrent(first.name);
-  }, [collections, current, setCurrent]);
+    if (!current) selectFirstCollection(collections);
+  }, [collections, current, selectFirstCollection]);
 };
 
 const useSelectedConversationMessages = (
   conversationId: string | null,
   detail: ReturnType<typeof useChatConversation>["data"],
   isStreaming: boolean,
-  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
+  hydrateConversationMessages: (conversationId: string, messages: ChatMessage[]) => void,
 ) => {
   useEffect(() => {
     if (!conversationId || isStreaming || !detail) return;
-    setMessages(
+    hydrateConversationMessages(
+      conversationId,
       detail.messages
         .map((message) => toUiMessage(message, detail.conversation))
         .filter((message): message is ChatMessage => Boolean(message)),
     );
-  }, [conversationId, detail, isStreaming, setMessages]);
+  }, [conversationId, detail, hydrateConversationMessages, isStreaming]);
 };
 
 const timingsFromRetrieval = (message: ServerChatMessage): QueryTimings | undefined => {
@@ -122,16 +123,31 @@ const ChatPage = () => {
   const deleteConversation = useDeleteChatConversation();
   const { data: collectionsData, isPending: collectionsLoading } = useCollections();
   const collections = useMemo(() => collectionsData?.collections ?? [], [collectionsData]);
-  const [collection, setCollection] = useState("");
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const collection = useChatStore((state) => state.collection);
+  const conversationId = useChatStore((state) => state.conversationId);
+  const messages = useChatStore((state) => state.messages);
+  const isStreaming = useChatStore((state) => state.isStreaming);
+  const appendMessages = useChatStore((state) => state.appendMessages);
+  const hydrateConversationMessages = useChatStore((state) => state.hydrateConversationMessages);
+  const replaceMessageId = useChatStore((state) => state.replaceMessageId);
+  const selectCollection = useChatStore((state) => state.selectCollection);
+  const selectConversation = useChatStore((state) => state.selectConversation);
+  const selectFirstCollection = useChatStore((state) => state.selectFirstCollection);
+  const setConversationId = useChatStore((state) => state.setConversationId);
+  const setStreaming = useChatStore((state) => state.setStreaming);
+  const startNewChatState = useChatStore((state) => state.startNewChat);
+  const updateMessage = useChatStore((state) => state.updateMessage);
   const detailQuery = useChatConversation(conversationId);
   const activeConversation = detailQuery.data?.conversation ?? null;
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  useSelectFirstCollection(collections, collection, setCollection);
-  useSelectedConversationMessages(conversationId, detailQuery.data, isStreaming, setMessages);
+  useSelectFirstCollection(collections, collection, selectFirstCollection);
+  useSelectedConversationMessages(
+    conversationId,
+    detailQuery.data,
+    isStreaming,
+    hydrateConversationMessages,
+  );
 
   const state: ChatState = useMemo(() => {
     const chat = prefsQuery.data?.data.chat ?? {};
@@ -179,21 +195,16 @@ const ChatPage = () => {
   const stopStreaming = () => {
     abortRef.current?.abort();
     abortRef.current = null;
-    setIsStreaming(false);
+    setStreaming(false);
   };
 
   const startNewChat = () => {
     stopStreaming();
-    setConversationId(null);
-    setMessages([]);
+    startNewChatState();
   };
 
   const handleCollectionChange = (name: string) => {
-    if (conversationId) {
-      setConversationId(null);
-      setMessages([]);
-    }
-    setCollection(name);
+    selectCollection(name);
   };
 
   const handleSend = async (text: string) => {
@@ -210,8 +221,8 @@ const ChatPage = () => {
     const assistantId = newId();
     const userMsg: ChatMessage = { id: userId, role: "user", content: text };
     const assistantMsg: ChatMessage = { id: assistantId, role: "assistant", content: "" };
-    setMessages((prev) => [...prev, userMsg, assistantMsg]);
-    setIsStreaming(true);
+    appendMessages([userMsg, assistantMsg]);
+    setStreaming(true);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -244,55 +255,40 @@ const ChatPage = () => {
             return;
           }
           if (event.event === "user_message") {
-            setMessages((prev) =>
-              prev.map((m) => (m.id === userId ? { ...m, id: event.data.id } : m)),
-            );
+            replaceMessageId(userId, event.data.id);
             return;
           }
           if (event.event === "sources") {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId
-                  ? {
-                      ...m,
-                      meta: {
-                        collection: event.data.collection,
-                        sources: event.data.sources,
-                        timings: event.data.timings,
-                      },
-                    }
-                  : m,
-              ),
-            );
+            updateMessage(assistantId, (message) => ({
+              ...message,
+              meta: {
+                collection: event.data.collection,
+                sources: event.data.sources,
+                timings: event.data.timings,
+              },
+            }));
             return;
           }
           if (event.event === "delta") {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId ? { ...m, content: m.content + event.data.delta } : m,
-              ),
-            );
+            updateMessage(assistantId, (message) => ({
+              ...message,
+              content: message.content + event.data.delta,
+            }));
             return;
           }
           if (event.event === "assistant_message") {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId
-                  ? {
-                      ...m,
-                      id: event.data.id,
-                      content: event.data.content,
-                      status: event.data.status,
-                      errorMessage: event.data.error_message,
-                      meta: {
-                        collection: currentCollection,
-                        sources: event.data.sources,
-                        timings: timingsFromRetrieval(event.data),
-                      },
-                    }
-                  : m,
-              ),
-            );
+            updateMessage(assistantId, (message) => ({
+              ...message,
+              id: event.data.id,
+              content: event.data.content,
+              status: event.data.status,
+              errorMessage: event.data.error_message,
+              meta: {
+                collection: currentCollection,
+                sources: event.data.sources,
+                timings: timingsFromRetrieval(event.data),
+              },
+            }));
             return;
           }
           if (event.event === "done") {
@@ -303,13 +299,11 @@ const ChatPage = () => {
             return;
           }
           if (event.event === "error") {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId
-                  ? { ...m, status: "error", errorMessage: event.data.error }
-                  : m,
-              ),
-            );
+            updateMessage(assistantId, (message) => ({
+              ...message,
+              status: "error",
+              errorMessage: event.data.error,
+            }));
             refreshPreferencesIfCredentialError(event.data.error);
             toast.error(event.data.error);
           }
@@ -319,16 +313,16 @@ const ChatPage = () => {
       if (err instanceof DOMException && err.name === "AbortError") {
       } else {
         const message = err instanceof Error ? err.message : "Chat request failed";
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId ? { ...m, status: "error", errorMessage: message } : m,
-          ),
-        );
+        updateMessage(assistantId, (chatMessage) => ({
+          ...chatMessage,
+          status: "error",
+          errorMessage: message,
+        }));
         refreshPreferencesIfCredentialError(message);
         toast.error(message);
       }
     } finally {
-      setIsStreaming(false);
+      setStreaming(false);
       abortRef.current = null;
       queryClient.invalidateQueries({ queryKey: queryKeys.chat.list() });
       if (nextConversationId) {
@@ -355,7 +349,7 @@ const ChatPage = () => {
         onNew={startNewChat}
         onSelect={(id) => {
           stopStreaming();
-          setConversationId(id);
+          selectConversation(id);
         }}
         selectedId={conversationId}
       />
@@ -367,7 +361,7 @@ const ChatPage = () => {
           onNew={startNewChat}
           onSelect={(id) => {
             stopStreaming();
-            setConversationId(id);
+            selectConversation(id);
           }}
           selectedId={conversationId}
         />

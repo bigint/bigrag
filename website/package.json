@@ -12,12 +12,12 @@
     "typecheck": "fumadocs-mdx && tsc --noEmit"
   },
   "dependencies": {
-    "fumadocs-core": "^16.8.8",
-    "fumadocs-mdx": "^15.0.0",
-    "fumadocs-ui": "^16.8.8",
+    "fumadocs-core": "^16.8.9",
+    "fumadocs-mdx": "^15.0.2",
+    "fumadocs-ui": "^16.8.9",
     "geist": "^1.7.0",
     "lucide-react": "^1.14.0",
-    "mermaid": "^11.14.0",
+    "mermaid": "^11.15.0",
     "next": "^16.2.6",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"

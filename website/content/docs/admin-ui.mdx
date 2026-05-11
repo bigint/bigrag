@@ -73,6 +73,8 @@ After a large local upload starts, the collection documents page opens `GET /v1/
 
 The Google Drive connector page opens `GET /v1/admin/realtime/google/sync-jobs?collection={name}` beside the source stream. The sync monitor shows Drive scanning, download/update progress, remote deletion cleanup, and queued-for-ingestion completion; document conversion and indexing continue through the normal document progress surfaces.
 
+Upload progress restoration, the current Drive browser selection, and in-progress chat turns are browser-local admin UI state. Upload session IDs are persisted in local storage so a collection's upload panel can reconnect after navigation; transient chat and Drive browser state are not part of the REST API.
+
 REST document status endpoints remain available for API clients and SDKs that prefer polling. `GET /v1/collections/{name}/events` remains available for collection-wide ingestion events outside the admin UI.
 
 ## Chat specifics
