@@ -28,7 +28,8 @@ const useMermaidRender = (
       const { default: mermaid } = await import("mermaid");
 
       mermaid.initialize({
-        fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+        fontFamily:
+          "var(--font-outfit), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
         startOnLoad: false,
         theme: "base",
         themeVariables: mermaidThemeVariables,
