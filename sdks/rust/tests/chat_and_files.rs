@@ -157,7 +157,6 @@ async fn chat_methods_send_expected_requests() {
         .create(ChatBody {
             message: "hello".into(),
             collection: Some("docs".into()),
-            stream: Some(true),
             ..Default::default()
         })
         .await

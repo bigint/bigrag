@@ -28,7 +28,7 @@ impl Transport {
             .user_agent(ua)
             .timeout(timeout)
             .build()
-            .expect("failed to build reqwest client");
+            .unwrap_or_else(|_| Client::new());
 
         Self {
             http,
@@ -180,7 +180,8 @@ impl Transport {
             }
         }
 
-        Err(last_err.unwrap())
+        Err(last_err
+            .unwrap_or_else(|| BigRagError::Connection("retry loop exhausted".into())))
     }
 
     async fn do_request<B: Serialize, T: DeserializeOwned>(

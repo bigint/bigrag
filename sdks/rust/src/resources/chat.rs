@@ -12,9 +12,18 @@ pub struct Chats<'a> {
 
 impl Chats<'_> {
     /// Create a non-streaming chat turn.
-    pub async fn create(&self, mut body: ChatBody) -> Result<ChatCreateResponse, BigRagError> {
-        body.stream = Some(false);
-        self.client.transport.post("/v1/chat", &body).await
+    pub async fn create(&self, body: ChatBody) -> Result<ChatCreateResponse, BigRagError> {
+        #[derive(serde::Serialize)]
+        struct NonStreamingBody<'a> {
+            #[serde(flatten)]
+            body: &'a ChatBody,
+            stream: bool,
+        }
+        let payload = NonStreamingBody {
+            body: &body,
+            stream: false,
+        };
+        self.client.transport.post("/v1/chat", &payload).await
     }
 
     /// List owned conversations.

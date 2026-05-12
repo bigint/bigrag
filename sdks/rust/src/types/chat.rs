@@ -13,9 +13,6 @@ pub struct ChatBody {
     /// Collection to query when starting a new conversation.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub collection: Option<String>,
-    /// Whether to stream SSE events.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stream: Option<bool>,
     /// Chat provider (`openai` or `openai_compatible`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_provider: Option<String>,
