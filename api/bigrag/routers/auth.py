@@ -37,11 +37,36 @@ from bigrag.services.auth import (
     needs_rehash,
     verify_password,
 )
+from bigrag.services.client_ip import client_ip
+from bigrag.services.redis_cache import get_redis
 from bigrag.services.runtime_settings import get_values
 
 logger = get_logger("bigrag.routers.auth")
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
+
+LOGIN_RATE_LIMIT = 10
+LOGIN_RATE_WINDOW_SECONDS = 60
+
+
+async def _enforce_login_rate_limit(request: Request, email: str) -> None:
+    redis = get_redis()
+    if redis is None:
+        return
+    ip = client_ip(request) or "unknown"
+    for scope, key in (("ip", ip), ("email", email)):
+        bucket = f"bigrag:rate:login:{scope}:{key}"
+        try:
+            current = await redis.incr(bucket)
+            if current == 1:
+                await redis.expire(bucket, LOGIN_RATE_WINDOW_SECONDS)
+        except Exception:
+            return
+        if current > LOGIN_RATE_LIMIT:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many login attempts. Try again in a minute.",
+            )
 
 
 async def _session_cookie_options() -> dict:
@@ -147,6 +172,7 @@ async def login(
     session: AsyncSession = Depends(get_session),
 ) -> SessionResponse:
     email = body.email.lower()
+    await _enforce_login_rate_limit(request, email)
     user = await session.scalar(sa.select(User).where(User.email == email))
     if user is None:
         verify_password(body.password, DUMMY_PASSWORD_HASH)
