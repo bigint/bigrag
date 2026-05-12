@@ -59,21 +59,36 @@ export const streamChat = async (opts: StreamOptions): Promise<void> => {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let finished = false;
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+  try {
+    while (!finished) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
 
-    const frames = buffer.split("\n\n");
-    buffer = frames.pop() ?? "";
+      const frames = buffer.split("\n\n");
+      buffer = frames.pop() ?? "";
 
-    for (const frame of frames) {
-      const parsed = parseFrame(frame);
-      if (!parsed) continue;
-      if ("done" in parsed) return;
-      opts.onEvent(parsed.event);
+      for (const frame of frames) {
+        const parsed = parseFrame(frame);
+        if (!parsed) continue;
+        if ("done" in parsed) {
+          finished = true;
+          break;
+        }
+        opts.onEvent(parsed.event);
+      }
     }
+    buffer += decoder.decode();
+    if (!finished && buffer.trim()) {
+      const parsed = parseFrame(buffer);
+      if (parsed && !("done" in parsed)) {
+        opts.onEvent(parsed.event);
+      }
+    }
+  } finally {
+    reader.releaseLock();
   }
 };
 
