@@ -15,7 +15,7 @@ class RuntimeCorsMiddleware(BaseHTTPMiddleware):
         if not origin:
             return await call_next(request)
 
-        allowed = await _allowed_origin(origin, request)
+        allowed, wildcard = await _allowed_origin(origin, request)
         if request.method == "OPTIONS" and request.headers.get("access-control-request-method"):
             if not allowed:
                 return Response(status_code=400)
@@ -25,8 +25,11 @@ class RuntimeCorsMiddleware(BaseHTTPMiddleware):
             if not allowed:
                 return response
 
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
+        if wildcard:
+            response.headers["Access-Control-Allow-Origin"] = "*"
+        else:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Methods"] = "DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT"
         response.headers["Access-Control-Allow-Headers"] = request.headers.get(
             "access-control-request-headers",
@@ -37,14 +40,19 @@ class RuntimeCorsMiddleware(BaseHTTPMiddleware):
         return response
 
 
-async def _allowed_origin(origin: str, request: Request) -> bool:
+async def _allowed_origin(origin: str, request: Request) -> tuple[bool, bool]:
     try:
         cors_origins = await runtime_settings.get_value("cors_origins")
     except Exception:
         cors_origins = request.app.state.settings.cors_origins
-    if origin in cors_origins or "*" in cors_origins:
-        return True
+    if "*" in cors_origins:
+        return True, True
+    if origin in cors_origins:
+        return True, False
     parsed = urlparse(origin)
     if not parsed.scheme or not parsed.netloc:
-        return False
-    return parsed.scheme == request.url.scheme and parsed.netloc == request.headers.get("host")
+        return False, False
+    same_origin = parsed.scheme == request.url.scheme and parsed.netloc == request.headers.get(
+        "host"
+    )
+    return same_origin, False
