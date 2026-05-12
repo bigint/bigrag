@@ -42,10 +42,22 @@ def generate_secret() -> str:
     return f"whsec_{secrets.token_urlsafe(32)}"
 
 
-def compute_signature(payload: str, secret: str) -> str:
+def compute_signature(payload: str, secret: str, timestamp: str | None = None) -> str:
 
-    digest = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    signed_payload = f"{timestamp}.{payload}" if timestamp else payload
+    digest = hmac.new(secret.encode(), signed_payload.encode(), hashlib.sha256).hexdigest()
     return f"sha256={digest}"
+
+
+def verify_signature(
+    payload: str,
+    secret: str,
+    received: str,
+    timestamp: str | None = None,
+) -> bool:
+
+    expected = compute_signature(payload, secret, timestamp)
+    return hmac.compare_digest(expected, received)
 
 
 def _matches_webhook(webhook: dict, event: str, collection: str) -> bool:
@@ -214,10 +226,12 @@ class WebhookDispatcher:
                 )
                 await session.commit()
 
-            signature = compute_signature(payload, secret)
+            timestamp = str(int(datetime.now(UTC).timestamp()))
+            signature = compute_signature(payload, secret, timestamp)
             headers = {
                 "Content-Type": "application/json",
                 "X-BigRAG-Signature": signature,
+                "X-BigRAG-Timestamp": timestamp,
                 "X-BigRAG-Event": event,
                 "X-BigRAG-Delivery": str(delivery_id),
                 "User-Agent": "bigrag-webhooks/1.0",
@@ -335,10 +349,12 @@ class WebhookDispatcher:
                 "error": "Blocked: URL targets a private or internal network",
             }
 
-        signature = compute_signature(payload, webhook["secret"])
+        timestamp = str(int(datetime.now(UTC).timestamp()))
+        signature = compute_signature(payload, webhook["secret"], timestamp)
         headers = {
             "Content-Type": "application/json",
             "X-BigRAG-Signature": signature,
+            "X-BigRAG-Timestamp": timestamp,
             "X-BigRAG-Event": event,
             "X-BigRAG-Delivery": str(uuid.uuid4()),
             "User-Agent": "bigrag-webhooks/1.0",
@@ -384,10 +400,12 @@ class WebhookDispatcher:
             }
         ).decode()
 
-        signature = compute_signature(payload, secret)
+        timestamp = str(int(datetime.now(UTC).timestamp()))
+        signature = compute_signature(payload, secret, timestamp)
         headers = {
             "Content-Type": "application/json",
             "X-BigRAG-Signature": signature,
+            "X-BigRAG-Timestamp": timestamp,
             "X-BigRAG-Event": "webhook.test",
             "X-BigRAG-Delivery": str(uuid.uuid4()),
             "User-Agent": "bigrag-webhooks/1.0",
