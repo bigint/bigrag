@@ -219,6 +219,7 @@ const ChatPage = () => {
 
     const userId = newId();
     const assistantId = newId();
+    let currentAssistantId = assistantId;
     const userMsg: ChatMessage = { id: userId, role: "user", content: text };
     const assistantMsg: ChatMessage = { id: assistantId, role: "assistant", content: "" };
     appendMessages([userMsg, assistantMsg]);
@@ -259,7 +260,7 @@ const ChatPage = () => {
             return;
           }
           if (event.event === "sources") {
-            updateMessage(assistantId, (message) => ({
+            updateMessage(currentAssistantId, (message) => ({
               ...message,
               meta: {
                 collection: event.data.collection,
@@ -270,14 +271,14 @@ const ChatPage = () => {
             return;
           }
           if (event.event === "delta") {
-            updateMessage(assistantId, (message) => ({
+            updateMessage(currentAssistantId, (message) => ({
               ...message,
               content: message.content + event.data.delta,
             }));
             return;
           }
           if (event.event === "assistant_message") {
-            updateMessage(assistantId, (message) => ({
+            updateMessage(currentAssistantId, (message) => ({
               ...message,
               id: event.data.id,
               content: event.data.content,
@@ -289,6 +290,7 @@ const ChatPage = () => {
                 timings: timingsFromRetrieval(event.data),
               },
             }));
+            currentAssistantId = event.data.id;
             return;
           }
           if (event.event === "done") {
@@ -299,7 +301,7 @@ const ChatPage = () => {
             return;
           }
           if (event.event === "error") {
-            updateMessage(assistantId, (message) => ({
+            updateMessage(currentAssistantId, (message) => ({
               ...message,
               status: "error",
               errorMessage: event.data.error,
@@ -311,9 +313,13 @@ const ChatPage = () => {
       });
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
+        updateMessage(currentAssistantId, (chatMessage) => ({
+          ...chatMessage,
+          status: "complete",
+        }));
       } else {
         const message = err instanceof Error ? err.message : "Chat request failed";
-        updateMessage(assistantId, (chatMessage) => ({
+        updateMessage(currentAssistantId, (chatMessage) => ({
           ...chatMessage,
           status: "error",
           errorMessage: message,
