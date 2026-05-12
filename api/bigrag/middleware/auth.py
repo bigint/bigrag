@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.config import settings
+from bigrag import config as _config
 from bigrag.db.models import ApiKey, User
 from bigrag.db.models import Session as DbSession
 from bigrag.db.session import get_session
@@ -27,7 +27,7 @@ def _api_key_cache_key(key_hash: str) -> str:
 
 
 def _ttl_until(expires_at: datetime | None) -> int:
-    ttl = settings.auth_principal_cache_ttl
+    ttl = _config.settings.auth_principal_cache_ttl
     if ttl <= 0:
         return 0
     if expires_at is None:
@@ -57,7 +57,7 @@ def _serialize(user: User, *, auth: str, api_key_id: str | None = None) -> dict:
 
 
 async def _user_from_session(request: Request, session: AsyncSession) -> dict | None:
-    cookie = request.cookies.get(settings.session_cookie_name)
+    cookie = request.cookies.get(_config.settings.session_cookie_name)
     if not cookie:
         return None
 
@@ -214,4 +214,4 @@ async def require_admin_session(user: dict = Depends(require_session)) -> dict:
 def session_expiry() -> datetime:
     from datetime import timedelta
 
-    return datetime.now(UTC) + timedelta(hours=settings.session_expiry_hours)
+    return datetime.now(UTC) + timedelta(hours=_config.settings.session_expiry_hours)

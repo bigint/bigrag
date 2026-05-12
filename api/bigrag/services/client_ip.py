@@ -5,13 +5,13 @@ import ipaddress
 from starlette.requests import Request
 from starlette.types import Scope
 
-from bigrag.config import settings
+from bigrag import config as _config
 from bigrag.services import runtime_settings
 
 
 def _trusted_networks() -> tuple[ipaddress._BaseNetwork, ...]:
     nets: list[ipaddress._BaseNetwork] = []
-    raw_proxies = runtime_settings.sync_value("trusted_proxies") or settings.trusted_proxies
+    raw_proxies = runtime_settings.sync_value("trusted_proxies") or _config.settings.trusted_proxies
     for raw in raw_proxies:
         try:
             nets.append(ipaddress.ip_network(raw, strict=False))

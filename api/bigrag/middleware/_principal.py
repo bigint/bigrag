@@ -5,7 +5,7 @@ from http.cookies import SimpleCookie
 from starlette.datastructures import Headers
 from starlette.types import Scope
 
-from bigrag.config import settings
+from bigrag import config as _config
 from bigrag.services.auth import API_KEY_PREFIX, hash_api_key, hash_session_token
 
 
@@ -35,7 +35,7 @@ def principal_id(scope: Scope, headers: Headers | None = None) -> str:
             jar.load(cookie_header)
         except Exception:
             jar = SimpleCookie()
-        morsel = jar.get(settings.session_cookie_name)
+        morsel = jar.get(_config.settings.session_cookie_name)
         if morsel and morsel.value:
             return f"sess:{hash_session_token(morsel.value)}"
 

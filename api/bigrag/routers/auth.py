@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.config import settings
+from bigrag import config as _config
 from bigrag.db.models import Session as DbSession
 from bigrag.db.models import User
 from bigrag.db.session import get_session
@@ -57,9 +57,9 @@ async def _session_cookie_options() -> dict:
 async def _set_session_cookie(response: Response, token: str) -> None:
     cookie = await _session_cookie_options()
     response.set_cookie(
-        key=settings.session_cookie_name,
+        key=_config.settings.session_cookie_name,
         value=token,
-        max_age=settings.session_expiry_hours * 3600,
+        max_age=_config.settings.session_expiry_hours * 3600,
         httponly=True,
         secure=bool(cookie["session_cookie_secure"]),
         samesite=cookie["session_cookie_samesite"] or "lax",
@@ -71,7 +71,7 @@ async def _set_session_cookie(response: Response, token: str) -> None:
 async def _clear_session_cookie(response: Response) -> None:
     cookie = await _session_cookie_options()
     response.delete_cookie(
-        key=settings.session_cookie_name,
+        key=_config.settings.session_cookie_name,
         httponly=True,
         secure=bool(cookie["session_cookie_secure"]),
         samesite=cookie["session_cookie_samesite"] or "lax",
@@ -189,7 +189,7 @@ async def logout(
     response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
-    cookie = request.cookies.get(settings.session_cookie_name)
+    cookie = request.cookies.get(_config.settings.session_cookie_name)
     actor_user: User | None = None
     if cookie:
         token_hash = hash_session_token(cookie)
