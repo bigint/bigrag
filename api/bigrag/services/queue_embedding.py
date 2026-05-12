@@ -243,6 +243,18 @@ async def chunk_and_embed(
             except PERMANENT_ERRORS:
                 raise
             except Exception as exc:
+                try:
+                    await vector_store.delete_by_ids(
+                        job.collection_name,
+                        [f"{doc}_{i}" for i in range(batch_start, batch_end)],
+                    )
+                except Exception as cleanup_exc:
+                    logger.warning(
+                        "batch cleanup before retry failed",
+                        prefix=prefix,
+                        batch=batch_num,
+                        error=repr(cleanup_exc),
+                    )
                 if attempt >= max_batch_retries:
                     logger.error(
                         "batch exhausted retries",
@@ -252,8 +264,7 @@ async def chunk_and_embed(
                         chunks=len(batch_texts),
                         error=repr(exc),
                     )
-                    count = 0
-                    break
+                    raise
                 delay = batch_backoff_base**attempt
                 logger.warning(
                     "batch attempt failed",
