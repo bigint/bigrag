@@ -7,6 +7,7 @@ from bigrag.db.session import get_session
 from bigrag.middleware.auth import require_admin_session
 from bigrag.models.connector import ConnectorConfigResponse, UpdateConnectorConfigRequest
 from bigrag.services import audit
+from bigrag.services.client_ip import is_trusted_proxy
 from bigrag.services.connector_registry import ConnectorRuntime, connector_runtime
 
 router = APIRouter(prefix="/v1/admin/connectors", tags=["admin:connectors"])
@@ -21,7 +22,8 @@ def _route_or_404(provider_slug: str) -> ConnectorRuntime:
 
 def _callback_url(request: Request, route: ConnectorRuntime) -> str:
     forwarded_host = request.headers.get("x-forwarded-host")
-    if forwarded_host:
+    immediate = request.client.host if request.client else ""
+    if forwarded_host and is_trusted_proxy(immediate):
         proto = request.headers.get("x-forwarded-proto") or request.url.scheme
         prefix = request.headers.get("x-forwarded-prefix", "").rstrip("/")
         return f"{proto}://{forwarded_host}{prefix}/v1/connectors/{route.slug}/oauth/callback"
