@@ -179,16 +179,20 @@ async def _get_upload_session(
     db: AsyncSession,
     collection_id: uuid.UUID,
     session_id: str,
+    user_id: uuid.UUID | None = None,
 ) -> UploadSession:
     try:
         target = uuid.UUID(session_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Upload session not found") from exc
-    row = await db.scalar(
+    stmt = (
         sa.select(UploadSession)
         .where(UploadSession.id == target)
         .where(UploadSession.collection_id == collection_id)
     )
+    if user_id is not None:
+        stmt = stmt.where(UploadSession.created_by == user_id)
+    row = await db.scalar(stmt)
     if row is None:
         raise HTTPException(status_code=404, detail="Upload session not found")
     return row
@@ -198,17 +202,21 @@ async def _get_upload_session_for_update(
     db: AsyncSession,
     collection_id: uuid.UUID,
     session_id: str,
+    user_id: uuid.UUID | None = None,
 ) -> UploadSession:
     try:
         target = uuid.UUID(session_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Upload session not found") from exc
-    row = await db.scalar(
+    stmt = (
         sa.select(UploadSession)
         .where(UploadSession.id == target)
         .where(UploadSession.collection_id == collection_id)
         .with_for_update()
     )
+    if user_id is not None:
+        stmt = stmt.where(UploadSession.created_by == user_id)
+    row = await db.scalar(stmt)
     if row is None:
         raise HTTPException(status_code=404, detail="Upload session not found")
     return row
@@ -322,11 +330,13 @@ async def create_upload_session(
 async def get_upload_session(
     collection_name: str,
     session_id: str,
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
-    upload_session = await _get_upload_session(db, collection["id"], session_id)
+    upload_session = await _get_upload_session(
+        db, collection["id"], session_id, user_id=uuid.UUID(user["id"])
+    )
     return await upload_session_response(db, upload_session, persist_counts=True)
 
 
@@ -345,7 +355,9 @@ async def upload_session_file(
         get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    upload_session = await _get_upload_session_for_update(db, collection["id"], session_id)
+    upload_session = await _get_upload_session_for_update(
+        db, collection["id"], session_id, user_id=uuid.UUID(user["id"])
+    )
     if upload_session.status in TERMINAL_SESSION_STATUSES:
         raise HTTPException(status_code=409, detail="Upload session is closed")
     item_key = client_item_id or str(uuid.uuid4())
@@ -510,7 +522,9 @@ async def complete_upload_session(
     db: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
-    upload_session = await _get_upload_session(db, collection["id"], session_id)
+    upload_session = await _get_upload_session_for_update(
+        db, collection["id"], session_id, user_id=uuid.UUID(user["id"])
+    )
     if upload_session.status == "canceled":
         raise HTTPException(status_code=409, detail="Upload session is canceled")
     upload_session.closed_at = upload_session.closed_at or datetime.now(UTC)
@@ -536,7 +550,9 @@ async def cancel_upload_session(
     db: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
-    upload_session = await _get_upload_session(db, collection["id"], session_id)
+    upload_session = await _get_upload_session(
+        db, collection["id"], session_id, user_id=uuid.UUID(user["id"])
+    )
     rows = await _session_rows(db, upload_session.id)
     document_ids = [str(item.document_id) for item, _status, _error in rows if item.document_id]
     if document_ids:
