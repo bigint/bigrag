@@ -287,6 +287,9 @@ async def _log_query(
         logger.warning("failed to log query", error=repr(exc))
 
 
+MAX_TOP_K = 200
+
+
 async def retrieve(
     collection_name: str,
     query: str,
@@ -299,6 +302,8 @@ async def retrieve(
     rerank_override: bool | None = None,
 ) -> RetrievalOutcome:
 
+    if top_k > MAX_TOP_K:
+        raise ValidationError(f"top_k {top_k} exceeds maximum {MAX_TOP_K}")
     _retrieve_start = time.monotonic()
     timings = {"embed_ms": 0.0, "search_ms": 0.0, "rerank_ms": 0.0}
 
@@ -502,6 +507,9 @@ async def retrieve_multi(
     reranking_configs: dict[str, dict] | None = None,
     rerank_override: bool | None = None,
 ) -> list[dict]:
+
+    if top_k > MAX_TOP_K:
+        raise ValidationError(f"top_k {top_k} exceeds maximum {MAX_TOP_K}")
 
     async def search_one(col_name: str) -> list[dict]:
         col_reranking = (reranking_configs or {}).get(col_name)
