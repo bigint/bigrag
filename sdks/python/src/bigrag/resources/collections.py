@@ -92,17 +92,16 @@ class CollectionsResource:
         """Stream real-time events for a collection via SSE."""
         path = f"/v1/collections/{quote(name, safe='')}/events"
         url = f"{self._client.base_url}{path}"
-        request = self._client._client.build_request(
+        async with self._client._client.stream(
             "GET",
             url,
             headers=self._client._headers(),
-        )
-        response = await self._client._client.send(request, stream=True)
-        if response.status_code >= 400:
-            await response.aread()
-            raise error_for_status(
-                response.status_code,
-                response.reason_phrase or "Unknown error",
-            )
-        async for event in parse_sse_stream(response):
-            yield event
+        ) as response:
+            if response.status_code >= 400:
+                await response.aread()
+                raise error_for_status(
+                    response.status_code,
+                    response.reason_phrase or "Unknown error",
+                )
+            async for event in parse_sse_stream(response):
+                yield event

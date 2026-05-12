@@ -22,6 +22,39 @@ _DEFAULT_TIMEOUT = 120.0
 _DEFAULT_MAX_RETRIES = 2
 
 
+def _buffer_files(files: Any) -> Any:
+    if files is None:
+        return files
+    if isinstance(files, dict):
+        return {k: _buffer_one(v) for k, v in files.items()}
+    if isinstance(files, list):
+        return [(name, _buffer_one(payload)) for name, payload in files]
+    return files
+
+
+def _buffer_one(payload: Any) -> Any:
+    if isinstance(payload, tuple):
+        filename, fileobj, *rest = payload
+        return (filename, _ensure_bytes(fileobj), *rest)
+    return _ensure_bytes(payload)
+
+
+def _ensure_bytes(fileobj: Any) -> Any:
+    if hasattr(fileobj, "read"):
+        data = fileobj.read()
+        if hasattr(fileobj, "close"):
+            try:
+                fileobj.close()
+            except Exception:
+                pass
+        return data
+    return fileobj
+
+
+def _rewind_files(_files: Any) -> None:
+    return None
+
+
 class BigRAGCore:
     """Low-level async HTTP transport with retry, auth, and error handling.
 
@@ -150,10 +183,13 @@ class BigRAGCore:
         url = f"{self.base_url}{path}"
         headers = self._headers()
 
+        buffered_files = _buffer_files(files)
+
         async def _send() -> httpx.Response:
+            _rewind_files(buffered_files)
             return await self._client.post(
                 url,
-                files=files,
+                files=buffered_files,
                 data=data or {},
                 headers=headers,
                 timeout=self.timeout,
