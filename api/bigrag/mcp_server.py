@@ -173,7 +173,7 @@ def create_server(
         @mcp.tool()
         async def multi_collection_query(
             collections: Annotated[
-                list[str],
+                list[CollectionName],
                 Field(
                     min_length=1,
                     max_length=20,
