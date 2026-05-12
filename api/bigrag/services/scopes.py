@@ -62,7 +62,10 @@ def required_scope(method: str, path: str) -> str | None:
 
 def _path_matches(path: str, pattern: str) -> bool:
     if "{" not in pattern:
-        return path.startswith(pattern)
+        if path == pattern:
+            return True
+        prefix = pattern.rstrip("/")
+        return path.startswith(prefix + "/")
     p_parts = pattern.rstrip("/").split("/")
     a_parts = path.rstrip("/").split("/")
     if len(a_parts) < len(p_parts):
@@ -90,8 +93,10 @@ def scope_matches(granted: str, required: str) -> bool:
 
 def has_scope(granted_scopes: list[str] | None, required: str) -> bool:
 
-    if not granted_scopes:
+    if granted_scopes is None:
         return True
+    if not granted_scopes:
+        return False
     return any(scope_matches(g, required) for g in granted_scopes)
 
 
