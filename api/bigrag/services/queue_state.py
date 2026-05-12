@@ -80,7 +80,8 @@ async def recover_stuck_jobs(redis) -> int:
         await redis.lpush(QUEUE_KEY, raw)
         recovered += 1
     if recovered > 0:
-        await redis.hset(STATS_KEY, "processing", 0)
+        remaining = await redis.llen(PROCESSING_KEY)
+        await redis.hset(STATS_KEY, "processing", remaining)
     return recovered
 
 
