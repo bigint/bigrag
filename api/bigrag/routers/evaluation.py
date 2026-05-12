@@ -11,6 +11,7 @@ from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_r
 from bigrag.services import access_log
 from bigrag.services.collection_scope import assert_collection_matches_pin
 from bigrag.services.retrieval import retrieve
+from bigrag.services.tenant_enforcement import require_tenant_filters
 
 logger = get_logger("bigrag.routers.evaluation")
 
@@ -21,6 +22,7 @@ class EvalCase(BaseModel):
     query: str = Field(min_length=1)
     relevant_ids: list[str] = Field(min_length=1)
     top_k: int | None = Field(default=None, ge=1, le=100)
+    filters: dict | None = None
 
 
 class EvalRequest(BaseModel):
@@ -28,6 +30,7 @@ class EvalRequest(BaseModel):
     cases: list[EvalCase] = Field(min_length=1, max_length=500)
     top_k: int = Field(default=10, ge=1, le=100)
     search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
+    filters: dict | None = None
 
 
 class EvalPerCase(BaseModel):
@@ -100,6 +103,7 @@ async def run_evaluation(
         assert_collection_matches_pin(pinned, body.collection)
 
     collection = await get_collection_or_404(body.collection)
+    require_tenant_filters(collection, body.filters)
     try:
         embedding_model = get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
@@ -111,12 +115,15 @@ async def run_evaluation(
     ndcg_sum = 0.0
 
     for case in body.cases:
+        case_filters = case.filters or body.filters
+        require_tenant_filters(collection, case_filters)
         outcome = await retrieve(
             collection_name=body.collection,
             query=case.query,
             embedding_model=embedding_model,
             top_k=case.top_k or body.top_k,
             search_mode=body.search_mode,
+            filters=case_filters,
             reranking_config=get_reranking_config(collection),
         )
         hit_ids = [r.get("document_id") or r.get("id") for r in outcome.results]
