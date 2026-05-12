@@ -535,7 +535,7 @@ describe("admin app hooks", () => {
     await mutationOptions<{ mutationFn: (body: unknown) => Promise<unknown> }>().mutationFn({
       values: { key: "value" },
     });
-    expect(apiClient.put).toHaveBeenLastCalledWith("admin/settings", {
+    expect(apiClient.put).toHaveBeenLastCalledWith("v1/admin/settings", {
       values: { key: "value" },
     });
 
@@ -549,13 +549,13 @@ describe("admin app hooks", () => {
     await mutationOptions<{ mutationFn: (keys: string[]) => Promise<unknown> }>().mutationFn([
       "openai_key",
     ]);
-    expect(apiClient.post).toHaveBeenLastCalledWith("admin/settings/reset", {
+    expect(apiClient.post).toHaveBeenLastCalledWith("v1/admin/settings/reset", {
       keys: ["openai_key"],
     });
 
     usePurgeEmbeddingCache();
     await mutationOptions<{ mutationFn: () => Promise<unknown> }>().mutationFn();
-    expect(apiClient.post).toHaveBeenLastCalledWith("admin/settings/embedding-cache/purge");
+    expect(apiClient.post).toHaveBeenLastCalledWith("v1/admin/settings/embedding-cache/purge");
 
     useCreateMcpServer();
     await mutationOptions<{ mutationFn: (body: unknown) => Promise<unknown> }>().mutationFn({

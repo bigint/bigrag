@@ -10,7 +10,7 @@ type SettingsBody = { values: Record<string, unknown> };
 export const useInstanceSettings = () =>
   useQuery({
     queryKey: queryKeys.instanceSettings(),
-    queryFn: () => apiClient.get<InstanceSettingsResponse>("admin/settings"),
+    queryFn: () => apiClient.get<InstanceSettingsResponse>("v1/admin/settings"),
     retry: false,
   });
 
@@ -18,7 +18,7 @@ export const useUpdateInstanceSettings = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: SettingsBody) =>
-      apiClient.put<InstanceSettingsResponse>("admin/settings", body),
+      apiClient.put<InstanceSettingsResponse>("v1/admin/settings", body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.instanceSettings() });
       qc.invalidateQueries({ queryKey: queryKeys.platform.readiness() });
@@ -32,7 +32,7 @@ export const useTestInstanceSettings = () =>
   useMutation({
     mutationFn: (body: SettingsBody) =>
       apiClient.post<{ status: string; checked: string[]; message: string }>(
-        "admin/settings/test",
+        "v1/admin/settings/test",
         body,
       ),
     onSuccess: (result) => {
@@ -45,7 +45,7 @@ export const useResetInstanceSettings = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (keys: string[]) =>
-      apiClient.post<{ status: string; message: string }>("admin/settings/reset", { keys }),
+      apiClient.post<{ status: string; message: string }>("v1/admin/settings/reset", { keys }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.instanceSettings() });
       toast.success("Settings reset");
@@ -58,7 +58,9 @@ export const usePurgeEmbeddingCache = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      apiClient.post<{ status: string; message: string }>("admin/settings/embedding-cache/purge"),
+      apiClient.post<{ status: string; message: string }>(
+        "v1/admin/settings/embedding-cache/purge",
+      ),
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: queryKeys.instanceSettings() });
       toast.success(result.message || "Embedding cache purged");

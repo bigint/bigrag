@@ -28,7 +28,7 @@ from bigrag.services.runtime_settings import (
 from bigrag.services.storage import build_storage_from_values
 from bigrag.services.vector_store import VectorStore
 
-router = APIRouter(prefix="/admin/settings", tags=["admin:settings"])
+router = APIRouter(prefix="/v1/admin/settings", tags=["admin:settings"])
 
 
 @router.get("", response_model=InstanceSettingsResponse)

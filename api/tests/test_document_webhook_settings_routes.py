@@ -126,7 +126,7 @@ def test_test_webhook_dispatches(route_client, monkeypatch) -> None:
 
 def test_instance_settings_test_validates_values(route_client) -> None:
     response = route_client().post(
-        "/admin/settings/test",
+        "/v1/admin/settings/test",
         json={"values": {"session_cookie_secure": True}},
     )
 
@@ -136,7 +136,7 @@ def test_instance_settings_test_validates_values(route_client) -> None:
 
 def test_instance_settings_test_rejects_unknown_key(route_client) -> None:
     response = route_client().post(
-        "/admin/settings/test",
+        "/v1/admin/settings/test",
         json={"values": {"missing": True}},
     )
 
