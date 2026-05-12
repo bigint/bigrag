@@ -156,10 +156,15 @@ class S3Storage(StorageBackend):
         self._prefix = prefix.strip("/")
 
     def _key(self, key: str) -> str:
+        import posixpath
+
         clean = key.lstrip("/")
-        if not clean or clean == "." or clean.startswith("../") or "/../" in clean:
+        if not clean:
             raise ValueError(f"Invalid storage key: {key}")
-        return f"{self._prefix}/{clean}" if self._prefix else clean
+        normalized = posixpath.normpath(clean)
+        if normalized.startswith("..") or normalized == "." or "/.." in f"/{normalized}":
+            raise ValueError(f"Invalid storage key: {key}")
+        return f"{self._prefix}/{normalized}" if self._prefix else normalized
 
     async def put(self, key: str, data: bytes) -> None:
         object_key = self._key(key)
