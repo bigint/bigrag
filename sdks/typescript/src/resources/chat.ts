@@ -32,16 +32,25 @@ export class ChatResource {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const frames = buffer.split("\n\n");
-      buffer = frames.pop() ?? "";
-      for (const frame of frames) {
-        const event = parseFrame(frame);
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() ?? "";
+        for (const frame of frames) {
+          const event = parseFrame(frame);
+          if (event) yield event;
+        }
+      }
+      buffer += decoder.decode();
+      if (buffer.trim()) {
+        const event = parseFrame(buffer);
         if (event) yield event;
       }
+    } finally {
+      reader.releaseLock();
     }
   }
 
@@ -53,15 +62,17 @@ export class ChatResource {
   }
 
   get(conversationId: string): Promise<ChatDetailResponse> {
-    return this._client._request("GET", `/v1/chat/${conversationId}`);
+    return this._client._request("GET", `/v1/chat/${encodeURIComponent(conversationId)}`);
   }
 
   update(conversationId: string, body: { title: string }): Promise<ChatDetailResponse> {
-    return this._client._request("PATCH", `/v1/chat/${conversationId}`, { json: body });
+    return this._client._request("PATCH", `/v1/chat/${encodeURIComponent(conversationId)}`, {
+      json: body,
+    });
   }
 
   delete(conversationId: string): Promise<{ status: "deleted" }> {
-    return this._client._request("DELETE", `/v1/chat/${conversationId}`);
+    return this._client._request("DELETE", `/v1/chat/${encodeURIComponent(conversationId)}`);
   }
 }
 
