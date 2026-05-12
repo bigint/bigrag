@@ -376,12 +376,12 @@ def _point_payload(point: Any) -> dict[str, Any]:
         return {
             "id": str(point.get("id", "")),
             "payload": _readable_value(point.get("payload") or {}),
-            "vector": _readable_value(point.get("vector")),
+            "vector": REDACTED,
         }
     return {
         "id": str(getattr(point, "id", "")),
         "payload": _readable_value(getattr(point, "payload", {}) or {}),
-        "vector": _readable_value(getattr(point, "vector", None)),
+        "vector": REDACTED,
     }
 
 
@@ -478,6 +478,7 @@ def _manifest(
         "redaction": {
             "secret_columns": True,
             "embedding_cache_vectors": True,
+            "vector_store_vectors": True,
             "raw_uploads": False,
         },
         "destination": {
