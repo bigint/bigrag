@@ -26,49 +26,47 @@ export const Modal = ({ open, onClose, title, children, footer, size = "md" }: M
       }}
       open={open}
     >
-      {open && (
-        <Dialog.Portal>
-          <Dialog.Backdrop
-            render={<div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm" />}
-          />
-          <Dialog.Popup
-            render={
-              <div
-                className={cn(
-                  "fixed inset-x-4 top-1/2 z-50 max-h-dvh -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-background sm:left-1/2 sm:right-auto sm:w-full sm:-translate-x-1/2",
-                  sizeMap[size],
-                )}
-              />
-            }
-          >
-            <div className="flex items-center justify-between px-6 pt-5 pb-3">
-              <Dialog.Title className="text-base font-semibold">{title}</Dialog.Title>
-              <Dialog.Close
-                aria-label="Close"
-                className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+      <Dialog.Portal>
+        <Dialog.Backdrop
+          render={<div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm" />}
+        />
+        <Dialog.Popup
+          render={
+            <div
+              className={cn(
+                "fixed inset-x-4 top-1/2 z-50 max-h-dvh -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-background sm:left-1/2 sm:right-auto sm:w-full sm:-translate-x-1/2",
+                sizeMap[size],
+              )}
+            />
+          }
+        >
+          <div className="flex items-center justify-between px-6 pt-5 pb-3">
+            <Dialog.Title className="text-base font-semibold">{title}</Dialog.Title>
+            <Dialog.Close
+              aria-label="Close"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <svg
+                aria-hidden="true"
+                className="size-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
               >
-                <svg
-                  aria-hidden="true"
-                  className="size-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  viewBox="0 0 24 24"
-                >
-                  <title>Close</title>
-                  <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </Dialog.Close>
+                <title>Close</title>
+                <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Dialog.Close>
+          </div>
+          <div className="px-6 pb-5">{children}</div>
+          {footer && (
+            <div className="flex justify-end gap-2 border-t border-border bg-muted/45 px-6 py-4">
+              {footer}
             </div>
-            <div className="px-6 pb-5">{children}</div>
-            {footer && (
-              <div className="flex justify-end gap-2 border-t border-border bg-muted/45 px-6 py-4">
-                {footer}
-              </div>
-            )}
-          </Dialog.Popup>
-        </Dialog.Portal>
-      )}
+          )}
+        </Dialog.Popup>
+      </Dialog.Portal>
     </Dialog.Root>
   );
 };

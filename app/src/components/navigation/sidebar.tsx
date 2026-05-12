@@ -110,19 +110,17 @@ export const MobileSidebar = ({
         if (!o) onClose();
       }}
     >
-      {open && (
-        <Dialog.Portal>
-          <Dialog.Backdrop render={<div className="fixed inset-0 z-50 bg-black/50 lg:hidden" />} />
-          <Dialog.Popup
-            render={
-              <div className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-sm flex-col border-r border-border bg-background lg:hidden" />
-            }
-          >
-            <Dialog.Title className="sr-only">Navigation</Dialog.Title>
-            <SidebarBody onNavigate={onClose} role={role} />
-          </Dialog.Popup>
-        </Dialog.Portal>
-      )}
+      <Dialog.Portal>
+        <Dialog.Backdrop render={<div className="fixed inset-0 z-50 bg-black/50 lg:hidden" />} />
+        <Dialog.Popup
+          render={
+            <div className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-sm flex-col border-r border-border bg-background lg:hidden" />
+          }
+        >
+          <Dialog.Title className="sr-only">Navigation</Dialog.Title>
+          <SidebarBody onNavigate={onClose} role={role} />
+        </Dialog.Popup>
+      </Dialog.Portal>
     </Dialog.Root>
   );
 };
