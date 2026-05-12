@@ -72,6 +72,9 @@ async def _clear_session_cookie(response: Response) -> None:
     cookie = await _session_cookie_options()
     response.delete_cookie(
         key=settings.session_cookie_name,
+        httponly=True,
+        secure=bool(cookie["session_cookie_secure"]),
+        samesite=cookie["session_cookie_samesite"] or "lax",
         domain=cookie["session_cookie_domain"],
         path="/",
     )
