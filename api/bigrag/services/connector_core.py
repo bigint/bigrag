@@ -385,9 +385,14 @@ async def prepare_oauth_account(
     return account, state
 
 
-def oauth_redirect_url(account: ConnectorAccount, path: str) -> str:
+async def oauth_redirect_url(account: ConnectorAccount, path: str) -> str:
     origin = str((account.meta or {}).get("redirect_origin") or "").rstrip("/")
     if not origin:
+        return path
+    from bigrag.services.runtime_settings import get_value
+
+    cors_origins = await get_value("cors_origins")
+    if origin not in cors_origins:
         return path
     return f"{origin}{path}"
 
@@ -405,7 +410,7 @@ async def oauth_error_redirect_url(
     account = await get_connector_account(session, provider=provider, user_id=user_id)
     if account is None or account.oauth_state != state:
         return path
-    return oauth_redirect_url(account, path)
+    return await oauth_redirect_url(account, path)
 
 
 async def disconnect_account(

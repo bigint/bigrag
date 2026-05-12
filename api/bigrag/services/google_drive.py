@@ -586,7 +586,7 @@ async def complete_google_oauth(
     account.status = "connected"
     account.oauth_state = None
     account.last_connected_at = utcnow()
-    redirect_path = oauth_redirect_url(
+    redirect_path = await oauth_redirect_url(
         account,
         str((account.meta or {}).get("redirect_path") or "/"),
     )
