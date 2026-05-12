@@ -264,14 +264,30 @@ def test_sync_job_public_serializes_all_counts() -> None:
     assert public["details"] == {}
 
 
-def test_oauth_redirect_url_with_origin() -> None:
+@pytest.mark.anyio
+async def test_oauth_redirect_url_with_origin(monkeypatch) -> None:
+    async def fake_get_value(_key: str) -> list[str]:
+        return ["https://app"]
+
+    monkeypatch.setattr("bigrag.services.runtime_settings.get_value", fake_get_value)
     account = _account(meta={"redirect_origin": "https://app/"})
-    assert connector_core.oauth_redirect_url(account, "/done") == "https://app/done"
+    assert await connector_core.oauth_redirect_url(account, "/done") == "https://app/done"
 
 
-def test_oauth_redirect_url_without_origin() -> None:
+@pytest.mark.anyio
+async def test_oauth_redirect_url_without_origin() -> None:
     account = _account(meta={})
-    assert connector_core.oauth_redirect_url(account, "/done") == "/done"
+    assert await connector_core.oauth_redirect_url(account, "/done") == "/done"
+
+
+@pytest.mark.anyio
+async def test_oauth_redirect_url_rejects_unallowed_origin(monkeypatch) -> None:
+    async def fake_get_value(_key: str) -> list[str]:
+        return ["https://allowed"]
+
+    monkeypatch.setattr("bigrag.services.runtime_settings.get_value", fake_get_value)
+    account = _account(meta={"redirect_origin": "https://attacker"})
+    assert await connector_core.oauth_redirect_url(account, "/done") == "/done"
 
 
 @pytest.mark.anyio
@@ -320,7 +336,11 @@ async def test_oauth_error_redirect_url_falls_back_when_state_mismatch() -> None
 
 
 @pytest.mark.anyio
-async def test_oauth_error_redirect_url_returns_app_origin_on_match() -> None:
+async def test_oauth_error_redirect_url_returns_app_origin_on_match(monkeypatch) -> None:
+    async def fake_get_value(_key: str) -> list[str]:
+        return ["https://app"]
+
+    monkeypatch.setattr("bigrag.services.runtime_settings.get_value", fake_get_value)
     account = _account(oauth_state="matching", meta={"redirect_origin": "https://app"})
     session = FakeSession(scalar_values=[account])
     url = await connector_core.oauth_error_redirect_url(

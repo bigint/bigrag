@@ -54,6 +54,7 @@ def test_manifest_records_readable_redacted_backup() -> None:
     assert manifest["redaction"] == {
         "secret_columns": True,
         "embedding_cache_vectors": True,
+        "vector_store_vectors": True,
         "raw_uploads": False,
     }
     assert manifest["destination"]["bucket"] == "bigrag-backups"
@@ -89,7 +90,7 @@ def test_qdrant_point_payload_is_json_readable() -> None:
     payload = _point_payload(point)
 
     assert payload["payload"] == {"document_id": "doc", "page_no": 3}
-    assert payload["vector"] == [0.1, 0.2]
+    assert payload["vector"] == "[REDACTED]"
 
 
 def test_local_storage_missing_upload_fails(tmp_path) -> None:

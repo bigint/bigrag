@@ -69,7 +69,7 @@ def request_for(*, headers=None, cookies=None, method="GET", path="/v1/collectio
 def test_principal_id_prefers_api_key_query_cookie_and_ip(monkeypatch) -> None:
     monkeypatch.setattr(_principal, "hash_api_key", lambda token: f"h-{token[-4:]}")
     monkeypatch.setattr(_principal, "hash_session_token", lambda token: f"s-{token}")
-    monkeypatch.setattr(_principal.settings, "session_cookie_name", "bigrag_session")
+    monkeypatch.setattr(_principal._config.settings, "session_cookie_name", "bigrag_session")
 
     assert (
         _principal.principal_id(
@@ -104,7 +104,7 @@ def test_auth_helpers_cache_ttl_and_principal_serialization(monkeypatch) -> None
         display_name="Admin",
         role="admin",
     )
-    monkeypatch.setattr(auth.settings, "auth_principal_cache_ttl", 120)
+    monkeypatch.setattr(auth._config.settings, "auth_principal_cache_ttl", 120)
 
     assert auth._session_cache_key("hash") == "auth:session:hash"
     assert auth._api_key_cache_key("hash") == "auth:api_key:hash"
@@ -149,8 +149,8 @@ def test_auth_loads_session_and_api_key_principals(monkeypatch) -> None:
         monkeypatch.setattr(auth.redis_cache, "get_redis", lambda: None)
         monkeypatch.setattr(auth, "hash_session_token", lambda token: f"s-{token}")
         monkeypatch.setattr(auth, "hash_api_key", lambda token: f"k-{token[-4:]}")
-        monkeypatch.setattr(auth.settings, "session_cookie_name", "bigrag_session")
-        monkeypatch.setattr(auth.settings, "auth_principal_cache_ttl", 120)
+        monkeypatch.setattr(auth._config.settings, "session_cookie_name", "bigrag_session")
+        monkeypatch.setattr(auth._config.settings, "auth_principal_cache_ttl", 120)
 
         user = SimpleNamespace(
             id="11111111-1111-1111-1111-111111111111",

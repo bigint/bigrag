@@ -5,6 +5,7 @@ import uuid
 from datetime import UTC, datetime
 
 import httpx
+import pytest
 
 from bigrag.db.models import (
     ConnectorAccount,
@@ -65,7 +66,12 @@ def test_google_config_public_masks_secrets() -> None:
     assert "secret" not in public.values()
 
 
-def test_oauth_redirect_url_uses_admin_origin() -> None:
+@pytest.mark.anyio
+async def test_oauth_redirect_url_uses_admin_origin(monkeypatch) -> None:
+    async def fake_get_value(_key: str) -> list[str]:
+        return ["https://admin.example.com"]
+
+    monkeypatch.setattr("bigrag.services.runtime_settings.get_value", fake_get_value)
     account = ConnectorAccount(
         provider=GOOGLE_PROVIDER,
         user_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
@@ -73,7 +79,7 @@ def test_oauth_redirect_url_uses_admin_origin() -> None:
     )
 
     assert (
-        oauth_redirect_url(account, "/collections/docs/connectors/google-drive")
+        await oauth_redirect_url(account, "/collections/docs/connectors/google-drive")
         == "https://admin.example.com/collections/docs/connectors/google-drive"
     )
 

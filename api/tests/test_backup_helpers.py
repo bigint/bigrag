@@ -182,7 +182,7 @@ def test_point_payload_handles_dict_and_object() -> None:
     point_obj = SimpleNamespace(id="p2", payload={"y": 2}, vector=None)
     payload_obj = backup_module._point_payload(point_obj)
     assert payload_obj["id"] == "p2"
-    assert payload_obj["vector"] is None
+    assert payload_obj["vector"] == "[REDACTED]"
 
 
 def test_write_json_writes_indented_payload(tmp_path) -> None:

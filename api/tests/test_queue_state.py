@@ -126,7 +126,7 @@ def test_queue_state_recovers_unleased_processing_jobs_and_drops_malformed_paylo
         assert recovered == 1
         assert redis.lists[queue_state.QUEUE_KEY] == [raw]
         assert redis.lists[queue_state.PROCESSING_KEY] == [leased]
-        assert redis.hashes[queue_state.STATS_KEY]["processing"] == 0
+        assert redis.hashes[queue_state.STATS_KEY]["processing"] == 1
 
     asyncio.run(run())
 

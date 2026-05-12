@@ -263,7 +263,7 @@ def test_client_ip_respects_trusted_forwarded_chain(monkeypatch) -> None:
         "sync_value",
         lambda key: ["10.0.0.0/8"] if key == "trusted_proxies" else None,
     )
-    monkeypatch.setattr(client_ip.settings, "trusted_proxies", [])
+    monkeypatch.setattr(client_ip._config.settings, "trusted_proxies", [])
 
     assert client_ip.is_trusted_proxy("10.1.2.3") is True
     assert client_ip.is_trusted_proxy("203.0.113.1") is False
