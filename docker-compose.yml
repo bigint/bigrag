@@ -12,7 +12,7 @@ services:
       # enables startup checks that refuse insecure defaults (wildcard
       # CORS, non-secure cookies, default Postgres password).
       BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
-      BIGRAG_DATABASE_URL: postgres://bigrag:bigrag@postgres:5432/bigrag?sslmode=disable
+      BIGRAG_DATABASE_URL: "postgres://${POSTGRES_USER:-bigrag}:${POSTGRES_PASSWORD:-bigrag}@postgres:5432/${POSTGRES_DB:-bigrag}?sslmode=disable"
       BIGRAG_QDRANT_URL: http://qdrant:6333
       BIGRAG_REDIS_URL: redis://redis:6379/0
       BIGRAG_HOST: 0.0.0.0
@@ -44,10 +44,9 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     environment:
-      # Change these credentials for production deployments
-      POSTGRES_USER: bigrag
-      POSTGRES_PASSWORD: bigrag
-      POSTGRES_DB: bigrag
+      POSTGRES_USER: "${POSTGRES_USER:-bigrag}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-bigrag}"
+      POSTGRES_DB: "${POSTGRES_DB:-bigrag}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     command: postgres -c max_connections=200 -c shared_buffers=256MB -c work_mem=8MB -c effective_cache_size=768MB
@@ -56,7 +55,7 @@ services:
         limits:
           memory: 1g
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bigrag"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bigrag}"]
       interval: 10s
       timeout: 5s
       retries: 5

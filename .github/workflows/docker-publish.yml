@@ -5,12 +5,16 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
     branches: [main]
+    types:
+      - completed
   workflow_dispatch:
 
 jobs:
   push:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
