@@ -207,9 +207,9 @@ describe("resource wrappers", () => {
     expect(requestCalls).toEqual([
       ["POST", "/v1/chat", { json: { message: "hello", collection: "docs", stream: false } }],
       ["GET", "/v1/chat", { params: { limit: "10", offset: "20" } }],
-      ["GET", "/v1/chat/conversation/1"],
-      ["PATCH", "/v1/chat/conversation/1", { json: { title: "Renamed" } }],
-      ["DELETE", "/v1/chat/conversation/1"],
+      ["GET", "/v1/chat/conversation%2F1"],
+      ["PATCH", "/v1/chat/conversation%2F1", { json: { title: "Renamed" } }],
+      ["DELETE", "/v1/chat/conversation%2F1"],
     ]);
   });
 
