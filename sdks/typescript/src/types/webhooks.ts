@@ -31,6 +31,7 @@ export interface UpdateWebhookBody {
 
 export interface WebhookListResponse {
   webhooks: Webhook[];
+  total: number;
 }
 
 export interface WebhookDelivery {
@@ -55,4 +56,5 @@ export interface WebhookTestResponse {
   status: string;
   status_code: number | null;
   error: string | null;
+  duration_ms?: number;
 }

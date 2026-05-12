@@ -39,12 +39,22 @@ pub struct ReadinessResponse {
     pub version: String,
     /// Whether Postgres is reachable.
     pub postgres: bool,
-    /// Whether Qdrant is reachable.
-    pub qdrant: bool,
+    /// Whether the configured vector store is reachable.
+    #[serde(default)]
+    pub vector_store: bool,
+    /// Vector store provider name (e.g. `"qdrant"`).
+    #[serde(default)]
+    pub vector_store_provider: Option<String>,
+    /// Whether Qdrant is reachable, when configured as the vector store.
+    #[serde(default)]
+    pub qdrant: Option<bool>,
     /// Whether Redis is reachable.
     pub redis: bool,
     /// Whether the embedding provider is reachable.
     pub embedding: Option<bool>,
+    /// Source of embedding configuration (`"settings"`, `"preset"`, `"collection"`).
+    #[serde(default)]
+    pub embedding_source: Option<String>,
     /// Error message if the embedding provider check failed.
     pub embedding_error: Option<String>,
 }
