@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import secrets
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerifyMismatchError
+
+from bigrag.config import settings as _config_settings
 
 _hasher = PasswordHasher()
 
@@ -42,14 +45,26 @@ def hash_session_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def _api_key_pepper() -> bytes | None:
+    from bigrag import config as _config_module
+
+    master_key = getattr(_config_module.settings, "master_key", None) or _config_settings.master_key
+    if not master_key:
+        return None
+    return master_key.encode("utf-8")
+
+
 def generate_api_key() -> tuple[str, str, str]:
 
     body = secrets.token_urlsafe(API_KEY_BODY_BYTES)
     plaintext = f"{API_KEY_PREFIX}{body}"
     prefix = plaintext[: len(API_KEY_PREFIX) + 4]
-    key_hash = hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
+    key_hash = hash_api_key(plaintext)
     return plaintext, prefix, key_hash
 
 
 def hash_api_key(plaintext: str) -> str:
-    return hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
+    pepper = _api_key_pepper()
+    if pepper is None:
+        return hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
+    return hmac.new(pepper, plaintext.encode("utf-8"), hashlib.sha256).hexdigest()
