@@ -12,9 +12,9 @@
     "typecheck": "fumadocs-mdx && tsc --noEmit"
   },
   "dependencies": {
-    "fumadocs-core": "^16.8.9",
-    "fumadocs-mdx": "^15.0.2",
-    "fumadocs-ui": "^16.8.9",
+    "fumadocs-core": "^16.8.10",
+    "fumadocs-mdx": "^15.0.4",
+    "fumadocs-ui": "^16.8.10",
     "geist": "^1.7.0",
     "lucide-react": "^1.14.0",
     "mermaid": "^11.15.0",
@@ -25,7 +25,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.0",
     "@types/mdx": "^2.0.13",
-    "@types/node": "25.6.2",
+    "@types/node": "25.7.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "postcss": "^8.5.14",

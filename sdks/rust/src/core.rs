@@ -180,8 +180,7 @@ impl Transport {
             }
         }
 
-        Err(last_err
-            .unwrap_or_else(|| BigRagError::Connection("retry loop exhausted".into())))
+        Err(last_err.unwrap_or_else(|| BigRagError::Connection("retry loop exhausted".into())))
     }
 
     async fn do_request<B: Serialize, T: DeserializeOwned>(
