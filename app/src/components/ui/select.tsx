@@ -12,6 +12,7 @@ interface SelectProps {
   value: string;
   onChange: (value: string) => void;
   options: readonly SelectOption[];
+  "aria-label"?: string;
   placeholder?: string;
   disabled?: boolean;
   id?: string;
@@ -55,6 +56,7 @@ export const Select = ({
   value,
   onChange,
   options,
+  "aria-label": ariaLabel,
   placeholder = "Select…",
   disabled = false,
   id,
@@ -74,6 +76,7 @@ export const Select = ({
       value={value}
     >
       <BaseSelect.Trigger
+        aria-label={label ? undefined : ariaLabel}
         className={cn(TRIGGER_CLASS, error && "border-destructive focus-visible:ring-destructive")}
         id={id}
       >

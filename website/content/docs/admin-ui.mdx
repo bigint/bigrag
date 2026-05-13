@@ -40,30 +40,30 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/api-keys` | Mint, scope, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
 | `/access-logs` | Access-log explorer for query, vector, chat, and evaluation traffic. |
 | `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. |
-| `/settings` | Grouped settings navigation for Account, System, Pipeline, and Operations sections. |
+| `/settings` | Operator-console settings workspace for account, platform, data, runtime, and observability sections. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
 ## Settings sections
 
-The settings page uses a desktop sidebar and a compact mobile section switcher. Deep links keep the same `?tab=` values, so links like `/settings?tab=connectors` still open the matching section.
+The settings page uses a compact desktop operator rail and a mobile section selector. Instance settings render as scan-friendly rows with a persistent save/test/reset action strip. Deep links keep the same `?tab=` values, so links like `/settings?tab=connectors` still open the matching section.
 
 | Group | Section | Reads from | Writes to |
 |-------|---------|-----------|-----------|
-| **Account** | Account | `GET /v1/auth/me` | `POST /v1/auth/password`, `POST /v1/auth/logout-all` |
-| **System** | Server | `GET /health/ready`, `GET /v1/stats` | — |
-| **System** | Security | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **System** | Storage | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **System** | Vector store | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Pipeline** | Ingestion | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Pipeline** | Queue | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Pipeline** | Search | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Pipeline** | Chat | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Operations** | Webhooks | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Operations** | Retention | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Operations** | Backups | `GET /admin/settings`, `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset`, `POST /v1/admin/backups` |
-| **Operations** | Connectors | `GET /v1/admin/connectors/{provider}`, `GET /v1/connectors/{provider}/account` | `PUT /v1/admin/connectors/{provider}`, `POST /v1/connectors/{provider}/disconnect` |
-| **Operations** | Usage & cost | `GET /v1/usage` | — |
-| **Operations** | Audit log | `GET /v1/admin/audit` | — |
+| **Personal** | Account | `GET /v1/auth/me` | `POST /v1/auth/password`, `POST /v1/auth/logout-all` |
+| **Platform** | System health | `GET /health/ready`, `GET /v1/admin/realtime/platform/readiness` | — |
+| **Platform** | Security | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Platform** | Backups | `GET /admin/settings`, `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset`, `POST /v1/admin/backups` |
+| **Data** | Storage | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Data** | Vector store | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Data** | Ingestion | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Data** | Retention | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Runtime** | Queue | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Runtime** | Search | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Runtime** | Chat | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Runtime** | Webhooks | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Runtime** | Connectors | `GET /v1/admin/connectors/{provider}`, `GET /v1/connectors/{provider}/account` | `PUT /v1/admin/connectors/{provider}`, `POST /v1/connectors/{provider}/disconnect` |
+| **Observability** | Usage & cost | `GET /v1/usage`, `GET /v1/admin/realtime/usage` | — |
+| **Observability** | Audit log | `GET /v1/admin/audit`, `GET /v1/admin/realtime/audit` | — |
 
 ## Realtime updates
 

@@ -1,23 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import type { LucideIcon } from "lucide-react";
-import {
-  Database,
-  FileStack,
-  HardDrive,
-  History,
-  Layers,
-  ListChecks,
-  Lock,
-  MessageCircle,
-  Plug,
-  Receipt,
-  Search,
-  Server,
-  Timer,
-  UserRound,
-  Webhook,
-} from "lucide-react";
+import type { ComponentType } from "react";
 import { useEffect } from "react";
+import { Select } from "@/components/ui/select";
+import {
+  getSettingsNavItem,
+  getSettingsTab,
+  SETTINGS_NAV_GROUPS,
+  SETTINGS_NAV_ITEMS,
+  settingsSectionLabel,
+} from "@/features/settings/settings-navigation";
 import { AccountTab } from "@/features/settings/tabs/account-tab";
 import { AuditTab } from "@/features/settings/tabs/audit-tab";
 import { BackupsTab } from "@/features/settings/tabs/backups-tab";
@@ -41,141 +32,9 @@ export const Route = createFileRoute("/_dashboard/settings")({
   component: () => <SettingsPage />,
 });
 
-type NavItem = {
-  readonly value: string;
-  readonly label: string;
-  readonly description: string;
-  readonly icon: LucideIcon;
-};
-
-type NavGroup = {
-  readonly label: string;
-  readonly items: NavItem[];
-};
-
-const NAV_GROUPS: NavGroup[] = [
-  {
-    label: "Personal",
-    items: [
-      {
-        value: "account",
-        label: "Account",
-        description: "Profile, password, and active sessions for your operator login.",
-        icon: UserRound,
-      },
-    ],
-  },
-  {
-    label: "Platform",
-    items: [
-      {
-        value: "server",
-        label: "System health",
-        description: "Live readiness of Postgres, Redis, vector store, and embeddings.",
-        icon: Server,
-      },
-      {
-        value: "security",
-        label: "Security",
-        description: "Browser, cookie, proxy, and outbound network policies.",
-        icon: Lock,
-      },
-      {
-        value: "backups",
-        label: "Backups",
-        description: "S3-compatible destination for readable full-instance exports.",
-        icon: History,
-      },
-    ],
-  },
-  {
-    label: "Data",
-    items: [
-      {
-        value: "storage",
-        label: "Storage",
-        description: "Binary storage for local disk, S3, and MinIO deployments.",
-        icon: HardDrive,
-      },
-      {
-        value: "vector_store",
-        label: "Vector store",
-        description: "Vector backend selection, cloud credentials, and indexes.",
-        icon: Database,
-      },
-      {
-        value: "ingestion",
-        label: "Ingestion",
-        description: "Document upload, conversion, OCR, and worker controls.",
-        icon: FileStack,
-      },
-      {
-        value: "retention",
-        label: "Retention",
-        description: "Operational log retention policies.",
-        icon: Timer,
-      },
-    ],
-  },
-  {
-    label: "Runtime",
-    items: [
-      {
-        value: "queue",
-        label: "Queue",
-        description: "Queue backpressure and ingestion job limits.",
-        icon: Layers,
-      },
-      {
-        value: "search",
-        label: "Search",
-        description: "Query caches, collection caches, and embedding concurrency.",
-        icon: Search,
-      },
-      {
-        value: "chat",
-        label: "Chat",
-        description: "Default chat provider behavior and model context budgets.",
-        icon: MessageCircle,
-      },
-      {
-        value: "webhooks",
-        label: "Webhooks",
-        description: "Webhook limits, delivery timeouts, and retry cadence.",
-        icon: Webhook,
-      },
-      {
-        value: "connectors",
-        label: "Connectors",
-        description: "OAuth credentials for external data source connectors.",
-        icon: Plug,
-      },
-    ],
-  },
-  {
-    label: "Observability",
-    items: [
-      {
-        value: "usage",
-        label: "Usage & cost",
-        description: "Aggregated request volume, token usage, and spend.",
-        icon: Receipt,
-      },
-      {
-        value: "audit",
-        label: "Audit log",
-        description: "Administrator activity trail across the instance.",
-        icon: ListChecks,
-      },
-    ],
-  },
-];
-
-const ALL_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
-
 const settingsTab = (group: InstanceSettingGroup) => () => <InstanceSettingsTab group={group} />;
 
-const COMPONENTS: Record<string, React.FC> = {
+const COMPONENTS: Record<string, ComponentType> = {
   account: AccountTab,
   server: ServerTab,
   security: settingsTab("security"),
@@ -197,7 +56,7 @@ const SettingsPage = () => {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const requestedTab = search.tab;
-  const tab = requestedTab && COMPONENTS[requestedTab] ? requestedTab : "account";
+  const tab = getSettingsTab(requestedTab);
 
   useRedirectLegacyEvalTab(requestedTab, navigate);
 
@@ -210,66 +69,110 @@ const SettingsPage = () => {
   };
 
   const Active = COMPONENTS[tab] ?? AccountTab;
-  const active = ALL_ITEMS.find((item) => item.value === tab) ?? ALL_ITEMS[0];
+  const active = getSettingsNavItem(tab);
   const ActiveIcon = active.icon;
+  const mobileOptions = SETTINGS_NAV_ITEMS.map((item) => {
+    const Icon = item.icon;
+    return {
+      icon: <Icon className="size-3.5" />,
+      label: settingsSectionLabel(item.value),
+      value: item.value,
+    };
+  });
 
   return (
-    <div className="-mt-6 -mx-4 flex flex-col md:-mx-8 lg:-mx-10 lg:flex-row lg:gap-10">
-      <aside className="shrink-0 border-b border-border px-4 py-6 md:px-8 lg:sticky lg:top-0 lg:max-h-dvh lg:w-64 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:pr-6 lg:pl-10">
-        <div className="mb-5">
-          <h2 className="text-base font-semibold tracking-normal">Settings</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">Instance configuration</p>
-        </div>
-        <nav className="flex flex-col gap-4">
-          {NAV_GROUPS.map((group) => (
-            <div key={group.label} className="flex flex-col gap-1">
-              <div className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-                {group.label}
-              </div>
-              <div className="flex flex-col gap-0.5">
-                {group.items.map((item) => {
-                  const isActive = item.value === tab;
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.value}
-                      type="button"
-                      aria-current={isActive ? "page" : undefined}
-                      onClick={() => setTab(item.value)}
-                      className={cn(
-                        "flex h-8 items-center gap-2.5 rounded-md px-2 text-left text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        isActive
-                          ? "bg-muted text-foreground"
-                          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-                      )}
-                    >
-                      <Icon className="size-3.5 shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </nav>
-      </aside>
-
-      <section className="min-w-0 flex-1 px-4 py-6 md:px-8 lg:pl-0 lg:pr-10">
-        <header className="mb-6 flex items-start gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-foreground">
-            <ActiveIcon className="size-4" />
-          </div>
+    <div className="-mt-6 -mx-4 min-h-[calc(100dvh-3rem)] bg-background md:-mx-8 lg:-mx-10">
+      <header className="border-b border-border bg-background px-4 py-4 md:px-8 lg:px-10">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-xl font-semibold leading-tight tracking-normal">{active.label}</h1>
+            <h1 className="text-xl font-semibold tracking-normal">Settings</h1>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              {active.description}
+              Operator controls for account access, runtime configuration, platform health, and
+              audit visibility.
             </p>
           </div>
-        </header>
-        <div>
-          <Active />
+          <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">{SETTINGS_NAV_ITEMS.length}</span>
+            sections
+          </div>
         </div>
-      </section>
+        <div className="mt-4 lg:hidden">
+          <Select
+            aria-label="Settings section"
+            onChange={setTab}
+            options={mobileOptions}
+            value={tab}
+          />
+        </div>
+      </header>
+
+      <div className="grid lg:grid-cols-[248px_minmax(0,1fr)]">
+        <aside className="hidden border-r border-border bg-muted/20 lg:block">
+          <div className="sticky top-0 max-h-dvh overflow-y-auto px-4 py-5">
+            <nav className="flex flex-col gap-5">
+              {SETTINGS_NAV_GROUPS.map((group) => (
+                <div key={group.label} className="flex flex-col gap-1">
+                  <div className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    {group.label}
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    {group.items.map((item) => {
+                      const isActive = item.value === tab;
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.value}
+                          type="button"
+                          aria-current={isActive ? "page" : undefined}
+                          onClick={() => setTab(item.value)}
+                          className={cn(
+                            "group flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            isActive
+                              ? "bg-background text-foreground shadow-sm ring-1 ring-border"
+                              : "text-muted-foreground hover:bg-background/70 hover:text-foreground",
+                          )}
+                        >
+                          <Icon
+                            className={cn(
+                              "size-3.5 shrink-0",
+                              isActive ? "text-foreground" : "text-muted-foreground",
+                            )}
+                          />
+                          <span className="truncate">{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </div>
+        </aside>
+
+        <section className="min-w-0 px-4 py-5 md:px-8 lg:px-8">
+          <header className="mb-5 rounded-md border border-border bg-card px-4 py-3">
+            <div className="flex items-start gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-foreground">
+                <ActiveIcon className="size-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <h2 className="text-lg font-semibold leading-tight tracking-normal">
+                    {active.label}
+                  </h2>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                    {settingsSectionLabel(active.value)}
+                  </span>
+                </div>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+                  {active.description}
+                </p>
+              </div>
+            </div>
+          </header>
+          <Active />
+        </section>
+      </div>
     </div>
   );
 };

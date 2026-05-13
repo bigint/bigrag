@@ -18,6 +18,9 @@ from bigrag.services.vector_store.base import (
 
 logger = get_logger("bigrag.vector_store")
 
+_PUBLIC_ID_FIELD = "bigrag_id"
+_EXPORT_PAGE_SIZE = 10000
+
 
 def _to_turbopuffer_filter(filters: FilterExpression | None) -> list | None:
     if filters is None:
@@ -31,6 +34,7 @@ def _to_turbopuffer_filter(filters: FilterExpression | None) -> list | None:
 
 
 def _to_turbopuffer_condition(condition: FilterCondition) -> list:
+    field = _PUBLIC_ID_FIELD if condition.field == "id" else condition.field
     op = {
         "eq": "Eq",
         "ne": "NotEq",
@@ -40,7 +44,27 @@ def _to_turbopuffer_condition(condition: FilterCondition) -> list:
         "lte": "Lte",
         "in": "In",
     }[condition.operator]
-    return [condition.field, op, condition.value]
+    return [field, op, condition.value]
+
+
+def _schema(dimension: int) -> dict:
+    return {
+        "vector": {"type": f"[{dimension}]f32", "ann": True},
+        _PUBLIC_ID_FIELD: {"type": "string"},
+        "document_id": {"type": "string"},
+        "chunk_index": {"type": "int"},
+        "text": {"type": "string", "filterable": False},
+    }
+
+
+def _row_payload(row: dict) -> dict:
+    payload = {
+        k: v
+        for k, v in row.items()
+        if k not in {"$dist", "vector", _PUBLIC_ID_FIELD} and v is not None
+    }
+    payload["id"] = row.get(_PUBLIC_ID_FIELD) or row.get("id")
+    return payload
 
 
 class TurbopufferVectorStore:
@@ -80,6 +104,9 @@ class TurbopufferVectorStore:
     def _namespace(self, name: str) -> str:
         return _backend_name(self.prefix, name)
 
+    def _point_id(self, collection: str, value: str) -> str:
+        return _point_id(self._namespace(collection), value)
+
     async def close(self) -> None:
         if self.client is not None:
             await self.client.aclose()
@@ -100,15 +127,14 @@ class TurbopufferVectorStore:
         await self._write(
             name,
             {
-                "upsert_rows": [],
                 "distance_metric": "cosine_distance",
-                "schema": {"vector": {"type": f"[{dimension}]f32", "ann": True}},
+                "schema": _schema(dimension),
             },
         )
 
     async def delete_collection(self, name: str) -> None:
         client = self._client()
-        response = await client.delete(f"/v1/namespaces/{self._namespace(name)}")
+        response = await client.delete(f"/v2/namespaces/{self._namespace(name)}")
         if response.status_code == 404:
             return
         response.raise_for_status()
@@ -123,7 +149,6 @@ class TurbopufferVectorStore:
         embeddings: list[list[float]],
         metadata: list[dict] | None = None,
     ) -> int:
-        namespace = self._namespace(collection)
         rows = []
         for i in range(len(ids)):
             payload = _build_payload(
@@ -133,8 +158,23 @@ class TurbopufferVectorStore:
                 text=texts[i],
                 metadata=metadata[i] if metadata else None,
             )
-            rows.append({"id": _point_id(namespace, ids[i]), "vector": embeddings[i], **payload})
-        await self._write(collection, {"upsert_rows": rows, "distance_metric": "cosine_distance"})
+            public_id = payload.pop("id")
+            payload[_PUBLIC_ID_FIELD] = public_id
+            rows.append(
+                {
+                    "id": self._point_id(collection, ids[i]),
+                    "vector": embeddings[i],
+                    **payload,
+                }
+            )
+        write_payload: dict[str, Any] = {
+            "upsert_rows": rows,
+            "distance_metric": "cosine_distance",
+        }
+        if embeddings:
+            dimension = len(embeddings[0])
+            write_payload["schema"] = _schema(dimension)
+        await self._write(collection, write_payload)
         return len(rows)
 
     async def _write(self, collection: str, payload: dict) -> dict:
@@ -153,7 +193,7 @@ class TurbopufferVectorStore:
         payload: dict[str, Any] = {
             "rank_by": ["vector", "ANN", query_embedding],
             "top_k": top_k,
-            "include_attributes": True,
+            "exclude_attributes": ["vector"],
         }
         turbo_filter = _to_turbopuffer_filter(filters)
         if turbo_filter:
@@ -168,8 +208,7 @@ class TurbopufferVectorStore:
         for row in response.json().get("rows", []):
             point_id = str(row.get("id", ""))
             distance = float(row.get("$dist", 0.0))
-            payload_row = {k: v for k, v in row.items() if k not in {"$dist"}}
-            rows.append(_row_from_payload(point_id, max(0.0, 1.0 - distance), payload_row))
+            rows.append(_row_from_payload(point_id, max(0.0, 1.0 - distance), _row_payload(row)))
         return rows
 
     async def get_chunks(
@@ -185,10 +224,10 @@ class TurbopufferVectorStore:
                 "rank_by": ["id", "asc"],
                 "filters": ["document_id", "Eq", document_id],
                 "limit": {"total": 10000},
-                "include_attributes": True,
+                "exclude_attributes": ["vector"],
             },
         )
-        return _chunk_rows_from_payloads(rows, limit, offset)
+        return _chunk_rows_from_payloads([_row_payload(row) for row in rows], limit, offset)
 
     async def _query_rows(self, collection: str, payload: dict) -> list[dict]:
         client = self._client()
@@ -203,8 +242,7 @@ class TurbopufferVectorStore:
         await self._write(collection, {"delete_by_filter": ["document_id", "Eq", document_id]})
 
     async def delete_by_ids(self, collection: str, ids: list[str]) -> None:
-        namespace = self._namespace(collection)
-        await self._write(collection, {"deletes": [_point_id(namespace, id_) for id_ in ids]})
+        await self._write(collection, {"deletes": [self._point_id(collection, id_) for id_ in ids]})
 
     async def text_search(
         self,
@@ -234,21 +272,26 @@ class TurbopufferVectorStore:
         )
 
     async def export_collection_points(self, collection: str) -> list[dict]:
-        rows = await self._query_rows(
-            collection,
-            {
-                "rank_by": ["id", "asc"],
-                "limit": {"total": 10000},
-                "include_attributes": True,
-            },
-        )
         points = []
-        for row in rows:
-            points.append(
-                {
-                    "id": str(row.get("id", "")),
-                    "payload": {k: v for k, v in row.items() if k not in {"id", "vector"}},
-                    "vector": row.get("vector"),
-                }
-            )
+        last_id: str | None = None
+        while True:
+            payload: dict[str, Any] = {
+                "rank_by": ["id", "asc"],
+                "limit": {"total": _EXPORT_PAGE_SIZE},
+                "include_attributes": True,
+            }
+            if last_id is not None:
+                payload["filters"] = ["id", "Gt", last_id]
+            rows = await self._query_rows(collection, payload)
+            for row in rows:
+                points.append(
+                    {
+                        "id": str(row.get("id", "")),
+                        "payload": _row_payload(row),
+                        "vector": row.get("vector"),
+                    }
+                )
+            if len(rows) < _EXPORT_PAGE_SIZE:
+                break
+            last_id = str(rows[-1].get("id", ""))
         return points

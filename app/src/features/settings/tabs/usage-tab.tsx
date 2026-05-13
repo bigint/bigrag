@@ -46,9 +46,9 @@ export const UsageTab = () => {
   });
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
+    <div className="flex flex-col gap-4">
+      <Card className="rounded-md">
+        <CardHeader className="border-b border-border bg-muted/35 p-4">
           <CardTitle>Usage and cost</CardTitle>
           <CardDescription>
             Per-collection document, chunk, query, and embedding-cost totals. Cost is an estimate
@@ -56,7 +56,7 @@ export const UsageTab = () => {
             truth.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4">
           <div className="mb-4 flex items-center gap-3">
             <span className="text-sm text-muted-foreground">Window</span>
             <div className="w-40">
@@ -138,7 +138,7 @@ export const UsageTab = () => {
 };
 
 const StatCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-md border border-border bg-card p-3">
+  <div className="rounded-md border border-border bg-background p-3">
     <div className="text-xs text-muted-foreground">{label}</div>
     <div className="mt-1 text-lg font-semibold text-foreground">{value}</div>
   </div>

@@ -36,7 +36,7 @@ const HealthRow = ({
   ok: boolean | undefined;
   hint?: string | null;
 }) => (
-  <div className="flex items-center justify-between gap-3 px-5 py-4">
+  <div className="flex items-center justify-between gap-3 px-4 py-3">
     <div className="min-w-0">
       <div className="text-sm font-semibold text-foreground">{label}</div>
       {hint && <div className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</div>}
@@ -46,7 +46,7 @@ const HealthRow = ({
 );
 
 const EnvRow = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-center justify-between gap-3 px-5 py-3">
+  <div className="flex items-center justify-between gap-3 px-4 py-3">
     <code className="font-mono text-xs text-foreground">{label}</code>
     <span className="truncate text-xs text-muted-foreground">{value}</span>
   </div>
@@ -67,9 +67,9 @@ export const ServerTab = () => {
   const version = readiness?.version;
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="rounded-xl border border-border bg-card">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <section className="rounded-md border border-border bg-card">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/35 p-4">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold tracking-normal">System health</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -108,8 +108,8 @@ export const ServerTab = () => {
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card">
-        <header className="flex flex-col gap-1 border-b border-border p-5">
+      <section className="rounded-md border border-border bg-card">
+        <header className="flex flex-col gap-1 border-b border-border bg-muted/35 p-4">
           <h3 className="text-sm font-semibold tracking-normal">Bootstrap wiring</h3>
           <p className="text-xs text-muted-foreground">
             These coordinates must exist before the API can read database-backed settings.

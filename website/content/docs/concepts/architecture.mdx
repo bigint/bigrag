@@ -123,7 +123,9 @@ a future pgvector backend.
   and the configured vector store.
 - **Vector backend choice**: use local Qdrant for self-hosted installs,
   S3 Vectors for AWS-native managed storage, or turbopuffer for a
-  managed vector search service.
+  managed vector search service. Turbopuffer namespaces are created on
+  first write and store bigRAG vector IDs as payload attributes while
+  using backend-safe IDs internally for writes, deletes, and exports.
 - **Postgres replication**: the control plane is read-light; a
   warm-standby suffices for failover.
 - **Redis persistence**: enable `appendonly yes` (already set in the

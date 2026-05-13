@@ -31,11 +31,11 @@ export const ConnectorsTab = () => {
   const needsReauth = account?.status === "needs_reauth";
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <section className="overflow-hidden rounded-sm border border-border bg-card">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-border border-b bg-muted/35 px-5 py-4">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="overflow-hidden rounded-md border border-border bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-border border-b bg-muted/35 px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-sm border border-border bg-background">
+            <div className="flex size-10 items-center justify-center rounded-md border border-border bg-background">
               <Plug className="size-5" />
             </div>
             <div>
@@ -48,7 +48,7 @@ export const ConnectorsTab = () => {
           </Badge>
         </div>
 
-        <div className="flex flex-col gap-5 p-5">
+        <div className="flex flex-col gap-5 p-4">
           <div className="grid gap-4 md:grid-cols-3">
             <ConnectorMetric
               icon={<ShieldCheck className="size-4" />}
@@ -75,7 +75,7 @@ export const ConnectorsTab = () => {
             />
           </div>
 
-          <div className="rounded-sm border border-border bg-background p-4">
+          <div className="rounded-md border border-border bg-background p-4">
             <Switch checked={enabled} label="Enabled" onCheckedChange={setEnabled} />
           </div>
 
@@ -144,9 +144,9 @@ export const ConnectorsTab = () => {
         </div>
       </section>
 
-      <section className="rounded-sm border border-border bg-card p-5">
+      <section className="rounded-md border border-border bg-card p-4">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-sm border border-border bg-background">
+          <div className="flex size-10 items-center justify-center rounded-md border border-border bg-background">
             <Cloud className="size-5" />
           </div>
           <div className="min-w-0">
@@ -195,7 +195,7 @@ const ConnectorMetric = ({
   label: string;
   value: string;
 }) => (
-  <div className="rounded-sm border border-border bg-background p-3">
+  <div className="rounded-md border border-border bg-background p-3">
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
       {icon}
       {label}

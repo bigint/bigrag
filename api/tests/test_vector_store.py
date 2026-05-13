@@ -4,6 +4,7 @@ import asyncio
 
 import pytest
 
+import bigrag.services.vector_store.turbopuffer as turbopuffer_module
 from bigrag.services._retrieval_filters import build_filter
 from bigrag.services.vector_store import (
     QdrantVectorStore,
@@ -14,6 +15,7 @@ from bigrag.services.vector_store import (
     _to_s3_filter,
     _to_turbopuffer_filter,
 )
+from bigrag.services.vector_store.base import _point_id
 from bigrag.services.vector_store.qdrant import _to_qdrant_filter
 
 
@@ -39,11 +41,14 @@ def test_s3_filter_translation() -> None:
 
 
 def test_turbopuffer_filter_translation() -> None:
-    expr = build_filter({"tenant_id": "acme", "page_no": {"$gt": 1}, "kind": {"$in": ["pdf"]}})
+    expr = build_filter(
+        {"id": "chunk-1", "tenant_id": "acme", "page_no": {"$gt": 1}, "kind": {"$in": ["pdf"]}}
+    )
 
     assert _to_turbopuffer_filter(expr) == [
         "And",
         [
+            ["bigrag_id", "Eq", "chunk-1"],
             ["tenant_id", "Eq", "acme"],
             ["page_no", "Gt", 1],
             ["kind", "In", ["pdf"]],
@@ -222,6 +227,7 @@ class FakeTurbopufferClient:
         self.posts = []
         self.gets = []
         self.deletes = []
+        self.query_pages = []
         self.closed = False
 
     async def get(self, path: str):
@@ -231,15 +237,19 @@ class FakeTurbopufferClient:
     async def post(self, path: str, json: dict):
         self.posts.append((path, json))
         if path.endswith("/query"):
+            if self.query_pages:
+                return FakeResponse({"rows": self.query_pages.pop(0)})
             return FakeResponse(
                 {
                     "rows": [
                         {
                             "$dist": 0.25,
                             "id": "point-1",
+                            "bigrag_id": "chunk-1",
                             "text": "hello",
                             "document_id": "doc-1",
                             "chunk_index": 0,
+                            "tenant_id": "acme",
                         }
                     ]
                 }
@@ -269,9 +279,15 @@ async def _test_turbopuffer_adapter_maps_write_query_and_delete() -> None:
 
     assert count == 1
     assert fake.posts[0][0] == "/v2/namespaces/bigrag_docs"
+    assert fake.posts[0][1]["upsert_rows"][0]["id"] == _point_id("bigrag_docs", "chunk-1")
+    assert fake.posts[0][1]["upsert_rows"][0]["bigrag_id"] == "chunk-1"
     assert fake.posts[0][1]["upsert_rows"][0]["document_id"] == "doc-1"
+    assert fake.posts[0][1]["schema"]["vector"] == {"type": "[2]f32", "ann": True}
     assert fake.posts[1][1]["filters"] == ["tenant_id", "Eq", "acme"]
+    assert fake.posts[1][1]["exclude_attributes"] == ["vector"]
+    assert results[0]["id"] == "chunk-1"
     assert results[0]["score"] == pytest.approx(0.75)
+    assert results[0]["metadata"] == {"tenant_id": "acme"}
     assert fake.posts[2][1] == {"delete_by_filter": ["document_id", "Eq", "doc-1"]}
 
 
@@ -294,25 +310,57 @@ async def _test_turbopuffer_adapter_handles_lifecycle_chunks_and_exports() -> No
     await store.close()
 
     assert fake.gets == ["/v1/namespaces"]
-    assert fake.posts[0][1]["schema"] == {"vector": {"type": "[2]f32", "ann": True}}
-    assert chunks == [{"id": "point-1", "text": "hello", "chunk_index": 0}]
+    assert fake.posts[0][1]["schema"]["vector"] == {"type": "[2]f32", "ann": True}
+    assert fake.posts[0][1]["schema"]["bigrag_id"] == {"type": "string"}
+    assert "upsert_rows" not in fake.posts[0][1]
+    assert fake.posts[1][1]["exclude_attributes"] == ["vector"]
+    assert chunks == [{"id": "chunk-1", "text": "hello", "chunk_index": 0}]
     assert total == 1
-    assert fake.posts[2][1]["deletes"]
+    assert fake.posts[2][1]["deletes"] == [_point_id("bigrag_docs", "chunk-1")]
     assert upserted == 1
     assert exported == [
         {
             "id": "point-1",
             "payload": {
-                "$dist": 0.25,
+                "id": "chunk-1",
                 "text": "hello",
                 "document_id": "doc-1",
                 "chunk_index": 0,
+                "tenant_id": "acme",
             },
             "vector": None,
         }
     ]
-    assert fake.deletes == ["/v1/namespaces/bigrag_docs"]
+    assert fake.deletes == ["/v2/namespaces/bigrag_docs"]
     assert fake.closed is True
+
+
+def test_turbopuffer_export_pages_by_primary_id(monkeypatch) -> None:
+    asyncio.run(_test_turbopuffer_export_pages_by_primary_id(monkeypatch))
+
+
+async def _test_turbopuffer_export_pages_by_primary_id(monkeypatch) -> None:
+    monkeypatch.setattr(turbopuffer_module, "_EXPORT_PAGE_SIZE", 2)
+    store = TurbopufferVectorStore(api_key="tpuf", region="aws-us-east-1")
+    fake = FakeTurbopufferClient()
+    fake.query_pages = [
+        [
+            {"id": "point-1", "bigrag_id": "chunk-1", "vector": [0.1]},
+            {"id": "point-2", "bigrag_id": "chunk-2", "vector": [0.2]},
+        ],
+        [{"id": "point-3", "bigrag_id": "chunk-3", "vector": [0.3]}],
+    ]
+    store.client = fake
+
+    exported = await store.export_collection_points("docs")
+
+    assert exported == [
+        {"id": "point-1", "payload": {"id": "chunk-1"}, "vector": [0.1]},
+        {"id": "point-2", "payload": {"id": "chunk-2"}, "vector": [0.2]},
+        {"id": "point-3", "payload": {"id": "chunk-3"}, "vector": [0.3]},
+    ]
+    assert "filters" not in fake.posts[0][1]
+    assert fake.posts[1][1]["filters"] == ["id", "Gt", "point-2"]
 
 
 def test_cloud_adapters_fail_keyword_search_clearly() -> None:

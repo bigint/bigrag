@@ -7,6 +7,13 @@ import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  type DraftValue,
+  draftValue,
+  inputType,
+  settingDescription,
+  valuesForSubmit,
+} from "@/features/settings/instance-settings-helpers";
+import {
   useInstanceSettings,
   usePurgeEmbeddingCache,
   useResetInstanceSettings,
@@ -19,8 +26,6 @@ import type {
   InstanceSettingsResponse,
   InstanceSettingValue,
 } from "@/types/bigrag";
-
-type DraftValue = boolean | string;
 
 export const InstanceSettingsTab = ({ group }: { group: InstanceSettingGroup }) => {
   const { data, isPending } = useInstanceSettings();
@@ -36,73 +41,61 @@ export const InstanceSettingsTab = ({ group }: { group: InstanceSettingGroup }) 
 
   const body = () => ({ values: valuesForSubmit(groupSpecs, draft) });
   const restartCount = groupSpecs.filter((spec) => spec.restart_required).length;
+  const isBusy = isPending || save.isPending || test.isPending || reset.isPending;
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={restartCount ? "warning" : "success"} dot>
-          {restartCount ? `${restartCount} restart-bound` : "applies live"}
-        </Badge>
-        <Badge variant="neutral" dot>
-          {groupSpecs.length} settings
-        </Badge>
-      </div>
+      <section className="overflow-hidden rounded-md border border-border bg-card">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/35 px-4 py-3">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold tracking-normal">Configuration registry</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Database-backed runtime settings for this section.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={restartCount ? "warning" : "success"} dot>
+              {restartCount ? `${restartCount} restart-bound` : "applies live"}
+            </Badge>
+            <Badge variant="neutral" dot>
+              {groupSpecs.length} settings
+            </Badge>
+          </div>
+        </header>
 
-      {isPending ? (
-        <div className="rounded-md border border-border px-3 py-2 text-sm text-muted-foreground">
-          Loading settings…
-        </div>
-      ) : (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {groupSpecs.map((spec) => (
-            <SettingField
-              key={spec.key}
-              spec={spec}
-              value={draft[spec.key]}
-              setting={data?.values[spec.key]}
-              onChange={(value) => setDraft((current) => ({ ...current, [spec.key]: value }))}
-            />
-          ))}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
-          <Button disabled={isPending || save.isPending} onClick={() => save.mutate(body())}>
-            <Save className="size-3.5" />
-            Save changes
-          </Button>
-          <Button
-            disabled={isPending || test.isPending}
-            onClick={() => test.mutate(body())}
-            variant="outline"
-          >
-            <TestTube2 className="size-3.5" />
-            Test
-          </Button>
-          <Button
-            disabled={isPending || reset.isPending}
-            onClick={() => reset.mutate(groupSpecs.map((spec) => spec.key))}
-            variant="outline"
-          >
-            <RotateCcw className="size-3.5" />
-            Reset
-          </Button>
-        </div>
-        {group === "security" && (
-          <Button
-            disabled={purgeEmbeddingCache.isPending}
-            onClick={() => {
-              if (window.confirm("Purge every persistent embedding cache row?")) {
-                purgeEmbeddingCache.mutate();
-              }
-            }}
-            variant="destructive"
-          >
-            <Trash2 className="size-3.5" />
-            Purge embedding cache
-          </Button>
+        {isPending ? (
+          <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+            Loading settings…
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {groupSpecs.map((spec) => (
+              <SettingField
+                key={spec.key}
+                spec={spec}
+                value={draft[spec.key]}
+                setting={data?.values[spec.key]}
+                onChange={(value) => setDraft((current) => ({ ...current, [spec.key]: value }))}
+              />
+            ))}
+          </div>
         )}
+      </section>
+
+      <div className="sticky bottom-0 z-10 rounded-md border border-border bg-background/95 p-3 shadow-sm">
+        <SettingsActions
+          disabled={!groupSpecs.length || isBusy}
+          group={group}
+          onPurgeEmbeddingCache={() => {
+            if (window.confirm("Purge every persistent embedding cache row?")) {
+              purgeEmbeddingCache.mutate();
+            }
+          }}
+          onReset={() => reset.mutate(groupSpecs.map((spec) => spec.key))}
+          onSave={() => save.mutate(body())}
+          onTest={() => test.mutate(body())}
+          purgePending={purgeEmbeddingCache.isPending}
+        />
       </div>
     </div>
   );
@@ -140,59 +133,75 @@ const SettingField = ({
   const description = settingDescription(spec, setting);
   if (spec.kind === "bool") {
     return (
-      <div className="rounded-lg border border-border bg-card p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-sm font-semibold">{spec.label}</div>
-            <div className="mt-1 text-xs text-muted-foreground">{description}</div>
-          </div>
-          <Switch checked={Boolean(value)} onCheckedChange={onChange} aria-label={spec.label} />
+      <SettingRow spec={spec} setting={setting} description={description}>
+        <div className="flex min-h-10 items-center justify-end">
+          <Switch aria-label={spec.label} checked={Boolean(value)} onCheckedChange={onChange} />
         </div>
-        <SettingBadges spec={spec} setting={setting} />
-      </div>
+      </SettingRow>
     );
   }
   if (spec.kind === "select") {
     return (
-      <div className="rounded-lg border border-border bg-card p-4">
+      <SettingRow spec={spec} setting={setting} description={description}>
         <Select
-          label={spec.label}
+          aria-label={spec.label}
           value={String(value ?? "")}
           onChange={onChange}
           options={spec.options.map((option) => ({ label: option, value: option }))}
         />
-        <div className="mt-1 text-xs text-muted-foreground">{description}</div>
-        <SettingBadges spec={spec} setting={setting} />
-      </div>
+      </SettingRow>
     );
   }
   if (spec.kind === "string_list" || spec.kind === "int_list") {
     return (
-      <div className="rounded-lg border border-border bg-card p-4">
+      <SettingRow spec={spec} setting={setting} description={description}>
         <Textarea
-          label={spec.label}
+          aria-label={spec.label}
+          className="min-h-20 rounded-md px-3 py-2"
           value={String(value ?? "")}
           onChange={(event) => onChange(event.target.value)}
-          description={description}
         />
-        <SettingBadges spec={spec} setting={setting} />
-      </div>
+      </SettingRow>
     );
   }
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <SettingRow spec={spec} setting={setting} description={description}>
       <Input
-        label={spec.label}
+        aria-label={spec.label}
         value={String(value ?? "")}
         onChange={(event) => onChange(event.target.value)}
         placeholder={spec.secret && setting?.has_value ? "Saved" : undefined}
         type={inputType(spec)}
-        description={description}
       />
-      <SettingBadges spec={spec} setting={setting} />
-    </div>
+    </SettingRow>
   );
 };
+
+const SettingRow = ({
+  children,
+  description,
+  setting,
+  spec,
+}: {
+  children: React.ReactNode;
+  description: string;
+  setting?: InstanceSettingValue;
+  spec: InstanceSettingSpec;
+}) => (
+  <div className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,420px)] lg:items-start">
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="text-sm font-semibold text-foreground">{spec.label}</div>
+        <SettingBadges spec={spec} setting={setting} />
+      </div>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+      <code className="mt-2 block truncate font-mono text-[11px] text-muted-foreground/80">
+        {spec.key}
+      </code>
+    </div>
+    <div className="min-w-0">{children}</div>
+  </div>
+);
 
 const SettingBadges = ({
   spec,
@@ -201,7 +210,7 @@ const SettingBadges = ({
   spec: InstanceSettingSpec;
   setting?: InstanceSettingValue;
 }) => (
-  <div className="mt-3 flex flex-wrap gap-2">
+  <div className="flex flex-wrap gap-1.5">
     <Badge variant={setting?.source === "database" ? "primary" : "neutral"}>
       {setting?.source ?? "default"}
     </Badge>
@@ -212,36 +221,43 @@ const SettingBadges = ({
   </div>
 );
 
-const settingDescription = (spec: InstanceSettingSpec, setting?: InstanceSettingValue) => {
-  if (spec.secret && setting?.has_value) {
-    return `${spec.description} Leave blank to keep the saved value.`;
-  }
-  return spec.description;
-};
-
-const inputType = (spec: InstanceSettingSpec) => {
-  if (spec.kind === "int" || spec.kind === "float") return "number";
-  if (spec.kind === "secret") return "password";
-  return "text";
-};
-
-const draftValue = (spec: InstanceSettingSpec, setting?: InstanceSettingValue): DraftValue => {
-  if (spec.kind === "bool") return Boolean(setting?.value ?? spec.default ?? false);
-  if (spec.kind === "secret") return "";
-  const value = setting?.value ?? spec.default;
-  if (Array.isArray(value)) return value.join("\n");
-  return value === null || value === undefined ? "" : String(value);
-};
-
-const valuesForSubmit = (
-  specs: InstanceSettingSpec[],
-  draft: Record<string, DraftValue>,
-): Record<string, unknown> => {
-  const values: Record<string, unknown> = {};
-  for (const spec of specs) {
-    const value = draft[spec.key];
-    if (spec.kind === "secret" && !value) continue;
-    values[spec.key] = value;
-  }
-  return values;
-};
+const SettingsActions = ({
+  disabled,
+  group,
+  onPurgeEmbeddingCache,
+  onReset,
+  onSave,
+  onTest,
+  purgePending,
+}: {
+  disabled: boolean;
+  group: InstanceSettingGroup;
+  onPurgeEmbeddingCache: () => void;
+  onReset: () => void;
+  onSave: () => void;
+  onTest: () => void;
+  purgePending: boolean;
+}) => (
+  <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="flex flex-wrap gap-2">
+      <Button disabled={disabled} onClick={onSave}>
+        <Save className="size-3.5" />
+        Save changes
+      </Button>
+      <Button disabled={disabled} onClick={onTest} variant="outline">
+        <TestTube2 className="size-3.5" />
+        Test
+      </Button>
+      <Button disabled={disabled} onClick={onReset} variant="outline">
+        <RotateCcw className="size-3.5" />
+        Reset
+      </Button>
+    </div>
+    {group === "security" && (
+      <Button disabled={purgePending} onClick={onPurgeEmbeddingCache} variant="destructive">
+        <Trash2 className="size-3.5" />
+        Purge embedding cache
+      </Button>
+    )}
+  </div>
+);

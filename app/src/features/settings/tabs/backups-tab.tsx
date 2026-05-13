@@ -20,8 +20,8 @@ export const BackupsTab = () => {
   return (
     <div className="flex flex-col gap-4">
       <InstanceSettingsTab group="backups" />
-      <Card>
-        <CardHeader>
+      <Card className="rounded-md">
+        <CardHeader className="border-b border-border bg-muted/35 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -38,8 +38,8 @@ export const BackupsTab = () => {
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <div className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+        <CardContent className="flex flex-col gap-5 p-4">
+          <div className="rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
             <div className="flex items-start gap-2">
               <ShieldAlert className="mt-0.5 size-4 shrink-0" />
               <p>
@@ -81,12 +81,12 @@ const EmptyBackups = () => (
     title="No backups yet"
     description="Configure a backup bucket, test the destination, then start the first readable export."
     bordered={false}
-    className="rounded-2xl border border-dashed border-border bg-muted/40"
+    className="rounded-md border border-dashed border-border bg-muted/40"
   />
 );
 
 const BackupJobs = ({ jobs }: { jobs: BackupJob[] }) => (
-  <div className="overflow-hidden rounded-2xl border border-border">
+  <div className="overflow-hidden rounded-md border border-border">
     <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-border bg-muted/60 px-4 py-2 text-xs font-semibold text-muted-foreground">
       <span>Backup</span>
       <span>Size</span>

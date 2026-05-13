@@ -57,9 +57,9 @@ export const AccountTab = () => {
   };
 
   return (
-    <div className="flex max-w-2xl flex-col gap-8">
-      <section className="rounded-xl border border-border bg-card">
-        <div className="flex items-center gap-4 border-b border-border p-5">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="rounded-md border border-border bg-card">
+        <div className="flex items-center gap-4 border-b border-border bg-muted/35 p-4">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
             {user ? initials(user.display_name, user.email) : "—"}
           </div>
@@ -73,20 +73,20 @@ export const AccountTab = () => {
             </span>
           )}
         </div>
-        <div className="grid gap-4 p-5 sm:grid-cols-2">
+        <div className="grid gap-4 p-4 sm:grid-cols-2">
           <Input label="Display name" defaultValue={user?.display_name} disabled />
           <Input label="Email" defaultValue={user?.email} disabled />
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card">
-        <header className="flex flex-col gap-1 border-b border-border p-5">
+      <section className="rounded-md border border-border bg-card xl:row-span-2">
+        <header className="flex flex-col gap-1 border-b border-border bg-muted/35 p-4">
           <h3 className="text-sm font-semibold tracking-normal">Change password</h3>
           <p className="text-xs text-muted-foreground">
             You'll be signed out of all sessions after changing it.
           </p>
         </header>
-        <form onSubmit={save} className="flex flex-col gap-4 p-5">
+        <form onSubmit={save} className="flex flex-col gap-4 p-4">
           <Input
             label="Current password"
             type="password"
@@ -125,8 +125,8 @@ export const AccountTab = () => {
         </form>
       </section>
 
-      <section className="rounded-xl border border-border bg-card">
-        <header className="flex flex-col gap-1 border-b border-border p-5">
+      <section className="rounded-md border border-border bg-card">
+        <header className="flex flex-col gap-1 border-b border-border bg-muted/35 p-4">
           <h3 className="flex items-center gap-2 text-sm font-semibold tracking-normal">
             <ShieldAlert className="size-3.5 text-warning" />
             Active sessions
@@ -135,7 +135,7 @@ export const AccountTab = () => {
             Sign out of every browser or device where this account is logged in.
           </p>
         </header>
-        <div className="flex items-center justify-between gap-4 p-5">
+        <div className="flex items-center justify-between gap-4 p-4">
           <p className="text-xs text-muted-foreground">
             This revokes all refresh tokens immediately. You'll need to log in again on every
             device, including this one.

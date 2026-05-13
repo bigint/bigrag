@@ -35,15 +35,15 @@ export const AuditTab = () => {
   });
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="rounded-md">
+      <CardHeader className="border-b border-border bg-muted/35 p-4">
         <CardTitle>Audit log</CardTitle>
         <CardDescription>
           Privileged admin actions are recorded here with actor, resource, and IP. Used for
           compliance trails (SOC2 / similar) — retained indefinitely until manually purged.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4">
         {isPending ? (
           <div className="flex justify-center py-8">
             <Spinner />
