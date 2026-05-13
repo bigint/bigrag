@@ -131,3 +131,14 @@ a future pgvector backend.
 - **Redis persistence**: enable `appendonly yes` (already set in the
   shipped compose file). The ingestion queue loses less than a second
   of in-flight work on crash.
+
+## Connector service layout
+
+Connector routes stay provider-neutral through `connector_registry.py`.
+Reusable connector behavior lives in `bigrag.services.connectors`:
+account/config management, source and sync-job persistence, scheduler
+ticks, progress payloads, manifest updates, and document handoff to the
+ingestion queue. Provider modules layer on top of those shared helpers;
+the Google Drive provider keeps OAuth/account handling, Drive API calls,
+source helpers, and sync adapter wiring in separate modules while
+preserving `bigrag.services.google_drive` as the public import surface.

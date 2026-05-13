@@ -45,6 +45,22 @@ export const InstanceSettingsTab = ({ group }: { group: InstanceSettingGroup }) 
 
   return (
     <div className="flex flex-col gap-5">
+      <div className="sticky top-0 z-10 rounded-md border border-border bg-background/95 p-3 shadow-sm">
+        <SettingsActions
+          disabled={!groupSpecs.length || isBusy}
+          group={group}
+          onPurgeEmbeddingCache={() => {
+            if (window.confirm("Purge every persistent embedding cache row?")) {
+              purgeEmbeddingCache.mutate();
+            }
+          }}
+          onReset={() => reset.mutate(groupSpecs.map((spec) => spec.key))}
+          onSave={() => save.mutate(body())}
+          onTest={() => test.mutate(body())}
+          purgePending={purgeEmbeddingCache.isPending}
+        />
+      </div>
+
       <section className="overflow-hidden rounded-md border border-border bg-card">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/35 px-4 py-3">
           <div className="min-w-0">
@@ -81,22 +97,6 @@ export const InstanceSettingsTab = ({ group }: { group: InstanceSettingGroup }) 
           </div>
         )}
       </section>
-
-      <div className="sticky bottom-0 z-10 rounded-md border border-border bg-background/95 p-3 shadow-sm">
-        <SettingsActions
-          disabled={!groupSpecs.length || isBusy}
-          group={group}
-          onPurgeEmbeddingCache={() => {
-            if (window.confirm("Purge every persistent embedding cache row?")) {
-              purgeEmbeddingCache.mutate();
-            }
-          }}
-          onReset={() => reset.mutate(groupSpecs.map((spec) => spec.key))}
-          onSave={() => save.mutate(body())}
-          onTest={() => test.mutate(body())}
-          purgePending={purgeEmbeddingCache.isPending}
-        />
-      </div>
     </div>
   );
 };
