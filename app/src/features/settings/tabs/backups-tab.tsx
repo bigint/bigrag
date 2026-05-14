@@ -1,4 +1,4 @@
-import { Archive, CloudUpload, DatabaseBackup, ShieldAlert } from "lucide-react";
+import { Archive, CheckCircle2, CloudUpload, DatabaseBackup, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,19 +6,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { useBackups, useStartBackup } from "@/hooks/use-backups";
+import { useInstanceSettings } from "@/hooks/use-instance-settings";
 import { formatBytes, formatRelative } from "@/lib/format";
 import type { BackupJob } from "@/types/bigrag";
 import { InstanceSettingsTab } from "./instance-settings-tab";
 
 export const BackupsTab = () => {
   const backups = useBackups();
+  const settings = useInstanceSettings();
   const startBackup = useStartBackup();
   const [label, setLabel] = useState("");
   const jobs = backups.data?.jobs ?? [];
   const active = jobs.some((job) => job.status === "pending" || job.status === "running");
+  const destinationConfigured = Boolean(settings.data?.values.backup_s3_bucket?.value);
 
   return (
     <div className="flex flex-col gap-4">
+      <BackupGuide
+        active={active}
+        destinationConfigured={destinationConfigured}
+        streaming={backups.streaming}
+      />
       <InstanceSettingsTab group="backups" />
       <Card className="rounded-md">
         <CardHeader className="border-b border-border bg-muted/35 p-4">
@@ -74,6 +82,69 @@ export const BackupsTab = () => {
     </div>
   );
 };
+
+const BackupGuide = ({
+  active,
+  destinationConfigured,
+  streaming,
+}: {
+  active: boolean;
+  destinationConfigured: boolean;
+  streaming: boolean;
+}) => (
+  <section className="rounded-md border border-border bg-card p-4">
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="min-w-0">
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Backup runbook
+        </div>
+        <h3 className="mt-1 text-base font-semibold">Set up, validate, export</h3>
+        <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+          Backups stay readable, so configure a dedicated bucket, test the destination, then run
+          exports from the history panel below.
+        </p>
+      </div>
+      <Badge variant={streaming ? "success" : "neutral"} dot>
+        {streaming ? "live updates" : "polling"}
+      </Badge>
+    </div>
+    <div className="mt-4 grid gap-3 md:grid-cols-3">
+      <BackupStep
+        complete={destinationConfigured}
+        label="Destination"
+        value={destinationConfigured ? "Bucket selected" : "Bucket required"}
+      />
+      <BackupStep
+        complete={destinationConfigured}
+        label="Validation"
+        value={destinationConfigured ? "Ready to test" : "Waiting for destination"}
+      />
+      <BackupStep
+        complete={!active}
+        label="Export"
+        value={active ? "Backup running" : "Ready when validated"}
+      />
+    </div>
+  </section>
+);
+
+const BackupStep = ({
+  complete,
+  label,
+  value,
+}: {
+  complete: boolean;
+  label: string;
+  value: string;
+}) => (
+  <div className="rounded-md border border-border bg-background p-3">
+    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <CheckCircle2 className={complete ? "size-4 text-success" : "size-4 text-muted-foreground"} />
+      {label}
+    </div>
+    <div className="mt-2 text-sm font-semibold">{value}</div>
+  </div>
+);
 
 const EmptyBackups = () => (
   <Empty

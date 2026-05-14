@@ -47,25 +47,21 @@ Unknown admin routes render the built-in 404 screen with links back to overview 
 
 ## Settings sections
 
-The settings page uses a compact desktop operator rail and a mobile section selector. Instance settings render as scan-friendly rows with a persistent save/test/reset action strip. Deep links keep the same `?tab=` values, so links like `/settings?tab=connectors` still open the matching section.
+The settings page is a task-oriented operator workspace. It groups the old runtime registry into nine areas: Account, Health, Security, Data, Models, Backups, Connectors, Usage, and Audit. Common controls appear first with a recommended next action; raw setting keys, source metadata, restart markers, and rarely changed limits stay inside each area's Advanced controls.
+
+Existing deep links keep working. Legacy values such as `/settings?tab=server`, `/settings?tab=vector_store`, `/settings?tab=storage`, `/settings?tab=search`, and `/settings?tab=chat` open the matching redesigned area while focusing the relevant runtime panel.
 
 | Group | Section | Reads from | Writes to |
 |-------|---------|-----------|-----------|
 | **Personal** | Account | `GET /v1/auth/me` | `POST /v1/auth/password`, `POST /v1/auth/logout-all` |
-| **Platform** | System health | `GET /health/ready`, `GET /v1/admin/realtime/platform/readiness` | — |
-| **Platform** | Security | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Platform** | Backups | `GET /admin/settings`, `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset`, `POST /v1/admin/backups` |
-| **Data** | Storage | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Data** | Vector store | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Data** | Ingestion | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Data** | Retention | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Runtime** | Queue | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Runtime** | Search | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Runtime** | Chat | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Runtime** | Webhooks | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Runtime** | Connectors | `GET /v1/admin/connectors/{provider}`, `GET /v1/connectors/{provider}/account` | `PUT /v1/admin/connectors/{provider}`, `POST /v1/connectors/{provider}/disconnect` |
-| **Observability** | Usage & cost | `GET /v1/usage`, `GET /v1/admin/realtime/usage` | — |
-| **Observability** | Audit log | `GET /v1/admin/audit`, `GET /v1/admin/realtime/audit` | — |
+| **Operate** | Health | `GET /health/ready`, `GET /v1/admin/realtime/platform/readiness` | — |
+| **Operate** | Security | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset`, `POST /admin/settings/embedding-cache/purge` |
+| **Operate** | Data | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Operate** | Models | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Operate** | Backups | `GET /admin/settings`, `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset`, `POST /v1/admin/backups` |
+| **Observe** | Connectors | `GET /v1/admin/connectors/{provider}`, `GET /v1/connectors/{provider}/account` | `PUT /v1/admin/connectors/{provider}`, `POST /v1/connectors/{provider}/disconnect` |
+| **Observe** | Usage | `GET /v1/usage`, `GET /v1/admin/realtime/usage` | — |
+| **Observe** | Audit | `GET /v1/admin/audit`, `GET /v1/admin/realtime/audit` | — |
 
 ## Realtime updates
 

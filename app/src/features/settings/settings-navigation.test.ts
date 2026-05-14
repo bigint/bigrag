@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  DATA_SETTINGS_GROUPS,
   DEFAULT_SETTINGS_TAB,
+  getSettingsFocusGroup,
   getSettingsNavItem,
   getSettingsTab,
   isSettingsTab,
+  MODEL_SETTINGS_GROUPS,
   SETTINGS_NAV_ITEMS,
+  settingsAliasLabel,
   settingsSectionLabel,
 } from "./settings-navigation";
 
@@ -17,17 +21,32 @@ describe("settings navigation", () => {
   it("accepts valid settings tabs", () => {
     expect(getSettingsTab("connectors")).toBe("connectors");
     expect(isSettingsTab("security")).toBe(true);
-    expect(isSettingsTab("eval")).toBe(false);
+    expect(isSettingsTab("server")).toBe(false);
+  });
+
+  it("maps old registry deep links into the redesigned areas", () => {
+    expect(getSettingsTab("server")).toBe("health");
+    expect(getSettingsTab("vector_store")).toBe("data");
+    expect(getSettingsTab("chat")).toBe("models");
+    expect(getSettingsFocusGroup("vector_store")).toBe("vector_store");
+    expect(getSettingsFocusGroup("chat")).toBe("chat");
   });
 
   it("finds nav metadata for a tab", () => {
-    expect(SETTINGS_NAV_ITEMS.length).toBeGreaterThan(10);
+    expect(SETTINGS_NAV_ITEMS.length).toBe(9);
     expect(getSettingsNavItem("backups").label).toBe("Backups");
     expect(getSettingsNavItem("unknown").value).toBe(DEFAULT_SETTINGS_TAB);
   });
 
   it("formats mobile section labels", () => {
-    expect(settingsSectionLabel("security")).toBe("Platform / Security");
-    expect(settingsSectionLabel("connectors")).toBe("Runtime / Connectors");
+    expect(settingsSectionLabel("security")).toBe("Operate / Security");
+    expect(settingsSectionLabel("connectors")).toBe("Observe / Connectors");
+    expect(settingsAliasLabel("vector_store")).toBe("Vector store");
+  });
+
+  it("groups detailed runtime sections into data and model workspaces", () => {
+    expect(DATA_SETTINGS_GROUPS).toContain("storage");
+    expect(DATA_SETTINGS_GROUPS).toContain("retention");
+    expect(MODEL_SETTINGS_GROUPS).toEqual(["search", "chat"]);
   });
 });

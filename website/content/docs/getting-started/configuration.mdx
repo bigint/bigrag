@@ -72,17 +72,13 @@ The same surface is available through [`/admin/settings`](/docs/api-reference/in
 | Area | Examples |
 |------|----------|
 | Security | CORS origins, trusted proxies, session cookie policy, provider URL allow-lists, embedding-cache mode, private-network escape hatches. |
-| Ingestion | Upload limits, upload-session limits, upload-session UI concurrency, raw vector request caps, OCR toggle, Docling subprocess timeout, ingestion workers, vector batch size. |
-| Queue | Maximum pending ingestion jobs before uploads are rejected. |
-| Storage | Local vs S3/MinIO backend, bucket, endpoint, region, prefix, credentials, signed URL TTL. |
-| Vector store | Qdrant, S3 Vectors, or turbopuffer backend selection, cloud credentials, and backend prefixes. |
+| Data | Storage backend, vector-store provider, upload limits, OCR, ingestion workers, queue depth, webhook delivery limits, and retention windows. |
+| Models | Default embedding provider, model, dimension, key, base URL, cache TTLs, chat provider, chat model, temperature, history count, and context budget. |
 | Backups | S3-compatible readable backup bucket, endpoint, region, prefix, and credentials for S3, R2, or MinIO. |
-| Search | Embedding concurrency, collection/query cache TTLs, and default embedding model settings. |
-| Chat | Default provider, model, base URL, temperature, history count, context budget. |
-| Webhooks | Max webhooks, delivery timeout, retry delays, local/private URL policy. |
-| Retention | Query log, access log, webhook delivery, progress snapshot, upload-session history, embedding cache, and audit retention windows. |
 
-Some settings apply immediately. Settings that affect process startup or long-lived clients are marked as restart-bound in the UI.
+The UI shows common controls first and keeps raw setting keys, source metadata, restart markers, and rarely changed limits in Advanced controls. Legacy deep links such as `/settings?tab=storage`, `/settings?tab=vector_store`, `/settings?tab=search`, and `/settings?tab=chat` still open the relevant panel inside the redesigned workspace.
+
+Some settings apply immediately. Settings that affect process startup or long-lived clients are marked in Advanced controls.
 
 <Callout type="info">
 Legacy runtime environment variables are still read as initial defaults for compatibility, but enterprise installs should treat `/settings` as the control plane after bootstrap.

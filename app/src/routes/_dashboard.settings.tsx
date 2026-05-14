@@ -1,12 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import type { ComponentType } from "react";
 import { useEffect } from "react";
 import { Select } from "@/components/ui/select";
 import {
+  DATA_SETTINGS_GROUPS,
+  getSettingsFocusGroup,
   getSettingsNavItem,
   getSettingsTab,
+  MODEL_SETTINGS_GROUPS,
   SETTINGS_NAV_GROUPS,
   SETTINGS_NAV_ITEMS,
+  type SettingsTab,
+  settingsAliasLabel,
   settingsSectionLabel,
 } from "@/features/settings/settings-navigation";
 import { AccountTab } from "@/features/settings/tabs/account-tab";
@@ -17,7 +21,6 @@ import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-
 import { ServerTab } from "@/features/settings/tabs/server-tab";
 import { UsageTab } from "@/features/settings/tabs/usage-tab";
 import { cn } from "@/lib/cn";
-import type { InstanceSettingGroup } from "@/types/bigrag";
 
 type SettingsSearch = {
   google_error?: string;
@@ -32,43 +35,24 @@ export const Route = createFileRoute("/_dashboard/settings")({
   component: () => <SettingsPage />,
 });
 
-const settingsTab = (group: InstanceSettingGroup) => () => <InstanceSettingsTab group={group} />;
-
-const COMPONENTS: Record<string, ComponentType> = {
-  account: AccountTab,
-  server: ServerTab,
-  security: settingsTab("security"),
-  ingestion: settingsTab("ingestion"),
-  storage: settingsTab("storage"),
-  vector_store: settingsTab("vector_store"),
-  queue: settingsTab("queue"),
-  search: settingsTab("search"),
-  chat: settingsTab("chat"),
-  webhooks: settingsTab("webhooks"),
-  retention: settingsTab("retention"),
-  backups: BackupsTab,
-  connectors: ConnectorsTab,
-  usage: UsageTab,
-  audit: AuditTab,
-};
+const SECURITY_SETTINGS_GROUPS = ["security"] as const;
 
 const SettingsPage = () => {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const requestedTab = search.tab;
   const tab = getSettingsTab(requestedTab);
+  const focusGroup = getSettingsFocusGroup(requestedTab);
 
   useRedirectLegacyEvalTab(requestedTab, navigate);
 
-  const setTab = (value: string) => {
+  const setTab = (value: string) =>
     navigate({
       to: "/settings",
       search: { ...search, tab: value },
       replace: true,
     });
-  };
 
-  const Active = COMPONENTS[tab] ?? AccountTab;
   const active = getSettingsNavItem(tab);
   const ActiveIcon = active.icon;
   const mobileOptions = SETTINGS_NAV_ITEMS.map((item) => {
@@ -82,18 +66,22 @@ const SettingsPage = () => {
 
   return (
     <div className="-mt-6 -mx-4 min-h-[calc(100dvh-3rem)] bg-background md:-mx-8 lg:-mx-10">
-      <header className="border-b border-border bg-background px-4 py-4 md:px-8 lg:px-10">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <header className="border-b border-border bg-background px-4 py-5 md:px-8 lg:px-10">
+        <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="min-w-0">
-            <h1 className="text-xl font-semibold tracking-normal">Settings</h1>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Operator workspace
+            </div>
+            <h1 className="mt-1 text-2xl font-semibold tracking-normal">Settings</h1>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Operator controls for account access, runtime configuration, platform health, and
-              audit visibility.
+              Configure the instance by outcome: account access, system posture, data flow, model
+              defaults, integrations, and audit visibility.
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">{SETTINGS_NAV_ITEMS.length}</span>
-            sections
+          <div className="grid grid-cols-3 overflow-hidden rounded-md border border-border bg-card text-center text-xs">
+            <SettingsHeaderMetric label="Areas" value={SETTINGS_NAV_ITEMS.length} />
+            <SettingsHeaderMetric label="Runtime" value={10} />
+            <SettingsHeaderMetric label="Advanced" value="hidden" />
           </div>
         </div>
         <div className="mt-4 lg:hidden">
@@ -106,9 +94,9 @@ const SettingsPage = () => {
         </div>
       </header>
 
-      <div className="grid lg:grid-cols-[248px_minmax(0,1fr)]">
+      <div className="grid lg:grid-cols-[232px_minmax(0,1fr)]">
         <aside className="hidden border-r border-border bg-muted/20 lg:block">
-          <div className="sticky top-0 max-h-dvh overflow-y-auto px-4 py-5">
+          <div className="sticky top-0 max-h-dvh overflow-y-auto px-3 py-5">
             <nav className="flex flex-col gap-5">
               {SETTINGS_NAV_GROUPS.map((group) => (
                 <div key={group.label} className="flex flex-col gap-1">
@@ -150,31 +138,70 @@ const SettingsPage = () => {
         </aside>
 
         <section className="min-w-0 px-4 py-5 md:px-8 lg:px-8">
-          <header className="mb-5 rounded-md border border-border bg-card px-4 py-3">
-            <div className="flex items-start gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-foreground">
-                <ActiveIcon className="size-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <h2 className="text-lg font-semibold leading-tight tracking-normal">
-                    {active.label}
-                  </h2>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                    {settingsSectionLabel(active.value)}
-                  </span>
+          <header className="mb-5 rounded-md border border-border bg-card px-4 py-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-foreground">
+                  <ActiveIcon className="size-4" />
                 </div>
-                <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-                  {active.description}
-                </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <h2 className="text-lg font-semibold leading-tight tracking-normal">
+                      {active.label}
+                    </h2>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                      {settingsSectionLabel(active.value)}
+                    </span>
+                  </div>
+                  <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+                    {active.description}
+                  </p>
+                </div>
               </div>
+              {focusGroup && tab !== requestedTab && (
+                <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                  Opened from {settingsAliasLabel(requestedTab ?? "")}
+                </span>
+              )}
             </div>
           </header>
-          <Active />
+          <SettingsContent focusGroup={focusGroup} tab={tab} />
         </section>
       </div>
     </div>
   );
+};
+
+const SettingsHeaderMetric = ({ label, value }: { label: string; value: number | string }) => (
+  <div className="min-w-20 border-border border-r px-3 py-2 last:border-r-0">
+    <div className="font-semibold text-foreground">{value}</div>
+    <div className="mt-0.5 text-muted-foreground">{label}</div>
+  </div>
+);
+
+const SettingsContent = ({
+  focusGroup,
+  tab,
+}: {
+  focusGroup: ReturnType<typeof getSettingsFocusGroup>;
+  tab: SettingsTab;
+}) => {
+  if (tab === "account") return <AccountTab />;
+  if (tab === "health") return <ServerTab />;
+  if (tab === "security") {
+    return <InstanceSettingsTab focusGroup={focusGroup} groups={SECURITY_SETTINGS_GROUPS} />;
+  }
+  if (tab === "data") {
+    return <InstanceSettingsTab focusGroup={focusGroup} groups={DATA_SETTINGS_GROUPS} />;
+  }
+  if (tab === "models") {
+    return <InstanceSettingsTab focusGroup={focusGroup} groups={MODEL_SETTINGS_GROUPS} />;
+  }
+  if (tab === "backups") return <BackupsTab />;
+  if (tab === "connectors") return <ConnectorsTab />;
+  if (tab === "usage") return <UsageTab />;
+  if (tab === "audit") return <AuditTab />;
+  return <AccountTab />;
 };
 
 const useRedirectLegacyEvalTab = (

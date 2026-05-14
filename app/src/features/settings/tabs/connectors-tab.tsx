@@ -1,4 +1,13 @@
-import { CheckCircle2, Cloud, Copy, KeyRound, Plug, ShieldCheck, Unplug } from "lucide-react";
+import {
+  CheckCircle2,
+  Cloud,
+  Copy,
+  KeyRound,
+  Link2,
+  Plug,
+  ShieldCheck,
+  Unplug,
+} from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -75,8 +84,20 @@ export const ConnectorsTab = () => {
             />
           </div>
 
+          <ConnectorSteps configured={configured} connected={connected} needsReauth={needsReauth} />
+
           <div className="rounded-md border border-border bg-background p-4">
             <Switch checked={enabled} label="Enabled" onCheckedChange={setEnabled} />
+          </div>
+
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Provider setup
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Save OAuth credentials first, copy the callback URL into Google Cloud, then connect a
+              user account from a collection's Drive browser.
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -198,6 +219,59 @@ const ConnectorMetric = ({
   <div className="rounded-md border border-border bg-background p-3">
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
       {icon}
+      {label}
+    </div>
+    <div className="mt-2 text-sm font-semibold">{value}</div>
+  </div>
+);
+
+const ConnectorSteps = ({
+  configured,
+  connected,
+  needsReauth,
+}: {
+  configured: boolean;
+  connected: boolean;
+  needsReauth: boolean;
+}) => (
+  <div className="grid gap-3 md:grid-cols-3">
+    <ConnectorStep
+      complete={configured}
+      icon={<KeyRound className="size-4" />}
+      label="Credentials"
+      value={configured ? "Saved" : "Add client ID and secret"}
+    />
+    <ConnectorStep
+      complete={configured}
+      icon={<Link2 className="size-4" />}
+      label="Callback"
+      value={configured ? "Register callback URL" : "Available after load"}
+    />
+    <ConnectorStep
+      complete={connected && !needsReauth}
+      icon={<Cloud className="size-4" />}
+      label="Account"
+      value={
+        connected ? (needsReauth ? "Reconnect required" : "Connected") : "Connect in collection"
+      }
+    />
+  </div>
+);
+
+const ConnectorStep = ({
+  complete,
+  icon,
+  label,
+  value,
+}: {
+  complete: boolean;
+  icon: ReactNode;
+  label: string;
+  value: string;
+}) => (
+  <div className="rounded-md border border-border bg-background p-3">
+    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <span className={complete ? "text-success" : "text-muted-foreground"}>{icon}</span>
       {label}
     </div>
     <div className="mt-2 text-sm font-semibold">{value}</div>
