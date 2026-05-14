@@ -78,7 +78,7 @@ Readable backups created from Settings → Backups are intentionally not client-
 
 ## Rotation
 
-bigRAG supports dual-read key rotation: set the new key as `BIGRAG_MASTER_KEY` and pass old keys in `BIGRAG_MASTER_KEY_PREVIOUS` so existing rows can still decrypt while newly written rows use the new key.
+bigRAG supports dual-read key rotation: set the new key as `BIGRAG_MASTER_KEY` and pass old keys in `BIGRAG_MASTER_KEY_PREVIOUS` so existing rows can still decrypt while newly written rows use the new key. API-key authentication also checks hashes derived from both current and previous master keys during the rotation window.
 
 Manual process:
 

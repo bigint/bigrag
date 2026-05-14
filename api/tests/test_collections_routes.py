@@ -494,6 +494,32 @@ def test_update_collection_full_field_set(route_client, monkeypatch) -> None:
     assert col.default_top_k == 5
 
 
+def test_update_collection_can_clear_provider_keys(route_client, monkeypatch) -> None:
+    from bigrag.routers import collections
+
+    async def noop(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(collections.collection_cache, "invalidate", noop)
+    monkeypatch.setattr(collections, "invalidate_collection_query_cache", noop)
+    monkeypatch.setattr(collections.audit, "record", lambda *a, **k: None)
+
+    col = collection_row(embedding_api_key="sk", reranking_api_key="rk")
+    session = FakeSession(scalar_values=[col])
+    client = route_client(session=session)
+
+    response = client.put(
+        "/v1/collections/docs",
+        json={"embedding_api_key": None, "reranking_api_key": None},
+    )
+
+    assert response.status_code == 200
+    assert col.embedding_api_key is None
+    assert col.reranking_api_key is None
+    assert response.json()["has_api_key"] is False
+    assert response.json()["has_reranking_api_key"] is False
+
+
 def test_delete_collection_404(route_client) -> None:
     response = route_client(session=FakeSession(scalar_values=[None])).delete(
         "/v1/collections/missing"

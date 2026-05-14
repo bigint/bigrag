@@ -28,6 +28,20 @@ logger = get_logger("bigrag.routers.admin_users")
 router = APIRouter(prefix="/v1/admin/users", tags=["admin:users"])
 
 
+async def _ensure_admin_role_can_change(
+    session: AsyncSession,
+    target: User,
+    next_role: str,
+) -> None:
+    if target.role != "admin" or next_role == "admin":
+        return
+    admin_ids = (
+        await session.scalars(sa.select(User.id).where(User.role == "admin").with_for_update())
+    ).all()
+    if len(admin_ids) <= 1:
+        raise HTTPException(status_code=400, detail="Cannot demote the last admin")
+
+
 @router.get("", response_model=UserListResponse)
 async def list_users(
     limit: int = Query(default=50, ge=1, le=200),
@@ -102,6 +116,7 @@ async def update_user(
         target.display_name = body.display_name
         fields.append("display_name")
     if body.role is not None:
+        await _ensure_admin_role_can_change(session, target, body.role)
         target.role = body.role
         fields.append("role")
     if body.password is not None:

@@ -150,14 +150,17 @@ Get all chunks for a processed document.
   "chunks": [
     {
       "id": "chunk_001",
+      "document_id": "660e8400-e29b-41d4-a716-446655440000",
       "text": "This is the first chunk of text...",
       "chunk_index": 0,
-      "metadata": { "document_id": "...", "page": 1 }
+      "metadata": { "page": 1 }
     }
   ],
   "total": 24
 }
 ```
+
+Each chunk returns `document_id` as a top-level field. `metadata` contains the remaining chunk/document payload metadata and omits fixed fields such as `text`, `chunk_index`, and `document_id`.
 
 ## Download File
 

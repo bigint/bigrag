@@ -19,7 +19,14 @@ from sqlalchemy.schema import CreateIndex, CreateTable
 from bigrag import __version__
 from bigrag.db.base import Base
 from bigrag.db.engine import session_factory
-from bigrag.db.models import AuditLog, BackupJob, Collection, Document, EmbeddingCache
+from bigrag.db.models import (
+    AuditLog,
+    BackupJob,
+    Collection,
+    ConnectorSyncJob,
+    Document,
+    EmbeddingCache,
+)
 from bigrag.logging import get_logger
 from bigrag.services.maintenance import acquire_backup_lock, release_backup_lock
 from bigrag.services.queue import ingestion_queue
@@ -163,6 +170,7 @@ async def run_backup_job(job_id: str) -> None:
             await _fail_job(owner_id, "Another maintenance lock is active")
             return
         await _mark_job_running(owner_id)
+        await _wait_for_connector_sync_drain(owner_id)
         await _wait_for_ingestion_drain(owner_id)
         await _run_locked_backup(owner_id)
     except Exception as exc:
@@ -297,6 +305,20 @@ async def _wait_for_ingestion_drain(job_id: uuid.UUID) -> None:
         await asyncio.sleep(1)
 
 
+async def _wait_for_connector_sync_drain(job_id: uuid.UUID) -> None:
+    while True:
+        async with session_factory()() as session:
+            running = await session.scalar(
+                sa.select(sa.func.count())
+                .select_from(ConnectorSyncJob)
+                .where(ConnectorSyncJob.status == "running")
+            )
+        if int(running or 0) <= 0:
+            return
+        await _update_job(job_id, progress=0.06)
+        await asyncio.sleep(1)
+
+
 async def _export_tables(temp_dir: Path) -> dict[str, int]:
     out_dir = temp_dir / "postgres" / "tables"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -348,7 +370,7 @@ async def _export_vector_store(temp_dir: Path) -> dict[str, int]:
             await session.scalars(sa.select(Collection).order_by(Collection.name.asc()))
         ).all()
     for collection in collections:
-        points = await vector_store.export_collection_points(collection.name)
+        points = await vector_store.export_collection_points(collection.name, with_vectors=False)
         exists = bool(points) or collection.document_count == 0
         count = len(points)
         target = points_dir / f"{collection.name}.jsonl"

@@ -64,6 +64,7 @@ export async function* parseSSEStream(response: Response): AsyncGenerator<Progre
     const evt = decodeEvent(dataLines);
     if (evt !== null) yield evt;
   } finally {
+    await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
 }

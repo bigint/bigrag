@@ -50,6 +50,7 @@ export class ChatResource {
         if (event) yield event;
       }
     } finally {
+      await reader.cancel().catch(() => undefined);
       reader.releaseLock();
     }
   }

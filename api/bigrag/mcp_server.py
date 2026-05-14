@@ -87,11 +87,13 @@ def create_server(
     base_url: str,
     api_key: str | None,
     collection: str | None = None,
+    port: int = 6101,
 ) -> FastMCP:
 
     mcp = FastMCP(
         name=f"bigrag-{collection}" if collection else "bigrag",
         instructions=_scoped_instructions(collection) if collection else _unscoped_instructions(),
+        port=port,
     )
     client = _make_client(base_url, api_key)
 
@@ -363,7 +365,7 @@ def cli() -> None:
             sys.stderr.write(f"bigrag-mcp: {e}\n")
             sys.exit(1)
 
-    server = create_server(args.base_url, args.api_key, collection)
+    server = create_server(args.base_url, args.api_key, collection, port=args.port)
     if args.transport == "stdio":
         server.run()
     else:

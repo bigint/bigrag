@@ -18,6 +18,7 @@ type Preferences = {
 };
 
 const KEY = queryKeys.preferences();
+let preferencesMutationVersion = 0;
 
 export const usePreferences = () =>
   useQuery({
@@ -33,6 +34,7 @@ export const useUpdatePreferences = () => {
       apiClient.put<{ data: Preferences }>("v1/auth/preferences", { data: patch }),
     onMutate: async (patch) => {
       await qc.cancelQueries({ queryKey: KEY });
+      const version = ++preferencesMutationVersion;
       const previous = qc.getQueryData<{ data: Preferences }>(KEY);
       const publicPatch = (prefs?: ChatPrefs) => {
         if (prefs?.openai_key === undefined) return prefs;
@@ -49,14 +51,22 @@ export const useUpdatePreferences = () => {
           },
         },
       }));
-      return { previous };
+      return { previous, version };
     },
     onError: (_err, _patch, ctx) => {
-      if (ctx?.previous) qc.setQueryData(KEY, ctx.previous);
+      if (ctx?.previous && ctx.version === preferencesMutationVersion) {
+        qc.setQueryData(KEY, ctx.previous);
+      }
     },
-    onSuccess: (data) => {
-      qc.setQueryData(KEY, data);
+    onSuccess: (data, _patch, ctx) => {
+      if (ctx?.version === preferencesMutationVersion) {
+        qc.setQueryData(KEY, data);
+      }
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: KEY }),
+    onSettled: (_data, _err, _patch, ctx) => {
+      if (ctx?.version === preferencesMutationVersion) {
+        qc.invalidateQueries({ queryKey: KEY });
+      }
+    },
   });
 };

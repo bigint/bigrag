@@ -283,14 +283,19 @@ class S3VectorsStore:
             metadata,
         )
 
-    async def export_collection_points(self, collection: str) -> list[dict]:
+    async def export_collection_points(
+        self,
+        collection: str,
+        *,
+        with_vectors: bool = True,
+    ) -> list[dict]:
         points = []
-        for item in await self._list_vectors(collection, return_data=True):
+        for item in await self._list_vectors(collection, return_data=with_vectors):
             points.append(
                 {
                     "id": str(item.get("key", "")),
                     "payload": item.get("metadata") or {},
-                    "vector": (item.get("data") or {}).get("float32"),
+                    "vector": (item.get("data") or {}).get("float32") if with_vectors else None,
                 }
             )
         return points

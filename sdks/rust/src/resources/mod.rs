@@ -24,7 +24,7 @@ pub use admin::{
     AdminEmbeddingPresets, AdminGoogleConnector, AdminMcpServers, AdminUsers, AuditLogOptions,
 };
 pub use auth::Auth;
-pub use chat::Chats;
+pub use chat::{ChatStream, Chats};
 pub use collections::Collections;
 pub use connectors::{Connectors, GoogleDrive};
 pub use documents::Documents;

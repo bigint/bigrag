@@ -207,9 +207,16 @@ const DocumentDetail = () => {
       )}
 
       <div>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Chunks
-        </h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Chunks
+          </h2>
+          {chunks && chunks.total > chunks.chunks.length && (
+            <span className="text-xs text-muted-foreground">
+              Showing first {chunks.chunks.length} of {chunks.total} chunks.
+            </span>
+          )}
+        </div>
         {chunks ? (
           chunks.chunks.length === 0 ? (
             <Empty title="No chunks yet" description="Ingestion may still be in progress." />

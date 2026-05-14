@@ -252,7 +252,8 @@ def test_queue_process_job_success_retry_cancel_and_permanent_failure(monkeypatc
         await ingestion_queue._process_job(0, job(job_id="dead", max_attempts=1))
 
         assert enqueued == ["retry"]
-        assert len(cleanups) == 2
+        assert len(cleanups) == 3
+        assert cleanups[-1][2] == "failed to clean up permanently failed vectors"
         assert redis.hashes[(queue.STATS_KEY, "completed")] == 1
         assert redis.hashes[(queue.STATS_KEY, "failed")] == 1
         assert queue.DEAD_LETTER_KEY in redis.lists

@@ -33,6 +33,8 @@ pub struct Collection {
     pub document_count: u32,
     /// Whether an embedding API key is configured.
     pub has_api_key: bool,
+    /// Embedding preset linked to the collection.
+    pub embedding_preset_id: Option<String>,
     /// Whether reranking is enabled.
     pub reranking_enabled: bool,
     /// Reranking model name.
@@ -152,15 +154,18 @@ pub struct UpdateCollectionBody {
     /// Updated metadata.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
+    /// Replacement embedding API key. Use `Some(None)` to clear it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embedding_api_key: Option<Option<String>>,
     /// Updated reranking enabled flag.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reranking_enabled: Option<bool>,
     /// Updated reranking model.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reranking_model: Option<String>,
-    /// Updated reranking API key.
+    /// Updated reranking API key. Use `Some(None)` to clear it.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reranking_api_key: Option<String>,
+    pub reranking_api_key: Option<Option<String>>,
     /// Updated default top-K.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_top_k: Option<u32>,

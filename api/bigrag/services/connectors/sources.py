@@ -7,9 +7,17 @@ from typing import Any
 
 import sqlalchemy as sa
 
-from bigrag.db.models import Collection, ConnectorAccount, ConnectorSource, ConnectorSyncJob
+from bigrag.db.models import (
+    Collection,
+    ConnectorAccount,
+    ConnectorDocument,
+    ConnectorSource,
+    ConnectorSyncJob,
+)
+from bigrag.services import collection_cache
 from bigrag.services.connectors.progress import sync_progress_details
 from bigrag.services.connectors.time import next_sync_at, utcnow
+from bigrag.services.retrieval import invalidate_collection_query_cache
 
 
 def source_public(provider: str, row: tuple[ConnectorSource, ConnectorAccount]) -> dict[str, Any]:
@@ -86,6 +94,15 @@ async def create_sync_job(
     user_id: str | None,
     commit: bool = True,
 ) -> ConnectorSyncJob:
+    from bigrag.services.maintenance import MaintenanceActiveError, ensure_writes_allowed
+
+    try:
+        await ensure_writes_allowed()
+    except MaintenanceActiveError as exc:
+        raise ValueError(str(exc)) from exc
+    await session.execute(
+        sa.select(ConnectorSource.id).where(ConnectorSource.id == source.id).with_for_update()
+    )
     existing = await session.scalar(
         sa.select(ConnectorSyncJob)
         .where(ConnectorSyncJob.source_id == source.id)
@@ -290,8 +307,26 @@ async def delete_source(
         user_id=user_id,
         not_found_message=not_found_message,
     )
+    manifests = (
+        await session.scalars(
+            sa.select(ConnectorDocument).where(ConnectorDocument.source_id == source.id)
+        )
+    ).all()
+    if manifests:
+        from bigrag.routers._documents import recount_collection_documents
+        from bigrag.services.connectors.sync import delete_synced_document
+        from bigrag.services.connectors.types import ConnectorSyncCounters
+
+        counters = ConnectorSyncCounters()
+        for manifest in manifests:
+            await delete_synced_document(
+                session, source=source, manifest=manifest, counters=counters
+            )
+        await recount_collection_documents(session, source.collection_id)
+        await invalidate_collection_query_cache(source.collection_name)
     await session.delete(source)
     await session.commit()
+    await collection_cache.invalidate(source.collection_name)
 
 
 async def list_sync_jobs(

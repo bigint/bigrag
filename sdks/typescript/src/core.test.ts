@@ -250,6 +250,24 @@ describe("BigRAGCore", () => {
     await expect(connectionClient.health()).rejects.toBeInstanceOf(APIConnectionError);
   });
 
+  it("retries timeout failures", async () => {
+    vi.useFakeTimers();
+    const timeout = new Error("deadline");
+    timeout.name = "TimeoutError";
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(timeout)
+      .mockResolvedValueOnce(jsonResponse({ status: "ok" }));
+    const client = new BigRAG({ baseUrl: "http://api.local", fetch, maxRetries: 1 });
+
+    const result = client.health();
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(result).resolves.toEqual({ status: "ok" });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
   it("retries transient server errors", async () => {
     vi.useFakeTimers();
     const fetch = vi

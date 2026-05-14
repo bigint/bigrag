@@ -258,6 +258,52 @@ async def convert_document(
         timeout=conversion_timeout,
         pdf_ocr_enabled=pdf_ocr_enabled,
     )
+    if suffix == ".pdf":
+        try:
+            text = await asyncio.to_thread(
+                convert_document_isolated,
+                file_data,
+                suffix,
+                pdf_ocr_enabled=False,
+                timeout=conversion_timeout,
+            )
+        except TimeoutError as e:
+            raise ValueError(str(e)) from e
+        if text.strip() or not pdf_ocr_enabled:
+            elapsed = time.monotonic() - t0
+            logger.info("pdf text conversion complete", prefix=prefix, elapsed=round(elapsed, 2))
+            emit(
+                job.document_id,
+                "converted",
+                "processing",
+                f"Parsed in {elapsed:.1f}s",
+                0.35,
+                collection_name=job.collection_name,
+                elapsed=round(elapsed, 2),
+            )
+            if not text.strip():
+                raise ValueError("Document produced no extractable text")
+            logger.info("text extracted", prefix=prefix, chars=len(text))
+            emit(
+                job.document_id,
+                "text_extracted",
+                "processing",
+                f"Extracted {len(text):,} characters",
+                0.40,
+                collection_name=job.collection_name,
+                chars=len(text),
+            )
+            return text
+        return await ocr_scanned_pdf(
+            file_data=file_data,
+            suffix=suffix,
+            job=job,
+            prefix=prefix,
+            start_time=t0,
+            emit=emit,
+            ensure_job_current=ensure_job_current,
+        )
+
     try:
         text = await asyncio.to_thread(
             convert_document_isolated,

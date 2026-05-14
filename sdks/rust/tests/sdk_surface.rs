@@ -125,11 +125,12 @@ async fn exercises_public_sdk_methods() {
             "docs/name",
             UpdateCollectionBody {
                 description: Some("Updated".into()),
+                embedding_api_key: Some(Some("sk2".into())),
                 chunk_strategy: Some("paragraph".into()),
                 metadata_schema: Some(json!({ "type": "object" })),
                 reranking_enabled: Some(false),
                 reranking_model: Some("rerank2".into()),
-                reranking_api_key: Some("rk2".into()),
+                reranking_api_key: Some(Some("rk2".into())),
                 default_top_k: Some(6),
                 default_min_score: Some(0.3),
                 default_search_mode: Some("semantic".into()),
@@ -181,6 +182,12 @@ async fn exercises_public_sdk_methods() {
     let chat = client.chat();
     let _ = chat
         .create(ChatBody {
+            message: "hello".into(),
+            ..Default::default()
+        })
+        .await;
+    let _ = chat
+        .stream(ChatBody {
             message: "hello".into(),
             ..Default::default()
         })

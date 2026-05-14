@@ -155,6 +155,32 @@ impl Transport {
         }
     }
 
+    pub async fn post_stream<B: Serialize>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<reqwest::Response, BigRagError> {
+        let url = format!("{}{}", self.base_url, path);
+        let mut req = self.http.post(&url).json(body);
+        if let Some(key) = &self.api_key {
+            req = req.bearer_auth(key);
+        }
+
+        let response = req.send().await.map_err(|e| {
+            if e.is_timeout() {
+                BigRagError::Timeout(self.timeout)
+            } else {
+                BigRagError::Connection(e.to_string())
+            }
+        })?;
+
+        if response.status().is_success() {
+            Ok(response)
+        } else {
+            Err(parse_error_response(response).await)
+        }
+    }
+
     async fn request_with_retry<B: Serialize, T: DeserializeOwned>(
         &self,
         method: Method,

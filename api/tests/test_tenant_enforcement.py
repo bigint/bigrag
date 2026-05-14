@@ -62,6 +62,11 @@ def test_tenant_filter_accepts_eq_and_in() -> None:
     require_tenant_filters(tenant_collection(), {"tenant_id": {"$in": ["acme"]}})
 
 
+def test_tenant_filter_rejects_multi_value_in() -> None:
+    with pytest.raises(ValidationError):
+        require_tenant_filters(tenant_collection(), {"tenant_id": {"$in": ["acme", "beta"]}})
+
+
 def test_query_route_rejects_missing_tenant_filter(monkeypatch) -> None:
     async def fake_get_collection_or_404(name: str) -> dict:
         return tenant_collection()

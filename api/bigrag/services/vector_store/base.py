@@ -83,7 +83,12 @@ class VectorStoreBackend(Protocol):
         metadata: list[dict] | None = None,
     ) -> int: ...
 
-    async def export_collection_points(self, collection: str) -> list[dict]: ...
+    async def export_collection_points(
+        self,
+        collection: str,
+        *,
+        with_vectors: bool = True,
+    ) -> list[dict]: ...
 
 
 def _backend_name(prefix: str, name: str) -> str:
@@ -139,8 +144,12 @@ def _chunk_rows_from_payloads(
     return [
         {
             "id": payload.get("id", ""),
+            "document_id": payload.get("document_id", ""),
             "text": payload.get("text", ""),
             "chunk_index": payload.get("chunk_index", 0),
+            "metadata": {
+                k: v for k, v in payload.items() if k not in _FIXED_PAYLOAD_FIELDS and v is not None
+            },
         }
         for payload in page
     ], total

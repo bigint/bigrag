@@ -129,6 +129,7 @@ def test_create_unscoped_server_registers_and_executes_tools(monkeypatch) -> Non
         server = mcp_server.create_server("http://api", "key")
 
         assert server.kwargs["name"] == "bigrag"
+        assert server.kwargs["port"] == 6101
         assert sorted(server.tools) == [
             "get_collection",
             "get_collection_stats",
@@ -230,7 +231,11 @@ def test_cli_probes_scope_and_runs_server(monkeypatch) -> None:
     server = FakeMCP(name="server")
     monkeypatch.setattr(mcp_server, "_make_client", lambda base_url, api_key: fake_client)
     monkeypatch.setattr(mcp_server, "_discover_scope", fake_discover)
-    monkeypatch.setattr(mcp_server, "create_server", lambda base_url, api_key, collection: server)
+    monkeypatch.setattr(
+        mcp_server,
+        "create_server",
+        lambda base_url, api_key, collection, port: server,
+    )
     monkeypatch.setattr(
         mcp_server.argparse.ArgumentParser,
         "parse_args",

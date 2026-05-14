@@ -412,7 +412,11 @@ async def test_update_sync_progress_writes_counters() -> None:
 
 
 @pytest.mark.anyio
-async def test_create_sync_job_returns_existing_when_in_progress() -> None:
+async def test_create_sync_job_returns_existing_when_in_progress(monkeypatch) -> None:
+    async def writes_allowed() -> None:
+        return None
+
+    monkeypatch.setattr("bigrag.services.maintenance.ensure_writes_allowed", writes_allowed)
     source = _source()
     existing = _job(status="pending", source_id=source.id)
     session = FakeSession(scalar_values=[existing])

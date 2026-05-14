@@ -16,6 +16,7 @@ _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
 def _normalize_url(dsn: str) -> tuple[str, dict]:
+    import ssl
     from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
     connect_args: dict = {}
@@ -26,6 +27,10 @@ def _normalize_url(dsn: str) -> tuple[str, dict]:
         sslmode = next((v for k, v in params if k == "sslmode"), None)
         if sslmode == "disable":
             connect_args["ssl"] = False
+        elif sslmode in {"allow", "prefer", "require"}:
+            connect_args["ssl"] = True
+        elif sslmode in {"verify-ca", "verify-full"}:
+            connect_args["ssl"] = ssl.create_default_context()
         parsed = parsed._replace(query=urlencode(kept))
         dsn = urlunparse(parsed)
     if dsn.startswith("postgresql://"):

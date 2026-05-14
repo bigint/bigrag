@@ -13,7 +13,7 @@ from bigrag.db.models import Session as DbSession
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.services import redis_cache
-from bigrag.services.auth import API_KEY_PREFIX, hash_api_key, hash_session_token
+from bigrag.services.auth import API_KEY_PREFIX, api_key_hashes_for_lookup, hash_session_token
 
 logger = get_logger("bigrag.auth")
 
@@ -95,18 +95,19 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
     if not token or not token.startswith(API_KEY_PREFIX):
         return None
 
-    key_hash = hash_api_key(token)
+    key_hashes = api_key_hashes_for_lookup(token)
     now = datetime.now(UTC)
-    cached = await redis_cache.get(_api_key_cache_key(key_hash))
-    if isinstance(cached, dict):
-        await _touch_api_key_last_used(session, cached.get("api_key_id"))
-        return cached
+    for key_hash in key_hashes:
+        cached = await redis_cache.get(_api_key_cache_key(key_hash))
+        if isinstance(cached, dict):
+            await _touch_api_key_last_used(session, cached.get("api_key_id"))
+            return cached
 
     row = (
         await session.execute(
             select(ApiKey, User)
             .join(User, User.id == ApiKey.user_id)
-            .where(ApiKey.key_hash == key_hash)
+            .where(ApiKey.key_hash.in_(key_hashes))
             .where(ApiKey.active.is_(True))
             .where((ApiKey.expires_at.is_(None)) | (ApiKey.expires_at > now))
         )
@@ -127,7 +128,7 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
     principal["collection"] = collection
     ttl = _ttl_until(api_key.expires_at)
     if ttl > 0:
-        await redis_cache.set(_api_key_cache_key(key_hash), principal, ttl=ttl)
+        await redis_cache.set(_api_key_cache_key(api_key.key_hash), principal, ttl=ttl)
     return principal
 
 

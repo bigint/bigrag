@@ -45,13 +45,15 @@ def hash_session_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def _api_key_pepper() -> bytes | None:
+def _api_key_peppers() -> list[bytes]:
     from bigrag import config as _config_module
 
     master_key = getattr(_config_module.settings, "master_key", None) or _config_settings.master_key
-    if not master_key:
-        return None
-    return master_key.encode("utf-8")
+    previous = getattr(_config_module.settings, "master_key_previous", None)
+    if previous is None:
+        previous = _config_settings.master_key_previous
+    keys = [master_key, *(previous or [])]
+    return [key.encode("utf-8") for key in keys if key]
 
 
 def generate_api_key() -> tuple[str, str, str]:
@@ -64,7 +66,14 @@ def generate_api_key() -> tuple[str, str, str]:
 
 
 def hash_api_key(plaintext: str) -> str:
-    pepper = _api_key_pepper()
-    if pepper is None:
+    peppers = _api_key_peppers()
+    if not peppers:
         return hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
-    return hmac.new(pepper, plaintext.encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmac.new(peppers[0], plaintext.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def api_key_hashes_for_lookup(plaintext: str) -> list[str]:
+    value = plaintext.encode("utf-8")
+    hashes = [hmac.new(pepper, value, hashlib.sha256).hexdigest() for pepper in _api_key_peppers()]
+    hashes.append(hashlib.sha256(value).hexdigest())
+    return list(dict.fromkeys(hashes))

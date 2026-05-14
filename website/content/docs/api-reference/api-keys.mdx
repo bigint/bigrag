@@ -5,7 +5,9 @@ description: Mint, list, update, and revoke bigrag_sk_ keys.
 
 Base path: `/v1/admin/api-keys`
 
-API keys are the credential that SDKs and backend services use against bigRAG. Plaintext values are returned **once** on creation and then never re-retrievable; only the prefix and a SHA-256 hash are persisted.
+API keys are the credential that SDKs and backend services use against bigRAG. Plaintext values are returned **once** on creation and then never re-retrievable; only the prefix and a keyed hash are persisted. When `BIGRAG_MASTER_KEY` is unset, older development keys may use the legacy SHA-256 hash format.
+
+During master-key rotation, API-key lookup checks `BIGRAG_MASTER_KEY` plus `BIGRAG_MASTER_KEY_PREVIOUS`, so existing keys continue to authenticate while you rotate and rewrite stored hashes.
 
 Session-only: every endpoint below requires a session cookie. You cannot mint new keys using an existing key.
 

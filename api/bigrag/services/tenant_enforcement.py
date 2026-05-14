@@ -41,7 +41,10 @@ def _has_tenant_filter(field: str, filters: dict | None) -> bool:
             return eq is not None and eq != ""
         if "$in" in value:
             items = value.get("$in")
-            return isinstance(items, list) and any(
-                item is not None and item != "" for item in items
+            valid_items = (
+                [item for item in items if item is not None and item != ""]
+                if isinstance(items, list)
+                else []
             )
+            return len(valid_items) == 1
     return False

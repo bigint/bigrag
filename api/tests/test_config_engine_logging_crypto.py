@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 import logging
+import ssl
 from pathlib import Path
 
 import pytest
@@ -59,6 +60,16 @@ def test_db_engine_normalizes_urls_and_requires_configuration(
 
     assert url == "postgresql+asyncpg://user:pass@localhost:5432/db?application_name=bigrag"
     assert connect_args == {"ssl": False}
+    require_url, require_connect_args = db_engine._normalize_url(
+        "postgres://localhost/db?sslmode=require"
+    )
+    verify_url, verify_connect_args = db_engine._normalize_url(
+        "postgres://localhost/db?sslmode=verify-full"
+    )
+    assert require_url == "postgresql+asyncpg://localhost/db"
+    assert require_connect_args == {"ssl": True}
+    assert verify_url == "postgresql+asyncpg://localhost/db"
+    assert isinstance(verify_connect_args["ssl"], ssl.SSLContext)
     assert (
         db_engine._normalize_url("postgresql://localhost/db")[0]
         == "postgresql+asyncpg://localhost/db"

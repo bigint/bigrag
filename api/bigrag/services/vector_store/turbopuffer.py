@@ -271,7 +271,12 @@ class TurbopufferVectorStore:
             metadata,
         )
 
-    async def export_collection_points(self, collection: str) -> list[dict]:
+    async def export_collection_points(
+        self,
+        collection: str,
+        *,
+        with_vectors: bool = True,
+    ) -> list[dict]:
         points = []
         last_id: str | None = None
         while True:
@@ -280,6 +285,8 @@ class TurbopufferVectorStore:
                 "limit": {"total": _EXPORT_PAGE_SIZE},
                 "include_attributes": True,
             }
+            if not with_vectors:
+                payload["exclude_attributes"] = ["vector"]
             if last_id is not None:
                 payload["filters"] = ["id", "Gt", last_id]
             rows = await self._query_rows(collection, payload)
@@ -288,7 +295,7 @@ class TurbopufferVectorStore:
                     {
                         "id": str(row.get("id", "")),
                         "payload": _row_payload(row),
-                        "vector": row.get("vector"),
+                        "vector": row.get("vector") if with_vectors else None,
                     }
                 )
             if len(rows) < _EXPORT_PAGE_SIZE:

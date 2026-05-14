@@ -131,6 +131,8 @@ const uploadSessionFileName = (file: File) =>
 const uploadSessionClientId = (file: File, index: number) =>
   `${index}:${uploadSessionFileName(file)}:${file.size}:${file.lastModified}`;
 
+const documentListLimit = 1000;
+const chunkListLimit = 1000;
 const uploadConcurrency = 4;
 
 export const useDocuments = (collection: string, status?: string) => {
@@ -139,7 +141,7 @@ export const useDocuments = (collection: string, status?: string) => {
     [collection, status],
   );
   const path = useMemo(() => {
-    const params = new URLSearchParams({ limit: "100" });
+    const params = new URLSearchParams({ limit: String(documentListLimit) });
     if (status) params.set("status", status);
     return `v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents?${params}`;
   }, [collection, status]);
@@ -147,7 +149,7 @@ export const useDocuments = (collection: string, status?: string) => {
     queryKey,
     queryFn: () =>
       apiClient.get<DocListResponse>(`v1/collections/${encodeURIComponent(collection)}/documents`, {
-        limit: 100,
+        limit: documentListLimit,
         ...(status ? { status } : {}),
       }),
     enabled: !!collection,
@@ -178,7 +180,7 @@ export const useChunks = (collection: string, docId: string) =>
     queryFn: () =>
       apiClient.get<{ chunks: Chunk[]; total: number }>(
         `v1/collections/${encodeURIComponent(collection)}/documents/${docId}/chunks`,
-        { limit: 200 },
+        { limit: chunkListLimit },
       ),
     enabled: !!collection && !!docId,
   });
@@ -263,10 +265,11 @@ export const useUploadSessionDocuments = (
       };
       const workers = Array.from({ length: Math.min(uploadConcurrency, files.length) }, uploadNext);
       await Promise.all(workers);
-      const completed = await apiClient.post<UploadSession>(
-        `v1/collections/${encodeURIComponent(collection)}/upload-sessions/${session.id}/complete`,
-      );
-      return { errors, session: completed };
+      const sessionPath = `v1/collections/${encodeURIComponent(collection)}/upload-sessions/${session.id}`;
+      const finalSession = errors.length
+        ? await apiClient.get<UploadSession>(sessionPath)
+        : await apiClient.post<UploadSession>(`${sessionPath}/complete`);
+      return { errors, session: finalSession };
     },
     onSuccess: ({ errors, session }) => {
       qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });

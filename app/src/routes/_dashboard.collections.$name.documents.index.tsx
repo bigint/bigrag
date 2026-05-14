@@ -193,12 +193,19 @@ const DocumentsTab = () => {
         />
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            <span>Filename</span>
-            <span className="text-right">Size</span>
-            <span className="text-right">Chunks</span>
-            <span className="text-right">Updated</span>
-            <span className="w-6" />
+          <div className="border-b border-border">
+            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <span>Filename</span>
+              <span className="text-right">Size</span>
+              <span className="text-right">Chunks</span>
+              <span className="text-right">Updated</span>
+              <span className="w-6" />
+            </div>
+            {data && data.total > data.documents.length && (
+              <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
+                Showing newest {data.documents.length} of {data.total} documents.
+              </div>
+            )}
           </div>
           <ul className="divide-y divide-border">
             {data?.documents.map((d) => (

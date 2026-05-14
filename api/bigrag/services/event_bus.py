@@ -14,6 +14,7 @@ logger = get_logger("bigrag.event_bus")
 CHANNEL_PREFIX = "bigrag:events:"
 LATEST_PREFIX = "bigrag:progress:"
 LATEST_TTL_SECONDS = 7 * 24 * 60 * 60
+SUBSCRIBER_QUEUE_SIZE = 256
 
 _COMPLETE_MARKER = b'{"_complete":true}'
 
@@ -100,7 +101,7 @@ class EventBus:
                 key = channel.removeprefix(CHANNEL_PREFIX)
                 if message["data"] == _COMPLETE_MARKER:
                     for q in self._subs.get(key, []):
-                        q.put_nowait(None)
+                        self._offer(q, None)
                     continue
                 event = IngestionEvent.deserialize(message["data"])
                 self._latest[event.document_id] = event
@@ -113,12 +114,12 @@ class EventBus:
     def _dispatch(self, channel_key: str, event: IngestionEvent) -> None:
 
         for q in self._subs.get(channel_key, []):
-            q.put_nowait(event)
+            self._offer(q, event)
         for q in self._subs.get("*", []):
-            q.put_nowait(event)
+            self._offer(q, event)
 
     def subscribe(self, key: str) -> asyncio.Queue[IngestionEvent | None]:
-        q: asyncio.Queue[IngestionEvent | None] = asyncio.Queue()
+        q: asyncio.Queue[IngestionEvent | None] = asyncio.Queue(maxsize=SUBSCRIBER_QUEUE_SIZE)
         self._subs.setdefault(key, []).append(q)
         return q
 
@@ -159,7 +160,7 @@ class EventBus:
 
     def complete(self, document_id: str) -> None:
         for q in self._subs.get(document_id, []):
-            q.put_nowait(None)
+            self._offer(q, None)
         if not self._redis:
             return
 
@@ -174,6 +175,14 @@ class EventBus:
                 )
 
         asyncio.ensure_future(_safe_publish())
+
+    def _offer(self, q: asyncio.Queue[IngestionEvent | None], item: IngestionEvent | None) -> None:
+        if q.full():
+            try:
+                q.get_nowait()
+            except asyncio.QueueEmpty:
+                pass
+        q.put_nowait(item)
 
     async def latest(self, document_id: str) -> IngestionEvent | None:
         if self._redis:

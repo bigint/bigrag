@@ -434,21 +434,24 @@ async def update_collection(
     if body.metadata is not None:
         collection.meta = body.metadata
         fields.append("metadata")
-    if body.embedding_api_key is not None:
-        new_key = body.embedding_api_key.strip()
-        if not new_key:
-            raise HTTPException(
-                status_code=422,
-                detail="embedding_api_key cannot be empty.",
+    if "embedding_api_key" in body.model_fields_set:
+        if body.embedding_api_key is None:
+            collection.embedding_api_key = None
+        else:
+            new_key = body.embedding_api_key.strip()
+            if not new_key:
+                raise HTTPException(
+                    status_code=422,
+                    detail="embedding_api_key cannot be empty.",
+                )
+            await _verify_embedding_credentials(
+                collection.embedding_provider,
+                new_key,
+                collection.embedding_base_url,
+                collection.embedding_model,
             )
-        await _verify_embedding_credentials(
-            collection.embedding_provider,
-            new_key,
-            collection.embedding_base_url,
-            collection.embedding_model,
-        )
-        collection.embedding_api_key = new_key
-        if collection.embedding_preset_id is not None:
+            collection.embedding_api_key = new_key
+        if body.embedding_api_key is not None and collection.embedding_preset_id is not None:
             collection.embedding_preset_id = None
             fields.append("embedding_preset_id")
         fields.append("embedding_api_key")
@@ -458,7 +461,7 @@ async def update_collection(
     if body.reranking_model is not None:
         collection.reranking_model = body.reranking_model
         fields.append("reranking_model")
-    if body.reranking_api_key is not None:
+    if "reranking_api_key" in body.model_fields_set:
         collection.reranking_api_key = body.reranking_api_key
         fields.append("reranking_api_key")
     if body.default_top_k is not None:

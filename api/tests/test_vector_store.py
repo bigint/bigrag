@@ -199,7 +199,9 @@ async def _test_s3_vectors_adapter_handles_collection_lifecycle_and_exports() ->
     assert fake.list_index_calls[0] == {"vectorBucketName": "bucket", "maxResults": 1}
     assert fake.create_calls[0]["dimension"] == 2
     assert fake.list_vector_calls[1]["nextToken"] == "next"
-    assert chunks == [{"id": "", "text": "two", "chunk_index": 2}]
+    assert chunks == [
+        {"id": "", "document_id": "doc-1", "text": "two", "chunk_index": 2, "metadata": {}}
+    ]
     assert total == 2
     assert fake.delete_calls[0]["keys"] == ["k1"]
     assert upserted == 1
@@ -314,7 +316,15 @@ async def _test_turbopuffer_adapter_handles_lifecycle_chunks_and_exports() -> No
     assert fake.posts[0][1]["schema"]["bigrag_id"] == {"type": "string"}
     assert "upsert_rows" not in fake.posts[0][1]
     assert fake.posts[1][1]["exclude_attributes"] == ["vector"]
-    assert chunks == [{"id": "chunk-1", "text": "hello", "chunk_index": 0}]
+    assert chunks == [
+        {
+            "id": "chunk-1",
+            "document_id": "doc-1",
+            "text": "hello",
+            "chunk_index": 0,
+            "metadata": {"tenant_id": "acme"},
+        }
+    ]
     assert total == 1
     assert fake.posts[2][1]["deletes"] == [_point_id("bigrag_docs", "chunk-1")]
     assert upserted == 1
@@ -447,8 +457,8 @@ class FakeVectorBackend:
         self.calls.append(("upsert", collection, ids, embeddings, texts, metadata))
         return len(ids)
 
-    async def export_collection_points(self, collection):
-        self.calls.append(("export_collection_points", collection))
+    async def export_collection_points(self, collection, *, with_vectors=True):
+        self.calls.append(("export_collection_points", collection, with_vectors))
         return [{"id": "point"}]
 
 
@@ -663,7 +673,9 @@ async def _test_qdrant_adapter_collection_search_chunks_and_delete() -> None:
     assert client.upserts[0]["points"][0].payload["document_id"] == "doc-1"
     assert client.query_calls[0]["search_params"].hnsw_ef == 64
     assert results[0]["metadata"] == {"tenant_id": "acme"}
-    assert chunks == [{"id": "chunk-2", "text": "two", "chunk_index": 2}]
+    assert chunks == [
+        {"id": "chunk-2", "document_id": "", "text": "two", "chunk_index": 2, "metadata": {}}
+    ]
     assert total == 2
     assert client.closed is True
 

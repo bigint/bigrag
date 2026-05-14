@@ -85,7 +85,7 @@ client.collections.create({
 client.collections.get(name)
 client.collections.stats(name)
 client.collections.update(name, {
-  description?, metadata?,
+  description?, metadata?, embedding_api_key?,
   chunk_strategy?, metadata_schema?,
   reranking_enabled?, reranking_model?, reranking_api_key?,
   default_top_k?, default_min_score?, default_search_mode?,
@@ -94,6 +94,8 @@ client.collections.delete(name)
 client.collections.truncate(name)        // delete all documents, keep the collection
 client.collections.streamEvents(name)    // AsyncIterable of collection events (SSE)
 ```
+
+For update calls, send `embedding_api_key: null` or `reranking_api_key: null` to clear the stored key.
 
 ## Documents
 

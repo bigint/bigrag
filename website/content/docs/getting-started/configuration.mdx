@@ -33,6 +33,10 @@ Bootstrap config is the small set of values the API needs before it can connect 
 | `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys during staged key rotation. | `[]` |
 | `BIGRAG_UPLOAD_DIR` | Local document upload directory when storage backend is `local`. | `./data/uploads` |
 
+`BIGRAG_DATABASE_URL` preserves Postgres `sslmode` settings. Use `sslmode=require`, `verify-ca`, or `verify-full` for hosted Postgres TLS; use `sslmode=disable` only for local or trusted private networks.
+
+`BIGRAG_MASTER_KEY_PREVIOUS` is dual-read during rotation for encrypted secrets and API-key hash lookup. Keep old keys there until encrypted rows and minted API keys have been rewritten or replaced.
+
 The admin UI has one frontend bootstrap value: point it at the API with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container when frontend and backend are deployed separately.
 
 ## TOML bootstrap file

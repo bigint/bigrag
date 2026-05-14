@@ -97,6 +97,7 @@ collection = await client.collections.get("docs")
 # Update
 await client.collections.update("docs", {
     "description": "Updated description",
+    "embedding_api_key": None,
     "default_search_mode": "hybrid",
 })
 
@@ -113,6 +114,8 @@ await client.collections.truncate("docs")
 async for event in client.collections.stream_events("docs"):
     print(event)
 ```
+
+Set `embedding_api_key` or `reranking_api_key` to `None` in update calls to clear the stored key.
 
 ## Documents
 
@@ -161,7 +164,7 @@ await client.documents.reprocess("docs", "doc-id")
 chunks = await client.documents.get_chunks("docs", "doc-id")
 
 # Get file download URL
-url = await client.documents.get_file_url("docs", "doc-id")
+url = client.documents.get_file_url("docs", "doc-id")
 
 # Batch operations
 statuses = await client.documents.batch_get_status("docs", ["id1", "id2"])

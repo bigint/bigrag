@@ -20,6 +20,7 @@ class Collection(TypedDict):
     has_metadata_schema: bool
     document_count: int
     has_api_key: bool
+    embedding_preset_id: str | None
     reranking_enabled: bool
     reranking_model: str
     has_reranking_api_key: bool
@@ -72,9 +73,10 @@ class CreateCollectionBody(TypedDict):
 class UpdateCollectionBody(TypedDict, total=False):
     description: str
     metadata: dict[str, Any]
+    embedding_api_key: str | None
     reranking_enabled: bool
     reranking_model: str
-    reranking_api_key: str
+    reranking_api_key: str | None
     default_top_k: int
     default_min_score: float
     default_search_mode: str

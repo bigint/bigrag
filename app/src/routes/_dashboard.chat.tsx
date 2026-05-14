@@ -141,6 +141,15 @@ const ChatPage = () => {
   const activeConversation = detailQuery.data?.conversation ?? null;
   const abortRef = useRef<AbortController | null>(null);
 
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+      setStreaming(false);
+    },
+    [setStreaming],
+  );
+
   useSelectFirstCollection(collections, collection, selectFirstCollection);
   useSelectedConversationMessages(
     conversationId,

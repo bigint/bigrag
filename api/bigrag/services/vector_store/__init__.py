@@ -180,8 +180,13 @@ class VectorStore:
     ) -> int:
         return await self.backend.upsert(collection, ids, embeddings, texts, metadata)
 
-    async def export_collection_points(self, collection: str) -> list[dict]:
-        return await self.backend.export_collection_points(collection)
+    async def export_collection_points(
+        self,
+        collection: str,
+        *,
+        with_vectors: bool = True,
+    ) -> list[dict]:
+        return await self.backend.export_collection_points(collection, with_vectors=with_vectors)
 
 
 vector_store = VectorStore()

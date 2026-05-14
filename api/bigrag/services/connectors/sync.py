@@ -39,11 +39,19 @@ logger = get_logger("bigrag.connectors")
 
 
 async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None:
+    from bigrag.services.maintenance import ensure_writes_allowed
+
     counters = ConnectorSyncCounters()
     now = utcnow()
     async with session_factory()() as session:
-        job = await session.get(ConnectorSyncJob, uuid.UUID(job_id))
+        job = await session.scalar(
+            sa.select(ConnectorSyncJob)
+            .where(ConnectorSyncJob.id == uuid.UUID(job_id))
+            .with_for_update()
+        )
         if job is None or job.source_id is None:
+            return
+        if job.status != "pending":
             return
         source = await session.get(ConnectorSource, job.source_id)
         if source is None or source.provider != adapter.provider:
@@ -75,6 +83,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             return
 
         try:
+            await ensure_writes_allowed()
             access_token = await adapter.access_token_for_account(
                 session,
                 config=config,
@@ -469,6 +478,20 @@ async def fail_sync(
     counters: ConnectorSyncCounters | None = None,
 ) -> None:
     counters = counters or ConnectorSyncCounters()
+    completed = utcnow()
     job.status = "failed"
     job.error_message = message
-    job.completed_at = utcnow()
+    job.completed_at = completed
+    apply_counters(job, counters)
+    if source.status != "needs_reauth":
+        source.status = "error"
+    source.last_sync_at = completed
+    source.next_sync_at = next_sync_at(source, from_time=completed)
+    source.last_error = message
+    await update_sync_progress(
+        session,
+        job=job,
+        counters=counters,
+        phase="failed",
+        message=message,
+    )

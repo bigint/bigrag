@@ -13,6 +13,7 @@ export interface Collection {
   has_metadata_schema: boolean;
   document_count: number;
   has_api_key: boolean;
+  embedding_preset_id: string | null;
   reranking_enabled: boolean;
   reranking_model: string;
   has_reranking_api_key: boolean;
@@ -71,9 +72,10 @@ export interface CreateCollectionBody {
 export interface UpdateCollectionBody {
   description?: string;
   metadata?: Record<string, unknown>;
+  embedding_api_key?: string | null;
   reranking_enabled?: boolean;
   reranking_model?: string;
-  reranking_api_key?: string;
+  reranking_api_key?: string | null;
   default_top_k?: number;
   default_min_score?: number;
   default_search_mode?: "semantic" | "keyword" | "hybrid";

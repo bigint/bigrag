@@ -98,6 +98,8 @@ Flags:
 | `--transport` | `stdio` | alt: `streamable-http` |
 | `--port` | `6101` | for streamable-http only |
 
+For `streamable-http`, `--port` sets the FastMCP bind port. The stdio transport ignores it.
+
 Scope is discovered on startup via `GET /v1/auth/whoami`. If the key
 is pinned to a collection, the CLI registers the scoped toolset
 automatically.

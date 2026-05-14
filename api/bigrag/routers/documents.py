@@ -362,14 +362,34 @@ async def reprocess_document(
     await session.commit()
     _publish_queued_progress(doc, collection_name, "Queued for reprocessing")
 
-    await ingestion_queue.enqueue(
-        create_ingestion_job(
-            document_id=document_id,
-            file_path=doc.file_path,
-            collection_name=collection_name,
-            collection=collection,
+    try:
+        await ingestion_queue.enqueue(
+            create_ingestion_job(
+                document_id=document_id,
+                file_path=doc.file_path,
+                collection_name=collection_name,
+                collection=collection,
+            )
         )
-    )
+    except Exception as exc:
+        doc.status = "failed"
+        doc.error_message = f"enqueue failed: {exc.__class__.__name__}: {exc}"
+        await session.commit()
+        event_bus.publish(
+            IngestionEvent(
+                document_id=document_id,
+                collection_name=collection_name,
+                step="failed",
+                status="failed",
+                message=doc.error_message,
+                progress=0.0,
+            )
+        )
+        event_bus.complete(document_id)
+        raise HTTPException(
+            status_code=503,
+            detail="Ingestion queue unavailable — document saved as failed, retry later.",
+        ) from exc
 
     audit.record(
         request,

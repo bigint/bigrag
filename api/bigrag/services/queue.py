@@ -107,12 +107,10 @@ class IngestionQueue:
             self._num_workers = target
             logger.info("queue resized workers", previous=current, target=target)
             return
+        self._num_workers = target
         removed = self._workers[target:]
         self._workers = self._workers[:target]
-        for task in removed:
-            task.cancel()
         await asyncio.gather(*removed, return_exceptions=True)
-        self._num_workers = target
         logger.info("queue resized workers", previous=current, target=target)
 
     async def stop(self) -> None:
@@ -192,7 +190,7 @@ class IngestionQueue:
 
     async def _worker(self, worker_id: int) -> None:
         logger.info("worker started", worker_id=worker_id)
-        while self._running:
+        while self._running and worker_id < self._num_workers:
             try:
                 from bigrag.services.maintenance import is_active
 
@@ -472,6 +470,13 @@ class IngestionQueue:
             else:
                 reason = (
                     "permanent error" if is_permanent else f"{job.max_attempts} attempts exhausted"
+                )
+                await _delete_document_vectors_after_failure(
+                    vector_store,
+                    job.collection_name,
+                    doc,
+                    prefix=prefix,
+                    log_message="failed to clean up permanently failed vectors",
                 )
                 await self._redis.hincrby(STATS_KEY, "failed", 1)
                 await self._redis.lpush(DEAD_LETTER_KEY, job.serialize())

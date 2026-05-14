@@ -179,6 +179,15 @@ pub struct ChatCreateResponse {
     pub timings: Option<ChatTimings>,
 }
 
+/// Streaming chat SSE event.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ChatStreamEvent {
+    /// SSE event name.
+    pub event: String,
+    /// Event payload.
+    pub data: serde_json::Value,
+}
+
 /// Delete response.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ChatDeleteResponse {

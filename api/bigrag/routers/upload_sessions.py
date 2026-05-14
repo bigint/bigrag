@@ -265,6 +265,31 @@ async def _fail_item(
     return item
 
 
+async def _reserve_item(
+    db: AsyncSession,
+    upload_session: UploadSession,
+    existing: UploadSessionItem | None,
+    client_item_id: str,
+    filename: str,
+    file_ext: str,
+    file_size: int,
+    content_hash: str,
+) -> UploadSessionItem:
+    item = existing or UploadSessionItem(
+        session_id=upload_session.id, client_item_id=client_item_id
+    )
+    item.filename = filename
+    item.file_type = file_ext.lstrip(".")
+    item.file_size = file_size
+    item.content_hash = content_hash
+    item.status = "queued"
+    item.error_message = None
+    db.add(item)
+    await db.commit()
+    await db.refresh(item)
+    return item
+
+
 @router.post("", response_model=UploadSessionResponse, status_code=201)
 async def create_upload_session(
     collection_name: str,
@@ -465,24 +490,44 @@ async def upload_session_file(
             item=_item_response(item, None, item.error_message),
             session=response,
         )
-    existing_doc = await db.scalar(
-        content_hash_match(collection, content_hash, upload_session.meta or {})
+    item = await _reserve_item(
+        db,
+        upload_session,
+        existing,
+        item_key,
+        filename,
+        file_ext,
+        len(content),
+        content_hash,
     )
-    if existing_doc is None:
-        doc = await persist_document(
-            session=db,
-            collection_name=collection_name,
-            collection=collection,
-            filename=filename,
-            content=content,
-            metadata=upload_session.meta or {},
-            content_hash=content_hash,
-            raise_on_enqueue_failure=False,
+    try:
+        existing_doc = await db.scalar(
+            content_hash_match(collection, content_hash, upload_session.meta or {})
         )
-        _publish_queued_progress(doc, collection_name, "Queued from upload session")
-    else:
-        doc = existing_doc
-    item = existing or UploadSessionItem(session_id=upload_session.id, client_item_id=item_key)
+        if existing_doc is None:
+            doc = await persist_document(
+                session=db,
+                collection_name=collection_name,
+                collection=collection,
+                filename=filename,
+                content=content,
+                metadata=upload_session.meta or {},
+                content_hash=content_hash,
+                raise_on_enqueue_failure=False,
+            )
+            _publish_queued_progress(doc, collection_name, "Queued from upload session")
+        else:
+            doc = existing_doc
+    except Exception as exc:
+        item.status = "failed"
+        item.error_message = f"upload failed: {exc.__class__.__name__}: {exc}"
+        await db.commit()
+        await db.refresh(item)
+        response = await upload_session_response(db, upload_session, persist_counts=True)
+        return UploadSessionFileResponse(
+            item=_item_response(item, None, item.error_message),
+            session=response,
+        )
     item.document_id = doc.id
     item.filename = filename
     item.file_type = file_ext.lstrip(".")

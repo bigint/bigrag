@@ -131,6 +131,23 @@ def test_update_user_happy_path_with_password(route_client, monkeypatch) -> None
     assert target.password_hash == "new-hash"
 
 
+def test_update_user_blocks_last_admin_demotion(route_client, monkeypatch) -> None:
+    from bigrag.routers import admin_users
+
+    monkeypatch.setattr(admin_users.audit, "record", lambda *a, **k: None)
+
+    target = _user_row(role="admin")
+    session = FakeSession(get_values={target.id: target}, scalars_values=[[target.id]])
+    response = route_client(session=session).patch(
+        f"/v1/admin/users/{target.id}",
+        json={"role": "member"},
+    )
+
+    assert response.status_code == 400
+    assert "last admin" in response.json()["detail"]
+    assert target.role == "admin"
+
+
 def test_delete_user_invalid_uuid(route_client) -> None:
     response = route_client().delete("/v1/admin/users/not-uuid")
 

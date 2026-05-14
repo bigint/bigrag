@@ -148,7 +148,7 @@ def test_auth_loads_session_and_api_key_principals(monkeypatch) -> None:
         monkeypatch.setattr(auth.redis_cache, "delete_pattern", cache_delete_pattern)
         monkeypatch.setattr(auth.redis_cache, "get_redis", lambda: None)
         monkeypatch.setattr(auth, "hash_session_token", lambda token: f"s-{token}")
-        monkeypatch.setattr(auth, "hash_api_key", lambda token: f"k-{token[-4:]}")
+        monkeypatch.setattr(auth, "api_key_hashes_for_lookup", lambda token: [f"k-{token[-4:]}"])
         monkeypatch.setattr(auth._config.settings, "session_cookie_name", "bigrag_session")
         monkeypatch.setattr(auth._config.settings, "auth_principal_cache_ttl", 120)
 
@@ -170,6 +170,7 @@ def test_auth_loads_session_and_api_key_principals(monkeypatch) -> None:
             name="SDK",
             permissions={"scopes": ["collections:read"], "collection": "docs"},
             expires_at=datetime.now(UTC) + timedelta(minutes=5),
+            key_hash="k-abcd",
             last_used_at=None,
         )
         api_session = FakeSession((api_key, user))
@@ -281,7 +282,7 @@ def test_cors_and_idempotency_middleware(monkeypatch) -> None:
                 {
                     "type": "http.response.start",
                     "status": 201,
-                    "headers": [(b"x-test", b"1")],
+                    "headers": [(b"x-test", b"1"), (b"set-cookie", b"session=abc")],
                 }
             )
             await send({"type": "http.response.body", "body": b"created"})
@@ -312,5 +313,17 @@ def test_cors_and_idempotency_middleware(monkeypatch) -> None:
         assert messages[0]["status"] == 201
         assert replay[0]["status"] == 201
         assert (b"idempotency-key-replayed", b"true") in replay[0]["headers"]
+        assert not any(name == b"set-cookie" for name, _value in replay[0]["headers"])
+
+        conflict = []
+
+        async def conflict_receive():
+            return {"type": "http.request", "body": b"different"}
+
+        async def conflict_send(message):
+            conflict.append(message)
+
+        await middleware(scope, conflict_receive, conflict_send)
+        assert conflict[0]["status"] == 409
 
     asyncio.run(run())

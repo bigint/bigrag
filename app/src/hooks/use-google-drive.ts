@@ -29,6 +29,24 @@ const updateGoogleSourcesCache = (
   }
 };
 
+const invalidateGoogleSyncJobs = (
+  queryClient: QueryClient,
+  collection: string,
+  sourceId?: string,
+) => {
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.connectors.googleSyncJobs({ collection }),
+  });
+  if (sourceId) {
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.connectors.googleSyncJobs({ collection, sourceId }),
+    });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.connectors.googleSyncJobs({ sourceId }),
+    });
+  }
+};
+
 export const useGoogleConnectorConfig = () =>
   useQuery({
     queryKey: queryKeys.connectors.googleConfig(),
@@ -176,7 +194,7 @@ export const useSyncGoogleSource = (collection: string) => {
         };
       });
       qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources({ collection }) });
-      qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSyncJobs({ sourceId }) });
+      invalidateGoogleSyncJobs(qc, collection, sourceId);
       qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
       toast.success("Google Drive sync queued");
     },
@@ -221,6 +239,8 @@ export const useDeleteGoogleSource = (collection: string) => {
         return { sources, total: sources.length };
       });
       qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources({ collection }) });
+      invalidateGoogleSyncJobs(qc, collection, sourceId);
+      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
       toast.success("Google Drive source removed");
     },
     onError: errorToast("Could not remove Google Drive source"),

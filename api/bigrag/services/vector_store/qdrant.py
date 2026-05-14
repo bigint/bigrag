@@ -477,7 +477,12 @@ class QdrantVectorStore:
         logger.info("upserted vectors", collection=col, count=len(points))
         return len(points)
 
-    async def export_collection_points(self, collection: str) -> list[dict]:
+    async def export_collection_points(
+        self,
+        collection: str,
+        *,
+        with_vectors: bool = True,
+    ) -> list[dict]:
         col = self._col(collection)
         client = self._client()
         if not await self._run_with_retry(client.collection_exists, col):
@@ -490,14 +495,14 @@ class QdrantVectorStore:
                 limit=256,
                 offset=offset,
                 with_payload=True,
-                with_vectors=True,
+                with_vectors=with_vectors,
             )
             for point in points:
                 out.append(
                     {
                         "id": str(getattr(point, "id", "")),
                         "payload": getattr(point, "payload", {}) or {},
-                        "vector": getattr(point, "vector", None),
+                        "vector": getattr(point, "vector", None) if with_vectors else None,
                     }
                 )
             if offset is None:

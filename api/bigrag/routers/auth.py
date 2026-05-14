@@ -47,6 +47,7 @@ router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
 LOGIN_RATE_LIMIT = 10
 LOGIN_RATE_WINDOW_SECONDS = 60
+SETUP_LOCK_KEY = 734119001
 
 
 async def _enforce_login_rate_limit(request: Request, email: str) -> None:
@@ -76,6 +77,12 @@ async def _session_cookie_options() -> dict:
             "session_cookie_samesite",
             "session_cookie_domain",
         ]
+    )
+
+
+async def _lock_setup(session: AsyncSession) -> None:
+    await session.execute(
+        sa.text("SELECT pg_advisory_xact_lock(:key)").bindparams(key=SETUP_LOCK_KEY)
     )
 
 
@@ -133,6 +140,7 @@ async def setup(
     response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> SessionResponse:
+    await _lock_setup(session)
     existing = await session.scalar(sa.select(sa.func.count()).select_from(User))
     if existing > 0:
         raise HTTPException(status_code=409, detail="Setup has already been completed")

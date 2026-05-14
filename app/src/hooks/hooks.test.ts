@@ -264,11 +264,11 @@ describe("admin app hooks", () => {
     useDocuments("team docs", "ready");
     expect(sseOptions()).toMatchObject({
       enabled: true,
-      path: "v1/admin/realtime/collections/team%20docs/documents?limit=100&status=ready",
+      path: "v1/admin/realtime/collections/team%20docs/documents?limit=1000&status=ready",
     });
     await sseOptions<{ queryFn: () => Promise<unknown> }>().queryFn();
     expect(apiClient.get).toHaveBeenLastCalledWith("v1/collections/team%20docs/documents", {
-      limit: 100,
+      limit: 1000,
       status: "ready",
     });
 
@@ -283,7 +283,7 @@ describe("admin app hooks", () => {
     await queryOptions<{ queryFn: () => Promise<unknown> }>().queryFn();
     expect(apiClient.get).toHaveBeenLastCalledWith(
       "v1/collections/team%20docs/documents/doc_1/chunks",
-      { limit: 200 },
+      { limit: 1000 },
     );
 
     useUploadDocuments("team docs");
@@ -654,6 +654,7 @@ describe("admin app hooks", () => {
     });
     expect(context).toEqual({
       previous: { data: { chat: { model: "old", openai_key: "hidden" } } },
+      version: expect.any(Number),
     });
     const updater = queryClient.setQueryData.mock.calls.at(-1)?.[1] as (old: {
       data: { chat: { model: string; openai_key: string } };

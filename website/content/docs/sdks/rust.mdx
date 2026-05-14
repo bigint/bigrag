@@ -13,6 +13,7 @@ Add `bigrag` to your `Cargo.toml`:
 ```toml
 [dependencies]
 bigrag = "2026.5.7"
+futures-util = "0.3"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -116,6 +117,7 @@ let col = client.collections().get("docs").await?;
 // Update
 client.collections().update("docs", UpdateCollectionBody {
     description: Some("Updated".into()),
+    embedding_api_key: Some(None),
     ..Default::default()
 }).await?;
 
@@ -128,6 +130,8 @@ client.collections().truncate("docs").await?;
 // Delete
 client.collections().delete("docs").await?;
 ```
+
+Set `embedding_api_key: Some(None)` or `reranking_api_key: Some(None)` in update calls to clear the stored key.
 
 ## Documents
 
@@ -179,7 +183,7 @@ let doc = client.documents().get("docs", "doc-id").await?;
 client.documents().delete("docs", "doc-id").await?;
 
 // Get file download URL
-let url = client.documents().get_file_url("docs", "doc-id").await?;
+let url = client.documents().get_file_url("docs", "doc-id")?;
 
 // Global document access (without collection scope)
 let doc = client.documents().get_by_id("doc-id").await?;
@@ -207,6 +211,18 @@ let answer = client.chat().create(ChatBody {
 }).await?;
 
 println!("{}", answer.assistant_message.content);
+
+let mut stream = client.chat().stream(ChatBody {
+    collection: Some("docs".into()),
+    message: "Summarize the refund rules.".into(),
+    top_k: Some(5),
+    ..Default::default()
+}).await?;
+
+while let Some(event) = stream.next().await {
+    let event = event?;
+    println!("{} {}", event.event, event.data);
+}
 
 let chats = client.chat().list(Some(20), None).await?;
 let detail = client.chat().get(&chats.conversations[0].id).await?;
