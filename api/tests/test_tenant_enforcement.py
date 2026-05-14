@@ -19,6 +19,7 @@ from bigrag.models.query import (
 from bigrag.routers import _documents
 from bigrag.routers import query as query_router
 from bigrag.services import chat as chat_service
+from bigrag.services.chat import turn as chat_turn
 from bigrag.services.tenant_enforcement import require_tenant_filters, require_tenant_metadata
 
 
@@ -213,8 +214,8 @@ def test_chat_turn_rejects_missing_tenant_filter(monkeypatch) -> None:
         async def flush(self) -> None:
             return None
 
-    monkeypatch.setattr(chat_service, "get_values", fake_get_values)
-    monkeypatch.setattr(chat_service, "get_collection_or_404", fake_get_collection_or_404)
+    monkeypatch.setattr(chat_turn, "get_values", fake_get_values)
+    monkeypatch.setattr(chat_turn, "get_collection_or_404", fake_get_collection_or_404)
 
     with pytest.raises(ValidationError):
         asyncio.run(

@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import re
-import uuid
-from pathlib import Path
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
@@ -30,22 +27,30 @@ from bigrag.models.document import (
 )
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
 from bigrag.routers._documents import (
-    SUPPORTED_EXTENSIONS,
     UploadBudget,
     assert_collection_pin_matches,
     content_hash_match,
-    document_progress_response,
     document_response,
     get_document_with_collection,
     parse_form_metadata,
     persist_document,
     prepare_document_metadata,
-    read_upload_content,
     recount_collection_documents,
+)
+from bigrag.routers.documents_progress import (
+    document_progress,
+    fallback_progress,
+    publish_queued_progress,
+)
+from bigrag.routers.documents_uploads import (
+    document_file_response,
+    metadata_or_400,
+    upload_extension_or_400,
+    uuid_or_404,
+    validated_upload_content,
 )
 from bigrag.services import audit, collection_cache
 from bigrag.services.event_bus import IngestionEvent, event_bus
-from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
@@ -57,85 +62,21 @@ logger = get_logger("bigrag.routers.documents")
 
 router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["documents"])
 
-TERMINAL_DOCUMENT_STATUSES = {"ready", "failed"}
-TERMINAL_PROGRESS_STATUSES = {"complete", "failed"}
 
-
-def _uuid_or_404(value: str, label: str) -> uuid.UUID:
-    try:
-        return uuid.UUID(value)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=f"{label} not found") from exc
+def _uuid_or_404(value: str, label: str):
+    return uuid_or_404(value, label)
 
 
 def _fallback_progress(doc: Document, collection_name: str) -> DocumentProgressResponse:
-    doc_id = str(doc.id)
-    if doc.status == "ready":
-        return document_progress_response(
-            document_id=doc_id,
-            collection_name=collection_name,
-            step="complete",
-            status="complete",
-            message=f"Ready — {doc.chunk_count} chunks",
-            progress=1.0,
-            detail={"chunks": doc.chunk_count},
-        )
-    if doc.status == "failed":
-        return document_progress_response(
-            document_id=doc_id,
-            collection_name=collection_name,
-            step="failed",
-            status="failed",
-            message=doc.error_message or "Ingestion failed",
-            progress=0.0,
-        )
-    if doc.status == "processing":
-        return document_progress_response(
-            document_id=doc_id,
-            collection_name=collection_name,
-            step="processing",
-            status="processing",
-            message="Processing document",
-            progress=0.05,
-        )
-    return document_progress_response(
-        document_id=doc_id,
-        collection_name=collection_name,
-        step="queued",
-        status="pending",
-        message="Queued for ingestion",
-        progress=0.0,
-    )
+    return fallback_progress(doc, collection_name)
 
 
 async def _document_progress(doc: Document, collection_name: str) -> DocumentProgressResponse:
-    event = await event_bus.latest(str(doc.id))
-    if event is None or (
-        doc.status in TERMINAL_DOCUMENT_STATUSES and event.status not in TERMINAL_PROGRESS_STATUSES
-    ):
-        return _fallback_progress(doc, collection_name)
-    return document_progress_response(
-        document_id=event.document_id,
-        collection_name=event.collection_name or collection_name,
-        step=event.step,
-        status=event.status,
-        message=event.message,
-        progress=event.progress,
-        detail=event.detail,
-    )
+    return await document_progress(event_bus, doc, collection_name)
 
 
 def _publish_queued_progress(doc: Document, collection_name: str, message: str) -> None:
-    event_bus.publish(
-        IngestionEvent(
-            document_id=str(doc.id),
-            collection_name=collection_name,
-            step="queued",
-            status="pending",
-            message=message,
-            progress=0.0,
-        )
-    )
+    publish_queued_progress(event_bus, doc, collection_name, message)
 
 
 @router.post("", response_model=DocumentResponse, status_code=201)
@@ -154,15 +95,7 @@ async def upload_document(
         raise HTTPException(status_code=400, detail=str(e)) from e
     logger.info("document upload", collection=collection_name, filename=file.filename)
 
-    file_ext = Path(file.filename or "").suffix.lower()
-    if file_ext and file_ext not in SUPPORTED_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Unsupported file type '{file_ext}'. "
-                f"Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
-            ),
-        )
+    file_ext = upload_extension_or_400(file.filename)
 
     upload_limits = await get_values(["max_upload_size_mb"])
     max_upload_size_mb = upload_limits["max_upload_size_mb"]
@@ -174,19 +107,8 @@ async def upload_document(
             detail=f"File too large. Max size: {max_upload_size_mb}MB",
         )
 
-    content = await read_upload_content(file, max_size=max_size)
-
-    if len(content) == 0:
-        raise HTTPException(status_code=400, detail="File is empty")
-    try:
-        validate_upload(content, file_ext)
-    except InvalidFileContentError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    try:
-        meta = prepare_document_metadata(collection, parse_form_metadata(metadata))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
+    content = await validated_upload_content(file, file_ext, max_size=max_size)
+    meta = metadata_or_400(collection, metadata, prepare_document_metadata, parse_form_metadata)
 
     content_hash = hashlib.sha256(content).hexdigest()
     existing = await session.scalar(content_hash_match(collection, content_hash, meta))
@@ -445,48 +367,7 @@ async def download_document_file(
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    storage = get_storage()
-    if not await storage.exists(doc.file_path):
-        raise HTTPException(status_code=404, detail="File not found in storage")
-
-    data = await storage.get(doc.file_path)
-
-    content_type_map = {
-        "pdf": "application/pdf",
-        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "html": "application/octet-stream",
-        "htm": "application/octet-stream",
-        "md": "text/markdown",
-        "txt": "text/plain",
-        "csv": "text/csv",
-        "tsv": "text/tab-separated-values",
-        "xml": "application/xml",
-        "json": "application/json",
-        "png": "image/png",
-        "jpg": "image/jpeg",
-        "jpeg": "image/jpeg",
-        "gif": "image/gif",
-        "tiff": "image/tiff",
-        "bmp": "image/bmp",
-    }
-    ext = doc.file_type.lower()
-    content_type = content_type_map.get(ext, "application/octet-stream")
-
-    from urllib.parse import quote
-
-    safe_ascii = re.sub(r"[\x00-\x1f\x7f\"\\]", "_", doc.filename)
-    encoded = quote(doc.filename, safe="")
-    return Response(
-        content=data,
-        media_type=content_type,
-        headers={
-            "Content-Disposition": (
-                f"attachment; filename=\"{safe_ascii}\"; filename*=UTF-8''{encoded}"
-            )
-        },
-    )
+    return await document_file_response(doc, get_storage())
 
 
 @router.post("/batch/upload", response_model=DocumentListResponse, status_code=201)
@@ -519,42 +400,23 @@ async def batch_upload_documents(
             detail=f"Batch upload too large. Max size: {max_batch_upload_size_mb}MB",
         )
     budget = UploadBudget(batch_max_size)
-    try:
-        shared_meta = prepare_document_metadata(collection, parse_form_metadata(metadata))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
+    shared_meta = metadata_or_400(
+        collection,
+        metadata,
+        prepare_document_metadata,
+        parse_form_metadata,
+    )
 
     pending: list[tuple[UploadFile, str, bytes]] = []
     for file in files:
-        file_ext = Path(file.filename or "").suffix.lower()
-        if file_ext and file_ext not in SUPPORTED_EXTENSIONS:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Unsupported file type '{file_ext}' for file '{file.filename}'. "
-                    f"Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
-                ),
-            )
-
-        try:
-            content = await read_upload_content(file, max_size=max_size, budget=budget)
-        except HTTPException as exc:
-            raise HTTPException(
-                status_code=exc.status_code,
-                detail=f"File '{file.filename}': {exc.detail}",
-            ) from exc
-        if len(content) == 0:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File '{file.filename}' is empty",
-            )
-        try:
-            validate_upload(content, file_ext)
-        except InvalidFileContentError as exc:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File '{file.filename}': {exc}",
-            ) from exc
+        file_ext = upload_extension_or_400(file.filename, batch=True)
+        content = await validated_upload_content(
+            file,
+            file_ext,
+            max_size=max_size,
+            budget=budget,
+            batch=True,
+        )
         pending.append((file, file_ext, content))
 
     created: list[DocumentResponse] = []

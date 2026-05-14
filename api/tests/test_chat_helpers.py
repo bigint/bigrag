@@ -10,6 +10,7 @@ from conftest import FakeSession, user_principal
 from bigrag.exceptions import NotFoundError, ServerError, UpstreamError, ValidationError
 from bigrag.models.chat import ChatSource
 from bigrag.services import chat
+from bigrag.services.chat import turn as chat_turn
 
 
 def _conversation(**overrides):
@@ -405,7 +406,7 @@ async def test_resolve_base_url_validates(monkeypatch) -> None:
     async def fake_validate(value):
         return value
 
-    monkeypatch.setattr(chat, "validate_chat_base_url", fake_validate)
+    monkeypatch.setattr(chat_turn, "validate_chat_base_url", fake_validate)
     result = await chat._resolve_base_url("https://api.example.com", None)
     assert result == "https://api.example.com"
 
@@ -417,7 +418,7 @@ async def test_resolve_base_url_wraps_unsafe_error(monkeypatch) -> None:
     async def fake_validate(_value):
         raise UnsafeOutboundUrlError("blocked")
 
-    monkeypatch.setattr(chat, "validate_chat_base_url", fake_validate)
+    monkeypatch.setattr(chat_turn, "validate_chat_base_url", fake_validate)
     with pytest.raises(ValidationError):
         await chat._resolve_base_url("https://internal", None)
 
@@ -458,7 +459,7 @@ async def test_resolve_api_credentials_uses_saved_key(monkeypatch) -> None:
     user = user_principal()
     body = SimpleNamespace(provider_api_key=None)
     session = FakeSession(scalar_values=[{"chat": {"openai_key": "sk-saved"}}])
-    monkeypatch.setattr(chat, "decrypt_preferences", lambda data: data)
+    monkeypatch.setattr(chat_turn, "decrypt_preferences", lambda data: data)
 
     result = await chat._resolve_api_credentials(session, user, body)
     assert result[0].source == "saved chat key"
@@ -469,7 +470,7 @@ async def test_resolve_api_credentials_raises_when_no_key(monkeypatch) -> None:
     user = user_principal()
     body = SimpleNamespace(provider_api_key=None)
     session = FakeSession(scalar_values=[None])
-    monkeypatch.setattr(chat, "decrypt_preferences", lambda data: {})
+    monkeypatch.setattr(chat_turn, "decrypt_preferences", lambda data: {})
 
     with pytest.raises(ValidationError):
         await chat._resolve_api_credentials(session, user, body)

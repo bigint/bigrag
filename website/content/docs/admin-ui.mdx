@@ -43,6 +43,8 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/settings` | Operator-console settings workspace for account, platform, data, runtime, and observability sections. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
+Unknown admin routes render the built-in 404 screen with links back to overview and collections. Unexpected route render failures use the admin 500 screen with a retry action and an overview fallback.
+
 ## Settings sections
 
 The settings page uses a compact desktop operator rail and a mobile section selector. Instance settings render as scan-friendly rows with a persistent save/test/reset action strip. Deep links keep the same `?tab=` values, so links like `/settings?tab=connectors` still open the matching section.

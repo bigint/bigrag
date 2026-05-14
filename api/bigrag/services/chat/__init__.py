@@ -1,0 +1,91 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+
+from .completion import create_chat_completion, stream_chat_completion
+from .formatting import (
+    _as_uuid,
+    _conversation_response,
+    _done_sse,
+    _int_or_none,
+    _message_response,
+    _safe_chat_error,
+    _sse,
+    _title_from_message,
+)
+from .history import (
+    _get_owned_conversation,
+    _recent_history,
+    _store_assistant_error,
+    _store_assistant_message,
+    delete_conversation,
+    get_conversation_detail,
+    list_conversations,
+    update_conversation_title,
+)
+from .provider import (
+    _complete_model,
+    _is_provider_auth_error,
+    _is_saved_key_auth_error,
+    _openai_client,
+    _provider_error,
+    _should_try_next_credential,
+    _stream_model,
+)
+from .turn import (
+    DEFAULT_SYSTEM_PROMPT,
+    _append_credential,
+    _apply_turn_overrides,
+    _clear_saved_chat_key,
+    _context_block,
+    _model_messages,
+    _prepare_chat_turn,
+    _resolve_api_credentials,
+    _resolve_base_url,
+    _resolve_provider,
+    _sources_from_results,
+)
+from .types import PreparedChatTurn, ProviderCredential
+
+__all__ = [
+    "DEFAULT_SYSTEM_PROMPT",
+    "PreparedChatTurn",
+    "ProviderCredential",
+    "UTC",
+    "_append_credential",
+    "_apply_turn_overrides",
+    "_as_uuid",
+    "_clear_saved_chat_key",
+    "_complete_model",
+    "_context_block",
+    "_conversation_response",
+    "_done_sse",
+    "_get_owned_conversation",
+    "_int_or_none",
+    "_is_provider_auth_error",
+    "_is_saved_key_auth_error",
+    "_message_response",
+    "_model_messages",
+    "_openai_client",
+    "_prepare_chat_turn",
+    "_provider_error",
+    "_recent_history",
+    "_resolve_api_credentials",
+    "_resolve_base_url",
+    "_resolve_provider",
+    "_safe_chat_error",
+    "_should_try_next_credential",
+    "_sources_from_results",
+    "_sse",
+    "_store_assistant_error",
+    "_store_assistant_message",
+    "_stream_model",
+    "_title_from_message",
+    "create_chat_completion",
+    "datetime",
+    "delete_conversation",
+    "get_conversation_detail",
+    "list_conversations",
+    "stream_chat_completion",
+    "update_conversation_title",
+]
