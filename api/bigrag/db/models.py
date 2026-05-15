@@ -99,6 +99,15 @@ class Collection(Base):
         sa.ForeignKey("embedding_presets.id", ondelete="RESTRICT"),
         nullable=True,
     )
+    vector_store_provider: Mapped[str] = mapped_column(
+        sa.Text,
+        sa.CheckConstraint(
+            "vector_store_provider IN ('qdrant', 'turbopuffer')",
+            name="collections_vector_store_provider_check",
+        ),
+        nullable=False,
+        server_default="qdrant",
+    )
     dimension: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("1536")
     )

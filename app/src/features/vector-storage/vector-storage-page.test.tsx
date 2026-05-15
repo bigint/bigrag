@@ -18,8 +18,7 @@ describe("VectorStoragePage", () => {
     const html = renderToStaticMarkup(<VectorStoragePage />);
 
     expect(html).toContain("Vector Storage");
-    expect(html).toContain("Retrieval storage");
-    expect(html).toContain("Hybrid stays Qdrant-only");
+    expect(html).toContain("Choose the instance-level vector backend");
     expect(renderedGroups).toEqual(["vector_store"]);
   });
 });

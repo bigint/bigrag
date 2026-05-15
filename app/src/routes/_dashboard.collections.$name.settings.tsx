@@ -188,6 +188,7 @@ const CollectionSettings = () => {
               ]}
             />
             <Switch
+              className="sm:pt-6"
               label="Reranking enabled"
               checked={rerankingEnabled}
               onCheckedChange={setRerankingEnabled}
