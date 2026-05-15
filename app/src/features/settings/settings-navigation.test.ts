@@ -34,6 +34,7 @@ describe("settings navigation", () => {
     expect(getSettingsTab("models")).toBe(DEFAULT_SETTINGS_TAB);
     expect(getSettingsTab("search")).toBe(DEFAULT_SETTINGS_TAB);
     expect(getSettingsTab("chat")).toBe(DEFAULT_SETTINGS_TAB);
+    expect(getSettingsFocusGroup("security")).toBeUndefined();
     expect(getSettingsFocusGroup("storage")).toBe("storage");
     expect(getSettingsFocusGroup("vector_store")).toBeUndefined();
     expect(getSettingsFocusGroup("chat")).toBeUndefined();

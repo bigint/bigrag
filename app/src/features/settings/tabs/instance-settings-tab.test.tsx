@@ -21,8 +21,28 @@ vi.mock("@/hooks/use-instance-settings", () => ({
           options: [],
           secret: false,
         },
+        {
+          default: null,
+          description: "Optional cookie domain.",
+          group: "security",
+          key: "session_cookie_domain",
+          kind: "string",
+          label: "Session cookie domain",
+          max: null,
+          min: null,
+          options: [],
+          secret: false,
+        },
       ],
       values: {
+        session_cookie_domain: {
+          has_value: true,
+          key: "session_cookie_domain",
+          source: "database",
+          updated_at: null,
+          updated_by: null,
+          value: "",
+        },
         session_cookie_secure: {
           has_value: true,
           key: "session_cookie_secure",
@@ -49,8 +69,14 @@ describe("InstanceSettingsTab", () => {
   it("renders save without standalone test or reset actions", () => {
     const html = renderToStaticMarkup(<InstanceSettingsTab group="security" />);
 
-    expect(html).toContain(">Save<");
+    expect(html).toContain(">Save changes<");
     expect(html).not.toContain(">Test<");
     expect(html).not.toContain(">Reset<");
+  });
+
+  it("renders placeholders for empty runtime inputs", () => {
+    const html = renderToStaticMarkup(<InstanceSettingsTab group="security" />);
+
+    expect(html).toContain('placeholder=".example.com"');
   });
 });

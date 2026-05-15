@@ -4,6 +4,7 @@ import {
   draftValue,
   inputType,
   settingDescription,
+  settingPlaceholder,
   valuesForSubmit,
 } from "./instance-settings-helpers";
 
@@ -68,5 +69,26 @@ describe("instance settings helpers", () => {
     expect(inputType(spec({ kind: "float" }))).toBe("number");
     expect(inputType(spec({ kind: "secret" }))).toBe("password");
     expect(inputType(spec({ kind: "string" }))).toBe("text");
+  });
+
+  it("creates placeholders from saved secrets, defaults, and examples", () => {
+    expect(settingPlaceholder(spec({ default: 90, kind: "int" }))).toBe("Default: 90");
+    expect(settingPlaceholder(spec({ default: ["10", "30"], kind: "int_list" }))).toBe(
+      "Default:\n10\n30",
+    );
+    expect(
+      settingPlaceholder(
+        spec({ kind: "secret", key: "storage_s3_secret_access_key", secret: true }),
+        value({ has_value: true }),
+      ),
+    ).toBe("Saved");
+    expect(
+      settingPlaceholder(spec({ default: [], kind: "string_list", key: "cors_origins" })),
+    ).toBe("https://app.example.com");
+    expect(
+      settingPlaceholder(
+        spec({ default: null, kind: "int", key: "qdrant_search_ef", max: 10000, min: 1 }),
+      ),
+    ).toBe("Optional, e.g. 128");
   });
 });

@@ -3,6 +3,7 @@ import { Menu as MenuIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/brand/logo";
 import { MobileSidebar, Sidebar } from "@/components/navigation/sidebar";
+import { PageContainer } from "@/components/ui/page-container";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession, useSetupStatus } from "@/hooks/use-auth";
 
@@ -63,7 +64,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           children
         ) : (
           <div className="flex-1 overflow-y-auto bg-background px-4 py-6 md:px-8 lg:px-10">
-            <div className="mx-auto w-full max-w-7xl">{children}</div>
+            <PageContainer>{children}</PageContainer>
           </div>
         )}
       </main>

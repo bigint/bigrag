@@ -17,6 +17,7 @@ import {
   type DraftValue,
   inputType,
   settingDescription,
+  settingPlaceholder,
   valuesForSubmit,
 } from "@/features/settings/instance-settings-helpers";
 import {
@@ -44,6 +45,7 @@ type InstanceSettingsTabProps = {
   readonly focusGroup?: InstanceSettingGroup;
   readonly group?: InstanceSettingGroup;
   readonly groups?: readonly InstanceSettingGroup[];
+  readonly stacked?: boolean;
 };
 
 const useInstanceSettingsForm = () =>
@@ -53,7 +55,12 @@ const useInstanceSettingsForm = () =>
 
 type InstanceSettingsForm = ReturnType<typeof useInstanceSettingsForm>;
 
-export const InstanceSettingsTab = ({ focusGroup, group, groups }: InstanceSettingsTabProps) => {
+export const InstanceSettingsTab = ({
+  focusGroup,
+  group,
+  groups,
+  stacked = false,
+}: InstanceSettingsTabProps) => {
   const targetGroups = useTargetGroups(group, groups);
   const { data, isPending } = useInstanceSettings();
   const save = useUpdateInstanceSettings();
@@ -102,6 +109,7 @@ export const InstanceSettingsTab = ({ focusGroup, group, groups }: InstanceSetti
             purgePending={purgeEmbeddingCache.isPending}
             settingValues={data?.values ?? {}}
             specs={specs}
+            stacked={stacked}
           />
         );
       })}
@@ -135,6 +143,7 @@ const RuntimeSettingsPanel = ({
   purgePending,
   settingValues,
   specs,
+  stacked,
 }: {
   readonly collapsible: boolean;
   readonly defaultOpen: boolean;
@@ -147,6 +156,7 @@ const RuntimeSettingsPanel = ({
   readonly purgePending: boolean;
   readonly settingValues: Readonly<Record<string, InstanceSettingValue | undefined>>;
   readonly specs: readonly InstanceSettingSpec[];
+  readonly stacked: boolean;
 }) => {
   const layout = getSettingsGroupLayout(group);
   const { advanced, common } = splitSettingsByImportance(specs, layout);
@@ -174,8 +184,8 @@ const RuntimeSettingsPanel = ({
         summary={summary}
       />
       {open ? (
-        <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_300px]">
-          <div className="min-w-0 border-border border-b xl:border-r xl:border-b-0">
+        <div>
+          <div className="min-w-0">
             {hasSettings ? (
               <>
                 <div className="divide-y divide-border">
@@ -185,6 +195,7 @@ const RuntimeSettingsPanel = ({
                       key={spec.key}
                       setting={settingValues[spec.key]}
                       spec={spec}
+                      stacked={stacked}
                     />
                   ))}
                 </div>
@@ -196,6 +207,7 @@ const RuntimeSettingsPanel = ({
                     open={advancedOpen}
                     settingValues={settingValues}
                     specs={advanced}
+                    stacked={stacked}
                   />
                 )}
               </>
@@ -216,10 +228,11 @@ const RuntimeSettingsPanel = ({
             onSave={onSave}
             purgePending={purgePending}
             summary={summary}
+            stacked={stacked}
           />
         </div>
       ) : (
-        <CollapsedPanel layout={layout} onOpen={() => setOpen(true)} summary={summary} />
+        <CollapsedPanel layout={layout} summary={summary} />
       )}
     </section>
   );
@@ -238,7 +251,7 @@ const PanelHeader = ({
   readonly open: boolean;
   readonly summary: SettingsStatusSummary;
 }) => (
-  <header className="border-border border-b bg-muted/25 px-4 py-4">
+  <header className="border-border border-b px-4 py-4">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
         <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -249,20 +262,22 @@ const PanelHeader = ({
           {layout.description}
         </p>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <StatusMetric label="Common" value={summary.common} />
-        <StatusMetric label="Advanced" value={summary.advanced} />
-        <StatusMetric label="Overrides" value={summary.overrides} />
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {summary.overrides > 0 && <Badge variant="primary">{summary.overrides} changed</Badge>}
+        {summary.missingSecrets > 0 && (
+          <Badge variant="warning">{summary.missingSecrets} missing</Badge>
+        )}
         {collapsible && (
-          <button
+          <Button
             aria-expanded={open}
-            className="inline-flex min-w-20 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => onOpenChange(!open)}
+            size="sm"
             type="button"
+            variant="outline"
           >
-            {open ? "Close" : "Open"}
+            {open ? "Hide" : "Open"}
             {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -271,28 +286,15 @@ const PanelHeader = ({
 
 const CollapsedPanel = ({
   layout,
-  onOpen,
   summary,
 }: {
   readonly layout: SettingsGroupLayout;
-  readonly onOpen: () => void;
   readonly summary: SettingsStatusSummary;
 }) => (
-  <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+  <div className="px-4 py-3">
     <p className="max-w-3xl text-sm text-muted-foreground">
       {settingsRecommendedAction(layout, summary)}
     </p>
-    <Button onClick={onOpen} variant="outline">
-      <ChevronRight className="size-3.5" />
-      Open controls
-    </Button>
-  </div>
-);
-
-const StatusMetric = ({ label, value }: { readonly label: string; readonly value: number }) => (
-  <div className="min-w-20 rounded-md border border-border bg-background px-3 py-2 text-center">
-    <div className="text-sm font-semibold">{value}</div>
-    <div className="mt-0.5 text-[11px] text-muted-foreground">{label}</div>
   </div>
 );
 
@@ -304,6 +306,7 @@ const PanelActions = ({
   onSave,
   purgePending,
   summary,
+  stacked,
 }: {
   readonly disabled: boolean;
   readonly group: InstanceSettingGroup;
@@ -312,33 +315,38 @@ const PanelActions = ({
   readonly onSave: () => void;
   readonly purgePending: boolean;
   readonly summary: SettingsStatusSummary;
+  readonly stacked: boolean;
 }) => (
-  <aside className="flex flex-col gap-4 bg-background p-4">
-    <div className="rounded-md border border-border bg-card p-3">
-      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Next action
-      </div>
-      <p className="mt-2 text-sm leading-5">{settingsRecommendedAction(layout, summary)}</p>
-    </div>
-    <div className="grid gap-2">
-      <Button disabled={disabled} onClick={onSave}>
-        <Save className="size-3.5" />
-        Save
-      </Button>
-    </div>
-    <div className="flex flex-wrap gap-1.5">
-      {summary.secrets > 0 && <Badge variant="neutral">{summary.secrets} secrets</Badge>}
-      {summary.missingSecrets > 0 && (
-        <Badge variant="warning">{summary.missingSecrets} empty</Badge>
+  <footer
+    className={cn(
+      "flex flex-col gap-3 border-border border-t bg-muted/20 px-4 py-3",
+      !stacked && "md:flex-row md:items-center md:justify-between",
+    )}
+  >
+    <div className="min-w-0">
+      <p className="text-sm leading-5 text-muted-foreground">
+        {settingsRecommendedAction(layout, summary)}
+      </p>
+      {(summary.secrets > 0 || summary.advanced > 0) && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {summary.secrets > 0 && <Badge variant="neutral">{summary.secrets} secrets</Badge>}
+          {summary.advanced > 0 && <Badge variant="neutral">{summary.advanced} advanced</Badge>}
+        </div>
       )}
     </div>
-    {group === "security" && (
-      <Button disabled={purgePending} onClick={onPurgeEmbeddingCache} variant="destructive">
-        <Trash2 className="size-3.5" />
-        Purge embedding cache
+    <div className={cn("flex shrink-0 flex-wrap gap-2", stacked && "flex-col items-start")}>
+      {group === "security" && (
+        <Button disabled={purgePending} onClick={onPurgeEmbeddingCache} variant="destructive">
+          <Trash2 className="size-3.5" />
+          Purge embedding cache
+        </Button>
+      )}
+      <Button disabled={disabled} onClick={onSave}>
+        <Save className="size-3.5" />
+        Save changes
       </Button>
-    )}
-  </aside>
+    </div>
+  </footer>
 );
 
 const AdvancedSettings = ({
@@ -348,6 +356,7 @@ const AdvancedSettings = ({
   open,
   settingValues,
   specs,
+  stacked,
 }: {
   readonly dangerKeys: readonly string[];
   readonly form: InstanceSettingsForm;
@@ -355,6 +364,7 @@ const AdvancedSettings = ({
   readonly open: boolean;
   readonly settingValues: Readonly<Record<string, InstanceSettingValue | undefined>>;
   readonly specs: readonly InstanceSettingSpec[];
+  readonly stacked: boolean;
 }) => (
   <div className="border-border border-t bg-muted/20">
     <button
@@ -379,6 +389,7 @@ const AdvancedSettings = ({
             setting={settingValues[spec.key]}
             showMetadata
             spec={spec}
+            stacked={stacked}
           />
         ))}
       </div>
@@ -392,12 +403,14 @@ const SettingField = ({
   setting,
   showMetadata = false,
   spec,
+  stacked = false,
 }: {
   readonly danger?: boolean;
   readonly form: InstanceSettingsForm;
   readonly setting?: InstanceSettingValue;
   readonly showMetadata?: boolean;
   readonly spec: InstanceSettingSpec;
+  readonly stacked?: boolean;
 }) => {
   const description = settingDescription(spec, setting);
   return (
@@ -409,6 +422,7 @@ const SettingField = ({
           setting={setting}
           showMetadata={showMetadata}
           spec={spec}
+          stacked={stacked}
         >
           <SettingControl
             field={{
@@ -418,6 +432,7 @@ const SettingField = ({
             }}
             setting={setting}
             spec={spec}
+            stacked={stacked}
           />
         </SettingRow>
       )}
@@ -429,6 +444,7 @@ const SettingControl = ({
   field,
   setting,
   spec,
+  stacked,
 }: {
   readonly field: {
     readonly onBlur: () => void;
@@ -437,10 +453,12 @@ const SettingControl = ({
   };
   readonly setting?: InstanceSettingValue;
   readonly spec: InstanceSettingSpec;
+  readonly stacked: boolean;
 }) => {
+  const placeholder = settingPlaceholder(spec, setting);
   if (spec.kind === "bool") {
     return (
-      <div className="flex min-h-10 items-center justify-end">
+      <div className={cn("flex min-h-10 items-center", stacked ? "justify-start" : "justify-end")}>
         <Switch
           aria-label={spec.label}
           checked={Boolean(field.value)}
@@ -455,6 +473,7 @@ const SettingControl = ({
         aria-label={spec.label}
         onChange={field.onChange}
         options={spec.options.map((option) => ({ label: option, value: option }))}
+        placeholder={placeholder}
         value={String(field.value ?? "")}
       />
     );
@@ -466,6 +485,7 @@ const SettingControl = ({
         className="min-h-20 rounded-md px-3 py-2"
         onBlur={field.onBlur}
         onChange={(event) => field.onChange(event.target.value)}
+        placeholder={placeholder}
         value={String(field.value ?? "")}
       />
     );
@@ -475,7 +495,7 @@ const SettingControl = ({
       aria-label={spec.label}
       onBlur={field.onBlur}
       onChange={(event) => field.onChange(event.target.value)}
-      placeholder={spec.secret && setting?.has_value ? "Saved" : undefined}
+      placeholder={placeholder}
       type={inputType(spec)}
       value={String(field.value ?? "")}
     />
@@ -489,6 +509,7 @@ const SettingRow = ({
   setting,
   showMetadata,
   spec,
+  stacked,
 }: {
   readonly children: ReactNode;
   readonly danger: boolean;
@@ -496,10 +517,12 @@ const SettingRow = ({
   readonly setting?: InstanceSettingValue;
   readonly showMetadata: boolean;
   readonly spec: InstanceSettingSpec;
+  readonly stacked: boolean;
 }) => (
   <div
     className={cn(
-      "grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,420px)] lg:items-start",
+      "grid gap-3 px-4 py-3",
+      !stacked && "lg:grid-cols-[minmax(0,1fr)_minmax(260px,420px)] lg:items-start",
       danger && "bg-warning/5",
     )}
   >

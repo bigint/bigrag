@@ -72,7 +72,6 @@ const SETTINGS_FOCUS_GROUPS: Readonly<Record<string, InstanceSettingGroup>> = {
   ingestion: "ingestion",
   queue: "queue",
   retention: "retention",
-  security: "security",
   storage: "storage",
   webhooks: "webhooks",
 };

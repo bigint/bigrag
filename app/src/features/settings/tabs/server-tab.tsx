@@ -67,7 +67,7 @@ export const ServerTab = () => {
   const version = readiness?.version;
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+    <div className="flex flex-col gap-4">
       <section className="rounded-md border border-border bg-card">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/35 p-4">
           <div className="min-w-0">
@@ -115,17 +115,10 @@ export const ServerTab = () => {
             These coordinates must exist before the API can read database-backed settings.
           </p>
         </header>
-        <div className="grid divide-border sm:grid-cols-2 sm:divide-x">
-          <div className="divide-y divide-border">
-            {ENV_ROWS.slice(0, 3).map((row) => (
-              <EnvRow key={row.label} label={row.label} value={row.value} />
-            ))}
-          </div>
-          <div className="divide-y divide-border border-t border-border sm:border-t-0">
-            {ENV_ROWS.slice(3).map((row) => (
-              <EnvRow key={row.label} label={row.label} value={row.value} />
-            ))}
-          </div>
+        <div className="divide-y divide-border">
+          {ENV_ROWS.map((row) => (
+            <EnvRow key={row.label} label={row.label} value={row.value} />
+          ))}
         </div>
       </section>
     </div>

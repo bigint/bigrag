@@ -17,6 +17,7 @@ import {
   SignalHigh,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { PageContainer } from "@/components/ui/page-container";
 import { Spinner } from "@/components/ui/spinner";
 import { useAccessOverview } from "@/hooks/use-access-logs";
 import { useSession } from "@/hooks/use-auth";
@@ -77,7 +78,7 @@ export const OverviewPage = () => {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-6 md:px-8 lg:px-10">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
+      <PageContainer className="flex flex-col gap-5">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-3xl font-semibold leading-tight tracking-normal">
@@ -270,7 +271,7 @@ export const OverviewPage = () => {
             </div>
           </div>
         </section>
-      </div>
+      </PageContainer>
     </div>
   );
 };
