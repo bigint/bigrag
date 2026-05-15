@@ -22,32 +22,86 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 
 ## Architecture
 
-<Mermaid chart='graph TD
-    MCP([MCP client / Claude / Cursor]) -->|bigrag-mcp| API
-    AdminUI([Admin UI]) -->|session cookie| API
-    SDK([TS / Python / Rust SDK]) -->|bigrag_sk_… key| API
-    API[bigRAG API]
-    API --> Auth[Auth & audit]
-    API --> Collections[Collections]
-    API --> Documents[Documents]
-    API --> Query[Query]
-    API --> Chat[Chat]
-    API --> Webhooks[Webhooks]
-    Documents -->|store files| Storage[(Local disk)]
-    Documents -->|sync source files| Drive[Google Drive]
-    Documents -->|enqueue| Redis[(Redis)]
-    Redis -->|process| Worker[Ingestion worker]
-    Worker -->|parse| Docling[Docling]
-    Worker -->|embed| Embedding[Embedding provider]
-    Worker -->|store vectors| Qdrant[(Qdrant)]
-    Query -->|search| Qdrant
-    Query -->|embed query| Embedding
-    Chat -->|retrieve context| Query
-    Chat -->|generate answer| LLM[Chat provider]
-    Collections --> Postgres[(Postgres)]
+<Mermaid title="bigRAG platform architecture" chart='flowchart LR
+    subgraph Clients["Client surfaces"]
+      MCP["MCP clients<br/>Claude / Cursor"]
+      AdminUI["Admin UI<br/>Session cookie"]
+      SDKs["TypeScript / Python / Rust SDKs<br/>bigrag_sk API key"]
+    end
+
+    API["bigRAG API<br/>FastAPI"]
+
+    subgraph Core["API modules"]
+      Auth["Auth & audit"]
+      Collections["Collections"]
+      Documents["Documents"]
+      Query["Query"]
+      Chat["Chat"]
+      Webhooks["Webhooks"]
+    end
+
+    subgraph Ingestion["Ingestion pipeline"]
+      Redis[("Redis queue")]
+      Worker["Ingestion worker"]
+      Docling["Docling parser"]
+      Embeddings["Embedding providers"]
+    end
+
+    subgraph Storage["Storage"]
+      Postgres[("Postgres")]
+      Files[("Local files")]
+      Drive["Google Drive"]
+      Qdrant[("Qdrant vectors")]
+    end
+
+    subgraph Generation["Retrieval and generation"]
+      Search["Vector / keyword / hybrid search"]
+      LLM["Chat provider"]
+    end
+
+    MCP -->|"bigrag-mcp"| API
+    AdminUI -->|"session"| API
+    SDKs -->|"API key"| API
+
+    API --> Auth
+    API --> Collections
+    API --> Documents
+    API --> Query
+    API --> Chat
+    API --> Webhooks
+
+    Auth --> Postgres
+    Collections --> Postgres
     Documents --> Postgres
     Webhooks --> Postgres
-    Auth --> Postgres' />
+
+    Documents -->|"store originals"| Files
+    Documents -->|"sync source files"| Drive
+    Documents -->|"enqueue jobs"| Redis
+    Redis --> Worker
+    Worker --> Docling
+    Worker --> Embeddings
+    Worker -->|"write chunks"| Qdrant
+
+    Query --> Embeddings
+    Query --> Search
+    Search --> Qdrant
+    Chat -->|"retrieve context"| Query
+    Chat -->|"generate answer"| LLM
+
+    classDef client fill:#fff,stroke:#d4d4d4,color:#111
+    classDef api fill:#111,stroke:#111,color:#fff
+    classDef core fill:#f8f8f8,stroke:#b8b8b8,color:#111
+    classDef pipeline fill:#fffdf5,stroke:#d6c98a,color:#111
+    classDef store fill:#f5f9ff,stroke:#9fb7d9,color:#111
+    classDef generate fill:#f7fff8,stroke:#9cc9a4,color:#111
+
+    class MCP,AdminUI,SDKs client
+    class API api
+    class Auth,Collections,Documents,Query,Chat,Webhooks core
+    class Redis,Worker,Docling,Embeddings pipeline
+    class Postgres,Files,Drive,Qdrant store
+    class Search,LLM generate' />
 
 | Component | Purpose | Default Address |
 |-----------|---------|-----------------|
