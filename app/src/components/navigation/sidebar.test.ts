@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getSidebarNavItems, isSidebarItemActive } from "./sidebar";
+import { getSidebarNavGroups, getSidebarNavItems, isSidebarItemActive } from "./sidebar";
 
 describe("sidebar navigation", () => {
   it("keeps admin-only destinations out of member navigation", () => {
@@ -15,8 +15,24 @@ describe("sidebar navigation", () => {
     expect(labels).not.toContain("Settings");
   });
 
-  it("shows operational destinations as top-level admin destinations", () => {
-    const labels = getSidebarNavItems("admin").map((item) => item.label);
+  it("groups admin destinations by sidebar section", () => {
+    const groups = getSidebarNavGroups("admin");
+    const labelsByGroup = Object.fromEntries(
+      groups.map((group) => [group.label, group.items.map((item) => item.label)]),
+    );
+
+    expect(groups.map((group) => group.label)).toEqual([
+      "Workspace",
+      "Interfaces",
+      "Observability",
+      "Administration",
+    ]);
+    expect(labelsByGroup.Workspace).toEqual(["Overview", "Collections", "Models", "Chat", "Evals"]);
+    expect(labelsByGroup.Interfaces).toEqual(["MCP", "API Keys", "Webhooks", "Connectors"]);
+    expect(labelsByGroup.Observability).toEqual(["Access Logs", "Usage", "Audit"]);
+    expect(labelsByGroup.Administration).toEqual(["Backups", "Vector Storage", "Settings"]);
+
+    const labels = groups.flatMap((group) => group.items.map((item) => item.label));
 
     expect(labels).toContain("Usage");
     expect(labels).toContain("Audit");

@@ -34,7 +34,7 @@ def spec_responses() -> list[InstanceSettingSpecResponse]:
             label=spec.label,
             description=spec.description,
             kind=spec.kind,
-            default=_default_for(spec),
+            default=_public_default_for(spec),
             options=list(spec.options),
             min=spec.min,
             max=spec.max,
@@ -78,6 +78,12 @@ def _default_for(spec: SettingSpec) -> Any:
     if hasattr(bootstrap_settings, spec.key):
         return getattr(bootstrap_settings, spec.key)
     return spec.default
+
+
+def _public_default_for(spec: SettingSpec) -> Any:
+    if spec.secret:
+        return None
+    return _default_for(spec)
 
 
 def _coerce_none(value: Any) -> Any:

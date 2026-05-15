@@ -8,7 +8,10 @@ describe("apiClient", () => {
   });
 
   it("wraps JSON requests with the configured API base URL", async () => {
-    const fetch = vi.fn(async () => new Response(JSON.stringify({ ok: true })));
+    const fetch = vi.fn(async (request: Request) => {
+      if (request.body) await request.arrayBuffer();
+      return new Response(JSON.stringify({ ok: true }));
+    });
     vi.stubGlobal("fetch", fetch);
     const { apiClient } = await import("./api");
 
@@ -31,12 +34,14 @@ describe("apiClient", () => {
   });
 
   it("sends form bodies and maps API detail errors", async () => {
-    const fetch = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ uploaded: true })))
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ detail: "Collection missing" }), { status: 404 }),
-      );
+    const responses = [
+      new Response(JSON.stringify({ uploaded: true })),
+      new Response(JSON.stringify({ detail: "Collection missing" }), { status: 404 }),
+    ];
+    const fetch = vi.fn(async (request: Request) => {
+      if (request.body) await request.arrayBuffer();
+      return responses.shift() ?? new Response(null, { status: 500 });
+    });
     vi.stubGlobal("fetch", fetch);
     const { apiClient } = await import("./api");
     const form = new FormData();

@@ -40,7 +40,7 @@ Returns the setting registry plus current public values.
 }
 ```
 
-Secret values return `value: null` and `has_value: true` when saved.
+Secret values return `value: null` and `has_value: true` when saved. Secret specs also return `default: null`, even when a bootstrap or runtime default exists.
 
 ## Update Settings
 

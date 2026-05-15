@@ -104,6 +104,18 @@ def test_runtime_settings_redacts_secret_public_value() -> None:
     assert public.has_value is True
 
 
+def test_runtime_settings_redacts_secret_spec_defaults(monkeypatch) -> None:
+    from bigrag import config as config_module
+
+    monkeypatch.setattr(config_module.settings, "turbopuffer_api_key", "tpuf-secret")
+
+    spec = next(
+        item for item in runtime_settings.spec_responses() if item.key == "turbopuffer_api_key"
+    )
+
+    assert spec.default is None
+
+
 def test_runtime_settings_validate_scalar_edge_cases() -> None:
     assert validate_setting_value("session_cookie_secure", " true ") is True
     assert validate_setting_value("session_cookie_secure", "false") is False
