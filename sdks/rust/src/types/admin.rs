@@ -325,3 +325,144 @@ pub struct McpServerListResponse {
     /// Total server count.
     pub total: u32,
 }
+
+/// Instance setting registry entry.
+#[derive(Debug, Clone, Deserialize)]
+pub struct InstanceSettingSpec {
+    /// Setting key.
+    pub key: String,
+    /// Setting group.
+    pub group: String,
+    /// Display label.
+    pub label: String,
+    /// Display description.
+    pub description: String,
+    /// Setting value kind.
+    pub kind: String,
+    /// Redacted default value.
+    pub default: serde_json::Value,
+    /// Allowed options for select settings.
+    pub options: Vec<String>,
+    /// Minimum numeric value.
+    pub min: Option<f64>,
+    /// Maximum numeric value.
+    pub max: Option<f64>,
+    /// Whether the setting is secret.
+    pub secret: bool,
+}
+
+/// Public instance setting value.
+#[derive(Debug, Clone, Deserialize)]
+pub struct InstanceSetting {
+    /// Setting key.
+    pub key: String,
+    /// Public setting value.
+    pub value: serde_json::Value,
+    /// Whether a value is configured.
+    pub has_value: bool,
+    /// Value source.
+    pub source: String,
+    /// Last update timestamp.
+    pub updated_at: Option<String>,
+    /// Last updater ID.
+    pub updated_by: Option<String>,
+}
+
+/// Response from listing instance settings.
+#[derive(Debug, Clone, Deserialize)]
+pub struct InstanceSettingsResponse {
+    /// Setting registry.
+    pub specs: Vec<InstanceSettingSpec>,
+    /// Current public values keyed by setting name.
+    pub values: std::collections::BTreeMap<String, InstanceSetting>,
+}
+
+/// Body for updating instance settings.
+#[derive(Debug, Clone, Serialize)]
+pub struct UpdateInstanceSettingsBody {
+    /// Setting values keyed by setting name.
+    pub values: serde_json::Value,
+}
+
+/// Body for resetting instance settings.
+#[derive(Debug, Clone, Serialize)]
+pub struct ResetInstanceSettingsBody {
+    /// Keys to reset. Empty resets all UI-managed settings.
+    pub keys: Vec<String>,
+}
+
+/// Body for validating instance settings.
+#[derive(Debug, Clone, Serialize)]
+pub struct TestInstanceSettingsBody {
+    /// Setting values keyed by setting name.
+    pub values: serde_json::Value,
+}
+
+/// Response from validating instance settings.
+#[derive(Debug, Clone, Deserialize)]
+pub struct InstanceSettingsTestResponse {
+    /// Validation status.
+    pub status: String,
+    /// Checked setting keys.
+    pub checked: Vec<String>,
+    /// Validation message.
+    pub message: String,
+}
+
+/// Body for creating a backup job.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct BackupCreateBody {
+    /// Backup label.
+    pub label: String,
+}
+
+/// Backup job response.
+#[derive(Debug, Clone, Deserialize)]
+pub struct BackupJob {
+    /// Backup job ID.
+    pub id: String,
+    /// Backup label.
+    pub label: String,
+    /// Job status.
+    pub status: String,
+    /// Progress fraction.
+    pub progress: f64,
+    /// Destination prefix.
+    pub destination_prefix: String,
+    /// Exported object count.
+    pub object_count: u64,
+    /// Exported byte count.
+    pub byte_count: u64,
+    /// Backup manifest summary.
+    pub manifest: serde_json::Value,
+    /// Failure message.
+    pub error_message: Option<String>,
+    /// Creator user ID.
+    pub created_by: Option<String>,
+    /// Start timestamp.
+    pub started_at: Option<String>,
+    /// Completion timestamp.
+    pub completed_at: Option<String>,
+    /// Creation timestamp.
+    pub created_at: String,
+    /// Last update timestamp.
+    pub updated_at: String,
+}
+
+/// Backup job list response.
+#[derive(Debug, Clone, Deserialize)]
+pub struct BackupJobListResponse {
+    /// Backup jobs.
+    pub jobs: Vec<BackupJob>,
+    /// Total matching jobs.
+    pub total: u32,
+}
+
+/// Admin realtime SSE event.
+#[derive(Debug, Clone, Deserialize)]
+pub struct AdminRealtimeEvent {
+    /// SSE event name.
+    pub event: String,
+    /// Parsed event data.
+    pub data: serde_json::Value,
+}

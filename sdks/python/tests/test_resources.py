@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
+import httpx
+from bigrag import BigRAG
 from bigrag.resources import (
     AdminResource,
     AuthResource,
@@ -65,6 +67,14 @@ def test_admin_resource_builds_requests() -> None:
         await admin.audit.list(
             action="create", actor_id="actor", resource_type="collection"
         )
+        await admin.settings.list()
+        await admin.settings.test({"values": {"vector_store_provider": "qdrant"}})
+        await admin.settings.update({"values": {"session_cookie_secure": True}})
+        await admin.settings.reset({"keys": ["session_cookie_secure"]})
+        await admin.settings.purge_embedding_cache()
+        await admin.backups.list(limit=5, offset=10)
+        await admin.backups.get("backup/1")
+        await admin.backups.create({"label": "before migration"})
         await admin.connectors.google.get()
         await admin.connectors.google.update({"enabled": True})
         await admin.embedding_presets.list(offset=1)
@@ -73,16 +83,17 @@ def test_admin_resource_builds_requests() -> None:
                 "name": "preset",
                 "provider": "openai",
                 "model": "text-embedding-3-small",
-                "dimensions": 1536,
+                "api_key": "sk-test",
+                "dimension": 1536,
             }
         )
         await admin.embedding_presets.update("preset/1", {"name": "renamed"})
         await admin.embedding_presets.delete("preset/1")
         await admin.mcp_servers.list()
         await admin.mcp_servers.create(
-            {"name": "local", "base_url": "http://localhost:4001"}
+            {"title": "Local", "server_name": "local"}
         )
-        await admin.mcp_servers.update("srv/1", {"name": "renamed"})
+        await admin.mcp_servers.update("srv/1", {"title": "Renamed"})
         await admin.mcp_servers.rotate("srv/1")
         await admin.mcp_servers.delete("srv/1")
         return client
@@ -139,6 +150,26 @@ def test_admin_resource_builds_requests() -> None:
                 }
             },
         ),
+        ("GET", "/v1/admin/settings", {}),
+        (
+            "POST",
+            "/v1/admin/settings/test",
+            {"json": {"values": {"vector_store_provider": "qdrant"}}},
+        ),
+        (
+            "PUT",
+            "/v1/admin/settings",
+            {"json": {"values": {"session_cookie_secure": True}}},
+        ),
+        (
+            "POST",
+            "/v1/admin/settings/reset",
+            {"json": {"keys": ["session_cookie_secure"]}},
+        ),
+        ("POST", "/v1/admin/settings/embedding-cache/purge", {}),
+        ("GET", "/v1/admin/backups", {"params": {"limit": "5", "offset": "10"}}),
+        ("GET", "/v1/admin/backups/backup%2F1", {}),
+        ("POST", "/v1/admin/backups", {"json": {"label": "before migration"}}),
         ("GET", "/v1/admin/connectors/google", {}),
         ("PUT", "/v1/admin/connectors/google", {"json": {"enabled": True}}),
         ("GET", "/v1/admin/embedding-presets", {"params": {"offset": "1"}}),
@@ -150,7 +181,8 @@ def test_admin_resource_builds_requests() -> None:
                     "name": "preset",
                     "provider": "openai",
                     "model": "text-embedding-3-small",
-                    "dimensions": 1536,
+                    "api_key": "sk-test",
+                    "dimension": 1536,
                 }
             },
         ),
@@ -164,12 +196,50 @@ def test_admin_resource_builds_requests() -> None:
         (
             "POST",
             "/v1/admin/mcp-servers",
-            {"json": {"name": "local", "base_url": "http://localhost:4001"}},
+            {"json": {"title": "Local", "server_name": "local"}},
         ),
-        ("PATCH", "/v1/admin/mcp-servers/srv%2F1", {"json": {"name": "renamed"}}),
+        ("PATCH", "/v1/admin/mcp-servers/srv%2F1", {"json": {"title": "Renamed"}}),
         ("POST", "/v1/admin/mcp-servers/srv%2F1/rotate", {}),
         ("DELETE", "/v1/admin/mcp-servers/srv%2F1", {}),
     ]
+
+
+def test_admin_realtime_streams_snapshots() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            content=(
+                'event: snapshot\n'
+                'data: {"topic":"backups","payload":{"jobs":[],"total":0},'
+                '"generated_at":"2026-05-15T00:00:00Z"}\n\n'
+            ),
+        )
+
+    async def scenario() -> list[dict]:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport) as http_client:
+            async with BigRAG(
+                base_url="http://api.local",
+                http_client=http_client,
+            ) as client:
+                return [
+                    event async for event in client.admin.realtime.backups(limit=2)
+                ]
+
+    assert run(scenario()) == [
+        {
+            "event": "snapshot",
+            "data": {
+                "topic": "backups",
+                "payload": {"jobs": [], "total": 0},
+                "generated_at": "2026-05-15T00:00:00Z",
+            },
+        }
+    ]
+    assert str(requests[0].url) == "http://api.local/v1/admin/realtime/backups?limit=2"
 
 
 def test_auth_and_platform_resources_build_requests() -> None:

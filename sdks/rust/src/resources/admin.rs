@@ -1,13 +1,21 @@
+use std::collections::VecDeque;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
+use futures_core::Stream;
+
 use crate::client::BigRag;
 use crate::core::urlencode;
 use crate::error::BigRagError;
 use crate::types::access::{AccessLogListResponse, AccessLogOverviewResponse};
 use crate::types::admin::{
-    ApiKey, ApiKeyListResponse, AuditLogListResponse, CreateApiKeyBody, CreateApiKeyResponse,
+    AdminRealtimeEvent, ApiKey, ApiKeyListResponse, AuditLogListResponse, BackupCreateBody,
+    BackupJob, BackupJobListResponse, CreateApiKeyBody, CreateApiKeyResponse,
     CreateEmbeddingPresetBody, CreateMcpServerBody, CreateMcpServerResponse, CreateUserBody,
-    EmbeddingPreset, EmbeddingPresetListResponse, McpServer, McpServerListResponse,
-    UpdateApiKeyBody, UpdateEmbeddingPresetBody, UpdateMcpServerBody, UpdateUserBody,
-    UserListResponse,
+    EmbeddingPreset, EmbeddingPresetListResponse, InstanceSettingsResponse,
+    InstanceSettingsTestResponse, McpServer, McpServerListResponse, ResetInstanceSettingsBody,
+    TestInstanceSettingsBody, UpdateApiKeyBody, UpdateEmbeddingPresetBody,
+    UpdateInstanceSettingsBody, UpdateMcpServerBody, UpdateUserBody, UserListResponse,
 };
 use crate::types::auth::User;
 use crate::types::common::{PaginationOptions, StatusResponse};
@@ -47,6 +55,13 @@ impl Admin<'_> {
         }
     }
 
+    /// Access admin backup operations.
+    pub fn backups(&self) -> AdminBackups<'_> {
+        AdminBackups {
+            client: self.client,
+        }
+    }
+
     /// Access admin connector config operations.
     pub fn connectors(&self) -> AdminConnectors<'_> {
         AdminConnectors {
@@ -66,6 +81,108 @@ impl Admin<'_> {
         AdminMcpServers {
             client: self.client,
         }
+    }
+
+    /// Access admin realtime streams.
+    pub fn realtime(&self) -> AdminRealtime<'_> {
+        AdminRealtime {
+            client: self.client,
+        }
+    }
+
+    /// Access instance settings.
+    pub fn settings(&self) -> AdminSettings<'_> {
+        AdminSettings {
+            client: self.client,
+        }
+    }
+}
+
+/// Instance settings resource.
+pub struct AdminSettings<'a> {
+    pub(crate) client: &'a BigRag,
+}
+
+impl AdminSettings<'_> {
+    /// List instance settings.
+    pub async fn list(&self) -> Result<InstanceSettingsResponse, BigRagError> {
+        self.client
+            .transport
+            .get("/v1/admin/settings", vec![])
+            .await
+    }
+
+    /// Update instance settings.
+    pub async fn update(
+        &self,
+        body: UpdateInstanceSettingsBody,
+    ) -> Result<InstanceSettingsResponse, BigRagError> {
+        self.client
+            .transport
+            .put("/v1/admin/settings", &body)
+            .await
+    }
+
+    /// Validate instance settings without saving.
+    pub async fn test(
+        &self,
+        body: TestInstanceSettingsBody,
+    ) -> Result<InstanceSettingsTestResponse, BigRagError> {
+        self.client
+            .transport
+            .post("/v1/admin/settings/test", &body)
+            .await
+    }
+
+    /// Reset instance settings.
+    pub async fn reset(
+        &self,
+        body: ResetInstanceSettingsBody,
+    ) -> Result<StatusResponse, BigRagError> {
+        self.client
+            .transport
+            .post("/v1/admin/settings/reset", &body)
+            .await
+    }
+
+    /// Purge the persistent embedding cache.
+    pub async fn purge_embedding_cache(&self) -> Result<StatusResponse, BigRagError> {
+        self.client
+            .transport
+            .post(
+                "/v1/admin/settings/embedding-cache/purge",
+                &serde_json::Value::Null,
+            )
+            .await
+    }
+}
+
+/// Admin backup resource.
+pub struct AdminBackups<'a> {
+    pub(crate) client: &'a BigRag,
+}
+
+impl AdminBackups<'_> {
+    /// List backup jobs.
+    pub async fn list(
+        &self,
+        options: Option<PaginationOptions>,
+    ) -> Result<BackupJobListResponse, BigRagError> {
+        self.client
+            .transport
+            .get("/v1/admin/backups", pagination(options))
+            .await
+    }
+
+    /// Get a backup job.
+    pub async fn get(&self, backup_id: &str) -> Result<BackupJob, BigRagError> {
+        let path = format!("/v1/admin/backups/{}", urlencode(backup_id));
+        self.client.transport.get(&path, vec![]).await
+    }
+
+    /// Create a backup job.
+    pub async fn create(&self, body: BackupCreateBody) -> Result<BackupJob, BigRagError> {
+        self.client.transport.post("/v1/admin/backups", &body).await
     }
 }
 
