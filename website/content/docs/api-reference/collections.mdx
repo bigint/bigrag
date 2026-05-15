@@ -32,6 +32,7 @@ GET /v1/collections
       "description": "Academic research papers",
       "embedding_provider": "openai",
       "embedding_model": "text-embedding-3-small",
+      "vector_store_provider": "qdrant",
       "dimension": 1536,
       "chunk_size": 512,
       "chunk_overlap": 50,
@@ -71,6 +72,7 @@ POST /v1/collections
   "description": "Academic research papers",
   "embedding_provider": "openai",
   "embedding_model": "text-embedding-3-small",
+  "vector_store_provider": "qdrant",
   "dimension": 1536,
   "chunk_size": 512,
   "chunk_overlap": 50,
@@ -96,6 +98,7 @@ POST /v1/collections
 | `description` | string | no | `""` | — |
 | `embedding_provider` | string | no | Server default | `openai`, `cohere`, `voyage`, `openai_compatible` |
 | `embedding_model` | string | no | Server default | Model name |
+| `vector_store_provider` | string | no | `"qdrant"` | `qdrant` or `turbopuffer`; fixed at creation |
 | `embedding_api_key` | string | no | — | Required when `embedding_preset_id` is not provided; validated against the provider before the collection is created. Use any non-empty value for local OpenAI-compatible gateways without auth. Ignored when a preset is supplied — the collection inherits the preset's key live |
 | `embedding_base_url` | string | no | — | Required for `openai_compatible` (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) |
 | `dimension` | integer | no | Provider default | Must match the model |
@@ -155,7 +158,7 @@ Lightweight endpoint returning document and chunk counts.
 PUT /v1/collections/{name}
 ```
 
-Only the fields below are mutable. Embedding provider / model / dimension, chunk size / overlap, `index_type`, and `tenant_field` are fixed at creation — changing them would invalidate existing vectors.
+Only the fields below are mutable. Embedding provider / model / dimension, vector store provider, chunk size / overlap, `index_type`, and `tenant_field` are fixed at creation — changing them would invalidate existing vectors.
 
 | Field | Type | Notes |
 |-------|------|-------|

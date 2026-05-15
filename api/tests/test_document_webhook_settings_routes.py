@@ -216,7 +216,7 @@ def test_instance_settings_vector_failure_does_not_commit(route_client, monkeypa
 
     response = client.put(
         "/v1/admin/settings",
-        json={"values": {"vector_store_provider": "turbopuffer"}},
+        json={"values": {"qdrant_url": "http://qdrant-new:6333"}},
     )
 
     assert response.status_code == 400
@@ -268,7 +268,7 @@ def test_instance_settings_storage_and_vector_swap_live(route_client, monkeypatc
 
     response = client.put(
         "/v1/admin/settings",
-        json={"values": {"storage_backend": "local", "vector_store_provider": "turbopuffer"}},
+        json={"values": {"storage_backend": "local", "qdrant_url": "http://qdrant-new:6333"}},
     )
 
     assert response.status_code == 200

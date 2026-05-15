@@ -87,6 +87,7 @@ result = await client.collections.list(name="prefix", limit=10)
 # Create
 collection = await client.collections.create({
     "name": "docs",
+    "vector_store_provider": "qdrant",
     "embedding_provider": "openai",
     "embedding_model": "text-embedding-3-small",
 })
@@ -332,7 +333,7 @@ except APITimeoutError:
 
 ```python
 settings = await client.admin.settings.list()
-await client.admin.settings.test({"values": {"vector_store_provider": "qdrant"}})
+await client.admin.settings.test({"values": {"qdrant_url": "http://qdrant:6333"}})
 await client.admin.settings.update({"values": {"session_cookie_secure": True}})
 await client.admin.settings.reset({"keys": ["session_cookie_secure"]})
 await client.admin.settings.purge_embedding_cache()

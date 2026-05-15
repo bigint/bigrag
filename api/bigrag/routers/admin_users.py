@@ -28,6 +28,10 @@ logger = get_logger("bigrag.routers.admin_users")
 router = APIRouter(prefix="/v1/admin/users", tags=["admin:users"])
 
 
+def _is_unique_violation(exc: IntegrityError) -> bool:
+    return isinstance(exc.orig, UniqueViolationError) or "unique" in str(exc.orig).lower()
+
+
 async def _ensure_admin_role_can_change(
     session: AsyncSession,
     target: User,
@@ -112,6 +116,9 @@ async def update_user(
 
     password_changed = False
     fields: list[str] = []
+    if body.email is not None:
+        target.email = body.email.lower()
+        fields.append("email")
     if body.display_name is not None:
         target.display_name = body.display_name
         fields.append("display_name")
@@ -126,7 +133,13 @@ async def update_user(
 
     if password_changed:
         await session.execute(sa.delete(DbSession).where(DbSession.user_id == target_id))
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as e:
+        await session.rollback()
+        if _is_unique_violation(e):
+            raise HTTPException(status_code=409, detail="Email is already registered") from e
+        raise
     await session.refresh(target)
     await invalidate_auth_principals()
 

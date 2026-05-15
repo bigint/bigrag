@@ -56,6 +56,7 @@ def test_runtime_settings_reject_removed_vector_settings() -> None:
         "s3_vectors_index_prefix",
         "s3_vectors_region",
         "s3_vectors_secret_access_key",
+        "vector_store_provider",
     ):
         with pytest.raises(KeyError):
             validate_setting_value(key, "x")
@@ -76,8 +77,7 @@ def test_runtime_settings_include_backup_destination_settings() -> None:
 
 
 def test_runtime_settings_include_vector_store_settings() -> None:
-    assert validate_setting_value("vector_store_provider", "qdrant") == "qdrant"
-    assert validate_setting_value("vector_store_provider", "turbopuffer") == "turbopuffer"
+    assert validate_setting_value("qdrant_url", "http://qdrant:6333") == "http://qdrant:6333"
     assert REGISTRY["turbopuffer_api_key"].secret is True
 
 
@@ -87,12 +87,6 @@ def test_runtime_settings_include_vector_api_limits() -> None:
     assert validate_setting_value("max_vector_text_chars", 100000) == 100000
     assert validate_setting_value("max_vector_metadata_bytes", 65536) == 65536
     assert REGISTRY["max_vector_upsert_count"].group == "ingestion"
-
-
-def test_runtime_settings_reject_invalid_vector_store_provider() -> None:
-    for provider in ("pinecone", "s3_vectors"):
-        with pytest.raises(ValueError):
-            validate_setting_value("vector_store_provider", provider)
 
 
 def test_runtime_settings_redacts_secret_public_value() -> None:

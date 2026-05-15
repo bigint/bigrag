@@ -26,10 +26,9 @@ Bootstrap config is the small set of values the API needs before it can connect 
 | `BIGRAG_DB_POOL_MAX` | Maximum Postgres pool size. | `50` |
 | `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration timeout. Set `0` to disable the timeout. | `60` |
 | `BIGRAG_REDIS_URL` | Redis connection URL. | `redis://localhost:6379/0` |
-| `BIGRAG_VECTOR_STORE_PROVIDER` | Vector backend: `qdrant` or `turbopuffer`. | `qdrant` |
 | `BIGRAG_QDRANT_URL` | Qdrant connection URL. | `http://localhost:6333` |
 | `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout. | `10` |
-| `BIGRAG_QDRANT_REQUIRED` | Fail startup if the configured vector store cannot be reached. | `false` |
+| `BIGRAG_QDRANT_REQUIRED` | Fail startup if configured vector-store clients cannot be reached. | `false` |
 | `BIGRAG_MASTER_KEY` | Fernet key for encrypted provider secrets, instance-setting secrets, embedding-cache rows, and Redis cache payloads. Required for production. | — |
 | `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys during staged key rotation. | `[]` |
 | `BIGRAG_UPLOAD_DIR` | Local document upload directory when storage backend is `local`. | `./data/uploads` |
@@ -56,7 +55,6 @@ workers = 1
 
 database_url = "postgres://bigrag:change-me@postgres:5432/bigrag?sslmode=disable"
 redis_url = "redis://redis:6379/0"
-vector_store_provider = "qdrant"
 qdrant_url = "http://qdrant:6333"
 
 master_key = "generate-a-fernet-key"
@@ -69,7 +67,7 @@ Environment variables override TOML values. CLI flags passed to `python -m bigra
 
 ## Runtime settings
 
-After the first admin account exists, go to `/settings` to manage platform runtime settings, `/models` to manage model presets and model runtime settings, and `/vector-storage` to manage the active vector backend. Runtime settings are stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
+After the first admin account exists, go to `/settings` to manage platform runtime settings, `/models` to manage model presets and model runtime settings, and `/vector-storage` to manage vector backend connection details. New collections choose their vector store during creation. Runtime settings are stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
 
 The same surface is available through [`/v1/admin/settings`](/docs/api-reference/instance-settings).
 
@@ -78,12 +76,12 @@ The same surface is available through [`/v1/admin/settings`](/docs/api-reference
 | Security | CORS origins, trusted proxies, session cookie policy, provider URL allow-lists, embedding-cache mode, private-network escape hatches. |
 | Data | Storage backend, upload limits, OCR, ingestion workers, queue depth, webhook delivery limits, and retention windows. |
 | Models (`/models`) | Default embedding provider, model, dimension, key, base URL, cache TTLs, chat provider, chat model, temperature, history count, and context budget. |
-| Vector Storage (`/vector-storage`) | Qdrant or turbopuffer provider, Qdrant URL and readiness behavior, turbopuffer API key, and turbopuffer region. |
+| Vector Storage (`/vector-storage`) | Provider tabs for Qdrant URL, readiness behavior, and HNSW tuning or turbopuffer API key, region, and namespace prefix. |
 | Backups | S3-compatible readable backup bucket, endpoint, region, prefix, and credentials for S3, R2, or MinIO. |
 
 The UI uses the same compact top tab control and shared dashboard body width as the other admin pages for Account, Health, Security, and Data, then opens directly into the selected Settings area without a repeated section heading. Each area is arranged sequentially from top to bottom. Each runtime panel shows common controls first, keeps raw setting keys, source metadata, and rarely changed limits in Advanced controls, keeps Save in the panel footer, and uses default or example placeholders for empty controls. Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, and `/settings?tab=data`.
 
-Database-backed admin settings apply immediately on save. Storage, backup, and vector-store changes validate the new target before saving, then swap the active backend in place where applicable.
+Database-backed admin settings apply immediately on save. Storage, backup, and vector-store connection changes validate the new target before saving, then swap the runtime client in place where applicable.
 
 <Callout type="info">
 Legacy runtime environment variables are still read as initial defaults for compatibility, but enterprise installs should treat `/settings` as the control plane after bootstrap.

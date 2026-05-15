@@ -72,14 +72,21 @@ PATCH /v1/admin/users/{user_id}
 ```
 
 ```json
-{ "display_name": "Jane D.", "role": "admin", "password": "new-password" }
+{ "email": "jane@example.com", "display_name": "Jane D.", "role": "admin", "password": "new-password" }
 ```
 
 Changing `password` revokes every existing session for that user.
 
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `email` | string | no | Must remain unique |
+| `display_name` | string | no | — |
+| `role` | string | no | `admin` or `member`; rejected when demoting the last admin |
+| `password` | string | no | ≥8 chars; revokes that user's sessions |
+
 **Response** `200`: updated user.
 
-**Errors:** `404`.
+**Errors:** `400` (last-admin demotion), `409` (email taken), `404`.
 
 ## Delete User
 

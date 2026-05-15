@@ -62,7 +62,7 @@ Unknown keys and invalid values return `400`. Successful updates are audited as 
 
 Security hardening settings include `allow_public_bind_in_prod`. Ingestion settings include raw vector API request caps (`max_vector_upsert_count`, `max_vector_delete_count`, `max_vector_text_chars`, `max_vector_metadata_bytes`). These are returned in the same registry as the other settings and can be changed from the admin UI.
 
-Storage and vector-store changes are validated before they are saved. Switching storage or vector providers does not migrate existing uploaded files or existing vectors; re-upload or re-ingest data when moving historical content to a new backend.
+Storage and vector-store connection changes are validated before they are saved. A collection's vector provider is fixed at creation; creating future collections in a different backend does not migrate existing vectors.
 
 ## Test Settings
 

@@ -43,6 +43,7 @@ const CollectionLayout = () => {
           collection && (
             <div className="hidden items-center gap-2 md:flex">
               <Badge variant="primary">{collection.embedding_model}</Badge>
+              <Badge variant="neutral">{collection.vector_store_provider}</Badge>
               <Badge variant="neutral">{collection.dimension}d</Badge>
               {collection.reranking_enabled && (
                 <Badge variant="info">rerank: {collection.reranking_model}</Badge>

@@ -69,6 +69,7 @@ client.collections.listAll({ name?, limit? })  // AsyncGenerator that pages thro
 client.collections.create({
   name,
   description?,
+  vector_store_provider?,   // "qdrant" | "turbopuffer"
   embedding_provider?,      // "openai" | "cohere" | "voyage" | "openai_compatible"
   embedding_model?,
   embedding_api_key?,
@@ -208,7 +209,7 @@ client.auth.updatePreferences({ data })
 ```typescript
 client.admin.users.list({ limit?, offset? })
 client.admin.users.create({ email, password, display_name?, role? })
-client.admin.users.update(userId, { display_name?, role?, password? })
+client.admin.users.update(userId, { email?, display_name?, role?, password? })
 client.admin.users.delete(userId)
 
 client.admin.apiKeys.list({ limit?, offset? })

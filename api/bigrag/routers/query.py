@@ -100,6 +100,7 @@ async def query_collection(
         search_mode=search_mode,
         reranking_config=get_reranking_config(collection),
         rerank_override=body.rerank,
+        vector_store_provider=collection.get("vector_store_provider"),
     )
 
     logger.info(
@@ -175,6 +176,7 @@ async def multi_collection_query(
 
     embedding_models = {}
     reranking_configs = {}
+    vector_store_providers = {}
     for col_name in body.collections:
         collection = await get_collection_or_404(col_name)
         require_tenant_filters(collection, body.filters)
@@ -183,6 +185,7 @@ async def multi_collection_query(
         except (ImportError, ValueError) as e:
             raise HTTPException(status_code=400, detail=f"Collection '{col_name}': {e}") from e
         reranking_configs[col_name] = get_reranking_config(collection)
+        vector_store_providers[col_name] = collection.get("vector_store_provider") or "qdrant"
 
     results = await retrieve_multi(
         collection_names=body.collections,
@@ -194,6 +197,7 @@ async def multi_collection_query(
         search_mode=body.search_mode,
         reranking_configs=reranking_configs,
         rerank_override=body.rerank,
+        vector_store_providers=vector_store_providers,
     )
 
     logger.info("multi-query complete", collections=body.collections, results=len(results))
@@ -251,6 +255,7 @@ async def batch_query(
             search_mode=item.search_mode,
             reranking_config=get_reranking_config(collection),
             rerank_override=item.rerank,
+            vector_store_provider=collection.get("vector_store_provider"),
         )
 
         return BatchQueryResultItem(
@@ -339,6 +344,7 @@ async def upsert_vectors(
         embeddings=embeddings,
         texts=texts,
         metadata=metadata,
+        provider=collection.get("vector_store_provider"),
     )
     await invalidate_collection_query_cache(collection_name)
     logger.info("vector upsert complete", collection=collection_name, upserted=count)
@@ -371,9 +377,13 @@ async def delete_vectors(
             status_code=413,
             detail=f"Too many vector IDs. Max: {limits['max_vector_delete_count']}",
         )
-    await get_collection_or_404(collection_name)
+    collection = await get_collection_or_404(collection_name)
     logger.info("vector delete", collection=collection_name, ids=len(body.ids))
-    await vector_store.delete_by_ids(collection_name, body.ids)
+    await vector_store.delete_by_ids(
+        collection_name,
+        body.ids,
+        provider=collection.get("vector_store_provider"),
+    )
     await invalidate_collection_query_cache(collection_name)
     access_log.set_context(request, metadata={"deleted": len(body.ids)})
     return VectorDeleteResponse(deleted=len(body.ids))

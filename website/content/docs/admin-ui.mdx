@@ -42,17 +42,17 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/api-keys` | Mint, scope, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
 | `/access-logs` | Access-log explorer for query, vector, chat, and evaluation traffic. |
 | `/usage` | Usage and cost explorer for requests, indexed data, tokens, and estimated embedding spend. |
-| `/audit` | Immutable admin audit trail with actor, action, resource, IP, and timestamp details. |
+| `/audit` | Paginated immutable admin audit trail with actor, action, resource, IP, and timestamp details. |
 | `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. The page warns when document-event deliveries are blocked by an offline worker. |
 | `/connectors` | Browse the provider catalog, configure connector credentials, and review account state. |
 | `/backups` | Configure readable backup storage, start full-instance exports, and monitor backup history. Backup starts are disabled when the worker heartbeat is offline. |
-| `/vector-storage` | Configure the instance-level Qdrant or turbopuffer vector backend. Saves validate provider credentials before changes are stored. |
+| `/vector-storage` | Configure Qdrant and turbopuffer connection settings. Collections choose a vector provider when they are created. |
 | `/settings` | Operator-console settings workspace for account, platform, and data sections. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
 Unknown admin routes render the built-in 404 screen with links back to overview and collections. Unexpected route render failures use the admin 500 screen with a retry action, overview fallback, and a readable error-details panel showing the boundary error message, cause, and digest when available.
 
-The sidebar is grouped by operator task: Workspace for day-to-day retrieval surfaces, Interfaces for client and integration entry points, Observability for logs and spend, and Administration for backup, vector storage, and instance settings. Member accounts only see groups that still contain at least one available destination. Standard admin pages share one centered dashboard body width so page headers, tabs, and primary panels align across routes; shared tabs rely on the page stack gap so spacing above and below the tab row stays even.
+The sidebar is grouped by operator task: Workspace for day-to-day retrieval surfaces, Interfaces for client and integration entry points, Observability for logs and spend, and Administration for backup, vector storage, and instance settings. Member accounts only see groups that still contain at least one available destination. Standard admin pages share one centered dashboard body width so page headers, tabs, and primary panels align across routes; shared tabs rely on the page stack gap so spacing above and below the tab row stays even. The desktop sidebar keeps matching top and bottom insets so it reads as a floating surface, while page scroll areas still keep their own bottom edge available so footer actions are not clipped by a reserved app gutter.
 
 ## Settings sections
 
@@ -62,7 +62,7 @@ The `/connectors` page renders provider tabs above the selected provider setup p
 
 The `/backups` page combines backup destination settings with `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups`, and `POST /v1/admin/backups` so backup operations stay out of the general Settings workspace. Usage, audit, and vector storage also live as first-class sidebar pages at `/usage`, `/audit`, and `/vector-storage`.
 
-The `/vector-storage` page is a standalone runtime settings surface for the instance-level Qdrant or turbopuffer vector backend. It uses `GET /v1/admin/settings` and `PUT /v1/admin/settings`, and saving validates the selected provider before changes are stored.
+The `/vector-storage` page is a standalone runtime settings surface for vector provider connection details. It separates Qdrant and turbopuffer into provider tabs and uses `GET /v1/admin/settings` and `PUT /v1/admin/settings`; collection creation owns the per-collection provider choice.
 
 The settings page is a compact task-oriented workspace. It uses the shared top tab control for Account, Health, Security, and Data instead of a nested settings sidebar, then opens directly into the selected area without a repeated section heading. Settings area content is stacked sequentially rather than split into desktop columns. Common controls appear first, raw setting keys and source metadata stay inside Advanced controls, and each runtime panel keeps its guidance plus Save action together in the panel footer. Empty controls show default or example placeholders so unset values remain readable. Saving validates applicable storage, backup, and vector targets before persistence.
 
@@ -70,7 +70,7 @@ Settings only accepts current tab values: `/settings?tab=account`, `/settings?ta
 
 | Group | Section | Reads from | Writes to |
 |-------|---------|-----------|-----------|
-| **Personal** | Account | `GET /v1/auth/me` | `POST /v1/auth/password`, `POST /v1/auth/logout-all` |
+| **Personal** | Account | `GET /v1/auth/me` | `PATCH /v1/admin/users/{user_id}`, `POST /v1/auth/password`, `POST /v1/auth/logout-all` |
 | **Operate** | Health | `GET /health/ready`, `GET /v1/admin/realtime/platform/readiness` | — |
 | **Operate** | Security | `GET /v1/admin/settings` | `PUT /v1/admin/settings`, `POST /v1/admin/settings/embedding-cache/purge` |
 | **Operate** | Data | `GET /v1/admin/settings` | `PUT /v1/admin/settings` |
@@ -78,7 +78,7 @@ Settings only accepts current tab values: `/settings?tab=account`, `/settings?ta
 
 ## Realtime updates
 
-The admin UI uses session-cookie [admin realtime SSE streams](/docs/api-reference/admin-realtime) for live document progress, batch upload progress, collection stats, connector sync state, access logs, audit log, usage, platform stats, and readiness. Each stream sends an immediate full `snapshot` payload that matches the related REST response, then sends later snapshots as data changes.
+The admin UI uses session-cookie [admin realtime SSE streams](/docs/api-reference/admin-realtime) for live document progress, batch upload progress, collection stats, connector sync state, access logs, paginated audit log pages, usage, platform stats, and readiness. Each stream sends an immediate full `snapshot` payload that matches the related REST response, then sends later snapshots as data changes.
 
 The same platform stats stream powers the worker-offline UX. When `workers.online` is `false`, the admin UI shows `bigrag-worker is offline`, includes the last heartbeat age when available, and disables actions that would enqueue uploads, document reprocessing, backups, Google Drive source sync, or manual Drive resync. Missing worker stats are treated as unknown, so actions remain available until an offline heartbeat is confirmed.
 

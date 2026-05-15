@@ -44,7 +44,11 @@ describe("queryKeys", () => {
       "overview",
       { windowDays: 30 },
     ]);
-    expect(queryKeys.audit.recent()).toEqual(["audit", "recent"]);
+    expect(queryKeys.audit.list({ limit: 25, offset: 50 })).toEqual([
+      "audit",
+      "list",
+      { limit: 25, offset: 50 },
+    ]);
     expect(queryKeys.mcpServers()).toEqual(["mcp-servers"]);
     expect(queryKeys.webhooks()).toEqual(["webhooks"]);
     expect(queryKeys.embeddingPresets()).toEqual(["embedding-presets"]);

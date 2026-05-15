@@ -224,7 +224,11 @@ async def delete_document(
         raise HTTPException(status_code=404, detail="Document not found")
 
     await ingestion_queue.cancel_documents([document_id])
-    await vector_store.delete_by_document(collection_name, document_id)
+    await vector_store.delete_by_document(
+        collection_name,
+        document_id,
+        provider=collection.get("vector_store_provider"),
+    )
 
     file_path = doc.file_path
     deleted_filename = doc.filename
@@ -276,7 +280,11 @@ async def reprocess_document(
         )
 
     await ingestion_queue.cancel_documents([document_id])
-    await vector_store.delete_by_document(collection_name, document_id)
+    await vector_store.delete_by_document(
+        collection_name,
+        document_id,
+        provider=collection.get("vector_store_provider"),
+    )
 
     doc.status = "pending"
     doc.chunk_count = 0
@@ -347,6 +355,7 @@ async def get_document_chunks(
         document_id,
         limit=limit,
         offset=offset,
+        provider=collection.get("vector_store_provider"),
     )
     return {"chunks": chunks, "total": total}
 
@@ -571,7 +580,11 @@ async def batch_delete_documents(
 
     async def _delete_one(doc_id: str, doc: Document) -> bool:
         try:
-            await vector_store.delete_by_document(collection_name, doc_id)
+            await vector_store.delete_by_document(
+                collection_name,
+                doc_id,
+                provider=collection.get("vector_store_provider"),
+            )
             await get_storage().delete(doc.file_path)
             return True
         except Exception as exc:
@@ -629,10 +642,12 @@ async def get_document_chunks_global(
 ):
     doc, collection_name = await get_document_with_collection(session, document_id)
     assert_collection_pin_matches(user, collection_name=collection_name)
+    collection = await get_collection_or_404(collection_name)
     chunks, total = await vector_store.get_chunks(
         collection_name,
         document_id,
         limit=limit,
         offset=offset,
+        provider=collection.get("vector_store_provider"),
     )
     return {"chunks": chunks, "total": total}

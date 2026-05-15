@@ -31,6 +31,9 @@ pub struct CreateUserBody {
 /// Body for updating a user.
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct UpdateUserBody {
+    /// Email address.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
     /// Display name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,

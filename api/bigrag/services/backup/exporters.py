@@ -67,7 +67,11 @@ async def _export_vector_store(temp_dir: Path) -> dict[str, int]:
             await session.scalars(sa.select(Collection).order_by(Collection.name.asc()))
         ).all()
     for collection in collections:
-        points = await vector_store.export_collection_points(collection.name, with_vectors=False)
+        points = await vector_store.export_collection_points(
+            collection.name,
+            with_vectors=False,
+            provider=collection.vector_store_provider,
+        )
         exists = bool(points) or collection.document_count == 0
         count = len(points)
         target = points_dir / f"{collection.name}.jsonl"
@@ -80,7 +84,7 @@ async def _export_vector_store(temp_dir: Path) -> dict[str, int]:
         collections_meta.append(
             {
                 "collection": collection.name,
-                "provider": vector_store.provider,
+                "provider": collection.vector_store_provider,
                 "vector_store_collection": collection.name,
                 "exists": exists,
                 "points": count,

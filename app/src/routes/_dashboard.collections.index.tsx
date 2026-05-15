@@ -54,6 +54,11 @@ const CollectionsPage = () => {
       ),
     },
     {
+      header: "Storage",
+      key: "storage",
+      render: (c) => <Badge variant="neutral">{c.vector_store_provider}</Badge>,
+    },
+    {
       header: "Model",
       key: "model",
       className: "font-mono text-xs text-muted-foreground",

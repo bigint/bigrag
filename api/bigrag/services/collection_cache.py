@@ -28,7 +28,7 @@ def _serialize(c: Collection, preset: EmbeddingPreset | None = None) -> dict:
         "embedding_preset_id": str(c.embedding_preset_id) if c.embedding_preset_id else None,
         "embedding_preset_api_key": preset.api_key if preset else None,
         "embedding_preset_base_url": preset.base_url if preset else None,
-        "vector_store_provider": c.vector_store_provider,
+        "vector_store_provider": getattr(c, "vector_store_provider", "qdrant"),
         "dimension": c.dimension,
         "chunk_size": c.chunk_size,
         "chunk_overlap": c.chunk_overlap,

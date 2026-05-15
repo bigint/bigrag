@@ -46,7 +46,9 @@ def test_admin_resource_builds_requests() -> None:
         await admin.users.create(
             {"email": "a@example.com", "password": "secret123", "role": "admin"}
         )
-        await admin.users.update("user/1", {"role": "member"})
+        await admin.users.update(
+            "user/1", {"email": "new@example.com", "role": "member"}
+        )
         await admin.users.delete("user/1")
         await admin.api_keys.list(limit=3)
         await admin.api_keys.create({"name": "ci", "scopes": ["collections:read"]})
@@ -68,7 +70,7 @@ def test_admin_resource_builds_requests() -> None:
             action="create", actor_id="actor", resource_type="collection"
         )
         await admin.settings.list()
-        await admin.settings.test({"values": {"vector_store_provider": "qdrant"}})
+        await admin.settings.test({"values": {"qdrant_url": "http://qdrant:6333"}})
         await admin.settings.update({"values": {"session_cookie_secure": True}})
         await admin.settings.reset({"keys": ["session_cookie_secure"]})
         await admin.settings.purge_embedding_cache()
@@ -109,7 +111,11 @@ def test_admin_resource_builds_requests() -> None:
                 }
             },
         ),
-        ("PATCH", "/v1/admin/users/user%2F1", {"json": {"role": "member"}}),
+        (
+            "PATCH",
+            "/v1/admin/users/user%2F1",
+            {"json": {"email": "new@example.com", "role": "member"}},
+        ),
         ("DELETE", "/v1/admin/users/user%2F1", {}),
         ("GET", "/v1/admin/api-keys", {"params": {"limit": "3"}}),
         (
@@ -152,7 +158,7 @@ def test_admin_resource_builds_requests() -> None:
         (
             "POST",
             "/v1/admin/settings/test",
-            {"json": {"values": {"vector_store_provider": "qdrant"}}},
+            {"json": {"values": {"qdrant_url": "http://qdrant:6333"}}},
         ),
         (
             "PUT",

@@ -183,7 +183,7 @@ bigRAG exposes two health endpoints:
 | Endpoint | Purpose | Notes |
 |----------|---------|-------|
 | `/health` | Liveness check | Always returns `200` if the server is running |
-| `/health/ready` | Readiness check | Returns `503` if Postgres, Redis, the configured vector store, or the embedding provider is unreachable |
+| `/health/ready` | Readiness check | Returns `503` if Postgres, Redis, configured vector-store clients, or the embedding provider is unreachable |
 
 ```bash
 # Quick liveness check

@@ -120,7 +120,7 @@ a future pgvector backend.
 
 - **Horizontal API workers**: FastAPI is stateless past the lifespan.
   Run N replicas behind a load balancer; they share Postgres, Redis,
-  and the configured vector store. API replicas enqueue work but do not
+  and the configured vector-store clients. API replicas enqueue work but do not
   run background jobs in-process.
 - **Dramatiq workers**: run one or more `bigrag-worker` processes for
   ingestion, connector syncs, webhook outbox delivery, backups, and

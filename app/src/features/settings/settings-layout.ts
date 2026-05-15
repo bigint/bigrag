@@ -152,17 +152,19 @@ const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupLayout> 
   },
   vector_store: {
     commonKeys: [
-      "vector_store_provider",
       "qdrant_url",
+      "qdrant_connect_timeout_seconds",
       "qdrant_required",
+      "qdrant_search_ef",
       "turbopuffer_api_key",
       "turbopuffer_region",
+      "turbopuffer_namespace_prefix",
     ],
-    description: "Instance-level vector backend and provider credentials.",
+    description: "Vector backend connection details and provider credentials.",
     emptyState: "Vector storage settings are not available from this API.",
     eyebrow: "Indexes",
     group: "vector_store",
-    recommendedAction: "Pick one provider, complete its credentials, then save the target.",
+    recommendedAction: "Keep connection details ready for the providers collections can select.",
     title: "Vector storage",
   },
   webhooks: {

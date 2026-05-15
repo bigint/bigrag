@@ -48,7 +48,6 @@ VECTOR_CONFIG_KEYS = {
     "turbopuffer_api_key",
     "turbopuffer_namespace_prefix",
     "turbopuffer_region",
-    "vector_store_provider",
 }
 
 _apply_lock = asyncio.Lock()
@@ -158,7 +157,6 @@ async def _prepare_vector_backend(values: dict[str, Any]) -> VectorStore:
 
 def _configure_vector_store(store: VectorStore, values: dict[str, Any]) -> None:
     store.configure(
-        provider=values["vector_store_provider"],
         qdrant_url=values["qdrant_url"],
         connect_timeout_seconds=values["qdrant_connect_timeout_seconds"],
         search_ef=values["qdrant_search_ef"],

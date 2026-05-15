@@ -1,15 +1,27 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
-import { LogOut, ShieldAlert, UserRound } from "lucide-react";
+import { LogOut, Save, ShieldAlert } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   defaultPasswordFormValues,
+  defaultProfileFormValues,
   passwordBodyFromValues,
+  profileBodyFromValues,
+  profileFormHasChanges,
+  profileFormValuesFromUser,
   validatePasswordFormValues,
+  validateProfileFormValues,
 } from "@/features/settings/account-form-state";
-import { useChangePassword, useLogout, useLogoutAll, useSession } from "@/hooks/use-auth";
+import {
+  useChangePassword,
+  useLogout,
+  useLogoutAll,
+  useSession,
+  useUpdateCurrentUserProfile,
+} from "@/hooks/use-auth";
 import { errorText, firstString, submitWith } from "@/lib/form";
 
 const initials = (name: string, email: string) => {
@@ -23,9 +35,12 @@ const initials = (name: string, email: string) => {
 export const AccountTab = () => {
   const navigate = useNavigate();
   const { data: session } = useSession();
+  const updateProfile = useUpdateCurrentUserProfile();
   const changePassword = useChangePassword();
   const logout = useLogout();
   const logoutAll = useLogoutAll();
+  const [profileValues, setProfileValues] = useState(defaultProfileFormValues);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const form = useForm({
     defaultValues: defaultPasswordFormValues(),
     validators: {
@@ -46,6 +61,46 @@ export const AccountTab = () => {
 
   const user = session?.user;
   const displayName = user?.display_name || user?.email?.split("@")[0] || "—";
+  const userDisplayName = user?.display_name ?? "";
+  const userEmail = user?.email ?? "";
+  const userId = user?.id;
+  const savedProfileValues = user ? profileFormValuesFromUser(user) : defaultProfileFormValues();
+  const profileChanged = user ? profileFormHasChanges(savedProfileValues, profileValues) : false;
+
+  useEffect(() => {
+    if (!userId) return;
+    setProfileValues({
+      displayName: userDisplayName,
+      email: userEmail,
+    });
+    setProfileError(null);
+  }, [userId, userDisplayName, userEmail]);
+
+  const setProfileField = (field: keyof typeof profileValues, value: string) => {
+    setProfileValues((current) => ({ ...current, [field]: value }));
+    setProfileError(null);
+  };
+
+  const submitProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user) return;
+    const error = validateProfileFormValues(profileValues);
+    if (error) {
+      setProfileError(error);
+      return;
+    }
+    try {
+      await updateProfile.mutateAsync({
+        id: user.id,
+        ...profileBodyFromValues(profileValues),
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    }
+  };
+
+  const displayNameError = profileError?.startsWith("Display name") ? profileError : null;
+  const emailError = profileError && !displayNameError ? profileError : null;
 
   const signOutEverywhere = async () => {
     if (!window.confirm("Sign out of every device? You'll need to log in again everywhere.")) {
@@ -75,17 +130,44 @@ export const AccountTab = () => {
                 </span>
               )}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Profile details are managed by the current admin account.
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">Edit your operator profile.</p>
           </div>
         </div>
-        <dl className="mt-5 grid gap-3">
-          <AccountDetail icon={<UserRound className="size-4" />} label="Display name">
-            {user?.display_name || displayName}
-          </AccountDetail>
-          <AccountDetail label="Email">{user?.email ?? "—"}</AccountDetail>
-        </dl>
+        <form className="mt-5 flex flex-col gap-4" noValidate onSubmit={submitProfile}>
+          {profileError && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {profileError}
+            </div>
+          )}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Input
+              autoComplete="name"
+              error={displayNameError}
+              label="Display name"
+              maxLength={120}
+              onChange={(e) => setProfileField("displayName", e.target.value)}
+              placeholder="Display name"
+              value={profileValues.displayName}
+            />
+            <Input
+              autoComplete="email"
+              description="Used for sign in and audit attribution."
+              error={emailError}
+              label="Email"
+              onChange={(e) => setProfileField("email", e.target.value)}
+              placeholder="admin@example.com"
+              required
+              type="email"
+              value={profileValues.email}
+            />
+          </div>
+          <div className="flex justify-end pt-1">
+            <Button type="submit" disabled={!user || !profileChanged || updateProfile.isPending}>
+              <Save className="size-3.5" />
+              {updateProfile.isPending ? "Saving…" : "Save profile"}
+            </Button>
+          </div>
+        </form>
       </section>
 
       <section className="rounded-md border border-border bg-card p-4">
@@ -223,21 +305,3 @@ export const AccountTab = () => {
     </div>
   );
 };
-
-const AccountDetail = ({
-  children,
-  icon,
-  label,
-}: {
-  readonly children: React.ReactNode;
-  readonly icon?: React.ReactNode;
-  readonly label: string;
-}) => (
-  <div className="rounded-md border border-border bg-muted/25 p-3">
-    <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-      {icon}
-      {label}
-    </dt>
-    <dd className="mt-2 truncate text-sm font-semibold text-foreground">{children}</dd>
-  </div>
-);

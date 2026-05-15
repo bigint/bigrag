@@ -125,6 +125,7 @@ async def run_evaluation(
             search_mode=body.search_mode,
             filters=case_filters,
             reranking_config=get_reranking_config(collection),
+            vector_store_provider=collection.get("vector_store_provider"),
         )
         hit_ids = [r.get("document_id") or r.get("id") for r in outcome.results]
         expected = set(case.relevant_ids)

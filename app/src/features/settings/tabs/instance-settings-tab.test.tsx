@@ -79,4 +79,13 @@ describe("InstanceSettingsTab", () => {
 
     expect(html).toContain('placeholder=".example.com"');
   });
+
+  it("can render a focused subset of settings", () => {
+    const html = renderToStaticMarkup(
+      <InstanceSettingsTab group="security" includeKeys={["session_cookie_domain"]} />,
+    );
+
+    expect(html).toContain("Session cookie domain");
+    expect(html).not.toContain("Secure cookies");
+  });
 });

@@ -120,6 +120,7 @@ def test_update_user_happy_path_with_password(route_client, monkeypatch) -> None
         f"/v1/admin/users/{target.id}",
         json={
             "display_name": "New",
+            "email": "New@example.com",
             "role": "admin",
             "password": "longenough",
         },
@@ -127,8 +128,29 @@ def test_update_user_happy_path_with_password(route_client, monkeypatch) -> None
 
     assert response.status_code == 200
     assert target.display_name == "New"
+    assert target.email == "new@example.com"
     assert target.role == "admin"
     assert target.password_hash == "new-hash"
+
+
+def test_update_user_returns_409_when_email_duplicate(route_client, monkeypatch) -> None:
+    from bigrag.routers import admin_users
+
+    monkeypatch.setattr(admin_users.audit, "record", lambda *a, **k: None)
+
+    async def noop_invalidate():
+        return None
+
+    monkeypatch.setattr(admin_users, "invalidate_auth_principals", noop_invalidate)
+
+    target = _user_row()
+    session = IntegrityCommitSession(get_values={target.id: target}, unique_error=True)
+    response = route_client(session=session).patch(
+        f"/v1/admin/users/{target.id}",
+        json={"email": "taken@example.com"},
+    )
+
+    assert response.status_code == 409
 
 
 def test_update_user_blocks_last_admin_demotion(route_client, monkeypatch) -> None:

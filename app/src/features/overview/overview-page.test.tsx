@@ -103,7 +103,7 @@ vi.mock("@/hooks/use-platform", () => ({
       redis: true,
       status: "ok",
       vector_store: true,
-      vector_store_provider: "qdrant",
+      vector_store_provider: "per_collection",
       version: "test",
     },
   }),

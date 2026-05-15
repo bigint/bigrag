@@ -1,5 +1,26 @@
-import { describe, expect, it } from "vitest";
-import { getSidebarNavGroups, getSidebarNavItems, isSidebarItemActive } from "./sidebar";
+import { createElement, type ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+import { getSidebarNavGroups, getSidebarNavItems, isSidebarItemActive, Sidebar } from "./sidebar";
+
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    children,
+    className,
+    to,
+    ...props
+  }: {
+    children?: ReactNode;
+    className?: string;
+    to: string;
+  }) => createElement("a", { className, href: to, ...props }, children),
+  useRouterState: ({ select }: { select: (state: { location: { pathname: string } }) => string }) =>
+    select({ location: { pathname: "/settings" } }),
+}));
+
+vi.mock("./user-menu", () => ({
+  UserMenu: () => createElement("div", null, "Yoginth"),
+}));
 
 describe("sidebar navigation", () => {
   it("keeps admin-only destinations out of member navigation", () => {
@@ -56,5 +77,12 @@ describe("sidebar navigation", () => {
     expect(isSidebarItemActive("/connectors/google", "/connectors")).toBe(true);
     expect(isSidebarItemActive("/collections/docs/connectors", "/connectors")).toBe(false);
     expect(isSidebarItemActive("/vector-storage", "/vector-storage")).toBe(true);
+  });
+
+  it("leaves a bottom inset on the desktop sidebar shell", () => {
+    const html = renderToStaticMarkup(createElement(Sidebar, { role: "admin" }));
+
+    expect(html).toContain("hidden h-[calc(100dvh-1rem)] w-60");
+    expect(html).not.toContain("hidden h-full w-60");
   });
 });

@@ -45,6 +45,13 @@ type InstanceSettingsTabProps = {
   readonly focusGroup?: InstanceSettingGroup;
   readonly group?: InstanceSettingGroup;
   readonly groups?: readonly InstanceSettingGroup[];
+  readonly includeKeys?: readonly string[];
+  readonly layoutOverride?: Partial<
+    Pick<
+      SettingsGroupLayout,
+      "description" | "emptyState" | "eyebrow" | "recommendedAction" | "title"
+    >
+  >;
   readonly stacked?: boolean;
 };
 
@@ -59,6 +66,8 @@ export const InstanceSettingsTab = ({
   focusGroup,
   group,
   groups,
+  includeKeys,
+  layoutOverride,
   stacked = false,
 }: InstanceSettingsTabProps) => {
   const targetGroups = useTargetGroups(group, groups);
@@ -67,7 +76,7 @@ export const InstanceSettingsTab = ({
   const purgeEmbeddingCache = usePurgeEmbeddingCache();
   const form = useInstanceSettingsForm();
   const draft = useStore(form.store, (state) => state.values);
-  const specsByGroup = useSpecsByGroup(data, targetGroups);
+  const specsByGroup = useSpecsByGroup(data, targetGroups, includeKeys);
   const isBusy = isPending || save.isPending;
 
   useEffect(() => {
@@ -99,6 +108,7 @@ export const InstanceSettingsTab = ({
             group={targetGroup}
             isBusy={isBusy}
             isFocused={focusGroup === targetGroup}
+            layoutOverride={layoutOverride}
             key={targetGroup}
             onPurgeEmbeddingCache={() => {
               if (window.confirm("Purge every persistent embedding cache row?")) {
@@ -129,7 +139,19 @@ const useTargetGroups = (
 const useSpecsByGroup = (
   data: InstanceSettingsResponse | undefined,
   groups: readonly InstanceSettingGroup[],
-) => useMemo(() => groupSpecs(data, groups), [data, groups]);
+  includeKeys: readonly string[] | undefined,
+) =>
+  useMemo(() => {
+    const grouped = groupSpecs(data, groups);
+    if (!includeKeys?.length) return grouped;
+    const included = new Set(includeKeys);
+    return Object.fromEntries(
+      Object.entries(grouped).map(([targetGroup, specs]) => [
+        targetGroup,
+        specs?.filter((spec) => included.has(spec.key)) ?? [],
+      ]),
+    ) as Partial<Record<InstanceSettingGroup, InstanceSettingSpec[]>>;
+  }, [data, groups, includeKeys]);
 
 const RuntimeSettingsPanel = ({
   collapsible,
@@ -138,6 +160,7 @@ const RuntimeSettingsPanel = ({
   group,
   isBusy,
   isFocused,
+  layoutOverride,
   onPurgeEmbeddingCache,
   onSave,
   purgePending,
@@ -151,6 +174,12 @@ const RuntimeSettingsPanel = ({
   readonly group: InstanceSettingGroup;
   readonly isBusy: boolean;
   readonly isFocused: boolean;
+  readonly layoutOverride?: Partial<
+    Pick<
+      SettingsGroupLayout,
+      "description" | "emptyState" | "eyebrow" | "recommendedAction" | "title"
+    >
+  >;
   readonly onPurgeEmbeddingCache: () => void;
   readonly onSave: () => void;
   readonly purgePending: boolean;
@@ -158,7 +187,7 @@ const RuntimeSettingsPanel = ({
   readonly specs: readonly InstanceSettingSpec[];
   readonly stacked: boolean;
 }) => {
-  const layout = getSettingsGroupLayout(group);
+  const layout = { ...getSettingsGroupLayout(group), ...layoutOverride };
   const { advanced, common } = splitSettingsByImportance(specs, layout);
   const summary = settingsStatusSummary(specs, settingValues, layout);
   const [advancedOpen, setAdvancedOpen] = useState(false);

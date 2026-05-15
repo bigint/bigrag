@@ -16,6 +16,7 @@ def collection_row(**overrides):
         "description": "Docs",
         "embedding_provider": "openai",
         "embedding_model": "text-embedding-3-small",
+        "vector_store_provider": "qdrant",
         "dimension": 1536,
         "chunk_size": 512,
         "chunk_overlap": 50,
@@ -317,6 +318,7 @@ def test_create_collection_happy_path(route_client, patch_create_collection_exte
             "name": "docs",
             "embedding_api_key": "sk",
             "description": "Docs",
+            "vector_store_provider": "turbopuffer",
         },
     )
 
@@ -324,8 +326,10 @@ def test_create_collection_happy_path(route_client, patch_create_collection_exte
     body = response.json()
     assert body["name"] == "docs"
     assert body["embedding_provider"] == "openai"
+    assert body["vector_store_provider"] == "turbopuffer"
     assert session.commits == 1
     assert len(session.added) == 1
+    assert session.added[0].vector_store_provider == "turbopuffer"
 
 
 def test_create_collection_integrity_error_returns_409(
@@ -592,7 +596,7 @@ def test_truncate_collection_happy_path(route_client, monkeypatch) -> None:
     monkeypatch.setattr(collections, "invalidate_collection_query_cache", noop)
     monkeypatch.setattr(collections.audit, "record", lambda *a, **k: None)
 
-    session = FakeSession(scalar_values=[uuid.uuid4()], execute_values=[[], []])
+    session = FakeSession(scalar_values=[collection_row()], execute_values=[[], []])
     client = route_client(session=session)
 
     response = client.post("/v1/collections/docs/truncate")

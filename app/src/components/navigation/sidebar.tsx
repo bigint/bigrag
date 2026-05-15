@@ -139,7 +139,7 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
 };
 
 export const Sidebar = ({ role }: { role: string }) => (
-  <aside className="hidden h-full w-60 shrink-0 overflow-hidden rounded-md border border-border bg-muted lg:flex">
+  <aside className="hidden h-[calc(100dvh-1rem)] w-60 shrink-0 overflow-hidden rounded-md border border-border bg-muted lg:flex">
     <SidebarBody role={role} />
   </aside>
 );

@@ -15,6 +15,8 @@ pub struct Collection {
     pub embedding_provider: String,
     /// Embedding model name.
     pub embedding_model: String,
+    /// Vector storage provider.
+    pub vector_store_provider: String,
     /// Vector dimensionality.
     pub dimension: u32,
     /// Chunk size in tokens.
@@ -86,6 +88,9 @@ pub struct CreateCollectionBody {
     /// Collection description.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Vector storage provider (`"qdrant"` or `"turbopuffer"`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vector_store_provider: Option<String>,
     /// Embedding preset ID to derive provider/model/key/base URL/dimension.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_preset_id: Option<String>,

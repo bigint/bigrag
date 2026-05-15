@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 from bigrag import __version__
-from bigrag.services.vector_store import vector_store
 
 from .constants import BACKUP_FORMAT_VERSION
 from .target import BackupUploadStats, S3BackupTarget
@@ -40,7 +39,7 @@ def _manifest(
             "prefix": backup_prefix,
         },
         "tables": table_counts,
-        "vector_store": {"provider": vector_store.provider},
+        "vector_store": {"provider": "per_collection"},
         "vectors": vector_counts,
         "uploads": {"files": upload_count},
         "object_count": stats.object_count,

@@ -84,6 +84,7 @@ class CreateUserRequest(BaseModel):
 
 
 class UpdateUserRequest(BaseModel):
+    email: PermissiveEmail | None = Field(default=None)
     display_name: str | None = Field(default=None, max_length=120)
     role: str | None = Field(default=None, pattern="^(admin|member)$")
     password: str | None = Field(default=None, min_length=8, max_length=256)

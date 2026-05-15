@@ -120,6 +120,7 @@ class CreateUserBody(TypedDict):
 
 
 class UpdateUserBody(TypedDict, total=False):
+    email: str
     display_name: str
     role: str
     password: str

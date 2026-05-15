@@ -39,13 +39,13 @@ pub struct ReadinessResponse {
     pub version: String,
     /// Whether Postgres is reachable.
     pub postgres: bool,
-    /// Whether the configured vector store is reachable.
+    /// Whether configured vector-store clients are reachable.
     #[serde(default)]
     pub vector_store: bool,
-    /// Vector store provider name (e.g. `"qdrant"`).
+    /// Vector store readiness mode.
     #[serde(default)]
     pub vector_store_provider: Option<String>,
-    /// Whether Qdrant is reachable, when configured as the vector store.
+    /// Whether Qdrant is reachable, when configured.
     #[serde(default)]
     pub qdrant: Option<bool>,
     /// Whether Redis is reachable.

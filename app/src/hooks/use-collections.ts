@@ -44,6 +44,7 @@ export const useCollectionStats = (name: string) => {
 type CreateCollectionBody = {
   name: string;
   description?: string;
+  vector_store_provider?: "qdrant" | "turbopuffer";
   embedding_preset_id?: string | null;
   embedding_provider?: "openai" | "openai_compatible" | "cohere" | "voyage";
   embedding_model?: string;

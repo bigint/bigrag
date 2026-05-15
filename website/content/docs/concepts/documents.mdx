@@ -49,7 +49,7 @@ Regardless of ingestion method, every document goes through the same pipeline:
 3. **Parse** — a Dramatiq worker picks up the document and extracts text directly for text PDFs or parses richer formats with Docling
 4. **Chunk** — extracted text is split into chunks based on the collection's `chunk_size` and `chunk_overlap`
 5. **Embed** — each chunk is embedded using the collection's configured embedding model
-6. **Store** — embeddings are batch-inserted into the configured vector store
+6. **Store** — embeddings are batch-inserted into the collection's selected vector store
 7. **Ready** — document status is updated to `ready` with the chunk count
 
 Workers renew processing leases while a document is active. Transient failures are rescheduled as delayed Dramatiq messages before the next attempt; exhausted jobs are marked `failed` and retained in the dead-letter list.

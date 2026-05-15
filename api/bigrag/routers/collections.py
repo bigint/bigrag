@@ -71,6 +71,7 @@ def _collection_response(c: Collection) -> CollectionResponse:
         description=c.description,
         embedding_provider=c.embedding_provider,
         embedding_model=c.embedding_model,
+        vector_store_provider=getattr(c, "vector_store_provider", "qdrant"),
         dimension=c.dimension,
         chunk_size=c.chunk_size,
         chunk_overlap=c.chunk_overlap,
@@ -128,6 +129,7 @@ async def create_collection(
     logger.info(
         "create collection",
         name=body.name,
+        vector_store_provider=body.vector_store_provider,
         provider=body.embedding_provider,
         model=body.embedding_model,
     )
@@ -230,11 +232,13 @@ async def create_collection(
         dimension,
         index_type=body.index_type,
         tenant_field=body.tenant_field,
+        provider=body.vector_store_provider,
     )
 
     collection = Collection(
         name=body.name,
         description=body.description,
+        vector_store_provider=body.vector_store_provider,
         embedding_provider=provider,
         embedding_model=model,
         dimension=dimension,
@@ -260,11 +264,11 @@ async def create_collection(
         await session.commit()
     except IntegrityError as e:
         await session.rollback()
-        await vector_store.delete_collection(body.name)
+        await vector_store.delete_collection(body.name, provider=body.vector_store_provider)
         raise HTTPException(status_code=409, detail="Collection already exists") from e
     except Exception:
         await session.rollback()
-        await vector_store.delete_collection(body.name)
+        await vector_store.delete_collection(body.name, provider=body.vector_store_provider)
         raise
     await session.refresh(collection)
     await collection_cache.invalidate(body.name)
@@ -285,6 +289,7 @@ async def create_collection(
         metadata={
             "name": body.name,
             "provider": provider,
+            "vector_store_provider": body.vector_store_provider,
             "model": model,
             "dimension": dimension,
         },
@@ -321,6 +326,7 @@ async def reembed_collection(
         "chunk_size": collection.chunk_size,
         "chunk_overlap": collection.chunk_overlap,
         "chunk_strategy": collection.chunk_strategy or "paragraph",
+        "vector_store_provider": getattr(collection, "vector_store_provider", "qdrant"),
         "tenant_field": collection.tenant_field,
     }
     jobs = [
@@ -511,7 +517,10 @@ async def delete_collection(
     flushed = await ingestion_queue.cancel_collection(name)
     logger.info("delete collection jobs cancelled", collection=name, flushed=flushed)
 
-    await vector_store.delete_collection(name)
+    await vector_store.delete_collection(
+        name,
+        provider=getattr(collection, "vector_store_provider", "qdrant"),
+    )
     logger.info("delete collection vectors dropped", collection=name)
 
     from bigrag.services.storage import get_storage
@@ -618,14 +627,17 @@ async def truncate_collection(
 ):
 
     logger.info("truncate collection", collection=name)
-    collection_id = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
-    if collection_id is None:
+    collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
+    if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
     flushed = await ingestion_queue.cancel_collection(name)
     logger.info("truncate collection jobs cancelled", collection=name, flushed=flushed)
 
-    await vector_store.delete_collection(name)
+    await vector_store.delete_collection(
+        name,
+        provider=getattr(collection, "vector_store_provider", "qdrant"),
+    )
     logger.info("truncate collection vectors cleared", collection=name)
 
     from bigrag.services.storage import get_storage
@@ -633,9 +645,9 @@ async def truncate_collection(
     deleted = await get_storage().delete_prefix(f"{name}/")
     logger.info("truncate collection storage removed", collection=name, count=deleted)
 
-    await session.execute(sa.delete(Document).where(Document.collection_id == collection_id))
+    await session.execute(sa.delete(Document).where(Document.collection_id == collection.id))
     await session.execute(
-        sa.update(Collection).where(Collection.id == collection_id).values(document_count=0)
+        sa.update(Collection).where(Collection.id == collection.id).values(document_count=0)
     )
     await session.commit()
     await collection_cache.invalidate(name)
@@ -647,7 +659,7 @@ async def truncate_collection(
         user=user,
         action="collection.truncate",
         resource_type="collection",
-        resource_id=str(collection_id),
+        resource_id=str(collection.id),
         metadata={"name": name},
     )
     return StatusResponse(status="ok", message=f"Collection '{name}' truncated")

@@ -34,6 +34,7 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
         form.setFieldValue("name", "");
         form.setFieldValue("description", "");
         form.setFieldValue("presetId", "");
+        form.setFieldValue("vectorStoreProvider", "qdrant");
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to create");
       }
@@ -104,6 +105,18 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.target.value)}
               placeholder="Optional"
+              value={field.state.value}
+            />
+          )}
+        </form.Field>
+        <form.Field name="vectorStoreProvider">
+          {(field) => (
+            <Select
+              label="Vector storage"
+              onChange={(value) =>
+                field.handleChange(value === "turbopuffer" ? "turbopuffer" : "qdrant")
+              }
+              options={VECTOR_STORAGE_OPTIONS}
               value={field.state.value}
             />
           )}
@@ -198,6 +211,11 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
     </Modal>
   );
 };
+
+const VECTOR_STORAGE_OPTIONS = [
+  { value: "qdrant", label: "Qdrant" },
+  { value: "turbopuffer", label: "turbopuffer" },
+] as const;
 
 const useDefaultEmbeddingPreset = (
   open: boolean,

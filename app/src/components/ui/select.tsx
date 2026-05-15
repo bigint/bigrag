@@ -110,11 +110,13 @@ export const Select = ({
                   key={option.value}
                   value={option.value}
                 >
-                  <BaseSelect.ItemIndicator className="absolute right-3 inline-flex size-4 items-center justify-center">
+                  <BaseSelect.ItemIndicator className="pointer-events-none absolute right-3 inline-flex size-4 items-center justify-center">
                     <CheckIcon />
                   </BaseSelect.ItemIndicator>
                   {option.icon}
-                  <BaseSelect.ItemText>{option.label}</BaseSelect.ItemText>
+                  <BaseSelect.ItemText className="min-w-0 flex-1 truncate">
+                    {option.label}
+                  </BaseSelect.ItemText>
                 </BaseSelect.Item>
               ))}
             </BaseSelect.List>

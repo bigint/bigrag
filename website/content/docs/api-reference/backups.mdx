@@ -72,7 +72,7 @@ While the job runs, bigRAG acquires a maintenance lock. Mutating API requests ar
 The backup fails if:
 
 - The backup bucket settings are incomplete or invalid.
-- The configured vector store cannot be reached.
+- A configured vector-store client cannot be reached.
 - A stored upload file referenced by a document row is missing.
 
 ## Realtime stream
@@ -103,4 +103,4 @@ vector_store/points/{collection_name}.jsonl
 uploads/{collection}/{document_id}.{ext}
 ```
 
-`manifest.json` includes the app version, format version, generated timestamp, destination details without secrets, table counts, active vector-store provider, vector counts, upload counts, object count, byte count, `"encryption": "redacted"`, and a `redaction` summary.
+`manifest.json` includes the app version, format version, generated timestamp, destination details without secrets, table counts, per-collection vector-store export metadata, vector counts, upload counts, object count, byte count, `"encryption": "redacted"`, and a `redaction` summary.

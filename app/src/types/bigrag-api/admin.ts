@@ -104,7 +104,7 @@ export type ReadinessReport = {
   qdrant: boolean | null;
   vector_store: boolean;
   vector_store_error?: string;
-  vector_store_provider: "qdrant" | "turbopuffer";
+  vector_store_provider: "per_collection";
   redis: boolean;
   redis_error?: string;
   embedding: boolean;

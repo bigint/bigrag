@@ -42,15 +42,15 @@ class FakeVectorStore:
         self.inserted = []
         self.deleted = []
 
-    async def create_collection(self, collection, dimension, tenant_field=None):
-        self.created.append((collection, dimension, tenant_field))
+    async def create_collection(self, collection, dimension, tenant_field=None, provider=None):
+        self.created.append((collection, dimension, tenant_field, provider))
 
     async def insert(self, **kwargs):
         self.inserted.append(kwargs)
         return len(kwargs["ids"])
 
-    async def delete_by_document(self, collection_name, document_id):
-        self.deleted.append((collection_name, document_id))
+    async def delete_by_document(self, collection_name, document_id, provider=None):
+        self.deleted.append((collection_name, document_id, provider))
 
 
 def _job(**overrides) -> IngestionJob:
@@ -61,6 +61,7 @@ def _job(**overrides) -> IngestionJob:
         "embedding_provider": "openai",
         "embedding_model": "text-embedding-3-small",
         "embedding_dimension": 2,
+        "vector_store_provider": "qdrant",
         "chunk_size": 400,
         "chunk_overlap": 40,
         "tenant_field": "tenant_id",
@@ -169,7 +170,7 @@ def test_chunk_and_embed_writes_expected_vector_payload(monkeypatch) -> None:
         )
 
         assert (inserted, expected) == (2, 2)
-        assert store.created == [("docs", 2, "tenant_id")]
+        assert store.created == [("docs", 2, "tenant_id", "qdrant")]
         assert store.inserted[0]["ids"] == [
             "11111111-1111-1111-1111-111111111111_0",
             "11111111-1111-1111-1111-111111111111_1",

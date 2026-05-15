@@ -107,6 +107,7 @@ let cols = client.collections().list(None).await?;
 // Create
 let col = client.collections().create(CreateCollectionBody {
     name: "docs".into(),
+    vector_store_provider: Some("qdrant".into()),
     embedding_provider: Some("openai".into()),
     ..Default::default()
 }).await?;
@@ -361,7 +362,7 @@ let settings = client.admin().settings().list().await?;
 let _ = settings;
 
 client.admin().settings().test(Some(TestInstanceSettingsBody {
-    values: serde_json::json!({"vector_store_provider": "qdrant"}),
+    values: serde_json::json!({"qdrant_url": "http://qdrant:6333"}),
 })).await?;
 
 client.admin().settings().update(UpdateInstanceSettingsBody {

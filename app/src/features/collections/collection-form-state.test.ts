@@ -17,6 +17,7 @@ describe("collection form state", () => {
       description: "",
       name: "",
       presetId: "",
+      vectorStoreProvider: "qdrant",
     });
     expect(defaultCollectionSearchFormValues()).toEqual({
       mode: "semantic",
@@ -48,6 +49,7 @@ describe("collection form state", () => {
         description: "",
         name: "docs",
         presetId: "preset_1",
+        vectorStoreProvider: "qdrant",
       }),
     ).toBe("Chunk size must be between 128 and 10000");
   });
@@ -87,6 +89,7 @@ describe("collection form state", () => {
         description: "Docs",
         name: "Product Docs",
         presetId: "preset_1",
+        vectorStoreProvider: "turbopuffer",
       }),
     ).toEqual({
       chunk_overlap: 25,
@@ -94,6 +97,7 @@ describe("collection form state", () => {
       description: "Docs",
       embedding_preset_id: "preset_1",
       name: "product_docs",
+      vector_store_provider: "turbopuffer",
     });
   });
 });

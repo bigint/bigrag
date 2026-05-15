@@ -11,6 +11,7 @@ class Collection(TypedDict):
     description: str
     embedding_provider: str
     embedding_model: str
+    vector_store_provider: str
     dimension: int
     chunk_size: int
     chunk_overlap: int
@@ -49,6 +50,7 @@ class CollectionStatsResponse(TypedDict):
 class CreateCollectionBody(TypedDict):
     name: str
     description: NotRequired[str]
+    vector_store_provider: NotRequired[str]
     embedding_preset_id: NotRequired[str]
     embedding_provider: NotRequired[str]
     embedding_model: NotRequired[str]

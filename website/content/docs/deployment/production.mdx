@@ -26,7 +26,7 @@ Tick these off before pointing real traffic at a bigRAG deployment:
 - [ ] Postgres warm-standby replica for failover.
 - [ ] Backup strategy: configure readable S3/R2 backups from `/backups`,
   protect that bucket as sensitive, and separately keep encrypted infrastructure
-  snapshots for Postgres, the configured vector store, Redis, and uploads.
+  snapshots for Postgres, vector-store backends, Redis, and uploads.
 - [ ] Set `metadata_schema` on collections that accept untrusted
   metadata so uploads with invalid shape are rejected at the edge.
 - [ ] Wire `GET /v1/admin/audit` into your SIEM / log pipeline.

@@ -99,6 +99,7 @@ async fn exercises_public_sdk_methods() {
         .create(CreateCollectionBody {
             name: "docs".into(),
             description: Some("Docs".into()),
+            vector_store_provider: Some("qdrant".into()),
             embedding_provider: Some("openai".into()),
             embedding_model: Some("text-embedding-3-small".into()),
             embedding_api_key: Some("sk".into()),
@@ -327,6 +328,7 @@ async fn exercises_public_sdk_methods() {
         .update(
             "user/id",
             UpdateUserBody {
+                email: Some("updated@example.com".into()),
                 display_name: Some("Updated".into()),
                 role: Some("viewer".into()),
                 password: Some("secret2".into()),

@@ -4,6 +4,7 @@ export type CreateCollectionFormValues = {
   description: string;
   name: string;
   presetId: string;
+  vectorStoreProvider: "qdrant" | "turbopuffer";
 };
 
 export type CollectionSearchMode = "semantic" | "keyword" | "hybrid";
@@ -21,6 +22,7 @@ export const defaultCreateCollectionFormValues = (): CreateCollectionFormValues 
   description: "",
   name: "",
   presetId: "",
+  vectorStoreProvider: "qdrant",
 });
 
 export const defaultCollectionSearchFormValues = (): CollectionSearchFormValues => ({
@@ -65,12 +67,14 @@ export const createCollectionBodyFromValues = ({
   description,
   name,
   presetId,
+  vectorStoreProvider,
 }: CreateCollectionFormValues) => ({
   chunk_overlap: chunkOverlap,
   chunk_size: chunkSize,
   description,
   embedding_preset_id: presetId,
   name: slugifyCollectionName(name),
+  vector_store_provider: vectorStoreProvider,
 });
 
 export const collectionSearchBodyFromValues = ({

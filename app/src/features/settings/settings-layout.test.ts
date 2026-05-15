@@ -90,4 +90,21 @@ describe("settings layout", () => {
       }),
     ).toBe("Add the missing credentials, then save the connection.");
   });
+
+  it("keeps provider-specific vector controls in the common section", () => {
+    const layout = getSettingsGroupLayout("vector_store");
+    const result = splitSettingsByImportance(
+      [
+        spec({ group: "vector_store", key: "qdrant_search_ef" }),
+        spec({ group: "vector_store", key: "turbopuffer_namespace_prefix" }),
+      ],
+      layout,
+    );
+
+    expect(result.common.map((item) => item.key)).toEqual([
+      "qdrant_search_ef",
+      "turbopuffer_namespace_prefix",
+    ]);
+    expect(result.advanced).toEqual([]);
+  });
 });

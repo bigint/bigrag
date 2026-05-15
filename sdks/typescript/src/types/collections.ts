@@ -4,6 +4,7 @@ export interface Collection {
   description: string;
   embedding_provider: string;
   embedding_model: string;
+  vector_store_provider: "qdrant" | "turbopuffer";
   dimension: number;
   chunk_size: number;
   chunk_overlap: number;
@@ -48,6 +49,7 @@ export interface CollectionStatsResponse {
 export interface CreateCollectionBody {
   name: string;
   description?: string;
+  vector_store_provider?: "qdrant" | "turbopuffer";
   embedding_preset_id?: string;
   embedding_provider?: string;
   embedding_model?: string;

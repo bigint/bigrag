@@ -135,6 +135,7 @@ export interface CreateUserBody {
 }
 
 export interface UpdateUserBody {
+  email?: string;
   display_name?: string;
   role?: string;
   password?: string;

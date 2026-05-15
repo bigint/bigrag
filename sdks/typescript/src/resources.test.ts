@@ -53,7 +53,7 @@ describe("resource wrappers", () => {
 
     await admin.users.list({ limit: 2, offset: 4 });
     await admin.users.create({ email: "a@example.com", password: "secret123", role: "admin" });
-    await admin.users.update("user/1", { role: "member" });
+    await admin.users.update("user/1", { email: "new@example.com", role: "member" });
     await admin.users.delete("user/1");
     await admin.apiKeys.list({ limit: 3 });
     await admin.apiKeys.create({ name: "ci", scopes: ["collections:read"] });
@@ -73,7 +73,7 @@ describe("resource wrappers", () => {
     await admin.access.overview({ windowDays: 14 });
     await admin.audit.list({ action: "create", actorId: "actor", resourceType: "collection" });
     await admin.settings.list();
-    await admin.settings.test({ values: { vector_store_provider: "qdrant" } });
+    await admin.settings.test({ values: { qdrant_url: "http://qdrant:6333" } });
     await admin.settings.update({ values: { session_cookie_secure: true } });
     await admin.settings.reset({ keys: ["session_cookie_secure"] });
     await admin.settings.purgeEmbeddingCache();
@@ -105,7 +105,7 @@ describe("resource wrappers", () => {
         "/v1/admin/users",
         { json: { email: "a@example.com", password: "secret123", role: "admin" } },
       ],
-      ["PATCH", "/v1/admin/users/user%2F1", { json: { role: "member" } }],
+      ["PATCH", "/v1/admin/users/user%2F1", { json: { email: "new@example.com", role: "member" } }],
       ["DELETE", "/v1/admin/users/user%2F1"],
       ["GET", "/v1/admin/api-keys", { params: { limit: "3" } }],
       ["POST", "/v1/admin/api-keys", { json: { name: "ci", scopes: ["collections:read"] } }],
@@ -138,7 +138,7 @@ describe("resource wrappers", () => {
       [
         "POST",
         "/v1/admin/settings/test",
-        { json: { values: { vector_store_provider: "qdrant" } } },
+        { json: { values: { qdrant_url: "http://qdrant:6333" } } },
       ],
       ["PUT", "/v1/admin/settings", { json: { values: { session_cookie_secure: true } } }],
       ["POST", "/v1/admin/settings/reset", { json: { keys: ["session_cookie_secure"] } }],

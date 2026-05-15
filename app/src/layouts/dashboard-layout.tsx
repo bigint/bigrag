@@ -38,7 +38,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   const role = session.user.role;
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background py-2 pl-2">
+    <div className="flex h-dvh overflow-hidden bg-background pt-2 pl-2">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
@@ -47,7 +47,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </a>
       <Sidebar role={role} />
       <MobileSidebar open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} role={role} />
-      <main id="main" className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main id="main" className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-3 py-2.5 lg:hidden">
           <button
             type="button"
@@ -63,7 +63,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         {isFullHeight ? (
           children
         ) : (
-          <div className="flex-1 overflow-y-auto bg-background px-4 py-6 md:px-8 lg:px-10">
+          <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-6 md:px-8 lg:px-10">
             <PageContainer>{children}</PageContainer>
           </div>
         )}

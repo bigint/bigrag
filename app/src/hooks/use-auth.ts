@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-type CurrentUser = {
+export type CurrentUser = {
   id: string;
   email: string;
   display_name: string;
@@ -14,6 +14,12 @@ type CurrentUser = {
 };
 
 type SessionResponse = { user: CurrentUser };
+
+type UpdateCurrentUserProfileBody = {
+  id: string;
+  display_name: string;
+  email: string;
+};
 
 export const useSetupStatus = () =>
   useQuery({
@@ -87,6 +93,19 @@ export const useSetup = () => {
     onSuccess: (data) => {
       qc.setQueryData(queryKeys.auth.session(), data);
       qc.invalidateQueries({ queryKey: queryKeys.auth.all() });
+    },
+  });
+};
+
+export const useUpdateCurrentUserProfile = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: UpdateCurrentUserProfileBody) =>
+      apiClient.patch<CurrentUser>(`v1/admin/users/${encodeURIComponent(id)}`, body),
+    onSuccess: (user) => {
+      qc.setQueryData<SessionResponse>(queryKeys.auth.session(), { user });
+      qc.invalidateQueries({ queryKey: queryKeys.auth.all() });
+      toast.success("Profile updated");
     },
   });
 };

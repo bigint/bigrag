@@ -194,6 +194,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 )
                 await delete_synced_document(
                     session,
+                    collection=collection,
                     source=source,
                     manifest=manifest,
                     counters=counters,
@@ -273,7 +274,7 @@ async def sync_downloaded_file(
     *,
     adapter: ConnectorSyncAdapter,
     source: ConnectorSource,
-    collection: Collection,
+    collection: Collection | None,
     manifest: ConnectorDocument | None,
     downloaded: DownloadedConnectorFile,
     counters: ConnectorSyncCounters,
@@ -340,7 +341,11 @@ async def sync_downloaded_file(
             counters.created += 1
         else:
             await ingestion_queue.cancel_documents([str(doc.id)])
-            await vector_store.delete_by_document(source.collection_name, str(doc.id))
+            await vector_store.delete_by_document(
+                source.collection_name,
+                str(doc.id),
+                provider=getattr(collection, "vector_store_provider", "qdrant"),
+            )
             old_path = doc.file_path
             storage_key = f"{source.collection_name}/{doc.id}{downloaded.file_ext}"
             await storage.put(storage_key, downloaded.content)
@@ -387,6 +392,7 @@ def collection_dict_for_sync(collection: Collection) -> dict[str, Any]:
         "chunk_size": collection.chunk_size,
         "chunk_overlap": collection.chunk_overlap,
         "chunk_strategy": collection.chunk_strategy or "paragraph",
+        "vector_store_provider": getattr(collection, "vector_store_provider", "qdrant"),
         "tenant_field": collection.tenant_field,
         "metadata_schema": collection.metadata_schema,
     }
@@ -445,6 +451,7 @@ def update_manifest(manifest: ConnectorDocument, downloaded: DownloadedConnector
 async def delete_synced_document(
     session: Any,
     *,
+    collection: Collection,
     source: ConnectorSource,
     manifest: ConnectorDocument,
     counters: ConnectorSyncCounters,
@@ -452,7 +459,11 @@ async def delete_synced_document(
     doc = await session.get(Document, manifest.document_id)
     if doc is not None:
         await ingestion_queue.cancel_documents([str(doc.id)])
-        await vector_store.delete_by_document(source.collection_name, str(doc.id))
+        await vector_store.delete_by_document(
+            source.collection_name,
+            str(doc.id),
+            provider=getattr(collection, "vector_store_provider", "qdrant"),
+        )
         await get_storage().delete(doc.file_path)
         await session.delete(doc)
     await session.delete(manifest)

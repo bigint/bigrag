@@ -413,15 +413,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "Use path-style bucket addressing for backup storage.",
     ),
     _spec(
-        "vector_store_provider",
-        "vector_store",
-        "Vector store provider",
-        "select",
-        "qdrant",
-        "Instance-level vector backend.",
-        options=("qdrant", "turbopuffer"),
-    ),
-    _spec(
         "qdrant_url",
         "vector_store",
         "Qdrant URL",
@@ -445,7 +436,7 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "Require vector store",
         "bool",
         False,
-        "Fail startup if the configured vector store cannot be reached.",
+        "Fail startup if configured vector-store clients cannot be reached.",
     ),
     _spec(
         "turbopuffer_api_key",

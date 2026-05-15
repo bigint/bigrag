@@ -52,11 +52,9 @@ async def ensure_worker_runtime() -> None:
                 "turbopuffer_api_key",
                 "turbopuffer_namespace_prefix",
                 "turbopuffer_region",
-                "vector_store_provider",
             ]
         )
         vector_store.configure(
-            provider=runtime["vector_store_provider"],
             qdrant_url=runtime["qdrant_url"],
             connect_timeout_seconds=runtime["qdrant_connect_timeout_seconds"],
             search_ef=runtime["qdrant_search_ef"],

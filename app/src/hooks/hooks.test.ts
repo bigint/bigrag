@@ -105,8 +105,15 @@ describe("admin app hooks", () => {
   });
 
   it("wires auth queries and session mutations", async () => {
-    const { useChangePassword, useLogin, useLogout, useLogoutAll, useSession, useSetup } =
-      await import("./use-auth");
+    const {
+      useChangePassword,
+      useLogin,
+      useLogout,
+      useLogoutAll,
+      useSession,
+      useSetup,
+      useUpdateCurrentUserProfile,
+    } = await import("./use-auth");
 
     useSession();
     vi.mocked(apiClient.get).mockRejectedValueOnce({ response: { status: 401 } });
@@ -153,6 +160,32 @@ describe("admin app hooks", () => {
       email: "admin@example.com",
       password: "secret",
     });
+
+    useUpdateCurrentUserProfile();
+    await mutationOptions<{
+      mutationFn: (body: { id: string; display_name: string; email: string }) => Promise<unknown>;
+    }>().mutationFn({
+      display_name: "New",
+      email: "new@example.com",
+      id: "user/1",
+    });
+    expect(apiClient.patch).toHaveBeenLastCalledWith("v1/admin/users/user%2F1", {
+      display_name: "New",
+      email: "new@example.com",
+    });
+    mutationOptions<{ onSuccess: (user: unknown) => void }>().onSuccess({
+      display_name: "New",
+      email: "new@example.com",
+      id: "user/1",
+    });
+    expect(queryClient.setQueryData).toHaveBeenCalledWith(queryKeys.auth.session(), {
+      user: {
+        display_name: "New",
+        email: "new@example.com",
+        id: "user/1",
+      },
+    });
+    expect(toast.success).toHaveBeenCalledWith("Profile updated");
 
     useChangePassword();
     await mutationOptions<{ mutationFn: (body: unknown) => Promise<unknown> }>().mutationFn({
