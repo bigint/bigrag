@@ -1,33 +1,45 @@
+import { useForm, useStore } from "@tanstack/react-form";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Cpu } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  createCollectionBodyFromValues,
+  defaultCreateCollectionFormValues,
+  validateCreateCollectionFormValues,
+} from "@/features/collections/collection-form-state";
 import { useCreateCollection } from "@/hooks/use-collections";
 import { useEmbeddingPresets } from "@/hooks/use-embedding-presets";
+import { errorText, firstString, submitWith } from "@/lib/form";
 
 type Props = { open: boolean; onClose: () => void };
-
-const slugify = (v: string) =>
-  v
-    .toLowerCase()
-    .replace(/[^a-z0-9_\- ]+/g, "")
-    .replace(/\s+/g, "_")
-    .slice(0, 48);
 
 export const CreateCollectionModal = ({ open, onClose }: Props) => {
   const create = useCreateCollection();
   const { data: presetsData } = useEmbeddingPresets();
-
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [presetId, setPresetId] = useState<string>("");
-  const [chunkSize, setChunkSize] = useState(512);
-  const [chunkOverlap, setChunkOverlap] = useState(50);
+  const form = useForm({
+    defaultValues: defaultCreateCollectionFormValues(),
+    validators: {
+      onSubmit: ({ value }) => validateCreateCollectionFormValues(value),
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await create.mutateAsync(createCollectionBodyFromValues(value));
+        onClose();
+        form.setFieldValue("name", "");
+        form.setFieldValue("description", "");
+        form.setFieldValue("presetId", "");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to create");
+      }
+    },
+  });
+  const values = useStore(form.store, (state) => state.values);
 
   const presets = presetsData?.presets ?? [];
   const options = useMemo(
@@ -41,30 +53,9 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
     [presets],
   );
 
-  useDefaultEmbeddingPreset(open, presets, presetId, setPresetId);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!presetId) {
-      toast.error("Pick an embedding preset first");
-      return;
-    }
-    try {
-      await create.mutateAsync({
-        name: slugify(name),
-        description,
-        embedding_preset_id: presetId,
-        chunk_size: chunkSize,
-        chunk_overlap: chunkOverlap,
-      });
-      onClose();
-      setName("");
-      setDescription("");
-      setPresetId("");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create");
-    }
-  };
+  useDefaultEmbeddingPreset(open, presets, values.presetId, (presetId) =>
+    form.setFieldValue("presetId", presetId),
+  );
 
   return (
     <Modal onClose={onClose} open={open} title="New collection">
@@ -75,22 +66,48 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
         </Link>{" "}
         page.
       </p>
-      <form onSubmit={submit} className="space-y-4">
-        <Input
-          label="Name"
-          placeholder="product-docs"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          description="Lowercase letters, numbers, dashes and underscores."
-          required
-          autoFocus
-        />
-        <Textarea
-          label="Description"
-          placeholder="Optional"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
+      <form className="space-y-4" noValidate onSubmit={submitWith(() => form.handleSubmit())}>
+        <form.Subscribe selector={(state) => state.errors}>
+          {(errors) => {
+            const formError = firstString(errors);
+            return formError ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {formError}
+              </div>
+            ) : null;
+          }}
+        </form.Subscribe>
+        <form.Field
+          name="name"
+          validators={{
+            onSubmit: ({ value }) => (value ? undefined : "Name is required"),
+          }}
+        >
+          {(field) => (
+            <Input
+              autoFocus
+              description="Lowercase letters, numbers, dashes and underscores."
+              error={errorText(field.state.meta.errors)}
+              label="Name"
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              placeholder="product-docs"
+              required
+              value={field.state.value}
+            />
+          )}
+        </form.Field>
+        <form.Field name="description">
+          {(field) => (
+            <Textarea
+              label="Description"
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              placeholder="Optional"
+              value={field.state.value}
+            />
+          )}
+        </form.Field>
         {presets.length === 0 ? (
           <div className="flex items-start gap-3 rounded-md border border-border bg-muted/50 px-3 py-3 text-sm">
             <Cpu className="mt-0.5 size-4 text-muted-foreground" />
@@ -108,36 +125,72 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             </Link>
           </div>
         ) : (
-          <Select
-            label="Embedding preset"
-            value={presetId}
-            onChange={setPresetId}
-            options={options}
-          />
+          <form.Field
+            name="presetId"
+            validators={{
+              onSubmit: ({ value }) => (value ? undefined : "Pick an embedding preset first"),
+            }}
+          >
+            {(field) => (
+              <Select
+                error={errorText(field.state.meta.errors)}
+                label="Embedding preset"
+                onChange={field.handleChange}
+                options={options}
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
         )}
         <div className="space-y-4">
-          <Input
-            label="Chunk size"
-            type="number"
-            min={128}
-            max={10000}
-            value={chunkSize}
-            onChange={(e) => setChunkSize(Number(e.target.value))}
-          />
-          <Input
-            label="Chunk overlap"
-            type="number"
-            min={0}
-            max={5000}
-            value={chunkOverlap}
-            onChange={(e) => setChunkOverlap(Number(e.target.value))}
-          />
+          <form.Field
+            name="chunkSize"
+            validators={{
+              onSubmit: ({ value }) =>
+                value < 128 || value > 10000 ? "Chunk size must be between 128 and 10000" : undefined,
+            }}
+          >
+            {(field) => (
+              <Input
+                error={errorText(field.state.meta.errors)}
+                label="Chunk size"
+                max={10000}
+                min={128}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(Number(e.target.value))}
+                type="number"
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
+          <form.Field
+            name="chunkOverlap"
+            validators={{
+              onSubmit: ({ value }) =>
+                value < 0 || value > 5000
+                  ? "Chunk overlap must be between 0 and 5000"
+                  : undefined,
+            }}
+          >
+            {(field) => (
+              <Input
+                error={errorText(field.state.meta.errors)}
+                label="Chunk overlap"
+                max={5000}
+                min={0}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(Number(e.target.value))}
+                type="number"
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
         </div>
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={create.isPending || !presetId}>
+          <Button type="submit" disabled={create.isPending || !values.presetId}>
             {create.isPending ? "Creating…" : "Create collection"}
           </Button>
         </div>

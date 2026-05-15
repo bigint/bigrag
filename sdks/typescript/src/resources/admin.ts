@@ -1,27 +1,46 @@
-import type { RequestClient } from "../core.js";
+import { type RequestClient, USER_AGENT } from "../core.js";
 import type {
   AccessLogListResponse,
   AccessLogOverviewResponse,
+  AdminRealtimeEvent,
   ApiKey,
   ApiKeyListResponse,
   AuditLogListResponse,
+  BackupCreateBody,
+  BackupJob,
+  BackupJobListResponse,
+  BatchStatusResponse,
+  CollectionStatsResponse,
   CreateApiKeyBody,
   CreateApiKeyResponse,
   CreateEmbeddingPresetBody,
   CreateMcpServerBody,
   CreateMcpServerResponse,
   CreateUserBody,
+  Document,
+  DocumentListResponse,
   EmbeddingPreset,
   EmbeddingPresetListResponse,
+  GoogleSourceListResponse,
+  GoogleSyncJobListResponse,
+  InstanceSettingsResponse,
+  InstanceSettingsTestResponse,
   GoogleConnectorConfig,
   McpServer,
   McpServerListResponse,
+  PlatformStatsResponse,
+  ReadinessResponse,
+  ResetInstanceSettingsBody,
   StatusResponse,
+  TestInstanceSettingsBody,
+  UpdateInstanceSettingsBody,
   UpdateApiKeyBody,
   UpdateEmbeddingPresetBody,
   UpdateGoogleConnectorConfigBody,
   UpdateMcpServerBody,
   UpdateUserBody,
+  UploadSession,
+  UsageResponse,
   User,
   UserListResponse,
 } from "../types.js";
@@ -31,18 +50,257 @@ export class AdminResource {
   readonly apiKeys: AdminApiKeysResource;
   readonly access: AdminAccessResource;
   readonly audit: AdminAuditResource;
+  readonly backups: AdminBackupsResource;
   readonly connectors: AdminConnectorsResource;
   readonly embeddingPresets: AdminEmbeddingPresetsResource;
   readonly mcpServers: AdminMcpServersResource;
+  readonly realtime: AdminRealtimeResource;
+  readonly settings: AdminSettingsResource;
 
   constructor(client: RequestClient) {
     this.users = new AdminUsersResource(client);
     this.apiKeys = new AdminApiKeysResource(client);
     this.access = new AdminAccessResource(client);
     this.audit = new AdminAuditResource(client);
+    this.backups = new AdminBackupsResource(client);
     this.connectors = new AdminConnectorsResource(client);
     this.embeddingPresets = new AdminEmbeddingPresetsResource(client);
     this.mcpServers = new AdminMcpServersResource(client);
+    this.realtime = new AdminRealtimeResource(client);
+    this.settings = new AdminSettingsResource(client);
+  }
+}
+
+export class AdminSettingsResource {
+  constructor(private readonly _client: RequestClient) {}
+
+  list(): Promise<InstanceSettingsResponse> {
+    return this._client._request("GET", "/v1/admin/settings");
+  }
+
+  update(body: UpdateInstanceSettingsBody): Promise<InstanceSettingsResponse> {
+    return this._client._request("PUT", "/v1/admin/settings", { json: body });
+  }
+
+  test(body: TestInstanceSettingsBody = {}): Promise<InstanceSettingsTestResponse> {
+    return this._client._request("POST", "/v1/admin/settings/test", {
+      json: { values: body.values ?? {} },
+    });
+  }
+
+  reset(body: ResetInstanceSettingsBody = { keys: [] }): Promise<StatusResponse> {
+    return this._client._request("POST", "/v1/admin/settings/reset", { json: body });
+  }
+
+  purgeEmbeddingCache(): Promise<StatusResponse> {
+    return this._client._request("POST", "/v1/admin/settings/embedding-cache/purge");
+  }
+}
+
+export class AdminBackupsResource {
+  constructor(private readonly _client: RequestClient) {}
+
+  list(options: { limit?: number; offset?: number } = {}): Promise<BackupJobListResponse> {
+    return this._client._request("GET", "/v1/admin/backups", { params: pagination(options) });
+  }
+
+  get(backupId: string): Promise<BackupJob> {
+    return this._client._request("GET", `/v1/admin/backups/${encodeURIComponent(backupId)}`);
+  }
+
+  create(body: BackupCreateBody = {}): Promise<BackupJob> {
+    return this._client._request("POST", "/v1/admin/backups", {
+      json: { label: body.label ?? "" },
+    });
+  }
+}
+
+export class AdminRealtimeResource {
+  constructor(private readonly _client: RequestClient) {}
+
+  documents(
+    collection: string,
+    options: { status?: string; limit?: number; offset?: number } = {},
+  ): AsyncGenerator<AdminRealtimeEvent<DocumentListResponse>> {
+    return this._stream(`/v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents`, {
+      status: options.status,
+      limit: options.limit,
+      offset: options.offset,
+    });
+  }
+
+  documentBatchStatus(
+    collection: string,
+    documentIds: string[],
+  ): AsyncGenerator<AdminRealtimeEvent<BatchStatusResponse>> {
+    return this._stream(
+      `/v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents/batch-status`,
+      { document_ids: documentIds.join(",") },
+    );
+  }
+
+  document(
+    collection: string,
+    documentId: string,
+  ): AsyncGenerator<AdminRealtimeEvent<Document>> {
+    return this._stream(
+      `/v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}`,
+    );
+  }
+
+  uploadSession(
+    collection: string,
+    sessionId: string,
+  ): AsyncGenerator<AdminRealtimeEvent<UploadSession>> {
+    return this._stream(
+      `/v1/admin/realtime/collections/${encodeURIComponent(collection)}/upload-sessions/${encodeURIComponent(sessionId)}`,
+    );
+  }
+
+  collectionStats(collection: string): AsyncGenerator<AdminRealtimeEvent<CollectionStatsResponse>> {
+    return this._stream(
+      `/v1/admin/realtime/collections/${encodeURIComponent(collection)}/stats`,
+    );
+  }
+
+  connectorSources(
+    provider: string,
+    options: { collection?: string } = {},
+  ): AsyncGenerator<AdminRealtimeEvent<GoogleSourceListResponse>> {
+    return this._stream(`/v1/admin/realtime/${encodeURIComponent(provider)}/sources`, {
+      collection: options.collection,
+    });
+  }
+
+  connectorSyncJobs(
+    provider: string,
+    options: { collection?: string; sourceId?: string; limit?: number } = {},
+  ): AsyncGenerator<AdminRealtimeEvent<GoogleSyncJobListResponse>> {
+    return this._stream(`/v1/admin/realtime/${encodeURIComponent(provider)}/sync-jobs`, {
+      collection: options.collection,
+      source_id: options.sourceId,
+      limit: options.limit,
+    });
+  }
+
+  backups(options: { limit?: number; offset?: number } = {}): AsyncGenerator<AdminRealtimeEvent<BackupJobListResponse>> {
+    return this._stream("/v1/admin/realtime/backups", options);
+  }
+
+  accessOverview(options: { windowDays?: number } = {}): AsyncGenerator<AdminRealtimeEvent<AccessLogOverviewResponse>> {
+    return this._stream("/v1/admin/realtime/access/overview", {
+      window_days: options.windowDays,
+    });
+  }
+
+  accessLogs(
+    options: {
+      action?: string;
+      actorId?: string;
+      collection?: string;
+      method?: string;
+      path?: string;
+      statusFamily?: string;
+      success?: boolean;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): AsyncGenerator<AdminRealtimeEvent<AccessLogListResponse>> {
+    return this._stream("/v1/admin/realtime/access/logs", {
+      action: options.action,
+      actor_id: options.actorId,
+      collection: options.collection,
+      method: options.method,
+      path: options.path,
+      status_family: options.statusFamily,
+      success: options.success,
+      limit: options.limit,
+      offset: options.offset,
+    });
+  }
+
+  audit(
+    options: {
+      action?: string;
+      actorId?: string;
+      resourceType?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): AsyncGenerator<AdminRealtimeEvent<AuditLogListResponse>> {
+    return this._stream("/v1/admin/realtime/audit", {
+      action: options.action,
+      actor_id: options.actorId,
+      resource_type: options.resourceType,
+      limit: options.limit,
+      offset: options.offset,
+    });
+  }
+
+  usage(options: { windowDays?: number } = {}): AsyncGenerator<AdminRealtimeEvent<UsageResponse>> {
+    return this._stream("/v1/admin/realtime/usage", {
+      window_days: options.windowDays,
+    });
+  }
+
+  platformStats(): AsyncGenerator<AdminRealtimeEvent<PlatformStatsResponse>> {
+    return this._stream("/v1/admin/realtime/platform/stats");
+  }
+
+  platformReadiness(): AsyncGenerator<AdminRealtimeEvent<ReadinessResponse>> {
+    return this._stream("/v1/admin/realtime/platform/readiness");
+  }
+
+  custom<T = unknown>(
+    path: string,
+    params: Record<string, string | number | boolean | undefined> = {},
+  ): AsyncGenerator<AdminRealtimeEvent<T>> {
+    return this._stream(path, params);
+  }
+
+  private async *_stream<T>(
+    path: string,
+    params: Record<string, string | number | boolean | undefined> = {},
+  ): AsyncGenerator<AdminRealtimeEvent<T>> {
+    const url = new URL(`${this._client.baseUrl}${path}`);
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined) url.searchParams.set(key, String(value));
+    }
+    const headers: Record<string, string> = { "User-Agent": USER_AGENT };
+    if (this._client.apiKey) headers.Authorization = `Bearer ${this._client.apiKey}`;
+    const response = await this._client._fetch(url.toString(), {
+      method: "GET",
+      headers,
+      credentials: "include",
+    });
+    if (!response.ok || !response.body) {
+      throw new Error(await response.text().catch(() => response.statusText));
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() ?? "";
+        for (const frame of frames) {
+          const event = parseAdminRealtimeFrame<T>(frame);
+          if (event) yield event;
+        }
+      }
+      buffer += decoder.decode();
+      if (buffer.trim()) {
+        const event = parseAdminRealtimeFrame<T>(buffer);
+        if (event) yield event;
+      }
+    } finally {
+      await reader.cancel().catch(() => undefined);
+      reader.releaseLock();
+    }
   }
 }
 

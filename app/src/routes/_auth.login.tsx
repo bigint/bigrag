@@ -1,10 +1,19 @@
+import { useForm } from "@tanstack/react-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  defaultLoginFormValues,
+  loginBodyFromValues,
+  validateEmail,
+  validateLoginFormValues,
+  validatePassword,
+} from "@/features/auth/auth-form-state";
 import { useLogin, useSetupStatus } from "@/hooks/use-auth";
+import { errorText, firstString, submitWith } from "@/lib/form";
 
 export const Route = createFileRoute("/_auth/login")({
   component: () => <LoginPage />,
@@ -19,10 +28,22 @@ const useRedirectIfSetupNeeded = (needsSetup: boolean | undefined) => {
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const login = useLogin();
   const { data: setupStatus, isPending, isError, error } = useSetupStatus();
+  const form = useForm({
+    defaultValues: defaultLoginFormValues(),
+    validators: {
+      onSubmit: ({ value }) => validateLoginFormValues(value),
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await login.mutateAsync(loginBodyFromValues(value));
+        navigate({ to: "/overview", replace: true });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Login failed");
+      }
+    },
+  });
 
   useRedirectIfSetupNeeded(setupStatus?.needs_setup);
 
@@ -56,16 +77,6 @@ const LoginPage = () => {
     );
   }
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await login.mutateAsync({ email, password });
-      navigate({ to: "/overview", replace: true });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Login failed");
-    }
-  };
-
   return (
     <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6">
       <div className="mb-5 flex flex-col gap-1">
@@ -74,24 +85,56 @@ const LoginPage = () => {
           Manage your collections, documents, and API keys.
         </p>
       </div>
-      <form onSubmit={submit} className="flex flex-col gap-4">
-        <Input
-          label="Email"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <Input
-          label="Password"
-          type="password"
-          autoComplete="current-password"
-          required
-          minLength={8}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+      <form className="flex flex-col gap-4" noValidate onSubmit={submitWith(() => form.handleSubmit())}>
+        <form.Subscribe selector={(state) => state.errors}>
+          {(errors) => {
+            const formError = firstString(errors);
+            return formError ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {formError}
+              </div>
+            ) : null;
+          }}
+        </form.Subscribe>
+        <form.Field
+          name="email"
+          validators={{
+            onSubmit: ({ value }) => validateEmail(value),
+          }}
+        >
+          {(field) => (
+            <Input
+              autoComplete="email"
+              error={errorText(field.state.meta.errors)}
+              label="Email"
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              required
+              type="email"
+              value={field.state.value}
+            />
+          )}
+        </form.Field>
+        <form.Field
+          name="password"
+          validators={{
+            onSubmit: ({ value }) => validatePassword(value),
+          }}
+        >
+          {(field) => (
+            <Input
+              autoComplete="current-password"
+              error={errorText(field.state.meta.errors)}
+              label="Password"
+              minLength={8}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              required
+              type="password"
+              value={field.state.value}
+            />
+          )}
+        </form.Field>
         <Button type="submit" disabled={login.isPending} size="lg">
           {login.isPending ? "Signing in…" : "Sign in"}
         </Button>

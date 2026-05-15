@@ -1,6 +1,6 @@
+import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, Sparkles } from "lucide-react";
-import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,8 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
+import {
+  collectionSearchBodyFromValues,
+  type CollectionSearchMode,
+  defaultCollectionSearchFormValues,
+  validateCollectionSearchFormValues,
+} from "@/features/collections/collection-form-state";
 import { useCollection } from "@/hooks/use-collections";
 import { useRunQuery } from "@/hooks/use-query";
+import { errorText, submitWith } from "@/lib/form";
 
 export const Route = createFileRoute("/_dashboard/collections/$name/search")({
   component: () => <SearchTab />,
@@ -21,63 +28,93 @@ const SearchTab = () => {
   const name = decodeURIComponent(rawName);
   const { data: collection } = useCollection(name);
   const run = useRunQuery(name);
-
-  const [query, setQuery] = useState("");
-  const [mode, setMode] = useState<"semantic" | "keyword" | "hybrid">("semantic");
-  const [topK, setTopK] = useState(5);
-  const [rerank, setRerank] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-    await run.mutateAsync({ query, top_k: topK, search_mode: mode, rerank });
-  };
+  const form = useForm({
+    defaultValues: defaultCollectionSearchFormValues(),
+    validators: {
+      onSubmit: ({ value }) => validateCollectionSearchFormValues(value),
+    },
+    onSubmit: async ({ value }) => {
+      await run.mutateAsync(collectionSearchBodyFromValues(value));
+    },
+  });
+  const values = useStore(form.store, (state) => state.values);
 
   return (
     <div className="flex flex-col gap-4">
       <Card>
         <CardContent className="pt-5">
-          <form onSubmit={submit} className="flex flex-col gap-4">
-            <Input
-              placeholder="Ask a question of this collection…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              trailing={<Search className="h-4 w-4" />}
-              autoFocus
-            />
+          <form className="flex flex-col gap-4" noValidate onSubmit={submitWith(() => form.handleSubmit())}>
+            <form.Field
+              name="query"
+              validators={{
+                onSubmit: ({ value }) => (value.trim() ? undefined : "Query is required"),
+              }}
+            >
+              {(field) => (
+                <Input
+                  autoFocus
+                  error={errorText(field.state.meta.errors)}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  placeholder="Ask a question of this collection…"
+                  trailing={<Search className="h-4 w-4" />}
+                  value={field.state.value}
+                />
+              )}
+            </form.Field>
             <div className="flex flex-wrap items-end gap-3">
-              <Select
-                label="Mode"
-                value={mode}
-                onChange={(v) => setMode(v as typeof mode)}
-                options={[
-                  { value: "semantic", label: "Semantic" },
-                  { value: "keyword", label: "Keyword" },
-                  { value: "hybrid", label: "Hybrid" },
-                ]}
-                className="w-40"
-              />
-              <Input
-                label="Top K"
-                type="number"
-                min={1}
-                max={50}
-                value={topK}
-                onChange={(e) => setTopK(Number(e.target.value))}
-                className="w-24"
-              />
+              <form.Field name="mode">
+                {(field) => (
+                  <Select
+                    className="w-40"
+                    label="Mode"
+                    onChange={(value) => field.handleChange(value as CollectionSearchMode)}
+                    options={[
+                      { value: "semantic", label: "Semantic" },
+                      { value: "keyword", label: "Keyword" },
+                      { value: "hybrid", label: "Hybrid" },
+                    ]}
+                    value={field.state.value}
+                  />
+                )}
+              </form.Field>
+              <form.Field
+                name="topK"
+                validators={{
+                  onSubmit: ({ value }) =>
+                    value < 1 || value > 50 ? "Top K must be between 1 and 50" : undefined,
+                }}
+              >
+                {(field) => (
+                  <Input
+                    className="w-24"
+                    error={errorText(field.state.meta.errors)}
+                    label="Top K"
+                    max={50}
+                    min={1}
+                    onBlur={field.handleBlur}
+                    onChange={(e) => field.handleChange(Number(e.target.value))}
+                    type="number"
+                    value={field.state.value}
+                  />
+                )}
+              </form.Field>
               {collection?.reranking_enabled && (
                 <div className="flex items-center gap-2 text-sm">
-                  <Switch
-                    checked={rerank}
-                    onCheckedChange={setRerank}
-                    aria-label="Rerank results"
-                  />
+                  <form.Field name="rerank">
+                    {(field) => (
+                      <Switch
+                        aria-label="Rerank results"
+                        checked={field.state.value}
+                        onCheckedChange={field.handleChange}
+                      />
+                    )}
+                  </form.Field>
                   <span>Rerank</span>
                 </div>
               )}
               <div className="ml-auto">
-                <Button type="submit" disabled={run.isPending || !query.trim()}>
+                <Button type="submit" disabled={run.isPending || !values.query.trim()}>
                   {run.isPending ? (
                     <Spinner size="sm" />
                   ) : (
