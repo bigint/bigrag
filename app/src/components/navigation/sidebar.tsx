@@ -91,7 +91,7 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
   const groups = getSidebarNavGroups(role);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full w-full flex-col">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-4">
         <Logo />
       </div>
@@ -139,10 +139,8 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
 };
 
 export const Sidebar = ({ role }: { role: string }) => (
-  <aside className="hidden h-full w-60 shrink-0 overflow-hidden rounded-xl border border-border bg-background p-0.5 lg:flex">
-    <div className="flex size-full flex-col overflow-hidden rounded-lg bg-muted">
-      <SidebarBody role={role} />
-    </div>
+  <aside className="hidden h-full w-60 shrink-0 overflow-hidden rounded-md border border-border bg-muted lg:flex">
+    <SidebarBody role={role} />
   </aside>
 );
 
