@@ -1,0 +1,14 @@
+---
+title: Dependency Updates
+description: Dependency update policy for JavaScript workspace packages.
+---
+
+## JavaScript packages
+
+The pnpm workspace delays dependency resolution until a release is at least 7 days old:
+
+```yaml
+minimumReleaseAge: 10080
+```
+
+pnpm measures this value in minutes. The rule applies when installing or updating direct and transitive npm dependencies in the workspace.
