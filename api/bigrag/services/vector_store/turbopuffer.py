@@ -283,9 +283,10 @@ class TurbopufferVectorStore:
             payload: dict[str, Any] = {
                 "rank_by": ["id", "asc"],
                 "limit": {"total": _EXPORT_PAGE_SIZE},
-                "include_attributes": True,
             }
-            if not with_vectors:
+            if with_vectors:
+                payload["include_attributes"] = True
+            else:
                 payload["exclude_attributes"] = ["vector"]
             if last_id is not None:
                 payload["filters"] = ["id", "Gt", last_id]

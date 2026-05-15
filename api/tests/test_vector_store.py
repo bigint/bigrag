@@ -237,6 +237,8 @@ class FakeTurbopufferClient:
         return FakeResponse()
 
     async def post(self, path: str, json: dict):
+        if "include_attributes" in json and "exclude_attributes" in json:
+            raise RuntimeError("include/exclude conflict")
         self.posts.append((path, json))
         if path.endswith("/query"):
             if self.query_pages:
@@ -308,6 +310,7 @@ async def _test_turbopuffer_adapter_handles_lifecycle_chunks_and_exports() -> No
     await store.delete_by_ids("docs", ["chunk-1"])
     upserted = await store.upsert("docs", ["chunk-2"], [[0.3]], ["text"], [{"kind": "note"}])
     exported = await store.export_collection_points("docs")
+    exported_without_vectors = await store.export_collection_points("docs", with_vectors=False)
     await store.delete_collection("docs")
     await store.close()
 
@@ -329,6 +332,21 @@ async def _test_turbopuffer_adapter_handles_lifecycle_chunks_and_exports() -> No
     assert fake.posts[2][1]["deletes"] == [_point_id("bigrag_docs", "chunk-1")]
     assert upserted == 1
     assert exported == [
+        {
+            "id": "point-1",
+            "payload": {
+                "id": "chunk-1",
+                "text": "hello",
+                "document_id": "doc-1",
+                "chunk_index": 0,
+                "tenant_id": "acme",
+            },
+            "vector": None,
+        }
+    ]
+    assert fake.posts[5][1]["exclude_attributes"] == ["vector"]
+    assert "include_attributes" not in fake.posts[5][1]
+    assert exported_without_vectors == [
         {
             "id": "point-1",
             "payload": {

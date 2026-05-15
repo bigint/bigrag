@@ -100,7 +100,7 @@ export const Select = ({
       <BaseSelect.Portal>
         <BaseSelect.Positioner alignItemWithTrigger={false} className="z-50" sideOffset={4}>
           <BaseSelect.Popup
-            className="max-h-60 overflow-y-auto rounded-xl border border-border bg-popover p-1.5"
+            className="max-h-60 overflow-y-auto rounded-md border border-border bg-popover p-1.5"
             style={{ width: "var(--anchor-width)" }}
           >
             <BaseSelect.List>

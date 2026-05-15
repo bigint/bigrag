@@ -62,6 +62,8 @@ Backend route tests should use dependency overrides and fake service/session obj
 
 Ingestion queue tests should stay dependency-free by default. Cover Redis state helpers, conversion helpers, embedding/vector payload behavior, and orchestration regressions with fake Redis, storage, embedding, and vector-store objects unless a test explicitly opts into live infrastructure.
 
+Managed vector-store adapters should cover the provider-specific request shape with fake clients. When changing S3 Vectors or turbopuffer semantics, add a live smoke only when credentials are available and keep it isolated to disposable indexes or namespaces.
+
 SDK tests should exercise request construction, retries, error mapping, multipart uploads, SSE parsing, and resource namespace path/query/body shaping as runtime behavior, not only typechecking.
 
 Admin UI tests should cover pure utilities, query-key builders, API helpers, hook wiring, and toast/error adapters first. Keep non-visual hook coverage in `.test.ts` files with React Query and SSE dependencies mocked; UI workflows should be added when component behavior becomes risky enough to justify browser-oriented tests.

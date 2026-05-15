@@ -8,6 +8,7 @@ import {
   FileText,
   Gauge,
   HardDrive,
+  Hash,
   KeyRound,
   Layers,
   MessageCircle,
@@ -92,7 +93,7 @@ export const OverviewPage = () => {
           </div>
         </header>
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <MetricCard
             icon={BookOpen}
             label="Collections"
@@ -109,7 +110,13 @@ export const OverviewPage = () => {
             icon={Layers}
             label="Chunks"
             value={statsPending ? undefined : formatNumber(docs?.total_chunks ?? 0)}
-            sub={`${formatNumber(docs?.total_tokens ?? 0)} tokens embedded`}
+            sub="Indexed vector chunks"
+          />
+          <MetricCard
+            icon={Hash}
+            label="Tokens stored"
+            value={statsPending ? undefined : formatNumber(docs?.total_tokens ?? 0)}
+            sub="Across indexed documents"
           />
           <MetricCard
             icon={HardDrive}
