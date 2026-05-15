@@ -65,6 +65,7 @@ export const OverviewPage = () => {
   const readyPct = docs?.total ? Math.round((docs.ready / docs.total) * 100) : 0;
   const failedPct = docs?.total ? Math.round((docs.failed / docs.total) * 100) : 0;
   const workerAvailability = getWorkerAvailability(stats);
+  const queueHealth = stats?.queue_health;
   const services = [
     { label: "Postgres", ok: readiness?.postgres },
     {
@@ -255,16 +256,24 @@ export const OverviewPage = () => {
 
           <div className="grid gap-4 xl:col-span-2">
             <Panel>
-              <h2 className="text-base font-semibold">Ingestion queue</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Work waiting behind document upload and reprocessing.
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold">Ingestion queue</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Work waiting behind document upload and reprocessing.
+                  </p>
+                </div>
+                <Badge variant={queueHealthVariant(queueHealth?.status)} dot>
+                  {queueHealth?.status ?? "checking"}
+                </Badge>
+              </div>
               <WorkerOfflineBanner
                 availability={workerAvailability}
                 className="mt-4"
                 compact
                 message="Pending uploads, backups, webhooks, and Drive syncs cannot drain until the worker is started."
               />
+              <QueueHealthNote reasons={queueHealth?.reasons} />
               <div className="mt-4 space-y-2">
                 {queueItems.length === 0 ? (
                   <div className="rounded-2xl border border-border bg-muted px-3 py-3 text-sm font-semibold">
@@ -350,6 +359,32 @@ const formatPercent = (value: number | undefined) =>
 const formatMs = (value: number | undefined) => `${formatNumber(Math.round(value ?? 0))} ms`;
 
 const clampPercent = (value: number | undefined) => Math.max(0, Math.min(100, value ?? 0));
+
+const queueHealthVariant = (
+  status: string | undefined,
+): "error" | "neutral" | "success" | "warning" => {
+  if (status === "ok") return "success";
+  if (status === "down") return "error";
+  if (status === "degraded") return "warning";
+  return "neutral";
+};
+
+const QUEUE_REASON_LABELS: Readonly<Record<string, string>> = {
+  dead_lettered_jobs: "Dead-lettered jobs need operator review.",
+  retrying_jobs: "Some jobs are waiting to retry.",
+  stale_processing_jobs: "Stale processing leases were detected.",
+  worker_offline: "The worker heartbeat is offline.",
+  worker_offline_with_active_queue: "The worker is offline while work is queued.",
+};
+
+const QueueHealthNote = ({ reasons }: { reasons: readonly string[] | undefined }) => {
+  if (!reasons?.length) return null;
+  return (
+    <div className="mt-4 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs font-semibold text-warning">
+      {reasons.map((reason) => QUEUE_REASON_LABELS[reason] ?? reason).join(" ")}
+    </div>
+  );
+};
 
 const AccessCommandCenter = ({
   overview,
