@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { getVectorStorageProvider, VectorStoragePage } from "./vector-storage-page";
+import { VectorStoragePage } from "./vector-storage-page";
 
 const renderedPanels = vi.hoisted(
   (): Array<{
@@ -67,9 +67,22 @@ describe("VectorStoragePage", () => {
     ]);
   });
 
-  it("accepts only supported vector storage providers", () => {
-    expect(getVectorStorageProvider("qdrant")).toBe("qdrant");
-    expect(getVectorStorageProvider("turbopuffer")).toBe("turbopuffer");
-    expect(getVectorStorageProvider("pinecone")).toBeUndefined();
+  it("falls back to Qdrant for unsupported vector storage providers", () => {
+    renderedPanels.length = 0;
+
+    renderToStaticMarkup(<VectorStoragePage provider="pinecone" />);
+
+    expect(renderedPanels).toEqual([
+      {
+        group: "vector_store",
+        includeKeys: [
+          "qdrant_url",
+          "qdrant_connect_timeout_seconds",
+          "qdrant_required",
+          "qdrant_search_ef",
+        ],
+        title: "Qdrant",
+      },
+    ]);
   });
 });

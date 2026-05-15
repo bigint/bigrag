@@ -1,38 +1,34 @@
 import { describe, expect, it } from "vitest";
 import {
   DATA_SETTINGS_GROUPS,
-  DEFAULT_SETTINGS_TAB,
-  getSettingsNavItem,
   getSettingsTab,
-  isSettingsTab,
   SECURITY_SETTINGS_KEYS,
   SETTINGS_NAV_ITEMS,
-  settingsSectionLabel,
 } from "./settings-navigation";
 
 describe("settings navigation", () => {
   it("falls back to the default tab for empty or unknown input", () => {
-    expect(getSettingsTab(undefined)).toBe(DEFAULT_SETTINGS_TAB);
-    expect(getSettingsTab("missing")).toBe(DEFAULT_SETTINGS_TAB);
+    expect(getSettingsTab(undefined)).toBe("account");
+    expect(getSettingsTab("missing")).toBe("account");
   });
 
   it("accepts valid settings tabs", () => {
-    expect(isSettingsTab("security")).toBe(true);
-    expect(isSettingsTab("server")).toBe(false);
-    expect(isSettingsTab("models")).toBe(false);
-    expect(isSettingsTab("connectors")).toBe(false);
-    expect(isSettingsTab("backups")).toBe(false);
-    expect(isSettingsTab("usage")).toBe(false);
-    expect(isSettingsTab("audit")).toBe(false);
+    expect(getSettingsTab("security")).toBe("security");
+    expect(getSettingsTab("server")).toBe("account");
+    expect(getSettingsTab("models")).toBe("account");
+    expect(getSettingsTab("connectors")).toBe("account");
+    expect(getSettingsTab("backups")).toBe("account");
+    expect(getSettingsTab("usage")).toBe("account");
+    expect(getSettingsTab("audit")).toBe("account");
   });
 
   it("does not map old registry deep links", () => {
-    expect(getSettingsTab("server")).toBe(DEFAULT_SETTINGS_TAB);
-    expect(getSettingsTab("storage")).toBe(DEFAULT_SETTINGS_TAB);
-    expect(getSettingsTab("vector_store")).toBe(DEFAULT_SETTINGS_TAB);
-    expect(getSettingsTab("models")).toBe(DEFAULT_SETTINGS_TAB);
-    expect(getSettingsTab("search")).toBe(DEFAULT_SETTINGS_TAB);
-    expect(getSettingsTab("chat")).toBe(DEFAULT_SETTINGS_TAB);
+    expect(getSettingsTab("server")).toBe("account");
+    expect(getSettingsTab("storage")).toBe("account");
+    expect(getSettingsTab("vector_store")).toBe("account");
+    expect(getSettingsTab("models")).toBe("account");
+    expect(getSettingsTab("search")).toBe("account");
+    expect(getSettingsTab("chat")).toBe("account");
   });
 
   it("finds nav metadata for a tab", () => {
@@ -43,14 +39,8 @@ describe("settings navigation", () => {
     expect(SETTINGS_NAV_ITEMS.map((item) => item.value)).not.toContain("usage");
     expect(SETTINGS_NAV_ITEMS.map((item) => item.value)).not.toContain("audit");
     expect(SETTINGS_NAV_ITEMS.map((item) => item.value)).not.toContain("vector_store");
-    expect(getSettingsNavItem("backups").value).toBe(DEFAULT_SETTINGS_TAB);
-    expect(getSettingsNavItem("unknown").value).toBe(DEFAULT_SETTINGS_TAB);
-  });
-
-  it("formats mobile section labels", () => {
-    expect(settingsSectionLabel("security")).toBe("Operate / Security");
-    expect(settingsSectionLabel("connectors")).toBe("Personal / Account");
-    expect(settingsSectionLabel("storage")).toBe("Personal / Account");
+    expect(getSettingsTab("backups")).toBe("account");
+    expect(getSettingsTab("unknown")).toBe("account");
   });
 
   it("groups detailed runtime sections into the data workspace", () => {

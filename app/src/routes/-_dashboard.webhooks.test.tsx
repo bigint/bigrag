@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { WebhooksPage } from "./_dashboard.webhooks";
+import { WebhooksPage } from "@/features/webhooks/webhooks-page";
 
 vi.mock("@/hooks/use-webhooks", () => ({
   useCreateWebhook: () => ({ isPending: false, mutateAsync: vi.fn() }),

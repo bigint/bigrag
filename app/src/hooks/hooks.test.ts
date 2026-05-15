@@ -280,16 +280,14 @@ describe("admin app hooks", () => {
     expect(apiClient.post).toHaveBeenLastCalledWith("v1/collections/team%20docs/truncate");
   });
 
-  it("wires document queries, uploads, batch progress, and mutations", async () => {
+  it("wires document queries, upload sessions, and mutations", async () => {
     const {
-      useBatchDocumentProgress,
       useCancelUploadSession,
       useChunks,
       useDeleteDocument,
       useDocument,
       useDocuments,
       useReprocessDocument,
-      useUploadDocuments,
       useUploadSession,
       useUploadSessionDocuments,
     } = await import("./use-documents");
@@ -318,17 +316,6 @@ describe("admin app hooks", () => {
       "v1/collections/team%20docs/documents/doc_1/chunks",
       { limit: 1000 },
     );
-
-    useUploadDocuments("team docs");
-    await mutationOptions<{ mutationFn: (files: File[]) => Promise<unknown> }>().mutationFn([
-      new File(["hello"], "a.txt"),
-    ]);
-    expect(apiClient.postForm).toHaveBeenLastCalledWith(
-      "v1/collections/team%20docs/documents/batch/upload",
-      expect.any(FormData),
-    );
-    mutationOptions<{ onSuccess: (res: { total: number }) => void }>().onSuccess({ total: 2 });
-    expect(toast.success).toHaveBeenCalledWith("Queued 2 documents for ingestion");
 
     useUploadSession("team docs", "session_1");
     expect(
@@ -366,40 +353,6 @@ describe("admin app hooks", () => {
     expect(apiClient.post).toHaveBeenLastCalledWith(
       "v1/collections/team%20docs/upload-sessions/session_1/cancel",
     );
-
-    vi.mocked(useSseSnapshotQuery).mockReturnValueOnce({
-      data: {
-        documents: [
-          {
-            chunk_count: 3,
-            error_message: null,
-            id: "doc_1",
-            progress: null,
-            status: "ready",
-          },
-        ],
-      },
-      streaming: true,
-    } as never);
-    const progress = useBatchDocumentProgress("team docs", [
-      {
-        chunk_count: 0,
-        error_message: null,
-        file_size: 10,
-        file_type: "text/plain",
-        filename: "a.txt",
-        id: "doc_1",
-        progress: null,
-        status: "processing",
-      } as never,
-    ]);
-    expect(progress).toMatchObject({
-      completedCount: 1,
-      done: true,
-      failedCount: 0,
-      progress: 100,
-      total: 1,
-    });
 
     useDeleteDocument("team docs");
     await mutationOptions<{ mutationFn: (docId: string) => Promise<unknown> }>().mutationFn(

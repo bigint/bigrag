@@ -92,11 +92,6 @@ describe("queryKeys", () => {
       "detail",
       { collection: "docs", id: "doc" },
     ]);
-    expect(queryKeys.documents.batchStatus({ collection: "docs", ids: "a,b" })).toEqual([
-      "documents",
-      "batch-status",
-      { collection: "docs", ids: "a,b" },
-    ]);
     expect(queryKeys.documents.uploadSession({ collection: "docs", id: null })).toEqual([
       "documents",
       "upload-session",

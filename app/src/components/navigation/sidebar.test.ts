@@ -1,7 +1,9 @@
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { getSidebarNavGroups, getSidebarNavItems, isSidebarItemActive, Sidebar } from "./sidebar";
+import { Sidebar } from "./sidebar";
+
+const routerState = vi.hoisted(() => ({ pathname: "/settings" }));
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
@@ -15,7 +17,7 @@ vi.mock("@tanstack/react-router", () => ({
     to: string;
   }) => createElement("a", { className, href: to, ...props }, children),
   useRouterState: ({ select }: { select: (state: { location: { pathname: string } }) => string }) =>
-    select({ location: { pathname: "/settings" } }),
+    select({ location: { pathname: routerState.pathname } }),
 }));
 
 vi.mock("./user-menu", () => ({
@@ -24,59 +26,65 @@ vi.mock("./user-menu", () => ({
 
 describe("sidebar navigation", () => {
   it("keeps admin-only destinations out of member navigation", () => {
-    const labels = getSidebarNavItems("member").map((item) => item.label);
+    const html = renderToStaticMarkup(createElement(Sidebar, { role: "member" }));
 
-    expect(labels).toContain("Overview");
-    expect(labels).toContain("Collections");
-    expect(labels).not.toContain("Usage");
-    expect(labels).not.toContain("Audit");
-    expect(labels).not.toContain("Connectors");
-    expect(labels).not.toContain("Backups");
-    expect(labels).not.toContain("Vector Storage");
-    expect(labels).not.toContain("Settings");
+    expect(html).toContain("Overview");
+    expect(html).toContain("Collections");
+    expect(html).not.toContain("Usage");
+    expect(html).not.toContain("Audit");
+    expect(html).not.toContain("Connectors");
+    expect(html).not.toContain("Backups");
+    expect(html).not.toContain("Vector Storage");
+    expect(html).not.toContain("Settings");
   });
 
   it("groups admin destinations by sidebar section", () => {
-    const groups = getSidebarNavGroups("admin");
-    const labelsByGroup = Object.fromEntries(
-      groups.map((group) => [group.label, group.items.map((item) => item.label)]),
-    );
+    const html = renderToStaticMarkup(createElement(Sidebar, { role: "admin" }));
 
-    expect(groups.map((group) => group.label)).toEqual([
-      "Workspace",
-      "Interfaces",
-      "Observability",
-      "Administration",
-    ]);
-    expect(labelsByGroup.Workspace).toEqual(["Overview", "Collections", "Models", "Chat", "Evals"]);
-    expect(labelsByGroup.Interfaces).toEqual(["MCP", "API Keys", "Webhooks", "Connectors"]);
-    expect(labelsByGroup.Observability).toEqual(["Access Logs", "Usage", "Audit"]);
-    expect(labelsByGroup.Administration).toEqual(["Backups", "Vector Storage", "Settings"]);
-
-    const labels = groups.flatMap((group) => group.items.map((item) => item.label));
-
-    expect(labels).toContain("Usage");
-    expect(labels).toContain("Audit");
-    expect(labels).toContain("Connectors");
-    expect(labels).toContain("Backups");
-    expect(labels).toContain("Vector Storage");
-    expect(labels.indexOf("Usage")).toBeGreaterThan(labels.indexOf("Access Logs"));
-    expect(labels.indexOf("Audit")).toBeGreaterThan(labels.indexOf("Usage"));
-    expect(labels.indexOf("Connectors")).toBeGreaterThan(labels.indexOf("Webhooks"));
-    expect(labels.indexOf("Backups")).toBeGreaterThan(labels.indexOf("Connectors"));
-    expect(labels.indexOf("Vector Storage")).toBeGreaterThan(labels.indexOf("Backups"));
-    expect(labels.indexOf("Usage")).toBeLessThan(labels.indexOf("Settings"));
-    expect(labels.indexOf("Audit")).toBeLessThan(labels.indexOf("Settings"));
-    expect(labels.indexOf("Connectors")).toBeLessThan(labels.indexOf("Settings"));
-    expect(labels.indexOf("Backups")).toBeLessThan(labels.indexOf("Settings"));
-    expect(labels.indexOf("Vector Storage")).toBeLessThan(labels.indexOf("Settings"));
+    expect(html).toContain("Workspace");
+    expect(html).toContain("Interfaces");
+    expect(html).toContain("Observability");
+    expect(html).toContain("Administration");
+    expect(html).toContain("Usage");
+    expect(html).toContain("Audit");
+    expect(html).toContain("Connectors");
+    expect(html).toContain("Backups");
+    expect(html).toContain("Vector Storage");
+    expect(html.indexOf("Usage")).toBeGreaterThan(html.indexOf("Access Logs"));
+    expect(html.indexOf("Audit")).toBeGreaterThan(html.indexOf("Usage"));
+    expect(html.indexOf("Connectors")).toBeGreaterThan(html.indexOf("Webhooks"));
+    expect(html.indexOf("Backups")).toBeGreaterThan(html.indexOf("Connectors"));
+    expect(html.indexOf("Vector Storage")).toBeGreaterThan(html.indexOf("Backups"));
+    expect(html.indexOf("Usage")).toBeLessThan(html.indexOf("Settings"));
+    expect(html.indexOf("Audit")).toBeLessThan(html.indexOf("Settings"));
+    expect(html.indexOf("Connectors")).toBeLessThan(html.indexOf("Settings"));
+    expect(html.indexOf("Backups")).toBeLessThan(html.indexOf("Settings"));
+    expect(html.indexOf("Vector Storage")).toBeLessThan(html.indexOf("Settings"));
   });
 
   it("matches active routes by exact path or descendants", () => {
-    expect(isSidebarItemActive("/connectors", "/connectors")).toBe(true);
-    expect(isSidebarItemActive("/connectors/google", "/connectors")).toBe(true);
-    expect(isSidebarItemActive("/collections/docs/connectors", "/connectors")).toBe(false);
-    expect(isSidebarItemActive("/vector-storage", "/vector-storage")).toBe(true);
+    const activeLinkPattern = (href: string) =>
+      new RegExp(`<a(?=[^>]*href="${href}")(?=[^>]*aria-current="page")[^>]*>`);
+
+    routerState.pathname = "/connectors";
+    expect(renderToStaticMarkup(createElement(Sidebar, { role: "admin" }))).toMatch(
+      activeLinkPattern("/connectors"),
+    );
+
+    routerState.pathname = "/connectors/google";
+    expect(renderToStaticMarkup(createElement(Sidebar, { role: "admin" }))).toMatch(
+      activeLinkPattern("/connectors"),
+    );
+
+    routerState.pathname = "/collections/docs/connectors";
+    expect(renderToStaticMarkup(createElement(Sidebar, { role: "admin" }))).not.toMatch(
+      activeLinkPattern("/connectors"),
+    );
+
+    routerState.pathname = "/vector-storage";
+    expect(renderToStaticMarkup(createElement(Sidebar, { role: "admin" }))).toMatch(
+      activeLinkPattern("/vector-storage"),
+    );
   });
 
   it("leaves a bottom inset on the desktop sidebar shell", () => {

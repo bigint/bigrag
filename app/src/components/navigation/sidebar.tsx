@@ -72,16 +72,13 @@ const NAV_GROUPS: readonly NavGroup[] = [
   },
 ];
 
-export const getSidebarNavGroups = (role: string) =>
+const getSidebarNavGroups = (role: string) =>
   NAV_GROUPS.map((group) => ({
     ...group,
     items: group.items.filter((item) => !item.admin || role === "admin"),
   })).filter((group) => group.items.length > 0);
 
-export const getSidebarNavItems = (role: string) =>
-  getSidebarNavGroups(role).flatMap((group) => group.items);
-
-export const isSidebarItemActive = (pathname: string, href: string) => {
+const isSidebarItemActive = (pathname: string, href: string) => {
   if (href === "/overview") return pathname === "/overview" || pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 };

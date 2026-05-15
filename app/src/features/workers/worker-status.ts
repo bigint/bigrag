@@ -1,6 +1,6 @@
 import type { PlatformStats, WorkerStats } from "@/types/bigrag";
 
-export type WorkerAvailabilityState = "online" | "offline" | "unknown";
+type WorkerAvailabilityState = "online" | "offline" | "unknown";
 
 export type WorkerAvailability = {
   state: WorkerAvailabilityState;
@@ -55,7 +55,7 @@ const workerAvailability = (
   heartbeatAt: workers?.heartbeat_at ?? null,
 });
 
-export const formatHeartbeatAge = (seconds: number | null) => {
+const formatHeartbeatAge = (seconds: number | null) => {
   if (seconds === null) return null;
   if (seconds < 60) return `${seconds} second${seconds === 1 ? "" : "s"} ago`;
   const minutes = Math.floor(seconds / 60);

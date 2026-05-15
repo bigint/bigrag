@@ -7,7 +7,6 @@ import {
   profileFormHasChanges,
   profileFormValuesFromUser,
   validatePasswordFormValues,
-  validateProfileEmail,
   validateProfileFormValues,
 } from "./account-form-state";
 
@@ -32,7 +31,6 @@ describe("account form state", () => {
       email: "admin@example.com",
     });
     expect(validateProfileFormValues({ displayName: "", email: "" })).toBe("Email is required");
-    expect(validateProfileEmail("admin")).toBe("Enter a valid email");
     expect(validateProfileFormValues({ displayName: "", email: "admin" })).toBe(
       "Enter a valid email",
     );

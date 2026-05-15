@@ -4,7 +4,6 @@ import {
   createCollectionBodyFromValues,
   defaultCollectionSearchFormValues,
   defaultCreateCollectionFormValues,
-  slugifyCollectionName,
   validateCollectionSearchFormValues,
   validateCreateCollectionFormValues,
 } from "./collection-form-state";
@@ -28,8 +27,20 @@ describe("collection form state", () => {
   });
 
   it("slugifies collection names the same way the UI submit did", () => {
-    expect(slugifyCollectionName(" My Test.Collection! ")).toBe("_my_testcollection_");
-    expect(slugifyCollectionName("A".repeat(60))).toHaveLength(48);
+    expect(
+      createCollectionBodyFromValues({
+        ...defaultCreateCollectionFormValues(),
+        name: " My Test.Collection! ",
+        presetId: "preset_1",
+      }).name,
+    ).toBe("_my_testcollection_");
+    expect(
+      createCollectionBodyFromValues({
+        ...defaultCreateCollectionFormValues(),
+        name: "A".repeat(60),
+        presetId: "preset_1",
+      }).name,
+    ).toHaveLength(48);
   });
 
   it("validates create collection values", () => {

@@ -17,7 +17,7 @@ export const defaultEvalRunnerFormValues = (): EvalRunnerFormValues => ({
   topK: 10,
 });
 
-export const parseEvalCases = (cases: string): EvalCase[] => {
+const parseEvalCases = (cases: string): EvalCase[] => {
   const parsed = JSON.parse(cases);
   if (!Array.isArray(parsed) || parsed.length === 0) {
     throw new Error("Expected a non-empty JSON array of cases");

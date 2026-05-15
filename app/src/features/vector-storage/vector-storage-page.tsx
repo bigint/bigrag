@@ -45,7 +45,7 @@ const VECTOR_PROVIDER_SETTINGS: Record<
   },
 };
 
-export const getVectorStorageProvider = (value: unknown): VectorStorageProvider | undefined =>
+const getVectorStorageProvider = (value: unknown): VectorStorageProvider | undefined =>
   value === "qdrant" || value === "turbopuffer" ? value : undefined;
 
 export const VectorStoragePage = ({ provider, onProviderChange }: VectorStoragePageProps) => {

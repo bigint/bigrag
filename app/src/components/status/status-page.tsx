@@ -72,7 +72,7 @@ type StatusPageProps = {
   readonly children?: ReactNode;
 };
 
-export const StatusPage = ({ children, code, description, details, title }: StatusPageProps) => (
+const StatusPage = ({ children, code, description, details, title }: StatusPageProps) => (
   <main
     id="main"
     className="flex min-h-dvh items-center justify-center bg-background px-4 py-10 text-foreground"

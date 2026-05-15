@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  formatHeartbeatAge,
-  getWorkerAvailability,
-  workerOfflineActionMessage,
-} from "./worker-status";
+import { getWorkerAvailability, workerOfflineActionMessage } from "./worker-status";
 
 describe("worker status", () => {
   it("treats missing worker stats as unknown", () => {
@@ -58,9 +54,18 @@ describe("worker status", () => {
   });
 
   it("formats heartbeat ages", () => {
-    expect(formatHeartbeatAge(1)).toBe("1 second ago");
-    expect(formatHeartbeatAge(65)).toBe("1 minute ago");
-    expect(formatHeartbeatAge(3600)).toBe("1 hour ago");
-    expect(formatHeartbeatAge(172_800)).toBe("2 days ago");
+    const ageLabel = (seconds: number) =>
+      getWorkerAvailability({
+        workers: {
+          heartbeat_age_seconds: seconds,
+          heartbeat_at: "2026-05-15T12:00:00+00:00",
+          online: false,
+        },
+      }).heartbeatAgeLabel;
+
+    expect(ageLabel(1)).toBe("1 second ago");
+    expect(ageLabel(65)).toBe("1 minute ago");
+    expect(ageLabel(3600)).toBe("1 hour ago");
+    expect(ageLabel(172_800)).toBe("2 days ago");
   });
 });

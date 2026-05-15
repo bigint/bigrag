@@ -36,8 +36,7 @@ export const validateProfileFormValues = ({
   return validateProfileEmail(email);
 };
 
-export const validateProfileEmail = (email: string): string | undefined =>
-  validateEmail(email.trim());
+const validateProfileEmail = (email: string): string | undefined => validateEmail(email.trim());
 
 export const profileBodyFromValues = ({ displayName, email }: ProfileFormValues) => ({
   display_name: displayName.trim(),

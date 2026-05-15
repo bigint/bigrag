@@ -57,14 +57,14 @@ export type WorkerStats = {
   heartbeat_age_seconds: number | null;
 };
 
-export type HealthStatus = "ok" | "degraded" | "down";
+type HealthStatus = "ok" | "degraded" | "down";
 
-export type QueueHealth = {
+type QueueHealth = {
   status: HealthStatus;
   reasons: string[];
 };
 
-export type QueueStats = {
+type QueueStats = {
   queued: number;
   completed: number;
   failed: number;
@@ -76,7 +76,7 @@ export type QueueStats = {
   stale_processing?: number;
 };
 
-export type DocumentStats = {
+type DocumentStats = {
   total: number;
   ready: number;
   pending: number;

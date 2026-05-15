@@ -3,7 +3,6 @@ import {
   defaultEvalRunnerFormValues,
   evalCasesError,
   evalRunnerBodyFromValues,
-  parseEvalCases,
   SAMPLE_EVAL_CASES,
   validateEvalRunnerFormValues,
 } from "./eval-runner-state";
@@ -18,10 +17,14 @@ describe("eval runner state", () => {
   });
 
   it("parses only non-empty JSON arrays", () => {
-    expect(parseEvalCases('[{"query":"q","relevant_ids":["doc"]}]')).toEqual([
-      { query: "q", relevant_ids: ["doc"] },
-    ]);
-    expect(() => parseEvalCases("[]")).toThrow("Expected a non-empty JSON array of cases");
+    expect(
+      evalRunnerBodyFromValues({
+        cases: '[{"query":"q","relevant_ids":["doc"]}]',
+        collection: "docs",
+        topK: 3,
+      }).cases,
+    ).toEqual([{ query: "q", relevant_ids: ["doc"] }]);
+    expect(evalCasesError("[]")).toBe("Invalid JSON: Expected a non-empty JSON array of cases");
     expect(evalCasesError("{")).toContain("Invalid JSON");
   });
 

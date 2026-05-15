@@ -16,7 +16,7 @@ type SettingsNavGroup = {
   readonly items: readonly SettingsNavItem[];
 };
 
-export const DEFAULT_SETTINGS_TAB: SettingsTab = "account";
+const DEFAULT_SETTINGS_TAB: SettingsTab = "account";
 
 const SETTINGS_NAV_GROUPS: readonly SettingsNavGroup[] = [
   {
@@ -78,22 +78,10 @@ export const SECURITY_SETTINGS_KEYS: readonly string[] = [
   "allow_public_bind_in_prod",
 ];
 
-export const isSettingsTab = (value: string | undefined): value is SettingsTab =>
+const isSettingsTab = (value: string | undefined): value is SettingsTab =>
   Boolean(value && SETTINGS_TAB_VALUES.has(value as SettingsTab));
 
 export const getSettingsTab = (requestedTab: string | undefined): SettingsTab => {
   if (isSettingsTab(requestedTab)) return requestedTab;
   return DEFAULT_SETTINGS_TAB;
-};
-
-export const getSettingsNavItem = (tab: string): SettingsNavItem =>
-  SETTINGS_NAV_ITEMS.find((item) => item.value === getSettingsTab(tab)) ?? SETTINGS_NAV_ITEMS[0];
-
-export const settingsSectionLabel = (value: string): string => {
-  const tab = getSettingsTab(value);
-  const group = SETTINGS_NAV_GROUPS.find((candidate) =>
-    candidate.items.some((item) => item.value === tab),
-  );
-  const item = getSettingsNavItem(tab);
-  return group ? `${group.label} / ${item.label}` : item.label;
 };

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { AppErrorPage, StatusPage } from "./status-page";
+import { AppErrorPage, AppNotFoundPage } from "./status-page";
 
 vi.mock("@tanstack/react-router", async () => {
   const React = await import("react");
@@ -13,15 +13,11 @@ vi.mock("@tanstack/react-router", async () => {
 
 describe("StatusPage", () => {
   it("renders the status code, copy, and actions", () => {
-    const html = renderToStaticMarkup(
-      <StatusPage code="404" description="Missing workspace route" title="Page not found">
-        <span>Overview</span>
-      </StatusPage>,
-    );
+    const html = renderToStaticMarkup(<AppNotFoundPage />);
 
     expect(html).toContain("404");
     expect(html).toContain("Page not found");
-    expect(html).toContain("Missing workspace route");
+    expect(html).toContain("This admin route does not exist.");
     expect(html).toContain("Overview");
   });
 

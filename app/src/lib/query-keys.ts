@@ -35,11 +35,6 @@ type DocumentListParams = {
   readonly status?: string;
 };
 
-type BatchStatusParams = {
-  readonly collection: string;
-  readonly ids: string;
-};
-
 type UploadSessionParams = {
   readonly collection: string;
   readonly id: string | null;
@@ -102,8 +97,6 @@ export const queryKeys = {
       ["documents", "detail", { collection, id }] as const,
     chunks: ({ collection, id }: DocumentParams) =>
       ["documents", "chunks", { collection, id }] as const,
-    batchStatus: ({ collection, ids }: BatchStatusParams) =>
-      ["documents", "batch-status", { collection, ids }] as const,
     uploadSession: ({ collection, id }: UploadSessionParams) =>
       ["documents", "upload-session", { collection, id }] as const,
   },

@@ -32,7 +32,7 @@ export const defaultCollectionSearchFormValues = (): CollectionSearchFormValues 
   topK: 5,
 });
 
-export const slugifyCollectionName = (value: string) =>
+const slugifyCollectionName = (value: string) =>
   value
     .toLowerCase()
     .replace(/[^a-z0-9_\- ]+/g, "")
