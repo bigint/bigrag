@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 import uuid
+from types import SimpleNamespace
 
 import httpx
 import orjson
@@ -11,11 +12,20 @@ from bigrag.services import webhook
 from bigrag.services.event_bus import IngestionEvent
 
 
+class ExecuteRows:
+    def __init__(self, rows) -> None:
+        self.rows = rows
+
+    def all(self):
+        return self.rows
+
+
 class FakeSession:
-    def __init__(self) -> None:
+    def __init__(self, row_provider=None) -> None:
         self.added = []
         self.executed = []
         self.commits = 0
+        self.row_provider = row_provider
 
     async def __aenter__(self):
         return self
@@ -28,6 +38,8 @@ class FakeSession:
 
     async def execute(self, stmt):
         self.executed.append(stmt)
+        rows = self.row_provider() if self.row_provider else []
+        return ExecuteRows(rows)
 
     async def commit(self) -> None:
         self.commits += 1
@@ -56,12 +68,12 @@ class FakeHttpClient:
         self.closed = True
 
 
-def configure_session_factory(monkeypatch):
+def configure_session_factory(monkeypatch, row_provider=None):
     sessions = []
 
     def outer():
         def inner():
-            session = FakeSession()
+            session = FakeSession(row_provider)
             sessions.append(session)
             return session
 
@@ -225,7 +237,22 @@ def test_webhook_deliver_once_and_test_delivery(monkeypatch) -> None:
 
 def test_webhook_deliver_success_records_database_updates(monkeypatch) -> None:
     async def run() -> None:
-        sessions = configure_session_factory(monkeypatch)
+        sessions = []
+
+        def rows():
+            delivery = sessions[0].added[0]
+            return [
+                (
+                    delivery,
+                    SimpleNamespace(
+                        id=delivery.webhook_id,
+                        url="https://example.test",
+                        secret="secret",
+                    ),
+                )
+            ]
+
+        sessions = configure_session_factory(monkeypatch, rows)
         dispatcher = webhook.WebhookDispatcher()
         dispatcher._client = FakeHttpClient([httpx.Response(202)])
 
@@ -245,11 +272,14 @@ def test_webhook_deliver_success_records_database_updates(monkeypatch) -> None:
             '{"event":"document.ready"}',
         )
 
-        assert len(sessions) == 2
+        assert len(sessions) == 3
         assert sessions[0].added
         assert sessions[0].commits == 1
         assert sessions[1].executed
         assert sessions[1].commits == 1
+        assert sessions[2].executed
+        assert sessions[2].commits == 1
+        assert sessions[0].added[0].attempts == 1
         assert dispatcher._client.posts[0][2]["X-BigRAG-Event"] == "document.ready"
 
     asyncio.run(run())
@@ -257,20 +287,31 @@ def test_webhook_deliver_success_records_database_updates(monkeypatch) -> None:
 
 def test_webhook_deliver_retries_and_records_failure(monkeypatch) -> None:
     async def run() -> None:
-        sessions = configure_session_factory(monkeypatch)
+        sessions = []
+
+        def rows():
+            delivery = sessions[0].added[0]
+            return [
+                (
+                    delivery,
+                    SimpleNamespace(
+                        id=delivery.webhook_id,
+                        url="https://example.test",
+                        secret="secret",
+                    ),
+                )
+            ]
+
+        sessions = configure_session_factory(monkeypatch, rows)
         dispatcher = webhook.WebhookDispatcher()
         dispatcher._client = FakeHttpClient([httpx.Response(500), httpx.Response(500)])
 
         async def resolve(url):
             return url
 
-        async def no_sleep(delay):
-            return None
-
         monkeypatch.setattr("bigrag.models.webhook.resolve_and_validate_url", resolve)
         monkeypatch.setattr(webhook, "_retry_delays", lambda: [0])
         monkeypatch.setattr(webhook, "_jittered_delay", lambda delay: 0)
-        monkeypatch.setattr(webhook.asyncio, "sleep", no_sleep)
 
         await dispatcher._deliver(
             {
@@ -281,9 +322,11 @@ def test_webhook_deliver_retries_and_records_failure(monkeypatch) -> None:
             "document.ready",
             '{"event":"document.ready"}',
         )
+        await dispatcher.process_due_deliveries(limit=1)
 
         assert len(dispatcher._client.posts) == 2
-        assert len(sessions) == 3
+        assert len(sessions) == 5
+        assert sessions[0].added[0].attempts == 2
         assert sessions[-1].executed
         assert sessions[-1].commits == 1
 

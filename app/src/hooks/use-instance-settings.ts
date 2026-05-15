@@ -6,6 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 import type { InstanceSettingsResponse } from "@/types/bigrag";
 
 type SettingsBody = { values: Record<string, unknown> };
+type SettingsTestResponse = { status: string; checked: string[]; message: string };
 
 export const useInstanceSettings = () =>
   useQuery({
@@ -17,40 +18,16 @@ export const useInstanceSettings = () =>
 export const useUpdateInstanceSettings = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: SettingsBody) =>
-      apiClient.put<InstanceSettingsResponse>("v1/admin/settings", body),
+    mutationFn: async (body: SettingsBody) => {
+      await apiClient.post<SettingsTestResponse>("v1/admin/settings/test", body);
+      return apiClient.put<InstanceSettingsResponse>("v1/admin/settings", body);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.instanceSettings() });
       qc.invalidateQueries({ queryKey: queryKeys.platform.readiness() });
       toast.success("Settings saved");
     },
-    onError: errorToast("Could not save settings"),
-  });
-};
-
-export const useTestInstanceSettings = () =>
-  useMutation({
-    mutationFn: (body: SettingsBody) =>
-      apiClient.post<{ status: string; checked: string[]; message: string }>(
-        "v1/admin/settings/test",
-        body,
-      ),
-    onSuccess: (result) => {
-      toast.success(result.message || "Settings validated");
-    },
-    onError: errorToast("Settings validation failed"),
-  });
-
-export const useResetInstanceSettings = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (keys: string[]) =>
-      apiClient.post<{ status: string; message: string }>("v1/admin/settings/reset", { keys }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.instanceSettings() });
-      toast.success("Settings reset");
-    },
-    onError: errorToast("Could not reset settings"),
+    onError: errorToast("Could not validate or save settings"),
   });
 };
 

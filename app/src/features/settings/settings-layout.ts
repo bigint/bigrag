@@ -38,7 +38,7 @@ export const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupL
     emptyState: "Backup destination settings are not available from this API.",
     eyebrow: "Disaster recovery",
     group: "backups",
-    recommendedAction: "Configure the destination, test it, then start a readable export.",
+    recommendedAction: "Configure the destination, save it, then start a readable export.",
     title: "Backup destination",
   },
   chat: {
@@ -162,7 +162,7 @@ export const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupL
     emptyState: "Vector storage settings are not available from this API.",
     eyebrow: "Indexes",
     group: "vector_store",
-    recommendedAction: "Pick one provider, complete its credentials, then test before saving.",
+    recommendedAction: "Pick one provider, complete its credentials, then save the target.",
     title: "Vector storage",
   },
   webhooks: {
@@ -211,7 +211,7 @@ export const settingsRecommendedAction = (
   summary: SettingsStatusSummary,
 ): string => {
   if (summary.missingSecrets > 0 && (layout.group === "backups" || layout.group === "storage")) {
-    return "Add the missing credentials, save, then test the connection.";
+    return "Add the missing credentials, then save the connection.";
   }
   return layout.recommendedAction;
 };

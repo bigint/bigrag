@@ -25,8 +25,10 @@ class FakeRedis:
         self.lists = {
             queue_state.QUEUE_KEY: [],
             queue_state.PROCESSING_KEY: [],
+            queue_state.DEAD_LETTER_KEY: [],
         }
         self.hashes = {queue_state.STATS_KEY: {}}
+        self.zsets = {queue_state.RETRY_KEY: {}}
         self.eval_calls = []
 
     async def get(self, key):
@@ -57,6 +59,18 @@ class FakeRedis:
     async def llen(self, key):
         return len(self.lists.get(key, []))
 
+    async def zadd(self, key, values):
+        zset = self.zsets.setdefault(key, {})
+        added = 0
+        for member, score in values.items():
+            if member not in zset:
+                added += 1
+            zset[member] = score
+        return added
+
+    async def zcard(self, key):
+        return len(self.zsets.get(key, {}))
+
     async def eval(self, script, keys, *args):
         self.eval_calls.append((script, keys, args))
         if script == queue_state.ENQUEUE_LUA:
@@ -80,6 +94,23 @@ class FakeRedis:
                     kept.append(raw)
             self.lists[queue_state.QUEUE_KEY] = kept
             return removed
+        if script == queue_state.PROMOTE_RETRIES_LUA:
+            retry_key, queue_key, now, max_depth, limit = args
+            promoted = 0
+            due = sorted(
+                [
+                    (score, raw)
+                    for raw, score in self.zsets.get(retry_key, {}).items()
+                    if score <= int(now)
+                ]
+            )[: int(limit)]
+            for _, raw in due:
+                if len(self.lists[queue_key]) >= int(max_depth):
+                    break
+                self.zsets[retry_key].pop(raw, None)
+                self.lists[queue_key].insert(0, raw)
+                promoted += 1
+            return promoted
         raise AssertionError(script)
 
     def pipeline(self, transaction=False):
@@ -107,6 +138,7 @@ def test_queue_module_preserves_public_compatibility_exports() -> None:
     assert queue.QUEUE_KEY == queue_state.QUEUE_KEY
     assert queue.PROCESSING_KEY == queue_state.PROCESSING_KEY
     assert queue.DEAD_LETTER_KEY == queue_state.DEAD_LETTER_KEY
+    assert queue.RETRY_KEY == queue_state.RETRY_KEY
     assert queue._lease_key("abc") == "bigrag:ingestion:lease:abc"
     assert queue._collection_epoch_key("docs") == "bigrag:ingestion:collection_epoch:docs"
     assert queue._document_epoch_key("doc") == "bigrag:ingestion:document_epoch:doc"
@@ -156,10 +188,16 @@ def test_queue_state_enqueue_flush_and_stats_shape() -> None:
         other_job = _job(
             collection_name="other", document_id="22222222-2222-2222-2222-222222222222"
         )
+        processing_job = _job(job_id="processing").serialize()
+        stale_job = _job(job_id="stale").serialize()
 
         assert await queue_state.enqueue_job(redis, IngestionJob.deserialize(docs_job), 5) == 1
         assert await queue_state.enqueue_job(redis, other_job, 5) == 2
         assert await queue_state.flush_collection_jobs(redis, "docs") == 1
+        redis.lists[queue_state.PROCESSING_KEY] = [processing_job, stale_job]
+        redis.values[queue_state.lease_key("processing")] = b"1"
+        redis.lists[queue_state.DEAD_LETTER_KEY] = [stale_job]
+        await queue_state.schedule_retry_job(redis, _job(job_id="retry"), 10)
 
         stats = await queue_state.queue_stats(redis)
 
@@ -168,7 +206,33 @@ def test_queue_state_enqueue_flush_and_stats_shape() -> None:
             "completed": 0,
             "failed": 0,
             "pending": 1,
-            "processing": 0,
+            "processing": 2,
+            "retrying": 1,
+            "dead_lettered": 1,
+            "leased_processing": 1,
+            "stale_processing": 1,
         }
+
+    asyncio.run(run())
+
+
+def test_queue_state_promotes_due_retries_without_overfilling_queue(monkeypatch) -> None:
+    async def run() -> None:
+        redis = FakeRedis()
+        monkeypatch.setattr(queue_state, "time_seconds", lambda: 100)
+        due = _job(job_id="due")
+        later = _job(job_id="later")
+
+        await queue_state.schedule_retry_job(redis, due, 0)
+        await queue_state.schedule_retry_job(redis, later, 30)
+
+        assert await queue_state.promote_due_retries(redis, queue_max_depth=1, now=100) == 1
+        assert len(redis.lists[queue_state.QUEUE_KEY]) == 1
+        assert await redis.zcard(queue_state.RETRY_KEY) == 1
+        assert await queue_state.promote_due_retries(redis, queue_max_depth=1, now=130) == 0
+        assert await redis.zcard(queue_state.RETRY_KEY) == 1
+        redis.lists[queue_state.QUEUE_KEY].clear()
+        assert await queue_state.promote_due_retries(redis, queue_max_depth=1, now=130) == 1
+        assert await redis.zcard(queue_state.RETRY_KEY) == 0
 
     asyncio.run(run())

@@ -96,7 +96,7 @@ const BackupGuide = ({
       </div>
       <h2 className="mt-1 text-base font-semibold">Set up, validate, export</h2>
       <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-        Backups stay readable, so configure a dedicated bucket, test the destination, then run
+        Backups stay readable, so configure a dedicated bucket, save the destination, then run
         exports from the history panel below.
       </p>
     </div>
@@ -109,7 +109,7 @@ const BackupGuide = ({
       <BackupStep
         complete={destinationConfigured}
         label="Validation"
-        value={destinationConfigured ? "Ready to test" : "Waiting for destination"}
+        value={destinationConfigured ? "Checked on save" : "Waiting for destination"}
       />
       <BackupStep
         complete={!active}

@@ -77,7 +77,7 @@ The same surface is available through [`/admin/settings`](/docs/api-reference/in
 
 The UI shows common controls first and keeps raw setting keys, source metadata, and rarely changed limits in Advanced controls. Legacy Settings deep links such as `/settings?tab=storage` still open the relevant Settings panel, `/settings?tab=vector_store` redirects to `/vector-storage`, and `/settings?tab=models`, `/settings?tab=search`, and `/settings?tab=chat` redirect to `/models?tab=settings`.
 
-Database-backed admin settings apply immediately on save or reset. Storage and vector-store changes validate the new target before saving, then swap the active backend in place.
+Database-backed admin settings apply immediately on save. Storage and vector-store changes validate the new target before saving, then swap the active backend in place.
 
 <Callout type="info">
 Legacy runtime environment variables are still read as initial defaults for compatibility, but enterprise installs should treat `/settings` as the control plane after bootstrap.

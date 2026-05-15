@@ -50,7 +50,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 - Raw vector upsert API for bring-your-own-embeddings workflows
 - Broader file format support (18+ formats including XLSX, CSV, TSV, XML, JSON)
 - Dedicated PostgreSQL metadata layer for transactional consistency
-- Robust Redis-based queue with dead letter handling and job recovery
+- Robust Redis-based queue with lease renewal, delayed retries, dead letter handling, and job recovery
 - Native Cohere reranking with per-collection and per-query configuration
 
 **Choose OpenRAG** if you need an end-to-end platform with chat UI, backend LLM generation, and OAuth cloud connectors for non-technical users. **Choose bigRAG** if you need an API-first retrieval platform with optional admin operations, multi-collection support, batch operations, and webhook-driven workflows.

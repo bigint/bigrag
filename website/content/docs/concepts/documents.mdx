@@ -52,6 +52,8 @@ Regardless of ingestion method, every document goes through the same pipeline:
 6. **Store** — embeddings are batch-inserted into the configured vector store
 7. **Ready** — document status is updated to `ready` with the chunk count
 
+Workers renew processing leases while a document is active. Transient failures move the job into a Redis delayed retry set before the next attempt; exhausted jobs are marked `failed` and retained in the dead-letter list.
+
 ## Processing Status
 
 Documents transition through these states:

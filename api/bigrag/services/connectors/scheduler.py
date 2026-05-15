@@ -96,6 +96,7 @@ async def run_due_syncs(
                 .where(ConnectorSource.next_sync_at <= utcnow())
                 .where(ConnectorSource.status != "syncing")
                 .order_by(ConnectorSource.next_sync_at.asc())
+                .with_for_update(skip_locked=True)
                 .limit(limit)
             )
         ).all()

@@ -1,4 +1,4 @@
-import { Database, Search, TestTube2 } from "lucide-react";
+import { CheckCircle2, Database, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 
@@ -34,9 +34,9 @@ const VectorStorageGuide = () => (
         value="Qdrant or turbopuffer"
       />
       <VectorStorageStep
-        icon={<TestTube2 className="size-4" />}
+        icon={<CheckCircle2 className="size-4" />}
         label="Validation"
-        value="Test before saving"
+        value="Checked on save"
       />
       <VectorStorageStep
         icon={<Search className="size-4" />}

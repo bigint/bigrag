@@ -58,7 +58,7 @@ PUT /admin/settings
 }
 ```
 
-Unknown keys and invalid values return `400`. Successful updates are audited as `instance_settings.update` and apply immediately to the running API.
+Unknown keys and invalid values return `400`. Successful updates are audited as `instance_settings.update` and apply immediately to the running API. The update path runs the same service validation probes as the test endpoint before settings are persisted.
 
 Security hardening settings include `allow_public_bind_in_prod`. Ingestion settings include raw vector API request caps (`max_vector_upsert_count`, `max_vector_delete_count`, `max_vector_text_chars`, `max_vector_metadata_bytes`). These are returned in the same registry as the other settings and can be changed from the admin UI.
 
@@ -70,7 +70,7 @@ Storage and vector-store changes are validated before they are saved. Switching 
 POST /admin/settings/test
 ```
 
-Validates the submitted values without saving them. Storage settings run a lightweight backend construction/probe when S3 is selected. Backup settings run a lightweight S3-compatible bucket probe.
+Validates the submitted values without saving them. Storage settings run a lightweight backend construction/probe when S3 is selected. Backup settings run a lightweight S3-compatible bucket probe. The admin UI runs this validation from Save instead of exposing a separate Test button.
 
 ```json
 { "values": { "storage_backend": "s3", "storage_s3_bucket": "bigrag-documents" } }
@@ -90,7 +90,7 @@ POST /admin/settings/reset
 { "keys": ["cors_origins", "session_cookie_secure"] }
 ```
 
-An empty `keys` array resets every UI-managed instance setting back to its default/bootstrap value. Successful resets are audited as `instance_settings.reset`.
+An empty `keys` array resets every UI-managed instance setting back to its default/bootstrap value. Successful resets are audited as `instance_settings.reset`. This endpoint remains available to API clients, but the admin UI does not expose a general Reset button for settings panels.
 
 ## Purge Embedding Cache
 

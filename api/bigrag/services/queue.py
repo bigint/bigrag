@@ -16,6 +16,7 @@ logger = get_logger("bigrag.queue")
 QUEUE_KEY = queue_state.QUEUE_KEY
 PROCESSING_KEY = queue_state.PROCESSING_KEY
 DEAD_LETTER_KEY = queue_state.DEAD_LETTER_KEY
+RETRY_KEY = queue_state.RETRY_KEY
 STATS_KEY = queue_state.STATS_KEY
 LEASE_KEY_PREFIX = queue_state.LEASE_KEY_PREFIX
 COLLECTION_EPOCH_KEY_PREFIX = queue_state.COLLECTION_EPOCH_KEY_PREFIX
@@ -23,6 +24,7 @@ DOCUMENT_EPOCH_KEY_PREFIX = queue_state.DOCUMENT_EPOCH_KEY_PREFIX
 IngestionCancelledError = queue_state.IngestionCancelledError
 
 _LEASE_TTL_SECONDS = queue_state.LEASE_TTL_SECONDS
+_LEASE_RENEW_INTERVAL_SECONDS = queue_state.LEASE_RENEW_INTERVAL_SECONDS
 _EMBEDDING_TIMEOUT_SECONDS = queue_embedding.EMBEDDING_TIMEOUT_SECONDS
 _PERMANENT_ERRORS = queue_embedding.PERMANENT_ERRORS
 _PDF_OCR_CHUNK_PAGES = queue_conversion.PDF_OCR_CHUNK_PAGES
@@ -44,6 +46,7 @@ __all__ = [
     "LEASE_KEY_PREFIX",
     "PROCESSING_KEY",
     "QUEUE_KEY",
+    "RETRY_KEY",
     "STATS_KEY",
     "_EMBEDDING_TIMEOUT_SECONDS",
     "_PERMANENT_ERRORS",
@@ -188,6 +191,24 @@ class IngestionQueue:
     async def stats(self) -> dict:
         return await queue_state.queue_stats(self._redis)
 
+    async def _promote_due_retries(self) -> int:
+        from bigrag.services.runtime_settings import get_value
+
+        queue_max_depth = await get_value("queue_max_depth")
+        promoted = await queue_state.promote_due_retries(
+            self._redis,
+            queue_max_depth=queue_max_depth,
+        )
+        if promoted:
+            logger.info("queue promoted retry jobs", count=promoted)
+        return promoted
+
+    async def _renew_lease(self, job_id: str) -> None:
+        lease_key = _lease_key(job_id)
+        while self._running:
+            await asyncio.sleep(_LEASE_RENEW_INTERVAL_SECONDS)
+            await self._redis.set(lease_key, b"1", ex=_LEASE_TTL_SECONDS)
+
     async def _worker(self, worker_id: int) -> None:
         logger.info("worker started", worker_id=worker_id)
         while self._running and worker_id < self._num_workers:
@@ -197,6 +218,7 @@ class IngestionQueue:
                 if await is_active():
                     await asyncio.sleep(1)
                     continue
+                await self._promote_due_retries()
                 data = await self._redis.blmove(
                     QUEUE_KEY, PROCESSING_KEY, timeout=1, src="RIGHT", dest="LEFT"
                 )
@@ -221,9 +243,15 @@ class IngestionQueue:
                 )
                 lease_key = _lease_key(job.job_id)
                 await self._redis.set(lease_key, b"1", ex=_LEASE_TTL_SECONDS)
+                lease_task = asyncio.create_task(self._renew_lease(job.job_id))
                 try:
                     await self._process_job(worker_id, job)
                 finally:
+                    lease_task.cancel()
+                    try:
+                        await lease_task
+                    except asyncio.CancelledError:
+                        pass
                     await self._redis.lrem(PROCESSING_KEY, 1, data)
                     await self._redis.delete(lease_key)
             except Exception as e:
@@ -466,7 +494,7 @@ class IngestionQueue:
                     status="pending",
                     error_message=f"Attempt {job.attempt} failed: {e}. Retrying...",
                 )
-                await self.enqueue(job)
+                await queue_state.schedule_retry_job(self._redis, job, delay)
             else:
                 reason = (
                     "permanent error" if is_permanent else f"{job.max_attempts} attempts exhausted"

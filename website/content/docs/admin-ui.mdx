@@ -44,7 +44,7 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. |
 | `/connectors` | Browse the provider catalog, configure connector credentials, and review account state. |
 | `/backups` | Configure readable backup storage, start full-instance exports, and monitor backup history. |
-| `/vector-storage` | Configure the instance-level Qdrant or turbopuffer vector backend and validate provider credentials. |
+| `/vector-storage` | Configure the instance-level Qdrant or turbopuffer vector backend. Saves validate provider credentials before changes are stored. |
 | `/settings` | Operator-console settings workspace for account, platform, and data sections. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
@@ -60,9 +60,9 @@ The `/connectors` page renders provider tabs above the selected provider setup p
 
 The `/backups` page combines backup destination settings with `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups`, and `POST /v1/admin/backups` so backup operations stay out of the general Settings workspace. Usage, audit, and vector storage also live as first-class sidebar pages at `/usage`, `/audit`, and `/vector-storage`.
 
-The `/vector-storage` page owns instance-level vector backend settings for Qdrant and turbopuffer through `GET /admin/settings`, `PUT /admin/settings`, `POST /admin/settings/test`, and `POST /admin/settings/reset`.
+The `/vector-storage` page owns instance-level vector backend settings for Qdrant and turbopuffer through `GET /admin/settings` and `PUT /admin/settings`. Saving validates the selected provider before changes are stored.
 
-The settings page is a task-oriented operator workspace. It groups the old runtime registry into four areas: Account, Health, Security, and Data. Common controls appear first with a recommended next action; raw setting keys, source metadata, and rarely changed limits stay inside each area's Advanced controls.
+The settings page is a task-oriented operator workspace. It groups the old runtime registry into four areas: Account, Health, Security, and Data. Common controls appear first with a recommended next action; raw setting keys, source metadata, and rarely changed limits stay inside each area's Advanced controls. Settings panels use one Save action, and save validates applicable storage, backup, and vector targets before persistence.
 
 Existing deep links keep working. Legacy values such as `/settings?tab=server` and `/settings?tab=storage` open the matching redesigned Settings area while focusing the relevant runtime panel. `/settings?tab=vector_store` redirects to `/vector-storage`. Legacy model values such as `/settings?tab=models`, `/settings?tab=search`, and `/settings?tab=chat` redirect to the Models runtime settings tab.
 
@@ -72,9 +72,9 @@ Older `/settings?tab=backups`, `/settings?tab=usage`, `/settings?tab=audit`, and
 |-------|---------|-----------|-----------|
 | **Personal** | Account | `GET /v1/auth/me` | `POST /v1/auth/password`, `POST /v1/auth/logout-all` |
 | **Operate** | Health | `GET /health/ready`, `GET /v1/admin/realtime/platform/readiness` | — |
-| **Operate** | Security | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset`, `POST /admin/settings/embedding-cache/purge` |
-| **Operate** | Data | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Operate** | Vector Storage | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Operate** | Security | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/embedding-cache/purge` |
+| **Operate** | Data | `GET /admin/settings` | `PUT /admin/settings` |
+| **Operate** | Vector Storage | `GET /admin/settings` | `PUT /admin/settings` |
 
 ## Realtime updates
 

@@ -17,8 +17,9 @@ everything into Postgres with pgvector. Each one earns its keep:
   users, API keys, webhooks, query logs, audit trail, embedding cache.
   Transactions keep ingestion consistent across stores.
 - **Redis** — the ingestion queue (`BLPOP/BLMOVE` semantics),
-  idempotency-key cache, auth/collection/query hot-path caches, and
-  short-lived platform/health caches.
+  delayed retry set, processing leases, idempotency-key cache,
+  auth/collection/query hot-path caches, and short-lived
+  platform/health caches.
 - **Local disk** — raw uploaded documents. Needed to produce
   citations back into source files and to support re-embedding without
   re-uploading.
@@ -57,8 +58,9 @@ Webhook dispatcher
 ```
 
 Failure at any step marks the document `failed` with a typed error
-message — no silent zombies. Queue failures bounce through chunk-level
-retry (3 attempts, exponential backoff) before permanently failing.
+message. Active workers renew Redis leases while long jobs run, failed
+jobs wait in a delayed retry set before the next attempt, and exhausted
+jobs are retained in the dead-letter list for operator visibility.
 
 ## Request flow — `POST /v1/collections/{name}/query`
 
@@ -127,8 +129,9 @@ a future pgvector backend.
 - **Postgres replication**: the control plane is read-light; a
   warm-standby suffices for failover.
 - **Redis persistence**: enable `appendonly yes` (already set in the
-  shipped compose file). The ingestion queue loses less than a second
-  of in-flight work on crash.
+  shipped compose file). Pending jobs, delayed retries, processing
+  leases, and dead-letter entries survive process restarts within the
+  Redis durability window.
 
 ## Connector service layout
 
@@ -136,7 +139,9 @@ Connector routes stay provider-neutral through `connector_registry.py`.
 Reusable connector behavior lives in `bigrag.services.connectors`:
 account/config management, source and sync-job persistence, scheduler
 ticks, progress payloads, manifest updates, and document handoff to the
-ingestion queue. Provider modules layer on top of those shared helpers;
-the Google Drive provider keeps OAuth/account handling, Drive API calls,
-source helpers, and sync adapter wiring in separate modules while
-preserving `bigrag.services.google_drive` as the public import surface.
+ingestion queue. Scheduled connector ticks claim due sources with row
+locks so multiple API replicas do not create duplicate scheduled sync
+jobs. Provider modules layer on top of those shared helpers; the Google
+Drive provider keeps OAuth/account handling, Drive API calls, source
+helpers, and sync adapter wiring in separate modules while preserving
+`bigrag.services.google_drive` as the public import surface.

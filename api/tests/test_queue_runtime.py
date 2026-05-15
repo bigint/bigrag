@@ -11,6 +11,8 @@ class FakeRedis:
     def __init__(self) -> None:
         self.hashes = {}
         self.lists = {}
+        self.zsets = {}
+        self.values = {}
         self.deleted = []
         self.closed = False
 
@@ -31,6 +33,18 @@ class FakeRedis:
 
     async def delete(self, key):
         self.deleted.append(key)
+
+    async def set(self, key, value, ex=None):
+        self.values[key] = (value, ex)
+
+    async def zadd(self, key, values):
+        zset = self.zsets.setdefault(key, {})
+        added = 0
+        for member, score in values.items():
+            if member not in zset:
+                added += 1
+            zset[member] = score
+        return added
 
 
 class FakeSession:
@@ -217,6 +231,7 @@ def test_queue_process_job_success_retry_cancel_and_permanent_failure(monkeypatc
         ingestion_queue._vector_store = object()
         checks = []
         enqueued = []
+        scheduled = []
         cleanups = []
 
         async def ensure_current(job_arg):
@@ -234,8 +249,8 @@ def test_queue_process_job_success_retry_cancel_and_permanent_failure(monkeypatc
                 raise RuntimeError("embed failed")
             return (2, 2)
 
-        async def enqueue_again(job_arg):
-            enqueued.append(job_arg.job_id)
+        async def schedule_retry(redis_arg, job_arg, delay):
+            scheduled.append((job_arg.job_id, delay))
 
         async def cleanup(vector_store, collection_name, document_id, **kwargs):
             cleanups.append((collection_name, document_id, kwargs["log_message"]))
@@ -243,7 +258,7 @@ def test_queue_process_job_success_retry_cancel_and_permanent_failure(monkeypatc
         monkeypatch.setattr(ingestion_queue, "_ensure_job_current", ensure_current)
         monkeypatch.setattr(ingestion_queue, "_convert_document", convert)
         monkeypatch.setattr(ingestion_queue, "_chunk_and_embed", chunk)
-        monkeypatch.setattr(ingestion_queue, "enqueue", enqueue_again)
+        monkeypatch.setattr(queue.queue_state, "schedule_retry_job", schedule_retry)
         monkeypatch.setattr(queue, "_delete_document_vectors_after_failure", cleanup)
 
         await ingestion_queue._process_job(0, job(job_id="success"))
@@ -251,7 +266,8 @@ def test_queue_process_job_success_retry_cancel_and_permanent_failure(monkeypatc
         await ingestion_queue._process_job(0, job(job_id="cancel"))
         await ingestion_queue._process_job(0, job(job_id="dead", max_attempts=1))
 
-        assert enqueued == ["retry"]
+        assert enqueued == []
+        assert scheduled == [("retry", 2)]
         assert len(cleanups) == 3
         assert cleanups[-1][2] == "failed to clean up permanently failed vectors"
         assert redis.hashes[(queue.STATS_KEY, "completed")] == 1
@@ -261,5 +277,27 @@ def test_queue_process_job_success_retry_cancel_and_permanent_failure(monkeypatc
         assert "invalidate:docs" in events.completed
         assert len(sessions) >= 5
         assert checks[:2] == ["success", "success"]
+
+    asyncio.run(run())
+
+
+def test_queue_renew_lease_refreshes_processing_lease(monkeypatch) -> None:
+    async def run() -> None:
+        redis = FakeRedis()
+        ingestion_queue = queue.IngestionQueue()
+        ingestion_queue._redis = redis
+        ingestion_queue._running = True
+        monkeypatch.setattr(queue, "_LEASE_RENEW_INTERVAL_SECONDS", 0.01)
+
+        task = asyncio.create_task(ingestion_queue._renew_lease("job"))
+        await asyncio.sleep(0.03)
+        ingestion_queue._running = False
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        assert redis.values[queue._lease_key("job")] == (b"1", queue._LEASE_TTL_SECONDS)
 
     asyncio.run(run())

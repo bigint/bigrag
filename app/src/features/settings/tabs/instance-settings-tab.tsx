@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, RotateCcw, Save, TestTube2, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Save, Trash2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,6 @@ import {
 import {
   useInstanceSettings,
   usePurgeEmbeddingCache,
-  useResetInstanceSettings,
-  useTestInstanceSettings,
   useUpdateInstanceSettings,
 } from "@/hooks/use-instance-settings";
 import { cn } from "@/lib/cn";
@@ -47,12 +45,10 @@ export const InstanceSettingsTab = ({ focusGroup, group, groups }: InstanceSetti
   const targetGroups = useTargetGroups(group, groups);
   const { data, isPending } = useInstanceSettings();
   const save = useUpdateInstanceSettings();
-  const test = useTestInstanceSettings();
-  const reset = useResetInstanceSettings();
   const purgeEmbeddingCache = usePurgeEmbeddingCache();
   const [draft, setDraft] = useInstanceSettingsDraft(data, targetGroups);
   const specsByGroup = useSpecsByGroup(data, targetGroups);
-  const isBusy = isPending || save.isPending || test.isPending || reset.isPending;
+  const isBusy = isPending || save.isPending;
 
   if (isPending) {
     return (
@@ -85,9 +81,7 @@ export const InstanceSettingsTab = ({ focusGroup, group, groups }: InstanceSetti
                 purgeEmbeddingCache.mutate();
               }
             }}
-            onReset={() => reset.mutate(specs.map((spec) => spec.key))}
             onSave={() => save.mutate({ values: valuesForSubmit(specs, draft) })}
-            onTest={() => test.mutate({ values: valuesForSubmit(specs, draft) })}
             purgePending={purgeEmbeddingCache.isPending}
             settingValues={data?.values ?? {}}
             specs={specs}
@@ -152,9 +146,7 @@ const RuntimeSettingsPanel = ({
   isFocused,
   onChange,
   onPurgeEmbeddingCache,
-  onReset,
   onSave,
-  onTest,
   purgePending,
   settingValues,
   specs,
@@ -167,9 +159,7 @@ const RuntimeSettingsPanel = ({
   readonly isFocused: boolean;
   readonly onChange: (key: string, value: DraftValue) => void;
   readonly onPurgeEmbeddingCache: () => void;
-  readonly onReset: () => void;
   readonly onSave: () => void;
-  readonly onTest: () => void;
   readonly purgePending: boolean;
   readonly settingValues: Readonly<Record<string, InstanceSettingValue | undefined>>;
   readonly specs: readonly InstanceSettingSpec[];
@@ -241,9 +231,7 @@ const RuntimeSettingsPanel = ({
             group={group}
             layout={layout}
             onPurgeEmbeddingCache={onPurgeEmbeddingCache}
-            onReset={onReset}
             onSave={onSave}
-            onTest={onTest}
             purgePending={purgePending}
             summary={summary}
           />
@@ -331,9 +319,7 @@ const PanelActions = ({
   group,
   layout,
   onPurgeEmbeddingCache,
-  onReset,
   onSave,
-  onTest,
   purgePending,
   summary,
 }: {
@@ -341,9 +327,7 @@ const PanelActions = ({
   readonly group: InstanceSettingGroup;
   readonly layout: SettingsGroupLayout;
   readonly onPurgeEmbeddingCache: () => void;
-  readonly onReset: () => void;
   readonly onSave: () => void;
-  readonly onTest: () => void;
   readonly purgePending: boolean;
   readonly summary: SettingsStatusSummary;
 }) => (
@@ -358,14 +342,6 @@ const PanelActions = ({
       <Button disabled={disabled} onClick={onSave}>
         <Save className="size-3.5" />
         Save
-      </Button>
-      <Button disabled={disabled} onClick={onTest} variant="outline">
-        <TestTube2 className="size-3.5" />
-        Test
-      </Button>
-      <Button disabled={disabled} onClick={onReset} variant="outline">
-        <RotateCcw className="size-3.5" />
-        Reset
       </Button>
     </div>
     <div className="flex flex-wrap gap-1.5">

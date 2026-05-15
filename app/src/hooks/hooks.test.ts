@@ -481,12 +481,9 @@ describe("admin app hooks", () => {
     const { useDeleteChatConversation } = await import("./use-chat");
     const { useCreateEmbeddingPreset, useDeleteEmbeddingPreset, useUpdateEmbeddingPreset } =
       await import("./use-embedding-presets");
-    const {
-      usePurgeEmbeddingCache,
-      useResetInstanceSettings,
-      useTestInstanceSettings,
-      useUpdateInstanceSettings,
-    } = await import("./use-instance-settings");
+    const { usePurgeEmbeddingCache, useUpdateInstanceSettings } = await import(
+      "./use-instance-settings"
+    );
     const { useCreateMcpServer, useDeleteMcpServer, useRotateMcpServer } = await import(
       "./use-mcp-servers"
     );
@@ -535,23 +532,15 @@ describe("admin app hooks", () => {
     await mutationOptions<{ mutationFn: (body: unknown) => Promise<unknown> }>().mutationFn({
       values: { key: "value" },
     });
+    expect(apiClient.post).toHaveBeenLastCalledWith("v1/admin/settings/test", {
+      values: { key: "value" },
+    });
     expect(apiClient.put).toHaveBeenLastCalledWith("v1/admin/settings", {
       values: { key: "value" },
     });
-
-    useTestInstanceSettings();
-    mutationOptions<{ onSuccess: (result: { message: string }) => void }>().onSuccess({
-      message: "ok",
-    });
-    expect(toast.success).toHaveBeenCalledWith("ok");
-
-    useResetInstanceSettings();
-    await mutationOptions<{ mutationFn: (keys: string[]) => Promise<unknown> }>().mutationFn([
-      "openai_key",
-    ]);
-    expect(apiClient.post).toHaveBeenLastCalledWith("v1/admin/settings/reset", {
-      keys: ["openai_key"],
-    });
+    expect(vi.mocked(apiClient.post).mock.invocationCallOrder.at(-1) ?? 0).toBeLessThan(
+      vi.mocked(apiClient.put).mock.invocationCallOrder.at(-1) ?? 0,
+    );
 
     usePurgeEmbeddingCache();
     await mutationOptions<{ mutationFn: () => Promise<unknown> }>().mutationFn();

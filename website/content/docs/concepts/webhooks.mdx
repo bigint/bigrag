@@ -79,7 +79,7 @@ def verify(payload: bytes, secret: str, signature: str) -> bool:
 
 ## Retry Policy
 
-Failed deliveries retry 3 times with exponential backoff (~10s, ~30s, ~90s). After all retries, the delivery is marked as `failed`.
+Failed deliveries are stored in the delivery outbox before the first attempt. Retries use the configured exponential backoff window and remain `pending` with `next_retry_at` until the next due attempt, so process restarts can resume delivery. After all attempts, the delivery is marked as `failed`.
 
 Check delivery history:
 

@@ -120,4 +120,4 @@ X-BigRAG-Delivery: <delivery-uuid>
 
 ## Retry Policy
 
-Failed deliveries retry 3 times with exponential backoff (~10s, ~30s, ~90s). After all retries, the delivery is marked as `failed`.
+Failed deliveries remain in the delivery outbox as `pending` with `next_retry_at` set for the next attempt. The dispatcher claims due rows, updates `attempts`, and marks the delivery `delivered` or `failed` once the retry budget is exhausted.

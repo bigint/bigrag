@@ -5,7 +5,7 @@ import hashlib
 import hmac
 import secrets
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import orjson
@@ -82,6 +82,7 @@ class WebhookDispatcher:
     def __init__(self) -> None:
         self._client: httpx.AsyncClient | None = None
         self._task: asyncio.Task | None = None
+        self._outbox_task: asyncio.Task | None = None
         self._semaphores: dict[str, asyncio.Semaphore] = {}
 
     def _get_semaphore(self, webhook_id: str) -> asyncio.Semaphore:
@@ -92,6 +93,7 @@ class WebhookDispatcher:
     async def start(self) -> None:
         self._client = httpx.AsyncClient(timeout=_delivery_timeout(), follow_redirects=False)
         self._task = asyncio.create_task(self._listen())
+        self._outbox_task = safe_create_task(self._run_outbox(), name="webhook-outbox")
         logger.info("WebhookDispatcher started")
 
     async def stop(self) -> None:
@@ -101,9 +103,26 @@ class WebhookDispatcher:
                 await self._task
             except asyncio.CancelledError:
                 pass
+        if self._outbox_task:
+            self._outbox_task.cancel()
+            try:
+                await self._outbox_task
+            except asyncio.CancelledError:
+                pass
         if self._client:
             await self._client.aclose()
         logger.info("WebhookDispatcher stopped")
+
+    async def _run_outbox(self) -> None:
+        while True:
+            try:
+                processed = await self.process_due_deliveries(limit=10)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.error("webhook outbox failed", error=repr(exc))
+                processed = 0
+            await asyncio.sleep(1 if processed else 5)
 
     async def _get_webhooks(self) -> list[dict]:
         import sqlalchemy as sa
@@ -199,135 +218,190 @@ class WebhookDispatcher:
         return orjson.dumps(data).decode()
 
     async def _deliver(self, webhook: dict, event: str, payload: str) -> None:
-
-        import sqlalchemy as sa
-
         from bigrag.db.engine import session_factory
         from bigrag.db.models import WebhookDelivery
 
         webhook_id = webhook["id"]
         wh_id_uuid = uuid.UUID(webhook_id) if isinstance(webhook_id, str) else webhook_id
-        wh_id_str = str(webhook_id)
-        sem = self._get_semaphore(wh_id_str)
+        delivery_id = uuid.uuid4()
+
+        async with session_factory()() as session:
+            session.add(
+                WebhookDelivery(
+                    id=delivery_id,
+                    webhook_id=wh_id_uuid,
+                    event=event,
+                    payload=orjson.loads(payload),
+                    status="pending",
+                )
+            )
+            await session.commit()
+
+        await self.process_due_deliveries(delivery_id=delivery_id, limit=1)
+
+    async def process_due_deliveries(
+        self,
+        *,
+        delivery_id: uuid.UUID | None = None,
+        limit: int = 25,
+    ) -> int:
+        import sqlalchemy as sa
+
+        from bigrag.db.engine import session_factory
+        from bigrag.db.models import Webhook, WebhookDelivery
+
+        retry_delays = _retry_delays()
+        max_attempts = len(retry_delays) + 1
+        claim_seconds = max(max(_delivery_timeout(), 1) * 2, 60)
+
+        async with session_factory()() as session:
+            stmt = (
+                sa.select(WebhookDelivery, Webhook)
+                .join(Webhook, Webhook.id == WebhookDelivery.webhook_id)
+                .where(WebhookDelivery.status == "pending")
+                .where(
+                    sa.or_(
+                        WebhookDelivery.next_retry_at.is_(None),
+                        WebhookDelivery.next_retry_at <= sa.func.now(),
+                    )
+                )
+                .order_by(WebhookDelivery.created_at.asc())
+                .limit(limit)
+                .with_for_update(skip_locked=True)
+            )
+            if delivery_id is not None:
+                stmt = stmt.where(WebhookDelivery.id == delivery_id)
+            rows = (await session.execute(stmt)).all()
+            work = []
+            for delivery, webhook in rows:
+                attempt = int(delivery.attempts or 0) + 1
+                delivery.attempts = attempt
+                delivery.next_retry_at = datetime.now(UTC) + timedelta(seconds=claim_seconds)
+                work.append(
+                    {
+                        "attempt": attempt,
+                        "delivery_id": delivery.id,
+                        "event": delivery.event,
+                        "payload": orjson.dumps(delivery.payload).decode(),
+                        "webhook": {
+                            "id": webhook.id,
+                            "url": webhook.url,
+                            "secret": webhook.secret,
+                        },
+                    }
+                )
+            await session.commit()
+
+        for item in work:
+            await self._attempt_delivery(
+                item["webhook"],
+                item["event"],
+                item["payload"],
+                item["delivery_id"],
+                item["attempt"],
+                retry_delays,
+                max_attempts,
+            )
+        return len(work)
+
+    async def _attempt_delivery(
+        self,
+        webhook: dict,
+        event: str,
+        payload: str,
+        delivery_id: uuid.UUID,
+        attempt: int,
+        retry_delays: list[int],
+        max_attempts: int,
+    ) -> None:
+        import sqlalchemy as sa
+
+        from bigrag.db.engine import session_factory
+        from bigrag.db.models import WebhookDelivery
+
+        webhook_id = str(webhook["id"])
+        sem = self._get_semaphore(webhook_id)
+        last_error = None
+        last_status_code = None
+        delivered = False
+        terminal = False
 
         async with sem:
-            delivery_id = uuid.uuid4()
-            secret = webhook["secret"]
+            try:
+                from bigrag.models.webhook import resolve_and_validate_url
 
-            async with session_factory()() as session:
-                session.add(
-                    WebhookDelivery(
-                        id=delivery_id,
-                        webhook_id=wh_id_uuid,
-                        event=event,
-                        payload=orjson.loads(payload),
-                        status="pending",
-                    )
-                )
-                await session.commit()
+                await resolve_and_validate_url(webhook["url"])
+                timestamp = str(int(datetime.now(UTC).timestamp()))
+                signature = compute_signature(payload, webhook["secret"], timestamp)
+                headers = {
+                    "Content-Type": "application/json",
+                    "X-BigRAG-Signature": signature,
+                    "X-BigRAG-Timestamp": timestamp,
+                    "X-BigRAG-Event": event,
+                    "X-BigRAG-Delivery": str(delivery_id),
+                    "User-Agent": "bigrag-webhooks/1.0",
+                }
+                response = await self._post(webhook["url"], payload, headers)
+                last_status_code = response.status_code
+                delivered = 200 <= response.status_code < 300
+                if not delivered:
+                    last_error = f"HTTP {response.status_code}"
+            except ValueError as exc:
+                last_error = f"Blocked: {exc}"
+                terminal = True
+            except Exception as exc:
+                last_error = str(exc)
 
-            timestamp = str(int(datetime.now(UTC).timestamp()))
-            signature = compute_signature(payload, secret, timestamp)
-            headers = {
-                "Content-Type": "application/json",
-                "X-BigRAG-Signature": signature,
-                "X-BigRAG-Timestamp": timestamp,
-                "X-BigRAG-Event": event,
-                "X-BigRAG-Delivery": str(delivery_id),
-                "User-Agent": "bigrag-webhooks/1.0",
+        terminal = terminal or delivered or attempt >= max_attempts
+        if delivered:
+            values = {
+                "status": "delivered",
+                "last_status_code": last_status_code,
+                "last_error": None,
+                "next_retry_at": None,
+                "completed_at": sa.func.now(),
+            }
+        elif terminal:
+            values = {
+                "status": "failed",
+                "last_status_code": last_status_code,
+                "last_error": last_error,
+                "next_retry_at": None,
+                "completed_at": sa.func.now(),
+            }
+        else:
+            delay = _jittered_delay(retry_delays[attempt - 1])
+            logger.warning(
+                "webhook delivery failed",
+                webhook=webhook_id,
+                webhook_event=event,
+                delivery=str(delivery_id),
+                attempt=attempt,
+                error=last_error,
+                retrying_in=round(delay, 1),
+            )
+            values = {
+                "last_status_code": last_status_code,
+                "last_error": last_error,
+                "next_retry_at": datetime.now(UTC) + timedelta(seconds=int(delay)),
             }
 
-            last_error = None
-            last_status_code = None
+        async with session_factory()() as session:
+            await session.execute(
+                sa.update(WebhookDelivery).where(WebhookDelivery.id == delivery_id).values(**values)
+            )
+            await session.commit()
 
-            retry_delays = _retry_delays()
-            attempts_done = 0
-            for attempt in range(1, len(retry_delays) + 2):
-                attempts_done = attempt
-                try:
-                    from bigrag.models.webhook import resolve_and_validate_url
-
-                    await resolve_and_validate_url(webhook["url"])
-                    response = await self._client.post(
-                        webhook["url"],
-                        content=payload,
-                        headers=headers,
-                    )
-                    last_status_code = response.status_code
-
-                    if 200 <= response.status_code < 300:
-                        async with session_factory()() as session:
-                            await session.execute(
-                                sa.update(WebhookDelivery)
-                                .where(WebhookDelivery.id == delivery_id)
-                                .values(
-                                    status="delivered",
-                                    attempts=attempt,
-                                    last_status_code=last_status_code,
-                                    completed_at=sa.func.now(),
-                                )
-                            )
-                            await session.commit()
-                        logger.info(
-                            "webhook delivered",
-                            webhook=webhook_id,
-                            webhook_event=event,
-                            delivery=str(delivery_id),
-                            attempt=attempt,
-                            status=last_status_code,
-                        )
-                        return
-
-                    last_error = f"HTTP {response.status_code}"
-
-                except ValueError as exc:
-                    last_error = f"Blocked: {exc}"
-                    break
-                except Exception as exc:
-                    last_error = str(exc)
-
-                retry_index = attempt - 1
-                if retry_index < len(retry_delays):
-                    delay = _jittered_delay(retry_delays[retry_index])
-                    logger.warning(
-                        "webhook delivery failed",
-                        webhook=webhook_id,
-                        webhook_event=event,
-                        delivery=str(delivery_id),
-                        attempt=attempt,
-                        error=last_error,
-                        retrying_in=round(delay, 1),
-                    )
-                    async with session_factory()() as session:
-                        await session.execute(
-                            sa.update(WebhookDelivery)
-                            .where(WebhookDelivery.id == delivery_id)
-                            .values(
-                                attempts=attempt,
-                                last_status_code=last_status_code,
-                                last_error=last_error,
-                                next_retry_at=sa.func.now()
-                                + sa.text("make_interval(secs => :s)").bindparams(s=int(delay)),
-                            )
-                        )
-                        await session.commit()
-                    await asyncio.sleep(delay)
-                else:
-                    break
-
-            async with session_factory()() as session:
-                await session.execute(
-                    sa.update(WebhookDelivery)
-                    .where(WebhookDelivery.id == delivery_id)
-                    .values(
-                        status="failed",
-                        attempts=attempts_done,
-                        last_status_code=last_status_code,
-                        last_error=last_error,
-                        completed_at=sa.func.now(),
-                    )
-                )
-                await session.commit()
+        if delivered:
+            logger.info(
+                "webhook delivered",
+                webhook=webhook_id,
+                webhook_event=event,
+                delivery=str(delivery_id),
+                attempt=attempt,
+                status=last_status_code,
+            )
+        elif terminal:
             logger.error(
                 "webhook delivery permanently failed",
                 webhook=webhook_id,
@@ -335,6 +409,12 @@ class WebhookDispatcher:
                 delivery=str(delivery_id),
                 error=last_error,
             )
+
+    async def _post(self, url: str, payload: str, headers: dict[str, str]) -> httpx.Response:
+        if self._client is not None:
+            return await self._client.post(url, content=payload, headers=headers)
+        async with httpx.AsyncClient(timeout=_delivery_timeout(), follow_redirects=False) as client:
+            return await client.post(url, content=payload, headers=headers)
 
     async def deliver_once(self, webhook: dict, event: str, payload: str) -> dict:
 

@@ -88,6 +88,6 @@ describe("settings layout", () => {
         secrets: 2,
         total: 7,
       }),
-    ).toBe("Add the missing credentials, save, then test the connection.");
+    ).toBe("Add the missing credentials, then save the connection.");
   });
 });

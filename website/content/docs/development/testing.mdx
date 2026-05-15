@@ -60,7 +60,7 @@ The docs package runs `fumadocs-mdx` before `next build`, so a clean checkout or
 
 Backend route tests should use dependency overrides and fake service/session objects unless the scenario is specifically testing live infrastructure integration.
 
-Ingestion queue tests should stay dependency-free by default. Cover Redis state helpers, conversion helpers, embedding/vector payload behavior, and orchestration regressions with fake Redis, storage, embedding, and vector-store objects unless a test explicitly opts into live infrastructure.
+Ingestion queue tests should stay dependency-free by default. Cover Redis state helpers, delayed retry promotion, processing leases, conversion helpers, embedding/vector payload behavior, and orchestration regressions with fake Redis, storage, embedding, and vector-store objects unless a test explicitly opts into live infrastructure.
 
 Managed vector-store adapters should cover the provider-specific request shape with fake clients. When changing turbopuffer semantics, add a live smoke only when credentials are available and keep it isolated to disposable namespaces.
 
