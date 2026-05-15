@@ -45,6 +45,11 @@ type UploadSessionParams = {
   readonly id: string | null;
 };
 
+type AuditListParams = {
+  readonly limit: number;
+  readonly offset: number;
+};
+
 export const queryKeys = {
   auth: {
     all: () => ["auth"] as const,
@@ -58,7 +63,7 @@ export const queryKeys = {
     overview: ({ windowDays }: WindowDaysParams) => ["access", "overview", { windowDays }] as const,
   },
   audit: {
-    recent: () => ["audit", "recent"] as const,
+    list: ({ limit, offset }: AuditListParams) => ["audit", "list", { limit, offset }] as const,
   },
   mcpServers: () => ["mcp-servers"] as const,
   webhooks: () => ["webhooks"] as const,

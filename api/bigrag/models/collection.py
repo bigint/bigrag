@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
+
+VectorStoreProvider = Literal["qdrant", "turbopuffer"]
 
 
 class CreateCollectionRequest(BaseModel):
     name: str = Field(min_length=1, max_length=128, pattern=r"^[a-zA-Z][a-zA-Z0-9_]*$")
     description: str = ""
     embedding_preset_id: str | None = None
+    vector_store_provider: VectorStoreProvider = "qdrant"
     embedding_provider: str | None = None
     embedding_model: str | None = None
     embedding_api_key: str | None = None
@@ -77,6 +81,7 @@ class CollectionResponse(BaseModel):
     description: str
     embedding_provider: str
     embedding_model: str
+    vector_store_provider: VectorStoreProvider
     dimension: int
     chunk_size: int
     chunk_overlap: int

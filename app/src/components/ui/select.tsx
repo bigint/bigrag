@@ -106,11 +106,11 @@ export const Select = ({
             <BaseSelect.List>
               {options.map((option) => (
                 <BaseSelect.Item
-                  className="flex w-full cursor-default select-none items-center gap-2 rounded-md px-3 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
+                  className="relative flex w-full cursor-default select-none items-center gap-2 rounded-md px-3 py-2 pr-8 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
                   key={option.value}
                   value={option.value}
                 >
-                  <BaseSelect.ItemIndicator className="inline-flex size-4 shrink-0 items-center justify-center">
+                  <BaseSelect.ItemIndicator className="absolute right-3 inline-flex size-4 items-center justify-center">
                     <CheckIcon />
                   </BaseSelect.ItemIndicator>
                   {option.icon}
