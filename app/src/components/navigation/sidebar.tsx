@@ -7,6 +7,7 @@ import {
   BookOpen,
   Cloud,
   Cpu,
+  Database,
   FlaskConical,
   KeyRound,
   LayoutDashboard,
@@ -43,6 +44,7 @@ const NAV_ITEMS: NavItem[] = [
   { admin: true, href: "/webhooks", icon: Webhook, label: "Webhooks" },
   { admin: true, href: "/connectors", icon: Cloud, label: "Connectors" },
   { admin: true, href: "/backups", icon: Archive, label: "Backups" },
+  { admin: true, href: "/vector-storage", icon: Database, label: "Vector Storage" },
   { admin: true, href: "/settings", icon: Settings, label: "Settings" },
 ];
 

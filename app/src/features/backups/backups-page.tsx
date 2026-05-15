@@ -24,11 +24,6 @@ export const BackupsPage = () => {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        actions={
-          <Badge variant={backups.streaming ? "success" : "neutral"} dot>
-            {backups.streaming ? "live" : "polling"}
-          </Badge>
-        }
         className="mb-0"
         description="Configure the readable backup destination and export full-instance snapshots to S3-compatible storage."
         title="Backups"

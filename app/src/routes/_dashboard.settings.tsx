@@ -212,6 +212,10 @@ const useRedirectLegacySettingsTab = (
       navigate({ to: "/backups", replace: true });
       return;
     }
+    if (requestedTab === "vector_store") {
+      navigate({ to: "/vector-storage", replace: true });
+      return;
+    }
     if (requestedTab === "usage") {
       navigate({ to: "/usage", replace: true });
       return;

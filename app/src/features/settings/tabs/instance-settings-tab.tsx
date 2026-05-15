@@ -566,7 +566,6 @@ const SettingBadges = ({
     <Badge variant={setting?.source === "database" ? "primary" : "neutral"}>
       {setting?.source ?? "default"}
     </Badge>
-    <Badge variant="success">live</Badge>
     {spec.secret && <Badge variant="neutral">secret</Badge>}
   </div>
 );

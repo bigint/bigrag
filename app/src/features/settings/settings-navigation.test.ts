@@ -29,11 +29,13 @@ describe("settings navigation", () => {
 
   it("maps old registry deep links into the redesigned areas", () => {
     expect(getSettingsTab("server")).toBe("health");
-    expect(getSettingsTab("vector_store")).toBe("data");
+    expect(getSettingsTab("storage")).toBe("data");
+    expect(getSettingsTab("vector_store")).toBe(DEFAULT_SETTINGS_TAB);
     expect(getSettingsTab("models")).toBe(DEFAULT_SETTINGS_TAB);
     expect(getSettingsTab("search")).toBe(DEFAULT_SETTINGS_TAB);
     expect(getSettingsTab("chat")).toBe(DEFAULT_SETTINGS_TAB);
-    expect(getSettingsFocusGroup("vector_store")).toBe("vector_store");
+    expect(getSettingsFocusGroup("storage")).toBe("storage");
+    expect(getSettingsFocusGroup("vector_store")).toBeUndefined();
     expect(getSettingsFocusGroup("chat")).toBeUndefined();
   });
 
@@ -44,6 +46,7 @@ describe("settings navigation", () => {
     expect(SETTINGS_NAV_ITEMS.map((item) => item.value)).not.toContain("models");
     expect(SETTINGS_NAV_ITEMS.map((item) => item.value)).not.toContain("usage");
     expect(SETTINGS_NAV_ITEMS.map((item) => item.value)).not.toContain("audit");
+    expect(SETTINGS_NAV_ITEMS.map((item) => item.value)).not.toContain("vector_store");
     expect(getSettingsNavItem("backups").value).toBe(DEFAULT_SETTINGS_TAB);
     expect(getSettingsNavItem("unknown").value).toBe(DEFAULT_SETTINGS_TAB);
   });
@@ -51,12 +54,13 @@ describe("settings navigation", () => {
   it("formats mobile section labels", () => {
     expect(settingsSectionLabel("security")).toBe("Operate / Security");
     expect(settingsSectionLabel("connectors")).toBe("Personal / Account");
-    expect(settingsAliasLabel("vector_store")).toBe("Vector store");
+    expect(settingsAliasLabel("storage")).toBe("File storage");
   });
 
   it("groups detailed runtime sections into the data workspace", () => {
     expect(DATA_SETTINGS_GROUPS).toContain("storage");
     expect(DATA_SETTINGS_GROUPS).toContain("retention");
     expect(DATA_SETTINGS_GROUPS).toContain("webhooks");
+    expect(DATA_SETTINGS_GROUPS).not.toContain("vector_store");
   });
 });

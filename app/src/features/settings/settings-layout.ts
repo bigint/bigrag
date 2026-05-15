@@ -159,11 +159,11 @@ export const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupL
       "turbopuffer_region",
     ],
     description: "Instance-level vector backend and provider credentials.",
-    emptyState: "Vector store settings are not available from this API.",
+    emptyState: "Vector storage settings are not available from this API.",
     eyebrow: "Indexes",
     group: "vector_store",
     recommendedAction: "Pick one provider, complete its credentials, then test before saving.",
-    title: "Vector store",
+    title: "Vector storage",
   },
   webhooks: {
     commonKeys: ["webhook_delivery_timeout", "webhook_retry_delays", "webhook_max_count"],

@@ -45,7 +45,7 @@ export const SETTINGS_NAV_GROUPS: readonly SettingsNavGroup[] = [
         value: "security",
       },
       {
-        description: "Storage, vector indexes, ingestion, queues, webhooks, and retention.",
+        description: "File storage, ingestion, queues, webhooks, and retention.",
         icon: Database,
         label: "Data",
         value: "data",
@@ -65,7 +65,6 @@ const SETTINGS_TAB_ALIASES: Readonly<Record<string, SettingsTab>> = {
   retention: "data",
   server: "health",
   storage: "data",
-  vector_store: "data",
   webhooks: "data",
 };
 
@@ -75,13 +74,11 @@ const SETTINGS_FOCUS_GROUPS: Readonly<Record<string, InstanceSettingGroup>> = {
   retention: "retention",
   security: "security",
   storage: "storage",
-  vector_store: "vector_store",
   webhooks: "webhooks",
 };
 
 export const DATA_SETTINGS_GROUPS: readonly InstanceSettingGroup[] = [
   "storage",
-  "vector_store",
   "ingestion",
   "queue",
   "retention",
@@ -127,7 +124,7 @@ export const settingsAliasLabel = (value: string): string => {
     search: "Embedding and search",
     security: "Security",
     storage: "File storage",
-    vector_store: "Vector store",
+    vector_store: "Vector storage",
     webhooks: "Webhooks",
   };
   return labels[focusGroup];

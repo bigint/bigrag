@@ -11,6 +11,7 @@ describe("sidebar navigation", () => {
     expect(labels).not.toContain("Audit");
     expect(labels).not.toContain("Connectors");
     expect(labels).not.toContain("Backups");
+    expect(labels).not.toContain("Vector Storage");
     expect(labels).not.toContain("Settings");
   });
 
@@ -21,19 +22,23 @@ describe("sidebar navigation", () => {
     expect(labels).toContain("Audit");
     expect(labels).toContain("Connectors");
     expect(labels).toContain("Backups");
+    expect(labels).toContain("Vector Storage");
     expect(labels.indexOf("Usage")).toBeGreaterThan(labels.indexOf("Access Logs"));
     expect(labels.indexOf("Audit")).toBeGreaterThan(labels.indexOf("Usage"));
     expect(labels.indexOf("Connectors")).toBeGreaterThan(labels.indexOf("Webhooks"));
     expect(labels.indexOf("Backups")).toBeGreaterThan(labels.indexOf("Connectors"));
+    expect(labels.indexOf("Vector Storage")).toBeGreaterThan(labels.indexOf("Backups"));
     expect(labels.indexOf("Usage")).toBeLessThan(labels.indexOf("Settings"));
     expect(labels.indexOf("Audit")).toBeLessThan(labels.indexOf("Settings"));
     expect(labels.indexOf("Connectors")).toBeLessThan(labels.indexOf("Settings"));
     expect(labels.indexOf("Backups")).toBeLessThan(labels.indexOf("Settings"));
+    expect(labels.indexOf("Vector Storage")).toBeLessThan(labels.indexOf("Settings"));
   });
 
   it("matches active routes by exact path or descendants", () => {
     expect(isSidebarItemActive("/connectors", "/connectors")).toBe(true);
     expect(isSidebarItemActive("/connectors/google", "/connectors")).toBe(true);
     expect(isSidebarItemActive("/collections/docs/connectors", "/connectors")).toBe(false);
+    expect(isSidebarItemActive("/vector-storage", "/vector-storage")).toBe(true);
   });
 });

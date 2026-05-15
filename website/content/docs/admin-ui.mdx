@@ -1,6 +1,6 @@
 ---
 title: Admin UI
-description: Setup, collections, chat, connectors, API keys, usage, audit, webhooks, backups, and settings.
+description: Setup, collections, chat, connectors, API keys, usage, audit, webhooks, vector storage, backups, and settings.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
@@ -30,7 +30,7 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/collections/[name]` | Redirects to the collection's documents tab. |
 | `/collections/[name]/documents` | Upload files or folders through resumable upload sessions, list, inspect status, and delete documents. |
 | `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, SSE progress, failed-ingest error, reprocess, and delete. |
-| `/collections/[name]/connectors` | Redirects to the collection's connector tabs. |
+| `/collections/[name]/connectors` | Redirects to the first available collection connector from the provider catalog. |
 | `/collections/[name]/connectors/google-drive` | Browse Google Drive, sync selected files/folders, monitor Drive sync progress, trigger manual resync, and manage sync schedules. |
 | `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, and rerank when enabled. |
 | `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
@@ -42,9 +42,10 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/usage` | Usage and cost explorer for requests, indexed data, tokens, and estimated embedding spend. |
 | `/audit` | Immutable admin audit trail with actor, action, resource, IP, and timestamp details. |
 | `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. |
-| `/connectors` | Configure OAuth provider credentials and account state for external source connectors. |
+| `/connectors` | Browse the provider catalog, configure connector credentials, and review account state. |
 | `/backups` | Configure readable backup storage, start full-instance exports, and monitor backup history. |
-| `/settings` | Operator-console settings workspace for account, platform, data, and runtime sections. |
+| `/vector-storage` | Configure the instance-level Qdrant or turbopuffer vector backend and validate provider credentials. |
+| `/settings` | Operator-console settings workspace for account, platform, and data sections. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
 Unknown admin routes render the built-in 404 screen with links back to overview and collections. Unexpected route render failures use the admin 500 screen with a retry action and an overview fallback.
@@ -53,13 +54,15 @@ Unknown admin routes render the built-in 404 screen with links back to overview 
 
 The `/models` page owns reusable embedding presets and runtime model settings. `/models` opens embedding presets by default; `/models?tab=settings` opens fallback embedding, retrieval, and chat settings; `/models?tab=settings&group=search` and `/models?tab=settings&group=chat` focus one model settings panel.
 
-The `/connectors` page owns provider credentials and account state through `GET /v1/admin/connectors/{provider}`, `GET /v1/connectors/{provider}/account`, `PUT /v1/admin/connectors/{provider}`, and `POST /v1/connectors/{provider}/disconnect`. The collection connector pages remain scoped to browsing, source selection, sync schedules, and sync-job progress.
+The `/connectors` page renders provider tabs above the selected provider setup panel. It owns provider credentials and account state through `GET /v1/admin/connectors/{provider}`, `GET /v1/connectors/{provider}/account`, `PUT /v1/admin/connectors/{provider}`, and `POST /v1/connectors/{provider}/disconnect`. The collection connector pages read from the same provider catalog while staying scoped to browsing, source selection, sync schedules, and sync-job progress.
 
-The `/backups` page combines backup destination settings with `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups`, and `POST /v1/admin/backups` so backup operations stay out of the general Settings workspace. Usage and audit also live as first-class sidebar pages at `/usage` and `/audit`.
+The `/backups` page combines backup destination settings with `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups`, and `POST /v1/admin/backups` so backup operations stay out of the general Settings workspace. Usage, audit, and vector storage also live as first-class sidebar pages at `/usage`, `/audit`, and `/vector-storage`.
 
-The settings page is a task-oriented operator workspace. It groups the old runtime registry into four areas: Account, Health, Security, and Data. Common controls appear first with a recommended next action; raw setting keys, source metadata, live-apply markers, and rarely changed limits stay inside each area's Advanced controls.
+The `/vector-storage` page owns instance-level vector backend settings for Qdrant and turbopuffer through `GET /admin/settings`, `PUT /admin/settings`, `POST /admin/settings/test`, and `POST /admin/settings/reset`.
 
-Existing deep links keep working. Legacy values such as `/settings?tab=server`, `/settings?tab=vector_store`, and `/settings?tab=storage` open the matching redesigned Settings area while focusing the relevant runtime panel. Legacy model values such as `/settings?tab=models`, `/settings?tab=search`, and `/settings?tab=chat` redirect to the Models runtime settings tab.
+The settings page is a task-oriented operator workspace. It groups the old runtime registry into four areas: Account, Health, Security, and Data. Common controls appear first with a recommended next action; raw setting keys, source metadata, and rarely changed limits stay inside each area's Advanced controls.
+
+Existing deep links keep working. Legacy values such as `/settings?tab=server` and `/settings?tab=storage` open the matching redesigned Settings area while focusing the relevant runtime panel. `/settings?tab=vector_store` redirects to `/vector-storage`. Legacy model values such as `/settings?tab=models`, `/settings?tab=search`, and `/settings?tab=chat` redirect to the Models runtime settings tab.
 
 Older `/settings?tab=backups`, `/settings?tab=usage`, `/settings?tab=audit`, and `/settings?tab=connectors` links redirect to `/backups`, `/usage`, `/audit`, and `/connectors`.
 
@@ -69,6 +72,7 @@ Older `/settings?tab=backups`, `/settings?tab=usage`, `/settings?tab=audit`, and
 | **Operate** | Health | `GET /health/ready`, `GET /v1/admin/realtime/platform/readiness` | — |
 | **Operate** | Security | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset`, `POST /admin/settings/embedding-cache/purge` |
 | **Operate** | Data | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
+| **Operate** | Vector Storage | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
 
 ## Realtime updates
 
