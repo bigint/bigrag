@@ -1,21 +1,25 @@
-import { ArrowRight, CheckCircle2, FileText, Search, Server, Zap } from "lucide-react";
+import { ArrowRight, Zap } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { GitHubIcon } from "../icons";
 
-const pipelineSteps = [
-  { label: "Upload", value: "policy-handbook.pdf", icon: FileText },
-  { label: "Parse", value: "248 chunks with page metadata", icon: CheckCircle2 },
-  { label: "Embed", value: "OpenAI text-embedding-3-large", icon: Server },
-  { label: "Query", value: "Hybrid search with citations", icon: Search },
-];
-
 export const Hero = () => (
-  <section className="relative overflow-hidden border-b border-fd-border">
-    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,hsla(0,0%,0%,0.025)_1px,transparent_1px),linear-gradient(to_bottom,hsla(0,0%,0%,0.025)_1px,transparent_1px)] bg-[size:4rem_4rem]" />
+  <section className="relative overflow-hidden border-b border-fd-border bg-fd-background">
+    <Image
+      alt=""
+      aria-hidden="true"
+      className="absolute inset-0 size-full object-cover object-center"
+      fill
+      priority
+      sizes="100vw"
+      src="/home/bengaluru-hero.webp"
+    />
+    <div className="absolute inset-0 bg-gradient-to-b from-fd-background via-fd-background/80 to-fd-background/10 md:bg-gradient-to-r" />
+    <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-fd-background to-transparent" />
 
-    <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 md:py-24 lg:grid-cols-[minmax(0,0.95fr)_minmax(440px,1fr)] lg:py-28">
-      <div>
-        <div className="mb-6 inline-flex items-center gap-2 rounded-md border border-fd-border bg-fd-card px-3 py-1.5 text-[13px] text-fd-muted-foreground shadow-sm">
+    <div className="relative mx-auto max-w-6xl px-6 py-20 md:py-24 lg:py-28">
+      <div className="max-w-2xl">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-md border border-fd-border/80 bg-fd-background/85 px-3 py-1.5 text-[13px] text-fd-muted-foreground shadow-sm backdrop-blur">
           <Zap className="size-3.5" />
           Open-source &middot; Self-hosted &middot; Full control
         </div>
@@ -46,47 +50,6 @@ export const Hero = () => (
             <GitHubIcon className="size-4" />
             Star on GitHub
           </Link>
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-fd-border bg-fd-card shadow-sm">
-        <div className="border-b border-fd-border bg-fd-background px-5 py-4">
-          <div className="text-xs font-medium uppercase tracking-widest text-fd-muted-foreground">
-            Live retrieval flow
-          </div>
-          <div className="mt-2 text-lg font-semibold text-fd-foreground">
-            Ask across policy-handbook.pdf
-          </div>
-        </div>
-        <div className="grid gap-px bg-fd-border sm:grid-cols-2">
-          {pipelineSteps.map(({ icon: Icon, label, value }) => (
-            <div className="bg-fd-card p-5" key={label}>
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-fd-muted-foreground">
-                <Icon className="size-3.5 text-fd-foreground" />
-                {label}
-              </div>
-              <div className="mt-2 text-sm font-medium text-fd-foreground">{value}</div>
-            </div>
-          ))}
-        </div>
-        <div className="space-y-4 bg-fd-background p-5">
-          <div className="rounded-lg border border-fd-border bg-fd-card p-4">
-            <div className="text-sm font-medium text-fd-foreground">
-              What is the PTO carryover policy?
-            </div>
-            <div className="mt-3 text-sm leading-6 text-fd-muted-foreground">
-              Employees can carry over up to 40 PTO hours into the next calendar year, with unused
-              excess paid out at year end.
-            </div>
-          </div>
-          <div className="grid gap-2 text-xs text-fd-muted-foreground sm:grid-cols-2">
-            <div className="rounded-md border border-fd-border bg-fd-card px-3 py-2">
-              [1] policy-handbook.pdf, page 12
-            </div>
-            <div className="rounded-md border border-fd-border bg-fd-card px-3 py-2">
-              score 0.91 &middot; hybrid
-            </div>
-          </div>
         </div>
       </div>
     </div>

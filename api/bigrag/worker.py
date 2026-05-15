@@ -35,11 +35,12 @@ def cli(argv: list[str] | None = None) -> int:
         str(args.processes),
         "--threads",
         str(args.threads),
+        "bigrag.services.jobs.actors:broker",
     ]
     if args.queues:
         dramatiq_args.extend(["--queues", *args.queues])
-    dramatiq_args.append("bigrag.services.jobs.actors:broker")
-    return int(dramatiq.cli.main(dramatiq_args) or 0)
+    dramatiq_namespace = dramatiq.cli.make_argument_parser().parse_args(dramatiq_args)
+    return int(dramatiq.cli.main(dramatiq_namespace) or 0)
 
 
 if __name__ == "__main__":
