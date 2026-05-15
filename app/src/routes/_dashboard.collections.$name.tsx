@@ -2,6 +2,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-r
 import { ArrowLeft, Layers, type Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { LinkTabs } from "@/components/ui/tabs";
 import { useCollection, useCollectionStats } from "@/hooks/use-collections";
 import { formatBytes, formatNumber } from "@/lib/format";
@@ -26,7 +27,7 @@ const CollectionLayout = () => {
   ].map((t) => ({ ...t, active: pathname === t.href || pathname.startsWith(`${t.href}/`) }));
 
   return (
-    <div className="flex flex-col gap-6">
+    <PageShell>
       <Link
         to="/collections"
         className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
@@ -36,6 +37,7 @@ const CollectionLayout = () => {
       </Link>
 
       <PageHeader
+        className="mb-0"
         eyebrow="Collection"
         title={name}
         description={collection?.description || "No description set."}
@@ -67,7 +69,7 @@ const CollectionLayout = () => {
       <div>
         <Outlet />
       </div>
-    </div>
+    </PageShell>
   );
 };
 

@@ -83,8 +83,8 @@ describe("instance settings helpers", () => {
       ),
     ).toBe("Saved");
     expect(
-      settingPlaceholder(spec({ default: [], kind: "string_list", key: "cors_origins" })),
-    ).toBe("https://app.example.com");
+      settingPlaceholder(spec({ default: [], kind: "string_list", key: "trusted_proxies" })),
+    ).toBe("10.0.0.0/8");
     expect(
       settingPlaceholder(
         spec({ default: null, kind: "int", key: "qdrant_search_ef", max: 10000, min: 1 }),

@@ -67,6 +67,17 @@ export const DATA_SETTINGS_GROUPS: readonly InstanceSettingGroup[] = [
   "webhooks",
 ];
 
+export const SECURITY_SETTINGS_KEYS: readonly string[] = [
+  "trusted_proxies",
+  "embedding_cache_mode",
+  "allowed_embedding_base_urls",
+  "allow_private_embedding_base_urls",
+  "allowed_chat_base_urls",
+  "allow_private_chat_base_urls",
+  "allow_local_webhooks",
+  "allow_public_bind_in_prod",
+];
+
 export const isSettingsTab = (value: string | undefined): value is SettingsTab =>
   Boolean(value && SETTINGS_TAB_VALUES.has(value as SettingsTab));
 

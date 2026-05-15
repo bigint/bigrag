@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Tabs } from "@/components/ui/tabs";
@@ -81,7 +82,7 @@ export const ConnectorsPage = () => {
   const setProviderTab = (value: string) => setSelectedProviderId(value as ConnectorProviderId);
 
   return (
-    <div className="flex flex-col gap-5">
+    <PageShell>
       <PageHeader
         className="mb-0"
         description="Manage provider credentials, account state, and collection source access from one connector catalog."
@@ -118,7 +119,7 @@ export const ConnectorsPage = () => {
           <PlannedConnectorPanel provider={selectedProvider} />
         )}
       </section>
-    </div>
+    </PageShell>
   );
 };
 

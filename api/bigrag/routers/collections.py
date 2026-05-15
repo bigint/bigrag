@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from uuid import UUID
 
+import httpx
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
@@ -62,6 +63,75 @@ async def _verify_embedding_credentials(
             status_code=422,
             detail=f"Embedding provider rejected the API key: {exc.message}",
         ) from exc
+
+
+def _vector_store_unavailable_detail(provider: str) -> str:
+    if provider == "turbopuffer":
+        return (
+            "turbopuffer is not configured. Save a turbopuffer API key in Vector Storage "
+            "before creating a turbopuffer collection."
+        )
+    return f"{provider} vector store is not configured."
+
+
+def _ensure_vector_store_provider_available(provider: str) -> None:
+    if provider in vector_store.configured_providers:
+        return
+    raise HTTPException(
+        status_code=400,
+        detail=_vector_store_unavailable_detail(provider),
+    )
+
+
+async def _create_vector_store_collection(
+    body: CreateCollectionRequest,
+    dimension: int,
+) -> None:
+    _ensure_vector_store_provider_available(body.vector_store_provider)
+    try:
+        await vector_store.create_collection(
+            body.name,
+            dimension,
+            index_type=body.index_type,
+            tenant_field=body.tenant_field,
+            provider=body.vector_store_provider,
+        )
+    except RuntimeError as e:
+        message = str(e)
+        if "API key is not configured" in message or "client is not connected" in message:
+            raise HTTPException(
+                status_code=400,
+                detail=_vector_store_unavailable_detail(body.vector_store_provider),
+            ) from e
+        logger.warning(
+            "vector collection create failed",
+            collection=body.name,
+            vector_store_provider=body.vector_store_provider,
+            error_type=e.__class__.__name__,
+            error=message,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Unable to create {body.vector_store_provider} vector collection. "
+                "Check Vector Storage settings."
+            ),
+        ) from e
+    except httpx.HTTPError as e:
+        logger.warning(
+            "vector collection create failed",
+            collection=body.name,
+            vector_store_provider=body.vector_store_provider,
+            error_type=e.__class__.__name__,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Unable to create {body.vector_store_provider} vector collection. "
+                "Check Vector Storage settings."
+            ),
+        ) from e
 
 
 def _collection_response(c: Collection) -> CollectionResponse:
@@ -227,13 +297,7 @@ async def create_collection(
     except (ImportError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    await vector_store.create_collection(
-        body.name,
-        dimension,
-        index_type=body.index_type,
-        tenant_field=body.tenant_field,
-        provider=body.vector_store_provider,
-    )
+    await _create_vector_store_collection(body, dimension)
 
     collection = Collection(
         name=body.name,

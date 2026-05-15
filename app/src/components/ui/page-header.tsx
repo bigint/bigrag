@@ -9,7 +9,7 @@ type Props = {
 };
 
 export const PageHeader = ({ title, description, actions, eyebrow, className }: Props) => (
-  <div className={cn("mb-8", className)}>
+  <div className={cn(className)}>
     {eyebrow && <div className="mb-1 text-xs font-semibold text-muted-foreground">{eyebrow}</div>}
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0 flex-1">

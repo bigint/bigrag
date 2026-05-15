@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 import {
   getWorkerAvailability,
@@ -31,7 +32,7 @@ export const BackupsPage = () => {
   const workerOffline = workerAvailability.offline;
 
   return (
-    <div className="flex flex-col gap-5">
+    <PageShell>
       <PageHeader
         className="mb-0"
         description="Configure the readable backup destination and export full-instance snapshots to S3-compatible storage."
@@ -93,7 +94,7 @@ export const BackupsPage = () => {
           {jobs.length ? <BackupJobs jobs={jobs} /> : <EmptyBackups />}
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 };
 

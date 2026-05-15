@@ -366,11 +366,11 @@ client.admin().settings().test(Some(TestInstanceSettingsBody {
 })).await?;
 
 client.admin().settings().update(UpdateInstanceSettingsBody {
-    values: serde_json::json!({"session_cookie_secure": true}),
+    values: serde_json::json!({"trusted_proxies": ["10.0.0.0/8"]}),
 }).await?;
 
 client.admin().settings().reset(Some(ResetInstanceSettingsBody {
-    keys: vec!["session_cookie_secure".into()],
+    keys: vec!["trusted_proxies".into()],
 })).await?;
 
 client.admin().settings().purge_embedding_cache().await?;

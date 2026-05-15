@@ -17,9 +17,9 @@ Submitted operator forms use TanStack Form for client-side draft state, validati
 pnpm dev:app        # admin UI on http://localhost:3000
 ```
 
-The admin UI calls the FastAPI backend directly. The default API URL is `http://localhost:4000`; override it with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container. Configure browser origins in `/settings → Security` after the API has its bootstrap database wiring.
+The admin UI calls the FastAPI backend directly. The default API URL is `http://localhost:4000`; override it with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container. Configure browser origins through deployment config or the [instance settings API](/docs/api-reference/instance-settings) when running a split admin UI.
 
-For cross-site production deployments, enable secure session cookies and usually set `SameSite=none` in `/settings → Security`. Same-site subdomain deployments can usually keep `SameSite=lax`.
+For cross-site production deployments, enable secure session cookies and usually set `SameSite=none` through `BIGRAG_SESSION_COOKIE_*` bootstrap values or the instance settings API. Same-site subdomain deployments can usually keep `SameSite=lax`.
 
 ## Route map
 
@@ -64,7 +64,7 @@ The `/backups` page combines backup destination settings with `GET /v1/admin/bac
 
 The `/vector-storage` page is a standalone runtime settings surface for vector provider connection details. It separates Qdrant and turbopuffer into provider tabs and uses `GET /v1/admin/settings` and `PUT /v1/admin/settings`; collection creation owns the per-collection provider choice.
 
-The settings page is a compact task-oriented workspace. It uses the shared top tab control for Account, Health, Security, and Data instead of a nested settings sidebar, then opens directly into the selected area without a repeated section heading. Settings area content is stacked sequentially rather than split into desktop columns. Common controls appear first, raw setting keys and source metadata stay inside Advanced controls, and each runtime panel keeps its guidance plus Save action together in the panel footer. Empty controls show default or example placeholders so unset values remain readable. Saving validates applicable storage, backup, and vector targets before persistence.
+The settings page is a compact task-oriented workspace. It uses the shared top tab control for Account, Health, Security, and Data instead of a nested settings sidebar, then opens directly into the selected area without a repeated section heading. Settings area content is stacked sequentially rather than split into desktop columns. Common controls appear first, raw setting keys and source metadata stay inside Advanced controls, and each runtime panel keeps its guidance plus Save action together in the panel footer. The Security tab focuses on trusted proxy handling, outbound URL policy, and embedding-cache posture; CORS origins and session-cookie deployment controls stay in deployment config and the instance settings API. Empty controls show default or example placeholders so unset values remain readable. Saving validates applicable storage, backup, and vector targets before persistence.
 
 Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, and `/settings?tab=data`. Backups, usage, audit, connectors, models, evals, and vector storage are standalone routes rather than Settings deep-link redirects.
 

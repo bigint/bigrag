@@ -73,7 +73,7 @@ The same surface is available through [`/v1/admin/settings`](/docs/api-reference
 
 | Area | Examples |
 |------|----------|
-| Security | CORS origins, trusted proxies, session cookie policy, provider URL allow-lists, embedding-cache mode, private-network escape hatches. |
+| Security | Trusted proxies, provider URL allow-lists, embedding-cache mode, and private-network escape hatches. CORS origins and session-cookie policy are still supported, but you manage them from deployment config or the instance settings API instead of the Security tab. |
 | Data | Storage backend, upload limits, OCR, ingestion workers, queue depth, webhook delivery limits, and retention windows. |
 | Models (`/models`) | Default embedding provider, model, dimension, key, base URL, cache TTLs, chat provider, chat model, temperature, history count, and context budget. |
 | Vector Storage (`/vector-storage`) | Provider tabs for Qdrant URL, readiness behavior, and HNSW tuning or turbopuffer API key, region, and namespace prefix. |

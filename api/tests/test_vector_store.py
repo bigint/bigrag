@@ -137,11 +137,8 @@ async def _test_turbopuffer_adapter_handles_lifecycle_chunks_and_exports() -> No
     await store.delete_collection("docs")
     await store.close()
 
-    assert fake.gets == ["/v1/namespaces"]
-    assert fake.posts[0][1]["schema"]["vector"] == {"type": "[2]f32", "ann": True}
-    assert fake.posts[0][1]["schema"]["bigrag_id"] == {"type": "string"}
-    assert "upsert_rows" not in fake.posts[0][1]
-    assert fake.posts[1][1]["exclude_attributes"] == ["vector"]
+    assert fake.gets == ["/v1/namespaces", "/v1/namespaces"]
+    assert fake.posts[0][1]["exclude_attributes"] == ["vector"]
     assert chunks == [
         {
             "id": "chunk-1",
@@ -152,7 +149,9 @@ async def _test_turbopuffer_adapter_handles_lifecycle_chunks_and_exports() -> No
         }
     ]
     assert total == 1
-    assert fake.posts[2][1]["deletes"] == [_point_id("bigrag_docs", "chunk-1")]
+    assert fake.posts[1][1]["deletes"] == [_point_id("bigrag_docs", "chunk-1")]
+    assert fake.posts[2][1]["schema"]["vector"] == {"type": "[1]f32", "ann": True}
+    assert fake.posts[2][1]["schema"]["bigrag_id"] == {"type": "string"}
     assert upserted == 1
     assert exported == [
         {
@@ -167,8 +166,8 @@ async def _test_turbopuffer_adapter_handles_lifecycle_chunks_and_exports() -> No
             "vector": None,
         }
     ]
-    assert fake.posts[5][1]["exclude_attributes"] == ["vector"]
-    assert "include_attributes" not in fake.posts[5][1]
+    assert fake.posts[4][1]["exclude_attributes"] == ["vector"]
+    assert "include_attributes" not in fake.posts[4][1]
     assert exported_without_vectors == [
         {
             "id": "point-1",

@@ -97,6 +97,7 @@ def patch_create_collection_externals(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("bigrag.services.embedding.get_embedding_model", fake_get_embedding_model)
     monkeypatch.setattr(collections.vector_store, "create_collection", create_collection_vs)
     monkeypatch.setattr(collections.vector_store, "delete_collection", delete_collection_vs)
+    monkeypatch.setattr(collections, "_ensure_vector_store_provider_available", lambda *_args: None)
     monkeypatch.setattr(collections.collection_cache, "invalidate", invalidate)
     monkeypatch.setattr(collections.audit, "record", lambda *a, **k: None)
     return monkeypatch
@@ -297,6 +298,102 @@ def test_create_collection_embedding_import_error_400(route_client, monkeypatch)
 
     assert response.status_code == 400
     assert response.json()["detail"] == "bad config"
+
+
+def test_create_collection_turbopuffer_requires_configured_backend(
+    route_client, monkeypatch
+) -> None:
+    from bigrag.routers import collections
+
+    async def fake_get_values(_keys):
+        return {
+            "embedding_provider": "openai",
+            "embedding_model": "text-embedding-3-small",
+            "embedding_dimension": 1536,
+            "embedding_base_url": None,
+            "embedding_api_key": "sk",
+        }
+
+    async def noop_verify(*_args, **_kwargs):
+        return None
+
+    class FakeEmbedding:
+        dimension = 1536
+
+    class FakeVectorStore:
+        configured_providers = ("qdrant",)
+
+        async def create_collection(self, *_args, **_kwargs):
+            raise AssertionError("should not create an unconfigured backend")
+
+    monkeypatch.setattr(collections, "get_values", fake_get_values)
+    monkeypatch.setattr(collections, "verify_provider_credentials", noop_verify)
+    monkeypatch.setattr(
+        "bigrag.services.embedding.get_embedding_model",
+        lambda **_kwargs: FakeEmbedding(),
+    )
+    monkeypatch.setattr(collections, "vector_store", FakeVectorStore())
+    client = route_client(session=FakeSession(scalar_values=[None]))
+
+    response = client.post(
+        "/v1/collections",
+        json={
+            "name": "docs",
+            "embedding_api_key": "sk",
+            "vector_store_provider": "turbopuffer",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Save a turbopuffer API key" in response.json()["detail"]
+
+
+def test_create_collection_vector_backend_failure_returns_502(route_client, monkeypatch) -> None:
+    from bigrag.routers import collections
+
+    async def fake_get_values(_keys):
+        return {
+            "embedding_provider": "openai",
+            "embedding_model": "text-embedding-3-small",
+            "embedding_dimension": 1536,
+            "embedding_base_url": None,
+            "embedding_api_key": "sk",
+        }
+
+    async def noop_verify(*_args, **_kwargs):
+        return None
+
+    class FakeEmbedding:
+        dimension = 1536
+
+    class FakeVectorStore:
+        configured_providers = ("qdrant", "turbopuffer")
+
+        async def create_collection(self, *_args, **_kwargs):
+            raise RuntimeError("upstream unavailable")
+
+    monkeypatch.setattr(collections, "get_values", fake_get_values)
+    monkeypatch.setattr(collections, "verify_provider_credentials", noop_verify)
+    monkeypatch.setattr(
+        "bigrag.services.embedding.get_embedding_model",
+        lambda **_kwargs: FakeEmbedding(),
+    )
+    monkeypatch.setattr(collections, "vector_store", FakeVectorStore())
+    client = route_client(session=FakeSession(scalar_values=[None]))
+
+    response = client.post(
+        "/v1/collections",
+        json={
+            "name": "docs",
+            "embedding_api_key": "sk",
+            "vector_store_provider": "turbopuffer",
+        },
+    )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == (
+        "Unable to create turbopuffer vector collection. Check Vector Storage settings."
+    )
 
 
 def test_create_collection_happy_path(route_client, patch_create_collection_externals) -> None:

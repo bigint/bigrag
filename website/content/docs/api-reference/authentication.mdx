@@ -58,7 +58,7 @@ Session endpoints:
 | `GET`  | `/v1/auth/whoami` | Return the current principal's identity, auth method, and (for API keys) scopes / collection pin — used by SDKs and the MCP server to self-configure |
 | `POST` | `/v1/auth/password` | Change password; revokes all other sessions |
 
-Session cookie attributes are controlled by `BIGRAG_SESSION_COOKIE_*` (see [Configuration](/docs/getting-started/configuration)). In production you must set `BIGRAG_SESSION_COOKIE_SECURE=true` and serve over HTTPS.
+Session cookie attributes are seeded from `BIGRAG_SESSION_COOKIE_*` bootstrap values and can also be managed through [`/v1/admin/settings`](/docs/api-reference/instance-settings). The admin UI does not expose those fields on the Security tab. In production you must set `session_cookie_secure=true` before serving admin traffic over HTTPS.
 
 <Callout type="info">
 Some endpoints (create user, manage API keys, change passwords) require a **session** and cannot be invoked with an API key — this keeps long-lived keys from being able to self-replicate or escalate.
@@ -159,5 +159,5 @@ If a key is pinned to a single `collection`, that pin is enforced even on the gl
 | `409 Conflict` | `/v1/auth/setup` called after initial admin exists |
 
 <Callout type="warn">
-Always run the API behind TLS in production. Session cookies are `Secure`-flagged only when `BIGRAG_SESSION_COOKIE_SECURE=true`, and API keys are bearer credentials that anyone holding them can use.
+Always run the API behind TLS in production. Session cookies are `Secure`-flagged only when `session_cookie_secure` is true, whether that value comes from `BIGRAG_SESSION_COOKIE_SECURE` or the instance settings API. API keys are bearer credentials that anyone holding them can use.
 </Callout>

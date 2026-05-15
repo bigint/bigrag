@@ -24,7 +24,7 @@ const ConnectorsLayout = () => {
   });
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <LinkTabs className="mb-0" tabs={tabs} />
       <Outlet />
     </div>

@@ -35,12 +35,19 @@ describe("settings layout", () => {
   it("splits settings into common and advanced controls", () => {
     const layout = getSettingsGroupLayout("security");
     const result = splitSettingsByImportance(
-      [spec({ key: "cors_origins" }), spec({ key: "trusted_proxies" })],
+      [
+        spec({ key: "trusted_proxies" }),
+        spec({ key: "embedding_cache_mode" }),
+        spec({ key: "cors_origins" }),
+      ],
       layout,
     );
 
-    expect(result.common.map((item) => item.key)).toEqual(["cors_origins"]);
-    expect(result.advanced.map((item) => item.key)).toEqual(["trusted_proxies"]);
+    expect(result.common.map((item) => item.key)).toEqual([
+      "trusted_proxies",
+      "embedding_cache_mode",
+    ]);
+    expect(result.advanced.map((item) => item.key)).toEqual(["cors_origins"]);
   });
 
   it("summarizes overrides and secrets", () => {

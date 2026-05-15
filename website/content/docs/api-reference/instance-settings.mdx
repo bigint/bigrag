@@ -5,7 +5,17 @@ description: Admin-only runtime configuration registry.
 
 Base path: `/v1/admin/settings`
 
-Session admin only. These endpoints manage database-backed runtime settings used by the API and admin UI. Secret settings are Fernet-encrypted at rest and redacted on read.
+Session admin only. These endpoints manage the database-backed runtime settings registry used by the API and admin UI. The admin UI shows a curated subset of this registry; deployment-sensitive settings such as CORS origins and session-cookie policy are intentionally managed through bootstrap config, this API, or SDK automation. Secret settings are Fernet-encrypted at rest and redacted on read.
+
+## Admin UI vs API Registry
+
+The Settings UI is optimized for day-to-day operators. It does not show every registry key.
+
+| Surface | Use it for |
+|---------|------------|
+| `/settings → Security` | Trusted proxy ranges, outbound provider URL policy, private-network escape hatches, local webhook policy, and embedding-cache posture. |
+| Deployment config or this API | CORS origins and session-cookie flags: `cors_origins`, `session_cookie_secure`, `session_cookie_samesite`, and `session_cookie_domain`. These can lock admins out when changed incorrectly, so they are best handled deliberately during deployment. |
+| Other Settings pages | Storage, ingestion, queue, retention, webhooks, model defaults, vector storage, and backups. |
 
 ## List Settings
 
@@ -19,22 +29,39 @@ Returns the setting registry plus current public values.
 {
   "specs": [
     {
-      "key": "cors_origins",
+      "key": "trusted_proxies",
       "group": "security",
-      "label": "CORS origins",
+      "label": "Trusted proxies",
       "kind": "string_list",
       "default": [],
+      "secret": false
+    },
+    {
+      "key": "embedding_cache_mode",
+      "group": "security",
+      "label": "Embedding cache mode",
+      "kind": "select",
+      "default": "encrypted",
+      "options": ["encrypted", "disabled"],
       "secret": false
     }
   ],
   "values": {
-    "cors_origins": {
-      "key": "cors_origins",
-      "value": ["https://admin.example.com"],
+    "trusted_proxies": {
+      "key": "trusted_proxies",
+      "value": ["10.0.0.0/8"],
       "has_value": true,
       "source": "database",
       "updated_at": "2026-05-07T12:00:00Z",
       "updated_by": "..."
+    },
+    "embedding_cache_mode": {
+      "key": "embedding_cache_mode",
+      "value": "encrypted",
+      "has_value": false,
+      "source": "default",
+      "updated_at": null,
+      "updated_by": null
     }
   }
 }
@@ -51,8 +78,8 @@ PUT /v1/admin/settings
 ```json
 {
   "values": {
-    "session_cookie_secure": true,
-    "cors_origins": ["https://admin.example.com"],
+    "trusted_proxies": ["10.0.0.0/8"],
+    "embedding_cache_mode": "encrypted",
     "webhook_retry_delays": [10, 30, 90]
   }
 }
@@ -60,7 +87,20 @@ PUT /v1/admin/settings
 
 Unknown keys and invalid values return `400`. Successful updates are audited as `instance_settings.update` and apply immediately to the running API. The update path runs the same service validation probes as the test endpoint before settings are persisted.
 
-Security hardening settings include `allow_public_bind_in_prod`. Ingestion settings include raw vector API request caps (`max_vector_upsert_count`, `max_vector_delete_count`, `max_vector_text_chars`, `max_vector_metadata_bytes`). These are returned in the same registry as the other settings and can be changed from the admin UI.
+Deployment-managed security keys use the same endpoint when you intentionally automate them:
+
+```json
+{
+  "values": {
+    "cors_origins": ["https://admin.example.com"],
+    "session_cookie_secure": true,
+    "session_cookie_samesite": "none",
+    "session_cookie_domain": ".example.com"
+  }
+}
+```
+
+Security hardening settings include `allow_public_bind_in_prod`. Ingestion settings include raw vector API request caps (`max_vector_upsert_count`, `max_vector_delete_count`, `max_vector_text_chars`, `max_vector_metadata_bytes`). UI-visible settings can be changed from the admin UI. Registry keys that are not rendered in the UI remain available through this API and the SDK admin settings resources.
 
 Storage and vector-store connection changes are validated before they are saved. A collection's vector provider is fixed at creation; creating future collections in a different backend does not migrate existing vectors.
 
@@ -87,10 +127,10 @@ POST /v1/admin/settings/reset
 ```
 
 ```json
-{ "keys": ["cors_origins", "session_cookie_secure"] }
+{ "keys": ["trusted_proxies", "embedding_cache_mode"] }
 ```
 
-An empty `keys` array resets every UI-managed instance setting back to its default/bootstrap value. Successful resets are audited as `instance_settings.reset`. This endpoint remains available to API clients, but the admin UI does not expose a general Reset button for settings panels.
+An empty `keys` array resets every registered instance setting back to its default/bootstrap value, including settings not shown in the admin UI. Successful resets are audited as `instance_settings.reset`. This endpoint remains available to API clients, but the admin UI does not expose a general Reset button for settings panels.
 
 ## Purge Embedding Cache
 

@@ -9,6 +9,7 @@ import { type Column, DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -532,7 +533,7 @@ export const McpPage = () => {
   ];
 
   return (
-    <div>
+    <PageShell>
       <PageHeader
         actions={
           <div className="flex items-center gap-2">
@@ -549,6 +550,7 @@ export const McpPage = () => {
             </Button>
           </div>
         }
+        className="mb-0"
         description="Mint scoped MCP keys for Claude Desktop, remote MCP clients, and local runtimes."
         title="MCP"
       />
@@ -604,7 +606,7 @@ export const McpPage = () => {
         open={!!deleteFor}
         title="Delete MCP server"
       />
-    </div>
+    </PageShell>
   );
 };
 

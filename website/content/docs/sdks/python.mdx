@@ -334,8 +334,8 @@ except APITimeoutError:
 ```python
 settings = await client.admin.settings.list()
 await client.admin.settings.test({"values": {"qdrant_url": "http://qdrant:6333"}})
-await client.admin.settings.update({"values": {"session_cookie_secure": True}})
-await client.admin.settings.reset({"keys": ["session_cookie_secure"]})
+await client.admin.settings.update({"values": {"trusted_proxies": ["10.0.0.0/8"]}})
+await client.admin.settings.reset({"keys": ["trusted_proxies"]})
 await client.admin.settings.purge_embedding_cache()
 
 backups = await client.admin.backups.list(limit=20)

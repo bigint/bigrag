@@ -45,7 +45,7 @@ curl -X POST http://localhost:4000/v1/collections \
 | `description` | string | no | `""` | Human-readable description |
 | `embedding_provider` | string | no | Server default | `openai`, `openai_compatible`, `cohere`, or `voyage` |
 | `embedding_model` | string | no | Server default | Model name for the provider |
-| `vector_store_provider` | string | no | `"qdrant"` | `qdrant` or `turbopuffer`; fixed after creation |
+| `vector_store_provider` | string | no | `"qdrant"` | `qdrant` or `turbopuffer`; fixed after creation. `turbopuffer` requires a saved turbopuffer API key in Vector Storage before creation |
 | `embedding_api_key` | string | no | — | API key for the embedding provider; use any non-empty value for local OpenAI-compatible gateways without auth |
 | `embedding_base_url` | string | no | — | Required for `openai_compatible` providers |
 | `dimension` | integer | no | Server default | Embedding vector dimension |
@@ -58,6 +58,8 @@ curl -X POST http://localhost:4000/v1/collections \
 | `reranking_model` | string | no | `"rerank-v3.5"` | Cohere reranking model |
 | `reranking_api_key` | string | no | `null` | Cohere API key |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
+
+For turbopuffer collections, creation validates the saved turbopuffer connection, then the provider namespace is created on the first document or vector write.
 
 ## Collection Stats
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { WebhookForm } from "@/features/webhooks/webhook-form";
 import { WebhookList } from "@/features/webhooks/webhook-list";
 import { WebhookSecretModal } from "@/features/webhooks/webhook-secret-modal";
@@ -36,26 +37,26 @@ export const WebhooksPage = () => {
   };
 
   return (
-    <div>
+    <PageShell>
       <PageHeader
         actions={
           <Button onClick={() => setFormOpen(true)}>
             <Plus className="size-4" /> Add Webhook
           </Button>
         }
+        className="mb-0"
         description="Receive real-time collection event notifications."
         title="Webhooks"
       />
 
       <WorkerOfflineBanner
         availability={workerAvailability}
-        className="mb-4"
         message="Document-event deliveries require bigrag-worker. Queued work will not run until the worker is started."
       />
 
       {error && (
         <div
-          className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           role="alert"
         >
           {error instanceof Error ? error.message : "Failed to load webhooks"}
@@ -91,6 +92,6 @@ export const WebhooksPage = () => {
         open={deleteId !== null}
         title="Delete Webhook"
       />
-    </div>
+    </PageShell>
   );
 };

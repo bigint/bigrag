@@ -1,9 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Tabs } from "@/components/ui/tabs";
 import {
   DATA_SETTINGS_GROUPS,
   getSettingsTab,
+  SECURITY_SETTINGS_KEYS,
   SETTINGS_NAV_ITEMS,
   type SettingsTab,
 } from "@/features/settings/settings-navigation";
@@ -39,7 +41,7 @@ const SettingsPage = () => {
     });
 
   return (
-    <div className="flex w-full flex-col gap-6">
+    <PageShell>
       <PageHeader
         className="mb-0"
         description="Manage account access, platform health, security policy, and data flow without leaving the operator console."
@@ -51,7 +53,7 @@ const SettingsPage = () => {
       <section className="flex min-w-0 flex-col">
         <SettingsContent tab={tab} />
       </section>
-    </div>
+    </PageShell>
   );
 };
 
@@ -59,7 +61,13 @@ const SettingsContent = ({ tab }: { tab: SettingsTab }) => {
   if (tab === "account") return <AccountTab />;
   if (tab === "health") return <ServerTab />;
   if (tab === "security") {
-    return <InstanceSettingsTab groups={SECURITY_SETTINGS_GROUPS} stacked />;
+    return (
+      <InstanceSettingsTab
+        groups={SECURITY_SETTINGS_GROUPS}
+        includeKeys={SECURITY_SETTINGS_KEYS}
+        stacked
+      />
+    );
   }
   if (tab === "data") {
     return <InstanceSettingsTab groups={DATA_SETTINGS_GROUPS} stacked />;

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Spinner } from "@/components/ui/spinner";
 import {
   getWorkerAvailability,
@@ -127,7 +128,7 @@ const DocumentDetail = () => {
   const workerOffline = workerAvailability.offline;
 
   return (
-    <div className="flex flex-col gap-6">
+    <PageShell>
       <Link
         params={{ name }}
         to="/collections/$name/documents"
@@ -139,6 +140,7 @@ const DocumentDetail = () => {
       <WorkerOfflineBanner availability={workerAvailability} />
 
       <PageHeader
+        className="mb-0"
         eyebrow={`${doc.file_type.toUpperCase()} · ${formatBytes(doc.file_size)}`}
         title={doc.filename}
         description={`${doc.chunk_count} chunks · updated ${formatRelative(doc.updated_at)}`}
@@ -254,7 +256,7 @@ const DocumentDetail = () => {
           <Spinner />
         )}
       </div>
-    </div>
+    </PageShell>
   );
 };
 

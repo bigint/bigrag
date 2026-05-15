@@ -4,15 +4,15 @@ import { groupSpecs, instanceSettingsFormValues } from "./instance-settings-form
 const settings = {
   specs: [
     {
-      default: false,
-      description: "Secure cookie flag.",
+      default: "encrypted",
+      description: "Persistent cache behavior.",
       group: "security" as const,
-      key: "session_cookie_secure",
-      kind: "bool" as const,
-      label: "Secure cookies",
+      key: "embedding_cache_mode",
+      kind: "select" as const,
+      label: "Embedding cache mode",
       max: null,
       min: null,
-      options: [],
+      options: ["encrypted", "disabled"],
       secret: false,
     },
     {
@@ -29,13 +29,13 @@ const settings = {
     },
   ],
   values: {
-    session_cookie_secure: {
+    embedding_cache_mode: {
       has_value: true,
-      key: "session_cookie_secure",
+      key: "embedding_cache_mode",
       source: "database" as const,
       updated_at: null,
       updated_by: null,
-      value: true,
+      value: "encrypted",
     },
     qdrant_url: {
       has_value: true,
@@ -51,7 +51,7 @@ const settings = {
 describe("instance settings form state", () => {
   it("builds form values for the selected groups", () => {
     expect(instanceSettingsFormValues(settings, ["security"])).toEqual({
-      session_cookie_secure: true,
+      embedding_cache_mode: "encrypted",
     });
   });
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { type Column, DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Tooltip } from "@/components/ui/tooltip";
 import { CreateCollectionModal } from "@/features/collections/create-collection-modal";
 import { useCollections } from "@/hooks/use-collections";
@@ -110,7 +111,7 @@ const CollectionsPage = () => {
   ];
 
   return (
-    <div className="flex w-full flex-col gap-6">
+    <PageShell>
       <PageHeader
         className="mb-0"
         title="Collections"
@@ -161,6 +162,6 @@ const CollectionsPage = () => {
       />
 
       <CreateCollectionModal open={open} onClose={() => setOpen(false)} />
-    </div>
+    </PageShell>
   );
 };

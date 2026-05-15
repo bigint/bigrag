@@ -98,7 +98,7 @@ POST /v1/collections
 | `description` | string | no | `""` | — |
 | `embedding_provider` | string | no | Server default | `openai`, `cohere`, `voyage`, `openai_compatible` |
 | `embedding_model` | string | no | Server default | Model name |
-| `vector_store_provider` | string | no | `"qdrant"` | `qdrant` or `turbopuffer`; fixed at creation |
+| `vector_store_provider` | string | no | `"qdrant"` | `qdrant` or `turbopuffer`; fixed at creation. `turbopuffer` requires a saved turbopuffer API key in Vector Storage before creation |
 | `embedding_api_key` | string | no | — | Required when `embedding_preset_id` is not provided; validated against the provider before the collection is created. Use any non-empty value for local OpenAI-compatible gateways without auth. Ignored when a preset is supplied — the collection inherits the preset's key live |
 | `embedding_base_url` | string | no | — | Required for `openai_compatible` (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) |
 | `dimension` | integer | no | Provider default | Must match the model |
@@ -120,7 +120,8 @@ POST /v1/collections
 
 **Errors:**
 
-- `400` — Invalid name, chunk config, or dimension mismatch
+- `400` — Invalid name, chunk config, dimension mismatch, or unconfigured vector provider
+- `502` — Selected vector provider rejected collection provisioning
 - `409` — Collection name already exists
 
 ## Get Collection

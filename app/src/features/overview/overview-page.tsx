@@ -87,7 +87,7 @@ export const OverviewPage = () => {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-6 md:px-8 lg:px-10">
-      <PageContainer className="flex flex-col gap-5">
+      <PageContainer className="flex w-full flex-col gap-6">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-3xl font-semibold leading-tight tracking-normal">

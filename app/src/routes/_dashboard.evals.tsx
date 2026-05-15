@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { EvalRunner } from "@/features/evals/eval-runner";
 
 export const Route = createFileRoute("/_dashboard/evals")({
@@ -7,11 +8,12 @@ export const Route = createFileRoute("/_dashboard/evals")({
 });
 
 const EvalsPage = () => (
-  <div className="flex flex-col gap-6">
+  <PageShell>
     <PageHeader
+      className="mb-0"
       title="Retrieval evaluation"
       description="Measure recall@k, MRR, and nDCG before changing chunking or embeddings."
     />
     <EvalRunner />
-  </div>
+  </PageShell>
 );

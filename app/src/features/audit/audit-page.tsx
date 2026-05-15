@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Spinner } from "@/components/ui/spinner";
 import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
@@ -49,7 +50,7 @@ export const AuditPage = () => {
   const canGoNext = offset + PAGE_SIZE < total;
 
   return (
-    <div className="flex flex-col gap-5">
+    <PageShell>
       <PageHeader
         className="mb-0"
         description="Review privileged admin activity with actor, resource, request origin, and timestamp details."
@@ -162,6 +163,6 @@ export const AuditPage = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 };

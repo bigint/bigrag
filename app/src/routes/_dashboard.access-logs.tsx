@@ -3,6 +3,7 @@ import { RefreshCw, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Spinner } from "@/components/ui/spinner";
 import { useAccessLogs, useAccessOverview } from "@/hooks/use-access-logs";
 import { useSession } from "@/hooks/use-auth";
@@ -39,7 +40,7 @@ const AccessLogsPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <PageShell>
       <PageHeader
         actions={
           <Button disabled={logs.isFetching} onClick={refresh} size="sm" variant="outline">
@@ -89,7 +90,7 @@ const AccessLogsPage = () => {
           <AccessLogTable entries={logs.data?.entries ?? []} />
         )}
       </section>
-    </div>
+    </PageShell>
   );
 };
 

@@ -65,6 +65,7 @@ class FakeSessionContext:
 class FakeVectorStore:
     provider = "qdrant"
     client = object()
+    configured_providers = ("qdrant",)
 
     def __init__(self) -> None:
         self.checked = False

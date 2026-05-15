@@ -5,6 +5,7 @@ import {
   getSettingsNavItem,
   getSettingsTab,
   isSettingsTab,
+  SECURITY_SETTINGS_KEYS,
   SETTINGS_NAV_ITEMS,
   settingsSectionLabel,
 } from "./settings-navigation";
@@ -57,5 +58,14 @@ describe("settings navigation", () => {
     expect(DATA_SETTINGS_GROUPS).toContain("retention");
     expect(DATA_SETTINGS_GROUPS).toContain("webhooks");
     expect(DATA_SETTINGS_GROUPS).not.toContain("vector_store");
+  });
+
+  it("keeps browser deployment controls out of the security tab", () => {
+    expect(SECURITY_SETTINGS_KEYS).toContain("trusted_proxies");
+    expect(SECURITY_SETTINGS_KEYS).toContain("embedding_cache_mode");
+    expect(SECURITY_SETTINGS_KEYS).not.toContain("cors_origins");
+    expect(SECURITY_SETTINGS_KEYS).not.toContain("session_cookie_secure");
+    expect(SECURITY_SETTINGS_KEYS).not.toContain("session_cookie_samesite");
+    expect(SECURITY_SETTINGS_KEYS).not.toContain("session_cookie_domain");
   });
 });

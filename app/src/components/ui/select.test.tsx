@@ -18,13 +18,19 @@ vi.mock("@base-ui/react/select", async () => {
     typeof children === "function" ? children(value) : children;
   const primitive =
     (tag: keyof HTMLElementTagNameMap) =>
-    ({ children, className, style, value }: PrimitiveProps) =>
-      React.createElement(tag, { className, "data-value": value, style }, children);
+    ({ children, className, style, value = "" }: PrimitiveProps) =>
+      React.createElement(
+        tag,
+        { className, "data-value": value, style },
+        renderChildren(children, value),
+      );
 
   return {
     Select: {
       Root: ({ children, value = "" }: PrimitiveProps) => (
-        <SelectContext.Provider value={value}>{children}</SelectContext.Provider>
+        <SelectContext.Provider value={value}>
+          {renderChildren(children, value)}
+        </SelectContext.Provider>
       ),
       Trigger: primitive("button"),
       Value: ({ children, placeholder }: PrimitiveProps) => {
@@ -32,7 +38,7 @@ vi.mock("@base-ui/react/select", async () => {
         return <span>{renderChildren(children, value || placeholder || "")}</span>;
       },
       Icon: primitive("span"),
-      Portal: ({ children }: PrimitiveProps) => <>{children}</>,
+      Portal: ({ children }: PrimitiveProps) => <>{renderChildren(children, "")}</>,
       Positioner: primitive("div"),
       Popup: primitive("div"),
       List: primitive("div"),

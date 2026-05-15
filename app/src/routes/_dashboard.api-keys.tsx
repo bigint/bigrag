@@ -10,6 +10,7 @@ import { type Column, DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -140,10 +141,11 @@ const ApiKeysPage = () => {
   ];
 
   return (
-    <div>
+    <PageShell>
       <PageHeader
         title="API keys"
         description="Mint long-lived keys for external services, shown once at creation."
+        className="mb-0"
         actions={
           <Button onClick={() => setAddOpen(true)}>
             <Plus className="size-4" /> New key
@@ -273,6 +275,6 @@ const ApiKeysPage = () => {
         open={!!deleteFor}
         title="Revoke API key"
       />
-    </div>
+    </PageShell>
   );
 };

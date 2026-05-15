@@ -110,25 +110,18 @@ const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupLayout> 
     title: "Embedding and search",
   },
   security: {
-    commonKeys: [
-      "cors_origins",
-      "session_cookie_secure",
-      "session_cookie_samesite",
-      "session_cookie_domain",
-      "embedding_cache_mode",
-    ],
+    commonKeys: ["trusted_proxies", "embedding_cache_mode"],
     dangerKeys: [
       "allow_public_bind_in_prod",
       "allow_private_embedding_base_urls",
       "allow_private_chat_base_urls",
       "allow_local_webhooks",
     ],
-    description: "Browser access, session cookies, outbound URL policy, and cache posture.",
+    description: "Trusted proxy handling, outbound URL policy, and cache posture.",
     emptyState: "Security settings are not available from this API.",
     eyebrow: "Access and policy",
     group: "security",
-    recommendedAction:
-      "Lock down browser origins and cookie policy before widening network access.",
+    recommendedAction: "Keep outbound provider access narrow before widening network policy.",
     title: "Security posture",
   },
   storage: {

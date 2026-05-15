@@ -10,46 +10,46 @@ vi.mock("@/hooks/use-instance-settings", () => ({
     data: {
       specs: [
         {
-          default: false,
-          description: "Require secure session cookies.",
+          default: [],
+          description: "Trusted proxy ranges.",
           group: "security",
-          key: "session_cookie_secure",
-          kind: "bool",
-          label: "Secure cookies",
+          key: "trusted_proxies",
+          kind: "string_list",
+          label: "Trusted proxies",
           max: null,
           min: null,
           options: [],
           secret: false,
         },
         {
-          default: null,
-          description: "Optional cookie domain.",
+          default: "encrypted",
+          description: "Persistent cache behavior.",
           group: "security",
-          key: "session_cookie_domain",
-          kind: "string",
-          label: "Session cookie domain",
+          key: "embedding_cache_mode",
+          kind: "select",
+          label: "Embedding cache mode",
           max: null,
           min: null,
-          options: [],
+          options: ["encrypted", "disabled"],
           secret: false,
         },
       ],
       values: {
-        session_cookie_domain: {
+        embedding_cache_mode: {
           has_value: true,
-          key: "session_cookie_domain",
+          key: "embedding_cache_mode",
           source: "database",
           updated_at: null,
           updated_by: null,
-          value: "",
+          value: "encrypted",
         },
-        session_cookie_secure: {
+        trusted_proxies: {
           has_value: true,
-          key: "session_cookie_secure",
+          key: "trusted_proxies",
           source: "database",
           updated_at: null,
           updated_by: null,
-          value: true,
+          value: [],
         },
       },
     },
@@ -77,15 +77,15 @@ describe("InstanceSettingsTab", () => {
   it("renders placeholders for empty runtime inputs", () => {
     const html = renderToStaticMarkup(<InstanceSettingsTab group="security" />);
 
-    expect(html).toContain('placeholder=".example.com"');
+    expect(html).toContain('placeholder="10.0.0.0/8"');
   });
 
   it("can render a focused subset of settings", () => {
     const html = renderToStaticMarkup(
-      <InstanceSettingsTab group="security" includeKeys={["session_cookie_domain"]} />,
+      <InstanceSettingsTab group="security" includeKeys={["embedding_cache_mode"]} />,
     );
 
-    expect(html).toContain("Session cookie domain");
-    expect(html).not.toContain("Secure cookies");
+    expect(html).toContain("Embedding cache mode");
+    expect(html).not.toContain("Trusted proxies");
   });
 });

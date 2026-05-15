@@ -124,13 +124,7 @@ class TurbopufferVectorStore:
         index_type: str = "HNSW",
         tenant_field: str | None = None,
     ) -> None:
-        await self._write(
-            name,
-            {
-                "distance_metric": "cosine_distance",
-                "schema": _schema(dimension),
-            },
-        )
+        await self.health_check()
 
     async def delete_collection(self, name: str) -> None:
         client = self._client()
