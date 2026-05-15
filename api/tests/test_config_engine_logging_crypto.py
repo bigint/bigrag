@@ -42,10 +42,21 @@ def test_settings_from_toml_flattens_sections_and_respects_env(
     assert settings.database_url == "postgres://env"
     assert settings.db_pool_min == 2
     assert settings.conversion_pdf_ocr_enabled is False
-    assert settings.log_level == "debug"
+    assert settings.log_level == "info"
+    assert settings.log_format == "text"
     assert config.Settings.from_toml(tmp_path / "missing.toml").database_url.startswith(
         "postgres://"
     )
+
+
+def test_settings_accepts_logging_env_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BIGRAG_LOG_LEVEL", "warning")
+    monkeypatch.setenv("BIGRAG_LOG_FORMAT", "json")
+
+    settings = config.Settings()
+
+    assert settings.log_level == "warning"
+    assert settings.log_format == "json"
 
 
 def test_db_engine_normalizes_urls_and_requires_configuration(
@@ -123,16 +134,18 @@ def test_db_engine_configure_clamps_pool_and_closes(monkeypatch: pytest.MonkeyPa
 def test_logging_redacts_nested_secrets_and_configures_levels() -> None:
     event = {
         "api_key": "sk-live",
-        "nested": [{"password": "pw", "safe": "ok"}],
-        "tupled": ({"token": "secret"},),
+        "nested": [{"password": "pw", "refresh_token": "rt", "safe": "ok"}],
+        "tupled": ({"authorization": "Bearer secret", "token": "secret"},),
+        "set-cookie": "cookie",
     }
 
     redacted = redact_secrets(None, None, event)
 
     assert redacted == {
         "api_key": "[REDACTED]",
-        "nested": [{"password": "[REDACTED]", "safe": "ok"}],
-        "tupled": ({"token": "[REDACTED]"},),
+        "nested": [{"password": "[REDACTED]", "refresh_token": "[REDACTED]", "safe": "ok"}],
+        "tupled": ({"authorization": "[REDACTED]", "token": "[REDACTED]"},),
+        "set-cookie": "[REDACTED]",
     }
 
     configure_logging("debug", "json")
@@ -167,17 +180,27 @@ def test_request_logging_middleware_logs_http_and_passes_through_non_http(
             sent.append(message)
 
         await middleware(
-            {"type": "http", "method": "GET", "path": "/health"},
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/health",
+                "headers": [(b"x-request-id", b"rid-123")],
+            },
             lambda: None,
             send,
         )
         await middleware({"type": "lifespan"}, lambda: None, send)
+        assert sent[0]["headers"] == [(b"x-request-id", b"rid-123")]
 
     asyncio.run(run())
 
-    assert events[0] == ("request_start", {"method": "GET", "path": "/health"})
+    assert events[0] == (
+        "request_start",
+        {"method": "GET", "path": "/health", "request_id": "rid-123"},
+    )
     assert events[1][0] == "request"
     assert events[1][1]["status"] == 204
+    assert events[1][1]["request_id"] == "rid-123"
 
 
 def test_crypto_encrypts_decrypts_previous_keys_and_column_values() -> None:

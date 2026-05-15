@@ -14,15 +14,19 @@ import {
   validateWebhookUrl,
   WEBHOOK_EVENT_CATEGORIES,
 } from "@/features/webhooks/webhook-form-state";
+import type { WorkerAvailability } from "@/features/workers/worker-status";
+import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
 import { useCreateWebhook } from "@/hooks/use-webhooks";
+import { errorText, firstString, submitWith } from "@/lib/form";
 
 interface WebhookFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly onCreated: (secret: string) => void;
+  readonly workerAvailability: WorkerAvailability;
 }
 
-export const WebhookForm = ({ open, onClose, onCreated }: WebhookFormProps) => {
+export const WebhookForm = ({ open, onClose, onCreated, workerAvailability }: WebhookFormProps) => {
   const create = useCreateWebhook();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm({
@@ -62,12 +66,20 @@ export const WebhookForm = ({ open, onClose, onCreated }: WebhookFormProps) => {
     <Modal onClose={handleClose} open={open} title="Add Webhook">
       <form
         className="space-y-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          setSubmitError(null);
-          void form.handleSubmit();
-        }}
+        noValidate
+        onSubmit={submitWith(
+          () => form.handleSubmit(),
+          () => {
+            setSubmitError(null);
+          },
+        )}
       >
+        <WorkerOfflineBanner
+          availability={workerAvailability}
+          compact
+          message="Document-event deliveries require bigrag-worker. Queued work will not run until the worker is started."
+        />
+
         <form.Subscribe selector={(state) => state.errors}>
           {(errors) => {
             const formError = submitError ?? firstString(errors);
@@ -93,7 +105,7 @@ export const WebhookForm = ({ open, onClose, onCreated }: WebhookFormProps) => {
             <Input
               autoComplete="off"
               description="We'll POST event payloads here with an HMAC signature."
-              error={field.state.meta.errors.join(", ") || null}
+              error={errorText(field.state.meta.errors)}
               id="webhook-url"
               label="URL"
               name={field.name}
@@ -168,7 +180,7 @@ export const WebhookForm = ({ open, onClose, onCreated }: WebhookFormProps) => {
                 })}
               </div>
               {field.state.meta.errors.length > 0 && (
-                <p className="text-xs text-destructive">{field.state.meta.errors.join(", ")}</p>
+                <p className="text-xs text-destructive">{errorText(field.state.meta.errors)}</p>
               )}
             </div>
           )}
@@ -186,6 +198,3 @@ export const WebhookForm = ({ open, onClose, onCreated }: WebhookFormProps) => {
     </Modal>
   );
 };
-
-const firstString = (values: readonly unknown[]) =>
-  values.find((value): value is string => typeof value === "string") ?? null;

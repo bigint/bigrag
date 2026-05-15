@@ -85,7 +85,11 @@ const LoginPage = () => {
           Manage your collections, documents, and API keys.
         </p>
       </div>
-      <form className="flex flex-col gap-4" noValidate onSubmit={submitWith(() => form.handleSubmit())}>
+      <form
+        className="flex flex-col gap-4"
+        noValidate
+        onSubmit={submitWith(() => form.handleSubmit())}
+      >
         <form.Subscribe selector={(state) => state.errors}>
           {(errors) => {
             const formError = firstString(errors);

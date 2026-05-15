@@ -24,7 +24,7 @@ export type SettingsStatusSummary = {
   readonly missingSecrets: number;
 };
 
-export const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupLayout> = {
+const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupLayout> = {
   backups: {
     commonKeys: [
       "backup_s3_bucket",

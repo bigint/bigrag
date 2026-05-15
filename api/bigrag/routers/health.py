@@ -141,9 +141,16 @@ _AUTH_TOKENS = ("401", "unauthor", "invalid api key", "invalid_api_key")
 _RATE_TOKENS = ("429", "rate", "quota")
 _TIMEOUT_TOKENS = ("timeout", "timed out")
 _NETWORK_TOKENS = ("connection", "network", "unreachable", "dns")
+_MISCONFIGURED_TOKENS = (
+    "not configured",
+    "client not connected",
+    "invalid url",
+    "missing",
+    "misconfigured",
+)
 
 
-def _categorize_provider_error(exc: Exception) -> str:
+def _categorize_dependency_error(exc: Exception) -> str:
     text = f"{exc.__class__.__name__}: {exc}".lower()
     if any(t in text for t in _AUTH_TOKENS):
         return "auth_failed"
@@ -153,7 +160,13 @@ def _categorize_provider_error(exc: Exception) -> str:
         return "timeout"
     if any(t in text for t in _NETWORK_TOKENS):
         return "unreachable"
+    if any(t in text for t in _MISCONFIGURED_TOKENS):
+        return "misconfigured"
     return "unknown"
+
+
+def _categorize_provider_error(exc: Exception) -> str:
+    return _categorize_dependency_error(exc)
 
 
 @router.get("/health", response_model=dict[str, str])
@@ -197,6 +210,7 @@ async def readiness(request: Request) -> JSONResponse:
     for name, result in zip(infra_checks.keys(), results, strict=False):
         if isinstance(result, Exception):
             checks[name] = False
+            checks[f"{name}_error"] = _categorize_dependency_error(result)
             healthy = False
         else:
             checks[name] = True
@@ -264,6 +278,7 @@ async def platform_stats(
                 online = False
         return {
             "online": online,
+            "status": "online" if online else "offline",
             "heartbeat_at": heartbeat,
             "heartbeat_age_seconds": age,
         }
@@ -272,7 +287,9 @@ async def platform_stats(
         _db_stats(), _queue_stats(), _worker_stats()
     )
 
+    queue_health = _queue_health(queue_stats, worker_stats)
     result = {
+        "status": queue_health["status"],
         "collections": cols,
         "documents": {
             "total": docs.total,
@@ -286,7 +303,46 @@ async def platform_stats(
         },
         "webhooks": webhooks,
         "queue": queue_stats,
+        "queue_health": queue_health,
         "workers": worker_stats,
     }
     await redis_cache.set("stats:platform", result, ttl=15)
     return result
+
+
+def _queue_int(stats: dict, key: str) -> int:
+    try:
+        return int(stats.get(key) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _queue_health(queue_stats: dict, worker_stats: dict) -> dict[str, object]:
+    reasons: list[str] = []
+    pending = _queue_int(queue_stats, "pending")
+    processing = _queue_int(queue_stats, "processing")
+    retrying = _queue_int(queue_stats, "retrying")
+    dead_lettered = _queue_int(queue_stats, "dead_lettered")
+    stale_processing = _queue_int(queue_stats, "stale_processing")
+    active = pending + processing + retrying
+    worker_online = bool(worker_stats.get("online"))
+
+    if not worker_online and active > 0:
+        reasons.append("worker_offline_with_active_queue")
+    elif not worker_online:
+        reasons.append("worker_offline")
+    if dead_lettered > 0:
+        reasons.append("dead_lettered_jobs")
+    if stale_processing > 0:
+        reasons.append("stale_processing_jobs")
+    if retrying > 0:
+        reasons.append("retrying_jobs")
+
+    if "worker_offline_with_active_queue" in reasons:
+        status = "down"
+    elif reasons:
+        status = "degraded"
+    else:
+        status = "ok"
+
+    return {"status": status, "reasons": reasons}

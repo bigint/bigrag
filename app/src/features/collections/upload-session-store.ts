@@ -4,15 +4,12 @@ import { type PersistStorage, persist, type StorageValue } from "zustand/middlew
 export type UploadSessionStoreState = {
   activeSessionIds: Record<string, string>;
   clearActiveSessionId: (collection: string) => void;
-  migrateLegacyUploadSession: (collection: string) => void;
   setActiveSessionId: (collection: string, sessionId: string) => void;
 };
 
 type PersistedUploadSessionState = Pick<UploadSessionStoreState, "activeSessionIds">;
 
 const STORAGE_KEY = "bigrag:upload-sessions";
-
-const legacyStorageKey = (collection: string) => `bigrag:upload-session:${collection}`;
 
 const getLocalStorage = () => {
   if (typeof globalThis.localStorage === "undefined") return null;
@@ -34,7 +31,7 @@ const uploadSessionStorage: PersistStorage<PersistedUploadSessionState> = {
 
 export const useUploadSessionStore = create<UploadSessionStoreState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       activeSessionIds: {},
       clearActiveSessionId: (collection) =>
         set((state) => {
@@ -42,20 +39,6 @@ export const useUploadSessionStore = create<UploadSessionStoreState>()(
           delete activeSessionIds[collection];
           return { activeSessionIds };
         }),
-      migrateLegacyUploadSession: (collection) => {
-        const storage = getLocalStorage();
-        const legacySessionId = storage?.getItem(legacyStorageKey(collection));
-        if (!legacySessionId) return;
-        if (!get().activeSessionIds[collection]) {
-          set((state) => ({
-            activeSessionIds: {
-              ...state.activeSessionIds,
-              [collection]: legacySessionId,
-            },
-          }));
-        }
-        storage?.removeItem(legacyStorageKey(collection));
-      },
       setActiveSessionId: (collection, sessionId) =>
         set((state) => ({
           activeSessionIds: {

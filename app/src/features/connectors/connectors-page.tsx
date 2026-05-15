@@ -30,6 +30,7 @@ import {
   useUpdateGoogleConnectorConfig,
 } from "@/hooks/use-google-drive";
 import { cn } from "@/lib/cn";
+import { firstString } from "@/lib/form";
 import type { GoogleAccount, GoogleConnectorConfig } from "@/types/bigrag";
 
 const CONNECTOR_PROVIDER_TABS = connectorProviders.map((provider) => ({
@@ -438,6 +439,3 @@ const ProviderFact = ({ label, value }: { label: string; value: string }) => (
 );
 
 const formatConnectorDate = (value: string) => new Date(value).toLocaleString();
-
-const firstString = (values: readonly unknown[]) =>
-  values.find((value): value is string => typeof value === "string") ?? null;

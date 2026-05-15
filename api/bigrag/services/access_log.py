@@ -11,7 +11,7 @@ from starlette.types import Receive, Scope, Send
 
 from bigrag.db.engine import session_factory
 from bigrag.db.models import AccessLog
-from bigrag.logging import get_logger
+from bigrag.logging import REQUEST_ID_HEADER, get_logger
 from bigrag.services.client_ip import client_ip, client_ip_from_scope
 from bigrag.utils import safe_create_task
 
@@ -258,6 +258,9 @@ class AccessLogMiddleware:
 
             metadata = dict(context.get("metadata") or {})
             metadata.setdefault("route", route)
+            request_id = getattr(request.state, "request_id", None) or request.headers.get(
+                REQUEST_ID_HEADER
+            )
 
             safe_create_task(
                 _insert(
@@ -275,7 +278,7 @@ class AccessLogMiddleware:
                     route=route,
                     status_code=status_code,
                     latency_ms=latency_ms,
-                    request_id=request.headers.get("x-request-id"),
+                    request_id=request_id,
                     metadata=metadata,
                     ip=client_ip(request) or client_ip_from_scope(scope),
                     user_agent=request.headers.get("user-agent"),

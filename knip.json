@@ -1,5 +1,0 @@
-{
-  "$schema": "https://unpkg.com/knip/schema.json",
-  "ignore": ["website/source.config.ts", "app/public/config.js"],
-  "ignoreBinaries": ["build", "uv"]
-}

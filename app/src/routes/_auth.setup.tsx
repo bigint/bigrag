@@ -58,7 +58,11 @@ const SetupPage = () => {
           This account owns the admin UI. You can invite more admins after signing in.
         </p>
       </div>
-      <form className="flex flex-col gap-4" noValidate onSubmit={submitWith(() => form.handleSubmit())}>
+      <form
+        className="flex flex-col gap-4"
+        noValidate
+        onSubmit={submitWith(() => form.handleSubmit())}
+      >
         <form.Subscribe selector={(state) => state.errors}>
           {(errors) => {
             const formError = firstString(errors);
@@ -125,11 +129,11 @@ const SetupPage = () => {
           name="confirm"
           validators={{
             onSubmit: ({ value }) =>
-              !value
-                ? "Confirm password is required"
-                : value.length < 8
+              value
+                ? value.length < 8
                   ? "Confirm password must be at least 8 characters"
-                  : undefined,
+                  : undefined
+                : "Confirm password is required",
           }}
         >
           {(field) => (

@@ -9,7 +9,7 @@ The admin UI is the Vite + TanStack Router single-page app packaged with bigRAG.
 
 The bundled interface uses normal-weight body text with slightly restrained emphasis weights so dense admin screens stay readable without feeling visually heavy.
 
-Complex operator forms use TanStack Form for client-side draft state, validation, resets, and submit handling while keeping the existing Base UI controls. This covers runtime settings, embedding presets, webhook creation, and connector credential forms.
+Submitted operator forms use TanStack Form for client-side draft state, validation, resets, and submit handling while keeping the existing Base UI controls. This covers setup, login, collection creation and search, eval runs, API keys, MCP servers, account password changes, runtime settings, embedding presets, webhook creation, and connector credential forms.
 
 ## Running the Admin UI
 
@@ -27,13 +27,13 @@ For cross-site production deployments, enable secure session cookies and usually
 |------|---------|
 | `/setup` | One-time page to create the first admin account. Disappears once `needs_setup: false`. |
 | `/login` | Email + password login for admins and members. |
-| `/overview` | Platform-wide stats — collection count, document states, stored token count, queue depth, readiness. |
+| `/overview` | Platform-wide stats — collection count, document states, stored token count, queue depth, readiness, and worker heartbeat. |
 | `/collections` | List, create, delete, and search collections. |
 | `/collections/[name]` | Redirects to the collection's documents tab. |
-| `/collections/[name]/documents` | Upload files or folders through resumable upload sessions, list, inspect status, and delete documents. |
-| `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, SSE progress, failed-ingest error, reprocess, and delete. |
+| `/collections/[name]/documents` | Upload files or folders through resumable upload sessions, list, inspect status, and delete documents. Uploads are disabled when `/v1/stats` reports no live `bigrag-worker`. |
+| `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, SSE progress, failed-ingest error, reprocess, and delete. Reprocess is disabled while the worker is offline. |
 | `/collections/[name]/connectors` | Redirects to the first available collection connector from the provider catalog. |
-| `/collections/[name]/connectors/google-drive` | Browse Google Drive, sync selected files/folders, monitor Drive sync progress, trigger manual resync, and manage sync schedules. |
+| `/collections/[name]/connectors/google-drive` | Browse Google Drive, sync selected files/folders, monitor Drive sync progress, trigger manual resync, and manage sync schedules. Source creation and manual sync are disabled when the worker is offline. |
 | `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, and rerank when enabled. |
 | `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
 | `/chat` | Production chat UI; retrieve from one collection, stream cited answers through the backend, and continue stored conversations. |
@@ -43,9 +43,9 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/access-logs` | Access-log explorer for query, vector, chat, and evaluation traffic. |
 | `/usage` | Usage and cost explorer for requests, indexed data, tokens, and estimated embedding spend. |
 | `/audit` | Immutable admin audit trail with actor, action, resource, IP, and timestamp details. |
-| `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. |
+| `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. The page warns when document-event deliveries are blocked by an offline worker. |
 | `/connectors` | Browse the provider catalog, configure connector credentials, and review account state. |
-| `/backups` | Configure readable backup storage, start full-instance exports, and monitor backup history. |
+| `/backups` | Configure readable backup storage, start full-instance exports, and monitor backup history. Backup starts are disabled when the worker heartbeat is offline. |
 | `/vector-storage` | Configure the instance-level Qdrant or turbopuffer vector backend. Saves validate provider credentials before changes are stored. |
 | `/settings` | Operator-console settings workspace for account, platform, and data sections. |
 | `/evals` | Run golden-set retrieval evaluations. |
@@ -66,9 +66,7 @@ The `/vector-storage` page owns instance-level vector backend settings for Qdran
 
 The settings page is a compact task-oriented workspace. It uses the shared top tab control for Account, Health, Security, and Data instead of a nested settings sidebar, then opens directly into the selected area without a repeated section heading. Settings area content is stacked sequentially rather than split into desktop columns. Common controls appear first, raw setting keys and source metadata stay inside Advanced controls, and each runtime panel keeps its guidance plus Save action together in the panel footer. Empty controls show default or example placeholders so unset values remain readable. Saving validates applicable storage, backup, and vector targets before persistence.
 
-Existing deep links keep working. Legacy values such as `/settings?tab=server` and `/settings?tab=storage` open the matching redesigned Settings area while focusing the relevant runtime panel. `/settings?tab=vector_store` redirects to `/vector-storage`. Legacy model values such as `/settings?tab=models`, `/settings?tab=search`, and `/settings?tab=chat` redirect to the Models runtime settings tab.
-
-Older `/settings?tab=backups`, `/settings?tab=usage`, `/settings?tab=audit`, and `/settings?tab=connectors` links redirect to `/backups`, `/usage`, `/audit`, and `/connectors`.
+Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, and `/settings?tab=data`. Backups, usage, audit, connectors, models, evals, and vector storage are standalone routes rather than Settings deep-link redirects.
 
 | Group | Section | Reads from | Writes to |
 |-------|---------|-----------|-----------|
@@ -81,6 +79,8 @@ Older `/settings?tab=backups`, `/settings?tab=usage`, `/settings?tab=audit`, and
 ## Realtime updates
 
 The admin UI uses session-cookie [admin realtime SSE streams](/docs/api-reference/admin-realtime) for live document progress, batch upload progress, collection stats, connector sync state, access logs, audit log, usage, platform stats, and readiness. Each stream sends an immediate full `snapshot` payload that matches the related REST response, then sends later snapshots as data changes.
+
+The same platform stats stream powers the worker-offline UX. When `workers.online` is `false`, the admin UI shows `bigrag-worker is offline`, includes the last heartbeat age when available, and disables actions that would enqueue uploads, document reprocessing, backups, Google Drive source sync, or manual Drive resync. Missing worker stats are treated as unknown, so actions remain available until an offline heartbeat is confirmed.
 
 After a large local upload starts, the collection documents page opens `GET /v1/admin/realtime/collections/{name}/upload-sessions/{session_id}`. The panel shows received, queued, ingesting, completed, failed, and canceled counts plus a small recent item window, so 10,000-file uploads do not require a 10,000-ID status stream.
 

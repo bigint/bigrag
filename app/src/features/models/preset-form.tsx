@@ -21,6 +21,7 @@ import {
   useUpdateEmbeddingPreset,
 } from "@/hooks/use-embedding-presets";
 import { useEmbeddingModels } from "@/hooks/use-platform";
+import { errorText, firstString, submitWith } from "@/lib/form";
 import type { EmbeddingPreset } from "@/types/bigrag";
 
 interface Props {
@@ -85,11 +86,13 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
     <Modal onClose={onClose} open={open} title={isEdit ? "Edit preset" : "New embedding preset"}>
       <form
         className="space-y-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          setSubmitError(null);
-          void form.handleSubmit();
-        }}
+        noValidate
+        onSubmit={submitWith(
+          () => form.handleSubmit(),
+          () => {
+            setSubmitError(null);
+          },
+        )}
       >
         <form.Subscribe selector={(state) => state.errors}>
           {(errors) => {
@@ -111,7 +114,7 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
             <Input
               autoFocus
               description="A short label shown when creating collections — e.g. 'OpenAI small'."
-              error={field.state.meta.errors.join(", ") || null}
+              error={errorText(field.state.meta.errors)}
               label="Name"
               onBlur={field.handleBlur}
               onChange={(event) => field.handleChange(event.target.value)}
@@ -144,7 +147,7 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
           >
             {(field) => (
               <Select
-                error={field.state.meta.errors.join(", ") || null}
+                error={errorText(field.state.meta.errors)}
                 label="Model"
                 onChange={field.handleChange}
                 options={
@@ -170,7 +173,7 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
                   ? "Leave blank to keep the existing key."
                   : "Stored server-side; used whenever a collection references this preset."
               }
-              error={field.state.meta.errors.join(", ") || null}
+              error={errorText(field.state.meta.errors)}
               label="Provider API key"
               onBlur={field.handleBlur}
               onChange={(event) => field.handleChange(event.target.value)}
@@ -202,6 +205,3 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
     </Modal>
   );
 };
-
-const firstString = (values: readonly unknown[]) =>
-  values.find((value): value is string => typeof value === "string") ?? null;

@@ -31,7 +31,11 @@ export const validateMcpCreateFormValues = ({
   return undefined;
 };
 
-export const mcpCreateBodyFromValues = ({ collection, serverName, title }: McpCreateFormValues) => ({
+export const mcpCreateBodyFromValues = ({
+  collection,
+  serverName,
+  title,
+}: McpCreateFormValues) => ({
   collection: collection === MCP_UNSCOPED ? null : collection,
   server_name: serverName,
   title,

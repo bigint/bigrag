@@ -25,23 +25,32 @@ import type { GoogleDriveSource, GoogleDriveSyncJob } from "@/types/bigrag";
 export const SourcesPanel = ({
   deleteSource,
   jobsBySource,
+  offlineReason,
   sources,
   sourcesPending,
   syncSource,
   updateSource,
+  workerOffline,
 }: {
   deleteSource: ReturnType<typeof useDeleteGoogleSource>;
   jobsBySource: Map<string, GoogleDriveSyncJob>;
+  offlineReason?: string;
   sources: GoogleDriveSource[];
   sourcesPending: boolean;
   syncSource: ReturnType<typeof useSyncGoogleSource>;
   updateSource: ReturnType<typeof useUpdateGoogleSource>;
+  workerOffline?: boolean;
 }) => (
   <section className="min-w-0 overflow-hidden rounded-sm border border-border bg-card">
     <div className="flex items-center justify-between border-border border-b px-4 py-3">
       <h3 className="text-sm font-semibold">Sources</h3>
       {sourcesPending && <Spinner />}
     </div>
+    {workerOffline && (
+      <div className="border-border border-b bg-warning/10 px-4 py-3 text-xs text-warning">
+        Scheduled syncs wait until bigrag-worker is online.
+      </div>
+    )}
     {sources.length ? (
       <ul className="max-h-[640px] divide-y divide-border overflow-y-auto">
         {sources.map((source) => (
@@ -49,9 +58,11 @@ export const SourcesPanel = ({
             deleteSource={deleteSource}
             job={jobsBySource.get(source.id)}
             key={source.id}
+            offlineReason={offlineReason}
             source={source}
             syncSource={syncSource}
             updateSource={updateSource}
+            workerOffline={workerOffline}
           />
         ))}
       </ul>
@@ -70,15 +81,19 @@ export const SourcesPanel = ({
 const SourceRow = ({
   deleteSource,
   job,
+  offlineReason,
   source,
   syncSource,
   updateSource,
+  workerOffline,
 }: {
   deleteSource: ReturnType<typeof useDeleteGoogleSource>;
   job: GoogleDriveSyncJob | undefined;
+  offlineReason?: string;
   source: GoogleDriveSource;
   syncSource: ReturnType<typeof useSyncGoogleSource>;
   updateSource: ReturnType<typeof useUpdateGoogleSource>;
+  workerOffline?: boolean;
 }) => {
   const progress = job ? googleSyncProgressForJob(job) : undefined;
   const isSyncing = source.status === "syncing" || isActiveGoogleSyncJob(job);
@@ -100,12 +115,13 @@ const SourceRow = ({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Tooltip content="Sync now">
+          <Tooltip content={workerOffline ? offlineReason : "Sync now"}>
             <Button
               aria-label="Sync source"
-              disabled={syncSource.isPending || isSyncing}
+              disabled={syncSource.isPending || isSyncing || workerOffline}
               onClick={() => syncSource.mutate(source.id)}
               size="icon"
+              title={workerOffline ? offlineReason : undefined}
               variant="outline"
             >
               <RefreshCw className="size-4" />

@@ -3,8 +3,10 @@ from __future__ import annotations
 import logging
 import sys
 import time
+import uuid
 
 import structlog
+from starlette.datastructures import MutableHeaders
 
 _SENSITIVE_KEYS = frozenset(
     {
@@ -29,6 +31,8 @@ _SENSITIVE_KEYS = frozenset(
         "master_key_previous",
     }
 )
+REQUEST_ID_HEADER = "x-request-id"
+_REQUEST_ID_HEADER_BYTES = REQUEST_ID_HEADER.encode()
 
 
 def _redact(value: object) -> object:
@@ -109,6 +113,18 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     return structlog.get_logger(name)
 
 
+def _clean_request_id(value: str | None) -> str:
+    cleaned = (value or "").strip().replace("\r", "").replace("\n", "")
+    return cleaned[:128] if cleaned else uuid.uuid4().hex
+
+
+def _request_id_from_scope(scope) -> str:
+    for name, value in scope.get("headers", []):
+        if name.lower() == _REQUEST_ID_HEADER_BYTES:
+            return _clean_request_id(value.decode("latin-1", errors="ignore"))
+    return _clean_request_id(None)
+
+
 class RequestLoggingMiddleware:
     def __init__(self, app):
         self.app = app
@@ -122,13 +138,17 @@ class RequestLoggingMiddleware:
         start = time.monotonic()
         method = scope["method"]
         path = scope["path"]
+        request_id = _request_id_from_scope(scope)
+        scope.setdefault("state", {})["request_id"] = request_id
         status_code = 0
-        self._logger.info("request_start", method=method, path=path)
+        self._logger.info("request_start", method=method, path=path, request_id=request_id)
 
         async def send_wrapper(message):
             nonlocal status_code
             if message["type"] == "http.response.start":
                 status_code = message["status"]
+                message.setdefault("headers", [])
+                MutableHeaders(scope=message)["X-Request-ID"] = request_id
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
@@ -140,4 +160,5 @@ class RequestLoggingMiddleware:
             path=path,
             status=status_code,
             elapsed_ms=round(elapsed_ms, 1),
+            request_id=request_id,
         )

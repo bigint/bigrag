@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatHeartbeatAge, getWorkerAvailability, workerOfflineActionMessage } from "./worker-status";
+import {
+  formatHeartbeatAge,
+  getWorkerAvailability,
+  workerOfflineActionMessage,
+} from "./worker-status";
 
 describe("worker status", () => {
   it("treats missing worker stats as unknown", () => {

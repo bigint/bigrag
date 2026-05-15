@@ -1,16 +1,21 @@
-import { useReadiness } from "@/hooks/use-platform";
+import { getWorkerAvailability } from "@/features/workers/worker-status";
+import { usePlatformStats, useReadiness } from "@/hooks/use-platform";
 import { cn } from "@/lib/cn";
 
-type Status = "ok" | "down" | "unknown";
+type Status = "ok" | "degraded" | "down" | "unknown";
 
 const statusOf = (ok: boolean | undefined): Status => {
   if (ok === undefined) return "unknown";
   return ok ? "ok" : "down";
 };
 
+const statusFromHealth = (status: "ok" | "degraded" | "down" | undefined): Status =>
+  status ?? "unknown";
+
 const StatusPill = ({ status }: { status: Status }) => {
   const map = {
     ok: { dotColor: "bg-success", label: "Operational", text: "text-success" },
+    degraded: { dotColor: "bg-warning", label: "Degraded", text: "text-warning" },
     down: { dotColor: "bg-destructive", label: "Down", text: "text-destructive" },
     unknown: {
       dotColor: "bg-muted-foreground/40",
@@ -45,6 +50,13 @@ const HealthRow = ({
   </div>
 );
 
+const MetricRow = ({ label, value }: { label: string; value: string | number }) => (
+  <div className="flex items-center justify-between gap-3 px-4 py-3">
+    <span className="text-sm font-semibold text-foreground">{label}</span>
+    <span className="text-xs font-semibold tabular-nums text-muted-foreground">{value}</span>
+  </div>
+);
+
 const EnvRow = ({ label, value }: { label: string; value: string }) => (
   <div className="flex items-center justify-between gap-3 px-4 py-3">
     <code className="font-mono text-xs text-foreground">{label}</code>
@@ -61,10 +73,26 @@ const ENV_ROWS: ReadonlyArray<{ label: string; value: string }> = [
   { label: "Split admin UI", value: "admin UI backend URL" },
 ];
 
+const QUEUE_REASON_LABELS: Readonly<Record<string, string>> = {
+  dead_lettered_jobs: "dead-lettered jobs",
+  retrying_jobs: "jobs retrying",
+  stale_processing_jobs: "stale processing jobs",
+  worker_offline: "worker offline",
+  worker_offline_with_active_queue: "worker offline with active queue",
+};
+
+const queueReasonText = (reasons: readonly string[] | undefined) => {
+  if (!reasons?.length) return "No queue risks detected.";
+  return reasons.map((reason) => QUEUE_REASON_LABELS[reason] ?? reason).join(", ");
+};
+
 export const ServerTab = () => {
   const { data: readiness, error } = useReadiness();
+  const { data: stats } = usePlatformStats();
   const overallStatus = readiness ? statusOf(readiness.status === "ok") : "unknown";
   const version = readiness?.version;
+  const workerAvailability = getWorkerAvailability(stats);
+  const queueHealth = stats?.queue_health;
 
   return (
     <div className="flex flex-col gap-4">
@@ -83,8 +111,8 @@ export const ServerTab = () => {
           <StatusPill status={overallStatus} />
         </header>
         <div className="divide-y divide-border">
-          <HealthRow label="Postgres" ok={readiness?.postgres} />
-          <HealthRow label="Redis" ok={readiness?.redis} />
+          <HealthRow label="Postgres" ok={readiness?.postgres} hint={readiness?.postgres_error} />
+          <HealthRow label="Redis" ok={readiness?.redis} hint={readiness?.redis_error} />
           <HealthRow
             label={
               readiness?.vector_store_provider
@@ -92,6 +120,7 @@ export const ServerTab = () => {
                 : "Vector store"
             }
             ok={readiness?.vector_store}
+            hint={readiness?.vector_store_error}
           />
           <HealthRow
             label="Embeddings"
@@ -105,6 +134,34 @@ export const ServerTab = () => {
                   : null)
             }
           />
+        </div>
+      </section>
+
+      <section className="rounded-md border border-border bg-card">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/35 p-4">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold tracking-normal">Worker and queue</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {queueReasonText(queueHealth?.reasons)}
+            </p>
+          </div>
+          <StatusPill status={statusFromHealth(queueHealth?.status)} />
+        </header>
+        <div className="divide-y divide-border">
+          <HealthRow
+            label="Worker"
+            ok={workerAvailability.unknown ? undefined : workerAvailability.online}
+            hint={
+              workerAvailability.heartbeatAgeLabel
+                ? `heartbeat ${workerAvailability.heartbeatAgeLabel}`
+                : workerAvailability.message
+            }
+          />
+          <MetricRow label="Pending" value={stats?.queue.pending ?? 0} />
+          <MetricRow label="Processing" value={stats?.queue.processing ?? 0} />
+          <MetricRow label="Retrying" value={stats?.queue.retrying ?? 0} />
+          <MetricRow label="Dead-lettered" value={stats?.queue.dead_lettered ?? 0} />
+          <MetricRow label="Stale processing" value={stats?.queue.stale_processing ?? 0} />
         </div>
       </section>
 

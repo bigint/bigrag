@@ -70,8 +70,19 @@ vi.mock("@/hooks/use-platform", () => ({
         total_size_bytes: 4096,
         total_tokens: 2850,
       },
-      queue: {},
+      queue: {
+        completed: 0,
+        failed: 0,
+        pending: 3,
+        processing: 1,
+        queued: 4,
+      },
       webhooks: 0,
+      workers: {
+        heartbeat_age_seconds: 180,
+        heartbeat_at: "2026-05-15T12:00:00+00:00",
+        online: false,
+      },
     },
     isPending: false,
   }),
@@ -96,5 +107,13 @@ describe("OverviewPage", () => {
     expect(html).toContain("Tokens stored");
     expect(html).toContain("2,850");
     expect(html).toContain("Across indexed documents");
+  });
+
+  it("surfaces worker health and blocked queue work", () => {
+    const html = renderToStaticMarkup(<OverviewPage />);
+
+    expect(html).toContain("Worker");
+    expect(html).toContain("bigrag-worker is offline");
+    expect(html).toContain("Pending uploads, backups, webhooks, and Drive syncs cannot drain");
   });
 });

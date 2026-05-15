@@ -21,11 +21,11 @@ import type {
   DocumentListResponse,
   EmbeddingPreset,
   EmbeddingPresetListResponse,
+  GoogleConnectorConfig,
   GoogleSourceListResponse,
   GoogleSyncJobListResponse,
   InstanceSettingsResponse,
   InstanceSettingsTestResponse,
-  GoogleConnectorConfig,
   McpServer,
   McpServerListResponse,
   PlatformStatsResponse,
@@ -33,10 +33,10 @@ import type {
   ResetInstanceSettingsBody,
   StatusResponse,
   TestInstanceSettingsBody,
-  UpdateInstanceSettingsBody,
   UpdateApiKeyBody,
   UpdateEmbeddingPresetBody,
   UpdateGoogleConnectorConfigBody,
+  UpdateInstanceSettingsBody,
   UpdateMcpServerBody,
   UpdateUserBody,
   UploadSession,
@@ -122,11 +122,14 @@ export class AdminRealtimeResource {
     collection: string,
     options: { status?: string; limit?: number; offset?: number } = {},
   ): AsyncGenerator<AdminRealtimeEvent<DocumentListResponse>> {
-    return this._stream(`/v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents`, {
-      status: options.status,
-      limit: options.limit,
-      offset: options.offset,
-    });
+    return this._stream(
+      `/v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents`,
+      {
+        status: options.status,
+        limit: options.limit,
+        offset: options.offset,
+      },
+    );
   }
 
   documentBatchStatus(
@@ -139,10 +142,7 @@ export class AdminRealtimeResource {
     );
   }
 
-  document(
-    collection: string,
-    documentId: string,
-  ): AsyncGenerator<AdminRealtimeEvent<Document>> {
+  document(collection: string, documentId: string): AsyncGenerator<AdminRealtimeEvent<Document>> {
     return this._stream(
       `/v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}`,
     );
@@ -158,9 +158,7 @@ export class AdminRealtimeResource {
   }
 
   collectionStats(collection: string): AsyncGenerator<AdminRealtimeEvent<CollectionStatsResponse>> {
-    return this._stream(
-      `/v1/admin/realtime/collections/${encodeURIComponent(collection)}/stats`,
-    );
+    return this._stream(`/v1/admin/realtime/collections/${encodeURIComponent(collection)}/stats`);
   }
 
   connectorSources(
@@ -183,11 +181,15 @@ export class AdminRealtimeResource {
     });
   }
 
-  backups(options: { limit?: number; offset?: number } = {}): AsyncGenerator<AdminRealtimeEvent<BackupJobListResponse>> {
+  backups(
+    options: { limit?: number; offset?: number } = {},
+  ): AsyncGenerator<AdminRealtimeEvent<BackupJobListResponse>> {
     return this._stream("/v1/admin/realtime/backups", options);
   }
 
-  accessOverview(options: { windowDays?: number } = {}): AsyncGenerator<AdminRealtimeEvent<AccessLogOverviewResponse>> {
+  accessOverview(
+    options: { windowDays?: number } = {},
+  ): AsyncGenerator<AdminRealtimeEvent<AccessLogOverviewResponse>> {
     return this._stream("/v1/admin/realtime/access/overview", {
       window_days: options.windowDays,
     });
@@ -485,4 +487,21 @@ function pagination(options: { limit?: number; offset?: number }): Record<string
   if (options.limit !== undefined) params.limit = String(options.limit);
   if (options.offset !== undefined) params.offset = String(options.offset);
   return params;
+}
+
+function parseAdminRealtimeFrame<T>(frame: string): AdminRealtimeEvent<T> | null {
+  let event = "message";
+  const data: string[] = [];
+  for (const rawLine of frame.split(/\r?\n/)) {
+    if (!rawLine || rawLine.startsWith(":")) continue;
+    if (rawLine.startsWith("event:")) {
+      event = rawLine.slice(6).trimStart();
+    } else if (rawLine.startsWith("data:")) {
+      data.push(rawLine.slice(5).trimStart());
+    }
+  }
+  if (data.length === 0) return null;
+  const payload = data.join("\n");
+  if (payload === "[DONE]") return null;
+  return { event, data: JSON.parse(payload) } as AdminRealtimeEvent<T>;
 }

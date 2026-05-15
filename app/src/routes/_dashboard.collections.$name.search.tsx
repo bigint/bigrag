@@ -10,8 +10,8 @@ import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import {
-  collectionSearchBodyFromValues,
   type CollectionSearchMode,
+  collectionSearchBodyFromValues,
   defaultCollectionSearchFormValues,
   validateCollectionSearchFormValues,
 } from "@/features/collections/collection-form-state";
@@ -43,7 +43,11 @@ const SearchTab = () => {
     <div className="flex flex-col gap-4">
       <Card>
         <CardContent className="pt-5">
-          <form className="flex flex-col gap-4" noValidate onSubmit={submitWith(() => form.handleSubmit())}>
+          <form
+            className="flex flex-col gap-4"
+            noValidate
+            onSubmit={submitWith(() => form.handleSubmit())}
+          >
             <form.Field
               name="query"
               validators={{

@@ -19,6 +19,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { PageContainer } from "@/components/ui/page-container";
 import { Spinner } from "@/components/ui/spinner";
+import { getWorkerAvailability } from "@/features/workers/worker-status";
+import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
 import { useAccessOverview } from "@/hooks/use-access-logs";
 import { useSession } from "@/hooks/use-auth";
 import { useCollections } from "@/hooks/use-collections";
@@ -62,6 +64,7 @@ export const OverviewPage = () => {
   const queuedDocs = (docs?.pending ?? 0) + (docs?.processing ?? 0);
   const readyPct = docs?.total ? Math.round((docs.ready / docs.total) * 100) : 0;
   const failedPct = docs?.total ? Math.round((docs.failed / docs.total) * 100) : 0;
+  const workerAvailability = getWorkerAvailability(stats);
   const services = [
     { label: "Postgres", ok: readiness?.postgres },
     {
@@ -72,6 +75,11 @@ export const OverviewPage = () => {
     },
     { label: "Redis", ok: readiness?.redis },
     { detail: readiness?.embedding_error, label: "Embeddings", ok: readiness?.embedding },
+    {
+      detail: workerAvailability.message,
+      label: "Worker",
+      ok: workerAvailability.unknown ? undefined : workerAvailability.online,
+    },
   ];
   const servicesOnline = services.filter((service) => service.ok).length;
   const queueItems = Object.entries(stats?.queue ?? {}).filter(([, value]) => value > 0);
@@ -123,7 +131,7 @@ export const OverviewPage = () => {
             icon={HardDrive}
             label="Storage"
             value={statsPending ? undefined : formatBytes(docs?.total_size_bytes ?? 0)}
-            sub={`${servicesOnline}/4 services online`}
+            sub={`${servicesOnline}/${services.length} services online`}
           />
         </section>
 
@@ -251,6 +259,12 @@ export const OverviewPage = () => {
               <p className="mt-1 text-sm text-muted-foreground">
                 Work waiting behind document upload and reprocessing.
               </p>
+              <WorkerOfflineBanner
+                availability={workerAvailability}
+                className="mt-4"
+                compact
+                message="Pending uploads, backups, webhooks, and Drive syncs cannot drain until the worker is started."
+              />
               <div className="mt-4 space-y-2">
                 {queueItems.length === 0 ? (
                   <div className="rounded-2xl border border-border bg-muted px-3 py-3 text-sm font-semibold">

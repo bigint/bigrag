@@ -1,15 +1,23 @@
+import { useForm, useStore } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
 import { Play } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  defaultEvalRunnerFormValues,
+  type EvalCase,
+  evalCasesError,
+  evalRunnerBodyFromValues,
+  SAMPLE_EVAL_CASES,
+  validateEvalRunnerFormValues,
+} from "@/features/evals/eval-runner-state";
 import { useCollections } from "@/hooks/use-collections";
 import { apiClient } from "@/lib/api";
-
-type EvalCase = { query: string; relevant_ids: string[] };
+import { errorText, firstString, submitWith } from "@/lib/form";
 
 type EvalPerCase = {
   query: string;
@@ -29,18 +37,10 @@ type EvalResponse = {
   per_case: EvalPerCase[];
 };
 
-const SAMPLE = `[
-  { "query": "how do I create a collection?", "relevant_ids": ["doc-abc"] },
-  { "query": "what embedding models are supported?", "relevant_ids": ["doc-def"] }
-]`;
-
 export const EvalRunner = () => {
   const { data: collectionsData } = useCollections();
   const collections = collectionsData?.collections ?? [];
 
-  const [collection, setCollection] = useState("");
-  const [cases, setCases] = useState(SAMPLE);
-  const [topK, setTopK] = useState(10);
   const [result, setResult] = useState<EvalResponse | null>(null);
 
   const mutation = useMutation({
@@ -58,21 +58,20 @@ export const EvalRunner = () => {
       toast.error(err instanceof Error ? err.message : "Failed");
     },
   });
-
-  const run = (e: FormEvent) => {
-    e.preventDefault();
-    let parsed: EvalCase[];
-    try {
-      parsed = JSON.parse(cases);
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        throw new Error("Expected a non-empty JSON array of cases");
+  const form = useForm({
+    defaultValues: defaultEvalRunnerFormValues(),
+    validators: {
+      onSubmit: ({ value }) => validateEvalRunnerFormValues(value),
+    },
+    onSubmit: ({ value }) => {
+      try {
+        mutation.mutate(evalRunnerBodyFromValues(value));
+      } catch (err) {
+        toast.error(err instanceof Error ? `Invalid JSON: ${err.message}` : "Invalid JSON");
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? `Invalid JSON: ${err.message}` : "Invalid JSON");
-      return;
-    }
-    mutation.mutate({ collection, cases: parsed, top_k: topK, search_mode: "semantic" });
-  };
+    },
+  });
+  const values = useStore(form.store, (state) => state.values);
 
   return (
     <Card>
@@ -84,55 +83,107 @@ export const EvalRunner = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={run} className="flex flex-col gap-4">
+        <form
+          className="flex flex-col gap-4"
+          noValidate
+          onSubmit={submitWith(() => form.handleSubmit())}
+        >
+          <form.Subscribe selector={(state) => state.errors}>
+            {(errors) => {
+              const formError = firstString(errors);
+              return formError ? (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {formError}
+                </div>
+              ) : null;
+            }}
+          </form.Subscribe>
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-foreground" htmlFor="eval-col">
               Collection
             </label>
-            <select
-              id="eval-col"
-              value={collection}
-              onChange={(e) => setCollection(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-              required
+            <form.Field
+              name="collection"
+              validators={{
+                onSubmit: ({ value }) => (value ? undefined : "Collection is required"),
+              }}
             >
-              <option value="" disabled>
-                Pick a collection...
-              </option>
-              {collections.map((c) => (
-                <option key={c.name} value={c.name}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              {(field) => (
+                <>
+                  <select
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    id="eval-col"
+                    onBlur={field.handleBlur}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    required
+                    value={field.state.value}
+                  >
+                    <option value="" disabled>
+                      Pick a collection...
+                    </option>
+                    {collections.map((c) => (
+                      <option key={c.name} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errorText(field.state.meta.errors) && (
+                    <p className="text-xs text-destructive">{errorText(field.state.meta.errors)}</p>
+                  )}
+                </>
+              )}
+            </form.Field>
           </div>
 
-          <Input
-            label="top_k"
-            type="number"
-            min={1}
-            max={100}
-            value={topK}
-            onChange={(e) => setTopK(Number(e.target.value))}
-          />
+          <form.Field
+            name="topK"
+            validators={{
+              onSubmit: ({ value }) =>
+                value < 1 || value > 100 ? "top_k must be between 1 and 100" : undefined,
+            }}
+          >
+            {(field) => (
+              <Input
+                error={errorText(field.state.meta.errors)}
+                label="top_k"
+                max={100}
+                min={1}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(Number(e.target.value))}
+                type="number"
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
 
           <div className="flex flex-col gap-2">
             <label htmlFor="eval-cases" className="text-sm font-medium text-foreground">
               Cases (JSON)
             </label>
-            <Textarea
-              id="eval-cases"
-              rows={8}
-              value={cases}
-              onChange={(e) => setCases(e.target.value)}
-              placeholder={SAMPLE}
-              spellCheck={false}
-              className="font-mono text-xs"
-            />
+            <form.Field
+              name="cases"
+              validators={{
+                onSubmit: ({ value }) => evalCasesError(value),
+              }}
+            >
+              {(field) => (
+                <Textarea
+                  className="font-mono text-xs"
+                  error={errorText(field.state.meta.errors)}
+                  id="eval-cases"
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  placeholder={SAMPLE_EVAL_CASES}
+                  rows={8}
+                  spellCheck={false}
+                  value={field.state.value}
+                />
+              )}
+            </form.Field>
           </div>
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={mutation.isPending || !collection}>
+            <Button type="submit" disabled={mutation.isPending || !values.collection}>
               <Play className="size-4" />
               {mutation.isPending ? "Running..." : "Run eval"}
             </Button>

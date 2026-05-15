@@ -122,6 +122,7 @@ def test_provider_error_categorization() -> None:
         (RuntimeError("quota exceeded"), "rate_limited"),
         (TimeoutError("timed out"), "timeout"),
         (ConnectionError("dns unreachable"), "unreachable"),
+        (RuntimeError("client not connected"), "misconfigured"),
         (RuntimeError("other"), "unknown"),
     ]
 
@@ -228,6 +229,7 @@ def test_readiness_reports_ok_and_degraded_states(monkeypatch) -> None:
     assert response.status_code == 503
     assert response_body(response)["status"] == "degraded"
     assert response_body(response)["vector_store"] is False
+    assert response_body(response)["vector_store_error"] == "misconfigured"
 
 
 def test_platform_stats_uses_cache_and_populates_uncached_result(monkeypatch) -> None:
@@ -243,6 +245,7 @@ def test_platform_stats_uses_cache_and_populates_uncached_result(monkeypatch) ->
     result = run(health.platform_stats(fake_request(), {}, FakeSession()))
 
     assert result == {
+        "status": "down",
         "collections": 2,
         "documents": {
             "total": 5,
@@ -256,10 +259,38 @@ def test_platform_stats_uses_cache_and_populates_uncached_result(monkeypatch) ->
         },
         "webhooks": 3,
         "queue": {"queued": 1, "processing": 2},
+        "queue_health": {
+            "status": "down",
+            "reasons": ["worker_offline_with_active_queue"],
+        },
         "workers": {
             "online": False,
+            "status": "offline",
             "heartbeat_at": None,
             "heartbeat_age_seconds": None,
         },
     }
     assert cache.sets == [("stats:platform", result, 15)]
+
+
+def test_queue_health_classifies_worker_and_queue_risks() -> None:
+    assert health._queue_health(
+        {"pending": 0, "processing": 0, "retrying": 0},
+        {"online": True},
+    ) == {"status": "ok", "reasons": []}
+
+    assert health._queue_health(
+        {"pending": 3, "processing": 0, "retrying": 0},
+        {"online": False},
+    ) == {
+        "status": "down",
+        "reasons": ["worker_offline_with_active_queue"],
+    }
+
+    assert health._queue_health(
+        {"pending": 0, "processing": 0, "retrying": 1, "dead_lettered": 2},
+        {"online": True},
+    ) == {
+        "status": "degraded",
+        "reasons": ["dead_lettered_jobs", "retrying_jobs"],
+    }

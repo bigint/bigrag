@@ -253,6 +253,10 @@ docker exec bigrag-redis redis-cli ping
 - Check worker logs for ingestion or connector actor errors
 - Check `/v1/stats` for worker heartbeat and queue depth
 
+### Worker-dependent actions are disabled in the admin UI
+
+Uploads, document reprocessing, backups, webhook deliveries, and Google Drive sync all depend on `bigrag-worker`. If the admin UI shows `bigrag-worker is offline`, start or restart the worker service, then confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
+
 ### Dimension mismatch on query
 
 The query embedding dimension doesn't match the collection's configured dimension. Ensure you're querying with the same embedding model.

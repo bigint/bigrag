@@ -2,12 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   DATA_SETTINGS_GROUPS,
   DEFAULT_SETTINGS_TAB,
-  getSettingsFocusGroup,
   getSettingsNavItem,
   getSettingsTab,
   isSettingsTab,
   SETTINGS_NAV_ITEMS,
-  settingsAliasLabel,
   settingsSectionLabel,
 } from "./settings-navigation";
 
@@ -27,17 +25,13 @@ describe("settings navigation", () => {
     expect(isSettingsTab("audit")).toBe(false);
   });
 
-  it("maps old registry deep links into the redesigned areas", () => {
-    expect(getSettingsTab("server")).toBe("health");
-    expect(getSettingsTab("storage")).toBe("data");
+  it("does not map old registry deep links", () => {
+    expect(getSettingsTab("server")).toBe(DEFAULT_SETTINGS_TAB);
+    expect(getSettingsTab("storage")).toBe(DEFAULT_SETTINGS_TAB);
     expect(getSettingsTab("vector_store")).toBe(DEFAULT_SETTINGS_TAB);
     expect(getSettingsTab("models")).toBe(DEFAULT_SETTINGS_TAB);
     expect(getSettingsTab("search")).toBe(DEFAULT_SETTINGS_TAB);
     expect(getSettingsTab("chat")).toBe(DEFAULT_SETTINGS_TAB);
-    expect(getSettingsFocusGroup("security")).toBeUndefined();
-    expect(getSettingsFocusGroup("storage")).toBe("storage");
-    expect(getSettingsFocusGroup("vector_store")).toBeUndefined();
-    expect(getSettingsFocusGroup("chat")).toBeUndefined();
   });
 
   it("finds nav metadata for a tab", () => {
@@ -55,7 +49,7 @@ describe("settings navigation", () => {
   it("formats mobile section labels", () => {
     expect(settingsSectionLabel("security")).toBe("Operate / Security");
     expect(settingsSectionLabel("connectors")).toBe("Personal / Account");
-    expect(settingsAliasLabel("storage")).toBe("File storage");
+    expect(settingsSectionLabel("storage")).toBe("Personal / Account");
   });
 
   it("groups detailed runtime sections into the data workspace", () => {

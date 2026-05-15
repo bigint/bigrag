@@ -9,11 +9,17 @@ import { Empty } from "@/components/ui/empty";
 import { PageHeader } from "@/components/ui/page-header";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  getWorkerAvailability,
+  workerOfflineActionMessage,
+} from "@/features/workers/worker-status";
+import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
+import {
   useChunks,
   useDeleteDocument,
   useDocument,
   useReprocessDocument,
 } from "@/hooks/use-documents";
+import { usePlatformStats } from "@/hooks/use-platform";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatNumber, formatRelative } from "@/lib/format";
 import type { DocumentProgress, DocumentStatus } from "@/types/bigrag";
@@ -98,6 +104,7 @@ const DocumentDetail = () => {
 
   const { data: doc, dataUpdatedAt, isPending, streaming } = useDocument(name, docId);
   const { data: chunks, refetch: refetchChunks } = useChunks(name, docId);
+  const { data: stats } = usePlatformStats();
   const reprocess = useReprocessDocument(name);
   const remove = useDeleteDocument(name);
 
@@ -116,6 +123,8 @@ const DocumentDetail = () => {
   const progressDetail = progressDetailText(progress);
   const progressVariant = statusVariant[progress.status] ?? statusVariant[doc.status] ?? "info";
   const checkedAt = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
+  const workerAvailability = getWorkerAvailability(stats);
+  const workerOffline = workerAvailability.offline;
 
   return (
     <div className="flex flex-col gap-6">
@@ -127,6 +136,8 @@ const DocumentDetail = () => {
         <ArrowLeft className="h-3.5 w-3.5" /> Documents
       </Link>
 
+      <WorkerOfflineBanner availability={workerAvailability} />
+
       <PageHeader
         eyebrow={`${doc.file_type.toUpperCase()} · ${formatBytes(doc.file_size)}`}
         title={doc.filename}
@@ -135,7 +146,13 @@ const DocumentDetail = () => {
           <div className="flex gap-2">
             <Button
               variant="secondary"
+              disabled={workerOffline}
+              title={workerOffline ? workerOfflineActionMessage(workerAvailability) : undefined}
               onClick={async () => {
+                if (workerOffline) {
+                  toast.warning(workerOfflineActionMessage(workerAvailability));
+                  return;
+                }
                 try {
                   await reprocess.mutateAsync(docId);
                 } catch (err) {

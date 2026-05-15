@@ -2,8 +2,109 @@
 
 from __future__ import annotations
 
-from typing import Any, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
+
 from bigrag.types.auth import User
+
+InstanceSettingKind = Literal[
+    "bool",
+    "int",
+    "float",
+    "string",
+    "string_list",
+    "int_list",
+    "select",
+    "secret",
+]
+
+InstanceSettingGroup = Literal[
+    "security",
+    "ingestion",
+    "storage",
+    "vector_store",
+    "queue",
+    "search",
+    "chat",
+    "webhooks",
+    "retention",
+    "backups",
+]
+
+
+class InstanceSettingSpec(TypedDict):
+    key: str
+    group: InstanceSettingGroup
+    label: str
+    description: str
+    kind: InstanceSettingKind
+    default: Any
+    options: list[str]
+    min: int | float | None
+    max: int | float | None
+    secret: bool
+
+
+class InstanceSetting(TypedDict):
+    key: str
+    value: Any
+    has_value: bool
+    source: Literal["default", "database", "bootstrap"]
+    updated_at: str | None
+    updated_by: str | None
+
+
+class InstanceSettingsResponse(TypedDict):
+    specs: list[InstanceSettingSpec]
+    values: dict[str, InstanceSetting]
+
+
+class UpdateInstanceSettingsBody(TypedDict):
+    values: dict[str, Any]
+
+
+class ResetInstanceSettingsBody(TypedDict):
+    keys: list[str]
+
+
+class TestInstanceSettingsBody(TypedDict, total=False):
+    values: dict[str, Any]
+
+
+class InstanceSettingsTestResponse(TypedDict):
+    status: Literal["ok"]
+    checked: list[str]
+    message: str
+
+
+class BackupCreateBody(TypedDict, total=False):
+    label: str
+
+
+class BackupJob(TypedDict):
+    id: str
+    label: str
+    status: str
+    progress: int
+    destination_prefix: str
+    object_count: int
+    byte_count: int
+    manifest: dict[str, Any]
+    error_message: str | None
+    created_by: str | None
+    started_at: str | None
+    completed_at: str | None
+    created_at: str
+    updated_at: str
+
+
+class BackupJobListResponse(TypedDict):
+    jobs: list[BackupJob]
+    total: int
+
+
+class AdminRealtimeEvent(TypedDict):
+    event: str
+    data: Any
 
 
 class UserListResponse(TypedDict):

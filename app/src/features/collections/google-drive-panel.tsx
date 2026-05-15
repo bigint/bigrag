@@ -24,6 +24,11 @@ import { SourcesPanel } from "@/features/collections/google-drive-sources-panel"
 import { ConnectRequired, SetupRequired } from "@/features/collections/google-drive-states";
 import { SyncMonitor } from "@/features/collections/google-drive-sync-monitor";
 import {
+  getWorkerAvailability,
+  workerOfflineActionMessage,
+} from "@/features/workers/worker-status";
+import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
+import {
   useCreateGoogleSource,
   useDeleteGoogleSource,
   useGoogleAccount,
@@ -33,6 +38,7 @@ import {
   useSyncGoogleSource,
   useUpdateGoogleSource,
 } from "@/hooks/use-google-drive";
+import { usePlatformStats } from "@/hooks/use-platform";
 import { apiClient } from "@/lib/api";
 
 export const GoogleDrivePanel = ({
@@ -45,6 +51,7 @@ export const GoogleDrivePanel = ({
   const account = useGoogleAccount();
   const sources = useGoogleSources(collection);
   const syncJobs = useGoogleSyncJobs({ collection, limit: 20 });
+  const { data: stats } = usePlatformStats();
   const createSource = useCreateGoogleSource(collection);
   const syncSource = useSyncGoogleSource(collection);
   const updateSource = useUpdateGoogleSource(collection);
@@ -95,6 +102,9 @@ export const GoogleDrivePanel = ({
     files.error instanceof Error
       ? files.error.message
       : "Could not load Google Drive files. Try again.";
+  const workerAvailability = getWorkerAvailability(stats);
+  const workerOffline = workerAvailability.offline;
+  const offlineReason = workerOffline ? workerOfflineActionMessage(workerAvailability) : undefined;
 
   useVisibleGoogleDriveFiles(collection, files.data, pageToken, syncVisibleFiles);
 
@@ -112,6 +122,10 @@ export const GoogleDrivePanel = ({
   };
 
   const addSelected = () => {
+    if (workerOffline) {
+      toast.warning(workerOfflineActionMessage(workerAvailability));
+      return;
+    }
     for (const item of selectedItems) {
       createSource.mutate({
         root_id: item.id,
@@ -135,77 +149,86 @@ export const GoogleDrivePanel = ({
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-      <section className="min-w-0 overflow-hidden rounded-sm border border-border bg-card">
-        <DriveHeader
-          email={account.data?.email}
-          isAdding={createSource.isPending}
-          onAddSelected={addSelected}
-          selectedCount={selectedItems.length}
-        />
-        <div className="flex flex-col gap-4 p-4">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
-            <DriveBreadcrumb
-              canGoBack={folderStack.length > 1 && !query}
-              currentFolder={query ? "Search results" : currentFolder.name}
-              onBack={() => goBack(collection)}
-            />
-            <Input
-              aria-label="Search Drive"
-              onChange={(e) => {
-                setSearch(collection, e.target.value);
-              }}
-              placeholder="Search Drive"
-              trailing={files.isFetching ? <Spinner /> : <Search className="size-4" />}
-              value={search}
-            />
-          </div>
-
-          <DriveBrowser
-            error={fileError}
-            files={visibleFiles}
-            isError={files.isError}
-            isPending={files.isPending}
-            onOpenFolder={(item) => openFolder(collection, item)}
-            onToggleSelected={(item, checked) => toggleSelected(collection, item, checked)}
-            selected={selected}
+    <div className="flex flex-col gap-4">
+      <WorkerOfflineBanner availability={workerAvailability} />
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="min-w-0 overflow-hidden rounded-sm border border-border bg-card">
+          <DriveHeader
+            email={account.data?.email}
+            isAdding={createSource.isPending}
+            offlineReason={offlineReason}
+            onAddSelected={addSelected}
+            selectedCount={selectedItems.length}
+            workerOffline={workerOffline}
           />
-
-          {files.data?.next_page_token && (
-            <div className="flex justify-center">
-              <Button
-                onClick={() => setPageToken(collection, files.data?.next_page_token ?? undefined)}
-                variant="outline"
-              >
-                Load more
-              </Button>
+          <div className="flex flex-col gap-4 p-4">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+              <DriveBreadcrumb
+                canGoBack={folderStack.length > 1 && !query}
+                currentFolder={query ? "Search results" : currentFolder.name}
+                onBack={() => goBack(collection)}
+              />
+              <Input
+                aria-label="Search Drive"
+                onChange={(e) => {
+                  setSearch(collection, e.target.value);
+                }}
+                placeholder="Search Drive"
+                trailing={files.isFetching ? <Spinner /> : <Search className="size-4" />}
+                value={search}
+              />
             </div>
-          )}
-        </div>
-        <SelectedBar
-          isAdding={createSource.isPending}
-          onAddSelected={addSelected}
-          onClear={() => clearSelected(collection)}
-          selectedBytes={selectedBytes}
-          selectedCount={selectedItems.length}
-        />
-      </section>
 
-      <aside className="flex min-w-0 flex-col gap-4">
-        <SyncMonitor
-          isPending={syncJobs.isPending}
-          job={activeJob}
-          streaming={syncJobs.streaming}
-        />
-        <SourcesPanel
-          deleteSource={deleteSource}
-          jobsBySource={syncJobsBySource}
-          sources={sources.data?.sources ?? []}
-          sourcesPending={sources.isPending}
-          syncSource={syncSource}
-          updateSource={updateSource}
-        />
-      </aside>
+            <DriveBrowser
+              error={fileError}
+              files={visibleFiles}
+              isError={files.isError}
+              isPending={files.isPending}
+              onOpenFolder={(item) => openFolder(collection, item)}
+              onToggleSelected={(item, checked) => toggleSelected(collection, item, checked)}
+              selected={selected}
+            />
+
+            {files.data?.next_page_token && (
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => setPageToken(collection, files.data?.next_page_token ?? undefined)}
+                  variant="outline"
+                >
+                  Load more
+                </Button>
+              </div>
+            )}
+          </div>
+          <SelectedBar
+            isAdding={createSource.isPending}
+            offlineReason={offlineReason}
+            onAddSelected={addSelected}
+            onClear={() => clearSelected(collection)}
+            selectedBytes={selectedBytes}
+            selectedCount={selectedItems.length}
+            workerOffline={workerOffline}
+          />
+        </section>
+
+        <aside className="flex min-w-0 flex-col gap-4">
+          <SyncMonitor
+            isPending={syncJobs.isPending}
+            job={activeJob}
+            streaming={syncJobs.streaming}
+          />
+          <SourcesPanel
+            deleteSource={deleteSource}
+            jobsBySource={syncJobsBySource}
+            offlineReason={offlineReason}
+            sources={sources.data?.sources ?? []}
+            sourcesPending={sources.isPending}
+            syncSource={syncSource}
+            updateSource={updateSource}
+            workerOffline={workerOffline}
+          />
+        </aside>
+      </div>
     </div>
   );
 };

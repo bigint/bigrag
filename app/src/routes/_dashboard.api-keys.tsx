@@ -14,20 +14,20 @@ import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
+  API_KEY_UNSCOPED,
+  apiKeyBodyFromValues,
+  defaultApiKeyFormValues,
+  validateApiKeyFormValues,
+} from "@/features/api-keys/api-key-form-state";
+import {
   useApiKeys,
   useCreateApiKey,
   useDeleteApiKey,
   useUpdateApiKey,
 } from "@/hooks/use-api-keys";
 import { useCollections } from "@/hooks/use-collections";
-import {
-  API_KEY_UNSCOPED,
-  apiKeyBodyFromValues,
-  defaultApiKeyFormValues,
-  validateApiKeyFormValues,
-} from "@/features/api-keys/api-key-form-state";
-import { formatRelative } from "@/lib/format";
 import { errorText, firstString, submitWith } from "@/lib/form";
+import { formatRelative } from "@/lib/format";
 import type { ApiKey, CreatedApiKey } from "@/types/bigrag";
 
 export const Route = createFileRoute("/_dashboard/api-keys")({

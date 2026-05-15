@@ -72,6 +72,14 @@ describe("resource wrappers", () => {
     });
     await admin.access.overview({ windowDays: 14 });
     await admin.audit.list({ action: "create", actorId: "actor", resourceType: "collection" });
+    await admin.settings.list();
+    await admin.settings.test({ values: { vector_store_provider: "qdrant" } });
+    await admin.settings.update({ values: { session_cookie_secure: true } });
+    await admin.settings.reset({ keys: ["session_cookie_secure"] });
+    await admin.settings.purgeEmbeddingCache();
+    await admin.backups.list({ limit: 5, offset: 10 });
+    await admin.backups.get("backup/1");
+    await admin.backups.create({ label: "before migration" });
     await admin.connectors.google.get();
     await admin.connectors.google.update({ enabled: true });
     await admin.embeddingPresets.list({ offset: 1 });
@@ -79,13 +87,14 @@ describe("resource wrappers", () => {
       name: "preset",
       provider: "openai",
       model: "text-embedding-3-small",
-      dimensions: 1536,
+      api_key: "sk-test",
+      dimension: 1536,
     });
     await admin.embeddingPresets.update("preset/1", { name: "renamed" });
     await admin.embeddingPresets.delete("preset/1");
     await admin.mcpServers.list();
-    await admin.mcpServers.create({ name: "local", base_url: "http://localhost:4001" });
-    await admin.mcpServers.update("srv/1", { name: "renamed" });
+    await admin.mcpServers.create({ title: "Local", server_name: "local" });
+    await admin.mcpServers.update("srv/1", { title: "Renamed" });
     await admin.mcpServers.rotate("srv/1");
     await admin.mcpServers.delete("srv/1");
 
@@ -125,6 +134,18 @@ describe("resource wrappers", () => {
         "/v1/admin/audit",
         { params: { action: "create", actor_id: "actor", resource_type: "collection" } },
       ],
+      ["GET", "/v1/admin/settings"],
+      [
+        "POST",
+        "/v1/admin/settings/test",
+        { json: { values: { vector_store_provider: "qdrant" } } },
+      ],
+      ["PUT", "/v1/admin/settings", { json: { values: { session_cookie_secure: true } } }],
+      ["POST", "/v1/admin/settings/reset", { json: { keys: ["session_cookie_secure"] } }],
+      ["POST", "/v1/admin/settings/embedding-cache/purge"],
+      ["GET", "/v1/admin/backups", { params: { limit: "5", offset: "10" } }],
+      ["GET", "/v1/admin/backups/backup%2F1"],
+      ["POST", "/v1/admin/backups", { json: { label: "before migration" } }],
       ["GET", "/v1/admin/connectors/google"],
       ["PUT", "/v1/admin/connectors/google", { json: { enabled: true } }],
       ["GET", "/v1/admin/embedding-presets", { params: { offset: "1" } }],
@@ -136,21 +157,49 @@ describe("resource wrappers", () => {
             name: "preset",
             provider: "openai",
             model: "text-embedding-3-small",
-            dimensions: 1536,
+            api_key: "sk-test",
+            dimension: 1536,
           },
         },
       ],
       ["PATCH", "/v1/admin/embedding-presets/preset%2F1", { json: { name: "renamed" } }],
       ["DELETE", "/v1/admin/embedding-presets/preset%2F1"],
       ["GET", "/v1/admin/mcp-servers"],
-      [
-        "POST",
-        "/v1/admin/mcp-servers",
-        { json: { name: "local", base_url: "http://localhost:4001" } },
-      ],
-      ["PATCH", "/v1/admin/mcp-servers/srv%2F1", { json: { name: "renamed" } }],
+      ["POST", "/v1/admin/mcp-servers", { json: { title: "Local", server_name: "local" } }],
+      ["PATCH", "/v1/admin/mcp-servers/srv%2F1", { json: { title: "Renamed" } }],
       ["POST", "/v1/admin/mcp-servers/srv%2F1/rotate"],
       ["DELETE", "/v1/admin/mcp-servers/srv%2F1"],
+    ]);
+  });
+
+  it("streams admin realtime snapshots", async () => {
+    const { client } = createClient();
+    const admin = new AdminResource(client);
+    const fetchMock = client._fetch as unknown as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValue(
+      streamResponse([
+        'event: snapshot\ndata: {"topic":"backups","payload":{"jobs":[],"total":0},"generated_at":"2026-05-15T00:00:00Z"}\n\n',
+      ]),
+    );
+
+    const events = [];
+    for await (const event of admin.realtime.backups({ limit: 2 })) {
+      events.push(event);
+    }
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://api.local/v1/admin/realtime/backups?limit=2",
+      expect.objectContaining({ method: "GET", credentials: "include" }),
+    );
+    expect(events).toEqual([
+      {
+        event: "snapshot",
+        data: {
+          topic: "backups",
+          payload: { jobs: [], total: 0 },
+          generated_at: "2026-05-15T00:00:00Z",
+        },
+      },
     ]);
   });
 

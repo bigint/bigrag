@@ -52,8 +52,16 @@ export type Webhook = {
 
 export type WorkerStats = {
   online: boolean;
+  status?: "online" | "offline";
   heartbeat_at: string | null;
   heartbeat_age_seconds: number | null;
+};
+
+export type HealthStatus = "ok" | "degraded" | "down";
+
+export type QueueHealth = {
+  status: HealthStatus;
+  reasons: string[];
 };
 
 export type QueueStats = {
@@ -80,23 +88,28 @@ export type DocumentStats = {
 };
 
 export type PlatformStats = {
+  status?: HealthStatus;
   collections: number;
   documents: DocumentStats;
   webhooks: number;
   queue: QueueStats;
+  queue_health?: QueueHealth;
   workers?: WorkerStats;
 };
 
 export type ReadinessReport = {
   version: string;
   postgres: boolean;
+  postgres_error?: string;
   qdrant: boolean | null;
   vector_store: boolean;
+  vector_store_error?: string;
   vector_store_provider: "qdrant" | "turbopuffer";
   redis: boolean;
+  redis_error?: string;
   embedding: boolean;
   embedding_error?: string;
-  embedding_source?: "env" | "preset" | "collection";
+  embedding_source?: "settings" | "preset" | "collection";
   status: "ok" | "degraded";
 };
 

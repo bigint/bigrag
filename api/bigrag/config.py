@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import tomllib
 from pathlib import Path
-from typing import ClassVar, Literal
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,8 +11,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="BIGRAG_", env_nested_delimiter="__")
 
-    LOG_LEVEL: ClassVar[Literal["debug"]] = "debug"
-    LOG_FORMAT: ClassVar[Literal["text"]] = "text"
+    log_level: Literal["debug", "info", "warning", "error"] = "debug"
+    log_format: Literal["text", "json"] = "text"
 
     env: Literal["dev", "prod"] = "dev"
 
@@ -102,14 +102,6 @@ class Settings(BaseSettings):
     max_vector_text_chars: int = 100000
     max_vector_metadata_bytes: int = 65536
 
-    @property
-    def log_level(self) -> Literal["debug"]:
-        return self.LOG_LEVEL
-
-    @property
-    def log_format(self) -> Literal["text"]:
-        return self.LOG_FORMAT
-
     @classmethod
     def from_toml(cls, path: str | Path) -> Settings:
         p = Path(path)
@@ -127,8 +119,6 @@ class Settings(BaseSettings):
             else:
                 if f"BIGRAG_{section.upper()}" not in os.environ:
                     flat[section] = values
-        flat.pop("log_level", None)
-        flat.pop("log_format", None)
         flat.pop("run_migrations", None)
         return cls(**flat)
 

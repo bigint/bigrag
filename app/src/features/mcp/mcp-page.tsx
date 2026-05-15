@@ -1,6 +1,6 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { Check, Copy, ExternalLink, KeyRound, Plug, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,14 @@ import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
+import {
+  defaultMcpCreateFormValues,
+  MCP_UNSCOPED,
+  mcpCreateBodyFromValues,
+  mcpServerNameFromTitle,
+  slugifyMcpServerName,
+  validateMcpCreateFormValues,
+} from "@/features/mcp/mcp-form-state";
 import { useCollections } from "@/hooks/use-collections";
 import {
   useCreateMcpServer,
@@ -18,16 +26,8 @@ import {
   useMcpServers,
   useRotateMcpServer,
 } from "@/hooks/use-mcp-servers";
-import {
-  defaultMcpCreateFormValues,
-  mcpCreateBodyFromValues,
-  MCP_UNSCOPED,
-  mcpServerNameFromTitle,
-  slugifyMcpServerName,
-  validateMcpCreateFormValues,
-} from "@/features/mcp/mcp-form-state";
-import { formatRelative } from "@/lib/format";
 import { errorText, firstString, submitWith } from "@/lib/form";
+import { formatRelative } from "@/lib/format";
 import type { CreatedMcpServer, McpServer } from "@/types/bigrag";
 
 const TOOLS_UNSCOPED = [

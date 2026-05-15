@@ -21,13 +21,17 @@ import type { GoogleDriveFile } from "@/types/bigrag";
 export const DriveHeader = ({
   email,
   isAdding,
+  offlineReason,
   onAddSelected,
   selectedCount,
+  workerOffline,
 }: {
   email: string | null | undefined;
   isAdding: boolean;
+  offlineReason?: string;
   onAddSelected: () => void;
   selectedCount: number;
+  workerOffline?: boolean;
 }) => (
   <div className="flex flex-wrap items-center justify-between gap-3 border-border border-b bg-muted/35 px-4 py-4">
     <div className="flex min-w-0 items-center gap-3">
@@ -39,7 +43,11 @@ export const DriveHeader = ({
         <div className="mt-0.5 text-xs text-muted-foreground">Drive source browser</div>
       </div>
     </div>
-    <Button disabled={selectedCount === 0 || isAdding} onClick={onAddSelected}>
+    <Button
+      disabled={selectedCount === 0 || isAdding || workerOffline}
+      onClick={onAddSelected}
+      title={workerOffline ? offlineReason : undefined}
+    >
       {isAdding ? <Spinner /> : <Cloud className="size-4" />}
       Add selected
     </Button>
@@ -197,16 +205,20 @@ const DriveFileRow = ({
 
 export const SelectedBar = ({
   isAdding,
+  offlineReason,
   onAddSelected,
   onClear,
   selectedBytes,
   selectedCount,
+  workerOffline,
 }: {
   isAdding: boolean;
+  offlineReason?: string;
   onAddSelected: () => void;
   onClear: () => void;
   selectedBytes: number;
   selectedCount: number;
+  workerOffline?: boolean;
 }) => (
   <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-border border-t bg-card/95 px-4 py-3">
     <div className="flex min-w-0 items-center gap-3">
@@ -224,7 +236,11 @@ export const SelectedBar = ({
       <Button disabled={selectedCount === 0 || isAdding} onClick={onClear} variant="outline">
         Clear
       </Button>
-      <Button disabled={selectedCount === 0 || isAdding} onClick={onAddSelected}>
+      <Button
+        disabled={selectedCount === 0 || isAdding || workerOffline}
+        onClick={onAddSelected}
+        title={workerOffline ? offlineReason : undefined}
+      >
         {isAdding ? <Spinner /> : <Cloud className="size-4" />}
         Sync selected
       </Button>

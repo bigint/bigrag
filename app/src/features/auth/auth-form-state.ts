@@ -32,10 +32,8 @@ export const validatePassword = (password: string): string | undefined => {
   return undefined;
 };
 
-export const validateLoginFormValues = ({
-  email,
-  password,
-}: LoginFormValues): string | undefined => validateEmail(email) ?? validatePassword(password);
+export const validateLoginFormValues = ({ email, password }: LoginFormValues): string | undefined =>
+  validateEmail(email) ?? validatePassword(password);
 
 export const validateSetupFormValues = ({
   confirm,
@@ -44,13 +42,13 @@ export const validateSetupFormValues = ({
 }: SetupFormValues): string | undefined =>
   validateEmail(email) ??
   validatePassword(password) ??
-  (!confirm
-    ? "Confirm password is required"
-    : confirm.length < 8
+  (confirm
+    ? confirm.length < 8
       ? "Confirm password must be at least 8 characters"
-      : password !== confirm
-        ? "Passwords do not match"
-        : undefined);
+      : password === confirm
+        ? undefined
+        : "Passwords do not match"
+    : "Confirm password is required");
 
 export const loginBodyFromValues = ({ email, password }: LoginFormValues) => ({
   email,

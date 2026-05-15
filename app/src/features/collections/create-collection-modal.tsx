@@ -147,7 +147,9 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             name="chunkSize"
             validators={{
               onSubmit: ({ value }) =>
-                value < 128 || value > 10000 ? "Chunk size must be between 128 and 10000" : undefined,
+                value < 128 || value > 10000
+                  ? "Chunk size must be between 128 and 10000"
+                  : undefined,
             }}
           >
             {(field) => (
@@ -167,9 +169,7 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             name="chunkOverlap"
             validators={{
               onSubmit: ({ value }) =>
-                value < 0 || value > 5000
-                  ? "Chunk overlap must be between 0 and 5000"
-                  : undefined,
+                value < 0 || value > 5000 ? "Chunk overlap must be between 0 and 5000" : undefined,
             }}
           >
             {(field) => (
