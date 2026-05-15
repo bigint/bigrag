@@ -33,9 +33,6 @@ Issues = "https://github.com/yoginth/bigrag/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["src/bigrag"]
 
-[tool.deptry]
-known_first_party = ["bigrag"]
-
 [dependency-groups]
 dev = [
     "pytest>=8.0.0",

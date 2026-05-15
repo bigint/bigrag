@@ -49,23 +49,4 @@ describe("useUploadSessionStore", () => {
     });
     expect(globalThis.localStorage.getItem("bigrag:upload-sessions")).not.toContain("session-1");
   });
-
-  it("migrates legacy per-collection localStorage keys", () => {
-    globalThis.localStorage.setItem("bigrag:upload-session:docs", "legacy-session");
-
-    useUploadSessionStore.getState().migrateLegacyUploadSession("docs");
-
-    expect(useUploadSessionStore.getState().activeSessionIds.docs).toBe("legacy-session");
-    expect(globalThis.localStorage.getItem("bigrag:upload-session:docs")).toBeNull();
-  });
-
-  it("does not overwrite existing persisted sessions during legacy migration", () => {
-    useUploadSessionStore.getState().setActiveSessionId("docs", "current-session");
-    globalThis.localStorage.setItem("bigrag:upload-session:docs", "legacy-session");
-
-    useUploadSessionStore.getState().migrateLegacyUploadSession("docs");
-
-    expect(useUploadSessionStore.getState().activeSessionIds.docs).toBe("current-session");
-    expect(globalThis.localStorage.getItem("bigrag:upload-session:docs")).toBeNull();
-  });
 });

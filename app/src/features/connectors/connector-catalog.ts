@@ -3,13 +3,7 @@ import { Building2, Cloud, Folder, HardDrive } from "lucide-react";
 
 export type ConnectorProviderId = "google-drive" | "sharepoint" | "onedrive" | "s3-r2";
 export type ConnectorAvailability = "available" | "planned";
-export type ConnectorStatusVariant =
-  | "error"
-  | "info"
-  | "neutral"
-  | "primary"
-  | "success"
-  | "warning";
+type ConnectorStatusVariant = "error" | "info" | "neutral" | "primary" | "success" | "warning";
 
 export type ConnectorProvider = {
   readonly id: ConnectorProviderId;
@@ -82,7 +76,7 @@ export const connectorProviders = [
   },
 ] as const satisfies readonly ConnectorProvider[];
 
-export const availableConnectorProviders = connectorProviders.filter(
+const availableConnectorProviders = connectorProviders.filter(
   (provider) => provider.availability === "available",
 );
 

@@ -1,10 +1,16 @@
+import { useForm, useStore } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { LogOut, ShieldAlert, UserRound } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  defaultPasswordFormValues,
+  passwordBodyFromValues,
+  validatePasswordFormValues,
+} from "@/features/settings/account-form-state";
 import { useChangePassword, useLogout, useLogoutAll, useSession } from "@/hooks/use-auth";
+import { errorText, firstString, submitWith } from "@/lib/form";
 
 const initials = (name: string, email: string) => {
   const source = name?.trim() || email || "?";
@@ -20,29 +26,26 @@ export const AccountTab = () => {
   const changePassword = useChangePassword();
   const logout = useLogout();
   const logoutAll = useLogoutAll();
-
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const form = useForm({
+    defaultValues: defaultPasswordFormValues(),
+    validators: {
+      onSubmit: ({ value }) => validatePasswordFormValues(value),
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await changePassword.mutateAsync(passwordBodyFromValues(value));
+        toast.success("Password updated");
+        await logout.mutateAsync();
+        navigate({ to: "/login", replace: true });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed");
+      }
+    },
+  });
+  const values = useStore(form.store, (state) => state.values);
 
   const user = session?.user;
   const displayName = user?.display_name || user?.email?.split("@")[0] || "—";
-
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (next !== confirm) {
-      toast.error("Passwords do not match");
-      return;
-    }
-    try {
-      await changePassword.mutateAsync({ current_password: current, new_password: next });
-      toast.success("Password updated");
-      await logout.mutateAsync();
-      navigate({ to: "/login", replace: true });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
-    }
-  };
 
   const signOutEverywhere = async () => {
     if (!window.confirm("Sign out of every device? You'll need to log in again everywhere.")) {
@@ -92,39 +95,98 @@ export const AccountTab = () => {
             Updating your password signs this browser out after the change is saved.
           </p>
         </div>
-        <form onSubmit={save} className="mt-4 flex flex-col gap-4">
-          <Input
-            label="Current password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="Current password"
-            value={current}
-            onChange={(e) => setCurrent(e.target.value)}
-            required
-          />
+        <form
+          className="mt-4 flex flex-col gap-4"
+          noValidate
+          onSubmit={submitWith(() => form.handleSubmit())}
+        >
+          <form.Subscribe selector={(state) => state.errors}>
+            {(errors) => {
+              const formError = firstString(errors);
+              return formError ? (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {formError}
+                </div>
+              ) : null;
+            }}
+          </form.Subscribe>
+          <form.Field
+            name="current"
+            validators={{
+              onSubmit: ({ value }) => (value ? undefined : "Current password is required"),
+            }}
+          >
+            {(field) => (
+              <Input
+                autoComplete="current-password"
+                error={errorText(field.state.meta.errors)}
+                label="Current password"
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                placeholder="Current password"
+                required
+                type="password"
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
           <div className="grid gap-4">
-            <Input
-              label="New password"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              placeholder="New password"
-              value={next}
-              onChange={(e) => setNext(e.target.value)}
-              description="At least 8 characters."
-              required
-            />
-            <Input
-              label="Confirm new password"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              placeholder="Confirm new password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              error={confirm && next !== confirm ? "Doesn't match" : null}
-              required
-            />
+            <form.Field
+              name="next"
+              validators={{
+                onSubmit: ({ value }) =>
+                  value
+                    ? value.length < 8
+                      ? "New password must be at least 8 characters"
+                      : undefined
+                    : "New password is required",
+              }}
+            >
+              {(field) => (
+                <Input
+                  autoComplete="new-password"
+                  description="At least 8 characters."
+                  error={errorText(field.state.meta.errors)}
+                  label="New password"
+                  minLength={8}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  placeholder="New password"
+                  required
+                  type="password"
+                  value={field.state.value}
+                />
+              )}
+            </form.Field>
+            <form.Field
+              name="confirm"
+              validators={{
+                onSubmit: ({ value }) =>
+                  value
+                    ? value.length < 8
+                      ? "Confirm new password must be at least 8 characters"
+                      : undefined
+                    : "Confirm new password is required",
+              }}
+            >
+              {(field) => (
+                <Input
+                  autoComplete="new-password"
+                  error={
+                    errorText(field.state.meta.errors) ??
+                    (values.confirm && values.next !== values.confirm ? "Doesn't match" : null)
+                  }
+                  label="Confirm new password"
+                  minLength={8}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  placeholder="Confirm new password"
+                  required
+                  type="password"
+                  value={field.state.value}
+                />
+              )}
+            </form.Field>
           </div>
           <div className="flex justify-end pt-1">
             <Button type="submit" disabled={changePassword.isPending}>

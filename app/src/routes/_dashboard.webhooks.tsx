@@ -7,20 +7,25 @@ import { PageHeader } from "@/components/ui/page-header";
 import { WebhookForm } from "@/features/webhooks/webhook-form";
 import { WebhookList } from "@/features/webhooks/webhook-list";
 import { WebhookSecretModal } from "@/features/webhooks/webhook-secret-modal";
+import { getWorkerAvailability } from "@/features/workers/worker-status";
+import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
+import { usePlatformStats } from "@/hooks/use-platform";
 import { useDeleteWebhook, useTestWebhook, useWebhooks } from "@/hooks/use-webhooks";
 
 export const Route = createFileRoute("/_dashboard/webhooks")({
   component: () => <WebhooksPage />,
 });
 
-const WebhooksPage = () => {
+export const WebhooksPage = () => {
   const { data, isPending, error } = useWebhooks();
+  const { data: stats } = usePlatformStats();
   const remove = useDeleteWebhook();
   const test = useTestWebhook();
 
   const [formOpen, setFormOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [newSecret, setNewSecret] = useState<string | null>(null);
+  const workerAvailability = getWorkerAvailability(stats);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -40,6 +45,12 @@ const WebhooksPage = () => {
         }
         description="Receive real-time collection event notifications."
         title="Webhooks"
+      />
+
+      <WorkerOfflineBanner
+        availability={workerAvailability}
+        className="mb-4"
+        message="Document-event deliveries require bigrag-worker. Queued work will not run until the worker is started."
       />
 
       {error && (
@@ -66,6 +77,7 @@ const WebhooksPage = () => {
           setNewSecret(secret);
         }}
         open={formOpen}
+        workerAvailability={workerAvailability}
       />
 
       <WebhookSecretModal onClose={() => setNewSecret(null)} secret={newSecret} />

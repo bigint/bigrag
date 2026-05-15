@@ -486,3 +486,20 @@ function pagination(options: { limit?: number; offset?: number }): Record<string
   if (options.offset !== undefined) params.offset = String(options.offset);
   return params;
 }
+
+function parseAdminRealtimeFrame<T>(frame: string): AdminRealtimeEvent<T> | null {
+  let event = "message";
+  const data: string[] = [];
+  for (const raw of frame.split("\n")) {
+    const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
+    if (line.startsWith(":")) continue;
+    if (line.startsWith("event:")) {
+      event = line.slice(6).trimStart();
+    } else if (line.startsWith("data:")) {
+      data.push(line.slice(5).trimStart());
+    }
+  }
+  const payload = data.join("\n");
+  if (!payload) return null;
+  return { event, data: JSON.parse(payload) } as AdminRealtimeEvent<T>;
+}

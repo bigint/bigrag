@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { CheckCircle2, CircleAlert, FileText, FolderOpen, Trash2, Upload, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,11 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { useUploadSessionStore } from "@/features/collections/upload-session-store";
+import {
+  getWorkerAvailability,
+  workerOfflineActionMessage,
+} from "@/features/workers/worker-status";
+import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
 import { useCollection } from "@/hooks/use-collections";
 import {
   useCancelUploadSession,
@@ -17,6 +22,7 @@ import {
   useUploadSession,
   useUploadSessionDocuments,
 } from "@/hooks/use-documents";
+import { usePlatformStats } from "@/hooks/use-platform";
 import { cn } from "@/lib/cn";
 import { acceptAttribute, filterBlockedFiles, getAllowedFileTypes } from "@/lib/file-types";
 import { formatBytes, formatRelative } from "@/lib/format";
@@ -32,13 +38,11 @@ const statusVariant: Record<DocumentStatus, "success" | "warning" | "info" | "er
 export const DocumentsTab = ({ name }: { name: string }) => {
   const activeSessionId = useUploadSessionStore((state) => state.activeSessionIds[name] ?? null);
   const clearActiveSessionId = useUploadSessionStore((state) => state.clearActiveSessionId);
-  const migrateLegacyUploadSession = useUploadSessionStore(
-    (state) => state.migrateLegacyUploadSession,
-  );
   const setActiveSessionId = useUploadSessionStore((state) => state.setActiveSessionId);
 
   const { data: collection } = useCollection(name);
   const { data, isPending } = useDocuments(name);
+  const { data: stats } = usePlatformStats();
   const uploadSession = useUploadSession(name, activeSessionId);
   const upload = useUploadSessionDocuments(name, {
     onSessionStart: (session) => setActiveSessionId(name, session.id),
@@ -52,11 +56,15 @@ export const DocumentsTab = ({ name }: { name: string }) => {
 
   const allowed = getAllowedFileTypes(collection?.metadata);
   const accept = acceptAttribute(allowed);
-
-  useMigrateLegacyUploadSession(name, migrateLegacyUploadSession);
+  const workerAvailability = getWorkerAvailability(stats);
+  const workerOffline = workerAvailability.offline;
 
   const onFiles = useCallback(
     async (files: FileList | File[]) => {
+      if (workerOffline) {
+        toast.warning(workerOfflineActionMessage(workerAvailability));
+        return;
+      }
       const arr = Array.from(files);
       if (!arr.length) return;
       const { accepted, rejected } = filterBlockedFiles(arr, allowed);
@@ -82,7 +90,7 @@ export const DocumentsTab = ({ name }: { name: string }) => {
         if (folderInput.current) folderInput.current.value = "";
       }
     },
-    [upload, allowed, name, setActiveSessionId],
+    [upload, allowed, name, setActiveSessionId, workerOffline, workerAvailability],
   );
 
   const onDrop = (e: React.DragEvent) => {
@@ -97,6 +105,7 @@ export const DocumentsTab = ({ name }: { name: string }) => {
 
   return (
     <div className="flex flex-col gap-4">
+      <WorkerOfflineBanner availability={workerAvailability} />
       <fieldset
         aria-label="Document upload"
         onDragOver={(e) => {
@@ -108,28 +117,39 @@ export const DocumentsTab = ({ name }: { name: string }) => {
         className={cn(
           "flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed px-6 py-8 text-sm",
           "border-border bg-card hover:border-primary hover:bg-accent/50",
-          dragging && "border-primary bg-accent",
+          dragging && !workerOffline && "border-primary bg-accent",
           upload.isPending && "pointer-events-none opacity-60",
+          workerOffline && "bg-muted/45 hover:border-border hover:bg-muted/45",
         )}
       >
         <div className="flex items-center gap-3">
           <Upload className="size-5 text-muted-foreground" />
           <div className="flex flex-col items-start gap-0.5">
             <span className="font-medium">
-              {upload.isPending ? "Uploading…" : "Drop files here"}
+              {upload.isPending
+                ? "Uploading…"
+                : workerOffline
+                  ? "Worker offline"
+                  : "Drop files here"}
             </span>
             <span className="text-xs text-muted-foreground">{acceptedDescription}</span>
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <Button disabled={upload.isPending} onClick={() => fileInput.current?.click()} size="sm">
+          <Button
+            disabled={upload.isPending || workerOffline}
+            onClick={() => fileInput.current?.click()}
+            size="sm"
+            title={workerOffline ? workerOfflineActionMessage(workerAvailability) : undefined}
+          >
             <Upload className="size-4" />
             Files
           </Button>
           <Button
-            disabled={upload.isPending}
+            disabled={upload.isPending || workerOffline}
             onClick={() => folderInput.current?.click()}
             size="sm"
+            title={workerOffline ? workerOfflineActionMessage(workerAvailability) : undefined}
             variant="secondary"
           >
             <FolderOpen className="size-4" />
@@ -143,6 +163,7 @@ export const DocumentsTab = ({ name }: { name: string }) => {
           multiple
           className="sr-only"
           accept={accept}
+          disabled={workerOffline}
           onChange={(e) => e.target.files && onFiles(e.target.files)}
         />
         <input
@@ -151,6 +172,7 @@ export const DocumentsTab = ({ name }: { name: string }) => {
           multiple
           className="sr-only"
           accept={accept}
+          disabled={workerOffline}
           onChange={(e) => e.target.files && onFiles(e.target.files)}
           {...{ webkitdirectory: "", directory: "" }}
         />
@@ -274,15 +296,6 @@ export const DocumentsTab = ({ name }: { name: string }) => {
       />
     </div>
   );
-};
-
-const useMigrateLegacyUploadSession = (
-  collection: string,
-  migrateLegacyUploadSession: (collection: string) => void,
-) => {
-  useEffect(() => {
-    migrateLegacyUploadSession(collection);
-  }, [collection, migrateLegacyUploadSession]);
 };
 
 const FileType = ({ type }: { type: string }) => (

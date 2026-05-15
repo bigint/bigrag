@@ -7,19 +7,28 @@ import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
+import {
+  getWorkerAvailability,
+  workerOfflineActionMessage,
+} from "@/features/workers/worker-status";
+import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
 import { useBackups, useStartBackup } from "@/hooks/use-backups";
 import { useInstanceSettings } from "@/hooks/use-instance-settings";
+import { usePlatformStats } from "@/hooks/use-platform";
 import { formatBytes, formatRelative } from "@/lib/format";
 import type { BackupJob } from "@/types/bigrag";
 
 export const BackupsPage = () => {
   const backups = useBackups();
   const settings = useInstanceSettings();
+  const { data: stats } = usePlatformStats();
   const startBackup = useStartBackup();
   const [label, setLabel] = useState("");
   const jobs = backups.data?.jobs ?? [];
   const active = jobs.some((job) => job.status === "pending" || job.status === "running");
   const destinationConfigured = Boolean(settings.data?.values.backup_s3_bucket?.value);
+  const workerAvailability = getWorkerAvailability(stats);
+  const workerOffline = workerAvailability.offline;
 
   return (
     <div className="flex flex-col gap-5">
@@ -28,7 +37,12 @@ export const BackupsPage = () => {
         description="Configure the readable backup destination and export full-instance snapshots to S3-compatible storage."
         title="Backups"
       />
-      <BackupGuide active={active} destinationConfigured={destinationConfigured} />
+      <WorkerOfflineBanner availability={workerAvailability} />
+      <BackupGuide
+        active={active}
+        destinationConfigured={destinationConfigured}
+        workerOffline={workerOffline}
+      />
       <InstanceSettingsTab group="backups" />
       <Card className="rounded-md">
         <CardHeader className="border-b border-border bg-muted/35 p-4">
@@ -67,11 +81,12 @@ export const BackupsPage = () => {
             <div className="flex items-end">
               <Button
                 className="w-full lg:w-auto"
-                disabled={startBackup.isPending || active}
+                disabled={startBackup.isPending || active || workerOffline}
                 onClick={() => startBackup.mutate({ label })}
+                title={workerOffline ? workerOfflineActionMessage(workerAvailability) : undefined}
               >
                 <CloudUpload className="size-4" />
-                {active ? "Backup running" : "Start backup"}
+                {active ? "Backup running" : workerOffline ? "Worker offline" : "Start backup"}
               </Button>
             </div>
           </div>
@@ -85,9 +100,11 @@ export const BackupsPage = () => {
 const BackupGuide = ({
   active,
   destinationConfigured,
+  workerOffline,
 }: {
   active: boolean;
   destinationConfigured: boolean;
+  workerOffline: boolean;
 }) => (
   <section className="rounded-md border border-border bg-card p-4">
     <div className="min-w-0">
@@ -112,9 +129,11 @@ const BackupGuide = ({
         value={destinationConfigured ? "Checked on save" : "Waiting for destination"}
       />
       <BackupStep
-        complete={!active}
+        complete={!active && !workerOffline}
         label="Export"
-        value={active ? "Backup running" : "Ready when validated"}
+        value={
+          workerOffline ? "Worker offline" : active ? "Backup running" : "Ready when validated"
+        }
       />
     </div>
   </section>
