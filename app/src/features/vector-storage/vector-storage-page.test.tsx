@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { VectorStoragePage } from "./vector-storage-page";
 
-const renderedGroups: string[] = [];
+const renderedGroups = vi.hoisted((): string[] => []);
 
 vi.mock("@/features/settings/tabs/instance-settings-tab", () => ({
   InstanceSettingsTab: ({ group }: { readonly group: string }) => {
