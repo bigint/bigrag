@@ -97,7 +97,7 @@ interface TabsProps {
 
 export const Tabs = ({ tabs, value, onChange }: TabsProps) => (
   <BaseTabs.Root onValueChange={(v) => onChange(v as string)} value={value}>
-    <BaseTabs.List activateOnFocus className={cn(tabListClassName, "mb-6")}>
+    <BaseTabs.List activateOnFocus className={tabListClassName}>
       {tabs.map((tab) => {
         const active = value === tab.value;
         return (
@@ -114,7 +114,7 @@ export const Tabs = ({ tabs, value, onChange }: TabsProps) => (
 type LinkTab = { href: string; label: string; active: boolean; count?: number; icon?: LucideIcon };
 
 export const LinkTabs = ({ tabs, className }: { tabs: LinkTab[]; className?: string }) => (
-  <div className={cn(tabListClassName, "mb-6", className)}>
+  <div className={cn(tabListClassName, className)}>
     {tabs.map((t) => (
       <Link
         aria-current={t.active ? "page" : undefined}
