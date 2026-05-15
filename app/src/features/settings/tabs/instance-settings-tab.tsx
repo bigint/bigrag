@@ -1,3 +1,4 @@
+import { useForm, useStore } from "@tanstack/react-form";
 import { ChevronDown, ChevronRight, Save, Trash2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +9,12 @@ import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  groupSpecs,
+  type InstanceSettingsFormValues,
+  instanceSettingsFormValues,
+} from "@/features/settings/instance-settings-form-state";
+import {
   type DraftValue,
-  draftValue,
   inputType,
   settingDescription,
   valuesForSubmit,
@@ -41,14 +46,27 @@ type InstanceSettingsTabProps = {
   readonly groups?: readonly InstanceSettingGroup[];
 };
 
+const useInstanceSettingsForm = () =>
+  useForm({
+    defaultValues: {} as InstanceSettingsFormValues,
+  });
+
+type InstanceSettingsForm = ReturnType<typeof useInstanceSettingsForm>;
+
 export const InstanceSettingsTab = ({ focusGroup, group, groups }: InstanceSettingsTabProps) => {
   const targetGroups = useTargetGroups(group, groups);
   const { data, isPending } = useInstanceSettings();
   const save = useUpdateInstanceSettings();
   const purgeEmbeddingCache = usePurgeEmbeddingCache();
-  const [draft, setDraft] = useInstanceSettingsDraft(data, targetGroups);
+  const form = useInstanceSettingsForm();
+  const draft = useStore(form.store, (state) => state.values);
   const specsByGroup = useSpecsByGroup(data, targetGroups);
   const isBusy = isPending || save.isPending;
+
+  useEffect(() => {
+    if (!data) return;
+    form.reset(instanceSettingsFormValues(data, targetGroups));
+  }, [data, form, targetGroups]);
 
   if (isPending) {
     return (
@@ -70,12 +88,11 @@ export const InstanceSettingsTab = ({ focusGroup, group, groups }: InstanceSetti
               focusGroup === targetGroup ||
               (!focusGroup && index === 0)
             }
-            draft={draft}
+            form={form}
             group={targetGroup}
             isBusy={isBusy}
             isFocused={focusGroup === targetGroup}
             key={targetGroup}
-            onChange={(key, value) => setDraft((current) => ({ ...current, [key]: value }))}
             onPurgeEmbeddingCache={() => {
               if (window.confirm("Purge every persistent embedding cache row?")) {
                 purgeEmbeddingCache.mutate();
@@ -104,47 +121,15 @@ const useTargetGroups = (
 const useSpecsByGroup = (
   data: InstanceSettingsResponse | undefined,
   groups: readonly InstanceSettingGroup[],
-) =>
-  useMemo(() => {
-    const byGroup = Object.fromEntries(groups.map((targetGroup) => [targetGroup, []])) as Partial<
-      Record<InstanceSettingGroup, InstanceSettingSpec[]>
-    >;
-    for (const spec of data?.specs ?? []) {
-      if (groups.includes(spec.group)) {
-        byGroup[spec.group] = [...(byGroup[spec.group] ?? []), spec];
-      }
-    }
-    return byGroup;
-  }, [data, groups]);
-
-const useInstanceSettingsDraft = (
-  data: InstanceSettingsResponse | undefined,
-  groups: readonly InstanceSettingGroup[],
-) => {
-  const [draft, setDraft] = useState<Record<string, DraftValue>>({});
-
-  useEffect(() => {
-    if (!data) return;
-    const activeGroups = new Set(groups);
-    const next = Object.fromEntries(
-      data.specs
-        .filter((spec) => activeGroups.has(spec.group))
-        .map((spec) => [spec.key, draftValue(spec, data.values[spec.key])]),
-    );
-    setDraft(next);
-  }, [data, groups]);
-
-  return [draft, setDraft] as const;
-};
+) => useMemo(() => groupSpecs(data, groups), [data, groups]);
 
 const RuntimeSettingsPanel = ({
-  draft,
   collapsible,
   defaultOpen,
+  form,
   group,
   isBusy,
   isFocused,
-  onChange,
   onPurgeEmbeddingCache,
   onSave,
   purgePending,
@@ -153,11 +138,10 @@ const RuntimeSettingsPanel = ({
 }: {
   readonly collapsible: boolean;
   readonly defaultOpen: boolean;
-  readonly draft: Readonly<Record<string, DraftValue>>;
+  readonly form: InstanceSettingsForm;
   readonly group: InstanceSettingGroup;
   readonly isBusy: boolean;
   readonly isFocused: boolean;
-  readonly onChange: (key: string, value: DraftValue) => void;
   readonly onPurgeEmbeddingCache: () => void;
   readonly onSave: () => void;
   readonly purgePending: boolean;
@@ -197,19 +181,17 @@ const RuntimeSettingsPanel = ({
                 <div className="divide-y divide-border">
                   {common.map((spec) => (
                     <SettingField
+                      form={form}
                       key={spec.key}
-                      onChange={(value) => onChange(spec.key, value)}
                       setting={settingValues[spec.key]}
                       spec={spec}
-                      value={draft[spec.key]}
                     />
                   ))}
                 </div>
                 {advanced.length > 0 && (
                   <AdvancedSettings
                     dangerKeys={layout.dangerKeys ?? []}
-                    draft={draft}
-                    onChange={onChange}
+                    form={form}
                     onOpenChange={setAdvancedOpen}
                     open={advancedOpen}
                     settingValues={settingValues}
@@ -361,16 +343,14 @@ const PanelActions = ({
 
 const AdvancedSettings = ({
   dangerKeys,
-  draft,
-  onChange,
+  form,
   onOpenChange,
   open,
   settingValues,
   specs,
 }: {
   readonly dangerKeys: readonly string[];
-  readonly draft: Readonly<Record<string, DraftValue>>;
-  readonly onChange: (key: string, value: DraftValue) => void;
+  readonly form: InstanceSettingsForm;
   readonly onOpenChange: (open: boolean) => void;
   readonly open: boolean;
   readonly settingValues: Readonly<Record<string, InstanceSettingValue | undefined>>;
@@ -394,12 +374,11 @@ const AdvancedSettings = ({
         {specs.map((spec) => (
           <SettingField
             danger={dangerKeys.includes(spec.key)}
+            form={form}
             key={spec.key}
-            onChange={(value) => onChange(spec.key, value)}
             setting={settingValues[spec.key]}
             showMetadata
             spec={spec}
-            value={draft[spec.key]}
           />
         ))}
       </div>
@@ -409,87 +388,97 @@ const AdvancedSettings = ({
 
 const SettingField = ({
   danger = false,
-  onChange,
+  form,
   setting,
   showMetadata = false,
   spec,
-  value,
 }: {
   readonly danger?: boolean;
-  readonly onChange: (value: DraftValue) => void;
+  readonly form: InstanceSettingsForm;
   readonly setting?: InstanceSettingValue;
   readonly showMetadata?: boolean;
   readonly spec: InstanceSettingSpec;
-  readonly value: DraftValue | undefined;
 }) => {
   const description = settingDescription(spec, setting);
+  return (
+    <form.Field name={spec.key}>
+      {(field) => (
+        <SettingRow
+          danger={danger}
+          description={description}
+          setting={setting}
+          showMetadata={showMetadata}
+          spec={spec}
+        >
+          <SettingControl
+            field={{
+              onBlur: field.handleBlur,
+              onChange: field.handleChange,
+              value: field.state.value,
+            }}
+            setting={setting}
+            spec={spec}
+          />
+        </SettingRow>
+      )}
+    </form.Field>
+  );
+};
+
+const SettingControl = ({
+  field,
+  setting,
+  spec,
+}: {
+  readonly field: {
+    readonly onBlur: () => void;
+    readonly onChange: (value: DraftValue) => void;
+    readonly value: DraftValue | undefined;
+  };
+  readonly setting?: InstanceSettingValue;
+  readonly spec: InstanceSettingSpec;
+}) => {
   if (spec.kind === "bool") {
     return (
-      <SettingRow
-        danger={danger}
-        description={description}
-        setting={setting}
-        showMetadata={showMetadata}
-        spec={spec}
-      >
-        <div className="flex min-h-10 items-center justify-end">
-          <Switch aria-label={spec.label} checked={Boolean(value)} onCheckedChange={onChange} />
-        </div>
-      </SettingRow>
+      <div className="flex min-h-10 items-center justify-end">
+        <Switch
+          aria-label={spec.label}
+          checked={Boolean(field.value)}
+          onCheckedChange={field.onChange}
+        />
+      </div>
     );
   }
   if (spec.kind === "select") {
     return (
-      <SettingRow
-        danger={danger}
-        description={description}
-        setting={setting}
-        showMetadata={showMetadata}
-        spec={spec}
-      >
-        <Select
-          aria-label={spec.label}
-          onChange={onChange}
-          options={spec.options.map((option) => ({ label: option, value: option }))}
-          value={String(value ?? "")}
-        />
-      </SettingRow>
+      <Select
+        aria-label={spec.label}
+        onChange={field.onChange}
+        options={spec.options.map((option) => ({ label: option, value: option }))}
+        value={String(field.value ?? "")}
+      />
     );
   }
   if (spec.kind === "string_list" || spec.kind === "int_list") {
     return (
-      <SettingRow
-        danger={danger}
-        description={description}
-        setting={setting}
-        showMetadata={showMetadata}
-        spec={spec}
-      >
-        <Textarea
-          aria-label={spec.label}
-          className="min-h-20 rounded-md px-3 py-2"
-          onChange={(event) => onChange(event.target.value)}
-          value={String(value ?? "")}
-        />
-      </SettingRow>
+      <Textarea
+        aria-label={spec.label}
+        className="min-h-20 rounded-md px-3 py-2"
+        onBlur={field.onBlur}
+        onChange={(event) => field.onChange(event.target.value)}
+        value={String(field.value ?? "")}
+      />
     );
   }
   return (
-    <SettingRow
-      danger={danger}
-      description={description}
-      setting={setting}
-      showMetadata={showMetadata}
-      spec={spec}
-    >
-      <Input
-        aria-label={spec.label}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={spec.secret && setting?.has_value ? "Saved" : undefined}
-        type={inputType(spec)}
-        value={String(value ?? "")}
-      />
-    </SettingRow>
+    <Input
+      aria-label={spec.label}
+      onBlur={field.onBlur}
+      onChange={(event) => field.onChange(event.target.value)}
+      placeholder={spec.secret && setting?.has_value ? "Saved" : undefined}
+      type={inputType(spec)}
+      value={String(field.value ?? "")}
+    />
   );
 };
 

@@ -1,3 +1,4 @@
+import { useForm, useStore } from "@tanstack/react-form";
 import { CheckCircle2, Copy, KeyRound, Plug, ShieldCheck, Unplug } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -17,6 +18,11 @@ import {
   connectorStatus,
   defaultConnectorProvider,
 } from "@/features/connectors/connector-catalog";
+import {
+  defaultGoogleConnectorFormValues,
+  googleConnectorPayload,
+  validateGoogleConnectorFormValues,
+} from "@/features/connectors/google-connector-form-state";
 import {
   useDisconnectGoogle,
   useGoogleAccount,
@@ -40,11 +46,20 @@ export const ConnectorsPage = () => {
   const [selectedProviderId, setSelectedProviderId] = useState<ConnectorProviderId>(
     defaultConnectorProvider.id,
   );
-  const [enabled, setEnabled] = useState(true);
-  const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
+  const form = useForm({
+    defaultValues: defaultGoogleConnectorFormValues(),
+    validators: {
+      onSubmit: ({ value }) => validateGoogleConnectorFormValues(value),
+    },
+    onSubmit: ({ value }) => save.mutate(googleConnectorPayload(value)),
+  });
+  const values = useStore(form.store, (state) => state.values);
+  const submitError = useStore(form.store, (state) => firstString(state.errors));
 
-  useGoogleConnectorConfigDraft(config, setEnabled, setClientId);
+  useEffect(() => {
+    if (!config) return;
+    form.reset(defaultGoogleConnectorFormValues(config));
+  }, [config, form]);
 
   const selectedProvider = connectorProviderById(selectedProviderId);
   const configured = config?.configured ?? false;
@@ -55,7 +70,7 @@ export const ConnectorsPage = () => {
     availability: "available",
     configured,
     connected,
-    enabled,
+    enabled: values.enabled,
     needsReauth,
   });
   const selectedStatus =
@@ -80,28 +95,23 @@ export const ConnectorsPage = () => {
           <GoogleConnectorPanel
             account={account}
             callbackUrl={callbackUrl}
-            clientId={clientId}
-            clientSecret={clientSecret}
+            clientId={values.clientId}
+            clientSecret={values.clientSecret}
             config={config}
             configured={configured}
             connected={connected}
             disconnecting={disconnect.isPending}
-            enabled={enabled}
+            enabled={values.enabled}
             isPending={isPending}
             needsReauth={needsReauth}
-            onClientIdChange={setClientId}
-            onClientSecretChange={setClientSecret}
+            onClientIdChange={(value) => form.setFieldValue("clientId", value)}
+            onClientSecretChange={(value) => form.setFieldValue("clientSecret", value)}
             onDisconnect={() => disconnect.mutate()}
-            onEnabledChange={setEnabled}
-            onSave={() =>
-              save.mutate({
-                client_id: clientId,
-                client_secret: clientSecret || null,
-                enabled,
-              })
-            }
+            onEnabledChange={(enabled) => form.setFieldValue("enabled", enabled)}
+            onSave={() => void form.handleSubmit()}
             provider={selectedProvider}
             saving={save.isPending}
+            submitError={submitError}
           />
         ) : (
           <PlannedConnectorPanel provider={selectedProvider} />
@@ -156,6 +166,7 @@ const GoogleConnectorPanel = ({
   onSave,
   provider,
   saving,
+  submitError,
 }: {
   account: GoogleAccount | undefined;
   callbackUrl: string;
@@ -175,6 +186,7 @@ const GoogleConnectorPanel = ({
   onSave: () => void;
   provider: ConnectorProvider;
   saving: boolean;
+  submitError: string | null;
 }) => (
   <div className="flex flex-col gap-5 p-4">
     <ProviderReadinessGrid
@@ -199,6 +211,15 @@ const GoogleConnectorPanel = ({
             a user account from a collection source browser.
           </p>
         </div>
+
+        {submitError && (
+          <div
+            className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            role="alert"
+          >
+            {submitError}
+          </div>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
@@ -418,14 +439,5 @@ const ProviderFact = ({ label, value }: { label: string; value: string }) => (
 
 const formatConnectorDate = (value: string) => new Date(value).toLocaleString();
 
-const useGoogleConnectorConfigDraft = (
-  config: GoogleConnectorConfig | undefined,
-  setEnabled: (enabled: boolean) => void,
-  setClientId: (clientId: string) => void,
-) => {
-  useEffect(() => {
-    if (!config) return;
-    setEnabled(config.enabled);
-    setClientId(config.client_id);
-  }, [config, setEnabled, setClientId]);
-};
+const firstString = (values: readonly unknown[]) =>
+  values.find((value): value is string => typeof value === "string") ?? null;

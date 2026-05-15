@@ -1,8 +1,8 @@
 import { type DraftValue, draftValue } from "@/features/settings/instance-settings-helpers";
 import type {
   InstanceSettingGroup,
-  InstanceSettingsResponse,
   InstanceSettingSpec,
+  InstanceSettingsResponse,
 } from "@/types/bigrag";
 
 export type InstanceSettingsFormValues = Record<string, DraftValue>;

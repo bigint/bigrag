@@ -152,6 +152,7 @@ The app uses modern web technologies:
 ### API & Data Management
 - **FastAPI** - Python backend framework (API server, in `api/` directory)
 - **TanStack Query v5** - Async state management for data fetching
+- **TanStack Form** - Headless form state, validation, reset, and submit handling for complex admin UI forms
 - **asyncpg** - Fast PostgreSQL driver (Python backend uses asyncpg, not Drizzle)
 - **Zod** - Runtime schema validation for API inputs and form data
 

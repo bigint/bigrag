@@ -51,8 +51,5 @@ export const validateWebhookUrl = (url: string): string | undefined => {
   return undefined;
 };
 
-export const validateWebhookFormValues = ({
-  events,
-  url,
-}: WebhookFormValues): string | undefined =>
+export const validateWebhookFormValues = ({ events, url }: WebhookFormValues): string | undefined =>
   validateWebhookUrl(url) ?? (events.length === 0 ? "Select at least one event" : undefined);
