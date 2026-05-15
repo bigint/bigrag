@@ -1,5 +1,6 @@
+import { useForm, useStore } from "@tanstack/react-form";
 import { Check, Copy, ExternalLink, KeyRound, Plug, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,10 +18,17 @@ import {
   useMcpServers,
   useRotateMcpServer,
 } from "@/hooks/use-mcp-servers";
+import {
+  defaultMcpCreateFormValues,
+  mcpCreateBodyFromValues,
+  MCP_UNSCOPED,
+  mcpServerNameFromTitle,
+  slugifyMcpServerName,
+  validateMcpCreateFormValues,
+} from "@/features/mcp/mcp-form-state";
 import { formatRelative } from "@/lib/format";
+import { errorText, firstString, submitWith } from "@/lib/form";
 import type { CreatedMcpServer, McpServer } from "@/types/bigrag";
-
-const UNSCOPED = "__all__";
 
 const TOOLS_UNSCOPED = [
   { name: "list_collections", description: "Discover which collections this key can read." },
@@ -44,14 +52,6 @@ const TOOLS_SCOPED = [
   { name: "get_document", description: "One document's metadata (pinned collection)." },
   { name: "get_document_chunks", description: "Every chunk of a document (pinned collection)." },
 ] as const;
-
-const slugify = (s: string) =>
-  s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
 
 const getOrigin = () => (typeof window === "undefined" ? "" : window.location.origin);
 
@@ -133,62 +133,103 @@ type CredentialNotice = {
 
 const CreateDialog = ({ open, onClose, onCreated, collections }: CreateDialogProps) => {
   const create = useCreateMcpServer();
-  const [title, setTitle] = useState("");
-  const [serverName, setServerName] = useState("");
-  const [collection, setCollection] = useState(UNSCOPED);
   const [autoSlug, setAutoSlug] = useState(true);
+  const form = useForm({
+    defaultValues: defaultMcpCreateFormValues(),
+    validators: {
+      onSubmit: ({ value }) => validateMcpCreateFormValues(value),
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        const created = await create.mutateAsync(mcpCreateBodyFromValues(value));
+        onClose();
+        onCreated(created);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed");
+      }
+    },
+  });
+  const values = useStore(form.store, (state) => state.values);
 
-  useResetCreateDialog(open, setTitle, setServerName, setCollection, setAutoSlug);
-  useAutoServerName(title, autoSlug, setServerName);
-
-  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!title.trim() || !serverName.trim()) return;
-    try {
-      const created = await create.mutateAsync({
-        title,
-        server_name: serverName,
-        collection: collection === UNSCOPED ? null : collection,
-      });
-      onClose();
-      onCreated(created);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+  useEffect(() => {
+    if (!open) {
+      form.reset(defaultMcpCreateFormValues());
+      setAutoSlug(true);
     }
-  };
+  }, [form, open]);
+
+  useEffect(() => {
+    if (autoSlug) form.setFieldValue("serverName", mcpServerNameFromTitle(values.title));
+  }, [autoSlug, form, values.title]);
 
   return (
     <Modal onClose={onClose} open={open} size="md" title="New MCP server">
-      <form className="space-y-4" onSubmit={submit}>
-        <Input
-          autoFocus
-          description="Shown in the admin UI; also the suggested Name in Claude."
-          label="Title"
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Product docs"
-          required
-          value={title}
-        />
-        <Input
-          description="mcpServers key in the client config. Lowercase, alphanumeric + dashes."
-          label="Server name"
-          onChange={(e) => {
-            setAutoSlug(false);
-            setServerName(slugify(e.target.value));
+      <form className="space-y-4" noValidate onSubmit={submitWith(() => form.handleSubmit())}>
+        <form.Subscribe selector={(state) => state.errors}>
+          {(errors) => {
+            const formError = firstString(errors);
+            return formError ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {formError}
+              </div>
+            ) : null;
           }}
-          placeholder="bigrag-product-docs"
-          required
-          value={serverName}
-        />
-        <Select
-          label="Collection scope"
-          onChange={setCollection}
-          options={[
-            { value: UNSCOPED, label: "All collections (full workspace)" },
-            ...collections.map((c) => ({ value: c.name, label: c.name })),
-          ]}
-          value={collection}
-        />
+        </form.Subscribe>
+        <form.Field
+          name="title"
+          validators={{
+            onSubmit: ({ value }) => (value.trim() ? undefined : "Title is required"),
+          }}
+        >
+          {(field) => (
+            <Input
+              autoFocus
+              description="Shown in the admin UI; also the suggested Name in Claude."
+              error={errorText(field.state.meta.errors)}
+              label="Title"
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              placeholder="Product docs"
+              required
+              value={field.state.value}
+            />
+          )}
+        </form.Field>
+        <form.Field
+          name="serverName"
+          validators={{
+            onSubmit: ({ value }) => (value.trim() ? undefined : "Server name is required"),
+          }}
+        >
+          {(field) => (
+            <Input
+              description="mcpServers key in the client config. Lowercase, alphanumeric + dashes."
+              error={errorText(field.state.meta.errors)}
+              label="Server name"
+              onBlur={field.handleBlur}
+              onChange={(e) => {
+                setAutoSlug(false);
+                field.handleChange(slugifyMcpServerName(e.target.value));
+              }}
+              placeholder="bigrag-product-docs"
+              required
+              value={field.state.value}
+            />
+          )}
+        </form.Field>
+        <form.Field name="collection">
+          {(field) => (
+            <Select
+              label="Collection scope"
+              onChange={field.handleChange}
+              options={[
+                { value: MCP_UNSCOPED, label: "All collections (full workspace)" },
+                ...collections.map((c) => ({ value: c.name, label: c.name })),
+              ]}
+              value={field.state.value}
+            />
+          )}
+        </form.Field>
         <p className="text-xs text-muted-foreground">
           Creating this MCP mints a fresh bigRAG API key scoped to it. The full key is shown once —
           copy it into your MCP client immediately. You can rotate the key any time.
@@ -204,33 +245,6 @@ const CreateDialog = ({ open, onClose, onCreated, collections }: CreateDialogPro
       </form>
     </Modal>
   );
-};
-
-const useResetCreateDialog = (
-  open: boolean,
-  setTitle: Dispatch<SetStateAction<string>>,
-  setServerName: Dispatch<SetStateAction<string>>,
-  setCollection: Dispatch<SetStateAction<string>>,
-  setAutoSlug: Dispatch<SetStateAction<boolean>>,
-) => {
-  useEffect(() => {
-    if (!open) {
-      setTitle("");
-      setServerName("");
-      setCollection(UNSCOPED);
-      setAutoSlug(true);
-    }
-  }, [open, setTitle, setServerName, setCollection, setAutoSlug]);
-};
-
-const useAutoServerName = (
-  title: string,
-  autoSlug: boolean,
-  setServerName: Dispatch<SetStateAction<string>>,
-) => {
-  useEffect(() => {
-    if (autoSlug) setServerName(slugify(title) || "bigrag");
-  }, [title, autoSlug, setServerName]);
 };
 
 interface CredentialDialogProps {

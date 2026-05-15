@@ -67,7 +67,7 @@ Environment variables override TOML values. CLI flags passed to `python -m bigra
 
 After the first admin account exists, go to `/settings` to manage platform runtime settings, `/models` to manage model presets and model runtime settings, and `/vector-storage` to manage the active vector backend. Runtime settings are stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
 
-The same surface is available through [`/admin/settings`](/docs/api-reference/instance-settings).
+The same surface is available through [`/v1/admin/settings`](/docs/api-reference/instance-settings).
 
 | Area | Examples |
 |------|----------|

@@ -21,7 +21,7 @@ OpenRAG and bigRAG share the same foundation — both use **FastAPI**, **Docling
 
 | Category | Current bigRAG status | Remaining strategic gap |
 |---|---|---|
-| [Web UI & User Experience](#1-web-ui--user-experience) | The admin UI exists for setup, collection/document management, persistent chat, API keys, MCP, webhooks, settings, audit, usage, and evals | No folder upload, visual workflow builder, or vector DB console |
+| [Web UI & User Experience](#1-web-ui--user-experience) | The admin UI exists for setup, collection/document management, persistent chat, API keys, MCP, webhooks, settings, audit, usage, and evals | No bulk document operations, visual workflow builder, or vector DB console |
 | [Agentic RAG & LLM Integration](#2-agentic-rag--llm-integration) | The chat API retrieves, generates cited answers, streams tokens, and stores conversations | No agents, tool-call inspection, contextual nudges, or visual prompt orchestration |
 | [Cloud Storage Connectors](#3-cloud-storage-connectors) | File upload, batch upload, and OAuth-backed Google Drive sync are implemented | No SharePoint, OneDrive, IBM COS, or multi-provider connector catalog |
 | [Search & Retrieval](#4-search--retrieval) | Semantic, keyword, hybrid RRF search, Cohere rerank, metadata filters, batch query, and analytics | No explicit semantic/keyword weight ratios, facets, prefix/autocomplete, saved filters, or one-index multi-model search |
@@ -63,9 +63,9 @@ OpenRAG's UI provides:
 - Cloud connector sync status and controls
 - Real-time ingestion task panel with file-level progress, failure feedback, and cancellation
 
-**bigRAG status:** Partially resolved — The admin UI lists collections, uploads files with drag-and-drop, shows document status and chunk counts, supports document detail/chunk inspection, deletion, and reprocessing, and streams realtime document status over session-cookie SSE.
+**bigRAG status:** Partially resolved — The admin UI lists collections, uploads local files and folders through resumable upload sessions, shows document status and chunk counts, supports document detail/chunk inspection, deletion, and reprocessing, streams realtime document status over session-cookie SSE, and exposes Google Drive sync controls.
 
-**Remaining gap:** the admin UI does not yet support local folder upload, UI-level bulk delete, or cancel/retry controls for in-flight ingestion. Google Drive has UI sync controls, but the broader connector catalog is still narrow.
+**Remaining gap:** the admin UI does not yet support UI-level bulk delete or cancel/retry controls for in-flight ingestion. Google Drive has UI sync controls, but the broader connector catalog is still narrow.
 
 ### 1.3 Settings & Configuration UI
 
@@ -79,9 +79,9 @@ OpenRAG exposes a settings page for:
 - OCR toggle and Docling presets
 - API key generation and management
 
-**bigRAG status:** Partially resolved — The admin UI has pages for embedding presets, collection settings, API keys, MCP server credentials, webhooks, account settings, server health, usage, and audit logs.
+**bigRAG status:** Partially resolved — The admin UI has pages for embedding presets, model runtime settings, vector storage settings, backup destination settings, collection settings, API keys, MCP server credentials, webhooks, account settings, server health, usage, and audit logs.
 
-**Remaining gap:** Deployment/runtime settings such as database, Redis, Qdrant, CORS, worker counts, and global environment config still live in env vars or `bigrag.toml`. There is no single visual system-settings editor comparable to OpenRAG's full settings surface.
+**Remaining gap:** Bootstrap-only deployment wiring such as database URL, Redis URL, host/port, worker process count, and master-key setup remains environment or TOML config. Agent instruction and workflow settings are also outside the current admin settings surface.
 
 ### 1.4 Onboarding Wizard
 

@@ -50,25 +50,41 @@ export type Webhook = {
   updated_at: string;
 };
 
+export type WorkerStats = {
+  online: boolean;
+  heartbeat_at: string | null;
+  heartbeat_age_seconds: number | null;
+};
+
+export type QueueStats = {
+  queued: number;
+  completed: number;
+  failed: number;
+  pending: number;
+  processing: number;
+  retrying?: number;
+  dead_lettered?: number;
+  leased_processing?: number;
+  stale_processing?: number;
+};
+
+export type DocumentStats = {
+  total: number;
+  ready: number;
+  pending: number;
+  processing: number;
+  failed: number;
+  total_chunks: number;
+  total_tokens: number;
+  total_size_bytes: number;
+};
+
 export type PlatformStats = {
   collections: number;
-  documents: {
-    total: number;
-    ready: number;
-    pending: number;
-    processing: number;
-    failed: number;
-    total_chunks: number;
-    total_tokens: number;
-    total_size_bytes: number;
-  };
+  documents: DocumentStats;
   webhooks: number;
-  queue: Record<string, number>;
-  workers?: {
-    online: boolean;
-    heartbeat_at: string | null;
-    heartbeat_age_seconds: number | null;
-  };
+  queue: QueueStats;
+  workers?: WorkerStats;
 };
 
 export type ReadinessReport = {

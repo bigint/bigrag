@@ -2,6 +2,126 @@ import type { AccessLogListResponse, AccessLogOverviewResponse } from "./access.
 import type { User } from "./auth.js";
 import type { GoogleConnectorConfig, UpdateGoogleConnectorConfigBody } from "./connectors.js";
 
+export type InstanceSettingKind =
+  | "bool"
+  | "int"
+  | "float"
+  | "string"
+  | "string_list"
+  | "int_list"
+  | "select"
+  | "secret";
+
+export type InstanceSettingGroup =
+  | "security"
+  | "ingestion"
+  | "storage"
+  | "vector_store"
+  | "queue"
+  | "search"
+  | "chat"
+  | "webhooks"
+  | "retention"
+  | "backups";
+
+export interface InstanceSettingSpec {
+  key: string;
+  group: InstanceSettingGroup;
+  label: string;
+  description: string;
+  kind: InstanceSettingKind;
+  default: unknown;
+  options: string[];
+  min: number | null;
+  max: number | null;
+  secret: boolean;
+}
+
+export interface InstanceSetting {
+  key: string;
+  value: unknown;
+  has_value: boolean;
+  source: "default" | "database" | "bootstrap";
+  updated_at: string | null;
+  updated_by: string | null;
+}
+
+export interface InstanceSettingsResponse {
+  specs: InstanceSettingSpec[];
+  values: Record<string, InstanceSetting>;
+}
+
+export interface UpdateInstanceSettingsBody {
+  values: Record<string, unknown>;
+}
+
+export interface ResetInstanceSettingsBody {
+  keys: string[];
+}
+
+export interface TestInstanceSettingsBody {
+  values?: Record<string, unknown>;
+}
+
+export interface InstanceSettingsTestResponse {
+  status: "ok";
+  checked: string[];
+  message: string;
+}
+
+export interface BackupCreateBody {
+  label?: string;
+}
+
+export interface BackupJob {
+  id: string;
+  label: string;
+  status: string;
+  progress: number;
+  destination_prefix: string;
+  object_count: number;
+  byte_count: number;
+  manifest: Record<string, unknown>;
+  error_message: string | null;
+  created_by: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupJobListResponse {
+  jobs: BackupJob[];
+  total: number;
+}
+
+export interface AdminRealtimeSnapshot<T = unknown> {
+  event: "snapshot";
+  data: {
+    topic: string;
+    payload: T;
+    generated_at: string;
+  };
+}
+
+export interface AdminRealtimeError {
+  event: "error";
+  data: {
+    topic: string;
+    message: string;
+  };
+}
+
+export interface AdminRealtimeMessage {
+  event: string;
+  data: unknown;
+}
+
+export type AdminRealtimeEvent<T = unknown> =
+  | AdminRealtimeSnapshot<T>
+  | AdminRealtimeError
+  | AdminRealtimeMessage;
+
 export interface UserListResponse {
   users: User[];
   total: number;

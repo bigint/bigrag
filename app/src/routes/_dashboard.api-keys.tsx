@@ -1,3 +1,4 @@
+import { useForm } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
 import { Check, Copy, KeyRound, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -19,10 +20,15 @@ import {
   useUpdateApiKey,
 } from "@/hooks/use-api-keys";
 import { useCollections } from "@/hooks/use-collections";
+import {
+  API_KEY_UNSCOPED,
+  apiKeyBodyFromValues,
+  defaultApiKeyFormValues,
+  validateApiKeyFormValues,
+} from "@/features/api-keys/api-key-form-state";
 import { formatRelative } from "@/lib/format";
+import { errorText, firstString, submitWith } from "@/lib/form";
 import type { ApiKey, CreatedApiKey } from "@/types/bigrag";
-
-const UNSCOPED = "__all__";
 
 export const Route = createFileRoute("/_dashboard/api-keys")({
   component: () => <ApiKeysPage />,
@@ -38,28 +44,25 @@ const ApiKeysPage = () => {
   const collections = collectionsData?.collections ?? [];
 
   const [addOpen, setAddOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [collection, setCollection] = useState<string>(UNSCOPED);
   const [newKey, setNewKey] = useState<CreatedApiKey | null>(null);
   const [copied, setCopied] = useState(false);
   const [deleteFor, setDeleteFor] = useState<ApiKey | null>(null);
-
-  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    try {
-      const created = await create.mutateAsync({
-        name,
-        collection: collection === UNSCOPED ? null : collection,
-      });
-      setNewKey(created);
-      setName("");
-      setCollection(UNSCOPED);
-      setAddOpen(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
-    }
-  };
+  const form = useForm({
+    defaultValues: defaultApiKeyFormValues(),
+    validators: {
+      onSubmit: ({ value }) => validateApiKeyFormValues(value),
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        const created = await create.mutateAsync(apiKeyBodyFromValues(value));
+        setNewKey(created);
+        form.reset(defaultApiKeyFormValues());
+        setAddOpen(false);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed");
+      }
+    },
+  });
 
   const copy = async () => {
     if (!newKey) return;
@@ -165,24 +168,49 @@ const ApiKeysPage = () => {
       />
 
       <Modal onClose={() => setAddOpen(false)} open={addOpen} title="New API key">
-        <form onSubmit={submit} className="space-y-4">
-          <Input
-            label="Name"
-            description="A descriptive label — e.g. 'raven-production'."
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-            required
-          />
-          <Select
-            label="Collection scope"
-            value={collection}
-            onChange={setCollection}
-            options={[
-              { value: UNSCOPED, label: "All collections (full workspace)" },
-              ...collections.map((c) => ({ value: c.name, label: c.name })),
-            ]}
-          />
+        <form className="space-y-4" noValidate onSubmit={submitWith(() => form.handleSubmit())}>
+          <form.Subscribe selector={(state) => state.errors}>
+            {(errors) => {
+              const formError = firstString(errors);
+              return formError ? (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {formError}
+                </div>
+              ) : null;
+            }}
+          </form.Subscribe>
+          <form.Field
+            name="name"
+            validators={{
+              onSubmit: ({ value }) => (value.trim() ? undefined : "Name is required"),
+            }}
+          >
+            {(field) => (
+              <Input
+                autoFocus
+                description="A descriptive label — e.g. 'raven-production'."
+                error={errorText(field.state.meta.errors)}
+                label="Name"
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                required
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
+          <form.Field name="collection">
+            {(field) => (
+              <Select
+                label="Collection scope"
+                onChange={field.handleChange}
+                options={[
+                  { value: API_KEY_UNSCOPED, label: "All collections (full workspace)" },
+                  ...collections.map((c) => ({ value: c.name, label: c.name })),
+                ]}
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
           <p className="text-xs text-muted-foreground">
             Scoped keys can only use endpoints for the pinned collection. Cross-collection endpoints
             return 403.

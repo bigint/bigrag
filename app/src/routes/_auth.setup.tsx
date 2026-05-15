@@ -1,9 +1,18 @@
+import { useForm } from "@tanstack/react-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  defaultSetupFormValues,
+  setupBodyFromValues,
+  validateEmail,
+  validatePassword,
+  validateSetupFormValues,
+} from "@/features/auth/auth-form-state";
 import { useSetup, useSetupStatus } from "@/hooks/use-auth";
+import { errorText, firstString, submitWith } from "@/lib/form";
 
 export const Route = createFileRoute("/_auth/setup")({
   component: () => <SetupPage />,
@@ -20,27 +29,23 @@ const useRedirectIfSetupComplete = () => {
 const SetupPage = () => {
   const navigate = useNavigate();
   const setup = useSetup();
-  const [email, setEmail] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const form = useForm({
+    defaultValues: defaultSetupFormValues(),
+    validators: {
+      onSubmit: ({ value }) => validateSetupFormValues(value),
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await setup.mutateAsync(setupBodyFromValues(value));
+        toast.success("Admin account created");
+        navigate({ to: "/overview", replace: true });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Setup failed");
+      }
+    },
+  });
 
   useRedirectIfSetupComplete();
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password !== confirm) {
-      toast.error("Passwords do not match");
-      return;
-    }
-    try {
-      await setup.mutateAsync({ email, password, display_name: displayName });
-      toast.success("Admin account created");
-      navigate({ to: "/overview", replace: true });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Setup failed");
-    }
-  };
 
   return (
     <div className="w-full max-w-md rounded-xl border border-border bg-card p-6">
@@ -53,41 +58,94 @@ const SetupPage = () => {
           This account owns the admin UI. You can invite more admins after signing in.
         </p>
       </div>
-      <form onSubmit={submit} className="flex flex-col gap-4">
-        <Input
-          label="Display name"
-          autoComplete="name"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="Ada Lovelace"
-        />
-        <Input
-          label="Email"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <Input
-          label="Password"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-          description="At least 8 characters."
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <Input
-          label="Confirm password"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-        />
+      <form className="flex flex-col gap-4" noValidate onSubmit={submitWith(() => form.handleSubmit())}>
+        <form.Subscribe selector={(state) => state.errors}>
+          {(errors) => {
+            const formError = firstString(errors);
+            return formError ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {formError}
+              </div>
+            ) : null;
+          }}
+        </form.Subscribe>
+        <form.Field name="displayName">
+          {(field) => (
+            <Input
+              autoComplete="name"
+              label="Display name"
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              placeholder="Ada Lovelace"
+              value={field.state.value}
+            />
+          )}
+        </form.Field>
+        <form.Field
+          name="email"
+          validators={{
+            onSubmit: ({ value }) => validateEmail(value),
+          }}
+        >
+          {(field) => (
+            <Input
+              autoComplete="email"
+              error={errorText(field.state.meta.errors)}
+              label="Email"
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              required
+              type="email"
+              value={field.state.value}
+            />
+          )}
+        </form.Field>
+        <form.Field
+          name="password"
+          validators={{
+            onSubmit: ({ value }) => validatePassword(value),
+          }}
+        >
+          {(field) => (
+            <Input
+              autoComplete="new-password"
+              description="At least 8 characters."
+              error={errorText(field.state.meta.errors)}
+              label="Password"
+              minLength={8}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              required
+              type="password"
+              value={field.state.value}
+            />
+          )}
+        </form.Field>
+        <form.Field
+          name="confirm"
+          validators={{
+            onSubmit: ({ value }) =>
+              !value
+                ? "Confirm password is required"
+                : value.length < 8
+                  ? "Confirm password must be at least 8 characters"
+                  : undefined,
+          }}
+        >
+          {(field) => (
+            <Input
+              autoComplete="new-password"
+              error={errorText(field.state.meta.errors)}
+              label="Confirm password"
+              minLength={8}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              required
+              type="password"
+              value={field.state.value}
+            />
+          )}
+        </form.Field>
         <Button type="submit" size="lg" disabled={setup.isPending}>
           {setup.isPending ? "Creating account…" : "Create admin & sign in"}
         </Button>
