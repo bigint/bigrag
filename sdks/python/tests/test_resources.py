@@ -214,7 +214,7 @@ def test_admin_realtime_streams_snapshots() -> None:
         return httpx.Response(
             200,
             content=(
-                'event: snapshot\n'
+                "event: snapshot\n"
                 'data: {"topic":"backups","payload":{"jobs":[],"total":0},"generated_at":"2026-05-15T00:00:00Z"}\n\n'
             ),
         )
@@ -225,9 +225,7 @@ def test_admin_realtime_streams_snapshots() -> None:
             async with BigRAG(
                 base_url="http://api.local", http_client=http_client
             ) as client:
-                return [
-                    event async for event in client.admin.realtime.backups(limit=2)
-                ]
+                return [event async for event in client.admin.realtime.backups(limit=2)]
 
     assert run(scenario()) == [
         {

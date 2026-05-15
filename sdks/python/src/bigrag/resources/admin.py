@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, AsyncGenerator
+from typing import TYPE_CHECKING, AsyncGenerator
 from urllib.parse import quote
 
 from bigrag.types.access import AccessLogListResponse, AccessLogOverviewResponse
@@ -213,7 +213,9 @@ class AdminRealtimeResource:
     def backups(
         self, *, limit: int | None = None, offset: int | None = None
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
-        return self._stream("/v1/admin/realtime/backups", {"limit": limit, "offset": offset})
+        return self._stream(
+            "/v1/admin/realtime/backups", {"limit": limit, "offset": offset}
+        )
 
     def access_overview(
         self, *, window_days: int | None = None

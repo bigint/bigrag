@@ -117,10 +117,7 @@ impl AdminSettings<'_> {
         &self,
         body: UpdateInstanceSettingsBody,
     ) -> Result<InstanceSettingsResponse, BigRagError> {
-        self.client
-            .transport
-            .put("/v1/admin/settings", &body)
-            .await
+        self.client.transport.put("/v1/admin/settings", &body).await
     }
 
     /// Test runtime settings.
@@ -563,10 +560,13 @@ impl AdminRealtime<'_> {
             push_opt_u32(&mut query, "limit", options.limit);
             push_opt_u32(&mut query, "offset", options.offset);
         }
-        self.stream(&format!(
-            "/v1/admin/realtime/collections/{}/documents",
-            urlencode(collection)
-        ), query)
+        self.stream(
+            &format!(
+                "/v1/admin/realtime/collections/{}/documents",
+                urlencode(collection)
+            ),
+            query,
+        )
         .await
     }
 
