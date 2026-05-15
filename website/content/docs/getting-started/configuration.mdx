@@ -63,7 +63,7 @@ Environment variables override TOML values. CLI flags passed to `python -m bigra
 
 ## Runtime settings
 
-After the first admin account exists, go to `/settings` to manage runtime settings. Runtime settings are stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
+After the first admin account exists, go to `/settings` to manage platform runtime settings and `/models` to manage model presets and model runtime settings. Runtime settings are stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
 
 The same surface is available through [`/admin/settings`](/docs/api-reference/instance-settings).
 
@@ -71,10 +71,10 @@ The same surface is available through [`/admin/settings`](/docs/api-reference/in
 |------|----------|
 | Security | CORS origins, trusted proxies, session cookie policy, provider URL allow-lists, embedding-cache mode, private-network escape hatches. |
 | Data | Storage backend, vector-store provider, upload limits, OCR, ingestion workers, queue depth, webhook delivery limits, and retention windows. |
-| Models | Default embedding provider, model, dimension, key, base URL, cache TTLs, chat provider, chat model, temperature, history count, and context budget. |
+| Models (`/models`) | Default embedding provider, model, dimension, key, base URL, cache TTLs, chat provider, chat model, temperature, history count, and context budget. |
 | Backups | S3-compatible readable backup bucket, endpoint, region, prefix, and credentials for S3, R2, or MinIO. |
 
-The UI shows common controls first and keeps raw setting keys, source metadata, live-apply markers, and rarely changed limits in Advanced controls. Legacy deep links such as `/settings?tab=storage`, `/settings?tab=vector_store`, `/settings?tab=search`, and `/settings?tab=chat` still open the relevant panel inside the redesigned workspace.
+The UI shows common controls first and keeps raw setting keys, source metadata, live-apply markers, and rarely changed limits in Advanced controls. Legacy Settings deep links such as `/settings?tab=storage` and `/settings?tab=vector_store` still open the relevant Settings panel, while `/settings?tab=models`, `/settings?tab=search`, and `/settings?tab=chat` redirect to `/models?tab=settings`.
 
 Database-backed admin settings apply immediately on save or reset. Storage and vector-store changes validate the new target before saving, then swap the active backend in place.
 

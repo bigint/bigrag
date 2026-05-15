@@ -1,22 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { getSidebarNavItems } from "./sidebar";
+import { getSidebarNavItems, isSidebarItemActive } from "./sidebar";
 
 describe("sidebar navigation", () => {
-  it("shows operational admin destinations before settings", () => {
-    const adminItems = getSidebarNavItems("admin");
-    const hrefs = adminItems.map((item) => item.href);
+  it("keeps admin-only destinations out of member navigation", () => {
+    const labels = getSidebarNavItems("member").map((item) => item.label);
 
-    expect(hrefs).toContain("/backups");
-    expect(hrefs).toContain("/usage");
-    expect(hrefs).toContain("/audit");
-    expect(hrefs.indexOf("/usage")).toBeLessThan(hrefs.indexOf("/settings"));
-    expect(hrefs.indexOf("/audit")).toBeLessThan(hrefs.indexOf("/settings"));
-    expect(hrefs.indexOf("/backups")).toBeLessThan(hrefs.indexOf("/settings"));
+    expect(labels).toContain("Overview");
+    expect(labels).toContain("Collections");
+    expect(labels).not.toContain("Usage");
+    expect(labels).not.toContain("Audit");
+    expect(labels).not.toContain("Connectors");
+    expect(labels).not.toContain("Backups");
+    expect(labels).not.toContain("Settings");
   });
 
-  it("hides admin operational navigation for non-admin users", () => {
-    expect(getSidebarNavItems("member").map((item) => item.href)).not.toContain("/usage");
-    expect(getSidebarNavItems("member").map((item) => item.href)).not.toContain("/audit");
-    expect(getSidebarNavItems("member").map((item) => item.href)).not.toContain("/backups");
+  it("shows operational destinations as top-level admin destinations", () => {
+    const labels = getSidebarNavItems("admin").map((item) => item.label);
+
+    expect(labels).toContain("Usage");
+    expect(labels).toContain("Audit");
+    expect(labels).toContain("Connectors");
+    expect(labels).toContain("Backups");
+    expect(labels.indexOf("Usage")).toBeGreaterThan(labels.indexOf("Access Logs"));
+    expect(labels.indexOf("Audit")).toBeGreaterThan(labels.indexOf("Usage"));
+    expect(labels.indexOf("Connectors")).toBeGreaterThan(labels.indexOf("Webhooks"));
+    expect(labels.indexOf("Backups")).toBeGreaterThan(labels.indexOf("Connectors"));
+    expect(labels.indexOf("Usage")).toBeLessThan(labels.indexOf("Settings"));
+    expect(labels.indexOf("Audit")).toBeLessThan(labels.indexOf("Settings"));
+    expect(labels.indexOf("Connectors")).toBeLessThan(labels.indexOf("Settings"));
+    expect(labels.indexOf("Backups")).toBeLessThan(labels.indexOf("Settings"));
+  });
+
+  it("matches active routes by exact path or descendants", () => {
+    expect(isSidebarItemActive("/connectors", "/connectors")).toBe(true);
+    expect(isSidebarItemActive("/connectors/google", "/connectors")).toBe(true);
+    expect(isSidebarItemActive("/collections/docs/connectors", "/connectors")).toBe(false);
   });
 });

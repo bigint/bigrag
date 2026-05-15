@@ -1,12 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Select } from "@/components/ui/select";
+import { getLegacyModelSettingsSearch } from "@/features/models/model-tabs";
 import {
   DATA_SETTINGS_GROUPS,
   getSettingsFocusGroup,
   getSettingsNavItem,
   getSettingsTab,
-  MODEL_SETTINGS_GROUPS,
   SETTINGS_NAV_GROUPS,
   SETTINGS_NAV_ITEMS,
   type SettingsTab,
@@ -40,7 +40,7 @@ const SettingsPage = () => {
   const tab = getSettingsTab(requestedTab);
   const focusGroup = getSettingsFocusGroup(requestedTab);
 
-  useRedirectLegacySettingsTab(requestedTab, navigate);
+  useRedirectLegacySettingsTab(search, navigate);
 
   const setTab = (value: string) =>
     navigate({
@@ -70,8 +70,8 @@ const SettingsPage = () => {
             </div>
             <h1 className="mt-1 text-2xl font-semibold tracking-normal">Settings</h1>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Configure the instance by outcome: account access, system posture, data flow, model
-              defaults, and runtime policy.
+              Configure the instance by outcome: account access, system posture, data flow, and
+              runtime policy.
             </p>
           </div>
           <div className="grid grid-cols-3 overflow-hidden rounded-md border border-border bg-card text-center text-xs">
@@ -190,17 +190,20 @@ const SettingsContent = ({
   if (tab === "data") {
     return <InstanceSettingsTab focusGroup={focusGroup} groups={DATA_SETTINGS_GROUPS} />;
   }
-  if (tab === "models") {
-    return <InstanceSettingsTab focusGroup={focusGroup} groups={MODEL_SETTINGS_GROUPS} />;
-  }
   return <AccountTab />;
 };
 
 const useRedirectLegacySettingsTab = (
-  requestedTab: string | undefined,
+  search: SettingsSearch,
   navigate: ReturnType<typeof useNavigate>,
 ) => {
   useEffect(() => {
+    const requestedTab = search.tab;
+    const modelSettingsSearch = getLegacyModelSettingsSearch(requestedTab);
+    if (modelSettingsSearch) {
+      navigate({ to: "/models", search: modelSettingsSearch, replace: true });
+      return;
+    }
     if (requestedTab === "eval") {
       navigate({ to: "/evals", replace: true });
       return;
@@ -218,7 +221,11 @@ const useRedirectLegacySettingsTab = (
       return;
     }
     if (requestedTab === "connectors") {
-      navigate({ to: "/connectors", replace: true });
+      navigate({
+        to: "/connectors",
+        search: search.google_error ? { google_error: search.google_error } : {},
+        replace: true,
+      });
     }
-  }, [requestedTab, navigate]);
+  }, [search, navigate]);
 };

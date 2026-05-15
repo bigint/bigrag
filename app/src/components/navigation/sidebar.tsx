@@ -5,6 +5,7 @@ import {
   Activity,
   Archive,
   BookOpen,
+  Cloud,
   Cpu,
   FlaskConical,
   KeyRound,
@@ -40,6 +41,7 @@ const NAV_ITEMS: NavItem[] = [
   { admin: true, href: "/usage", icon: Receipt, label: "Usage" },
   { admin: true, href: "/audit", icon: ListChecks, label: "Audit" },
   { admin: true, href: "/webhooks", icon: Webhook, label: "Webhooks" },
+  { admin: true, href: "/connectors", icon: Cloud, label: "Connectors" },
   { admin: true, href: "/backups", icon: Archive, label: "Backups" },
   { admin: true, href: "/settings", icon: Settings, label: "Settings" },
 ];
@@ -47,7 +49,7 @@ const NAV_ITEMS: NavItem[] = [
 export const getSidebarNavItems = (role: string) =>
   NAV_ITEMS.filter((item) => !item.admin || role === "admin");
 
-const isActive = (pathname: string, href: string) => {
+export const isSidebarItemActive = (pathname: string, href: string) => {
   if (href === "/overview") return pathname === "/overview" || pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 };
@@ -64,7 +66,7 @@ const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: stri
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
         {items.map((item) => {
-          const active = isActive(pathname, item.href);
+          const active = isSidebarItemActive(pathname, item.href);
           const Icon = item.icon;
           return (
             <div key={item.href}>

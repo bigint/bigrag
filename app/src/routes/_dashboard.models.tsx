@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Cpu, Pencil, Plus, Trash2 } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Cpu, Pencil, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -7,17 +7,43 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { type Column, DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/ui/page-header";
+import { Tabs } from "@/components/ui/tabs";
 import { Tooltip } from "@/components/ui/tooltip";
+import {
+  getModelsFocusGroup,
+  getModelsTab,
+  MODEL_SETTINGS_GROUPS,
+  type ModelsTab,
+} from "@/features/models/model-tabs";
 import { PresetForm } from "@/features/models/preset-form";
+import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 import { useDeleteEmbeddingPreset, useEmbeddingPresets } from "@/hooks/use-embedding-presets";
 import { formatRelative } from "@/lib/format";
 import type { EmbeddingPreset } from "@/types/bigrag";
 
+type ModelsSearch = {
+  group?: string;
+  tab?: string;
+};
+
 export const Route = createFileRoute("/_dashboard/models")({
+  validateSearch: (search: Record<string, unknown>): ModelsSearch => ({
+    group: typeof search.group === "string" ? search.group : undefined,
+    tab: typeof search.tab === "string" ? search.tab : undefined,
+  }),
   component: () => <ModelsPage />,
 });
 
+const MODEL_TABS = [
+  { icon: Cpu, label: "Embedding presets", value: "presets" },
+  { icon: SlidersHorizontal, label: "Runtime settings", value: "settings" },
+];
+
 const ModelsPage = () => {
+  const navigate = useNavigate();
+  const search = Route.useSearch();
+  const activeTab = getModelsTab(search.tab);
+  const focusGroup = getModelsFocusGroup(search.group);
   const { data, isPending } = useEmbeddingPresets();
   const remove = useDeleteEmbeddingPreset();
 
@@ -33,6 +59,15 @@ const ModelsPage = () => {
   const closeForm = () => {
     setFormOpen(false);
     setEditing(null);
+  };
+
+  const setTab = (value: string) => {
+    const tab = value as ModelsTab;
+    navigate({
+      to: "/models",
+      search: tab === "settings" ? { tab: "settings" } : {},
+      replace: true,
+    });
   };
 
   const columns: Column<EmbeddingPreset>[] = [
@@ -111,29 +146,41 @@ const ModelsPage = () => {
       <PageHeader
         className="mb-0"
         actions={
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="size-4" /> New preset
-          </Button>
+          activeTab === "presets" ? (
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="size-4" /> New preset
+            </Button>
+          ) : undefined
         }
-        description="Save embedding presets once and reuse them across collections."
-        title="Embedding models"
+        description={
+          activeTab === "presets"
+            ? "Save embedding presets once and reuse them across collections."
+            : "Set fallback embedding, retrieval, and chat provider behavior."
+        }
+        title="Models"
       />
 
-      <DataTable
-        columns={columns}
-        data={data?.presets ?? []}
-        emptyAction={
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="size-4" /> Create your first preset
-          </Button>
-        }
-        emptyDescription="A preset bundles a provider, model, dimension, and API key. Collections pick a preset when they're created."
-        emptyIcon={<Cpu className="size-6" />}
-        emptyTitle="No embedding presets yet"
-        keyExtractor={(p) => p.id}
-        loading={isPending}
-        loadingMessage="Loading presets…"
-      />
+      <Tabs onChange={setTab} tabs={MODEL_TABS} value={activeTab} />
+
+      {activeTab === "settings" ? (
+        <InstanceSettingsTab focusGroup={focusGroup} groups={MODEL_SETTINGS_GROUPS} />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={data?.presets ?? []}
+          emptyAction={
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="size-4" /> Create your first preset
+            </Button>
+          }
+          emptyDescription="A preset bundles a provider, model, dimension, and API key. Collections pick a preset when they're created."
+          emptyIcon={<Cpu className="size-6" />}
+          emptyTitle="No embedding presets yet"
+          keyExtractor={(p) => p.id}
+          loading={isPending}
+          loadingMessage="Loading presets…"
+        />
+      )}
 
       <PresetForm editing={editing} onClose={closeForm} open={formOpen} />
 

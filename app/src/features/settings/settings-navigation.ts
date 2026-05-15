@@ -1,19 +1,8 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  Activity,
-  Bot,
-  Database,
-  Lock,
-  UserRound,
-} from "lucide-react";
+import { Activity, Database, Lock, UserRound } from "lucide-react";
 import type { InstanceSettingGroup } from "@/types/bigrag";
 
-export type SettingsTab =
-  | "account"
-  | "health"
-  | "security"
-  | "data"
-  | "models";
+export type SettingsTab = "account" | "health" | "security" | "data";
 
 type SettingsNavItem = {
   readonly value: SettingsTab;
@@ -61,12 +50,6 @@ export const SETTINGS_NAV_GROUPS: readonly SettingsNavGroup[] = [
         label: "Data",
         value: "data",
       },
-      {
-        description: "Default embedding and chat provider behavior.",
-        icon: Bot,
-        label: "Models",
-        value: "models",
-      },
     ],
     label: "Operate",
   },
@@ -77,11 +60,9 @@ export const SETTINGS_NAV_ITEMS = SETTINGS_NAV_GROUPS.flatMap((group) => group.i
 const SETTINGS_TAB_VALUES = new Set<SettingsTab>(SETTINGS_NAV_ITEMS.map((item) => item.value));
 
 const SETTINGS_TAB_ALIASES: Readonly<Record<string, SettingsTab>> = {
-  chat: "models",
   ingestion: "data",
   queue: "data",
   retention: "data",
-  search: "models",
   server: "health",
   storage: "data",
   vector_store: "data",
@@ -89,11 +70,9 @@ const SETTINGS_TAB_ALIASES: Readonly<Record<string, SettingsTab>> = {
 };
 
 const SETTINGS_FOCUS_GROUPS: Readonly<Record<string, InstanceSettingGroup>> = {
-  chat: "chat",
   ingestion: "ingestion",
   queue: "queue",
   retention: "retention",
-  search: "search",
   security: "security",
   storage: "storage",
   vector_store: "vector_store",
@@ -108,8 +87,6 @@ export const DATA_SETTINGS_GROUPS: readonly InstanceSettingGroup[] = [
   "retention",
   "webhooks",
 ];
-
-export const MODEL_SETTINGS_GROUPS: readonly InstanceSettingGroup[] = ["search", "chat"];
 
 export const isSettingsTab = (value: string | undefined): value is SettingsTab =>
   Boolean(value && SETTINGS_TAB_VALUES.has(value as SettingsTab));
