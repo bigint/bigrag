@@ -11,7 +11,6 @@ _SENSITIVE_COLUMN_NAMES = frozenset(
         "embedding_api_key",
         "key_hash",
         "password_hash",
-        "qdrant_api_key",
         "refresh_token",
         "reranking_api_key",
         "secret",

@@ -1,6 +1,6 @@
 ---
 title: Admin UI
-description: Setup, collections, chat, API keys, webhooks, and settings.
+description: Setup, collections, chat, API keys, usage, audit, webhooks, backups, and settings.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
@@ -39,17 +39,24 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/mcp` | Mint, scope, rotate, and revoke [MCP server](/docs/api-reference/mcp-servers) credentials for Claude Desktop / Cursor / custom MCP clients. |
 | `/api-keys` | Mint, scope, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
 | `/access-logs` | Access-log explorer for query, vector, chat, and evaluation traffic. |
+| `/usage` | Usage and cost explorer for requests, indexed data, tokens, and estimated embedding spend. |
+| `/audit` | Immutable admin audit trail with actor, action, resource, IP, and timestamp details. |
 | `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. |
-| `/settings` | Operator-console settings workspace for account, platform, data, runtime, and observability sections. |
+| `/backups` | Configure readable backup storage, start full-instance exports, and monitor backup history. |
+| `/settings` | Operator-console settings workspace for account, platform, data, runtime, and connector sections. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
 Unknown admin routes render the built-in 404 screen with links back to overview and collections. Unexpected route render failures use the admin 500 screen with a retry action and an overview fallback.
 
 ## Settings sections
 
-The settings page is a task-oriented operator workspace. It groups the old runtime registry into nine areas: Account, Health, Security, Data, Models, Backups, Connectors, Usage, and Audit. Common controls appear first with a recommended next action; raw setting keys, source metadata, live-apply markers, and rarely changed limits stay inside each area's Advanced controls.
+The `/backups` page combines backup destination settings with `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups`, and `POST /v1/admin/backups` so backup operations stay out of the general Settings workspace. Usage and audit also live as first-class sidebar pages at `/usage` and `/audit`.
+
+The settings page is a task-oriented operator workspace. It groups the old runtime registry into six areas: Account, Health, Security, Data, Models, and Connectors. Common controls appear first with a recommended next action; raw setting keys, source metadata, live-apply markers, and rarely changed limits stay inside each area's Advanced controls.
 
 Existing deep links keep working. Legacy values such as `/settings?tab=server`, `/settings?tab=vector_store`, `/settings?tab=storage`, `/settings?tab=search`, and `/settings?tab=chat` open the matching redesigned area while focusing the relevant runtime panel.
+
+Older `/settings?tab=backups`, `/settings?tab=usage`, and `/settings?tab=audit` links redirect to `/backups`, `/usage`, and `/audit`.
 
 | Group | Section | Reads from | Writes to |
 |-------|---------|-----------|-----------|
@@ -58,10 +65,7 @@ Existing deep links keep working. Legacy values such as `/settings?tab=server`, 
 | **Operate** | Security | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset`, `POST /admin/settings/embedding-cache/purge` |
 | **Operate** | Data | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
 | **Operate** | Models | `GET /admin/settings` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset` |
-| **Operate** | Backups | `GET /admin/settings`, `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups` | `PUT /admin/settings`, `POST /admin/settings/test`, `POST /admin/settings/reset`, `POST /v1/admin/backups` |
-| **Observe** | Connectors | `GET /v1/admin/connectors/{provider}`, `GET /v1/connectors/{provider}/account` | `PUT /v1/admin/connectors/{provider}`, `POST /v1/connectors/{provider}/disconnect` |
-| **Observe** | Usage | `GET /v1/usage`, `GET /v1/admin/realtime/usage` | — |
-| **Observe** | Audit | `GET /v1/admin/audit`, `GET /v1/admin/realtime/audit` | — |
+| **Integrate** | Connectors | `GET /v1/admin/connectors/{provider}`, `GET /v1/connectors/{provider}/account` | `PUT /v1/admin/connectors/{provider}`, `POST /v1/connectors/{provider}/disconnect` |
 
 ## Realtime updates
 

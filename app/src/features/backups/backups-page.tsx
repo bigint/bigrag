@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 import { useBackups, useStartBackup } from "@/hooks/use-backups";
 import { useInstanceSettings } from "@/hooks/use-instance-settings";
 import { formatBytes, formatRelative } from "@/lib/format";
 import type { BackupJob } from "@/types/bigrag";
-import { InstanceSettingsTab } from "./instance-settings-tab";
 
-export const BackupsTab = () => {
+export const BackupsPage = () => {
   const backups = useBackups();
   const settings = useInstanceSettings();
   const startBackup = useStartBackup();
@@ -21,12 +22,18 @@ export const BackupsTab = () => {
   const destinationConfigured = Boolean(settings.data?.values.backup_s3_bucket?.value);
 
   return (
-    <div className="flex flex-col gap-4">
-      <BackupGuide
-        active={active}
-        destinationConfigured={destinationConfigured}
-        streaming={backups.streaming}
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        actions={
+          <Badge variant={backups.streaming ? "success" : "neutral"} dot>
+            {backups.streaming ? "live" : "polling"}
+          </Badge>
+        }
+        className="mb-0"
+        description="Configure the readable backup destination and export full-instance snapshots to S3-compatible storage."
+        title="Backups"
       />
+      <BackupGuide active={active} destinationConfigured={destinationConfigured} />
       <InstanceSettingsTab group="backups" />
       <Card className="rounded-md">
         <CardHeader className="border-b border-border bg-muted/35 p-4">
@@ -41,9 +48,6 @@ export const BackupsTab = () => {
                 storage.
               </CardDescription>
             </div>
-            <Badge variant={backups.streaming ? "success" : "neutral"} dot>
-              {backups.streaming ? "live" : "polling"}
-            </Badge>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-5 p-4">
@@ -86,27 +90,20 @@ export const BackupsTab = () => {
 const BackupGuide = ({
   active,
   destinationConfigured,
-  streaming,
 }: {
   active: boolean;
   destinationConfigured: boolean;
-  streaming: boolean;
 }) => (
   <section className="rounded-md border border-border bg-card p-4">
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div className="min-w-0">
-        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Backup runbook
-        </div>
-        <h3 className="mt-1 text-base font-semibold">Set up, validate, export</h3>
-        <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Backups stay readable, so configure a dedicated bucket, test the destination, then run
-          exports from the history panel below.
-        </p>
+    <div className="min-w-0">
+      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Backup runbook
       </div>
-      <Badge variant={streaming ? "success" : "neutral"} dot>
-        {streaming ? "live updates" : "polling"}
-      </Badge>
+      <h2 className="mt-1 text-base font-semibold">Set up, validate, export</h2>
+      <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+        Backups stay readable, so configure a dedicated bucket, test the destination, then run
+        exports from the history panel below.
+      </p>
     </div>
     <div className="mt-4 grid gap-3 md:grid-cols-3">
       <BackupStep

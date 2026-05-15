@@ -7,16 +7,16 @@ export const SetupRequired = () => (
     action={
       <Button
         onClick={() => {
-          window.location.href = "/settings?tab=connectors";
+          window.location.href = "/connectors";
         }}
       >
         <Settings className="size-4" />
-        Settings
+        Connectors
       </Button>
     }
     icon={<Settings className="size-5" />}
     label="Connector setup required"
-    value="Add Google OAuth credentials in settings."
+    value="Add Google OAuth credentials in Connectors."
   />
 );
 

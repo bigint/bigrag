@@ -321,7 +321,6 @@ Backend logging is always enabled at debug level with text output and does not u
 | `BIGRAG_DB_POOL_MAX` | Max Postgres pool size | `50` |
 | `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration check timeout (`0` disables the timeout) | `60` |
 | `BIGRAG_QDRANT_URL` | Qdrant URL | `http://localhost:6333` |
-| `BIGRAG_QDRANT_API_KEY` | Optional Qdrant Cloud/API key | — |
 | `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout (`0` disables the timeout) | `10` |
 | `BIGRAG_QDRANT_REQUIRED` | Fail API startup if Qdrant cannot be reached | `false` |
 | `BIGRAG_QDRANT_SEARCH_EF` | Optional Qdrant HNSW search recall/latency tuning | — |

@@ -48,6 +48,19 @@ def test_runtime_settings_reject_removed_rate_limit_settings() -> None:
             validate_setting_value(key, 1)
 
 
+def test_runtime_settings_reject_removed_vector_settings() -> None:
+    for key in (
+        "qdrant_api_key",
+        "s3_vectors_access_key_id",
+        "s3_vectors_bucket",
+        "s3_vectors_index_prefix",
+        "s3_vectors_region",
+        "s3_vectors_secret_access_key",
+    ):
+        with pytest.raises(KeyError):
+            validate_setting_value(key, "x")
+
+
 def test_runtime_settings_include_embedding_cache_security_settings() -> None:
     assert validate_setting_value("embedding_cache_mode", "encrypted") == "encrypted"
     assert validate_setting_value("embedding_cache_mode", "disabled") == "disabled"
@@ -64,9 +77,7 @@ def test_runtime_settings_include_backup_destination_settings() -> None:
 
 def test_runtime_settings_include_vector_store_settings() -> None:
     assert validate_setting_value("vector_store_provider", "qdrant") == "qdrant"
-    assert validate_setting_value("vector_store_provider", "s3_vectors") == "s3_vectors"
     assert validate_setting_value("vector_store_provider", "turbopuffer") == "turbopuffer"
-    assert REGISTRY["s3_vectors_secret_access_key"].secret is True
     assert REGISTRY["turbopuffer_api_key"].secret is True
 
 
@@ -79,8 +90,9 @@ def test_runtime_settings_include_vector_api_limits() -> None:
 
 
 def test_runtime_settings_reject_invalid_vector_store_provider() -> None:
-    with pytest.raises(ValueError):
-        validate_setting_value("vector_store_provider", "pinecone")
+    for provider in ("pinecone", "s3_vectors"):
+        with pytest.raises(ValueError):
+            validate_setting_value("vector_store_provider", provider)
 
 
 def test_runtime_settings_redacts_secret_public_value() -> None:

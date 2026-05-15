@@ -21,7 +21,6 @@
 # migration_timeout_seconds = 60
 
 # qdrant_url = "http://localhost:6333"
-# qdrant_api_key = ""
 # qdrant_connect_timeout_seconds = 10
 # qdrant_required = false
 # qdrant_search_ef = 128           # optional Qdrant HNSW ef override; unset by default

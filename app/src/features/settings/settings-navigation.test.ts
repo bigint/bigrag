@@ -22,6 +22,9 @@ describe("settings navigation", () => {
     expect(getSettingsTab("connectors")).toBe("connectors");
     expect(isSettingsTab("security")).toBe(true);
     expect(isSettingsTab("server")).toBe(false);
+    expect(isSettingsTab("backups")).toBe(false);
+    expect(isSettingsTab("usage")).toBe(false);
+    expect(isSettingsTab("audit")).toBe(false);
   });
 
   it("maps old registry deep links into the redesigned areas", () => {
@@ -33,14 +36,17 @@ describe("settings navigation", () => {
   });
 
   it("finds nav metadata for a tab", () => {
-    expect(SETTINGS_NAV_ITEMS.length).toBe(9);
-    expect(getSettingsNavItem("backups").label).toBe("Backups");
+    expect(SETTINGS_NAV_ITEMS.length).toBe(6);
+    expect(SETTINGS_NAV_ITEMS.map((item) => item.value)).not.toContain("backups");
+    expect(SETTINGS_NAV_ITEMS.map((item) => item.value)).not.toContain("usage");
+    expect(SETTINGS_NAV_ITEMS.map((item) => item.value)).not.toContain("audit");
+    expect(getSettingsNavItem("backups").value).toBe(DEFAULT_SETTINGS_TAB);
     expect(getSettingsNavItem("unknown").value).toBe(DEFAULT_SETTINGS_TAB);
   });
 
   it("formats mobile section labels", () => {
     expect(settingsSectionLabel("security")).toBe("Operate / Security");
-    expect(settingsSectionLabel("connectors")).toBe("Observe / Connectors");
+    expect(settingsSectionLabel("connectors")).toBe("Integrate / Connectors");
     expect(settingsAliasLabel("vector_store")).toBe("Vector store");
   });
 

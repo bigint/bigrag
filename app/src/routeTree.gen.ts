@@ -9,13 +9,17 @@ import { Route as DashboardRouteImport } from "./routes/_dashboard";
 import { Route as AuthRouteImport } from "./routes/_auth";
 import { Route as IndexRouteImport } from "./routes/index";
 import { Route as DashboardWebhooksRouteImport } from "./routes/_dashboard.webhooks";
+import { Route as DashboardUsageRouteImport } from "./routes/_dashboard.usage";
 import { Route as DashboardSettingsRouteImport } from "./routes/_dashboard.settings";
 import { Route as DashboardOverviewRouteImport } from "./routes/_dashboard.overview";
 import { Route as DashboardModelsRouteImport } from "./routes/_dashboard.models";
 import { Route as DashboardMcpRouteImport } from "./routes/_dashboard.mcp";
 import { Route as DashboardEvalsRouteImport } from "./routes/_dashboard.evals";
+import { Route as DashboardConnectorsRouteImport } from "./routes/_dashboard.connectors";
 import { Route as DashboardCollectionsRouteImport } from "./routes/_dashboard.collections";
 import { Route as DashboardChatRouteImport } from "./routes/_dashboard.chat";
+import { Route as DashboardBackupsRouteImport } from "./routes/_dashboard.backups";
+import { Route as DashboardAuditRouteImport } from "./routes/_dashboard.audit";
 import { Route as DashboardApiKeysRouteImport } from "./routes/_dashboard.api-keys";
 import { Route as DashboardAccessLogsRouteImport } from "./routes/_dashboard.access-logs";
 import { Route as AuthSetupRouteImport } from "./routes/_auth.setup";
@@ -51,6 +55,11 @@ const DashboardWebhooksRoute = DashboardWebhooksRouteImport.update({
   path: "/webhooks",
   getParentRoute: () => DashboardRoute,
 } as any);
+const DashboardUsageRoute = DashboardUsageRouteImport.update({
+  id: "/usage",
+  path: "/usage",
+  getParentRoute: () => DashboardRoute,
+} as any);
 const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   id: "/settings",
   path: "/settings",
@@ -76,6 +85,11 @@ const DashboardEvalsRoute = DashboardEvalsRouteImport.update({
   path: "/evals",
   getParentRoute: () => DashboardRoute,
 } as any);
+const DashboardConnectorsRoute = DashboardConnectorsRouteImport.update({
+  id: "/connectors",
+  path: "/connectors",
+  getParentRoute: () => DashboardRoute,
+} as any);
 const DashboardCollectionsRoute = DashboardCollectionsRouteImport.update({
   id: "/collections",
   path: "/collections",
@@ -84,6 +98,16 @@ const DashboardCollectionsRoute = DashboardCollectionsRouteImport.update({
 const DashboardChatRoute = DashboardChatRouteImport.update({
   id: "/chat",
   path: "/chat",
+  getParentRoute: () => DashboardRoute,
+} as any);
+const DashboardBackupsRoute = DashboardBackupsRouteImport.update({
+  id: "/backups",
+  path: "/backups",
+  getParentRoute: () => DashboardRoute,
+} as any);
+const DashboardAuditRoute = DashboardAuditRouteImport.update({
+  id: "/audit",
+  path: "/audit",
   getParentRoute: () => DashboardRoute,
 } as any);
 const DashboardApiKeysRoute = DashboardApiKeysRouteImport.update({
@@ -185,13 +209,17 @@ export interface FileRoutesByFullPath {
   "/setup": typeof AuthSetupRoute;
   "/access-logs": typeof DashboardAccessLogsRoute;
   "/api-keys": typeof DashboardApiKeysRoute;
+  "/audit": typeof DashboardAuditRoute;
+  "/backups": typeof DashboardBackupsRoute;
   "/chat": typeof DashboardChatRoute;
   "/collections": typeof DashboardCollectionsRouteWithChildren;
+  "/connectors": typeof DashboardConnectorsRoute;
   "/evals": typeof DashboardEvalsRoute;
   "/mcp": typeof DashboardMcpRoute;
   "/models": typeof DashboardModelsRoute;
   "/overview": typeof DashboardOverviewRoute;
   "/settings": typeof DashboardSettingsRoute;
+  "/usage": typeof DashboardUsageRoute;
   "/webhooks": typeof DashboardWebhooksRoute;
   "/collections/$name": typeof DashboardCollectionsNameRouteWithChildren;
   "/collections/": typeof DashboardCollectionsIndexRoute;
@@ -212,12 +240,16 @@ export interface FileRoutesByTo {
   "/setup": typeof AuthSetupRoute;
   "/access-logs": typeof DashboardAccessLogsRoute;
   "/api-keys": typeof DashboardApiKeysRoute;
+  "/audit": typeof DashboardAuditRoute;
+  "/backups": typeof DashboardBackupsRoute;
   "/chat": typeof DashboardChatRoute;
+  "/connectors": typeof DashboardConnectorsRoute;
   "/evals": typeof DashboardEvalsRoute;
   "/mcp": typeof DashboardMcpRoute;
   "/models": typeof DashboardModelsRoute;
   "/overview": typeof DashboardOverviewRoute;
   "/settings": typeof DashboardSettingsRoute;
+  "/usage": typeof DashboardUsageRoute;
   "/webhooks": typeof DashboardWebhooksRoute;
   "/collections": typeof DashboardCollectionsIndexRoute;
   "/collections/$name/google-drive": typeof DashboardCollectionsNameGoogleDriveRoute;
@@ -238,13 +270,17 @@ export interface FileRoutesById {
   "/_auth/setup": typeof AuthSetupRoute;
   "/_dashboard/access-logs": typeof DashboardAccessLogsRoute;
   "/_dashboard/api-keys": typeof DashboardApiKeysRoute;
+  "/_dashboard/audit": typeof DashboardAuditRoute;
+  "/_dashboard/backups": typeof DashboardBackupsRoute;
   "/_dashboard/chat": typeof DashboardChatRoute;
   "/_dashboard/collections": typeof DashboardCollectionsRouteWithChildren;
+  "/_dashboard/connectors": typeof DashboardConnectorsRoute;
   "/_dashboard/evals": typeof DashboardEvalsRoute;
   "/_dashboard/mcp": typeof DashboardMcpRoute;
   "/_dashboard/models": typeof DashboardModelsRoute;
   "/_dashboard/overview": typeof DashboardOverviewRoute;
   "/_dashboard/settings": typeof DashboardSettingsRoute;
+  "/_dashboard/usage": typeof DashboardUsageRoute;
   "/_dashboard/webhooks": typeof DashboardWebhooksRoute;
   "/_dashboard/collections/$name": typeof DashboardCollectionsNameRouteWithChildren;
   "/_dashboard/collections/": typeof DashboardCollectionsIndexRoute;
@@ -267,13 +303,17 @@ export interface FileRouteTypes {
     | "/setup"
     | "/access-logs"
     | "/api-keys"
+    | "/audit"
+    | "/backups"
     | "/chat"
     | "/collections"
+    | "/connectors"
     | "/evals"
     | "/mcp"
     | "/models"
     | "/overview"
     | "/settings"
+    | "/usage"
     | "/webhooks"
     | "/collections/$name"
     | "/collections/"
@@ -294,12 +334,16 @@ export interface FileRouteTypes {
     | "/setup"
     | "/access-logs"
     | "/api-keys"
+    | "/audit"
+    | "/backups"
     | "/chat"
+    | "/connectors"
     | "/evals"
     | "/mcp"
     | "/models"
     | "/overview"
     | "/settings"
+    | "/usage"
     | "/webhooks"
     | "/collections"
     | "/collections/$name/google-drive"
@@ -319,13 +363,17 @@ export interface FileRouteTypes {
     | "/_auth/setup"
     | "/_dashboard/access-logs"
     | "/_dashboard/api-keys"
+    | "/_dashboard/audit"
+    | "/_dashboard/backups"
     | "/_dashboard/chat"
     | "/_dashboard/collections"
+    | "/_dashboard/connectors"
     | "/_dashboard/evals"
     | "/_dashboard/mcp"
     | "/_dashboard/models"
     | "/_dashboard/overview"
     | "/_dashboard/settings"
+    | "/_dashboard/usage"
     | "/_dashboard/webhooks"
     | "/_dashboard/collections/$name"
     | "/_dashboard/collections/"
@@ -377,6 +425,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DashboardWebhooksRouteImport;
       parentRoute: typeof DashboardRoute;
     };
+    "/_dashboard/usage": {
+      id: "/_dashboard/usage";
+      path: "/usage";
+      fullPath: "/usage";
+      preLoaderRoute: typeof DashboardUsageRouteImport;
+      parentRoute: typeof DashboardRoute;
+    };
     "/_dashboard/settings": {
       id: "/_dashboard/settings";
       path: "/settings";
@@ -412,6 +467,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DashboardEvalsRouteImport;
       parentRoute: typeof DashboardRoute;
     };
+    "/_dashboard/connectors": {
+      id: "/_dashboard/connectors";
+      path: "/connectors";
+      fullPath: "/connectors";
+      preLoaderRoute: typeof DashboardConnectorsRouteImport;
+      parentRoute: typeof DashboardRoute;
+    };
     "/_dashboard/collections": {
       id: "/_dashboard/collections";
       path: "/collections";
@@ -424,6 +486,20 @@ declare module "@tanstack/react-router" {
       path: "/chat";
       fullPath: "/chat";
       preLoaderRoute: typeof DashboardChatRouteImport;
+      parentRoute: typeof DashboardRoute;
+    };
+    "/_dashboard/backups": {
+      id: "/_dashboard/backups";
+      path: "/backups";
+      fullPath: "/backups";
+      preLoaderRoute: typeof DashboardBackupsRouteImport;
+      parentRoute: typeof DashboardRoute;
+    };
+    "/_dashboard/audit": {
+      id: "/_dashboard/audit";
+      path: "/audit";
+      fullPath: "/audit";
+      preLoaderRoute: typeof DashboardAuditRouteImport;
       parentRoute: typeof DashboardRoute;
     };
     "/_dashboard/api-keys": {
@@ -633,26 +709,34 @@ const DashboardCollectionsRouteWithChildren =
 interface DashboardRouteChildren {
   DashboardAccessLogsRoute: typeof DashboardAccessLogsRoute;
   DashboardApiKeysRoute: typeof DashboardApiKeysRoute;
+  DashboardAuditRoute: typeof DashboardAuditRoute;
+  DashboardBackupsRoute: typeof DashboardBackupsRoute;
   DashboardChatRoute: typeof DashboardChatRoute;
   DashboardCollectionsRoute: typeof DashboardCollectionsRouteWithChildren;
+  DashboardConnectorsRoute: typeof DashboardConnectorsRoute;
   DashboardEvalsRoute: typeof DashboardEvalsRoute;
   DashboardMcpRoute: typeof DashboardMcpRoute;
   DashboardModelsRoute: typeof DashboardModelsRoute;
   DashboardOverviewRoute: typeof DashboardOverviewRoute;
   DashboardSettingsRoute: typeof DashboardSettingsRoute;
+  DashboardUsageRoute: typeof DashboardUsageRoute;
   DashboardWebhooksRoute: typeof DashboardWebhooksRoute;
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAccessLogsRoute: DashboardAccessLogsRoute,
   DashboardApiKeysRoute: DashboardApiKeysRoute,
+  DashboardAuditRoute: DashboardAuditRoute,
+  DashboardBackupsRoute: DashboardBackupsRoute,
   DashboardChatRoute: DashboardChatRoute,
   DashboardCollectionsRoute: DashboardCollectionsRouteWithChildren,
+  DashboardConnectorsRoute: DashboardConnectorsRoute,
   DashboardEvalsRoute: DashboardEvalsRoute,
   DashboardMcpRoute: DashboardMcpRoute,
   DashboardModelsRoute: DashboardModelsRoute,
   DashboardOverviewRoute: DashboardOverviewRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
+  DashboardUsageRoute: DashboardUsageRoute,
   DashboardWebhooksRoute: DashboardWebhooksRoute,
 };
 

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
@@ -36,7 +37,7 @@ const humanBytes = (n: number): string => {
   return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 };
 
-export const UsageTab = () => {
+export const UsagePage = () => {
   const [windowDays, setWindowDays] = useState(30);
   const queryKey = useMemo(() => queryKeys.usage({ windowDays }), [windowDays]);
   const { data, isPending, error } = useSseSnapshotQuery<UsageReport>({
@@ -46,7 +47,13 @@ export const UsageTab = () => {
   });
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        className="mb-0"
+        description="Track request volume, indexed data, token usage, and estimated embedding spend by collection."
+        title="Usage"
+      />
+
       <Card className="rounded-md">
         <CardHeader className="border-b border-border bg-muted/35 p-4">
           <CardTitle>Usage and cost</CardTitle>
@@ -93,8 +100,8 @@ export const UsageTab = () => {
                 />
               </div>
 
-              <div className="overflow-hidden rounded-md border border-border">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto rounded-md border border-border">
+                <table className="w-full min-w-[720px] text-sm">
                   <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="px-3 py-2 text-left font-medium">Collection</th>

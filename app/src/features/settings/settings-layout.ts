@@ -154,12 +154,7 @@ export const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupL
     commonKeys: [
       "vector_store_provider",
       "qdrant_url",
-      "qdrant_api_key",
       "qdrant_required",
-      "s3_vectors_bucket",
-      "s3_vectors_region",
-      "s3_vectors_access_key_id",
-      "s3_vectors_secret_access_key",
       "turbopuffer_api_key",
       "turbopuffer_region",
     ],

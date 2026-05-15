@@ -1,13 +1,9 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
-  Archive,
   Bot,
   Database,
-  ListChecks,
   Lock,
-  Plug,
-  Receipt,
   UserRound,
 } from "lucide-react";
 import type { InstanceSettingGroup } from "@/types/bigrag";
@@ -17,11 +13,7 @@ export type SettingsTab =
   | "health"
   | "security"
   | "data"
-  | "models"
-  | "backups"
-  | "connectors"
-  | "usage"
-  | "audit";
+  | "models";
 
 type SettingsNavItem = {
   readonly value: SettingsTab;
@@ -75,37 +67,8 @@ export const SETTINGS_NAV_GROUPS: readonly SettingsNavGroup[] = [
         label: "Models",
         value: "models",
       },
-      {
-        description: "Readable full-instance exports and backup history.",
-        icon: Archive,
-        label: "Backups",
-        value: "backups",
-      },
     ],
     label: "Operate",
-  },
-  {
-    items: [
-      {
-        description: "OAuth credentials and external data source connections.",
-        icon: Plug,
-        label: "Connectors",
-        value: "connectors",
-      },
-      {
-        description: "Aggregated request volume, token usage, and spend.",
-        icon: Receipt,
-        label: "Usage",
-        value: "usage",
-      },
-      {
-        description: "Administrator activity trail across the instance.",
-        icon: ListChecks,
-        label: "Audit",
-        value: "audit",
-      },
-    ],
-    label: "Observe",
   },
 ] as const;
 
@@ -126,7 +89,6 @@ const SETTINGS_TAB_ALIASES: Readonly<Record<string, SettingsTab>> = {
 };
 
 const SETTINGS_FOCUS_GROUPS: Readonly<Record<string, InstanceSettingGroup>> = {
-  backups: "backups",
   chat: "chat",
   ingestion: "ingestion",
   queue: "queue",

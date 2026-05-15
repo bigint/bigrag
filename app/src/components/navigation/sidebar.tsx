@@ -3,13 +3,16 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  Archive,
   BookOpen,
   Cpu,
   FlaskConical,
   KeyRound,
   LayoutDashboard,
+  ListChecks,
   MessageSquare,
   Plug,
+  Receipt,
   Settings,
   Webhook,
 } from "lucide-react";
@@ -34,9 +37,15 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/mcp", icon: Plug, label: "MCP" },
   { admin: true, href: "/api-keys", icon: KeyRound, label: "API Keys", separated: true },
   { admin: true, href: "/access-logs", icon: Activity, label: "Access Logs" },
+  { admin: true, href: "/usage", icon: Receipt, label: "Usage" },
+  { admin: true, href: "/audit", icon: ListChecks, label: "Audit" },
   { admin: true, href: "/webhooks", icon: Webhook, label: "Webhooks" },
+  { admin: true, href: "/backups", icon: Archive, label: "Backups" },
   { admin: true, href: "/settings", icon: Settings, label: "Settings" },
 ];
+
+export const getSidebarNavItems = (role: string) =>
+  NAV_ITEMS.filter((item) => !item.admin || role === "admin");
 
 const isActive = (pathname: string, href: string) => {
   if (href === "/overview") return pathname === "/overview" || pathname === "/";
@@ -45,7 +54,7 @@ const isActive = (pathname: string, href: string) => {
 
 const SidebarBody = ({ onNavigate, role }: { onNavigate?: () => void; role: string }) => {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const items = NAV_ITEMS.filter((item) => !item.admin || role === "admin");
+  const items = getSidebarNavItems(role);
 
   return (
     <div className="flex h-full flex-col">

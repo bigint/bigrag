@@ -14,12 +14,8 @@ import {
   settingsSectionLabel,
 } from "@/features/settings/settings-navigation";
 import { AccountTab } from "@/features/settings/tabs/account-tab";
-import { AuditTab } from "@/features/settings/tabs/audit-tab";
-import { BackupsTab } from "@/features/settings/tabs/backups-tab";
-import { ConnectorsTab } from "@/features/settings/tabs/connectors-tab";
 import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 import { ServerTab } from "@/features/settings/tabs/server-tab";
-import { UsageTab } from "@/features/settings/tabs/usage-tab";
 import { cn } from "@/lib/cn";
 
 type SettingsSearch = {
@@ -44,7 +40,7 @@ const SettingsPage = () => {
   const tab = getSettingsTab(requestedTab);
   const focusGroup = getSettingsFocusGroup(requestedTab);
 
-  useRedirectLegacyEvalTab(requestedTab, navigate);
+  useRedirectLegacySettingsTab(requestedTab, navigate);
 
   const setTab = (value: string) =>
     navigate({
@@ -75,7 +71,7 @@ const SettingsPage = () => {
             <h1 className="mt-1 text-2xl font-semibold tracking-normal">Settings</h1>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
               Configure the instance by outcome: account access, system posture, data flow, model
-              defaults, integrations, and audit visibility.
+              defaults, and runtime policy.
             </p>
           </div>
           <div className="grid grid-cols-3 overflow-hidden rounded-md border border-border bg-card text-center text-xs">
@@ -197,20 +193,32 @@ const SettingsContent = ({
   if (tab === "models") {
     return <InstanceSettingsTab focusGroup={focusGroup} groups={MODEL_SETTINGS_GROUPS} />;
   }
-  if (tab === "backups") return <BackupsTab />;
-  if (tab === "connectors") return <ConnectorsTab />;
-  if (tab === "usage") return <UsageTab />;
-  if (tab === "audit") return <AuditTab />;
   return <AccountTab />;
 };
 
-const useRedirectLegacyEvalTab = (
+const useRedirectLegacySettingsTab = (
   requestedTab: string | undefined,
   navigate: ReturnType<typeof useNavigate>,
 ) => {
   useEffect(() => {
     if (requestedTab === "eval") {
       navigate({ to: "/evals", replace: true });
+      return;
+    }
+    if (requestedTab === "backups") {
+      navigate({ to: "/backups", replace: true });
+      return;
+    }
+    if (requestedTab === "usage") {
+      navigate({ to: "/usage", replace: true });
+      return;
+    }
+    if (requestedTab === "audit") {
+      navigate({ to: "/audit", replace: true });
+      return;
+    }
+    if (requestedTab === "connectors") {
+      navigate({ to: "/connectors", replace: true });
     }
   }, [requestedTab, navigate]);
 };

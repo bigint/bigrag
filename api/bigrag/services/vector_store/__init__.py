@@ -13,7 +13,6 @@ from bigrag.services.vector_store.base import (
     VectorStoreProvider,
 )
 from bigrag.services.vector_store.qdrant import QdrantVectorStore, _to_qdrant_filter
-from bigrag.services.vector_store.s3_vectors import S3VectorsStore, _to_s3_filter
 from bigrag.services.vector_store.turbopuffer import (
     TurbopufferVectorStore,
     _to_turbopuffer_filter,
@@ -23,14 +22,12 @@ logger = get_logger("bigrag.vector_store")
 
 __all__ = [
     "QdrantVectorStore",
-    "S3VectorsStore",
     "TurbopufferVectorStore",
     "VectorStore",
     "VectorStoreBackend",
     "VectorStoreFeatureError",
     "VectorStoreProvider",
     "_to_qdrant_filter",
-    "_to_s3_filter",
     "_to_turbopuffer_filter",
     "vector_store",
 ]
@@ -50,16 +47,9 @@ class VectorStore:
         url: str | None = None,
         *,
         provider: VectorStoreProvider = "qdrant",
-        api_key: str | None = None,
         connect_timeout_seconds: int | float | None = 10,
         search_ef: int | None = None,
         qdrant_url: str | None = None,
-        qdrant_api_key: str | None = None,
-        s3_vectors_bucket: str = "",
-        s3_vectors_region: str = "us-east-1",
-        s3_vectors_index_prefix: str = "bigrag_",
-        s3_vectors_access_key_id: str | None = None,
-        s3_vectors_secret_access_key: str | None = None,
         turbopuffer_api_key: str | None = None,
         turbopuffer_region: str = "aws-us-east-1",
         turbopuffer_namespace_prefix: str = "bigrag_",
@@ -68,17 +58,8 @@ class VectorStore:
         if provider == "qdrant":
             self.backend = QdrantVectorStore(
                 qdrant_url or url or "http://localhost:6333",
-                api_key=qdrant_api_key if qdrant_api_key is not None else api_key,
                 connect_timeout_seconds=connect_timeout_seconds,
                 search_ef=search_ef,
-            )
-        elif provider == "s3_vectors":
-            self.backend = S3VectorsStore(
-                bucket=s3_vectors_bucket,
-                region=s3_vectors_region,
-                index_prefix=s3_vectors_index_prefix,
-                access_key_id=s3_vectors_access_key_id,
-                secret_access_key=s3_vectors_secret_access_key,
             )
         elif provider == "turbopuffer":
             self.backend = TurbopufferVectorStore(

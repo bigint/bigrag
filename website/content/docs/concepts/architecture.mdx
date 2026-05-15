@@ -10,10 +10,9 @@ import { Callout } from "fumadocs-ui/components/callout";
 bigRAG intentionally keeps four distinct stores instead of shoving
 everything into Postgres with pgvector. Each one earns its keep:
 
-- **Vector store** — Qdrant by default, with S3 Vectors and
-  turbopuffer available as instance-level cloud backends. The vector
-  store owns dense embeddings, payload metadata, and filtered semantic
-  search.
+- **Vector store** — Qdrant by default, with turbopuffer available as an
+  instance-level managed backend. The vector store owns dense embeddings,
+  payload metadata, and filtered semantic search.
 - **Postgres** — metadata and control plane. Collections, documents,
   users, API keys, webhooks, query logs, audit trail, embedding cache.
   Transactions keep ingestion consistent across stores.
@@ -26,9 +25,8 @@ everything into Postgres with pgvector. Each one earns its keep:
 
 <Callout type="info">
 bigRAG can run entirely from `docker compose up` on a single machine
-with Qdrant. Managed cloud backends move vector operations out of the
-local deployment when you prefer AWS-native or turbopuffer-managed
-infrastructure.
+with Qdrant. Turbopuffer moves vector operations out of the local
+deployment when you prefer a managed vector service.
 </Callout>
 
 ## Request flow — `POST /v1/collections/{name}/documents`
@@ -78,8 +76,8 @@ Response JSON with results and timings
 
 Keyword mode skips embeddings. Semantic and hybrid mode use the
 collection's configured embedding model. In v1, keyword and hybrid
-search are available on Qdrant; S3 Vectors and turbopuffer support
-semantic search and return a clear error for keyword or hybrid mode.
+search are available on Qdrant; turbopuffer supports semantic search
+and returns a clear error for keyword or hybrid mode.
 
 ## Why Docling
 
@@ -121,11 +119,11 @@ a future pgvector backend.
 - **Horizontal API workers**: FastAPI is stateless past the lifespan.
   Run N replicas behind a load balancer; they share Postgres, Redis,
   and the configured vector store.
-- **Vector backend choice**: use local Qdrant for self-hosted installs,
-  S3 Vectors for AWS-native managed storage, or turbopuffer for a
-  managed vector search service. Turbopuffer namespaces are created on
-  first write and store bigRAG vector IDs as payload attributes while
-  using backend-safe IDs internally for writes, deletes, and exports.
+- **Vector backend choice**: use local Qdrant for self-hosted installs
+  or turbopuffer for a managed vector search service. Turbopuffer
+  namespaces are created on first write and store bigRAG vector IDs as
+  payload attributes while using backend-safe IDs internally for writes,
+  deletes, and exports.
 - **Postgres replication**: the control plane is read-light; a
   warm-standby suffices for failover.
 - **Redis persistence**: enable `appendonly yes` (already set in the

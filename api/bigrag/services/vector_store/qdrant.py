@@ -80,13 +80,11 @@ class QdrantVectorStore:
         self,
         url: str = "http://localhost:6333",
         *,
-        api_key: str | None = None,
         connect_timeout_seconds: int | float | None = 10,
         search_ef: int | None = None,
         prefix: str = "bigrag_",
     ) -> None:
         self.url = url
-        self.api_key = api_key
         self.client: AsyncQdrantClient | None = None
         self._max_retries: int = 2
         self._connect_timeout_seconds = (
@@ -100,7 +98,6 @@ class QdrantVectorStore:
     def connect(self) -> None:
         self.client = AsyncQdrantClient(
             url=self.url,
-            api_key=self.api_key,
             timeout=self._connect_timeout_seconds,
         )
         logger.info("connected to qdrant", url=self.url)

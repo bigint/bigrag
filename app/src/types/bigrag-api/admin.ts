@@ -71,7 +71,7 @@ export type ReadinessReport = {
   postgres: boolean;
   qdrant: boolean | null;
   vector_store: boolean;
-  vector_store_provider: "qdrant" | "s3_vectors" | "turbopuffer";
+  vector_store_provider: "qdrant" | "turbopuffer";
   redis: boolean;
   embedding: boolean;
   embedding_error?: string;

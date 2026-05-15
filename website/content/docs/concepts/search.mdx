@@ -87,7 +87,7 @@ Pass a plain value for exact match, or use operators for more control.
 
 Multiple filters are combined with AND. When a collection was created with `tenant_field`, bigRAG configures that field for backend filtering where supported and requires the tenant field in every query and chat filter. Missing tenant filters return `400`.
 
-Keyword and hybrid search require the default Qdrant backend in v1. S3 Vectors and turbopuffer support semantic search and return a clear error for keyword or hybrid mode.
+Keyword and hybrid search require the default Qdrant backend in v1. Turbopuffer supports semantic search and returns a clear error for keyword or hybrid mode.
 
 ## Reranking
 

@@ -42,15 +42,9 @@ STORAGE_CONFIG_KEYS = {
 }
 
 VECTOR_CONFIG_KEYS = {
-    "qdrant_api_key",
     "qdrant_connect_timeout_seconds",
     "qdrant_search_ef",
     "qdrant_url",
-    "s3_vectors_access_key_id",
-    "s3_vectors_bucket",
-    "s3_vectors_index_prefix",
-    "s3_vectors_region",
-    "s3_vectors_secret_access_key",
     "turbopuffer_api_key",
     "turbopuffer_namespace_prefix",
     "turbopuffer_region",
@@ -166,14 +160,8 @@ def _configure_vector_store(store: VectorStore, values: dict[str, Any]) -> None:
     store.configure(
         provider=values["vector_store_provider"],
         qdrant_url=values["qdrant_url"],
-        qdrant_api_key=values["qdrant_api_key"],
         connect_timeout_seconds=values["qdrant_connect_timeout_seconds"],
         search_ef=values["qdrant_search_ef"],
-        s3_vectors_bucket=values["s3_vectors_bucket"],
-        s3_vectors_region=values["s3_vectors_region"],
-        s3_vectors_index_prefix=values["s3_vectors_index_prefix"],
-        s3_vectors_access_key_id=values["s3_vectors_access_key_id"],
-        s3_vectors_secret_access_key=values["s3_vectors_secret_access_key"],
         turbopuffer_api_key=values["turbopuffer_api_key"],
         turbopuffer_region=values["turbopuffer_region"],
         turbopuffer_namespace_prefix=values["turbopuffer_namespace_prefix"],
