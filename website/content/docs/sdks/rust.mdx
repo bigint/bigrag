@@ -90,7 +90,7 @@ let client = BigRag::builder()
 | `client.vectors()` | Raw vector upsert and delete |
 | `client.webhooks()` | Webhook management |
 | `client.auth()` | Setup, login, logout, identity, password, and preferences |
-| `client.admin()` | Users, API keys, access logs, audit logs, connector config, embedding presets, and MCP server keys |
+| `client.admin()` | Users, API keys, access logs, audit logs, runtime settings, backups, admin realtime streams, connector config, embedding presets, and MCP server keys |
 | `client.connectors().google()` | Google Drive account, file browsing, sources, and sync jobs |
 | `client.evaluations()` | Golden-set retrieval evaluation runs |
 
@@ -346,6 +346,44 @@ let deliveries = client.webhooks().list_deliveries("webhook-id", Some(ListDelive
 
 // Test
 let test = client.webhooks().test("webhook-id").await?;
+```
+
+## Admin
+
+```rust
+use bigrag::types::{
+    BackupCreateBody, ResetInstanceSettingsBody, TestInstanceSettingsBody,
+    UpdateInstanceSettingsBody,
+};
+use futures_util::StreamExt;
+
+let settings = client.admin().settings().list().await?;
+let _ = settings;
+
+client.admin().settings().test(Some(TestInstanceSettingsBody {
+    values: serde_json::json!({"vector_store_provider": "qdrant"}),
+})).await?;
+
+client.admin().settings().update(UpdateInstanceSettingsBody {
+    values: serde_json::json!({"session_cookie_secure": true}),
+}).await?;
+
+client.admin().settings().reset(Some(ResetInstanceSettingsBody {
+    keys: vec!["session_cookie_secure".into()],
+})).await?;
+
+client.admin().settings().purge_embedding_cache().await?;
+
+let backups = client.admin().backups().list(None).await?;
+let backup = client.admin().backups().create(Some(BackupCreateBody {
+    label: "before migration".into(),
+})).await?;
+let _ = (backups, backup);
+
+let mut stream = client.admin().realtime().backups(None).await?;
+while let Some(event) = stream.next().await {
+    println!("{:?}", event?);
+}
 ```
 
 ## Platform

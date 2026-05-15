@@ -309,13 +309,15 @@ Full-workspace keys expose 8 tools — `list_collections`, `get_collection`, `ge
 ## Configuration
 
 Most settings use the `BIGRAG_` prefix as environment variables, or configure via `bigrag.toml`.
-Backend logging is always enabled at debug level with text output and does not use logging env vars.
+Backend logging defaults to `debug` / `text` for local development. Use `BIGRAG_LOG_LEVEL=info` and `BIGRAG_LOG_FORMAT=json` for production log collection.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_PORT` | Server port | `4000` |
 | `BIGRAG_HOST` | Bind address | `127.0.0.1` |
 | `BIGRAG_WORKERS` | API worker processes | `1` |
+| `BIGRAG_LOG_LEVEL` | Backend log level: `debug`, `info`, `warning`, or `error` | `debug` |
+| `BIGRAG_LOG_FORMAT` | Backend log renderer: `text` or `json` | `text` |
 | `BIGRAG_CORS_ORIGINS` | JSON array of allowed browser origins | `[]` |
 | `BIGRAG_DATABASE_URL` | Postgres URL (`postgres:5432` inside docker-compose, `localhost:5432` for bare-metal dev) | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
 | `BIGRAG_DB_POOL_MIN` | Min Postgres pool size | `5` |

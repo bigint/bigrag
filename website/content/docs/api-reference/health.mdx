@@ -35,11 +35,11 @@ No authentication required. Tests connectivity to Postgres, the configured vecto
   "qdrant": true,
   "redis": true,
   "embedding": true,
-  "embedding_source": "env"
+  "embedding_source": "settings"
 }
 ```
 
-When the embedding provider is unreachable or misconfigured:
+When a dependency is unreachable or misconfigured:
 
 ```json
 {
@@ -49,14 +49,15 @@ When the embedding provider is unreachable or misconfigured:
   "vector_store": true,
   "vector_store_provider": "qdrant",
   "qdrant": true,
-  "redis": true,
+  "redis": false,
+  "redis_error": "unreachable",
   "embedding": false,
   "embedding_error": "auth_failed",
-  "embedding_source": "env"
+  "embedding_source": "settings"
 }
 ```
 
-Returns HTTP `503` with `"status": "degraded"` when any dependency is unhealthy. Embedding errors are categorized as `auth_failed`, `rate_limited`, `timeout`, `unreachable`, or `unknown`. The embedding health check result is cached for 60 seconds.
+Returns HTTP `503` with `"status": "degraded"` when any dependency is unhealthy. Dependency errors are category labels only: `auth_failed`, `rate_limited`, `timeout`, `unreachable`, `misconfigured`, or `unknown`. The embedding health check result is cached for 60 seconds.
 
 ## Platform Stats
 
@@ -70,6 +71,7 @@ Platform-wide statistics including collections, documents, and queue status.
 
 ```json
 {
+  "status": "degraded",
   "collections": 5,
   "documents": {
     "total": 128,
@@ -93,13 +95,22 @@ Platform-wide statistics including collections, documents, and queue status.
     "leased_processing": 2,
     "stale_processing": 0
   },
+  "queue_health": {
+    "status": "degraded",
+    "reasons": ["dead_lettered_jobs", "retrying_jobs"]
+  },
   "workers": {
     "online": true,
+    "status": "online",
     "heartbeat_at": "2026-05-15T12:00:00+00:00",
     "heartbeat_age_seconds": 4
   }
 }
 ```
+
+`status` summarizes the queue and worker state. `ok` means no queue risk was detected, `degraded` means the worker or queue needs attention but is not blocked, and `down` means queued or processing work exists while the worker heartbeat is offline. `queue_health.reasons` can include `worker_offline`, `worker_offline_with_active_queue`, `dead_lettered_jobs`, `stale_processing_jobs`, and `retrying_jobs`.
+
+Every HTTP response includes an `X-Request-ID` header. Send your own value to correlate client logs with API logs, or let bigRAG generate one.
 
 ## Embedding Models
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  MCP_UNSCOPED,
   defaultMcpCreateFormValues,
+  MCP_UNSCOPED,
   mcpCreateBodyFromValues,
   mcpServerNameFromTitle,
   slugifyMcpServerName,

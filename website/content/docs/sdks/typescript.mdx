@@ -220,6 +220,16 @@ client.admin.access.logs({ action?, actorId?, collection?, statusFamily?, succes
 client.admin.access.overview({ windowDays? })
 client.admin.audit.list({ action?, actorId?, resourceType?, limit?, offset? })
 
+client.admin.settings.list()
+client.admin.settings.test({ values })
+client.admin.settings.update({ values })
+client.admin.settings.reset({ keys })
+client.admin.settings.purgeEmbeddingCache()
+
+client.admin.backups.list({ limit?, offset? })
+client.admin.backups.get(backupId)
+client.admin.backups.create({ label? })
+
 client.admin.connectors.google.get()
 client.admin.connectors.google.update({ enabled?, client_id?, client_secret? })
 
@@ -233,6 +243,18 @@ client.admin.mcpServers.create({ title, server_name, collection? })
 client.admin.mcpServers.update(serverId, { title?, server_name?, collection? })
 client.admin.mcpServers.rotate(serverId)
 client.admin.mcpServers.delete(serverId)
+```
+
+```typescript
+for await (const event of client.admin.realtime.backups({ limit: 20 })) {
+  if (event.event === "snapshot") {
+    console.log(event.data.payload.jobs)
+  }
+}
+
+for await (const event of client.admin.realtime.platformReadiness()) {
+  console.log(event.data)
+}
 ```
 
 ## Connectors

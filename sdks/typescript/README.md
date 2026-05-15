@@ -60,7 +60,7 @@ while (current.status === "pending" || current.status === "processing") {
 - `client.vectors` for raw vector upsert and delete.
 - `client.webhooks` for webhook management and delivery replay.
 - `client.auth` for setup, login, identity, password, and preferences.
-- `client.admin` for users, API keys, access logs, audit logs, connectors, embedding presets, and MCP server keys.
+- `client.admin` for users, API keys, access logs, audit logs, runtime settings, backups, admin realtime streams, connectors, embedding presets, and MCP server keys.
 - `client.connectors.google` for Google Drive account, file browsing, sources, and sync jobs.
 - `client.evaluations` for golden-set retrieval evaluations.
 

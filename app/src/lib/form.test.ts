@@ -15,7 +15,10 @@ describe("form helpers", () => {
     const beforeSubmit = vi.fn();
     const handleSubmit = vi.fn();
 
-    submitWith(handleSubmit, beforeSubmit)({
+    submitWith(
+      handleSubmit,
+      beforeSubmit,
+    )({
       preventDefault,
     } as unknown as FormEvent<HTMLFormElement>);
 

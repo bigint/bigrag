@@ -72,16 +72,25 @@ vi.mock("@/hooks/use-platform", () => ({
       },
       queue: {
         completed: 0,
+        dead_lettered: 1,
         failed: 0,
         pending: 3,
         processing: 1,
         queued: 4,
+        retrying: 0,
+        stale_processing: 0,
       },
+      queue_health: {
+        reasons: ["dead_lettered_jobs"],
+        status: "degraded",
+      },
+      status: "degraded",
       webhooks: 0,
       workers: {
         heartbeat_age_seconds: 180,
         heartbeat_at: "2026-05-15T12:00:00+00:00",
         online: false,
+        status: "offline",
       },
     },
     isPending: false,
@@ -115,5 +124,6 @@ describe("OverviewPage", () => {
     expect(html).toContain("Worker");
     expect(html).toContain("bigrag-worker is offline");
     expect(html).toContain("Pending uploads, backups, webhooks, and Drive syncs cannot drain");
+    expect(html).toContain("Dead-lettered jobs need operator review.");
   });
 });

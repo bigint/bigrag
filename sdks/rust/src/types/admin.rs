@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::types::auth::User;
@@ -324,4 +326,145 @@ pub struct McpServerListResponse {
     pub servers: Vec<McpServer>,
     /// Total server count.
     pub total: u32,
+}
+
+/// Runtime setting metadata.
+#[derive(Debug, Clone, Deserialize)]
+pub struct InstanceSettingSpec {
+    /// Setting key.
+    pub key: String,
+    /// Settings group.
+    pub group: String,
+    /// Display label.
+    pub label: String,
+    /// Display description.
+    pub description: String,
+    /// Setting value kind.
+    pub kind: String,
+    /// Default value.
+    pub default: serde_json::Value,
+    /// Allowed options.
+    pub options: Vec<String>,
+    /// Minimum numeric value.
+    pub min: Option<f64>,
+    /// Maximum numeric value.
+    pub max: Option<f64>,
+    /// Whether the setting is secret.
+    pub secret: bool,
+}
+
+/// Runtime setting value.
+#[derive(Debug, Clone, Deserialize)]
+pub struct InstanceSetting {
+    /// Setting key.
+    pub key: String,
+    /// Resolved value.
+    pub value: serde_json::Value,
+    /// Whether a stored value exists.
+    pub has_value: bool,
+    /// Value source.
+    pub source: String,
+    /// Last update timestamp.
+    pub updated_at: Option<String>,
+    /// Last updater ID.
+    pub updated_by: Option<String>,
+}
+
+/// Runtime settings response.
+#[derive(Debug, Clone, Deserialize)]
+pub struct InstanceSettingsResponse {
+    /// Setting specs.
+    pub specs: Vec<InstanceSettingSpec>,
+    /// Setting values keyed by setting name.
+    pub values: BTreeMap<String, InstanceSetting>,
+}
+
+/// Body for updating runtime settings.
+#[derive(Debug, Clone, Serialize)]
+pub struct UpdateInstanceSettingsBody {
+    /// Values keyed by setting name.
+    pub values: serde_json::Value,
+}
+
+/// Body for resetting runtime settings.
+#[derive(Debug, Clone, Serialize)]
+pub struct ResetInstanceSettingsBody {
+    /// Setting keys to reset.
+    pub keys: Vec<String>,
+}
+
+/// Body for testing runtime settings.
+#[derive(Debug, Clone, Serialize)]
+pub struct TestInstanceSettingsBody {
+    /// Values keyed by setting name.
+    pub values: serde_json::Value,
+}
+
+/// Runtime settings test response.
+#[derive(Debug, Clone, Deserialize)]
+pub struct InstanceSettingsTestResponse {
+    /// Test status.
+    pub status: String,
+    /// Checked setting keys.
+    pub checked: Vec<String>,
+    /// Result message.
+    pub message: String,
+}
+
+/// Body for creating a backup job.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct BackupCreateBody {
+    /// Optional backup label.
+    pub label: String,
+}
+
+/// Backup job.
+#[derive(Debug, Clone, Deserialize)]
+pub struct BackupJob {
+    /// Backup job ID.
+    pub id: String,
+    /// Backup label.
+    pub label: String,
+    /// Backup status.
+    pub status: String,
+    /// Progress percentage.
+    pub progress: u32,
+    /// Destination object prefix.
+    pub destination_prefix: String,
+    /// Object count.
+    pub object_count: u64,
+    /// Byte count.
+    pub byte_count: u64,
+    /// Backup manifest.
+    pub manifest: serde_json::Value,
+    /// Error message.
+    pub error_message: Option<String>,
+    /// Creator ID.
+    pub created_by: Option<String>,
+    /// Start timestamp.
+    pub started_at: Option<String>,
+    /// Completion timestamp.
+    pub completed_at: Option<String>,
+    /// Creation timestamp.
+    pub created_at: String,
+    /// Last update timestamp.
+    pub updated_at: String,
+}
+
+/// Backup job list response.
+#[derive(Debug, Clone, Deserialize)]
+pub struct BackupJobListResponse {
+    /// Backup jobs.
+    pub jobs: Vec<BackupJob>,
+    /// Total job count.
+    pub total: u32,
+}
+
+/// Admin realtime SSE event.
+#[derive(Debug, Clone, Deserialize)]
+pub struct AdminRealtimeEvent {
+    /// SSE event name.
+    pub event: String,
+    /// Parsed event payload.
+    pub data: serde_json::Value,
 }

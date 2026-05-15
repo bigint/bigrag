@@ -20,8 +20,10 @@ pub mod vectors;
 pub mod webhooks;
 
 pub use admin::{
-    AccessLogOptions, Admin, AdminAccess, AdminApiKeys, AdminAudit, AdminConnectors,
-    AdminEmbeddingPresets, AdminGoogleConnector, AdminMcpServers, AdminUsers, AuditLogOptions,
+    AccessLogOptions, Admin, AdminAccess, AdminApiKeys, AdminAudit, AdminBackups,
+    AdminConnectors, AdminEmbeddingPresets, AdminGoogleConnector, AdminMcpServers,
+    AdminRealtime, AdminRealtimeConnectorSyncJobsOptions, AdminRealtimeDocumentsOptions,
+    AdminRealtimeStream, AdminSettings, AdminUsers, AuditLogOptions,
 };
 pub use auth::Auth;
 pub use chat::{ChatStream, Chats};

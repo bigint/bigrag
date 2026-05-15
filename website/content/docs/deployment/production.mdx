@@ -14,6 +14,8 @@ Tick these off before pointing real traffic at a bigRAG deployment:
 - [ ] Rotate `POSTGRES_PASSWORD` from the shipped default (`bigrag`).
 - [ ] `BIGRAG_SESSION_COOKIE_SECURE=true` and terminate TLS at your
   reverse proxy (nginx, Caddy, Traefik, Cloudflare).
+- [ ] `BIGRAG_LOG_LEVEL=info` and `BIGRAG_LOG_FORMAT=json` for production log
+  collection. Keep `debug` / `text` for local `dev.sh` sessions.
 - [ ] `BIGRAG_CORS_ORIGINS` set to an explicit list of your admin UI /
   app origins — no `*`.
 - [ ] `BIGRAG_TRUSTED_PROXIES` set to the CIDRs of your own reverse
@@ -181,6 +183,10 @@ BIGRAG_SESSION_COOKIE_SAMESITE=lax      # use none when API and admin UI are cro
 BIGRAG_CORS_ORIGINS=["https://admin.example.com"]
 BIGRAG_TRUSTED_PROXIES=["10.0.0.0/8"]  # your reverse-proxy/load-balancer CIDRs
 
+# Logs
+BIGRAG_LOG_LEVEL=info
+BIGRAG_LOG_FORMAT=json
+
 # Auth is admin accounts + minted bigrag_sk_ keys.
 # Bootstrap with POST /v1/auth/setup, then mint service keys at /v1/admin/api-keys.
 
@@ -227,12 +233,31 @@ runbooks.
 
 ## Logging
 
-Backend logging is always enabled at debug level with text output. It is not controlled
-through environment variables or CLI flags.
+API and worker logs are emitted through `structlog` with stable event names and
+key-value fields for request, ingestion, vector-store, webhook, and auth activity.
+Set `BIGRAG_LOG_FORMAT=json` when Docker, Railway, Fluent Bit, or another log
+shipper will parse stdout. Set `BIGRAG_LOG_LEVEL=info` in production and keep
+`debug` for local development when you want detailed ingestion progress in the
+terminal.
 
-API logs are emitted through `structlog` with stable event names and key-value
-fields for request, ingestion, vector-store, webhook, and auth activity. Secrets
-are redacted before log rendering.
+Every HTTP response includes `X-Request-ID`. If a client sends that header,
+bigRAG preserves it; otherwise the API generates one and includes it in request
+logs and access-log rows. Secrets are redacted before log rendering.
+
+## Basic operations checklist
+
+Use this quick path before deeper debugging:
+
+1. `GET /health` confirms the API process is alive.
+2. `GET /health/ready` confirms Postgres, Redis, the vector store, and the
+   embedding provider are reachable. Dependency errors are category labels such
+   as `timeout`, `unreachable`, `auth_failed`, `misconfigured`, or `unknown`.
+3. `GET /v1/stats` confirms document counts, queue depth, queue health, and the
+   latest `bigrag-worker` heartbeat.
+4. The admin UI Health tab shows the same dependency and queue state without
+   opening logs.
+5. If documents stop moving, check worker logs, then inspect `queue_health`,
+   `workers.status`, `dead_lettered`, `retrying`, and `stale_processing`.
 
 ## Troubleshooting
 

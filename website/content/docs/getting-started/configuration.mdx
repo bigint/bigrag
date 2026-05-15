@@ -16,6 +16,8 @@ Bootstrap config is the small set of values the API needs before it can connect 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_ENV` | `dev` or `prod`. Production mode enforces safe startup checks. | `dev` |
+| `BIGRAG_LOG_LEVEL` | Backend log level: `debug`, `info`, `warning`, or `error`. | `debug` |
+| `BIGRAG_LOG_FORMAT` | Backend log renderer: `text` for local terminals or `json` for log shippers. | `text` |
 | `BIGRAG_HOST` | API bind address. | `127.0.0.1` |
 | `BIGRAG_PORT` | API bind port. | `4000` |
 | `BIGRAG_WORKERS` | Uvicorn process count. | `1` |
@@ -46,6 +48,8 @@ The CLI can also read a `bigrag.toml` file. Keep this file to bootstrap wiring:
 
 ```toml
 env = "prod"
+log_level = "info"
+log_format = "json"
 host = "0.0.0.0"
 port = 4000
 workers = 1
