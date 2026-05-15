@@ -76,9 +76,9 @@ The same surface is available through [`/admin/settings`](/docs/api-reference/in
 | Models | Default embedding provider, model, dimension, key, base URL, cache TTLs, chat provider, chat model, temperature, history count, and context budget. |
 | Backups | S3-compatible readable backup bucket, endpoint, region, prefix, and credentials for S3, R2, or MinIO. |
 
-The UI shows common controls first and keeps raw setting keys, source metadata, restart markers, and rarely changed limits in Advanced controls. Legacy deep links such as `/settings?tab=storage`, `/settings?tab=vector_store`, `/settings?tab=search`, and `/settings?tab=chat` still open the relevant panel inside the redesigned workspace.
+The UI shows common controls first and keeps raw setting keys, source metadata, live-apply markers, and rarely changed limits in Advanced controls. Legacy deep links such as `/settings?tab=storage`, `/settings?tab=vector_store`, `/settings?tab=search`, and `/settings?tab=chat` still open the relevant panel inside the redesigned workspace.
 
-Some settings apply immediately. Settings that affect process startup or long-lived clients are marked in Advanced controls.
+Database-backed admin settings apply immediately on save or reset. Storage and vector-store changes validate the new target before saving, then swap the active backend in place.
 
 <Callout type="info">
 Legacy runtime environment variables are still read as initial defaults for compatibility, but enterprise installs should treat `/settings` as the control plane after bootstrap.

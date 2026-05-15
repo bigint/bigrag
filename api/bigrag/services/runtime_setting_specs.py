@@ -20,7 +20,6 @@ class SettingSpec:
     min: float | None = None
     max: float | None = None
     secret: bool = False
-    restart_required: bool = False
 
 
 def _spec(
@@ -35,7 +34,6 @@ def _spec(
     min: float | None = None,
     max: float | None = None,
     secret: bool = False,
-    restart_required: bool = False,
 ) -> SettingSpec:
     return SettingSpec(
         key=key,
@@ -48,7 +46,6 @@ def _spec(
         min=min,
         max=max,
         secret=secret,
-        restart_required=restart_required,
     )
 
 
@@ -68,7 +65,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "string_list",
         [],
         "CIDR ranges trusted for forwarded client IP headers.",
-        restart_required=True,
     ),
     _spec(
         "session_cookie_secure",
@@ -102,7 +98,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "bool",
         False,
         "Allow BIGRAG_HOST=0.0.0.0 or :: when BIGRAG_ENV=prod.",
-        restart_required=True,
     ),
     _spec(
         "allowed_embedding_base_urls",
@@ -290,7 +285,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "local",
         "Document binary storage backend.",
         options=("local", "s3"),
-        restart_required=True,
     ),
     _spec(
         "storage_s3_bucket",
@@ -299,7 +293,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "string",
         "",
         "Bucket used when the storage backend is S3 or MinIO.",
-        restart_required=True,
     ),
     _spec(
         "storage_s3_endpoint_url",
@@ -308,7 +301,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "string",
         None,
         "Optional MinIO or S3-compatible endpoint URL.",
-        restart_required=True,
     ),
     _spec(
         "storage_s3_region",
@@ -317,7 +309,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "string",
         "us-east-1",
         "S3 region for bucket operations.",
-        restart_required=True,
     ),
     _spec(
         "storage_s3_prefix",
@@ -326,7 +317,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "string",
         "",
         "Optional key prefix prepended to uploaded documents.",
-        restart_required=True,
     ),
     _spec(
         "storage_s3_access_key_id",
@@ -336,7 +326,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         None,
         "Optional static access key ID for S3-compatible storage.",
         secret=True,
-        restart_required=True,
     ),
     _spec(
         "storage_s3_secret_access_key",
@@ -346,7 +335,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         None,
         "Optional static secret access key for S3-compatible storage.",
         secret=True,
-        restart_required=True,
     ),
     _spec(
         "storage_s3_force_path_style",
@@ -355,7 +343,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "bool",
         False,
         "Use path-style bucket addressing for MinIO.",
-        restart_required=True,
     ),
     _spec(
         "storage_signed_url_ttl_seconds",
@@ -433,7 +420,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "qdrant",
         "Instance-level vector backend.",
         options=("qdrant", "s3_vectors", "turbopuffer"),
-        restart_required=True,
     ),
     _spec(
         "qdrant_url",
@@ -442,7 +428,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "string",
         "http://localhost:6333",
         "Qdrant connection URL.",
-        restart_required=True,
     ),
     _spec(
         "qdrant_api_key",
@@ -452,7 +437,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         None,
         "Optional Qdrant API key.",
         secret=True,
-        restart_required=True,
     ),
     _spec(
         "qdrant_connect_timeout_seconds",
@@ -463,7 +447,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "Qdrant startup connection timeout in seconds.",
         min=0,
         max=300,
-        restart_required=True,
     ),
     _spec(
         "qdrant_required",
@@ -472,7 +455,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "bool",
         False,
         "Fail startup if the configured vector store cannot be reached.",
-        restart_required=True,
     ),
     _spec(
         "s3_vectors_bucket",
@@ -481,7 +463,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "string",
         "",
         "S3 vector bucket used when the vector store provider is S3 Vectors.",
-        restart_required=True,
     ),
     _spec(
         "s3_vectors_region",
@@ -490,7 +471,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "string",
         "us-east-1",
         "AWS region for S3 Vectors.",
-        restart_required=True,
     ),
     _spec(
         "s3_vectors_index_prefix",
@@ -499,7 +479,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "string",
         "bigrag_",
         "Prefix prepended to S3 vector index names.",
-        restart_required=True,
     ),
     _spec(
         "s3_vectors_access_key_id",
@@ -509,7 +488,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         None,
         "Optional static access key ID for S3 Vectors.",
         secret=True,
-        restart_required=True,
     ),
     _spec(
         "s3_vectors_secret_access_key",
@@ -519,7 +497,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         None,
         "Optional static secret access key for S3 Vectors.",
         secret=True,
-        restart_required=True,
     ),
     _spec(
         "turbopuffer_api_key",
@@ -529,7 +506,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         None,
         "turbopuffer API key.",
         secret=True,
-        restart_required=True,
     ),
     _spec(
         "turbopuffer_region",
@@ -538,7 +514,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "string",
         "aws-us-east-1",
         "turbopuffer region slug.",
-        restart_required=True,
     ),
     _spec(
         "turbopuffer_namespace_prefix",
@@ -547,7 +522,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "string",
         "bigrag_",
         "Prefix prepended to turbopuffer namespace names.",
-        restart_required=True,
     ),
     _spec(
         "qdrant_search_ef",
@@ -558,7 +532,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "Optional Qdrant HNSW search ef override.",
         min=1,
         max=10000,
-        restart_required=True,
     ),
     _spec(
         "embedding_concurrency",

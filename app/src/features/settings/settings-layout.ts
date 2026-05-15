@@ -20,7 +20,6 @@ export type SettingsStatusSummary = {
   readonly common: number;
   readonly advanced: number;
   readonly overrides: number;
-  readonly restartBound: number;
   readonly secrets: number;
   readonly missingSecrets: number;
 };
@@ -168,7 +167,7 @@ export const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupL
     emptyState: "Vector store settings are not available from this API.",
     eyebrow: "Indexes",
     group: "vector_store",
-    recommendedAction: "Pick one provider, complete its credentials, then test before restart.",
+    recommendedAction: "Pick one provider, complete its credentials, then test before saving.",
     title: "Vector store",
   },
   webhooks: {
@@ -207,7 +206,6 @@ export const settingsStatusSummary = (
     common: common.length,
     missingSecrets: specs.filter((spec) => spec.secret && !values[spec.key]?.has_value).length,
     overrides: specs.filter((spec) => values[spec.key]?.source === "database").length,
-    restartBound: specs.filter((spec) => spec.restart_required).length,
     secrets: specs.filter((spec) => spec.secret).length,
     total: specs.length,
   };
@@ -219,9 +217,6 @@ export const settingsRecommendedAction = (
 ): string => {
   if (summary.missingSecrets > 0 && (layout.group === "backups" || layout.group === "storage")) {
     return "Add the missing credentials, save, then test the connection.";
-  }
-  if (summary.restartBound > 0 && summary.overrides > 0) {
-    return "Test the saved values and plan a restart for startup-bound changes.";
   }
   return layout.recommendedAction;
 };

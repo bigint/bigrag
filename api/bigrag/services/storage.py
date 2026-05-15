@@ -299,6 +299,18 @@ def init_storage_from_values(upload_dir: str, values: dict[str, Any]) -> Storage
     return _storage
 
 
+async def replace_storage_backend(backend: StorageBackend) -> StorageBackend:
+    global _storage
+    old = _storage
+    _storage = backend
+    if old is not None and old is not backend:
+        try:
+            await old.close()
+        except Exception as exc:
+            logger.warning("old storage close failed", error=str(exc))
+    return _storage
+
+
 def build_storage_from_values(upload_dir: str, values: dict[str, Any]) -> StorageBackend:
     backend = values.get("storage_backend") or "local"
     if backend == "local":

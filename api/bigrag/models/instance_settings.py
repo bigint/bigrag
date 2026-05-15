@@ -33,7 +33,6 @@ class InstanceSettingSpecResponse(BaseModel):
     min: float | None = None
     max: float | None = None
     secret: bool = False
-    restart_required: bool = False
 
 
 class InstanceSettingResponse(BaseModel):

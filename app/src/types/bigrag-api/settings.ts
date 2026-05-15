@@ -31,7 +31,6 @@ export type InstanceSettingSpec = {
   min: number | null;
   max: number | null;
   secret: boolean;
-  restart_required: boolean;
 };
 
 export type InstanceSettingValue = {

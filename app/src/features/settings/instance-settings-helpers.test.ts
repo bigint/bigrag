@@ -17,7 +17,6 @@ const spec = (overrides: Partial<InstanceSettingSpec>): InstanceSettingSpec => (
   max: null,
   min: null,
   options: [],
-  restart_required: false,
   secret: false,
   ...overrides,
 });

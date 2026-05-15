@@ -24,8 +24,7 @@ Returns the setting registry plus current public values.
       "label": "CORS origins",
       "kind": "string_list",
       "default": [],
-      "secret": false,
-      "restart_required": false
+      "secret": false
     }
   ],
   "values": {
@@ -59,9 +58,11 @@ PUT /admin/settings
 }
 ```
 
-Unknown keys and invalid values return `400`. Successful updates are audited as `instance_settings.update`.
+Unknown keys and invalid values return `400`. Successful updates are audited as `instance_settings.update` and apply immediately to the running API.
 
 Security hardening settings include `allow_public_bind_in_prod`. Ingestion settings include raw vector API request caps (`max_vector_upsert_count`, `max_vector_delete_count`, `max_vector_text_chars`, `max_vector_metadata_bytes`). These are returned in the same registry as the other settings and can be changed from the admin UI.
+
+Storage and vector-store changes are validated before they are saved. Switching storage or vector providers does not migrate existing uploaded files or existing vectors; re-upload or re-ingest data when moving historical content to a new backend.
 
 ## Test Settings
 

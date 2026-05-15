@@ -17,7 +17,6 @@ const spec = (overrides: Partial<InstanceSettingSpec>): InstanceSettingSpec => (
   max: null,
   min: null,
   options: [],
-  restart_required: false,
   secret: false,
   ...overrides,
 });
@@ -36,7 +35,7 @@ describe("settings layout", () => {
   it("splits settings into common and advanced controls", () => {
     const layout = getSettingsGroupLayout("security");
     const result = splitSettingsByImportance(
-      [spec({ key: "cors_origins" }), spec({ key: "trusted_proxies", restart_required: true })],
+      [spec({ key: "cors_origins" }), spec({ key: "trusted_proxies" })],
       layout,
     );
 
@@ -44,15 +43,14 @@ describe("settings layout", () => {
     expect(result.advanced.map((item) => item.key)).toEqual(["trusted_proxies"]);
   });
 
-  it("summarizes overrides, secrets, and restart-bound settings", () => {
+  it("summarizes overrides and secrets", () => {
     const layout = getSettingsGroupLayout("storage");
     const specs = [
-      spec({ group: "storage", key: "storage_backend", restart_required: true }),
+      spec({ group: "storage", key: "storage_backend" }),
       spec({
         group: "storage",
         key: "storage_s3_secret_access_key",
         kind: "secret",
-        restart_required: true,
         secret: true,
       }),
     ];
@@ -74,7 +72,6 @@ describe("settings layout", () => {
       common: 2,
       missingSecrets: 1,
       overrides: 1,
-      restartBound: 2,
       secrets: 1,
       total: 2,
     });
@@ -88,7 +85,6 @@ describe("settings layout", () => {
         common: 6,
         missingSecrets: 1,
         overrides: 0,
-        restartBound: 0,
         secrets: 2,
         total: 7,
       }),

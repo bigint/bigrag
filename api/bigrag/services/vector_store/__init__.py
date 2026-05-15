@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
+from bigrag.logging import get_logger
 from bigrag.services._retrieval_filters import FilterExpression
 from bigrag.services.vector_store.base import (
     VectorStoreBackend,
@@ -14,6 +18,8 @@ from bigrag.services.vector_store.turbopuffer import (
     TurbopufferVectorStore,
     _to_turbopuffer_filter,
 )
+
+logger = get_logger("bigrag.vector_store")
 
 __all__ = [
     "QdrantVectorStore",
@@ -35,6 +41,9 @@ class VectorStore:
         self.provider: VectorStoreProvider = "qdrant"
         self.backend: VectorStoreBackend = QdrantVectorStore()
         self.client: Any | None = None
+        self._condition = asyncio.Condition()
+        self._active = 0
+        self._swapping = False
 
     def configure(
         self,
@@ -90,11 +99,51 @@ class VectorStore:
         self.client = getattr(self.backend, "client", None)
 
     async def close(self) -> None:
-        await self.backend.close()
-        self.client = getattr(self.backend, "client", None)
+        async with self._condition:
+            self._swapping = True
+            try:
+                while self._active:
+                    await self._condition.wait()
+                await self.backend.close()
+                self.client = getattr(self.backend, "client", None)
+            finally:
+                self._swapping = False
+                self._condition.notify_all()
+
+    async def replace_with(self, other: VectorStore) -> None:
+        async with self._condition:
+            self._swapping = True
+            while self._active:
+                await self._condition.wait()
+            old_backend = self.backend
+            self.provider = other.provider
+            self.backend = other.backend
+            self.client = other.client
+            self._swapping = False
+            self._condition.notify_all()
+        try:
+            await old_backend.close()
+        except Exception as exc:
+            logger.warning("old vector store close failed", error=str(exc))
+
+    @asynccontextmanager
+    async def _backend(self) -> AsyncIterator[VectorStoreBackend]:
+        async with self._condition:
+            while self._swapping:
+                await self._condition.wait()
+            self._active += 1
+            backend = self.backend
+        try:
+            yield backend
+        finally:
+            async with self._condition:
+                self._active -= 1
+                if self._active == 0:
+                    self._condition.notify_all()
 
     async def health_check(self) -> None:
-        await self.backend.health_check()
+        async with self._backend() as backend:
+            await backend.health_check()
 
     def _client(self) -> Any:
         if isinstance(self.backend, QdrantVectorStore):
@@ -112,10 +161,12 @@ class VectorStore:
         index_type: str = "HNSW",
         tenant_field: str | None = None,
     ) -> None:
-        await self.backend.create_collection(name, dimension, index_type, tenant_field)
+        async with self._backend() as backend:
+            await backend.create_collection(name, dimension, index_type, tenant_field)
 
     async def delete_collection(self, name: str) -> None:
-        await self.backend.delete_collection(name)
+        async with self._backend() as backend:
+            await backend.delete_collection(name)
 
     async def insert(
         self,
@@ -127,15 +178,16 @@ class VectorStore:
         embeddings: list[list[float]],
         metadata: list[dict] | None = None,
     ) -> int:
-        return await self.backend.insert(
-            collection,
-            ids,
-            document_ids,
-            chunk_indices,
-            texts,
-            embeddings,
-            metadata,
-        )
+        async with self._backend() as backend:
+            return await backend.insert(
+                collection,
+                ids,
+                document_ids,
+                chunk_indices,
+                texts,
+                embeddings,
+                metadata,
+            )
 
     async def search(
         self,
@@ -144,7 +196,8 @@ class VectorStore:
         top_k: int = 10,
         filters: FilterExpression | None = None,
     ) -> list[dict]:
-        return await self.backend.search(collection, query_embedding, top_k, filters)
+        async with self._backend() as backend:
+            return await backend.search(collection, query_embedding, top_k, filters)
 
     async def get_chunks(
         self,
@@ -153,13 +206,16 @@ class VectorStore:
         limit: int = 10000,
         offset: int = 0,
     ) -> tuple[list[dict], int]:
-        return await self.backend.get_chunks(collection, document_id, limit, offset)
+        async with self._backend() as backend:
+            return await backend.get_chunks(collection, document_id, limit, offset)
 
     async def delete_by_document(self, collection: str, document_id: str) -> None:
-        await self.backend.delete_by_document(collection, document_id)
+        async with self._backend() as backend:
+            await backend.delete_by_document(collection, document_id)
 
     async def delete_by_ids(self, collection: str, ids: list[str]) -> None:
-        await self.backend.delete_by_ids(collection, ids)
+        async with self._backend() as backend:
+            await backend.delete_by_ids(collection, ids)
 
     async def text_search(
         self,
@@ -168,7 +224,8 @@ class VectorStore:
         top_k: int = 10,
         filters: FilterExpression | None = None,
     ) -> list[dict]:
-        return await self.backend.text_search(collection, query_terms, top_k, filters)
+        async with self._backend() as backend:
+            return await backend.text_search(collection, query_terms, top_k, filters)
 
     async def upsert(
         self,
@@ -178,7 +235,8 @@ class VectorStore:
         texts: list[str],
         metadata: list[dict] | None = None,
     ) -> int:
-        return await self.backend.upsert(collection, ids, embeddings, texts, metadata)
+        async with self._backend() as backend:
+            return await backend.upsert(collection, ids, embeddings, texts, metadata)
 
     async def export_collection_points(
         self,
@@ -186,7 +244,8 @@ class VectorStore:
         *,
         with_vectors: bool = True,
     ) -> list[dict]:
-        return await self.backend.export_collection_points(collection, with_vectors=with_vectors)
+        async with self._backend() as backend:
+            return await backend.export_collection_points(collection, with_vectors=with_vectors)
 
 
 vector_store = VectorStore()

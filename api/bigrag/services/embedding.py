@@ -40,6 +40,10 @@ def _get_semaphore(key: str) -> asyncio.Semaphore:
     return _embed_semaphores[key]
 
 
+def reset_embedding_semaphores() -> None:
+    _embed_semaphores.clear()
+
+
 def truncate_to_tokens(
     texts: list[str],
     model: str | None,

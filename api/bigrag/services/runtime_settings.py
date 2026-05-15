@@ -39,7 +39,6 @@ def spec_responses() -> list[InstanceSettingSpecResponse]:
             min=spec.min,
             max=spec.max,
             secret=spec.secret,
-            restart_required=spec.restart_required,
         )
         for spec in SETTING_SPECS
     ]
@@ -51,11 +50,27 @@ def invalidate_runtime_settings_cache() -> None:
     _cached_at = 0.0
 
 
+def set_runtime_settings_cache(values: dict[str, Any]) -> None:
+    global _cached_at, _cached_values
+    _cached_values = dict(values)
+    _cached_at = time.monotonic()
+
+
 def sync_value(key: str) -> Any:
     if _cached_values is not None and key in _cached_values:
         return _cached_values[key]
     spec = REGISTRY[key]
     return _default_for(spec)
+
+
+def default_values(keys: list[str]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for key in keys:
+        spec = REGISTRY.get(key)
+        if spec is None:
+            raise KeyError(key)
+        out[key] = _default_for(spec)
+    return out
 
 
 def _default_for(spec: SettingSpec) -> Any:
@@ -178,6 +193,7 @@ async def update_settings(
         if row is None:
             row = InstanceSetting(key=key, updated_by=updated_by)
             session.add(row)
+            rows[key] = row
         if spec.secret:
             row.value = None
             row.secret_value = value
@@ -187,7 +203,9 @@ async def update_settings(
         row.updated_by = updated_by
         changed.append(key)
     await session.commit()
-    invalidate_runtime_settings_cache()
+    set_runtime_settings_cache(
+        {spec.key: _runtime_value(spec, rows.get(spec.key)) for spec in SETTING_SPECS}
+    )
     return changed
 
 
@@ -196,9 +214,14 @@ async def reset_settings(session: AsyncSession, keys: list[str]) -> list[str]:
     unknown = [key for key in target_keys if key not in REGISTRY]
     if unknown:
         raise KeyError(unknown[0])
+    rows = await _rows_by_key(session)
     await session.execute(sa.delete(InstanceSetting).where(InstanceSetting.key.in_(target_keys)))
     await session.commit()
-    invalidate_runtime_settings_cache()
+    for key in target_keys:
+        rows.pop(key, None)
+    set_runtime_settings_cache(
+        {spec.key: _runtime_value(spec, rows.get(spec.key)) for spec in SETTING_SPECS}
+    )
     return target_keys
 
 

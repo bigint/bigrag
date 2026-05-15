@@ -369,9 +369,6 @@ const PanelActions = ({
       </Button>
     </div>
     <div className="flex flex-wrap gap-1.5">
-      {summary.restartBound > 0 && (
-        <Badge variant="neutral">{summary.restartBound} startup-bound</Badge>
-      )}
       {summary.secrets > 0 && <Badge variant="neutral">{summary.secrets} secrets</Badge>}
       {summary.missingSecrets > 0 && (
         <Badge variant="warning">{summary.missingSecrets} empty</Badge>
@@ -569,9 +566,7 @@ const SettingBadges = ({
     <Badge variant={setting?.source === "database" ? "primary" : "neutral"}>
       {setting?.source ?? "default"}
     </Badge>
-    <Badge variant={spec.restart_required ? "warning" : "success"}>
-      {spec.restart_required ? "restart" : "live"}
-    </Badge>
+    <Badge variant="success">live</Badge>
     {spec.secret && <Badge variant="neutral">secret</Badge>}
   </div>
 );

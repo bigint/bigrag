@@ -68,7 +68,6 @@ def test_runtime_settings_include_vector_store_settings() -> None:
     assert validate_setting_value("vector_store_provider", "turbopuffer") == "turbopuffer"
     assert REGISTRY["s3_vectors_secret_access_key"].secret is True
     assert REGISTRY["turbopuffer_api_key"].secret is True
-    assert REGISTRY["vector_store_provider"].restart_required is True
 
 
 def test_runtime_settings_include_vector_api_limits() -> None:
@@ -137,7 +136,6 @@ def test_runtime_settings_public_update_and_reset(fake_session) -> None:
             },
             updated_by=actor_id,
         )
-        reset = await runtime_settings.reset_settings(fake_session, ["session_cookie_secure"])
 
         assert public.values["session_cookie_secure"].value is False
         assert public.values["session_cookie_secure"].source == "database"
@@ -145,9 +143,13 @@ def test_runtime_settings_public_update_and_reset(fake_session) -> None:
         assert public.values["embedding_api_key"].has_value is True
         assert changed == ["session_cookie_secure", "embedding_api_key"]
         assert existing.value is True
+        assert runtime_settings.sync_value("session_cookie_secure") is True
+        assert runtime_settings.sync_value("embedding_api_key") == "sk-new"
         assert fake_session.added[0].key == "embedding_api_key"
         assert fake_session.added[0].secret_value == "sk-new"
+        reset = await runtime_settings.reset_settings(fake_session, ["session_cookie_secure"])
         assert reset == ["session_cookie_secure"]
+        assert runtime_settings.sync_value("session_cookie_secure") is False
 
     asyncio.run(run())
     assert fake_session.commits == 2
