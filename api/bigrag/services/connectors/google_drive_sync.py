@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from bigrag.db.models import ConnectorAccount, ConnectorProviderConfig, ConnectorSource
-from bigrag.services.connector_core import ConnectorScheduler, run_due_syncs, sync_connector_job
+from bigrag.services.connector_core import run_due_syncs, sync_connector_job
 from bigrag.services.connectors.google_drive_auth import _access_token_for_account
 from bigrag.services.connectors.google_drive_client import google_drive_client
 from bigrag.services.connectors.google_drive_sources import start_google_sync_job
@@ -67,9 +67,3 @@ async def run_due_google_syncs(limit: int = 10) -> int:
         start_sync_job=start_google_sync_job,
         limit=limit,
     )
-
-
-google_drive_scheduler = ConnectorScheduler(
-    provider=GOOGLE_PROVIDER,
-    start_sync_job=start_google_sync_job,
-)

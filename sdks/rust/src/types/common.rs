@@ -70,6 +70,9 @@ pub struct PlatformStatsResponse {
     pub webhooks: u32,
     /// Queue statistics.
     pub queue: QueueStats,
+    /// Worker heartbeat statistics.
+    #[serde(default)]
+    pub workers: Option<WorkerStats>,
 }
 
 /// Document-level aggregate statistics.
@@ -106,4 +109,27 @@ pub struct QueueStats {
     pub pending: u32,
     /// Jobs currently processing.
     pub processing: u32,
+    /// Jobs delayed for retry.
+    #[serde(default)]
+    pub retrying: Option<u32>,
+    /// Jobs retained after terminal failure.
+    #[serde(default)]
+    pub dead_lettered: Option<u32>,
+    /// Processing jobs with active leases.
+    #[serde(default)]
+    pub leased_processing: Option<u32>,
+    /// Processing jobs whose leases are stale.
+    #[serde(default)]
+    pub stale_processing: Option<u32>,
+}
+
+/// Background worker heartbeat statistics.
+#[derive(Debug, Clone, Deserialize)]
+pub struct WorkerStats {
+    /// Whether a recent worker heartbeat exists.
+    pub online: bool,
+    /// Last worker heartbeat timestamp.
+    pub heartbeat_at: Option<String>,
+    /// Seconds since the last worker heartbeat.
+    pub heartbeat_age_seconds: Option<u64>,
 }

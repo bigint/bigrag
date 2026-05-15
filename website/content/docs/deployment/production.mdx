@@ -51,8 +51,8 @@ on a private network behind a VPN), leave `BIGRAG_ENV` unset or set it to `dev`.
 
 ```yaml
 services:
-  bigrag:
-    image: yoginth/bigrag:2026.4.30
+  bigrag-api:
+    image: yoginth/bigrag-api:2026.4.30
     ports:
       - "4000:4000"
     volumes:
@@ -78,6 +78,44 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  bigrag-worker:
+    image: yoginth/bigrag-api:2026.4.30
+    command: ["bigrag-worker", "--processes", "1", "--threads", "8"]
+    volumes:
+      - bigrag_data:/data
+    environment:
+      BIGRAG_ENV: prod
+      BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
+      BIGRAG_QDRANT_URL: http://qdrant:6333
+      BIGRAG_REDIS_URL: redis://redis:6379/0
+      BIGRAG_MASTER_KEY: ${BIGRAG_MASTER_KEY}
+      BIGRAG_SESSION_COOKIE_SECURE: "true"
+      BIGRAG_UPLOAD_DIR: /data/uploads
+    depends_on:
+      bigrag-api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  bigrag-ui:
+    image: yoginth/bigrag-ui:2026.4.30
+    ports:
+      - "3000:3000"
+    environment:
+      BIGRAG_URL: https://api.example.com
+    depends_on:
+      bigrag-api:
+        condition: service_healthy
 
   postgres:
     image: postgres:17
@@ -152,7 +190,8 @@ BIGRAG_REDIS_URL=redis://redis:6379/0
 
 # Performance
 BIGRAG_WORKERS=8                    # Match CPU cores
-BIGRAG_INGESTION_WORKERS=8          # More workers for heavy ingestion
+BIGRAG_WORKER_THREADS=8             # Dramatiq worker threads per process
+BIGRAG_INGESTION_WORKERS=8          # UI/runtime concurrency target for ingestion
 BIGRAG_DB_POOL_MAX=100              # Increase for high concurrency
 BIGRAG_EMBEDDING_CONCURRENCY=16     # Parallel embedding requests
 BIGRAG_QDRANT_SEARCH_EF=128         # Optional HNSW recall/latency tuning
@@ -210,8 +249,9 @@ docker exec bigrag-redis redis-cli ping
 ### Documents stuck in "pending"
 
 - Verify Redis is running and accessible
-- Check backend logs for worker errors
-- Ensure `BIGRAG_INGESTION_WORKERS` is > 0
+- Verify the `bigrag-worker` process is running
+- Check worker logs for ingestion or connector actor errors
+- Check `/v1/stats` for worker heartbeat and queue depth
 
 ### Dimension mismatch on query
 

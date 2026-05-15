@@ -135,7 +135,7 @@ def test_webhook_helpers_payload_and_matching(monkeypatch) -> None:
 
 def test_webhook_handle_event_dispatches_matching_webhooks(monkeypatch) -> None:
     async def run() -> None:
-        scheduled = []
+        deliveries = []
         dispatcher = webhook.WebhookDispatcher()
 
         async def get_webhooks():
@@ -158,12 +158,11 @@ def test_webhook_handle_event_dispatches_matching_webhooks(monkeypatch) -> None:
                 },
             ]
 
-        def safe_create_task(coro, name=None):
-            scheduled.append((coro, name))
-            coro.close()
+        async def deliver(webhook_arg, event, payload):
+            deliveries.append((webhook_arg["id"], event, payload))
 
         monkeypatch.setattr(dispatcher, "_get_webhooks", get_webhooks)
-        monkeypatch.setattr(webhook, "safe_create_task", safe_create_task)
+        monkeypatch.setattr(dispatcher, "_deliver", deliver)
 
         await dispatcher._handle_event(
             IngestionEvent(
@@ -179,8 +178,9 @@ def test_webhook_handle_event_dispatches_matching_webhooks(monkeypatch) -> None:
             IngestionEvent(document_id="doc", step="unknown", status="processing", message="skip")
         )
 
-        assert len(scheduled) == 1
-        assert scheduled[0][1] == "webhook-deliver-11111111-1111-1111-1111-111111111111"
+        assert len(deliveries) == 1
+        assert deliveries[0][0] == "11111111-1111-1111-1111-111111111111"
+        assert deliveries[0][1] == "document.ready"
 
     asyncio.run(run())
 
@@ -259,7 +259,13 @@ def test_webhook_deliver_success_records_database_updates(monkeypatch) -> None:
         async def resolve(url):
             return url
 
+        enqueued = []
+
         monkeypatch.setattr("bigrag.models.webhook.resolve_and_validate_url", resolve)
+        monkeypatch.setattr(
+            "bigrag.services.jobs.actors.enqueue_webhook_outbox",
+            lambda delivery_id=None, delay_seconds=0: enqueued.append(delivery_id),
+        )
         monkeypatch.setattr(webhook, "_retry_delays", lambda: [0])
 
         await dispatcher._deliver(
@@ -271,8 +277,10 @@ def test_webhook_deliver_success_records_database_updates(monkeypatch) -> None:
             "document.ready",
             '{"event":"document.ready"}',
         )
+        await dispatcher.process_due_deliveries(limit=1)
 
         assert len(sessions) == 3
+        assert enqueued == [str(sessions[0].added[0].id)]
         assert sessions[0].added
         assert sessions[0].commits == 1
         assert sessions[1].executed
@@ -309,7 +317,13 @@ def test_webhook_deliver_retries_and_records_failure(monkeypatch) -> None:
         async def resolve(url):
             return url
 
+        enqueued = []
+
         monkeypatch.setattr("bigrag.models.webhook.resolve_and_validate_url", resolve)
+        monkeypatch.setattr(
+            "bigrag.services.jobs.actors.enqueue_webhook_outbox",
+            lambda delivery_id=None, delay_seconds=0: enqueued.append(delivery_id),
+        )
         monkeypatch.setattr(webhook, "_retry_delays", lambda: [0])
         monkeypatch.setattr(webhook, "_jittered_delay", lambda delay: 0)
 
@@ -323,8 +337,10 @@ def test_webhook_deliver_retries_and_records_failure(monkeypatch) -> None:
             '{"event":"document.ready"}',
         )
         await dispatcher.process_due_deliveries(limit=1)
+        await dispatcher.process_due_deliveries(limit=1)
 
         assert len(dispatcher._client.posts) == 2
+        assert enqueued == [str(sessions[0].added[0].id)]
         assert len(sessions) == 5
         assert sessions[0].added[0].attempts == 2
         assert sessions[-1].executed

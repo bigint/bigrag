@@ -23,7 +23,7 @@ from bigrag.services.connectors.progress import (
     sync_progress_percent,
     update_sync_progress,
 )
-from bigrag.services.connectors.scheduler import ConnectorScheduler, run_due_syncs
+from bigrag.services.connectors.scheduler import run_due_syncs
 from bigrag.services.connectors.sources import (
     create_source,
     create_sync_job,
@@ -83,7 +83,6 @@ __all__ = [
     "ConnectorConfigError",
     "ConnectorError",
     "ConnectorNotFoundError",
-    "ConnectorScheduler",
     "ConnectorSyncAdapter",
     "ConnectorSyncCounters",
     "DownloadedConnectorFile",

@@ -31,7 +31,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 docker compose up -d
 ```
 
-This starts bigRAG API, Postgres, Redis, and Qdrant. Open http://localhost:4000/docs for the interactive API docs.
+This starts bigRAG API, worker, admin UI, Postgres, Redis, and Qdrant. Open http://localhost:3000 for the admin UI or http://localhost:4000/docs for the interactive API docs.
 
 ```bash
 # Create a collection
@@ -52,13 +52,14 @@ curl -X POST http://localhost:4000/v1/collections/docs/query \
 ### Development
 
 ```bash
-./dev.sh  # starts Postgres, Redis, Qdrant, and the API with hot reload
+./dev.sh  # starts Postgres, Redis, Qdrant, the API with hot reload, and the worker
 ```
 
 ### Docker Images
 
 ```bash
-docker pull yoginth/bigrag:2026.4.30
+docker pull yoginth/bigrag-api:2026.4.30
+docker pull yoginth/bigrag-ui:2026.4.30
 ```
 
 Release artifacts use CalVer (`YYYY.M.D`). Docker also publishes `latest`; the
@@ -358,7 +359,7 @@ admin UI origin. Cross-site admin UI deployments also need
 | `BIGRAG_MASTER_KEY` | Fernet key that encrypts provider credentials, embedding cache rows, and Redis cache payloads (required in `prod`) | — |
 | `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys for staged rotation | `[]` |
 | `BIGRAG_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
-| `BIGRAG_INGESTION_WORKERS` | Background workers | `4` |
+| `BIGRAG_INGESTION_WORKERS` | Ingestion concurrency target | `4` |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max single-file upload size | `64` |
 | `BIGRAG_MAX_BATCH_UPLOAD_SIZE_MB` | Max total batch-upload size | `128` |
 | `BIGRAG_INGESTION_BATCH_SIZE` | Vectors per embedding batch | `128` |

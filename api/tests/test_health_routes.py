@@ -256,5 +256,10 @@ def test_platform_stats_uses_cache_and_populates_uncached_result(monkeypatch) ->
         },
         "webhooks": 3,
         "queue": {"queued": 1, "processing": 2},
+        "workers": {
+            "online": False,
+            "heartbeat_at": None,
+            "heartbeat_age_seconds": None,
+        },
     }
     assert cache.sets == [("stats:platform", result, 15)]

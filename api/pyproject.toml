@@ -20,7 +20,6 @@ dependencies = [
     "pydantic[email]>=2.10.0,<3",
     "pydantic-settings>=2.7.0,<3",
     "python-multipart>=0.0.18,<1",
-
     "httpx>=0.28.0,<1",
     "redis[hiredis]>=5.2.0,<8",
     "orjson>=3.10.0,<4",
@@ -31,6 +30,7 @@ dependencies = [
     "botocore>=1.42.0,<2",
     "mcp>=1.12.0,<2",
     "tiktoken>=0.8.0,<1",
+    "dramatiq[redis]<2",
 ]
 
 [dependency-groups]
@@ -43,6 +43,7 @@ dev = [
 [project.scripts]
 bigrag = "bigrag.main:cli"
 bigrag-mcp = "bigrag.mcp_server:cli"
+bigrag-worker = "bigrag.worker:cli"
 
 [build-system]
 requires = ["hatchling"]

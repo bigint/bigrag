@@ -38,6 +38,8 @@ Bootstrap config is the small set of values the API needs before it can connect 
 
 The admin UI has one frontend bootstrap value: point it at the API with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container when frontend and backend are deployed separately.
 
+Run background jobs with `bigrag-worker`. The worker reads the same `BIGRAG_` environment and accepts `--processes`, `--threads`, `--queues`, and `--config` for deployment-specific concurrency and TOML bootstrap.
+
 ## TOML bootstrap file
 
 The CLI can also read a `bigrag.toml` file. Keep this file to bootstrap wiring:

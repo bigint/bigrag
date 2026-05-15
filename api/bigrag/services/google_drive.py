@@ -26,7 +26,6 @@ from bigrag.services.connectors.google_drive_sources import (
 )
 from bigrag.services.connectors.google_drive_sync import (
     GoogleDriveSyncAdapter,
-    google_drive_scheduler,
     google_drive_sync_adapter,
     run_due_google_syncs,
     sync_google_drive_job,
@@ -80,7 +79,6 @@ __all__ = [
     "google_config_public",
     "google_drive_client",
     "google_drive_file_public",
-    "google_drive_scheduler",
     "google_drive_sync_adapter",
     "google_oauth_error_redirect_url",
     "google_source_public",

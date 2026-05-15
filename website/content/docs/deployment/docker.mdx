@@ -10,10 +10,11 @@ import { Callout } from "fumadocs-ui/components/callout";
 
 <Steps>
 <Step>
-### Pull the image
+### Pull the images
 
 ```bash
-docker pull yoginth/bigrag:2026.4.30
+docker pull yoginth/bigrag-api:2026.4.30
+docker pull yoginth/bigrag-ui:2026.4.30
 ```
 </Step>
 <Step>
@@ -23,7 +24,7 @@ docker pull yoginth/bigrag:2026.4.30
 docker compose up -d
 ```
 
-This starts bigRAG API, Postgres, Redis, and Qdrant.
+This starts bigRAG API, worker, admin UI, Postgres, Redis, and Qdrant.
 </Step>
 <Step>
 ### Verify
@@ -40,8 +41,8 @@ The default `docker-compose.yml` runs Qdrant as a single service. Qdrant does no
 
 ```yaml
 services:
-  bigrag:
-    image: yoginth/bigrag:2026.4.30
+  bigrag-api:
+    image: yoginth/bigrag-api:2026.4.30
     ports:
       - "4000:4000"
     volumes:
@@ -61,6 +62,42 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  bigrag-worker:
+    image: yoginth/bigrag-api:2026.4.30
+    command: ["bigrag-worker", "--processes", "1", "--threads", "8"]
+    volumes:
+      - bigrag_data:/data
+    environment:
+      BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
+      BIGRAG_DATABASE_URL: postgres://bigrag:bigrag@postgres:5432/bigrag?sslmode=disable
+      BIGRAG_QDRANT_URL: http://qdrant:6333
+      BIGRAG_REDIS_URL: redis://redis:6379/0
+      BIGRAG_UPLOAD_DIR: /data/uploads
+    depends_on:
+      bigrag-api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  bigrag-ui:
+    image: yoginth/bigrag-ui:2026.4.30
+    ports:
+      - "3000:3000"
+    environment:
+      BIGRAG_URL: http://localhost:4000
+    depends_on:
+      bigrag-api:
+        condition: service_healthy
 
   postgres:
     image: postgres:17
@@ -107,7 +144,7 @@ volumes:
 The admin UI is a static Vite app served by Nginx. Build it from the repository root:
 
 ```bash
-docker build -f app/Dockerfile -t bigrag-admin-ui .
+docker build -f app/Dockerfile -t bigrag-ui .
 ```
 
 Run it with the API URL and matching backend CORS origin:
@@ -115,10 +152,19 @@ Run it with the API URL and matching backend CORS origin:
 ```bash
 docker run --rm -p 3000:3000 \
   -e BIGRAG_URL=http://localhost:4000 \
-  bigrag-admin-ui
+  bigrag-ui
 ```
 
 Set `BIGRAG_CORS_ORIGINS='["http://localhost:3000"]'` on the API when running the UI locally. In production, set the exact public admin UI origin and use secure cookies.
+
+## Image split
+
+Build and publish two images by default:
+
+- `bigrag-api` — backend API and the `bigrag-worker` entrypoint.
+- `bigrag-ui` — static admin UI served by Nginx.
+
+Scale the worker with more `bigrag-worker` containers from the `bigrag-api` image. A separate `bigrag-worker` image is only useful if you intentionally split backend dependencies later.
 
 ## Service Ports
 

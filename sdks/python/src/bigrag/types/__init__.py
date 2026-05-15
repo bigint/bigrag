@@ -66,6 +66,7 @@ from bigrag.types.common import (
     QueueStatsResponse,
     ReadinessResponse,
     StatusResponse,
+    WorkerStatsResponse,
 )
 from bigrag.types.connectors import (
     ConnectorAccountStatus,
@@ -141,6 +142,7 @@ __all__ = [
     "HealthResponse",
     "ReadinessResponse",
     "QueueStatsResponse",
+    "WorkerStatsResponse",
     "DocumentStats",
     "PlatformStatsResponse",
     # Auth

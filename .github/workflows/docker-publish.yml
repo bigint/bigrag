@@ -50,9 +50,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            yoginth/bigrag:${{ steps.version.outputs.version }}
-            yoginth/bigrag:latest
-            yoginth/bigrag:${{ github.sha }}
+            yoginth/bigrag-api:${{ steps.version.outputs.version }}
+            yoginth/bigrag-api:latest
+            yoginth/bigrag-api:${{ github.sha }}
           cache-from: type=gha,scope=bigrag-api
           cache-to: type=gha,mode=max,scope=bigrag-api
 

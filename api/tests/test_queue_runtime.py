@@ -149,7 +149,8 @@ def test_queue_connect_start_resize_stop_and_no_redis_paths(monkeypatch) -> None
         await ingestion_queue.resize_workers(1)
         await ingestion_queue.stop()
 
-        assert created_workers == [0, 1, 2]
+        assert created_workers == []
+        assert ingestion_queue._num_workers == 1
         assert redis.closed is True
 
     async def stats(redis):
@@ -179,9 +180,14 @@ def test_queue_enqueue_flush_cancel_and_full_queue(monkeypatch) -> None:
         async def document_epoch(redis_arg, document_id):
             return 11
 
-        async def enqueue_job(redis_arg, job_arg, max_depth):
-            enqueued.append((job_arg, max_depth))
-            return -1 if job_arg.job_id == "full" else 2
+        depth = {"value": 0}
+
+        async def queue_size(queue_name):
+            assert queue_name == "ingestion"
+            return depth["value"]
+
+        def enqueue_job(job_arg, *, delay_seconds=0):
+            enqueued.append((job_arg, delay_seconds))
 
         async def flush_jobs(redis_arg, collection_name):
             return 3
@@ -197,9 +203,10 @@ def test_queue_enqueue_flush_cancel_and_full_queue(monkeypatch) -> None:
             ensure_writes_allowed,
         )
         monkeypatch.setattr("bigrag.services.runtime_settings.get_value", get_value)
+        monkeypatch.setattr("bigrag.services.jobs.broker.queue_size", queue_size)
+        monkeypatch.setattr("bigrag.services.jobs.actors.enqueue_ingestion_job", enqueue_job)
         monkeypatch.setattr(queue.queue_state, "collection_epoch", collection_epoch)
         monkeypatch.setattr(queue.queue_state, "document_epoch", document_epoch)
-        monkeypatch.setattr(queue.queue_state, "enqueue_job", enqueue_job)
         monkeypatch.setattr(queue.queue_state, "flush_collection_jobs", flush_jobs)
         monkeypatch.setattr(queue.queue_state, "cancel_collection_jobs", cancel_collection)
         monkeypatch.setattr(queue.queue_state, "cancel_document_jobs", cancel_documents)
@@ -208,10 +215,12 @@ def test_queue_enqueue_flush_cancel_and_full_queue(monkeypatch) -> None:
         await ingestion_queue.enqueue(normal)
         assert normal.collection_epoch == 7
         assert normal.document_epoch == 11
+        assert enqueued == [(normal, 0)]
         assert await ingestion_queue.flush_collection("docs") == 3
         assert await ingestion_queue.cancel_collection("docs") == 4
         await ingestion_queue.cancel_documents(["doc"])
 
+        depth["value"] = 10
         try:
             await ingestion_queue.enqueue(job(job_id="full"))
         except ValueError as exc:
@@ -249,8 +258,8 @@ def test_queue_process_job_success_retry_cancel_and_permanent_failure(monkeypatc
                 raise RuntimeError("embed failed")
             return (2, 2)
 
-        async def schedule_retry(redis_arg, job_arg, delay):
-            scheduled.append((job_arg.job_id, delay))
+        def schedule_retry(job_arg, *, delay_seconds=0):
+            scheduled.append((job_arg.job_id, delay_seconds))
 
         async def cleanup(vector_store, collection_name, document_id, **kwargs):
             cleanups.append((collection_name, document_id, kwargs["log_message"]))
@@ -258,7 +267,7 @@ def test_queue_process_job_success_retry_cancel_and_permanent_failure(monkeypatc
         monkeypatch.setattr(ingestion_queue, "_ensure_job_current", ensure_current)
         monkeypatch.setattr(ingestion_queue, "_convert_document", convert)
         monkeypatch.setattr(ingestion_queue, "_chunk_and_embed", chunk)
-        monkeypatch.setattr(queue.queue_state, "schedule_retry_job", schedule_retry)
+        monkeypatch.setattr("bigrag.services.jobs.actors.enqueue_ingestion_job", schedule_retry)
         monkeypatch.setattr(queue, "_delete_document_vectors_after_failure", cleanup)
 
         await ingestion_queue._process_job(0, job(job_id="success"))

@@ -71,6 +71,13 @@ class IngestionQueue:
         self._redis: aioredis.Redis | None = None
         self._vector_store = None
 
+    @property
+    def redis(self):
+        return self._redis
+
+    def bind_vector_store(self, vector_store) -> None:
+        self._vector_store = vector_store
+
     async def connect(self, redis_url: str) -> None:
         self._redis = aioredis.from_url(
             redis_url,
@@ -84,37 +91,15 @@ class IngestionQueue:
         if vector_store is not None:
             self._vector_store = vector_store
 
-        self._running = True
         recovered = await self._recover_stuck_jobs()
         if recovered:
             logger.info("queue recovered stuck jobs", recovered=recovered)
-
-        for i in range(self._num_workers):
-            task = asyncio.create_task(self._worker(i))
-            self._workers.append(task)
-        logger.info("queue started workers", workers=self._num_workers)
+        logger.info("queue ready for dramatiq workers")
 
     async def resize_workers(self, num_workers: int) -> None:
         target = max(1, int(num_workers))
-        if not self._running:
-            self._num_workers = target
-            return
-        current = len(self._workers)
-        if target == current:
-            self._num_workers = target
-            return
-        if target > current:
-            for worker_id in range(current, target):
-                task = asyncio.create_task(self._worker(worker_id))
-                self._workers.append(task)
-            self._num_workers = target
-            logger.info("queue resized workers", previous=current, target=target)
-            return
         self._num_workers = target
-        removed = self._workers[target:]
-        self._workers = self._workers[:target]
-        await asyncio.gather(*removed, return_exceptions=True)
-        logger.info("queue resized workers", previous=current, target=target)
+        logger.info("queue worker setting updated", target=target)
 
     async def stop(self) -> None:
         self._running = False
@@ -143,6 +128,8 @@ class IngestionQueue:
         await queue_state.ensure_job_current(self._redis, job)
 
     async def enqueue(self, job: IngestionJob) -> None:
+        from bigrag.services.jobs.actors import enqueue_ingestion_job
+        from bigrag.services.jobs.broker import INGESTION_QUEUE, queue_size
         from bigrag.services.maintenance import MaintenanceActiveError, ensure_writes_allowed
         from bigrag.services.runtime_settings import get_value
 
@@ -155,15 +142,18 @@ class IngestionQueue:
             job.collection_epoch = await self._collection_epoch(job.collection_name)
             job.document_epoch = await self._document_epoch(job.document_id)
         queue_max_depth = await get_value("queue_max_depth")
-        pending = await queue_state.enqueue_job(self._redis, job, queue_max_depth)
-        if pending == -1:
+        pending = await queue_size(INGESTION_QUEUE)
+        if pending >= queue_max_depth:
             raise ValueError("Ingestion queue is full. Try again later.")
+        enqueue_ingestion_job(job)
+        if self._redis is not None:
+            await self._redis.hincrby(STATS_KEY, "queued", 1)
         logger.info(
             "queue enqueued job",
             job=job.job_id,
             doc=job.document_id,
             collection=job.collection_name,
-            pending=pending,
+            pending=pending + 1,
         )
 
     async def flush_collection(self, collection_name: str) -> int:
@@ -189,7 +179,27 @@ class IngestionQueue:
 
     @property
     async def stats(self) -> dict:
-        return await queue_state.queue_stats(self._redis)
+        if self._redis is None:
+            return {"queued": 0, "completed": 0, "failed": 0}
+        from bigrag.services.jobs.broker import (
+            INGESTION_QUEUE,
+            dead_letter_key,
+            delayed_messages_key,
+            queue_size,
+        )
+
+        stats = await queue_state.queue_stats(self._redis)
+        try:
+            stats["pending"] = await queue_size(INGESTION_QUEUE)
+        except Exception:
+            logger.warning("queue stats: dramatiq queue size unavailable")
+        if self._redis is not None:
+            stats["retrying"] = await self._redis.hlen(delayed_messages_key(INGESTION_QUEUE))
+            stats["dead_lettered"] = max(
+                int(stats.get("dead_lettered") or 0),
+                await self._redis.zcard(dead_letter_key(INGESTION_QUEUE)),
+            )
+        return stats
 
     async def _promote_due_retries(self) -> int:
         from bigrag.services.runtime_settings import get_value
@@ -205,9 +215,28 @@ class IngestionQueue:
 
     async def _renew_lease(self, job_id: str) -> None:
         lease_key = _lease_key(job_id)
-        while self._running:
+        while True:
             await asyncio.sleep(_LEASE_RENEW_INTERVAL_SECONDS)
             await self._redis.set(lease_key, b"1", ex=_LEASE_TTL_SECONDS)
+
+    async def process_leased_job(self, worker_id: int | str, job: IngestionJob) -> None:
+        if self._redis is None:
+            raise RuntimeError("ingestion queue is not connected")
+        raw = job.serialize()
+        await self._redis.lpush(PROCESSING_KEY, raw)
+        lease_key = _lease_key(job.job_id)
+        await self._redis.set(lease_key, b"1", ex=_LEASE_TTL_SECONDS)
+        lease_task = asyncio.create_task(self._renew_lease(job.job_id))
+        try:
+            await self._process_job(worker_id, job)
+        finally:
+            lease_task.cancel()
+            try:
+                await lease_task
+            except asyncio.CancelledError:
+                pass
+            await self._redis.lrem(PROCESSING_KEY, 1, raw)
+            await self._redis.delete(lease_key)
 
     async def _worker(self, worker_id: int) -> None:
         logger.info("worker started", worker_id=worker_id)
@@ -269,7 +298,7 @@ class IngestionQueue:
         progress: float = 0.0,
         collection_name: str = "",
         **detail,
-    ) -> None:
+    ) -> IngestionEvent:
         logger.info(
             "ingestion event",
             doc=doc_id,
@@ -280,17 +309,32 @@ class IngestionQueue:
             message=msg,
             detail=detail,
         )
-        event_bus.publish(
-            IngestionEvent(
-                document_id=doc_id,
-                step=step,
-                status=status,
-                message=msg,
-                progress=progress,
-                detail=detail,
-                collection_name=collection_name,
-            )
+        event = IngestionEvent(
+            document_id=doc_id,
+            step=step,
+            status=status,
+            message=msg,
+            progress=progress,
+            detail=detail,
+            collection_name=collection_name,
         )
+        event_bus.publish(event)
+        return event
+
+    async def _fanout_webhook_event(self, event: IngestionEvent) -> None:
+        if event.step not in {"processing", "complete", "failed"}:
+            return
+        try:
+            from bigrag.services.webhook import WebhookDispatcher
+
+            await WebhookDispatcher()._handle_event(event)
+        except Exception as exc:
+            logger.warning(
+                "webhook fanout failed",
+                doc=event.document_id,
+                step=event.step,
+                error=repr(exc),
+            )
 
     _PLAIN_TEXT_EXTS = queue_conversion.PLAIN_TEXT_EXTS
 
@@ -331,7 +375,7 @@ class IngestionQueue:
             ensure_job_current=self._ensure_job_current,
         )
 
-    async def _process_job(self, worker_id: int, job: IngestionJob) -> None:
+    async def _process_job(self, worker_id: int | str, job: IngestionJob) -> None:
         import sqlalchemy as sa
 
         from bigrag.db.engine import session_factory
@@ -377,13 +421,15 @@ class IngestionQueue:
         try:
             await self._ensure_job_current(job)
             await _update_doc(status="processing")
-            self._emit(
-                doc,
-                "processing",
-                "processing",
-                "Preparing document",
-                0.05,
-                collection_name=job.collection_name,
+            await self._fanout_webhook_event(
+                self._emit(
+                    doc,
+                    "processing",
+                    "processing",
+                    "Preparing document",
+                    0.05,
+                    collection_name=job.collection_name,
+                )
             )
 
             text = await self._convert_document(job, prefix)
@@ -425,15 +471,17 @@ class IngestionQueue:
                 chunks=total_inserted,
                 elapsed=round(total_elapsed, 2),
             )
-            self._emit(
-                doc,
-                "complete",
-                "complete",
-                f"Done — {total_inserted} chunks in {total_elapsed:.1f}s",
-                1.0,
-                collection_name=job.collection_name,
-                chunks=total_inserted,
-                elapsed=round(total_elapsed, 2),
+            await self._fanout_webhook_event(
+                self._emit(
+                    doc,
+                    "complete",
+                    "complete",
+                    f"Done — {total_inserted} chunks in {total_elapsed:.1f}s",
+                    1.0,
+                    collection_name=job.collection_name,
+                    chunks=total_inserted,
+                    elapsed=round(total_elapsed, 2),
+                )
             )
             event_bus.complete(doc)
 
@@ -470,6 +518,8 @@ class IngestionQueue:
                 )
                 event_bus.complete(doc)
             elif not is_permanent and job.attempt < job.max_attempts:
+                from bigrag.services.jobs.actors import enqueue_ingestion_job
+
                 await _delete_document_vectors_after_failure(
                     vector_store,
                     job.collection_name,
@@ -494,7 +544,7 @@ class IngestionQueue:
                     status="pending",
                     error_message=f"Attempt {job.attempt} failed: {e}. Retrying...",
                 )
-                await queue_state.schedule_retry_job(self._redis, job, delay)
+                enqueue_ingestion_job(job, delay_seconds=delay)
             else:
                 reason = (
                     "permanent error" if is_permanent else f"{job.max_attempts} attempts exhausted"
@@ -511,14 +561,16 @@ class IngestionQueue:
                 await self._redis.ltrim(DEAD_LETTER_KEY, 0, 999)
                 await _update_doc(status="failed", error_message=str(e))
                 logger.error("job permanently failed", prefix=prefix, reason=reason)
-                self._emit(
-                    doc,
-                    "failed",
-                    "failed",
-                    str(e),
-                    0.0,
-                    collection_name=job.collection_name,
-                    attempts=job.attempt,
+                await self._fanout_webhook_event(
+                    self._emit(
+                        doc,
+                        "failed",
+                        "failed",
+                        str(e),
+                        0.0,
+                        collection_name=job.collection_name,
+                        attempts=job.attempt,
+                    )
                 )
                 event_bus.complete(doc)
 

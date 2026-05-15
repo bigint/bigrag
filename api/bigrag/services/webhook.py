@@ -12,7 +12,6 @@ import orjson
 
 from bigrag.logging import get_logger
 from bigrag.services.event_bus import IngestionEvent, event_bus
-from bigrag.utils import safe_create_task
 
 logger = get_logger("bigrag.webhook")
 _RNG = secrets.SystemRandom()
@@ -81,8 +80,6 @@ def _jittered_delay(base_delay: int, jitter_factor: float = 0.25) -> float:
 class WebhookDispatcher:
     def __init__(self) -> None:
         self._client: httpx.AsyncClient | None = None
-        self._task: asyncio.Task | None = None
-        self._outbox_task: asyncio.Task | None = None
         self._semaphores: dict[str, asyncio.Semaphore] = {}
 
     def _get_semaphore(self, webhook_id: str) -> asyncio.Semaphore:
@@ -92,37 +89,12 @@ class WebhookDispatcher:
 
     async def start(self) -> None:
         self._client = httpx.AsyncClient(timeout=_delivery_timeout(), follow_redirects=False)
-        self._task = asyncio.create_task(self._listen())
-        self._outbox_task = safe_create_task(self._run_outbox(), name="webhook-outbox")
         logger.info("WebhookDispatcher started")
 
     async def stop(self) -> None:
-        if self._task:
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
-        if self._outbox_task:
-            self._outbox_task.cancel()
-            try:
-                await self._outbox_task
-            except asyncio.CancelledError:
-                pass
         if self._client:
             await self._client.aclose()
         logger.info("WebhookDispatcher stopped")
-
-    async def _run_outbox(self) -> None:
-        while True:
-            try:
-                processed = await self.process_due_deliveries(limit=10)
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                logger.error("webhook outbox failed", error=repr(exc))
-                processed = 0
-            await asyncio.sleep(1 if processed else 5)
 
     async def _get_webhooks(self) -> list[dict]:
         import sqlalchemy as sa
@@ -183,11 +155,7 @@ class WebhookDispatcher:
 
         for webhook in webhooks:
             if _matches_webhook(webhook, webhook_event, collection):
-                wh_id = str(webhook["id"])
-                safe_create_task(
-                    self._deliver(webhook, webhook_event, payload),
-                    name=f"webhook-deliver-{wh_id}",
-                )
+                await self._deliver(webhook, webhook_event, payload)
 
     async def _get_collection_for_document(self, document_id: str) -> str | None:
 
@@ -237,7 +205,9 @@ class WebhookDispatcher:
             )
             await session.commit()
 
-        await self.process_due_deliveries(delivery_id=delivery_id, limit=1)
+        from bigrag.services.jobs.actors import enqueue_webhook_outbox
+
+        enqueue_webhook_outbox(delivery_id=str(delivery_id))
 
     async def process_due_deliveries(
         self,

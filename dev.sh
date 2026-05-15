@@ -172,6 +172,16 @@ if [ "$START_BACKEND" = true ]; then
     if [ "$i" -eq 120 ]; then echo -e "${RED}Backend failed to start within 120s.${NC}"; exit 1; fi
     sleep 1
   done
+
+  echo -e "${CYAN}Starting Python worker (Dramatiq)...${NC}"
+  BIGRAG_DATABASE_URL="$DATABASE_URL" \
+  BIGRAG_QDRANT_URL="$QDRANT_URL" \
+  BIGRAG_REDIS_URL="$REDIS_URL" \
+  BIGRAG_MASTER_KEY="$DEV_MASTER_KEY" \
+  PYTHONUNBUFFERED=1 \
+  uv run --directory "$ROOT_DIR/api" bigrag-worker --processes 1 --threads "${BIGRAG_WORKER_THREADS:-8}" \
+    2>&1 | while IFS= read -r line; do printf '[worker] %s\n' "$line"; done &
+  PIDS+=($!)
 fi
 
 # --- Website dev server ---
@@ -188,6 +198,7 @@ fi
 
 echo -e "\n${GREEN}Services started:${NC}"
 [ "$START_BACKEND" = true ] && echo -e "  Backend  → http://localhost:4000"
+[ "$START_BACKEND" = true ] && echo -e "  Worker   → Dramatiq on Redis"
 [ "$START_BACKEND" = true ] && echo -e "  API Docs → http://localhost:4000/docs"
 [ "$START_INFRA" = true ]   && echo -e "  Postgres → localhost:5432"
 [ "$START_INFRA" = true ]   && echo -e "  Redis    → localhost:6379"

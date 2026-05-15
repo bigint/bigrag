@@ -753,7 +753,7 @@ bigRAG's vector upsert/delete endpoints allow users to bring their own embedding
 bigRAG uses PostgreSQL for metadata, giving it transactional consistency, complex queries, and relational integrity. OpenRAG stores everything in OpenSearch, which is eventually consistent.
 
 ### 10.9 Queue Architecture
-bigRAG's Redis-based queue with dead letter handling, job recovery, and configurable retry logic is more robust than OpenRAG's semaphore-limited task processing.
+bigRAG's Dramatiq-on-Redis worker model with dead letter handling, job recovery, and configurable retry logic is more robust than OpenRAG's semaphore-limited task processing.
 
 ### 10.10 Cohere Reranking
 bigRAG has native Cohere reranking with per-collection and per-query configuration. OpenRAG relies on Langflow flows for reranking, which is less integrated.

@@ -65,9 +65,9 @@ Content-Type: application/json
 { "label": "Before model migration" }
 ```
 
-Creates a backup job and starts it in the API process. Only one backup can be pending or running at a time.
+Creates a backup job and enqueues it on the Dramatiq backup worker. Only one backup can be pending or running at a time.
 
-While the job runs, bigRAG acquires a maintenance lock. Mutating API requests are rejected with `423`, new ingestion jobs are rejected, workers pause before dequeuing new jobs, and scheduled Google Drive syncs do not start.
+While the job runs, bigRAG acquires a maintenance lock. Mutating API requests are rejected with `423`, new ingestion jobs are rejected, Dramatiq ingestion and connector actors delay themselves, and scheduled Google Drive syncs do not start.
 
 The backup fails if:
 

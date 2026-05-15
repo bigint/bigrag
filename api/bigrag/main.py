@@ -33,7 +33,6 @@ from bigrag.services.event_bus import event_bus
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import init_storage_from_runtime
 from bigrag.services.vector_store import vector_store
-from bigrag.services.webhook import WebhookDispatcher
 from bigrag.startup_guard import check_production_safety
 
 _CLI_CONFIG_PATH_ENV = "_BIGRAG_CLI_CONFIG_PATH"
@@ -113,22 +112,8 @@ async def lifespan(app: FastAPI):
 
     ingestion_queue._num_workers = runtime["ingestion_workers"]
     await ingestion_queue.connect(s.redis_url)
-    await ingestion_queue.start(vector_store=vector_store)
+    ingestion_queue.bind_vector_store(vector_store)
     app.state.queue = ingestion_queue
-
-    dispatcher = WebhookDispatcher()
-    await dispatcher.start()
-    app.state.webhook_dispatcher = dispatcher
-
-    from bigrag.services.google_drive import google_drive_scheduler
-
-    await google_drive_scheduler.start()
-    app.state.google_drive_scheduler = google_drive_scheduler
-
-    from bigrag.services.cleanup import cleanup_old_data
-    from bigrag.utils import safe_create_task
-
-    cleanup_task = safe_create_task(cleanup_old_data(), name="cleanup")
 
     mcp_session_manager = getattr(app.state, "mcp_session_manager", None)
     mcp_cm = mcp_session_manager.run() if mcp_session_manager is not None else None
@@ -140,14 +125,7 @@ async def lifespan(app: FastAPI):
 
     if mcp_cm is not None:
         await mcp_cm.__aexit__(None, None, None)
-    cleanup_task.cancel()
-    try:
-        await cleanup_task
-    except asyncio.CancelledError:
-        pass
-    await google_drive_scheduler.stop()
     await ingestion_queue.stop()
-    await dispatcher.stop()
     await event_bus.close()
     await redis_cache.close()
     await storage.close()

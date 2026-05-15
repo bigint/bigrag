@@ -16,10 +16,10 @@ everything into Postgres with pgvector. Each one earns its keep:
 - **Postgres** — metadata and control plane. Collections, documents,
   users, API keys, webhooks, query logs, audit trail, embedding cache.
   Transactions keep ingestion consistent across stores.
-- **Redis** — the ingestion queue (`BLPOP/BLMOVE` semantics),
-  delayed retry set, processing leases, idempotency-key cache,
-  auth/collection/query hot-path caches, and short-lived
-  platform/health caches.
+- **Redis** — Dramatiq broker storage for ingestion, connector,
+  webhook, backup, and maintenance actors; processing leases,
+  cancellation epochs, idempotency-key cache, auth/collection/query
+  hot-path caches, and short-lived platform/health caches.
 - **Local disk** — raw uploaded documents. Needed to produce
   citations back into source files and to support re-embedding without
   re-uploading.
@@ -43,9 +43,9 @@ FastAPI
   │ 4. validate — extension, magic bytes, zip-bomb guard, metadata schema
   │ 5. INSERT documents row → commit
   ▼
-Redis queue (LPUSH)
+Dramatiq Redis broker
   ▼
-Ingestion worker (4 by default)
+Dramatiq ingestion worker
   │ a. Docling parse — OCR + layout analysis, export to markdown
   │ b. chunk_document — paragraph or recursive strategy; tracks char offsets
   │ c. embedding_cache.get_many — skip chunks we've embedded before
@@ -53,14 +53,14 @@ Ingestion worker (4 by default)
   │ e. vector_store.insert — backend upsert with dynamic metadata
   │ f. UPDATE documents status = 'ready' and publish progress snapshots
   ▼
-Webhook dispatcher
-  │ document.ready fan-out with signed delivery attempts and retries
+Webhook outbox actor
+  │ document.ready fan-out through pending delivery rows
 ```
 
 Failure at any step marks the document `failed` with a typed error
-message. Active workers renew Redis leases while long jobs run, failed
-jobs wait in a delayed retry set before the next attempt, and exhausted
-jobs are retained in the dead-letter list for operator visibility.
+message. Active workers renew Redis leases while long jobs run. Transient
+failures are rescheduled as delayed Dramatiq messages, and exhausted jobs
+are retained in the dead-letter list for operator visibility.
 
 ## Request flow — `POST /v1/collections/{name}/query`
 
@@ -120,7 +120,12 @@ a future pgvector backend.
 
 - **Horizontal API workers**: FastAPI is stateless past the lifespan.
   Run N replicas behind a load balancer; they share Postgres, Redis,
-  and the configured vector store.
+  and the configured vector store. API replicas enqueue work but do not
+  run background jobs in-process.
+- **Dramatiq workers**: run one or more `bigrag-worker` processes for
+  ingestion, connector syncs, webhook outbox delivery, backups, and
+  cleanup. Worker heartbeat and queue state are visible through
+  `/v1/stats`.
 - **Vector backend choice**: use local Qdrant for self-hosted installs
   or turbopuffer for a managed vector search service. Turbopuffer
   namespaces are created on first write and store bigRAG vector IDs as
@@ -129,19 +134,20 @@ a future pgvector backend.
 - **Postgres replication**: the control plane is read-light; a
   warm-standby suffices for failover.
 - **Redis persistence**: enable `appendonly yes` (already set in the
-  shipped compose file). Pending jobs, delayed retries, processing
-  leases, and dead-letter entries survive process restarts within the
-  Redis durability window.
+  shipped compose file). Pending Dramatiq messages, delayed retries,
+  processing leases, and dead-letter entries survive process restarts
+  within the Redis durability window.
 
 ## Connector service layout
 
 Connector routes stay provider-neutral through `connector_registry.py`.
 Reusable connector behavior lives in `bigrag.services.connectors`:
-account/config management, source and sync-job persistence, scheduler
-ticks, progress payloads, manifest updates, and document handoff to the
-ingestion queue. Scheduled connector ticks claim due sources with row
-locks so multiple API replicas do not create duplicate scheduled sync
-jobs. Provider modules layer on top of those shared helpers; the Google
+account/config management, source and sync-job persistence, progress
+payloads, manifest updates, and document handoff to the ingestion actor.
+Scheduled connector ticks run as Dramatiq maintenance actors and claim
+due sources with row locks so multiple worker replicas do not create
+duplicate scheduled sync jobs. Provider modules layer on top of those
+shared helpers; the Google
 Drive provider keeps OAuth/account handling, Drive API calls, source
 helpers, and sync adapter wiring in separate modules while preserving
 `bigrag.services.google_drive` as the public import surface.

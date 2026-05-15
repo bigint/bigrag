@@ -27,6 +27,16 @@ export interface QueueStatsResponse {
   failed: number;
   pending: number;
   processing: number;
+  retrying?: number;
+  dead_lettered?: number;
+  leased_processing?: number;
+  stale_processing?: number;
+}
+
+export interface WorkerStatsResponse {
+  online: boolean;
+  heartbeat_at: string | null;
+  heartbeat_age_seconds: number | null;
 }
 
 export interface DocumentStats {
@@ -45,4 +55,5 @@ export interface PlatformStatsResponse {
   documents: DocumentStats;
   webhooks: number;
   queue: QueueStatsResponse;
+  workers?: WorkerStatsResponse;
 }

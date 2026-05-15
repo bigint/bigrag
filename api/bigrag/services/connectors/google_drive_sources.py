@@ -21,7 +21,6 @@ from bigrag.services.connectors.google_drive_types import (
     GoogleDriveAuthError,
     GoogleDriveConfigError,
 )
-from bigrag.utils import safe_create_task
 
 
 def google_source_public(row: tuple[ConnectorSource, ConnectorAccount]) -> dict[str, Any]:
@@ -103,9 +102,9 @@ async def create_google_sync_job(
 
 
 def start_google_sync_job(job_id: str) -> None:
-    from bigrag.services.connectors.google_drive_sync import sync_google_drive_job
+    from bigrag.services.jobs.actors import enqueue_google_drive_sync
 
-    safe_create_task(sync_google_drive_job(job_id), name=f"google_drive_sync:{job_id}")
+    enqueue_google_drive_sync(job_id)
 
 
 async def trigger_google_sync(

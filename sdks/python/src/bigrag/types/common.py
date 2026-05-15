@@ -34,6 +34,16 @@ class QueueStatsResponse(TypedDict):
     failed: int
     pending: int
     processing: int
+    retrying: NotRequired[int]
+    dead_lettered: NotRequired[int]
+    leased_processing: NotRequired[int]
+    stale_processing: NotRequired[int]
+
+
+class WorkerStatsResponse(TypedDict):
+    online: bool
+    heartbeat_at: str | None
+    heartbeat_age_seconds: int | None
 
 
 class DocumentStats(TypedDict):
@@ -52,3 +62,4 @@ class PlatformStatsResponse(TypedDict):
     documents: DocumentStats
     webhooks: int
     queue: QueueStatsResponse
+    workers: NotRequired[WorkerStatsResponse]

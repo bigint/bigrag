@@ -1,7 +1,8 @@
 services:
-  bigrag:
+  bigrag-api:
+    image: "${BIGRAG_API_IMAGE:-bigrag-api:local}"
     build: ./api
-    container_name: bigrag
+    container_name: bigrag-api
     restart: unless-stopped
     ports:
       - "127.0.0.1:4000:4000"
@@ -36,6 +37,52 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  bigrag-worker:
+    image: "${BIGRAG_WORKER_IMAGE:-bigrag-api:local}"
+    container_name: bigrag-worker
+    restart: unless-stopped
+    command: ["bigrag-worker", "--processes", "1", "--threads", "${BIGRAG_WORKER_THREADS:-8}"]
+    volumes:
+      - bigrag_data:/data
+    environment:
+      BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
+      BIGRAG_DATABASE_URL: "postgres://${POSTGRES_USER:-bigrag}:${POSTGRES_PASSWORD:-bigrag}@postgres:5432/${POSTGRES_DB:-bigrag}?sslmode=disable"
+      BIGRAG_QDRANT_URL: http://qdrant:6333
+      BIGRAG_REDIS_URL: redis://redis:6379/0
+      BIGRAG_UPLOAD_DIR: /data/uploads
+      BIGRAG_MASTER_KEY: "${BIGRAG_MASTER_KEY:-}"
+      BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
+      BIGRAG_CORS_ORIGINS: '${BIGRAG_CORS_ORIGINS:-["http://localhost:3000"]}'
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+          cpus: "4"
+    depends_on:
+      bigrag-api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  bigrag-ui:
+    image: "${BIGRAG_UI_IMAGE:-bigrag-ui:local}"
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    container_name: bigrag-ui
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      BIGRAG_URL: "${BIGRAG_UI_API_URL:-http://localhost:4000}"
+    depends_on:
+      bigrag-api:
+        condition: service_healthy
 
   postgres:
     image: postgres:17

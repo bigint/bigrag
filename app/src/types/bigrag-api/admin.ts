@@ -64,6 +64,11 @@ export type PlatformStats = {
   };
   webhooks: number;
   queue: Record<string, number>;
+  workers?: {
+    online: boolean;
+    heartbeat_at: string | null;
+    heartbeat_age_seconds: number | null;
+  };
 };
 
 export type ReadinessReport = {

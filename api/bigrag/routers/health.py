@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Request
@@ -14,6 +15,7 @@ from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.services import redis_cache
+from bigrag.services.jobs.broker import WORKER_HEARTBEAT_KEY
 from bigrag.services.runtime_settings import get_values
 
 logger = get_logger("bigrag.routers.health")
@@ -178,7 +180,8 @@ async def readiness(request: Request) -> JSONResponse:
             raise RuntimeError("vector store client not connected")
 
     async def _check_redis():
-        await queue._redis.ping()
+        redis = getattr(queue, "redis", None) or getattr(queue, "_redis", None)
+        await redis.ping()
 
     infra_checks = {
         "postgres": _check_postgres(),
@@ -243,7 +246,31 @@ async def platform_stats(
     async def _queue_stats():
         return await queue.stats
 
-    (cols, docs, webhooks), queue_stats = await asyncio.gather(_db_stats(), _queue_stats())
+    async def _worker_stats():
+        heartbeat = None
+        redis = getattr(queue, "redis", None) or getattr(queue, "_redis", None)
+        if redis is not None and hasattr(redis, "get"):
+            raw = await redis.get(WORKER_HEARTBEAT_KEY)
+            if raw is not None:
+                heartbeat = raw.decode() if isinstance(raw, bytes) else str(raw)
+        online = False
+        age = None
+        if heartbeat:
+            try:
+                parsed = datetime.fromisoformat(heartbeat)
+                age = max(0, int((datetime.now(UTC) - parsed).total_seconds()))
+                online = age < 120
+            except ValueError:
+                online = False
+        return {
+            "online": online,
+            "heartbeat_at": heartbeat,
+            "heartbeat_age_seconds": age,
+        }
+
+    (cols, docs, webhooks), queue_stats, worker_stats = await asyncio.gather(
+        _db_stats(), _queue_stats(), _worker_stats()
+    )
 
     result = {
         "collections": cols,
@@ -259,6 +286,7 @@ async def platform_stats(
         },
         "webhooks": webhooks,
         "queue": queue_stats,
+        "workers": worker_stats,
     }
     await redis_cache.set("stats:platform", result, ttl=15)
     return result

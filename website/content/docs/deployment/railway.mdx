@@ -5,11 +5,12 @@ description: Deploy bigRAG to Railway with managed Postgres and Redis plus self-
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-This guide deploys the API, admin UI, Postgres, Redis, and Qdrant in one Railway project. Qdrant runs as a single Docker-image service and does not need etcd in this setup.
+This guide deploys the API, Dramatiq worker, admin UI, Postgres, Redis, and Qdrant in one Railway project. Qdrant runs as a single Docker-image service and does not need etcd in this setup.
 
 ## What you get
 
 - **API** — FastAPI backend, public domain.
+- **Worker** — Dramatiq background jobs for ingestion, connectors, webhooks, backups, and cleanup.
 - **App** — admin UI, public domain.
 - **Postgres 17** — Railway plugin, exposes `DATABASE_URL`.
 - **Redis 7** — Railway plugin, exposes `REDIS_URL`.
@@ -30,6 +31,7 @@ Provision in this order so API variables can reference private service domains:
 3. `Qdrant` Docker image.
 4. `App` from the repo root directory `/app`.
 5. `API` from the repo root directory `/api`.
+6. `Worker` from the repo root directory `/api`.
 
 ## Qdrant
 
@@ -86,6 +88,19 @@ BIGRAG_UPLOAD_DIR=/data/uploads
 
 Use the Railway Qdrant service URL for `BIGRAG_QDRANT_URL`.
 
+## Worker
+
+| Setting | Value |
+|---|---|
+| Source | GitHub repo, **Root Directory `/api`** |
+| Builder | Dockerfile |
+| Dockerfile path | `/api/Dockerfile` |
+| Start command | `bigrag-worker --processes 1 --threads 8` |
+| Volume | same mounted upload volume path as API |
+| Public domain | no |
+
+Use the same environment as `API`, including `BIGRAG_DATABASE_URL`, `BIGRAG_REDIS_URL`, `BIGRAG_QDRANT_URL`, `BIGRAG_MASTER_KEY`, and `BIGRAG_UPLOAD_DIR`.
+
 ## Generate the master key
 
 ```bash
@@ -98,7 +113,7 @@ Back the master key up immediately. It encrypts provider secrets, webhook secret
 
 ## First Run
 
-1. Wait for Postgres, Redis, Qdrant, API, and app services to deploy.
+1. Wait for Postgres, Redis, Qdrant, API, Worker, and app services to deploy.
 2. Open the admin UI public URL.
 3. Complete `/setup` to create the first admin account.
 4. Create a collection and upload a small document.
@@ -111,5 +126,7 @@ Back the master key up immediately. It encrypts provider secrets, webhook secret
 **API exits with `ImportError: Can't find Python file .../site-packages/alembic/env.py`.** Rebuild from the latest repo revision and clear Railway's build cache if it keeps reusing an old image. The API image bundles bigRAG's Alembic migration environment into the installed package; this error means the deployed image was built without that migration environment.
 
 **App loads but API calls fail with CORS errors.** Check `BIGRAG_CORS_ORIGINS` on `API`; it must match the app public domain exactly.
+
+**Documents stay pending.** Check the Worker service logs and confirm `/v1/stats` shows a recent worker heartbeat.
 
 **App build fails with workspace errors.** Confirm the root directory is `/app`, the build command is `pnpm build`, and the start command is `pnpm start`.

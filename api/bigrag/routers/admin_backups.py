@@ -11,8 +11,8 @@ from bigrag.db.session import get_session
 from bigrag.middleware.auth import require_admin_session
 from bigrag.models.backup import BackupCreateRequest, BackupJobListResponse, BackupJobResponse
 from bigrag.services import audit
-from bigrag.services.backup import BackupConfigError, create_backup_job, run_backup_job
-from bigrag.utils import safe_create_task
+from bigrag.services.backup import BackupConfigError, create_backup_job
+from bigrag.services.jobs.actors import enqueue_backup_job
 
 router = APIRouter(prefix="/v1/admin/backups", tags=["admin:backups"])
 
@@ -87,5 +87,5 @@ async def start_backup_job(
         resource_id=str(job.id),
         metadata={"label": job.label},
     )
-    safe_create_task(run_backup_job(str(job.id)), name=f"backup:{job.id}")
+    enqueue_backup_job(str(job.id))
     return backup_job_response(job)
