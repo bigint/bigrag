@@ -44,3 +44,7 @@ Thumbs.db
 
 # Build output
 target/
+
+# AI
+.codex-screenshots/
+.playwright-mcp/
