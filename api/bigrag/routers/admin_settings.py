@@ -62,7 +62,7 @@ async def update_instance_settings(
         ) from exc
     finally:
         if prepared is not None:
-            await prepared.close_unused()
+            await prepared.close()
     audit.record(
         request,
         user=admin,
@@ -89,7 +89,7 @@ async def test_instance_settings(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
         if prepared is not None:
-            await prepared.close_unused()
+            await prepared.close()
     return InstanceSettingsTestResponse(
         status="ok",
         checked=list(body.values),
@@ -115,7 +115,7 @@ async def reset_instance_settings(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
         if prepared is not None:
-            await prepared.close_unused()
+            await prepared.close()
     audit.record(
         request,
         user=admin,

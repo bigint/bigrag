@@ -60,7 +60,7 @@ class PreparedRuntimeSettings:
     storage_backend: StorageBackend | None = None
     vector_backend: VectorStore | None = None
 
-    async def close_unused(self) -> None:
+    async def close(self) -> None:
         if self.storage_backend is not None:
             await self.storage_backend.close()
             self.storage_backend = None
@@ -127,7 +127,7 @@ async def _prepare_runtime_settings(
             prepared.vector_backend = await _prepare_vector_backend(values)
         return prepared
     except Exception:
-        await prepared.close_unused()
+        await prepared.close()
         raise
 
 
