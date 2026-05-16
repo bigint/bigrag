@@ -122,3 +122,76 @@ See `e2e/conftest.py` and `e2e/tests/_helpers.py` for the full contract.
 Collection names are short — `e2e_<8 hex>` — so they fit Qdrant's collection
 name limit. Each fixture cleans up in teardown so the suite is safe under
 `pytest-xdist -n auto`.
+
+## Coverage
+
+| Layer            | Files | Tests |
+|------------------|-------|-------|
+| API (pytest)     | 28    | ~400  |
+| Python SDK       | 7     | 59    |
+| TypeScript SDK   | 6     | 47    |
+| Playwright UI    | 10    | 15    |
+| Real-OpenAI smoke| 3     | 3     |
+
+**Endpoint coverage:** 121 / 121 declared `@router.*` decorators across
+`api/bigrag/routers/` are exercised by at least one test path.
+
+Audit it yourself:
+
+```bash
+python3 - <<'PY'
+import os, re, glob
+prefix_re = re.compile(r'APIRouter\([^)]*prefix\s*=\s*["\'']([^"\'']+)["\'']', re.S)
+endpoint_re = re.compile(
+    r'@(?:router|app|global_router)\.(get|post|put|patch|delete|head|options)\(\s*["\'']([^"\'']*)["\'']',
+    re.IGNORECASE,
+)
+test_text = ""
+for d in ("e2e/tests/api","e2e/tests/sdk_python","e2e/tests/ui","e2e/tests/sdk_typescript"):
+    for fn in glob.glob(f"{d}/**/*", recursive=True):
+        if os.path.isfile(fn) and fn.endswith(('.py','.ts')):
+            with open(fn) as f: test_text += f.read()+"\n"
+missing = []
+total = 0
+for fn in sorted(glob.glob("api/bigrag/routers/*.py")):
+    base = os.path.basename(fn)
+    if base.startswith("_") or base == "__init__.py": continue
+    text = open(fn).read()
+    pm = prefix_re.search(text); prefix = pm.group(1) if pm else ""
+    for method, path in endpoint_re.findall(text):
+        total += 1
+        full = (prefix+path).replace("//","/")
+        if not full.startswith("/"): full = "/"+full
+        pat = re.sub(r"\\\{[^}]+\\\}", r"\\{[^/\"'`}]+\\}", re.escape(full))
+        if not re.search(pat, test_text):
+            missing.append((base, method.upper(), full))
+print(f"{total - len(missing)} / {total} endpoints covered")
+for m in missing: print("  MISS:", *m)
+PY
+```
+
+## Known limitations
+
+Three bigRAG behaviors bypass the fake servers because they have hardcoded
+upstream URLs. They're called out so test coverage of the relevant happy
+paths is "best effort" rather than full:
+
+1. **`POST /v1/auth/preferences`** with key `chat.openai_key` validates the
+   value against `api.openai.com` (provider literal is `"openai"`, not
+   `"openai_compatible"`). `test_preferences.py` round-trips other keys to
+   avoid this network call.
+2. **Google Drive connector OAuth flow** (`api/bigrag/services/connectors/`)
+   has hardcoded `accounts.google.com` / `googleapis.com` URLs.
+   `test_connectors.py` covers CRUD, start-URL shape, and OAuth callback
+   error paths; the full token-exchange happy path is skipped.
+3. **Chat-suggestions in the Playwright `chat-streaming.spec.ts`** can't be
+   end-to-end driven through the UI because saving an OpenAI key in
+   preferences triggers (1). The spec validates the chat shell + collection
+   picker instead. The API-level chat-suggestions tests in
+   `tests/api/test_chat_suggestions.py` exercise the happy path because
+   they bypass the preferences UI flow.
+
+To close any of these, add a `BIGRAG_*_DEFAULT_BASE_URL` env override to the
+relevant bigRAG service (e.g., `credential_check.py`,
+`services/connectors/google_drive_auth.py`) and point it at the local fakes
+from `docker-compose.e2e.yml`.
