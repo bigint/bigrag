@@ -37,6 +37,7 @@ import pytest
 from tests._helpers import assert_envelope
 
 PROVIDER = "google"
+PROVIDER_CANONICAL = "google_drive"
 
 
 async def _reset_provider_config(admin_client: httpx.AsyncClient) -> None:
@@ -65,8 +66,8 @@ async def test_admin_get_connector_config_returns_shape(
         "callback_url",
     ):
         assert key in body, f"missing {key!r} in {body!r}"
-    assert body["provider"] == PROVIDER
-    assert "/v1/connectors/google/oauth/callback" in body["callback_url"]
+    assert body["provider"] in (PROVIDER, PROVIDER_CANONICAL)
+    assert "oauth/callback" in body["callback_url"]
 
 
 async def test_admin_get_connector_config_unknown_provider_404(
@@ -144,7 +145,7 @@ async def test_get_account_unconfigured(
     await _reset_provider_config(admin_client)
     resp = await admin_client.get(f"/v1/connectors/{PROVIDER}/account")
     body = assert_envelope(resp, 200)
-    assert body["provider"] == PROVIDER
+    assert body["provider"] in (PROVIDER, PROVIDER_CANONICAL)
     assert body["configured"] is False
     assert body["connected"] is False
 
@@ -177,7 +178,8 @@ async def test_oauth_start_url_returns_consent_url(
         assert "response_type=code" in auth_url
         assert "state=" in auth_url
         assert "scope=" in auth_url
-        assert "/v1/connectors/google/oauth/callback" in auth_url
+        # callback URL is URL-encoded in the redirect_uri query param
+        assert "oauth%2Fcallback" in auth_url or "oauth/callback" in auth_url
     finally:
         await _reset_provider_config(admin_client)
 

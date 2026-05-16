@@ -41,6 +41,16 @@ FAKE_OPENAI_BASE = os.environ.get("BIGRAG_E2E_FAKE_OPENAI", "http://localhost:90
 FAKE_GDRIVE_BASE = os.environ.get("BIGRAG_E2E_FAKE_GDRIVE", "http://localhost:9002")
 WEBHOOK_SINK_BASE = os.environ.get("BIGRAG_E2E_WEBHOOK_SINK", "http://localhost:9003")
 
+FAKE_OPENAI_INTERNAL_BASE = os.environ.get(
+    "BIGRAG_E2E_FAKE_OPENAI_INTERNAL", "http://fake-openai:9001"
+)
+FAKE_GDRIVE_INTERNAL_BASE = os.environ.get(
+    "BIGRAG_E2E_FAKE_GDRIVE_INTERNAL", "http://fake-gdrive:9002"
+)
+WEBHOOK_SINK_INTERNAL_BASE = os.environ.get(
+    "BIGRAG_E2E_WEBHOOK_SINK_INTERNAL", "http://webhook-sink:9003"
+)
+
 ADMIN_EMAIL = "e2e-admin@example.com"
 ADMIN_PASSWORD = "e2e-admin-password-123!"
 ADMIN_DISPLAY_NAME = "E2E Admin"
@@ -83,16 +93,44 @@ def app_base_url() -> str:
 
 @pytest.fixture(scope="session")
 def fake_openai_base() -> str:
+    """URL bigRAG (running in Docker) uses to reach fake-openai.
+
+    Despite the local-sounding name, this returns the *internal* (Docker
+    network) hostname by default — that is the URL tests should pass *into*
+    bigRAG, because bigRAG dials it from inside the container network.
+    For tests that hit fake-openai *directly* from the host runner, use
+    ``fake_openai_host_base`` instead.
+    """
+    return FAKE_OPENAI_INTERNAL_BASE
+
+
+@pytest.fixture(scope="session")
+def fake_openai_host_base() -> str:
+    """URL the test runner (running on the host) uses to reach fake-openai."""
     return FAKE_OPENAI_BASE
 
 
 @pytest.fixture(scope="session")
 def fake_gdrive_base() -> str:
+    """Internal (Docker) URL of fake-gdrive — pass this *into* bigRAG."""
+    return FAKE_GDRIVE_INTERNAL_BASE
+
+
+@pytest.fixture(scope="session")
+def fake_gdrive_host_base() -> str:
+    """Host URL of fake-gdrive for direct calls from the test runner."""
     return FAKE_GDRIVE_BASE
 
 
 @pytest.fixture(scope="session")
 def webhook_sink_base() -> str:
+    """Internal (Docker) URL of webhook-sink — pass this *into* bigRAG."""
+    return WEBHOOK_SINK_INTERNAL_BASE
+
+
+@pytest.fixture(scope="session")
+def webhook_sink_host_base() -> str:
+    """Host URL of webhook-sink for direct GET /received polling from tests."""
     return WEBHOOK_SINK_BASE
 
 
@@ -147,11 +185,44 @@ async def admin_setup() -> dict[str, str]:
                 raise RuntimeError(
                     f"failed to setup admin: {resp.status_code} {resp.text}"
                 )
+
+    # bigRAG keeps url-safety flags in the DB-backed runtime_settings
+    # (env vars only seed *some* of them). Apply the e2e-specific
+    # overrides every time so that fake-openai/webhook-sink/fake-gdrive
+    # (private Docker hostnames) are reachable.
+    await _bootstrap_e2e_runtime_settings()
+
     return {
         "email": ADMIN_EMAIL,
         "password": ADMIN_PASSWORD,
         "display_name": ADMIN_DISPLAY_NAME,
     }
+
+
+async def _bootstrap_e2e_runtime_settings() -> None:
+    cookies = await _login_and_cache(ADMIN_EMAIL, ADMIN_PASSWORD)
+    async with _OriginAwareClient(
+        base_url=API_BASE,
+        timeout=DEFAULT_TIMEOUT,
+        follow_redirects=True,
+        origin=API_BASE,
+    ) as client:
+        for k, v in cookies.items():
+            client.cookies.set(k, v)
+        resp = await client.put(
+            "/v1/admin/settings",
+            json={
+                "values": {
+                    "allow_private_embedding_base_urls": True,
+                    "allow_private_chat_base_urls": True,
+                    "allow_local_webhooks": True,
+                }
+            },
+        )
+        if resp.status_code not in (200, 204):
+            # If the keys don't exist on this bigRAG build, fall through
+            # — individual tests will still surface a clearer failure.
+            return
 
 
 # ---------------------------------------------------------------------------
@@ -498,8 +569,9 @@ async def document(
 
 @pytest.fixture(scope="session")
 def webhook_sink_url() -> Callable[[str], str]:
+    """Returns webhook URLs *bigRAG* should call — internal Docker hostname."""
     def _build(label: str) -> str:
-        return f"{WEBHOOK_SINK_BASE}/webhook/{label}"
+        return f"{WEBHOOK_SINK_INTERNAL_BASE}/webhook/{label}"
 
     return _build
 
@@ -508,12 +580,9 @@ def webhook_sink_url() -> Callable[[str], str]:
 async def webhook_sink() -> AsyncIterator[dict[str, Any]]:
     """Reset the webhook sink before and after each test that uses it.
 
-    Returns a helper bundle::
-
-        sink["url"]("orders") -> "http://localhost:9003/webhook/orders"
-        await sink["wait"]("orders", count=1)
-        await sink["received"]("orders")
-        await sink["fail_next"]("orders", count=2)
+    The ``url(label)`` helper returns the *internal* Docker URL bigRAG dials,
+    while polling helpers (``wait``, ``received``) hit the sink directly from
+    the host runner.
     """
     async with httpx.AsyncClient(base_url=WEBHOOK_SINK_BASE, timeout=DEFAULT_TIMEOUT) as client:
         await client.post("/reset")
@@ -540,7 +609,7 @@ async def webhook_sink() -> AsyncIterator[dict[str, Any]]:
             r.raise_for_status()
 
         def url(label: str) -> str:
-            return f"{WEBHOOK_SINK_BASE}/webhook/{label}"
+            return f"{WEBHOOK_SINK_INTERNAL_BASE}/webhook/{label}"
 
         try:
             yield {

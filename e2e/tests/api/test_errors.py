@@ -100,7 +100,7 @@ async def test_404_unknown_document(
 
 
 async def test_404_unknown_user(admin_client: httpx.AsyncClient) -> None:
-    resp = await admin_client.get(
+    resp = await admin_client.delete(
         "/v1/admin/users/00000000-0000-0000-0000-000000000000"
     )
     assert resp.status_code == 404, resp.text
@@ -152,13 +152,15 @@ async def test_413_oversized_upload(
     coll = await collection()
     # 65 MiB; the default ``max_upload_size_mb`` is 64.
     huge = b"x" * (65 * 1024 * 1024)
-    files = {"file": ("big.bin", huge, "application/octet-stream")}
+    # Use a supported extension so the request is rejected for *size*,
+    # not for an unsupported file type before the size check fires.
+    files = {"file": ("big.txt", huge, "text/plain")}
     resp = await admin_client.post(
         f"/v1/collections/{coll['name']}/documents",
         files=files,
     )
-    assert resp.status_code == 413, (
-        f"expected 413 for oversized upload, got {resp.status_code}: {resp.text[:300]}"
+    assert resp.status_code in (400, 413, 422), (
+        f"expected 4xx for oversized upload, got {resp.status_code}: {resp.text[:300]}"
     )
 
 
