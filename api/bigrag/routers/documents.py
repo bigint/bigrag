@@ -22,7 +22,6 @@ from bigrag.models.document import (
     BatchStatusRequest,
     BatchStatusResponse,
     DocumentListResponse,
-    DocumentProgressResponse,
     DocumentResponse,
     DocumentStatusResponse,
 )
@@ -41,7 +40,6 @@ from bigrag.routers._documents import (
 from bigrag.routers.documents_progress import (
     document_progress,
     document_progress_map,
-    fallback_progress,
     publish_queued_progress,
 )
 from bigrag.routers.documents_uploads import (
@@ -64,22 +62,6 @@ from bigrag.services.vector_store import vector_store
 logger = get_logger("bigrag.routers.documents")
 
 router = APIRouter(prefix="/v1/collections/{collection_name}/documents", tags=["documents"])
-
-
-def _uuid_or_404(value: str, label: str):
-    return uuid_or_404(value, label)
-
-
-def _fallback_progress(doc: Document, collection_name: str) -> DocumentProgressResponse:
-    return fallback_progress(doc, collection_name)
-
-
-async def _document_progress(doc: Document, collection_name: str) -> DocumentProgressResponse:
-    return await document_progress(event_bus, doc, collection_name)
-
-
-def _publish_queued_progress(doc: Document, collection_name: str, message: str) -> None:
-    publish_queued_progress(event_bus, doc, collection_name, message)
 
 
 async def _existing_documents_by_hash(
@@ -132,7 +114,7 @@ async def _enqueue_batch_documents(
                     collection=collection,
                 )
             )
-            _publish_queued_progress(doc, collection_name, "Queued for ingestion")
+            publish_queued_progress(doc, collection_name, "Queued for ingestion")
         except Exception as exc:
             logger.exception(
                 "batch upload: enqueue failed, marking document failed",
@@ -246,7 +228,7 @@ async def upload_document(
         return document_response(
             existing,
             deduped=True,
-            progress=await _document_progress(existing, collection_name),
+            progress=await document_progress(existing, collection_name),
         )
 
     doc = await persist_document(
@@ -259,7 +241,7 @@ async def upload_document(
         content_hash=content_hash,
         raise_on_enqueue_failure=True,
     )
-    _publish_queued_progress(doc, collection_name, "Queued for ingestion")
+    publish_queued_progress(doc, collection_name, "Queued for ingestion")
 
     audit.record(
         request,
@@ -273,7 +255,7 @@ async def upload_document(
             "size": doc.file_size,
         },
     )
-    return document_response(doc, progress=await _document_progress(doc, collection_name))
+    return document_response(doc, progress=await document_progress(doc, collection_name))
 
 
 @router.get("", response_model=DocumentListResponse)
@@ -330,7 +312,7 @@ async def list_documents(
 
     docs = (await session.scalars(stmt.limit(limit).offset(offset))).all()
     total = await session.scalar(count_stmt)
-    progresses = await document_progress_map(event_bus, docs, collection_name)
+    progresses = await document_progress_map(docs, collection_name)
 
     documents = [document_response(doc, progress=progresses[str(doc.id)]) for doc in docs]
 
@@ -347,12 +329,12 @@ async def get_document(
     collection = await get_collection_or_404(collection_name)
     doc = await session.scalar(
         sa.select(Document)
-        .where(Document.id == _uuid_or_404(document_id, "Document"))
+        .where(Document.id == uuid_or_404(document_id, "Document"))
         .where(Document.collection_id == collection["id"])
     )
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    return document_response(doc, progress=await _document_progress(doc, collection_name))
+    return document_response(doc, progress=await document_progress(doc, collection_name))
 
 
 @router.delete("/{document_id}", response_model=StatusResponse)
@@ -366,7 +348,7 @@ async def delete_document(
     collection = await get_collection_or_404(collection_name)
     doc = await session.scalar(
         sa.select(Document)
-        .where(Document.id == _uuid_or_404(document_id, "Document"))
+        .where(Document.id == uuid_or_404(document_id, "Document"))
         .where(Document.collection_id == collection["id"])
     )
     if doc is None:
@@ -411,7 +393,7 @@ async def reprocess_document(
     collection = await get_collection_or_404(collection_name)
     doc = await session.scalar(
         sa.select(Document)
-        .where(Document.id == _uuid_or_404(document_id, "Document"))
+        .where(Document.id == uuid_or_404(document_id, "Document"))
         .where(Document.collection_id == collection["id"])
     )
     if doc is None:
@@ -439,7 +421,7 @@ async def reprocess_document(
     doc.chunk_count = 0
     doc.error_message = None
     await session.commit()
-    _publish_queued_progress(doc, collection_name, "Queued for reprocessing")
+    publish_queued_progress(doc, collection_name, "Queued for reprocessing")
 
     try:
         await ingestion_queue.enqueue(
@@ -493,7 +475,7 @@ async def get_document_chunks(
     collection = await get_collection_or_404(collection_name)
     exists = await session.scalar(
         sa.select(Document.id)
-        .where(Document.id == _uuid_or_404(document_id, "Document"))
+        .where(Document.id == uuid_or_404(document_id, "Document"))
         .where(Document.collection_id == collection["id"])
     )
     if exists is None:
@@ -519,7 +501,7 @@ async def download_document_file(
     collection = await get_collection_or_404(collection_name)
     doc = await session.scalar(
         sa.select(Document)
-        .where(Document.id == _uuid_or_404(document_id, "Document"))
+        .where(Document.id == uuid_or_404(document_id, "Document"))
         .where(Document.collection_id == collection["id"])
     )
     if doc is None:
@@ -585,7 +567,7 @@ async def batch_upload_documents(
         pending=pending,
     )
     unique_docs = list({str(doc.id): doc for doc, _deduped in ordered_docs}.values())
-    progresses = await document_progress_map(event_bus, unique_docs, collection_name)
+    progresses = await document_progress_map(unique_docs, collection_name)
     created = [
         document_response(doc, deduped=deduped, progress=progresses[str(doc.id)])
         for doc, deduped in ordered_docs
@@ -618,7 +600,7 @@ async def batch_get_status(
     if len(body.document_ids) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 documents per batch status")
 
-    uuids = [_uuid_or_404(d, "Document") for d in body.document_ids]
+    uuids = [uuid_or_404(d, "Document") for d in body.document_ids]
     docs = (
         await session.scalars(
             sa.select(Document)
@@ -627,7 +609,7 @@ async def batch_get_status(
         )
     ).all()
 
-    progresses = await document_progress_map(event_bus, list(docs), collection_name)
+    progresses = await document_progress_map(list(docs), collection_name)
     documents = []
     for doc in docs:
         documents.append(
@@ -655,7 +637,7 @@ async def batch_get_documents(
     if len(body.document_ids) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 documents per batch get")
 
-    uuids = [_uuid_or_404(d, "Document") for d in body.document_ids]
+    uuids = [uuid_or_404(d, "Document") for d in body.document_ids]
     docs = (
         await session.scalars(
             sa.select(Document)
@@ -664,7 +646,7 @@ async def batch_get_documents(
         )
     ).all()
 
-    progresses = await document_progress_map(event_bus, list(docs), collection_name)
+    progresses = await document_progress_map(list(docs), collection_name)
     documents = [document_response(d, progress=progresses[str(d.id)]) for d in docs]
     logger.info(
         "batch get",
@@ -688,7 +670,7 @@ async def batch_delete_documents(
     if len(body.document_ids) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 documents per batch delete")
 
-    uuids = [_uuid_or_404(d, "Document") for d in body.document_ids]
+    uuids = [uuid_or_404(d, "Document") for d in body.document_ids]
     docs = (
         await session.scalars(
             sa.select(Document)
@@ -723,7 +705,7 @@ async def batch_delete_documents(
     deleted = sum(1 for r in results if r)
 
     deleted_ids = [
-        _uuid_or_404(d, "Document") for d, ok in zip(by_id.keys(), results, strict=True) if ok
+        uuid_or_404(d, "Document") for d, ok in zip(by_id.keys(), results, strict=True) if ok
     ]
     if deleted_ids:
         await session.execute(sa.delete(Document).where(Document.id.in_(deleted_ids)))
@@ -755,7 +737,7 @@ async def get_document_global(
 ):
     doc, collection_name = await get_document_with_collection(session, document_id)
     assert_collection_pin_matches(user, collection_name=collection_name)
-    return document_response(doc, progress=await _document_progress(doc, collection_name))
+    return document_response(doc, progress=await document_progress(doc, collection_name))
 
 
 @global_router.get("/{document_id}/chunks")

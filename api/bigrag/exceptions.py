@@ -13,20 +13,16 @@ class NotFoundError(BigRAGError):
 
 
 class ValidationError(BigRAGError):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
+    pass
 
 
 class ForbiddenError(BigRAGError):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
+    pass
 
 
 class UpstreamError(BigRAGError):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
+    pass
 
 
 class ServerError(BigRAGError):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
+    pass

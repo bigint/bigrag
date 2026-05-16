@@ -29,7 +29,7 @@ from bigrag.routers._documents import (
     prepare_document_metadata,
     read_upload_content,
 )
-from bigrag.routers.documents import _document_progress, _publish_queued_progress
+from bigrag.routers.documents_progress import document_progress, publish_queued_progress
 from bigrag.services import audit, collection_cache
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 from bigrag.services.queue import ingestion_queue
@@ -515,7 +515,7 @@ async def upload_session_file(
                 content_hash=content_hash,
                 raise_on_enqueue_failure=False,
             )
-            _publish_queued_progress(doc, collection_name, "Queued from upload session")
+            publish_queued_progress(doc, collection_name, "Queued from upload session")
         else:
             doc = existing_doc
     except Exception as exc:
@@ -556,7 +556,7 @@ async def upload_session_file(
         metadata={"collection": collection_name, "filename": filename, "size": len(content)},
     )
     response = await upload_session_response(db, upload_session, persist_counts=True)
-    item_progress = await _document_progress(doc, collection_name)
+    item_progress = await document_progress(doc, collection_name)
     doc_payload = document_response(doc, deduped=existing_doc is not None, progress=item_progress)
     return UploadSessionFileResponse(
         item=_item_response(item, doc_payload.status, doc_payload.error_message),

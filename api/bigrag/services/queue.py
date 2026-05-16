@@ -66,8 +66,6 @@ __all__ = [
 class IngestionQueue:
     def __init__(self, num_workers: int = 4) -> None:
         self._num_workers = num_workers
-        self._workers: list[asyncio.Task] = []
-        self._running = False
         self._redis: aioredis.Redis | None = None
         self._vector_store = None
 
@@ -102,9 +100,6 @@ class IngestionQueue:
         logger.info("queue worker setting updated", target=target)
 
     async def stop(self) -> None:
-        self._running = False
-        await asyncio.gather(*self._workers, return_exceptions=True)
-        self._workers.clear()
         if self._redis:
             await self._redis.aclose()
         logger.info("[queue] all workers stopped")
@@ -237,57 +232,6 @@ class IngestionQueue:
                 pass
             await self._redis.lrem(PROCESSING_KEY, 1, raw)
             await self._redis.delete(lease_key)
-
-    async def _worker(self, worker_id: int) -> None:
-        logger.info("worker started", worker_id=worker_id)
-        while self._running and worker_id < self._num_workers:
-            try:
-                from bigrag.services.maintenance import is_active
-
-                if await is_active():
-                    await asyncio.sleep(1)
-                    continue
-                await self._promote_due_retries()
-                data = await self._redis.blmove(
-                    QUEUE_KEY, PROCESSING_KEY, timeout=1, src="RIGHT", dest="LEFT"
-                )
-                if data is None:
-                    continue
-                if await is_active():
-                    await self._redis.lrem(PROCESSING_KEY, 1, data)
-                    await self._redis.rpush(QUEUE_KEY, data)
-                    await asyncio.sleep(1)
-                    continue
-
-                job = IngestionJob.deserialize(data)
-                logger.info(
-                    "worker dequeued job",
-                    worker_id=worker_id,
-                    job=job.job_id,
-                    doc=job.document_id,
-                    collection=job.collection_name,
-                    file_path=job.file_path,
-                    attempt=job.attempt + 1,
-                    max_attempts=job.max_attempts,
-                )
-                lease_key = _lease_key(job.job_id)
-                await self._redis.set(lease_key, b"1", ex=_LEASE_TTL_SECONDS)
-                lease_task = asyncio.create_task(self._renew_lease(job.job_id))
-                try:
-                    await self._process_job(worker_id, job)
-                finally:
-                    lease_task.cancel()
-                    try:
-                        await lease_task
-                    except asyncio.CancelledError:
-                        pass
-                    await self._redis.lrem(PROCESSING_KEY, 1, data)
-                    await self._redis.delete(lease_key)
-            except Exception as e:
-                logger.error("worker loop error", worker_id=worker_id, error=repr(e))
-                await asyncio.sleep(1)
-
-        logger.info("worker stopped", worker_id=worker_id)
 
     def _emit(
         self,
