@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class ChatResource:
-    """Resource namespace for production chat operations.
+    """Resource namespace for chat playground operations.
 
     Access via ``client.chat``.
     """

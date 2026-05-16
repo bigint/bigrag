@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 _ENDPOINT_SCOPES: list[tuple[str, str, str]] = [
+    ("GET", "/v1/chat/question-suggestions", "chat:read"),
+    ("POST", "/v1/chat/question-suggestions", "chat:write"),
     ("POST", "/v1/chat", "chat:write"),
-    ("GET", "/v1/chat", "chat:read"),
-    ("PATCH", "/v1/chat/{id}", "chat:write"),
-    ("DELETE", "/v1/chat/{id}", "chat:delete"),
     ("POST", "/v1/collections/{name}/query", "query:read"),
     ("POST", "/v1/query", "query:read"),
     ("POST", "/v1/batch/query", "query:read"),

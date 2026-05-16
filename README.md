@@ -353,7 +353,6 @@ admin UI origin. Cross-site admin UI deployments also need
 | `BIGRAG_CHAT_MODEL` | Default chat model | `gpt-4o-mini` |
 | `BIGRAG_CHAT_BASE_URL` | Base URL for OpenAI-compatible chat endpoints | — |
 | `BIGRAG_CHAT_TEMPERATURE` | Default chat temperature | `0.2` |
-| `BIGRAG_CHAT_MAX_HISTORY_MESSAGES` | Max conversation history messages used for context | `12` |
 | `BIGRAG_CHAT_MAX_CONTEXT_CHARS` | Max retrieved-context characters per chat call | `120000` |
 | `BIGRAG_ALLOWED_CHAT_BASE_URLS` | JSON allow-list for chat base URLs | `[]` |
 | `BIGRAG_ALLOW_PRIVATE_CHAT_BASE_URLS` | Allow private-network chat endpoints | `false` |
