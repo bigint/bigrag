@@ -6,12 +6,9 @@ use futures_core::Stream;
 
 use crate::client::BigRag;
 use crate::error::BigRagError;
-use crate::types::chat::{
-    ChatBody, ChatCreateResponse, ChatDeleteResponse, ChatDetailResponse, ChatListResponse,
-    ChatStreamEvent, ChatUpdateBody,
-};
+use crate::types::chat::{ChatBody, ChatCreateResponse, ChatStreamEvent};
 
-/// Chats resource — generated answers with persisted conversations.
+/// Chats resource — generated answers for one playground turn.
 pub struct Chats<'a> {
     pub(crate) client: &'a BigRag,
 }
@@ -52,46 +49,6 @@ impl Chats<'_> {
         Ok(ChatStream::new(response))
     }
 
-    /// List owned conversations.
-    pub async fn list(
-        &self,
-        limit: Option<u32>,
-        offset: Option<u32>,
-    ) -> Result<ChatListResponse, BigRagError> {
-        let mut query = Vec::new();
-        if let Some(limit) = limit {
-            query.push(("limit".to_string(), limit.to_string()));
-        }
-        if let Some(offset) = offset {
-            query.push(("offset".to_string(), offset.to_string()));
-        }
-        self.client.transport.get("/v1/chat", query).await
-    }
-
-    /// Get a conversation and its messages.
-    pub async fn get(&self, conversation_id: &str) -> Result<ChatDetailResponse, BigRagError> {
-        let path = format!("/v1/chat/{}", crate::core::urlencode(conversation_id));
-        self.client.transport.get(&path, vec![]).await
-    }
-
-    /// Rename a conversation.
-    pub async fn update_title(
-        &self,
-        conversation_id: &str,
-        title: &str,
-    ) -> Result<ChatDetailResponse, BigRagError> {
-        let path = format!("/v1/chat/{}", crate::core::urlencode(conversation_id));
-        let body = ChatUpdateBody {
-            title: title.to_string(),
-        };
-        self.client.transport.patch(&path, &body).await
-    }
-
-    /// Delete a conversation.
-    pub async fn delete(&self, conversation_id: &str) -> Result<ChatDeleteResponse, BigRagError> {
-        let path = format!("/v1/chat/{}", crate::core::urlencode(conversation_id));
-        self.client.transport.delete(&path).await
-    }
 }
 
 /// A stream of chat Server-Sent Events.

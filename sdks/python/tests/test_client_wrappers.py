@@ -143,12 +143,6 @@ class FakeChat:
     async def stream(self, body):
         yield {"event": "delta", "data": body}
 
-    async def list(self, *, limit=None, offset=None):
-        return {"limit": limit, "offset": offset}
-
-    async def get(self, conversation_id):
-        return {"id": conversation_id}
-
 
 def test_collection_client_delegates_to_scoped_resources() -> None:
     async def scenario():
@@ -216,22 +210,18 @@ def test_bigrag_high_level_wrappers_delegate_to_resources() -> None:
     async def scenario():
         client = BigRAG(base_url="http://api.local")
         client.chat = FakeChat()
-        created = await client.chat_create({"message": "hello"})
+        created = await client.chat_create({"message": "hello", "collection": "docs"})
         streamed = []
-        async for event in client.chat_stream({"message": "hello"}):
+        async for event in client.chat_stream({"message": "hello", "collection": "docs"}):
             streamed.append(event)
-        listed = await client.list_chats(limit=2, offset=4)
-        detail = await client.get_chat("conversation/1")
         scoped = client.collection("docs")
         await client.aclose()
-        return created, streamed, listed, detail, scoped
+        return created, streamed, scoped
 
-    created, streamed, listed, detail, scoped = run(scenario())
+    created, streamed, scoped = run(scenario())
 
-    assert created == {"body": {"message": "hello"}}
-    assert streamed == [{"event": "delta", "data": {"message": "hello"}}]
-    assert listed == {"limit": 2, "offset": 4}
-    assert detail == {"id": "conversation/1"}
+    assert created == {"body": {"message": "hello", "collection": "docs"}}
+    assert streamed == [{"event": "delta", "data": {"message": "hello", "collection": "docs"}}]
     assert isinstance(scoped, CollectionClient)
     assert scoped._name == "docs"
 

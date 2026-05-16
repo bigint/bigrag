@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use bigrag::types::chat::ChatBody;
 use bigrag::{BigRag, BigRagError, FileInput};
-use httpmock::Method::{DELETE, GET, PATCH, POST};
+use httpmock::Method::POST;
 use httpmock::MockServer;
 use serde_json::{json, Value};
 
@@ -18,29 +18,9 @@ fn client(server: &MockServer) -> BigRag {
         .unwrap()
 }
 
-fn conversation() -> Value {
-    json!({
-        "id": "conversation/id",
-        "title": "hello",
-        "collection": "docs",
-        "model_provider": "openai",
-        "model": "gpt-4.1-mini",
-        "temperature": 0.2,
-        "top_k": 5,
-        "search_mode": "semantic",
-        "min_score": null,
-        "rerank": null,
-        "message_count": 2,
-        "created_at": "2026-05-09T00:00:00Z",
-        "updated_at": "2026-05-09T00:00:01Z",
-        "last_message_at": "2026-05-09T00:00:01Z"
-    })
-}
-
 fn message(id: &str, role: &str, content: &str) -> Value {
     json!({
         "id": id,
-        "conversation_id": "conversation/id",
         "role": role,
         "content": content,
         "status": "complete",

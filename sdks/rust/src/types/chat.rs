@@ -7,12 +7,8 @@ use crate::types::query::SearchMode;
 pub struct ChatBody {
     /// User message to answer.
     pub message: String,
-    /// Existing conversation ID for follow-up turns.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub conversation_id: Option<String>,
-    /// Collection to query when starting a new conversation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub collection: Option<String>,
+    /// Collection to query.
+    pub collection: String,
     /// Chat provider (`openai` or `openai_compatible`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_provider: Option<String>,
@@ -90,13 +86,11 @@ pub struct ChatTimings {
     pub cache_hit: bool,
 }
 
-/// Stored chat message.
+/// Chat message returned for the current turn.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ChatMessage {
     /// Message ID.
     pub id: String,
-    /// Conversation ID.
-    pub conversation_id: String,
     /// Message role.
     pub role: String,
     /// Message content.
@@ -117,65 +111,12 @@ pub struct ChatMessage {
     pub created_at: String,
 }
 
-/// Stored chat conversation.
-#[derive(Debug, Clone, Deserialize)]
-pub struct ChatConversation {
-    /// Conversation ID.
-    pub id: String,
-    /// Display title.
-    pub title: String,
-    /// Bound collection.
-    pub collection: Option<String>,
-    /// Provider.
-    pub model_provider: String,
-    /// Model.
-    pub model: String,
-    /// Temperature.
-    pub temperature: f64,
-    /// Default retrieval top-k.
-    pub top_k: u32,
-    /// Default retrieval mode.
-    pub search_mode: String,
-    /// Default minimum score.
-    pub min_score: Option<f64>,
-    /// Default rerank override.
-    pub rerank: Option<bool>,
-    /// Number of messages.
-    pub message_count: u32,
-    /// ISO creation timestamp.
-    pub created_at: String,
-    /// ISO update timestamp.
-    pub updated_at: String,
-    /// ISO timestamp for latest message.
-    pub last_message_at: Option<String>,
-}
-
-/// Conversation list response.
-#[derive(Debug, Clone, Deserialize)]
-pub struct ChatListResponse {
-    /// Conversations.
-    pub conversations: Vec<ChatConversation>,
-    /// Total matching conversations.
-    pub total: u32,
-}
-
-/// Conversation detail response.
-#[derive(Debug, Clone, Deserialize)]
-pub struct ChatDetailResponse {
-    /// Conversation metadata.
-    pub conversation: ChatConversation,
-    /// Stored messages.
-    pub messages: Vec<ChatMessage>,
-}
-
 /// Non-streaming chat response.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ChatCreateResponse {
-    /// Conversation metadata.
-    pub conversation: ChatConversation,
-    /// Stored user message.
+    /// User message.
     pub message: ChatMessage,
-    /// Stored assistant message.
+    /// Assistant message.
     pub assistant_message: ChatMessage,
     /// Retrieved sources.
     pub sources: Vec<ChatSource>,
@@ -190,18 +131,4 @@ pub struct ChatStreamEvent {
     pub event: String,
     /// Event payload.
     pub data: serde_json::Value,
-}
-
-/// Delete response.
-#[derive(Debug, Clone, Deserialize)]
-pub struct ChatDeleteResponse {
-    /// Deleted status.
-    pub status: String,
-}
-
-/// Body for renaming a conversation.
-#[derive(Debug, Clone, Serialize)]
-pub struct ChatUpdateBody {
-    /// New title.
-    pub title: String,
 }
