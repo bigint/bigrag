@@ -27,6 +27,21 @@ _READINESS_TTL = 10
 _READINESS_CACHE_KEY = "health:readiness"
 
 
+async def _cache_get(key: str) -> dict | list | None:
+    try:
+        return await redis_cache.get(key)
+    except Exception as exc:
+        logger.warning("health cache get failed", key=key, error=repr(exc))
+        return None
+
+
+async def _cache_set(key: str, value: dict | list, ttl: int) -> None:
+    try:
+        await redis_cache.set(key, value, ttl=ttl)
+    except Exception as exc:
+        logger.warning("health cache set failed", key=key, error=repr(exc))
+
+
 async def _resolve_embedding_target() -> (
     tuple[str, str, int | None, str, str | None, str | None] | None
 ):
@@ -98,7 +113,7 @@ async def _check_embedding_provider() -> dict[str, object]:
 
     provider, model, dimension, api_key, base_url, source = target
     cache_key = f"health:embedding:{provider}:{source}"
-    cached = await redis_cache.get(cache_key)
+    cached = await _cache_get(cache_key)
     if cached:
         result: dict[str, object] = {"embedding": cached["ok"], "embedding_source": source}
         if cached.get("error"):
@@ -116,11 +131,11 @@ async def _check_embedding_provider() -> dict[str, object]:
             base_url=base_url,
         )
         await asyncio.wait_for(emb_model.embed(["health check"], input_type="query"), timeout=10)
-        await redis_cache.set(cache_key, {"ok": True}, ttl=_EMBEDDING_HEALTH_TTL)
+        await _cache_set(cache_key, {"ok": True}, ttl=_EMBEDDING_HEALTH_TTL)
         return {"embedding": True, "embedding_source": source}
     except Exception as exc:
         category = _categorize_provider_error(exc)
-        await redis_cache.set(
+        await _cache_set(
             cache_key,
             {"ok": False, "error": category},
             ttl=_EMBEDDING_HEALTH_TTL,
@@ -178,7 +193,7 @@ async def health() -> dict[str, str]:
 
 @router.get("/health/ready", response_model=dict[str, object])
 async def readiness(request: Request) -> JSONResponse:
-    cached = await redis_cache.get(_READINESS_CACHE_KEY)
+    cached = await _cache_get(_READINESS_CACHE_KEY)
     if cached:
         status = cached.get("status")
         return JSONResponse(content=cached, status_code=200 if status == "ok" else 503)
@@ -232,7 +247,7 @@ async def readiness(request: Request) -> JSONResponse:
         healthy = False
 
     checks["status"] = "ok" if healthy else "degraded"
-    await redis_cache.set(_READINESS_CACHE_KEY, checks, ttl=_READINESS_TTL)
+    await _cache_set(_READINESS_CACHE_KEY, checks, ttl=_READINESS_TTL)
     return JSONResponse(content=checks, status_code=200 if healthy else 503)
 
 
@@ -242,7 +257,7 @@ async def platform_stats(
     _: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, object]:
-    cached = await redis_cache.get("stats:platform")
+    cached = await _cache_get("stats:platform")
     if cached:
         return cached
 
@@ -316,7 +331,7 @@ async def platform_stats(
         "queue_health": queue_health,
         "workers": worker_stats,
     }
-    await redis_cache.set("stats:platform", result, ttl=15)
+    await _cache_set("stats:platform", result, ttl=15)
     return result
 
 

@@ -10,7 +10,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -23,6 +23,7 @@ import {
   useChatConversation,
   useChatConversations,
   useDeleteChatConversation,
+  useGenerateChatQuestions,
 } from "@/hooks/use-chat";
 import { useCollections } from "@/hooks/use-collections";
 import { usePreferences, useUpdatePreferences } from "@/hooks/use-preferences";
@@ -117,6 +118,7 @@ export const ChatPage = () => {
   const updatePrefs = useUpdatePreferences();
   const conversationsQuery = useChatConversations();
   const deleteConversation = useDeleteChatConversation();
+  const generateQuestions = useGenerateChatQuestions();
   const { data: collectionsData, isPending: collectionsLoading } = useCollections();
   const collections = useMemo(() => collectionsData?.collections ?? [], [collectionsData]);
   const collection = useChatStore((state) => state.collection);
@@ -136,6 +138,8 @@ export const ChatPage = () => {
   const detailQuery = useChatConversation(conversationId);
   const activeConversation = detailQuery.data?.conversation ?? null;
   const abortRef = useRef<AbortController | null>(null);
+  const currentCollectionRef = useRef("");
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
 
   useEffect(
     () => () => {
@@ -197,6 +201,11 @@ export const ChatPage = () => {
   const currentCollection = activeConversation?.collection ?? collection;
   const currentCollectionName = currentCollection ?? "";
 
+  useEffect(() => {
+    currentCollectionRef.current = currentCollectionName;
+    setSuggestedQuestions([]);
+  }, [currentCollectionName]);
+
   const stopStreaming = () => {
     abortRef.current?.abort();
     abortRef.current = null;
@@ -210,6 +219,20 @@ export const ChatPage = () => {
 
   const handleCollectionChange = (name: string) => {
     selectCollection(name);
+  };
+
+  const handleGenerateQuestions = () => {
+    if (!currentCollectionName) return;
+    generateQuestions.mutate(
+      { collection: currentCollectionName },
+      {
+        onSuccess: (questions, variables) => {
+          if (variables.collection === currentCollectionRef.current) {
+            setSuggestedQuestions(questions);
+          }
+        },
+      },
+    );
   };
 
   const handleSend = async (text: string) => {
@@ -391,7 +414,10 @@ export const ChatPage = () => {
                 collectionCount={collections.length}
                 disabled={disabled}
                 hasOpenAIKey={state.hasOpenAIKey}
+                isGeneratingQuestions={generateQuestions.isPending}
+                onGenerateQuestions={handleGenerateQuestions}
                 onSelect={handleSend}
+                questions={suggestedQuestions}
               />
             ) : (
               <ChatMessages isStreaming={isStreaming} messages={messages} />

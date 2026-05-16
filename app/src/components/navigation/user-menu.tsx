@@ -49,7 +49,7 @@ export const UserMenu = ({ compact = false }: { compact?: boolean }) => {
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner
-          align="start"
+          align={compact ? "start" : "center"}
           side={compact ? "right" : "top"}
           sideOffset={compact ? 10 : 6}
           className="z-50"

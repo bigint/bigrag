@@ -1,52 +1,15 @@
-import type { LucideIcon } from "lucide-react";
-import {
-  BookOpen,
-  Braces,
-  FileSearch,
-  Layers3,
-  MessageCircle,
-  Search,
-  ShieldCheck,
-  TriangleAlert,
-} from "lucide-react";
-
-const PROMPT_GROUPS: {
-  title: string;
-  icon: LucideIcon;
-  prompts: { icon: LucideIcon; text: string }[];
-}[] = [
-  {
-    title: "Understand",
-    icon: FileSearch,
-    prompts: [
-      { icon: MessageCircle, text: "Summarize what this collection is about." },
-      { icon: Layers3, text: "What are the three most important concepts?" },
-    ],
-  },
-  {
-    title: "Verify",
-    icon: ShieldCheck,
-    prompts: [
-      { icon: Search, text: "Find references to a specific term." },
-      { icon: BookOpen, text: "Which source should I read first?" },
-    ],
-  },
-  {
-    title: "Compare",
-    icon: Braces,
-    prompts: [
-      { icon: FileSearch, text: "Compare two ideas mentioned in the docs." },
-      { icon: ShieldCheck, text: "List the facts that need citations." },
-    ],
-  },
-];
+import { ArrowUpRight, HelpCircle, RefreshCcw, Shuffle, TriangleAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   collection: string;
   collectionCount: number;
   disabled?: boolean;
   hasOpenAIKey: boolean;
+  isGeneratingQuestions: boolean;
+  onGenerateQuestions: () => void;
   onSelect: (text: string) => void;
+  questions: readonly string[];
 }
 
 export const EmptyPrompts = ({
@@ -54,7 +17,10 @@ export const EmptyPrompts = ({
   collectionCount,
   disabled,
   hasOpenAIKey,
+  isGeneratingQuestions,
+  onGenerateQuestions,
   onSelect,
+  questions,
 }: Props) => {
   const missingCollection = collectionCount === 0 || !collection;
   const notice = hasOpenAIKey
@@ -62,6 +28,8 @@ export const EmptyPrompts = ({
       ? "Choose a collection to start asking questions."
       : null
     : "Add an API key to start asking questions.";
+  const canGenerateQuestions = !missingCollection && !isGeneratingQuestions;
+  const hasQuestions = questions.length > 0;
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-8 md:px-6 lg:px-8">
@@ -82,40 +50,62 @@ export const EmptyPrompts = ({
           )}
         </section>
 
-        <section className="grid gap-3 md:grid-cols-3">
-          {PROMPT_GROUPS.map((group) => {
-            const GroupIcon = group.icon;
-            return (
-              <div
-                key={group.title}
-                className="overflow-hidden rounded-xl border border-border bg-background"
-              >
-                <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                  <GroupIcon className="size-4 text-muted-foreground" />
-                  <h2 className="text-sm font-semibold">{group.title}</h2>
-                </div>
-                <div className="divide-y divide-border">
-                  {group.prompts.map((prompt) => {
-                    const PromptIcon = prompt.icon;
-                    return (
-                      <button
-                        disabled={disabled}
-                        key={prompt.text}
-                        onClick={() => onSelect(prompt.text)}
-                        type="button"
-                        className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted disabled:cursor-not-allowed disabled:opacity-45"
-                      >
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-border bg-muted">
-                          <PromptIcon className="size-4 text-muted-foreground" />
-                        </span>
-                        <span className="text-sm font-semibold leading-5">{prompt.text}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+        <section className="mx-auto w-full max-w-3xl overflow-hidden rounded-xl border border-border bg-background">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                {collection || "Collection"}
               </div>
-            );
-          })}
+              <h2 className="truncate text-sm font-semibold">Question starters</h2>
+            </div>
+            {hasQuestions && (
+              <Button
+                aria-label="Refresh questions"
+                disabled={!canGenerateQuestions}
+                onClick={onGenerateQuestions}
+                size="sm"
+                variant="outline"
+              >
+                <RefreshCcw className={isGeneratingQuestions ? "size-4 animate-spin" : "size-4"} />
+                Refresh
+              </Button>
+            )}
+          </div>
+
+          {hasQuestions ? (
+            <div className="divide-y divide-border">
+              {questions.map((question, index) => (
+                <button
+                  className="group flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted disabled:cursor-not-allowed disabled:opacity-45"
+                  disabled={disabled}
+                  key={question}
+                  onClick={() => onSelect(question)}
+                  type="button"
+                >
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-xs font-semibold text-muted-foreground">
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 text-sm font-semibold leading-5">{question}</span>
+                  <ArrowUpRight className="size-4 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex min-h-56 flex-col items-center justify-center gap-4 px-6 py-10 text-center">
+              <span className="flex size-12 items-center justify-center rounded-xl border border-border bg-muted">
+                <HelpCircle className="size-5 text-muted-foreground" />
+              </span>
+              <Button
+                disabled={!canGenerateQuestions}
+                onClick={onGenerateQuestions}
+                size="lg"
+                variant="primary"
+              >
+                <Shuffle className="size-4" />
+                {isGeneratingQuestions ? "Generating" : "Generate 5 questions"}
+              </Button>
+            </div>
+          )}
         </section>
       </div>
     </div>

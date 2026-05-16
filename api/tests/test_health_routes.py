@@ -25,6 +25,14 @@ class FakeRedisCache:
         self.sets.append((key, value, ttl))
 
 
+class FailingRedisCache:
+    async def get(self, key):
+        raise ConnectionError(f"get failed for {key}")
+
+    async def set(self, key, value, ttl=None):
+        raise ConnectionError(f"set failed for {key}")
+
+
 class FakeSession:
     def __init__(self) -> None:
         self.executed = []
@@ -82,9 +90,15 @@ class FakeRedis:
         self.pings += 1
 
 
+class FailingRedis(FakeRedis):
+    async def ping(self):
+        self.pings += 1
+        raise ConnectionError("redis unavailable")
+
+
 class FakeQueue:
-    def __init__(self) -> None:
-        self._redis = FakeRedis()
+    def __init__(self, redis=None) -> None:
+        self._redis = redis or FakeRedis()
 
     @property
     def stats(self):
@@ -210,6 +224,27 @@ def test_check_embedding_provider_caches_success_and_failures(monkeypatch) -> No
     ]
 
 
+def test_check_embedding_provider_tolerates_cache_failures(monkeypatch) -> None:
+    class FakeEmbeddingModel:
+        async def embed(self, _texts, input_type):
+            return [[0.1]]
+
+    async def target():
+        return ("openai", "text-embedding-3-small", 1536, "sk", None, "settings")
+
+    monkeypatch.setattr(health, "_resolve_embedding_target", target)
+    monkeypatch.setattr(health, "redis_cache", FailingRedisCache())
+    monkeypatch.setattr(
+        "bigrag.services.embedding.get_embedding_model",
+        lambda **_kwargs: FakeEmbeddingModel(),
+    )
+
+    assert run(health._check_embedding_provider()) == {
+        "embedding": True,
+        "embedding_source": "settings",
+    }
+
+
 def test_readiness_reports_ok_and_degraded_states(monkeypatch) -> None:
     async def embedding_ok():
         return {"embedding": True, "embedding_source": "settings"}
@@ -259,6 +294,27 @@ def test_readiness_uses_cached_payload(monkeypatch) -> None:
     assert response.status_code == 503
     assert response_body(response)["vector_store_error"] == "misconfigured"
     assert cache.sets == []
+
+
+def test_readiness_tolerates_cache_failures(monkeypatch) -> None:
+    async def embedding_ok():
+        return {"embedding": True, "embedding_source": "settings"}
+
+    monkeypatch.setattr(health, "redis_cache", FailingRedisCache())
+    monkeypatch.setattr(health, "session_factory", lambda: lambda: FakeSessionContext())
+    monkeypatch.setattr(health, "_check_embedding_provider", embedding_ok)
+
+    response = run(
+        health.readiness(
+            fake_request(
+                queue=FakeQueue(redis=FailingRedis()),
+            )
+        )
+    )
+
+    assert response.status_code == 503
+    assert response_body(response)["status"] == "degraded"
+    assert response_body(response)["redis_error"] == "unreachable"
 
 
 def test_platform_stats_uses_cache_and_populates_uncached_result(monkeypatch) -> None:
