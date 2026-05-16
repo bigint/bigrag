@@ -7,6 +7,7 @@ use futures_core::Stream;
 use crate::client::BigRag;
 use crate::core::urlencode;
 use crate::error::BigRagError;
+use crate::sse::FrameParser;
 use crate::types::access::{AccessLogListResponse, AccessLogOverviewResponse};
 use crate::types::admin::{
     AdminRealtimeEvent, ApiKey, ApiKeyListResponse, AuditLogListResponse, BackupCreateBody,
@@ -786,7 +787,7 @@ impl AdminRealtime<'_> {
 /// A stream of admin realtime Server-Sent Events.
 pub struct AdminRealtimeStream {
     inner: Pin<Box<dyn Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send>>,
-    parser: AdminRealtimeParser,
+    parser: FrameParser,
     pending: VecDeque<Result<AdminRealtimeEvent, BigRagError>>,
 }
 
@@ -794,7 +795,7 @@ impl AdminRealtimeStream {
     pub(crate) fn new(response: reqwest::Response) -> Self {
         Self {
             inner: Box::pin(response.bytes_stream()),
-            parser: AdminRealtimeParser::new(),
+            parser: FrameParser::new(),
             pending: VecDeque::new(),
         }
     }
@@ -811,7 +812,19 @@ impl Stream for AdminRealtimeStream {
         match self.inner.as_mut().poll_next(cx) {
             Poll::Ready(Some(Ok(chunk))) => {
                 let text = String::from_utf8_lossy(&chunk);
-                self.pending = self.parser.push(&text).into();
+                self.pending = self
+                    .parser
+                    .push(&text)
+                    .into_iter()
+                    .map(|frame| {
+                        serde_json::from_str(&frame.data)
+                            .map(|data| AdminRealtimeEvent {
+                                event: frame.event,
+                                data,
+                            })
+                            .map_err(BigRagError::from)
+                    })
+                    .collect();
 
                 if let Some(event) = self.pending.pop_front() {
                     Poll::Ready(Some(event))
@@ -826,34 +839,6 @@ impl Stream for AdminRealtimeStream {
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
         }
-    }
-}
-
-struct AdminRealtimeParser {
-    buffer: String,
-}
-
-impl AdminRealtimeParser {
-    fn new() -> Self {
-        Self {
-            buffer: String::new(),
-        }
-    }
-
-    fn push(&mut self, text: &str) -> Vec<Result<AdminRealtimeEvent, BigRagError>> {
-        self.buffer.push_str(text);
-        let mut events = Vec::new();
-
-        while let Some((pos, len)) = find_sse_boundary(&self.buffer) {
-            let block = self.buffer[..pos].to_string();
-            self.buffer = self.buffer[pos + len..].to_string();
-
-            if let Some(event) = parse_realtime_sse_block(&block) {
-                events.push(event);
-            }
-        }
-
-        events
     }
 }
 
@@ -900,48 +885,3 @@ fn stream_path(path: &str, query: Vec<(String, String)>) -> String {
     format!("{}?{}", path, query)
 }
 
-fn find_sse_boundary(buffer: &str) -> Option<(usize, usize)> {
-    match (buffer.find("\n\n"), buffer.find("\r\n\r\n")) {
-        (Some(lf), Some(crlf)) if lf < crlf => Some((lf, 2)),
-        (Some(_lf), Some(crlf)) => Some((crlf, 4)),
-        (Some(lf), None) => Some((lf, 2)),
-        (None, Some(crlf)) => Some((crlf, 4)),
-        (None, None) => None,
-    }
-}
-
-fn parse_realtime_sse_block(block: &str) -> Option<Result<AdminRealtimeEvent, BigRagError>> {
-    let mut event = "message".to_string();
-    let mut data = Vec::new();
-
-    for raw in block.lines() {
-        let line = raw.trim_end_matches('\r');
-        if line.is_empty() || line.starts_with(':') {
-            continue;
-        }
-        if let Some(value) = line.strip_prefix("event:") {
-            event = trim_sse_value(value).to_string();
-        } else if let Some(value) = line.strip_prefix("data:") {
-            data.push(trim_sse_value(value).to_string());
-        }
-    }
-
-    if data.is_empty() {
-        return None;
-    }
-
-    let payload = data.join("\n");
-    if payload == "[DONE]" {
-        return None;
-    }
-
-    Some(
-        serde_json::from_str(&payload)
-            .map(|data| AdminRealtimeEvent { event, data })
-            .map_err(BigRagError::from),
-    )
-}
-
-fn trim_sse_value(value: &str) -> &str {
-    value.strip_prefix(' ').unwrap_or(value)
-}

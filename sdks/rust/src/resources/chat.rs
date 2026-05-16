@@ -6,6 +6,7 @@ use futures_core::Stream;
 
 use crate::client::BigRag;
 use crate::error::BigRagError;
+use crate::sse::FrameParser;
 use crate::types::chat::{ChatBody, ChatCreateResponse, ChatStreamEvent};
 
 /// Chats resource — generated answers for one playground turn.
@@ -53,7 +54,7 @@ impl Chats<'_> {
 /// A stream of chat Server-Sent Events.
 pub struct ChatStream {
     inner: Pin<Box<dyn Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send>>,
-    parser: ChatSseParser,
+    parser: FrameParser,
     pending: VecDeque<Result<ChatStreamEvent, BigRagError>>,
 }
 
@@ -61,7 +62,7 @@ impl ChatStream {
     pub(crate) fn new(response: reqwest::Response) -> Self {
         Self {
             inner: Box::pin(response.bytes_stream()),
-            parser: ChatSseParser::new(),
+            parser: FrameParser::new(),
             pending: VecDeque::new(),
         }
     }
@@ -78,7 +79,19 @@ impl Stream for ChatStream {
         match self.inner.as_mut().poll_next(cx) {
             Poll::Ready(Some(Ok(chunk))) => {
                 let text = String::from_utf8_lossy(&chunk);
-                self.pending = self.parser.push(&text).into();
+                self.pending = self
+                    .parser
+                    .push(&text)
+                    .into_iter()
+                    .map(|frame| {
+                        serde_json::from_str(&frame.data)
+                            .map(|data| ChatStreamEvent {
+                                event: frame.event,
+                                data,
+                            })
+                            .map_err(BigRagError::from)
+                    })
+                    .collect();
 
                 if let Some(event) = self.pending.pop_front() {
                     Poll::Ready(Some(event))
@@ -94,78 +107,4 @@ impl Stream for ChatStream {
             Poll::Pending => Poll::Pending,
         }
     }
-}
-
-struct ChatSseParser {
-    buffer: String,
-}
-
-impl ChatSseParser {
-    fn new() -> Self {
-        Self {
-            buffer: String::new(),
-        }
-    }
-
-    fn push(&mut self, text: &str) -> Vec<Result<ChatStreamEvent, BigRagError>> {
-        self.buffer.push_str(text);
-        let mut events = Vec::new();
-
-        while let Some((pos, len)) = find_sse_boundary(&self.buffer) {
-            let block = self.buffer[..pos].to_string();
-            self.buffer = self.buffer[pos + len..].to_string();
-
-            if let Some(event) = parse_chat_sse_block(&block) {
-                events.push(event);
-            }
-        }
-
-        events
-    }
-}
-
-fn find_sse_boundary(buffer: &str) -> Option<(usize, usize)> {
-    match (buffer.find("\n\n"), buffer.find("\r\n\r\n")) {
-        (Some(lf), Some(crlf)) if lf < crlf => Some((lf, 2)),
-        (Some(_lf), Some(crlf)) => Some((crlf, 4)),
-        (Some(lf), None) => Some((lf, 2)),
-        (None, Some(crlf)) => Some((crlf, 4)),
-        (None, None) => None,
-    }
-}
-
-fn parse_chat_sse_block(block: &str) -> Option<Result<ChatStreamEvent, BigRagError>> {
-    let mut event = "message".to_string();
-    let mut data = Vec::new();
-
-    for raw in block.lines() {
-        let line = raw.trim_end_matches('\r');
-        if line.is_empty() || line.starts_with(':') {
-            continue;
-        }
-        if let Some(value) = line.strip_prefix("event:") {
-            event = trim_sse_value(value).to_string();
-        } else if let Some(value) = line.strip_prefix("data:") {
-            data.push(trim_sse_value(value).to_string());
-        }
-    }
-
-    if data.is_empty() {
-        return None;
-    }
-
-    let payload = data.join("\n");
-    if payload == "[DONE]" {
-        return None;
-    }
-
-    Some(
-        serde_json::from_str(&payload)
-            .map(|data| ChatStreamEvent { event, data })
-            .map_err(BigRagError::from),
-    )
-}
-
-fn trim_sse_value(value: &str) -> &str {
-    value.strip_prefix(' ').unwrap_or(value)
 }
