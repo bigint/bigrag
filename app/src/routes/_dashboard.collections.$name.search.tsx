@@ -1,6 +1,7 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Search, Sparkles } from "lucide-react";
+import { CircleAlert, Copy, RotateCcw, Search, Sparkles, X } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import {
 import { useCollection } from "@/hooks/use-collections";
 import { useRunQuery } from "@/hooks/use-query";
 import { errorText, submitWith } from "@/lib/form";
+import type { QueryResult } from "@/types/bigrag";
 
 export const Route = createFileRoute("/_dashboard/collections/$name/search")({
   component: () => <SearchTab />,
@@ -51,13 +53,19 @@ const SearchTab = () => {
             <form.Field
               name="query"
               validators={{
-                onSubmit: ({ value }) => (value.trim() ? undefined : "Query is required"),
+                onSubmit: ({ value }) => {
+                  if (!value.trim()) return "Query is required";
+                  if (value.length > 500) return "Query must be 500 characters or fewer";
+                  return undefined;
+                },
               }}
             >
               {(field) => (
                 <Input
                   autoFocus
+                  description={`${field.state.value.length}/500 characters`}
                   error={errorText(field.state.meta.errors)}
+                  maxLength={500}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
                   placeholder="Ask a question of this collection…"
@@ -133,6 +141,43 @@ const SearchTab = () => {
         </CardContent>
       </Card>
 
+      {run.isPending && (
+        <Card className="rounded-xl">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Spinner size="sm" />
+              Searching {name}
+            </div>
+            <Button size="sm" variant="secondary" onClick={run.cancel}>
+              <X className="size-4" />
+              Cancel
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {run.isError && (
+        <Card className="rounded-xl border-destructive/25">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <CircleAlert className="size-4 text-destructive" />
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">Search failed</h3>
+                <p className="truncate text-sm text-muted-foreground">
+                  {run.error instanceof Error ? run.error.message : "Query request failed."}
+                </p>
+              </div>
+            </div>
+            {run.variables && (
+              <Button size="sm" variant="secondary" onClick={() => run.mutate(run.variables)}>
+                <RotateCcw className="size-4" />
+                Retry
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {run.data && run.data.results.length === 0 && (
         <Empty
           icon={<Search className="size-6" />}
@@ -145,22 +190,39 @@ const SearchTab = () => {
         <div className="flex flex-col gap-2">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
             {run.data.total} result{run.data.total === 1 ? "" : "s"} for "{run.data.query}"
+            {run.data.timings?.total_ms !== undefined
+              ? ` · ${Math.round(run.data.timings.total_ms)}ms`
+              : ""}
           </div>
           {run.data.results.map((r) => (
             <article key={r.id} className="rounded-xl border border-border bg-card p-4">
-              <div className="mb-2 flex items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2">
+              <div className="mb-2 flex items-start justify-between gap-2 text-xs">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <Badge variant="primary">score {r.score.toFixed(3)}</Badge>
                   {r.document_id && (
                     <Link
                       params={{ docId: r.document_id, name }}
+                      hash={r.chunk_index !== null ? `chunk-${r.chunk_index}` : undefined}
                       to="/collections/$name/documents/$docId"
                       className="font-mono text-muted-foreground hover:text-primary"
                     >
-                      {r.document_id.slice(0, 8)}#{r.chunk_index}
+                      {r.document_filename ?? r.document_id.slice(0, 8)}
+                      {r.chunk_index !== null ? ` #${r.chunk_index}` : ""}
                     </Link>
                   )}
+                  <span className="text-muted-foreground">{resultMetadata(r)}</span>
                 </div>
+                <Button
+                  aria-label="Copy result text"
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => {
+                    navigator.clipboard.writeText(r.text);
+                    toast.success("Result copied");
+                  }}
+                >
+                  <Copy className="size-4" />
+                </Button>
               </div>
               <p className="whitespace-pre-wrap text-sm leading-relaxed">{r.text}</p>
             </article>
@@ -169,4 +231,19 @@ const SearchTab = () => {
       )}
     </div>
   );
+};
+
+const resultMetadata = (result: QueryResult) => {
+  const parts = [];
+  if (result.page_no !== undefined && result.page_no !== null) parts.push(`page ${result.page_no}`);
+  if (result.char_start !== undefined && result.char_start !== null) {
+    parts.push(`chars ${result.char_start}-${result.char_end ?? "?"}`);
+  }
+  const metadataKeys = Object.keys(result.metadata ?? {}).filter(
+    (key) =>
+      !["page_no", "char_start", "char_end", "document_filename"].includes(key) &&
+      typeof result.metadata[key] !== "object",
+  );
+  if (metadataKeys.length) parts.push(metadataKeys.slice(0, 3).join(", "));
+  return parts.join(" · ");
 };

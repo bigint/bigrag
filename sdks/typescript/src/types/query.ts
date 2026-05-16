@@ -12,7 +12,11 @@ export interface QueryResult {
   text: string;
   score: number;
   document_id: string | null;
+  document_filename: string | null;
   chunk_index: number | null;
+  page_no?: number | null;
+  char_start?: number | null;
+  char_end?: number | null;
   metadata: Record<string, unknown>;
 }
 
@@ -48,6 +52,7 @@ export interface MultiQueryResult {
   text: string;
   score: number;
   document_id: string | null;
+  document_filename: string | null;
   chunk_index: number | null;
   collection: string;
   metadata: Record<string, unknown>;

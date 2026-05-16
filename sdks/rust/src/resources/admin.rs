@@ -523,8 +523,14 @@ impl AdminMcpServers<'_> {
 /// Admin realtime document filters.
 #[derive(Debug, Clone, Default)]
 pub struct AdminRealtimeDocumentsOptions {
+    /// Search filename, type, ID, or error text.
+    pub q: Option<String>,
     /// Document status filter.
     pub status: Option<String>,
+    /// Sort field.
+    pub sort: Option<String>,
+    /// Sort order.
+    pub order: Option<String>,
     /// Pagination limit.
     pub limit: Option<u32>,
     /// Pagination offset.
@@ -556,7 +562,10 @@ impl AdminRealtime<'_> {
     ) -> Result<AdminRealtimeStream, BigRagError> {
         let mut query = Vec::new();
         if let Some(options) = options {
+            push_opt(&mut query, "q", options.q);
             push_opt(&mut query, "status", options.status);
+            push_opt(&mut query, "sort", options.sort);
+            push_opt(&mut query, "order", options.order);
             push_opt_u32(&mut query, "limit", options.limit);
             push_opt_u32(&mut query, "offset", options.offset);
         }

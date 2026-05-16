@@ -45,8 +45,16 @@ pub struct QueryResult {
     pub score: f64,
     /// Source document ID.
     pub document_id: Option<String>,
+    /// Source document filename.
+    pub document_filename: Option<String>,
     /// Chunk index within the source document.
     pub chunk_index: Option<u32>,
+    /// Source page number when available.
+    pub page_no: Option<u32>,
+    /// Source character start when available.
+    pub char_start: Option<u32>,
+    /// Source character end when available.
+    pub char_end: Option<u32>,
     /// Result metadata.
     pub metadata: serde_json::Value,
 }
@@ -118,6 +126,8 @@ pub struct MultiQueryResult {
     pub score: f64,
     /// Source document ID.
     pub document_id: Option<String>,
+    /// Source document filename.
+    pub document_filename: Option<String>,
     /// Chunk index within the source document.
     pub chunk_index: Option<u32>,
     /// Collection this result came from.

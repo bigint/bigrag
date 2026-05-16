@@ -19,6 +19,7 @@ class QueryResult(TypedDict):
     text: str
     score: float
     document_id: str | None
+    document_filename: str | None
     chunk_index: int | None
     page_no: int | None
     char_start: int | None
@@ -58,6 +59,7 @@ class MultiQueryResult(TypedDict):
     text: str
     score: float
     document_id: str | None
+    document_filename: str | None
     chunk_index: int | None
     collection: str
     metadata: dict[str, Any]

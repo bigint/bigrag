@@ -242,7 +242,11 @@ const DocumentDetail = () => {
           ) : (
             <div className="flex flex-col gap-2">
               {chunks.chunks.map((c) => (
-                <article key={c.id} className={cn("rounded-xl border border-border bg-card p-4")}>
+                <article
+                  id={`chunk-${c.chunk_index}`}
+                  key={c.id}
+                  className={cn("scroll-mt-24 rounded-xl border border-border bg-card p-4")}
+                >
                   <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant="neutral">#{c.chunk_index}</Badge>
                     <span className="font-mono">{c.id.slice(0, 8)}</span>

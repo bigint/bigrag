@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 
 import orjson
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from bigrag.db.engine import session_factory
+from bigrag.db.models import Document
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.query import (
@@ -109,8 +113,9 @@ async def query_collection(
         results=len(outcome.results),
         total_ms=outcome.total_ms,
     )
+    results = await _results_with_document_filenames(outcome.results)
     response = QueryResponse(
-        results=[QueryResult(**_result_to_dict(r)) for r in outcome.results],
+        results=[QueryResult(**_result_to_dict(r)) for r in results],
         query=body.query,
         collection=collection_name,
         total=len(outcome.results),
@@ -145,10 +150,37 @@ def _result_to_dict(row: dict) -> dict:
 
     cleaned = {k: v for k, v in row.items() if k != "embedding"}
     metadata = cleaned.get("metadata") or {}
-    for field_name in ("page_no", "char_start", "char_end"):
+    for field_name in ("page_no", "char_start", "char_end", "document_filename"):
         if field_name in metadata and field_name not in cleaned:
             cleaned[field_name] = metadata[field_name]
     return cleaned
+
+
+async def _results_with_document_filenames(rows: list[dict]) -> list[dict]:
+    document_ids = []
+    for row in rows:
+        raw = row.get("document_id")
+        if raw is None:
+            continue
+        try:
+            document_ids.append(uuid.UUID(str(raw)))
+        except ValueError:
+            continue
+    if not document_ids:
+        return rows
+    async with session_factory()() as session:
+        records = await session.execute(
+            sa.select(Document.id, Document.filename).where(Document.id.in_(set(document_ids)))
+        )
+        filenames = {str(document_id): filename for document_id, filename in records.all()}
+    return [
+        {
+            **row,
+            "document_filename": row.get("document_filename")
+            or filenames.get(str(row.get("document_id"))),
+        }
+        for row in rows
+    ]
 
 
 @router.post("/v1/query", response_model=MultiQueryResponse)
@@ -211,8 +243,9 @@ async def multi_collection_query(
             "collections_hit": sorted({str(row.get("collection")) for row in results}),
         },
     )
+    results_with_filenames = await _results_with_document_filenames(results)
     return MultiQueryResponse(
-        results=[MultiQueryResult(**r) for r in results],
+        results=[MultiQueryResult(**_result_to_dict(r)) for r in results_with_filenames],
         query=body.query,
         collections=body.collections,
         total=len(results),
@@ -261,8 +294,9 @@ async def batch_query(
             vector_store_provider=collection.get("vector_store_provider"),
         )
 
+        results = await _results_with_document_filenames(outcome.results)
         return BatchQueryResultItem(
-            results=[QueryResult(**_result_to_dict(r)) for r in outcome.results],
+            results=[QueryResult(**_result_to_dict(r)) for r in results],
             query=item.query,
             collection=item.collection,
             total=len(outcome.results),

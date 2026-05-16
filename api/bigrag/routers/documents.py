@@ -189,8 +189,9 @@ async def list_documents(
         .select_from(Document)
         .where(Document.collection_id == collection["id"])
     )
-    if q:
-        pattern = f"%{q.strip()}%"
+    search_term = q.strip() if q else ""
+    if search_term:
+        pattern = f"%{search_term}%"
         search_filter = sa.or_(
             Document.filename.ilike(pattern),
             Document.file_type.ilike(pattern),

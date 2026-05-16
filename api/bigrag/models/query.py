@@ -42,6 +42,7 @@ class QueryResult(BaseModel):
     text: str
     score: float
     document_id: str | None = None
+    document_filename: str | None = None
     chunk_index: int | None = None
     page_no: int | None = None
     char_start: int | None = None
@@ -81,6 +82,7 @@ class MultiQueryResult(BaseModel):
     text: str
     score: float
     document_id: str | None = None
+    document_filename: str | None = None
     chunk_index: int | None = None
     collection: str = ""
     metadata: dict = {}
