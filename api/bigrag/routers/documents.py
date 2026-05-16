@@ -155,24 +155,50 @@ async def upload_document(
 @router.get("", response_model=DocumentListResponse)
 async def list_documents(
     collection_name: str,
+    q: str | None = Query(default=None, max_length=200),
     status: str | None = None,
+    sort: str = Query(default="created_at"),
+    order: str = Query(default="desc"),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
     _: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
+    sort_columns = {
+        "created_at": Document.created_at,
+        "updated_at": Document.updated_at,
+        "filename": Document.filename,
+        "file_size": Document.file_size,
+        "chunk_count": Document.chunk_count,
+        "status": Document.status,
+    }
+    sort_column = sort_columns.get(sort)
+    if sort_column is None:
+        raise HTTPException(status_code=400, detail="Invalid document sort")
+    if order not in {"asc", "desc"}:
+        raise HTTPException(status_code=400, detail="Invalid document order")
 
     stmt = (
         sa.select(Document)
         .where(Document.collection_id == collection["id"])
-        .order_by(Document.created_at.desc())
+        .order_by(sort_column.asc() if order == "asc" else sort_column.desc(), Document.id.desc())
     )
     count_stmt = (
         sa.select(sa.func.count())
         .select_from(Document)
         .where(Document.collection_id == collection["id"])
     )
+    if q:
+        pattern = f"%{q.strip()}%"
+        search_filter = sa.or_(
+            Document.filename.ilike(pattern),
+            Document.file_type.ilike(pattern),
+            Document.error_message.ilike(pattern),
+            sa.cast(Document.id, sa.Text).ilike(pattern),
+        )
+        stmt = stmt.where(search_filter)
+        count_stmt = count_stmt.where(search_filter)
     if status:
         stmt = stmt.where(Document.status == status)
         count_stmt = count_stmt.where(Document.status == status)

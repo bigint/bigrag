@@ -15,6 +15,7 @@ interface SelectProps {
   "aria-label"?: string;
   placeholder?: string;
   disabled?: boolean;
+  description?: string;
   id?: string;
   className?: string;
   label?: string;
@@ -59,6 +60,7 @@ export const Select = ({
   "aria-label": ariaLabel,
   placeholder = "Select…",
   disabled = false,
+  description,
   id,
   className,
   label,
@@ -124,6 +126,7 @@ export const Select = ({
         </BaseSelect.Positioner>
       </BaseSelect.Portal>
     </BaseSelect.Root>
+    {description && !error && <p className="text-xs text-muted-foreground">{description}</p>}
     {error && <p className="text-xs text-destructive">{error}</p>}
   </div>
 );

@@ -1,13 +1,17 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
+import { useEffect, useState } from "react";
 import { Button } from "./button";
+import { Input } from "./input";
 
 interface ConfirmDialogProps {
   readonly open: boolean;
   readonly onClose: () => void;
-  readonly onConfirm: () => void;
+  readonly onConfirm: () => void | Promise<void>;
   readonly title: string;
   readonly description: string;
   readonly confirmLabel?: string;
+  readonly confirmationLabel?: string;
+  readonly confirmationText?: string;
   readonly loading?: boolean;
   readonly variant?: "destructive" | "primary";
 }
@@ -19,9 +23,19 @@ export const ConfirmDialog = ({
   title,
   description,
   confirmLabel = "Confirm",
+  confirmationLabel,
+  confirmationText,
   loading = false,
   variant = "destructive",
 }: ConfirmDialogProps) => {
+  const [typed, setTyped] = useState("");
+  const needsConfirmation = Boolean(confirmationText);
+  const canConfirm = !confirmationText || typed === confirmationText;
+
+  useEffect(() => {
+    if (!open) setTyped("");
+  }, [open]);
+
   return (
     <AlertDialog.Root
       onOpenChange={(o) => {
@@ -43,13 +57,23 @@ export const ConfirmDialog = ({
             <AlertDialog.Description className="mt-2 text-sm text-muted-foreground">
               {description}
             </AlertDialog.Description>
+            {confirmationText && (
+              <div className="mt-4">
+                <Input
+                  autoComplete="off"
+                  label={confirmationLabel ?? `Type ${confirmationText} to confirm`}
+                  onChange={(event) => setTyped(event.target.value)}
+                  value={typed}
+                />
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-2 border-t border-border bg-muted/45 px-6 py-4">
             <AlertDialog.Close
               disabled={loading}
               render={<Button variant="secondary">Cancel</Button>}
             />
-            <Button disabled={loading} onClick={onConfirm} variant={variant}>
+            <Button disabled={loading || (needsConfirmation && !canConfirm)} onClick={onConfirm} variant={variant}>
               {loading ? "Processing…" : confirmLabel}
             </Button>
           </div>

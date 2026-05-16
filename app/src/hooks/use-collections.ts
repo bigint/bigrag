@@ -13,7 +13,7 @@ const invalidateCollectionData = (queryClient: QueryClient, name: string) => {
   queryClient.invalidateQueries({ queryKey: queryKeys.collections.all() });
   queryClient.invalidateQueries({ queryKey: queryKeys.collections.one({ name }) });
   queryClient.invalidateQueries({ queryKey: queryKeys.collections.stats({ name }) });
-  queryClient.invalidateQueries({ queryKey: queryKeys.documents.list({ collection: name }) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.documents.lists() });
 };
 
 export const useCollections = () =>

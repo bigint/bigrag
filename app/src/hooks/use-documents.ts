@@ -8,6 +8,22 @@ import { queryKeys } from "@/lib/query-keys";
 import type { Chunk, Document, UploadSession, UploadSessionFileResponse } from "@/types/bigrag";
 
 type DocListResponse = { documents: Document[]; total: number };
+export type DocumentListSort =
+  | "created_at"
+  | "updated_at"
+  | "filename"
+  | "file_size"
+  | "chunk_count"
+  | "status";
+export type DocumentListOrder = "asc" | "desc";
+export type DocumentListFilters = {
+  q?: string;
+  status?: string;
+  sort?: DocumentListSort;
+  order?: DocumentListOrder;
+  limit?: number;
+  offset?: number;
+};
 
 const uploadSessionFileName = (file: File) =>
   (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
@@ -19,22 +35,41 @@ const documentListLimit = 1000;
 const chunkListLimit = 1000;
 const uploadConcurrency = 4;
 
-export const useDocuments = (collection: string, status?: string) => {
+export const useDocuments = (collection: string, filters: DocumentListFilters = {}) => {
+  const limit = filters.limit ?? documentListLimit;
+  const offset = filters.offset ?? 0;
+  const q = filters.q?.trim() || undefined;
+  const status = filters.status || undefined;
+  const sort = filters.sort ?? "created_at";
+  const order = filters.order ?? "desc";
   const queryKey = useMemo(
-    () => queryKeys.documents.list({ collection, status }),
-    [collection, status],
+    () => queryKeys.documents.list({ collection, q, status, sort, order, limit, offset }),
+    [collection, limit, offset, order, q, sort, status],
   );
   const path = useMemo(() => {
-    const params = new URLSearchParams({ limit: String(documentListLimit) });
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+      order,
+      sort,
+    });
+    if (q) params.set("q", q);
     if (status) params.set("status", status);
     return `v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents?${params}`;
-  }, [collection, status]);
+  }, [collection, limit, offset, order, q, sort, status]);
   return useSseSnapshotQuery<DocListResponse>({
     queryKey,
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       apiClient.get<DocListResponse>(`v1/collections/${encodeURIComponent(collection)}/documents`, {
-        limit: documentListLimit,
-        ...(status ? { status } : {}),
+        searchParams: {
+          limit,
+          offset,
+          order,
+          q,
+          sort,
+          status,
+        },
+        signal,
       }),
     enabled: !!collection,
     path,
@@ -48,9 +83,10 @@ export const useDocument = (collection: string, docId: string) => {
   );
   return useSseSnapshotQuery<Document>({
     queryKey,
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       apiClient.get<Document>(
         `v1/collections/${encodeURIComponent(collection)}/documents/${docId}`,
+        { signal },
       ),
     enabled: !!collection && !!docId,
     path: `v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents/${docId}`,
@@ -61,10 +97,10 @@ export const useDocument = (collection: string, docId: string) => {
 export const useChunks = (collection: string, docId: string) =>
   useQuery({
     queryKey: queryKeys.documents.chunks({ collection, id: docId }),
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       apiClient.get<{ chunks: Chunk[]; total: number }>(
         `v1/collections/${encodeURIComponent(collection)}/documents/${docId}/chunks`,
-        { limit: chunkListLimit },
+        { searchParams: { limit: chunkListLimit }, signal },
       ),
     enabled: !!collection && !!docId,
   });
@@ -77,9 +113,10 @@ export const useUploadSession = (collection: string, sessionId: string | null) =
   const enabled = Boolean(collection && sessionId);
   return useSseSnapshotQuery<UploadSession>({
     queryKey,
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       apiClient.get<UploadSession>(
         `v1/collections/${encodeURIComponent(collection)}/upload-sessions/${sessionId}`,
+        { signal },
       ),
     enabled,
     path: `v1/admin/realtime/collections/${encodeURIComponent(collection)}/upload-sessions/${sessionId}`,
@@ -137,7 +174,7 @@ export const useUploadSessionDocuments = (
       return { errors, session: finalSession };
     },
     onSuccess: ({ errors, session }) => {
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.lists() });
       qc.invalidateQueries({
         queryKey: queryKeys.documents.uploadSession({ collection, id: session.id }),
       });
@@ -164,7 +201,7 @@ export const useCancelUploadSession = (collection: string) => {
       qc.invalidateQueries({
         queryKey: queryKeys.documents.uploadSession({ collection, id: sessionId }),
       });
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.lists() });
       toast.success("Upload session canceled");
     },
     onError: errorToast("Cancel failed"),
@@ -179,9 +216,30 @@ export const useDeleteDocument = (collection: string) => {
         `v1/collections/${encodeURIComponent(collection)}/documents/${docId}`,
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.lists() });
       toast.success("Document deleted");
     },
+  });
+};
+
+export const useBatchDeleteDocuments = (collection: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (documentIds: string[]) =>
+      apiClient.post<{ status: string; deleted: number; errors: { document_id: string; error: string }[] }>(
+        `v1/collections/${encodeURIComponent(collection)}/documents/batch/delete`,
+        { document_ids: documentIds },
+      ),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: queryKeys.documents.lists() });
+      const failed = res.errors.length;
+      if (failed) {
+        toast.warning(`${res.deleted} deleted, ${failed} failed`);
+      } else {
+        toast.success(`${res.deleted} document${res.deleted === 1 ? "" : "s"} deleted`);
+      }
+    },
+    onError: errorToast("Bulk delete failed"),
   });
 };
 
@@ -193,7 +251,7 @@ export const useReprocessDocument = (collection: string) => {
         `v1/collections/${encodeURIComponent(collection)}/documents/${docId}/reprocess`,
       ),
     onSuccess: (_res, docId) => {
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.lists() });
       qc.invalidateQueries({ queryKey: queryKeys.documents.one({ collection, id: docId }) });
       toast.success("Reprocessing queued");
     },

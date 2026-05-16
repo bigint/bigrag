@@ -33,6 +33,11 @@ type DocumentParams = {
 type DocumentListParams = {
   readonly collection: string;
   readonly status?: string;
+  readonly q?: string;
+  readonly sort?: string;
+  readonly order?: string;
+  readonly limit?: number;
+  readonly offset?: number;
 };
 
 type UploadSessionParams = {
@@ -91,8 +96,21 @@ export const queryKeys = {
     stats: ({ name }: CollectionNameParams) => ["collections", "stats", { name }] as const,
   },
   documents: {
-    list: ({ collection, status }: DocumentListParams) =>
-      ["documents", "list", { collection, ...(status ? { status } : {}) }] as const,
+    lists: () => ["documents", "list"] as const,
+    list: ({ collection, status, q, sort, order, limit, offset }: DocumentListParams) =>
+      [
+        "documents",
+        "list",
+        {
+          collection,
+          ...(status ? { status } : {}),
+          ...(q ? { q } : {}),
+          ...(sort ? { sort } : {}),
+          ...(order ? { order } : {}),
+          ...(limit !== undefined ? { limit } : {}),
+          ...(offset !== undefined ? { offset } : {}),
+        },
+      ] as const,
     one: ({ collection, id }: DocumentParams) =>
       ["documents", "detail", { collection, id }] as const,
     chunks: ({ collection, id }: DocumentParams) =>

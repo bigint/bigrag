@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createCollectionBodyFromValues,
   defaultCreateCollectionFormValues,
+  type CreateCollectionFormValues,
   validateCreateCollectionFormValues,
 } from "@/features/collections/collection-form-state";
 import { useCreateCollection } from "@/hooks/use-collections";
@@ -21,7 +23,13 @@ type Props = { open: boolean; onClose: () => void };
 
 export const CreateCollectionModal = ({ open, onClose }: Props) => {
   const create = useCreateCollection();
-  const { data: presetsData } = useEmbeddingPresets();
+  const {
+    data: presetsData,
+    error: presetsError,
+    isError: presetsIsError,
+    isPending: presetsPending,
+    refetch: refetchPresets,
+  } = useEmbeddingPresets();
   const form = useForm({
     defaultValues: defaultCreateCollectionFormValues(),
     validators: {
@@ -31,10 +39,7 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
       try {
         await create.mutateAsync(createCollectionBodyFromValues(value));
         onClose();
-        form.setFieldValue("name", "");
-        form.setFieldValue("description", "");
-        form.setFieldValue("presetId", "");
-        form.setFieldValue("vectorStoreProvider", "qdrant");
+        form.reset(defaultCreateCollectionFormValues());
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to create");
       }
@@ -57,6 +62,7 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
   useDefaultEmbeddingPreset(open, presets, values.presetId, (presetId) =>
     form.setFieldValue("presetId", presetId),
   );
+  useResetCreateCollectionForm(open, form, create.reset);
 
   return (
     <Modal onClose={onClose} open={open} title="New collection">
@@ -79,20 +85,26 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
           }}
         </form.Subscribe>
         <form.Field
-          name="name"
-          validators={{
-            onSubmit: ({ value }) => (value ? undefined : "Name is required"),
+            name="name"
+            validators={{
+            onSubmit: ({ value }) => {
+              const trimmed = value.trim();
+              if (!trimmed) return "Name is required";
+              return /^[a-zA-Z][a-zA-Z0-9_]*$/.test(trimmed)
+                ? undefined
+                : "Start with a letter. Use letters, numbers, and underscores.";
+            },
           }}
         >
           {(field) => (
             <Input
               autoFocus
-              description="Lowercase letters, numbers, dashes and underscores."
+              description="Start with a letter. Use letters, numbers, and underscores."
               error={errorText(field.state.meta.errors)}
               label="Name"
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.target.value)}
-              placeholder="product-docs"
+              placeholder="product_docs"
               required
               value={field.state.value}
             />
@@ -121,7 +133,19 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             />
           )}
         </form.Field>
-        {presets.length === 0 ? (
+        {presetsPending ? (
+          <div className="flex items-center gap-3 rounded-md border border-border bg-muted/50 px-3 py-3 text-sm text-muted-foreground">
+            <Spinner size="sm" />
+            Loading embedding presets...
+          </div>
+        ) : presetsIsError ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-3 text-sm text-destructive">
+            <div>{presetsError instanceof Error ? presetsError.message : "Failed to load presets"}</div>
+            <Button className="mt-2" onClick={() => refetchPresets()} size="sm" type="button" variant="secondary">
+              Retry
+            </Button>
+          </div>
+        ) : presets.length === 0 ? (
           <div className="flex items-start gap-3 rounded-md border border-border bg-muted/50 px-3 py-3 text-sm">
             <Cpu className="mt-0.5 size-4 text-muted-foreground" />
             <div className="flex-1">
@@ -146,6 +170,7 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
           >
             {(field) => (
               <Select
+                description="Provider, model, and API key are inherited from the selected preset."
                 error={errorText(field.state.meta.errors)}
                 label="Embedding preset"
                 onChange={field.handleChange}
@@ -160,8 +185,8 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             name="chunkSize"
             validators={{
               onSubmit: ({ value }) =>
-                value < 128 || value > 10000
-                  ? "Chunk size must be between 128 and 10000"
+                value < 64 || value > 10000
+                  ? "Chunk size must be between 64 and 10000"
                   : undefined,
             }}
           >
@@ -170,7 +195,7 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
                 error={errorText(field.state.meta.errors)}
                 label="Chunk size"
                 max={10000}
-                min={128}
+                min={64}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(Number(e.target.value))}
                 type="number"
@@ -199,6 +224,40 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             )}
           </form.Field>
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <form.Field
+            name="tenantField"
+            validators={{
+              onSubmit: ({ value }) =>
+                value.trim().length > 64 ? "Tenant field must be 64 characters or fewer" : undefined,
+            }}
+          >
+            {(field) => (
+              <Input
+                description="Optional metadata key required on uploads and queries."
+                error={errorText(field.state.meta.errors)}
+                label="Tenant field"
+                maxLength={64}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                placeholder="tenant_id"
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
+          <form.Field name="metadataSchemaText">
+            {(field) => (
+              <Textarea
+                className="min-h-10"
+                label="Metadata schema"
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                placeholder='{"type":"object"}'
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
+        </div>
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
@@ -214,7 +273,7 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
 
 const VECTOR_STORAGE_OPTIONS = [
   { value: "qdrant", label: "Qdrant" },
-  { value: "turbopuffer", label: "turbopuffer" },
+  { value: "turbopuffer", label: "Turbopuffer" },
 ] as const;
 
 const useDefaultEmbeddingPreset = (
@@ -227,4 +286,17 @@ const useDefaultEmbeddingPreset = (
     const first = presets[0];
     if (open && first && !presetId) setPresetId(first.id);
   }, [open, presets, presetId, setPresetId]);
+};
+
+const useResetCreateCollectionForm = (
+  open: boolean,
+  form: ReturnType<typeof useForm<CreateCollectionFormValues>>,
+  resetMutation: () => void,
+) => {
+  useEffect(() => {
+    if (!open) {
+      form.reset(defaultCreateCollectionFormValues());
+      resetMutation();
+    }
+  }, [form, open, resetMutation]);
 };

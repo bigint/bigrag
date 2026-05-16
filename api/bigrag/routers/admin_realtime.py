@@ -229,7 +229,10 @@ def _backup_jobs_interval(payload: Any | None) -> float:
 @router.get("/collections/{collection_name}/documents", response_class=StreamingResponse)
 async def collection_documents_stream(
     collection_name: str,
+    q: str | None = Query(default=None, max_length=200),
     status: str | None = Query(default=None),
+    sort: str = Query(default="created_at"),
+    order: str = Query(default="desc"),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
     user: dict = Depends(require_admin_session),
@@ -240,7 +243,10 @@ async def collection_documents_stream(
         return await _with_session(
             lambda session: list_documents(
                 collection_name=collection_name,
+                q=q,
                 status=status,
+                sort=sort,
+                order=order,
                 limit=limit,
                 offset=offset,
                 _=user,

@@ -171,7 +171,7 @@ export const useCreateGoogleSource = (collection: string) => {
         return { sources: [source, ...sources], total: sources.length + 1 };
       });
       qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources({ collection }) });
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.lists() });
       toast.success("Google Drive source syncing");
     },
     onError: errorToast("Could not add Google Drive source"),
@@ -195,7 +195,7 @@ export const useSyncGoogleSource = (collection: string) => {
       });
       qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources({ collection }) });
       invalidateGoogleSyncJobs(qc, collection, sourceId);
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.lists() });
       toast.success("Google Drive sync queued");
     },
     onError: errorToast("Could not sync Google Drive source"),
@@ -240,7 +240,7 @@ export const useDeleteGoogleSource = (collection: string) => {
       });
       qc.invalidateQueries({ queryKey: queryKeys.connectors.googleSources({ collection }) });
       invalidateGoogleSyncJobs(qc, collection, sourceId);
-      qc.invalidateQueries({ queryKey: queryKeys.documents.list({ collection }) });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.lists() });
       toast.success("Google Drive source removed");
     },
     onError: errorToast("Could not remove Google Drive source"),

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowUpRight, BookOpen, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -14,13 +14,23 @@ import { formatNumber, formatRelative } from "@/lib/format";
 import type { Collection } from "@/types/bigrag";
 
 export const Route = createFileRoute("/_dashboard/collections/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    create: search.create === "1" || search.create === true,
+  }),
   component: () => <CollectionsPage />,
 });
 
 const CollectionsPage = () => {
+  const navigate = useNavigate();
+  const { create } = Route.useSearch();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const { data, isPending } = useCollections();
+  const { data, error, isPending, refetch } = useCollections();
+  const modalOpen = open || create;
+  const closeModal = () => {
+    setOpen(false);
+    if (create) navigate({ to: "/collections", search: {}, replace: true });
+  };
 
   const items = useMemo(() => {
     if (!data) return [];
@@ -57,7 +67,7 @@ const CollectionsPage = () => {
     {
       header: "Storage",
       key: "storage",
-      render: (c) => <Badge variant="neutral">{c.vector_store_provider}</Badge>,
+      render: (c) => <Badge variant="neutral">{storageLabel(c.vector_store_provider)}</Badge>,
     },
     {
       header: "Model",
@@ -89,7 +99,7 @@ const CollectionsPage = () => {
       render: (c) => formatRelative(c.updated_at),
     },
     {
-      header: "Actions",
+      header: "Open",
       headerClassName: "text-right",
       className: "text-right",
       key: "actions",
@@ -156,12 +166,22 @@ const CollectionsPage = () => {
         }
         emptyIcon={<BookOpen className="size-6" />}
         emptyTitle={q ? "No collections match" : "No collections yet"}
+        error={error}
+        errorAction={
+          <Button onClick={() => refetch()} size="sm" variant="secondary">
+            Retry
+          </Button>
+        }
+        errorTitle="Couldn't load collections"
         keyExtractor={(c) => c.id}
         loading={isPending}
         loadingMessage="Loading collections..."
       />
 
-      <CreateCollectionModal open={open} onClose={() => setOpen(false)} />
+      <CreateCollectionModal open={modalOpen} onClose={closeModal} />
     </PageShell>
   );
 };
+
+const storageLabel = (provider: Collection["vector_store_provider"]) =>
+  provider === "turbopuffer" ? "Turbopuffer" : "Qdrant";

@@ -21,6 +21,9 @@ interface DataTableProps<T> {
   readonly emptyTitle?: string;
   readonly emptyDescription?: string;
   readonly emptyAction?: ReactNode;
+  readonly error?: unknown;
+  readonly errorAction?: ReactNode;
+  readonly errorTitle?: string;
 }
 
 export const DataTable = <T,>({
@@ -33,7 +36,21 @@ export const DataTable = <T,>({
   emptyTitle = "No data",
   emptyDescription,
   emptyAction,
+  error,
+  errorAction,
+  errorTitle = "Failed to load data",
 }: DataTableProps<T>) => {
+  if (error) {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-6">
+        <h2 className="text-sm font-semibold text-destructive">{errorTitle}</h2>
+        <p className="mt-1 text-sm text-destructive">
+          {error instanceof Error ? error.message : "Unknown error"}
+        </p>
+        {errorAction && <div className="mt-4">{errorAction}</div>}
+      </div>
+    );
+  }
   if (loading) {
     return (
       <div className="rounded-xl border border-border bg-card p-12 text-center">

@@ -38,7 +38,7 @@ const CollectionSettings = () => {
   const { name: rawName } = Route.useParams();
   const name = decodeURIComponent(rawName);
   const navigate = useNavigate();
-  const { data: collection } = useCollection(name);
+  const { data: collection, error, isError, isPending, refetch } = useCollection(name);
   const update = useUpdateCollection(name);
   const truncate = useTruncateCollection(name);
   const remove = useDeleteCollection();
@@ -60,7 +60,21 @@ const CollectionSettings = () => {
     setTopK,
   });
 
-  if (!collection) {
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4">
+        <h2 className="text-sm font-semibold text-destructive">Couldn't load collection settings</h2>
+        <p className="mt-1 text-sm text-destructive">
+          {error instanceof Error ? error.message : "Unknown error"}
+        </p>
+        <Button className="mt-3" onClick={() => refetch()} variant="secondary">
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (isPending || !collection) {
     return (
       <div className="flex justify-center py-8">
         <Spinner />
@@ -142,6 +156,20 @@ const CollectionSettings = () => {
 
   const allSelected = allowedTypes.size === ALL_FILE_TYPES.length;
   const noneSelected = allowedTypes.size === 0;
+  const fileTypesDraft = Array.from(allowedTypes).sort();
+  const storedTypes = getAllowedFileTypes(collection.metadata);
+  const initialTypes = (storedTypes.length ? storedTypes : ALL_FILE_TYPES).slice().sort();
+  const defaultsDirty =
+    description !== collection.description ||
+    topK !== collection.default_top_k ||
+    searchMode !== collection.default_search_mode ||
+    rerankingEnabled !== collection.reranking_enabled;
+  const fileTypesDirty = fileTypesDraft.join(",") !== initialTypes.join(",");
+  const embeddingKeyStatus = collection.has_api_key
+    ? collection.embedding_preset_id
+      ? "Using preset key"
+      : "Collection key saved"
+    : "No key saved";
 
   return (
     <div className="flex flex-col gap-6">
@@ -165,6 +193,7 @@ const CollectionSettings = () => {
         <CardContent className="flex flex-col gap-4">
           <Textarea
             label="Description"
+            description={defaultsDirty ? "Unsaved changes" : undefined}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
@@ -195,7 +224,7 @@ const CollectionSettings = () => {
             />
           </div>
           <div>
-            <Button onClick={saveDefaults} disabled={update.isPending}>
+            <Button onClick={saveDefaults} disabled={update.isPending || !defaultsDirty}>
               Save defaults
             </Button>
           </div>
@@ -209,7 +238,8 @@ const CollectionSettings = () => {
             Embedding key
           </CardTitle>
           <CardDescription>
-            Replace the collection-specific embedding key without changing the model.
+            {embeddingKeyStatus}. Saving a new key stores it on this collection without changing the
+            model.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -280,7 +310,7 @@ const CollectionSettings = () => {
             })}
           </div>
           <div>
-            <Button onClick={saveFileTypes} disabled={update.isPending}>
+            <Button onClick={saveFileTypes} disabled={update.isPending || !fileTypesDirty}>
               Save file types
             </Button>
           </div>
@@ -313,6 +343,8 @@ const CollectionSettings = () => {
         title="Remove all documents?"
         description="The collection stays, but all documents and vectors are removed."
         confirmLabel="Remove documents"
+        confirmationLabel={`Type ${collection.name} to remove all documents`}
+        confirmationText={collection.name}
         loading={truncate.isPending}
         onConfirm={async () => {
           await truncate.mutateAsync();
@@ -326,6 +358,8 @@ const CollectionSettings = () => {
         title={`Delete ${collection.name}?`}
         description="This permanently removes the collection, documents, and vectors."
         confirmLabel="Delete collection"
+        confirmationLabel={`Type ${collection.name} to delete the collection`}
+        confirmationText={collection.name}
         variant="destructive"
         loading={remove.isPending}
         onConfirm={async () => {

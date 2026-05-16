@@ -20,11 +20,15 @@ const CollectionLayout = () => {
 
   const base = `/collections/${encodeURIComponent(name)}`;
   const tabs = [
+    { href: base, label: "Overview", exact: true },
     { href: `${base}/documents`, label: "Documents", count: stats?.document_count },
     { href: `${base}/connectors`, label: "Connectors" },
     { href: `${base}/search`, label: "Search" },
     { href: `${base}/settings`, label: "Settings" },
-  ].map((t) => ({ ...t, active: pathname === t.href || pathname.startsWith(`${t.href}/`) }));
+  ].map((t) => ({
+    ...t,
+    active: t.exact ? pathname === t.href : pathname === t.href || pathname.startsWith(`${t.href}/`),
+  }));
 
   return (
     <PageShell>
@@ -44,9 +48,12 @@ const CollectionLayout = () => {
         actions={
           collection && (
             <div className="hidden items-center gap-2 md:flex">
-              <Badge variant="primary">{collection.embedding_model}</Badge>
-              <Badge variant="neutral">{collection.vector_store_provider}</Badge>
-              <Badge variant="neutral">{collection.dimension}d</Badge>
+              <Badge variant="primary">Model {collection.embedding_model}</Badge>
+              <Badge variant="neutral">
+                Storage{" "}
+                {collection.vector_store_provider === "turbopuffer" ? "Turbopuffer" : "Qdrant"}
+              </Badge>
+              <Badge variant="neutral">Dimensions {collection.dimension}d</Badge>
               {collection.reranking_enabled && (
                 <Badge variant="info">rerank: {collection.reranking_model}</Badge>
               )}
