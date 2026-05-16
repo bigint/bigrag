@@ -6,6 +6,14 @@ import time
 from bigrag.logging import get_logger
 from bigrag.services import embedding_cache
 from bigrag.services.embedding import truncate_to_tokens
+from bigrag.services.embedding_rate_limit import (
+    MAX_RATE_LIMIT_RETRIES,
+    is_rate_limit_error,
+    rate_limit_cooldown_key,
+    rate_limit_delay,
+    record_rate_limit_cooldown,
+    wait_for_rate_limit_cooldown,
+)
 from bigrag.services.ingestion_job import IngestionJob
 from bigrag.services.queue_state import IngestionCancelledError
 
@@ -46,6 +54,8 @@ async def embed_with_cache(
         provider_idx = list(missing_by_cache_text.values())
         missing_texts = [texts[i] for i in provider_idx]
         missing_cache_texts = [cache_texts[i] for i in provider_idx]
+        cooldown_key = rate_limit_cooldown_key(model, provider, model_name, dimension)
+        await wait_for_rate_limit_cooldown(cooldown_key, provider, model_name)
         t0 = time.monotonic()
         logger.info(
             "embedding provider request",
@@ -53,10 +63,15 @@ async def embed_with_cache(
             model=model_name,
             inputs=len(missing_texts),
         )
-        fresh = await asyncio.wait_for(
-            model.embed(missing_texts),
-            timeout=EMBEDDING_TIMEOUT_SECONDS,
-        )
+        try:
+            fresh = await asyncio.wait_for(
+                model.embed(missing_texts),
+                timeout=EMBEDDING_TIMEOUT_SECONDS,
+            )
+        except Exception as exc:
+            if is_rate_limit_error(exc):
+                await record_rate_limit_cooldown(cooldown_key, rate_limit_delay(exc, 1.0))
+            raise
         logger.info(
             "embedding provider response",
             provider=provider,
@@ -121,6 +136,12 @@ async def chunk_and_embed(
         provider=job.embedding_provider,
         model=job.embedding_model,
         elapsed=round(elapsed, 2),
+    )
+    cooldown_key = rate_limit_cooldown_key(
+        embedding_model,
+        job.embedding_provider,
+        job.embedding_model,
+        job.embedding_dimension,
     )
     emit(
         job.document_id,
@@ -189,6 +210,8 @@ async def chunk_and_embed(
         insert_elapsed = 0.0
         count = 0
         attempt = 0
+        transient_attempt = 0
+        rate_limit_attempt = 0
         while True:
             attempt += 1
             try:
@@ -262,7 +285,38 @@ async def chunk_and_embed(
                         batch=batch_num,
                         error=repr(cleanup_exc),
                     )
-                if attempt >= max_batch_retries:
+                if is_rate_limit_error(exc):
+                    rate_limit_attempt += 1
+                    if rate_limit_attempt >= MAX_RATE_LIMIT_RETRIES:
+                        logger.error(
+                            "batch exhausted rate limit retries",
+                            prefix=prefix,
+                            batch=batch_num,
+                            total_batches=total_batches,
+                            chunks=len(batch_texts),
+                            attempt=attempt,
+                            max_rate_limit_attempts=MAX_RATE_LIMIT_RETRIES,
+                            error=repr(exc),
+                        )
+                        raise
+                    fallback_delay = batch_backoff_base ** min(rate_limit_attempt, 5)
+                    delay = rate_limit_delay(exc, float(fallback_delay))
+                    await record_rate_limit_cooldown(cooldown_key, delay)
+                    logger.warning(
+                        "batch rate limited",
+                        prefix=prefix,
+                        batch=batch_num,
+                        total_batches=total_batches,
+                        attempt=attempt,
+                        rate_limit_attempt=rate_limit_attempt,
+                        max_rate_limit_attempts=MAX_RATE_LIMIT_RETRIES,
+                        error=repr(exc),
+                        retrying_in=round(delay, 3),
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                transient_attempt += 1
+                if transient_attempt >= max_batch_retries:
                     logger.error(
                         "batch exhausted retries",
                         prefix=prefix,
@@ -272,13 +326,13 @@ async def chunk_and_embed(
                         error=repr(exc),
                     )
                     raise
-                delay = batch_backoff_base**attempt
+                delay = batch_backoff_base**transient_attempt
                 logger.warning(
                     "batch attempt failed",
                     prefix=prefix,
                     batch=batch_num,
                     total_batches=total_batches,
-                    attempt=attempt,
+                    attempt=transient_attempt,
                     max_attempts=max_batch_retries,
                     error=repr(exc),
                     retrying_in=delay,
