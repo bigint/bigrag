@@ -150,14 +150,23 @@ class DocumentsResource:
         self,
         collection: str,
         *,
+        q: str | None = None,
         status: str | None = None,
+        sort: str | None = None,
+        order: str | None = None,
         limit: int | None = None,
         offset: int | None = None,
     ) -> DocumentListResponse:
         """List documents in a collection."""
         params: dict[str, str] = {}
+        if q is not None:
+            params["q"] = q
         if status is not None:
             params["status"] = status
+        if sort is not None:
+            params["sort"] = sort
+        if order is not None:
+            params["order"] = order
         if limit is not None:
             params["limit"] = str(limit)
         if offset is not None:

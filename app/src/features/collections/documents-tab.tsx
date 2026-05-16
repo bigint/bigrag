@@ -1,12 +1,25 @@
 import { Link } from "@tanstack/react-router";
-import { CheckCircle2, CircleAlert, FileText, FolderOpen, Trash2, Upload, X } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  FileText,
+  FolderOpen,
+  Search,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { useUploadSessionStore } from "@/features/collections/upload-session-store";
 import {
@@ -16,6 +29,10 @@ import {
 import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
 import { useCollection } from "@/hooks/use-collections";
 import {
+  type DocumentListFilters,
+  type DocumentListOrder,
+  type DocumentListSort,
+  useBatchDeleteDocuments,
   useCancelUploadSession,
   useDeleteDocument,
   useDocuments,
@@ -35,13 +52,69 @@ const statusVariant: Record<DocumentStatus, "success" | "warning" | "info" | "er
   failed: "error",
 };
 
-export const DocumentsTab = ({ name }: { name: string }) => {
+const pageSize = 25;
+const statusOptions = [
+  { value: "all", label: "All statuses" },
+  { value: "ready", label: "Ready" },
+  { value: "processing", label: "Processing" },
+  { value: "pending", label: "Pending" },
+  { value: "failed", label: "Failed" },
+];
+const sortOptions: { value: DocumentListSort; label: string }[] = [
+  { value: "created_at", label: "Created" },
+  { value: "updated_at", label: "Updated" },
+  { value: "filename", label: "Filename" },
+  { value: "file_size", label: "Size" },
+  { value: "chunk_count", label: "Chunks" },
+  { value: "status", label: "Status" },
+];
+const orderOptions: { value: DocumentListOrder; label: string }[] = [
+  { value: "desc", label: "Desc" },
+  { value: "asc", label: "Asc" },
+];
+
+type DocumentsTabFilters = {
+  order: DocumentListOrder;
+  page: number;
+  q: string;
+  sort: DocumentListSort;
+  status: string;
+};
+
+type DocumentsTabProps = {
+  filters?: DocumentsTabFilters;
+  name: string;
+  onFiltersChange?: (filters: Partial<DocumentsTabFilters>) => void;
+};
+
+export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabProps) => {
+  const activeFilters = filters ?? {
+    order: "desc",
+    page: 1,
+    q: "",
+    sort: "created_at",
+    status: "",
+  };
   const activeSessionId = useUploadSessionStore((state) => state.activeSessionIds[name] ?? null);
   const clearActiveSessionId = useUploadSessionStore((state) => state.clearActiveSessionId);
   const setActiveSessionId = useUploadSessionStore((state) => state.setActiveSessionId);
 
   const { data: collection } = useCollection(name);
-  const { data, isPending } = useDocuments(name);
+  const [qDraft, setQDraft] = useState(activeFilters.q);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const offset = (activeFilters.page - 1) * pageSize;
+  const documentFilters: DocumentListFilters = {
+    limit: pageSize,
+    offset,
+    order: activeFilters.order,
+    q: activeFilters.q,
+    sort: activeFilters.sort,
+    status: activeFilters.status,
+  };
+  const { data, error, isError, isPending, refetch, realtimeUnavailable } = useDocuments(
+    name,
+    documentFilters,
+  );
   const { data: stats } = usePlatformStats();
   const uploadSession = useUploadSession(name, activeSessionId);
   const upload = useUploadSessionDocuments(name, {
@@ -49,15 +122,69 @@ export const DocumentsTab = ({ name }: { name: string }) => {
   });
   const cancelSession = useCancelUploadSession(name);
   const remove = useDeleteDocument(name);
+  const batchRemove = useBatchDeleteDocuments(name);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const [deleteDoc, setDeleteDoc] = useState<{ id: string; filename: string } | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const allowed = getAllowedFileTypes(collection?.metadata);
   const accept = acceptAttribute(allowed);
   const workerAvailability = getWorkerAvailability(stats);
   const workerOffline = workerAvailability.offline;
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / pageSize)) : 1;
+  const pageDocuments = data?.documents ?? [];
+  const selectedVisibleCount = pageDocuments.filter((doc) => selected.has(doc.id)).length;
+  const allVisibleSelected = pageDocuments.length > 0 && selectedVisibleCount === pageDocuments.length;
+  const selectedDocuments = pageDocuments.filter((doc) => selected.has(doc.id));
+  const bulkConfirmationText = `DELETE ${selectedDocuments.length}`;
+
+  useEffect(() => {
+    setQDraft(activeFilters.q);
+  }, [activeFilters.q]);
+
+  useEffect(() => {
+    if (uploadSession.isError && getErrorStatus(uploadSession.error) === 404) {
+      clearActiveSessionId(name);
+    }
+  }, [clearActiveSessionId, name, uploadSession.error, uploadSession.isError]);
+
+  useEffect(() => {
+    setSelected((current) => {
+      const visible = new Set(pageDocuments.map((doc) => doc.id));
+      const next = new Set([...current].filter((id) => visible.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [pageDocuments]);
+
+  const updateFilters = (next: Partial<DocumentsTabFilters>) => {
+    onFiltersChange?.({ ...next, page: next.page ?? 1 });
+  };
+
+  const toggleVisibleSelection = () => {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) {
+        for (const doc of pageDocuments) next.delete(doc.id);
+      } else {
+        for (const doc of pageDocuments) next.add(doc.id);
+      }
+      return next;
+    });
+  };
+
+  const toggleDocumentSelection = (id: string) => {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const onFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -188,7 +315,30 @@ export const DocumentsTab = ({ name }: { name: string }) => {
         />
       )}
 
-      {activeSessionId && !uploadSession.data && (
+      {activeSessionId && uploadSession.isError && getErrorStatus(uploadSession.error) !== 404 && (
+        <Card className="overflow-hidden rounded-xl border-destructive/25">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <CircleAlert className="size-4 text-destructive" />
+              <span className="text-sm text-muted-foreground">
+                {uploadSession.error instanceof Error
+                  ? uploadSession.error.message
+                  : "Upload session unavailable"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="secondary" onClick={() => uploadSession.refetch()}>
+                Retry
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => clearActiveSessionId(name)}>
+                Dismiss
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeSessionId && !uploadSession.data && uploadSession.isPending && (
         <Card className="overflow-hidden rounded-xl">
           <CardContent className="flex items-center gap-3 p-4">
             <Spinner size="sm" />
@@ -197,20 +347,119 @@ export const DocumentsTab = ({ name }: { name: string }) => {
         </Card>
       )}
 
+      <Card className="rounded-xl">
+        <CardContent className="flex flex-col gap-3 p-4">
+          <form
+            className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_160px_140px_120px_auto]"
+            onSubmit={(event) => {
+              event.preventDefault();
+              updateFilters({ q: qDraft.trim() });
+            }}
+          >
+            <Input
+              aria-label="Search documents"
+              maxLength={200}
+              onChange={(event) => setQDraft(event.target.value)}
+              placeholder="Search filename, type, id, or error"
+              trailing={<Search className="size-4" />}
+              value={qDraft}
+            />
+            <Select
+              aria-label="Status"
+              onChange={(value) => updateFilters({ status: value === "all" ? "" : value })}
+              options={statusOptions}
+              value={activeFilters.status || "all"}
+            />
+            <Select
+              aria-label="Sort"
+              onChange={(value) => updateFilters({ sort: value as DocumentListSort })}
+              options={sortOptions}
+              value={activeFilters.sort}
+            />
+            <Select
+              aria-label="Order"
+              onChange={(value) => updateFilters({ order: value as DocumentListOrder })}
+              options={orderOptions}
+              value={activeFilters.order}
+            />
+            <div className="flex items-center gap-2">
+              <Button type="submit">Apply</Button>
+              {(activeFilters.q || activeFilters.status) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setQDraft("");
+                    updateFilters({ q: "", status: "" });
+                  }}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </form>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>
+              {data
+                ? `${data.total.toLocaleString()} matching document${data.total === 1 ? "" : "s"}`
+                : "Documents"}
+              {realtimeUnavailable ? " · realtime unavailable, polling" : ""}
+            </span>
+            {selected.size > 0 && (
+              <div className="flex items-center gap-2">
+                <span>{selected.size} selected</span>
+                <Button size="sm" variant="secondary" onClick={() => setSelected(new Set())}>
+                  Clear selection
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => setBulkDeleteOpen(true)}>
+                  <Trash2 className="size-4" />
+                  Delete selected
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {isPending ? (
         <div className="flex justify-center py-8">
           <Spinner />
         </div>
+      ) : isError ? (
+        <Card className="rounded-xl border-destructive/25">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div>
+              <h3 className="text-sm font-semibold">Documents unavailable</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {error instanceof Error ? error.message : "Document list could not load."}
+              </p>
+            </div>
+            <Button variant="secondary" onClick={() => refetch()}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
       ) : data?.documents.length === 0 ? (
         <Empty
           icon={<FileText className="size-6" />}
-          title="No documents yet"
-          description="Upload files above — they'll appear here as they ingest."
+          title={activeFilters.q || activeFilters.status ? "No matching documents" : "No documents yet"}
+          description={
+            activeFilters.q || activeFilters.status
+              ? "Adjust filters to see more documents."
+              : "Upload files above and they will appear here as they ingest."
+          }
         />
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card">
           <div className="border-b border-border">
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <input
+                aria-label="Select visible documents"
+                checked={allVisibleSelected}
+                className="size-4 rounded border-border"
+                onChange={toggleVisibleSelection}
+                type="checkbox"
+              />
               <span>Filename</span>
               <span className="text-right">Size</span>
               <span className="text-right">Chunks</span>
@@ -219,7 +468,8 @@ export const DocumentsTab = ({ name }: { name: string }) => {
             </div>
             {data && data.total > data.documents.length && (
               <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
-                Showing newest {data.documents.length} of {data.total} documents.
+                Showing {offset + 1}-
+                {Math.min(offset + data.documents.length, data.total)} of {data.total} documents.
               </div>
             )}
           </div>
@@ -227,8 +477,15 @@ export const DocumentsTab = ({ name }: { name: string }) => {
             {data?.documents.map((d) => (
               <li
                 key={d.id}
-                className="group grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 px-4 py-3 hover:bg-muted"
+                className="group grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-4 px-4 py-3 hover:bg-muted"
               >
+                <input
+                  aria-label={`Select ${d.filename}`}
+                  checked={selected.has(d.id)}
+                  className="size-4 rounded border-border"
+                  onChange={() => toggleDocumentSelection(d.id)}
+                  type="checkbox"
+                />
                 <Link
                   params={{ docId: d.id, name }}
                   to="/collections/$name/documents/$docId"
@@ -273,6 +530,32 @@ export const DocumentsTab = ({ name }: { name: string }) => {
         </div>
       )}
 
+      {data && totalPages > 1 && (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            disabled={activeFilters.page <= 1}
+            size="sm"
+            variant="secondary"
+            onClick={() => onFiltersChange?.({ page: activeFilters.page - 1 })}
+          >
+            <ChevronLeft className="size-4" />
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {activeFilters.page} of {totalPages}
+          </span>
+          <Button
+            disabled={activeFilters.page >= totalPages}
+            size="sm"
+            variant="secondary"
+            onClick={() => onFiltersChange?.({ page: activeFilters.page + 1 })}
+          >
+            Next
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      )}
+
       <ConfirmDialog
         confirmLabel="Delete"
         description={
@@ -293,6 +576,23 @@ export const DocumentsTab = ({ name }: { name: string }) => {
         }}
         open={!!deleteDoc}
         title="Delete document"
+      />
+      <ConfirmDialog
+        confirmLabel="Delete selected"
+        confirmationLabel={`Type ${bulkConfirmationText} to confirm`}
+        confirmationText={bulkConfirmationText}
+        description={`This permanently removes ${selectedDocuments.length} document${selectedDocuments.length === 1 ? "" : "s"} and their vectors.`}
+        loading={batchRemove.isPending}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={async () => {
+          const ids = selectedDocuments.map((doc) => doc.id);
+          if (!ids.length) return;
+          await batchRemove.mutateAsync(ids);
+          setSelected(new Set());
+          setBulkDeleteOpen(false);
+        }}
+        open={bulkDeleteOpen}
+        title="Delete selected documents"
       />
     </div>
   );
@@ -316,6 +616,12 @@ const countDuplicateNames = (files: File[]) => {
     seen.add(name);
   }
   return count;
+};
+
+const getErrorStatus = (error: unknown) => {
+  if (!error || typeof error !== "object" || !("status" in error)) return undefined;
+  const status = (error as { status?: unknown }).status;
+  return typeof status === "number" ? status : undefined;
 };
 
 const sessionVariant = (

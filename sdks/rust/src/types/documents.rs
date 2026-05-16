@@ -66,9 +66,18 @@ pub struct DocumentListResponse {
 /// Options for listing documents.
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct DocumentListOptions {
+    /// Search filename, type, ID, or error text.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub q: Option<String>,
     /// Filter by processing status.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
+    /// Sort field.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sort: Option<String>,
+    /// Sort order.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order: Option<String>,
     /// Maximum number of results.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<u32>,

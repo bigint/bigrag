@@ -120,14 +120,24 @@ export class AdminRealtimeResource {
 
   documents(
     collection: string,
-    options: { status?: string; limit?: number; offset?: number } = {},
+    options: {
+      limit?: number;
+      offset?: number;
+      order?: "asc" | "desc";
+      q?: string;
+      sort?: "created_at" | "updated_at" | "filename" | "file_size" | "chunk_count" | "status";
+      status?: string;
+    } = {},
   ): AsyncGenerator<AdminRealtimeEvent<DocumentListResponse>> {
     return this._stream(
       `/v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents`,
       {
-        status: options.status,
         limit: options.limit,
         offset: options.offset,
+        order: options.order,
+        q: options.q,
+        sort: options.sort,
+        status: options.status,
       },
     );
   }

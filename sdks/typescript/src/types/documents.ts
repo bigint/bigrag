@@ -31,6 +31,9 @@ export interface DocumentListResponse {
 }
 
 export interface DocumentListOptions {
+  order?: "asc" | "desc";
+  q?: string;
+  sort?: "created_at" | "updated_at" | "filename" | "file_size" | "chunk_count" | "status";
   status?: string;
   limit?: number;
   offset?: number;

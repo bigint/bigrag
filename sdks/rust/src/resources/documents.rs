@@ -144,8 +144,17 @@ impl Documents<'_> {
     ) -> Result<DocumentListResponse, BigRagError> {
         let mut query = Vec::new();
         if let Some(opts) = options {
+            if let Some(q) = opts.q {
+                query.push(("q".into(), q));
+            }
             if let Some(status) = opts.status {
                 query.push(("status".into(), status));
+            }
+            if let Some(sort) = opts.sort {
+                query.push(("sort".into(), sort));
+            }
+            if let Some(order) = opts.order {
+                query.push(("order".into(), order));
             }
             if let Some(limit) = opts.limit {
                 query.push(("limit".into(), limit.to_string()));

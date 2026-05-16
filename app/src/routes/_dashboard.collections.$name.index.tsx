@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, FileText, Search, Settings } from "lucide-react";
+import { ArrowUpRight, FileText, type LucideIcon, Search, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
@@ -17,7 +17,7 @@ const CollectionIndex = () => {
   const name = decodeURIComponent(rawName);
   const { data: collection, isPending: collectionPending } = useCollection(name);
   const { data: stats } = useCollectionStats(name);
-  const { data: documentsData, isPending: documentsPending } = useDocuments(name);
+  const { data: documentsData, isPending: documentsPending } = useDocuments(name, { limit: 5 });
   const recent = documentsData?.documents.slice(0, 5) ?? [];
 
   if (collectionPending || !collection) {
@@ -60,7 +60,13 @@ const CollectionIndex = () => {
           <CardDescription>Open the main collection workflows.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2">
-          <Shortcut to="/collections/$name/documents" name={name} icon={FileText} label="Documents" />
+          <Shortcut
+            to="/collections/$name/documents"
+            name={name}
+            icon={FileText}
+            label="Documents"
+            search={documentSearch()}
+          />
           <Shortcut to="/collections/$name/search" name={name} icon={Search} label="Search" />
           <Shortcut to="/collections/$name/settings" name={name} icon={Settings} label="Settings" />
         </CardContent>
@@ -83,7 +89,7 @@ const CollectionIndex = () => {
                   key={status}
                   to="/collections/$name/documents"
                   params={{ name }}
-                  search={{ status }}
+                  search={documentSearch(status)}
                   className="rounded-md border border-border p-3 hover:bg-muted"
                 >
                   <div className="text-xs font-semibold uppercase text-muted-foreground">{status}</div>
@@ -144,16 +150,19 @@ const Shortcut = ({
   icon: Icon,
   label,
   name,
+  search,
   to,
 }: {
-  icon: typeof FileText;
+  icon: LucideIcon;
   label: string;
   name: string;
+  search?: ReturnType<typeof documentSearch>;
   to: "/collections/$name/documents" | "/collections/$name/search" | "/collections/$name/settings";
 }) => (
   <Link
     to={to}
     params={{ name }}
+    search={search}
     className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-semibold hover:bg-muted"
   >
     <span className="inline-flex items-center gap-2">
@@ -163,3 +172,11 @@ const Shortcut = ({
     <ArrowUpRight className="size-4 text-muted-foreground" />
   </Link>
 );
+
+const documentSearch = (status = "") => ({
+  order: "desc" as const,
+  page: 1,
+  q: "",
+  sort: "created_at" as const,
+  status,
+});

@@ -104,7 +104,10 @@ export class DocumentsResource {
 
   list(collection: string, options?: DocumentListOptions): Promise<DocumentListResponse> {
     const params: Record<string, string> = {};
+    if (options?.q) params.q = options.q;
     if (options?.status) params.status = options.status;
+    if (options?.sort) params.sort = options.sort;
+    if (options?.order) params.order = options.order;
     if (options?.limit !== undefined) params.limit = String(options.limit);
     if (options?.offset !== undefined) params.offset = String(options.offset);
     return this._client._request(
