@@ -1,8 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, request as playwrightRequest } from "@playwright/test";
+
+const __filename_ = fileURLToPath(import.meta.url);
+const __dirname_ = dirname(__filename_);
 
 export const ADMIN_EMAIL = "e2e-admin@example.com";
 export const ADMIN_PASSWORD = "e2e-admin-password-123!";
@@ -26,7 +30,7 @@ export const webhookSinkBase = (): string =>
   process.env.BIGRAG_E2E_WEBHOOK_SINK ?? "http://localhost:9003";
 
 export const fixturesDir = (): string =>
-  join(__dirname, "..", "..", "fixtures", "documents");
+  join(__dirname_, "..", "..", "fixtures", "documents");
 
 export const fixturePath = (filename: string): string =>
   join(fixturesDir(), filename);

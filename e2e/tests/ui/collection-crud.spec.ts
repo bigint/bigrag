@@ -35,12 +35,12 @@ test.describe("collection CRUD", () => {
       .click();
 
     // Modal closes and the row appears in the collections table.
-    await expect(page.getByRole("link", { name })).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(
+      page.getByRole("link", { name, exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
 
     // Navigate into the collection.
-    await page.getByRole("link", { name }).first().click();
+    await page.getByRole("link", { name, exact: true }).first().click();
     await page.waitForURL(new RegExp(`/collections/${name}$`));
     await expect(
       page.getByRole("heading", { name, exact: false }),
@@ -70,7 +70,9 @@ test.describe("collection CRUD", () => {
       .click();
 
     await page.waitForURL(/\/collections\/?$/, { timeout: 15_000 });
-    await expect(page.getByRole("link", { name })).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name, exact: true }),
+    ).toHaveCount(0);
 
     // Clean up just in case (idempotent).
     const cleanup = await newRequestContext();
