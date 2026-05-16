@@ -4,6 +4,8 @@ Endpoints covered:
 - POST /v1/collections/{name}/query
 - POST /v1/query
 - POST /v1/batch/query
+- POST /v1/collections/{name}/vectors/upsert
+- POST /v1/collections/{name}/vectors/delete
 - GET  /v1/collections/{name}/analytics
 - GET  /v1/embeddings/models
 """
@@ -452,4 +454,97 @@ async def test_embedding_models_requires_auth(
     unauth_client: httpx.AsyncClient,
 ) -> None:
     resp = await unauth_client.get("/v1/embeddings/models")
+    assert resp.status_code == 401, resp.text
+
+
+# ---------------------------------------------------------------------------
+# Raw vector upsert / delete (escape hatch for ingest pipelines)
+# ---------------------------------------------------------------------------
+
+
+def _vector(dim: int, seed: int) -> list[float]:
+    return [((seed + i) % 7) / 7.0 for i in range(dim)]
+
+
+async def test_vectors_upsert_then_delete_round_trip(
+    admin_client: httpx.AsyncClient,
+    collection: CollectionFactory,
+) -> None:
+    coll = await collection()
+    dim = int(coll["dimension"])
+    vectors = [
+        {"id": "vec-a", "embedding": _vector(dim, 1), "text": "alpha", "metadata": {"k": "a"}},
+        {"id": "vec-b", "embedding": _vector(dim, 2), "text": "beta", "metadata": {"k": "b"}},
+    ]
+    upsert_resp = await admin_client.post(
+        f"/v1/collections/{coll['name']}/vectors/upsert",
+        json={"vectors": vectors},
+    )
+    upserted = assert_envelope(upsert_resp, 200)
+    assert upserted["status"] == "ok"
+    assert upserted["upserted"] == 2
+
+    delete_resp = await admin_client.post(
+        f"/v1/collections/{coll['name']}/vectors/delete",
+        json={"ids": ["vec-a", "vec-b"]},
+    )
+    deleted = assert_envelope(delete_resp, 200)
+    assert deleted["status"] == "ok"
+    assert deleted["deleted"] == 2
+
+
+async def test_vectors_upsert_rejects_wrong_dimension(
+    admin_client: httpx.AsyncClient,
+    collection: CollectionFactory,
+) -> None:
+    coll = await collection()
+    bad = [{"id": "x", "embedding": [0.1, 0.2, 0.3], "text": "wrong dim"}]
+    resp = await admin_client.post(
+        f"/v1/collections/{coll['name']}/vectors/upsert",
+        json={"vectors": bad},
+    )
+    assert resp.status_code == 400, resp.text
+
+
+async def test_vectors_upsert_unknown_collection_404(
+    admin_client: httpx.AsyncClient,
+) -> None:
+    resp = await admin_client.post(
+        "/v1/collections/nope_does_not_exist/vectors/upsert",
+        json={"vectors": [{"id": "z", "embedding": [0.0], "text": "x"}]},
+    )
+    assert resp.status_code in (400, 404), resp.text
+
+
+async def test_vectors_delete_unknown_ids_returns_ok(
+    admin_client: httpx.AsyncClient,
+    collection: CollectionFactory,
+) -> None:
+    coll = await collection()
+    resp = await admin_client.post(
+        f"/v1/collections/{coll['name']}/vectors/delete",
+        json={"ids": ["does-not-exist-123"]},
+    )
+    body = assert_envelope(resp, 200)
+    assert body["status"] == "ok"
+    assert body["deleted"] == 1
+
+
+async def test_vectors_upsert_requires_auth(
+    unauth_client: httpx.AsyncClient,
+) -> None:
+    resp = await unauth_client.post(
+        "/v1/collections/any/vectors/upsert",
+        json={"vectors": []},
+    )
+    assert resp.status_code == 401, resp.text
+
+
+async def test_vectors_delete_requires_auth(
+    unauth_client: httpx.AsyncClient,
+) -> None:
+    resp = await unauth_client.post(
+        "/v1/collections/any/vectors/delete",
+        json={"ids": []},
+    )
     assert resp.status_code == 401, resp.text
