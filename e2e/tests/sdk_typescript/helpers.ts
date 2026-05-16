@@ -1,5 +1,7 @@
 import { randomBytes } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BigRAG } from "@bigrag/client";
@@ -25,8 +27,49 @@ const createdCollectionNames: string[] = [];
 
 let cachedAdminSessionCookie: string | undefined;
 
+const SESSION_CACHE_FILE = join(tmpdir(), "bigrag-e2e-sdk-ts-session.json");
+
+interface CachedSession {
+  cookie: string;
+  api_base: string;
+  cached_at: number;
+}
+
+function loadCachedSession(): string | undefined {
+  try {
+    const raw = readFileSync(SESSION_CACHE_FILE, "utf8");
+    const parsed = JSON.parse(raw) as CachedSession;
+    if (parsed.api_base !== API_BASE) return undefined;
+    // session cookies live for hours; treat a 30-minute file as stale.
+    if (Date.now() - parsed.cached_at > 30 * 60 * 1000) return undefined;
+    if (typeof parsed.cookie === "string" && parsed.cookie.length > 0) {
+      return parsed.cookie;
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+function persistCachedSession(cookie: string): void {
+  try {
+    mkdirSync(dirname(SESSION_CACHE_FILE), { recursive: true });
+    const payload: CachedSession = {
+      cookie,
+      api_base: API_BASE,
+      cached_at: Date.now(),
+    };
+    writeFileSync(SESSION_CACHE_FILE, JSON.stringify(payload), "utf8");
+  } catch {
+    /* best-effort cache */
+  }
+}
+
 export function uniqueName(prefix: string = "e2e"): string {
-  return `${prefix}_${randomBytes(3).toString("hex")}`;
+  // Collection names must match /^[a-zA-Z][a-zA-Z0-9_]*$/; sanitize prefix.
+  const safe = prefix.replace(/[^a-zA-Z0-9]/g, "");
+  const head = safe.length > 0 ? safe : "e2e";
+  return `${head}_${randomBytes(3).toString("hex")}`;
 }
 
 interface FetchInit extends RequestInit {
@@ -63,9 +106,7 @@ async function ensureAdminExists(): Promise<void> {
   }
 }
 
-async function getAdminSessionCookie(): Promise<string> {
-  if (cachedAdminSessionCookie) return cachedAdminSessionCookie;
-  await ensureAdminExists();
+async function loginAdmin(): Promise<string> {
   const resp = await rawFetch("/v1/auth/login", {
     method: "POST",
     headers: {
@@ -81,13 +122,37 @@ async function getAdminSessionCookie(): Promise<string> {
   if (!setCookie) {
     throw new Error("admin login did not return a set-cookie header");
   }
-  const cookie = setCookie
+  return setCookie
     .split(",")
     .map((s) => s.trim())
     .map((s) => s.split(";")[0])
     .filter(Boolean)
     .join("; ");
+}
+
+async function validateCookie(cookie: string): Promise<boolean> {
+  try {
+    const resp = await rawFetch("/v1/auth/me", {
+      method: "GET",
+      headers: { Cookie: cookie },
+    });
+    return resp.status === 200;
+  } catch {
+    return false;
+  }
+}
+
+async function getAdminSessionCookie(): Promise<string> {
+  if (cachedAdminSessionCookie) return cachedAdminSessionCookie;
+  const fromFile = loadCachedSession();
+  if (fromFile && (await validateCookie(fromFile))) {
+    cachedAdminSessionCookie = fromFile;
+    return fromFile;
+  }
+  await ensureAdminExists();
+  const cookie = await loginAdmin();
   cachedAdminSessionCookie = cookie;
+  persistCachedSession(cookie);
   return cookie;
 }
 
@@ -200,6 +265,12 @@ export async function createCollection(
     default_search_mode: overrides.default_search_mode ?? "semantic",
     ...overrides,
   };
+  // Allow overriding the embedding source when running against an environment
+  // that doesn't have instance-level embedding credentials (e.g. local dev).
+  const presetId = process.env.BIGRAG_E2E_EMBEDDING_PRESET_ID;
+  if (presetId && body.embedding_preset_id === undefined) {
+    body.embedding_preset_id = presetId;
+  }
   const created = await client.collections.create(body);
   createdCollectionNames.push(created.name);
   return created;
