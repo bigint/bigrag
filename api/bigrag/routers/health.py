@@ -23,6 +23,8 @@ logger = get_logger("bigrag.routers.health")
 router = APIRouter(tags=["health"])
 
 _EMBEDDING_HEALTH_TTL = 60
+_READINESS_TTL = 10
+_READINESS_CACHE_KEY = "health:readiness"
 
 
 async def _resolve_embedding_target() -> (
@@ -176,6 +178,11 @@ async def health() -> dict[str, str]:
 
 @router.get("/health/ready", response_model=dict[str, object])
 async def readiness(request: Request) -> JSONResponse:
+    cached = await redis_cache.get(_READINESS_CACHE_KEY)
+    if cached:
+        status = cached.get("status")
+        return JSONResponse(content=cached, status_code=200 if status == "ok" else 503)
+
     vs = request.app.state.vector_store
     queue = request.app.state.queue
 
@@ -225,6 +232,7 @@ async def readiness(request: Request) -> JSONResponse:
         healthy = False
 
     checks["status"] = "ok" if healthy else "degraded"
+    await redis_cache.set(_READINESS_CACHE_KEY, checks, ttl=_READINESS_TTL)
     return JSONResponse(content=checks, status_code=200 if healthy else 503)
 
 

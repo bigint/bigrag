@@ -214,6 +214,8 @@ def test_readiness_reports_ok_and_degraded_states(monkeypatch) -> None:
     async def embedding_ok():
         return {"embedding": True, "embedding_source": "settings"}
 
+    cache = FakeRedisCache()
+    monkeypatch.setattr(health, "redis_cache", cache)
     monkeypatch.setattr(health, "session_factory", lambda: lambda: FakeSessionContext())
     monkeypatch.setattr(health, "_check_embedding_provider", embedding_ok)
 
@@ -222,8 +224,13 @@ def test_readiness_reports_ok_and_degraded_states(monkeypatch) -> None:
     assert response.status_code == 200
     assert response_body(response)["status"] == "ok"
     assert response_body(response)["qdrant"] is True
+    assert cache.sets == [
+        (health._READINESS_CACHE_KEY, response_body(response), health._READINESS_TTL)
+    ]
 
     vector_store = SimpleNamespace(provider="qdrant", client=None)
+    cache = FakeRedisCache()
+    monkeypatch.setattr(health, "redis_cache", cache)
 
     response = run(health.readiness(fake_request(vector_store=vector_store)))
 
@@ -231,6 +238,27 @@ def test_readiness_reports_ok_and_degraded_states(monkeypatch) -> None:
     assert response_body(response)["status"] == "degraded"
     assert response_body(response)["vector_store"] is False
     assert response_body(response)["vector_store_error"] == "misconfigured"
+    assert cache.sets == [
+        (health._READINESS_CACHE_KEY, response_body(response), health._READINESS_TTL)
+    ]
+
+
+def test_readiness_uses_cached_payload(monkeypatch) -> None:
+    cache = FakeRedisCache(
+        {
+            "status": "degraded",
+            "postgres": True,
+            "vector_store": False,
+            "vector_store_error": "misconfigured",
+        }
+    )
+    monkeypatch.setattr(health, "redis_cache", cache)
+
+    response = run(health.readiness(fake_request(vector_store=SimpleNamespace(client=None))))
+
+    assert response.status_code == 503
+    assert response_body(response)["vector_store_error"] == "misconfigured"
+    assert cache.sets == []
 
 
 def test_platform_stats_uses_cache_and_populates_uncached_result(monkeypatch) -> None:

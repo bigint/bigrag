@@ -209,6 +209,42 @@ class EventBus:
                         return event
         return self._latest.get(document_id)
 
+    async def latest_many(self, document_ids: list[str]) -> dict[str, IngestionEvent]:
+        if not document_ids:
+            return {}
+
+        events: dict[str, IngestionEvent] = {}
+        if self._redis:
+            try:
+                keys = [f"{LATEST_PREFIX}{document_id}" for document_id in document_ids]
+                raws = await self._redis.mget(keys)
+            except Exception as e:
+                logger.warning(
+                    "event bus: latest many lookup failed",
+                    count=len(document_ids),
+                    error=str(e),
+                )
+            else:
+                for document_id, raw in zip(document_ids, raws, strict=False):
+                    if raw is None:
+                        continue
+                    try:
+                        event = IngestionEvent.deserialize(raw)
+                    except Exception as e:
+                        logger.warning(
+                            "event bus: latest payload invalid",
+                            document_id=document_id,
+                            error=str(e),
+                        )
+                        continue
+                    self._latest[document_id] = event
+                    events[document_id] = event
+
+        for document_id in document_ids:
+            if document_id not in events and document_id in self._latest:
+                events[document_id] = self._latest[document_id]
+        return events
+
     async def stream(self, document_id: str) -> AsyncIterator[IngestionEvent]:
         q = self.subscribe(document_id)
         try:

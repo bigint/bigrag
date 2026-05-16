@@ -72,6 +72,36 @@ async def document_progress(
     )
 
 
+async def document_progress_map(
+    bus: Any,
+    docs: list[Document],
+    collection_name: str,
+) -> dict[str, DocumentProgressResponse]:
+    if not docs:
+        return {}
+
+    progresses: dict[str, DocumentProgressResponse] = {}
+    active_ids = [str(doc.id) for doc in docs if doc.status not in TERMINAL_DOCUMENT_STATUSES]
+    events = await bus.latest_many(active_ids) if active_ids else {}
+
+    for doc in docs:
+        doc_id = str(doc.id)
+        event = events.get(doc_id)
+        if event is None:
+            progresses[doc_id] = fallback_progress(doc, collection_name)
+            continue
+        progresses[doc_id] = document_progress_response(
+            document_id=event.document_id,
+            collection_name=event.collection_name or collection_name,
+            step=event.step,
+            status=event.status,
+            message=event.message,
+            progress=event.progress,
+            detail=event.detail,
+        )
+    return progresses
+
+
 def publish_queued_progress(bus: Any, doc: Document, collection_name: str, message: str) -> None:
     bus.publish(
         IngestionEvent(
