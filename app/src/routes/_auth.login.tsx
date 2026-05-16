@@ -16,8 +16,18 @@ import { useLogin, useSetupStatus } from "@/hooks/use-auth";
 import { errorText, firstString, submitWith } from "@/lib/form";
 
 export const Route = createFileRoute("/_auth/login")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    from: safeReturnPath(search.from),
+  }),
   component: () => <LoginPage />,
 });
+
+const safeReturnPath = (value: unknown) => {
+  if (typeof value !== "string") return undefined;
+  if (!value.startsWith("/") || value.startsWith("//")) return undefined;
+  if (value.startsWith("/login") || value.startsWith("/setup")) return undefined;
+  return value;
+};
 
 const useRedirectIfSetupNeeded = (needsSetup: boolean | undefined) => {
   const navigate = useNavigate();
@@ -28,6 +38,7 @@ const useRedirectIfSetupNeeded = (needsSetup: boolean | undefined) => {
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { from } = Route.useSearch();
   const login = useLogin();
   const { data: setupStatus, isPending, isError, error } = useSetupStatus();
   const form = useForm({
@@ -38,7 +49,11 @@ const LoginPage = () => {
     onSubmit: async ({ value }) => {
       try {
         await login.mutateAsync(loginBodyFromValues(value));
-        navigate({ to: "/overview", replace: true });
+        if (from) {
+          window.location.assign(from);
+        } else {
+          navigate({ to: "/overview", replace: true });
+        }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Login failed");
       }

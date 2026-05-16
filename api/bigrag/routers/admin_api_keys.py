@@ -27,6 +27,10 @@ logger = get_logger("bigrag.routers.admin_api_keys")
 router = APIRouter(prefix="/v1/admin/api-keys", tags=["admin:api-keys"])
 
 
+def _mcp_permissions_filter():
+    return ApiKey.permissions.op("?")("mcp")
+
+
 def _key_response(key: ApiKey) -> ApiKeyResponse:
     permissions = key.permissions or {}
     scopes = permissions.get("scopes") if isinstance(permissions, dict) else None
@@ -68,12 +72,12 @@ async def list_api_keys(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ApiKeyListResponse:
-    base = sa.select(ApiKey).where(ApiKey.permissions["mcp"].is_(None))
+    base = sa.select(ApiKey).where(sa.not_(_mcp_permissions_filter()))
     keys = (
         await session.scalars(base.order_by(ApiKey.created_at.desc()).limit(limit).offset(offset))
     ).all()
     total = await session.scalar(
-        sa.select(sa.func.count()).select_from(ApiKey).where(ApiKey.permissions["mcp"].is_(None))
+        sa.select(sa.func.count()).select_from(ApiKey).where(sa.not_(_mcp_permissions_filter()))
     )
     return ApiKeyListResponse(keys=[_key_response(k) for k in keys], total=total or 0)
 

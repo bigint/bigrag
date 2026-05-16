@@ -1,19 +1,30 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Menu as MenuIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/brand/logo";
 import { MobileSidebar, Sidebar } from "@/components/navigation/sidebar";
+import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/ui/page-container";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession, useSetupStatus } from "@/hooks/use-auth";
+import { queryKeys } from "@/lib/query-keys";
 
 const FULL_HEIGHT_ROUTES = ["/overview", "/chat"];
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const { data: setupStatus } = useSetupStatus();
-  const { data: session, isPending, isError } = useSession();
+  const location = useRouterState({ select: (state) => state.location });
+  const pathname = location.pathname;
+  const currentHref = location.href || pathname;
+  const {
+    data: setupStatus,
+    error: setupError,
+    isError: setupIsError,
+    isPending: setupPending,
+  } = useSetupStatus();
+  const { data: session, error: sessionError, isError, isPending } = useSession();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useDashboardAuthRedirect(
@@ -22,11 +33,28 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       isError,
       isPending,
       needsSetup: setupStatus?.needs_setup,
+      setupIsError,
+      setupPending,
     },
     navigate,
+    currentHref,
   );
 
-  if (isPending || !session) {
+  useSessionExpiryToast(Boolean(session), isPending || setupPending);
+
+  const authError = setupError ?? sessionError;
+  if (authError && !session) {
+    return (
+      <AuthErrorState
+        error={authError}
+        onRetry={() => {
+          queryClient.invalidateQueries({ queryKey: queryKeys.auth.all() });
+        }}
+      />
+    );
+  }
+
+  if (setupPending || isPending || !session) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Spinner size="lg" />
@@ -77,21 +105,60 @@ type DashboardAuthState = {
   readonly isError: boolean;
   readonly isPending: boolean;
   readonly needsSetup: boolean | undefined;
+  readonly setupIsError: boolean;
+  readonly setupPending: boolean;
 };
 
 const useDashboardAuthRedirect = (
-  { hasSession, isError, isPending, needsSetup }: DashboardAuthState,
+  { hasSession, isError, isPending, needsSetup, setupIsError, setupPending }: DashboardAuthState,
   navigate: ReturnType<typeof useNavigate>,
+  currentHref: string,
 ) => {
   useEffect(() => {
-    if (isPending) return;
-    if (hasSession) return;
+    if (isPending || setupPending || setupIsError) return;
+    if (hasSession || isError) return;
     if (needsSetup) {
       navigate({ to: "/setup", replace: true });
       return;
     }
-    if (isError || !hasSession) {
-      navigate({ to: "/login", replace: true });
+    if (!hasSession) {
+      navigate({ to: "/login", search: { from: currentHref }, replace: true });
     }
-  }, [hasSession, isPending, isError, needsSetup, navigate]);
+  }, [
+    currentHref,
+    hasSession,
+    isPending,
+    isError,
+    needsSetup,
+    navigate,
+    setupIsError,
+    setupPending,
+  ]);
 };
+
+const useSessionExpiryToast = (hasSession: boolean, pending: boolean) => {
+  const hadSession = useRef(false);
+  useEffect(() => {
+    if (hasSession) {
+      hadSession.current = true;
+      return;
+    }
+    if (!pending && hadSession.current) {
+      hadSession.current = false;
+    }
+  }, [hasSession, pending]);
+};
+
+const AuthErrorState = ({ error, onRetry }: { error: unknown; onRetry: () => void }) => (
+  <div className="flex min-h-screen items-center justify-center bg-background px-6">
+    <div className="w-full max-w-md rounded-xl border border-border bg-card p-6">
+      <h1 className="text-base font-semibold">API unreachable</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {error instanceof Error ? error.message : "The bigRAG API did not respond."}
+      </p>
+      <Button className="mt-4" onClick={onRetry}>
+        Retry
+      </Button>
+    </div>
+  </div>
+);

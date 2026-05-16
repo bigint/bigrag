@@ -1,10 +1,23 @@
 import ky, { HTTPError, type KyInstance } from "ky";
 import { bigragApiUrl } from "@/config/runtime";
 
+type SearchParams = Record<string, string | number | boolean | null | undefined>;
+
+export type ApiRequestOptions = {
+  searchParams?: SearchParams;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+};
+
+export const API_TIMEOUT_MS = 20_000;
+export const AUTH_TIMEOUT_MS = 6_000;
+export const LONG_REQUEST_TIMEOUT_MS = 120_000;
+export const SEARCH_TIMEOUT_MS = 30_000;
+
 const api: KyInstance = ky.create({
   prefix: bigragApiUrl,
   credentials: "include",
-  timeout: 120_000,
+  timeout: API_TIMEOUT_MS,
   retry: { limit: 1, methods: ["get", "head"] },
   hooks: {
     beforeError: [
@@ -26,15 +39,68 @@ const api: KyInstance = ky.create({
   },
 });
 
+const isRequestOptions = (
+  value: SearchParams | ApiRequestOptions | undefined,
+): value is ApiRequestOptions =>
+  Boolean(
+    value &&
+      ("searchParams" in value ||
+        "signal" in value ||
+        "timeoutMs" in value ||
+        "timeout" in value),
+  );
+
+const compactSearchParams = (searchParams: SearchParams | undefined) =>
+  searchParams
+    ? Object.fromEntries(
+        Object.entries(searchParams).filter(([, value]) => value !== undefined && value !== null),
+      )
+    : undefined;
+
+const requestOptions = (options?: ApiRequestOptions) => ({
+  ...(options?.signal ? { signal: options.signal } : {}),
+  ...(options?.timeoutMs ? { timeout: options.timeoutMs } : {}),
+  ...(options?.searchParams
+    ? { searchParams: compactSearchParams(options.searchParams) }
+    : {}),
+});
+
+const normalizeGetOptions = (
+  value?: SearchParams | ApiRequestOptions,
+): ApiRequestOptions | undefined =>
+  isRequestOptions(value) ? value : value ? { searchParams: value } : undefined;
+
 export const apiClient = {
-  get: <T>(path: string, searchParams?: Record<string, string | number | boolean>) =>
-    api.get(path, searchParams ? { searchParams } : undefined).json<T>(),
-  post: <T>(path: string, body?: unknown) =>
-    api.post(path, body === undefined ? undefined : { json: body }).json<T>(),
-  put: <T>(path: string, body?: unknown) =>
-    api.put(path, body === undefined ? undefined : { json: body }).json<T>(),
-  patch: <T>(path: string, body?: unknown) =>
-    api.patch(path, body === undefined ? undefined : { json: body }).json<T>(),
-  delete: <T>(path: string) => api.delete(path).json<T>(),
-  postForm: <T>(path: string, form: FormData) => api.post(path, { body: form }).json<T>(),
+  get: <T>(path: string, searchParamsOrOptions?: SearchParams | ApiRequestOptions) =>
+    api.get(path, requestOptions(normalizeGetOptions(searchParamsOrOptions))).json<T>(),
+  post: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
+    api
+      .post(path, {
+        ...requestOptions(options),
+        ...(body === undefined ? {} : { json: body }),
+      })
+      .json<T>(),
+  put: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
+    api
+      .put(path, {
+        ...requestOptions(options),
+        ...(body === undefined ? {} : { json: body }),
+      })
+      .json<T>(),
+  patch: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
+    api
+      .patch(path, {
+        ...requestOptions(options),
+        ...(body === undefined ? {} : { json: body }),
+      })
+      .json<T>(),
+  delete: <T>(path: string, options?: ApiRequestOptions) =>
+    api.delete(path, requestOptions(options)).json<T>(),
+  postForm: <T>(path: string, form: FormData, options?: ApiRequestOptions) =>
+    api
+      .post(path, {
+        ...requestOptions({ timeoutMs: LONG_REQUEST_TIMEOUT_MS, ...options }),
+        body: form,
+      })
+      .json<T>(),
 };

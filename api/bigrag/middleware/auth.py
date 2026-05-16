@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import UTC, datetime
 
@@ -8,14 +9,15 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag import config as _config
+from bigrag.db.engine import session_factory
 from bigrag.db.models import ApiKey, User
 from bigrag.db.models import Session as DbSession
-from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.services import redis_cache
 from bigrag.services.auth import API_KEY_PREFIX, api_key_hashes_for_lookup, hash_session_token
 
 logger = get_logger("bigrag.auth")
+REDIS_AUTH_TIMEOUT_SECONDS = 0.25
 
 
 def _session_cache_key(token_hash: str) -> str:
@@ -62,7 +64,7 @@ async def _user_from_session(request: Request, session: AsyncSession) -> dict | 
         return None
 
     token_hash = hash_session_token(cookie)
-    cached = await redis_cache.get(_session_cache_key(token_hash))
+    cached = await _cache_get(_session_cache_key(token_hash))
     if isinstance(cached, dict):
         return cached
 
@@ -82,7 +84,7 @@ async def _user_from_session(request: Request, session: AsyncSession) -> dict | 
     principal = _serialize(user, auth="session")
     ttl = _ttl_until(expires_at)
     if ttl > 0:
-        await redis_cache.set(_session_cache_key(token_hash), principal, ttl=ttl)
+        await _cache_set(_session_cache_key(token_hash), principal, ttl=ttl)
     return principal
 
 
@@ -98,7 +100,7 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
     key_hashes = api_key_hashes_for_lookup(token)
     now = datetime.now(UTC)
     for key_hash in key_hashes:
-        cached = await redis_cache.get(_api_key_cache_key(key_hash))
+        cached = await _cache_get(_api_key_cache_key(key_hash))
         if isinstance(cached, dict):
             await _touch_api_key_last_used(session, cached.get("api_key_id"))
             return cached
@@ -128,7 +130,7 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
     principal["collection"] = collection
     ttl = _ttl_until(api_key.expires_at)
     if ttl > 0:
-        await redis_cache.set(_api_key_cache_key(api_key.key_hash), principal, ttl=ttl)
+        await _cache_set(_api_key_cache_key(api_key.key_hash), principal, ttl=ttl)
     return principal
 
 
@@ -148,7 +150,13 @@ async def _touch_api_key_last_used(
     redis = redis_cache.get_redis()
     if redis is not None:
         throttle_key = f"bigrag:auth:api_key_touch:{api_key_id}"
-        should_touch = await redis.set(throttle_key, b"1", ex=60, nx=True)
+        try:
+            should_touch = await asyncio.wait_for(
+                redis.set(throttle_key, b"1", ex=60, nx=True),
+                timeout=REDIS_AUTH_TIMEOUT_SECONDS,
+            )
+        except TimeoutError:
+            should_touch = True
         if not should_touch:
             return
 
@@ -161,27 +169,33 @@ async def _touch_api_key_last_used(
 
 
 async def invalidate_session_principal(token_hash: str) -> None:
-    await redis_cache.delete(_session_cache_key(token_hash))
+    await _cache_delete(_session_cache_key(token_hash))
 
 
 async def invalidate_api_key_principal(key_hash: str) -> None:
-    await redis_cache.delete(_api_key_cache_key(key_hash))
+    await _cache_delete(_api_key_cache_key(key_hash))
 
 
 async def invalidate_auth_principals() -> None:
-    await redis_cache.delete_pattern("auth:*")
+    try:
+        await asyncio.wait_for(
+            redis_cache.delete_pattern("auth:*"),
+            timeout=REDIS_AUTH_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        logger.debug("auth principal cache invalidation timed out")
 
 
 async def get_current_user(
     request: Request,
-    session: AsyncSession = Depends(get_session),
 ) -> dict:
     from bigrag.services.collection_scope import enforce_collection_scope
     from bigrag.services.scopes import has_scope, required_scope
 
-    principal = await _user_from_session(request, session)
-    if principal is None:
-        principal = await _user_from_api_key(request, session)
+    async with session_factory()() as session:
+        principal = await _user_from_session(request, session)
+        if principal is None:
+            principal = await _user_from_api_key(request, session)
     if principal is None:
         raise HTTPException(status_code=401, detail="Authentication required")
     request.state.user = principal
@@ -216,3 +230,28 @@ def session_expiry() -> datetime:
     from datetime import timedelta
 
     return datetime.now(UTC) + timedelta(hours=_config.settings.session_expiry_hours)
+
+
+async def _cache_get(key: str) -> dict | list | None:
+    try:
+        return await asyncio.wait_for(redis_cache.get(key), timeout=REDIS_AUTH_TIMEOUT_SECONDS)
+    except TimeoutError:
+        logger.debug("auth principal cache get timed out")
+        return None
+
+
+async def _cache_set(key: str, value: dict | list, ttl: int) -> None:
+    try:
+        await asyncio.wait_for(
+            redis_cache.set(key, value, ttl=ttl),
+            timeout=REDIS_AUTH_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        logger.debug("auth principal cache set timed out")
+
+
+async def _cache_delete(key: str) -> None:
+    try:
+        await asyncio.wait_for(redis_cache.delete(key), timeout=REDIS_AUTH_TIMEOUT_SECONDS)
+    except TimeoutError:
+        logger.debug("auth principal cache delete timed out")

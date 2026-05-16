@@ -22,6 +22,10 @@ logger = get_logger("bigrag.routers.mcp_servers")
 router = APIRouter(prefix="/v1/admin/mcp-servers", tags=["admin:mcp-servers"])
 
 
+def _mcp_permissions_filter():
+    return ApiKey.permissions.op("?")("mcp")
+
+
 class McpServerBase(BaseModel):
     title: str = Field(min_length=1, max_length=80)
     server_name: str = Field(
@@ -111,6 +115,7 @@ async def _server_name_conflict(
 
     q = sa.select(ApiKey).where(
         ApiKey.user_id == user_id,
+        _mcp_permissions_filter(),
         ApiKey.permissions["mcp"]["server_name"].astext == server_name,
     )
     if exclude_id is not None:
@@ -136,7 +141,7 @@ async def list_mcp_servers(
         await session.scalars(
             sa.select(ApiKey)
             .where(ApiKey.user_id == user_id)
-            .where(ApiKey.permissions["mcp"].is_not(None))
+            .where(_mcp_permissions_filter())
             .order_by(ApiKey.created_at.desc())
         )
     ).all()

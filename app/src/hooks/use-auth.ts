@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { apiClient } from "@/lib/api";
+import { apiClient, AUTH_TIMEOUT_MS } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 export type CurrentUser = {
@@ -24,7 +24,11 @@ type UpdateCurrentUserProfileBody = {
 export const useSetupStatus = () =>
   useQuery({
     queryKey: queryKeys.auth.setupStatus(),
-    queryFn: () => apiClient.get<{ needs_setup: boolean }>("v1/auth/setup-status"),
+    queryFn: ({ signal }) =>
+      apiClient.get<{ needs_setup: boolean }>("v1/auth/setup-status", {
+        signal,
+        timeoutMs: AUTH_TIMEOUT_MS,
+      }),
     staleTime: 0,
     retry: false,
   });
@@ -32,9 +36,12 @@ export const useSetupStatus = () =>
 export const useSession = () =>
   useQuery({
     queryKey: queryKeys.auth.session(),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        return await apiClient.get<SessionResponse>("v1/auth/me");
+        return await apiClient.get<SessionResponse>("v1/auth/me", {
+          signal,
+          timeoutMs: AUTH_TIMEOUT_MS,
+        });
       } catch (err: unknown) {
         const status =
           (err as { response?: { status?: number }; status?: number }).response?.status ??

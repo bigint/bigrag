@@ -315,7 +315,7 @@ async def collection_upload_session_stream(
             lambda session: upload_session_detail(
                 collection_name=collection_name,
                 session_id=session_id,
-                _=user,
+                user=user,
                 db=session,
             )
         )
