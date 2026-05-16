@@ -156,6 +156,9 @@ async def update_api_key(
     if body.active is not None:
         key.active = body.active
         fields.append("active")
+    if body.expires_at is not None:
+        key.expires_at = body.expires_at
+        fields.append("expires_at")
     existing = dict(key.permissions or {})
     if body.scopes is not None:
         try:
@@ -189,6 +192,42 @@ async def update_api_key(
         metadata={"name": key.name, "fields": fields},
     )
     return _key_response(key)
+
+
+@router.post("/{key_id}/rotate", response_model=CreateApiKeyResponse)
+async def rotate_api_key(
+    key_id: str,
+    request: Request,
+    admin: dict = Depends(require_admin_session),
+    session: AsyncSession = Depends(get_session),
+) -> CreateApiKeyResponse:
+    try:
+        target_id = uuid.UUID(key_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="API key not found") from e
+
+    key = await session.get(ApiKey, target_id)
+    if key is None or _is_mcp_key(key):
+        raise HTTPException(status_code=404, detail="API key not found")
+    previous_hash = key.key_hash
+    plaintext, prefix, key_hash = generate_api_key()
+    key.key_hash = key_hash
+    key.prefix = prefix
+    key.last_used_at = None
+    key.active = True
+    await session.commit()
+    await session.refresh(key)
+    await invalidate_api_key_principal(previous_hash)
+    audit.record(
+        request,
+        user=admin,
+        action="api_key.rotate",
+        resource_type="api_key",
+        resource_id=str(key.id),
+        metadata={"name": key.name},
+    )
+    base = _key_response(key)
+    return CreateApiKeyResponse(**base.model_dump(), key=plaintext)
 
 
 @router.delete("/{key_id}", response_model=StatusResponse)

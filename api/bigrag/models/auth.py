@@ -159,6 +159,7 @@ class CreateApiKeyResponse(ApiKeyResponse):
 class UpdateApiKeyRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     active: bool | None = None
+    expires_at: datetime | None = None
     scopes: list[str] | None = None
     collection: str | None = Field(
         default=None,

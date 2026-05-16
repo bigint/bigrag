@@ -2,13 +2,19 @@ import {
   AlertTriangle,
   BookOpen,
   ChevronRight,
+  Copy,
   Database,
+  FilePenLine,
   FileText,
   Gauge,
   Hash,
+  Play,
+  RotateCcw,
   Search,
+  Trash2,
   Zap,
 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import {
   type MutableRefObject,
   memo,
@@ -25,7 +31,7 @@ export type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  status?: "complete" | "error";
+  status?: "complete" | "error" | "stopped";
   errorMessage?: string | null;
   meta?: {
     collection: string | null;
@@ -37,9 +43,13 @@ export type ChatMessage = {
 interface Props {
   isStreaming: boolean;
   messages: ChatMessage[];
+  onClear?: () => void;
+  onEditUserMessage?: (messageId: string, content: string) => void;
+  onRegenerate?: (messageId: string) => void;
+  onResume?: (messageId: string) => void;
 }
 
-const CITATION_RE = /\[(\d+)\]/g;
+const CITATION_RE = /\[([0-9]+(?:\s*,\s*[0-9]+)*)\]/g;
 
 const formatWholeMs = (ms: number) => (ms > 0 && ms < 1 ? "<1ms" : `${Math.round(ms)}ms`);
 
@@ -56,19 +66,26 @@ const renderInlineCitations = (
     if (idx > last) {
       nodes.push(<span key={`t-${key++}`}>{content.slice(last, idx)}</span>);
     }
-    const n = Number.parseInt(match[1] ?? "0", 10);
-    const valid = n >= 1 && n <= chunkCount;
+    const citations = (match[1] ?? "")
+      .split(",")
+      .map((value) => Number.parseInt(value.trim(), 10))
+      .filter((value) => Number.isFinite(value));
+    const valid = citations.length > 0 && citations.every((n) => n >= 1 && n <= chunkCount);
     if (valid) {
       nodes.push(
-        <button
-          key={`c-${key++}`}
-          type="button"
-          onClick={() => onCite(n)}
-          className="mx-0.5 inline-flex items-center rounded-md border border-border bg-muted px-1.5 align-baseline font-mono text-xs font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label={`Jump to source ${n}`}
-        >
-          [{n}]
-        </button>,
+        <span key={`c-${key++}`} className="inline-flex items-center gap-0.5">
+          {citations.map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => onCite(n)}
+              className="mx-0.5 inline-flex items-center rounded-md border border-border bg-muted px-1.5 align-baseline font-mono text-xs font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`Jump to source ${n}`}
+            >
+              [{n}]
+            </button>
+          ))}
+        </span>,
       );
     } else {
       nodes.push(<span key={`r-${key++}`}>{match[0]}</span>);
@@ -82,7 +99,17 @@ const renderInlineCitations = (
 };
 
 const AssistantMessage = memo(
-  ({ isStreaming, message }: { isStreaming: boolean; message: ChatMessage }) => {
+  ({
+    isStreaming,
+    message,
+    onRegenerate,
+    onResume,
+  }: {
+    isStreaming: boolean;
+    message: ChatMessage;
+    onRegenerate?: (messageId: string) => void;
+    onResume?: (messageId: string) => void;
+  }) => {
     const detailsRef = useRef<HTMLDetailsElement>(null);
     const sourceRefs = useRef<Map<number, HTMLLIElement>>(new Map());
     const highlightTimer = useRef<number | null>(null);
@@ -123,8 +150,9 @@ const AssistantMessage = memo(
                 </span>
               )}
             </div>
-            {message.meta && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {message.meta && (
+                <>
                 <span className="inline-flex items-center gap-1">
                   <Search className="size-3.5" />
                   {message.meta.sources.length} chunks
@@ -139,8 +167,40 @@ const AssistantMessage = memo(
                     {formatWholeMs(message.meta.timings.total_ms)}
                   </span>
                 )}
-              </div>
-            )}
+                </>
+              )}
+              {message.content && (
+                <button
+                  type="button"
+                  className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted hover:text-foreground"
+                  onClick={() => navigator.clipboard.writeText(message.content)}
+                  aria-label="Copy answer"
+                >
+                  <Copy className="size-3.5" />
+                </button>
+              )}
+              {message.status === "stopped" && onResume ? (
+                <button
+                  type="button"
+                  className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted hover:text-foreground"
+                  onClick={() => onResume(message.id)}
+                  aria-label="Resume answer"
+                >
+                  <Play className="size-3.5" />
+                </button>
+              ) : (
+                onRegenerate && (
+                  <button
+                    type="button"
+                    className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted hover:text-foreground"
+                    onClick={() => onRegenerate(message.id)}
+                    aria-label="Regenerate answer"
+                  >
+                    <RotateCcw className="size-3.5" />
+                  </button>
+                )
+              )}
+            </div>
           </div>
 
           <div
@@ -156,7 +216,11 @@ const AssistantMessage = memo(
                 <span>{message.errorMessage}</span>
               </span>
             ) : message.content ? (
-              renderInlineCitations(message.content, sourceCount, jumpToSource)
+              <MarkdownContent
+                chunkCount={sourceCount}
+                content={message.content}
+                onCite={jumpToSource}
+              />
             ) : (
               <span className="text-muted-foreground">
                 Retrieving context and drafting answer...
@@ -191,6 +255,7 @@ const AssistantMessage = memo(
                       else sourceRefs.current.delete(index + 1);
                     }}
                     source={source}
+                    collection={message.meta.collection}
                   />
                 ))}
               </ol>
@@ -203,9 +268,32 @@ const AssistantMessage = memo(
 );
 AssistantMessage.displayName = "AssistantMessage";
 
-const UserMessage = ({ content }: { content: string }) => (
-  <article className="ml-auto max-w-[min(42rem,88%)] rounded-xl bg-muted px-4 py-3 text-sm font-semibold leading-6 text-foreground">
-    {content}
+const UserMessage = ({
+  content,
+  id,
+  onEdit,
+}: {
+  content: string;
+  id: string;
+  onEdit?: (messageId: string, content: string) => void;
+}) => (
+  <article className="group ml-auto max-w-[min(42rem,88%)] rounded-xl bg-muted px-4 py-3 text-sm font-semibold leading-6 text-foreground">
+    <div className="flex items-start gap-3">
+      <span className="whitespace-pre-wrap">{content}</span>
+      {onEdit && (
+        <button
+          type="button"
+          className="mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 hover:bg-background hover:text-foreground group-hover:opacity-100"
+          onClick={() => {
+            const next = window.prompt("Edit message", content);
+            if (next?.trim()) onEdit(id, next.trim());
+          }}
+          aria-label="Edit message"
+        >
+          <FilePenLine className="size-3.5" />
+        </button>
+      )}
+    </div>
   </article>
 );
 
@@ -254,11 +342,13 @@ const LatencyLedger = ({ timings }: { timings: QueryTimings }) => {
 };
 
 const SourceCard = ({
+  collection,
   highlight,
   index,
   refCallback,
   source,
 }: {
+  collection: string | null;
   highlight?: boolean;
   index: number;
   refCallback?: (el: HTMLLIElement | null) => void;
@@ -283,12 +373,26 @@ const SourceCard = ({
             <span className="rounded-md border border-border bg-card px-1.5 py-0.5 font-mono font-semibold text-foreground">
               [{index}]
             </span>
-            <span className="inline-flex min-w-0 items-center gap-1 font-semibold text-foreground">
+            {collection && source.document_id ? (
+              <Link
+                to="/collections/$name/documents/$docId"
+                params={{ name: collection, docId: source.document_id }}
+                hash={typeof source.chunk_index === "number" ? `chunk-${source.chunk_index}` : undefined}
+                className="inline-flex min-w-0 items-center gap-1 font-semibold text-foreground hover:text-primary"
+              >
+                <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate" title={filename ?? source.document_id ?? undefined}>
+                  {docLabel}
+                </span>
+              </Link>
+            ) : (
+              <span className="inline-flex min-w-0 items-center gap-1 font-semibold text-foreground">
               <FileText className="size-3.5 shrink-0 text-muted-foreground" />
               <span className="truncate" title={filename ?? source.document_id ?? undefined}>
                 {docLabel}
               </span>
-            </span>
+              </span>
+            )}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-muted-foreground">
             {typeof source.chunk_index === "number" && (
@@ -316,7 +420,14 @@ const SourceCard = ({
   );
 };
 
-export const ChatMessages = ({ isStreaming, messages }: Props) => {
+export const ChatMessages = ({
+  isStreaming,
+  messages,
+  onClear,
+  onEditUserMessage,
+  onRegenerate,
+  onResume,
+}: Props) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useAutoScrollChat(bottomRef, messages, isStreaming);
@@ -324,9 +435,26 @@ export const ChatMessages = ({ isStreaming, messages }: Props) => {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-6 lg:px-10">
       <div className="mx-auto flex max-w-4xl flex-col gap-4" role="log">
+        {messages.length > 0 && onClear && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={onClear}
+            >
+              <Trash2 className="size-3.5" />
+              Clear
+            </button>
+          </div>
+        )}
         {messages.map((message, index) =>
           message.role === "user" ? (
-            <UserMessage content={message.content} key={message.id} />
+            <UserMessage
+              content={message.content}
+              id={message.id}
+              key={message.id}
+              onEdit={onEditUserMessage}
+            />
           ) : (
             <AssistantMessage
               isStreaming={
@@ -334,12 +462,87 @@ export const ChatMessages = ({ isStreaming, messages }: Props) => {
               }
               key={message.id}
               message={message}
+              onRegenerate={onRegenerate}
+              onResume={onResume}
             />
           ),
         )}
         <div ref={bottomRef} />
       </div>
     </div>
+  );
+};
+
+const MarkdownContent = ({
+  chunkCount,
+  content,
+  onCite,
+}: {
+  chunkCount: number;
+  content: string;
+  onCite: (n: number) => void;
+}) => {
+  const blocks = content.split(/\n{2,}/);
+  return (
+    <>
+      {blocks.map((block, index) => {
+        const key = `${index}-${block.slice(0, 12)}`;
+        if (block.startsWith("```")) {
+          const code = block.replace(/^```[^\n]*\n?/, "").replace(/```$/, "");
+          return (
+            <pre key={key} className="my-3 overflow-x-auto rounded-lg bg-muted p-3 text-sm">
+              <code>{code}</code>
+            </pre>
+          );
+        }
+        if (/^[-*] \[[ xX]\] /m.test(block)) {
+          return (
+            <ul key={key} className="my-2 grid gap-1">
+              {block.split("\n").map((line) => {
+                const checked = /^[-*] \[[xX]\] /.test(line);
+                const text = line.replace(/^[-*] \[[ xX]\] /, "");
+                return (
+                  <li key={line} className="flex items-start gap-2">
+                    <input type="checkbox" checked={checked} readOnly className="mt-1 size-3.5" />
+                    <span>{renderInlineCitations(text, chunkCount, onCite)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        }
+        if (/^[-*] /m.test(block)) {
+          return (
+            <ul key={key} className="my-2 list-disc space-y-1 pl-5">
+              {block.split("\n").map((line) => (
+                <li key={line}>{renderInlineCitations(line.replace(/^[-*] /, ""), chunkCount, onCite)}</li>
+              ))}
+            </ul>
+          );
+        }
+        if (/^\d+\. /m.test(block)) {
+          return (
+            <ol key={key} className="my-2 list-decimal space-y-1 pl-5">
+              {block.split("\n").map((line) => (
+                <li key={line}>{renderInlineCitations(line.replace(/^\d+\. /, ""), chunkCount, onCite)}</li>
+              ))}
+            </ol>
+          );
+        }
+        if (block.includes("\n|") && block.includes("|")) {
+          return (
+            <pre key={key} className="my-3 overflow-x-auto rounded-lg border border-border bg-muted p-3 text-xs">
+              {block}
+            </pre>
+          );
+        }
+        return (
+          <p key={key} className="my-2">
+            {renderInlineCitations(block, chunkCount, onCite)}
+          </p>
+        );
+      })}
+    </>
   );
 };
 

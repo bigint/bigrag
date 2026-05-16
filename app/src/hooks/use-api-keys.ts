@@ -13,11 +13,17 @@ export const useApiKeys = () =>
     queryFn: () => apiClient.get<{ keys: ApiKey[]; total: number }>("v1/admin/api-keys"),
   });
 
+type ApiKeyMutationBody = {
+  name: string;
+  expires_at?: string | null;
+  collection?: string | null;
+  scopes?: string[] | null;
+};
+
 export const useCreateApiKey = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { name: string; expires_at?: string | null; collection?: string | null }) =>
-      apiClient.post<CreatedApiKey>("v1/admin/api-keys", body),
+    mutationFn: (body: ApiKeyMutationBody) => apiClient.post<CreatedApiKey>("v1/admin/api-keys", body),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
     onError: errorToast("Failed to create"),
   });
@@ -34,9 +40,21 @@ export const useUpdateApiKey = () => {
       name?: string;
       active?: boolean;
       collection?: string | null;
+      expires_at?: string | null;
+      scopes?: string[] | null;
     }) => apiClient.patch<ApiKey>(`v1/admin/api-keys/${id}`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
     onError: errorToast("Failed to update key"),
+  });
+};
+
+export const useRotateApiKey = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.post<CreatedApiKey>(`v1/admin/api-keys/${id}/rotate`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onError: errorToast("Failed to rotate key"),
   });
 };
 

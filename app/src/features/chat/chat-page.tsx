@@ -78,8 +78,10 @@ export const ChatPage = () => {
   const messages = useChatStore((state) => state.messages);
   const isStreaming = useChatStore((state) => state.isStreaming);
   const appendMessages = useChatStore((state) => state.appendMessages);
+  const clearMessages = useChatStore((state) => state.clearMessages);
   const selectCollection = useChatStore((state) => state.selectCollection);
   const selectFirstCollection = useChatStore((state) => state.selectFirstCollection);
+  const setMessages = useChatStore((state) => state.setMessages);
   const setStreaming = useChatStore((state) => state.setStreaming);
   const updateMessage = useChatStore((state) => state.updateMessage);
   const abortRef = useRef<AbortController | null>(null);
@@ -159,6 +161,7 @@ export const ChatPage = () => {
   };
 
   const handleSend = async (text: string) => {
+    if (isStreaming) return;
     if (!state.hasOpenAIKey) {
       toast.error("Add your OpenAI API key first");
       return;
@@ -248,7 +251,7 @@ export const ChatPage = () => {
       if (err instanceof DOMException && err.name === "AbortError") {
         updateMessage(currentAssistantId, (chatMessage) => ({
           ...chatMessage,
-          status: "complete",
+          status: "stopped",
         }));
       } else {
         const message = err instanceof Error ? err.message : "Chat request failed";
@@ -264,6 +267,32 @@ export const ChatPage = () => {
       setStreaming(false);
       abortRef.current = null;
     }
+  };
+
+  const handleClear = () => {
+    stopStreaming();
+    clearMessages();
+  };
+
+  const resendFrom = (messageIndex: number, content: string) => {
+    setMessages(messages.slice(0, messageIndex));
+    void handleSend(content);
+  };
+
+  const handleEditUserMessage = (messageId: string, content: string) => {
+    const index = messages.findIndex((message) => message.id === messageId);
+    if (index < 0) return;
+    resendFrom(index, content);
+  };
+
+  const handleRegenerate = (messageId: string) => {
+    const assistantIndex = messages.findIndex((message) => message.id === messageId);
+    if (assistantIndex < 0) return;
+    const userIndex = messages
+      .slice(0, assistantIndex)
+      .findLastIndex((message) => message.role === "user");
+    if (userIndex < 0) return;
+    resendFrom(userIndex, messages[userIndex].content);
   };
 
   const loading = collectionsLoading || prefsQuery.isPending;
@@ -290,7 +319,14 @@ export const ChatPage = () => {
                 questions={questionsQuery.data?.questions ?? []}
               />
             ) : (
-              <ChatMessages isStreaming={isStreaming} messages={messages} />
+              <ChatMessages
+                isStreaming={isStreaming}
+                messages={messages}
+                onClear={handleClear}
+                onEditUserMessage={handleEditUserMessage}
+                onRegenerate={handleRegenerate}
+                onResume={handleRegenerate}
+              />
             )}
             <ChatInput
               collection={currentCollectionName}

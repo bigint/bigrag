@@ -1,6 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Copy, KeyRound, Plus, Trash2 } from "lucide-react";
+import { Check, Copy, KeyRound, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { PageShell } from "@/components/ui/page-shell";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
+import { bigragApiUrl } from "@/config/runtime";
 import {
   API_KEY_UNSCOPED,
   apiKeyBodyFromValues,
@@ -24,6 +25,7 @@ import {
   useApiKeys,
   useCreateApiKey,
   useDeleteApiKey,
+  useRotateApiKey,
   useUpdateApiKey,
 } from "@/hooks/use-api-keys";
 import { useCollections } from "@/hooks/use-collections";
@@ -39,6 +41,7 @@ const ApiKeysPage = () => {
   const { data, isPending } = useApiKeys();
   const { data: collectionsData } = useCollections();
   const create = useCreateApiKey();
+  const rotate = useRotateApiKey();
   const toggle = useUpdateApiKey();
   const revoke = useDeleteApiKey();
 
@@ -48,6 +51,7 @@ const ApiKeysPage = () => {
   const [newKey, setNewKey] = useState<CreatedApiKey | null>(null);
   const [copied, setCopied] = useState(false);
   const [deleteFor, setDeleteFor] = useState<ApiKey | null>(null);
+  const [testingKey, setTestingKey] = useState(false);
   const form = useForm({
     defaultValues: defaultApiKeyFormValues(),
     validators: {
@@ -73,6 +77,24 @@ const ApiKeysPage = () => {
     setTimeout(() => setCopied(false), 1800);
   };
 
+  const testNewKey = async () => {
+    if (!newKey) return;
+    setTestingKey(true);
+    try {
+      const response = await fetch(`${bigragApiUrl}/v1/auth/whoami`, {
+        headers: { Authorization: `Bearer ${newKey.key}` },
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      toast.success("Key connected");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Key test failed");
+    } finally {
+      setTestingKey(false);
+    }
+  };
+
   const columns: Column<ApiKey>[] = [
     {
       header: "Name",
@@ -88,12 +110,18 @@ const ApiKeysPage = () => {
     {
       header: "Scope",
       key: "scope",
-      render: (k) =>
-        k.collection ? (
-          <Badge variant="neutral">{k.collection}</Badge>
-        ) : (
-          <span className="text-muted-foreground text-xs">All collections</span>
-        ),
+      render: (k) => (
+        <div className="flex flex-col gap-1">
+          {k.collection ? (
+            <Badge variant="neutral">{k.collection}</Badge>
+          ) : (
+            <span className="text-muted-foreground text-xs">All collections</span>
+          )}
+          <span className="text-xs text-muted-foreground">
+            {k.scopes.length ? k.scopes.join(", ") : "Full access"}
+          </span>
+        </div>
+      ),
     },
     {
       header: "Status",
@@ -111,6 +139,12 @@ const ApiKeysPage = () => {
       render: (k) => (k.last_used_at ? formatRelative(k.last_used_at) : "never"),
     },
     {
+      header: "Expires",
+      key: "expires_at",
+      className: "text-muted-foreground",
+      render: (k) => (k.expires_at ? formatRelative(k.expires_at) : "never"),
+    },
+    {
       header: "Actions",
       headerClassName: "text-right",
       className: "text-right",
@@ -123,6 +157,24 @@ const ApiKeysPage = () => {
               checked={k.active}
               onCheckedChange={(active) => toggle.mutate({ active, id: k.id })}
             />
+          </Tooltip>
+          <Tooltip content="Rotate key">
+            <Button
+              aria-label="Rotate"
+              disabled={rotate.isPending}
+              onClick={async () => {
+                try {
+                  const rotated = await rotate.mutateAsync(k.id);
+                  setNewKey(rotated);
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "Rotate failed");
+                }
+              }}
+              size="sm"
+              variant="ghost"
+            >
+              <RotateCcw className="size-4" />
+            </Button>
           </Tooltip>
           <Tooltip content="Delete key">
             <Button
