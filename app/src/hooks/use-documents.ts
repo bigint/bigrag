@@ -226,10 +226,13 @@ export const useBatchDeleteDocuments = (collection: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (documentIds: string[]) =>
-      apiClient.post<{ status: string; deleted: number; errors: { document_id: string; error: string }[] }>(
-        `v1/collections/${encodeURIComponent(collection)}/documents/batch/delete`,
-        { document_ids: documentIds },
-      ),
+      apiClient.post<{
+        status: string;
+        deleted: number;
+        errors: { document_id: string; error: string }[];
+      }>(`v1/collections/${encodeURIComponent(collection)}/documents/batch/delete`, {
+        document_ids: documentIds,
+      }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: queryKeys.documents.lists() });
       const failed = res.errors.length;

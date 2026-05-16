@@ -73,6 +73,26 @@ PATCH /v1/admin/embedding-presets/{preset_id}
 
 Partial — any combination of `name`, `provider`, `model`, `base_url`, `dimension`, `api_key`. Updating credentials propagates immediately to every collection linked via `embedding_preset_id`; their cached config is invalidated as part of the request.
 
+## Test Preset Credentials
+
+```
+POST /v1/admin/embedding-presets/test
+POST /v1/admin/embedding-presets/{preset_id}/test
+```
+
+The first form tests plaintext form values before create/update:
+
+```json
+{
+  "provider": "openai_compatible",
+  "model": "text-embedding-3-small",
+  "base_url": "https://gateway.example.com/v1",
+  "api_key": "sk-..."
+}
+```
+
+The saved-preset form tests the encrypted key already stored for an existing preset. Both return `{"status":"ok","message":"Embedding provider connection succeeded"}` on success.
+
 ## Delete Preset
 
 ```

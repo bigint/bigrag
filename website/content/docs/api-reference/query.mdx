@@ -45,6 +45,7 @@ Perform a search against a collection. The query is embedded with the collection
       "text": "The study found significant increases in global temperatures...",
       "score": 0.892,
       "document_id": "660e8400-e29b-41d4-a716-446655440000",
+      "document_filename": "paper.pdf",
       "chunk_index": 3,
       "page_no": 5,
       "char_start": 1820,
@@ -75,6 +76,7 @@ Perform a search against a collection. The query is embedded with the collection
 | `results[].text` | string | Chunk text |
 | `results[].score` | float | Similarity / fused score (0–1) |
 | `results[].document_id` | string | Source document UUID |
+| `results[].document_filename` | string? | Source filename resolved from the document table when available |
 | `results[].chunk_index` | integer | Position within the source document |
 | `results[].page_no` | integer? | Source page number when Docling surfaced one (PDF, DOCX, PPTX). `null` for plain-text formats. |
 | `results[].char_start` | integer? | Inclusive character offset of the chunk inside the source document. |

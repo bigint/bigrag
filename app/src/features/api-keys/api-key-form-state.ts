@@ -61,7 +61,8 @@ const parseScopes = (value: string) =>
 
 const expirationFromPreset = ({ customExpiresAt, expiresPreset }: ApiKeyFormValues) => {
   if (expiresPreset === "never") return null;
-  if (expiresPreset === "custom") return customExpiresAt ? new Date(customExpiresAt).toISOString() : null;
+  if (expiresPreset === "custom")
+    return customExpiresAt ? new Date(customExpiresAt).toISOString() : null;
   const days = Number.parseInt(expiresPreset, 10);
   const expires = new Date();
   expires.setDate(expires.getDate() + days);

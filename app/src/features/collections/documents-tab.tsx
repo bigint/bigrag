@@ -136,7 +136,8 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
   const totalPages = data ? Math.max(1, Math.ceil(data.total / pageSize)) : 1;
   const pageDocuments = data?.documents ?? [];
   const selectedVisibleCount = pageDocuments.filter((doc) => selected.has(doc.id)).length;
-  const allVisibleSelected = pageDocuments.length > 0 && selectedVisibleCount === pageDocuments.length;
+  const allVisibleSelected =
+    pageDocuments.length > 0 && selectedVisibleCount === pageDocuments.length;
   const selectedDocuments = pageDocuments.filter((doc) => selected.has(doc.id));
   const bulkConfirmationText = `DELETE ${selectedDocuments.length}`;
 
@@ -442,7 +443,9 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
       ) : data?.documents.length === 0 ? (
         <Empty
           icon={<FileText className="size-6" />}
-          title={activeFilters.q || activeFilters.status ? "No matching documents" : "No documents yet"}
+          title={
+            activeFilters.q || activeFilters.status ? "No matching documents" : "No documents yet"
+          }
           description={
             activeFilters.q || activeFilters.status
               ? "Adjust filters to see more documents."
@@ -468,8 +471,8 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
             </div>
             {data && data.total > data.documents.length && (
               <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
-                Showing {offset + 1}-
-                {Math.min(offset + data.documents.length, data.total)} of {data.total} documents.
+                Showing {offset + 1}-{Math.min(offset + data.documents.length, data.total)} of{" "}
+                {data.total} documents.
               </div>
             )}
           </div>

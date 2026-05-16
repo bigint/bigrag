@@ -3,15 +3,22 @@ import { DocumentsTab } from "@/features/collections/documents-tab";
 import type { DocumentListOrder, DocumentListSort } from "@/hooks/use-documents";
 
 const statuses = new Set(["", "pending", "processing", "ready", "failed"]);
-const sorts = new Set(["created_at", "updated_at", "filename", "file_size", "chunk_count", "status"]);
+const sorts = new Set([
+  "created_at",
+  "updated_at",
+  "filename",
+  "file_size",
+  "chunk_count",
+  "status",
+]);
 const orders = new Set(["asc", "desc"]);
 
 type DocumentsSearch = {
-  order: DocumentListOrder;
-  page: number;
-  q: string;
-  sort: DocumentListSort;
-  status: string;
+  order?: DocumentListOrder;
+  page?: number;
+  q?: string;
+  sort?: DocumentListSort;
+  status?: string;
 };
 
 const stringValue = (value: unknown) => (typeof value === "string" ? value : "");
@@ -21,12 +28,14 @@ const validateSearch = (search: Record<string, unknown>): DocumentsSearch => {
   const sort = stringValue(search.sort);
   const order = stringValue(search.order);
   const page = Number(search.page);
+  const parsedPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+  const q = stringValue(search.q).slice(0, 200);
   return {
-    order: orders.has(order) ? (order as DocumentListOrder) : "desc",
-    page: Number.isFinite(page) && page > 0 ? Math.floor(page) : 1,
-    q: stringValue(search.q).slice(0, 200),
-    sort: sorts.has(sort) ? (sort as DocumentListSort) : "created_at",
-    status: statuses.has(status) ? status : "",
+    ...(orders.has(order) && order !== "desc" ? { order: order as DocumentListOrder } : {}),
+    ...(parsedPage === 1 ? {} : { page: parsedPage }),
+    ...(q ? { q } : {}),
+    ...(sorts.has(sort) && sort !== "created_at" ? { sort: sort as DocumentListSort } : {}),
+    ...(statuses.has(status) && status ? { status } : {}),
   };
 };
 
@@ -35,9 +44,16 @@ const DocumentsRoute = () => {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const name = decodeURIComponent(rawName);
+  const filters = {
+    order: search.order ?? "desc",
+    page: search.page ?? 1,
+    q: search.q ?? "",
+    sort: search.sort ?? "created_at",
+    status: search.status ?? "",
+  };
   return (
     <DocumentsTab
-      filters={search}
+      filters={filters}
       name={name}
       onFiltersChange={(next) =>
         navigate({

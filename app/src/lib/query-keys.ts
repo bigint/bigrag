@@ -110,8 +110,8 @@ export const queryKeys = {
           ...(q ? { q } : {}),
           ...(sort ? { sort } : {}),
           ...(order ? { order } : {}),
-          ...(limit !== undefined ? { limit } : {}),
-          ...(offset !== undefined ? { offset } : {}),
+          ...(limit === undefined ? {} : { limit }),
+          ...(offset === undefined ? {} : { offset }),
         },
       ] as const,
     one: ({ collection, id }: DocumentParams) =>

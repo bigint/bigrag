@@ -73,7 +73,11 @@ export const ConfirmDialog = ({
               disabled={loading}
               render={<Button variant="secondary">Cancel</Button>}
             />
-            <Button disabled={loading || (needsConfirmation && !canConfirm)} onClick={onConfirm} variant={variant}>
+            <Button
+              disabled={loading || (needsConfirmation && !canConfirm)}
+              onClick={onConfirm}
+              variant={variant}
+            >
               {loading ? "Processing…" : confirmLabel}
             </Button>
           </div>

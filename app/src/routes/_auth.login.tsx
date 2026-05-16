@@ -15,10 +15,15 @@ import {
 import { useLogin, useSetupStatus } from "@/hooks/use-auth";
 import { errorText, firstString, submitWith } from "@/lib/form";
 
+type LoginSearch = {
+  from?: string;
+};
+
 export const Route = createFileRoute("/_auth/login")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    from: safeReturnPath(search.from),
-  }),
+  validateSearch: (search: Record<string, unknown>): LoginSearch => {
+    const from = safeReturnPath(search.from);
+    return from ? { from } : {};
+  },
   component: () => <LoginPage />,
 });
 

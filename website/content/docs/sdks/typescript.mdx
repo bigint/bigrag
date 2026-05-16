@@ -108,8 +108,8 @@ client.documents.uploadSessionFile(collection, sessionId, file, { clientItemId?,
 client.documents.getUploadSession(collection, sessionId)
 client.documents.completeUploadSession(collection, sessionId)
 client.documents.cancelUploadSession(collection, sessionId)
-client.documents.list(collection, { status?, limit?, offset? })
-client.documents.listAll(collection, { status?, limit? })  // AsyncGenerator
+client.documents.list(collection, { q?, status?, sort?, order?, limit?, offset? })
+client.documents.listAll(collection, { q?, status?, sort?, order?, limit? })  // AsyncGenerator
 client.documents.get(collection, documentId)
 client.documents.delete(collection, documentId)
 client.documents.batchGetStatus(collection, documentIds)
@@ -209,7 +209,8 @@ client.admin.users.delete(userId)
 
 client.admin.apiKeys.list({ limit?, offset? })
 client.admin.apiKeys.create({ name, expires_at?, scopes?, collection? })
-client.admin.apiKeys.update(keyId, { name?, active?, scopes?, collection? })
+client.admin.apiKeys.update(keyId, { name?, active?, expires_at?, scopes?, collection? })
+client.admin.apiKeys.rotate(keyId)
 client.admin.apiKeys.delete(keyId)
 
 client.admin.access.logs({ action?, actorId?, collection?, statusFamily?, success?, limit?, offset? })
@@ -232,6 +233,8 @@ client.admin.connectors.google.update({ enabled?, client_id?, client_secret? })
 client.admin.embeddingPresets.list({ limit?, offset? })
 client.admin.embeddingPresets.create({ name, provider, model, api_key, base_url?, dimension })
 client.admin.embeddingPresets.update(presetId, { name?, provider?, model?, api_key?, base_url?, dimension? })
+client.admin.embeddingPresets.test({ provider, model, api_key?, base_url? })
+client.admin.embeddingPresets.testSaved(presetId)
 client.admin.embeddingPresets.delete(presetId)
 
 client.admin.mcpServers.list()

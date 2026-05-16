@@ -95,7 +95,10 @@ export const VectorStoragePage = ({ provider, onProviderChange }: VectorStorageP
           ) : overview.data ? (
             <>
               <div className="grid gap-3 md:grid-cols-4">
-                <Metric label="Collections" value={formatNumber(overview.data.totals.collections)} />
+                <Metric
+                  label="Collections"
+                  value={formatNumber(overview.data.totals.collections)}
+                />
                 <Metric label="Documents" value={formatNumber(overview.data.totals.documents)} />
                 <Metric label="Chunks" value={formatNumber(overview.data.totals.chunks)} />
                 <Metric label="Stored files" value={formatBytes(overview.data.totals.bytes)} />

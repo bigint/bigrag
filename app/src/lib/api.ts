@@ -1,4 +1,4 @@
-import ky, { HTTPError, type KyInstance } from "ky";
+import ky, { HTTPError, type KyInstance, type Options } from "ky";
 import { bigragApiUrl } from "@/config/runtime";
 
 type SearchParams = Record<string, string | number | boolean | null | undefined>;
@@ -44,25 +44,22 @@ const isRequestOptions = (
 ): value is ApiRequestOptions =>
   Boolean(
     value &&
-      ("searchParams" in value ||
-        "signal" in value ||
-        "timeoutMs" in value ||
-        "timeout" in value),
+      ("searchParams" in value || "signal" in value || "timeoutMs" in value || "timeout" in value),
   );
 
-const compactSearchParams = (searchParams: SearchParams | undefined) =>
+const compactSearchParams = (
+  searchParams: SearchParams | undefined,
+): Record<string, string | number | boolean> | undefined =>
   searchParams
-    ? Object.fromEntries(
+    ? (Object.fromEntries(
         Object.entries(searchParams).filter(([, value]) => value !== undefined && value !== null),
-      )
+      ) as Record<string, string | number | boolean>)
     : undefined;
 
-const requestOptions = (options?: ApiRequestOptions) => ({
+const requestOptions = (options?: ApiRequestOptions): Options => ({
   ...(options?.signal ? { signal: options.signal } : {}),
   ...(options?.timeoutMs ? { timeout: options.timeoutMs } : {}),
-  ...(options?.searchParams
-    ? { searchParams: compactSearchParams(options.searchParams) }
-    : {}),
+  ...(options?.searchParams ? { searchParams: compactSearchParams(options.searchParams) } : {}),
 });
 
 const normalizeGetOptions = (

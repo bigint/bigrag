@@ -10,9 +10,9 @@ import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  type CreateCollectionFormValues,
   createCollectionBodyFromValues,
   defaultCreateCollectionFormValues,
-  type CreateCollectionFormValues,
   validateCreateCollectionFormValues,
 } from "@/features/collections/collection-form-state";
 import { useCreateCollection } from "@/hooks/use-collections";
@@ -20,6 +20,9 @@ import { useEmbeddingPresets } from "@/hooks/use-embedding-presets";
 import { errorText, firstString, submitWith } from "@/lib/form";
 
 type Props = { open: boolean; onClose: () => void };
+type ResettableCreateCollectionForm = {
+  reset: (values: CreateCollectionFormValues) => void;
+};
 
 export const CreateCollectionModal = ({ open, onClose }: Props) => {
   const create = useCreateCollection();
@@ -85,8 +88,8 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
           }}
         </form.Subscribe>
         <form.Field
-            name="name"
-            validators={{
+          name="name"
+          validators={{
             onSubmit: ({ value }) => {
               const trimmed = value.trim();
               if (!trimmed) return "Name is required";
@@ -140,8 +143,16 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
           </div>
         ) : presetsIsError ? (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-3 text-sm text-destructive">
-            <div>{presetsError instanceof Error ? presetsError.message : "Failed to load presets"}</div>
-            <Button className="mt-2" onClick={() => refetchPresets()} size="sm" type="button" variant="secondary">
+            <div>
+              {presetsError instanceof Error ? presetsError.message : "Failed to load presets"}
+            </div>
+            <Button
+              className="mt-2"
+              onClick={() => refetchPresets()}
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
               Retry
             </Button>
           </div>
@@ -185,9 +196,7 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             name="chunkSize"
             validators={{
               onSubmit: ({ value }) =>
-                value < 64 || value > 10000
-                  ? "Chunk size must be between 64 and 10000"
-                  : undefined,
+                value < 64 || value > 10000 ? "Chunk size must be between 64 and 10000" : undefined,
             }}
           >
             {(field) => (
@@ -229,7 +238,9 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             name="tenantField"
             validators={{
               onSubmit: ({ value }) =>
-                value.trim().length > 64 ? "Tenant field must be 64 characters or fewer" : undefined,
+                value.trim().length > 64
+                  ? "Tenant field must be 64 characters or fewer"
+                  : undefined,
             }}
           >
             {(field) => (
@@ -290,7 +301,7 @@ const useDefaultEmbeddingPreset = (
 
 const useResetCreateCollectionForm = (
   open: boolean,
-  form: ReturnType<typeof useForm<CreateCollectionFormValues>>,
+  form: ResettableCreateCollectionForm,
   resetMutation: () => void,
 ) => {
   useEffect(() => {

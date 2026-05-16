@@ -288,9 +288,13 @@ export const ChatPage = () => {
   const handleRegenerate = (messageId: string) => {
     const assistantIndex = messages.findIndex((message) => message.id === messageId);
     if (assistantIndex < 0) return;
-    const userIndex = messages
-      .slice(0, assistantIndex)
-      .findLastIndex((message) => message.role === "user");
+    let userIndex = -1;
+    for (let index = assistantIndex - 1; index >= 0; index -= 1) {
+      if (messages[index].role === "user") {
+        userIndex = index;
+        break;
+      }
+    }
     if (userIndex < 0) return;
     resendFrom(userIndex, messages[userIndex].content);
   };

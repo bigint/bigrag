@@ -9,6 +9,34 @@ For advanced use cases, you can directly manage vectors without going through th
 
 Scoped API keys need `vector:write` for upsert and `vector:delete` for delete. `collection:write` no longer grants raw vector mutation.
 
+## Admin Vector Storage Overview
+
+```
+GET /v1/admin/vector-storage/overview
+```
+
+Session-only. Returns configured vector providers, provider health, and per-collection routing/stats for the admin UI `/vector-storage` page.
+
+```json
+{
+  "fallback_provider": "collection",
+  "configured_providers": ["qdrant", "turbopuffer"],
+  "provider_health": {
+    "qdrant": { "configured": true, "status": "ok", "error": null }
+  },
+  "collections": [
+    {
+      "name": "docs",
+      "provider": "qdrant",
+      "documents": 12,
+      "chunks": 480,
+      "bytes": 1048576
+    }
+  ],
+  "totals": { "collections": 1, "documents": 12, "chunks": 480, "bytes": 1048576 }
+}
+```
+
 ## Upsert Vectors
 
 ```

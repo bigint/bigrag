@@ -217,8 +217,9 @@ const AccessLogTable = ({
 }) => (
   <div className="divide-y divide-border">
     {entries.map((entry) => (
-      <div
-        className="grid gap-4 px-5 py-4 hover:bg-muted/60 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_12rem_9rem]"
+      <button
+        type="button"
+        className="grid w-full gap-4 px-5 py-4 text-left hover:bg-muted/60 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_12rem_9rem]"
         key={entry.id}
         onClick={() => onSelect(entry)}
       >
@@ -257,7 +258,7 @@ const AccessLogTable = ({
             </div>
           </div>
         </div>
-      </div>
+      </button>
     ))}
   </div>
 );

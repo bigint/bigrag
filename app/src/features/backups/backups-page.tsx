@@ -82,14 +82,16 @@ export const BackupsPage = () => {
             <div className="flex items-end">
               <Button
                 className="w-full lg:w-auto"
-                disabled={startBackup.isPending || active || workerOffline || !destinationConfigured}
+                disabled={
+                  startBackup.isPending || active || workerOffline || !destinationConfigured
+                }
                 onClick={() => startBackup.mutate({ label })}
                 title={
                   workerOffline
                     ? workerOfflineActionMessage(workerAvailability)
-                    : !destinationConfigured
-                      ? "Configure backup_s3_bucket first"
-                      : undefined
+                    : destinationConfigured
+                      ? undefined
+                      : "Configure backup_s3_bucket first"
                 }
               >
                 <CloudUpload className="size-4" />

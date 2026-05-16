@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
   BookOpen,
@@ -14,7 +15,6 @@ import {
   Trash2,
   Zap,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
 import {
   type MutableRefObject,
   memo,
@@ -153,20 +153,20 @@ const AssistantMessage = memo(
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {message.meta && (
                 <>
-                <span className="inline-flex items-center gap-1">
-                  <Search className="size-3.5" />
-                  {message.meta.sources.length} chunks
-                </span>
-                {message.meta.timings && (
-                  <span className="inline-flex items-center gap-1 font-mono">
-                    {message.meta.timings.cache_hit ? (
-                      <Database className="size-3.5" />
-                    ) : (
-                      <Zap className="size-3.5" />
-                    )}
-                    {formatWholeMs(message.meta.timings.total_ms)}
+                  <span className="inline-flex items-center gap-1">
+                    <Search className="size-3.5" />
+                    {message.meta.sources.length} chunks
                   </span>
-                )}
+                  {message.meta.timings && (
+                    <span className="inline-flex items-center gap-1 font-mono">
+                      {message.meta.timings.cache_hit ? (
+                        <Database className="size-3.5" />
+                      ) : (
+                        <Zap className="size-3.5" />
+                      )}
+                      {formatWholeMs(message.meta.timings.total_ms)}
+                    </span>
+                  )}
                 </>
               )}
               {message.content && (
@@ -231,42 +231,63 @@ const AssistantMessage = memo(
             )}
           </div>
 
-          {message.meta && message.meta.sources.length > 0 && (
-            <details ref={detailsRef} className="group mt-4 text-xs">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-border bg-muted/45 px-3 py-2 font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
-                <span className="inline-flex min-w-0 items-center gap-2">
-                  <ChevronRight className="size-3.5 shrink-0 group-open:rotate-90" />
-                  <span className="truncate">Sources</span>
-                </span>
-                <span className="shrink-0 font-mono">
-                  {message.meta.sources.length}
-                  {message.meta.timings ? ` / ${formatWholeMs(message.meta.timings.total_ms)}` : ""}
-                </span>
-              </summary>
-              {message.meta.timings && <LatencyLedger timings={message.meta.timings} />}
-              <ol className="mt-2 grid gap-2">
-                {message.meta.sources.map((source, index) => (
-                  <SourceCard
-                    key={source.id}
-                    highlight={highlight === index + 1}
-                    index={index + 1}
-                    refCallback={(el) => {
-                      if (el) sourceRefs.current.set(index + 1, el);
-                      else sourceRefs.current.delete(index + 1);
-                    }}
-                    source={source}
-                    collection={message.meta.collection}
-                  />
-                ))}
-              </ol>
-            </details>
-          )}
+          <SourcesPanel
+            detailsRef={detailsRef}
+            highlight={highlight}
+            message={message}
+            sourceRefs={sourceRefs}
+          />
         </div>
       </article>
     );
   },
 );
 AssistantMessage.displayName = "AssistantMessage";
+
+const SourcesPanel = ({
+  detailsRef,
+  highlight,
+  message,
+  sourceRefs,
+}: {
+  detailsRef: RefObject<HTMLDetailsElement | null>;
+  highlight: number | null;
+  message: ChatMessage;
+  sourceRefs: MutableRefObject<Map<number, HTMLLIElement>>;
+}) => {
+  const meta = message.meta;
+  if (!meta || meta.sources.length === 0) return null;
+  return (
+    <details ref={detailsRef} className="group mt-4 text-xs">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-border bg-muted/45 px-3 py-2 font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
+        <span className="inline-flex min-w-0 items-center gap-2">
+          <ChevronRight className="size-3.5 shrink-0 group-open:rotate-90" />
+          <span className="truncate">Sources</span>
+        </span>
+        <span className="shrink-0 font-mono">
+          {meta.sources.length}
+          {meta.timings ? ` / ${formatWholeMs(meta.timings.total_ms)}` : ""}
+        </span>
+      </summary>
+      {meta.timings && <LatencyLedger timings={meta.timings} />}
+      <ol className="mt-2 grid gap-2">
+        {meta.sources.map((source, index) => (
+          <SourceCard
+            key={source.id}
+            highlight={highlight === index + 1}
+            index={index + 1}
+            refCallback={(el) => {
+              if (el) sourceRefs.current.set(index + 1, el);
+              else sourceRefs.current.delete(index + 1);
+            }}
+            source={source}
+            collection={meta.collection}
+          />
+        ))}
+      </ol>
+    </details>
+  );
+};
 
 const UserMessage = ({
   content,
@@ -377,7 +398,9 @@ const SourceCard = ({
               <Link
                 to="/collections/$name/documents/$docId"
                 params={{ name: collection, docId: source.document_id }}
-                hash={typeof source.chunk_index === "number" ? `chunk-${source.chunk_index}` : undefined}
+                hash={
+                  typeof source.chunk_index === "number" ? `chunk-${source.chunk_index}` : undefined
+                }
                 className="inline-flex min-w-0 items-center gap-1 font-semibold text-foreground hover:text-primary"
               >
                 <FileText className="size-3.5 shrink-0 text-muted-foreground" />
@@ -387,10 +410,10 @@ const SourceCard = ({
               </Link>
             ) : (
               <span className="inline-flex min-w-0 items-center gap-1 font-semibold text-foreground">
-              <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate" title={filename ?? source.document_id ?? undefined}>
-                {docLabel}
-              </span>
+                <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate" title={filename ?? source.document_id ?? undefined}>
+                  {docLabel}
+                </span>
               </span>
             )}
           </div>
@@ -515,7 +538,9 @@ const MarkdownContent = ({
           return (
             <ul key={key} className="my-2 list-disc space-y-1 pl-5">
               {block.split("\n").map((line) => (
-                <li key={line}>{renderInlineCitations(line.replace(/^[-*] /, ""), chunkCount, onCite)}</li>
+                <li key={line}>
+                  {renderInlineCitations(line.replace(/^[-*] /, ""), chunkCount, onCite)}
+                </li>
               ))}
             </ul>
           );
@@ -524,14 +549,19 @@ const MarkdownContent = ({
           return (
             <ol key={key} className="my-2 list-decimal space-y-1 pl-5">
               {block.split("\n").map((line) => (
-                <li key={line}>{renderInlineCitations(line.replace(/^\d+\. /, ""), chunkCount, onCite)}</li>
+                <li key={line}>
+                  {renderInlineCitations(line.replace(/^\d+\. /, ""), chunkCount, onCite)}
+                </li>
               ))}
             </ol>
           );
         }
         if (block.includes("\n|") && block.includes("|")) {
           return (
-            <pre key={key} className="my-3 overflow-x-auto rounded-lg border border-border bg-muted p-3 text-xs">
+            <pre
+              key={key}
+              className="my-3 overflow-x-auto rounded-lg border border-border bg-muted p-3 text-xs"
+            >
               {block}
             </pre>
           );

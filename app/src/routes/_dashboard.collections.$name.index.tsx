@@ -92,7 +92,9 @@ const CollectionIndex = () => {
                   search={documentSearch(status)}
                   className="rounded-md border border-border p-3 hover:bg-muted"
                 >
-                  <div className="text-xs font-semibold uppercase text-muted-foreground">{status}</div>
+                  <div className="text-xs font-semibold uppercase text-muted-foreground">
+                    {status}
+                  </div>
                   <div className="mt-1 text-xl font-semibold">{formatNumber(count)}</div>
                 </Link>
               ))}
@@ -120,7 +122,10 @@ const CollectionIndex = () => {
               ))}
             </div>
           ) : (
-            <Empty title="No documents yet" description="Upload documents from the Documents tab." />
+            <Empty
+              title="No documents yet"
+              description="Upload documents from the Documents tab."
+            />
           )}
         </CardContent>
       </Card>

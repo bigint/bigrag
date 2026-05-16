@@ -27,7 +27,9 @@ const CollectionLayout = () => {
     { href: `${base}/settings`, label: "Settings" },
   ].map((t) => ({
     ...t,
-    active: t.exact ? pathname === t.href : pathname === t.href || pathname.startsWith(`${t.href}/`),
+    active: t.exact
+      ? pathname === t.href
+      : pathname === t.href || pathname.startsWith(`${t.href}/`),
   }));
 
   return (

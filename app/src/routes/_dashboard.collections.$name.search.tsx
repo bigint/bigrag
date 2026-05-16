@@ -190,9 +190,9 @@ const SearchTab = () => {
         <div className="flex flex-col gap-2">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
             {run.data.total} result{run.data.total === 1 ? "" : "s"} for "{run.data.query}"
-            {run.data.timings?.total_ms !== undefined
-              ? ` · ${Math.round(run.data.timings.total_ms)}ms`
-              : ""}
+            {run.data.timings?.total_ms === undefined
+              ? ""
+              : ` · ${Math.round(run.data.timings.total_ms)}ms`}
           </div>
           {run.data.results.map((r) => (
             <article key={r.id} className="rounded-xl border border-border bg-card p-4">
@@ -202,12 +202,12 @@ const SearchTab = () => {
                   {r.document_id && (
                     <Link
                       params={{ docId: r.document_id, name }}
-                      hash={r.chunk_index !== null ? `chunk-${r.chunk_index}` : undefined}
+                      hash={r.chunk_index === null ? undefined : `chunk-${r.chunk_index}`}
                       to="/collections/$name/documents/$docId"
                       className="font-mono text-muted-foreground hover:text-primary"
                     >
                       {r.document_filename ?? r.document_id.slice(0, 8)}
-                      {r.chunk_index !== null ? ` #${r.chunk_index}` : ""}
+                      {r.chunk_index === null ? "" : ` #${r.chunk_index}`}
                     </Link>
                   )}
                   <span className="text-muted-foreground">{resultMetadata(r)}</span>

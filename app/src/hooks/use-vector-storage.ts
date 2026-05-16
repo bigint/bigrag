@@ -24,6 +24,5 @@ export type VectorStorageOverview = {
 export const useVectorStorageOverview = () =>
   useQuery({
     queryKey: queryKeys.vectorStorage(),
-    queryFn: () =>
-      apiClient.get<VectorStorageOverview>("v1/admin/vector-storage/overview"),
+    queryFn: () => apiClient.get<VectorStorageOverview>("v1/admin/vector-storage/overview"),
   });

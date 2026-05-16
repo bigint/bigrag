@@ -13,10 +13,13 @@ import { useCollections } from "@/hooks/use-collections";
 import { formatNumber, formatRelative } from "@/lib/format";
 import type { Collection } from "@/types/bigrag";
 
+type CollectionsSearch = {
+  create?: boolean;
+};
+
 export const Route = createFileRoute("/_dashboard/collections/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    create: search.create === "1" || search.create === true,
-  }),
+  validateSearch: (search: Record<string, unknown>): CollectionsSearch =>
+    search.create === "1" || search.create === true ? { create: true } : {},
   component: () => <CollectionsPage />,
 });
 
@@ -26,10 +29,10 @@ const CollectionsPage = () => {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const { data, error, isPending, refetch } = useCollections();
-  const modalOpen = open || create;
+  const modalOpen = open || Boolean(create);
   const closeModal = () => {
     setOpen(false);
-    if (create) navigate({ to: "/collections", search: {}, replace: true });
+    if (create) navigate({ to: "/collections", search: () => ({}), replace: true });
   };
 
   const items = useMemo(() => {

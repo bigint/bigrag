@@ -23,7 +23,8 @@ type ApiKeyMutationBody = {
 export const useCreateApiKey = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: ApiKeyMutationBody) => apiClient.post<CreatedApiKey>("v1/admin/api-keys", body),
+    mutationFn: (body: ApiKeyMutationBody) =>
+      apiClient.post<CreatedApiKey>("v1/admin/api-keys", body),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
     onError: errorToast("Failed to create"),
   });
@@ -51,8 +52,7 @@ export const useUpdateApiKey = () => {
 export const useRotateApiKey = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      apiClient.post<CreatedApiKey>(`v1/admin/api-keys/${id}/rotate`),
+    mutationFn: (id: string) => apiClient.post<CreatedApiKey>(`v1/admin/api-keys/${id}/rotate`),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
     onError: errorToast("Failed to rotate key"),
   });

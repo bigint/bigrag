@@ -126,7 +126,7 @@ export const useSseSnapshotQuery = <T>({
       }
     });
 
-    source.addEventListener("error", (event) => {
+    source.addEventListener("error", () => {
       fetchFallback();
       close();
     });
@@ -139,7 +139,7 @@ export const useSseSnapshotQuery = <T>({
     };
 
     return close;
-  }, [enabled, firstSnapshotTimeoutMs, path, pollIntervalMs, queryClient, queryKey, streamPriority]);
+  }, [enabled, firstSnapshotTimeoutMs, path, queryClient, queryKey, streamPriority]);
 
   return { ...query, realtimeUnavailable, streaming };
 };

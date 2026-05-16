@@ -63,7 +63,9 @@ const CollectionSettings = () => {
   if (isError) {
     return (
       <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4">
-        <h2 className="text-sm font-semibold text-destructive">Couldn't load collection settings</h2>
+        <h2 className="text-sm font-semibold text-destructive">
+          Couldn't load collection settings
+        </h2>
         <p className="mt-1 text-sm text-destructive">
           {error instanceof Error ? error.message : "Unknown error"}
         </p>

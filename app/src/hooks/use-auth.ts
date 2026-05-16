@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { apiClient, AUTH_TIMEOUT_MS } from "@/lib/api";
+import { AUTH_TIMEOUT_MS, apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 export type CurrentUser = {

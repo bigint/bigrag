@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRef } from "react";
 import { apiClient, SEARCH_TIMEOUT_MS } from "@/lib/api";
-import type { QueryResult } from "@/types/bigrag";
+import type { QueryResult, QueryTimings } from "@/types/bigrag";
 
 type QueryBody = {
   query: string;
@@ -16,6 +16,7 @@ type QueryResponse = {
   results: QueryResult[];
   query: string;
   collection: string;
+  timings?: QueryTimings;
   total: number;
 };
 
