@@ -84,6 +84,7 @@ class WebhookResponse(BaseModel):
 
 class WebhookListResponse(BaseModel):
     webhooks: list[WebhookResponse]
+    total: int
 
 
 class CreateWebhookResponse(WebhookResponse):

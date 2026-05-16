@@ -33,9 +33,16 @@ class WebhooksResource:
         """Register a new webhook."""
         return await self._client._request("POST", "/v1/admin/webhooks", json=body)
 
-    async def list(self) -> WebhookListResponse:
+    async def list(
+        self, *, limit: int | None = None, offset: int | None = None
+    ) -> WebhookListResponse:
         """List all registered webhooks."""
-        return await self._client._request("GET", "/v1/admin/webhooks")
+        params: dict[str, str] = {}
+        if limit is not None:
+            params["limit"] = str(limit)
+        if offset is not None:
+            params["offset"] = str(offset)
+        return await self._client._request("GET", "/v1/admin/webhooks", params=params)
 
     async def get(self, id: str) -> Webhook:
         """Retrieve a single webhook by ID."""

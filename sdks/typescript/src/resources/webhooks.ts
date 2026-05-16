@@ -17,8 +17,11 @@ export class WebhooksResource {
     return this._client._request("POST", "/v1/admin/webhooks", { json: body });
   }
 
-  list(): Promise<WebhookListResponse> {
-    return this._client._request("GET", "/v1/admin/webhooks");
+  list(options?: { limit?: number; offset?: number }): Promise<WebhookListResponse> {
+    const params: Record<string, string> = {};
+    if (options?.limit !== undefined) params.limit = String(options.limit);
+    if (options?.offset !== undefined) params.offset = String(options.offset);
+    return this._client._request("GET", "/v1/admin/webhooks", { params });
   }
 
   get(id: string): Promise<Webhook> {

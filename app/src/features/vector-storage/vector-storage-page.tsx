@@ -34,7 +34,7 @@ const VECTOR_PROVIDER_SETTINGS: Record<
   }
 > = {
   qdrant: {
-    description: "Qdrant connection, startup behavior, and HNSW search tuning.",
+    description: "Qdrant connection, readiness policy, and HNSW search tuning.",
     emptyState: "Qdrant settings are not available from this API.",
     eyebrow: "Self-hosted index",
     keys: ["qdrant_url", "qdrant_connect_timeout_seconds", "qdrant_required", "qdrant_search_ef"],

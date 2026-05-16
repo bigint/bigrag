@@ -26,9 +26,26 @@ impl Webhooks<'_> {
 
     /// List all webhooks.
     pub async fn list(&self) -> Result<WebhookListResponse, BigRagError> {
+        self.list_with_options(None).await
+    }
+
+    /// List webhooks with pagination options.
+    pub async fn list_with_options(
+        &self,
+        options: Option<PaginationOptions>,
+    ) -> Result<WebhookListResponse, BigRagError> {
+        let mut query = Vec::new();
+        if let Some(opts) = options {
+            if let Some(limit) = opts.limit {
+                query.push(("limit".into(), limit.to_string()));
+            }
+            if let Some(offset) = opts.offset {
+                query.push(("offset".into(), offset.to_string()));
+            }
+        }
         self.client
             .transport
-            .get("/v1/admin/webhooks", vec![])
+            .get("/v1/admin/webhooks", query)
             .await
     }
 

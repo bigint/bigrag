@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "pnpm run routes:generate && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 3000",
-    "routes:generate": "tsr generate",
+    "routes:generate": "tsr generate && node ../scripts/strip-route-tree-comments.mjs src/routeTree.gen.ts",
     "start": "serve dist --single --listen tcp://0.0.0.0:${PORT:-3000}",
     "typecheck": "pnpm run routes:generate && tsc --noEmit",
     "lint": "biome check --write src/"

@@ -73,8 +73,8 @@ pub struct UpdateWebhookBody {
 pub struct WebhookListResponse {
     /// Webhooks in this page.
     pub webhooks: Vec<Webhook>,
-    /// Total number of webhooks, when returned by the API.
-    pub total: Option<u32>,
+    /// Total number of webhooks.
+    pub total: u32,
 }
 
 /// A webhook delivery attempt.

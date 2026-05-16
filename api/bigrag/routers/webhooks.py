@@ -147,12 +147,13 @@ async def list_webhooks(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
+    total = await session.scalar(sa.select(sa.func.count()).select_from(Webhook))
     webhooks = (
         await session.scalars(
             sa.select(Webhook).order_by(Webhook.created_at.desc()).limit(limit).offset(offset)
         )
     ).all()
-    return WebhookListResponse(webhooks=[_webhook_response(w) for w in webhooks])
+    return WebhookListResponse(webhooks=[_webhook_response(w) for w in webhooks], total=total or 0)
 
 
 @router.get("/{webhook_id}", response_model=WebhookResponse)
