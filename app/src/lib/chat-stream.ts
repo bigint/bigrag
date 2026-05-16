@@ -1,14 +1,7 @@
 import { apiUrl } from "@/config/runtime";
-import type {
-  ChatConversation,
-  ChatCreateBody,
-  ChatMessage,
-  ChatSource,
-  QueryTimings,
-} from "@/types/bigrag";
+import type { ChatCreateBody, ChatMessage, ChatSource, QueryTimings } from "@/types/bigrag";
 
 type ChatStreamEvent =
-  | { event: "conversation"; data: ChatConversation }
   | { event: "user_message"; data: ChatMessage }
   | {
       event: "sources";
@@ -16,7 +9,7 @@ type ChatStreamEvent =
     }
   | { event: "delta"; data: { delta: string } }
   | { event: "assistant_message"; data: ChatMessage }
-  | { event: "done"; data: { conversation: ChatConversation } }
+  | { event: "done"; data: Record<string, never> }
   | { event: "error"; data: { error: string } };
 
 type StreamOptions = {

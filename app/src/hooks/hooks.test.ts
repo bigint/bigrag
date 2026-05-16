@@ -464,8 +464,7 @@ describe("admin app hooks", () => {
 
   it("wires admin resource mutation hooks", async () => {
     const { useBackups, useStartBackup } = await import("./use-backups");
-    const { useChatQuestionSuggestions, useDeleteChatConversation, useGenerateChatQuestions } =
-      await import("./use-chat");
+    const { useChatQuestionSuggestions, useGenerateChatQuestions } = await import("./use-chat");
     const { useCreateEmbeddingPreset, useDeleteEmbeddingPreset, useUpdateEmbeddingPreset } =
       await import("./use-embedding-presets");
     const { usePurgeEmbeddingCache, useUpdateInstanceSettings } = await import(
@@ -485,10 +484,6 @@ describe("admin app hooks", () => {
       mutationFn: (body: { label?: string }) => Promise<unknown>;
     }>().mutationFn({});
     expect(apiClient.post).toHaveBeenLastCalledWith("v1/admin/backups", { label: "" });
-
-    useDeleteChatConversation();
-    await mutationOptions<{ mutationFn: (id: string) => Promise<unknown> }>().mutationFn("chat_1");
-    expect(apiClient.delete).toHaveBeenLastCalledWith("v1/chat/chat_1");
 
     const suggestions = {
       collection: "team docs",

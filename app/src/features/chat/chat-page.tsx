@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Clock3, FileText, type LucideIcon, Plus, Search } from "lucide-react";
+import { BookOpen, Clock3, FileText, type LucideIcon, Search } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,21 +11,14 @@ import { ChatMessages } from "@/features/chat/chat-messages";
 import { useChatStore } from "@/features/chat/chat-store";
 import { EmptyPrompts } from "@/features/chat/empty-prompts";
 import {
-  useChatConversation,
-  useChatConversations,
   useChatQuestionSuggestions,
   useGenerateChatQuestions,
 } from "@/hooks/use-chat";
 import { useCollections } from "@/hooks/use-collections";
 import { usePreferences, useUpdatePreferences } from "@/hooks/use-preferences";
 import { streamChat } from "@/lib/chat-stream";
-import { cn } from "@/lib/cn";
 import { queryKeys } from "@/lib/query-keys";
-import type {
-  ChatConversation,
-  QueryTimings,
-  ChatMessage as ServerChatMessage,
-} from "@/types/bigrag";
+import type { ChatMessage as ServerChatMessage, QueryTimings } from "@/types/bigrag";
 
 const newId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -57,23 +50,6 @@ const useSelectFirstCollection = (
   }, [collections, current, selectFirstCollection]);
 };
 
-const useSelectedConversationMessages = (
-  conversationId: string | null,
-  detail: ReturnType<typeof useChatConversation>["data"],
-  isStreaming: boolean,
-  hydrateConversationMessages: (conversationId: string, messages: ChatMessage[]) => void,
-) => {
-  useEffect(() => {
-    if (!conversationId || isStreaming || !detail) return;
-    hydrateConversationMessages(
-      conversationId,
-      detail.messages
-        .map((message) => toUiMessage(message, detail.conversation))
-        .filter((message): message is ChatMessage => Boolean(message)),
-    );
-  }, [conversationId, detail, hydrateConversationMessages, isStreaming]);
-};
-
 const timingNumber = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) ? value : 0;
 
@@ -94,52 +70,21 @@ const timingsFromRetrieval = (message: ServerChatMessage): QueryTimings | undefi
   return normalizeTimings(message.retrieval.timings);
 };
 
-const toUiMessage = (
-  message: ServerChatMessage,
-  conversation: ChatConversation,
-): ChatMessage | null => {
-  if (message.role === "system") return null;
-  return {
-    id: message.id,
-    role: message.role,
-    content: message.content,
-    status: message.status,
-    errorMessage: message.error_message,
-    meta:
-      message.role === "assistant"
-        ? {
-            collection: conversation.collection,
-            sources: message.sources,
-            timings: timingsFromRetrieval(message),
-          }
-        : undefined,
-  };
-};
-
 export const ChatPage = () => {
   const queryClient = useQueryClient();
   const prefsQuery = usePreferences();
   const updatePrefs = useUpdatePreferences();
-  const conversationsQuery = useChatConversations();
   const generateQuestions = useGenerateChatQuestions();
   const { data: collectionsData, isPending: collectionsLoading } = useCollections();
   const collections = useMemo(() => collectionsData?.collections ?? [], [collectionsData]);
   const collection = useChatStore((state) => state.collection);
-  const conversationId = useChatStore((state) => state.conversationId);
   const messages = useChatStore((state) => state.messages);
   const isStreaming = useChatStore((state) => state.isStreaming);
   const appendMessages = useChatStore((state) => state.appendMessages);
-  const hydrateConversationMessages = useChatStore((state) => state.hydrateConversationMessages);
-  const replaceMessageId = useChatStore((state) => state.replaceMessageId);
   const selectCollection = useChatStore((state) => state.selectCollection);
-  const selectConversation = useChatStore((state) => state.selectConversation);
   const selectFirstCollection = useChatStore((state) => state.selectFirstCollection);
-  const setConversationId = useChatStore((state) => state.setConversationId);
   const setStreaming = useChatStore((state) => state.setStreaming);
-  const startNewChatState = useChatStore((state) => state.startNewChat);
   const updateMessage = useChatStore((state) => state.updateMessage);
-  const detailQuery = useChatConversation(conversationId);
-  const activeConversation = detailQuery.data?.conversation ?? null;
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(
@@ -152,12 +97,6 @@ export const ChatPage = () => {
   );
 
   useSelectFirstCollection(collections, collection, selectFirstCollection);
-  useSelectedConversationMessages(
-    conversationId,
-    detailQuery.data,
-    isStreaming,
-    hydrateConversationMessages,
-  );
 
   const state: ChatState = useMemo(() => {
     const chat = prefsQuery.data?.data.chat ?? {};
@@ -199,19 +138,14 @@ export const ChatPage = () => {
     );
   };
 
-  const currentCollection = activeConversation?.collection ?? collection;
-  const currentCollectionName = currentCollection ?? "";
+  const currentCollection = collection;
+  const currentCollectionName = currentCollection;
   const questionsQuery = useChatQuestionSuggestions(currentCollectionName);
 
   const stopStreaming = () => {
     abortRef.current?.abort();
     abortRef.current = null;
     setStreaming(false);
-  };
-
-  const startNewChat = () => {
-    stopStreaming();
-    startNewChatState();
   };
 
   const handleCollectionChange = (name: string) => {
@@ -247,7 +181,6 @@ export const ChatPage = () => {
 
     const controller = new AbortController();
     abortRef.current = controller;
-    let nextConversationId = conversationId;
     const refreshPreferencesIfCredentialError = (message: string) => {
       if (message.includes("OpenAI rejected") || message.includes("Save an OpenAI API key")) {
         queryClient.invalidateQueries({ queryKey: queryKeys.preferences() });
@@ -259,8 +192,7 @@ export const ChatPage = () => {
         signal: controller.signal,
         body: {
           message: text,
-          conversation_id: conversationId,
-          collection: conversationId ? undefined : currentCollection,
+          collection: currentCollection,
           model_provider: "openai",
           model: state.model,
           temperature: state.temperature,
@@ -270,15 +202,6 @@ export const ChatPage = () => {
           system_prompt: state.systemPrompt,
         },
         onEvent: (event) => {
-          if (event.event === "conversation") {
-            nextConversationId = event.data.id;
-            setConversationId(event.data.id);
-            return;
-          }
-          if (event.event === "user_message") {
-            replaceMessageId(userId, event.data.id);
-            return;
-          }
           if (event.event === "sources") {
             updateMessage(currentAssistantId, (message) => ({
               ...message,
@@ -313,13 +236,6 @@ export const ChatPage = () => {
             currentAssistantId = event.data.id;
             return;
           }
-          if (event.event === "done") {
-            queryClient.invalidateQueries({ queryKey: queryKeys.chat.list() });
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.chat.detail({ id: event.data.conversation.id }),
-            });
-            return;
-          }
           if (event.event === "error") {
             updateMessage(currentAssistantId, (message) => ({
               ...message,
@@ -350,39 +266,19 @@ export const ChatPage = () => {
     } finally {
       setStreaming(false);
       abortRef.current = null;
-      queryClient.invalidateQueries({ queryKey: queryKeys.chat.list() });
-      if (nextConversationId) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.chat.detail({ id: nextConversationId }),
-        });
-      }
     }
   };
 
-  const conversations = conversationsQuery.data?.conversations ?? [];
-  const loading = collectionsLoading || prefsQuery.isPending || conversationsQuery.isPending;
+  const loading = collectionsLoading || prefsQuery.isPending;
   const disabled = !state.hasOpenAIKey || !currentCollection;
 
   return (
     <div className="relative flex min-h-0 flex-1 overflow-hidden bg-background">
       <section className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <ConversationStrip
-          conversations={conversations}
-          disabledNew={isStreaming}
-          onNew={startNewChat}
-          onSelect={(id) => {
-            stopStreaming();
-            selectConversation(id);
-          }}
-          selectedId={conversationId}
-        />
-
         {loading ? (
           <LoadingState />
         ) : collections.length === 0 ? (
           <NoCollectionsState />
-        ) : detailQuery.isFetching && conversationId && messages.length === 0 ? (
-          <LoadingState label="Loading conversation" />
         ) : (
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
             {messages.length === 0 ? (
@@ -414,55 +310,6 @@ export const ChatPage = () => {
           </div>
         )}
       </section>
-    </div>
-  );
-};
-
-const ConversationStrip = ({
-  conversations,
-  disabledNew,
-  onNew,
-  onSelect,
-  selectedId,
-}: {
-  conversations: ChatConversation[];
-  disabledNew: boolean;
-  onNew: () => void;
-  onSelect: (id: string) => void;
-  selectedId: string | null;
-}) => {
-  if (conversations.length === 0) return null;
-  return (
-    <div className="shrink-0 overflow-x-auto border-b border-border bg-background px-3 py-2">
-      <div className="flex w-max gap-2">
-        <button
-          type="button"
-          disabled={disabledNew}
-          onClick={onNew}
-          className="flex min-w-28 items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold disabled:opacity-50"
-        >
-          <Plus className="size-3.5" />
-          New chat
-        </button>
-        {conversations.slice(0, 12).map((conversation) => (
-          <button
-            type="button"
-            key={conversation.id}
-            onClick={() => onSelect(conversation.id)}
-            className={cn(
-              "max-w-48 rounded-lg border px-3 py-2 text-left",
-              selectedId === conversation.id
-                ? "border-foreground bg-background"
-                : "border-border bg-background",
-            )}
-          >
-            <span className="block truncate text-xs font-semibold">{conversation.title}</span>
-            <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-              {conversation.collection ?? "No collection"}
-            </span>
-          </button>
-        ))}
-      </div>
     </div>
   );
 };

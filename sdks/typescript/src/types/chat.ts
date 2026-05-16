@@ -2,8 +2,7 @@ import type { QueryTimings } from "./query.js";
 
 export interface ChatCreateBody {
   message: string;
-  conversation_id?: string | null;
-  collection?: string | null;
+  collection: string;
   stream?: boolean;
   model_provider?: "openai" | "openai_compatible";
   model?: string;
@@ -33,7 +32,6 @@ export interface ChatSource {
 
 export interface ChatMessage {
   id: string;
-  conversation_id: string;
   role: "user" | "assistant" | "system";
   content: string;
   status: "complete" | "error";
@@ -45,35 +43,7 @@ export interface ChatMessage {
   created_at: string;
 }
 
-export interface ChatConversation {
-  id: string;
-  title: string;
-  collection: string | null;
-  model_provider: string;
-  model: string;
-  temperature: number;
-  top_k: number;
-  search_mode: string;
-  min_score: number | null;
-  rerank: boolean | null;
-  message_count: number;
-  created_at: string;
-  updated_at: string;
-  last_message_at: string | null;
-}
-
-export interface ChatListResponse {
-  conversations: ChatConversation[];
-  total: number;
-}
-
-export interface ChatDetailResponse {
-  conversation: ChatConversation;
-  messages: ChatMessage[];
-}
-
 export interface ChatCreateResponse {
-  conversation: ChatConversation;
   message: ChatMessage;
   assistant_message: ChatMessage;
   sources: ChatSource[];
@@ -81,7 +51,6 @@ export interface ChatCreateResponse {
 }
 
 export type ChatStreamEvent =
-  | { event: "conversation"; data: ChatConversation }
   | { event: "user_message"; data: ChatMessage }
   | {
       event: "sources";
@@ -89,5 +58,5 @@ export type ChatStreamEvent =
     }
   | { event: "delta"; data: { delta: string } }
   | { event: "assistant_message"; data: ChatMessage }
-  | { event: "done"; data: { conversation: ChatConversation } }
+  | { event: "done"; data: Record<string, never> }
   | { event: "error"; data: { error: string } };

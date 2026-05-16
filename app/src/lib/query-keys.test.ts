@@ -74,8 +74,6 @@ describe("queryKeys", () => {
     expect(queryKeys.connectors.googleSyncJobs({ collection: "docs", sourceId: "source" })).toEqual(
       ["connectors", "google", "sync-jobs", { collection: "docs", sourceId: "source" }],
     );
-    expect(queryKeys.chat.list()).toEqual(["chat", "list"]);
-    expect(queryKeys.chat.detail({ id: null })).toEqual(["chat", "detail", { id: null }]);
     expect(queryKeys.chat.questions({ collection: "docs" })).toEqual([
       "chat",
       "questions",

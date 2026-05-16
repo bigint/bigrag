@@ -1,11 +1,5 @@
 import { type RequestClient, USER_AGENT } from "../core.js";
-import type {
-  ChatCreateBody,
-  ChatCreateResponse,
-  ChatDetailResponse,
-  ChatListResponse,
-  ChatStreamEvent,
-} from "../types.js";
+import type { ChatCreateBody, ChatCreateResponse, ChatStreamEvent } from "../types.js";
 
 export class ChatResource {
   constructor(private readonly _client: RequestClient) {}
@@ -53,27 +47,6 @@ export class ChatResource {
       await reader.cancel().catch(() => undefined);
       reader.releaseLock();
     }
-  }
-
-  list(options: { limit?: number; offset?: number } = {}): Promise<ChatListResponse> {
-    const params: Record<string, string> = {};
-    if (options.limit !== undefined) params.limit = String(options.limit);
-    if (options.offset !== undefined) params.offset = String(options.offset);
-    return this._client._request("GET", "/v1/chat", { params });
-  }
-
-  get(conversationId: string): Promise<ChatDetailResponse> {
-    return this._client._request("GET", `/v1/chat/${encodeURIComponent(conversationId)}`);
-  }
-
-  update(conversationId: string, body: { title: string }): Promise<ChatDetailResponse> {
-    return this._client._request("PATCH", `/v1/chat/${encodeURIComponent(conversationId)}`, {
-      json: body,
-    });
-  }
-
-  delete(conversationId: string): Promise<{ status: "deleted" }> {
-    return this._client._request("DELETE", `/v1/chat/${encodeURIComponent(conversationId)}`);
   }
 }
 

@@ -248,17 +248,9 @@ describe("resource wrappers", () => {
     const chat = new ChatResource(client);
 
     await chat.create({ message: "hello", collection: "docs" });
-    await chat.list({ limit: 10, offset: 20 });
-    await chat.get("conversation/1");
-    await chat.update("conversation/1", { title: "Renamed" });
-    await chat.delete("conversation/1");
 
     expect(requestCalls).toEqual([
       ["POST", "/v1/chat", { json: { message: "hello", collection: "docs", stream: false } }],
-      ["GET", "/v1/chat", { params: { limit: "10", offset: "20" } }],
-      ["GET", "/v1/chat/conversation%2F1"],
-      ["PATCH", "/v1/chat/conversation%2F1", { json: { title: "Renamed" } }],
-      ["DELETE", "/v1/chat/conversation%2F1"],
     ]);
   });
 

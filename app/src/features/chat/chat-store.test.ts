@@ -5,7 +5,6 @@ import { useChatStore } from "@/features/chat/chat-store";
 const resetChatStore = () => {
   useChatStore.setState({
     collection: "",
-    conversationId: null,
     isStreaming: false,
     messages: [],
   });
@@ -22,46 +21,24 @@ describe("useChatStore", () => {
     resetChatStore();
   });
 
-  it("selects the first collection once and resets conversation state on collection change", () => {
+  it("selects the first collection once and clears local messages on collection change", () => {
     useChatStore.getState().selectFirstCollection([{ name: "docs" }, { name: "support" }]);
 
     expect(useChatStore.getState().collection).toBe("docs");
 
     useChatStore.setState({
-      conversationId: "conversation-1",
       messages: [message("assistant-1", "old")],
     });
     useChatStore.getState().selectCollection("support");
 
     expect(useChatStore.getState()).toMatchObject({
       collection: "support",
-      conversationId: null,
       messages: [],
     });
 
     useChatStore.getState().selectFirstCollection([{ name: "ignored" }]);
 
     expect(useChatStore.getState().collection).toBe("support");
-  });
-
-  it("selects conversations and hydrates saved messages only when not streaming", () => {
-    const saved = [message("assistant-1", "saved")];
-    const ignored = [message("assistant-2", "ignored")];
-
-    useChatStore.getState().selectConversation("conversation-1");
-    useChatStore.getState().hydrateConversationMessages("conversation-1", saved);
-
-    expect(useChatStore.getState().messages).toEqual(saved);
-
-    useChatStore.getState().setStreaming(true);
-    useChatStore.getState().hydrateConversationMessages("conversation-1", ignored);
-
-    expect(useChatStore.getState().messages).toEqual(saved);
-
-    useChatStore.getState().setStreaming(false);
-    useChatStore.getState().hydrateConversationMessages("conversation-2", ignored);
-
-    expect(useChatStore.getState().messages).toEqual(saved);
   });
 
   it("appends and updates streamed messages", () => {
@@ -72,7 +49,6 @@ describe("useChatStore", () => {
         message("assistant-temp"),
       ]);
     useChatStore.getState().setStreaming(true);
-    useChatStore.getState().replaceMessageId("user-temp", "user-final");
     useChatStore.getState().updateMessage("assistant-temp", (item) => ({
       ...item,
       content: `${item.content}Hello`,
@@ -84,7 +60,7 @@ describe("useChatStore", () => {
 
     expect(useChatStore.getState().isStreaming).toBe(true);
     expect(useChatStore.getState().messages).toEqual([
-      { content: "Question", id: "user-final", role: "user" },
+      { content: "Question", id: "user-temp", role: "user" },
       { content: "Hello world", id: "assistant-temp", role: "assistant" },
     ]);
   });
@@ -108,7 +84,6 @@ describe("useChatStore", () => {
     useChatStore.getState().startNewChat();
 
     expect(useChatStore.getState()).toMatchObject({
-      conversationId: null,
       isStreaming: false,
       messages: [],
     });

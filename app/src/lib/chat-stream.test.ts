@@ -34,14 +34,14 @@ describe("streamChat", () => {
     const events: unknown[] = [];
 
     await streamChat({
-      body: { message: "Hi" },
+      body: { collection: "docs", message: "Hi" },
       onEvent: (event) => events.push(event),
     });
 
     expect(fetch).toHaveBeenCalledWith(
       "http://localhost:4000/v1/chat",
       expect.objectContaining({
-        body: JSON.stringify({ message: "Hi", stream: true }),
+        body: JSON.stringify({ collection: "docs", message: "Hi", stream: true }),
         credentials: "include",
         method: "POST",
       }),
@@ -60,7 +60,7 @@ describe("streamChat", () => {
 
     await expect(
       streamChat({
-        body: { message: "Hi" },
+        body: { collection: "docs", message: "Hi" },
         onEvent: () => {},
       }),
     ).rejects.toMatchObject({ message: "Nope", status: 400 });
