@@ -86,8 +86,8 @@ export const ChatInput = ({
 
   return (
     <div className="shrink-0 border-t border-border bg-background px-3 py-3 md:px-5">
-      <div className="mx-auto w-full max-w-5xl overflow-hidden rounded-xl border border-border bg-card">
-        <div className="flex flex-col gap-2 border-b border-border px-3 py-2 md:flex-row md:items-center md:justify-between">
+      <div className="mx-auto w-full max-w-4xl rounded-xl border border-border bg-card p-2">
+        <div className="flex flex-col gap-2 px-1 pb-2 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <ToolbarPopover
               align="start"
@@ -182,11 +182,11 @@ export const ChatInput = ({
           </ToolbarPopover>
         </div>
 
-        <div className="grid gap-2 p-3">
+        <div className="flex items-end gap-2 rounded-lg border border-border bg-background px-3 py-2">
           <textarea
             ref={textareaRef}
             aria-label="Message input"
-            className="min-h-16 w-full resize-none bg-transparent text-base leading-6 placeholder:text-muted-foreground/65 focus-visible:outline-none"
+            className="min-h-12 flex-1 resize-none bg-transparent py-2 text-base leading-6 placeholder:text-muted-foreground/65 focus-visible:outline-none"
             disabled={isStreaming}
             onChange={(e) => {
               setValue(e.target.value);
@@ -205,22 +205,20 @@ export const ChatInput = ({
             value={value}
           />
 
-          <div className="flex items-center justify-end gap-3 border-t border-border pt-3">
-            {isStreaming ? (
-              <Button aria-label="Stop response" className="size-10 shrink-0 p-0" onClick={onStop}>
-                <Square className="size-4" />
-              </Button>
-            ) : (
-              <Button
-                aria-label="Send message"
-                className="size-10 shrink-0 p-0"
-                disabled={disabled || !value.trim()}
-                onClick={handleSend}
-              >
-                <ArrowUp className="size-4" />
-              </Button>
-            )}
-          </div>
+          {isStreaming ? (
+            <Button aria-label="Stop response" className="size-10 shrink-0 p-0" onClick={onStop}>
+              <Square className="size-4" />
+            </Button>
+          ) : (
+            <Button
+              aria-label="Send message"
+              className="size-10 shrink-0 p-0"
+              disabled={disabled || !value.trim()}
+              onClick={handleSend}
+            >
+              <ArrowUp className="size-4" />
+            </Button>
+          )}
         </div>
       </div>
     </div>

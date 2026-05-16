@@ -1,15 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import {
-  BookOpen,
-  Clock3,
-  FileText,
-  type LucideIcon,
-  MessageSquare,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { BookOpen, Clock3, FileText, type LucideIcon, Plus, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -460,26 +451,67 @@ const ConversationRail = ({
   onSelect: (id: string) => void;
   selectedId: string | null;
 }) => (
-  <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-muted/35 lg:flex">
-    <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-3">
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <MessageSquare className="size-4" />
-        Conversations
+  <aside className="hidden w-60 shrink-0 p-2 pl-0 lg:flex">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-3">
+        <div className="text-sm font-semibold">Threads</div>
+        <Button
+          aria-label="New chat"
+          className="size-8 p-0 text-muted-foreground hover:text-foreground"
+          onClick={onNew}
+          size="sm"
+          variant="ghost"
+        >
+          <Plus className="size-4" />
+        </Button>
       </div>
-      <Button
-        aria-label="New chat"
-        className="size-8 p-0"
-        onClick={onNew}
-        size="sm"
-        variant="ghost"
-      >
-        <Plus className="size-4" />
-      </Button>
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        {conversations.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border bg-muted/35 px-3 py-8 text-center text-xs leading-5 text-muted-foreground">
+            Conversation history will appear here after the first grounded answer.
+          </div>
+        ) : (
+          <div className="grid gap-1">
+            {conversations.map((conversation) => (
+              <div key={conversation.id} className="group relative">
+                <button
+                  type="button"
+                  onClick={() => onSelect(conversation.id)}
+                  className={cn(
+                    "min-h-14 w-full rounded-lg border px-3 py-2 pr-9 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    selectedId === conversation.id
+                      ? "border-border bg-muted/55"
+                      : "border-transparent hover:bg-muted/40",
+                  )}
+                >
+                  <div className="truncate text-xs font-semibold">{conversation.title}</div>
+                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className="truncate">{conversation.collection ?? "No collection"}</span>
+                    <span aria-hidden>·</span>
+                    <span>{conversation.message_count}</span>
+                    <span aria-hidden>·</span>
+                    <span className="truncate">
+                      {formatRelative(conversation.last_message_at ?? conversation.updated_at)}
+                    </span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  aria-label="Delete conversation"
+                  disabled={deletingId === conversation.id}
+                  onClick={() => onDelete(conversation.id)}
+                  className="absolute top-1/2 right-2 hidden size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-75 hover:bg-background hover:text-destructive group-hover:flex focus-visible:flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
-    <div className="min-h-0 flex-1 overflow-y-auto p-2">
-      {conversations.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-background px-3 py-8 text-center text-xs leading-5 text-muted-foreground">
-          Conversation history will appear here after the first grounded answer.
+  </aside>
+);
         </div>
       ) : (
         <div className="grid gap-1">
@@ -487,10 +519,10 @@ const ConversationRail = ({
             <div
               key={conversation.id}
               className={cn(
-                "group grid grid-cols-[minmax(0,1fr)_1.75rem] items-center rounded-2xl border",
+                "group grid grid-cols-[minmax(0,1fr)_1.75rem] items-center rounded-lg border",
                 selectedId === conversation.id
-                  ? "border-foreground bg-background"
-                  : "border-transparent hover:border-border hover:bg-background",
+                  ? "border-border bg-background"
+                  : "border-transparent hover:border-border hover:bg-background/80",
               )}
             >
               <button
@@ -501,11 +533,12 @@ const ConversationRail = ({
                 <div className="truncate text-xs font-semibold">{conversation.title}</div>
                 <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <span className="truncate">{conversation.collection ?? "No collection"}</span>
-                  <span aria-hidden>/</span>
+                  <span aria-hidden>·</span>
                   <span>{conversation.message_count}</span>
-                </div>
-                <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                  {formatRelative(conversation.last_message_at ?? conversation.updated_at)}
+                  <span aria-hidden>·</span>
+                  <span className="truncate">
+                    {formatRelative(conversation.last_message_at ?? conversation.updated_at)}
+                  </span>
                 </div>
               </button>
               <button
@@ -540,13 +573,13 @@ const MobileConversationStrip = ({
 }) => {
   if (conversations.length === 0) return null;
   return (
-    <div className="shrink-0 overflow-x-auto border-b border-border bg-muted/35 px-3 py-2 lg:hidden">
+    <div className="shrink-0 overflow-x-auto border-b border-border bg-muted/25 px-3 py-2 lg:hidden">
       <div className="flex w-max gap-2">
         <button
           type="button"
           disabled={disabledNew}
           onClick={onNew}
-          className="flex min-w-28 items-center justify-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs font-semibold disabled:opacity-50"
+          className="flex min-w-28 items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold disabled:opacity-50"
         >
           <Plus className="size-3.5" />
           New chat
@@ -557,7 +590,7 @@ const MobileConversationStrip = ({
             key={conversation.id}
             onClick={() => onSelect(conversation.id)}
             className={cn(
-              "max-w-48 rounded-2xl border px-3 py-2 text-left",
+              "max-w-48 rounded-lg border px-3 py-2 text-left",
               selectedId === conversation.id
                 ? "border-foreground bg-background"
                 : "border-border bg-background",
