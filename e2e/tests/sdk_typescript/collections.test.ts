@@ -20,6 +20,7 @@ async function createTempCollection(): Promise<Collection> {
     name: uniqueName("sdkcoll"),
     description: "sdk collections.test",
     vector_store_provider: "qdrant",
+    dimension: 1536,
     chunk_size: 512,
     chunk_overlap: 50,
     chunk_strategy: "paragraph",

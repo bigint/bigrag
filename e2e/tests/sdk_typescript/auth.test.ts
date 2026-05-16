@@ -65,6 +65,7 @@ describe("AuthResource", () => {
       name: collName,
       description: "auth pin test",
       vector_store_provider: "qdrant",
+      dimension: 1536,
       chunk_size: 512,
       chunk_overlap: 50,
       default_top_k: 5,
