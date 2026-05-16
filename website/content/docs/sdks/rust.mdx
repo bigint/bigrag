@@ -245,14 +245,33 @@ let results = client.queries().multi_query(MultiQueryBody {
     query: "search terms".into(),
     collections: vec!["docs".into(), "notes".into()],
     top_k: Some(10),
-    ..Default::default()
+    filters: None,
+    min_score: None,
+    search_mode: None,
+    rerank: None,
 }).await?;
 
 // Batch queries
 let results = client.queries().batch_query(BatchQueryBody {
     queries: vec![
-        BatchQueryItem { collection: "docs".into(), query: "first query".into(), ..Default::default() },
-        BatchQueryItem { collection: "docs".into(), query: "second query".into(), ..Default::default() },
+        BatchQueryItem {
+            collection: "docs".into(),
+            query: "first query".into(),
+            top_k: None,
+            filters: None,
+            min_score: None,
+            search_mode: None,
+            rerank: None,
+        },
+        BatchQueryItem {
+            collection: "docs".into(),
+            query: "second query".into(),
+            top_k: None,
+            filters: None,
+            min_score: None,
+            search_mode: None,
+            rerank: None,
+        },
     ],
 }).await?;
 ```
@@ -294,7 +313,7 @@ let analytics = col.analytics().await?;
 let files = vec![FileInput::from("/path/to/a.pdf"), FileInput::from("/path/to/b.pdf")];
 let batch = col.batch_upload(files, None).await?;
 let statuses = col.batch_get_status(&["id1", "id2"]).await?;
-let batch_docs = col.batch_get(&["id1", "id2"]).await?;
+let batch_docs = col.batch_get_documents(&["id1", "id2"]).await?;
 col.batch_delete(&["id1", "id2"]).await?;
 
 // SSE streaming
@@ -348,6 +367,8 @@ let deliveries = client.webhooks().list_deliveries("webhook-id", Some(Pagination
 // Test
 let test = client.webhooks().test("webhook-id").await?;
 ```
+
+Webhook management calls `/v1/admin/webhooks` and requires session-cookie admin auth; API-key clients receive `403`.
 
 ## Admin
 

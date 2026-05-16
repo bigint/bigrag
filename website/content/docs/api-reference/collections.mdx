@@ -39,7 +39,7 @@ GET /v1/collections
       "chunk_strategy": "paragraph",
       "index_type": "HNSW",
       "tenant_field": null,
-      "metadata_schema": null,
+      "has_metadata_schema": false,
       "document_count": 15,
       "has_api_key": false,
       "embedding_preset_id": null,
@@ -99,6 +99,7 @@ POST /v1/collections
 | `embedding_provider` | string | no | Server default | `openai`, `cohere`, `voyage`, `openai_compatible` |
 | `embedding_model` | string | no | Server default | Model name |
 | `vector_store_provider` | string | no | `"qdrant"` | `qdrant` or `turbopuffer`; fixed at creation. `turbopuffer` requires a saved turbopuffer API key in Vector Storage before creation |
+| `embedding_preset_id` | string | no | — | Link the collection to a saved embedding preset. The collection inherits the preset's provider, model, dimension, base URL, and key live |
 | `embedding_api_key` | string | no | — | Required when `embedding_preset_id` is not provided; validated against the provider before the collection is created. Use any non-empty value for local OpenAI-compatible gateways without auth. Ignored when a preset is supplied — the collection inherits the preset's key live |
 | `embedding_base_url` | string | no | — | Required for `openai_compatible` (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) |
 | `dimension` | integer | no | Provider default | Must match the model |
@@ -166,6 +167,7 @@ Only the fields below are mutable. Embedding provider / model / dimension, vecto
 | `description` | string | — |
 | `metadata` | object | Replaces entire metadata object |
 | `metadata_schema` | object | Updates JSON Schema validation |
+| `chunk_strategy` | string | `paragraph` or `recursive` |
 | `embedding_api_key` | string | Validated against the provider before saving; empty values are rejected. Saving a key here switches the collection to a per-collection override and detaches it from any preset |
 | `reranking_enabled` | boolean | — |
 | `reranking_model` | string | — |
@@ -214,7 +216,7 @@ Deletes every document, vector, and file in the collection but keeps the collect
 POST /v1/collections/{name}/reembed
 ```
 
-Re-queues every `ready` document for embedding — typically used after changing the embedding model or reprocessing logic. Vectors already cached by `content_hash + model_key` are reused automatically.
+Re-queues every `ready` or `failed` document for conversion, chunking, and embedding using the collection's current immutable embedding configuration. Vectors already cached by `content_hash + model_key` are reused automatically.
 
 **Response** `200`:
 

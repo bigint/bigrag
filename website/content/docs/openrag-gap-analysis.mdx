@@ -653,25 +653,25 @@ A complete feature-by-feature comparison:
 | Chunk retrieval per document | Yes | No | bigRAG ahead |
 | Original file download | Yes | No | bigRAG ahead |
 | URL ingestion | No | Yes | High |
-| Cloud storage connectors | No | Yes (5 providers) | High |
+| Cloud storage connectors | Google Drive | Yes (5 providers) | Medium |
 | **Search** | | | |
 | Semantic search | Yes | Yes | -- |
 | Keyword search | Yes | Yes | -- |
-| Hybrid search | Yes (`rrf`, `weighted`, `normalized`) | Yes (weighted 70/30 + prefix fallback) | Different approach |
+| Hybrid search | Yes (RRF) | Yes (weighted 70/30 + prefix fallback) | Different approach |
 | Reranking (Cohere) | Yes | No (Langflow-based) | bigRAG ahead |
 | Multi-collection query | Yes | No (single index) | bigRAG ahead |
 | Batch queries | Yes (20 per request) | No | bigRAG ahead |
-| Faceted aggregations | Yes | Yes | Resolved |
+| Faceted aggregations | No | Yes | High |
 | Prefix/autocomplete | No | Yes | Medium |
 | Multi-model embedding search | No | Yes | High |
 | Knowledge filters (saved) | No | Yes (with subscriptions) | Low |
 | **LLM & Agents** | | | |
-| Built-in LLM generation | No | Yes (4 providers) | Critical |
-| Conversational chat | No | Yes | Critical |
+| Built-in LLM generation | Yes (OpenAI/OpenAI-compatible chat) | Yes (4 providers) | Provider gap |
+| Conversational chat | Stateless admin chat | Yes (persistent) | High |
 | Multi-agent orchestration | No | Yes (Langflow) | High |
-| Streaming LLM responses | No | Yes (SSE) | High |
-| Contextual nudges | No | Yes | Medium |
-| Custom agent instructions | No | Yes | Medium |
+| Streaming LLM responses | Yes (SSE) | Yes (SSE) | Resolved |
+| Contextual nudges | Lightweight generated questions | Yes | Medium |
+| Custom agent instructions | Chat system prompt | Yes | Medium |
 | Tool call inspection | No | Yes | Medium |
 | **Data Management** | | | |
 | Collections/namespaces | Yes (multi-collection) | Single index | bigRAG ahead |
@@ -784,7 +784,7 @@ Based on this analysis, here are the recommended priorities for closing the most
 
 8. **Qdrant Payload Encryption** — Extend current cache and secret encryption to document payloads and vector-store payload metadata where compliance requires it.
 
-9. **LLM Observability** — If backend generation lands, add Langfuse/OpenTelemetry-style traces for prompts, retrieved chunks, model latency, token counts, and cost.
+9. **LLM Observability** — Add Langfuse/OpenTelemetry-style traces for prompts, retrieved chunks, model latency, token counts, and cost.
 
 10. **Single-Command Install** — Publish a `uvx bigrag` or equivalent command that sets up the API, admin UI, and Docker services.
 
@@ -808,8 +808,8 @@ Based on this analysis, here are the recommended priorities for closing the most
 
 ## 12. Conclusion
 
-OpenRAG and bigRAG are at different points on the RAG platform spectrum. OpenRAG is a **full-stack, end-user-facing platform** with chat, agents, workflow editing, and cloud connectors. bigRAG is a **developer-focused retrieval platform** with an optional admin UI, stronger multi-collection architecture, batch operations, SDKs, MCP, webhooks, audit, and operational controls.
+OpenRAG and bigRAG are at different points on the RAG platform spectrum. OpenRAG is a **full-stack, end-user-facing platform** with chat, agents, workflow editing, and broad cloud connectors. bigRAG is a **developer-focused retrieval and chat platform** with an optional admin UI, stronger multi-collection architecture, batch operations, SDKs, MCP, webhooks, audit, and operational controls.
 
 The highest-impact remaining gaps are **agent/workflow transparency**, **OAuth/OIDC**, and **document-level ownership/ACLs**. Closing those would position bigRAG as a serious alternative that combines OpenRAG's end-to-end capabilities with bigRAG's existing strengths in API design, multi-collection architecture, admin operations, and operational robustness.
 
-bigRAG's core architecture is sound and in several areas more sophisticated than OpenRAG's. The gaps are now primarily in the **application and identity layer** (chat, agents, OAuth, ACLs, connectors) rather than the **infrastructure layer** (search, ingestion, storage, SDKs, MCP, webhooks), which is already strong.
+bigRAG's core architecture is sound and in several areas more sophisticated than OpenRAG's. The gaps are now primarily in the **application and identity layer** (agents, OAuth, ACLs, broader connectors, and LLM observability) rather than the **infrastructure layer** (search, ingestion, storage, SDKs, MCP, webhooks), which is already strong.

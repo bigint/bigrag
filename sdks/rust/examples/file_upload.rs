@@ -1,7 +1,7 @@
 //! File upload patterns: path, bytes, batch upload.
 //!
 //! Run with: `cargo run --example file_upload`
-//! Requires a running bigRAG server at localhost:6100.
+//! Requires a running bigRAG server at localhost:4000.
 
 use bigrag::types::CreateCollectionBody;
 use bigrag::{BigRag, FileInput};

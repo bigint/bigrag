@@ -9,7 +9,7 @@ Session-only. Audit records are immutable.
 
 bigRAG separates two operational trails:
 
-- `audit_log` records privileged state changes such as API-key creation.
+- `audit_log` records privileged state changes and selected operator/retrieval actions such as API-key creation, collection mutations, evaluation runs, and vector writes.
 - `access_log` records RAG calls with actor, auth method, endpoint, status, collection context,
   and latency. Query, batch query, vector mutation, and evaluation calls are included; admin UI
   refreshes and admin/control-plane reads are excluded. Request bodies, raw prompts, document
@@ -64,15 +64,21 @@ Date-range filtering isn't yet supported — paginate and filter `created_at` cl
 
 ### Currently emitted actions
 
-| Action | Emitted by |
-|--------|-----------|
-| `api_key.create` | `POST /v1/admin/api-keys` |
-| `mcp_server.create` | `POST /v1/admin/mcp-servers` |
-| `mcp_server.rotate` | `POST /v1/admin/mcp-servers/{id}/rotate` |
+| Action family | Emitted by |
+|---------------|------------|
+| `auth.*` | Setup, login success/failure, logout, logout-all |
+| `user.*` | User create, update, delete, password change |
+| `api_key.*` | API-key create, update, rotate, delete |
+| `mcp_server.*` | MCP server create, update, rotate, delete |
+| `collection.*` | Collection create, update, re-embed, truncate, delete |
+| `document.*` and `upload_session.*` | Upload, batch upload/delete, reprocess, upload-session lifecycle |
+| `webhook.*` | Webhook create, update, delete, test, delivery replay |
+| `embedding_preset.*` | Preset create, update, delete |
+| `instance_settings.*` and `embedding_cache.purge` | Runtime settings updates, resets, and cache purge |
+| `backup.requested` | Readable backup request |
+| `query.*`, `vectors.*`, `analytics.read`, `evaluation.run`, `chat.*` | Retrieval, vector, analytics, evaluation, and chat actions |
 
-Audit emission is **not yet wired into every privileged endpoint** — login/logout, user CRUD, API-key updates and deletes, collection mutations, document mutations, and webhook mutations are not currently recorded. Use the application logs (`bigrag.routers.*`) as a secondary trail until coverage expands.
-
-If you have a compliance requirement that depends on this, prefer scraping the structured `bigrag` log stream alongside the audit log until the gap is closed.
+Use the structured application log stream alongside the audit log when you need full request diagnostics, raw route timing, or operational events that are intentionally outside the audit action vocabulary.
 
 ## Access Overview
 

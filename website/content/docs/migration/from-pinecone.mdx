@@ -32,44 +32,46 @@ pipeline previously embedded text elsewhere, you can drop that storage.
 
 ```python
 # examples/migrate_from_pinecone.py
+import asyncio
+
 from pinecone import Pinecone
 from bigrag import BigRAG
 
-pc = Pinecone(api_key="pcsk_...")
-source = pc.Index("prod-docs")
+async def main():
+    pc = Pinecone(api_key="pcsk_...")
+    source = pc.Index("prod-docs")
 
-client = BigRAG(api_key="bigrag_sk_...")
+    async with BigRAG(api_key="bigrag_sk_...") as client:
+        await client.collections.create({
+            "name": "prod_docs",
+            "embedding_provider": "openai",
+            "embedding_model": "text-embedding-3-small",
+            "dimension": 1536,
+        })
 
-# Create the target collection using the same embedding provider you used
-# in Pinecone so vectors stay comparable. Dimension MUST match.
-client.collections.create({
-    "name": "prod_docs",
-    "embedding_provider": "openai",
-    "embedding_model": "text-embedding-3-small",
-    "dimension": 1536,
-})
+        batch = 100
+        cursor = None
+        while True:
+            page = source.list_paginated(limit=batch, pagination_token=cursor)
+            ids = [v.id for v in page.vectors]
+            if not ids:
+                break
+            fetched = source.fetch(ids=ids)
+            vectors = [
+                {
+                    "id": v.id,
+                    "embedding": v.values,
+                    "text": v.metadata.get("text", ""),
+                    "metadata": {k: v for k, v in v.metadata.items() if k != "text"},
+                }
+                for v in fetched.vectors.values()
+            ]
+            await client.vectors.upsert("prod_docs", vectors)
+            cursor = page.pagination.next if page.pagination else None
+            if not cursor:
+                break
 
-BATCH = 100
-cursor = None
-while True:
-    page = source.list_paginated(limit=BATCH, pagination_token=cursor)
-    ids = [v.id for v in page.vectors]
-    if not ids:
-        break
-    fetched = source.fetch(ids=ids)
-    vectors = [
-        {
-            "id": v.id,
-            "embedding": v.values,
-            "text": v.metadata.get("text", ""),  # or whatever field holds chunk text
-            "metadata": {k: v for k, v in v.metadata.items() if k != "text"},
-        }
-        for v in fetched.vectors.values()
-    ]
-    client.vectors.upsert("prod_docs", vectors)
-    cursor = page.pagination.next if page.pagination else None
-    if not cursor:
-        break
+asyncio.run(main())
 ```
 
 ## Two migration strategies
@@ -96,7 +98,7 @@ Recommended if you're in the middle of a chunking rethink anyway.
   get a Qdrant payload index and become required on uploads, raw vector
   upserts, queries, and chat requests.
 - **Hybrid search is built-in**. `search_mode: "hybrid"` runs keyword
-  + vector in parallel and fuses with RRF / normalized / weighted.
+  + vector in parallel and fuses with reciprocal rank fusion.
   No separate "sparse" vectors to maintain.
 
 ## Cut-over

@@ -3,11 +3,11 @@ import { BookOpen, Database, Terminal } from "lucide-react";
 const codeExample = `import { BigRAG } from "@bigrag/client";
 
 const client = new BigRAG({
-  apiSecret: "your-api-secret",
+  apiKey: "bigrag_sk_...",
   baseUrl: "http://localhost:4000",
 });
 
-const { results } = await client.query("knowledge_base", {
+const { results } = await client.queries.query("knowledge_base", {
   query: "What is the PTO policy?",
   top_k: 5,
 });`;

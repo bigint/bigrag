@@ -8,6 +8,8 @@ import { Callout } from "fumadocs-ui/components/callout";
 This recipe turns bigRAG into a per-tenant RAG backbone for a typical
 SaaS app — one collection per customer (or one collection shared with
 tenant filtering), scoped API keys, usage dashboards, and cost caps.
+Python snippets assume the async SDK is running inside an async function with
+an initialized `client`.
 
 ## Pattern A — collection per tenant
 
@@ -17,8 +19,7 @@ collection; queries are physically scoped by the collection name.
 ### Provisioning
 
 ```python
-# called from your signup / onboarding flow
-client.collections.create({
+await client.collections.create({
     "name": f"tenant_{tenant_id}",
     "embedding_provider": "openai",
     "embedding_model": "text-embedding-3-small",
@@ -40,15 +41,15 @@ Mint a scoped key so the tenant's browser / mobile app can query but
 can't touch other collections or the admin surface:
 
 ```python
-key = client.api_keys.create({
+key = await client.admin.api_keys.create({
     "name": f"tenant-{tenant_id}",
-    "scopes": ["query:read", f"document:upload"],
+    "scopes": ["query:read", "document:upload"],
+    "collection": f"tenant_{tenant_id}",
 })
-# key.key is the plaintext bigrag_sk_... — hand it to the tenant once.
+tenant_api_key = key["key"]
 ```
 
-The middleware enforces the scopes so a leaked tenant key can only
-damage its own data.
+The middleware enforces both the scopes and the collection pin, so a leaked tenant key can only reach its own collection.
 
 <Callout type="warn">
 Collections-per-tenant is simple but creates operational overhead as
@@ -64,21 +65,18 @@ field and reject uploads, raw vector upserts, queries, and chat calls that
 omit the tenant field.
 
 ```python
-client.collections.create({
+await client.collections.create({
     "name": "shared_tenants",
-    "tenant_field": "tenant_id",   # bigRAG indexes this payload field
-    # ... other config
+    "tenant_field": "tenant_id",
 })
 
-# Upload with the tenant tag
-client.documents.upload(
+await client.documents.upload(
     "shared_tenants",
-    file=handle,
+    handle,
     metadata={"tenant_id": "acme", "source": "docs"},
 )
 
-# Query with the tenant filter
-results = client.queries.search("shared_tenants", {
+results = await client.queries.query("shared_tenants", {
     "query": "quarterly revenue",
     "filters": {"tenant_id": "acme"},
 })
@@ -91,7 +89,7 @@ You still need to pass the tenant filter on every tenant-scoped query and chat r
 ## Per-tenant usage + billing
 
 ```python
-usage = client.usage.get(window_days=30)
+usage = await client.get_usage(window_days=30)
 # {
 #   "by_collection": [
 #     {"collection": "tenant_acme", "documents": 142, "chunks": 4321,
@@ -103,17 +101,19 @@ usage = client.usage.get(window_days=30)
 ```
 
 Join this with your billing system's `tenant_id ↔ collection_name`
-map and you have a per-tenant invoice line. For pattern B, aggregate
-the same stats from `audit_log` by `metadata.tenant_id`.
+map and you have a per-tenant invoice line. For pattern B, the built-in
+usage endpoint is collection-level; keep per-tenant counters in your own
+application when multiple tenants share one collection.
 
 ## Audit trail for compliance
 
-Every admin action (key creation, webhook config, user updates) is in
-`audit_log`. Surface it per-tenant by filtering on
-`actor_id` (the user) or `resource_id` (the collection name):
+Privileged actions such as key creation, webhook config, user updates,
+collection mutations, and document mutations are in `audit_log`. Surface
+them in internal tooling by filtering on `actor_id`, `resource_type`, or
+the relevant `resource_id`:
 
 ```bash
-curl -H "Authorization: Bearer $ADMIN_KEY" \
+curl -b cookies.txt \
   "http://localhost:4000/v1/admin/audit?resource_type=collection"
 ```
 
@@ -123,11 +123,14 @@ When a tenant cancels, tear down their data:
 
 ```python
 # Pattern A — collection per tenant
-client.collections.delete(f"tenant_{tenant_id}")
+await client.collections.delete(f"tenant_{tenant_id}")
 
 # Pattern B — shared collection
-client.vectors.delete("shared_tenants", tenant_filter={"tenant_id": tenant_id})
+await client.documents.batch_delete("shared_tenants", document_ids)
 ```
 
-Revoke the tenant's API keys via `client.api_keys.delete(key_id)` and
-archive the relevant `audit_log` rows for your records.
+For shared collections, keep a tenant-owned document ID index in your
+application so offboarding can delete the right documents. If you use raw
+vector upserts directly, keep vector IDs and call `client.vectors.delete`.
+Revoke the tenant's API keys via `client.admin.api_keys.delete(key_id)` and
+archive the relevant audit rows for your records.

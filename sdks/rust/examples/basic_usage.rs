@@ -1,7 +1,7 @@
 //! Basic bigRAG usage: create a collection, upload a document, and query.
 //!
 //! Run with: `cargo run --example basic_usage`
-//! Requires a running bigRAG server at localhost:6100.
+//! Requires a running bigRAG server at localhost:4000.
 
 use bigrag::types::{CreateCollectionBody, QueryBody};
 use bigrag::BigRag;

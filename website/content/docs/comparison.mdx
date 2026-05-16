@@ -21,7 +21,7 @@ There are many ways to build a RAG pipeline. This page compares bigRAG to popula
 | **TypeScript SDK** | Yes | Yes | No | No | No | No | Yes | Yes | Yes |
 | **Python SDK** | Yes | Yes | No | No | No | Yes | Yes | Yes | Yes |
 | **Web UI** | Yes (admin UI) | Yes | Yes | Yes | Yes | No | No | No | Yes |
-| **LLM generation** | No | Yes | Yes | Yes | Yes | Via code | Via code | Via code | Yes |
+| **LLM generation** | Yes (chat API) | Yes | Yes | Yes | Yes | Via code | Via code | Via code | Yes |
 | **Vector DB** | Qdrant default, turbopuffer | OpenSearch | Elasticsearch | 9 options | Qdrant or pgvector | Integrations | Integrations | Integrations | Proprietary |
 | **Multi-collection** | Yes | No | Yes | Yes | No | N/A | N/A | N/A | Yes |
 | **Setup complexity** | Low | Low | Medium | Low | Medium | High | High | High | None |
@@ -36,8 +36,8 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 
 **Where OpenRAG shines:**
 - Full-stack platform with web UI, chat interface, and visual workflow builder (Langflow)
-- Built-in LLM generation with OpenAI, Anthropic, Ollama, and watsonx support
-- Cloud storage connectors (Google Drive, SharePoint, OneDrive, IBM COS)
+- Broader LLM provider coverage through Langflow
+- Broader cloud storage connector catalog (Google Drive, SharePoint, OneDrive, IBM COS)
 - MCP server for AI coding assistant integration (Claude Desktop, Cursor)
 - OAuth/OIDC authentication with per-user document ownership
 - Single-command install via `uvx openrag`
@@ -53,7 +53,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 - Dramatiq workers on Redis with lease renewal, delayed retries, dead letter handling, and job recovery
 - Native Cohere reranking with per-collection and per-query configuration
 
-**Choose OpenRAG** if you need an end-to-end platform with chat UI, backend LLM generation, and OAuth cloud connectors for non-technical users. **Choose bigRAG** if you need an API-first retrieval platform with optional admin operations, multi-collection support, batch operations, and webhook-driven workflows.
+**Choose OpenRAG** if you need visual workflow orchestration, OAuth/OIDC, per-user document ownership, and a broader connector catalog for non-technical users. **Choose bigRAG** if you need an API-first retrieval and chat platform with optional admin operations, multi-collection support, batch operations, SDKs, MCP, and webhook-driven workflows.
 
 <Callout type="info">
   For a comprehensive feature-by-feature gap analysis, see [OpenRAG Gap Analysis](/docs/openrag-gap-analysis).

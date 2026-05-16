@@ -141,7 +141,7 @@ Any gateway that speaks the OpenAI `/embeddings` shape works. Common choices:
 4. New vectors are batched at `BIGRAG_INGESTION_BATCH_SIZE` and written to the collection's selected vector store.
 5. Queries embed the same way, with short-lived Redis caching for repeated query embeddings.
 
-The cache key is `(content_hash, provider, model, dimension)`. Switching a collection's model invalidates cache hits automatically — on re-embed, unchanged chunks under the **new** model still start cold, but if you switch back they're hot again.
+The cache key is `(content_hash, provider, model, dimension)`. A new collection that uses a different model gets a separate cache key space, so unchanged chunks under that model start cold while previous model cache entries remain available to collections that still use them.
 
 Persistent embedding-cache rows are encrypted by default with `BIGRAG_MASTER_KEY`. Set `embedding_cache_mode` to `disabled` in `/settings` when you prefer provider cost over storing reusable vectors. The default retention window is 30 days after last use, and admins can purge the cache from the Security settings tab.
 
@@ -156,5 +156,5 @@ Embedding requests are guarded by a semaphore (`BIGRAG_EMBEDDING_CONCURRENCY`, d
 Reranking is a separate concern: enable `reranking_enabled` on a collection to add a Cohere cross-encoder pass after retrieval. It's configured independently (different key, different model) because it often makes sense to embed with a cheap local model and rerank with a strong managed one.
 
 <Callout type="warn">
-The embedding provider, model, dimension, and `embedding_base_url` **cannot** be changed after a collection is created — chunk vectors are only meaningful under the model that produced them. If you need to switch models, create a new collection, trigger [`POST /v1/collections/{name}/reembed`](/docs/api-reference/collections#re-embed-collection) after updating, or run a re-ingest.
+The embedding provider, model, dimension, and `embedding_base_url` **cannot** be changed after a collection is created — chunk vectors are only meaningful under the model that produced them. If you need to switch models, create a new collection and re-ingest or migrate the source documents into it.
 </Callout>

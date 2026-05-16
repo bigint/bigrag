@@ -262,6 +262,8 @@ result = await client.webhooks.test("webhook-id")
 deliveries = await client.webhooks.list_deliveries("webhook-id", limit=10)
 ```
 
+Webhook management calls `/v1/admin/webhooks` and requires session-cookie admin auth; API-key clients receive `403`.
+
 ## API-Client Status Polling
 
 Track document processing with REST polling:
@@ -349,6 +351,9 @@ ready = await client.readiness()
 
 # Platform stats
 stats = await client.get_stats()
+
+# Usage rollup
+usage = await client.get_usage(window_days=30)
 
 # Available embedding models
 models = await client.list_embedding_models()

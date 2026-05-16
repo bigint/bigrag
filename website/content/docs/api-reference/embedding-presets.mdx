@@ -5,7 +5,7 @@ description: Reusable embedding provider + model configurations.
 
 Base path: `/v1/admin/embedding-presets`
 
-Presets let you save an embedding provider, model, dimension, and API key once and reference them when creating collections (in the admin UI, or programmatically by copying the fields). They have no effect on existing collections.
+Presets let you save an embedding provider, model, dimension, base URL, and API key once and reference them when creating collections. Collections linked with `embedding_preset_id` read the preset live, so preset updates affect those collections and invalidate their cached config.
 
 Session-only. The `api_key` column is Fernet-encrypted at rest with `BIGRAG_MASTER_KEY` — see [Encryption at rest](/docs/deployment/encryption).
 

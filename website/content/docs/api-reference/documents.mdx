@@ -144,7 +144,12 @@ Re-parse, re-chunk, and re-embed a document.
 GET /v1/collections/{collection_name}/documents/{document_id}/chunks
 ```
 
-Get all chunks for a processed document.
+Get chunks for a processed document.
+
+| Parameter | Type | Default | Constraints |
+|-----------|------|---------|-------------|
+| `limit` | integer | `50` | 1–1,000 |
+| `offset` | integer | `0` | 0+ |
 
 **Response** `200`:
 

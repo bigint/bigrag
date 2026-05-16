@@ -9,7 +9,7 @@ POST /v1/evaluation
 
 Runs a batch of queries against a collection and scores the retrieved chunks against a labelled set of expected document IDs. Used to catch regressions when tweaking chunk size, embedding model, reranking, or search mode.
 
-Session-only.
+Accepts a session cookie or an API key with `query:read`.
 
 ## Request
 
@@ -18,6 +18,7 @@ Session-only.
   "collection": "knowledge_base",
   "search_mode": "hybrid",
   "top_k": 10,
+  "filters": { "department": "support" },
   "cases": [
     {
       "query": "how do I rotate an API key?",
@@ -26,6 +27,7 @@ Session-only.
     {
       "query": "what's the PTO policy?",
       "relevant_ids": ["doc-def-789"],
+      "filters": { "region": "us" },
       "top_k": 5
     }
   ]
@@ -38,7 +40,9 @@ Session-only.
 | `cases[]` | array | yes | 1–500 labelled cases |
 | `cases[].query` | string | yes | Non-empty |
 | `cases[].relevant_ids` | string[] | yes | Document IDs (or chunk IDs of the form `<doc>#<n>`); at least one |
+| `cases[].filters` | object | no | Per-case metadata filters; overrides request-level `filters` for that case |
 | `cases[].top_k` | integer | no | 1–100. Overrides the request-level `top_k` for this case |
+| `filters` | object | no | Request-level metadata filters applied to cases that omit `cases[].filters` |
 | `top_k` | integer | no | 1–100, default `10`. Used when a case omits its own `top_k` |
 | `search_mode` | string | no | `semantic` (default), `keyword`, or `hybrid` |
 

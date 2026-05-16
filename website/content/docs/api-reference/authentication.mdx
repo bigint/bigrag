@@ -121,9 +121,11 @@ Scopes use `resource:action` with `*` as a wildcard. Common shapes:
 | `document:read` | List / get / download documents, chunks, batch get/status, upload-session status, and global `/v1/documents/{id}` lookups |
 | `document:delete` | Delete documents, cancel upload sessions, and batch delete |
 | `query:read` | Run queries |
+| `chat:read` | Read generated question suggestions |
+| `chat:write` | Generate chat answers and question suggestions |
 | `vector:write` | Direct raw vector upsert |
 | `vector:delete` | Direct raw vector delete |
-| `webhook:*` | Manage webhooks |
+| `audit:read` | Read the API-key-capable usage rollup at `/v1/usage` |
 | `*:*` | Full access (equivalent to no `scopes`) |
 
 A key missing a required scope returns `403` with `{"detail": "API key missing required scope: <scope>"}`.

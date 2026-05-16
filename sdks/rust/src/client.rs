@@ -29,7 +29,7 @@ use crate::types::embeddings::EmbeddingModelListResponse;
 use crate::types::query::{QueryBody, QueryResponse};
 use crate::types::usage::UsageResponse;
 
-const DEFAULT_BASE_URL: &str = "http://localhost:6100";
+const DEFAULT_BASE_URL: &str = "http://localhost:4000";
 const DEFAULT_TIMEOUT_SECS: u64 = 120;
 const DEFAULT_MAX_RETRIES: u32 = 2;
 
@@ -54,7 +54,7 @@ pub struct BigRagConfig {
 /// use bigrag::BigRag;
 ///
 /// # async fn example() -> Result<(), bigrag::BigRagError> {
-/// let client = BigRag::new("http://localhost:6100", "sk-...");
+/// let client = BigRag::new("http://localhost:4000", "sk-...");
 /// let collections = client.collections().list(None).await?;
 /// # Ok(())
 /// # }
@@ -84,7 +84,7 @@ impl BigRag {
 
     /// Create a new client from environment variables.
     ///
-    /// Reads `BIGRAG_BASE_URL` (default: `http://localhost:6100`) and
+    /// Reads `BIGRAG_BASE_URL` (default: `http://localhost:4000`) and
     /// `BIGRAG_API_KEY` (optional).
     pub fn from_env() -> Result<Self, BigRagError> {
         let base_url =
@@ -294,7 +294,7 @@ impl BigRagBuilder {
 /// use bigrag::BigRag;
 ///
 /// # async fn example() -> Result<(), bigrag::BigRagError> {
-/// let client = BigRag::new("http://localhost:6100", "sk-...");
+/// let client = BigRag::new("http://localhost:4000", "sk-...");
 /// let col = client.collection("my-collection");
 /// let docs = col.list_documents(None).await?;
 /// # Ok(())

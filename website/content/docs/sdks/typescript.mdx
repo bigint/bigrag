@@ -60,6 +60,7 @@ The client follows a Stripe-style **resource namespace** layout: `client.collect
 | `timeout` | `120000` | Request timeout in ms |
 | `maxRetries` | `2` | Max retries on 5xx, infrastructure 429 responses, network errors |
 | `fetch` | `globalThis.fetch` | Custom fetch implementation |
+| `autoIdempotencyKey` | `true` | Adds an `Idempotency-Key` to mutating requests unless an explicit key is supplied or disabled |
 
 ## Collections
 
@@ -70,6 +71,7 @@ client.collections.create({
   name,
   description?,
   vector_store_provider?,   // "qdrant" | "turbopuffer"
+  embedding_preset_id?,
   embedding_provider?,      // "openai" | "cohere" | "voyage" | "openai_compatible"
   embedding_model?,
   embedding_api_key?,
@@ -93,6 +95,8 @@ client.collections.update(name, {
 })
 client.collections.delete(name)
 client.collections.truncate(name)        // delete all documents, keep the collection
+client.collections.reembed(name)         // requeue ready/failed documents
+client.collections.analytics(name)
 client.collections.streamEvents(name)    // AsyncIterable of collection events (SSE)
 ```
 
@@ -183,6 +187,8 @@ client.webhooks.listDeliveries(id, { limit?, offset? })
 client.webhooks.test(id)
 client.webhooks.replayDelivery(id, deliveryId)
 ```
+
+Webhook management calls `/v1/admin/webhooks` and requires session-cookie admin auth; API-key clients receive `403`.
 
 ## Auth
 

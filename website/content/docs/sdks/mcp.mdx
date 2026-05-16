@@ -12,8 +12,9 @@ shapes:
 - **Local stdio** — the `bigrag-mcp` CLI, for Claude Desktop's
   `config.json` and older Cursor setups.
 
-Both share the same toolset. Scope (all-collections vs pinned to one
-collection) is derived from the API key.
+Both derive scope (all-collections vs pinned to one collection) from the
+API key. Local stdio adjusts its registered toolset at startup; remote
+HTTP always advertises the full tool list and enforces scope at call time.
 
 ## Admin UI credentials
 
@@ -38,12 +39,12 @@ immediately on the next request.
 
 When creating the MCP in the admin UI, set **Collection scope** to pin it to
 one collection. The bigRAG API blocks cross-collection endpoints for
-scoped MCPs with a 403, and both transports adjust their toolset:
+scoped MCPs with a 403.
 
-| MCP scope | Tools exposed |
-|-----------|---------------|
-| **All collections** | 8 tools including `list_collections` and `multi_collection_query`. |
-| **Pinned to `X`** | 6 tools, all with `collection` pre-bound to `X`. `list_collections` and `multi_collection_query` are hidden. |
+| MCP scope | Local stdio tools | Remote HTTP tools |
+|-----------|-------------------|-------------------|
+| **All collections** | 8 tools including `list_collections` and `multi_collection_query` | 8 tools |
+| **Pinned to `X`** | 6 tools, all with `collection` pre-bound to `X`; `list_collections` and `multi_collection_query` are hidden | 8 tools advertised; cross-collection calls return 403 |
 
 There is no separate `BIGRAG_COLLECTION` env var — the key itself
 carries its scope. To change scope, delete the MCP and create a new
@@ -146,9 +147,11 @@ same auth and scopes as any other API client.
 
 ### Collection-pinned key
 
-Same six tools minus `list_collections` and `multi_collection_query`,
-and with the `collection` / `name` argument removed (pre-bound from
-the key's scope).
+Local stdio registers six tools minus `list_collections` and
+`multi_collection_query`, with the `collection` / `name` argument removed
+because it is pre-bound from the key's scope. Remote HTTP advertises the
+same eight tool names as a full-workspace key, but scoped-key calls that
+would cross collection boundaries fail with 403.
 
 ## Example interaction
 

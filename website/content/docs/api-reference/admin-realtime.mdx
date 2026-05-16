@@ -27,7 +27,7 @@ Streams also send heartbeat comments (`: heartbeat`) to keep proxies from closin
 | `GET /v1/admin/realtime/collections/{name}/upload-sessions/{session_id}` | `GET /v1/collections/{name}/upload-sessions/{session_id}` | closes when the upload session is `complete`, `failed`, or `canceled` |
 | `GET /v1/admin/realtime/collections/{name}/stats` | `GET /v1/collections/{name}/stats` | stays open |
 
-Document list streams accept the same `status`, `limit`, and `offset` filters as the REST list. Batch streams accept repeated or comma-separated `document_ids` values, up to 100 IDs.
+Document list streams accept the same `q`, `status`, `sort`, `order`, `limit`, and `offset` filters as the REST list. Batch streams accept repeated or comma-separated `document_ids` values, up to 100 IDs.
 
 Ingestion-backed streams subscribe to the ingestion event bus and re-read the database before emitting a full snapshot.
 

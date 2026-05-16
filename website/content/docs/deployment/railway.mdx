@@ -29,7 +29,7 @@ Provision in this order so API variables can reference private service domains:
 1. Postgres plugin.
 2. Redis plugin.
 3. `Qdrant` Docker image.
-4. `App` from the repo root directory `/app`.
+4. `App` from the repository root.
 5. `API` from the repo root directory `/api`.
 6. `Worker` from the repo root directory `/api`.
 
@@ -48,10 +48,10 @@ Qdrant exposes HTTP on `6333` and gRPC on `6334`. The API uses HTTP.
 
 | Setting | Value |
 |---|---|
-| Source | GitHub repo, **Root Directory `/app`** |
+| Source | GitHub repo, **Root Directory `/`** |
 | Builder | Nixpacks |
-| Build command | `pnpm build` |
-| Start command | `pnpm start` |
+| Build command | `pnpm install --frozen-lockfile && pnpm --filter @bigrag/app build` |
+| Start command | `pnpm --filter @bigrag/app start` |
 | Public domain | yes |
 
 Environment:
@@ -82,6 +82,7 @@ BIGRAG_REDIS_URL=${{Redis.REDIS_URL}}
 BIGRAG_QDRANT_URL=http://${{Qdrant.RAILWAY_PRIVATE_DOMAIN}}:6333
 BIGRAG_EMBEDDING_API_KEY=<your embedding key>
 BIGRAG_MASTER_KEY=<generated Fernet key>
+BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD=true
 BIGRAG_SESSION_COOKIE_SECURE=true
 BIGRAG_SESSION_COOKIE_SAMESITE=none
 BIGRAG_CORS_ORIGINS=["https://${{App.RAILWAY_PUBLIC_DOMAIN}}"]
@@ -133,4 +134,4 @@ Back the master key up immediately. It encrypts provider secrets, webhook secret
 
 **Admin UI says `bigrag-worker is offline`.** Uploads, document reprocessing, backups, webhook deliveries, and Google Drive sync require the Worker service. Restart the Worker service and confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
 
-**App build fails with workspace errors.** Confirm the root directory is `/app`, the build command is `pnpm build`, and the start command is `pnpm start`.
+**App build fails with workspace errors.** Confirm the root directory is `/`, the build command uses `pnpm --filter @bigrag/app build`, and the start command uses `pnpm --filter @bigrag/app start`.

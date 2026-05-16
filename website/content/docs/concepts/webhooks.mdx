@@ -19,7 +19,7 @@ Webhooks push notifications when document processing state changes. They're usef
 
 ```bash
 curl -X POST http://localhost:4000/v1/admin/webhooks \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -b cookies.txt \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com/webhook",
@@ -31,7 +31,7 @@ curl -X POST http://localhost:4000/v1/admin/webhooks \
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `url` | string | yes | Delivery URL (HTTPS required, HTTP allowed for localhost) |
+| `url` | string | yes | Delivery URL. HTTPS is required unless `allow_local_webhooks` is enabled and the URL is loopback HTTP |
 | `events` | string[] | yes | Event types to subscribe to |
 | `collections` | string[] | no | Filter by collection names (`null` = all) |
 | `description` | string | no | Human-readable description |
@@ -60,19 +60,21 @@ Each delivery includes an `X-BigRAG-Signature` header with an HMAC-SHA256 signat
 
 ```
 X-BigRAG-Signature: sha256=<hex digest>
+X-BigRAG-Timestamp: <unix timestamp>
 X-BigRAG-Event: document.ready
 X-BigRAG-Delivery: <delivery-uuid>
 ```
 
-Verify by computing `HMAC-SHA256(webhook_secret, raw_body)`:
+Verify by computing `HMAC-SHA256(webhook_secret, "{timestamp}.{raw_body}")`:
 
 ```python
 import hashlib
 import hmac
 
-def verify(payload: bytes, secret: str, signature: str) -> bool:
+def verify(payload: bytes, secret: str, timestamp: str, signature: str) -> bool:
+    signed_payload = timestamp.encode() + b"." + payload
     expected = "sha256=" + hmac.HMAC(
-        secret.encode(), payload, hashlib.sha256
+        secret.encode(), signed_payload, hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(expected, signature)
 ```
@@ -85,7 +87,7 @@ Check delivery history:
 
 ```bash
 curl http://localhost:4000/v1/admin/webhooks/{id}/deliveries \
-  -H "Authorization: Bearer $BIGRAG_API_KEY"
+  -b cookies.txt
 ```
 
 ## Testing
@@ -94,7 +96,7 @@ Send a `webhook.test` event to verify your endpoint is reachable:
 
 ```bash
 curl -X POST http://localhost:4000/v1/admin/webhooks/{id}/test \
-  -H "Authorization: Bearer $BIGRAG_API_KEY"
+  -b cookies.txt
 ```
 
 ## Limits

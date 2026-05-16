@@ -5,6 +5,8 @@ description: API endpoints for managing webhook registrations.
 
 Base path: `/v1/admin/webhooks`
 
+Session-only admin endpoints. API-key bearer tokens are rejected.
+
 ## Register Webhook
 
 ```
@@ -13,7 +15,7 @@ POST /v1/admin/webhooks
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `url` | string | yes | Delivery URL (HTTPS required, HTTP allowed for localhost) |
+| `url` | string | yes | Delivery URL. HTTPS is required unless `allow_local_webhooks` is enabled and the URL is loopback HTTP |
 | `events` | string[] | yes | Event types (only these three deliver via webhooks today): `document.processing`, `document.ready`, `document.failed` |
 | `collections` | string[] | no | Filter by collection names (`null` = all) |
 | `description` | string | no | Human-readable description |
@@ -22,7 +24,7 @@ POST /v1/admin/webhooks
 
 ```bash
 curl -X POST http://localhost:4000/v1/admin/webhooks \
-  -H "Authorization: Bearer $BIGRAG_API_KEY" \
+  -b cookies.txt \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com/webhook",
@@ -125,9 +127,12 @@ Each delivery includes these headers:
 
 ```
 X-BigRAG-Signature: sha256=<hex digest>
+X-BigRAG-Timestamp: <unix timestamp>
 X-BigRAG-Event: document.ready
 X-BigRAG-Delivery: <delivery-uuid>
 ```
+
+The signature is `HMAC-SHA256(secret, "{timestamp}.{raw_body}")`, where `timestamp` is the exact `X-BigRAG-Timestamp` value and `raw_body` is the delivered JSON body bytes decoded as UTF-8.
 
 ## Retry Policy
 

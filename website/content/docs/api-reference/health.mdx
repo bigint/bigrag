@@ -118,7 +118,7 @@ Every HTTP response includes an `X-Request-ID` header. Send your own value to co
 GET /v1/embeddings/models
 ```
 
-List all available embedding models and providers.
+Requires authentication. Lists all available embedding models and providers.
 
 ```json
 {
@@ -158,6 +158,18 @@ List all available embedding models and providers.
       "model": "embed-multilingual-light-v3.0",
       "dimension": 384,
       "description": "Cohere lightweight multilingual model"
+    },
+    {
+      "provider": "voyage",
+      "model": "voyage-3.5",
+      "dimension": 1024,
+      "description": "Voyage AI default general-purpose model"
+    },
+    {
+      "provider": "openai_compatible",
+      "model": "(custom)",
+      "dimension": 1024,
+      "description": "Any OpenAI-compatible endpoint; set model, base URL, and dimension on the collection"
     }
   ]
 }

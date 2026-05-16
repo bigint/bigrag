@@ -7,7 +7,7 @@ description: Aggregate per-collection usage statistics.
 GET /v1/usage
 ```
 
-Session-only. Returns the per-collection resource footprint over a trailing window — useful for quota enforcement, billing, and capacity planning.
+Accepts a session cookie or an API key with `audit:read`. Returns the per-collection resource footprint over a trailing window — useful for quota enforcement, billing, and capacity planning.
 
 ## Query parameters
 

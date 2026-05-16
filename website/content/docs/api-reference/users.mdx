@@ -59,11 +59,11 @@ POST /v1/admin/users
 | `email` | string | yes | Unique |
 | `password` | string | yes | Argon2id hashed, ≥8 chars |
 | `display_name` | string | no | — |
-| `role` | string | yes | `admin` or `member` |
+| `role` | string | no | `admin` or `member`; defaults to `admin` |
 
 **Response** `201`: full user object.
 
-**Errors:** `400` (short password), `409` (email taken).
+**Errors:** `422` (short password or invalid body), `409` (email taken).
 
 ## Update User
 
@@ -101,4 +101,4 @@ Deletes a user along with their sessions, API keys, and audit footprint. Rejecte
 
 **Response** `200`: `{"status": "ok", "message": "..."}`.
 
-**Errors:** `403` (last-admin / self-delete), `404`.
+**Errors:** `400` (last-admin / self-delete), `404`.

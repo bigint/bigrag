@@ -33,7 +33,7 @@ New users return `{"data": {}}`.
 PUT /v1/auth/preferences
 ```
 
-Deep-merges the request body into the stored preferences. Keys not present in the request are preserved. Send an explicit `null` to clear a single key.
+Deep-merges the request body into the stored preferences. Keys not present in the request are preserved. Ordinary keys sent as `null` are stored as `null`; documented sensitive paths such as `chat.openai_key` are cleared when sent as `null`.
 
 ```json
 { "data": { "default_collection": "knowledge_base" } }

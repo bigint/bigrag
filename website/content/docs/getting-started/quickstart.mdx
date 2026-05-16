@@ -94,7 +94,7 @@ const client = new BigRAG({
   baseUrl: "http://localhost:4000",
 });
 
-const collection = await client.createCollection({
+const collection = await client.collections.create({
   name: "knowledge_base",
   description: "Company knowledge base",
   embedding_provider: "openai",
@@ -121,7 +121,10 @@ No managed embedding key handy? Use `embedding_provider: "openai_compatible"` wi
 curl -X POST $BASE/v1/collections/knowledge_base/documents \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -F "file=@handbook.pdf" \
-  -F 'metadata={"department": "engineering"}'
+  -F 'metadata={"department": "engineering"}' \
+  | tee /tmp/document.json
+
+export DOC_ID=$(jq -r .id /tmp/document.json)
 ```
 </Tab>
 <Tab value="TypeScript SDK">
@@ -186,7 +189,7 @@ curl -X POST $BASE/v1/collections/knowledge_base/query \
 </Tab>
 <Tab value="TypeScript SDK">
 ```typescript
-const { results, timings } = await client.query("knowledge_base", {
+const { results, timings } = await client.queries.query("knowledge_base", {
   query: "What is the PTO policy?",
   top_k: 5,
 });
