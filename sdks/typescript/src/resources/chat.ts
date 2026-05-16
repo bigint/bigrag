@@ -1,4 +1,6 @@
 import { type RequestClient, USER_AGENT } from "../core.js";
+import { errorForStatus } from "../errors.js";
+import { parseSSEFrames } from "../sse.js";
 import type { ChatCreateBody, ChatCreateResponse, ChatStreamEvent } from "../types.js";
 
 export class ChatResource {
@@ -20,44 +22,12 @@ export class ChatResource {
       body: JSON.stringify({ ...body, stream: true }),
     });
     if (!response.ok || !response.body) {
-      throw new Error(await response.text().catch(() => response.statusText));
+      const message = await response.text().catch(() => response.statusText);
+      throw errorForStatus(response.status, message);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const frames = buffer.split("\n\n");
-        buffer = frames.pop() ?? "";
-        for (const frame of frames) {
-          const event = parseFrame(frame);
-          if (event) yield event;
-        }
-      }
-      buffer += decoder.decode();
-      if (buffer.trim()) {
-        const event = parseFrame(buffer);
-        if (event) yield event;
-      }
-    } finally {
-      await reader.cancel().catch(() => undefined);
-      reader.releaseLock();
+    for await (const frame of parseSSEFrames(response)) {
+      yield { event: frame.event, data: JSON.parse(frame.data) } as ChatStreamEvent;
     }
   }
-}
-
-function parseFrame(frame: string): ChatStreamEvent | null {
-  let eventName = "message";
-  const data: string[] = [];
-  for (const line of frame.split("\n")) {
-    if (line.startsWith("event: ")) eventName = line.slice(7).trim();
-    else if (line.startsWith("data: ")) data.push(line.slice(6));
-  }
-  const payload = data.join("\n");
-  if (!payload || payload === "[DONE]") return null;
-  return { event: eventName, data: JSON.parse(payload) } as ChatStreamEvent;
 }

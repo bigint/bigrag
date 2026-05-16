@@ -1,4 +1,6 @@
 import { type RequestClient, USER_AGENT } from "../core.js";
+import { errorForStatus } from "../errors.js";
+import { parseSSEFrames } from "../sse.js";
 import type {
   AccessLogListResponse,
   AccessLogOverviewResponse,
@@ -286,32 +288,12 @@ export class AdminRealtimeResource {
       credentials: "include",
     });
     if (!response.ok || !response.body) {
-      throw new Error(await response.text().catch(() => response.statusText));
+      const message = await response.text().catch(() => response.statusText);
+      throw errorForStatus(response.status, message);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const frames = buffer.split("\n\n");
-        buffer = frames.pop() ?? "";
-        for (const frame of frames) {
-          const event = parseAdminRealtimeFrame<T>(frame);
-          if (event) yield event;
-        }
-      }
-      buffer += decoder.decode();
-      if (buffer.trim()) {
-        const event = parseAdminRealtimeFrame<T>(buffer);
-        if (event) yield event;
-      }
-    } finally {
-      await reader.cancel().catch(() => undefined);
-      reader.releaseLock();
+    for await (const frame of parseSSEFrames(response)) {
+      yield { event: frame.event, data: JSON.parse(frame.data) } as AdminRealtimeEvent<T>;
     }
   }
 }
@@ -517,21 +499,4 @@ function pagination(options: { limit?: number; offset?: number }): Record<string
   if (options.limit !== undefined) params.limit = String(options.limit);
   if (options.offset !== undefined) params.offset = String(options.offset);
   return params;
-}
-
-function parseAdminRealtimeFrame<T>(frame: string): AdminRealtimeEvent<T> | null {
-  let event = "message";
-  const data: string[] = [];
-  for (const rawLine of frame.split(/\r?\n/)) {
-    if (!rawLine || rawLine.startsWith(":")) continue;
-    if (rawLine.startsWith("event:")) {
-      event = rawLine.slice(6).trimStart();
-    } else if (rawLine.startsWith("data:")) {
-      data.push(rawLine.slice(5).trimStart());
-    }
-  }
-  if (data.length === 0) return null;
-  const payload = data.join("\n");
-  if (payload === "[DONE]") return null;
-  return { event, data: JSON.parse(payload) } as AdminRealtimeEvent<T>;
 }
