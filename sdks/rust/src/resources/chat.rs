@@ -48,7 +48,6 @@ impl Chats<'_> {
             .await?;
         Ok(ChatStream::new(response))
     }
-
 }
 
 /// A stream of chat Server-Sent Events.

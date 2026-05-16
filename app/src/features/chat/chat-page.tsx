@@ -10,15 +10,12 @@ import type { ChatMessage } from "@/features/chat/chat-messages";
 import { ChatMessages } from "@/features/chat/chat-messages";
 import { useChatStore } from "@/features/chat/chat-store";
 import { EmptyPrompts } from "@/features/chat/empty-prompts";
-import {
-  useChatQuestionSuggestions,
-  useGenerateChatQuestions,
-} from "@/hooks/use-chat";
+import { useChatQuestionSuggestions, useGenerateChatQuestions } from "@/hooks/use-chat";
 import { useCollections } from "@/hooks/use-collections";
 import { usePreferences, useUpdatePreferences } from "@/hooks/use-preferences";
 import { streamChat } from "@/lib/chat-stream";
 import { queryKeys } from "@/lib/query-keys";
-import type { ChatMessage as ServerChatMessage, QueryTimings } from "@/types/bigrag";
+import type { QueryTimings, ChatMessage as ServerChatMessage } from "@/types/bigrag";
 
 const newId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto

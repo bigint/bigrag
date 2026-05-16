@@ -212,7 +212,9 @@ def test_bigrag_high_level_wrappers_delegate_to_resources() -> None:
         client.chat = FakeChat()
         created = await client.chat_create({"message": "hello", "collection": "docs"})
         streamed = []
-        async for event in client.chat_stream({"message": "hello", "collection": "docs"}):
+        async for event in client.chat_stream(
+            {"message": "hello", "collection": "docs"}
+        ):
             streamed.append(event)
         scoped = client.collection("docs")
         await client.aclose()
@@ -221,7 +223,9 @@ def test_bigrag_high_level_wrappers_delegate_to_resources() -> None:
     created, streamed, scoped = run(scenario())
 
     assert created == {"body": {"message": "hello", "collection": "docs"}}
-    assert streamed == [{"event": "delta", "data": {"message": "hello", "collection": "docs"}}]
+    assert streamed == [
+        {"event": "delta", "data": {"message": "hello", "collection": "docs"}}
+    ]
     assert isinstance(scoped, CollectionClient)
     assert scoped._name == "docs"
 

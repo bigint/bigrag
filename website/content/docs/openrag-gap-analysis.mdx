@@ -21,8 +21,8 @@ OpenRAG and bigRAG share the same foundation — both use **FastAPI**, **Docling
 
 | Category | Current bigRAG status | Remaining strategic gap |
 |---|---|---|
-| [Web UI & User Experience](#1-web-ui--user-experience) | The admin UI exists for setup, collection/document management, persistent chat, API keys, MCP, webhooks, settings, audit, usage, and evals | No bulk document operations, visual workflow builder, or vector DB console |
-| [Agentic RAG & LLM Integration](#2-agentic-rag--llm-integration) | The chat API retrieves, generates cited answers, streams tokens, and stores conversations | No agents, tool-call inspection, contextual nudges, or visual prompt orchestration |
+| [Web UI & User Experience](#1-web-ui--user-experience) | The admin UI exists for setup, collection/document management, playground chat, API keys, MCP, webhooks, settings, audit, usage, and evals | No bulk document operations, visual workflow builder, or vector DB console |
+| [Agentic RAG & LLM Integration](#2-agentic-rag--llm-integration) | The chat API retrieves, generates cited answers, and streams tokens without storing turns | No agents, persistent conversations, tool-call inspection, contextual nudges, or visual prompt orchestration |
 | [Cloud Storage Connectors](#3-cloud-storage-connectors) | File upload, batch upload, and OAuth-backed Google Drive sync are implemented | No SharePoint, OneDrive, IBM COS, or multi-provider connector catalog |
 | [Search & Retrieval](#4-search--retrieval) | Semantic, keyword, hybrid RRF search, Cohere rerank, metadata filters, batch query, and analytics | No explicit semantic/keyword weight ratios, facets, prefix/autocomplete, saved filters, or one-index multi-model search |
 | [Authentication & Multi-Tenancy](#5-authentication--multi-tenancy) | Native admin/member accounts, session cookies, scoped API keys, and audit/access logs | No OAuth/OIDC, external IdP, document ownership, document ACLs, or tenant isolation |
@@ -48,9 +48,9 @@ OpenRAG provides a conversational chat interface where users can:
 - Receive contextual "nudges" — auto-generated suggested prompts based on knowledge base themes
 - Manage conversation history (list, continue, delete conversations)
 
-**bigRAG status:** Mostly resolved — bigRAG has a persistent chat UI backed by `POST /v1/chat`, with server-side retrieval, streamed generated answers, citations, and conversation history.
+**bigRAG status:** Partially resolved — bigRAG has a stateless chat playground backed by `POST /v1/chat`, with server-side retrieval, streamed generated answers, and citations.
 
-**Remaining gap:** No temporary file upload inside chat, contextual nudges, or tool-call inspection.
+**Remaining gap:** No temporary file upload inside chat, persisted conversation history, contextual nudges, or tool-call inspection.
 
 ### 1.2 Knowledge Management Dashboard
 
@@ -151,7 +151,7 @@ OpenRAG integrates LLM providers directly:
 
 The chat endpoint accepts a user query, retrieves relevant documents, feeds them as context to the LLM, and returns a generated answer with source citations.
 
-**bigRAG status:** Mostly resolved — `POST /v1/chat` accepts a message, retrieves relevant chunks, feeds them to an OpenAI or OpenAI-compatible chat model, streams token deltas, persists the user and assistant messages, and returns source citations.
+**bigRAG status:** Mostly resolved — `POST /v1/chat` accepts a message, retrieves relevant chunks, feeds them to an OpenAI or OpenAI-compatible chat model, streams token deltas, and returns source citations without persisting the turn.
 
 **Remaining gap:** Provider coverage is narrower than OpenRAG's Langflow-backed set, and there is no agent/tool-call graph yet.
 
@@ -177,7 +177,7 @@ OpenRAG maintains persistent conversation history:
 - Conversation CRUD (create, list, get, delete)
 - Session-based authentication binding
 
-**bigRAG status:** Resolved for normal chat — conversations are persisted, owned by the authenticated user, listable, retrievable, renameable, deleteable, and used for follow-up context.
+**bigRAG status:** Gap reopened by design — chat is a stateless playground. Messages are not persisted, conversation CRUD is not exposed, and follow-up context is not carried server-side.
 
 ### 2.4 Contextual Nudges
 
@@ -193,7 +193,7 @@ OpenRAG auto-generates suggested prompts from knowledge base content via a dedic
 
 OpenRAG streams LLM-generated answers via Server-Sent Events, providing real-time token-by-token output with source attribution.
 
-**bigRAG status:** Resolved for chat — `POST /v1/chat` streams `conversation`, `user_message`, `sources`, `delta`, `assistant_message`, `done`, and `error` SSE events.
+**bigRAG status:** Resolved for chat — `POST /v1/chat` streams `user_message`, `sources`, `delta`, `assistant_message`, `done`, and `error` SSE events.
 
 ### 2.6 Tool Call Inspection
 

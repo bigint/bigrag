@@ -64,6 +64,7 @@ class ChatResource:
                     if event is not None:
                         yield event
 
+
 def _parse_frame(frame: str) -> ChatStreamEvent | None:
     event_name = "message"
     data_lines: list[str] = []

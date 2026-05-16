@@ -204,7 +204,7 @@ File uploads accept `&str` / `String` paths, `Vec<u8>` bytes with a name tuple, 
 use bigrag::types::*;
 
 let answer = client.chat().create(ChatBody {
-    collection: Some("docs".into()),
+    collection: "docs".into(),
     message: "What is the PTO policy?".into(),
     top_k: Some(8),
     search_mode: Some(SearchMode::Hybrid),
@@ -214,7 +214,7 @@ let answer = client.chat().create(ChatBody {
 println!("{}", answer.assistant_message.content);
 
 let mut stream = client.chat().stream(ChatBody {
-    collection: Some("docs".into()),
+    collection: "docs".into(),
     message: "Summarize the refund rules.".into(),
     top_k: Some(5),
     ..Default::default()
@@ -225,10 +225,6 @@ while let Some(event) = stream.next().await {
     println!("{} {}", event.event, event.data);
 }
 
-let chats = client.chat().list(Some(20), None).await?;
-let detail = client.chat().get(&chats.conversations[0].id).await?;
-client.chat().update_title(&detail.conversation.id, "Policy Q&A").await?;
-client.chat().delete(&detail.conversation.id).await?;
 ```
 
 ## Query & Search

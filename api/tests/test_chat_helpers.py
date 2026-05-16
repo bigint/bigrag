@@ -9,7 +9,11 @@ from conftest import FakeSession, user_principal
 
 from bigrag.db.models import InstanceSetting
 from bigrag.exceptions import ServerError, UpstreamError, ValidationError
-from bigrag.models.chat import ChatQuestionSuggestionsRequest, ChatQuestionSuggestionsResponse, ChatSource
+from bigrag.models.chat import (
+    ChatQuestionSuggestionsRequest,
+    ChatQuestionSuggestionsResponse,
+    ChatSource,
+)
 from bigrag.routers import chat as chat_router
 from bigrag.services import chat
 from bigrag.services.chat import questions as chat_questions
