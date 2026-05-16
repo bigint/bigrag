@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { Empty } from "./empty";
 import { Spinner } from "./spinner";
@@ -88,23 +88,36 @@ export const DataTable = <T,>({
           </tr>
         </thead>
         <tbody>
-          {data.map((item, idx) => (
-            <tr key={keyExtractor(item)} className="group">
-              {columns.map((col) => (
-                <td
-                  key={col.key}
-                  className={cn(
-                    "bg-background px-3 py-3 tabular-nums first:rounded-l-lg last:rounded-r-lg group-hover:bg-muted sm:px-5 sm:py-3.5",
-                    col.className,
-                  )}
-                >
-                  {col.render(item, idx)}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {data.map((item, idx) => {
+            const itemKey = keyExtractor(item);
+            return <DataTableRow columns={columns} item={item} key={itemKey} rowIndex={idx} />;
+          })}
         </tbody>
       </table>
     </div>
   );
 };
+
+interface DataTableRowProps<T> {
+  readonly columns: Column<T>[];
+  readonly item: T;
+  readonly rowIndex: number;
+}
+
+const DataTableRowInner = <T,>({ columns, item, rowIndex }: DataTableRowProps<T>) => (
+  <tr className="group">
+    {columns.map((col) => (
+      <td
+        key={col.key}
+        className={cn(
+          "bg-background px-3 py-3 tabular-nums first:rounded-l-lg last:rounded-r-lg group-hover:bg-muted sm:px-5 sm:py-3.5",
+          col.className,
+        )}
+      >
+        {col.render(item, rowIndex)}
+      </td>
+    ))}
+  </tr>
+);
+
+const DataTableRow = memo(DataTableRowInner) as typeof DataTableRowInner;

@@ -168,7 +168,7 @@ Get chunks for a processed document.
 }
 ```
 
-Each chunk returns `document_id` as a top-level field. `metadata` contains the remaining chunk/document payload metadata and omits fixed fields such as `text`, `chunk_index`, and `document_id`.
+Each chunk returns `document_id` as a top-level field. `metadata` contains the remaining chunk/document payload metadata and omits fixed fields such as `text`, `chunk_index`, and `document_id`. Chunk pages are read from the active vector store in `chunk_index` order instead of materializing the full document before slicing.
 
 ## Download File
 
@@ -285,7 +285,7 @@ Check status of up to 100 documents.
 { "document_ids": ["doc-id-1", "doc-id-2"] }
 ```
 
-Returns `id`, `status`, `chunk_count`, `error_message`, and the latest `progress` snapshot for each found document. API clients can poll this endpoint after batch upload until every requested document is `ready` or `failed`; the admin UI uses the session-cookie admin realtime batch stream instead.
+Returns `id`, `status`, `chunk_count`, `error_message`, and the latest `progress` snapshot for each found document. Progress snapshots are fetched in bulk for the requested IDs. API clients can poll this endpoint after batch upload until every requested document is `ready` or `failed`; the admin UI uses the session-cookie admin realtime batch stream instead.
 
 ## Batch Get
 

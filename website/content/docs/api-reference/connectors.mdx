@@ -71,7 +71,7 @@ Create a source from an in-app browser selection:
 }
 ```
 
-New sources start an initial sync and default to daily scheduled resync. Manual syncs detect additions, updates, and remote removals. If a provider returns a successful listing and a previously synced file is missing, bigRAG deletes the document, vectors, stored file, and connector manifest row.
+New sources start an initial sync and default to daily scheduled resync. Manual syncs detect additions, updates, and remote removals. Google Drive folder sync scans nested folders with bounded concurrency before downloading supported files. If a provider returns a successful listing and a previously synced file is missing, bigRAG deletes the document, vectors, stored file, and connector manifest row.
 
 Sync jobs can be filtered by `collection`, `source_id`, and `limit`. While a Google Drive job runs, `details.progress` reports Drive-sync progress only:
 

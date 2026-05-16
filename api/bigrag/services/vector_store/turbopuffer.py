@@ -212,25 +212,48 @@ class TurbopufferVectorStore:
         limit: int = 10000,
         offset: int = 0,
     ) -> tuple[list[dict], int]:
-        rows = await self._query_rows(
+        response = await self._query(
             collection,
             {
-                "rank_by": ["id", "asc"],
-                "filters": ["document_id", "Eq", document_id],
-                "limit": {"total": 10000},
-                "exclude_attributes": ["vector"],
+                "queries": [
+                    {
+                        "rank_by": ["chunk_index", "asc"],
+                        "filters": [
+                            "And",
+                            [
+                                ["document_id", "Eq", document_id],
+                                ["chunk_index", "Gte", offset],
+                            ],
+                        ],
+                        "limit": {"total": limit},
+                        "exclude_attributes": ["vector"],
+                    },
+                    {
+                        "filters": ["document_id", "Eq", document_id],
+                        "aggregate_by": {"count": ["Count"]},
+                    },
+                ]
             },
         )
-        return _chunk_rows_from_payloads([_row_payload(row) for row in rows], limit, offset)
+        results = response.get("results", [])
+        rows = results[0].get("rows", []) if results else []
+        total = 0
+        if len(results) > 1:
+            total = int((results[1].get("aggregations") or {}).get("count") or 0)
+        chunks, _total = _chunk_rows_from_payloads([_row_payload(row) for row in rows], limit, 0)
+        return chunks, total
 
     async def _query_rows(self, collection: str, payload: dict) -> list[dict]:
+        return (await self._query(collection, payload)).get("rows", [])
+
+    async def _query(self, collection: str, payload: dict) -> dict:
         client = self._client()
         response = await client.post(
             f"/v2/namespaces/{self._namespace(collection)}/query",
             json=payload,
         )
         response.raise_for_status()
-        return response.json().get("rows", [])
+        return response.json()
 
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         await self._write(collection, {"delete_by_filter": ["document_id", "Eq", document_id]})
@@ -271,7 +294,17 @@ class TurbopufferVectorStore:
         *,
         with_vectors: bool = True,
     ) -> list[dict]:
-        points = []
+        return [
+            point
+            async for point in self.iter_collection_points(collection, with_vectors=with_vectors)
+        ]
+
+    async def iter_collection_points(
+        self,
+        collection: str,
+        *,
+        with_vectors: bool = True,
+    ):
         last_id: str | None = None
         while True:
             payload: dict[str, Any] = {
@@ -286,14 +319,11 @@ class TurbopufferVectorStore:
                 payload["filters"] = ["id", "Gt", last_id]
             rows = await self._query_rows(collection, payload)
             for row in rows:
-                points.append(
-                    {
-                        "id": str(row.get("id", "")),
-                        "payload": _row_payload(row),
-                        "vector": row.get("vector") if with_vectors else None,
-                    }
-                )
+                yield {
+                    "id": str(row.get("id", "")),
+                    "payload": _row_payload(row),
+                    "vector": row.get("vector") if with_vectors else None,
+                }
             if len(rows) < _EXPORT_PAGE_SIZE:
                 break
             last_id = str(rows[-1].get("id", ""))
-        return points

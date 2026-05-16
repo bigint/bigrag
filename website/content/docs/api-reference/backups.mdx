@@ -5,7 +5,7 @@ description: Admin endpoints for readable S3-compatible full-instance backups.
 
 Readable backups export Postgres rows, vector-store points, and uploaded source files to an S3-compatible bucket. They are backup-only; bigRAG does not expose restore endpoints.
 
-Backups are plain JSON, JSONL, SQL, and raw files. They are not client-side encrypted, so the destination bucket must be treated as sensitive. Secret-bearing database columns and embedding-cache vectors are redacted during export.
+Backups are plain JSON, JSONL, SQL, and raw files. They are not client-side encrypted, so the destination bucket must be treated as sensitive. Secret-bearing database columns and embedding-cache vectors are redacted during export. Vector-store points are streamed page by page into JSONL files so large collections do not need to fit in process memory.
 
 Base path: `/v1/admin/backups`
 

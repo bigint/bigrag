@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import uuid
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
@@ -57,6 +58,7 @@ from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.storage import get_storage
+from bigrag.services.tenant_enforcement import tenant_field
 from bigrag.services.vector_store import vector_store
 
 logger = get_logger("bigrag.routers.documents")
@@ -78,6 +80,128 @@ async def _document_progress(doc: Document, collection_name: str) -> DocumentPro
 
 def _publish_queued_progress(doc: Document, collection_name: str, message: str) -> None:
     publish_queued_progress(event_bus, doc, collection_name, message)
+
+
+async def _existing_documents_by_hash(
+    session: AsyncSession,
+    collection: dict,
+    metadata: dict,
+    content_hashes: list[str],
+) -> dict[str, Document]:
+    if not content_hashes:
+        return {}
+    stmt = (
+        sa.select(Document)
+        .where(Document.collection_id == collection["id"])
+        .where(Document.content_hash.in_(content_hashes))
+        .order_by(Document.created_at.asc(), Document.id.asc())
+    )
+    field = tenant_field(collection)
+    if field:
+        stmt = stmt.where(Document.meta.contains({field: metadata[field]}))
+    docs = (await session.scalars(stmt)).all()
+    out: dict[str, Document] = {}
+    for doc in docs:
+        if doc.content_hash:
+            out.setdefault(doc.content_hash, doc)
+    return out
+
+
+async def _cleanup_stored_paths(paths: list[str]) -> None:
+    storage = get_storage()
+    for path in paths:
+        try:
+            await storage.delete(path)
+        except Exception as exc:
+            logger.warning("batch upload cleanup failed", path=path, error=str(exc))
+
+
+async def _enqueue_batch_documents(
+    docs: list[Document],
+    collection_name: str,
+    collection: dict,
+) -> bool:
+    failed = False
+    for doc in docs:
+        try:
+            await ingestion_queue.enqueue(
+                create_ingestion_job(
+                    document_id=str(doc.id),
+                    file_path=doc.file_path,
+                    collection_name=collection_name,
+                    collection=collection,
+                )
+            )
+            _publish_queued_progress(doc, collection_name, "Queued for ingestion")
+        except Exception as exc:
+            logger.exception(
+                "batch upload: enqueue failed, marking document failed",
+                doc_id=str(doc.id),
+                collection=collection_name,
+            )
+            doc.status = "failed"
+            doc.error_message = f"enqueue failed: {exc.__class__.__name__}: {exc}"
+            failed = True
+    return failed
+
+
+async def _persist_batch_upload_documents(
+    *,
+    session: AsyncSession,
+    collection_name: str,
+    collection: dict,
+    metadata: dict,
+    pending: list[tuple[UploadFile, str, bytes, str]],
+) -> list[tuple[Document, bool]]:
+    hashes = list(dict.fromkeys(item[3] for item in pending))
+    seen_by_hash = await _existing_documents_by_hash(session, collection, metadata, hashes)
+    ordered: list[tuple[Document, bool]] = []
+    new_docs: list[Document] = []
+    stored_paths: list[str] = []
+    storage = get_storage()
+
+    try:
+        for file, file_ext, content, content_hash in pending:
+            existing = seen_by_hash.get(content_hash)
+            if existing is not None:
+                ordered.append((existing, True))
+                continue
+
+            doc_id = uuid.uuid4()
+            filename = file.filename or "document"
+            storage_key = f"{collection_name}/{doc_id}{file_ext}"
+            await storage.put(storage_key, content)
+            stored_paths.append(storage_key)
+            doc = Document(
+                id=doc_id,
+                collection_id=collection["id"],
+                filename=filename,
+                file_type=file_ext.lstrip("."),
+                file_size=len(content),
+                file_path=storage_key,
+                content_hash=content_hash,
+                meta=dict(metadata),
+            )
+            session.add(doc)
+            seen_by_hash[content_hash] = doc
+            new_docs.append(doc)
+            ordered.append((doc, False))
+
+        if new_docs:
+            await session.flush()
+            await recount_collection_documents(session, collection["id"])
+            await session.commit()
+    except Exception:
+        await session.rollback()
+        await _cleanup_stored_paths(stored_paths)
+        raise
+
+    if new_docs:
+        if await _enqueue_batch_documents(new_docs, collection_name, collection):
+            await session.commit()
+        await collection_cache.invalidate(collection_name)
+
+    return ordered
 
 
 @router.post("", response_model=DocumentResponse, status_code=201)
@@ -441,7 +565,7 @@ async def batch_upload_documents(
         parse_form_metadata,
     )
 
-    pending: list[tuple[UploadFile, str, bytes]] = []
+    pending: list[tuple[UploadFile, str, bytes, str]] = []
     for file in files:
         file_ext = upload_extension_or_400(file.filename, batch=True)
         content = await validated_upload_content(
@@ -451,44 +575,21 @@ async def batch_upload_documents(
             budget=budget,
             batch=True,
         )
-        pending.append((file, file_ext, content))
+        pending.append((file, file_ext, content, hashlib.sha256(content).hexdigest()))
 
-    created: list[DocumentResponse] = []
-    seen_by_hash: dict[str, Document] = {}
-    for file, _file_ext, content in pending:
-        content_hash = hashlib.sha256(content).hexdigest()
-        existing = seen_by_hash.get(content_hash)
-        if existing is None:
-            existing = await session.scalar(
-                content_hash_match(collection, content_hash, shared_meta)
-            )
-            if existing is not None:
-                seen_by_hash[content_hash] = existing
-        if existing is not None:
-            created.append(
-                document_response(
-                    existing,
-                    deduped=True,
-                    progress=await _document_progress(existing, collection_name),
-                )
-            )
-            continue
-
-        doc = await persist_document(
-            session=session,
-            collection_name=collection_name,
-            collection=collection,
-            filename=file.filename or "document",
-            content=content,
-            metadata=shared_meta,
-            content_hash=content_hash,
-            raise_on_enqueue_failure=False,
-        )
-        _publish_queued_progress(doc, collection_name, "Queued for ingestion")
-        seen_by_hash[content_hash] = doc
-        created.append(
-            document_response(doc, progress=await _document_progress(doc, collection_name))
-        )
+    ordered_docs = await _persist_batch_upload_documents(
+        session=session,
+        collection_name=collection_name,
+        collection=collection,
+        metadata=shared_meta,
+        pending=pending,
+    )
+    unique_docs = list({str(doc.id): doc for doc, _deduped in ordered_docs}.values())
+    progresses = await document_progress_map(event_bus, unique_docs, collection_name)
+    created = [
+        document_response(doc, deduped=deduped, progress=progresses[str(doc.id)])
+        for doc, deduped in ordered_docs
+    ]
 
     logger.info("batch upload", collection=collection_name, files=len(created))
     audit.record(
@@ -526,6 +627,7 @@ async def batch_get_status(
         )
     ).all()
 
+    progresses = await document_progress_map(event_bus, list(docs), collection_name)
     documents = []
     for doc in docs:
         documents.append(
@@ -534,7 +636,7 @@ async def batch_get_status(
                 status=doc.status,
                 error_message=doc.error_message,
                 chunk_count=doc.chunk_count,
-                progress=await _document_progress(doc, collection_name),
+                progress=progresses[str(doc.id)],
             )
         )
 
@@ -562,9 +664,8 @@ async def batch_get_documents(
         )
     ).all()
 
-    documents = [
-        document_response(d, progress=await _document_progress(d, collection_name)) for d in docs
-    ]
+    progresses = await document_progress_map(event_bus, list(docs), collection_name)
+    documents = [document_response(d, progress=progresses[str(d.id)]) for d in docs]
     logger.info(
         "batch get",
         collection=collection_name,
