@@ -1,0 +1,4 @@
+fastapi>=0.115
+uvicorn[standard]>=0.32
+numpy>=2.0
+orjson>=3.10
