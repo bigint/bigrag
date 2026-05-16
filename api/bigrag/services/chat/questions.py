@@ -56,7 +56,11 @@ async def generate_question_suggestions(
     runtime = await get_values(["chat_model", "chat_base_url", "chat_temperature"])
     model = body.model or runtime["chat_model"]
     temperature = body.temperature if body.temperature is not None else runtime["chat_temperature"]
-    credentials = await _resolve_api_credentials(session, user, SimpleNamespace(provider_api_key=None))
+    credentials = await _resolve_api_credentials(
+        session,
+        user,
+        SimpleNamespace(provider_api_key=None),
+    )
     base_url = await _resolve_base_url(None, runtime["chat_base_url"])
     documents = await _sample_documents(session, collection["id"])
     chunks = await _sample_chunks(collection_name, collection, documents)
@@ -110,7 +114,11 @@ async def _sample_documents(session: AsyncSession, collection_id: object) -> lis
     return documents
 
 
-async def _sample_chunks(collection_name: str, collection: dict, documents: list[Document]) -> list[dict]:
+async def _sample_chunks(
+    collection_name: str,
+    collection: dict,
+    documents: list[Document],
+) -> list[dict]:
     out: list[dict] = []
     for document in documents:
         max_offset = max(0, int(document.chunk_count or 0) - _CHUNK_LIMIT)
@@ -145,7 +153,12 @@ async def _generate_questions_text(
         raise UpstreamError("openai package is required to generate questions") from exc
 
     prompt = _question_prompt(collection_name, documents, chunks)
-    prepared = SimpleNamespace(model=model, temperature=temperature, credentials=credentials, base_url=base_url)
+    prepared = SimpleNamespace(
+        model=model,
+        temperature=temperature,
+        credentials=credentials,
+        base_url=base_url,
+    )
     last_error: Exception | None = None
     for credential in credentials:
         client = _openai_client(openai, prepared, credential)
@@ -155,7 +168,10 @@ async def _generate_questions_text(
                 messages=[
                     {
                         "role": "system",
-                        "content": "Generate concise, specific test questions for retrieval evaluation. Return JSON only.",
+                        "content": (
+                            "Generate concise, specific test questions for retrieval "
+                            "evaluation. Return JSON only."
+                        ),
                     },
                     {"role": "user", "content": prompt},
                 ],
@@ -180,15 +196,21 @@ async def _generate_questions_text(
 def _question_prompt(collection_name: str, documents: list[Document], chunks: list[dict]) -> str:
     filenames = "\n".join(f"- {document.filename}" for document in documents)
     chunk_lines = "\n\n".join(
-        f"[{index + 1}] {chunk.get('document_filename') or chunk.get('document_id')}\n{str(chunk.get('text') or '')[:_CHUNK_CHARS]}"
+        (
+            f"[{index + 1}] "
+            f"{chunk.get('document_filename') or chunk.get('document_id')}\n"
+            f"{str(chunk.get('text') or '')[:_CHUNK_CHARS]}"
+        )
         for index, chunk in enumerate(chunks[:12])
     )
+    shape = '{"questions":["question 1","question 2","question 3","question 4","question 5"]}'
     return (
         f'Collection: "{collection_name}"\n\n'
         f"Ready documents:\n{filenames}\n\n"
         f"Sampled chunks:\n{chunk_lines or '(no chunks available)'}\n\n"
-        'Return exactly this JSON shape: {"questions":["question 1","question 2","question 3","question 4","question 5"]}. '
-        "Each question must be answerable from the collection, varied, and useful for testing retrieval."
+        f"Return exactly this JSON shape: {shape}. "
+        "Each question must be answerable from the collection, varied, and useful for "
+        "testing retrieval."
     )
 
 
@@ -214,9 +236,7 @@ def _json_object_text(text: str) -> str:
 
 def _line_questions(text: str) -> list[str]:
     return [
-        re.sub(r"^\s*[-*\d.)]+\s*", "", line).strip()
-        for line in text.splitlines()
-        if line.strip()
+        re.sub(r"^\s*[-*\d.)]+\s*", "", line).strip() for line in text.splitlines() if line.strip()
     ]
 
 
@@ -261,7 +281,9 @@ async def _persist_questions(
     document_ids: list[str],
 ) -> None:
     row = await session.get(InstanceSetting, _SETTING_KEY)
-    data = dict(row.value) if row is not None and isinstance(row.value, dict) else {"collections": {}}
+    data = (
+        dict(row.value) if row is not None and isinstance(row.value, dict) else {"collections": {}}
+    )
     if row is None:
         row = InstanceSetting(key=_SETTING_KEY)
         session.add(row)
