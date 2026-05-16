@@ -63,12 +63,17 @@ services:
       BIGRAG_ENV: prod
       BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
       BIGRAG_QDRANT_URL: http://qdrant:6333
-      BIGRAG_REDIS_URL: redis://redis:6379/0
+      BIGRAG_REDIS_URL: ${BIGRAG_REDIS_URL}
+      BIGRAG_HOST: 0.0.0.0
       BIGRAG_MASTER_KEY: ${BIGRAG_MASTER_KEY}
+      BIGRAG_MASTER_KEY_PREVIOUS: '${BIGRAG_MASTER_KEY_PREVIOUS:-[]}'
       BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD: "true"
       BIGRAG_SESSION_COOKIE_SECURE: "true"
+      BIGRAG_SESSION_COOKIE_SAMESITE: "lax"
       BIGRAG_CORS_ORIGINS: '["https://admin.example.com"]'
       BIGRAG_TRUSTED_PROXIES: '["10.0.0.0/8"]'
+      BIGRAG_LOG_LEVEL: info
+      BIGRAG_LOG_FORMAT: json
       BIGRAG_UPLOAD_DIR: /data/uploads
     deploy:
       resources:
@@ -97,9 +102,15 @@ services:
       BIGRAG_ENV: prod
       BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
       BIGRAG_QDRANT_URL: http://qdrant:6333
-      BIGRAG_REDIS_URL: redis://redis:6379/0
+      BIGRAG_REDIS_URL: ${BIGRAG_REDIS_URL}
       BIGRAG_MASTER_KEY: ${BIGRAG_MASTER_KEY}
+      BIGRAG_MASTER_KEY_PREVIOUS: '${BIGRAG_MASTER_KEY_PREVIOUS:-[]}'
       BIGRAG_SESSION_COOKIE_SECURE: "true"
+      BIGRAG_SESSION_COOKIE_SAMESITE: "lax"
+      BIGRAG_CORS_ORIGINS: '["https://admin.example.com"]'
+      BIGRAG_TRUSTED_PROXIES: '["10.0.0.0/8"]'
+      BIGRAG_LOG_LEVEL: info
+      BIGRAG_LOG_FORMAT: json
       BIGRAG_UPLOAD_DIR: /data/uploads
     depends_on:
       bigrag-api:
@@ -153,7 +164,13 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command:
+      - sh
+      - -c
+      - |
+        exec redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy noeviction --requirepass "$$REDIS_PASSWORD"
     volumes:
       - redis_data:/data
     deploy:
@@ -161,7 +178,7 @@ services:
         limits:
           memory: 1536m
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -194,7 +211,8 @@ BIGRAG_LOG_FORMAT=json
 
 # Infrastructure
 BIGRAG_DATABASE_URL=postgres://user:pass@host:5432/bigrag?sslmode=require
-BIGRAG_REDIS_URL=redis://redis:6379/0
+REDIS_PASSWORD=<strong Redis password>
+BIGRAG_REDIS_URL=redis://:<url-encoded Redis password>@redis:6379/0
 BIGRAG_MASTER_KEY=<generated Fernet key>
 BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD=true  # required when the API image binds 0.0.0.0 in prod
 
