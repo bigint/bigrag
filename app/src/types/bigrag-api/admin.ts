@@ -1,7 +1,7 @@
 export type EmbeddingPreset = {
   id: string;
   name: string;
-  provider: "openai" | "cohere" | "voyage";
+  provider: "openai" | "openai_compatible" | "cohere" | "voyage";
   model: string;
   base_url: string | null;
   dimension: number;

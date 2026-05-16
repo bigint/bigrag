@@ -33,24 +33,24 @@ Large operator routes such as Overview, Chat, Connectors, MCP, Audit, and collec
 | `/login` | Email + password login for admins and members. |
 | `/overview` | Platform-wide stats — collection count, document states, stored token count, queue depth, readiness, and worker heartbeat. |
 | `/collections` | List, create, delete, and search collections. |
-| `/collections/[name]` | Redirects to the collection's documents tab. |
-| `/collections/[name]/documents` | Upload files or folders through resumable upload sessions, list, inspect status, and delete documents. Uploads are disabled when `/v1/stats` reports no live `bigrag-worker`. |
+| `/collections/[name]` | Collection overview with configuration badges, status counts, recent documents, and shortcuts. |
+| `/collections/[name]/documents` | Upload files or folders through resumable upload sessions, filter/search/sort/paginate documents, inspect status, bulk delete with typed confirmation, and delete individual documents. Uploads are disabled when `/v1/stats` reports no live `bigrag-worker`. |
 | `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, SSE progress, failed-ingest error, reprocess, and delete. Reprocess is disabled while the worker is offline. |
 | `/collections/[name]/connectors` | Redirects to the first available collection connector from the provider catalog. |
 | `/collections/[name]/connectors/google-drive` | Browse Google Drive, sync selected files/folders, monitor Drive sync progress, trigger manual resync, and manage sync schedules. Source creation and manual sync are disabled when the worker is offline. |
-| `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, and rerank when enabled. |
+| `/collections/[name]/search` | Query tester scoped to the collection — bounded requests, cancel/retry states, result metadata, document filenames, and chunk deep links. |
 | `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
-| `/chat` | Playground chat UI; retrieve from one collection and stream cited answers through the backend without storing turns. |
-| `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets) plus fallback embedding, retrieval, and chat model settings. |
+| `/chat` | Browser-local playground chat UI; retrieve from one collection, stream cited answers, render safe markdown, and keep local sessions across reloads. |
+| `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets), including provider connection tests and OpenAI-compatible base URLs, plus fallback embedding, retrieval, and chat model settings. |
 | `/mcp` | Mint, scope, rotate, and revoke [MCP server](/docs/api-reference/mcp-servers) credentials for Claude Desktop / Cursor / custom MCP clients. |
-| `/api-keys` | Mint, scope, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
-| `/access-logs` | Access-log explorer for query, vector, chat, and evaluation traffic. |
-| `/usage` | Usage and cost explorer for requests, indexed data, tokens, and estimated embedding spend. |
-| `/audit` | Paginated immutable admin audit trail with actor, action, resource, IP, and timestamp details. |
+| `/api-keys` | Mint, scope, expire, rotate, test-on-create, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation or rotation. |
+| `/access-logs` | Filterable access-log explorer for query, vector, chat, and evaluation traffic, with latency sorting and detail panels. |
+| `/usage` | Usage and cost explorer for requests, indexed data, tokens, average latency, and timeline trends. |
+| `/audit` | Filterable immutable admin audit trail with actor, action, resource, result, IP, redacted metadata detail, and timestamp details. |
 | `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. The page warns when document-event deliveries are blocked by an offline worker. |
 | `/connectors` | Browse the provider catalog, configure connector credentials, and review account state. |
-| `/backups` | Configure readable backup storage, start full-instance exports, and monitor backup history. Backup starts are disabled when the worker heartbeat is offline. |
-| `/vector-storage` | Configure Qdrant and turbopuffer connection settings. Collections choose a vector provider when they are created. |
+| `/backups` | Configure readable backup storage, start full-instance exports, and monitor backup history. Backup starts are disabled when the worker heartbeat is offline or no bucket is configured. |
+| `/vector-storage` | Review vector provider health and per-collection routing/stats, then configure Qdrant and turbopuffer connection settings. Collections choose a vector provider when they are created. |
 | `/settings` | Operator-console settings workspace for account, platform, and data sections. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
@@ -66,7 +66,7 @@ The `/connectors` page renders provider tabs above the selected provider setup p
 
 The `/backups` page combines backup destination settings with `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups`, and `POST /v1/admin/backups` so backup operations stay out of the general Settings workspace. Usage, audit, and vector storage also live as first-class sidebar pages at `/usage`, `/audit`, and `/vector-storage`.
 
-The `/vector-storage` page is a standalone runtime settings surface for vector provider connection details. It separates Qdrant and turbopuffer into provider tabs and uses `GET /v1/admin/settings` and `PUT /v1/admin/settings`; collection creation owns the per-collection provider choice.
+The `/vector-storage` page is a standalone runtime settings surface for vector provider connection details. It reads `GET /v1/admin/vector-storage/overview` for provider health plus per-collection routing and stats, separates Qdrant and turbopuffer into provider tabs, and uses `GET /v1/admin/settings` and `PUT /v1/admin/settings`; collection creation owns the per-collection provider choice.
 
 The settings page is a compact task-oriented workspace. It uses the shared top tab control for Account, Health, Security, and Data instead of a nested settings sidebar, then opens directly into the selected area without a repeated section heading. Settings area content is stacked sequentially rather than split into desktop columns. Common controls appear first, raw setting keys and source metadata stay inside Advanced controls, and each runtime panel keeps its guidance plus Save action together in the panel footer. The Security tab focuses on trusted proxy handling, outbound URL policy, and embedding-cache posture; CORS origins and session-cookie deployment controls stay in deployment config and the instance settings API. Empty controls show default or example placeholders so unset values remain readable. Saving validates applicable storage, backup, and vector targets before persistence.
 
@@ -92,19 +92,19 @@ After a large local upload starts, the collection documents page opens `GET /v1/
 
 The Google Drive connector page opens `GET /v1/admin/realtime/google/sync-jobs?collection={name}` beside the source stream. The sync monitor shows Drive scanning, download/update progress, remote deletion cleanup, and queued-for-ingestion completion; document conversion and indexing continue through the normal document progress surfaces.
 
-Upload progress restoration, the current Drive browser selection, and in-progress chat turns are browser-local admin UI state. Upload session IDs are persisted in local storage so a collection's upload panel can reconnect after navigation; transient chat and Drive browser state are not part of the REST API.
+Upload progress restoration, the current Drive browser selection, and chat turns are browser-local admin UI state. Upload session IDs are persisted in local storage so a collection's upload panel can reconnect after navigation; stale upload-session IDs are cleared when the API returns `404`. Chat sessions persist in browser storage only and are not part of the REST API.
 
 REST document status endpoints remain available for API clients and SDKs that prefer polling. `GET /v1/collections/{name}/events` remains available for collection-wide ingestion events outside the admin UI.
 
 ## Chat specifics
 
-The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, and citations happen on the backend, but chat messages and conversations are not persisted. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
+The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, and citations happen on the backend, but chat messages and conversations are persisted only in the browser. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
 
 The empty chat screen no longer shows generic default prompts. After a collection is selected, operators can generate five random starter questions using the saved chat/OpenAI key. The backend samples that collection's ready documents and chunks, returns the generated set for the current browser session, and does not persist the generated questions.
 
 ### Citations
 
-Retrieved chunks carry citation provenance — `document_id`, `document_filename`, `chunk_index`, and Docling-derived `page_no` / `char_start` / `char_end` (see [`ChatSource`](/docs/api-reference/chat)). The backend hands every chunk to the LLM as `[N] (filename, page X) <text>` and instructs the model to cite with bracketed numbers. In the rendered answer, every `[N]` token is a clickable link that expands the answer's **Sources** section and scrolls to the matching source card; the card itself shows the document filename, chunk index, page badge, and character offsets when present.
+Retrieved chunks carry citation provenance — `document_id`, `document_filename`, `chunk_index`, and Docling-derived `page_no` / `char_start` / `char_end` (see [`ChatSource`](/docs/api-reference/chat)). The backend hands every chunk to the LLM as `[N] (filename, page X) <text>` and instructs the model to cite with bracketed numbers. In the rendered answer, `[N]` and grouped `[N,M]` citations are clickable, expand the answer's **Sources** section, and scroll to matching source cards; source cards deep-link to the document chunk when the document is available.
 
 <Callout type="info">
 The admin UI uses session cookies exclusively. To automate anything the admin UI does, mint an API key at `/api-keys` and use it with one of the [SDKs](/docs/sdks/typescript) — or with raw HTTP using the same REST endpoints.

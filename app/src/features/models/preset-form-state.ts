@@ -1,7 +1,7 @@
 import type { EmbeddingPresetBody } from "@/hooks/use-embedding-presets";
 import type { EmbeddingPreset } from "@/types/bigrag";
 
-export type Provider = "openai" | "cohere" | "voyage";
+export type Provider = "openai" | "openai_compatible" | "cohere" | "voyage";
 
 export type EmbeddingModelCatalogItem = {
   description?: string;
@@ -12,6 +12,7 @@ export type EmbeddingModelCatalogItem = {
 
 export type PresetFormValues = {
   apiKey: string;
+  baseUrl: string;
   model: string;
   name: string;
   provider: Provider;
@@ -19,12 +20,14 @@ export type PresetFormValues = {
 
 export const DEFAULT_MODELS: Record<Provider, { dimension: number; model: string }> = {
   openai: { model: "text-embedding-3-small", dimension: 1536 },
+  openai_compatible: { model: "text-embedding-3-small", dimension: 1536 },
   cohere: { model: "embed-english-v3.0", dimension: 1024 },
   voyage: { model: "voyage-3.5", dimension: 1024 },
 };
 
 export const PROVIDER_OPTIONS = [
   { value: "openai", label: "OpenAI" },
+  { value: "openai_compatible", label: "OpenAI-compatible" },
   { value: "cohere", label: "Cohere" },
   { value: "voyage", label: "Voyage AI" },
 ];
@@ -33,6 +36,7 @@ export const defaultPresetFormValues = (editing: EmbeddingPreset | null): Preset
   if (editing) {
     return {
       apiKey: "",
+      baseUrl: editing.base_url ?? "",
       model: editing.model,
       name: editing.name,
       provider: editing.provider,
@@ -40,6 +44,7 @@ export const defaultPresetFormValues = (editing: EmbeddingPreset | null): Preset
   }
   return {
     apiKey: "",
+    baseUrl: "",
     model: DEFAULT_MODELS.openai.model,
     name: "",
     provider: "openai",
@@ -81,6 +86,9 @@ export const validatePresetFormValues = (
   if (!values.name.trim()) return "Name is required";
   if (!values.model.trim()) return "Model is required";
   if (!editing && !values.apiKey.trim()) return "API key is required";
+  if (values.provider === "openai_compatible" && !values.baseUrl.trim()) {
+    return "Base URL is required for OpenAI-compatible presets";
+  }
   return undefined;
 };
 
@@ -92,6 +100,7 @@ export const presetBodyFromValues = (
     name: values.name.trim(),
     provider: values.provider,
     model: values.model.trim(),
+    base_url: values.baseUrl.trim() || null,
     dimension,
   };
   if (values.apiKey.trim()) body.api_key = values.apiKey.trim();

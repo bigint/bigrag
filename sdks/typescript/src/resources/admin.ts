@@ -462,6 +462,22 @@ export class AdminEmbeddingPresetsResource {
     );
   }
 
+  test(body: {
+    provider: string;
+    model: string;
+    api_key?: string | null;
+    base_url?: string | null;
+  }): Promise<StatusResponse> {
+    return this._client._request("POST", "/v1/admin/embedding-presets/test", { json: body });
+  }
+
+  testSaved(presetId: string): Promise<StatusResponse> {
+    return this._client._request(
+      "POST",
+      `/v1/admin/embedding-presets/${encodeURIComponent(presetId)}/test`,
+    );
+  }
+
   delete(presetId: string): Promise<StatusResponse> {
     return this._client._request(
       "DELETE",

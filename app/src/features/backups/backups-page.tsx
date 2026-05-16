@@ -82,16 +82,41 @@ export const BackupsPage = () => {
             <div className="flex items-end">
               <Button
                 className="w-full lg:w-auto"
-                disabled={startBackup.isPending || active || workerOffline}
+                disabled={startBackup.isPending || active || workerOffline || !destinationConfigured}
                 onClick={() => startBackup.mutate({ label })}
-                title={workerOffline ? workerOfflineActionMessage(workerAvailability) : undefined}
+                title={
+                  workerOffline
+                    ? workerOfflineActionMessage(workerAvailability)
+                    : !destinationConfigured
+                      ? "Configure backup_s3_bucket first"
+                      : undefined
+                }
               >
                 <CloudUpload className="size-4" />
-                {active ? "Backup running" : workerOffline ? "Worker offline" : "Start backup"}
+                {active
+                  ? "Backup running"
+                  : workerOffline
+                    ? "Worker offline"
+                    : destinationConfigured
+                      ? "Start backup"
+                      : "Bucket required"}
               </Button>
             </div>
           </div>
-          {jobs.length ? <BackupJobs jobs={jobs} /> : <EmptyBackups />}
+          {backups.isError ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/25 p-4">
+              <p className="text-sm text-destructive">
+                {backups.error instanceof Error ? backups.error.message : "Backup jobs failed"}
+              </p>
+              <Button onClick={() => backups.refetch()} variant="secondary">
+                Retry
+              </Button>
+            </div>
+          ) : jobs.length ? (
+            <BackupJobs jobs={jobs} />
+          ) : (
+            <EmptyBackups />
+          )}
         </CardContent>
       </Card>
     </PageShell>

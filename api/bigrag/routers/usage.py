@@ -35,6 +35,8 @@ class UsageResponse(BaseModel):
     storage_bytes_total: int
     embedding_tokens_total: int
     embedding_cost_usd_estimate: float
+    avg_latency_ms: float
+    timeline: list[dict]
     by_collection: list[dict]
 
 
@@ -75,6 +77,26 @@ async def get_usage(
         )
     ).all()
     queries_by_col = {r.collection_name: r for r in query_counts}
+    timeline_rows = (
+        await session.execute(
+            sa.select(
+                sa.func.date_trunc("day", QueryLog.created_at).label("bucket"),
+                sa.func.count().label("queries"),
+                sa.func.coalesce(sa.func.avg(QueryLog.latency_ms), 0).label("avg_latency"),
+            )
+            .where(QueryLog.created_at > sa.func.now() - window)
+            .group_by("bucket")
+            .order_by("bucket")
+        )
+    ).all()
+    timeline = [
+        {
+            "date": row.bucket.isoformat(),
+            "queries": int(row.queries),
+            "avg_latency_ms": round(float(row.avg_latency), 2),
+        }
+        for row in timeline_rows
+    ]
 
     by_collection: list[dict] = []
     queries_total = 0
@@ -110,6 +132,11 @@ async def get_usage(
         bytes_total += int(row.storage_bytes)
         tokens_total += col_tokens
         cost_total += col_cost
+    avg_latency = (
+        sum(item["queries"] * item["avg_latency_ms"] for item in by_collection) / queries_total
+        if queries_total
+        else 0.0
+    )
 
     return UsageResponse(
         window_days=window_days,
@@ -120,5 +147,7 @@ async def get_usage(
         storage_bytes_total=bytes_total,
         embedding_tokens_total=tokens_total,
         embedding_cost_usd_estimate=round(cost_total, 4),
+        avg_latency_ms=round(avg_latency, 2),
+        timeline=timeline,
         by_collection=by_collection,
     )

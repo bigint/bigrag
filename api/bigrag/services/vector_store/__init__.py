@@ -155,6 +155,25 @@ class VectorStore:
         if errors:
             raise RuntimeError("; ".join(errors))
 
+    async def provider_health(self) -> dict[str, dict[str, object]]:
+        results: dict[str, dict[str, object]] = {}
+        for provider in _PROVIDERS:
+            configured = provider in self._configured_providers
+            if not configured:
+                results[provider] = {"configured": False, "status": "not_configured", "error": None}
+                continue
+            try:
+                async with self._backend(provider) as backend:
+                    await backend.health_check()
+                results[provider] = {"configured": True, "status": "ok", "error": None}
+            except Exception as exc:
+                results[provider] = {
+                    "configured": True,
+                    "status": "error",
+                    "error": f"{exc.__class__.__name__}: {exc}",
+                }
+        return results
+
     def _client(self, provider: VectorStoreProvider | None = None) -> Any:
         backend = self.backends[_validate_provider(provider or self._fallback_provider)]
         if isinstance(backend, QdrantVectorStore):

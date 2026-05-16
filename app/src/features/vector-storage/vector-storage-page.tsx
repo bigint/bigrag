@@ -1,8 +1,14 @@
 import { Cloud, Database } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageShell } from "@/components/ui/page-shell";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs } from "@/components/ui/tabs";
 import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
+import { useVectorStorageOverview } from "@/hooks/use-vector-storage";
+import { formatBytes, formatNumber } from "@/lib/format";
 
 export type VectorStorageProvider = "qdrant" | "turbopuffer";
 
@@ -51,6 +57,7 @@ const getVectorStorageProvider = (value: unknown): VectorStorageProvider | undef
 export const VectorStoragePage = ({ provider, onProviderChange }: VectorStoragePageProps) => {
   const activeProvider = getVectorStorageProvider(provider) ?? "qdrant";
   const settings = VECTOR_PROVIDER_SETTINGS[activeProvider];
+  const overview = useVectorStorageOverview();
 
   return (
     <PageShell>
@@ -67,6 +74,76 @@ export const VectorStoragePage = ({ provider, onProviderChange }: VectorStorageP
         tabs={VECTOR_STORAGE_TABS}
         value={activeProvider}
       />
+      <Card>
+        <CardHeader>
+          <CardTitle>Overview</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {overview.isPending ? (
+            <Spinner />
+          ) : overview.isError ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-destructive">
+                {overview.error instanceof Error
+                  ? overview.error.message
+                  : "Vector storage overview failed"}
+              </p>
+              <Button onClick={() => overview.refetch()} variant="secondary">
+                Retry
+              </Button>
+            </div>
+          ) : overview.data ? (
+            <>
+              <div className="grid gap-3 md:grid-cols-4">
+                <Metric label="Collections" value={formatNumber(overview.data.totals.collections)} />
+                <Metric label="Documents" value={formatNumber(overview.data.totals.documents)} />
+                <Metric label="Chunks" value={formatNumber(overview.data.totals.chunks)} />
+                <Metric label="Stored files" value={formatBytes(overview.data.totals.bytes)} />
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {Object.entries(overview.data.provider_health).map(([name, health]) => (
+                  <div key={name} className="rounded-md border border-border p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold capitalize">{name}</span>
+                      <Badge
+                        variant={
+                          health.status === "ok"
+                            ? "success"
+                            : health.configured
+                              ? "error"
+                              : "neutral"
+                        }
+                      >
+                        {health.status.replace("_", " ")}
+                      </Badge>
+                    </div>
+                    {health.error && (
+                      <p className="mt-2 text-xs text-destructive">{health.error}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="overflow-hidden rounded-md border border-border">
+                {overview.data.collections.map((collection) => (
+                  <div
+                    key={collection.name}
+                    className="grid grid-cols-[1fr_auto_auto_auto] gap-3 border-b border-border px-3 py-2 text-sm last:border-b-0"
+                  >
+                    <span className="font-medium">{collection.name}</span>
+                    <Badge variant="neutral">{collection.provider}</Badge>
+                    <span className="text-muted-foreground">
+                      {formatNumber(collection.documents)} docs
+                    </span>
+                    <span className="text-muted-foreground">
+                      {formatNumber(collection.chunks)} chunks
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </CardContent>
+      </Card>
       <InstanceSettingsTab
         group="vector_store"
         includeKeys={settings.keys}
@@ -81,3 +158,10 @@ export const VectorStoragePage = ({ provider, onProviderChange }: VectorStorageP
     </PageShell>
   );
 };
+
+const Metric = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-md border border-border bg-muted/30 p-3">
+    <div className="text-xs text-muted-foreground">{label}</div>
+    <div className="mt-1 text-lg font-semibold">{value}</div>
+  </div>
+);

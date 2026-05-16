@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageShell } from "@/components/ui/page-shell";
 import { Spinner } from "@/components/ui/spinner";
@@ -34,12 +35,30 @@ const PAGE_SIZE = 25;
 
 export const AuditPage = () => {
   const [page, setPage] = useState(0);
+  const [action, setAction] = useState("");
+  const [resourceType, setResourceType] = useState("");
+  const [selected, setSelected] = useState<AuditEntry | null>(null);
   const offset = page * PAGE_SIZE;
-  const queryKey = useMemo(() => queryKeys.audit.list({ limit: PAGE_SIZE, offset }), [offset]);
+  const queryKey = useMemo(
+    () => queryKeys.audit.list({ action, limit: PAGE_SIZE, offset, resourceType }),
+    [action, offset, resourceType],
+  );
+  const params = useMemo(
+    () => ({
+      ...(action ? { action } : {}),
+      limit: PAGE_SIZE,
+      offset,
+      ...(resourceType ? { resource_type: resourceType } : {}),
+    }),
+    [action, offset, resourceType],
+  );
+  const realtimeParams = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).map(([key, value]) => [key, String(value)])),
+  );
   const { data, isPending, error } = useSseSnapshotQuery<AuditList>({
     queryKey,
-    queryFn: () => apiClient.get<AuditList>("v1/admin/audit", { limit: PAGE_SIZE, offset }),
-    path: `v1/admin/realtime/audit?limit=${PAGE_SIZE}&offset=${offset}`,
+    queryFn: () => apiClient.get<AuditList>("v1/admin/audit", params),
+    path: `v1/admin/realtime/audit?${realtimeParams}`,
   });
   const total = data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -66,6 +85,39 @@ export const AuditPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4">
+          <div className="mb-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+            <Input
+              label="Action"
+              onChange={(event) => {
+                setAction(event.target.value);
+                setPage(0);
+              }}
+              placeholder="api_key.create"
+              value={action}
+            />
+            <Input
+              label="Resource"
+              onChange={(event) => {
+                setResourceType(event.target.value);
+                setPage(0);
+              }}
+              placeholder="collection"
+              value={resourceType}
+            />
+            <div className="flex items-end">
+              <Button
+                className="w-full"
+                variant="secondary"
+                onClick={() => {
+                  setAction("");
+                  setResourceType("");
+                  setPage(0);
+                }}
+              >
+                Clear
+              </Button>
+            </div>
+          </div>
           {isPending ? (
             <div className="flex justify-center py-8">
               <Spinner />
@@ -90,12 +142,17 @@ export const AuditPage = () => {
                       <th className="px-3 py-2 text-left font-medium">Actor</th>
                       <th className="px-3 py-2 text-left font-medium">Action</th>
                       <th className="px-3 py-2 text-left font-medium">Resource</th>
+                      <th className="px-3 py-2 text-left font-medium">Result</th>
                       <th className="px-3 py-2 text-left font-medium">IP</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.entries.map((e) => (
-                      <tr key={e.id} className="border-t border-border">
+                      <tr
+                        key={e.id}
+                        className="cursor-pointer border-t border-border hover:bg-muted/60"
+                        onClick={() => setSelected(e)}
+                      >
                         <td className="px-3 py-2 text-xs text-muted-foreground">
                           {formatRelative(e.created_at)}
                         </td>
@@ -117,6 +174,9 @@ export const AuditPage = () => {
                                 : e.resource_id}
                             </div>
                           )}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">
+                          {auditResult(e.metadata)}
                         </td>
                         <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
                           {e.ip ?? "-"}
@@ -163,6 +223,38 @@ export const AuditPage = () => {
           )}
         </CardContent>
       </Card>
+      {selected && (
+        <Card className="rounded-md">
+          <CardHeader className="border-b border-border bg-muted/35 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle>Metadata</CardTitle>
+              <Button onClick={() => setSelected(null)} size="sm" variant="secondary">
+                Close
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">
+              {JSON.stringify(redactMetadata(selected.metadata), null, 2)}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
     </PageShell>
   );
 };
+
+const auditResult = (metadata: Record<string, unknown>) => {
+  if (metadata.status) return String(metadata.status);
+  if (metadata.result) return String(metadata.result);
+  if (metadata.error) return "error";
+  return "ok";
+};
+
+const redactMetadata = (metadata: Record<string, unknown>) =>
+  Object.fromEntries(
+    Object.entries(metadata).map(([key, value]) => [
+      key,
+      /key|secret|token|password/i.test(key) ? "<redacted>" : value,
+    ]),
+  );

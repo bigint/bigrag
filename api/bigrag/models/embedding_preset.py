@@ -26,6 +26,13 @@ class UpdateEmbeddingPresetRequest(BaseModel):
     dimension: int | None = Field(default=None, ge=64, le=4096)
 
 
+class TestEmbeddingPresetRequest(BaseModel):
+    provider: str = Field(pattern=r"^(openai|openai_compatible|cohere|voyage)$")
+    model: str = Field(min_length=1, max_length=120)
+    api_key: str | None = Field(default=None, min_length=1)
+    base_url: str | None = Field(default=None, max_length=500)
+
+
 class EmbeddingPresetResponse(BaseModel):
     id: str
     name: str

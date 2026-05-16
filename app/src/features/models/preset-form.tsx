@@ -18,6 +18,7 @@ import {
 import {
   type EmbeddingPresetBody,
   useCreateEmbeddingPreset,
+  useTestEmbeddingPreset,
   useUpdateEmbeddingPreset,
 } from "@/hooks/use-embedding-presets";
 import { useEmbeddingModels } from "@/hooks/use-platform";
@@ -33,6 +34,7 @@ interface Props {
 export const PresetForm = ({ open, onClose, editing }: Props) => {
   const isEdit = !!editing;
   const create = useCreateEmbeddingPreset();
+  const test = useTestEmbeddingPreset();
   const update = useUpdateEmbeddingPreset();
   const { data: catalog } = useEmbeddingModels();
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -81,6 +83,17 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
   });
 
   const isPending = create.isPending || update.isPending;
+  const handleTest = async () => {
+    try {
+      await test.mutateAsync({
+        ...(editing && !values.apiKey.trim() ? { id: editing.id } : {}),
+        api_key: values.apiKey.trim() || null,
+        base_url: values.baseUrl.trim() || null,
+        model: values.model.trim() || DEFAULT_MODELS[values.provider].model,
+        provider: values.provider,
+      });
+    } catch {}
+  };
 
   return (
     <Modal onClose={onClose} open={open} title={isEdit ? "Edit preset" : "New embedding preset"}>
@@ -133,6 +146,7 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
                   const provider = value as Provider;
                   field.handleChange(provider);
                   form.setFieldValue("model", DEFAULT_MODELS[provider].model);
+                  if (provider !== "openai_compatible") form.setFieldValue("baseUrl", "");
                 }}
                 options={PROVIDER_OPTIONS}
                 value={field.state.value}
@@ -160,6 +174,26 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
             )}
           </form.Field>
         </div>
+        {values.provider === "openai_compatible" && (
+          <form.Field
+            name="baseUrl"
+            validators={{
+              onSubmit: ({ value }) => (value.trim() ? undefined : "Base URL is required"),
+            }}
+          >
+            {(field) => (
+              <Input
+                description="Use the provider's OpenAI-compatible embeddings base URL."
+                error={errorText(field.state.meta.errors)}
+                label="Base URL"
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+                placeholder="https://api.example.com/v1"
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
+        )}
         <form.Field
           name="apiKey"
           validators={{
@@ -190,6 +224,14 @@ export const PresetForm = ({ open, onClose, editing }: Props) => {
         <div className="flex justify-end gap-2 pt-1">
           <Button onClick={onClose} type="button" variant="secondary">
             Cancel
+          </Button>
+          <Button
+            disabled={test.isPending || (!editing && !values.apiKey.trim())}
+            onClick={handleTest}
+            type="button"
+            variant="secondary"
+          >
+            {test.isPending ? "Testing…" : "Test"}
           </Button>
           <Button type="submit" disabled={isPending}>
             {isPending

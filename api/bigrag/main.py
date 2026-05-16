@@ -213,6 +213,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     from bigrag.routers.admin_realtime import router as admin_realtime_router
     from bigrag.routers.admin_settings import router as admin_settings_router
     from bigrag.routers.admin_users import router as admin_users_router
+    from bigrag.routers.admin_vector_storage import router as admin_vector_storage_router
     from bigrag.routers.auth import router as auth_router
     from bigrag.routers.chat import router as chat_router
     from bigrag.routers.collections import router as collections_router
@@ -238,6 +239,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(admin_backups_router)
     app.include_router(admin_settings_router)
     app.include_router(admin_access_router)
+    app.include_router(admin_vector_storage_router)
     app.include_router(admin_realtime_router)
     app.include_router(mcp_servers_router)
     app.include_router(admin_audit_router)

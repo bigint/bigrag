@@ -28,6 +28,8 @@ type UsageReport = {
   storage_bytes_total: number;
   embedding_tokens_total: number;
   embedding_cost_usd_estimate: number;
+  avg_latency_ms: number;
+  timeline: { date: string; queries: number; avg_latency_ms: number }[];
   by_collection: PerCollection[];
 };
 
@@ -70,6 +72,7 @@ export const UsagePage = () => {
             <div className="w-40">
               <Select
                 options={[
+                  { label: "Last 24h", value: "1" },
                   { label: "Last 7 days", value: "7" },
                   { label: "Last 30 days", value: "30" },
                   { label: "Last 90 days", value: "90" },
@@ -96,9 +99,37 @@ export const UsagePage = () => {
                 <StatCard label="Documents" value={data.documents_total.toLocaleString()} />
                 <StatCard label="Storage" value={humanBytes(data.storage_bytes_total)} />
                 <StatCard
-                  label="Embedding cost"
-                  value={`$${data.embedding_cost_usd_estimate.toFixed(2)}`}
+                  label="Avg latency"
+                  value={`${Math.round(data.avg_latency_ms).toLocaleString()} ms`}
                 />
+              </div>
+              <div className="rounded-md border border-border bg-background p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold">Query timeline</h3>
+                  <span className="text-xs text-muted-foreground">
+                    ${data.embedding_cost_usd_estimate.toFixed(2)} estimated embeddings
+                  </span>
+                </div>
+                <div className="flex h-32 items-end gap-1">
+                  {data.timeline.map((point) => {
+                    const max = Math.max(1, ...data.timeline.map((item) => item.queries));
+                    return (
+                      <div
+                        key={point.date}
+                        className="flex min-w-5 flex-1 flex-col items-center gap-1"
+                        title={`${new Date(point.date).toLocaleDateString()}: ${point.queries} queries, ${Math.round(point.avg_latency_ms)} ms avg`}
+                      >
+                        <div
+                          className="w-full rounded-t bg-primary/70"
+                          style={{ height: `${Math.max(4, (point.queries / max) * 100)}%` }}
+                        />
+                        <span className="hidden text-[10px] text-muted-foreground md:block">
+                          {new Date(point.date).getDate()}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="overflow-x-auto rounded-md border border-border">
@@ -112,6 +143,7 @@ export const UsagePage = () => {
                       <th className="px-3 py-2 text-right font-medium">Tokens</th>
                       <th className="px-3 py-2 text-right font-medium">Cost</th>
                       <th className="px-3 py-2 text-right font-medium">Queries</th>
+                      <th className="px-3 py-2 text-right font-medium">Avg latency</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -132,6 +164,9 @@ export const UsagePage = () => {
                           ${c.embedding_cost_usd_estimate.toFixed(4)}
                         </td>
                         <td className="px-3 py-2 text-right text-xs">{c.queries}</td>
+                        <td className="px-3 py-2 text-right text-xs">
+                          {Math.round(c.avg_latency_ms)} ms
+                        </td>
                       </tr>
                     ))}
                   </tbody>

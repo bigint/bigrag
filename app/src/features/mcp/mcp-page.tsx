@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { PageShell } from "@/components/ui/page-shell";
 import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
+import { bigragApiUrl } from "@/config/runtime";
 import {
   defaultMcpCreateFormValues,
   MCP_UNSCOPED,
@@ -256,6 +257,7 @@ interface CredentialDialogProps {
 }
 
 const CredentialDialog = ({ open, onClose, created, kind }: CredentialDialogProps) => {
+  const [testing, setTesting] = useState(false);
   if (!created) return null;
   const origin = getOrigin();
   const remoteUrl = buildRemoteUrl(origin);
@@ -263,6 +265,20 @@ const CredentialDialog = ({ open, onClose, created, kind }: CredentialDialogProp
   const jsonSnippet = buildClaudeDesktopJson(created, origin, created.api_key);
   const shellSnippet = buildShellSnippet(origin, created.api_key);
   const isScoped = !!created.collection;
+  const testCredential = async () => {
+    setTesting(true);
+    try {
+      const response = await fetch(`${bigragApiUrl}/v1/auth/whoami`, {
+        headers: { Authorization: `Bearer ${created.api_key}` },
+      });
+      if (!response.ok) throw new Error(await response.text());
+      toast.success("MCP key connected");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "MCP key test failed");
+    } finally {
+      setTesting(false);
+    }
+  };
 
   return (
     <Modal
@@ -276,8 +292,13 @@ const CredentialDialog = ({ open, onClose, created, kind }: CredentialDialogProp
     >
       <div className="space-y-6">
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
-          <div className="flex items-center gap-2 font-medium">
-            <KeyRound className="size-4" /> This is the only time the full key is shown.
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 font-medium">
+              <KeyRound className="size-4" /> This is the only time the full key is shown.
+            </div>
+            <Button disabled={testing} onClick={testCredential} size="sm" variant="secondary">
+              {testing ? "Testing…" : "Test key"}
+            </Button>
           </div>
           <p className="mt-1 text-muted-foreground">
             Copy what you need now. If you lose it, rotate to mint a new one — the previous key
@@ -429,7 +450,7 @@ const DetailDialog = ({ open, onClose, server, onRotate, rotating }: DetailDialo
 };
 
 export const McpPage = () => {
-  const { data, isPending } = useMcpServers();
+  const { data, error, isError, isPending, refetch } = useMcpServers();
   const { data: collectionsData } = useCollections();
   const rotate = useRotateMcpServer();
   const remove = useDeleteMcpServer();
@@ -558,6 +579,13 @@ export const McpPage = () => {
       <DataTable
         columns={columns}
         data={servers}
+        error={isError ? error : null}
+        errorAction={
+          <Button onClick={() => refetch()} variant="secondary">
+            Retry
+          </Button>
+        }
+        errorTitle="MCP servers unavailable"
         emptyAction={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" /> Create your first MCP

@@ -16,6 +16,7 @@ from bigrag.models.embedding_preset import (
     CreateEmbeddingPresetRequest,
     EmbeddingPresetListResponse,
     EmbeddingPresetResponse,
+    TestEmbeddingPresetRequest,
     UpdateEmbeddingPresetRequest,
 )
 from bigrag.routers import is_unique_violation
@@ -114,6 +115,48 @@ async def create_preset(
         metadata={"name": preset.name, "provider": preset.provider, "model": preset.model},
     )
     return _preset_response(preset)
+
+
+@router.post("/test", response_model=StatusResponse)
+async def test_preset_credentials(
+    body: TestEmbeddingPresetRequest,
+    _: dict = Depends(require_admin_session),
+) -> StatusResponse:
+    try:
+        await verify_provider_credentials(
+            provider=body.provider,
+            api_key=body.api_key,
+            base_url=body.base_url,
+            model=body.model,
+        )
+    except CredentialCheckError as e:
+        raise HTTPException(status_code=422, detail=e.message) from e
+    return StatusResponse(status="ok", message="Embedding provider connection succeeded")
+
+
+@router.post("/{preset_id}/test", response_model=StatusResponse)
+async def test_saved_preset_credentials(
+    preset_id: str,
+    _: dict = Depends(require_admin_session),
+    session: AsyncSession = Depends(get_session),
+) -> StatusResponse:
+    try:
+        target_id = uuid.UUID(preset_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="Preset not found") from e
+    preset = await session.get(EmbeddingPreset, target_id)
+    if preset is None:
+        raise HTTPException(status_code=404, detail="Preset not found")
+    try:
+        await verify_provider_credentials(
+            provider=preset.provider,
+            api_key=preset.api_key,
+            base_url=preset.base_url,
+            model=preset.model,
+        )
+    except CredentialCheckError as e:
+        raise HTTPException(status_code=422, detail=e.message) from e
+    return StatusResponse(status="ok", message="Embedding provider connection succeeded")
 
 
 @router.patch("/{preset_id}", response_model=EmbeddingPresetResponse)

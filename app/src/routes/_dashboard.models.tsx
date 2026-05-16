@@ -45,7 +45,7 @@ const ModelsPage = () => {
   const search = Route.useSearch();
   const activeTab = getModelsTab(search.tab);
   const focusGroup = getModelsFocusGroup(search.group);
-  const { data, isPending } = useEmbeddingPresets();
+  const { data, error, isError, isPending, refetch } = useEmbeddingPresets();
   const remove = useDeleteEmbeddingPreset();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -169,6 +169,13 @@ const ModelsPage = () => {
         <DataTable
           columns={columns}
           data={data?.presets ?? []}
+          error={isError ? error : null}
+          errorAction={
+            <Button onClick={() => refetch()} variant="secondary">
+              Retry
+            </Button>
+          }
+          errorTitle="Embedding presets unavailable"
           emptyAction={
             <Button onClick={() => setFormOpen(true)}>
               <Plus className="size-4" /> Create your first preset

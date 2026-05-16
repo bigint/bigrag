@@ -1,11 +1,11 @@
 ---
 title: API Keys
-description: Mint, list, update, and revoke bigrag_sk_ keys.
+description: Mint, list, update, rotate, and revoke bigrag_sk_ keys.
 ---
 
 Base path: `/v1/admin/api-keys`
 
-API keys are the credential that SDKs and backend services use against bigRAG. Plaintext values are returned **once** on creation and then never re-retrievable; only the prefix and a keyed hash are persisted. When `BIGRAG_MASTER_KEY` is unset, older development keys may use the legacy SHA-256 hash format.
+API keys are the credential that SDKs and backend services use against bigRAG. Plaintext values are returned **once** on creation or rotation and then never re-retrievable; only the prefix and a keyed hash are persisted. When `BIGRAG_MASTER_KEY` is unset, older development keys may use the legacy SHA-256 hash format.
 
 During master-key rotation, API-key lookup checks `BIGRAG_MASTER_KEY` plus `BIGRAG_MASTER_KEY_PREVIOUS`, so existing keys continue to authenticate while you rotate and rewrite stored hashes.
 
@@ -57,6 +57,7 @@ POST /v1/admin/api-keys
 | `name` | string | yes | Human label |
 | `scopes` | string[] | no | Omit / empty = full access. See [scopes](/docs/api-reference/authentication#scopes) |
 | `expires_at` | string (RFC3339) | no | `null` = never |
+| `collection` | string \| null | no | Pin this key to one collection |
 
 **Response** `201`:
 
@@ -86,9 +87,19 @@ PATCH /v1/admin/api-keys/{key_id}
 { "name": "ingest-prod", "active": false, "scopes": ["query:read"] }
 ```
 
-Any combination of `name`, `active`, `scopes`, and `collection` is permitted. Deactivating (`active: false`) is the non-destructive way to freeze a leaked key while you investigate; the audit log still references it.
+Any combination of `name`, `active`, `expires_at`, `scopes`, and `collection` is permitted. Deactivating (`active: false`) is the non-destructive way to freeze a leaked key while you investigate; the audit log still references it.
 
 **Response** `200`: updated key (without `key`).
+
+## Rotate Key
+
+```
+POST /v1/admin/api-keys/{key_id}/rotate
+```
+
+Rotates the plaintext secret, resets `last_used_at`, re-enables the key, and invalidates the previous hash. Scopes, collection pinning, expiration, and name are preserved.
+
+**Response** `200`: same shape as create, including one-time `key`.
 
 ## Delete Key
 

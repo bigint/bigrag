@@ -46,8 +46,10 @@ type UploadSessionParams = {
 };
 
 type AuditListParams = {
+  readonly action?: string;
   readonly limit: number;
   readonly offset: number;
+  readonly resourceType?: string;
 };
 
 export const queryKeys = {
@@ -63,7 +65,8 @@ export const queryKeys = {
     overview: ({ windowDays }: WindowDaysParams) => ["access", "overview", { windowDays }] as const,
   },
   audit: {
-    list: ({ limit, offset }: AuditListParams) => ["audit", "list", { limit, offset }] as const,
+    list: ({ action, limit, offset, resourceType }: AuditListParams) =>
+      ["audit", "list", { action, limit, offset, resourceType }] as const,
   },
   mcpServers: () => ["mcp-servers"] as const,
   webhooks: () => ["webhooks"] as const,
@@ -124,4 +127,5 @@ export const queryKeys = {
     embeddingModels: () => ["platform", "embedding-models"] as const,
   },
   usage: ({ windowDays }: WindowDaysParams) => ["usage", { windowDays }] as const,
+  vectorStorage: () => ["vector-storage", "overview"] as const,
 } as const;

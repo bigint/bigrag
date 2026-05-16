@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RefreshCw, ShieldCheck } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageShell } from "@/components/ui/page-shell";
+import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { useAccessLogs, useAccessOverview } from "@/hooks/use-access-logs";
 import { useSession } from "@/hooks/use-auth";
@@ -18,12 +21,28 @@ export const Route = createFileRoute("/_dashboard/access-logs")({
 const AccessLogsPage = () => {
   const { data: session } = useSession();
   const canSeeAccess = session?.user.role === "admin";
+  const [pathFilter, setPathFilter] = useState("");
+  const [actorId, setActorId] = useState("");
+  const [statusFamily, setStatusFamily] = useState("");
+  const [sort, setSort] = useState<"newest" | "latency">("newest");
+  const [selected, setSelected] = useState<AccessLogEntry | null>(null);
   const overview = useAccessOverview(canSeeAccess, 7);
-  const logs = useAccessLogs({ limit: 100 }, canSeeAccess);
+  const logs = useAccessLogs(
+    {
+      actor_id: actorId,
+      limit: 100,
+      path: pathFilter,
+      status_family: statusFamily as "2xx" | "3xx" | "4xx" | "5xx" | undefined,
+    },
+    canSeeAccess,
+  );
   const refresh = () => {
     void logs.refetch();
     void overview.refetch();
   };
+  const entries = [...(logs.data?.entries ?? [])].sort((a, b) =>
+    sort === "latency" ? b.latency_ms - a.latency_ms : 0,
+  );
 
   if (session && !canSeeAccess) {
     return (
@@ -76,20 +95,90 @@ const AccessLogsPage = () => {
               {formatNumber(logs.data?.total ?? 0)} events, newest first.
             </p>
           </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_140px_140px_auto]">
+            <Input
+              aria-label="Path filter"
+              onChange={(event) => setPathFilter(event.target.value)}
+              placeholder="/v1/collections"
+              value={pathFilter}
+            />
+            <Input
+              aria-label="Actor id filter"
+              onChange={(event) => setActorId(event.target.value)}
+              placeholder="Actor id"
+              value={actorId}
+            />
+            <Select
+              aria-label="Status family"
+              onChange={(value) => setStatusFamily(value === "all" ? "" : value)}
+              options={[
+                { value: "all", label: "All status" },
+                { value: "2xx", label: "2xx" },
+                { value: "3xx", label: "3xx" },
+                { value: "4xx", label: "4xx" },
+                { value: "5xx", label: "5xx" },
+              ]}
+              value={statusFamily || "all"}
+            />
+            <Select
+              aria-label="Sort"
+              onChange={(value) => setSort(value as "newest" | "latency")}
+              options={[
+                { value: "newest", label: "Newest" },
+                { value: "latency", label: "Latency" },
+              ]}
+              value={sort}
+            />
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setPathFilter("");
+                setActorId("");
+                setStatusFamily("");
+              }}
+            >
+              Clear
+            </Button>
+          </div>
         </div>
 
         {logs.isPending ? (
           <div className="px-5 py-10">
             <Spinner />
           </div>
+        ) : logs.isError ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-10">
+            <p className="text-sm text-destructive">
+              {logs.error instanceof Error ? logs.error.message : "Access logs failed"}
+            </p>
+            <Button onClick={() => logs.refetch()} variant="secondary">
+              Retry
+            </Button>
+          </div>
         ) : (logs.data?.entries.length ?? 0) === 0 ? (
           <div className="px-5 py-10 text-sm text-muted-foreground">
             No access events match this view.
           </div>
         ) : (
-          <AccessLogTable entries={logs.data?.entries ?? []} />
+          <AccessLogTable entries={entries} onSelect={setSelected} />
         )}
       </section>
+      {selected && (
+        <section className="rounded-xl border border-border bg-background p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold">Access detail</h2>
+            <Button onClick={() => setSelected(null)} size="sm" variant="secondary">
+              Close
+            </Button>
+          </div>
+          <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+            <Detail label="Actor" value={selected.api_key_name ?? selected.actor_email ?? "-"} />
+            <Detail label="Path" value={`${selected.method} ${selected.path}`} />
+            <Detail label="Status" value={String(selected.status_code)} />
+            <Detail label="Latency" value={`${Math.round(selected.latency_ms)} ms`} />
+          </div>
+        </section>
+      )}
     </PageShell>
   );
 };
@@ -119,12 +208,19 @@ const Stat = ({
   </div>
 );
 
-const AccessLogTable = ({ entries }: { entries: AccessLogEntry[] }) => (
+const AccessLogTable = ({
+  entries,
+  onSelect,
+}: {
+  entries: AccessLogEntry[];
+  onSelect: (entry: AccessLogEntry) => void;
+}) => (
   <div className="divide-y divide-border">
     {entries.map((entry) => (
       <div
         className="grid gap-4 px-5 py-4 hover:bg-muted/60 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_12rem_9rem]"
         key={entry.id}
+        onClick={() => onSelect(entry)}
       >
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -163,6 +259,13 @@ const AccessLogTable = ({ entries }: { entries: AccessLogEntry[] }) => (
         </div>
       </div>
     ))}
+  </div>
+);
+
+const Detail = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-md border border-border bg-muted/30 p-3">
+    <div className="text-xs text-muted-foreground">{label}</div>
+    <div className="mt-1 break-all font-mono text-xs">{value}</div>
   </div>
 );
 
