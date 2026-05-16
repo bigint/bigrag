@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import hashlib
 from typing import Any
 
@@ -24,8 +23,6 @@ from bigrag.services.connectors.google_drive_types import (
     _remote_from_payload,
     _sanitize_filename,
 )
-
-_FOLDER_SCAN_CONCURRENCY = 4
 
 
 class GoogleDriveClient:
@@ -127,22 +124,15 @@ class GoogleDriveClient:
             return [] if root.mime_type == GOOGLE_FOLDER_MIME else [root]
 
         files: list[RemoteDriveFile] = []
-        pending = [root.id]
-        seen_folders = {root.id}
-        while pending:
-            batch = pending[:_FOLDER_SCAN_CONCURRENCY]
-            pending = pending[_FOLDER_SCAN_CONCURRENCY:]
-            child_groups = await asyncio.gather(
-                *[self.list_children(access_token, folder_id) for folder_id in batch]
-            )
-            for children in child_groups:
-                for child in children:
-                    if child.mime_type == GOOGLE_FOLDER_MIME:
-                        if child.id and child.id not in seen_folders:
-                            seen_folders.add(child.id)
-                            pending.append(child.id)
-                    else:
-                        files.append(child)
+        stack = [root.id]
+        while stack:
+            folder_id = stack.pop()
+            children = await self.list_children(access_token, folder_id)
+            for child in children:
+                if child.mime_type == GOOGLE_FOLDER_MIME:
+                    stack.append(child.id)
+                else:
+                    files.append(child)
         return files
 
     async def list_children(self, access_token: str, folder_id: str) -> list[RemoteDriveFile]:

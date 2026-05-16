@@ -67,17 +67,17 @@ async def _export_vector_store(temp_dir: Path) -> dict[str, int]:
             await session.scalars(sa.select(Collection).order_by(Collection.name.asc()))
         ).all()
     for collection in collections:
-        count = 0
+        points = await vector_store.export_collection_points(
+            collection.name,
+            with_vectors=False,
+            provider=collection.vector_store_provider,
+        )
+        exists = bool(points) or collection.document_count == 0
+        count = len(points)
         target = points_dir / f"{collection.name}.jsonl"
         with target.open("wb") as f:
-            async for point in vector_store.iter_collection_points(
-                collection.name,
-                with_vectors=False,
-                provider=collection.vector_store_provider,
-            ):
+            for point in points:
                 f.write(orjson.dumps(_point_payload(point)) + b"\n")
-                count += 1
-        exists = count > 0 or collection.document_count == 0
         if not exists and collection.document_count > 0:
             raise RuntimeError(f"Vector store collection missing: {collection.name}")
         counts[collection.name] = count

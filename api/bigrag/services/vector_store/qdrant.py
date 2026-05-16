@@ -337,46 +337,30 @@ class QdrantVectorStore:
         client = self._client()
         if not await self._run_with_retry(client.collection_exists, col):
             return [], 0
-        document_filter = models.Filter(
-            must=[
-                models.FieldCondition(
-                    key="document_id",
-                    match=models.MatchValue(value=document_id),
-                )
-            ]
-        )
-        page_filter = models.Filter(
-            must=[
-                models.FieldCondition(
-                    key="document_id",
-                    match=models.MatchValue(value=document_id),
-                ),
-                models.FieldCondition(
-                    key="chunk_index",
-                    range=models.Range(gte=offset),
-                ),
-            ]
-        )
-        total_result, page = await asyncio.gather(
-            self._run_with_retry(
-                client.count,
-                collection_name=col,
-                count_filter=document_filter,
-                exact=True,
-            ),
-            self._run_with_retry(
+
+        results = []
+        next_offset = None
+        while True:
+            batch, next_offset = await self._run_with_retry(
                 client.scroll,
                 collection_name=col,
-                scroll_filter=page_filter,
+                scroll_filter=models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="document_id",
+                            match=models.MatchValue(value=document_id),
+                        )
+                    ]
+                ),
                 with_payload=True,
                 with_vectors=False,
-                limit=limit,
-                order_by=models.OrderBy(key="chunk_index", direction=models.Direction.ASC),
-            ),
-        )
-        rows, _next_offset = page
-        chunks, _total = _chunk_rows_from_payloads([r.payload or {} for r in rows], limit, 0)
-        return chunks, int(total_result.count)
+                limit=10000,
+                offset=next_offset,
+            )
+            results.extend(batch)
+            if next_offset is None:
+                break
+        return _chunk_rows_from_payloads([r.payload or {} for r in results], limit, offset)
 
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         col = self._col(collection)
@@ -496,35 +480,28 @@ class QdrantVectorStore:
         *,
         with_vectors: bool = True,
     ) -> list[dict]:
-        return [
-            point
-            async for point in self.iter_collection_points(collection, with_vectors=with_vectors)
-        ]
-
-    async def iter_collection_points(
-        self,
-        collection: str,
-        *,
-        with_vectors: bool = True,
-    ):
         col = self._col(collection)
         client = self._client()
         if not await self._run_with_retry(client.collection_exists, col):
-            return
+            return []
+        out = []
         offset = None
         while True:
             points, offset = await client.scroll(
                 collection_name=col,
-                limit=1024,
+                limit=256,
                 offset=offset,
                 with_payload=True,
                 with_vectors=with_vectors,
             )
             for point in points:
-                yield {
-                    "id": str(getattr(point, "id", "")),
-                    "payload": getattr(point, "payload", {}) or {},
-                    "vector": getattr(point, "vector", None) if with_vectors else None,
-                }
+                out.append(
+                    {
+                        "id": str(getattr(point, "id", "")),
+                        "payload": getattr(point, "payload", {}) or {},
+                        "vector": getattr(point, "vector", None) if with_vectors else None,
+                    }
+                )
             if offset is None:
                 break
+        return out

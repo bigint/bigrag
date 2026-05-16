@@ -20,7 +20,6 @@ import {
   memo,
   type ReactNode,
   type RefObject,
-  useCallback,
   useEffect,
   useRef,
   useState,
@@ -118,25 +117,22 @@ const AssistantMessage = memo(
 
     useHighlightTimerCleanup(highlightTimer);
 
-    const sources = message.meta?.sources;
-    const jumpToSource = useCallback(
-      (n: number) => {
-        if (!sources || n < 1 || n > sources.length) return;
-        if (detailsRef.current && !detailsRef.current.open) {
-          detailsRef.current.open = true;
-        }
-        const target = sourceRefs.current.get(n);
-        if (target) {
-          target.scrollIntoView({ behavior: "instant", block: "nearest" });
-        }
-        setHighlight(n);
-        if (highlightTimer.current !== null) window.clearTimeout(highlightTimer.current);
-        highlightTimer.current = window.setTimeout(() => setHighlight(null), 1500);
-      },
-      [sources],
-    );
+    const jumpToSource = (n: number) => {
+      const sources = message.meta?.sources;
+      if (!sources || n < 1 || n > sources.length) return;
+      if (detailsRef.current && !detailsRef.current.open) {
+        detailsRef.current.open = true;
+      }
+      const target = sourceRefs.current.get(n);
+      if (target) {
+        target.scrollIntoView({ behavior: "instant", block: "nearest" });
+      }
+      setHighlight(n);
+      if (highlightTimer.current !== null) window.clearTimeout(highlightTimer.current);
+      highlightTimer.current = window.setTimeout(() => setHighlight(null), 1500);
+    };
 
-    const sourceCount = sources?.length ?? 0;
+    const sourceCount = message.meta?.sources.length ?? 0;
     const hasError = message.status === "error" && Boolean(message.errorMessage);
 
     return (
@@ -500,88 +496,85 @@ export const ChatMessages = ({
   );
 };
 
-const MarkdownContent = memo(
-  ({
-    chunkCount,
-    content,
-    onCite,
-  }: {
-    chunkCount: number;
-    content: string;
-    onCite: (n: number) => void;
-  }) => {
-    const blocks = content.split(/\n{2,}/);
-    return (
-      <>
-        {blocks.map((block, index) => {
-          const key = `${index}-${block.slice(0, 12)}`;
-          if (block.startsWith("```")) {
-            const code = block.replace(/^```[^\n]*\n?/, "").replace(/```$/, "");
-            return (
-              <pre key={key} className="my-3 overflow-x-auto rounded-lg bg-muted p-3 text-sm">
-                <code>{code}</code>
-              </pre>
-            );
-          }
-          if (/^[-*] \[[ xX]\] /m.test(block)) {
-            return (
-              <ul key={key} className="my-2 grid gap-1">
-                {block.split("\n").map((line) => {
-                  const checked = /^[-*] \[[xX]\] /.test(line);
-                  const text = line.replace(/^[-*] \[[ xX]\] /, "");
-                  return (
-                    <li key={line} className="flex items-start gap-2">
-                      <input type="checkbox" checked={checked} readOnly className="mt-1 size-3.5" />
-                      <span>{renderInlineCitations(text, chunkCount, onCite)}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            );
-          }
-          if (/^[-*] /m.test(block)) {
-            return (
-              <ul key={key} className="my-2 list-disc space-y-1 pl-5">
-                {block.split("\n").map((line) => (
-                  <li key={line}>
-                    {renderInlineCitations(line.replace(/^[-*] /, ""), chunkCount, onCite)}
-                  </li>
-                ))}
-              </ul>
-            );
-          }
-          if (/^\d+\. /m.test(block)) {
-            return (
-              <ol key={key} className="my-2 list-decimal space-y-1 pl-5">
-                {block.split("\n").map((line) => (
-                  <li key={line}>
-                    {renderInlineCitations(line.replace(/^\d+\. /, ""), chunkCount, onCite)}
-                  </li>
-                ))}
-              </ol>
-            );
-          }
-          if (block.includes("\n|") && block.includes("|")) {
-            return (
-              <pre
-                key={key}
-                className="my-3 overflow-x-auto rounded-lg border border-border bg-muted p-3 text-xs"
-              >
-                {block}
-              </pre>
-            );
-          }
+const MarkdownContent = ({
+  chunkCount,
+  content,
+  onCite,
+}: {
+  chunkCount: number;
+  content: string;
+  onCite: (n: number) => void;
+}) => {
+  const blocks = content.split(/\n{2,}/);
+  return (
+    <>
+      {blocks.map((block, index) => {
+        const key = `${index}-${block.slice(0, 12)}`;
+        if (block.startsWith("```")) {
+          const code = block.replace(/^```[^\n]*\n?/, "").replace(/```$/, "");
           return (
-            <p key={key} className="my-2">
-              {renderInlineCitations(block, chunkCount, onCite)}
-            </p>
+            <pre key={key} className="my-3 overflow-x-auto rounded-lg bg-muted p-3 text-sm">
+              <code>{code}</code>
+            </pre>
           );
-        })}
-      </>
-    );
-  },
-);
-MarkdownContent.displayName = "MarkdownContent";
+        }
+        if (/^[-*] \[[ xX]\] /m.test(block)) {
+          return (
+            <ul key={key} className="my-2 grid gap-1">
+              {block.split("\n").map((line) => {
+                const checked = /^[-*] \[[xX]\] /.test(line);
+                const text = line.replace(/^[-*] \[[ xX]\] /, "");
+                return (
+                  <li key={line} className="flex items-start gap-2">
+                    <input type="checkbox" checked={checked} readOnly className="mt-1 size-3.5" />
+                    <span>{renderInlineCitations(text, chunkCount, onCite)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        }
+        if (/^[-*] /m.test(block)) {
+          return (
+            <ul key={key} className="my-2 list-disc space-y-1 pl-5">
+              {block.split("\n").map((line) => (
+                <li key={line}>
+                  {renderInlineCitations(line.replace(/^[-*] /, ""), chunkCount, onCite)}
+                </li>
+              ))}
+            </ul>
+          );
+        }
+        if (/^\d+\. /m.test(block)) {
+          return (
+            <ol key={key} className="my-2 list-decimal space-y-1 pl-5">
+              {block.split("\n").map((line) => (
+                <li key={line}>
+                  {renderInlineCitations(line.replace(/^\d+\. /, ""), chunkCount, onCite)}
+                </li>
+              ))}
+            </ol>
+          );
+        }
+        if (block.includes("\n|") && block.includes("|")) {
+          return (
+            <pre
+              key={key}
+              className="my-3 overflow-x-auto rounded-lg border border-border bg-muted p-3 text-xs"
+            >
+              {block}
+            </pre>
+          );
+        }
+        return (
+          <p key={key} className="my-2">
+            {renderInlineCitations(block, chunkCount, onCite)}
+          </p>
+        );
+      })}
+    </>
+  );
+};
 
 const useHighlightTimerCleanup = (highlightTimer: MutableRefObject<number | null>) => {
   useEffect(

@@ -403,11 +403,10 @@ async def reembed_collection(
         for doc_id, file_path in docs
     ]
 
-    doc_ids = [doc_id for doc_id, _file_path in docs]
-    if doc_ids:
+    for doc_id, _file_path in docs:
         await session.execute(
             sa.update(Document)
-            .where(Document.id.in_(doc_ids))
+            .where(Document.id == doc_id)
             .values(status="pending", error_message=None)
         )
     await session.commit()
