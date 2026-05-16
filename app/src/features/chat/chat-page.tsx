@@ -137,9 +137,7 @@ export const ChatPage = () => {
     );
   };
 
-  const currentCollection = collection;
-  const currentCollectionName = currentCollection;
-  const questionsQuery = useChatQuestionSuggestions(currentCollectionName);
+  const questionsQuery = useChatQuestionSuggestions(collection);
 
   const stopStreaming = () => {
     abortRef.current?.abort();
@@ -152,9 +150,9 @@ export const ChatPage = () => {
   };
 
   const handleGenerateQuestions = () => {
-    if (!currentCollectionName) return;
+    if (!collection) return;
     generateQuestions.mutate({
-      collection: currentCollectionName,
+      collection: collection,
       model: state.model,
       temperature: state.temperature,
     });
@@ -166,7 +164,7 @@ export const ChatPage = () => {
       toast.error("Add your OpenAI API key first");
       return;
     }
-    if (!currentCollection) {
+    if (!collection) {
       toast.error("Pick a collection first");
       return;
     }
@@ -192,7 +190,7 @@ export const ChatPage = () => {
         signal: controller.signal,
         body: {
           message: text,
-          collection: currentCollection,
+          collection: collection,
           model_provider: "openai",
           model: state.model,
           temperature: state.temperature,
@@ -228,7 +226,7 @@ export const ChatPage = () => {
               status: event.data.status,
               errorMessage: event.data.error_message,
               meta: {
-                collection: currentCollection,
+                collection: collection,
                 sources: event.data.sources,
                 timings: timingsFromRetrieval(event.data),
               },
@@ -300,7 +298,7 @@ export const ChatPage = () => {
   };
 
   const loading = collectionsLoading || prefsQuery.isPending;
-  const disabled = !state.hasOpenAIKey || !currentCollection;
+  const disabled = !state.hasOpenAIKey || !collection;
 
   return (
     <div className="relative flex min-h-0 flex-1 overflow-hidden bg-background">
@@ -313,7 +311,7 @@ export const ChatPage = () => {
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
             {messages.length === 0 ? (
               <EmptyPrompts
-                collection={currentCollectionName}
+                collection={collection}
                 collectionCount={collections.length}
                 disabled={disabled}
                 hasOpenAIKey={state.hasOpenAIKey}
@@ -333,7 +331,7 @@ export const ChatPage = () => {
               />
             )}
             <ChatInput
-              collection={currentCollectionName}
+              collection={collection}
               collections={collections}
               disabled={disabled}
               isStreaming={isStreaming}

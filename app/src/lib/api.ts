@@ -26,10 +26,7 @@ const api: KyInstance = ky.create({
           try {
             const body = (await error.response.clone().json()) as { detail?: string };
             if (body.detail) {
-              const wrapped = new Error(body.detail) as Error & { status?: number };
-              wrapped.name = "HTTPError";
-              wrapped.status = error.response.status;
-              return wrapped;
+              error.message = body.detail;
             }
           } catch {}
         }

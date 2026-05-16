@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Menu as MenuIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/brand/logo";
 import { MobileSidebar, Sidebar } from "@/components/navigation/sidebar";
 import { Button } from "@/components/ui/button";
@@ -39,8 +39,6 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
     navigate,
     currentHref,
   );
-
-  useSessionExpiryToast(Boolean(session), isPending || setupPending);
 
   const authError = setupError ?? sessionError;
   if (authError && !session) {
@@ -134,19 +132,6 @@ const useDashboardAuthRedirect = (
     setupIsError,
     setupPending,
   ]);
-};
-
-const useSessionExpiryToast = (hasSession: boolean, pending: boolean) => {
-  const hadSession = useRef(false);
-  useEffect(() => {
-    if (hasSession) {
-      hadSession.current = true;
-      return;
-    }
-    if (!pending && hadSession.current) {
-      hadSession.current = false;
-    }
-  }, [hasSession, pending]);
 };
 
 const AuthErrorState = ({ error, onRetry }: { error: unknown; onRetry: () => void }) => (

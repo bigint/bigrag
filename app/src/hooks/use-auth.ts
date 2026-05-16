@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { HTTPError } from "ky";
 import { toast } from "sonner";
 import { AUTH_TIMEOUT_MS, apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
@@ -42,11 +43,8 @@ export const useSession = () =>
           signal,
           timeoutMs: AUTH_TIMEOUT_MS,
         });
-      } catch (err: unknown) {
-        const status =
-          (err as { response?: { status?: number }; status?: number }).response?.status ??
-          (err as { status?: number }).status;
-        if (status === 401) {
+      } catch (err) {
+        if (err instanceof HTTPError && err.response.status === 401) {
           return null;
         }
         throw err;

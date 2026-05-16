@@ -18,7 +18,6 @@ type Preferences = {
 };
 
 const KEY = queryKeys.preferences();
-let preferencesMutationVersion = 0;
 
 export const usePreferences = () =>
   useQuery({
@@ -27,6 +26,12 @@ export const usePreferences = () =>
     staleTime: 30_000,
   });
 
+const stripSecrets = (prefs?: ChatPrefs): ChatPrefs | undefined => {
+  if (prefs?.openai_key === undefined) return prefs;
+  const { openai_key: _openaiKey, ...rest } = prefs;
+  return rest;
+};
+
 export const useUpdatePreferences = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -34,39 +39,22 @@ export const useUpdatePreferences = () => {
       apiClient.put<{ data: Preferences }>("v1/auth/preferences", { data: patch }),
     onMutate: async (patch) => {
       await qc.cancelQueries({ queryKey: KEY });
-      const version = ++preferencesMutationVersion;
       const previous = qc.getQueryData<{ data: Preferences }>(KEY);
-      const publicPatch = (prefs?: ChatPrefs) => {
-        if (prefs?.openai_key === undefined) return prefs;
-        const { openai_key: _openaiKey, ...rest } = prefs;
-        return rest;
-      };
       qc.setQueryData<{ data: Preferences }>(KEY, (old) => ({
         data: {
           ...(old?.data ?? {}),
           ...patch,
           chat: {
             ...(old?.data?.chat ?? {}),
-            ...(publicPatch(patch.chat) ?? {}),
+            ...(stripSecrets(patch.chat) ?? {}),
           },
         },
       }));
-      return { previous, version };
+      return { previous };
     },
     onError: (_err, _patch, ctx) => {
-      if (ctx?.previous && ctx.version === preferencesMutationVersion) {
-        qc.setQueryData(KEY, ctx.previous);
-      }
+      if (ctx?.previous) qc.setQueryData(KEY, ctx.previous);
     },
-    onSuccess: (data, _patch, ctx) => {
-      if (ctx?.version === preferencesMutationVersion) {
-        qc.setQueryData(KEY, data);
-      }
-    },
-    onSettled: (_data, _err, _patch, ctx) => {
-      if (ctx?.version === preferencesMutationVersion) {
-        qc.invalidateQueries({ queryKey: KEY });
-      }
-    },
+    onSettled: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 };
