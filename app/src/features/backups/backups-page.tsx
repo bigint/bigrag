@@ -1,4 +1,4 @@
-import { Archive, CheckCircle2, CloudUpload, DatabaseBackup, ShieldAlert } from "lucide-react";
+import { Archive, CloudUpload, DatabaseBackup, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,11 +39,6 @@ export const BackupsPage = () => {
         title="Backups"
       />
       <WorkerOfflineBanner availability={workerAvailability} />
-      <BackupGuide
-        active={active}
-        destinationConfigured={destinationConfigured}
-        workerOffline={workerOffline}
-      />
       <InstanceSettingsTab group="backups" />
       <Card className="rounded-md">
         <CardHeader className="border-b border-border bg-muted/35 p-4">
@@ -124,66 +119,6 @@ export const BackupsPage = () => {
     </PageShell>
   );
 };
-
-const BackupGuide = ({
-  active,
-  destinationConfigured,
-  workerOffline,
-}: {
-  active: boolean;
-  destinationConfigured: boolean;
-  workerOffline: boolean;
-}) => (
-  <section className="rounded-md border border-border bg-card p-4">
-    <div className="min-w-0">
-      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Backup runbook
-      </div>
-      <h2 className="mt-1 text-base font-semibold">Set up, validate, export</h2>
-      <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-        Backups stay readable, so configure a dedicated bucket, save the destination, then run
-        exports from the history panel below.
-      </p>
-    </div>
-    <div className="mt-4 grid gap-3 md:grid-cols-3">
-      <BackupStep
-        complete={destinationConfigured}
-        label="Destination"
-        value={destinationConfigured ? "Bucket selected" : "Bucket required"}
-      />
-      <BackupStep
-        complete={destinationConfigured}
-        label="Validation"
-        value={destinationConfigured ? "Checked on save" : "Waiting for destination"}
-      />
-      <BackupStep
-        complete={!active && !workerOffline}
-        label="Export"
-        value={
-          workerOffline ? "Worker offline" : active ? "Backup running" : "Ready when validated"
-        }
-      />
-    </div>
-  </section>
-);
-
-const BackupStep = ({
-  complete,
-  label,
-  value,
-}: {
-  complete: boolean;
-  label: string;
-  value: string;
-}) => (
-  <div className="rounded-md border border-border bg-background p-3">
-    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-      <CheckCircle2 className={complete ? "size-4 text-success" : "size-4 text-muted-foreground"} />
-      {label}
-    </div>
-    <div className="mt-2 text-sm font-semibold">{value}</div>
-  </div>
-);
 
 const EmptyBackups = () => (
   <Empty

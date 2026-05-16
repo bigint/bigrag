@@ -27,6 +27,8 @@ cargo check --manifest-path sdks/rust/Cargo.toml
 
 The docs package runs `fumadocs-mdx` before `next build`, so a clean checkout or container build generates `website/.source` before Turbopack resolves the docs source imports.
 
+The admin app scripts generate and clean `app/src/routeTree.gen.ts` before Vite starts, before app builds, and before app typecheck. Vite code splitting reads that generated route tree but does not rewrite it during normal dev-server file watching.
+
 ## CI verification
 
 CI currently keeps formatter, lint, typecheck, SDK build, docs build, admin UI build, and Rust formatting and compile checks. It does not run package-level test or coverage jobs.

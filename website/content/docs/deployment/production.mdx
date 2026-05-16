@@ -190,6 +190,10 @@ volumes:
   redis_data:
 ```
 
+Set `REDIS_PASSWORD` and a matching `BIGRAG_REDIS_URL` in the Compose
+environment. If the password contains `@`, `:`, `/`, `?`, `#`, or other
+URL-reserved characters, URL-encode it in `BIGRAG_REDIS_URL`.
+
 ## Recommended Settings
 
 ```bash
