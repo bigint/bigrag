@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-VectorStoreProvider = Literal["qdrant", "turbopuffer"]
+from bigrag.services.vector_store.base import VectorStoreProvider
 
 
 class CreateCollectionRequest(BaseModel):
