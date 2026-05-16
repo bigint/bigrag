@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import httpx
 
-from tests._helpers import assert_envelope, unique_name
+from tests._helpers import assert_envelope, poll_until, unique_name
 
 
 async def _whoami_id(admin_client: httpx.AsyncClient) -> str:
@@ -161,19 +161,34 @@ async def test_audit_records_webhook_create_and_delete(
         },
     )
     created = assert_envelope(resp, 201)
-    try:
-        resp = await admin_client.get(
+
+    async def _fetch(action: str) -> dict:
+        r = await admin_client.get(
             "/v1/admin/audit",
-            params={"action": "webhook.create", "limit": 50},
+            params={"action": action, "limit": 50},
         )
-        body = assert_envelope(resp, 200)
-        assert any(e["resource_id"] == created["id"] for e in body["entries"])
+        return assert_envelope(r, 200)
+
+    try:
+        # audit.record uses safe_create_task → polling absorbs the race.
+        await poll_until(
+            lambda: _fetch("webhook.create"),
+            predicate=lambda b: any(
+                e["resource_id"] == created["id"] for e in b["entries"]
+            ),
+            timeout=10.0,
+            interval=0.3,
+            description=f"audit webhook.create entry for {created['id']}",
+        )
     finally:
         await admin_client.delete(f"/v1/admin/webhooks/{created['id']}")
 
-    resp = await admin_client.get(
-        "/v1/admin/audit",
-        params={"action": "webhook.delete", "limit": 50},
+    await poll_until(
+        lambda: _fetch("webhook.delete"),
+        predicate=lambda b: any(
+            e["resource_id"] == created["id"] for e in b["entries"]
+        ),
+        timeout=10.0,
+        interval=0.3,
+        description=f"audit webhook.delete entry for {created['id']}",
     )
-    body = assert_envelope(resp, 200)
-    assert any(e["resource_id"] == created["id"] for e in body["entries"])

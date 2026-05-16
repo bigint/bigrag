@@ -147,12 +147,20 @@ async def test_logs_filter_by_collection(
     await _seed_query(admin_client, coll["name"])
     await _wait_for_action(admin_client, "query.run")
 
-    resp = await admin_client.get(
-        "/v1/admin/access/logs",
-        params={"collection": coll["name"], "limit": 50},
+    async def _fetch_filtered() -> dict:
+        r = await admin_client.get(
+            "/v1/admin/access/logs",
+            params={"collection": coll["name"], "limit": 50},
+        )
+        return assert_envelope(r, 200)
+
+    body = await poll_until(
+        _fetch_filtered,
+        predicate=lambda b: b["total"] >= 1,
+        timeout=15.0,
+        interval=0.5,
+        description=f"access_log entries for collection {coll['name']!r}",
     )
-    body = assert_envelope(resp, 200)
-    assert body["total"] >= 1
     for entry in body["entries"]:
         assert entry["collection_name"] == coll["name"]
 
