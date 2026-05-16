@@ -37,5 +37,4 @@ export const apiClient = {
     api.patch(path, body === undefined ? undefined : { json: body }).json<T>(),
   delete: <T>(path: string) => api.delete(path).json<T>(),
   postForm: <T>(path: string, form: FormData) => api.post(path, { body: form }).json<T>(),
-  raw: api,
 };
