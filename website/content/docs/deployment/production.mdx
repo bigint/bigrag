@@ -225,7 +225,7 @@ The destination is S3-compatible, so AWS S3, Cloudflare R2, and MinIO all work.
 Use a bucket or prefix dedicated to backups rather than reusing the upload bucket.
 
 Readable backups are plain JSON, JSONL, SQL, and raw files. They include Postgres
-rows, vector-store points and payloads, uploaded files, chats, and logs. Provider
+rows, vector-store points and payloads, uploaded files, and logs. Provider
 secrets, token/hash columns, S3 credentials, and embedding-cache vectors are
 redacted. They are useful for inspection and data portability, but they are not a
 substitute for encrypted infrastructure snapshots or tested disaster recovery

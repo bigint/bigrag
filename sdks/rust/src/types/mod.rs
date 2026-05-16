@@ -6,7 +6,7 @@ pub mod admin;
 pub mod analytics;
 /// Auth and session types.
 pub mod auth;
-/// Chat types (generated answers and persisted conversations).
+/// Chat types (generated answers).
 pub mod chat;
 /// Collection types (create, update, list, stats).
 pub mod collections;
