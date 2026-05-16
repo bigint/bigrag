@@ -73,6 +73,9 @@ const orderOptions: { value: DocumentListOrder; label: string }[] = [
   { value: "asc", label: "Asc" },
 ];
 
+const shouldDismissUploadSession = (session: UploadSession) =>
+  session.status === "complete" && session.active_files === 0 && session.failed_files === 0;
+
 type DocumentsTabFilters = {
   order: DocumentListOrder;
   page: number;
@@ -140,6 +143,9 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
     pageDocuments.length > 0 && selectedVisibleCount === pageDocuments.length;
   const selectedDocuments = pageDocuments.filter((doc) => selected.has(doc.id));
   const bulkConfirmationText = `DELETE ${selectedDocuments.length}`;
+  const dismissCompletedUploadSession = uploadSession.data
+    ? shouldDismissUploadSession(uploadSession.data)
+    : false;
 
   useEffect(() => {
     setQDraft(activeFilters.q);
@@ -150,6 +156,12 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
       clearActiveSessionId(name);
     }
   }, [clearActiveSessionId, name, uploadSession.error, uploadSession.isError]);
+
+  useEffect(() => {
+    if (uploadSession.data && shouldDismissUploadSession(uploadSession.data)) {
+      clearActiveSessionId(name);
+    }
+  }, [clearActiveSessionId, name, uploadSession.data]);
 
   useEffect(() => {
     setSelected((current) => {
@@ -306,7 +318,7 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
         />
       </fieldset>
 
-      {activeSessionId && uploadSession.data && (
+      {activeSessionId && uploadSession.data && !dismissCompletedUploadSession && (
         <UploadSessionProgressPanel
           loadingCancel={cancelSession.isPending}
           onCancel={() => cancelSession.mutate(activeSessionId)}
