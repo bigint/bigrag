@@ -5,6 +5,7 @@ from datetime import datetime
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import AccessLog
@@ -17,10 +18,12 @@ from bigrag.models.access import (
     AccessLogOverviewResponse,
     AccessLogTimelinePoint,
 )
+from bigrag.services import redis_cache
 from bigrag.services.access_log import RAG_ACCESS_ACTIONS
 
 router = APIRouter(prefix="/v1/admin/access", tags=["admin:access"])
 _RAG_ACTION_FILTER = AccessLog.action.in_(tuple(sorted(RAG_ACCESS_ACTIONS)))
+_ACCESS_OVERVIEW_TTL = 15
 
 
 def _entry(row: AccessLog) -> AccessLogEntry:
@@ -140,6 +143,11 @@ async def access_overview(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> AccessLogOverviewResponse:
+    cache_key = f"access:overview:{window_days}"
+    cached = await redis_cache.get(cache_key)
+    if cached:
+        return AccessLogOverviewResponse.model_validate(cached)
+
     filters = [_RAG_ACTION_FILTER, _window_filter(window_days)]
 
     summary = (
@@ -184,7 +192,7 @@ async def access_overview(
     total = int(summary.total or 0)
     errors = int(summary.errors or 0)
     successes = int(summary.successes or 0)
-    return AccessLogOverviewResponse(
+    response = AccessLogOverviewResponse(
         window_days=window_days,
         total_events=total,
         success_rate=round((successes / total) * 100, 2) if total else 0,
@@ -221,3 +229,5 @@ async def access_overview(
         ],
         recent=[_entry(row) for row in recent],
     )
+    await redis_cache.set(cache_key, jsonable_encoder(response), ttl=_ACCESS_OVERVIEW_TTL)
+    return response

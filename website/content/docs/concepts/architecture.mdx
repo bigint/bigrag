@@ -19,7 +19,8 @@ everything into Postgres with pgvector. Each one earns its keep:
 - **Redis** — Dramatiq broker storage for ingestion, connector,
   webhook, backup, and maintenance actors; processing leases,
   cancellation epochs, idempotency-key cache, auth/collection/query
-  hot-path caches, and short-lived platform/health caches.
+  hot-path caches, batched document-progress lookups, and short-lived
+  platform/health caches.
 - **Local disk** — raw uploaded documents. Needed to produce
   citations back into source files and to support re-embedding without
   re-uploading.

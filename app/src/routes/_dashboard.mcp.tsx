@@ -1,6 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { McpPage } from "@/features/mcp/mcp-page";
+import { lazy, Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
+
+const McpPage = lazy(async () => ({
+  default: (await import("@/features/mcp/mcp-page")).McpPage,
+}));
+
+const McpRoute = () => (
+  <Suspense
+    fallback={
+      <div className="flex justify-center py-12">
+        <Spinner size="lg" />
+      </div>
+    }
+  >
+    <McpPage />
+  </Suspense>
+);
 
 export const Route = createFileRoute("/_dashboard/mcp")({
-  component: () => <McpPage />,
+  component: McpRoute,
 });

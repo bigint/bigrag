@@ -6,6 +6,8 @@ from types import SimpleNamespace
 
 from conftest import FakeSession, user_principal
 
+from bigrag.routers import admin_access
+
 
 def _log_row(**overrides):
     base = {
@@ -103,6 +105,38 @@ def test_access_overview_aggregates_summary(route_client) -> None:
     assert len(body["recent"]) == 2
 
 
+def test_access_overview_uses_cache_when_available(route_client, monkeypatch) -> None:
+    cached = {
+        "window_days": 7,
+        "total_events": 9,
+        "success_rate": 88.89,
+        "error_rate": 11.11,
+        "avg_latency_ms": 10,
+        "p95_latency_ms": 20,
+        "unique_users": 2,
+        "query_events": 4,
+        "by_action": [],
+        "latency_by_action": [],
+        "timeline": [],
+        "recent": [],
+    }
+
+    class FakeRedisCache:
+        async def get(self, key):
+            assert key == "access:overview:7"
+            return cached
+
+        async def set(self, key, value, ttl=None):
+            raise AssertionError("cache should not be written on hit")
+
+    monkeypatch.setattr(admin_access, "redis_cache", FakeRedisCache())
+
+    response = route_client().get("/v1/admin/access/overview?window_days=7")
+
+    assert response.status_code == 200
+    assert response.json()["total_events"] == 9
+
+
 def test_access_overview_zero_division_safe(route_client) -> None:
     summary = SimpleNamespace(
         total=0,
@@ -125,3 +159,35 @@ def test_access_overview_zero_division_safe(route_client) -> None:
     assert body["total_events"] == 0
     assert body["success_rate"] == 0
     assert body["error_rate"] == 0
+
+
+def test_access_overview_writes_cache(route_client, monkeypatch) -> None:
+    summary = SimpleNamespace(
+        total=1,
+        successes=1,
+        errors=0,
+        avg_latency=12,
+        p95_latency=12,
+        unique_users=1,
+        query_events=1,
+    )
+    session = FakeSession(
+        execute_values=[[summary], [], [], []],
+        scalars_values=[[]],
+    )
+    writes = []
+
+    class FakeRedisCache:
+        async def get(self, key):
+            assert key == "access:overview:7"
+            return None
+
+        async def set(self, key, value, ttl=None):
+            writes.append((key, value, ttl))
+
+    monkeypatch.setattr(admin_access, "redis_cache", FakeRedisCache())
+
+    response = route_client(session=session).get("/v1/admin/access/overview?window_days=7")
+
+    assert response.status_code == 200
+    assert writes == [("access:overview:7", response.json(), admin_access._ACCESS_OVERVIEW_TTL)]

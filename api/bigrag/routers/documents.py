@@ -39,6 +39,7 @@ from bigrag.routers._documents import (
 )
 from bigrag.routers.documents_progress import (
     document_progress,
+    document_progress_map,
     fallback_progress,
     publish_queued_progress,
 )
@@ -178,12 +179,9 @@ async def list_documents(
 
     docs = (await session.scalars(stmt.limit(limit).offset(offset))).all()
     total = await session.scalar(count_stmt)
+    progresses = await document_progress_map(event_bus, docs, collection_name)
 
-    documents = []
-    for doc in docs:
-        documents.append(
-            document_response(doc, progress=await _document_progress(doc, collection_name))
-        )
+    documents = [document_response(doc, progress=progresses[str(doc.id)]) for doc in docs]
 
     return DocumentListResponse(documents=documents, total=total or 0)
 

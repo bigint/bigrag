@@ -49,10 +49,14 @@ def patch_documents_helpers(monkeypatch: pytest.MonkeyPatch):
     async def fake_latest(_doc_id):
         return None
 
+    async def fake_latest_many(_doc_ids):
+        return {}
+
     monkeypatch.setattr(documents, "get_collection_or_404", fake_get_collection)
     monkeypatch.setattr(documents, "get_embedding_model_for", fake_embedding)
     monkeypatch.setattr(documents, "get_values", fake_get_values)
     monkeypatch.setattr(documents.event_bus, "latest", fake_latest)
+    monkeypatch.setattr(documents.event_bus, "latest_many", fake_latest_many)
     monkeypatch.setattr(documents.audit, "record", lambda *a, **k: None)
     monkeypatch.setattr(documents.collection_cache, "invalidate", noop)
     monkeypatch.setattr(documents, "invalidate_collection_query_cache", noop)
@@ -184,6 +188,48 @@ def test_list_documents_returns_paginated(
     assert response.status_code == 200
     assert response.json()["total"] == 2
     assert len(response.json()["documents"]) == 2
+
+
+def test_list_documents_batches_live_progress_for_active_docs_only(
+    route_client, monkeypatch, patch_documents_helpers
+) -> None:
+    from bigrag.routers import documents
+    from bigrag.services.event_bus import IngestionEvent
+
+    ready_doc = _document_row(status="ready")
+    processing_doc = _document_row(status="processing")
+    failed_doc = _document_row(status="failed", error_message="bad parse")
+    session = FakeSession(
+        scalars_values=[[ready_doc, processing_doc, failed_doc]],
+        scalar_values=[3],
+    )
+
+    async def fail_latest(_doc_id):
+        raise AssertionError("latest should not be called for list_documents")
+
+    async def fake_latest_many(doc_ids):
+        assert doc_ids == [str(processing_doc.id)]
+        return {
+            str(processing_doc.id): IngestionEvent(
+                document_id=str(processing_doc.id),
+                collection_name="docs",
+                step="embedding",
+                status="processing",
+                message="Embedding chunks",
+                progress=0.5,
+            )
+        }
+
+    monkeypatch.setattr(documents.event_bus, "latest", fail_latest)
+    monkeypatch.setattr(documents.event_bus, "latest_many", fake_latest_many)
+
+    response = route_client(session=session).get("/v1/collections/docs/documents?limit=1000")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["documents"][0]["progress"]["status"] == "complete"
+    assert body["documents"][1]["progress"]["message"] == "Embedding chunks"
+    assert body["documents"][2]["progress"]["status"] == "failed"
 
 
 def test_get_document_invalid_uuid_returns_404(route_client, patch_documents_helpers) -> None:
