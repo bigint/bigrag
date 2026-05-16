@@ -59,7 +59,9 @@ Perform a search against a collection. The query is embedded with the collection
     "embed_ms": 18.2,
     "search_ms": 12.4,
     "rerank_ms": 31.5,
-    "total_ms": 62.8
+    "cache_ms": 0,
+    "total_ms": 62.8,
+    "cache_hit": false
   }
 }
 ```
@@ -78,7 +80,7 @@ Perform a search against a collection. The query is embedded with the collection
 | `results[].char_start` | integer? | Inclusive character offset of the chunk inside the source document. |
 | `results[].char_end` | integer? | Exclusive character offset of the chunk inside the source document. |
 | `results[].metadata` | object | Chunk + document metadata merged |
-| `timings` | object | Per-stage latency in milliseconds |
+| `timings` | object | Per-stage latency in milliseconds, plus `cache_hit` for reused query-result cache entries |
 
 **Errors:** `404` — collection not found.
 

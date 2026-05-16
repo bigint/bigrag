@@ -32,6 +32,12 @@ from .provider import (
     _should_try_next_credential,
     _stream_model,
 )
+from .questions import (
+    _clean_questions,
+    _parse_questions,
+    generate_question_suggestions,
+    get_question_suggestions,
+)
 from .turn import (
     DEFAULT_SYSTEM_PROMPT,
     _append_credential,
@@ -56,6 +62,7 @@ __all__ = [
     "_apply_turn_overrides",
     "_as_uuid",
     "_clear_saved_chat_key",
+    "_clean_questions",
     "_complete_model",
     "_context_block",
     "_conversation_response",
@@ -66,6 +73,7 @@ __all__ = [
     "_is_saved_key_auth_error",
     "_message_response",
     "_model_messages",
+    "_parse_questions",
     "_openai_client",
     "_prepare_chat_turn",
     "_provider_error",
@@ -84,7 +92,9 @@ __all__ = [
     "create_chat_completion",
     "datetime",
     "delete_conversation",
+    "generate_question_suggestions",
     "get_conversation_detail",
+    "get_question_suggestions",
     "list_conversations",
     "stream_chat_completion",
     "update_conversation_title",

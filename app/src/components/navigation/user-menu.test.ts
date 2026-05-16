@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from "react";
+import { type CSSProperties, createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { UserMenu } from "./user-menu";
@@ -14,8 +14,15 @@ vi.mock("@base-ui/react/menu", () => ({
       className?: string;
       onClick?: () => void;
     }) => createElement("button", { className, onClick, type: "button" }, children),
-    Popup: ({ children, className }: { children?: ReactNode; className?: string }) =>
-      createElement("div", { className }, children),
+    Popup: ({
+      children,
+      className,
+      style,
+    }: {
+      children?: ReactNode;
+      className?: string;
+      style?: CSSProperties;
+    }) => createElement("div", { className, "data-width": style?.width }, children),
     Portal: ({ children }: { children?: ReactNode }) => createElement("div", null, children),
     Positioner: ({
       align,
@@ -70,6 +77,7 @@ describe("user menu", () => {
 
     expect(html).toContain('data-align="center"');
     expect(html).toContain('data-side="top"');
+    expect(html).toContain('data-width="calc(var(--anchor-width) - 1rem)"');
   });
 
   it("keeps the compact menu attached to the right side", () => {
@@ -77,5 +85,6 @@ describe("user menu", () => {
 
     expect(html).toContain('data-align="start"');
     expect(html).toContain('data-side="right"');
+    expect(html).not.toContain("data-width");
   });
 });

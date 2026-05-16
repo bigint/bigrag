@@ -53,7 +53,9 @@ class QueryTimings(BaseModel):
     embed_ms: float = 0.0
     search_ms: float = 0.0
     rerank_ms: float = 0.0
+    cache_ms: float = 0.0
     total_ms: float = 0.0
+    cache_hit: bool = False
 
 
 class QueryResponse(BaseModel):

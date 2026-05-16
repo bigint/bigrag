@@ -102,9 +102,15 @@ Every response includes a `timings` breakdown:
   "embed_ms": 18.2,
   "search_ms": 12.4,
   "rerank_ms": 31.5,
-  "total_ms": 62.8
+  "cache_ms": 0,
+  "total_ms": 62.8,
+  "cache_hit": false
 }
 ```
+
+When a query-result cache entry is reused, `cache_hit` is `true`, `cache_ms`
+contains the Redis lookup time, and the embed/search/rerank timings stay at
+zero instead of replaying the original uncached request's latencies.
 
 ## Multi-Collection Query
 

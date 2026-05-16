@@ -151,6 +151,13 @@ class Document(Base):
         sa.Index("idx_documents_collection_id", "collection_id"),
         sa.Index("idx_documents_status", "status"),
         sa.Index("idx_documents_created_at", "created_at"),
+        sa.Index("idx_documents_collection_created_at", "collection_id", sa.desc("created_at")),
+        sa.Index(
+            "idx_documents_collection_status_created_at",
+            "collection_id",
+            "status",
+            sa.desc("created_at"),
+        ),
         sa.Index("idx_documents_collection_hash", "collection_id", "content_hash"),
     )
 
@@ -729,9 +736,16 @@ class AccessLog(Base):
     __tablename__ = "access_log"
     __table_args__ = (
         sa.Index("idx_access_log_actor", "actor_id"),
+        sa.Index("idx_access_log_actor_created_at", "actor_id", sa.desc("created_at")),
         sa.Index("idx_access_log_api_key_id", "api_key_id"),
         sa.Index("idx_access_log_action", "action"),
+        sa.Index("idx_access_log_action_created_at", "action", sa.desc("created_at")),
         sa.Index("idx_access_log_collection", "collection_name"),
+        sa.Index(
+            "idx_access_log_collection_created_at",
+            "collection_name",
+            sa.desc("created_at"),
+        ),
         sa.Index("idx_access_log_created_at", sa.desc("created_at")),
         sa.Index("idx_access_log_status", "status_code"),
         sa.Index("idx_access_log_success", "success"),

@@ -7,9 +7,16 @@ from types import SimpleNamespace
 import pytest
 from conftest import FakeSession, user_principal
 
+from bigrag.db.models import InstanceSetting
 from bigrag.exceptions import NotFoundError, ServerError, UpstreamError, ValidationError
-from bigrag.models.chat import ChatSource
+from bigrag.models.chat import (
+    ChatQuestionSuggestionsRequest,
+    ChatQuestionSuggestionsResponse,
+    ChatSource,
+)
+from bigrag.routers import chat as chat_router
 from bigrag.services import chat
+from bigrag.services.chat import questions as chat_questions
 from bigrag.services.chat import turn as chat_turn
 
 
@@ -317,6 +324,29 @@ def test_is_saved_key_auth_error_only_for_upstream() -> None:
     assert chat._is_saved_key_auth_error(UpstreamError("other")) is False
 
 
+def test_parse_questions_requires_five_clean_questions() -> None:
+    expected = [
+        "What is the approval flow?",
+        "Which document defines receipts?",
+        "What exceptions exist?",
+        "Who reviews requests?",
+        "How should escalation work?",
+    ]
+
+    json_text = (
+        '{"questions":["What is the approval flow?",'
+        '"Which document defines receipts?","What exceptions exist?",'
+        '"Who reviews requests?","How should escalation work?"]}'
+    )
+    line_text = "\n".join(f"{index + 1}. {value}" for index, value in enumerate(expected))
+
+    assert chat._parse_questions(json_text) == expected
+    assert chat._parse_questions(line_text) == expected
+
+    with pytest.raises(UpstreamError):
+        chat._parse_questions('{"questions":["too few"]}')
+
+
 @pytest.mark.anyio
 async def test_list_conversations_returns_paginated() -> None:
     user = user_principal()
@@ -474,3 +504,125 @@ async def test_resolve_api_credentials_raises_when_no_key(monkeypatch) -> None:
 
     with pytest.raises(ValidationError):
         await chat._resolve_api_credentials(session, user, body)
+
+
+@pytest.mark.anyio
+async def test_get_question_suggestions_reads_instance_setting(monkeypatch) -> None:
+    async def get_collection(_name: str) -> dict:
+        return {"id": uuid.uuid4(), "name": "docs"}
+
+    generated_at = "2026-05-16T04:45:00+00:00"
+    setting = InstanceSetting(key="chat_question_suggestions")
+    setting.value = {
+        "collections": {
+            "docs": {
+                "generated_at": generated_at,
+                "model": "gpt-4o-mini",
+                "questions": ["q1", "q2", "q3", "q4", "q5"],
+            }
+        }
+    }
+    session = FakeSession(get_values={"chat_question_suggestions": setting})
+    monkeypatch.setattr(chat_questions, "get_collection_or_404", get_collection)
+
+    result = await chat.get_question_suggestions(session, user_principal(), " docs ")
+
+    assert result.collection == "docs"
+    assert result.questions == ["q1", "q2", "q3", "q4", "q5"]
+    assert result.generated_at == datetime.fromisoformat(generated_at)
+    assert result.model == "gpt-4o-mini"
+
+
+@pytest.mark.anyio
+async def test_generate_question_suggestions_uses_saved_key_and_persists(monkeypatch) -> None:
+    user = user_principal()
+    collection_id = uuid.uuid4()
+    document_id = uuid.uuid4()
+    document = SimpleNamespace(
+        chunk_count=6,
+        filename="Handbook.pdf",
+        id=document_id,
+    )
+    session = FakeSession(
+        scalar_values=[{"chat": {"openai_key": "sk-playground"}}],
+        scalars_values=[[document]],
+    )
+
+    async def get_runtime_values(_keys: list[str]) -> dict:
+        return {
+            "chat_base_url": None,
+            "chat_model": "gpt-4o-mini",
+            "chat_temperature": 0.2,
+        }
+
+    async def get_collection(_name: str) -> dict:
+        return {
+            "id": collection_id,
+            "name": "docs",
+            "vector_store_provider": "qdrant",
+        }
+
+    async def get_chunks(*_args, **_kwargs) -> tuple[list[dict], int]:
+        return (
+            [
+                {
+                    "document_id": str(document_id),
+                    "id": "chunk_1",
+                    "metadata": {},
+                    "text": "Expense approvals require receipts and manager review.",
+                }
+            ],
+            1,
+        )
+
+    async def generate_text(**kwargs) -> str:
+        assert kwargs["credentials"] == [
+            chat.ProviderCredential(api_key="sk-playground", source="saved chat key")
+        ]
+        assert kwargs["model"] == "gpt-4o"
+        assert kwargs["temperature"] == 0.6
+        assert kwargs["chunks"][0]["document_filename"] == "Handbook.pdf"
+        return (
+            '{"questions":["What approval flow is described?",'
+            '"Which receipts are required?","Who reviews expenses?",'
+            '"What evidence should be cited?","What exceptions are mentioned?"]}'
+        )
+
+    monkeypatch.setattr(chat_turn, "decrypt_preferences", lambda data: data)
+    monkeypatch.setattr(chat_questions, "get_values", get_runtime_values)
+    monkeypatch.setattr(chat_questions, "get_collection_or_404", get_collection)
+    monkeypatch.setattr(chat_questions.vector_store, "get_chunks", get_chunks)
+    monkeypatch.setattr(chat_questions, "_generate_questions_text", generate_text)
+
+    result = await chat.generate_question_suggestions(
+        session,
+        user,
+        ChatQuestionSuggestionsRequest(collection="docs", model="gpt-4o", temperature=0.6),
+    )
+
+    assert result.collection == "docs"
+    assert len(result.questions) == 5
+    assert result.model == "gpt-4o"
+    assert session.commits == 1
+    setting = session.added[0]
+    saved = setting.value["collections"]["docs"]
+    assert saved["questions"] == result.questions
+    assert saved["document_ids"] == [str(document_id)]
+    assert setting.updated_by == uuid.UUID(user["id"])
+
+
+def test_question_suggestions_route_uses_specific_handler(route_client, monkeypatch) -> None:
+    async def get_suggestions(_session, _user, collection: str) -> ChatQuestionSuggestionsResponse:
+        return ChatQuestionSuggestionsResponse(
+            collection=collection,
+            model="gpt-4o-mini",
+            questions=["q1", "q2", "q3", "q4", "q5"],
+        )
+
+    monkeypatch.setattr(chat_router, "get_question_suggestions", get_suggestions)
+
+    response = route_client().get("/v1/chat/question-suggestions?collection=docs")
+
+    assert response.status_code == 200
+    assert response.json()["collection"] == "docs"
+    assert response.json()["questions"] == ["q1", "q2", "q3", "q4", "q5"]

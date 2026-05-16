@@ -31,6 +31,13 @@ with Qdrant. Turbopuffer moves vector operations out of the local
 deployment when you prefer a managed vector service.
 </Callout>
 
+The admin UI leans on TanStack Router's built-in route code splitting
+instead of wrapping dashboard pages in extra `React.lazy` boundaries,
+so each route transition pays for one route chunk, not a route chunk
+plus an immediately nested page chunk. On the backend, Postgres keeps
+composite newest-first indexes for collection document lists and common
+access-log filters so admin timelines avoid full sorts as data grows.
+
 ## Request flow — `POST /v1/collections/{name}/documents`
 
 ```
@@ -72,7 +79,7 @@ Client → FastAPI
   │ 3. vector search (with metadata filters)
   │ 4. optional hybrid fusion — Qdrant keyword search + reciprocal rank fusion
   │ 5. optional rerank — Cohere Rerank v3.5
-  │ 6. attach timings (embed/search/rerank/total)
+  │ 6. attach timings (embed/search/rerank/cache/total)
   ▼
 Response JSON with results and timings
 ```
@@ -81,6 +88,8 @@ Keyword mode skips embeddings. Semantic and hybrid mode use the
 collection's configured embedding model. In v1, keyword and hybrid
 search are available on Qdrant; turbopuffer supports semantic search
 and returns a clear error for keyword or hybrid mode.
+Query-result cache hits return the cached chunks but report the current
+cache lookup latency, not the original uncached retrieval timings.
 
 ## Why Docling
 

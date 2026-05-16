@@ -1,3 +1,5 @@
+import type { QueryTimings } from "./query.js";
+
 export interface ChatCreateBody {
   message: string;
   conversation_id?: string | null;
@@ -75,7 +77,7 @@ export interface ChatCreateResponse {
   message: ChatMessage;
   assistant_message: ChatMessage;
   sources: ChatSource[];
-  timings?: Record<string, number> | null;
+  timings?: QueryTimings | null;
 }
 
 export type ChatStreamEvent =
@@ -83,7 +85,7 @@ export type ChatStreamEvent =
   | { event: "user_message"; data: ChatMessage }
   | {
       event: "sources";
-      data: { collection: string | null; sources: ChatSource[]; timings?: Record<string, number> };
+      data: { collection: string | null; sources: ChatSource[]; timings?: QueryTimings };
     }
   | { event: "delta"; data: { delta: string } }
   | { event: "assistant_message"; data: ChatMessage }

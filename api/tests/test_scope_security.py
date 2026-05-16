@@ -29,6 +29,11 @@ def test_collection_events_require_collection_read_scope() -> None:
     assert required_scope("POST", "/v1/collections/docs/events/token") == "collection:read"
 
 
+def test_chat_question_suggestions_use_chat_scopes() -> None:
+    assert required_scope("GET", "/v1/chat/question-suggestions") == "chat:read"
+    assert required_scope("POST", "/v1/chat/question-suggestions") == "chat:write"
+
+
 def test_mcp_permissions_are_read_query_only_by_default() -> None:
     permissions = _permissions("Docs", "docs", None)
 

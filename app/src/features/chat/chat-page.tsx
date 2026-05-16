@@ -10,7 +10,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -22,6 +22,7 @@ import { EmptyPrompts } from "@/features/chat/empty-prompts";
 import {
   useChatConversation,
   useChatConversations,
+  useChatQuestionSuggestions,
   useDeleteChatConversation,
   useGenerateChatQuestions,
 } from "@/hooks/use-chat";
@@ -84,10 +85,24 @@ const useSelectedConversationMessages = (
   }, [conversationId, detail, hydrateConversationMessages, isStreaming]);
 };
 
-const timingsFromRetrieval = (message: ServerChatMessage): QueryTimings | undefined => {
-  const timings = message.retrieval.timings;
+const timingNumber = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value) ? value : 0;
+
+const normalizeTimings = (timings: unknown): QueryTimings | undefined => {
   if (!timings || typeof timings !== "object") return undefined;
-  return timings as QueryTimings;
+  const raw = timings as Record<string, unknown>;
+  return {
+    embed_ms: timingNumber(raw.embed_ms),
+    search_ms: timingNumber(raw.search_ms),
+    rerank_ms: timingNumber(raw.rerank_ms),
+    cache_ms: timingNumber(raw.cache_ms),
+    total_ms: timingNumber(raw.total_ms),
+    cache_hit: raw.cache_hit === true,
+  };
+};
+
+const timingsFromRetrieval = (message: ServerChatMessage): QueryTimings | undefined => {
+  return normalizeTimings(message.retrieval.timings);
 };
 
 const toUiMessage = (
@@ -138,8 +153,6 @@ export const ChatPage = () => {
   const detailQuery = useChatConversation(conversationId);
   const activeConversation = detailQuery.data?.conversation ?? null;
   const abortRef = useRef<AbortController | null>(null);
-  const currentCollectionRef = useRef("");
-  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
 
   useEffect(
     () => () => {
@@ -200,11 +213,7 @@ export const ChatPage = () => {
 
   const currentCollection = activeConversation?.collection ?? collection;
   const currentCollectionName = currentCollection ?? "";
-
-  useEffect(() => {
-    currentCollectionRef.current = currentCollectionName;
-    setSuggestedQuestions([]);
-  }, [currentCollectionName]);
+  const questionsQuery = useChatQuestionSuggestions(currentCollectionName);
 
   const stopStreaming = () => {
     abortRef.current?.abort();
@@ -223,16 +232,11 @@ export const ChatPage = () => {
 
   const handleGenerateQuestions = () => {
     if (!currentCollectionName) return;
-    generateQuestions.mutate(
-      { collection: currentCollectionName },
-      {
-        onSuccess: (questions, variables) => {
-          if (variables.collection === currentCollectionRef.current) {
-            setSuggestedQuestions(questions);
-          }
-        },
-      },
-    );
+    generateQuestions.mutate({
+      collection: currentCollectionName,
+      model: state.model,
+      temperature: state.temperature,
+    });
   };
 
   const handleSend = async (text: string) => {
@@ -293,7 +297,7 @@ export const ChatPage = () => {
               meta: {
                 collection: event.data.collection,
                 sources: event.data.sources,
-                timings: event.data.timings,
+                timings: normalizeTimings(event.data.timings),
               },
             }));
             return;
@@ -417,7 +421,7 @@ export const ChatPage = () => {
                 isGeneratingQuestions={generateQuestions.isPending}
                 onGenerateQuestions={handleGenerateQuestions}
                 onSelect={handleSend}
-                questions={suggestedQuestions}
+                questions={questionsQuery.data?.questions ?? []}
               />
             ) : (
               <ChatMessages isStreaming={isStreaming} messages={messages} />

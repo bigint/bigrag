@@ -30,7 +30,9 @@ class QueryTimings(TypedDict):
     embed_ms: float
     search_ms: float
     rerank_ms: float
+    cache_ms: float
     total_ms: float
+    cache_hit: bool
 
 
 class QueryResponse(TypedDict):

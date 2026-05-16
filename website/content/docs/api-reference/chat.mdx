@@ -9,6 +9,42 @@ The chat API retrieves chunks from a collection, builds the grounded prompt on t
 
 Supported providers are `openai` and `openai_compatible`. Save the provider key in the admin UI at `chat.openai_key`. API clients can also pass `provider_api_key` per request when they do not want to use the user's saved key.
 
+## Question Suggestions
+
+```
+GET /v1/chat/question-suggestions?collection=handbook
+POST /v1/chat/question-suggestions
+```
+
+`GET` returns the last generated starter questions for a collection from the instance database. `POST` uses the saved chat/OpenAI key from the current user's preferences, samples ready documents and chunks from the selected collection, asks the configured chat model for exactly five questions, and persists the generated set back to the instance database.
+
+POST body:
+
+```json
+{
+  "collection": "handbook",
+  "model": "gpt-4o-mini",
+  "temperature": 0.7
+}
+```
+
+Response:
+
+```json
+{
+  "collection": "handbook",
+  "questions": [
+    "What is the PTO approval flow?",
+    "Which source defines receipt requirements?",
+    "Who reviews escalation requests?",
+    "What exceptions should be cited?",
+    "How do reimbursement limits work?"
+  ],
+  "generated_at": "2026-05-16T04:45:00+00:00",
+  "model": "gpt-4o-mini"
+}
+```
+
 ## Create Chat Turn
 
 ```
@@ -53,7 +89,7 @@ event: user_message
 data: {"id":"...","role":"user","content":"..."}
 
 event: sources
-data: {"collection":"handbook","sources":[...],"timings":{"total_ms":42.1}}
+data: {"collection":"handbook","sources":[...],"timings":{"cache_hit":false,"total_ms":42.1}}
 
 event: delta
 data: {"delta":"PTO"}

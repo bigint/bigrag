@@ -138,6 +138,8 @@ def test_retrieval_helpers_and_query_cache(monkeypatch) -> None:
         cached = await retrieval._cached_query_result(key)
         assert cached is not None
         assert cached.results == [{"id": "a"}]
+        assert cached.cache_hit is True
+        assert cached.total_ms == 0.0
 
     asyncio.run(run())
 
@@ -175,7 +177,13 @@ def test_retrieve_semantic_keyword_hybrid_and_cached(monkeypatch) -> None:
         cached_context = configure_retrieval(
             monkeypatch,
             cache_ttl=30,
-            cached={"fixed": {"results": [{"id": "cached", "score": 1.0}]}},
+            cached={
+                "fixed": {
+                    "results": [{"id": "cached", "score": 1.0}],
+                    "search_ms": 903.6,
+                    "total_ms": 906.4,
+                }
+            },
         )
 
         async def fixed_cache_key(**kwargs):
@@ -184,6 +192,9 @@ def test_retrieve_semantic_keyword_hybrid_and_cached(monkeypatch) -> None:
         monkeypatch.setattr(retrieval, "_query_result_cache_key", fixed_cache_key)
         cached = await retrieval.retrieve("docs", "hello", model)
         assert cached.results == [{"id": "cached", "score": 1.0}]
+        assert cached.cache_hit is True
+        assert cached.search_ms == 0.0
+        assert cached.total_ms < 906.4
         assert cached_context.writes == []
 
     asyncio.run(run())

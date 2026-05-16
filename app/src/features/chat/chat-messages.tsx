@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   BookOpen,
   ChevronRight,
+  Database,
   FileText,
   Gauge,
   Hash,
@@ -43,6 +44,8 @@ interface Props {
 type RetrievalMeta = NonNullable<ChatMessage["meta"]>;
 
 const CITATION_RE = /\[(\d+)\]/g;
+
+const formatWholeMs = (ms: number) => (ms > 0 && ms < 1 ? "<1ms" : `${Math.round(ms)}ms`);
 
 const renderInlineCitations = (
   content: string,
@@ -124,8 +127,13 @@ const AssistantMessage = memo(
           )}
           {message.meta?.timings && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5 py-1 font-mono text-xs text-muted-foreground">
-              <Zap className="size-3" />
-              {Math.round(message.meta.timings.total_ms)}ms
+              {message.meta.timings.cache_hit ? (
+                <Database className="size-3" />
+              ) : (
+                <Zap className="size-3" />
+              )}
+              {message.meta.timings.cache_hit ? "cached " : ""}
+              {formatWholeMs(message.meta.timings.total_ms)}
             </span>
           )}
         </div>
@@ -189,18 +197,26 @@ const UserMessage = ({ content }: { content: string }) => (
 );
 
 const LatencyLedger = ({ timings }: { timings: QueryTimings }) => {
-  const phases = [
-    ["embed", timings.embed_ms],
-    ["search", timings.search_ms],
-    ["rerank", timings.rerank_ms],
-  ] as const;
   const total = timings.total_ms;
+  const cacheMs = timings.cache_ms > 0 ? timings.cache_ms : total;
+  const phases = timings.cache_hit
+    ? ([
+        ["cache", cacheMs],
+        ["embed", timings.embed_ms],
+        ["search", timings.search_ms],
+        ["rerank", timings.rerank_ms],
+      ] as const)
+    : ([
+        ["embed", timings.embed_ms],
+        ["search", timings.search_ms],
+        ["rerank", timings.rerank_ms],
+      ] as const);
 
   return (
     <details className="mb-3 text-xs text-muted-foreground">
       <summary className="flex w-fit cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 font-semibold hover:bg-muted hover:text-foreground">
-        <Gauge className="size-3.5" />
-        Retrieval latency
+        {timings.cache_hit ? <Database className="size-3.5" /> : <Gauge className="size-3.5" />}
+        {timings.cache_hit ? "Cached retrieval" : "Retrieval latency"}
       </summary>
       <div className="mt-2 grid max-w-lg gap-1.5 rounded-lg border border-border bg-card p-3">
         {phases.map(([name, ms]) => {
@@ -303,11 +319,16 @@ const RetrievalPanel = ({ meta }: { meta: RetrievalMeta | null }) => (
           <PanelMetric label="collection" value={meta.collection ?? "none"} />
           <PanelMetric label="chunks" value={String(meta.sources.length)} />
           {meta.timings && (
-            <PanelMetric label="total" value={`${Math.round(meta.timings.total_ms)}ms`} />
+            <PanelMetric label="total" value={formatWholeMs(meta.timings.total_ms)} />
           )}
-          {meta.timings && (
-            <PanelMetric label="rerank" value={`${Math.round(meta.timings.rerank_ms)}ms`} />
-          )}
+          {meta.timings?.cache_hit ? (
+            <PanelMetric
+              label="cache"
+              value={formatWholeMs(meta.timings.cache_ms || meta.timings.total_ms)}
+            />
+          ) : meta.timings ? (
+            <PanelMetric label="rerank" value={formatWholeMs(meta.timings.rerank_ms)} />
+          ) : null}
         </div>
         <ol className="grid gap-2">
           {meta.sources.slice(0, 8).map((source, index) => (

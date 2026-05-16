@@ -51,6 +51,23 @@ pub struct QueryResult {
     pub metadata: serde_json::Value,
 }
 
+/// Retrieval timings.
+#[derive(Debug, Clone, Deserialize)]
+pub struct QueryTimings {
+    /// Embedding latency in milliseconds.
+    pub embed_ms: f64,
+    /// Search latency in milliseconds.
+    pub search_ms: f64,
+    /// Reranking latency in milliseconds.
+    pub rerank_ms: f64,
+    /// Cache lookup latency in milliseconds.
+    pub cache_ms: f64,
+    /// Total retrieval latency in milliseconds.
+    pub total_ms: f64,
+    /// Whether the retrieval results came from cache.
+    pub cache_hit: bool,
+}
+
 /// Response from a single-collection query.
 #[derive(Debug, Clone, Deserialize)]
 pub struct QueryResponse {
@@ -62,6 +79,8 @@ pub struct QueryResponse {
     pub collection: String,
     /// Total number of results.
     pub total: u32,
+    /// Retrieval timings.
+    pub timings: Option<QueryTimings>,
 }
 
 /// Body for a multi-collection query.

@@ -1,4 +1,4 @@
-import { ArrowUpRight, HelpCircle, RefreshCcw, Shuffle, TriangleAlert } from "lucide-react";
+import { ArrowUpRight, RefreshCcw, Shuffle, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -28,7 +28,7 @@ export const EmptyPrompts = ({
       ? "Choose a collection to start asking questions."
       : null
     : "Add an API key to start asking questions.";
-  const canGenerateQuestions = !missingCollection && !isGeneratingQuestions;
+  const canGenerateQuestions = !disabled && !missingCollection && !isGeneratingQuestions;
   const hasQuestions = questions.length > 0;
 
   return (
@@ -91,10 +91,7 @@ export const EmptyPrompts = ({
               ))}
             </div>
           ) : (
-            <div className="flex min-h-56 flex-col items-center justify-center gap-4 px-6 py-10 text-center">
-              <span className="flex size-12 items-center justify-center rounded-xl border border-border bg-muted">
-                <HelpCircle className="size-5 text-muted-foreground" />
-              </span>
+            <div className="flex min-h-48 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
               <Button
                 disabled={!canGenerateQuestions}
                 onClick={onGenerateQuestions}
@@ -104,6 +101,9 @@ export const EmptyPrompts = ({
                 <Shuffle className="size-4" />
                 {isGeneratingQuestions ? "Generating" : "Generate 5 questions"}
               </Button>
+              <p className="max-w-sm text-sm leading-6 text-muted-foreground">
+                Uses your saved AI key to create questions from ready documents in this collection.
+              </p>
             </div>
           )}
         </section>

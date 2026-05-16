@@ -76,6 +76,11 @@ describe("queryKeys", () => {
     );
     expect(queryKeys.chat.list()).toEqual(["chat", "list"]);
     expect(queryKeys.chat.detail({ id: null })).toEqual(["chat", "detail", { id: null }]);
+    expect(queryKeys.chat.questions({ collection: "docs" })).toEqual([
+      "chat",
+      "questions",
+      { collection: "docs" },
+    ]);
     expect(queryKeys.collections.all()).toEqual(["collections"]);
     expect(queryKeys.collections.stats({ name: "docs" })).toEqual([
       "collections",

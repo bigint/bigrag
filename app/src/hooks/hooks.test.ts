@@ -464,7 +464,11 @@ describe("admin app hooks", () => {
 
   it("wires admin resource mutation hooks", async () => {
     const { useBackups, useStartBackup } = await import("./use-backups");
-    const { useDeleteChatConversation } = await import("./use-chat");
+    const {
+      useChatQuestionSuggestions,
+      useDeleteChatConversation,
+      useGenerateChatQuestions,
+    } = await import("./use-chat");
     const { useCreateEmbeddingPreset, useDeleteEmbeddingPreset, useUpdateEmbeddingPreset } =
       await import("./use-embedding-presets");
     const { usePurgeEmbeddingCache, useUpdateInstanceSettings } = await import(
@@ -488,6 +492,42 @@ describe("admin app hooks", () => {
     useDeleteChatConversation();
     await mutationOptions<{ mutationFn: (id: string) => Promise<unknown> }>().mutationFn("chat_1");
     expect(apiClient.delete).toHaveBeenLastCalledWith("v1/chat/chat_1");
+
+    const suggestions = {
+      collection: "team docs",
+      generated_at: "2026-05-16T04:45:00+00:00",
+      model: "gpt-4o-mini",
+      questions: ["q1", "q2", "q3", "q4", "q5"],
+    };
+    vi.mocked(apiClient.get).mockResolvedValueOnce(suggestions);
+    useChatQuestionSuggestions("team docs");
+    await queryOptions<{ queryFn: () => Promise<unknown> }>().queryFn();
+    expect(apiClient.get).toHaveBeenLastCalledWith("v1/chat/question-suggestions", {
+      collection: "team docs",
+    });
+
+    vi.mocked(apiClient.post).mockResolvedValueOnce(suggestions);
+    useGenerateChatQuestions();
+    const generatedQuestions = await mutationOptions<{
+      mutationFn: (body: {
+        collection: string;
+        model: string;
+        temperature: number;
+      }) => Promise<unknown>;
+    }>().mutationFn({ collection: "team docs", model: "gpt-4o-mini", temperature: 0.7 });
+    expect(apiClient.post).toHaveBeenLastCalledWith("v1/chat/question-suggestions", {
+      collection: "team docs",
+      model: "gpt-4o-mini",
+      temperature: 0.7,
+    });
+    expect(generatedQuestions).toEqual(suggestions);
+    mutationOptions<{ onSuccess: (response: typeof suggestions) => void }>().onSuccess(
+      suggestions,
+    );
+    expect(queryClient.setQueryData).toHaveBeenLastCalledWith(
+      queryKeys.chat.questions({ collection: "team docs" }),
+      suggestions,
+    );
 
     useCreateEmbeddingPreset();
     await mutationOptions<{ mutationFn: (body: unknown) => Promise<unknown> }>().mutationFn({

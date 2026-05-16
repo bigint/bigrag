@@ -82,8 +82,12 @@ pub struct ChatTimings {
     pub search_ms: f64,
     /// Reranking latency in milliseconds.
     pub rerank_ms: f64,
+    /// Cache lookup latency in milliseconds.
+    pub cache_ms: f64,
     /// Total retrieval latency in milliseconds.
     pub total_ms: f64,
+    /// Whether the retrieval results came from cache.
+    pub cache_hit: bool,
 }
 
 /// Stored chat message.

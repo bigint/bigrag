@@ -39,6 +39,19 @@ class ChatUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=160)
 
 
+class ChatQuestionSuggestionsRequest(BaseModel):
+    collection: str = Field(min_length=1, max_length=120)
+    model: str | None = Field(default=None, min_length=1, max_length=120)
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
+
+
+class ChatQuestionSuggestionsResponse(BaseModel):
+    collection: str
+    questions: list[str] = Field(default_factory=list)
+    generated_at: datetime | None = None
+    model: str | None = None
+
+
 class ChatSource(BaseModel):
     id: str
     text: str
@@ -56,7 +69,9 @@ class ChatTimings(BaseModel):
     embed_ms: float = 0.0
     search_ms: float = 0.0
     rerank_ms: float = 0.0
+    cache_ms: float = 0.0
     total_ms: float = 0.0
+    cache_hit: bool = False
 
 
 class ChatMessageResponse(BaseModel):

@@ -118,7 +118,9 @@ async def query_collection(
             embed_ms=outcome.embed_ms,
             search_ms=outcome.search_ms,
             rerank_ms=outcome.rerank_ms,
+            cache_ms=outcome.cache_ms,
             total_ms=outcome.total_ms,
+            cache_hit=outcome.cache_hit,
         ),
     )
 
@@ -127,6 +129,7 @@ async def query_collection(
         metadata={
             "result_count": response.total,
             "latency_ms": response.timings.total_ms if response.timings else None,
+            "cache_hit": response.timings.cache_hit if response.timings else False,
             "avg_score": round(
                 sum(result.score for result in response.results) / len(response.results),
                 4,

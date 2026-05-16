@@ -14,13 +14,17 @@ from bigrag.models.chat import (
     ChatDeleteResponse,
     ChatDetailResponse,
     ChatListResponse,
+    ChatQuestionSuggestionsRequest,
+    ChatQuestionSuggestionsResponse,
     ChatUpdateRequest,
 )
 from bigrag.services import access_log
 from bigrag.services.chat import (
     create_chat_completion,
     delete_conversation,
+    generate_question_suggestions,
     get_conversation_detail,
+    get_question_suggestions,
     list_conversations,
     stream_chat_completion,
     update_conversation_title,
@@ -44,6 +48,39 @@ async def list_chat_conversations(
         metadata={"limit": limit, "offset": offset},
     )
     return await list_conversations(session, user, limit=limit, offset=offset)
+
+
+@router.get("/question-suggestions", response_model=ChatQuestionSuggestionsResponse)
+async def get_chat_question_suggestions(
+    request: Request,
+    collection: str = Query(min_length=1, max_length=120),
+    user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ChatQuestionSuggestionsResponse:
+    access_log.set_context(
+        request,
+        action="chat.question_suggestions.read",
+        resource_type="collection",
+        collection_name=collection,
+    )
+    return await get_question_suggestions(session, user, collection)
+
+
+@router.post("/question-suggestions", response_model=ChatQuestionSuggestionsResponse)
+async def create_chat_question_suggestions(
+    body: ChatQuestionSuggestionsRequest,
+    request: Request,
+    user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ChatQuestionSuggestionsResponse:
+    access_log.set_context(
+        request,
+        action="chat.question_suggestions.generate",
+        resource_type="collection",
+        collection_name=body.collection,
+        metadata={"model": body.model},
+    )
+    return await generate_question_suggestions(session, user, body)
 
 
 @router.get("/{conversation_id}", response_model=ChatDetailResponse)

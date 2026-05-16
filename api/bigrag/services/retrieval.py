@@ -31,7 +31,9 @@ class RetrievalOutcome:
     embed_ms: float = 0.0
     search_ms: float = 0.0
     rerank_ms: float = 0.0
+    cache_ms: float = 0.0
     total_ms: float = 0.0
+    cache_hit: bool = False
 
 
 def _tokenize_query(query: str) -> list[str]:
@@ -173,13 +175,7 @@ async def _cached_query_result(cache_key: str) -> RetrievalOutcome | None:
     results = cached.get("results")
     if not isinstance(results, list):
         return None
-    return RetrievalOutcome(
-        results=results,
-        embed_ms=float(cached.get("embed_ms", 0.0)),
-        search_ms=float(cached.get("search_ms", 0.0)),
-        rerank_ms=float(cached.get("rerank_ms", 0.0)),
-        total_ms=float(cached.get("total_ms", 0.0)),
-    )
+    return RetrievalOutcome(results=results, cache_hit=True)
 
 
 async def _store_query_result(cache_key: str, outcome: RetrievalOutcome) -> None:
@@ -190,10 +186,6 @@ async def _store_query_result(cache_key: str, outcome: RetrievalOutcome) -> None
         cache_key,
         {
             "results": outcome.results,
-            "embed_ms": outcome.embed_ms,
-            "search_ms": outcome.search_ms,
-            "rerank_ms": outcome.rerank_ms,
-            "total_ms": outcome.total_ms,
         },
         ttl=ttl,
     )
@@ -341,6 +333,7 @@ async def retrieve(
     result_cache_key: str | None = None
     cache_settings = await get_values(["query_result_cache_ttl"])
     if cache_settings["query_result_cache_ttl"] > 0:
+        cache_t0 = time.monotonic()
         result_cache_key = await _query_result_cache_key(
             collection_name=collection_name,
             query=query,
@@ -354,6 +347,10 @@ async def retrieve(
         )
         cached_outcome = await _cached_query_result(result_cache_key)
         if cached_outcome is not None:
+            cache_ms = (time.monotonic() - cache_t0) * 1000
+            total_ms = (time.monotonic() - _retrieve_start) * 1000
+            cached_outcome.cache_ms = round(cache_ms, 2)
+            cached_outcome.total_ms = round(total_ms, 2)
             avg_score = (
                 sum(r.get("score", 0) for r in cached_outcome.results) / len(cached_outcome.results)
                 if cached_outcome.results
@@ -366,7 +363,7 @@ async def retrieve(
                     top_k=top_k,
                     result_count=len(cached_outcome.results),
                     avg_score=avg_score,
-                    latency_ms=0.0,
+                    latency_ms=cached_outcome.total_ms,
                     search_mode=search_mode,
                 ),
                 name="log_cached_query",

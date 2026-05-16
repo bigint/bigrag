@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, NotRequired, TypedDict
 
+from .query import QueryTimings
+
 
 class ChatBody(TypedDict):
     message: str
@@ -82,7 +84,7 @@ class ChatCreateResponse(TypedDict):
     message: ChatMessage
     assistant_message: ChatMessage
     sources: list[ChatSource]
-    timings: NotRequired[dict[str, float] | None]
+    timings: NotRequired[QueryTimings | None]
 
 
 class ChatStreamEvent(TypedDict):

@@ -54,7 +54,7 @@ Large operator routes such as Overview, Chat, Connectors, MCP, Audit, and collec
 
 Unknown admin routes render the built-in 404 screen with links back to overview and collections. Unexpected route render failures use the admin 500 screen with a retry action, overview fallback, and a readable error-details panel showing the boundary error message, cause, and digest when available.
 
-The sidebar is grouped by operator task: Workspace for day-to-day retrieval surfaces, Interfaces for client and integration entry points, Observability for logs and spend, and Administration for backup, vector storage, and instance settings. Member accounts only see groups that still contain at least one available destination. Standard admin pages share one centered dashboard body width so page headers, tabs, and primary panels align across routes; shared tabs rely on the page stack gap so spacing above and below the tab row stays even. The desktop sidebar keeps matching top and bottom insets so it reads as a floating surface, while page scroll areas still keep their own bottom edge available so footer actions are not clipped by a reserved app gutter.
+The sidebar is grouped by operator task: Workspace for day-to-day retrieval surfaces, Interfaces for client and integration entry points, Observability for logs and spend, and Administration for backup, vector storage, and instance settings. Member accounts only see groups that still contain at least one available destination. Standard admin pages share one centered dashboard body width so page headers, tabs, and primary panels align across routes; shared tabs rely on the page stack gap so spacing above and below the tab row stays even. The desktop sidebar keeps matching top and bottom insets so it reads as a floating surface, while page scroll areas still keep their own bottom edge available so footer actions are not clipped by a reserved app gutter. The footer account menu opens almost as wide as the sidebar footer trigger, with a small horizontal inset.
 
 ## Settings sections
 
@@ -97,6 +97,8 @@ REST document status endpoints remain available for API clients and SDKs that pr
 ## Chat specifics
 
 The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, citations, and conversation persistence all happen on the backend. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
+
+The empty chat screen no longer shows generic default prompts. After a collection is selected, operators can generate five random starter questions using the saved chat/OpenAI key. The backend samples that collection's ready documents and chunks, stores the generated set in the instance database, and refreshes the same persisted set when operators ask for another batch.
 
 ### Citations
 

@@ -113,7 +113,9 @@ def test_query_collection_success_sets_response_shape(route_client, monkeypatch)
             embed_ms=1,
             search_ms=2,
             rerank_ms=0,
+            cache_ms=0,
             total_ms=3,
+            cache_hit=False,
         )
 
     monkeypatch.setattr(query, "get_collection_or_404", fake_get_collection_or_404)
@@ -127,6 +129,7 @@ def test_query_collection_success_sets_response_shape(route_client, monkeypatch)
     assert response.status_code == 200
     assert response.json()["results"][0]["page_no"] == 1
     assert response.json()["timings"]["total_ms"] == 3
+    assert response.json()["timings"]["cache_hit"] is False
 
 
 def test_query_collection_maps_embedding_errors(route_client, monkeypatch) -> None:

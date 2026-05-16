@@ -1,24 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { lazy, Suspense } from "react";
-import { Spinner } from "@/components/ui/spinner";
-
-const DocumentsTab = lazy(async () => ({
-  default: (await import("@/features/collections/documents-tab")).DocumentsTab,
-}));
+import { DocumentsTab } from "@/features/collections/documents-tab";
 
 const DocumentsRoute = () => {
   const { name: rawName } = Route.useParams();
-  return (
-    <Suspense
-      fallback={
-        <div className="flex justify-center py-12">
-          <Spinner size="lg" />
-        </div>
-      }
-    >
-      <DocumentsTab name={decodeURIComponent(rawName)} />
-    </Suspense>
-  );
+  return <DocumentsTab name={decodeURIComponent(rawName)} />;
 };
 
 export const Route = createFileRoute("/_dashboard/collections/$name/documents/")({

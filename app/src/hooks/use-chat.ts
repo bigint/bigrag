@@ -1,14 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  buildQuestionSuggestions,
-  questionChunkOffset,
-  readyQuestionDocuments,
-} from "@/features/chat/question-suggestions";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
-import type { ChatDetailResponse, ChatListResponse, Chunk, Document } from "@/types/bigrag";
+import type { ChatDetailResponse, ChatListResponse } from "@/types/bigrag";
+
+export type ChatQuestionSuggestionsResponse = {
+  collection: string;
+  generated_at: string | null;
+  model: string | null;
+  questions: string[];
+};
 
 export const useChatConversations = () =>
   useQuery({
@@ -36,30 +38,27 @@ export const useDeleteChatConversation = () => {
   });
 };
 
-export const useGenerateChatQuestions = () =>
-  useMutation({
-    mutationFn: async ({ collection }: { collection: string }) => {
-      const encodedCollection = encodeURIComponent(collection);
-      const response = await apiClient.get<{ documents: Document[]; total: number }>(
-        `v1/collections/${encodedCollection}/documents`,
-        { limit: 1000, status: "ready" },
-      );
-      const documents = readyQuestionDocuments(response.documents);
-      const chunkResults = await Promise.all(
-        documents.map((document) =>
-          apiClient
-            .get<{ chunks: Chunk[]; total: number }>(
-              `v1/collections/${encodedCollection}/documents/${encodeURIComponent(document.id)}/chunks`,
-              { limit: 24, offset: questionChunkOffset(document) },
-            )
-            .catch(() => ({ chunks: [], total: 0 })),
-        ),
-      );
-      return buildQuestionSuggestions({
-        chunks: chunkResults.flatMap((result) => result.chunks),
+export const useChatQuestionSuggestions = (collection: string) =>
+  useQuery({
+    queryKey: queryKeys.chat.questions({ collection }),
+    queryFn: () =>
+      apiClient.get<ChatQuestionSuggestionsResponse>("v1/chat/question-suggestions", {
         collection,
-        documents: response.documents,
-      });
+      }),
+    enabled: Boolean(collection),
+  });
+
+export const useGenerateChatQuestions = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { collection: string; model?: string; temperature?: number }) =>
+      apiClient.post<ChatQuestionSuggestionsResponse>("v1/chat/question-suggestions", body),
+    onSuccess: (response) => {
+      queryClient.setQueryData(
+        queryKeys.chat.questions({ collection: response.collection }),
+        response,
+      );
     },
     onError: errorToast("Failed to generate questions"),
   });
+};

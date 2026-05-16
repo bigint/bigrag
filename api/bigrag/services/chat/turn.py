@@ -134,7 +134,9 @@ async def _prepare_chat_turn(
         embed_ms=outcome.embed_ms,
         search_ms=outcome.search_ms,
         rerank_ms=outcome.rerank_ms,
+        cache_ms=outcome.cache_ms,
         total_ms=outcome.total_ms,
+        cache_hit=outcome.cache_hit,
     )
     retrieval = {
         "collection": collection_name,
