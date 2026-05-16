@@ -254,18 +254,18 @@ export async function createCollection(
   overrides: Partial<CreateCollectionBody> = {},
 ): Promise<Collection> {
   const body: CreateCollectionBody = {
-    name: overrides.name ?? uniqueName("e2e"),
-    description: overrides.description ?? "sdk e2e collection",
-    vector_store_provider: overrides.vector_store_provider ?? "qdrant",
+    name: uniqueName("e2e"),
+    description: "sdk e2e collection",
+    vector_store_provider: "qdrant",
     // bigRAG requires `dimension` for openai_compatible providers (the
     // default in e2e). text-embedding-3-small uses 1536.
-    dimension: overrides.dimension ?? 1536,
-    chunk_size: overrides.chunk_size ?? 512,
-    chunk_overlap: overrides.chunk_overlap ?? 50,
-    chunk_strategy: overrides.chunk_strategy ?? "paragraph",
-    reranking_enabled: overrides.reranking_enabled ?? false,
-    default_top_k: overrides.default_top_k ?? 10,
-    default_search_mode: overrides.default_search_mode ?? "semantic",
+    dimension: 1536,
+    chunk_size: 512,
+    chunk_overlap: 50,
+    chunk_strategy: "paragraph",
+    reranking_enabled: false,
+    default_top_k: 10,
+    default_search_mode: "semantic",
     ...overrides,
   };
   // Allow overriding the embedding source when running against an environment
