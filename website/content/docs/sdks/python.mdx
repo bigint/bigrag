@@ -250,7 +250,7 @@ webhook = await client.webhooks.create({
 print(webhook["secret"])  # save this for verification
 
 # List, get, update, delete
-webhooks = await client.webhooks.list()
+webhooks = await client.webhooks.list(limit=50, offset=0)
 wh = await client.webhooks.get("webhook-id")
 await client.webhooks.update("webhook-id", {"active": False})
 await client.webhooks.delete("webhook-id")

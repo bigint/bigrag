@@ -36,6 +36,17 @@ curl -X POST http://localhost:4000/v1/admin/webhooks \
 GET /v1/admin/webhooks?limit=50&offset=0
 ```
 
+**Response** `200`:
+
+```json
+{
+  "webhooks": [],
+  "total": 0
+}
+```
+
+`total` is the total number of configured webhooks before pagination.
+
 ## Get Webhook
 
 ```

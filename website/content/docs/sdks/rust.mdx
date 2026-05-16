@@ -320,6 +320,10 @@ println!("Secret: {}", resp.secret); // save this!
 
 // List
 let hooks = client.webhooks().list().await?;
+let hooks_page = client.webhooks().list_with_options(Some(PaginationOptions {
+    limit: Some(50),
+    offset: Some(0),
+})).await?;
 
 // Get
 let hook = client.webhooks().get("webhook-id").await?;
@@ -336,7 +340,7 @@ client.webhooks().delete("webhook-id").await?;
 // List deliveries
 let deliveries = client.webhooks().list_deliveries("webhook-id", None).await?;
 // with pagination
-let deliveries = client.webhooks().list_deliveries("webhook-id", Some(ListDeliveriesOptions {
+let deliveries = client.webhooks().list_deliveries("webhook-id", Some(PaginationOptions {
     limit: Some(20),
     offset: Some(0),
 })).await?;

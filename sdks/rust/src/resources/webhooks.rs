@@ -43,10 +43,7 @@ impl Webhooks<'_> {
                 query.push(("offset".into(), offset.to_string()));
             }
         }
-        self.client
-            .transport
-            .get("/v1/admin/webhooks", query)
-            .await
+        self.client.transport.get("/v1/admin/webhooks", query).await
     }
 
     /// Get a webhook by ID.

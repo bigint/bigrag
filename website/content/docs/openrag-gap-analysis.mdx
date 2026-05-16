@@ -27,7 +27,7 @@ OpenRAG and bigRAG share the same foundation — both use **FastAPI**, **Docling
 | [Search & Retrieval](#4-search--retrieval) | Semantic, keyword, hybrid RRF search, Cohere rerank, metadata filters, batch query, and analytics | No explicit semantic/keyword weight ratios, facets, prefix/autocomplete, saved filters, or one-index multi-model search |
 | [Authentication & Multi-Tenancy](#5-authentication--multi-tenancy) | Native admin/member accounts, session cookies, scoped API keys, and audit/access logs | No OAuth/OIDC, external IdP, document ownership, document ACLs, or tenant isolation |
 | [Observability & Operations](#6-observability--operations) | Readiness checks Postgres, Qdrant, Redis, and embedding provider; structlog JSON logging exists | No disk monitoring, container-log TUI, or LLM observability |
-| [Developer Experience & Ecosystem](#7-developer-experience--ecosystem) | TypeScript, Python, Rust SDKs, MCP server, and readable full-instance backups exist | No `uvx bigrag` install, flow import/export, config restore workflow, factory reset, or Podman guide |
+| [Developer Experience & Ecosystem](#7-developer-experience--ecosystem) | TypeScript, Python, Rust SDKs, MCP server, and readable full-instance backups exist | No `uvx bigrag` install, flow import/export, config portability workflow, factory reset, or Podman guide |
 | [Security & Compliance](#8-security--compliance) | Sensitive provider credentials, webhook secrets, embedding-cache rows, and Redis cache payloads are Fernet-encrypted at rest | No Qdrant payload encryption, password strength scoring, or asymmetric JWT key system |
 
 ---
@@ -565,13 +565,13 @@ OpenRAG allows exporting and importing Langflow flows as JSON, enabling:
 
 **bigRAG gap:** bigRAG's pipeline is hardcoded. There is no way to export, share, or version-control retrieval pipeline configurations independently of the source code.
 
-### 7.5 Flow Backup & Restore
+### 7.5 Flow Backup & Config Portability
 
 **Severity: Medium**
 
-OpenRAG automatically backs up flows every 5 minutes to `~/.openrag/flows/backup/` and provides a restore mechanism to revert to original configurations.
+OpenRAG automatically backs up flows every 5 minutes to `~/.openrag/flows/backup/` and lets operators revert to earlier flow configurations.
 
-**bigRAG gap:** Readable full-instance backups now export Postgres rows, vector-store payloads, and uploaded files for inspection and portability. bigRAG still does not expose restore endpoints or a targeted flow/config restore workflow.
+**bigRAG gap:** Readable full-instance backups now export Postgres rows, vector-store payloads, and uploaded files for inspection and portability. bigRAG still does not expose a targeted flow/config import or portability workflow.
 
 ### 7.6 Factory Reset
 
@@ -792,7 +792,7 @@ Based on this analysis, here are the recommended priorities for closing the most
 
 11. **Webhook Delivery UI** — Surface delivery history and replay controls in the admin UI; the API already has these endpoints.
 12. **Disk Space Monitoring** — Monitor Qdrant/Postgres disk usage and alert before ingestion/query failures.
-13. **Flow / Config Restore** — Add an importable configuration workflow for collection configs, embedding presets, MCP servers, and webhook definitions without changing readable backups from backup-only exports.
+13. **Flow / Config Portability** — Add an importable configuration workflow for collection configs, embedding presets, MCP servers, and webhook definitions without changing readable backups from backup-only exports.
 14. **Factory Reset** — Provide a documented reset path that cleans containers and volumes while preserving chosen config.
 15. **Password Strength Scoring** — Add `zxcvbn`-style feedback to setup, user create, and password-change flows.
 16. **Podman Support** — Document Podman Compose once it is tested.
