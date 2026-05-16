@@ -37,7 +37,6 @@ async def _prepare_chat_turn(
     user: dict,
     body: ChatCreateRequest,
 ) -> PreparedChatTurn:
-    owner_id = UUID(user["id"])
     pinned = user.get("collection")
     runtime = await get_values(
         [

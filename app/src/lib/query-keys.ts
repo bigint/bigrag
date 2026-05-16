@@ -21,10 +21,6 @@ type CollectionNameParams = {
   readonly name: string;
 };
 
-type ChatDetailParams = {
-  readonly id: string | null;
-};
-
 type ChatQuestionsParams = {
   readonly collection: string;
 };
@@ -86,8 +82,6 @@ export const queryKeys = {
       ] as const,
   },
   chat: {
-    list: () => ["chat", "list"] as const,
-    detail: ({ id }: ChatDetailParams) => ["chat", "detail", { id }] as const,
     questions: ({ collection }: ChatQuestionsParams) =>
       ["chat", "questions", { collection }] as const,
   },

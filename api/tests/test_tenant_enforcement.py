@@ -200,7 +200,6 @@ def test_chat_turn_rejects_missing_tenant_filter(monkeypatch) -> None:
             "chat_model": "gpt-4o-mini",
             "chat_base_url": None,
             "chat_temperature": 0.2,
-            "chat_max_history_messages": 12,
             "chat_max_context_chars": 120000,
         }
 

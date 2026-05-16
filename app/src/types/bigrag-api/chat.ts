@@ -1,13 +1,3 @@
-import type { ChatConversation, ChatCreateBody, ChatMessage, ChatSource } from "@bigrag/client";
+import type { ChatCreateBody, ChatMessage, ChatSource } from "@bigrag/client";
 
-export type ChatListResponse = {
-  conversations: ChatConversation[];
-  total: number;
-};
-
-export type ChatDetailResponse = {
-  conversation: ChatConversation;
-  messages: ChatMessage[];
-};
-
-export type { ChatConversation, ChatCreateBody, ChatMessage, ChatSource };
+export type { ChatCreateBody, ChatMessage, ChatSource };
