@@ -451,8 +451,8 @@ const ConversationRail = ({
   onSelect: (id: string) => void;
   selectedId: string | null;
 }) => (
-  <aside className="hidden w-60 shrink-0 p-2 pl-0 lg:flex">
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
+  <aside className="hidden h-[calc(100dvh-1rem)] w-60 shrink-0 pl-2 lg:flex">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-muted">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-3">
         <div className="text-sm font-semibold">Threads</div>
         <Button
@@ -467,7 +467,7 @@ const ConversationRail = ({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {conversations.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-muted/35 px-3 py-8 text-center text-xs leading-5 text-muted-foreground">
+          <div className="rounded-lg border border-dashed border-border bg-background px-3 py-8 text-center text-xs leading-5 text-muted-foreground">
             Conversation history will appear here after the first grounded answer.
           </div>
         ) : (
@@ -480,8 +480,8 @@ const ConversationRail = ({
                   className={cn(
                     "min-h-14 w-full rounded-lg border px-3 py-2 pr-9 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     selectedId === conversation.id
-                      ? "border-border bg-muted/55"
-                      : "border-transparent hover:bg-muted/40",
+                      ? "border-border bg-background"
+                      : "border-transparent hover:bg-background/75",
                   )}
                 >
                   <div className="truncate text-xs font-semibold">{conversation.title}</div>
@@ -500,7 +500,7 @@ const ConversationRail = ({
                   aria-label="Delete conversation"
                   disabled={deletingId === conversation.id}
                   onClick={() => onDelete(conversation.id)}
-                  className="absolute top-1/2 right-2 hidden size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-75 hover:bg-background hover:text-destructive group-hover:flex focus-visible:flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  className="absolute top-1/2 right-2 hidden size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-75 hover:bg-destructive/10 hover:text-destructive group-hover:flex focus-visible:flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -509,51 +509,6 @@ const ConversationRail = ({
           </div>
         )}
       </div>
-    </div>
-  </aside>
-);
-        </div>
-      ) : (
-        <div className="grid gap-1">
-          {conversations.map((conversation) => (
-            <div
-              key={conversation.id}
-              className={cn(
-                "group grid grid-cols-[minmax(0,1fr)_1.75rem] items-center rounded-lg border",
-                selectedId === conversation.id
-                  ? "border-border bg-background"
-                  : "border-transparent hover:border-border hover:bg-background/80",
-              )}
-            >
-              <button
-                type="button"
-                onClick={() => onSelect(conversation.id)}
-                className="min-w-0 px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <div className="truncate text-xs font-semibold">{conversation.title}</div>
-                <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <span className="truncate">{conversation.collection ?? "No collection"}</span>
-                  <span aria-hidden>·</span>
-                  <span>{conversation.message_count}</span>
-                  <span aria-hidden>·</span>
-                  <span className="truncate">
-                    {formatRelative(conversation.last_message_at ?? conversation.updated_at)}
-                  </span>
-                </div>
-              </button>
-              <button
-                type="button"
-                aria-label="Delete conversation"
-                disabled={deletingId === conversation.id}
-                onClick={() => onDelete(conversation.id)}
-                className="mr-1 hidden size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive group-hover:flex focus-visible:flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   </aside>
 );
