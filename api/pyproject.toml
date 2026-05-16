@@ -35,8 +35,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pytest>=8.0.0",
-    "pytest-cov>=7.1.0",
     "ruff>=0.8.0",
 ]
 
@@ -63,11 +61,3 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "T201", "FA102"]
 ignore = ["B008"]  # Depends() and Query() in FastAPI defaults are intentional
-
-[tool.coverage.run]
-source = ["bigrag"]
-omit = ["bigrag/_alembic/*"]
-
-[tool.coverage.report]
-show_missing = true
-skip_covered = true
