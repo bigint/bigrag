@@ -49,7 +49,7 @@ export const ConfirmDialog = ({
         />
         <AlertDialog.Popup
           render={
-            <div className="fixed inset-x-4 top-1/2 z-50 max-w-sm -translate-y-1/2 rounded-xl border border-border bg-background sm:left-1/2 sm:right-auto sm:w-full sm:-translate-x-1/2" />
+            <div className="fixed inset-x-4 top-1/2 z-50 max-w-sm -translate-y-1/2 overflow-hidden rounded-xl border border-border bg-background sm:left-1/2 sm:right-auto sm:w-full sm:-translate-x-1/2" />
           }
         >
           <div className="px-6 py-5">
