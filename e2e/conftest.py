@@ -183,28 +183,53 @@ class _OriginAwareClient(httpx.AsyncClient):
         return await super().request(method, url, **kwargs)
 
 
+_ADMIN_COOKIE_CACHE: dict[str, str] = {}
+
+
+async def _login_and_cache(email: str, password: str) -> dict[str, str]:
+    async with httpx.AsyncClient(base_url=API_BASE, timeout=DEFAULT_TIMEOUT) as client:
+        resp = await client.post(
+            "/v1/auth/login",
+            json={"email": email, "password": password},
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(f"admin login failed: {resp.status_code} {resp.text}")
+        return dict(client.cookies)
+
+
 @pytest_asyncio.fixture
 async def admin_client(
     admin_setup: dict[str, str],
 ) -> AsyncIterator[httpx.AsyncClient]:
     """Authenticated admin client with a session cookie + Origin header.
 
-    Logs in fresh per test (the rate limiter on /v1/auth/login is 10/min
-    so this is safe for typical suites; mark long suites with xdist
-    groups if you hit it).
+    The session cookie is cached across tests so we don't trip bigRAG's
+    10-login-per-IP-per-minute rate limit on /v1/auth/login. Tests that
+    deliberately invalidate the session (logout-all, password change) cause
+    the cache to be invalidated transparently — the next test re-logs in.
     """
+    if not _ADMIN_COOKIE_CACHE:
+        _ADMIN_COOKIE_CACHE.update(
+            await _login_and_cache(admin_setup["email"], admin_setup["password"])
+        )
+
     async with _OriginAwareClient(
         base_url=API_BASE,
         timeout=DEFAULT_TIMEOUT,
         follow_redirects=True,
         origin=API_BASE,
     ) as client:
-        resp = await client.post(
-            "/v1/auth/login",
-            json={"email": admin_setup["email"], "password": admin_setup["password"]},
-        )
+        for k, v in _ADMIN_COOKIE_CACHE.items():
+            client.cookies.set(k, v)
+        resp = await client.get("/v1/auth/me")
         if resp.status_code != 200:
-            raise RuntimeError(f"admin login failed: {resp.status_code} {resp.text}")
+            client.cookies.clear()
+            _ADMIN_COOKIE_CACHE.clear()
+            _ADMIN_COOKIE_CACHE.update(
+                await _login_and_cache(admin_setup["email"], admin_setup["password"])
+            )
+            for k, v in _ADMIN_COOKIE_CACHE.items():
+                client.cookies.set(k, v)
         yield client
 
 
