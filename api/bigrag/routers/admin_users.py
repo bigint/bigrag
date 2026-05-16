@@ -3,7 +3,6 @@ from __future__ import annotations
 import uuid
 
 import sqlalchemy as sa
-from asyncpg.exceptions import UniqueViolationError
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,16 +19,13 @@ from bigrag.models.auth import (
     UserResponse,
 )
 from bigrag.models.common import StatusResponse
+from bigrag.routers import is_unique_violation
 from bigrag.services import audit
 from bigrag.services.auth import hash_password
 
 logger = get_logger("bigrag.routers.admin_users")
 
 router = APIRouter(prefix="/v1/admin/users", tags=["admin:users"])
-
-
-def _is_unique_violation(exc: IntegrityError) -> bool:
-    return isinstance(exc.orig, UniqueViolationError) or "unique" in str(exc.orig).lower()
 
 
 async def _ensure_admin_role_can_change(
@@ -81,7 +77,7 @@ async def create_user(
         await session.commit()
     except IntegrityError as e:
         await session.rollback()
-        if isinstance(e.orig, UniqueViolationError) or "unique" in str(e.orig).lower():
+        if is_unique_violation(e):
             raise HTTPException(status_code=409, detail="Email is already registered") from e
         raise
     await session.refresh(user)
@@ -137,7 +133,7 @@ async def update_user(
         await session.commit()
     except IntegrityError as e:
         await session.rollback()
-        if _is_unique_violation(e):
+        if is_unique_violation(e):
             raise HTTPException(status_code=409, detail="Email is already registered") from e
         raise
     await session.refresh(target)

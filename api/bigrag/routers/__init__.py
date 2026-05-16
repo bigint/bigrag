@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import sqlalchemy as sa
+from asyncpg.exceptions import UniqueViolationError
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import Collection
@@ -12,6 +14,7 @@ __all__ = [
     "get_collection_or_404",
     "get_embedding_model_for",
     "get_reranking_config",
+    "is_unique_violation",
     "validate_collection_name",
 ]
 
@@ -26,3 +29,7 @@ async def validate_collection_name(session: AsyncSession, collection: str | None
     if exists is None:
         raise HTTPException(status_code=400, detail=f"Collection {name!r} does not exist")
     return name
+
+
+def is_unique_violation(exc: IntegrityError) -> bool:
+    return isinstance(exc.orig, UniqueViolationError) or "unique" in str(exc.orig).lower()

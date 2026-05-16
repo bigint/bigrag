@@ -3,7 +3,6 @@ from __future__ import annotations
 import uuid
 
 import sqlalchemy as sa
-from asyncpg.exceptions import UniqueViolationError
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +18,7 @@ from bigrag.models.embedding_preset import (
     EmbeddingPresetResponse,
     UpdateEmbeddingPresetRequest,
 )
+from bigrag.routers import is_unique_violation
 from bigrag.services import audit, collection_cache
 from bigrag.services.credential_check import (
     CredentialCheckError,
@@ -43,10 +43,6 @@ def _preset_response(preset: EmbeddingPreset) -> EmbeddingPresetResponse:
         created_at=preset.created_at,
         updated_at=preset.updated_at,
     )
-
-
-def _is_unique_violation(exc: IntegrityError) -> bool:
-    return isinstance(exc.orig, UniqueViolationError) or "unique" in str(exc.orig).lower()
 
 
 @router.get("", response_model=EmbeddingPresetListResponse)
@@ -102,7 +98,7 @@ async def create_preset(
         await session.commit()
     except IntegrityError as e:
         await session.rollback()
-        if _is_unique_violation(e):
+        if is_unique_violation(e):
             raise HTTPException(
                 status_code=409, detail="A preset with that name already exists"
             ) from e
@@ -160,7 +156,7 @@ async def update_preset(
         await session.commit()
     except IntegrityError as e:
         await session.rollback()
-        if _is_unique_violation(e):
+        if is_unique_violation(e):
             raise HTTPException(
                 status_code=409, detail="A preset with that name already exists"
             ) from e
