@@ -519,8 +519,14 @@ async def upload_session_file(
         else:
             doc = existing_doc
     except Exception as exc:
+        logger.exception(
+            "upload_session.persist_failed",
+            collection=collection_name,
+            session_id=str(upload_session.id),
+            filename=filename,
+        )
         item.status = "failed"
-        item.error_message = f"upload failed: {exc.__class__.__name__}: {exc}"
+        item.error_message = f"upload failed: {exc}"
         await db.commit()
         await db.refresh(item)
         response = await upload_session_response(db, upload_session, persist_counts=True)

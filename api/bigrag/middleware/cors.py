@@ -6,7 +6,10 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
+from bigrag.logging import get_logger
 from bigrag.services import runtime_settings
+
+logger = get_logger("bigrag.middleware.cors")
 
 
 class RuntimeCorsMiddleware(BaseHTTPMiddleware):
@@ -43,7 +46,8 @@ class RuntimeCorsMiddleware(BaseHTTPMiddleware):
 async def _allowed_origin(origin: str, request: Request) -> tuple[bool, bool]:
     try:
         cors_origins = await runtime_settings.get_value("cors_origins")
-    except Exception:
+    except Exception as exc:
+        logger.warning("cors: runtime_settings lookup failed; using static", error=str(exc))
         cors_origins = request.app.state.settings.cors_origins
     if "*" in cors_origins:
         return True, True

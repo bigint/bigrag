@@ -41,7 +41,7 @@ def _decode_vector(blob: bytes, dimension: int) -> list[float] | None:
     try:
         return _unpack(crypto.decrypt_bytes(blob), dimension)
     except Exception as exc:
-        logger.debug("embedding_cache: decrypt failed", error=str(exc))
+        logger.warning("embedding_cache: decrypt failed", error=str(exc))
         return None
 
 
@@ -49,7 +49,7 @@ async def _cache_enabled() -> bool:
     try:
         values = await get_values(["embedding_cache_mode"])
     except Exception as exc:
-        logger.debug("embedding_cache: mode lookup failed", error=str(exc))
+        logger.warning("embedding_cache: mode lookup failed", error=str(exc))
         return False
     if values["embedding_cache_mode"] == "disabled":
         return False
@@ -82,7 +82,7 @@ async def get_many(
                 )
             ).all()
     except Exception as exc:
-        logger.debug("embedding_cache: lookup failed", error=str(exc))
+        logger.warning("embedding_cache: lookup failed", error=str(exc))
         return {}
 
     by_hash = {r.content_hash: r.vector for r in rows}
@@ -107,7 +107,7 @@ async def get_many(
                 )
                 await session.commit()
         except Exception as exc:
-            logger.debug("embedding_cache: last_hit_at update failed", error=str(exc))
+            logger.warning("embedding_cache: last_hit_at update failed", error=str(exc))
     return out
 
 
@@ -147,33 +147,25 @@ async def put_many(
             await session.execute(stmt)
             await session.commit()
     except Exception as exc:
-        logger.debug("embedding_cache: insert failed", error=str(exc))
+        logger.warning("embedding_cache: insert failed", error=str(exc))
 
 
 async def purge_all() -> int:
-    try:
-        async with session_factory()() as session:
-            result = await session.execute(sa.delete(EmbeddingCache))
-            await session.commit()
-            return int(result.rowcount or 0)
-    except Exception as exc:
-        logger.debug("embedding_cache: purge failed", error=str(exc))
-        return 0
+    async with session_factory()() as session:
+        result = await session.execute(sa.delete(EmbeddingCache))
+        await session.commit()
+        return int(result.rowcount or 0)
 
 
 async def purge_stale(retention_days: int) -> int:
     if retention_days <= 0:
         return await purge_all()
-    try:
-        async with session_factory()() as session:
-            cutoff = sa.func.now() - sa.text("make_interval(days => :days)").bindparams(
-                days=retention_days
-            )
-            result = await session.execute(
-                sa.delete(EmbeddingCache).where(EmbeddingCache.last_hit_at < cutoff)
-            )
-            await session.commit()
-            return int(result.rowcount or 0)
-    except Exception as exc:
-        logger.debug("embedding_cache: stale purge failed", error=str(exc))
-        return 0
+    async with session_factory()() as session:
+        cutoff = sa.func.now() - sa.text("make_interval(days => :days)").bindparams(
+            days=retention_days
+        )
+        result = await session.execute(
+            sa.delete(EmbeddingCache).where(EmbeddingCache.last_hit_at < cutoff)
+        )
+        await session.commit()
+        return int(result.rowcount or 0)

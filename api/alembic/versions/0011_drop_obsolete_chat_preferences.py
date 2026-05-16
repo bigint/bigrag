@@ -18,11 +18,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.execute(
-        "UPDATE user_preferences "
-        "SET data = data - ('play' || 'ground') "
-        "WHERE data ? ('play' || 'ground')"
-    )
+    op.execute("UPDATE user_preferences SET data = data - 'playground' WHERE data ? 'playground'")
 
 
 def downgrade() -> None:

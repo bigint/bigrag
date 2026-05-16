@@ -61,7 +61,12 @@ async def _enforce_login_rate_limit(request: Request, email: str) -> None:
             current = await redis.incr(bucket)
             if current == 1:
                 await redis.expire(bucket, LOGIN_RATE_WINDOW_SECONDS)
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "login rate limit unavailable; failing open",
+                scope=scope,
+                error=str(exc),
+            )
             return
         if current > LOGIN_RATE_LIMIT:
             raise HTTPException(

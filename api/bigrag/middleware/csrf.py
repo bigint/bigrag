@@ -6,7 +6,10 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
+from bigrag.logging import get_logger
 from bigrag.services import runtime_settings
+
+logger = get_logger("bigrag.middleware.csrf")
 
 MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
@@ -34,7 +37,8 @@ async def _cors_origins(request: Request) -> list[str]:
     try:
         value = await runtime_settings.get_value("cors_origins")
         return value if isinstance(value, list) else []
-    except Exception:
+    except Exception as exc:
+        logger.warning("csrf: runtime_settings lookup failed; using static", error=str(exc))
         return request.app.state.settings.cors_origins
 
 

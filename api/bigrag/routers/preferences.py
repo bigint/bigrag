@@ -117,7 +117,14 @@ def _decrypt_sensitive(data: dict) -> dict:
         try:
             decrypted = crypto.decrypt(value)
         except ValueError:
-            logger.warning("preferences: failed to decrypt sensitive value at %s.%s", parent, key)
+            logger.warning(
+                "preferences: failed to decrypt sensitive value at %s.%s; dropping",
+                parent,
+                key,
+            )
+            cleaned = {**sub}
+            cleaned.pop(key, None)
+            out[parent] = cleaned
             continue
         out[parent] = {**sub, key: decrypted}
     return out

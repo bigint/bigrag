@@ -55,11 +55,6 @@ async def update_instance_settings(
         raise HTTPException(status_code=400, detail=f"Unknown setting: {exc.args[0]}") from exc
     except (RuntimeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Settings update failed: {exc.__class__.__name__}: {exc}",
-        ) from exc
     finally:
         if prepared is not None:
             await prepared.close()
