@@ -93,12 +93,18 @@ async def _session_rows(
     db: AsyncSession,
     upload_session_id: uuid.UUID,
 ) -> list[tuple[UploadSessionItem, str | None, str | None]]:
+    item_rank = sa.case(
+        (Document.status.in_(("pending", "processing")), 0),
+        (Document.status == "failed", 1),
+        (UploadSessionItem.status.in_(("failed", "canceled")), 1),
+        else_=2,
+    )
     rows = (
         await db.execute(
             sa.select(UploadSessionItem, Document.status, Document.error_message)
             .outerjoin(Document, Document.id == UploadSessionItem.document_id)
             .where(UploadSessionItem.session_id == upload_session_id)
-            .order_by(UploadSessionItem.updated_at.desc())
+            .order_by(item_rank, UploadSessionItem.updated_at.desc())
         )
     ).all()
     return [(item, status, error) for item, status, error in rows]

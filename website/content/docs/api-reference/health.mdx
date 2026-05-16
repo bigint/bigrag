@@ -108,7 +108,7 @@ Platform-wide statistics including collections, documents, and queue status.
 }
 ```
 
-`status` summarizes the queue and worker state. `ok` means no queue risk was detected, `degraded` means the worker or queue needs attention but is not blocked, and `down` means queued or processing work exists while the worker heartbeat is offline. `queue_health.reasons` can include `worker_offline`, `worker_offline_with_active_queue`, `dead_lettered_jobs`, `stale_processing_jobs`, and `retrying_jobs`.
+`status` summarizes the queue and worker state. `ok` means no queue risk was detected, `degraded` means the worker or queue needs attention but is not blocked, and `down` means queued or processing work exists while the worker heartbeat is offline. `queue_health.reasons` can include `worker_offline`, `worker_offline_with_active_queue`, `dead_lettered_jobs`, `stale_processing_jobs`, and `retrying_jobs`. When stats detect expired or unrefreshed processing leases, the worker marks those documents pending again and requeues them through the active ingestion queue instead of leaving them as permanently processing.
 
 Every HTTP response includes an `X-Request-ID` header. Send your own value to correlate client logs with API logs, or let bigRAG generate one.
 
