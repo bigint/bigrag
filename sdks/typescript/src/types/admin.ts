@@ -168,6 +168,7 @@ export interface CreateApiKeyResponse extends ApiKey {
 export interface UpdateApiKeyBody {
   name?: string;
   active?: boolean;
+  expires_at?: string | null;
   scopes?: string[] | null;
   collection?: string | null;
 }

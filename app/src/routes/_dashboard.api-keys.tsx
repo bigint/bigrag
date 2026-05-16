@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { PageShell } from "@/components/ui/page-shell";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Tooltip } from "@/components/ui/tooltip";
 import { bigragApiUrl } from "@/config/runtime";
 import {
@@ -265,6 +266,77 @@ const ApiKeysPage = () => {
               />
             )}
           </form.Field>
+          <form.Field name="accessLevel">
+            {(field) => (
+              <Select
+                label="Access level"
+                onChange={(value) =>
+                  field.handleChange(value as "full" | "read" | "write" | "custom")
+                }
+                options={[
+                  { value: "full", label: "Full access" },
+                  { value: "read", label: "Read/query only" },
+                  { value: "write", label: "Upload/write" },
+                  { value: "custom", label: "Custom scopes" },
+                ]}
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
+          <form.Subscribe selector={(state) => state.values.accessLevel}>
+            {(accessLevel) =>
+              accessLevel === "custom" ? (
+                <form.Field name="scopesText">
+                  {(field) => (
+                    <Textarea
+                      description="Use one scope per line or comma-separated, e.g. collection:read."
+                      error={errorText(field.state.meta.errors)}
+                      label="Scopes"
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      value={field.state.value}
+                    />
+                  )}
+                </form.Field>
+              ) : null
+            }
+          </form.Subscribe>
+          <form.Field name="expiresPreset">
+            {(field) => (
+              <Select
+                label="Expiration"
+                onChange={(value) =>
+                  field.handleChange(value as "never" | "7d" | "30d" | "90d" | "custom")
+                }
+                options={[
+                  { value: "never", label: "Never" },
+                  { value: "7d", label: "7 days" },
+                  { value: "30d", label: "30 days" },
+                  { value: "90d", label: "90 days" },
+                  { value: "custom", label: "Custom date" },
+                ]}
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
+          <form.Subscribe selector={(state) => state.values.expiresPreset}>
+            {(expiresPreset) =>
+              expiresPreset === "custom" ? (
+                <form.Field name="customExpiresAt">
+                  {(field) => (
+                    <Input
+                      error={errorText(field.state.meta.errors)}
+                      label="Expiration date"
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      type="datetime-local"
+                      value={field.state.value}
+                    />
+                  )}
+                </form.Field>
+              ) : null
+            }
+          </form.Subscribe>
           <p className="text-xs text-muted-foreground">
             Scoped keys can only use endpoints for the pinned collection. Cross-collection endpoints
             return 403.
@@ -289,7 +361,10 @@ const ApiKeysPage = () => {
             <div className="break-all rounded-md border border-border bg-muted p-3 font-mono text-xs">
               {newKey.key}
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <Button onClick={testNewKey} size="lg" variant="secondary" disabled={testingKey}>
+                {testingKey ? "Testing…" : "Test connection"}
+              </Button>
               <Button onClick={copy} size="lg">
                 {copied ? (
                   <>

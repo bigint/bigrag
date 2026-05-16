@@ -355,6 +355,13 @@ export class AdminApiKeysResource {
     });
   }
 
+  rotate(keyId: string): Promise<CreateApiKeyResponse> {
+    return this._client._request(
+      "POST",
+      `/v1/admin/api-keys/${encodeURIComponent(keyId)}/rotate`,
+    );
+  }
+
   delete(keyId: string): Promise<StatusResponse> {
     return this._client._request("DELETE", `/v1/admin/api-keys/${encodeURIComponent(keyId)}`);
   }
