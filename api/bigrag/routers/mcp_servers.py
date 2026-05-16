@@ -8,11 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import ApiKey, Collection
+from bigrag.db.models import ApiKey
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_api_key_principal, require_admin_session
 from bigrag.models.common import StatusResponse
+from bigrag.routers import validate_collection_name
 from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
 
@@ -101,18 +102,6 @@ def _permissions(title: str, server_name: str, collection: str | None) -> dict:
     return permissions
 
 
-async def _validate_collection(session: AsyncSession, collection: str | None) -> str | None:
-    if collection is None:
-        return None
-    name = collection.strip()
-    if not name:
-        return None
-    exists = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
-    if exists is None:
-        raise HTTPException(status_code=400, detail=f"Collection {name!r} does not exist")
-    return name
-
-
 async def _server_name_conflict(
     session: AsyncSession,
     user_id: uuid.UUID,
@@ -170,7 +159,7 @@ async def create_mcp_server(
             status_code=409,
             detail=f"An MCP server named {body.server_name!r} already exists.",
         )
-    collection = await _validate_collection(session, body.collection)
+    collection = await validate_collection_name(session, body.collection)
     plaintext, prefix, key_hash = generate_api_key()
     key = ApiKey(
         id=uuid.uuid4(),
@@ -249,7 +238,7 @@ async def update_mcp_server(
         fields.append("server_name")
 
     if body.collection is not None:
-        collection = await _validate_collection(session, body.collection)
+        collection = await validate_collection_name(session, body.collection)
         if collection:
             permissions["collection"] = collection
         else:

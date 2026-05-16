@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import ApiKey, Collection
+from bigrag.db.models import ApiKey
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_api_key_principal, require_admin_session
@@ -18,6 +18,7 @@ from bigrag.models.auth import (
     UpdateApiKeyRequest,
 )
 from bigrag.models.common import StatusResponse
+from bigrag.routers import validate_collection_name
 from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
 
@@ -60,19 +61,6 @@ def _is_mcp_key(key: ApiKey) -> bool:
     return isinstance(permissions, dict) and isinstance(permissions.get("mcp"), dict)
 
 
-async def _validate_collection(session: AsyncSession, collection: str | None) -> str | None:
-
-    if collection is None:
-        return None
-    name = collection.strip()
-    if not name:
-        return None
-    exists = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
-    if exists is None:
-        raise HTTPException(status_code=400, detail=f"Collection {name!r} does not exist")
-    return name
-
-
 @router.get("", response_model=ApiKeyListResponse)
 async def list_api_keys(
     limit: int = Query(default=50, ge=1, le=200),
@@ -102,7 +90,7 @@ async def create_api_key(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    collection = await _validate_collection(session, body.collection)
+    collection = await validate_collection_name(session, body.collection)
     permissions: dict = {}
     if body.scopes:
         permissions["scopes"] = body.scopes
@@ -176,7 +164,7 @@ async def update_api_key(
             existing.pop("scopes", None)
         fields.append("scopes")
     if body.collection is not None:
-        collection = await _validate_collection(session, body.collection)
+        collection = await validate_collection_name(session, body.collection)
         if collection:
             existing["collection"] = collection
         else:
