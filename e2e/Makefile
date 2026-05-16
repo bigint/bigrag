@@ -46,5 +46,12 @@ test: test-api test-sdk-py test-sdk-ts test-ui
 
 e2e:
 	$(MAKE) up
-	$(MAKE) test
+	@if ! $(MAKE) test; then \
+		echo "=== bigrag-api logs ==="; \
+		$(COMPOSE) logs --tail=200 bigrag-api || true; \
+		echo "=== bigrag-worker logs ==="; \
+		$(COMPOSE) logs --tail=400 bigrag-worker || true; \
+		$(MAKE) down; \
+		exit 1; \
+	fi
 	$(MAKE) down

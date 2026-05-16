@@ -551,13 +551,20 @@ async def document(
             r.raise_for_status()
             return r.json()
 
-        return await poll_until(
+        doc = await poll_until(
             _fetch,
             predicate=lambda d: d.get("status") in terminal,
             timeout=timeout,
             interval=0.5,
             description=f"document {doc_id} terminal status",
         )
+        if doc.get("status") == "failed" and "failed" not in (terminal_statuses or set()):
+            err = doc.get("error") or doc.get("error_message") or doc.get("status_message")
+            if err:
+                raise AssertionError(
+                    f"document {doc_id} ({upload_name}) ingestion failed: {err}"
+                )
+        return doc
 
     yield _upload
 
