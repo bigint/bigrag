@@ -253,6 +253,14 @@ class _OriginAwareClient(httpx.AsyncClient):
             kwargs["headers"] = headers
         return await super().request(method, url, **kwargs)
 
+    def stream(self, method: str, url: Any, **kwargs: Any):
+        # httpx.stream() bypasses request(), so inject Origin here too.
+        if method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+            headers = dict(kwargs.get("headers") or {})
+            headers.setdefault("Origin", self._origin)
+            kwargs["headers"] = headers
+        return super().stream(method, url, **kwargs)
+
 
 _ADMIN_COOKIE_CACHE: dict[str, str] = {}
 

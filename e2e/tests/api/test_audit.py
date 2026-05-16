@@ -15,7 +15,8 @@ async def _whoami_id(admin_client: httpx.AsyncClient) -> str:
     resp = await admin_client.get("/v1/auth/whoami")
     assert_envelope(resp, 200)
     body = resp.json()
-    return body.get("user", body).get("id")
+    # /v1/auth/whoami returns user_id at the top level (no nested "user").
+    return body.get("user_id") or body.get("user", body).get("id")
 
 
 async def test_audit_requires_admin(unauth_client: httpx.AsyncClient) -> None:

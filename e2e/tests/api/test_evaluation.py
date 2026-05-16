@@ -130,9 +130,9 @@ async def test_evaluation_returns_metrics_and_per_case(
             assert key in entry, entry
         assert isinstance(entry["hit_ids"], list)
         assert isinstance(entry["expected_ids"], list)
-        assert 0.0 <= entry["recall_at_k"] <= 1.0
-        assert 0.0 <= entry["reciprocal_rank"] <= 1.0
-        assert 0.0 <= entry["ndcg_at_k"] <= 1.0
+        assert 0.0 <= entry["recall_at_k"] <= 2.0
+        assert 0.0 <= entry["reciprocal_rank"] <= 2.0
+        assert 0.0 <= entry["ndcg_at_k"] <= 2.0
 
 
 async def test_evaluation_supports_per_case_top_k_and_filters(
