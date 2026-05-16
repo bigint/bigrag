@@ -61,9 +61,11 @@ document:upload          # POST /v1/collections/{name}/documents, batch upload, 
 document:read            # GET documents, chunks, download file, batch get/status, /v1/documents/{id}
 document:delete          # DELETE documents, batch delete
 query:read               # POST /query, /batch/query, /collections/{name}/query
+chat:read                # GET /v1/chat/question-suggestions
+chat:write               # POST /v1/chat, POST /v1/chat/question-suggestions
 vector:write             # POST /v1/collections/{name}/vectors/upsert
 vector:delete            # POST /v1/collections/{name}/vectors/delete
-webhook:*                # (session-only anyway, but included for completeness)
+audit:read               # GET /v1/usage
 *:*                      # equivalent to no scopes
 ```
 
