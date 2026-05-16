@@ -344,7 +344,7 @@ async def sync_downloaded_file(
             await vector_store.delete_by_document(
                 source.collection_name,
                 str(doc.id),
-                provider=getattr(collection, "vector_store_provider", "qdrant"),
+                provider=collection.vector_store_provider,
             )
             old_path = doc.file_path
             storage_key = f"{source.collection_name}/{doc.id}{downloaded.file_ext}"
@@ -392,7 +392,7 @@ def collection_dict_for_sync(collection: Collection) -> dict[str, Any]:
         "chunk_size": collection.chunk_size,
         "chunk_overlap": collection.chunk_overlap,
         "chunk_strategy": collection.chunk_strategy or "paragraph",
-        "vector_store_provider": getattr(collection, "vector_store_provider", "qdrant"),
+        "vector_store_provider": collection.vector_store_provider,
         "tenant_field": collection.tenant_field,
         "metadata_schema": collection.metadata_schema,
     }
@@ -462,7 +462,7 @@ async def delete_synced_document(
         await vector_store.delete_by_document(
             source.collection_name,
             str(doc.id),
-            provider=getattr(collection, "vector_store_provider", "qdrant"),
+            provider=collection.vector_store_provider,
         )
         await get_storage().delete(doc.file_path)
         await session.delete(doc)

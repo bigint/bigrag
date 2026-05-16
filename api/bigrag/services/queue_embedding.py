@@ -167,7 +167,7 @@ async def chunk_and_embed(
         job.collection_name,
         job.embedding_dimension,
         tenant_field=getattr(job, "tenant_field", None),
-        provider=getattr(job, "vector_store_provider", "qdrant"),
+        provider=job.vector_store_provider,
     )
     await ensure_job_current(job)
 
@@ -233,7 +233,7 @@ async def chunk_and_embed(
                     texts=batch_texts,
                     embeddings=embeddings,
                     metadata=metadata,
-                    provider=getattr(job, "vector_store_provider", "qdrant"),
+                    provider=job.vector_store_provider,
                 )
                 try:
                     await ensure_job_current(job)
@@ -241,7 +241,7 @@ async def chunk_and_embed(
                     await vector_store.delete_by_document(
                         job.collection_name,
                         doc,
-                        provider=getattr(job, "vector_store_provider", "qdrant"),
+                        provider=job.vector_store_provider,
                     )
                     raise
                 insert_elapsed = time.monotonic() - t1
@@ -253,7 +253,7 @@ async def chunk_and_embed(
                     await vector_store.delete_by_ids(
                         job.collection_name,
                         [f"{doc}_{i}" for i in range(batch_start, batch_end)],
-                        provider=getattr(job, "vector_store_provider", "qdrant"),
+                        provider=job.vector_store_provider,
                     )
                 except Exception as cleanup_exc:
                     logger.warning(

@@ -141,7 +141,7 @@ def _collection_response(c: Collection) -> CollectionResponse:
         description=c.description,
         embedding_provider=c.embedding_provider,
         embedding_model=c.embedding_model,
-        vector_store_provider=getattr(c, "vector_store_provider", "qdrant"),
+        vector_store_provider=c.vector_store_provider,
         dimension=c.dimension,
         chunk_size=c.chunk_size,
         chunk_overlap=c.chunk_overlap,
@@ -390,7 +390,7 @@ async def reembed_collection(
         "chunk_size": collection.chunk_size,
         "chunk_overlap": collection.chunk_overlap,
         "chunk_strategy": collection.chunk_strategy or "paragraph",
-        "vector_store_provider": getattr(collection, "vector_store_provider", "qdrant"),
+        "vector_store_provider": collection.vector_store_provider,
         "tenant_field": collection.tenant_field,
     }
     jobs = [
@@ -583,7 +583,7 @@ async def delete_collection(
 
     await vector_store.delete_collection(
         name,
-        provider=getattr(collection, "vector_store_provider", "qdrant"),
+        provider=collection.vector_store_provider,
     )
     logger.info("delete collection vectors dropped", collection=name)
 
@@ -700,7 +700,7 @@ async def truncate_collection(
 
     await vector_store.delete_collection(
         name,
-        provider=getattr(collection, "vector_store_provider", "qdrant"),
+        provider=collection.vector_store_provider,
     )
     logger.info("truncate collection vectors cleared", collection=name)
 
