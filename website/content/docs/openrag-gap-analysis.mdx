@@ -34,7 +34,7 @@ OpenRAG and bigRAG share the same foundation — both use **FastAPI**, **Docling
 
 ## 1. Web UI & User Experience
 
-OpenRAG ships a full **Next.js frontend** with chat interface, knowledge management, settings, onboarding wizard, and an embedded Langflow visual editor. bigRAG now ships an **admin UI** for setup, collections, documents, persistent chat, embedding presets, MCP servers, API keys, webhooks, settings, audit, usage, and retrieval evals. The remaining UI gap is less about administration and more about workflow editing and connector management.
+OpenRAG ships a full **Next.js frontend** with chat interface, knowledge management, settings, onboarding wizard, and an embedded Langflow visual editor. bigRAG now ships an **admin UI** for setup, collections, documents, stateless chat, embedding presets, MCP servers, API keys, webhooks, settings, audit, usage, and retrieval evals. The remaining UI gap is less about administration and more about workflow editing and connector management.
 
 ### 1.1 Chat Interface
 
@@ -185,7 +185,7 @@ OpenRAG maintains persistent conversation history:
 
 OpenRAG auto-generates suggested prompts from knowledge base content via a dedicated "Nudges" Langflow flow. These appear in the chat UI as conversation starters based on themes in the ingested documents.
 
-**bigRAG status:** Partially resolved — the admin chat UI can now use the saved chat/OpenAI key to generate five random starter questions from the selected collection's ready documents and sampled chunks. The generated set is persisted in the instance database and can be refreshed for another batch. It is still a lightweight collection-aware prompt generator rather than a dedicated LLM nudge workflow.
+**bigRAG status:** Partially resolved — the admin chat UI can now use the saved chat/OpenAI key to generate five random starter questions from the selected collection's ready documents and sampled chunks. The generated set is returned to the current UI cache and is not persisted. It is still a lightweight collection-aware prompt generator rather than a dedicated LLM nudge workflow.
 
 ### 2.5 Streaming LLM Responses
 

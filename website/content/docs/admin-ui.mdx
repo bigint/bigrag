@@ -92,13 +92,13 @@ After a large local upload starts, the collection documents page opens `GET /v1/
 
 The Google Drive connector page opens `GET /v1/admin/realtime/google/sync-jobs?collection={name}` beside the source stream. The sync monitor shows Drive scanning, download/update progress, remote deletion cleanup, and queued-for-ingestion completion; document conversion and indexing continue through the normal document progress surfaces.
 
-Upload progress restoration, the current Drive browser selection, and chat turns are browser-local admin UI state. Upload session IDs are persisted in local storage so a collection's upload panel can reconnect after navigation; stale upload-session IDs are cleared when the API returns `404`. Chat sessions persist in browser storage only and are not part of the REST API.
+Upload progress restoration and the current Drive browser selection are browser-local admin UI state. Upload session IDs are persisted in local storage so a collection's upload panel can reconnect after navigation; stale upload-session IDs are cleared when the API returns `404`. Chat turns are in-memory only and are not persisted in browser storage or the REST API.
 
 REST document status endpoints remain available for API clients and SDKs that prefer polling. `GET /v1/collections/{name}/events` remains available for collection-wide ingestion events outside the admin UI.
 
 ## Chat specifics
 
-The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, and citations happen on the backend, but chat messages and conversations are persisted only in the browser. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
+The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, and citations happen on the backend, but chat messages and conversations are not persisted anywhere. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
 
 The empty chat screen no longer shows generic default prompts. After a collection is selected, operators can generate five random starter questions using the saved chat/OpenAI key. The backend samples that collection's ready documents and chunks, returns the generated set for the current browser session, and does not persist the generated questions.
 

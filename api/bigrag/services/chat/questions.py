@@ -5,12 +5,11 @@ import random
 import re
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import Document, UserPreference
+from bigrag.db.models import Document
 from bigrag.exceptions import UpstreamError, ValidationError
 from bigrag.models.chat import ChatQuestionSuggestionsRequest, ChatQuestionSuggestionsResponse
 from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
@@ -35,19 +34,11 @@ async def get_question_suggestions(
 ) -> ChatQuestionSuggestionsResponse:
     collection_name = collection_name.strip()
     await _assert_collection_allowed(user, collection_name)
-    saved = await _load_saved_questions(session, user, collection_name)
-    if saved is None:
-        return ChatQuestionSuggestionsResponse(
-            collection=collection_name,
-            questions=[],
-            generated_at=None,
-            model=None,
-        )
     return ChatQuestionSuggestionsResponse(
         collection=collection_name,
-        questions=saved["questions"],
-        generated_at=saved["generated_at"],
-        model=saved["model"],
+        questions=[],
+        generated_at=None,
+        model=None,
     )
 
 
@@ -80,83 +71,12 @@ async def generate_question_suggestions(
     )
     questions = _parse_questions(text)
     generated_at = datetime.now(UTC)
-    await _save_questions(session, user, collection_name, questions, generated_at, model)
     return ChatQuestionSuggestionsResponse(
         collection=collection_name,
         questions=questions,
         generated_at=generated_at,
         model=model,
     )
-
-
-async def _load_saved_questions(
-    session: AsyncSession,
-    user: dict,
-    collection_name: str,
-) -> dict | None:
-    data = await session.scalar(
-        sa.select(UserPreference.data).where(UserPreference.user_id == UUID(user["id"]))
-    )
-    if not isinstance(data, dict):
-        return None
-    chat = data.get("chat")
-    if not isinstance(chat, dict):
-        return None
-    store = chat.get("question_suggestions")
-    if not isinstance(store, dict):
-        return None
-    entry = store.get(collection_name)
-    if not isinstance(entry, dict):
-        return None
-    questions = entry.get("questions")
-    if not isinstance(questions, list) or not all(isinstance(q, str) for q in questions):
-        return None
-    generated_at_raw = entry.get("generated_at")
-    generated_at: datetime | None = None
-    if isinstance(generated_at_raw, str):
-        try:
-            generated_at = datetime.fromisoformat(generated_at_raw)
-        except ValueError:
-            generated_at = None
-    model = entry.get("model") if isinstance(entry.get("model"), str) else None
-    return {"questions": questions, "generated_at": generated_at, "model": model}
-
-
-async def _save_questions(
-    session: AsyncSession,
-    user: dict,
-    collection_name: str,
-    questions: list[str],
-    generated_at: datetime,
-    model: str,
-) -> None:
-    user_id = UUID(user["id"])
-    existing = await session.scalar(
-        sa.select(UserPreference.data).where(UserPreference.user_id == user_id)
-    )
-    data = dict(existing) if isinstance(existing, dict) else {}
-    chat = dict(data.get("chat")) if isinstance(data.get("chat"), dict) else {}
-    store = (
-        dict(chat.get("question_suggestions"))
-        if isinstance(chat.get("question_suggestions"), dict)
-        else {}
-    )
-    store[collection_name] = {
-        "questions": list(questions),
-        "generated_at": generated_at.isoformat(),
-        "model": model,
-    }
-    chat["question_suggestions"] = store
-    data["chat"] = chat
-    if existing is None:
-        session.add(UserPreference(user_id=user_id, data=data))
-    else:
-        await session.execute(
-            sa.update(UserPreference)
-            .where(UserPreference.user_id == user_id)
-            .values(data=data, updated_at=sa.func.now())
-        )
-    await session.commit()
 
 
 async def _assert_collection_allowed(user: dict, collection_name: str) -> dict:

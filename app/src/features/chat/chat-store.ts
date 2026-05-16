@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
 import type { ChatMessage } from "@/features/chat/chat-messages";
 
 export type ChatStoreState = {
@@ -22,52 +21,44 @@ const initialState = {
   messages: [],
 } satisfies Pick<ChatStoreState, "collection" | "isStreaming" | "messages">;
 
-export const useChatStore = create<ChatStoreState>()(
-  persist(
-    (set) => ({
-      ...initialState,
-      appendMessages: (messages) =>
-        set((state) => ({
-          messages: [...state.messages, ...messages],
-        })),
-      clearMessages: () =>
-        set({
-          isStreaming: false,
-          messages: [],
-        }),
-      selectCollection: (collection) =>
-        set((state) => ({
-          collection,
-          messages: state.collection === collection ? state.messages : [],
-          isStreaming: false,
-        })),
-      selectFirstCollection: (collections) =>
-        set((state) => {
-          const first = collections[0];
-          if (state.collection || !first) return state;
-          return { collection: first.name };
-        }),
-      setMessages: (messages) => set({ messages }),
-      setStreaming: (isStreaming) => set({ isStreaming }),
-      startNewChat: () =>
-        set({
-          isStreaming: false,
-          messages: [],
-        }),
-      updateMessage: (id, update) =>
-        set((state) => ({
-          messages: state.messages.map((message) =>
-            message.id === id ? update(message) : message,
-          ),
-        })),
+if (typeof window !== "undefined") {
+  try {
+    window.localStorage.removeItem("bigrag-chat");
+  } catch {}
+}
+
+export const useChatStore = create<ChatStoreState>()((set) => ({
+  ...initialState,
+  appendMessages: (messages) =>
+    set((state) => ({
+      messages: [...state.messages, ...messages],
+    })),
+  clearMessages: () =>
+    set({
+      isStreaming: false,
+      messages: [],
     }),
-    {
-      name: "bigrag-chat",
-      partialize: (state) => ({
-        collection: state.collection,
-        messages: state.messages,
-      }),
-      storage: createJSONStorage(() => localStorage),
-    },
-  ),
-);
+  selectCollection: (collection) =>
+    set((state) => ({
+      collection,
+      messages: state.collection === collection ? state.messages : [],
+      isStreaming: false,
+    })),
+  selectFirstCollection: (collections) =>
+    set((state) => {
+      const first = collections[0];
+      if (state.collection || !first) return state;
+      return { collection: first.name };
+    }),
+  setMessages: (messages) => set({ messages }),
+  setStreaming: (isStreaming) => set({ isStreaming }),
+  startNewChat: () =>
+    set({
+      isStreaming: false,
+      messages: [],
+    }),
+  updateMessage: (id, update) =>
+    set((state) => ({
+      messages: state.messages.map((message) => (message.id === id ? update(message) : message)),
+    })),
+}));
