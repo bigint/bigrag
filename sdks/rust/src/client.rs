@@ -477,8 +477,8 @@ impl CollectionClient<'_> {
 
     /// Create a chat turn against this collection.
     pub async fn chat(&self, mut body: ChatBody) -> Result<ChatCreateResponse, BigRagError> {
-        if body.collection.is_none() {
-            body.collection = Some(self.name.clone());
+        if body.collection.is_empty() {
+            body.collection = self.name.clone();
         }
         self.client.chat().create(body).await
     }

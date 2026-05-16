@@ -184,19 +184,17 @@ async fn exercises_public_sdk_methods() {
     let _ = chat
         .create(ChatBody {
             message: "hello".into(),
+            collection: "docs".into(),
             ..Default::default()
         })
         .await;
     let _ = chat
         .stream(ChatBody {
             message: "hello".into(),
+            collection: "docs".into(),
             ..Default::default()
         })
         .await;
-    let _ = chat.list(Some(20), Some(1)).await;
-    let _ = chat.get("conversation/id").await;
-    let _ = chat.update_title("conversation/id", "New title").await;
-    let _ = chat.delete("conversation/id").await;
 
     let vectors = client.vectors();
     let _ = vectors

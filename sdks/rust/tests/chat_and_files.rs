@@ -66,68 +66,11 @@ async fn chat_methods_send_expected_requests() {
                     "stream": false
                 }));
             then.status(200).json_body(json!({
-                "conversation": conversation(),
                 "message": message("user-message", "user", "hello"),
                 "assistant_message": message("assistant-message", "assistant", "hi"),
                 "sources": [],
                 "timings": null
             }));
-        })
-        .await;
-    let list = server
-        .mock_async(|when, then| {
-            when.method(GET)
-                .path("/v1/chat")
-                .query_param("limit", "20")
-                .query_param("offset", "1");
-            then.status(200).json_body(json!({
-                "conversations": [conversation()],
-                "total": 1
-            }));
-        })
-        .await;
-    let get = server
-        .mock_async(|when, then| {
-            when.method(GET).path("/v1/chat/conversation%2Fid");
-            then.status(200).json_body(json!({
-                "conversation": conversation(),
-                "messages": [
-                    message("user-message", "user", "hello"),
-                    message("assistant-message", "assistant", "hi")
-                ]
-            }));
-        })
-        .await;
-    let update = server
-        .mock_async(|when, then| {
-            when.method(PATCH)
-                .path("/v1/chat/conversation%2Fid")
-                .json_body(json!({"title": "Renamed"}));
-            then.status(200).json_body(json!({
-                "conversation": {
-                    "id": "conversation/id",
-                    "title": "Renamed",
-                    "collection": "docs",
-                    "model_provider": "openai",
-                    "model": "gpt-4.1-mini",
-                    "temperature": 0.2,
-                    "top_k": 5,
-                    "search_mode": "semantic",
-                    "min_score": null,
-                    "rerank": null,
-                    "message_count": 2,
-                    "created_at": "2026-05-09T00:00:00Z",
-                    "updated_at": "2026-05-09T00:00:01Z",
-                    "last_message_at": "2026-05-09T00:00:01Z"
-                },
-                "messages": []
-            }));
-        })
-        .await;
-    let delete = server
-        .mock_async(|when, then| {
-            when.method(DELETE).path("/v1/chat/conversation%2Fid");
-            then.status(200).json_body(json!({"status": "deleted"}));
         })
         .await;
     let client = client(&server);
@@ -136,29 +79,14 @@ async fn chat_methods_send_expected_requests() {
     let created = chat
         .create(ChatBody {
             message: "hello".into(),
-            collection: Some("docs".into()),
+            collection: "docs".into(),
             ..Default::default()
         })
         .await
         .unwrap();
-    let conversations = chat.list(Some(20), Some(1)).await.unwrap();
-    let detail = chat.get("conversation/id").await.unwrap();
-    let renamed = chat
-        .update_title("conversation/id", "Renamed")
-        .await
-        .unwrap();
-    let deleted = chat.delete("conversation/id").await.unwrap();
 
     assert_eq!(created.assistant_message.content, "hi");
-    assert_eq!(conversations.total, 1);
-    assert_eq!(detail.messages.len(), 2);
-    assert_eq!(renamed.conversation.title, "Renamed");
-    assert_eq!(deleted.status, "deleted");
     create.assert_calls_async(1).await;
-    list.assert_calls_async(1).await;
-    get.assert_calls_async(1).await;
-    update.assert_calls_async(1).await;
-    delete.assert_calls_async(1).await;
 }
 
 #[test]
