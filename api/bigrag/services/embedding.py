@@ -296,9 +296,13 @@ class VoyageEmbedding(EmbeddingModel):
             async with httpx.AsyncClient(timeout=60) as client:
                 response = await client.post(self._API_URL, json=payload, headers=headers)
         if response.status_code >= 400:
-            raise RuntimeError(
-                f"Voyage embed failed ({response.status_code}): {response.text[:500]}"
+            logger.warning(
+                "voyage embed http error",
+                status=response.status_code,
+                body_preview=response.text[:500],
+                model=self._model_name,
             )
+            raise RuntimeError(f"Voyage embed failed ({response.status_code})")
         data = response.json()
         return [item["embedding"] for item in data["data"]]
 
