@@ -1,9 +1,11 @@
 ---
 title: Introduction
 description: bigRAG is an open-source, self-hostable RAG platform for document ingestion, vector search, and retrieval-augmented generation.
+full: true
 ---
 
 import { Cards, Card } from "fumadocs-ui/components/card";
+import { Mermaid } from "@/components/mermaid";
 
 bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provides a complete pipeline for document ingestion, chunking, embedding, and vector search — behind a REST API, TypeScript / Python / Rust SDKs, an admin UI, and an MCP server for Claude Desktop, Cursor, and any MCP-aware runtime.
 
@@ -23,85 +25,38 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 ## Architecture
 
 <Mermaid title="bigRAG platform architecture" chart='flowchart LR
-    subgraph Clients["Client surfaces"]
-      MCP["MCP clients<br/>Claude / Cursor"]
-      AdminUI["Admin UI<br/>Session cookie"]
-      SDKs["TypeScript / Python / Rust SDKs<br/>bigrag_sk API key"]
-    end
+    Clients["Client surfaces<br/>Admin UI / SDKs / MCP"] -->|"session cookies or API keys"| API["bigRAG API<br/>FastAPI"]
 
-    API["bigRAG API<br/>FastAPI"]
+    API --> Control["Control plane<br/>auth / collections / webhooks / audit"]
+    API --> Ingestion["Ingestion plane<br/>documents / connectors / jobs"]
+    API --> Retrieval["Retrieval plane<br/>query / search / chat"]
 
-    subgraph Core["API modules"]
-      Auth["Auth & audit"]
-      Collections["Collections"]
-      Documents["Documents"]
-      Query["Query"]
-      Chat["Chat"]
-      Webhooks["Webhooks"]
-    end
+    Control --> Postgres[("Postgres<br/>users, metadata, audit")]
+    Ingestion --> Files[("Source files<br/>local disk / Google Drive")]
+    Ingestion --> Redis[("Redis queue")]
+    Redis --> Worker["Ingestion worker"]
+    Worker --> Docling["Docling conversion"]
+    Docling --> Embeddings["Embedding providers"]
+    Embeddings --> Qdrant[("Qdrant vectors")]
 
-    subgraph Ingestion["Ingestion pipeline"]
-      Redis[("Redis queue")]
-      Worker["Ingestion worker"]
-      Docling["Docling parser"]
-      Embeddings["Embedding providers"]
-    end
+    Retrieval --> Embeddings
+    Retrieval --> Qdrant
+    Retrieval --> LLM["Chat provider"]
+    LLM --> Answer["Retrieved answer"]
 
-    subgraph Storage["Storage"]
-      Postgres[("Postgres")]
-      Files[("Local files")]
-      Drive["Google Drive"]
-      Qdrant[("Qdrant vectors")]
-    end
-
-    subgraph Generation["Retrieval and generation"]
-      Search["Vector / keyword / hybrid search"]
-      LLM["Chat provider"]
-    end
-
-    MCP -->|"bigrag-mcp"| API
-    AdminUI -->|"session"| API
-    SDKs -->|"API key"| API
-
-    API --> Auth
-    API --> Collections
-    API --> Documents
-    API --> Query
-    API --> Chat
-    API --> Webhooks
-
-    Auth --> Postgres
-    Collections --> Postgres
-    Documents --> Postgres
-    Webhooks --> Postgres
-
-    Documents -->|"store originals"| Files
-    Documents -->|"sync source files"| Drive
-    Documents -->|"enqueue jobs"| Redis
-    Redis --> Worker
-    Worker --> Docling
-    Worker --> Embeddings
-    Worker -->|"write chunks"| Qdrant
-
-    Query --> Embeddings
-    Query --> Search
-    Search --> Qdrant
-    Chat -->|"retrieve context"| Query
-    Chat -->|"generate answer"| LLM
-
-    classDef client fill:#fff,stroke:#d4d4d4,color:#111
+    classDef surface fill:#fff,stroke:#d4d4d4,color:#111
     classDef api fill:#111,stroke:#111,color:#fff
-    classDef core fill:#f8f8f8,stroke:#b8b8b8,color:#111
+    classDef plane fill:#f8f8f8,stroke:#b8b8b8,color:#111
     classDef pipeline fill:#fffdf5,stroke:#d6c98a,color:#111
     classDef store fill:#f5f9ff,stroke:#9fb7d9,color:#111
-    classDef generate fill:#f7fff8,stroke:#9cc9a4,color:#111
+    classDef output fill:#f7fff8,stroke:#9cc9a4,color:#111
 
-    class MCP,AdminUI,SDKs client
+    class Clients surface
     class API api
-    class Auth,Collections,Documents,Query,Chat,Webhooks core
-    class Redis,Worker,Docling,Embeddings pipeline
-    class Postgres,Files,Drive,Qdrant store
-    class Search,LLM generate' />
+    class Control,Ingestion,Retrieval plane
+    class Redis,Worker,Docling pipeline
+    class Postgres,Files,Embeddings,Qdrant,LLM store
+    class Answer output' />
 
 | Component | Purpose | Default Address |
 |-----------|---------|-----------------|
