@@ -167,7 +167,6 @@ The app uses modern web technologies:
 
 ### Quality
 - **Biome** - Fast formatter and linter
-- **Vitest** - Fast unit and integration testing
 
 ### File Naming Conventions
 

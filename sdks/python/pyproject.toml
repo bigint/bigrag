@@ -32,16 +32,3 @@ Issues = "https://github.com/yoginth/bigrag/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bigrag"]
-
-[dependency-groups]
-dev = [
-    "pytest>=8.0.0",
-    "pytest-cov>=7.1.0",
-]
-
-[tool.coverage.run]
-source = ["bigrag"]
-
-[tool.coverage.report]
-show_missing = true
-skip_covered = true

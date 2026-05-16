@@ -98,7 +98,7 @@ REST document status endpoints remain available for API clients and SDKs that pr
 
 The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, and citations happen on the backend, but chat messages and conversations are not persisted. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
 
-The empty chat screen no longer shows generic default prompts. After a collection is selected, operators can generate five random starter questions using the saved chat/OpenAI key. The backend samples that collection's ready documents and chunks, stores the generated set in the instance database, and refreshes the same persisted set when operators ask for another batch.
+The empty chat screen no longer shows generic default prompts. After a collection is selected, operators can generate five random starter questions using the saved chat/OpenAI key. The backend samples that collection's ready documents and chunks, returns the generated set for the current browser session, and does not persist the generated questions.
 
 ### Citations
 

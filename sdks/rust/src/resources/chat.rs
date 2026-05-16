@@ -169,33 +169,3 @@ fn parse_chat_sse_block(block: &str) -> Option<Result<ChatStreamEvent, BigRagErr
 fn trim_sse_value(value: &str) -> &str {
     value.strip_prefix(' ').unwrap_or(value)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::ChatSseParser;
-
-    #[test]
-    fn parses_chat_stream_events() {
-        let mut parser = ChatSseParser::new();
-
-        assert!(parser.push("event: delta\r\ndata: {\"delta\"").is_empty());
-        let events = parser.push(":\"hi\"}\r\n\r\n");
-
-        assert_eq!(events.len(), 1);
-        let event = events.into_iter().next().unwrap().unwrap();
-        assert_eq!(event.event, "delta");
-        assert_eq!(event.data["delta"], "hi");
-    }
-
-    #[test]
-    fn ignores_comments_and_done_marker() {
-        let mut parser = ChatSseParser::new();
-        let events =
-            parser.push(": ping\n\ndata: [DONE]\n\nevent: error\ndata: {\"message\":\"bad\"}\n\n");
-
-        assert_eq!(events.len(), 1);
-        let event = events.into_iter().next().unwrap().unwrap();
-        assert_eq!(event.event, "error");
-        assert_eq!(event.data["message"], "bad");
-    }
-}

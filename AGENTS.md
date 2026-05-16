@@ -36,7 +36,7 @@ Don't write comments or docstrings in code under `api/bigrag/`, `sdks/typescript
 
 - **Python**: `ruff` (config in `api/pyproject.toml`)
 - **TypeScript/JS**: `biome` (config in `biome.jsonc`)
-- **Rust**: `cargo fmt` and `cargo test`
+- **Rust**: `cargo fmt`
 
 **Always run lint + format before committing.** Either let the pre-commit hook run them, or invoke them manually — never commit unformatted code:
 
@@ -54,7 +54,6 @@ pnpm exec biome check --write .
 
 # Rust SDK
 cargo fmt --manifest-path sdks/rust/Cargo.toml
-cargo test --manifest-path sdks/rust/Cargo.toml
 ```
 
 ### Pre-commit hook
@@ -66,35 +65,13 @@ uv tool install pre-commit   # or: brew install pre-commit
 pre-commit install
 ```
 
-After that, every `git commit` runs the same formatters for API Python and TS/JS/CSS files that CI enforces. Run SDK build/test commands manually when touching `sdks/python/` or `sdks/rust/`. If a hook auto-fixes a file, the commit aborts — re-stage and commit again.
+After that, every `git commit` runs the same formatters for API Python and TS/JS/CSS files that CI enforces. Run package build/typecheck commands manually when touching SDKs. If a hook auto-fixes a file, the commit aborts — re-stage and commit again.
 
-## Testing and Coverage
+## Verification
 
-Every feature, helper, and utility change must include or update tests in the package it touches. Prefer focused unit tests for helpers and utilities, route/service tests for backend behavior, resource/request tests for SDK changes, and hook/component tests for admin UI changes. Bug fixes should add a regression test that fails without the fix.
+The old package-level unit/integration suites and coverage commands have been removed. Do not add package test runners or coverage requirements back to feature work unless the project reintroduces them deliberately.
 
-Maintain or improve package-level coverage when adding code. Run the relevant test and coverage command before handing off, and investigate coverage drops instead of accepting them silently:
-
-```bash
-# Backend API
-cd api && uv run pytest tests/ --cov --cov-report=term-missing
-
-# Python SDK
-cd sdks/python && uv run pytest --cov --cov-report=term-missing
-
-# TypeScript SDK
-pnpm --filter @bigrag/client test
-pnpm --filter @bigrag/client coverage
-
-# Admin UI
-pnpm --filter @bigrag/app test
-pnpm --filter @bigrag/app coverage
-
-# Rust SDK
-cargo test --manifest-path sdks/rust/Cargo.toml
-cargo llvm-cov --manifest-path sdks/rust/Cargo.toml --summary-only
-```
-
-If coverage tooling is unavailable, still run the package tests and call out the coverage gap in the handoff. Keep `website/content/docs/development/testing.mdx` in sync when test or coverage commands change, and do not commit generated coverage artifacts.
+Use lint, typecheck, build, compile, and runtime smoke checks for current verification. End-to-end coverage is planned as the next testing layer. Keep `website/content/docs/development/testing.mdx` in sync when verification guidance changes, and do not commit generated coverage artifacts.
 
 ## Architecture Notes
 

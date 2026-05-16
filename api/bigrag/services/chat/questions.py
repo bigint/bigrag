@@ -5,12 +5,11 @@ import random
 import re
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import Document, InstanceSetting
+from bigrag.db.models import Document
 from bigrag.exceptions import UpstreamError, ValidationError
 from bigrag.models.chat import ChatQuestionSuggestionsRequest, ChatQuestionSuggestionsResponse
 from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
@@ -22,7 +21,6 @@ from .provider import _openai_client, _provider_error, _should_try_next_credenti
 from .turn import _resolve_api_credentials, _resolve_base_url
 from .types import ProviderCredential
 
-_SETTING_KEY = "chat_question_suggestions"
 _QUESTION_COUNT = 5
 _DOCUMENT_LIMIT = 6
 _CHUNK_LIMIT = 4
@@ -36,13 +34,11 @@ async def get_question_suggestions(
 ) -> ChatQuestionSuggestionsResponse:
     collection_name = collection_name.strip()
     await _assert_collection_allowed(user, collection_name)
-    data = await _question_data(session)
-    item = _collection_item(data, collection_name)
     return ChatQuestionSuggestionsResponse(
         collection=collection_name,
-        questions=_clean_questions(item.get("questions", [])),
-        generated_at=_parse_generated_at(item.get("generated_at")),
-        model=item.get("model") if isinstance(item.get("model"), str) else None,
+        questions=[],
+        generated_at=None,
+        model=None,
     )
 
 
@@ -75,15 +71,6 @@ async def generate_question_suggestions(
     )
     questions = _parse_questions(text)
     generated_at = datetime.now(UTC)
-    await _persist_questions(
-        session,
-        user=user,
-        collection_name=collection_name,
-        questions=questions,
-        generated_at=generated_at,
-        model=model,
-        document_ids=[str(document.id) for document in documents],
-    )
     return ChatQuestionSuggestionsResponse(
         collection=collection_name,
         questions=questions,
@@ -254,57 +241,3 @@ def _clean_questions(values: object) -> list[str]:
         if len(out) == _QUESTION_COUNT:
             break
     return out
-
-
-async def _question_data(session: AsyncSession) -> dict:
-    row = await session.get(InstanceSetting, _SETTING_KEY)
-    value = row.value if row is not None else None
-    return dict(value) if isinstance(value, dict) else {"collections": {}}
-
-
-def _collection_item(data: dict, collection_name: str) -> dict:
-    collections = data.get("collections")
-    if not isinstance(collections, dict):
-        return {}
-    item = collections.get(collection_name)
-    return item if isinstance(item, dict) else {}
-
-
-async def _persist_questions(
-    session: AsyncSession,
-    *,
-    user: dict,
-    collection_name: str,
-    questions: list[str],
-    generated_at: datetime,
-    model: str,
-    document_ids: list[str],
-) -> None:
-    row = await session.get(InstanceSetting, _SETTING_KEY)
-    data = (
-        dict(row.value) if row is not None and isinstance(row.value, dict) else {"collections": {}}
-    )
-    if row is None:
-        row = InstanceSetting(key=_SETTING_KEY)
-        session.add(row)
-    collections = data.get("collections") if isinstance(data.get("collections"), dict) else {}
-    collections = dict(collections)
-    collections[collection_name] = {
-        "questions": questions,
-        "generated_at": generated_at.isoformat(),
-        "model": model,
-        "document_ids": document_ids,
-    }
-    row.value = {**data, "collections": collections}
-    row.secret_value = None
-    row.updated_by = UUID(user["id"])
-    await session.commit()
-
-
-def _parse_generated_at(value: object) -> datetime | None:
-    if not isinstance(value, str):
-        return None
-    try:
-        return datetime.fromisoformat(value)
-    except ValueError:
-        return None

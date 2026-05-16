@@ -1,69 +1,36 @@
 ---
 title: "Testing"
-description: "Local and CI test commands for bigRAG backend, SDKs, admin UI, and docs."
+description: "Current verification guidance after removal of package-level test and coverage suites."
 ---
 
-## Local checks
+## Current status
 
-Run the backend tests from `api/`:
+The previous package-level unit and integration test suites have been removed from the backend, SDKs, and admin UI. The related coverage commands and local coverage reports have also been removed.
 
-```bash
-uv run pytest tests/ -q
-uv run pytest tests/ --cov --cov-report=term-missing
-uv run ruff check .
-uv run ruff format --check .
-```
+Do not rely on removed package test runners or coverage commands as required verification for this repository while this reset is in place. End-to-end coverage is planned as the next testing layer.
 
-Run TypeScript and admin UI checks from the repository root:
+## Local verification
+
+Use lint, typecheck, build, and runtime smoke checks that match the code you changed:
 
 ```bash
-pnpm --filter @bigrag/client test
-pnpm --filter @bigrag/client coverage
-pnpm --filter @bigrag/app test
-pnpm --filter @bigrag/app coverage
-pnpm typecheck
-pnpm exec biome check .
-```
-
-Run SDK-specific checks:
-
-```bash
-cd sdks/python && uv sync --dev && uv run pytest -q
-cd sdks/python && uv run pytest --cov --cov-report=term-missing
-cargo test --manifest-path sdks/rust/Cargo.toml
-cargo llvm-cov --manifest-path sdks/rust/Cargo.toml --summary-only
-```
-
-## Coverage reports
-
-Coverage commands print a terminal percentage and can write HTML reports for local inspection:
-
-| Area | Command | HTML output |
-| --- | --- | --- |
-| Backend API | `cd api && uv run pytest --cov=bigrag --cov-report=term-missing --cov-report=html` | `api/htmlcov/index.html` |
-| Python SDK | `cd sdks/python && uv run pytest --cov --cov-report=term-missing --cov-report=html` | `sdks/python/htmlcov/index.html` |
-| TypeScript SDK | `pnpm --filter @bigrag/client coverage` | `sdks/typescript/coverage/index.html` |
-| Rust SDK | `cargo llvm-cov --manifest-path sdks/rust/Cargo.toml --html` | `sdks/rust/target/llvm-cov/html/index.html` |
-| Admin UI | `pnpm --filter @bigrag/app coverage` | `app/coverage/index.html` |
-
-The backend API suite currently reports 60% statement coverage with service-level regression coverage for retrieval caching, embedding adapters, storage backends, MCP wrappers, webhook delivery, Qdrant vector operations, Dramatiq job orchestration, ingestion leases, auth middleware, CORS, and idempotency replay.
-
-Run the docs build:
-
-```bash
+pnpm lint
 pnpm --filter @bigrag/docs build
+pnpm --filter @bigrag/app build
+pnpm --filter @bigrag/client typecheck
+pnpm --filter @bigrag/client build
+cd api && uv run ruff check . && uv run ruff format --check .
+cd sdks/python && uv build
+cargo fmt --manifest-path sdks/rust/Cargo.toml --check
+cargo check --manifest-path sdks/rust/Cargo.toml
 ```
 
 The docs package runs `fumadocs-mdx` before `next build`, so a clean checkout or container build generates `website/.source` before Turbopack resolves the docs source imports.
 
-## Coverage expectations
+## CI verification
 
-Backend route tests should use dependency overrides and fake service/session objects unless the scenario is specifically testing live infrastructure integration.
+CI currently keeps formatter, lint, typecheck, SDK build, docs build, admin UI build, and Rust formatting and compile checks. It does not run package-level test or coverage jobs.
 
-Background job tests should stay dependency-free by default. Cover Dramatiq actor handoff, Redis state helpers, delayed retry scheduling, processing leases, conversion helpers, embedding/vector payload behavior, webhook outbox claims, and connector scheduler claims with fake Redis, storage, embedding, and vector-store objects unless a test explicitly opts into live infrastructure.
+## E2E plan
 
-Managed vector-store adapters should cover the provider-specific request shape with fake clients. When changing turbopuffer semantics, add a live smoke only when credentials are available and keep it isolated to disposable namespaces.
-
-SDK tests should exercise request construction, retries, error mapping, multipart uploads, SSE parsing, and resource namespace path/query/body shaping as runtime behavior, not only typechecking.
-
-Admin UI tests should cover pure utilities, query-key builders, API helpers, hook wiring, and toast/error adapters first. Keep non-visual hook coverage in `.test.ts` files with React Query and SSE dependencies mocked; UI workflows should be added when component behavior becomes risky enough to justify browser-oriented tests.
+Future test coverage should be rebuilt around end-to-end flows that exercise realistic API, SDK, and admin UI behavior together. Add new commands and expectations here only after that E2E layer exists.

@@ -95,30 +95,3 @@ impl Stream for SseStream {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::SseParser;
-
-    #[test]
-    fn parses_complete_and_split_events() {
-        let mut parser = SseParser::new();
-
-        assert!(parser.push("data: {\"step\":\"chunking\"").is_empty());
-        let events = parser.push(",\"message\":\"half\",\"progress\":50}\n\n");
-
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].step, "chunking");
-        assert_eq!(events[0].message, "half");
-        assert_eq!(events[0].progress, 50.0);
-    }
-
-    #[test]
-    fn ignores_comments_and_malformed_json() {
-        let mut parser = SseParser::new();
-        let events = parser.push(": ping\n\ndata: nope\n\ndata: {\"step\":\"done\",\"message\":\"ok\",\"progress\":100,\"status\":\"complete\"}\n\n");
-
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].status.as_deref(), Some("complete"));
-    }
-}

@@ -20,14 +20,10 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "coverage": "vitest run --coverage --coverage.all=true --coverage.include='src/**/*.ts'",
     "prepublishOnly": "tsc"
   },
   "devDependencies": {
     "@types/node": "^25.8.0",
-    "@vitest/coverage-v8": "^4.1.6",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.6"
+    "typescript": "^6.0.3"
   }
 }

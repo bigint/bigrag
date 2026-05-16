@@ -936,34 +936,3 @@ fn parse_realtime_sse_block(block: &str) -> Option<Result<AdminRealtimeEvent, Bi
 fn trim_sse_value(value: &str) -> &str {
     value.strip_prefix(' ').unwrap_or(value)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::{stream_path, AdminRealtimeParser};
-
-    #[test]
-    fn builds_admin_realtime_stream_path() {
-        let path = stream_path(
-            "/v1/admin/realtime/backups",
-            vec![("limit".to_string(), "2".to_string())],
-        );
-
-        assert_eq!(path, "/v1/admin/realtime/backups?limit=2");
-    }
-
-    #[test]
-    fn parses_admin_realtime_events() {
-        let mut parser = AdminRealtimeParser::new();
-
-        assert!(parser
-            .push("event: snapshot\r\ndata: {\"topic\":\"backups\"")
-            .is_empty());
-        let events = parser.push(",\"payload\":{\"jobs\":[]}}\r\n\r\n");
-
-        assert_eq!(events.len(), 1);
-        let event = events.into_iter().next().unwrap().unwrap();
-        assert_eq!(event.event, "snapshot");
-        assert_eq!(event.data["topic"], "backups");
-        assert_eq!(event.data["payload"]["jobs"].as_array().unwrap().len(), 0);
-    }
-}

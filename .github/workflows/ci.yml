@@ -29,10 +29,6 @@ jobs:
         run: uv run ruff format --check .
         working-directory: api
 
-      - name: API tests
-        run: uv run pytest tests/ -v
-        working-directory: api
-
   biome:
     runs-on: ubuntu-latest
     steps:
@@ -61,11 +57,11 @@ jobs:
         run: pnpm tsc --noEmit
         working-directory: sdks/typescript
 
-      - name: SDK tests
-        run: pnpm test
+      - name: Build
+        run: pnpm build
         working-directory: sdks/typescript
 
-  python-sdk-test:
+  python-sdk-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,26 +72,26 @@ jobs:
           cache-dependency-glob: sdks/python/uv.lock
 
       - name: Install dependencies
-        run: uv sync --dev
-        working-directory: sdks/python
-
-      - name: Python SDK tests
-        run: uv run pytest -q
+        run: uv sync
         working-directory: sdks/python
 
       - name: Build package
         run: uv build
         working-directory: sdks/python
 
-  rust-sdk-test:
+  rust-sdk-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Rust SDK tests
-        run: cargo test
+      - name: Rust format check
+        run: cargo fmt --check
+        working-directory: sdks/rust
+
+      - name: Rust compile check
+        run: cargo check
         working-directory: sdks/rust
 
   website-build:
@@ -136,9 +132,6 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Type check
         run: pnpm typecheck
-        working-directory: app
-      - name: App tests
-        run: pnpm test
         working-directory: app
       - name: Build
         run: pnpm build

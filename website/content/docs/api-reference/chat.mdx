@@ -16,7 +16,7 @@ GET /v1/chat/question-suggestions?collection=handbook
 POST /v1/chat/question-suggestions
 ```
 
-`GET` returns the last generated starter questions for a collection from the instance database. `POST` uses the saved chat/OpenAI key from the current user's preferences, samples ready documents and chunks from the selected collection, asks the configured chat model for exactly five questions, and persists the generated set back to the instance database.
+`GET` returns an empty starter-question set for the collection. `POST` uses the saved chat/OpenAI key from the current user's preferences, samples ready documents and chunks from the selected collection, asks the configured chat model for exactly five questions, and returns that generated set without persisting it.
 
 POST body:
 

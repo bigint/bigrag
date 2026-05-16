@@ -84,6 +84,11 @@ bigrag/
 # Website build check
 pnpm --filter @bigrag/docs build
 
+# SDK and app build checks
+pnpm --filter @bigrag/client build
+pnpm --filter @bigrag/app build
+cargo check --manifest-path sdks/rust/Cargo.toml
+
 # Lint everything
 pnpm lint          # TypeScript (Biome)
 cd api && uv run ruff check . && uv run ruff format --check .  # Python
@@ -98,7 +103,7 @@ feat: add hybrid search fusion scoring
 fix: correct chunking overlap logic
 refactor: simplify embedding model registry
 docs: update API reference for query endpoint
-test: add ingestion pipeline tests
+chore: update ingestion pipeline fixtures
 ```
 
 ### Release Versioning
@@ -112,10 +117,9 @@ When cutting a release, keep the API package, SDK packages, admin UI/docs packag
 1. **Open an issue first** for significant changes to discuss the approach
 2. **Create a branch** from `main` with a descriptive name
 3. **Make your changes** following the coding standards above
-4. **Add tests** covering your changes
-5. **Run the full check suite** locally
-6. **Push your branch** and open a pull request against `main`
-7. **Address review feedback** promptly
+4. **Run the relevant lint, typecheck, build, and runtime smoke checks** locally
+5. **Push your branch** and open a pull request against `main`
+6. **Address review feedback** promptly
 
 ### PR Requirements
 
