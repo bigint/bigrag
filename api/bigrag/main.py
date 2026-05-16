@@ -205,6 +205,26 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     async def server_handler(_request: Request, exc: ServerError) -> JSONResponse:
         return JSONResponse(status_code=500, content={"detail": str(exc)})
 
+    @app.exception_handler(Exception)
+    async def unhandled_handler(request: Request, exc: Exception) -> JSONResponse:
+        import traceback
+
+        logger = get_logger("bigrag.unhandled")
+        logger.error(
+            "unhandled exception",
+            method=request.method,
+            path=request.url.path,
+            exc_type=type(exc).__name__,
+            exc=str(exc),
+            traceback=traceback.format_exc(),
+        )
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": f"{type(exc).__name__}: {exc}",
+            },
+        )
+
     from bigrag.routers.admin_access import router as admin_access_router
     from bigrag.routers.admin_api_keys import router as admin_api_keys_router
     from bigrag.routers.admin_audit import router as admin_audit_router
