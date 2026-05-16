@@ -26,6 +26,10 @@
 # qdrant_required = false
 # qdrant_search_ef = 128           # optional Qdrant HNSW ef override; unset by default
 
+# turbopuffer_api_key = ""         # required only for collections using turbopuffer
+# turbopuffer_region = "aws-us-east-1"
+# turbopuffer_namespace_prefix = "bigrag_"
+
 # redis_url = "redis://localhost:6379/0"
 
 # Encryption key for provider secrets at rest. Required in env=prod.
@@ -40,6 +44,7 @@
 # session_cookie_samesite = "lax"
 # session_cookie_domain = ""
 # auth_principal_cache_ttl = 60
+# allow_public_bind_in_prod = false  # required to bind 0.0.0.0 when env=prod
 
 # embedding_provider = "openai"   # openai | openai_compatible | cohere | voyage
 # embedding_model = "text-embedding-3-small"
@@ -60,8 +65,21 @@
 
 # upload_dir = "./data/uploads"
 
+# Optional S3-compatible backup destination (also configurable via settings UI).
+# backup_s3_bucket = ""
+# backup_s3_endpoint_url = ""
+# backup_s3_region = "us-east-1"
+# backup_s3_prefix = ""
+# backup_s3_access_key_id = ""
+# backup_s3_secret_access_key = ""
+# backup_s3_force_path_style = false
+
 # max_upload_size_mb = 64
 # max_batch_upload_size_mb = 128
+# max_upload_session_files = 10000
+# max_upload_session_size_mb = 102400
+# upload_session_item_retention_hours = 168
+# upload_session_upload_concurrency = 4
 # ingestion_workers = 4
 # ingestion_batch_size = 128
 # conversion_timeout = 300
@@ -70,6 +88,13 @@
 # collection_cache_ttl = 30
 # query_embedding_cache_ttl = 3600
 # query_result_cache_ttl = 30
+# embedding_cache_mode = "encrypted"  # encrypted | disabled
+# embedding_cache_retention_days = 30
+
+# max_vector_upsert_count = 1000
+# max_vector_delete_count = 10000
+# max_vector_text_chars = 100000
+# max_vector_metadata_bytes = 65536
 
 # webhook_delivery_timeout = 10
 # webhook_retry_delays = [10, 30, 90]
