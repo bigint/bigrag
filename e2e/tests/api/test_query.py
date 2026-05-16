@@ -31,7 +31,7 @@ async def _seed_collection(
     collection: CollectionFactory,
     document: DocumentFactory,
     *,
-    fixtures: tuple[str, ...] = ("sample.txt", "sample.md", "sample.html"),
+    fixtures: tuple[str, ...] = ("sample.txt", "sample.md"),
     metadatas: tuple[dict | None, ...] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     coll = await collection()

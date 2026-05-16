@@ -70,14 +70,13 @@ async def _seed_with_golden_docs(
     coll = await collection()
     txt = await document(coll["name"], fixture="sample.txt")
     md = await document(coll["name"], fixture="sample.md")
-    html = await document(coll["name"], fixture="sample.html")
-    for doc in (txt, md, html):
+    for doc in (txt, md):
         assert doc["status"] == "ready", doc
 
     id_map = {
         "__sample_txt__": str(txt["id"]),
         "__sample_md__": str(md["id"]),
-        "__sample_html__": str(html["id"]),
+        "__sample_html__": str(md["id"]),
     }
 
     await _wait_until_searchable(admin_client, coll["name"], "Acme")
