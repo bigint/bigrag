@@ -11,6 +11,32 @@
       content="Admin console for bigRAG - collections, documents, queries, API keys."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      (() => {
+        const key = "bigrag:theme-mode";
+        const modes = new Set(["light", "dark", "system"]);
+        const colors = { dark: "#101112", light: "#ffffff" };
+        const readMode = () => {
+          try {
+            const value = window.localStorage.getItem(key);
+            return modes.has(value) ? value : "system";
+          } catch {
+            return "system";
+          }
+        };
+        const mode = readMode();
+        const resolved =
+          mode === "system"
+            ? window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light"
+            : mode;
+        document.documentElement.dataset.theme = resolved;
+        document.documentElement.style.colorScheme = resolved;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        if (themeColor) themeColor.setAttribute("content", colors[resolved]);
+      })();
+    </script>
     <script src="/config.js"></script>
   </head>
   <body>

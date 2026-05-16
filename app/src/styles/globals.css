@@ -35,6 +35,11 @@
   --color-warning-foreground: #ffffff;
   --color-info: #3b82f6;
   --color-info-foreground: #ffffff;
+  --color-primary-hover: #262626;
+  --color-logo-cutout: #ffffff;
+  --color-switch-ring: rgb(0 0 0 / 0.1);
+  --color-hover-border: #d4d4d4;
+  --color-soft-shadow: rgb(0 0 0 / 0.02);
 
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
@@ -42,10 +47,51 @@
   --radius-xl: 1.5rem;
 }
 
+:root {
+  color-scheme: light;
+  --color-body-pattern: rgb(0 0 0 / 0.025);
+  --color-selection: rgb(10 10 10 / 0.12);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-background: #101112;
+  --color-foreground: #f4f3ef;
+  --color-card: #171819;
+  --color-card-foreground: #f4f3ef;
+  --color-popover: #171819;
+  --color-popover-foreground: #f4f3ef;
+  --color-primary: #f4f3ef;
+  --color-primary-foreground: #101112;
+  --color-muted: #1d1e20;
+  --color-muted-foreground: #a4a29d;
+  --color-surface: #141516;
+  --color-border: #2a2b2d;
+  --color-input: #313235;
+  --color-ring: #e8e4dc;
+  --color-accent: #252629;
+  --color-accent-foreground: #f4f3ef;
+  --color-destructive: #f87171;
+  --color-destructive-foreground: #170b0b;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-warning-foreground: #17120a;
+  --color-info: #60a5fa;
+  --color-info-foreground: #07111f;
+  --color-primary-hover: #e6e1d8;
+  --color-logo-cutout: #101112;
+  --color-switch-ring: rgb(255 255 255 / 0.16);
+  --color-hover-border: #484a4d;
+  --color-soft-shadow: rgb(0 0 0 / 0.32);
+  --color-body-pattern: rgb(255 255 255 / 0.032);
+  --color-selection: rgb(244 243 239 / 0.18);
+}
+
 body {
   background:
-    radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.025) 1px, transparent 0) 0 0 / 32px 32px,
-    #ffffff;
+    radial-gradient(circle at 1px 1px, var(--color-body-pattern) 1px, transparent 0) 0 0 / 32px 32px,
+    var(--color-background);
+  color: var(--color-foreground);
   font-family:
     "Outfit Variable",
     Outfit,
@@ -61,7 +107,7 @@ body {
 }
 
 ::selection {
-  background: rgb(10 10 10 / 0.12);
+  background: var(--color-selection);
 }
 
 button,

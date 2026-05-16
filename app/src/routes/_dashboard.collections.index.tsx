@@ -129,7 +129,7 @@ const CollectionsPage = () => {
               />
               <Input
                 aria-label="Search collections"
-                className="h-9 border-border bg-muted/70 pr-3 pl-9 shadow-sm shadow-black/[0.02] placeholder:text-muted-foreground/75 focus-visible:bg-background"
+                className="h-9 border-border bg-muted/70 pr-3 pl-9 shadow-sm shadow-soft-shadow placeholder:text-muted-foreground/75 focus-visible:bg-background"
                 placeholder="Search collections"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}

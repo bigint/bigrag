@@ -13,8 +13,8 @@ export const Logo = ({ className, withWordmark = true }: Props) => (
     >
       <title>bigRAG</title>
       <rect fill="currentColor" height="32" rx="8" width="32" />
-      <path d="M8 12L16 6L24 12V20L16 26L8 20V12Z" fill="white" opacity="0.9" />
-      <path d="M16 6L24 12L16 18L8 12L16 6Z" fill="white" />
+      <path d="M8 12L16 6L24 12V20L16 26L8 20V12Z" fill="var(--color-logo-cutout)" opacity="0.9" />
+      <path d="M16 6L24 12L16 18L8 12L16 6Z" fill="var(--color-logo-cutout)" />
     </svg>
     {withWordmark && <span className="font-semibold tracking-tight">bigRAG</span>}
   </div>

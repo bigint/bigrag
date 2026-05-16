@@ -651,7 +651,7 @@ const QuickAction = ({
 }) => (
   <Link
     to={href}
-    className="group flex items-center gap-3 rounded-xl border border-border bg-background p-4 hover:border-neutral-200"
+    className="group flex items-center gap-3 rounded-xl border border-border bg-background p-4 hover:border-hover-border"
   >
     <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground">
       <Icon className="size-4" />

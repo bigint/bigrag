@@ -1,6 +1,7 @@
 import { Menu } from "@base-ui/react/menu";
 import { useNavigate } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
+import { ThemeControl } from "@/features/theme/theme-control";
 import { useLogout, useSession } from "@/hooks/use-auth";
 import { cn } from "@/lib/cn";
 
@@ -58,6 +59,11 @@ export const UserMenu = ({ compact = false }: { compact?: boolean }) => {
             className="min-w-52 rounded-md border border-border bg-popover p-1 text-sm focus:outline-none"
             style={compact ? undefined : { width: "calc(var(--anchor-width) - 1rem)" }}
           >
+            <div className="flex items-center justify-between gap-3 px-2 py-1.5">
+              <span className="text-xs font-semibold text-muted-foreground">Theme</span>
+              <ThemeControl className="shrink-0" />
+            </div>
+            <div className="my-1 h-px bg-border" />
             <Menu.Item
               onClick={onSignOut}
               className={cn(

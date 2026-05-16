@@ -38,7 +38,7 @@ export const Switch = ({
       >
         <BaseSwitch.Thumb
           className={cn(
-            "pointer-events-none size-4 rounded-full bg-background ring-1 ring-black/10",
+            "pointer-events-none size-4 rounded-full bg-background ring-1 ring-switch-ring",
             checked ? "translate-x-4" : "translate-x-0",
           )}
         />
