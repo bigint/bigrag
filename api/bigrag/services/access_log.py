@@ -36,11 +36,7 @@ _SENSITIVE_KEYS = frozenset(
 RAG_ACCESS_ACTIONS = frozenset(
     {
         "evaluation.run",
-        "chat.delete",
         "chat.generate",
-        "chat.list",
-        "chat.read",
-        "chat.update",
         "query.batch",
         "query.multi",
         "query.run",
@@ -137,14 +133,6 @@ def set_context(
 def _infer_action(method: str, path: str) -> tuple[str, str]:
     if path == "/v1/chat" and method == "POST":
         return "chat.generate", "chat"
-    if path == "/v1/chat" and method == "GET":
-        return "chat.list", "chat"
-    if path.startswith("/v1/chat/") and method == "GET":
-        return "chat.read", "chat"
-    if path.startswith("/v1/chat/") and method == "PATCH":
-        return "chat.update", "chat"
-    if path.startswith("/v1/chat/") and method == "DELETE":
-        return "chat.delete", "chat"
     if path == "/v1/query" and method == "POST":
         return "query.multi", "collections"
     if path == "/v1/batch/query" and method == "POST":

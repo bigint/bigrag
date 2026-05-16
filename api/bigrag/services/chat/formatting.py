@@ -6,9 +6,8 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from bigrag.db.models import ChatConversation, ChatMessage
 from bigrag.exceptions import NotFoundError, ServerError, UpstreamError, ValidationError
-from bigrag.models.chat import ChatConversationResponse, ChatMessageResponse, ChatSource
+from bigrag.models.chat import ChatMessageResponse, ChatRole, ChatSource
 
 _SECRET_RE = re.compile(r"sk-[A-Za-z0-9_-]{8,}")
 
@@ -37,39 +36,19 @@ def _as_uuid(value: object) -> UUID | None:
         return None
 
 
-def _title_from_message(message: str) -> str:
-    compact = " ".join(message.strip().split())
-    if not compact:
-        return "New chat"
-    return compact[:77] + "..." if len(compact) > 80 else compact
-
-
-def _conversation_response(
-    conversation: ChatConversation,
+def _chat_message_response(
     *,
-    message_count: int = 0,
-    last_message_at: datetime | None = None,
-) -> ChatConversationResponse:
-    return ChatConversationResponse(
-        id=str(conversation.id),
-        title=conversation.title,
-        collection=conversation.collection_name,
-        model_provider=conversation.model_provider,
-        model=conversation.model,
-        temperature=conversation.temperature,
-        top_k=conversation.default_top_k,
-        search_mode=conversation.default_search_mode,
-        min_score=conversation.default_min_score,
-        rerank=conversation.default_rerank,
-        message_count=message_count,
-        created_at=conversation.created_at,
-        updated_at=conversation.updated_at,
-        last_message_at=last_message_at,
-    )
-
-
-def _message_response(message: ChatMessage) -> ChatMessageResponse:
-    retrieval = dict(message.retrieval or {})
+    id: str,
+    role: ChatRole,
+    content: str,
+    created_at: datetime,
+    status: str = "complete",
+    error_message: str | None = None,
+    model_provider: str | None = None,
+    model: str | None = None,
+    retrieval: dict[str, Any] | None = None,
+) -> ChatMessageResponse:
+    retrieval = dict(retrieval or {})
     raw_sources = retrieval.get("sources")
     sources: list[ChatSource] = []
     if isinstance(raw_sources, list):
@@ -81,17 +60,16 @@ def _message_response(message: ChatMessage) -> ChatMessageResponse:
             except ValueError:
                 continue
     return ChatMessageResponse(
-        id=str(message.id),
-        conversation_id=str(message.conversation_id),
-        role=message.role,  # type: ignore[arg-type]
-        content=message.content,
-        status=message.status,  # type: ignore[arg-type]
-        error_message=message.error_message,
-        model_provider=message.model_provider,
-        model=message.model,
+        id=id,
+        role=role,
+        content=content,
+        status=status,  # type: ignore[arg-type]
+        error_message=error_message,
+        model_provider=model_provider,
+        model=model,
         retrieval=retrieval,
         sources=sources,
-        created_at=message.created_at,
+        created_at=created_at,
     )
 
 

@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Clock3, FileText, type LucideIcon, Plus, Search, Trash2 } from "lucide-react";
+import { BookOpen, Clock3, FileText, type LucideIcon, Plus, Search } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,14 +14,12 @@ import {
   useChatConversation,
   useChatConversations,
   useChatQuestionSuggestions,
-  useDeleteChatConversation,
   useGenerateChatQuestions,
 } from "@/hooks/use-chat";
 import { useCollections } from "@/hooks/use-collections";
 import { usePreferences, useUpdatePreferences } from "@/hooks/use-preferences";
 import { streamChat } from "@/lib/chat-stream";
 import { cn } from "@/lib/cn";
-import { formatRelative } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import type {
   ChatConversation,
@@ -123,7 +121,6 @@ export const ChatPage = () => {
   const prefsQuery = usePreferences();
   const updatePrefs = useUpdatePreferences();
   const conversationsQuery = useChatConversations();
-  const deleteConversation = useDeleteChatConversation();
   const generateQuestions = useGenerateChatQuestions();
   const { data: collectionsData, isPending: collectionsLoading } = useCollections();
   const collections = useMemo(() => collectionsData?.collections ?? [], [collectionsData]);
@@ -368,23 +365,8 @@ export const ChatPage = () => {
 
   return (
     <div className="relative flex min-h-0 flex-1 overflow-hidden bg-background">
-      <ConversationRail
-        conversations={conversations}
-        deletingId={deleteConversation.variables ?? null}
-        onDelete={(id) => {
-          if (id === conversationId) startNewChat();
-          deleteConversation.mutate(id);
-        }}
-        onNew={startNewChat}
-        onSelect={(id) => {
-          stopStreaming();
-          selectConversation(id);
-        }}
-        selectedId={conversationId}
-      />
-
       <section className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <MobileConversationStrip
+        <ConversationStrip
           conversations={conversations}
           disabledNew={isStreaming}
           onNew={startNewChat}
@@ -436,84 +418,7 @@ export const ChatPage = () => {
   );
 };
 
-const ConversationRail = ({
-  conversations,
-  deletingId,
-  onDelete,
-  onNew,
-  onSelect,
-  selectedId,
-}: {
-  conversations: ChatConversation[];
-  deletingId: string | null;
-  onDelete: (id: string) => void;
-  onNew: () => void;
-  onSelect: (id: string) => void;
-  selectedId: string | null;
-}) => (
-  <aside className="hidden h-[calc(100dvh-1rem)] w-60 shrink-0 pl-2 lg:flex">
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-muted">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-3">
-        <div className="text-sm font-semibold">Threads</div>
-        <Button
-          aria-label="New chat"
-          className="size-8 p-0 text-muted-foreground hover:text-foreground"
-          onClick={onNew}
-          size="sm"
-          variant="ghost"
-        >
-          <Plus className="size-4" />
-        </Button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {conversations.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-background px-3 py-8 text-center text-xs leading-5 text-muted-foreground">
-            Conversation history will appear here after the first grounded answer.
-          </div>
-        ) : (
-          <div className="grid gap-1">
-            {conversations.map((conversation) => (
-              <div key={conversation.id} className="group relative">
-                <button
-                  type="button"
-                  onClick={() => onSelect(conversation.id)}
-                  className={cn(
-                    "min-h-14 w-full rounded-lg border px-3 py-2 pr-9 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    selectedId === conversation.id
-                      ? "border-border bg-background"
-                      : "border-transparent hover:bg-background/75",
-                  )}
-                >
-                  <div className="truncate text-xs font-semibold">{conversation.title}</div>
-                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <span className="truncate">{conversation.collection ?? "No collection"}</span>
-                    <span aria-hidden>·</span>
-                    <span>{conversation.message_count}</span>
-                    <span aria-hidden>·</span>
-                    <span className="truncate">
-                      {formatRelative(conversation.last_message_at ?? conversation.updated_at)}
-                    </span>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  aria-label="Delete conversation"
-                  disabled={deletingId === conversation.id}
-                  onClick={() => onDelete(conversation.id)}
-                  className="absolute top-1/2 right-2 hidden size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-75 hover:bg-destructive/10 hover:text-destructive group-hover:flex focus-visible:flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  </aside>
-);
-
-const MobileConversationStrip = ({
+const ConversationStrip = ({
   conversations,
   disabledNew,
   onNew,
@@ -528,7 +433,7 @@ const MobileConversationStrip = ({
 }) => {
   if (conversations.length === 0) return null;
   return (
-    <div className="shrink-0 overflow-x-auto border-b border-border bg-muted/25 px-3 py-2 lg:hidden">
+    <div className="shrink-0 overflow-x-auto border-b border-border bg-background px-3 py-2">
       <div className="flex w-max gap-2">
         <button
           type="button"

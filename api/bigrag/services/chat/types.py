@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from bigrag.db.models import ChatConversation, ChatMessage
-from bigrag.models.chat import ChatSource, ChatTimings
+from bigrag.models.chat import ChatMessageResponse, ChatSource, ChatTimings
 
 
 @dataclass
@@ -15,8 +14,8 @@ class ProviderCredential:
 
 @dataclass
 class PreparedChatTurn:
-    conversation: ChatConversation
-    user_message: ChatMessage
+    collection: str
+    user_message: ChatMessageResponse
     model_messages: list[dict[str, str]]
     sources: list[ChatSource]
     timings: ChatTimings

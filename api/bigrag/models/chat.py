@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal
-from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 ChatRole = Literal["user", "assistant", "system"]
 ChatProvider = Literal["openai", "openai_compatible"]
@@ -13,8 +12,7 @@ ChatSearchMode = Literal["semantic", "keyword", "hybrid"]
 
 class ChatCreateRequest(BaseModel):
     message: str = Field(min_length=1, max_length=200_000)
-    conversation_id: UUID | None = None
-    collection: str | None = Field(default=None, min_length=1, max_length=120)
+    collection: str = Field(min_length=1, max_length=120)
     stream: bool = True
     model_provider: ChatProvider | None = None
     model: str | None = Field(default=None, min_length=1, max_length=120)
@@ -27,16 +25,6 @@ class ChatCreateRequest(BaseModel):
     system_prompt: str | None = Field(default=None, max_length=20_000)
     provider_api_key: str | None = Field(default=None, max_length=10_000)
     provider_base_url: str | None = Field(default=None, max_length=2_000)
-
-    @model_validator(mode="after")
-    def require_collection_for_new_chat(self) -> ChatCreateRequest:
-        if self.conversation_id is None and not self.collection:
-            raise ValueError("collection is required when starting a new conversation")
-        return self
-
-
-class ChatUpdateRequest(BaseModel):
-    title: str | None = Field(default=None, min_length=1, max_length=160)
 
 
 class ChatQuestionSuggestionsRequest(BaseModel):
@@ -76,7 +64,6 @@ class ChatTimings(BaseModel):
 
 class ChatMessageResponse(BaseModel):
     id: str
-    conversation_id: str
     role: ChatRole
     content: str
     status: Literal["complete", "error"] = "complete"
@@ -88,40 +75,8 @@ class ChatMessageResponse(BaseModel):
     created_at: datetime
 
 
-class ChatConversationResponse(BaseModel):
-    id: str
-    title: str
-    collection: str | None = None
-    model_provider: str
-    model: str
-    temperature: float
-    top_k: int
-    search_mode: str
-    min_score: float | None = None
-    rerank: bool | None = None
-    message_count: int = 0
-    created_at: datetime
-    updated_at: datetime
-    last_message_at: datetime | None = None
-
-
-class ChatListResponse(BaseModel):
-    conversations: list[ChatConversationResponse]
-    total: int
-
-
-class ChatDetailResponse(BaseModel):
-    conversation: ChatConversationResponse
-    messages: list[ChatMessageResponse]
-
-
 class ChatCreateResponse(BaseModel):
-    conversation: ChatConversationResponse
     message: ChatMessageResponse
     assistant_message: ChatMessageResponse
     sources: list[ChatSource] = Field(default_factory=list)
     timings: ChatTimings | None = None
-
-
-class ChatDeleteResponse(BaseModel):
-    status: Literal["deleted"] = "deleted"

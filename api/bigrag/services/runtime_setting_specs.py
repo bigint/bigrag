@@ -602,16 +602,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         max=2,
     ),
     _spec(
-        "chat_max_history_messages",
-        "chat",
-        "Max chat history",
-        "int",
-        12,
-        "Prior complete messages included in model context.",
-        min=0,
-        max=200,
-    ),
-    _spec(
         "chat_max_context_chars",
         "chat",
         "Max context characters",

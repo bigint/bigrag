@@ -6,7 +6,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from bigrag.db.models import ChatMessage
 from bigrag.exceptions import ServerError, UpstreamError, ValidationError
 from bigrag.models.chat import ChatSource
 from bigrag.services import chat
@@ -14,18 +13,6 @@ from bigrag.services import chat
 
 def run(coro):
     return asyncio.run(coro)
-
-
-def message(role: str, content: str) -> ChatMessage:
-    return ChatMessage(
-        id=uuid.uuid4(),
-        conversation_id=uuid.uuid4(),
-        role=role,
-        content=content,
-        status="complete",
-        retrieval={},
-        created_at=chat.datetime.now(chat.UTC),
-    )
 
 
 def test_safe_chat_error_redacts_secret_and_truncates() -> None:
@@ -36,15 +23,6 @@ def test_safe_chat_error_redacts_secret_and_truncates() -> None:
     assert "sk-[REDACTED]" in safe
     assert "sk-12345678_SECRET" not in safe
     assert len(safe) == 500
-
-
-def test_title_from_message_compacts_and_truncates() -> None:
-    assert chat._title_from_message(" \n  ") == "New chat"
-
-    title = chat._title_from_message("  hello   world  " + "x" * 100)
-
-    assert title == "hello world " + ("x" * 65) + "..."
-    assert len(title) == 80
 
 
 def test_provider_resolution_validates_supported_values() -> None:
@@ -68,7 +46,7 @@ def test_append_credential_strips_dedupes_and_rejects_encrypted_values() -> None
         chat._append_credential(credentials, "gAAAAencrypted", "saved chat key")
 
 
-def test_model_messages_include_context_and_complete_history_only() -> None:
+def test_model_messages_include_context_and_current_message() -> None:
     sources = [
         ChatSource(
             id="chunk-1",
@@ -83,11 +61,6 @@ def test_model_messages_include_context_and_complete_history_only() -> None:
         system_prompt="Use context",
         collection="docs",
         sources=sources,
-        prior_messages=[
-            message("system", "ignored"),
-            message("user", "previous question"),
-            message("assistant", "previous answer"),
-        ],
         user_message="current question",
         max_context_chars=50,
     )
@@ -101,8 +74,6 @@ def test_model_messages_include_context_and_complete_history_only() -> None:
                 "[1] (manual.pdf, page 3) The answer is in this paragraph."
             ),
         },
-        {"role": "user", "content": "previous question"},
-        {"role": "assistant", "content": "previous answer"},
         {"role": "user", "content": "current question"},
     ]
 

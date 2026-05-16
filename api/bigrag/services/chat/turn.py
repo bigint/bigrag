@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import ChatConversation, ChatMessage, Document, UserPreference
+from bigrag.db.models import Document, UserPreference
 from bigrag.exceptions import ServerError, ValidationError
 from bigrag.models.chat import ChatCreateRequest, ChatSource, ChatTimings
 from bigrag.routers.preferences import decrypt_preferences
@@ -19,8 +19,7 @@ from bigrag.services.runtime_settings import get_values
 from bigrag.services.tenant_enforcement import require_tenant_filters
 from bigrag.services.url_security import UnsafeOutboundUrlError, validate_chat_base_url
 
-from .formatting import _as_uuid, _int_or_none, _title_from_message
-from .history import _get_owned_conversation, _recent_history
+from .formatting import _as_uuid, _chat_message_response, _int_or_none
 from .types import PreparedChatTurn, ProviderCredential
 
 _PROVIDERS = {"openai", "openai_compatible"}
@@ -46,77 +45,35 @@ async def _prepare_chat_turn(
             "chat_model",
             "chat_base_url",
             "chat_temperature",
-            "chat_max_history_messages",
             "chat_max_context_chars",
         ]
     )
 
-    if body.conversation_id is not None:
-        conversation = await _get_owned_conversation(session, user, body.conversation_id)
-        if (
-            body.collection
-            and conversation.collection_name
-            and body.collection != conversation.collection_name
-        ):
-            raise ValidationError(
-                "A conversation cannot switch collections. Start a new chat instead."
-            )
-        if not conversation.collection_name:
-            raise ValidationError("Conversation is missing its collection")
-        collection_name = conversation.collection_name
-    else:
-        collection_name = body.collection or pinned
-        if not collection_name:
-            raise ValidationError("collection is required")
-        if pinned:
-            assert_collection_matches_pin(pinned, collection_name)
-        collection = await get_collection_or_404(collection_name)
-        conversation = ChatConversation(
-            owner_id=owner_id,
-            title=_title_from_message(body.message),
-            collection_id=collection.get("id"),
-            collection_name=collection_name,
-            model_provider=_resolve_provider(body.model_provider, runtime["chat_provider"]),
-            model=body.model or runtime["chat_model"],
-            system_prompt=body.system_prompt or DEFAULT_SYSTEM_PROMPT,
-            default_top_k=body.top_k or min(int(collection.get("default_top_k") or 5), 100),
-            default_search_mode=body.search_mode
-            or collection.get("default_search_mode", "semantic"),
-            default_min_score=body.min_score
-            if body.min_score is not None
-            else collection.get("default_min_score"),
-            default_rerank=body.rerank,
-            temperature=body.temperature
-            if body.temperature is not None
-            else runtime["chat_temperature"],
-        )
-        session.add(conversation)
-        await session.flush()
-
+    collection_name = body.collection
+    if pinned:
+        assert_collection_matches_pin(pinned, collection_name)
     collection = await get_collection_or_404(collection_name)
     require_tenant_filters(collection, body.filters)
-    _apply_turn_overrides(conversation, body, collection, runtime["chat_provider"])
-    provider = _resolve_provider(conversation.model_provider, runtime["chat_provider"])
+    provider = _resolve_provider(body.model_provider, runtime["chat_provider"])
+    model = body.model or runtime["chat_model"]
+    system_prompt = body.system_prompt or DEFAULT_SYSTEM_PROMPT
+    top_k = max(1, min(int(body.top_k or collection.get("default_top_k") or 5), 100))
+    search_mode = body.search_mode or collection.get("default_search_mode", "semantic")
+    min_score = (
+        body.min_score if body.min_score is not None else collection.get("default_min_score")
+    )
+    rerank = body.rerank
+    temperature = (
+        body.temperature if body.temperature is not None else float(runtime["chat_temperature"])
+    )
     credentials = await _resolve_api_credentials(session, user, body)
     base_url = await _resolve_base_url(body.provider_base_url, runtime["chat_base_url"])
-
-    prior_messages = await _recent_history(
-        session,
-        conversation.id,
-        int(runtime["chat_max_history_messages"] or 0),
-    )
 
     try:
         embedding_model = get_embedding_model_for(collection)
     except (ImportError, ValueError, ValidationError) as exc:
         raise ValidationError(str(exc)) from exc
 
-    top_k = max(1, min(int(conversation.default_top_k or 5), 100))
-    search_mode = conversation.default_search_mode or collection.get(
-        "default_search_mode",
-        "semantic",
-    )
-    min_score = conversation.default_min_score
     outcome = await retrieve(
         collection_name=collection_name,
         query=body.message,
@@ -126,7 +83,7 @@ async def _prepare_chat_turn(
         min_score=min_score,
         search_mode=search_mode,
         reranking_config=get_reranking_config(collection),
-        rerank_override=conversation.default_rerank,
+        rerank_override=rerank,
         vector_store_provider=collection.get("vector_store_provider"),
     )
     sources = await _sources_from_results(session, outcome.results)
@@ -144,42 +101,37 @@ async def _prepare_chat_turn(
         "top_k": top_k,
         "search_mode": search_mode,
         "min_score": min_score,
-        "rerank": conversation.default_rerank,
+        "rerank": rerank,
         "filters": body.filters or {},
         "sources": [source.model_dump(mode="json") for source in sources],
         "timings": timings.model_dump(mode="json"),
     }
 
-    user_message = ChatMessage(
-        conversation_id=conversation.id,
+    user_message = _chat_message_response(
+        id=str(uuid4()),
         role="user",
         content=body.message,
-        status="complete",
         retrieval={},
+        created_at=datetime.now(UTC),
     )
-    conversation.updated_at = datetime.now(UTC)
-    session.add(user_message)
-    await session.flush()
-    await session.commit()
 
     model_messages = _model_messages(
-        system_prompt=conversation.system_prompt or DEFAULT_SYSTEM_PROMPT,
+        system_prompt=system_prompt,
         collection=collection_name,
         sources=sources,
-        prior_messages=prior_messages,
         user_message=body.message,
         max_context_chars=int(runtime["chat_max_context_chars"] or 120000),
     )
     return PreparedChatTurn(
-        conversation=conversation,
+        collection=collection_name,
         user_message=user_message,
         model_messages=model_messages,
         sources=sources,
         timings=timings,
         retrieval=retrieval,
         model_provider=provider,
-        model=conversation.model,
-        temperature=conversation.temperature,
+        model=model,
+        temperature=temperature,
         credentials=credentials,
         base_url=base_url,
     )
@@ -190,34 +142,6 @@ def _resolve_provider(provider: str | None, default_provider: str | None = "open
     if value not in _PROVIDERS:
         raise ValidationError("Only openai and openai_compatible chat providers are supported")
     return value
-
-
-def _apply_turn_overrides(
-    conversation: ChatConversation,
-    body: ChatCreateRequest,
-    collection: dict,
-    default_provider: str | None,
-) -> None:
-    if body.model_provider is not None:
-        conversation.model_provider = _resolve_provider(body.model_provider, default_provider)
-    if body.model is not None:
-        conversation.model = body.model
-    if body.system_prompt is not None:
-        conversation.system_prompt = body.system_prompt or DEFAULT_SYSTEM_PROMPT
-    if body.temperature is not None:
-        conversation.temperature = body.temperature
-    if body.top_k is not None:
-        conversation.default_top_k = body.top_k
-    elif not conversation.default_top_k:
-        conversation.default_top_k = min(int(collection.get("default_top_k") or 5), 100)
-    if body.search_mode is not None:
-        conversation.default_search_mode = body.search_mode
-    elif not conversation.default_search_mode:
-        conversation.default_search_mode = collection.get("default_search_mode", "semantic")
-    if body.min_score is not None:
-        conversation.default_min_score = body.min_score
-    if body.rerank is not None:
-        conversation.default_rerank = body.rerank
 
 
 async def _resolve_api_credentials(
@@ -306,7 +230,6 @@ def _model_messages(
     system_prompt: str,
     collection: str,
     sources: list[ChatSource],
-    prior_messages: list[ChatMessage],
     user_message: str,
     max_context_chars: int,
 ) -> list[dict[str, str]]:
@@ -318,10 +241,6 @@ def _model_messages(
             "content": f'Retrieved context from collection "{collection}":\n\n{context}',
         },
     ]
-    for message in prior_messages:
-        if message.role not in {"user", "assistant"}:
-            continue
-        messages.append({"role": message.role, "content": message.content})
     messages.append({"role": "user", "content": user_message})
     return messages
 
