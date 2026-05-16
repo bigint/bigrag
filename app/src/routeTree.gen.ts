@@ -30,7 +30,6 @@ import { Route as DashboardCollectionsNameRouteImport } from "./routes/_dashboar
 import { Route as DashboardCollectionsNameIndexRouteImport } from "./routes/_dashboard.collections.$name.index";
 import { Route as DashboardCollectionsNameSettingsRouteImport } from "./routes/_dashboard.collections.$name.settings";
 import { Route as DashboardCollectionsNameSearchRouteImport } from "./routes/_dashboard.collections.$name.search";
-import { Route as DashboardCollectionsNameGoogleDriveRouteImport } from "./routes/_dashboard.collections.$name.google-drive";
 import { Route as DashboardCollectionsNameDocumentsRouteImport } from "./routes/_dashboard.collections.$name.documents";
 import { Route as DashboardCollectionsNameConnectorsRouteImport } from "./routes/_dashboard.collections.$name.connectors";
 import { Route as DashboardCollectionsNameDocumentsIndexRouteImport } from "./routes/_dashboard.collections.$name.documents.index";
@@ -166,12 +165,6 @@ const DashboardCollectionsNameSearchRoute =
     path: "/search",
     getParentRoute: () => DashboardCollectionsNameRoute,
   } as any);
-const DashboardCollectionsNameGoogleDriveRoute =
-  DashboardCollectionsNameGoogleDriveRouteImport.update({
-    id: "/google-drive",
-    path: "/google-drive",
-    getParentRoute: () => DashboardCollectionsNameRoute,
-  } as any);
 const DashboardCollectionsNameDocumentsRoute =
   DashboardCollectionsNameDocumentsRouteImport.update({
     id: "/documents",
@@ -232,7 +225,6 @@ export interface FileRoutesByFullPath {
   "/collections/": typeof DashboardCollectionsIndexRoute;
   "/collections/$name/connectors": typeof DashboardCollectionsNameConnectorsRouteWithChildren;
   "/collections/$name/documents": typeof DashboardCollectionsNameDocumentsRouteWithChildren;
-  "/collections/$name/google-drive": typeof DashboardCollectionsNameGoogleDriveRoute;
   "/collections/$name/search": typeof DashboardCollectionsNameSearchRoute;
   "/collections/$name/settings": typeof DashboardCollectionsNameSettingsRoute;
   "/collections/$name/": typeof DashboardCollectionsNameIndexRoute;
@@ -260,7 +252,6 @@ export interface FileRoutesByTo {
   "/vector-storage": typeof DashboardVectorStorageRoute;
   "/webhooks": typeof DashboardWebhooksRoute;
   "/collections": typeof DashboardCollectionsIndexRoute;
-  "/collections/$name/google-drive": typeof DashboardCollectionsNameGoogleDriveRoute;
   "/collections/$name/search": typeof DashboardCollectionsNameSearchRoute;
   "/collections/$name/settings": typeof DashboardCollectionsNameSettingsRoute;
   "/collections/$name": typeof DashboardCollectionsNameIndexRoute;
@@ -295,7 +286,6 @@ export interface FileRoutesById {
   "/_dashboard/collections/": typeof DashboardCollectionsIndexRoute;
   "/_dashboard/collections/$name/connectors": typeof DashboardCollectionsNameConnectorsRouteWithChildren;
   "/_dashboard/collections/$name/documents": typeof DashboardCollectionsNameDocumentsRouteWithChildren;
-  "/_dashboard/collections/$name/google-drive": typeof DashboardCollectionsNameGoogleDriveRoute;
   "/_dashboard/collections/$name/search": typeof DashboardCollectionsNameSearchRoute;
   "/_dashboard/collections/$name/settings": typeof DashboardCollectionsNameSettingsRoute;
   "/_dashboard/collections/$name/": typeof DashboardCollectionsNameIndexRoute;
@@ -329,7 +319,6 @@ export interface FileRouteTypes {
     | "/collections/"
     | "/collections/$name/connectors"
     | "/collections/$name/documents"
-    | "/collections/$name/google-drive"
     | "/collections/$name/search"
     | "/collections/$name/settings"
     | "/collections/$name/"
@@ -357,7 +346,6 @@ export interface FileRouteTypes {
     | "/vector-storage"
     | "/webhooks"
     | "/collections"
-    | "/collections/$name/google-drive"
     | "/collections/$name/search"
     | "/collections/$name/settings"
     | "/collections/$name"
@@ -391,7 +379,6 @@ export interface FileRouteTypes {
     | "/_dashboard/collections/"
     | "/_dashboard/collections/$name/connectors"
     | "/_dashboard/collections/$name/documents"
-    | "/_dashboard/collections/$name/google-drive"
     | "/_dashboard/collections/$name/search"
     | "/_dashboard/collections/$name/settings"
     | "/_dashboard/collections/$name/"
@@ -584,13 +571,6 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DashboardCollectionsNameSearchRouteImport;
       parentRoute: typeof DashboardCollectionsNameRoute;
     };
-    "/_dashboard/collections/$name/google-drive": {
-      id: "/_dashboard/collections/$name/google-drive";
-      path: "/google-drive";
-      fullPath: "/collections/$name/google-drive";
-      preLoaderRoute: typeof DashboardCollectionsNameGoogleDriveRouteImport;
-      parentRoute: typeof DashboardCollectionsNameRoute;
-    };
     "/_dashboard/collections/$name/documents": {
       id: "/_dashboard/collections/$name/documents";
       path: "/documents";
@@ -687,7 +667,6 @@ const DashboardCollectionsNameDocumentsRouteWithChildren =
 interface DashboardCollectionsNameRouteChildren {
   DashboardCollectionsNameConnectorsRoute: typeof DashboardCollectionsNameConnectorsRouteWithChildren;
   DashboardCollectionsNameDocumentsRoute: typeof DashboardCollectionsNameDocumentsRouteWithChildren;
-  DashboardCollectionsNameGoogleDriveRoute: typeof DashboardCollectionsNameGoogleDriveRoute;
   DashboardCollectionsNameSearchRoute: typeof DashboardCollectionsNameSearchRoute;
   DashboardCollectionsNameSettingsRoute: typeof DashboardCollectionsNameSettingsRoute;
   DashboardCollectionsNameIndexRoute: typeof DashboardCollectionsNameIndexRoute;
@@ -699,8 +678,6 @@ const DashboardCollectionsNameRouteChildren: DashboardCollectionsNameRouteChildr
       DashboardCollectionsNameConnectorsRouteWithChildren,
     DashboardCollectionsNameDocumentsRoute:
       DashboardCollectionsNameDocumentsRouteWithChildren,
-    DashboardCollectionsNameGoogleDriveRoute:
-      DashboardCollectionsNameGoogleDriveRoute,
     DashboardCollectionsNameSearchRoute: DashboardCollectionsNameSearchRoute,
     DashboardCollectionsNameSettingsRoute:
       DashboardCollectionsNameSettingsRoute,
