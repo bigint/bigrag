@@ -13,6 +13,7 @@ dependencies = [
     "python-multipart>=0.0.12",
     "faker>=30",
     "orjson>=3.10",
+    "boto3>=1.34",
     "bigrag",
 ]
 
