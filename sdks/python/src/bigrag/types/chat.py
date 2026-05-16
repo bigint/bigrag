@@ -9,8 +9,7 @@ from .query import QueryTimings
 
 class ChatBody(TypedDict):
     message: str
-    conversation_id: NotRequired[str | None]
-    collection: NotRequired[str | None]
+    collection: str
     stream: NotRequired[bool]
     model_provider: NotRequired[str]
     model: NotRequired[str]
@@ -40,7 +39,6 @@ class ChatSource(TypedDict):
 
 class ChatMessage(TypedDict):
     id: str
-    conversation_id: str
     role: str
     content: str
     status: str
@@ -52,35 +50,7 @@ class ChatMessage(TypedDict):
     created_at: str
 
 
-class ChatConversation(TypedDict):
-    id: str
-    title: str
-    collection: str | None
-    model_provider: str
-    model: str
-    temperature: float
-    top_k: int
-    search_mode: str
-    min_score: float | None
-    rerank: bool | None
-    message_count: int
-    created_at: str
-    updated_at: str
-    last_message_at: str | None
-
-
-class ChatListResponse(TypedDict):
-    conversations: list[ChatConversation]
-    total: int
-
-
-class ChatDetailResponse(TypedDict):
-    conversation: ChatConversation
-    messages: list[ChatMessage]
-
-
 class ChatCreateResponse(TypedDict):
-    conversation: ChatConversation
     message: ChatMessage
     assistant_message: ChatMessage
     sources: list[ChatSource]

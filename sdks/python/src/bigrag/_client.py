@@ -24,8 +24,6 @@ from bigrag.types.analytics import AnalyticsResponse
 from bigrag.types.chat import (
     ChatBody,
     ChatCreateResponse,
-    ChatDetailResponse,
-    ChatListResponse,
     ChatStreamEvent,
 )
 from bigrag.types.collections import CollectionStatsResponse
@@ -127,19 +125,6 @@ class BigRAG(BigRAGCore):
         """Stream a chat turn as SSE events."""
         async for event in self.chat.stream(body):
             yield event
-
-    async def list_chats(
-        self,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
-    ) -> ChatListResponse:
-        """List owned chat conversations."""
-        return await self.chat.list(limit=limit, offset=offset)
-
-    async def get_chat(self, conversation_id: str) -> ChatDetailResponse:
-        """Get a chat conversation and messages."""
-        return await self.chat.get(conversation_id)
 
     def collection(self, name: str) -> CollectionClient:
         """Create a scoped client for a specific collection."""

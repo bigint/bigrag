@@ -9,8 +9,6 @@ from typing import TYPE_CHECKING
 from bigrag.types.chat import (
     ChatBody,
     ChatCreateResponse,
-    ChatDetailResponse,
-    ChatListResponse,
     ChatStreamEvent,
 )
 
@@ -65,37 +63,6 @@ class ChatResource:
                     event = _parse_frame(frame)
                     if event is not None:
                         yield event
-
-    async def list(
-        self,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
-    ) -> ChatListResponse:
-        """List owned chat conversations."""
-        params: dict[str, str] = {}
-        if limit is not None:
-            params["limit"] = str(limit)
-        if offset is not None:
-            params["offset"] = str(offset)
-        return await self._client._request("GET", "/v1/chat", params=params)
-
-    async def get(self, conversation_id: str) -> ChatDetailResponse:
-        """Get a conversation and its messages."""
-        return await self._client._request("GET", f"/v1/chat/{conversation_id}")
-
-    async def update(self, conversation_id: str, *, title: str) -> ChatDetailResponse:
-        """Rename a conversation."""
-        return await self._client._request(
-            "PATCH",
-            f"/v1/chat/{conversation_id}",
-            json={"title": title},
-        )
-
-    async def delete(self, conversation_id: str) -> dict[str, str]:
-        """Delete a conversation."""
-        return await self._client._request("DELETE", f"/v1/chat/{conversation_id}")
-
 
 def _parse_frame(frame: str) -> ChatStreamEvent | None:
     event_name = "message"

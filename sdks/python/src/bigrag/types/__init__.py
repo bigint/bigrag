@@ -57,10 +57,7 @@ from bigrag.types.auth import (
 )
 from bigrag.types.chat import (
     ChatBody,
-    ChatConversation,
     ChatCreateResponse,
-    ChatDetailResponse,
-    ChatListResponse,
     ChatMessage,
     ChatSource,
     ChatStreamEvent,
@@ -171,9 +168,6 @@ __all__ = [
     "ChatBody",
     "ChatSource",
     "ChatMessage",
-    "ChatConversation",
-    "ChatListResponse",
-    "ChatDetailResponse",
     "ChatCreateResponse",
     "ChatStreamEvent",
     # Admin
