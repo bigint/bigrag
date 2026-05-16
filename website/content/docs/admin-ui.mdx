@@ -64,7 +64,7 @@ The `/connectors` page renders provider tabs above the selected provider setup p
 
 The `/backups` page combines backup destination settings with `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups`, and `POST /v1/admin/backups` so backup operations stay out of the general Settings workspace. Usage, audit, and vector storage also live as first-class sidebar pages at `/usage`, `/audit`, and `/vector-storage`.
 
-The `/vector-storage` page is a standalone runtime settings surface for vector provider connection details. It reads `GET /v1/admin/vector-storage/overview` for provider health plus per-collection routing and stats, separates Qdrant and turbopuffer into provider tabs, and uses `GET /v1/admin/settings` and `PUT /v1/admin/settings`; collection creation owns the per-collection provider choice.
+The `/vector-storage` page is a standalone runtime settings surface for vector provider connection details. It separates Qdrant and turbopuffer into provider tabs and uses `GET /v1/admin/settings` and `PUT /v1/admin/settings`; collection creation owns the per-collection provider choice.
 
 The settings page is a compact task-oriented workspace. It uses the shared top tab control for Account, Health, Security, and Data instead of a nested settings sidebar, then opens directly into the selected area without a repeated section heading. Settings area content is stacked sequentially rather than split into desktop columns. Common controls appear first, raw setting keys and source metadata stay inside Advanced controls, and each runtime panel keeps its guidance plus Save action together in the panel footer. The Security tab focuses on trusted proxy handling, outbound URL policy, and embedding-cache posture; CORS origins and session-cookie deployment controls stay in deployment config and the instance settings API. Empty controls show default or example placeholders so unset values remain readable. Saving validates applicable storage, backup, and vector targets before persistence.
 
@@ -97,7 +97,7 @@ REST document status endpoints remain available for API clients and SDKs that pr
 
 The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, and citations happen on the backend, but chat messages and conversations are not persisted anywhere. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
 
-The empty chat screen no longer shows generic default prompts. After a collection is selected, operators can generate five random starter questions using the saved chat/OpenAI key. The backend samples that collection's ready documents and chunks, returns the generated set for the current browser session, and does not persist the generated questions.
+The empty chat screen no longer shows generic default prompts. After a collection is selected, operators can generate five random starter questions using the saved chat/OpenAI key. The backend samples that collection's ready documents and chunks, saves the latest generated set for the collection, and returns that saved set after reloads.
 
 ### Citations
 

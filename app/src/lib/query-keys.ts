@@ -127,5 +127,4 @@ export const queryKeys = {
     embeddingModels: () => ["platform", "embedding-models"] as const,
   },
   usage: ({ windowDays }: WindowDaysParams) => ["usage", { windowDays }] as const,
-  vectorStorage: () => ["vector-storage", "overview"] as const,
 } as const;

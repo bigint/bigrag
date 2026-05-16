@@ -5,11 +5,13 @@ import random
 import re
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from uuid import UUID
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import Document
+from bigrag.db.models import ChatQuestionSuggestion, Document
 from bigrag.exceptions import UpstreamError, ValidationError
 from bigrag.models.chat import ChatQuestionSuggestionsRequest, ChatQuestionSuggestionsResponse
 from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
@@ -33,13 +35,13 @@ async def get_question_suggestions(
     collection_name: str,
 ) -> ChatQuestionSuggestionsResponse:
     collection_name = collection_name.strip()
-    await _assert_collection_allowed(user, collection_name)
-    return ChatQuestionSuggestionsResponse(
-        collection=collection_name,
-        questions=[],
-        generated_at=None,
-        model=None,
+    collection = await _assert_collection_allowed(user, collection_name)
+    row = await session.scalar(
+        sa.select(ChatQuestionSuggestion).where(
+            ChatQuestionSuggestion.collection_id == collection["id"]
+        )
     )
+    return _question_suggestions_response(collection_name, row)
 
 
 async def generate_question_suggestions(
@@ -71,6 +73,14 @@ async def generate_question_suggestions(
     )
     questions = _parse_questions(text)
     generated_at = datetime.now(UTC)
+    await _save_question_suggestions(
+        session=session,
+        collection_id=collection["id"],
+        questions=questions,
+        model=model,
+        generated_by=_user_id(user),
+        generated_at=generated_at,
+    )
     return ChatQuestionSuggestionsResponse(
         collection=collection_name,
         questions=questions,
@@ -84,6 +94,68 @@ async def _assert_collection_allowed(user: dict, collection_name: str) -> dict:
     if pinned:
         assert_collection_matches_pin(pinned, collection_name)
     return await get_collection_or_404(collection_name)
+
+
+def _question_suggestions_response(
+    collection_name: str,
+    row: ChatQuestionSuggestion | None,
+) -> ChatQuestionSuggestionsResponse:
+    if row is None:
+        return ChatQuestionSuggestionsResponse(
+            collection=collection_name,
+            questions=[],
+            generated_at=None,
+            model=None,
+        )
+    return ChatQuestionSuggestionsResponse(
+        collection=collection_name,
+        questions=_stored_questions(row.questions),
+        generated_at=row.generated_at,
+        model=row.model,
+    )
+
+
+def _stored_questions(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str) and item]
+
+
+def _user_id(user: dict) -> UUID | None:
+    try:
+        return UUID(str(user["id"]))
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+async def _save_question_suggestions(
+    *,
+    session: AsyncSession,
+    collection_id: UUID,
+    questions: list[str],
+    model: str,
+    generated_by: UUID | None,
+    generated_at: datetime,
+) -> None:
+    stmt = pg_insert(ChatQuestionSuggestion).values(
+        collection_id=collection_id,
+        questions=questions,
+        model=model,
+        generated_by=generated_by,
+        generated_at=generated_at,
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[ChatQuestionSuggestion.collection_id],
+        set_={
+            "questions": stmt.excluded.questions,
+            "model": stmt.excluded.model,
+            "generated_by": stmt.excluded.generated_by,
+            "generated_at": stmt.excluded.generated_at,
+            "updated_at": sa.func.now(),
+        },
+    )
+    await session.execute(stmt)
+    await session.commit()
 
 
 async def _sample_documents(session: AsyncSession, collection_id: object) -> list[Document]:

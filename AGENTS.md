@@ -77,7 +77,7 @@ Use lint, typecheck, build, compile, and runtime smoke checks for current verifi
 
 - Backend uses FastAPI dependency injection via `bigrag/deps.py` and `app.state`
 - Database layer lives in `bigrag/db/`: `engine.py` (async engine), `session.py`
-  (FastAPI `get_session` dependency), `models.py` (all 13 ORM models), `bootstrap.py`
+  (FastAPI `get_session` dependency), `models.py` (ORM models), `bootstrap.py`
   (stamp-or-upgrade on startup). Schema changes go through Alembic (`api/alembic/`)
 - Services: `event_bus.py` (SSE), `ingestion_job.py` (job model), `conversion.py` (Docling), `cleanup.py` (periodic), `queue.py` (Redis workers)
 - SDK uses resource namespaces: `client.collections.list()`, `client.documents.upload()`, etc.

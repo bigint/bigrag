@@ -195,6 +195,23 @@ class Document(Base):
     updated_at: Mapped[TSupd]
 
 
+class ChatQuestionSuggestion(Base):
+    __tablename__ = "chat_question_suggestions"
+
+    collection_id: Mapped[UUID] = mapped_column(
+        sa.ForeignKey("collections.id", ondelete="CASCADE"), primary_key=True
+    )
+    questions: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")
+    )
+    model: Mapped[str | None] = mapped_column(sa.Text)
+    generated_by: Mapped[UUID | None] = mapped_column(
+        sa.ForeignKey("users.id", ondelete="SET NULL")
+    )
+    generated_at: Mapped[TS]
+    updated_at: Mapped[TSupd]
+
+
 class UploadSession(Base):
     __tablename__ = "upload_sessions"
     __table_args__ = (

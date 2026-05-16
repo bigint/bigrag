@@ -185,7 +185,7 @@ OpenRAG maintains persistent conversation history:
 
 OpenRAG auto-generates suggested prompts from knowledge base content via a dedicated "Nudges" Langflow flow. These appear in the chat UI as conversation starters based on themes in the ingested documents.
 
-**bigRAG status:** Partially resolved — the admin chat UI can now use the saved chat/OpenAI key to generate five random starter questions from the selected collection's ready documents and sampled chunks. The generated set is returned to the current UI cache and is not persisted. It is still a lightweight collection-aware prompt generator rather than a dedicated LLM nudge workflow.
+**bigRAG status:** Partially resolved — the admin chat UI can now use the saved chat/OpenAI key to generate five random starter questions from the selected collection's ready documents and sampled chunks. The latest generated set is persisted per collection and returned after reloads. It is still a lightweight collection-aware prompt generator rather than a dedicated LLM nudge workflow.
 
 ### 2.5 Streaming LLM Responses
 

@@ -15,10 +15,18 @@ services:
       BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
       BIGRAG_DATABASE_URL: "postgres://${POSTGRES_USER:-bigrag}:${POSTGRES_PASSWORD:-bigrag}@postgres:5432/${POSTGRES_DB:-bigrag}?sslmode=disable"
       BIGRAG_QDRANT_URL: http://qdrant:6333
-      BIGRAG_REDIS_URL: redis://redis:6379/0
+      BIGRAG_REDIS_URL: "${BIGRAG_REDIS_URL:-redis://redis:6379/0}"
       BIGRAG_HOST: 0.0.0.0
+      BIGRAG_MASTER_KEY: "${BIGRAG_MASTER_KEY:-}"
+      BIGRAG_MASTER_KEY_PREVIOUS: '${BIGRAG_MASTER_KEY_PREVIOUS:-[]}'
+      BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD: "${BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD:-false}"
       BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
+      BIGRAG_SESSION_COOKIE_SAMESITE: "${BIGRAG_SESSION_COOKIE_SAMESITE:-lax}"
+      BIGRAG_SESSION_COOKIE_DOMAIN: "${BIGRAG_SESSION_COOKIE_DOMAIN:-}"
       BIGRAG_CORS_ORIGINS: '${BIGRAG_CORS_ORIGINS:-["http://localhost:3000"]}'
+      BIGRAG_TRUSTED_PROXIES: '${BIGRAG_TRUSTED_PROXIES:-[]}'
+      BIGRAG_LOG_LEVEL: "${BIGRAG_LOG_LEVEL:-debug}"
+      BIGRAG_LOG_FORMAT: "${BIGRAG_LOG_FORMAT:-text}"
       BIGRAG_UPLOAD_DIR: /data/uploads
     deploy:
       resources:
@@ -49,11 +57,17 @@ services:
       BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
       BIGRAG_DATABASE_URL: "postgres://${POSTGRES_USER:-bigrag}:${POSTGRES_PASSWORD:-bigrag}@postgres:5432/${POSTGRES_DB:-bigrag}?sslmode=disable"
       BIGRAG_QDRANT_URL: http://qdrant:6333
-      BIGRAG_REDIS_URL: redis://redis:6379/0
+      BIGRAG_REDIS_URL: "${BIGRAG_REDIS_URL:-redis://redis:6379/0}"
       BIGRAG_UPLOAD_DIR: /data/uploads
       BIGRAG_MASTER_KEY: "${BIGRAG_MASTER_KEY:-}"
+      BIGRAG_MASTER_KEY_PREVIOUS: '${BIGRAG_MASTER_KEY_PREVIOUS:-[]}'
       BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
+      BIGRAG_SESSION_COOKIE_SAMESITE: "${BIGRAG_SESSION_COOKIE_SAMESITE:-lax}"
+      BIGRAG_SESSION_COOKIE_DOMAIN: "${BIGRAG_SESSION_COOKIE_DOMAIN:-}"
       BIGRAG_CORS_ORIGINS: '${BIGRAG_CORS_ORIGINS:-["http://localhost:3000"]}'
+      BIGRAG_TRUSTED_PROXIES: '${BIGRAG_TRUSTED_PROXIES:-[]}'
+      BIGRAG_LOG_LEVEL: "${BIGRAG_LOG_LEVEL:-debug}"
+      BIGRAG_LOG_FORMAT: "${BIGRAG_LOG_FORMAT:-text}"
     deploy:
       resources:
         limits:
@@ -113,15 +127,24 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:6379:6379"
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy noeviction
+    command:
+      - sh
+      - -c
+      - |
+        if [ -n "$$REDIS_PASSWORD" ]; then
+          exec redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy noeviction --requirepass "$$REDIS_PASSWORD"
+        fi
+        exec redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy noeviction
     deploy:
       resources:
         limits:
           memory: 1536m
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "if [ -n \"$${REDIS_PASSWORD}\" ]; then redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping; else redis-cli ping; fi"]
       interval: 10s
       timeout: 5s
       retries: 5
