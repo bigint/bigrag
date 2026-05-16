@@ -572,7 +572,7 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "Default chat provider",
         "select",
         "openai",
-        "Default provider for new chat conversations.",
+        "Default provider for chat answers.",
         options=("openai", "openai_compatible"),
     ),
     _spec(
@@ -581,7 +581,7 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
         "Default chat model",
         "string",
         "gpt-4o-mini",
-        "Default model for new chat conversations.",
+        "Default model for chat answers.",
     ),
     _spec(
         "chat_base_url",

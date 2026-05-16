@@ -38,7 +38,7 @@ Large operator routes such as Overview, Chat, Connectors, MCP, Audit, and collec
 | `/collections/[name]/connectors/google-drive` | Browse Google Drive, sync selected files/folders, monitor Drive sync progress, trigger manual resync, and manage sync schedules. Source creation and manual sync are disabled when the worker is offline. |
 | `/collections/[name]/search` | Query tester scoped to the collection — tweak `search_mode`, `top_k`, and rerank when enabled. |
 | `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
-| `/chat` | Production chat UI; retrieve from one collection, stream cited answers through the backend, and continue stored conversations. |
+| `/chat` | Playground chat UI; retrieve from one collection and stream cited answers through the backend without storing turns. |
 | `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets) plus fallback embedding, retrieval, and chat model settings. |
 | `/mcp` | Mint, scope, rotate, and revoke [MCP server](/docs/api-reference/mcp-servers) credentials for Claude Desktop / Cursor / custom MCP clients. |
 | `/api-keys` | Mint, scope, and revoke `bigrag_sk_…` keys. Plaintext shown once at creation. |
@@ -96,7 +96,7 @@ REST document status endpoints remain available for API clients and SDKs that pr
 
 ## Chat specifics
 
-The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, citations, and conversation persistence all happen on the backend. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
+The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, and citations happen on the backend, but chat messages and conversations are not persisted. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
 
 The empty chat screen no longer shows generic default prompts. After a collection is selected, operators can generate five random starter questions using the saved chat/OpenAI key. The backend samples that collection's ready documents and chunks, stores the generated set in the instance database, and refreshes the same persisted set when operators ask for another batch.
 

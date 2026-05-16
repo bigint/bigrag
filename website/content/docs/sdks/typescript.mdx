@@ -143,11 +143,6 @@ for await (const event of client.chat.stream({
 })) {
   if (event.event === "delta") process.stdout.write(event.data.delta);
 }
-
-const chats = await client.chat.list({ limit: 20 });
-const detail = await client.chat.get(chats.conversations[0].id);
-await client.chat.update(detail.conversation.id, { title: "Policy Q&A" });
-await client.chat.delete(detail.conversation.id);
 ```
 
 ## Queries

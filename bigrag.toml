@@ -54,7 +54,6 @@
 # chat_model = "gpt-4o-mini"
 # chat_base_url = ""               # required for openai_compatible endpoints
 # chat_temperature = 0.2
-# chat_max_history_messages = 12
 # chat_max_context_chars = 120000
 # allowed_chat_base_urls = []
 # allow_private_chat_base_urls = false

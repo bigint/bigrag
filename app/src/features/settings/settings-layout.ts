@@ -43,7 +43,7 @@ const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupLayout> 
   },
   chat: {
     commonKeys: ["chat_provider", "chat_model", "chat_base_url", "chat_temperature"],
-    description: "Default provider and behavior for stored chat conversations.",
+    description: "Default provider and behavior for playground chat answers.",
     emptyState: "Chat runtime settings are not available from this API.",
     eyebrow: "Answering",
     group: "chat",

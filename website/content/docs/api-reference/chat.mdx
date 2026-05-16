@@ -1,11 +1,11 @@
 ---
 title: Chat
-description: Production chat API with retrieval, generated answers, citations, and persisted conversations.
+description: Stateless playground chat API with retrieval, generated answers, and citations.
 ---
 
 Base path: `/v1/chat`
 
-The chat API retrieves chunks from a collection, builds the grounded prompt on the backend, calls the configured chat provider, returns cited answers, and stores the conversation. It supports session auth and API-key auth. Scoped API keys can use chat when granted `chat:read`, `chat:write`, or `chat:delete`; collection-pinned keys can only chat against their pinned collection.
+The chat API retrieves chunks from a collection, builds the grounded prompt on the backend, calls the configured chat provider, and returns cited answers for the current turn. It does not store chat messages or conversations. It supports session auth and API-key auth. Scoped API keys can use chat when granted `chat:write`; collection-pinned keys can only chat against their pinned collection.
 
 Supported providers are `openai` and `openai_compatible`. Save the provider key in the admin UI at `chat.openai_key`. API clients can also pass `provider_api_key` per request when they do not want to use the user's saved key.
 
@@ -51,7 +51,7 @@ Response:
 POST /v1/chat
 ```
 
-Start a conversation:
+Request body:
 
 ```json
 {
@@ -65,26 +65,13 @@ Start a conversation:
 }
 ```
 
-Continue a conversation:
-
-```json
-{
-  "conversation_id": "2f8d0f1f-5484-4f04-9a6c-4d8acb5c4f14",
-  "message": "Summarize that in two bullets.",
-  "stream": false
-}
-```
-
-Non-streaming responses include the saved user message, saved assistant message, sources, timings, and conversation metadata.
+Non-streaming responses include the current user message, current assistant message, sources, and timings.
 
 ## Stream Chat Turn
 
 Set `stream: true` to receive Server-Sent Events:
 
 ```text
-event: conversation
-data: {"id":"...","title":"..."}
-
 event: user_message
 data: {"id":"...","role":"user","content":"..."}
 
@@ -98,20 +85,9 @@ event: assistant_message
 data: {"id":"...","role":"assistant","content":"PTO requires..."}
 
 event: done
-data: {"conversation":{"id":"..."}}
+data: {}
 
 data: [DONE]
 ```
 
 If provider generation fails after streaming starts, the API emits an `error` event followed by `data: [DONE]`.
-
-## Conversations
-
-```
-GET /v1/chat?limit=50&offset=0
-GET /v1/chat/{conversation_id}
-PATCH /v1/chat/{conversation_id}
-DELETE /v1/chat/{conversation_id}
-```
-
-`PATCH` accepts `{ "title": "PTO policy Q&A" }`. `DELETE` returns `{ "status": "deleted" }`.

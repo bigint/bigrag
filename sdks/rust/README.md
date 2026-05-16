@@ -56,7 +56,7 @@ Use `BigRag::from_env()` to read these automatically.
 - `client.collections()` for collection CRUD, stats, re-embedding, and event streams.
 - `client.documents()` for uploads, batch operations, file URLs, and status polling.
 - `client.queries()` for single, multi-collection, and batch retrieval queries.
-- `client.chat()` for generated answers and conversation CRUD.
+- `client.chat()` for generated answers and streaming.
 - `client.vectors()` for raw vector upsert and delete.
 - `client.webhooks()` for webhook management and delivery replay.
 - `client.auth()` for setup, login, identity, password, and preferences.

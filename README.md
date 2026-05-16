@@ -12,7 +12,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 - **Vector search** — semantic, keyword, and hybrid search modes via [Qdrant](https://qdrant.io)
 - **Reranking** — Cohere reranking for improved result relevance
 - **Multi-collection queries** — search across collections in a single request
-- **Generated chat** — backend-grounded chat with streaming, citations, and persisted conversations
+- **Generated chat** — stateless backend-grounded playground chat with streaming and citations
 - **Batch operations** — bulk upload, delete, status checks, and queries
 - **Google Drive connector** — OAuth, in-app Drive browsing, and manual/scheduled resync
 - **Status polling** — REST endpoints for document and batch processing status
@@ -158,8 +158,7 @@ graph TD
 | `POST` | `/v1/connectors/google/sources/{id}/sync` | Manual Drive resync |
 | `GET` | `/v1/connectors/google/sync-jobs` | Google Drive sync job history |
 | **Chat** | | |
-| `GET`/`POST` | `/v1/chat` | List conversations or create a chat turn |
-| `GET`/`PATCH`/`DELETE` | `/v1/chat/{conversation_id}` | Read, rename, or delete a conversation |
+| `POST` | `/v1/chat` | Create a stateless chat turn |
 | **Query** | | |
 | `POST` | `/v1/collections/{name}/query` | Query collection |
 | `POST` | `/v1/query` | Multi-collection query |
