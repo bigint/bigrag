@@ -9,7 +9,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 - **Document ingestion** — PDF, DOCX, PPTX, HTML, Markdown, images, and more via [Docling](https://github.com/DS4SD/docling)
 - **Embedding providers** — OpenAI, OpenAI-compatible gateways, Cohere, and Voyage
 - **Embedding presets** — save named provider/model configs once, reuse across collections
-- **Vector search** — semantic, keyword, and hybrid search modes via [Qdrant](https://qdrant.io)
+- **Vector search** — semantic, keyword, and hybrid search modes via [Qdrant](https://qdrant.io) or [turbopuffer](https://turbopuffer.com)
 - **Reranking** — Cohere reranking for improved result relevance
 - **Multi-collection queries** — search across collections in a single request
 - **Generated chat** — stateless backend-grounded playground chat with streaming and citations
@@ -31,7 +31,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 docker compose up -d
 ```
 
-This starts bigRAG API, worker, admin UI, Postgres, Redis, and Qdrant. Open http://localhost:3000 for the admin UI or http://localhost:4000/docs for the interactive API docs.
+This starts bigRAG API, worker, admin UI, Postgres, Redis, and Qdrant (or turbopuffer per collection). Open http://localhost:3000 for the admin UI or http://localhost:4000/docs for the interactive API docs.
 
 ```bash
 # Create a collection
@@ -90,9 +90,9 @@ graph TD
 
     Worker -->|parse| Docling[Docling<br/>PDF, DOCX, HTML, Images]
     Worker -->|embed| Embedding[Embedding provider<br/>OpenAI / compatible / Cohere / Voyage]
-    Worker -->|store vectors| Qdrant[(Qdrant<br/>Vector DB)]
+    Worker -->|store vectors| Vectors[(Qdrant<br/>or turbopuffer)]
 
-    Query -->|search| Qdrant
+    Query -->|search| Vectors
     Query -->|embed query| Embedding
     Query -->|rerank| Reranker[Cohere Rerank]
     Chat -->|retrieve context| Query
@@ -326,6 +326,9 @@ Backend logging defaults to `debug` / `text` for local development. Use `BIGRAG_
 | `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout (`0` disables the timeout) | `10` |
 | `BIGRAG_QDRANT_REQUIRED` | Fail API startup if Qdrant cannot be reached | `false` |
 | `BIGRAG_QDRANT_SEARCH_EF` | Optional Qdrant HNSW search recall/latency tuning | — |
+| `BIGRAG_TURBOPUFFER_API_KEY` | turbopuffer API key (only required for collections using turbopuffer) | — |
+| `BIGRAG_TURBOPUFFER_REGION` | turbopuffer region | `aws-us-east-1` |
+| `BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX` | Prefix prepended to turbopuffer namespace names | `bigrag_` |
 | `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
 | `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
 | `BIGRAG_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and access logs | `[]` |
