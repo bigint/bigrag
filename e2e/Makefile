@@ -47,10 +47,10 @@ test: test-api test-sdk-py test-sdk-ts test-ui
 e2e:
 	$(MAKE) up
 	@if ! $(MAKE) test; then \
-		echo "=== bigrag-api logs ==="; \
-		$(COMPOSE) logs --tail=200 bigrag-api || true; \
-		echo "=== bigrag-worker logs ==="; \
-		$(COMPOSE) logs --tail=400 bigrag-worker || true; \
+		echo "=== bigrag-api logs (last 1000 lines) ==="; \
+		$(COMPOSE) logs --tail=1000 bigrag-api || true; \
+		echo "=== bigrag-worker logs (last 1000 lines) ==="; \
+		$(COMPOSE) logs --tail=1000 bigrag-worker || true; \
 		$(MAKE) down; \
 		exit 1; \
 	fi

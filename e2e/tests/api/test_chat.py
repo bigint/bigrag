@@ -253,7 +253,9 @@ async def test_chat_streaming_yields_deltas_and_completion(
             "stream": True,
         },
     ) as resp:
-        assert resp.status_code == 200, resp.text
+        if resp.status_code != 200:
+            await resp.aread()
+            raise AssertionError(f"expected 200 got {resp.status_code}: {resp.text}")
         assert "text/event-stream" in resp.headers.get("content-type", "")
         async for line in resp.aiter_lines():
             raw_lines.append(line + "\n")

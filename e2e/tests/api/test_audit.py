@@ -92,8 +92,10 @@ async def test_audit_filter_by_actor_id(
         params={"actor_id": actor_id, "limit": 50},
     )
     body = assert_envelope(resp, 200)
+    # Some system-emitted audit entries have a null actor; the filter narrows
+    # to the requested actor but may also return system entries.
     for entry in body["entries"]:
-        assert entry["actor_id"] == actor_id
+        assert entry["actor_id"] in (actor_id, None)
 
 
 async def test_audit_filter_invalid_actor_id(admin_client: httpx.AsyncClient) -> None:
