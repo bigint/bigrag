@@ -214,8 +214,10 @@ async def validate_chat_base_url(base_url: str | None) -> str | None:
 async def validate_webhook_url(url: str) -> str:
     from bigrag.services.runtime_settings import get_value
 
+    allow_local = await get_value("allow_local_webhooks")
     return await validate_outbound_url(
         url,
         purpose="Webhook URL",
-        allow_loopback=await get_value("allow_local_webhooks"),
+        allow_loopback=allow_local,
+        allow_private=allow_local,
     )

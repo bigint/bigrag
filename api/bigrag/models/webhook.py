@@ -25,10 +25,7 @@ def _validate_webhook_url(url: str) -> None:
     parsed = urlparse(url)
     if not parsed.hostname:
         raise ValueError("Webhook URL must have a hostname")
-    is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
-    local_http_allowed = (
-        sync_value("allow_local_webhooks") and parsed.scheme == "http" and is_localhost
-    )
+    local_http_allowed = sync_value("allow_local_webhooks") and parsed.scheme == "http"
     if parsed.scheme != "https" and not local_http_allowed:
         raise ValueError("Webhook URL must use HTTPS")
 
