@@ -80,9 +80,10 @@ async def test_unknown_document_raises_not_found(
 
 
 async def test_unknown_webhook_raises_not_found(
-    sdk_client: Callable[..., Awaitable[BigRAG]],
+    session_sdk_client: Callable[..., Awaitable[BigRAG]],
 ) -> None:
-    client = await sdk_client()
+    # Webhook admin endpoints require session auth, not API key.
+    client = await session_sdk_client()
     with pytest.raises(NotFoundError):
         await client.webhooks.get("00000000-0000-0000-0000-000000000000")
 

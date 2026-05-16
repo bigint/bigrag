@@ -134,10 +134,12 @@ async def test_documents_batch_upload_status_get_delete(
 ) -> None:
     client = await sdk_client()
     coll = await collection()
-    payload = read_fixture("sample.txt")
+    # bigRAG dedups by content hash, so the two files need distinct bodies.
+    payload_a = read_fixture("sample.txt") + b"\n# batch-a\n"
+    payload_b = read_fixture("sample.txt") + b"\n# batch-b\n"
     files = [
-        (f"batch-a-{unique_name('x')}.txt", payload),
-        (f"batch-b-{unique_name('x')}.txt", payload),
+        (f"batch-a-{unique_name('x')}.txt", payload_a),
+        (f"batch-b-{unique_name('x')}.txt", payload_b),
     ]
     batch = await client.documents.batch_upload(coll["name"], files)
     assert batch["total"] == 2

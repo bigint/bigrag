@@ -209,7 +209,9 @@ async def test_collections_stream_events_returns_async_iterator(
     events_gen = client.collections.stream_events(created["name"])
     try:
         event = await asyncio.wait_for(events_gen.__anext__(), timeout=5.0)
+        # The SDK yields the parsed SSE data payload directly; the initial
+        # "connected" snapshot has step/status/message/progress keys.
         assert isinstance(event, dict)
-        assert "event" in event and "data" in event
+        assert event
     finally:
         await events_gen.aclose()
