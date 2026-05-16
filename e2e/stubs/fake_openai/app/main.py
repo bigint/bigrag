@@ -112,7 +112,8 @@ async def chat_completions(request: Request):
     model = body.get("model", "gpt-4o-mini")
     messages = body.get("messages") or []
     stream = bool(body.get("stream", False))
-    text = canned_response(messages)
+    response_format = body.get("response_format")
+    text = canned_response(messages, response_format=response_format)
     prompt_tokens = sum(count_tokens(str(m.get("content", ""))) for m in messages)
 
     if not stream:
