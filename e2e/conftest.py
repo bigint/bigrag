@@ -344,7 +344,7 @@ async def collection(
         *,
         name: str | None = None,
         description: str = "e2e fixture collection",
-        dimension: int | None = None,
+        dimension: int | None = 1536,
         vector_store_provider: str = "qdrant",
         chunk_size: int = 512,
         chunk_overlap: int = 50,
