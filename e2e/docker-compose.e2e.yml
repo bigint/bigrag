@@ -5,6 +5,9 @@ services:
       BIGRAG_MASTER_KEY: "Zm5VZ4vO8r0y3rVsT0xz7nxV_wP7u6-n5tB1GAlHZIw="
       BIGRAG_LOG_LEVEL: info
       BIGRAG_LOGIN_RATE_LIMIT: "10000"
+      HF_HOME: /data/hf
+      HF_HUB_CACHE: /data/hf/hub
+      TRANSFORMERS_CACHE: /data/hf/transformers
       BIGRAG_CORS_ORIGINS: '["http://localhost:3000","http://localhost:4000","http://127.0.0.1:3000","http://127.0.0.1:4000"]'
       BIGRAG_EMBEDDING_PROVIDER: openai_compatible
       BIGRAG_EMBEDDING_MODEL: text-embedding-3-small
@@ -39,6 +42,9 @@ services:
       BIGRAG_ENV: dev
       BIGRAG_MASTER_KEY: "Zm5VZ4vO8r0y3rVsT0xz7nxV_wP7u6-n5tB1GAlHZIw="
       BIGRAG_LOG_LEVEL: info
+      HF_HOME: /data/hf
+      HF_HUB_CACHE: /data/hf/hub
+      TRANSFORMERS_CACHE: /data/hf/transformers
       BIGRAG_EMBEDDING_PROVIDER: openai_compatible
       BIGRAG_EMBEDDING_MODEL: text-embedding-3-small
       BIGRAG_EMBEDDING_DIMENSION: "1536"
