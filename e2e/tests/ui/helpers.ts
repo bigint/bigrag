@@ -202,7 +202,7 @@ export const uploadDocViaApi = async (
 
 export const loginAsAdmin = async (page: Page): Promise<void> => {
   await page.goto("/login");
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
   if (!page.url().includes("/login")) return;
   await page.getByLabel("Email").fill(ADMIN_EMAIL);
   await page.getByLabel("Password").fill(ADMIN_PASSWORD);

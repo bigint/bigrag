@@ -19,7 +19,7 @@ test("uploads a document via the UI and shows it as ready", async ({
     collectionName = collection.name;
 
     await page.goto(`/collections/${collectionName}/documents`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // The upload dropzone has a sr-only file input keyed by id "doc-upload".
     const fileInput = page.locator("input#doc-upload");

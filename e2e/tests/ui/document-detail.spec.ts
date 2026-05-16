@@ -21,7 +21,7 @@ test("renders document chunks and triggers reprocess", async ({ page }) => {
     expect(doc.status).toBe("ready");
 
     await page.goto(`/collections/${collectionName}/documents/${doc.id}`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Document filename appears in the header.
     await expect(

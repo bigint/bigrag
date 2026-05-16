@@ -58,7 +58,7 @@ test.describe("login and logout", () => {
 
     test("logs out via the user menu", async ({ page }) => {
       await page.goto("/overview");
-      await page.waitForLoadState("networkidle");
+      await page.waitForLoadState("domcontentloaded");
 
       // Open the user menu (avatar trigger in the sidebar footer).
       const menuTrigger = page.getByRole("button", { name: ADMIN_EMAIL });

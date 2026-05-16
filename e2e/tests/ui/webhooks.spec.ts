@@ -14,7 +14,7 @@ test("creates a webhook, reveals the signing secret, and runs a test delivery", 
   await request.post(`${webhookSinkBase()}/reset`).catch(() => undefined);
 
   await page.goto("/webhooks");
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
 
   await page.getByRole("button", { name: /add webhook/i }).first().click();
 

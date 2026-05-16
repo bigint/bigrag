@@ -7,7 +7,7 @@ test("dashboard overview renders metric cards and health panels", async ({
   page,
 }) => {
   await page.goto("/overview");
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
 
   // Greeting heading.
   await expect(

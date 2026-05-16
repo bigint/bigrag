@@ -28,7 +28,7 @@ test("opens the chat shell, selects a collection, and exposes the key drawer", a
     expect(doc.status).toBe("ready");
 
     await page.goto("/chat");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // The composer textarea is rendered (chat shell loaded).
     await expect(page.getByLabel(/message input/i)).toBeVisible({

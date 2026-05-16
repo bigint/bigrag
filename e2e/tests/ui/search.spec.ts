@@ -23,7 +23,7 @@ test("runs a semantic search and shows results with citations", async ({
     expect(doc.status).toBe("ready");
 
     await page.goto(`/collections/${collectionName}/search`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     const queryBox = page.getByPlaceholder(/ask a question/i);
     await queryBox.fill("what is in the sample document");

@@ -7,7 +7,7 @@ test("mints, rotates, and revokes an API key", async ({ page }) => {
   const keyName = uniqueName("ui-key");
 
   await page.goto("/api-keys");
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
 
   await page.getByRole("button", { name: /new key|create your first key/i }).first().click();
 
