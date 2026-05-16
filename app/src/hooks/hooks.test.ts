@@ -464,11 +464,8 @@ describe("admin app hooks", () => {
 
   it("wires admin resource mutation hooks", async () => {
     const { useBackups, useStartBackup } = await import("./use-backups");
-    const {
-      useChatQuestionSuggestions,
-      useDeleteChatConversation,
-      useGenerateChatQuestions,
-    } = await import("./use-chat");
+    const { useChatQuestionSuggestions, useDeleteChatConversation, useGenerateChatQuestions } =
+      await import("./use-chat");
     const { useCreateEmbeddingPreset, useDeleteEmbeddingPreset, useUpdateEmbeddingPreset } =
       await import("./use-embedding-presets");
     const { usePurgeEmbeddingCache, useUpdateInstanceSettings } = await import(
@@ -521,9 +518,7 @@ describe("admin app hooks", () => {
       temperature: 0.7,
     });
     expect(generatedQuestions).toEqual(suggestions);
-    mutationOptions<{ onSuccess: (response: typeof suggestions) => void }>().onSuccess(
-      suggestions,
-    );
+    mutationOptions<{ onSuccess: (response: typeof suggestions) => void }>().onSuccess(suggestions);
     expect(queryClient.setQueryData).toHaveBeenLastCalledWith(
       queryKeys.chat.questions({ collection: "team docs" }),
       suggestions,
