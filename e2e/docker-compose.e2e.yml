@@ -63,7 +63,7 @@ services:
         condition: service_healthy
 
   fake-openai:
-    build: ./stubs/fake_openai
+    build: ./e2e/stubs/fake_openai
     container_name: bigrag-e2e-fake-openai
     restart: unless-stopped
     ports:
@@ -75,7 +75,7 @@ services:
       retries: 10
 
   fake-gdrive:
-    build: ./stubs/fake_gdrive
+    build: ./e2e/stubs/fake_gdrive
     container_name: bigrag-e2e-fake-gdrive
     restart: unless-stopped
     ports:
@@ -87,7 +87,7 @@ services:
       retries: 10
 
   webhook-sink:
-    build: ./stubs/webhook_sink
+    build: ./e2e/stubs/webhook_sink
     container_name: bigrag-e2e-webhook-sink
     restart: unless-stopped
     ports:
