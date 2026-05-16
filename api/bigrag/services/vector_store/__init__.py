@@ -12,25 +12,17 @@ from bigrag.services.vector_store.base import (
     VectorStoreFeatureError,
     VectorStoreProvider,
 )
-from bigrag.services.vector_store.qdrant import QdrantVectorStore, _to_qdrant_filter
-from bigrag.services.vector_store.turbopuffer import (
-    TurbopufferVectorStore,
-    _to_turbopuffer_filter,
-)
+from bigrag.services.vector_store.qdrant import QdrantVectorStore
+from bigrag.services.vector_store.turbopuffer import TurbopufferVectorStore
 
 logger = get_logger("bigrag.vector_store")
 
 _PROVIDERS: tuple[VectorStoreProvider, ...] = ("qdrant", "turbopuffer")
 
 __all__ = [
-    "QdrantVectorStore",
-    "TurbopufferVectorStore",
     "VectorStore",
-    "VectorStoreBackend",
     "VectorStoreFeatureError",
     "VectorStoreProvider",
-    "_to_qdrant_filter",
-    "_to_turbopuffer_filter",
     "vector_store",
 ]
 
