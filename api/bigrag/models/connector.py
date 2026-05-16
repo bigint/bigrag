@@ -6,7 +6,6 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 ConnectorProvider = str
-GoogleProvider = Literal["google_drive"]
 ConnectorAccountStatus = Literal["pending", "connected", "needs_reauth", "revoked"]
 ConnectorSourceStatus = Literal["idle", "syncing", "needs_reauth", "error"]
 ConnectorSourceType = Literal["file", "folder"]
@@ -124,16 +123,3 @@ class ConnectorSyncJobResponse(BaseModel):
 class ConnectorSyncJobListResponse(BaseModel):
     jobs: list[ConnectorSyncJobResponse]
     total: int
-
-
-GoogleConnectorConfigResponse = ConnectorConfigResponse
-UpdateGoogleConnectorConfigRequest = UpdateConnectorConfigRequest
-GoogleAccountResponse = ConnectorAccountResponse
-GoogleDriveFileResponse = ConnectorFileResponse
-GoogleDriveFileListResponse = ConnectorFileListResponse
-CreateGoogleSourceRequest = CreateConnectorSourceRequest
-UpdateGoogleSourceRequest = UpdateConnectorSourceRequest
-GoogleSourceResponse = ConnectorSourceResponse
-GoogleSourceListResponse = ConnectorSourceListResponse
-GoogleSyncJobResponse = ConnectorSyncJobResponse
-GoogleSyncJobListResponse = ConnectorSyncJobListResponse
