@@ -1,0 +1,9 @@
+node_modules/
+.venv/
+__pycache__/
+.pytest_cache/
+test-results/
+playwright-report/
+*.pyc
+.ruff_cache/
+uv.lock.tmp

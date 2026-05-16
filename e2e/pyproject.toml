@@ -1,0 +1,38 @@
+[project]
+name = "bigrag-e2e"
+version = "0.1.0"
+description = "End-to-end test suite for bigRAG"
+requires-python = ">=3.12"
+dependencies = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "pytest-xdist>=3.6",
+    "httpx>=0.28",
+    "httpx-sse>=0.4",
+    "anyio>=4",
+    "python-multipart>=0.0.12",
+    "faker>=30",
+    "orjson>=3.10",
+    "bigrag",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.7",
+]
+
+[tool.uv.sources]
+bigrag = { path = "../sdks/python", editable = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
