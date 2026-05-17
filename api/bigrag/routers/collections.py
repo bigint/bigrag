@@ -19,6 +19,7 @@ from bigrag.models.collection import (
     CreateCollectionRequest,
     UpdateCollectionRequest,
 )
+from bigrag.routers import enforce_collection_pin
 from bigrag.services import audit, collection_cache
 from bigrag.services.collection_provision import (
     create_vector_store_collection,
@@ -362,9 +363,10 @@ async def reembed_collection(
 @router.get("/{name}", response_model=CollectionResponse)
 async def get_collection(
     name: str,
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, name)
     logger.info("get collection", collection=name)
     collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
     if collection is None:
@@ -375,9 +377,10 @@ async def get_collection(
 @router.get("/{name}/stats", response_model=CollectionStatsResponse)
 async def get_collection_stats(
     name: str,
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, name)
     logger.info("collection stats", collection=name)
     collection_id = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
     if collection_id is None:
@@ -421,6 +424,7 @@ async def update_collection(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, name)
     logger.info("update collection", collection=name)
     collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
     if collection is None:
@@ -502,6 +506,7 @@ async def delete_collection(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, name)
     deleted_id = await service_delete_collection(session, name)
     audit.record(
         request,
@@ -521,6 +526,7 @@ async def truncate_collection(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, name)
     collection_id = await service_truncate_collection(session, name)
     audit.record(
         request,
