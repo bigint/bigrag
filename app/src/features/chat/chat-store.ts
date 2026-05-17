@@ -20,12 +20,6 @@ const initialState = {
   messages: [],
 } satisfies Pick<ChatStoreState, "collection" | "isStreaming" | "messages">;
 
-if (typeof window !== "undefined") {
-  try {
-    window.localStorage.removeItem("bigrag-chat");
-  } catch {}
-}
-
 export const useChatStore = create<ChatStoreState>()((set) => ({
   ...initialState,
   appendMessages: (messages) =>
