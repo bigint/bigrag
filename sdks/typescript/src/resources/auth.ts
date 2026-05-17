@@ -53,6 +53,6 @@ export class AuthResource {
   updatePreferences(
     body: UpdatePreferencesBody | Record<string, unknown>,
   ): Promise<PreferencesResponse> {
-    return this._client._request("PUT", "/v1/auth/preferences", { json: body });
+    return this._client._request("PUT", "/v1/auth/preferences", { json: { data: body } });
   }
 }
