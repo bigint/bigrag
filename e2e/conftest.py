@@ -27,9 +27,7 @@ import pytest
 import pytest_asyncio
 
 from tests._helpers import (
-    DOCUMENTS_DIR,
     assert_envelope,
-    fixture_path,
     poll_until,
     read_fixture,
     unique_name,
@@ -39,12 +37,8 @@ API_BASE = os.environ.get("BIGRAG_E2E_API_BASE", "http://localhost:4000")
 FAKE_OPENAI_BASE = os.environ.get("BIGRAG_E2E_FAKE_OPENAI", "http://localhost:9001")
 WEBHOOK_SINK_BASE = os.environ.get("BIGRAG_E2E_WEBHOOK_SINK", "http://localhost:9003")
 
-FAKE_OPENAI_INTERNAL_BASE = os.environ.get(
-    "BIGRAG_E2E_FAKE_OPENAI_INTERNAL", "http://fake-openai:9001"
-)
-WEBHOOK_SINK_INTERNAL_BASE = os.environ.get(
-    "BIGRAG_E2E_WEBHOOK_SINK_INTERNAL", "http://webhook-sink:9003"
-)
+FAKE_OPENAI_INTERNAL_BASE = "http://fake-openai:9001"
+WEBHOOK_SINK_INTERNAL_BASE = "http://webhook-sink:9003"
 
 ADMIN_EMAIL = "e2e-admin@example.com"
 ADMIN_PASSWORD = "e2e-admin-password-123!"
@@ -52,21 +46,6 @@ ADMIN_DISPLAY_NAME = "E2E Admin"
 
 DEFAULT_TIMEOUT = 30.0
 DOCUMENT_READY_TIMEOUT = 60.0
-
-__all__ = [
-    "API_BASE",
-    "FAKE_OPENAI_BASE",
-    "WEBHOOK_SINK_BASE",
-    "ADMIN_EMAIL",
-    "ADMIN_PASSWORD",
-    "ADMIN_DISPLAY_NAME",
-    "DOCUMENTS_DIR",
-    "assert_envelope",
-    "fixture_path",
-    "poll_until",
-    "read_fixture",
-    "unique_name",
-]
 
 
 # ---------------------------------------------------------------------------
@@ -83,12 +62,6 @@ def api_base_url() -> str:
 def fake_openai_base() -> str:
     """URL bigRAG (running in Docker) uses to reach fake-openai (internal Docker hostname)."""
     return FAKE_OPENAI_INTERNAL_BASE
-
-
-@pytest.fixture(scope="session")
-def webhook_sink_base() -> str:
-    """Internal (Docker) URL of webhook-sink — pass this *into* bigRAG."""
-    return WEBHOOK_SINK_INTERNAL_BASE
 
 
 # ---------------------------------------------------------------------------
