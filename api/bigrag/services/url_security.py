@@ -102,6 +102,16 @@ def _resolve_host_sync(hostname: str, port: int) -> list[str]:
     return [sockaddr[0] for _, _, _, _, sockaddr in addrinfo]
 
 
+def _bracket_ipv6(ip_str: str) -> str:
+    try:
+        addr = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return ip_str
+    if isinstance(addr, ipaddress.IPv6Address) and not ip_str.startswith("["):
+        return f"[{ip_str}]"
+    return ip_str
+
+
 def _validate_outbound_url_with_addrs_sync(
     raw_url: str,
     *,
@@ -329,7 +339,7 @@ class _IPPinnedTransport(httpx.AsyncHTTPTransport):
             raise httpx.ConnectError(
                 f"refused to connect to {request_host}: pinned to {self._hostname}"
             )
-        new_url = request.url.copy_with(host=self._pinned_ip)
+        new_url = request.url.copy_with(host=_bracket_ipv6(self._pinned_ip))
         new_headers = httpx.Headers(request.headers)
         if "host" not in {k.lower() for k in new_headers}:
             host_value = self._hostname
