@@ -21,6 +21,9 @@ def include_all_routers(app: FastAPI) -> None:
     from bigrag.routers.chat import router as chat_router
     from bigrag.routers.collection_events import router as _collection_events_router  # noqa: F401
     from bigrag.routers.collections import router as collections_router
+    from bigrag.routers.collections_embedding import (
+        reembed_collection as _reembed_collection,  # noqa: F401
+    )
     from bigrag.routers.connectors import router as connectors_router
     from bigrag.routers.connectors_oauth import router as connectors_oauth_router
     from bigrag.routers.documents import router as documents_router
