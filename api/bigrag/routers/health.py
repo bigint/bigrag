@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import ORJSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag import __version__
@@ -192,11 +192,11 @@ async def health() -> dict[str, str]:
 
 
 @router.get("/health/ready", response_model=dict[str, object])
-async def readiness(request: Request) -> JSONResponse:
+async def readiness(request: Request) -> ORJSONResponse:
     cached = await _cache_get(_READINESS_CACHE_KEY)
     if cached:
         status = cached.get("status")
-        return JSONResponse(content=cached, status_code=200 if status == "ok" else 503)
+        return ORJSONResponse(content=cached, status_code=200 if status == "ok" else 503)
 
     vs = request.app.state.vector_store
     queue = request.app.state.queue
@@ -248,7 +248,7 @@ async def readiness(request: Request) -> JSONResponse:
 
     checks["status"] = "ok" if healthy else "degraded"
     await _cache_set(_READINESS_CACHE_KEY, checks, ttl=_READINESS_TTL)
-    return JSONResponse(content=checks, status_code=200 if healthy else 503)
+    return ORJSONResponse(content=checks, status_code=200 if healthy else 503)
 
 
 @router.get("/v1/stats", response_model=dict[str, object])

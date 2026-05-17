@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import ORJSONResponse
 
 from bigrag import __version__
 from bigrag import config as config_module
@@ -207,6 +207,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         description="Self-hostable RAG platform with Docling + Qdrant",
         version=__version__,
         lifespan=lifespan,
+        default_response_class=ORJSONResponse,
     )
     app.state.settings = s
 
@@ -218,19 +219,19 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.add_middleware(RuntimeCorsMiddleware)
 
     @app.exception_handler(NotFoundError)
-    async def not_found_handler(_request: Request, exc: NotFoundError) -> JSONResponse:
-        return JSONResponse(status_code=404, content={"detail": str(exc)})
+    async def not_found_handler(_request: Request, exc: NotFoundError) -> ORJSONResponse:
+        return ORJSONResponse(status_code=404, content={"detail": str(exc)})
 
     @app.exception_handler(ValidationError)
-    async def validation_handler(_request: Request, exc: ValidationError) -> JSONResponse:
-        return JSONResponse(status_code=400, content={"detail": str(exc)})
+    async def validation_handler(_request: Request, exc: ValidationError) -> ORJSONResponse:
+        return ORJSONResponse(status_code=400, content={"detail": str(exc)})
 
     @app.exception_handler(ForbiddenError)
-    async def forbidden_handler(_request: Request, exc: ForbiddenError) -> JSONResponse:
-        return JSONResponse(status_code=403, content={"detail": str(exc)})
+    async def forbidden_handler(_request: Request, exc: ForbiddenError) -> ORJSONResponse:
+        return ORJSONResponse(status_code=403, content={"detail": str(exc)})
 
     @app.exception_handler(UpstreamError)
-    async def upstream_handler(request: Request, exc: UpstreamError) -> JSONResponse:
+    async def upstream_handler(request: Request, exc: UpstreamError) -> ORJSONResponse:
         get_logger("bigrag.upstream").warning(
             "upstream error",
             method=request.method,
@@ -238,13 +239,13 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
             exc_type=type(exc).__name__,
             exc=str(exc),
         )
-        return JSONResponse(
+        return ORJSONResponse(
             status_code=502,
             content={"detail": exc.public_message, "code": exc.code},
         )
 
     @app.exception_handler(ServerError)
-    async def server_handler(request: Request, exc: ServerError) -> JSONResponse:
+    async def server_handler(request: Request, exc: ServerError) -> ORJSONResponse:
         get_logger("bigrag.server_error").error(
             "server error",
             method=request.method,
@@ -252,13 +253,13 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
             exc_type=type(exc).__name__,
             exc=str(exc),
         )
-        return JSONResponse(
+        return ORJSONResponse(
             status_code=500,
             content={"detail": exc.public_message, "code": exc.code},
         )
 
     @app.exception_handler(Exception)
-    async def unhandled_handler(request: Request, exc: Exception) -> JSONResponse:
+    async def unhandled_handler(request: Request, exc: Exception) -> ORJSONResponse:
         import traceback
 
         logger = get_logger("bigrag.unhandled")
@@ -270,7 +271,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
             exc=str(exc),
             traceback=traceback.format_exc(),
         )
-        return JSONResponse(
+        return ORJSONResponse(
             status_code=500,
             content={"detail": "Internal server error", "code": "internal_error"},
         )

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
 import re
 from datetime import datetime
 from typing import Any
 from uuid import UUID
+
+import orjson
 
 from bigrag.exceptions import NotFoundError, ServerError, UpstreamError, ValidationError
 from bigrag.models.chat import ChatMessageResponse, ChatRole, ChatSource
@@ -21,7 +22,7 @@ def _safe_chat_error(exc: Exception) -> str:
 
 
 def _sse(event: str, data: dict[str, Any]) -> str:
-    payload = json.dumps(data, separators=(",", ":"), default=str)
+    payload = orjson.dumps(data, default=str).decode()
     return f"event: {event}\ndata: {payload}\n\n"
 
 

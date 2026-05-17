@@ -79,8 +79,8 @@ async def create_chat(
     )
     if body.stream:
         return StreamingResponse(
-            stream_chat_completion(session, user, body),
-            media_type="text/event-stream",
+            stream_chat_completion(session, user, body, request),
+            media_type="text/event-stream; charset=utf-8",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
     return await create_chat_completion(session, user, body)
