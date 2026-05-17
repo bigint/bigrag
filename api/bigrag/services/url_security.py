@@ -201,34 +201,6 @@ def validate_embedding_base_url_sync(base_url: str | None) -> str | None:
     )
 
 
-def validate_chat_base_url_sync(base_url: str | None) -> str | None:
-    if not base_url:
-        return None
-    from bigrag.services.runtime_settings import sync_value
-
-    return validate_outbound_url_sync(
-        base_url,
-        purpose="Chat provider base URL",
-        allowed_urls=sync_value("allowed_chat_base_urls"),
-        allow_private=sync_value("allow_private_chat_base_urls"),
-    )
-
-
-async def validate_embedding_base_url(base_url: str | None) -> str | None:
-    if not base_url:
-        return None
-    from bigrag.services.runtime_settings import get_values
-
-    runtime = await get_values(["allowed_embedding_base_urls", "allow_private_embedding_base_urls"])
-
-    return await validate_outbound_url(
-        base_url,
-        purpose="Embedding base URL",
-        allowed_urls=runtime["allowed_embedding_base_urls"],
-        allow_private=runtime["allow_private_embedding_base_urls"],
-    )
-
-
 async def validate_chat_base_url(base_url: str | None) -> str | None:
     if not base_url:
         return None
@@ -342,18 +314,6 @@ async def pin_embedding_base_url(base_url: str) -> PinnedOutbound:
         purpose="Embedding base URL",
         allowed_urls=runtime["allowed_embedding_base_urls"],
         allow_private=runtime["allow_private_embedding_base_urls"],
-    )
-
-
-async def pin_webhook_url(url: str) -> PinnedOutbound:
-    from bigrag.services.runtime_settings import get_value
-
-    allow_local = await get_value("allow_local_webhooks")
-    return await resolve_and_pin(
-        url,
-        purpose="Webhook URL",
-        allow_loopback=allow_local,
-        allow_private=allow_local,
     )
 
 
