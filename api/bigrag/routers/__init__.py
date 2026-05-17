@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 import sqlalchemy as sa
 from asyncpg.exceptions import UniqueViolationError
 from fastapi import HTTPException
@@ -15,8 +17,16 @@ __all__ = [
     "get_embedding_model_for",
     "get_reranking_config",
     "is_unique_violation",
+    "uuid_or_404",
     "validate_collection_name",
 ]
+
+
+def uuid_or_404(value: str, label: str) -> uuid.UUID:
+    try:
+        return uuid.UUID(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=f"{label} not found") from exc
 
 
 async def validate_collection_name(session: AsyncSession, collection: str | None) -> str | None:
