@@ -9,6 +9,7 @@ from bigrag import db as db_module
 from bigrag.db.bootstrap import run_migrations
 from bigrag.logging import configure_logging, get_logger
 from bigrag.services import crypto, redis_cache, runtime_settings
+from bigrag.services.conversion import get_conversion_executor
 from bigrag.services.event_bus import event_bus
 from bigrag.services.jobs.broker import WORKER_HEARTBEAT_KEY
 from bigrag.services.queue import ingestion_queue
@@ -70,6 +71,7 @@ async def ensure_worker_runtime() -> None:
         ingestion_queue._num_workers = runtime["ingestion_workers"]
         await ingestion_queue.connect(settings.redis_url)
         ingestion_queue.bind_vector_store(vector_store)
+        await get_conversion_executor()
         _initialized = True
         await record_worker_heartbeat()
         logger.info("worker ready")

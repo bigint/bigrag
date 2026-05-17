@@ -1,17 +1,25 @@
 from __future__ import annotations
 
+import asyncio
 import threading
 import time
-from multiprocessing import Pipe, get_context
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import get_context
 from multiprocessing.connection import Connection
 from pathlib import Path
 
+from bigrag.config import settings
 from bigrag.logging import get_logger
 
 logger = get_logger("bigrag.conversion")
 
 _docling_converters = {}
 _docling_lock = threading.Lock()
+
+_executor: ProcessPoolExecutor | None = None
+_executor_lock: asyncio.Lock = asyncio.Lock()
+_conversion_semaphore: asyncio.Semaphore | None = None
+_semaphore_lock: asyncio.Lock = asyncio.Lock()
 
 
 def extract_pdf_text(path: str | Path) -> str:
@@ -154,7 +162,63 @@ def _conversion_worker(
         conn.close()
 
 
-def convert_document_isolated(
+def _pool_convert(path: str, suffix: str, pdf_ocr_enabled: bool) -> str:
+    return _convert_file_path(path, suffix, pdf_ocr_enabled)
+
+
+def _pool_ocr_chunk(path: str, page_start: int, page_end: int) -> str:
+    converter = _get_docling_converter(pdf_ocr_enabled=True)
+    result = converter.convert(path, page_range=(page_start, page_end))
+    doc = getattr(result, "document", None)
+    if doc is not None:
+        md = getattr(doc, "export_to_markdown", None)
+        text = md() if callable(md) else ""
+        if not text or not text.strip():
+            txt = getattr(doc, "export_to_text", None)
+            if callable(txt):
+                text = txt()
+        return text or ""
+    return str(result)
+
+
+async def get_conversion_executor() -> ProcessPoolExecutor:
+    global _executor
+    if _executor is not None:
+        return _executor
+    async with _executor_lock:
+        if _executor is not None:
+            return _executor
+        max_workers = settings.conversion_pool_workers
+        logger.info("conversion pool starting", max_workers=max_workers)
+        _executor = ProcessPoolExecutor(
+            max_workers=max_workers,
+            mp_context=get_context("spawn"),
+        )
+        return _executor
+
+
+async def shutdown_conversion_executor() -> None:
+    global _executor
+    executor = _executor
+    if executor is None:
+        return
+    _executor = None
+    logger.info("conversion pool shutting down")
+    await asyncio.to_thread(executor.shutdown, True, cancel_futures=True)
+
+
+async def _get_conversion_semaphore() -> asyncio.Semaphore:
+    global _conversion_semaphore
+    if _conversion_semaphore is not None:
+        return _conversion_semaphore
+    async with _semaphore_lock:
+        if _conversion_semaphore is not None:
+            return _conversion_semaphore
+        _conversion_semaphore = asyncio.Semaphore(settings.conversion_pool_workers)
+        return _conversion_semaphore
+
+
+async def convert_document_isolated(
     file_data: bytes,
     suffix: str,
     *,
@@ -163,51 +227,69 @@ def convert_document_isolated(
 ) -> str:
     import tempfile
 
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-    tmp_path = tmp.name
+    def _write_tmp() -> str:
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        try:
+            tmp.write(file_data)
+            tmp.close()
+            return tmp.name
+        except Exception:
+            tmp.close()
+            raise
+
+    tmp_path = await asyncio.to_thread(_write_tmp)
     try:
-        tmp.write(file_data)
-        tmp.close()
-        return _convert_document_path_isolated(
+        return await _convert_document_path_isolated(
             tmp_path,
             suffix,
             pdf_ocr_enabled=pdf_ocr_enabled,
             timeout=timeout,
         )
     finally:
-        Path(tmp_path).unlink(missing_ok=True)
+        await asyncio.to_thread(Path(tmp_path).unlink, True)
 
 
-def _convert_document_path_isolated(
+async def _convert_document_path_isolated(
     path: str,
     suffix: str,
     *,
     pdf_ocr_enabled: bool,
     timeout: int,
 ) -> str:
-    ctx = get_context("spawn")
-    parent_conn, child_conn = Pipe(duplex=False)
-    process = ctx.Process(
-        target=_conversion_worker,
-        args=(child_conn, path, suffix, pdf_ocr_enabled),
-    )
-    process.start()
-    child_conn.close()
-    try:
-        if not parent_conn.poll(timeout):
-            process.terminate()
-            process.join(5)
-            if process.is_alive():
-                process.kill()
-                process.join(5)
-            raise TimeoutError(f"Document conversion timed out after {timeout}s")
-        status, payload = parent_conn.recv()
-        process.join(5)
-        if status == "ok":
-            return payload
-        raise ValueError(payload)
-    finally:
-        parent_conn.close()
-        if process.is_alive():
-            process.terminate()
-            process.join(5)
+    executor = await get_conversion_executor()
+    semaphore = await _get_conversion_semaphore()
+    loop = asyncio.get_running_loop()
+    async with semaphore:
+        future = loop.run_in_executor(
+            executor,
+            _pool_convert,
+            path,
+            suffix,
+            pdf_ocr_enabled,
+        )
+        try:
+            return await asyncio.wait_for(future, timeout=timeout)
+        except TimeoutError as exc:
+            future.cancel()
+            raise TimeoutError(f"Document conversion timed out after {timeout}s") from exc
+
+
+async def ocr_chunk_in_executor(
+    path: str,
+    page_start: int,
+    page_end: int,
+    *,
+    timeout: int,
+) -> str:
+    executor = await get_conversion_executor()
+    semaphore = await _get_conversion_semaphore()
+    loop = asyncio.get_running_loop()
+    async with semaphore:
+        future = loop.run_in_executor(
+            executor,
+            _pool_ocr_chunk,
+            path,
+            page_start,
+            page_end,
+        )
+        return await asyncio.wait_for(future, timeout=timeout)

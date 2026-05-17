@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     embedding_cache_retention_days: int = 30
     conversion_timeout: int = 300
     conversion_pdf_ocr_enabled: bool = True
+    conversion_pool_workers: int = max(1, (os.cpu_count() or 2) // 2)
     webhook_delivery_timeout: int = 10
     webhook_retry_delays: list[int] = [10, 30, 90]
     webhook_max_count: int = 50

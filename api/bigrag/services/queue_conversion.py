@@ -6,9 +6,9 @@ from pathlib import Path
 
 from bigrag.logging import get_logger
 from bigrag.services.conversion import (
-    _get_docling_converter,
     convert_document_isolated,
     get_pdf_page_count,
+    ocr_chunk_in_executor,
 )
 from bigrag.services.ingestion_job import IngestionJob
 
@@ -81,7 +81,6 @@ async def ocr_scanned_pdf(
             chunk_pages=chunk_pages,
         )
 
-        converter = await asyncio.to_thread(_get_docling_converter, pdf_ocr_enabled=True)
         texts: list[str] = []
 
         for chunk_index, current_start in enumerate(
@@ -110,12 +109,10 @@ async def ocr_scanned_pdf(
 
             chunk_start_time = time.monotonic()
             try:
-                result = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        converter.convert,
-                        tmp_path,
-                        page_range=(current_start, current_end),
-                    ),
+                chunk_text_raw = await ocr_chunk_in_executor(
+                    tmp_path,
+                    current_start,
+                    current_end,
                     timeout=conversion_timeout,
                 )
             except TimeoutError as e:
@@ -125,7 +122,7 @@ async def ocr_scanned_pdf(
                     f"{conversion_timeout}s"
                 ) from e
 
-            chunk_text = docling_result_text(result).strip()
+            chunk_text = chunk_text_raw.strip()
             if chunk_text:
                 texts.append(chunk_text)
 
@@ -260,8 +257,7 @@ async def convert_document(
     )
     if suffix == ".pdf":
         try:
-            text = await asyncio.to_thread(
-                convert_document_isolated,
+            text = await convert_document_isolated(
                 file_data,
                 suffix,
                 pdf_ocr_enabled=False,
@@ -305,8 +301,7 @@ async def convert_document(
         )
 
     try:
-        text = await asyncio.to_thread(
-            convert_document_isolated,
+        text = await convert_document_isolated(
             file_data,
             suffix,
             pdf_ocr_enabled=pdf_ocr_enabled,

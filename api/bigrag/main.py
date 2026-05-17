@@ -29,6 +29,7 @@ from bigrag.middleware.idempotency import IdempotencyMiddleware
 from bigrag.middleware.maintenance import MaintenanceWriteLockMiddleware
 from bigrag.services import crypto, redis_cache, runtime_settings
 from bigrag.services.access_log import AccessLogMiddleware
+from bigrag.services.conversion import get_conversion_executor, shutdown_conversion_executor
 from bigrag.services.event_bus import event_bus
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.storage import init_storage_from_runtime
@@ -113,23 +114,27 @@ async def lifespan(app: FastAPI):
     ingestion_queue.bind_vector_store(vector_store)
     app.state.queue = ingestion_queue
 
+    await get_conversion_executor()
+
     mcp_session_manager = getattr(app.state, "mcp_session_manager", None)
     mcp_cm = mcp_session_manager.run() if mcp_session_manager is not None else None
     if mcp_cm is not None:
         await mcp_cm.__aenter__()
 
     logger.info("server ready", host=s.host, port=s.port)
-    yield
-
-    if mcp_cm is not None:
-        await mcp_cm.__aexit__(None, None, None)
-    await ingestion_queue.stop()
-    await event_bus.close()
-    await redis_cache.close()
-    await storage.close()
-    await vector_store.close()
-    await db_module.close()
-    logger.info("shut down")
+    try:
+        yield
+    finally:
+        if mcp_cm is not None:
+            await mcp_cm.__aexit__(None, None, None)
+        await ingestion_queue.stop()
+        await event_bus.close()
+        await redis_cache.close()
+        await storage.close()
+        await vector_store.close()
+        await shutdown_conversion_executor()
+        await db_module.close()
+        logger.info("shut down")
 
 
 async def _check_database_migrations(s: Settings, logger) -> None:

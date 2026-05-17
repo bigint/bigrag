@@ -4,7 +4,7 @@ import asyncio
 
 import dramatiq
 from dramatiq.brokers.redis import RedisBroker
-from dramatiq.middleware import AsyncIO
+from dramatiq.middleware import AsyncIO, Middleware
 
 from bigrag import config as config_module
 
@@ -16,8 +16,21 @@ MAINTENANCE_QUEUE = "maintenance"
 NAMESPACE = "bigrag:dramatiq"
 WORKER_HEARTBEAT_KEY = "bigrag:dramatiq:worker:heartbeat"
 
+
+class _ConversionPoolMiddleware(Middleware):
+    def after_worker_shutdown(self, broker, worker):
+        from bigrag.services import conversion as conversion_module
+
+        executor = conversion_module._executor
+        if executor is None:
+            return
+        conversion_module._executor = None
+        executor.shutdown(wait=True, cancel_futures=True)
+
+
 broker = RedisBroker(url=config_module.settings.redis_url, namespace=NAMESPACE)
 broker.add_middleware(AsyncIO())
+broker.add_middleware(_ConversionPoolMiddleware())
 dramatiq.set_broker(broker)
 
 
