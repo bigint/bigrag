@@ -138,6 +138,22 @@ const subscribeStream = (
   };
 };
 
+export const closeAllSseStreams = () => {
+  for (const [path, entry] of streams) {
+    if (entry.reconnectTimer) {
+      clearTimeout(entry.reconnectTimer);
+      entry.reconnectTimer = null;
+    }
+    try {
+      entry.es.close();
+    } catch {}
+    entry.listeners.clear();
+    entry.errorListeners.clear();
+    entry.refcount = 0;
+    streams.delete(path);
+  }
+};
+
 export const useSseSnapshotQuery = <T>({
   closeWhen,
   enabled = true,
