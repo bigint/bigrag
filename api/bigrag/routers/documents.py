@@ -434,11 +434,6 @@ async def delete_document(
         raise HTTPException(status_code=404, detail="Document not found")
 
     await ingestion_queue.cancel_documents([document_id])
-    await vector_store.delete_by_document(
-        collection_name,
-        document_id,
-        provider=collection.get("vector_store_provider"),
-    )
 
     file_path = doc.file_path
     deleted_filename = doc.filename
@@ -448,6 +443,11 @@ async def delete_document(
     await collection_cache.invalidate(collection_name)
     await invalidate_collection_query_cache(collection_name)
 
+    await vector_store.delete_by_document(
+        collection_name,
+        document_id,
+        provider=collection.get("vector_store_provider"),
+    )
     await get_storage().delete(file_path)
 
     audit.record(

@@ -604,23 +604,21 @@ async def delete_collection(
     flushed = await ingestion_queue.cancel_collection(name)
     logger.info("delete collection jobs cancelled", collection=name, flushed=flushed)
 
-    await vector_store.delete_collection(
-        name,
-        provider=collection.vector_store_provider,
-    )
+    deleted_id = str(collection.id)
+    vector_store_provider = collection.vector_store_provider
+    await session.delete(collection)
+    await session.commit()
+    await collection_cache.invalidate(name)
+    await invalidate_collection_query_cache(name)
+    logger.info("delete collection database records removed", collection=name)
+
+    await vector_store.delete_collection(name, provider=vector_store_provider)
     logger.info("delete collection vectors dropped", collection=name)
 
     from bigrag.services.storage import get_storage
 
     deleted = await get_storage().delete_prefix(f"{name}/")
     logger.info("delete collection storage removed", collection=name, count=deleted)
-
-    deleted_id = str(collection.id)
-    await session.delete(collection)
-    await session.commit()
-    await collection_cache.invalidate(name)
-    await invalidate_collection_query_cache(name)
-    logger.info("delete collection database records removed", collection=name)
 
     audit.record(
         request,
@@ -721,17 +719,7 @@ async def truncate_collection(
     flushed = await ingestion_queue.cancel_collection(name)
     logger.info("truncate collection jobs cancelled", collection=name, flushed=flushed)
 
-    await vector_store.delete_collection(
-        name,
-        provider=collection.vector_store_provider,
-    )
-    logger.info("truncate collection vectors cleared", collection=name)
-
-    from bigrag.services.storage import get_storage
-
-    deleted = await get_storage().delete_prefix(f"{name}/")
-    logger.info("truncate collection storage removed", collection=name, count=deleted)
-
+    vector_store_provider = collection.vector_store_provider
     await session.execute(sa.delete(Document).where(Document.collection_id == collection.id))
     await session.execute(
         sa.update(Collection).where(Collection.id == collection.id).values(document_count=0)
@@ -740,6 +728,14 @@ async def truncate_collection(
     await collection_cache.invalidate(name)
     await invalidate_collection_query_cache(name)
     logger.info("truncate collection documents removed", collection=name)
+
+    await vector_store.delete_collection(name, provider=vector_store_provider)
+    logger.info("truncate collection vectors cleared", collection=name)
+
+    from bigrag.services.storage import get_storage
+
+    deleted = await get_storage().delete_prefix(f"{name}/")
+    logger.info("truncate collection storage removed", collection=name, count=deleted)
 
     audit.record(
         request,
