@@ -19,7 +19,7 @@ from bigrag.models.upload_session import (
     UploadSessionFileResponse,
     UploadSessionResponse,
 )
-from bigrag.routers import ensure_embedding_or_400, get_collection_or_404
+from bigrag.routers import enforce_collection_pin, ensure_embedding_or_400, get_collection_or_404
 from bigrag.routers._documents import (
     document_response,
 )
@@ -81,6 +81,7 @@ async def create_upload_session(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     ensure_embedding_or_400(collection)
     limits = await get_values(["max_upload_session_files", "max_upload_session_size_mb"])
@@ -138,6 +139,7 @@ async def get_upload_session(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     upload_session = await _get_upload_session(
         db, collection["id"], session_id, user_id=uuid.UUID(user["id"])
@@ -155,6 +157,7 @@ async def upload_session_file(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     ensure_embedding_or_400(collection)
     upload_session = await _get_upload_session_for_update(
@@ -382,6 +385,7 @@ async def complete_upload_session(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     upload_session = await _get_upload_session_for_update(
         db, collection["id"], session_id, user_id=uuid.UUID(user["id"])
@@ -410,6 +414,7 @@ async def cancel_upload_session(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     upload_session = await _get_upload_session_for_update(
         db, collection["id"], session_id, user_id=uuid.UUID(user["id"])
