@@ -1,18 +1,11 @@
 from __future__ import annotations
 
-import asyncio
 import json
-import time
-from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
 from typing import Any
 
-import orjson
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 
-from bigrag.db.engine import session_factory
 from bigrag.middleware.auth import require_admin_session
 from bigrag.models.document import BatchStatusRequest
 from bigrag.routers.admin_access import access_overview, list_access_logs
@@ -26,164 +19,23 @@ from bigrag.routers.documents_progress import TERMINAL_DOCUMENT_STATUSES
 from bigrag.routers.health import platform_stats, readiness
 from bigrag.routers.upload_sessions import get_upload_session as upload_session_detail
 from bigrag.routers.usage import get_usage
-from bigrag.services.error_sanitize import sanitize_message_text
-from bigrag.services.event_bus import SSE_RETRY_MS, event_bus, next_sse_id
+from bigrag.services.sse_stream import (
+    event_response as _event_response,
+)
+from bigrag.services.sse_stream import (
+    fixed as _fixed,
+)
+from bigrag.services.sse_stream import (
+    interval_response as _interval_response,
+)
+from bigrag.services.sse_stream import (
+    with_session as _with_session,
+)
 
 router = APIRouter(prefix="/v1/admin/realtime", tags=["admin:realtime"])
 
-HEARTBEAT_SECONDS = 30.0
 ACTIVE_SYNC_JOB_STATUSES = {"pending", "running"}
 ACTIVE_BACKUP_JOB_STATUSES = {"pending", "running"}
-
-SnapshotLoader = Callable[[], Awaitable[Any]]
-SnapshotDone = Callable[[Any], bool]
-SnapshotInterval = Callable[[Any | None], float]
-
-
-def _json(value: Any) -> str:
-    return orjson.dumps(jsonable_encoder(value)).decode()
-
-
-def _event_frame(event: str, data: dict[str, Any]) -> str:
-    return f"id: {next_sse_id()}\nretry: {SSE_RETRY_MS}\nevent: {event}\ndata: {_json(data)}\n\n"
-
-
-def _snapshot_frame(topic: str, payload: Any) -> str:
-    return _event_frame(
-        "snapshot",
-        {
-            "topic": topic,
-            "payload": payload,
-            "generated_at": datetime.now(UTC).isoformat(),
-        },
-    )
-
-
-def _error_frame(topic: str, message: str) -> str:
-    return _event_frame(
-        "error",
-        {
-            "topic": topic,
-            "message": message,
-        },
-    )
-
-
-def _heartbeat() -> str:
-    return f"id: {next_sse_id()}\nretry: {SSE_RETRY_MS}\n: heartbeat\n\n"
-
-
-async def _load_frame(topic: str, load: SnapshotLoader) -> tuple[str, Any | None]:
-    try:
-        payload = await load()
-    except asyncio.CancelledError:
-        raise
-    except Exception as exc:
-        safe = sanitize_message_text(f"{type(exc).__name__}") or "snapshot error"
-        return _error_frame(topic, safe), None
-    return _snapshot_frame(topic, payload), payload
-
-
-async def _interval_stream(
-    topic: str,
-    load: SnapshotLoader,
-    interval_for: SnapshotInterval,
-    done: SnapshotDone | None = None,
-):
-    while True:
-        frame, payload = await _load_frame(topic, load)
-        yield frame
-        if payload is not None and done is not None and done(payload):
-            break
-        remaining = max(1.0, interval_for(payload))
-        while remaining > 0:
-            delay = min(HEARTBEAT_SECONDS, remaining)
-            await asyncio.sleep(delay)
-            remaining -= delay
-            if remaining > 0:
-                yield _heartbeat()
-
-
-async def _event_stream(
-    topic: str,
-    load: SnapshotLoader,
-    event_key: str,
-    interval_for: SnapshotInterval,
-    done: SnapshotDone | None = None,
-):
-    queue = event_bus.subscribe(event_key)
-    frame, payload = await _load_frame(topic, load)
-    yield frame
-    if payload is not None and done is not None and done(payload):
-        event_bus.unsubscribe(event_key, queue)
-        return
-
-    last_snapshot = time.monotonic()
-    try:
-        while True:
-            interval = max(1.0, interval_for(payload))
-            elapsed = time.monotonic() - last_snapshot
-            timeout = min(HEARTBEAT_SECONDS, max(0.1, interval - elapsed))
-            try:
-                marker = await asyncio.wait_for(queue.get(), timeout=timeout)
-            except TimeoutError:
-                if time.monotonic() - last_snapshot >= interval:
-                    frame, payload = await _load_frame(topic, load)
-                    last_snapshot = time.monotonic()
-                    yield frame
-                    if payload is not None and done is not None and done(payload):
-                        break
-                else:
-                    yield _heartbeat()
-                continue
-
-            frame, payload = await _load_frame(topic, load)
-            last_snapshot = time.monotonic()
-            yield frame
-            if marker is None:
-                if payload is None or done is None or done(payload):
-                    break
-                continue
-            if payload is not None and done is not None and done(payload):
-                break
-    finally:
-        event_bus.unsubscribe(event_key, queue)
-
-
-def _stream_response(stream) -> StreamingResponse:
-    return StreamingResponse(
-        stream,
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-
-
-def _interval_response(
-    topic: str,
-    load: SnapshotLoader,
-    interval_for: SnapshotInterval,
-    done: SnapshotDone | None = None,
-) -> StreamingResponse:
-    return _stream_response(_interval_stream(topic, load, interval_for, done))
-
-
-def _event_response(
-    topic: str,
-    load: SnapshotLoader,
-    event_key: str,
-    interval_for: SnapshotInterval,
-    done: SnapshotDone | None = None,
-) -> StreamingResponse:
-    return _stream_response(_event_stream(topic, load, event_key, interval_for, done))
-
-
-async def _with_session(load: Callable[[Any], Awaitable[Any]]) -> Any:
-    async with session_factory()() as session:
-        return await load(session)
-
-
-def _fixed(seconds: float) -> SnapshotInterval:
-    return lambda _payload: seconds
 
 
 def _parse_document_ids(document_ids: list[str]) -> list[str]:
