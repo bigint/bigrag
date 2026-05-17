@@ -118,7 +118,9 @@ async def test_list_documents_each_has_progress(
 ) -> None:
     coll = await collection()
     doc = await document(coll["name"], fixture="sample.txt")
-    resp = await admin_client.get(f"/v1/collections/{coll['name']}/documents")
+    resp = await admin_client.get(
+        f"/v1/collections/{coll['name']}/documents", params={"include_total": "true"}
+    )
     body = assert_envelope(resp, 200)
     assert body["total"] >= 1
     for d in body["documents"]:

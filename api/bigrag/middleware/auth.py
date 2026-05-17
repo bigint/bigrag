@@ -188,6 +188,13 @@ async def invalidate_session_principal(token_hash: str) -> None:
 
 async def invalidate_api_key_principal(key_hash: str) -> None:
     await _cache_delete(_api_key_cache_key(key_hash))
+    try:
+        await asyncio.wait_for(
+            redis_cache.delete_pattern("auth:api_key:*"),
+            timeout=REDIS_AUTH_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        logger.debug("auth api-key cache pattern invalidation timed out")
 
 
 async def invalidate_auth_principals() -> None:

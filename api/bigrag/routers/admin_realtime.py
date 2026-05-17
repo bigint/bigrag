@@ -105,7 +105,7 @@ async def collection_documents_stream(
                 order=order,
                 limit=limit,
                 offset=offset,
-                _=user,
+                user=user,
                 session=session,
             )
         )
@@ -130,7 +130,7 @@ async def collection_documents_batch_status_stream(
             lambda session: batch_get_status(
                 collection_name=collection_name,
                 body=BatchStatusRequest(document_ids=ids),
-                _=user,
+                user=user,
                 session=session,
             )
         )
@@ -153,7 +153,7 @@ async def collection_document_stream(
             lambda session: get_document(
                 collection_name=collection_name,
                 document_id=document_id,
-                _=user,
+                user=user,
                 session=session,
             )
         )
@@ -196,7 +196,7 @@ async def collection_stats_stream(
         return await _with_session(
             lambda session: get_collection_stats(
                 name=collection_name,
-                _=user,
+                user=user,
                 session=session,
             )
         )

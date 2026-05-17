@@ -148,9 +148,11 @@ async def _bootstrap_e2e_runtime_settings() -> None:
             },
         )
         if resp.status_code not in (200, 204):
-            # If the keys don't exist on this bigRAG build, fall through
-            # — individual tests will still surface a clearer failure.
             return
+        await client.put(
+            "/v1/auth/preferences",
+            json={"data": {"chat": {"openai_key": "e2e-fake-key"}}},
+        )
 
 
 # ---------------------------------------------------------------------------
