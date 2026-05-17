@@ -4,23 +4,11 @@ import asyncio
 import ipaddress
 import socket
 from collections.abc import Iterable
-from dataclasses import dataclass
 from urllib.parse import urlparse, urlunparse
-
-import httpx
 
 
 class UnsafeOutboundUrlError(ValueError):
     pass
-
-
-@dataclass(frozen=True)
-class PinnedOutbound:
-    normalized_url: str
-    hostname: str
-    pinned_ip: str
-    port: int
-    scheme: str
 
 
 def normalize_url_root(raw_url: str) -> str:
@@ -41,7 +29,7 @@ def normalize_url_root(raw_url: str) -> str:
     return urlunparse((parsed.scheme.lower(), f"{hostname}{port}", path, "", "", ""))
 
 
-def _is_explicitly_allowed(raw_url: str, allowed_urls: Iterable[str]) -> bool:
+def is_explicitly_allowed(raw_url: str, allowed_urls: Iterable[str]) -> bool:
     try:
         normalized = normalize_url_root(raw_url)
     except UnsafeOutboundUrlError:
@@ -55,7 +43,7 @@ def _is_explicitly_allowed(raw_url: str, allowed_urls: Iterable[str]) -> bool:
     return False
 
 
-def _is_blocked_ip(
+def is_blocked_ip(
     ip_str: str,
     *,
     allow_private: bool,
@@ -77,7 +65,7 @@ def _is_blocked_ip(
     return False
 
 
-def _is_cleartext_allowed_ip(
+def is_cleartext_allowed_ip(
     ip_str: str,
     *,
     allow_private: bool,
@@ -94,7 +82,7 @@ def _is_cleartext_allowed_ip(
     return False
 
 
-def _resolve_host_sync(hostname: str, port: int) -> list[str]:
+def resolve_host_sync(hostname: str, port: int) -> list[str]:
     try:
         addrinfo = socket.getaddrinfo(hostname, port)
     except socket.gaierror as exc:
@@ -102,17 +90,7 @@ def _resolve_host_sync(hostname: str, port: int) -> list[str]:
     return [sockaddr[0] for _, _, _, _, sockaddr in addrinfo]
 
 
-def _bracket_ipv6(ip_str: str) -> str:
-    try:
-        addr = ipaddress.ip_address(ip_str)
-    except ValueError:
-        return ip_str
-    if isinstance(addr, ipaddress.IPv6Address) and not ip_str.startswith("["):
-        return f"[{ip_str}]"
-    return ip_str
-
-
-def _validate_outbound_url_with_addrs_sync(
+def validate_outbound_url_with_addrs_sync(
     raw_url: str,
     *,
     purpose: str,
@@ -122,7 +100,7 @@ def _validate_outbound_url_with_addrs_sync(
     allow_loopback: bool = False,
 ) -> tuple[str, list[str]]:
     normalized = normalize_url_root(raw_url)
-    explicitly_allowed = _is_explicitly_allowed(raw_url, allowed_urls)
+    explicitly_allowed = is_explicitly_allowed(raw_url, allowed_urls)
     effective_allow_private = allow_private or explicitly_allowed
     effective_allow_loopback = allow_loopback or explicitly_allowed
 
@@ -135,9 +113,9 @@ def _validate_outbound_url_with_addrs_sync(
     if hostname is None:
         raise UnsafeOutboundUrlError(f"{purpose} must include a hostname.")
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
-    addresses = _resolve_host_sync(hostname, port)
+    addresses = resolve_host_sync(hostname, port)
     for address in addresses:
-        if _is_blocked_ip(
+        if is_blocked_ip(
             address,
             allow_private=effective_allow_private,
             allow_loopback=effective_allow_loopback,
@@ -148,7 +126,7 @@ def _validate_outbound_url_with_addrs_sync(
         if (
             require_https
             and is_cleartext
-            and not _is_cleartext_allowed_ip(
+            and not is_cleartext_allowed_ip(
                 address,
                 allow_private=effective_allow_private,
                 allow_loopback=effective_allow_loopback,
@@ -167,7 +145,7 @@ def validate_outbound_url_sync(
     allow_private: bool = False,
     allow_loopback: bool = False,
 ) -> str:
-    normalized, _ = _validate_outbound_url_with_addrs_sync(
+    normalized, _ = validate_outbound_url_with_addrs_sync(
         raw_url,
         purpose=purpose,
         require_https=require_https,
@@ -235,147 +213,4 @@ async def validate_webhook_url(url: str) -> str:
         purpose="Webhook URL",
         allow_loopback=allow_local,
         allow_private=allow_local,
-    )
-
-
-def resolve_and_pin_sync(
-    raw_url: str,
-    *,
-    purpose: str,
-    require_https: bool = True,
-    allowed_urls: Iterable[str] = (),
-    allow_private: bool = False,
-    allow_loopback: bool = False,
-) -> PinnedOutbound:
-    normalized, addresses = _validate_outbound_url_with_addrs_sync(
-        raw_url,
-        purpose=purpose,
-        require_https=require_https,
-        allowed_urls=allowed_urls,
-        allow_private=allow_private,
-        allow_loopback=allow_loopback,
-    )
-    parsed = urlparse(normalized)
-    hostname = parsed.hostname or ""
-    port = parsed.port or (443 if parsed.scheme == "https" else 80)
-    explicitly_allowed = _is_explicitly_allowed(raw_url, allowed_urls)
-    effective_allow_private = allow_private or explicitly_allowed
-    effective_allow_loopback = allow_loopback or explicitly_allowed
-    pinned_ip: str | None = None
-    for address in addresses:
-        if not _is_blocked_ip(
-            address,
-            allow_private=effective_allow_private,
-            allow_loopback=effective_allow_loopback,
-        ):
-            pinned_ip = address
-            break
-    if pinned_ip is None:
-        raise UnsafeOutboundUrlError(
-            f"{purpose} resolved only to private, loopback, link-local, or reserved addresses."
-        )
-    return PinnedOutbound(
-        normalized_url=normalized,
-        hostname=hostname,
-        pinned_ip=pinned_ip,
-        port=port,
-        scheme=parsed.scheme,
-    )
-
-
-async def resolve_and_pin(
-    raw_url: str,
-    *,
-    purpose: str,
-    require_https: bool = True,
-    allowed_urls: Iterable[str] = (),
-    allow_private: bool = False,
-    allow_loopback: bool = False,
-) -> PinnedOutbound:
-    return await asyncio.to_thread(
-        resolve_and_pin_sync,
-        raw_url,
-        purpose=purpose,
-        require_https=require_https,
-        allowed_urls=tuple(allowed_urls),
-        allow_private=allow_private,
-        allow_loopback=allow_loopback,
-    )
-
-
-async def pin_chat_base_url(base_url: str) -> PinnedOutbound:
-    from bigrag.services.runtime_settings import get_values
-
-    runtime = await get_values(["allowed_chat_base_urls", "allow_private_chat_base_urls"])
-    return await resolve_and_pin(
-        base_url,
-        purpose="Chat provider base URL",
-        allowed_urls=runtime["allowed_chat_base_urls"],
-        allow_private=runtime["allow_private_chat_base_urls"],
-    )
-
-
-async def pin_embedding_base_url(base_url: str) -> PinnedOutbound:
-    from bigrag.services.runtime_settings import get_values
-
-    runtime = await get_values(["allowed_embedding_base_urls", "allow_private_embedding_base_urls"])
-    return await resolve_and_pin(
-        base_url,
-        purpose="Embedding base URL",
-        allowed_urls=runtime["allowed_embedding_base_urls"],
-        allow_private=runtime["allow_private_embedding_base_urls"],
-    )
-
-
-class _IPPinnedTransport(httpx.AsyncHTTPTransport):
-    def __init__(self, hostname: str, pinned_ip: str, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self._hostname = hostname.lower()
-        self._pinned_ip = pinned_ip
-
-    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        request_host = (request.url.host or "").lower()
-        if request_host != self._hostname and request_host != self._pinned_ip.lower():
-            raise httpx.ConnectError(
-                f"refused to connect to {request_host}: pinned to {self._hostname}"
-            )
-        new_url = request.url.copy_with(host=_bracket_ipv6(self._pinned_ip))
-        new_headers = httpx.Headers(request.headers)
-        if "host" not in {k.lower() for k in new_headers}:
-            host_value = self._hostname
-            if request.url.port:
-                host_value = f"{self._hostname}:{request.url.port}"
-            new_headers["Host"] = host_value
-        extensions = {
-            **(request.extensions or {}),
-            "sni_hostname": self._hostname,
-        }
-        new_request = httpx.Request(
-            method=request.method,
-            url=new_url,
-            headers=new_headers,
-            stream=request.stream,
-            extensions=extensions,
-        )
-        return await super().handle_async_request(new_request)
-
-
-def pinned_async_client(
-    pinned: PinnedOutbound,
-    *,
-    timeout: float | None = None,
-    follow_redirects: bool = False,
-    http2: bool = False,
-    verify: bool = True,
-) -> httpx.AsyncClient:
-    transport = _IPPinnedTransport(
-        hostname=pinned.hostname,
-        pinned_ip=pinned.pinned_ip,
-        verify=verify,
-        http2=http2,
-    )
-    return httpx.AsyncClient(
-        transport=transport,
-        timeout=timeout,
-        follow_redirects=follow_redirects,
     )
