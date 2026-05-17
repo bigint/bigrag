@@ -22,12 +22,12 @@ from bigrag.models.webhook import (
     WebhookListResponse,
     WebhookResponse,
     WebhookTestResponse,
-    resolve_and_validate_url,
 )
 from bigrag.services import audit
 from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
 from bigrag.services.runtime_settings import get_value
+from bigrag.services.url_security import validate_webhook_url
 from bigrag.services.webhook import generate_secret, webhook_dispatcher
 
 logger = get_logger("bigrag.routers.webhooks")
@@ -51,7 +51,7 @@ def _delivery_uuid_or_404(value: str) -> uuid.UUID:
 
 async def _validate_webhook_target(url: str) -> None:
     try:
-        await resolve_and_validate_url(url)
+        await validate_webhook_url(url)
     except ValueError as exc:
         raise HTTPException(
             status_code=400, detail=safe_error_detail(exc, "Webhook URL rejected.")
