@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import time
 import uuid
 from collections.abc import Mapping
 from typing import Any
 
+import sqlalchemy as sa
 from starlette.requests import Request
 from starlette.types import Receive, Scope, Send
 
@@ -13,7 +15,6 @@ from bigrag.db.engine import session_factory
 from bigrag.db.models import AccessLog
 from bigrag.logging import REQUEST_ID_HEADER, get_logger
 from bigrag.services.client_ip import client_ip, client_ip_from_scope
-from bigrag.utils import safe_create_task
 
 logger = get_logger("bigrag.access_log")
 
@@ -44,6 +45,15 @@ RAG_ACCESS_ACTIONS = frozenset(
         "vectors.upsert",
     }
 )
+
+_ACCESS_LOG_QUEUE_MAX = 5000
+_ACCESS_LOG_BATCH_MAX = 100
+_ACCESS_LOG_FLUSH_INTERVAL = 0.25
+_ACCESS_LOG_STOP_TIMEOUT = 5.0
+
+_access_log_queue: asyncio.Queue[dict[str, Any]] | None = None
+_access_log_stop_event: asyncio.Event | None = None
+_access_log_flusher_task: asyncio.Task | None = None
 
 
 def _uuid_or_none(value: str | None) -> uuid.UUID | None:
@@ -157,7 +167,7 @@ def _should_record(scope: Scope) -> bool:
     return action in RAG_ACCESS_ACTIONS
 
 
-async def _insert(
+def _build_row(
     *,
     actor_id: str | None,
     actor_email: str | None,
@@ -177,41 +187,148 @@ async def _insert(
     metadata: dict[str, Any],
     ip: str | None,
     user_agent: str | None,
-) -> None:
+) -> dict[str, Any]:
+    return {
+        "actor_id": _uuid_or_none(actor_id),
+        "actor_email": actor_email,
+        "api_key_id": _uuid_or_none(api_key_id),
+        "api_key_name": api_key_name,
+        "auth_method": auth_method,
+        "action": action,
+        "resource_type": resource_type,
+        "resource_id": resource_id,
+        "collection_name": collection_name,
+        "method": method,
+        "path": path,
+        "route": route,
+        "status_code": status_code,
+        "success": 200 <= status_code < 400,
+        "latency_ms": latency_ms,
+        "request_id": request_id,
+        "meta": _safe_metadata(metadata),
+        "ip": ip,
+        "user_agent": user_agent,
+    }
+
+
+def _enqueue(row: dict[str, Any]) -> None:
+    queue = _access_log_queue
+    if queue is None:
+        logger.warning(
+            "access_log: queue not started; dropping record",
+            action=row.get("action"),
+            path=row.get("path"),
+        )
+        return
+    try:
+        queue.put_nowait(row)
+    except asyncio.QueueFull:
+        logger.warning(
+            "access_log: queue full; dropping record",
+            action=row.get("action"),
+            path=row.get("path"),
+            queue_max=_ACCESS_LOG_QUEUE_MAX,
+        )
+
+
+async def _drain_batch(queue: asyncio.Queue[dict[str, Any]]) -> list[dict[str, Any]]:
+    try:
+        first = await asyncio.wait_for(queue.get(), timeout=_ACCESS_LOG_FLUSH_INTERVAL)
+    except TimeoutError:
+        return []
+    batch = [first]
+    while len(batch) < _ACCESS_LOG_BATCH_MAX:
+        try:
+            batch.append(queue.get_nowait())
+        except asyncio.QueueEmpty:
+            break
+    return batch
+
+
+async def _flush_batch(batch: list[dict[str, Any]]) -> None:
+    if not batch:
+        return
     try:
         async with session_factory()() as session:
-            session.add(
-                AccessLog(
-                    actor_id=_uuid_or_none(actor_id),
-                    actor_email=actor_email,
-                    api_key_id=_uuid_or_none(api_key_id),
-                    api_key_name=api_key_name,
-                    auth_method=auth_method,
-                    action=action,
-                    resource_type=resource_type,
-                    resource_id=resource_id,
-                    collection_name=collection_name,
-                    method=method,
-                    path=path,
-                    route=route,
-                    status_code=status_code,
-                    success=200 <= status_code < 400,
-                    latency_ms=latency_ms,
-                    request_id=request_id,
-                    meta=_safe_metadata(metadata),
-                    ip=ip,
-                    user_agent=user_agent,
-                )
-            )
+            await session.execute(sa.insert(AccessLog), batch)
             await session.commit()
     except Exception as exc:
         logger.warning(
-            "access_log: insert failed",
-            action=action,
-            path=path,
-            status_code=status_code,
+            "access_log: bulk insert failed",
+            count=len(batch),
             error=str(exc),
         )
+
+
+async def _access_log_flusher(stop_event: asyncio.Event) -> None:
+    queue = _access_log_queue
+    assert queue is not None
+    while not (stop_event.is_set() and queue.empty()):
+        try:
+            batch = await _drain_batch(queue)
+            if batch:
+                await _flush_batch(batch)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.warning("access_log: flusher iteration failed", error=str(exc))
+
+
+async def start_access_log_flusher() -> None:
+    global _access_log_queue, _access_log_stop_event, _access_log_flusher_task
+    if _access_log_flusher_task is not None and not _access_log_flusher_task.done():
+        return
+    _access_log_queue = asyncio.Queue(maxsize=_ACCESS_LOG_QUEUE_MAX)
+    _access_log_stop_event = asyncio.Event()
+    _access_log_flusher_task = asyncio.create_task(
+        _access_log_flusher(_access_log_stop_event),
+        name="access_log_flusher",
+    )
+
+
+async def stop_access_log_flusher() -> None:
+    global _access_log_queue, _access_log_stop_event, _access_log_flusher_task
+    task = _access_log_flusher_task
+    stop_event = _access_log_stop_event
+    queue = _access_log_queue
+    if task is None or stop_event is None or queue is None:
+        return
+    stop_event.set()
+    try:
+        await asyncio.wait_for(task, timeout=_ACCESS_LOG_STOP_TIMEOUT)
+    except TimeoutError:
+        logger.warning("access_log: flusher shutdown timed out; cancelling")
+        task.cancel()
+        try:
+            await task
+        except (asyncio.CancelledError, Exception):
+            pass
+    remaining: list[dict[str, Any]] = []
+    while True:
+        try:
+            remaining.append(queue.get_nowait())
+        except asyncio.QueueEmpty:
+            break
+    if remaining:
+        await _flush_batch(remaining)
+    _access_log_flusher_task = None
+    _access_log_stop_event = None
+    _access_log_queue = None
+
+
+async def flush_access_logs() -> None:
+    queue = _access_log_queue
+    if queue is None:
+        return
+    while not queue.empty():
+        batch: list[dict[str, Any]] = []
+        while len(batch) < _ACCESS_LOG_BATCH_MAX:
+            try:
+                batch.append(queue.get_nowait())
+            except asyncio.QueueEmpty:
+                break
+        if batch:
+            await _flush_batch(batch)
 
 
 class AccessLogMiddleware:
@@ -250,8 +367,8 @@ class AccessLogMiddleware:
                 REQUEST_ID_HEADER
             )
 
-            safe_create_task(
-                _insert(
+            _enqueue(
+                _build_row(
                     actor_id=principal.get("id"),
                     actor_email=principal.get("email"),
                     api_key_id=principal.get("api_key_id"),
@@ -270,6 +387,5 @@ class AccessLogMiddleware:
                     metadata=metadata,
                     ip=client_ip(request) or client_ip_from_scope(scope),
                     user_agent=request.headers.get("user-agent"),
-                ),
-                name="access_log_insert",
+                )
             )
