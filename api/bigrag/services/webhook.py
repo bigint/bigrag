@@ -200,6 +200,7 @@ class WebhookDispatcher:
         return name
 
     def _build_payload(self, webhook_event: str, event: IngestionEvent, collection: str) -> str:
+        from bigrag.services.error_sanitize import sanitize_message_text
 
         data = {
             "event": webhook_event,
@@ -208,7 +209,9 @@ class WebhookDispatcher:
             "document_id": event.document_id,
             "status": event.status,
             "chunk_count": event.detail.get("chunks", 0),
-            "error_message": str(event.message) if event.status == "failed" else None,
+            "error_message": sanitize_message_text(str(event.message))
+            if event.status == "failed"
+            else None,
         }
         return orjson.dumps(data).decode()
 

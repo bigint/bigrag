@@ -1,33 +1,17 @@
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
 import orjson
 
-from bigrag.exceptions import NotFoundError, ServerError, UpstreamError, ValidationError
 from bigrag.models.chat import ChatMessageResponse, ChatRole, ChatSource
-
-_SECRET_RE = re.compile(
-    r"sk-ant-[A-Za-z0-9_-]{8,}"
-    r"|sk-[A-Za-z0-9_-]{8,}"
-    r"|AIza[0-9A-Za-z_-]{20,}"
-)
-_CONTEXTUAL_SECRET_RE = re.compile(
-    r"(?i)(api[_-]?key|authorization|bearer)([\"'\s:=]+)([A-Za-z0-9_\-]{40,})"
-)
+from bigrag.services.error_sanitize import sanitize_error_message
 
 
 def _safe_chat_error(exc: Exception) -> str:
-    if isinstance(exc, (ValidationError, NotFoundError, ServerError, UpstreamError)):
-        message = str(exc)
-    else:
-        message = getattr(exc, "message", None) or str(exc) or "Chat request failed"
-    message = _SECRET_RE.sub("[REDACTED]", message)
-    message = _CONTEXTUAL_SECRET_RE.sub(r"\1\2[REDACTED]", message)
-    return message[:500]
+    return sanitize_error_message(exc, fallback="Chat request failed")
 
 
 def _sse(event: str, data: dict[str, Any]) -> str:
