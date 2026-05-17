@@ -226,37 +226,43 @@ async def _access_token_for_account(
 
     lock = _refresh_lock_for(account.id)
     async with lock:
-        await session.refresh(account)
-        if (
-            account.access_token
-            and account.token_expires_at
-            and account.token_expires_at > utcnow()
-        ):
-            return account.access_token
+        locked = await session.scalar(
+            sa.select(ConnectorAccount).where(ConnectorAccount.id == account.id).with_for_update()
+        )
+        if locked is None:
+            raise GoogleDriveAuthError("Google Drive account needs reconnection")
+        if locked.access_token and locked.token_expires_at and locked.token_expires_at > utcnow():
+            account.access_token = locked.access_token
+            account.token_expires_at = locked.token_expires_at
+            return locked.access_token
 
         try:
             payload = await google_drive_client.refresh_access_token(
                 config=config,
-                refresh_token=account.refresh_token,
+                refresh_token=locked.refresh_token,
             )
         except GoogleDriveAuthError:
-            account.status = "needs_reauth"
-            account.access_token = None
+            locked.status = "needs_reauth"
+            locked.access_token = None
             await session.execute(
                 sa.update(ConnectorSource)
-                .where(ConnectorSource.account_id == account.id)
+                .where(ConnectorSource.account_id == locked.id)
                 .values(status="needs_reauth", last_error="Google account needs reconnection")
             )
             await session.commit()
+            account.status = locked.status
+            account.access_token = None
             raise
 
-        account.access_token = payload["access_token"]
+        locked.access_token = payload["access_token"]
         expires_in = int(payload.get("expires_in") or 3600)
-        account.token_expires_at = utcnow() + timedelta(seconds=max(60, expires_in - 60))
+        locked.token_expires_at = utcnow() + timedelta(seconds=max(60, expires_in - 60))
         if payload.get("scope"):
-            account.scopes = str(payload["scope"]).split()
+            locked.scopes = str(payload["scope"]).split()
         await session.commit()
-        return account.access_token
+        account.access_token = locked.access_token
+        account.token_expires_at = locked.token_expires_at
+        return locked.access_token
 
 
 async def list_google_drive_files(
