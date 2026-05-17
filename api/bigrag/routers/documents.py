@@ -436,6 +436,18 @@ async def download_document_file(
 global_router = APIRouter(prefix="/v1/documents", tags=["documents"])
 
 
+def _check_document_tenant(user: dict, doc: Document, collection: dict) -> None:
+    tenant_field = collection.get("tenant_field")
+    if not tenant_field:
+        return
+    user_tenant = user.get("tenant_id")
+    if user_tenant is None and user.get("role") == "admin" and not user.get("collection"):
+        return
+    doc_tenant = (doc.meta or {}).get(tenant_field) if doc.meta else None
+    if user_tenant is None or user_tenant != doc_tenant:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+
 @global_router.get("/{document_id}", response_model=DocumentResponse)
 async def get_document_global(
     document_id: str,
@@ -445,6 +457,8 @@ async def get_document_global(
     doc, collection_name = await get_document_with_collection(
         session, document_id, pinned_collection=user.get("collection")
     )
+    collection = await get_collection_or_404(collection_name)
+    _check_document_tenant(user, doc, collection)
     return document_response(doc, progress=await document_progress(doc, collection_name))
 
 
@@ -460,6 +474,7 @@ async def get_document_chunks_global(
         session, document_id, pinned_collection=user.get("collection")
     )
     collection = await get_collection_or_404(collection_name)
+    _check_document_tenant(user, doc, collection)
     chunks, total = await vector_store.get_chunks(
         collection_name,
         document_id,
