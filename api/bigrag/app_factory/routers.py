@@ -22,6 +22,7 @@ def include_all_routers(app: FastAPI) -> None:
     from bigrag.routers.collection_events import router as _collection_events_router  # noqa: F401
     from bigrag.routers.collections import router as collections_router
     from bigrag.routers.connectors import router as connectors_router
+    from bigrag.routers.connectors_oauth import router as connectors_oauth_router
     from bigrag.routers.documents import router as documents_router
     from bigrag.routers.documents_batch import router as documents_batch_router  # noqa: F401
     from bigrag.routers.documents_global import global_router as documents_global_router
@@ -52,6 +53,7 @@ def include_all_routers(app: FastAPI) -> None:
     app.include_router(embedding_presets_router)
     app.include_router(collections_router)
     app.include_router(connectors_router)
+    app.include_router(connectors_oauth_router)
     app.include_router(documents_router)
     app.include_router(documents_global_router)
     app.include_router(upload_sessions_router)
