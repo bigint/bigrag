@@ -16,6 +16,7 @@ from bigrag.services.error_sanitize import safe_error_detail
 
 __all__ = [
     "ensure_embedding_or_400",
+    "enforce_collection_pin",
     "get_collection_or_404",
     "get_embedding_model_for",
     "get_reranking_config",
@@ -32,6 +33,12 @@ def uuid_or_404(value: str, label: str) -> uuid.UUID:
         return uuid.UUID(value)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=f"{label} not found") from exc
+
+
+def enforce_collection_pin(user: dict, collection_name: str | None) -> None:
+    pinned = user.get("collection")
+    if pinned and pinned != collection_name:
+        raise HTTPException(status_code=404, detail="Collection not found")
 
 
 def ensure_embedding_or_400(collection: dict):
