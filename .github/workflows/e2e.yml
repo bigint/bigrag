@@ -1,10 +1,10 @@
 name: e2e
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
-  schedule:
-    - cron: '0 8 * * *'
 
 jobs:
   e2e:
@@ -107,7 +107,7 @@ jobs:
         env:
           BIGRAG_MASTER_KEY: "Zm5VZ4vO8r0y3rVsT0xz7nxV_wP7u6-n5tB1GAlHZIw="
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          BIGRAG_E2E_REAL_OPENAI: '1'
+          BIGRAG_E2E_REAL_OPENAI: "1"
         run: make test-real
 
       - name: Tear down
