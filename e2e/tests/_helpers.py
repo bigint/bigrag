@@ -18,6 +18,12 @@ import httpx
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
 
 
+CollectionFactory = Callable[..., Awaitable[dict[str, Any]]]
+DocumentFactory = Callable[..., Awaitable[dict[str, Any]]]
+ApiKeyFactory = Callable[..., Awaitable[dict[str, Any]]]
+ApiKeyClientFactory = Callable[..., Awaitable[httpx.AsyncClient]]
+
+
 def unique_name(prefix: str = "e2e") -> str:
     """Return a unique, Qdrant-safe collection name.
 

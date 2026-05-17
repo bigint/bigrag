@@ -7,20 +7,19 @@ Endpoints covered:
 from __future__ import annotations
 
 import json
-from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
 import httpx
 
-from tests._helpers import assert_envelope, wait_until_searchable
-
-
-CollectionFactory = Callable[..., Awaitable[dict[str, Any]]]
-DocumentFactory = Callable[..., Awaitable[dict[str, Any]]]
-ApiKeyFactory = Callable[..., Awaitable[dict[str, Any]]]
-ApiKeyClientFactory = Callable[..., Awaitable[httpx.AsyncClient]]
-
+from tests._helpers import (
+    ApiKeyClientFactory,
+    ApiKeyFactory,
+    CollectionFactory,
+    DocumentFactory,
+    assert_envelope,
+    wait_until_searchable,
+)
 
 GOLDEN_SETS_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "golden_sets"
 

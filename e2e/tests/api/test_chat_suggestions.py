@@ -14,17 +14,15 @@ assert ``200`` + persisted round-trip.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from typing import Any
-
 import httpx
 
-from tests._helpers import assert_envelope, seed_collection, wait_until_searchable
-
-
-CollectionFactory = Callable[..., Awaitable[dict[str, Any]]]
-DocumentFactory = Callable[..., Awaitable[dict[str, Any]]]
-
+from tests._helpers import (
+    CollectionFactory,
+    DocumentFactory,
+    assert_envelope,
+    seed_collection,
+    wait_until_searchable,
+)
 
 # ---------------------------------------------------------------------------
 # GET /v1/chat/question-suggestions
