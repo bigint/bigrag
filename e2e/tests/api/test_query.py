@@ -36,7 +36,9 @@ async def test_query_collection_returns_results_with_timings(
     document: DocumentFactory,
 ) -> None:
     coll = await seed_collection(collection, document)
-    await wait_until_searchable(admin_client, coll["name"], "Acme Corp founded Singapore")
+    await wait_until_searchable(
+        admin_client, coll["name"], "Acme Corp founded Singapore", top_k=3
+    )
     resp = await admin_client.post(
         f"/v1/collections/{coll['name']}/query",
         json={"query": "Acme Corp founded Singapore", "top_k": 5},
