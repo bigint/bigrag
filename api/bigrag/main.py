@@ -128,6 +128,15 @@ async def lifespan(app: FastAPI):
         if mcp_cm is not None:
             await mcp_cm.__aexit__(None, None, None)
         await ingestion_queue.stop()
+        for closer_name, closer in (
+            ("cohere", _close_cohere),
+            ("chat", _close_chat),
+            ("embedding_models", _close_embedding_models),
+        ):
+            try:
+                await closer()
+            except Exception as exc:
+                logger.warning("shutdown close failed", target=closer_name, error=repr(exc))
         await event_bus.close()
         await redis_cache.close()
         await storage.close()
@@ -135,6 +144,24 @@ async def lifespan(app: FastAPI):
         await shutdown_conversion_executor()
         await db_module.close()
         logger.info("shut down")
+
+
+async def _close_cohere() -> None:
+    from bigrag.services.retrieval import close_cohere_clients
+
+    await close_cohere_clients()
+
+
+async def _close_chat() -> None:
+    from bigrag.services.chat.provider import close_chat_clients
+
+    await close_chat_clients()
+
+
+async def _close_embedding_models() -> None:
+    from bigrag.services.embedding import close_embedding_models
+
+    await close_embedding_models()
 
 
 async def _check_database_migrations(s: Settings, logger) -> None:

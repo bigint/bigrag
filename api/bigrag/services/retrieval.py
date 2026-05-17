@@ -24,6 +24,38 @@ _QUERY_EPOCH_PREFIX = "bigrag:query_epoch:"
 _QUERY_CACHE_VERSION = 1
 _EMBEDDING_TIMEOUT_SECONDS = 60
 
+_cohere_clients: dict[tuple[str, str | None], cohere.AsyncClientV2] = {}  # noqa: F821
+_cohere_lock = asyncio.Lock()
+
+
+async def _get_cohere_client(api_key: str, base_url: str | None) -> cohere.AsyncClientV2:  # noqa: F821
+    import cohere
+
+    key = (api_key, base_url)
+    client = _cohere_clients.get(key)
+    if client is not None:
+        return client
+    async with _cohere_lock:
+        client = _cohere_clients.get(key)
+        if client is not None:
+            return client
+        kwargs: dict = {"api_key": api_key}
+        if base_url:
+            kwargs["base_url"] = base_url
+        client = cohere.AsyncClientV2(**kwargs)
+        _cohere_clients[key] = client
+        return client
+
+
+async def close_cohere_clients() -> None:
+    clients = list(_cohere_clients.values())
+    _cohere_clients.clear()
+    for client in clients:
+        try:
+            await client.close()
+        except Exception as exc:
+            logger.warning("failed to close cohere client", error=repr(exc))
+
 
 @dataclass
 class RetrievalOutcome:
@@ -202,12 +234,12 @@ async def rerank_results(
         return results
 
     try:
-        import cohere
+        import cohere  # noqa: F401
     except ImportError:
         logger.warning("cohere package not installed, skipping reranking")
         return results
 
-    client = cohere.AsyncClient(api_key=api_key)
+    client = await _get_cohere_client(api_key or "", None)
     try:
         texts = [r.get("text", "") for r in results]
         response = await asyncio.wait_for(
@@ -229,8 +261,6 @@ async def rerank_results(
     except Exception as exc:
         logger.error("reranking failed", error=repr(exc))
         return results
-    finally:
-        await client.close()
 
 
 async def _log_query(

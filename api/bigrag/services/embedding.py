@@ -304,11 +304,38 @@ class VoyageEmbedding(EmbeddingModel):
         self._api_key = api_key
         self._semaphore_key = "voyage"
         self._cache_identity = f"voyage:{model_name}:{dimension}"
+        self._client: httpx.AsyncClient | None = None  # noqa: F821
+        self._client_lock = asyncio.Lock()
         logger.info("initialized voyage embedding", model=model_name, dimension=dimension)
 
-    async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
+    async def _get_client(self) -> httpx.AsyncClient:  # noqa: F821
         import httpx
 
+        if self._client is not None:
+            return self._client
+        async with self._client_lock:
+            if self._client is not None:
+                return self._client
+            self._client = httpx.AsyncClient(
+                timeout=60.0,
+                limits=httpx.Limits(
+                    max_keepalive_connections=20,
+                    max_connections=100,
+                    keepalive_expiry=30,
+                ),
+            )
+            return self._client
+
+    async def aclose(self) -> None:
+        client = self._client
+        self._client = None
+        if client is not None:
+            try:
+                await client.aclose()
+            except Exception as exc:
+                logger.warning("failed to close voyage client", error=repr(exc))
+
+    async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
         texts, warnings = truncate_to_tokens(texts, self._model_name)
         if any(warnings):
             truncated = sum(1 for w in warnings if w)
@@ -329,9 +356,9 @@ class VoyageEmbedding(EmbeddingModel):
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
         }
+        client = await self._get_client()
         async with _get_semaphore(self._semaphore_key):
-            async with httpx.AsyncClient(timeout=60) as client:
-                response = await client.post(self._API_URL, json=payload, headers=headers)
+            response = await client.post(self._API_URL, json=payload, headers=headers)
         if response.status_code >= 400:
             logger.warning(
                 "voyage embed http error",
@@ -362,6 +389,19 @@ class VoyageEmbedding(EmbeddingModel):
 
 _MODELS_MAX = 32
 _models: OrderedDict[str, EmbeddingModel] = OrderedDict()
+
+
+async def close_embedding_models() -> None:
+    models = list(_models.values())
+    _models.clear()
+    for model in models:
+        aclose = getattr(model, "aclose", None)
+        if aclose is None:
+            continue
+        try:
+            await aclose()
+        except Exception as exc:
+            logger.warning("failed to close embedding model", error=repr(exc))
 
 
 def get_embedding_model(
