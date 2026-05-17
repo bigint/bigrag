@@ -69,7 +69,14 @@ The `/data-storage` page is a standalone runtime settings surface for uploaded s
 
 The `/vector-storage` page is a standalone runtime settings surface for vector provider connection details. It separates Qdrant and turbopuffer into provider tabs and uses `GET /v1/admin/settings` and `PUT /v1/admin/settings`; collection creation owns the per-collection provider choice.
 
-The settings page is a compact task-oriented workspace. It uses the shared top tab control for Account, Health, Security, and Data instead of a nested settings sidebar, then opens directly into the selected area without a repeated section heading. Settings area content is stacked sequentially rather than split into desktop columns. Common controls appear first, raw setting keys and source metadata stay inside Advanced controls, and each runtime panel keeps its guidance plus Save action together in the panel footer. The Security tab focuses on trusted proxy handling, outbound URL policy, and embedding-cache posture; CORS origins and session-cookie deployment controls stay in deployment config and the instance settings API. The Data tab covers ingestion, queue, retention, and webhook runtime settings after file storage moved to `/data-storage`. Empty controls show default or example placeholders so unset values remain readable. Saving validates applicable storage, backup, and vector targets before persistence.
+The settings page is a compact task-oriented workspace:
+
+- **Top tab control** for Account, Health, Security, and Data — no nested settings sidebar; each tab opens directly into its area without a repeated section heading.
+- **Stacked layout** — settings content is stacked sequentially rather than split into desktop columns. Common controls appear first; raw setting keys and source metadata stay inside Advanced controls; each runtime panel keeps its guidance plus Save action together in the panel footer.
+- **Security tab** focuses on trusted-proxy handling, outbound URL policy, and embedding-cache posture. CORS origins and session-cookie deployment controls stay in deployment config and the instance settings API.
+- **Data tab** covers ingestion, queue, retention, and webhook runtime settings after file storage moved to `/data-storage`.
+- **Placeholders** — empty controls show default or example values so unset settings remain readable.
+- **Validation** — saving probes applicable storage, backup, and vector targets before persistence.
 
 Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, and `/settings?tab=data`. Backups, usage, audit, connectors, models, evals, data storage, and vector storage are standalone routes rather than Settings deep-link redirects.
 
