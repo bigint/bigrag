@@ -39,7 +39,7 @@ dev = [
 
 [project.scripts]
 bigrag = "bigrag.main:cli"
-bigrag-mcp = "bigrag.mcp_server:cli"
+bigrag-mcp = "bigrag.mcp:cli"
 bigrag-worker = "bigrag.worker:cli"
 
 [build-system]
