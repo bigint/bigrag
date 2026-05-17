@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+import weakref
 from datetime import timedelta
 from typing import Any
 
@@ -32,7 +33,7 @@ from bigrag.services.connectors.google_drive_types import (
     google_drive_file_public,
 )
 
-_REFRESH_LOCKS: dict[uuid.UUID, asyncio.Lock] = {}
+_REFRESH_LOCKS: weakref.WeakValueDictionary[uuid.UUID, asyncio.Lock] = weakref.WeakValueDictionary()
 
 
 def _refresh_lock_for(account_id: uuid.UUID) -> asyncio.Lock:
