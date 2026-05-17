@@ -4,11 +4,23 @@ import asyncio
 import ipaddress
 import socket
 from collections.abc import Iterable
+from dataclasses import dataclass
 from urllib.parse import urlparse, urlunparse
+
+import httpx
 
 
 class UnsafeOutboundUrlError(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class PinnedOutbound:
+    normalized_url: str
+    hostname: str
+    pinned_ip: str
+    port: int
+    scheme: str
 
 
 def normalize_url_root(raw_url: str) -> str:
@@ -221,4 +233,123 @@ async def validate_webhook_url(url: str) -> str:
         purpose="Webhook URL",
         allow_loopback=allow_local,
         allow_private=allow_local,
+    )
+
+
+def resolve_and_pin_sync(
+    raw_url: str,
+    *,
+    purpose: str,
+    require_https: bool = True,
+    allowed_urls: Iterable[str] = (),
+    allow_private: bool = False,
+    allow_loopback: bool = False,
+) -> PinnedOutbound:
+    normalized = validate_outbound_url_sync(
+        raw_url,
+        purpose=purpose,
+        require_https=require_https,
+        allowed_urls=allowed_urls,
+        allow_private=allow_private,
+        allow_loopback=allow_loopback,
+    )
+    parsed = urlparse(normalized)
+    hostname = parsed.hostname or ""
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    explicitly_allowed = _is_explicitly_allowed(raw_url, allowed_urls)
+    effective_allow_private = allow_private or explicitly_allowed
+    effective_allow_loopback = allow_loopback or explicitly_allowed
+    pinned_ip: str | None = None
+    for address in _resolve_host_sync(hostname, port):
+        if not _is_blocked_ip(
+            address,
+            allow_private=effective_allow_private,
+            allow_loopback=effective_allow_loopback,
+        ):
+            pinned_ip = address
+            break
+    if pinned_ip is None:
+        raise UnsafeOutboundUrlError(
+            f"{purpose} resolved only to private, loopback, link-local, or reserved addresses."
+        )
+    return PinnedOutbound(
+        normalized_url=normalized,
+        hostname=hostname,
+        pinned_ip=pinned_ip,
+        port=port,
+        scheme=parsed.scheme,
+    )
+
+
+async def resolve_and_pin(
+    raw_url: str,
+    *,
+    purpose: str,
+    require_https: bool = True,
+    allowed_urls: Iterable[str] = (),
+    allow_private: bool = False,
+    allow_loopback: bool = False,
+) -> PinnedOutbound:
+    return await asyncio.to_thread(
+        resolve_and_pin_sync,
+        raw_url,
+        purpose=purpose,
+        require_https=require_https,
+        allowed_urls=tuple(allowed_urls),
+        allow_private=allow_private,
+        allow_loopback=allow_loopback,
+    )
+
+
+class _IPPinnedTransport(httpx.AsyncHTTPTransport):
+    def __init__(self, hostname: str, pinned_ip: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._hostname = hostname.lower()
+        self._pinned_ip = pinned_ip
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        request_host = (request.url.host or "").lower()
+        if request_host != self._hostname and request_host != self._pinned_ip.lower():
+            raise httpx.ConnectError(
+                f"refused to connect to {request_host}: pinned to {self._hostname}"
+            )
+        new_url = request.url.copy_with(host=self._pinned_ip)
+        new_headers = httpx.Headers(request.headers)
+        if "host" not in {k.lower() for k in new_headers}:
+            host_value = self._hostname
+            if request.url.port:
+                host_value = f"{self._hostname}:{request.url.port}"
+            new_headers["Host"] = host_value
+        extensions = {
+            **(request.extensions or {}),
+            "sni_hostname": self._hostname,
+        }
+        new_request = httpx.Request(
+            method=request.method,
+            url=new_url,
+            headers=new_headers,
+            stream=request.stream,
+            extensions=extensions,
+        )
+        return await super().handle_async_request(new_request)
+
+
+def pinned_async_client(
+    pinned: PinnedOutbound,
+    *,
+    timeout: float | None = None,
+    follow_redirects: bool = False,
+    http2: bool = False,
+    verify: bool = True,
+) -> httpx.AsyncClient:
+    transport = _IPPinnedTransport(
+        hostname=pinned.hostname,
+        pinned_ip=pinned.pinned_ip,
+        verify=verify,
+        http2=http2,
+    )
+    return httpx.AsyncClient(
+        transport=transport,
+        timeout=timeout,
+        follow_redirects=follow_redirects,
     )

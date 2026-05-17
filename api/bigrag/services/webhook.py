@@ -88,13 +88,35 @@ class WebhookDispatcher:
         return self._semaphores[webhook_id]
 
     async def start(self) -> None:
-        self._client = httpx.AsyncClient(timeout=_delivery_timeout(), follow_redirects=False)
         logger.info("WebhookDispatcher started")
 
     async def stop(self) -> None:
         if self._client:
             await self._client.aclose()
         logger.info("WebhookDispatcher stopped")
+
+    async def _post_pinned(
+        self,
+        url: str,
+        payload: str,
+        headers: dict[str, str],
+    ) -> httpx.Response:
+        from bigrag.services.runtime_settings import get_value
+        from bigrag.services.url_security import pinned_async_client, resolve_and_pin
+
+        allow_local = await get_value("allow_local_webhooks")
+        pinned = await resolve_and_pin(
+            url,
+            purpose="Webhook URL",
+            allow_loopback=allow_local,
+            allow_private=allow_local,
+        )
+        async with pinned_async_client(
+            pinned,
+            timeout=_delivery_timeout(),
+            follow_redirects=False,
+        ) as client:
+            return await client.post(url, content=payload, headers=headers)
 
     async def _get_webhooks(self) -> list[dict]:
         import sqlalchemy as sa
@@ -298,9 +320,6 @@ class WebhookDispatcher:
 
         async with sem:
             try:
-                from bigrag.models.webhook import resolve_and_validate_url
-
-                await resolve_and_validate_url(webhook["url"])
                 timestamp = str(int(datetime.now(UTC).timestamp()))
                 signature = compute_signature(payload, webhook["secret"], timestamp)
                 headers = {
@@ -311,7 +330,7 @@ class WebhookDispatcher:
                     "X-BigRAG-Delivery": str(delivery_id),
                     "User-Agent": "bigrag-webhooks/1.0",
                 }
-                response = await self._post(webhook["url"], payload, headers)
+                response = await self._post_pinned(webhook["url"], payload, headers)
                 last_status_code = response.status_code
                 delivered = 200 <= response.status_code < 300
                 if not delivered:
@@ -380,25 +399,7 @@ class WebhookDispatcher:
                 error=last_error,
             )
 
-    async def _post(self, url: str, payload: str, headers: dict[str, str]) -> httpx.Response:
-        if self._client is not None:
-            return await self._client.post(url, content=payload, headers=headers)
-        async with httpx.AsyncClient(timeout=_delivery_timeout(), follow_redirects=False) as client:
-            return await client.post(url, content=payload, headers=headers)
-
     async def deliver_once(self, webhook: dict, event: str, payload: str) -> dict:
-
-        try:
-            from bigrag.models.webhook import resolve_and_validate_url
-
-            await resolve_and_validate_url(webhook["url"])
-        except ValueError:
-            return {
-                "status": "failed",
-                "status_code": None,
-                "error": "Blocked: URL targets a private or internal network",
-            }
-
         timestamp = str(int(datetime.now(UTC).timestamp()))
         signature = compute_signature(payload, webhook["secret"], timestamp)
         headers = {
@@ -410,17 +411,19 @@ class WebhookDispatcher:
             "User-Agent": "bigrag-webhooks/1.0",
         }
         try:
-            async with httpx.AsyncClient(
-                timeout=_delivery_timeout(),
-                follow_redirects=False,
-            ) as client:
-                response = await client.post(webhook["url"], content=payload, headers=headers)
+            response = await self._post_pinned(webhook["url"], payload, headers)
             return {
                 "status": "delivered" if 200 <= response.status_code < 300 else "failed",
                 "status_code": response.status_code,
                 "error": None
                 if 200 <= response.status_code < 300
                 else f"HTTP {response.status_code}",
+            }
+        except ValueError:
+            return {
+                "status": "failed",
+                "status_code": None,
+                "error": "Blocked: URL targets a private or internal network",
             }
         except Exception as exc:
             return {
@@ -430,18 +433,6 @@ class WebhookDispatcher:
             }
 
     async def deliver_test(self, webhook: dict) -> dict:
-
-        try:
-            from bigrag.models.webhook import resolve_and_validate_url
-
-            await resolve_and_validate_url(webhook["url"])
-        except ValueError:
-            return {
-                "status": "failed",
-                "status_code": None,
-                "error": "Blocked: URL targets a private or internal network",
-            }
-
         secret = webhook["secret"]
         payload = orjson.dumps(
             {
@@ -460,22 +451,20 @@ class WebhookDispatcher:
             "X-BigRAG-Delivery": str(uuid.uuid4()),
             "User-Agent": "bigrag-webhooks/1.0",
         }
-
         try:
-            from bigrag.models.webhook import resolve_and_validate_url
-
-            await resolve_and_validate_url(webhook["url"])
-            async with httpx.AsyncClient(
-                timeout=_delivery_timeout(),
-                follow_redirects=False,
-            ) as client:
-                response = await client.post(webhook["url"], content=payload, headers=headers)
+            response = await self._post_pinned(webhook["url"], payload, headers)
             return {
                 "status": "delivered" if 200 <= response.status_code < 300 else "failed",
                 "status_code": response.status_code,
                 "error": None
                 if 200 <= response.status_code < 300
                 else f"HTTP {response.status_code}",
+            }
+        except ValueError:
+            return {
+                "status": "failed",
+                "status_code": None,
+                "error": "Blocked: URL targets a private or internal network",
             }
         except Exception:
             return {"status": "failed", "status_code": None, "error": "Connection failed"}
