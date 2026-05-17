@@ -71,7 +71,7 @@ Python SDK publishes dated PyPI releases.
 graph TD
     MCP([MCP client<br/>Claude / Cursor]) -->|bigrag-mcp| API
     AdminUI([Admin UI]) -->|session cookie| API
-    SDK([TS / Python / Rust SDK]) -->|bigrag_sk_… key| API
+    SDK([TS / Python SDK]) -->|bigrag_sk_… key| API
     Curl([curl / any HTTP client]) -->|bigrag_sk_… key| API
 
     API[bigRAG API<br/>Python / FastAPI]
