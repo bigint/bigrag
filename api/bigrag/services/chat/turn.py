@@ -69,22 +69,9 @@ async def _prepare_chat_turn(
     )
     credentials = await _resolve_api_credentials(session, user, body)
     base_url = await _resolve_base_url(body.provider_base_url, runtime["chat_base_url"])
-    if body.provider_base_url is not None and any(
-        cred.source == "instance chat key" for cred in credentials
-    ):
-        raise ValidationError(
-            "provider_base_url requires provider_api_key or a saved chat key; "
-            "the instance chat key cannot be sent to a custom base URL."
-        )
-    if (
-        base_url is not None
-        and not base_url.rstrip("/").startswith("https://api.openai.com")
-        and any(cred.source == "instance chat key" for cred in credentials)
-    ):
-        raise ValidationError(
-            "The instance chat key cannot be sent to a non-default chat base URL; "
-            "save a chat key in Chat settings or pass provider_api_key."
-        )
+    assert_credentials_allowed_for_base_url(
+        credentials, base_url, request_base_url=body.provider_base_url
+    )
 
     try:
         embedding_model = get_embedding_model_for(collection)
@@ -152,6 +139,30 @@ async def _prepare_chat_turn(
         credentials=credentials,
         base_url=base_url,
     )
+
+
+def assert_credentials_allowed_for_base_url(
+    credentials: list[ProviderCredential],
+    base_url: str | None,
+    *,
+    request_base_url: str | None,
+) -> None:
+    if request_base_url is not None and any(
+        cred.source == "instance chat key" for cred in credentials
+    ):
+        raise ValidationError(
+            "provider_base_url requires provider_api_key or a saved chat key; "
+            "the instance chat key cannot be sent to a custom base URL."
+        )
+    if (
+        base_url is not None
+        and not base_url.rstrip("/").startswith("https://api.openai.com")
+        and any(cred.source == "instance chat key" for cred in credentials)
+    ):
+        raise ValidationError(
+            "The instance chat key cannot be sent to a non-default chat base URL; "
+            "save a chat key in Chat settings or pass provider_api_key."
+        )
 
 
 def _resolve_provider(provider: str | None, default_provider: str | None = "openai") -> str:

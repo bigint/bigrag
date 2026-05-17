@@ -20,7 +20,11 @@ from bigrag.services.runtime_settings import get_values
 from bigrag.services.vector_store import vector_store
 
 from .provider import _openai_client, _provider_error, _should_try_next_credential
-from .turn import _resolve_api_credentials, _resolve_base_url
+from .turn import (
+    _resolve_api_credentials,
+    _resolve_base_url,
+    assert_credentials_allowed_for_base_url,
+)
 from .types import ProviderCredential
 
 _QUESTION_COUNT = 5
@@ -60,6 +64,7 @@ async def generate_question_suggestions(
         SimpleNamespace(provider_api_key=None),
     )
     base_url = await _resolve_base_url(None, runtime["chat_base_url"])
+    assert_credentials_allowed_for_base_url(credentials, base_url, request_base_url=None)
     documents = await _sample_documents(session, collection["id"])
     chunks = await _sample_chunks(collection_name, collection, documents)
     text = await _generate_questions_text(
