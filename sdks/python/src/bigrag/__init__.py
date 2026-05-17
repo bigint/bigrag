@@ -14,6 +14,7 @@ from bigrag._errors import (
     BigRAGError,
     InternalServerError,
     NotFoundError,
+    PermissionDeniedError,
     RateLimitError,
     error_for_status,
 )
@@ -61,6 +62,7 @@ __all__ = [
     "BigRAGError",
     "InternalServerError",
     "NotFoundError",
+    "PermissionDeniedError",
     "RateLimitError",
     "error_for_status",
     # Files

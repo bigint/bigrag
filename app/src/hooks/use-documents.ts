@@ -175,9 +175,10 @@ export const useUploadSessionDocuments = (
       const workers = Array.from({ length: Math.min(uploadConcurrency, files.length) }, uploadNext);
       await Promise.all(workers);
       const sessionPath = `v1/collections/${encodeURIComponent(collection)}/upload-sessions/${session.id}`;
-      const finalSession = errors.length
-        ? await apiClient.get<UploadSession>(sessionPath)
-        : await apiClient.post<UploadSession>(`${sessionPath}/complete`);
+      const finalSession =
+        errors.length < files.length
+          ? await apiClient.post<UploadSession>(`${sessionPath}/complete`)
+          : await apiClient.get<UploadSession>(sessionPath);
       return { errors, session: finalSession };
     },
     onSuccess: ({ errors, session }) => {

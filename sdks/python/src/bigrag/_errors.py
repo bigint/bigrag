@@ -33,6 +33,13 @@ class AuthenticationError(APIError):
         super().__init__(401, message, code)
 
 
+class PermissionDeniedError(APIError):
+    """HTTP 403 Forbidden."""
+
+    def __init__(self, message: str, code: str | None = None) -> None:
+        super().__init__(403, message, code)
+
+
 class NotFoundError(APIError):
     """HTTP 404 Not Found."""
 
@@ -71,6 +78,7 @@ class APITimeoutError(BigRAGError):
 _STATUS_MAP: dict[int, type[APIError]] = {
     400: BadRequestError,
     401: AuthenticationError,
+    403: PermissionDeniedError,
     404: NotFoundError,
     429: RateLimitError,
     500: InternalServerError,

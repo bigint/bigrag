@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import random
 from typing import Any
 
 import httpx
@@ -51,8 +52,18 @@ def _ensure_bytes(fileobj: Any) -> Any:
     return fileobj
 
 
-def _rewind_files(_files: Any) -> None:
-    return None
+def _rewind_files(files: Any) -> None:
+    if files is None:
+        return
+    items = files.values() if isinstance(files, dict) else files
+    for entry in items:
+        payload = entry[1] if isinstance(entry, tuple) and len(entry) >= 2 else entry
+        seek = getattr(payload, "seek", None)
+        if callable(seek):
+            try:
+                seek(0)
+            except Exception:
+                pass
 
 
 class BigRAGCore:
@@ -100,10 +111,15 @@ class BigRAGCore:
 
     async def _execute_with_retry(self, send_fn) -> httpx.Response:
         last_error: Exception | None = None
+        retry_after_override: float | None = None
 
         for attempt in range(self.max_retries + 1):
             if attempt > 0:
-                delay = min(0.5 * (2**attempt), 4.0)
+                base_delay = min(0.5 * (2 ** (attempt - 1)), 4.0)
+                delay = base_delay * (0.75 + random.random() * 0.5)
+                if retry_after_override is not None:
+                    delay = max(retry_after_override, delay)
+                    retry_after_override = None
                 await asyncio.sleep(delay)
 
             try:
@@ -125,6 +141,12 @@ class BigRAGCore:
 
             if response.status_code == 429 and attempt < self.max_retries:
                 last_error = Exception("Rate limited")
+                retry_after_header = response.headers.get("Retry-After")
+                if retry_after_header:
+                    try:
+                        retry_after_override = float(retry_after_header)
+                    except (TypeError, ValueError):
+                        retry_after_override = None
                 continue
 
             return response
@@ -172,6 +194,7 @@ class BigRAGCore:
             return {"status": "ok"}
 
         return response.json()
+
 
     async def _request_form(
         self,

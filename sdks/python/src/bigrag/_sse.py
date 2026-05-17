@@ -18,14 +18,28 @@ async def parse_sse_stream(
     Lines that do not start with ``data: `` are silently skipped, as are
     lines whose JSON payload cannot be decoded.
     """
-    async for line in response.aiter_lines():
-        if not line.startswith("data: "):
+    data_lines: list[str] = []
+    async for raw_line in response.aiter_lines():
+        line = raw_line.rstrip("\r")
+        if line == "":
+            if not data_lines:
+                continue
+            payload = "\n".join(data_lines)
+            data_lines = []
+            if not payload:
+                continue
+            try:
+                yield json.loads(payload)
+            except (json.JSONDecodeError, ValueError):
+                pass
             continue
-        payload = line[6:].strip()
-        if not payload:
+        if line.startswith(":"):
             continue
-        try:
-            yield json.loads(payload)
-        except (json.JSONDecodeError, ValueError):
-            # Skip malformed JSON
-            pass
+        if ":" in line:
+            field, _, value = line.partition(":")
+            if value.startswith(" "):
+                value = value[1:]
+        else:
+            field, value = line, ""
+        if field == "data":
+            data_lines.append(value)

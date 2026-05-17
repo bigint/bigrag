@@ -32,6 +32,7 @@ export const useCollection = (name: string) =>
     queryKey: queryKeys.collections.one({ name }),
     queryFn: () => apiClient.get<Collection>(`v1/collections/${encodeURIComponent(name)}`),
     enabled: !!name,
+    staleTime: 15_000,
   });
 
 export const useCollectionStats = (name: string) => {
