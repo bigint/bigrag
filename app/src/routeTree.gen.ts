@@ -18,7 +18,6 @@ import { Route as DashboardMcpRouteImport } from "./routes/_dashboard.mcp";
 import { Route as DashboardEvalsRouteImport } from "./routes/_dashboard.evals";
 import { Route as DashboardDataStorageRouteImport } from "./routes/_dashboard.data-storage";
 import { Route as DashboardConnectorsRouteImport } from "./routes/_dashboard.connectors";
-import { Route as DashboardCollectionsRouteImport } from "./routes/_dashboard.collections";
 import { Route as DashboardChatRouteImport } from "./routes/_dashboard.chat";
 import { Route as DashboardBackupsRouteImport } from "./routes/_dashboard.backups";
 import { Route as DashboardAuditRouteImport } from "./routes/_dashboard.audit";
@@ -31,7 +30,6 @@ import { Route as DashboardCollectionsNameRouteImport } from "./routes/_dashboar
 import { Route as DashboardCollectionsNameIndexRouteImport } from "./routes/_dashboard.collections.$name.index";
 import { Route as DashboardCollectionsNameSettingsRouteImport } from "./routes/_dashboard.collections.$name.settings";
 import { Route as DashboardCollectionsNameSearchRouteImport } from "./routes/_dashboard.collections.$name.search";
-import { Route as DashboardCollectionsNameDocumentsRouteImport } from "./routes/_dashboard.collections.$name.documents";
 import { Route as DashboardCollectionsNameConnectorsRouteImport } from "./routes/_dashboard.collections.$name.connectors";
 import { Route as DashboardCollectionsNameDocumentsIndexRouteImport } from "./routes/_dashboard.collections.$name.documents.index";
 import { Route as DashboardCollectionsNameConnectorsIndexRouteImport } from "./routes/_dashboard.collections.$name.connectors.index";
@@ -101,11 +99,6 @@ const DashboardConnectorsRoute = DashboardConnectorsRouteImport.update({
   path: "/connectors",
   getParentRoute: () => DashboardRoute,
 } as any);
-const DashboardCollectionsRoute = DashboardCollectionsRouteImport.update({
-  id: "/collections",
-  path: "/collections",
-  getParentRoute: () => DashboardRoute,
-} as any);
 const DashboardChatRoute = DashboardChatRouteImport.update({
   id: "/chat",
   path: "/chat",
@@ -143,15 +136,15 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
 } as any);
 const DashboardCollectionsIndexRoute =
   DashboardCollectionsIndexRouteImport.update({
-    id: "/",
-    path: "/",
-    getParentRoute: () => DashboardCollectionsRoute,
+    id: "/collections/",
+    path: "/collections/",
+    getParentRoute: () => DashboardRoute,
   } as any);
 const DashboardCollectionsNameRoute =
   DashboardCollectionsNameRouteImport.update({
-    id: "/$name",
-    path: "/$name",
-    getParentRoute: () => DashboardCollectionsRoute,
+    id: "/collections/$name",
+    path: "/collections/$name",
+    getParentRoute: () => DashboardRoute,
   } as any);
 const DashboardCollectionsNameIndexRoute =
   DashboardCollectionsNameIndexRouteImport.update({
@@ -171,12 +164,6 @@ const DashboardCollectionsNameSearchRoute =
     path: "/search",
     getParentRoute: () => DashboardCollectionsNameRoute,
   } as any);
-const DashboardCollectionsNameDocumentsRoute =
-  DashboardCollectionsNameDocumentsRouteImport.update({
-    id: "/documents",
-    path: "/documents",
-    getParentRoute: () => DashboardCollectionsNameRoute,
-  } as any);
 const DashboardCollectionsNameConnectorsRoute =
   DashboardCollectionsNameConnectorsRouteImport.update({
     id: "/connectors",
@@ -185,9 +172,9 @@ const DashboardCollectionsNameConnectorsRoute =
   } as any);
 const DashboardCollectionsNameDocumentsIndexRoute =
   DashboardCollectionsNameDocumentsIndexRouteImport.update({
-    id: "/",
-    path: "/",
-    getParentRoute: () => DashboardCollectionsNameDocumentsRoute,
+    id: "/documents/",
+    path: "/documents/",
+    getParentRoute: () => DashboardCollectionsNameRoute,
   } as any);
 const DashboardCollectionsNameConnectorsIndexRoute =
   DashboardCollectionsNameConnectorsIndexRouteImport.update({
@@ -197,9 +184,9 @@ const DashboardCollectionsNameConnectorsIndexRoute =
   } as any);
 const DashboardCollectionsNameDocumentsDocIdRoute =
   DashboardCollectionsNameDocumentsDocIdRouteImport.update({
-    id: "/$docId",
-    path: "/$docId",
-    getParentRoute: () => DashboardCollectionsNameDocumentsRoute,
+    id: "/documents/$docId",
+    path: "/documents/$docId",
+    getParentRoute: () => DashboardCollectionsNameRoute,
   } as any);
 const DashboardCollectionsNameConnectorsGoogleDriveRoute =
   DashboardCollectionsNameConnectorsGoogleDriveRouteImport.update({
@@ -217,7 +204,6 @@ export interface FileRoutesByFullPath {
   "/audit": typeof DashboardAuditRoute;
   "/backups": typeof DashboardBackupsRoute;
   "/chat": typeof DashboardChatRoute;
-  "/collections": typeof DashboardCollectionsRouteWithChildren;
   "/connectors": typeof DashboardConnectorsRoute;
   "/data-storage": typeof DashboardDataStorageRoute;
   "/evals": typeof DashboardEvalsRoute;
@@ -231,7 +217,6 @@ export interface FileRoutesByFullPath {
   "/collections/$name": typeof DashboardCollectionsNameRouteWithChildren;
   "/collections/": typeof DashboardCollectionsIndexRoute;
   "/collections/$name/connectors": typeof DashboardCollectionsNameConnectorsRouteWithChildren;
-  "/collections/$name/documents": typeof DashboardCollectionsNameDocumentsRouteWithChildren;
   "/collections/$name/search": typeof DashboardCollectionsNameSearchRoute;
   "/collections/$name/settings": typeof DashboardCollectionsNameSettingsRoute;
   "/collections/$name/": typeof DashboardCollectionsNameIndexRoute;
@@ -280,7 +265,6 @@ export interface FileRoutesById {
   "/_dashboard/audit": typeof DashboardAuditRoute;
   "/_dashboard/backups": typeof DashboardBackupsRoute;
   "/_dashboard/chat": typeof DashboardChatRoute;
-  "/_dashboard/collections": typeof DashboardCollectionsRouteWithChildren;
   "/_dashboard/connectors": typeof DashboardConnectorsRoute;
   "/_dashboard/data-storage": typeof DashboardDataStorageRoute;
   "/_dashboard/evals": typeof DashboardEvalsRoute;
@@ -294,7 +278,6 @@ export interface FileRoutesById {
   "/_dashboard/collections/$name": typeof DashboardCollectionsNameRouteWithChildren;
   "/_dashboard/collections/": typeof DashboardCollectionsIndexRoute;
   "/_dashboard/collections/$name/connectors": typeof DashboardCollectionsNameConnectorsRouteWithChildren;
-  "/_dashboard/collections/$name/documents": typeof DashboardCollectionsNameDocumentsRouteWithChildren;
   "/_dashboard/collections/$name/search": typeof DashboardCollectionsNameSearchRoute;
   "/_dashboard/collections/$name/settings": typeof DashboardCollectionsNameSettingsRoute;
   "/_dashboard/collections/$name/": typeof DashboardCollectionsNameIndexRoute;
@@ -314,7 +297,6 @@ export interface FileRouteTypes {
     | "/audit"
     | "/backups"
     | "/chat"
-    | "/collections"
     | "/connectors"
     | "/data-storage"
     | "/evals"
@@ -328,7 +310,6 @@ export interface FileRouteTypes {
     | "/collections/$name"
     | "/collections/"
     | "/collections/$name/connectors"
-    | "/collections/$name/documents"
     | "/collections/$name/search"
     | "/collections/$name/settings"
     | "/collections/$name/"
@@ -376,7 +357,6 @@ export interface FileRouteTypes {
     | "/_dashboard/audit"
     | "/_dashboard/backups"
     | "/_dashboard/chat"
-    | "/_dashboard/collections"
     | "/_dashboard/connectors"
     | "/_dashboard/data-storage"
     | "/_dashboard/evals"
@@ -390,7 +370,6 @@ export interface FileRouteTypes {
     | "/_dashboard/collections/$name"
     | "/_dashboard/collections/"
     | "/_dashboard/collections/$name/connectors"
-    | "/_dashboard/collections/$name/documents"
     | "/_dashboard/collections/$name/search"
     | "/_dashboard/collections/$name/settings"
     | "/_dashboard/collections/$name/"
@@ -499,13 +478,6 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DashboardConnectorsRouteImport;
       parentRoute: typeof DashboardRoute;
     };
-    "/_dashboard/collections": {
-      id: "/_dashboard/collections";
-      path: "/collections";
-      fullPath: "/collections";
-      preLoaderRoute: typeof DashboardCollectionsRouteImport;
-      parentRoute: typeof DashboardRoute;
-    };
     "/_dashboard/chat": {
       id: "/_dashboard/chat";
       path: "/chat";
@@ -557,17 +529,17 @@ declare module "@tanstack/react-router" {
     };
     "/_dashboard/collections/": {
       id: "/_dashboard/collections/";
-      path: "/";
+      path: "/collections";
       fullPath: "/collections/";
       preLoaderRoute: typeof DashboardCollectionsIndexRouteImport;
-      parentRoute: typeof DashboardCollectionsRoute;
+      parentRoute: typeof DashboardRoute;
     };
     "/_dashboard/collections/$name": {
       id: "/_dashboard/collections/$name";
-      path: "/$name";
+      path: "/collections/$name";
       fullPath: "/collections/$name";
       preLoaderRoute: typeof DashboardCollectionsNameRouteImport;
-      parentRoute: typeof DashboardCollectionsRoute;
+      parentRoute: typeof DashboardRoute;
     };
     "/_dashboard/collections/$name/": {
       id: "/_dashboard/collections/$name/";
@@ -590,13 +562,6 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DashboardCollectionsNameSearchRouteImport;
       parentRoute: typeof DashboardCollectionsNameRoute;
     };
-    "/_dashboard/collections/$name/documents": {
-      id: "/_dashboard/collections/$name/documents";
-      path: "/documents";
-      fullPath: "/collections/$name/documents";
-      preLoaderRoute: typeof DashboardCollectionsNameDocumentsRouteImport;
-      parentRoute: typeof DashboardCollectionsNameRoute;
-    };
     "/_dashboard/collections/$name/connectors": {
       id: "/_dashboard/collections/$name/connectors";
       path: "/connectors";
@@ -606,10 +571,10 @@ declare module "@tanstack/react-router" {
     };
     "/_dashboard/collections/$name/documents/": {
       id: "/_dashboard/collections/$name/documents/";
-      path: "/";
+      path: "/documents";
       fullPath: "/collections/$name/documents/";
       preLoaderRoute: typeof DashboardCollectionsNameDocumentsIndexRouteImport;
-      parentRoute: typeof DashboardCollectionsNameDocumentsRoute;
+      parentRoute: typeof DashboardCollectionsNameRoute;
     };
     "/_dashboard/collections/$name/connectors/": {
       id: "/_dashboard/collections/$name/connectors/";
@@ -620,10 +585,10 @@ declare module "@tanstack/react-router" {
     };
     "/_dashboard/collections/$name/documents/$docId": {
       id: "/_dashboard/collections/$name/documents/$docId";
-      path: "/$docId";
+      path: "/documents/$docId";
       fullPath: "/collections/$name/documents/$docId";
       preLoaderRoute: typeof DashboardCollectionsNameDocumentsDocIdRouteImport;
-      parentRoute: typeof DashboardCollectionsNameDocumentsRoute;
+      parentRoute: typeof DashboardCollectionsNameRoute;
     };
     "/_dashboard/collections/$name/connectors/google-drive": {
       id: "/_dashboard/collections/$name/connectors/google-drive";
@@ -665,42 +630,27 @@ const DashboardCollectionsNameConnectorsRouteWithChildren =
     DashboardCollectionsNameConnectorsRouteChildren,
   );
 
-interface DashboardCollectionsNameDocumentsRouteChildren {
-  DashboardCollectionsNameDocumentsDocIdRoute: typeof DashboardCollectionsNameDocumentsDocIdRoute;
-  DashboardCollectionsNameDocumentsIndexRoute: typeof DashboardCollectionsNameDocumentsIndexRoute;
-}
-
-const DashboardCollectionsNameDocumentsRouteChildren: DashboardCollectionsNameDocumentsRouteChildren =
-  {
-    DashboardCollectionsNameDocumentsDocIdRoute:
-      DashboardCollectionsNameDocumentsDocIdRoute,
-    DashboardCollectionsNameDocumentsIndexRoute:
-      DashboardCollectionsNameDocumentsIndexRoute,
-  };
-
-const DashboardCollectionsNameDocumentsRouteWithChildren =
-  DashboardCollectionsNameDocumentsRoute._addFileChildren(
-    DashboardCollectionsNameDocumentsRouteChildren,
-  );
-
 interface DashboardCollectionsNameRouteChildren {
   DashboardCollectionsNameConnectorsRoute: typeof DashboardCollectionsNameConnectorsRouteWithChildren;
-  DashboardCollectionsNameDocumentsRoute: typeof DashboardCollectionsNameDocumentsRouteWithChildren;
   DashboardCollectionsNameSearchRoute: typeof DashboardCollectionsNameSearchRoute;
   DashboardCollectionsNameSettingsRoute: typeof DashboardCollectionsNameSettingsRoute;
   DashboardCollectionsNameIndexRoute: typeof DashboardCollectionsNameIndexRoute;
+  DashboardCollectionsNameDocumentsDocIdRoute: typeof DashboardCollectionsNameDocumentsDocIdRoute;
+  DashboardCollectionsNameDocumentsIndexRoute: typeof DashboardCollectionsNameDocumentsIndexRoute;
 }
 
 const DashboardCollectionsNameRouteChildren: DashboardCollectionsNameRouteChildren =
   {
     DashboardCollectionsNameConnectorsRoute:
       DashboardCollectionsNameConnectorsRouteWithChildren,
-    DashboardCollectionsNameDocumentsRoute:
-      DashboardCollectionsNameDocumentsRouteWithChildren,
     DashboardCollectionsNameSearchRoute: DashboardCollectionsNameSearchRoute,
     DashboardCollectionsNameSettingsRoute:
       DashboardCollectionsNameSettingsRoute,
     DashboardCollectionsNameIndexRoute: DashboardCollectionsNameIndexRoute,
+    DashboardCollectionsNameDocumentsDocIdRoute:
+      DashboardCollectionsNameDocumentsDocIdRoute,
+    DashboardCollectionsNameDocumentsIndexRoute:
+      DashboardCollectionsNameDocumentsIndexRoute,
   };
 
 const DashboardCollectionsNameRouteWithChildren =
@@ -708,26 +658,12 @@ const DashboardCollectionsNameRouteWithChildren =
     DashboardCollectionsNameRouteChildren,
   );
 
-interface DashboardCollectionsRouteChildren {
-  DashboardCollectionsNameRoute: typeof DashboardCollectionsNameRouteWithChildren;
-  DashboardCollectionsIndexRoute: typeof DashboardCollectionsIndexRoute;
-}
-
-const DashboardCollectionsRouteChildren: DashboardCollectionsRouteChildren = {
-  DashboardCollectionsNameRoute: DashboardCollectionsNameRouteWithChildren,
-  DashboardCollectionsIndexRoute: DashboardCollectionsIndexRoute,
-};
-
-const DashboardCollectionsRouteWithChildren =
-  DashboardCollectionsRoute._addFileChildren(DashboardCollectionsRouteChildren);
-
 interface DashboardRouteChildren {
   DashboardAccessLogsRoute: typeof DashboardAccessLogsRoute;
   DashboardApiKeysRoute: typeof DashboardApiKeysRoute;
   DashboardAuditRoute: typeof DashboardAuditRoute;
   DashboardBackupsRoute: typeof DashboardBackupsRoute;
   DashboardChatRoute: typeof DashboardChatRoute;
-  DashboardCollectionsRoute: typeof DashboardCollectionsRouteWithChildren;
   DashboardConnectorsRoute: typeof DashboardConnectorsRoute;
   DashboardDataStorageRoute: typeof DashboardDataStorageRoute;
   DashboardEvalsRoute: typeof DashboardEvalsRoute;
@@ -738,6 +674,8 @@ interface DashboardRouteChildren {
   DashboardUsageRoute: typeof DashboardUsageRoute;
   DashboardVectorStorageRoute: typeof DashboardVectorStorageRoute;
   DashboardWebhooksRoute: typeof DashboardWebhooksRoute;
+  DashboardCollectionsNameRoute: typeof DashboardCollectionsNameRouteWithChildren;
+  DashboardCollectionsIndexRoute: typeof DashboardCollectionsIndexRoute;
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
@@ -746,7 +684,6 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAuditRoute: DashboardAuditRoute,
   DashboardBackupsRoute: DashboardBackupsRoute,
   DashboardChatRoute: DashboardChatRoute,
-  DashboardCollectionsRoute: DashboardCollectionsRouteWithChildren,
   DashboardConnectorsRoute: DashboardConnectorsRoute,
   DashboardDataStorageRoute: DashboardDataStorageRoute,
   DashboardEvalsRoute: DashboardEvalsRoute,
@@ -757,6 +694,8 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardUsageRoute: DashboardUsageRoute,
   DashboardVectorStorageRoute: DashboardVectorStorageRoute,
   DashboardWebhooksRoute: DashboardWebhooksRoute,
+  DashboardCollectionsNameRoute: DashboardCollectionsNameRouteWithChildren,
+  DashboardCollectionsIndexRoute: DashboardCollectionsIndexRoute,
 };
 
 const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
