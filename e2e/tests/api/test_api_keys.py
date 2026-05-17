@@ -43,7 +43,10 @@ async def test_list_api_keys_pagination(
 ) -> None:
     await api_key(name=unique_name("page"))
     await api_key(name=unique_name("page"))
-    resp = await admin_client.get("/v1/admin/api-keys", params={"limit": 1, "offset": 0})
+    resp = await admin_client.get(
+        "/v1/admin/api-keys",
+        params={"limit": 1, "offset": 0, "include_total": "true"},
+    )
     body = assert_envelope(resp, 200)
     assert len(body["keys"]) == 1
     assert body["total"] >= 2
