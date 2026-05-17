@@ -995,6 +995,11 @@ def upgrade() -> None:
         """
     )
 
+    op.drop_index("idx_access_log_actor", table_name="access_log")
+    op.drop_index("idx_access_log_action", table_name="access_log")
+    op.drop_index("idx_access_log_collection", table_name="access_log")
+    op.drop_index("idx_documents_collection_id", table_name="documents")
+
     op.create_check_constraint(
         "users_role_check",
         "users",

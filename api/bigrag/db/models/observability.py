@@ -97,12 +97,9 @@ class AuditLog(Base):
 class AccessLog(Base):
     __tablename__ = "access_log"
     __table_args__ = (
-        sa.Index("idx_access_log_actor", "actor_id"),
         sa.Index("idx_access_log_actor_created_at", "actor_id", sa.desc("created_at")),
         sa.Index("idx_access_log_api_key_id", "api_key_id"),
-        sa.Index("idx_access_log_action", "action"),
         sa.Index("idx_access_log_action_created_at", "action", sa.desc("created_at")),
-        sa.Index("idx_access_log_collection", "collection_name"),
         sa.Index(
             "idx_access_log_collection_created_at",
             "collection_name",

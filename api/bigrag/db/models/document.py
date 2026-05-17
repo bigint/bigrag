@@ -31,6 +31,7 @@ class Document(Base):
             "collection_id",
             "content_hash",
             postgresql_where=sa.text("content_hash IS NOT NULL"),
+            unique=False,
         ),
     )
 
