@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import itertools
+from collections import OrderedDict
 from collections.abc import AsyncIterator
 from dataclasses import asdict, dataclass, field
 
@@ -17,6 +18,7 @@ LATEST_PREFIX = "bigrag:progress:"
 LATEST_TTL_SECONDS = 7 * 24 * 60 * 60
 SUBSCRIBER_QUEUE_SIZE = 256
 SSE_RETRY_MS = 5000
+COMPLETED_MAX_ENTRIES = 10000
 
 _COMPLETE_MARKER = b'{"_complete":true}'
 _sse_id_counter = itertools.count(1)
@@ -74,7 +76,21 @@ class EventBus:
         self._listener: asyncio.Task | None = None
         self._subs: dict[str, list[asyncio.Queue[IngestionEvent | None]]] = {}
         self._latest: dict[str, IngestionEvent] = {}
-        self._completed: set[str] = set()
+        self._completed: OrderedDict[str, None] = OrderedDict()
+        self._pending: set[asyncio.Task] = set()
+
+    def _mark_completed(self, key: str) -> None:
+        if key in self._completed:
+            self._completed.move_to_end(key)
+            return
+        self._completed[key] = None
+        while len(self._completed) > COMPLETED_MAX_ENTRIES:
+            self._completed.popitem(last=False)
+
+    def _spawn(self, coro) -> None:
+        task = asyncio.create_task(coro)
+        self._pending.add(task)
+        task.add_done_callback(self._pending.discard)
 
     async def connect(self, redis_url: str) -> None:
         self._redis = aioredis.from_url(redis_url, decode_responses=False)
@@ -113,7 +129,7 @@ class EventBus:
                         if message["data"] == _COMPLETE_MARKER:
                             if key in self._completed:
                                 continue
-                            self._completed.add(key)
+                            self._mark_completed(key)
                             for q in list(self._subs.get(key, [])):
                                 self._offer(q, None)
                             continue
@@ -191,12 +207,12 @@ class EventBus:
                     error=str(e),
                 )
 
-        asyncio.ensure_future(_safe_publish())
+        self._spawn(_safe_publish())
 
     def complete(self, document_id: str) -> None:
         if document_id in self._completed:
             return
-        self._completed.add(document_id)
+        self._mark_completed(document_id)
         for q in list(self._subs.get(document_id, [])):
             self._offer(q, None)
         if not self._redis:
@@ -212,7 +228,7 @@ class EventBus:
                     error=str(e),
                 )
 
-        asyncio.ensure_future(_safe_publish())
+        self._spawn(_safe_publish())
 
     def _offer(self, q: asyncio.Queue[IngestionEvent | None], item: IngestionEvent | None) -> None:
         if item is None:
