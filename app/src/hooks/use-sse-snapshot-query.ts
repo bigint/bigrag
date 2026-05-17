@@ -70,11 +70,6 @@ const openStream = (path: string, entry: StreamEntry) => {
     dispatchError(entry, event);
     scheduleReconnect(path, entry);
   });
-
-  es.onerror = (event) => {
-    dispatchError(entry, event);
-    scheduleReconnect(path, entry);
-  };
 };
 
 const scheduleReconnect = (path: string, entry: StreamEntry) => {
@@ -115,6 +110,15 @@ const subscribeStream = (
   entry.errorListeners.add(onError);
   entry.refcount += 1;
 
+  if (!entry.es || entry.es.readyState === EventSource.CLOSED) {
+    entry.reconnectAttempt = 0;
+    if (entry.reconnectTimer) {
+      clearTimeout(entry.reconnectTimer);
+      entry.reconnectTimer = null;
+    }
+    openStream(path, entry);
+  }
+
   return () => {
     const current = streams.get(path);
     if (!current) return;
@@ -148,7 +152,7 @@ export const useSseSnapshotQuery = <T>({
   const queryClientRef = useRef<QueryClient>(queryClient);
   const closeWhenRef = useRef(closeWhen);
   const queryFnRef = useRef(queryFn);
-  const fallbackStartedRef = useRef(true);
+  const fallbackStartedRef = useRef(false);
   const [realtimeUnavailable, setRealtimeUnavailable] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const queryKeyHash = useMemo(() => hashKey(queryKey), [queryKey]);

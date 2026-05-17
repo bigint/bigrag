@@ -24,7 +24,7 @@ from bigrag.routers.documents import batch_get_status, get_document, list_docume
 from bigrag.routers.health import platform_stats, readiness
 from bigrag.routers.upload_sessions import get_upload_session as upload_session_detail
 from bigrag.routers.usage import get_usage
-from bigrag.services.event_bus import event_bus
+from bigrag.services.event_bus import SSE_RETRY_MS, event_bus, next_sse_id
 
 router = APIRouter(prefix="/v1/admin/realtime", tags=["admin:realtime"])
 
@@ -43,7 +43,7 @@ def _json(value: Any) -> str:
 
 
 def _event_frame(event: str, data: dict[str, Any]) -> str:
-    return f"event: {event}\ndata: {_json(data)}\n\n"
+    return f"id: {next_sse_id()}\nretry: {SSE_RETRY_MS}\nevent: {event}\ndata: {_json(data)}\n\n"
 
 
 def _snapshot_frame(topic: str, payload: Any) -> str:
@@ -68,7 +68,7 @@ def _error_frame(topic: str, message: str) -> str:
 
 
 def _heartbeat() -> str:
-    return ": heartbeat\n\n"
+    return f"id: {next_sse_id()}\nretry: {SSE_RETRY_MS}\n: heartbeat\n\n"
 
 
 async def _load_frame(topic: str, load: SnapshotLoader) -> tuple[str, Any | None]:
@@ -108,12 +108,13 @@ async def _event_stream(
     interval_for: SnapshotInterval,
     done: SnapshotDone | None = None,
 ):
+    queue = event_bus.subscribe(event_key)
     frame, payload = await _load_frame(topic, load)
     yield frame
     if payload is not None and done is not None and done(payload):
+        event_bus.unsubscribe(event_key, queue)
         return
 
-    queue = event_bus.subscribe(event_key)
     last_snapshot = time.monotonic()
     try:
         while True:

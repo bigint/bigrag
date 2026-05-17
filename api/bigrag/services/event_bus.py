@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 from collections.abc import AsyncIterator
 from dataclasses import asdict, dataclass, field
 
@@ -15,8 +16,14 @@ CHANNEL_PREFIX = "bigrag:events:"
 LATEST_PREFIX = "bigrag:progress:"
 LATEST_TTL_SECONDS = 7 * 24 * 60 * 60
 SUBSCRIBER_QUEUE_SIZE = 256
+SSE_RETRY_MS = 5000
 
 _COMPLETE_MARKER = b'{"_complete":true}'
+_sse_id_counter = itertools.count(1)
+
+
+def next_sse_id() -> int:
+    return next(_sse_id_counter)
 
 
 @dataclass
@@ -39,7 +46,9 @@ class IngestionEvent:
             "progress": self.progress,
             **self.detail,
         }
-        return f"data: {orjson.dumps(data).decode()}\n\n"
+        return (
+            f"id: {next_sse_id()}\nretry: {SSE_RETRY_MS}\ndata: {orjson.dumps(data).decode()}\n\n"
+        )
 
     def serialize(self) -> bytes:
         return orjson.dumps(asdict(self))
@@ -65,6 +74,7 @@ class EventBus:
         self._listener: asyncio.Task | None = None
         self._subs: dict[str, list[asyncio.Queue[IngestionEvent | None]]] = {}
         self._latest: dict[str, IngestionEvent] = {}
+        self._completed: set[str] = set()
 
     async def connect(self, redis_url: str) -> None:
         self._redis = aioredis.from_url(redis_url, decode_responses=False)
@@ -90,32 +100,57 @@ class EventBus:
         logger.info("event bus closed")
 
     async def _listen(self) -> None:
-
-        async for message in self._pubsub.listen():
-            if message["type"] != "pmessage":
-                continue
+        while True:
             try:
-                channel: str = message["channel"]
-                if isinstance(channel, bytes):
-                    channel = channel.decode()
-                key = channel.removeprefix(CHANNEL_PREFIX)
-                if message["data"] == _COMPLETE_MARKER:
-                    for q in self._subs.get(key, []):
-                        self._offer(q, None)
-                    continue
-                event = IngestionEvent.deserialize(message["data"])
-                self._latest[event.document_id] = event
-                self._dispatch(key, event)
+                async for message in self._pubsub.listen():
+                    if message["type"] != "pmessage":
+                        continue
+                    try:
+                        channel: str = message["channel"]
+                        if isinstance(channel, bytes):
+                            channel = channel.decode()
+                        key = channel.removeprefix(CHANNEL_PREFIX)
+                        if message["data"] == _COMPLETE_MARKER:
+                            if key in self._completed:
+                                continue
+                            self._completed.add(key)
+                            for q in list(self._subs.get(key, [])):
+                                self._offer(q, None)
+                            continue
+                        event = IngestionEvent.deserialize(message["data"])
+                        self._latest[event.document_id] = event
+                        self._dispatch(key, event)
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception as e:
+                        logger.warning("event bus: bad message", error=str(e))
             except asyncio.CancelledError:
                 raise
             except Exception as e:
-                logger.warning("event bus: bad message", error=str(e))
+                logger.warning("event bus: listen loop crashed, reconnecting", error=str(e))
+                await asyncio.sleep(1)
+                try:
+                    if self._pubsub:
+                        try:
+                            await self._pubsub.aclose()
+                        except Exception:
+                            pass
+                    if self._redis:
+                        self._pubsub = self._redis.pubsub()
+                        await self._pubsub.psubscribe(f"{CHANNEL_PREFIX}*")
+                    logger.info("event bus: listen loop restarted")
+                except Exception as reconnect_error:
+                    logger.warning(
+                        "event bus: reconnect failed",
+                        error=str(reconnect_error),
+                    )
+                    await asyncio.sleep(1)
 
     def _dispatch(self, channel_key: str, event: IngestionEvent) -> None:
 
-        for q in self._subs.get(channel_key, []):
+        for q in list(self._subs.get(channel_key, [])):
             self._offer(q, event)
-        for q in self._subs.get("*", []):
+        for q in list(self._subs.get("*", [])):
             self._offer(q, event)
 
     def subscribe(self, key: str) -> asyncio.Queue[IngestionEvent | None]:
@@ -159,7 +194,10 @@ class EventBus:
         asyncio.ensure_future(_safe_publish())
 
     def complete(self, document_id: str) -> None:
-        for q in self._subs.get(document_id, []):
+        if document_id in self._completed:
+            return
+        self._completed.add(document_id)
+        for q in list(self._subs.get(document_id, [])):
             self._offer(q, None)
         if not self._redis:
             return
@@ -177,6 +215,12 @@ class EventBus:
         asyncio.ensure_future(_safe_publish())
 
     def _offer(self, q: asyncio.Queue[IngestionEvent | None], item: IngestionEvent | None) -> None:
+        if item is None:
+            try:
+                q.put_nowait(None)
+            except asyncio.QueueFull:
+                pass
+            return
         if q.full():
             try:
                 q.get_nowait()
