@@ -13,6 +13,7 @@ def include_all_routers(app: FastAPI) -> None:
     from bigrag.routers.admin_settings import router as admin_settings_router
     from bigrag.routers.admin_users import router as admin_users_router
     from bigrag.routers.admin_vector_storage import router as admin_vector_storage_router
+    from bigrag.routers.analytics import router as analytics_router
     from bigrag.routers.auth import router as auth_router
     from bigrag.routers.chat import router as chat_router
     from bigrag.routers.collection_events import router as _collection_events_router  # noqa: F401
@@ -29,6 +30,7 @@ def include_all_routers(app: FastAPI) -> None:
     from bigrag.routers.query import router as query_router
     from bigrag.routers.upload_sessions import router as upload_sessions_router
     from bigrag.routers.usage import router as usage_router
+    from bigrag.routers.vectors import router as vectors_router
     from bigrag.routers.webhooks import router as webhooks_router
 
     app.include_router(health_router)
@@ -52,6 +54,8 @@ def include_all_routers(app: FastAPI) -> None:
     app.include_router(upload_sessions_router)
     app.include_router(chat_router)
     app.include_router(query_router)
+    app.include_router(vectors_router)
+    app.include_router(analytics_router)
     app.include_router(evaluation_router)
     app.include_router(usage_router)
     app.include_router(webhooks_router)
