@@ -10,7 +10,14 @@ import orjson
 from bigrag.exceptions import NotFoundError, ServerError, UpstreamError, ValidationError
 from bigrag.models.chat import ChatMessageResponse, ChatRole, ChatSource
 
-_SECRET_RE = re.compile(r"sk-[A-Za-z0-9_-]{8,}")
+_SECRET_RE = re.compile(
+    r"sk-ant-[A-Za-z0-9_-]{8,}"
+    r"|sk-[A-Za-z0-9_-]{8,}"
+    r"|AIza[0-9A-Za-z_-]{20,}"
+)
+_CONTEXTUAL_SECRET_RE = re.compile(
+    r"(?i)(api[_-]?key|authorization|bearer)([\"'\s:=]+)([A-Za-z0-9_\-]{40,})"
+)
 
 
 def _safe_chat_error(exc: Exception) -> str:
@@ -18,7 +25,9 @@ def _safe_chat_error(exc: Exception) -> str:
         message = str(exc)
     else:
         message = getattr(exc, "message", None) or str(exc) or "Chat request failed"
-    return _SECRET_RE.sub("sk-[REDACTED]", message)[:500]
+    message = _SECRET_RE.sub("[REDACTED]", message)
+    message = _CONTEXTUAL_SECRET_RE.sub(r"\1\2[REDACTED]", message)
+    return message[:500]
 
 
 def _sse(event: str, data: dict[str, Any]) -> str:

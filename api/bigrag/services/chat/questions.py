@@ -251,8 +251,6 @@ async def _generate_questions_text(
             last_error = exc
             if not _should_try_next_credential(exc, prepared, credential):
                 raise _provider_error(exc, credential) from exc
-        finally:
-            await client.close()
     if last_error is not None:
         raise _provider_error(last_error, credentials[-1]) from last_error
     return ""

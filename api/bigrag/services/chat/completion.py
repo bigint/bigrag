@@ -101,14 +101,13 @@ async def stream_chat_completion(
                     break
                 content_parts.append(delta)
                 yield _sse("delta", {"delta": delta})
-        except (asyncio.CancelledError, GeneratorExit):
+        finally:
             aclose = getattr(stream, "aclose", None)
             if aclose is not None:
                 try:
                     await aclose()
                 except Exception:
                     pass
-            raise
 
         assistant = _chat_message_response(
             id=str(uuid4()),

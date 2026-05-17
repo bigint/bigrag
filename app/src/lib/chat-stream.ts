@@ -68,7 +68,7 @@ export const streamChat = async (opts: StreamOptions): Promise<void> => {
         if (!parsed) continue;
         if ("done" in parsed) {
           finished = true;
-          break;
+          continue;
         }
         opts.onEvent(parsed.event);
       }

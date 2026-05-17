@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import time
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -18,15 +20,16 @@ from .types import PreparedChatTurn, ProviderCredential
 logger = get_logger("bigrag.chat")
 
 _MODEL_TIMEOUT_SECONDS = 60
+_CHAT_CLIENT_TTL_SECONDS = 300
 
-_chat_clients: dict[tuple[str, str], Any] = {}
+_chat_clients: dict[tuple[str, str], tuple[Any, float]] = {}
 _chat_clients_lock = asyncio.Lock()
 
 
 async def close_chat_clients() -> None:
-    clients = list(_chat_clients.values())
+    entries = list(_chat_clients.values())
     _chat_clients.clear()
-    for client in clients:
+    for client, _created_at in entries:
         try:
             await client.close()
         except Exception as exc:
@@ -46,10 +49,13 @@ async def _complete_model(prepared: PreparedChatTurn) -> str:
     for credential in prepared.credentials:
         client = await _openai_client(openai, prepared, credential)
         try:
-            response = await client.chat.completions.create(
-                model=prepared.model,
-                messages=prepared.model_messages,
-                temperature=prepared.temperature,
+            response = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=prepared.model,
+                    messages=prepared.model_messages,
+                    temperature=prepared.temperature,
+                ),
+                timeout=_MODEL_TIMEOUT_SECONDS,
             )
             choices = getattr(response, "choices", None) or []
             if not choices:
@@ -82,11 +88,14 @@ async def _stream_model(prepared: PreparedChatTurn) -> AsyncIterator[str]:
     for credential in prepared.credentials:
         client = await _openai_client(openai, prepared, credential)
         try:
-            stream = await client.chat.completions.create(
-                model=prepared.model,
-                messages=prepared.model_messages,
-                temperature=prepared.temperature,
-                stream=True,
+            stream = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=prepared.model,
+                    messages=prepared.model_messages,
+                    temperature=prepared.temperature,
+                    stream=True,
+                ),
+                timeout=_MODEL_TIMEOUT_SECONDS,
             )
             async for chunk in stream:
                 choices = getattr(chunk, "choices", None) or []
@@ -111,14 +120,25 @@ async def _stream_model(prepared: PreparedChatTurn) -> AsyncIterator[str]:
 
 async def _openai_client(openai_module, prepared: PreparedChatTurn, credential: ProviderCredential):
     base_url = prepared.base_url or "https://api.openai.com/v1"
-    cache_key = (credential.api_key, base_url)
-    client = _chat_clients.get(cache_key)
-    if client is not None:
-        return client
+    cache_key = (
+        hashlib.sha256(credential.api_key.encode()).hexdigest(),
+        base_url,
+    )
+    now = time.monotonic()
+    entry = _chat_clients.get(cache_key)
+    if entry is not None and now - entry[1] < _CHAT_CLIENT_TTL_SECONDS:
+        return entry[0]
     async with _chat_clients_lock:
-        client = _chat_clients.get(cache_key)
-        if client is not None:
-            return client
+        entry = _chat_clients.get(cache_key)
+        now = time.monotonic()
+        if entry is not None and now - entry[1] < _CHAT_CLIENT_TTL_SECONDS:
+            return entry[0]
+        if entry is not None:
+            try:
+                await entry[0].close()
+            except Exception as exc:
+                logger.warning("failed to close expired chat client", error=repr(exc))
+            _chat_clients.pop(cache_key, None)
         try:
             pinned = await pin_chat_base_url(base_url)
         except UnsafeOutboundUrlError as exc:
@@ -133,7 +153,7 @@ async def _openai_client(openai_module, prepared: PreparedChatTurn, credential: 
             "http_client": pinned_async_client(pinned, timeout=_MODEL_TIMEOUT_SECONDS),
         }
         client = openai_module.AsyncOpenAI(**kwargs)
-        _chat_clients[cache_key] = client
+        _chat_clients[cache_key] = (client, time.monotonic())
         return client
 
 

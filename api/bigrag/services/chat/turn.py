@@ -75,6 +75,15 @@ async def _prepare_chat_turn(
             "provider_base_url requires provider_api_key or a saved chat key; "
             "the instance chat key cannot be sent to a custom base URL."
         )
+    if (
+        base_url is not None
+        and not base_url.rstrip("/").startswith("https://api.openai.com")
+        and any(cred.source == "instance chat key" for cred in credentials)
+    ):
+        raise ValidationError(
+            "The instance chat key cannot be sent to a non-default chat base URL; "
+            "save a chat key in Chat settings or pass provider_api_key."
+        )
 
     try:
         embedding_model = get_embedding_model_for(collection)
@@ -246,21 +255,20 @@ def _model_messages(
     max_context_chars: int,
 ) -> list[dict[str, str]]:
     context = _context_block(sources, max_context_chars)
+    combined_system = (
+        f'{system_prompt}\n\nRetrieved context from collection "{collection}":\n\n{context}'
+    )
     messages: list[dict[str, str]] = [
-        {"role": "system", "content": system_prompt},
-        {
-            "role": "system",
-            "content": f'Retrieved context from collection "{collection}":\n\n{context}',
-        },
+        {"role": "system", "content": combined_system},
+        {"role": "user", "content": user_message},
     ]
-    messages.append({"role": "user", "content": user_message})
     return messages
 
 
 def _context_block(sources: list[ChatSource], max_context_chars: int) -> str:
     if not sources:
         return "(no matching chunks were found)"
-    remaining = max(1_000, max_context_chars)
+    remaining = max(100, min(max_context_chars, 200_000))
     parts: list[str] = []
     for idx, source in enumerate(sources, start=1):
         label_parts = []
