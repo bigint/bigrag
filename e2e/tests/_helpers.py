@@ -75,3 +75,34 @@ async def poll_until(
                 f"poll_until timed out waiting for {description!r}; last={last_value!r}"
             )
         await asyncio.sleep(interval)
+
+
+async def wait_until_searchable(
+    client: httpx.AsyncClient,
+    name: str,
+    query: str,
+    *,
+    top_k: int = 5,
+    timeout: float = 30.0,
+) -> bool:
+    """Poll ``POST /v1/collections/{name}/query`` until at least one hit lands.
+
+    Returns ``True`` once the query produces results. Raises ``TimeoutError``
+    via ``poll_until`` if no results appear within ``timeout`` seconds.
+    """
+
+    async def _do() -> dict[str, Any]:
+        resp = await client.post(
+            f"/v1/collections/{name}/query",
+            json={"query": query, "top_k": top_k},
+        )
+        return assert_envelope(resp, 200)
+
+    await poll_until(
+        _do,
+        predicate=lambda body: len(body.get("results") or []) > 0,
+        timeout=timeout,
+        interval=0.5,
+        description=f"results for {query!r} on {name}",
+    )
+    return True

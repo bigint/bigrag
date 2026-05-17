@@ -18,7 +18,7 @@ from typing import Any
 import httpx
 import pytest
 
-from tests._helpers import assert_envelope, poll_until
+from tests._helpers import assert_envelope, wait_until_searchable
 
 
 CollectionFactory = Callable[..., Awaitable[dict[str, Any]]]
@@ -44,29 +44,6 @@ async def _seed_collection(
     return coll, docs
 
 
-async def _wait_until_searchable(
-    admin_client: httpx.AsyncClient,
-    collection_name: str,
-    query: str,
-    *,
-    timeout: float = 30.0,
-) -> dict[str, Any]:
-    async def _do() -> dict[str, Any]:
-        resp = await admin_client.post(
-            f"/v1/collections/{collection_name}/query",
-            json={"query": query, "top_k": 5},
-        )
-        return assert_envelope(resp, 200)
-
-    return await poll_until(
-        _do,
-        predicate=lambda body: len(body.get("results") or []) > 0,
-        timeout=timeout,
-        interval=0.5,
-        description=f"results for {query!r} on {collection_name}",
-    )
-
-
 # ---------------------------------------------------------------------------
 # Single-collection query
 # ---------------------------------------------------------------------------
@@ -78,7 +55,12 @@ async def test_query_collection_returns_results_with_timings(
     document: DocumentFactory,
 ) -> None:
     coll, _ = await _seed_collection(collection, document)
-    body = await _wait_until_searchable(admin_client, coll["name"], "Acme Corp founded Singapore")
+    await wait_until_searchable(admin_client, coll["name"], "Acme Corp founded Singapore")
+    resp = await admin_client.post(
+        f"/v1/collections/{coll['name']}/query",
+        json={"query": "Acme Corp founded Singapore", "top_k": 5},
+    )
+    body = assert_envelope(resp, 200)
 
     assert body["query"] == "Acme Corp founded Singapore"
     assert body["collection"] == coll["name"]
@@ -104,7 +86,7 @@ async def test_query_collection_respects_top_k(
     document: DocumentFactory,
 ) -> None:
     coll, _ = await _seed_collection(collection, document)
-    await _wait_until_searchable(admin_client, coll["name"], "Acme")
+    await wait_until_searchable(admin_client, coll["name"], "Acme")
     resp = await admin_client.post(
         f"/v1/collections/{coll['name']}/query",
         json={"query": "Acme", "top_k": 1},
@@ -121,7 +103,7 @@ async def test_query_collection_search_modes(
     mode: str,
 ) -> None:
     coll, _ = await _seed_collection(collection, document)
-    await _wait_until_searchable(admin_client, coll["name"], "Acme Corp")
+    await wait_until_searchable(admin_client, coll["name"], "Acme Corp")
     resp = await admin_client.post(
         f"/v1/collections/{coll['name']}/query",
         json={"query": "Acme Corp", "top_k": 5, "search_mode": mode},
@@ -150,7 +132,7 @@ async def test_query_collection_metadata_filter(
     assert doc_a["status"] == "ready"
     assert doc_b["status"] == "ready"
 
-    await _wait_until_searchable(admin_client, coll["name"], "Acme")
+    await wait_until_searchable(admin_client, coll["name"], "Acme")
 
     resp = await admin_client.post(
         f"/v1/collections/{coll['name']}/query",
@@ -176,7 +158,7 @@ async def test_query_collection_min_score_filter(
     document: DocumentFactory,
 ) -> None:
     coll, _ = await _seed_collection(collection, document)
-    await _wait_until_searchable(admin_client, coll["name"], "Acme")
+    await wait_until_searchable(admin_client, coll["name"], "Acme")
     resp = await admin_client.post(
         f"/v1/collections/{coll['name']}/query",
         json={"query": "Acme", "top_k": 10, "min_score": 0.999},
@@ -192,7 +174,7 @@ async def test_query_collection_rerank_override_respected(
     document: DocumentFactory,
 ) -> None:
     coll, _ = await _seed_collection(collection, document)
-    await _wait_until_searchable(admin_client, coll["name"], "Acme")
+    await wait_until_searchable(admin_client, coll["name"], "Acme")
     resp = await admin_client.post(
         f"/v1/collections/{coll['name']}/query",
         json={"query": "Acme", "top_k": 5, "rerank": False},
@@ -208,7 +190,7 @@ async def test_query_cache_hit_on_second_call(
     document: DocumentFactory,
 ) -> None:
     coll, _ = await _seed_collection(collection, document)
-    await _wait_until_searchable(admin_client, coll["name"], "cache probe Acme")
+    await wait_until_searchable(admin_client, coll["name"], "cache probe Acme")
 
     payload = {"query": "cache probe Acme", "top_k": 5}
     first = await admin_client.post(
@@ -295,8 +277,8 @@ async def test_multi_collection_query_tags_results_with_collection(
     await document(coll_a["name"], fixture="sample.txt")
     await document(coll_b["name"], fixture="sample.md")
 
-    await _wait_until_searchable(admin_client, coll_a["name"], "Acme")
-    await _wait_until_searchable(admin_client, coll_b["name"], "Bigrag")
+    await wait_until_searchable(admin_client, coll_a["name"], "Acme")
+    await wait_until_searchable(admin_client, coll_b["name"], "Bigrag")
 
     resp = await admin_client.post(
         "/v1/query",
@@ -354,8 +336,8 @@ async def test_batch_query_executes_each_item(
     await document(coll_a["name"], fixture="sample.txt")
     await document(coll_b["name"], fixture="sample.md")
 
-    await _wait_until_searchable(admin_client, coll_a["name"], "Acme")
-    await _wait_until_searchable(admin_client, coll_b["name"], "Bigrag")
+    await wait_until_searchable(admin_client, coll_a["name"], "Acme")
+    await wait_until_searchable(admin_client, coll_b["name"], "Bigrag")
 
     resp = await admin_client.post(
         "/v1/batch/query",
