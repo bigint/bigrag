@@ -62,14 +62,6 @@ class WebhookDispatcher:
             self._semaphores[webhook_id] = asyncio.Semaphore(5)
         return self._semaphores[webhook_id]
 
-    async def start(self) -> None:
-        logger.info("WebhookDispatcher started")
-
-    async def stop(self) -> None:
-        if self._client:
-            await self._client.aclose()
-        logger.info("WebhookDispatcher stopped")
-
     async def _post_pinned(
         self,
         url: str,
