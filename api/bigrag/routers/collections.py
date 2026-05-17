@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from uuid import UUID
 
-import httpx
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
@@ -21,9 +20,15 @@ from bigrag.models.collection import (
     UpdateCollectionRequest,
 )
 from bigrag.services import audit, collection_cache
-from bigrag.services.credential_check import (
-    CredentialCheckError,
-    verify_provider_credentials,
+from bigrag.services.collection_provision import (
+    create_vector_store_collection,
+    verify_embedding_credentials,
+)
+from bigrag.services.collections import (
+    delete_collection as service_delete_collection,
+)
+from bigrag.services.collections import (
+    truncate_collection as service_truncate_collection,
 )
 from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.ingestion_job import create_ingestion_job
@@ -36,97 +41,6 @@ from bigrag.services.vector_store import vector_store
 logger = get_logger("bigrag.routers.collections")
 
 router = APIRouter(prefix="/v1/collections", tags=["collections"])
-
-
-async def _verify_embedding_credentials(
-    provider: str,
-    api_key: str,
-    base_url: str | None,
-    model: str | None,
-) -> None:
-    if provider not in ("openai", "openai_compatible", "cohere", "voyage"):
-        return
-    try:
-        await verify_provider_credentials(
-            provider,  # type: ignore[arg-type]
-            api_key,
-            base_url,
-            model=model,
-        )
-    except CredentialCheckError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Embedding provider rejected the API key: {exc.message}",
-        ) from exc
-
-
-def _vector_store_unavailable_detail(provider: str) -> str:
-    if provider == "turbopuffer":
-        return (
-            "turbopuffer is not configured. Save a turbopuffer API key in Vector Storage "
-            "before creating a turbopuffer collection."
-        )
-    return f"{provider} vector store is not configured."
-
-
-def _ensure_vector_store_provider_available(provider: str) -> None:
-    if provider in vector_store.configured_providers:
-        return
-    raise HTTPException(
-        status_code=400,
-        detail=_vector_store_unavailable_detail(provider),
-    )
-
-
-async def _create_vector_store_collection(
-    body: CreateCollectionRequest,
-    dimension: int,
-) -> None:
-    _ensure_vector_store_provider_available(body.vector_store_provider)
-    try:
-        await vector_store.create_collection(
-            body.name,
-            dimension,
-            index_type=body.index_type,
-            tenant_field=body.tenant_field,
-            provider=body.vector_store_provider,
-        )
-    except RuntimeError as e:
-        message = str(e)
-        if "API key is not configured" in message or "client is not connected" in message:
-            raise HTTPException(
-                status_code=400,
-                detail=_vector_store_unavailable_detail(body.vector_store_provider),
-            ) from e
-        logger.warning(
-            "vector collection create failed",
-            collection=body.name,
-            vector_store_provider=body.vector_store_provider,
-            error_type=e.__class__.__name__,
-            error=message,
-        )
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                f"Unable to create {body.vector_store_provider} vector collection. "
-                "Check Vector Storage settings."
-            ),
-        ) from e
-    except httpx.HTTPError as e:
-        logger.warning(
-            "vector collection create failed",
-            collection=body.name,
-            vector_store_provider=body.vector_store_provider,
-            error_type=e.__class__.__name__,
-            error=str(e),
-        )
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                f"Unable to create {body.vector_store_provider} vector collection. "
-                "Check Vector Storage settings."
-            ),
-        ) from e
 
 
 def _collection_response(c: Collection) -> CollectionResponse:
@@ -293,7 +207,7 @@ async def create_collection(
         body.dimension or (preset.dimension if preset else None) or defaults["embedding_dimension"]
     )
 
-    await _verify_embedding_credentials(provider, api_key, base_url, model)
+    await verify_embedding_credentials(provider, api_key, base_url, model)
     try:
         from bigrag.services.embedding import get_embedding_model
 
@@ -312,7 +226,7 @@ async def create_collection(
             detail=safe_error_detail(e, "Embedding provider is not available."),
         ) from e
 
-    await _create_vector_store_collection(body, dimension)
+    await create_vector_store_collection(body, dimension)
 
     collection = Collection(
         name=body.name,
@@ -529,7 +443,7 @@ async def update_collection(
                     status_code=422,
                     detail="embedding_api_key cannot be empty.",
                 )
-            await _verify_embedding_credentials(
+            await verify_embedding_credentials(
                 collection.embedding_provider,
                 new_key,
                 collection.embedding_base_url,
@@ -588,30 +502,7 @@ async def delete_collection(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    logger.info("delete collection", collection=name)
-    collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
-    if collection is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-
-    flushed = await ingestion_queue.cancel_collection(name)
-    logger.info("delete collection jobs cancelled", collection=name, flushed=flushed)
-
-    deleted_id = str(collection.id)
-    vector_store_provider = collection.vector_store_provider
-    await session.delete(collection)
-    await session.commit()
-    await collection_cache.invalidate(name)
-    await invalidate_collection_query_cache(name)
-    logger.info("delete collection database records removed", collection=name)
-
-    await vector_store.delete_collection(name, provider=vector_store_provider)
-    logger.info("delete collection vectors dropped", collection=name)
-
-    from bigrag.services.storage import get_storage
-
-    deleted = await get_storage().delete_prefix(f"{name}/")
-    logger.info("delete collection storage removed", collection=name, count=deleted)
-
+    deleted_id = await service_delete_collection(session, name)
     audit.record(
         request,
         user=user,
@@ -620,7 +511,6 @@ async def delete_collection(
         resource_id=deleted_id,
         metadata={"name": name},
     )
-
     return StatusResponse(status="ok", message=f"Collection '{name}' deleted")
 
 
@@ -631,39 +521,13 @@ async def truncate_collection(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-
-    logger.info("truncate collection", collection=name)
-    collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
-    if collection is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-
-    flushed = await ingestion_queue.cancel_collection(name)
-    logger.info("truncate collection jobs cancelled", collection=name, flushed=flushed)
-
-    vector_store_provider = collection.vector_store_provider
-    await session.execute(sa.delete(Document).where(Document.collection_id == collection.id))
-    await session.execute(
-        sa.update(Collection).where(Collection.id == collection.id).values(document_count=0)
-    )
-    await session.commit()
-    await collection_cache.invalidate(name)
-    await invalidate_collection_query_cache(name)
-    logger.info("truncate collection documents removed", collection=name)
-
-    await vector_store.delete_collection(name, provider=vector_store_provider)
-    logger.info("truncate collection vectors cleared", collection=name)
-
-    from bigrag.services.storage import get_storage
-
-    deleted = await get_storage().delete_prefix(f"{name}/")
-    logger.info("truncate collection storage removed", collection=name, count=deleted)
-
+    collection_id = await service_truncate_collection(session, name)
     audit.record(
         request,
         user=user,
         action="collection.truncate",
         resource_type="collection",
-        resource_id=str(collection.id),
+        resource_id=collection_id,
         metadata={"name": name},
     )
     return StatusResponse(status="ok", message=f"Collection '{name}' truncated")
