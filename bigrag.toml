@@ -24,7 +24,6 @@
 # qdrant_url = "http://localhost:6333"
 # qdrant_connect_timeout_seconds = 10
 # qdrant_required = false
-# qdrant_search_ef = 128           # optional Qdrant HNSW ef override; unset by default
 
 # turbopuffer_api_key = ""         # required only for collections using turbopuffer
 # turbopuffer_region = "aws-us-east-1"
@@ -50,7 +49,6 @@
 # embedding_model = "text-embedding-3-small"
 # embedding_dimension = 1536
 # embedding_base_url = ""          # required for openai_compatible endpoints
-# embedding_concurrency = 8
 # embedding_api_key = ""           # use BIGRAG_EMBEDDING_API_KEY in production
 # allowed_embedding_base_urls = []
 # allow_private_embedding_base_urls = false
@@ -79,11 +77,9 @@
 # max_upload_session_files = 10000
 # max_upload_session_size_mb = 102400
 # upload_session_item_retention_hours = 168
-# upload_session_upload_concurrency = 4
 # ingestion_workers = 4
 # ingestion_batch_size = 128
 # conversion_timeout = 300
-# conversion_pdf_ocr_enabled = true
 # queue_max_depth = 10000
 # collection_cache_ttl = 30
 # query_embedding_cache_ttl = 3600
