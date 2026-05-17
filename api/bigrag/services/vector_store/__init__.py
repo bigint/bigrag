@@ -8,6 +8,7 @@ from typing import Any, cast
 from bigrag.config import settings as _app_settings
 from bigrag.logging import get_logger
 from bigrag.services._retrieval_filters import FilterExpression
+from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.vector_store.base import (
     VectorStoreBackend,
     VectorStoreFeatureError,
@@ -164,7 +165,12 @@ class VectorStore:
                 async with self._backend(provider) as backend:
                     await backend.health_check()
             except Exception as exc:
-                errors.append(f"{provider}: {exc.__class__.__name__}: {exc}")
+                logger.warning(
+                    "vector store provider unhealthy",
+                    provider=provider,
+                    error_type=type(exc).__name__,
+                )
+                errors.append(f"{provider}: {type(exc).__name__}")
         if errors:
             raise RuntimeError("; ".join(errors))
 
@@ -180,10 +186,15 @@ class VectorStore:
                     await backend.health_check()
                 results[provider] = {"configured": True, "status": "ok", "error": None}
             except Exception as exc:
+                logger.warning(
+                    "vector store provider_health error",
+                    provider=provider,
+                    error_type=type(exc).__name__,
+                )
                 results[provider] = {
                     "configured": True,
                     "status": "error",
-                    "error": f"{exc.__class__.__name__}: {exc}",
+                    "error": sanitize_message_text(type(exc).__name__),
                 }
         return results
 
