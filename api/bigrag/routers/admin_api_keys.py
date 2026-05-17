@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import ApiKey
 from bigrag.db.session import get_session
-from bigrag.exceptions import ValidationError
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_api_key_principal, require_admin_session
@@ -24,7 +23,7 @@ from bigrag.routers import uuid_or_404, validate_collection_name
 from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
 from bigrag.services.error_sanitize import safe_error_detail
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 
 logger = get_logger("bigrag.routers.admin_api_keys")
 
@@ -78,14 +77,7 @@ async def list_api_keys(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ApiKeyListResponse:
-    cursor_tuple = None
-    if cursor:
-        try:
-            cursor_tuple = decode_cursor(cursor)
-        except ValidationError as exc:
-            raise HTTPException(
-                status_code=400, detail=safe_error_detail(exc, "Invalid cursor.")
-            ) from exc
+    cursor_tuple = decode_cursor_or_400(cursor)
 
     base = sa.select(ApiKey).where(sa.not_(_mcp_permissions_filter()))
     stmt = base.order_by(ApiKey.created_at.desc(), ApiKey.id.desc())

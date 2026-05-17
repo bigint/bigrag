@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import User, UserSession
 from bigrag.db.session import get_session
-from bigrag.exceptions import ValidationError
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_auth_principals, require_admin_session
@@ -21,8 +20,7 @@ from bigrag.models.auth import (
 from bigrag.routers import is_unique_violation, uuid_or_404
 from bigrag.services import audit
 from bigrag.services.auth import hash_password
-from bigrag.services.error_sanitize import safe_error_detail
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 
 logger = get_logger("bigrag.routers.admin_users")
 
@@ -52,14 +50,7 @@ async def list_users(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> UserListResponse:
-    cursor_tuple = None
-    if cursor:
-        try:
-            cursor_tuple = decode_cursor(cursor)
-        except ValidationError as exc:
-            raise HTTPException(
-                status_code=400, detail=safe_error_detail(exc, "Invalid cursor.")
-            ) from exc
+    cursor_tuple = decode_cursor_or_400(cursor)
 
     stmt = sa.select(User).order_by(User.created_at.asc(), User.id.asc())
     if cursor_tuple is not None:

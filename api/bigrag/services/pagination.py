@@ -9,8 +9,10 @@ from uuid import UUID
 
 import orjson
 import sqlalchemy as sa
+from fastapi import HTTPException
 
 from bigrag.exceptions import ValidationError
+from bigrag.services.error_sanitize import safe_error_detail
 
 
 def encode_cursor(created_at: datetime, id_: UUID | str) -> str:
@@ -45,6 +47,17 @@ def decode_cursor(token: str) -> tuple[datetime, UUID]:
     except ValueError as exc:
         raise ValidationError("cursor is malformed") from exc
     return created_at, id_
+
+
+def decode_cursor_or_400(cursor: str | None) -> tuple[datetime, UUID] | None:
+    if not cursor:
+        return None
+    try:
+        return decode_cursor(cursor)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=400, detail=safe_error_detail(exc, "Invalid cursor.")
+        ) from exc
 
 
 def apply_cursor(

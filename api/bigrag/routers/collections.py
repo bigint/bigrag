@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import Collection, Document, EmbeddingPreset
 from bigrag.db.session import get_session
-from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models import StatusResponse
@@ -28,7 +27,7 @@ from bigrag.services.credential_check import (
 )
 from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.ingestion_job import create_ingestion_job
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
@@ -177,14 +176,7 @@ async def list_collections(
         stmt = stmt.where(Collection.name.ilike(f"{name}%"))
         count_stmt = count_stmt.where(Collection.name.ilike(f"{name}%"))
 
-    cursor_tuple = None
-    if cursor:
-        try:
-            cursor_tuple = decode_cursor(cursor)
-        except ValidationError as exc:
-            raise HTTPException(
-                status_code=400, detail=safe_error_detail(exc, "Invalid cursor.")
-            ) from exc
+    cursor_tuple = decode_cursor_or_400(cursor)
 
     if cursor_tuple is not None:
         stmt = apply_cursor(stmt, Collection.created_at, Collection.id, cursor_tuple).limit(

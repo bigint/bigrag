@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import Document
 from bigrag.db.session import get_session
-from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models import StatusResponse
@@ -42,7 +41,7 @@ from bigrag.services import audit, collection_cache
 from bigrag.services.error_sanitize import safe_error_detail, sanitize_message_text
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import create_ingestion_job
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
@@ -210,19 +209,12 @@ async def list_documents(
         stmt = stmt.where(Document.status == status)
         count_stmt = count_stmt.where(Document.status == status)
 
-    cursor_tuple = None
-    if cursor:
-        if sort != "created_at":
-            raise HTTPException(
-                status_code=400,
-                detail="cursor pagination requires sort=created_at",
-            )
-        try:
-            cursor_tuple = decode_cursor(cursor)
-        except ValidationError as exc:
-            raise HTTPException(
-                status_code=400, detail=safe_error_detail(exc, "Invalid cursor.")
-            ) from exc
+    if cursor and sort != "created_at":
+        raise HTTPException(
+            status_code=400,
+            detail="cursor pagination requires sort=created_at",
+        )
+    cursor_tuple = decode_cursor_or_400(cursor)
 
     if cursor_tuple is not None:
         stmt = apply_cursor(
