@@ -134,7 +134,7 @@ async def _check_embedding_provider() -> dict[str, object]:
         await _cache_set(cache_key, {"ok": True}, ttl=_EMBEDDING_HEALTH_TTL)
         return {"embedding": True, "embedding_source": source}
     except Exception as exc:
-        category = _categorize_provider_error(exc)
+        category = _categorize_dependency_error(exc)
         await _cache_set(
             cache_key,
             {"ok": False, "error": category},
@@ -180,10 +180,6 @@ def _categorize_dependency_error(exc: Exception) -> str:
     if any(t in text for t in _MISCONFIGURED_TOKENS):
         return "misconfigured"
     return "unknown"
-
-
-def _categorize_provider_error(exc: Exception) -> str:
-    return _categorize_dependency_error(exc)
 
 
 @router.get("/health", response_model=dict[str, str])
