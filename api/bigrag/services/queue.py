@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 import time
 import uuid
 
@@ -110,10 +111,10 @@ class IngestionQueue:
         from bigrag.services.jobs.actors import enqueue_ingestion_job
 
         jobs = await queue_state.recover_stuck_jobs(self._redis)
-        for job in jobs:
-            enqueue_ingestion_job(job)
         if jobs:
             await self._mark_recovered_jobs_pending(jobs)
+            for job in jobs:
+                enqueue_ingestion_job(job)
             await self._redis.hincrby(STATS_KEY, "queued", len(jobs))
             logger.info("queue requeued stuck jobs", recovered=len(jobs))
         return len(jobs)
@@ -213,10 +214,6 @@ class IngestionQueue:
         )
 
         stats = await queue_state.queue_stats(self._redis)
-        if int(stats.get("stale_processing") or 0) > 0:
-            recovered = await self._recover_stuck_jobs()
-            if recovered:
-                stats = await queue_state.queue_stats(self._redis)
         try:
             stats["pending"] = await queue_size(INGESTION_QUEUE)
         except Exception:
@@ -245,7 +242,10 @@ class IngestionQueue:
         lease_key = _lease_key(job_id)
         while True:
             await asyncio.sleep(_LEASE_RENEW_INTERVAL_SECONDS)
-            await self._redis.set(lease_key, b"1", ex=_LEASE_TTL_SECONDS)
+            try:
+                await self._redis.set(lease_key, b"1", ex=_LEASE_TTL_SECONDS)
+            except Exception as exc:
+                logger.warning("queue lease renew failed", job=job_id, error=repr(exc))
 
     async def process_leased_job(self, worker_id: int | str, job: IngestionJob) -> None:
         if self._redis is None:
@@ -505,7 +505,7 @@ class IngestionQueue:
                     log_message="failed to clean up partial vectors",
                 )
 
-                delay = min(2**job.attempt, 30)
+                delay = min(2**job.attempt, 30) + random.uniform(0, min(2**job.attempt, 10))
                 self._emit(
                     doc,
                     "retrying",

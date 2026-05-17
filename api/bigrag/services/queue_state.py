@@ -15,7 +15,7 @@ COLLECTION_EPOCH_KEY_PREFIX = "bigrag:ingestion:collection_epoch:"
 DOCUMENT_EPOCH_KEY_PREFIX = "bigrag:ingestion:document_epoch:"
 LEASE_TTL_SECONDS = 30 * 60
 LEASE_RENEW_INTERVAL_SECONDS = 60
-LEASE_ACTIVE_MIN_TTL_SECONDS = LEASE_TTL_SECONDS - (LEASE_RENEW_INTERVAL_SECONDS * 2)
+LEASE_ACTIVE_MIN_TTL_SECONDS = LEASE_TTL_SECONDS - LEASE_RENEW_INTERVAL_SECONDS * 4
 RETRY_PROMOTION_LIMIT = 100
 
 ENQUEUE_LUA = """
@@ -83,6 +83,7 @@ def document_epoch_key(document_id: str) -> str:
 async def recover_stuck_jobs(redis) -> list[IngestionJob]:
     items = await redis.lrange(PROCESSING_KEY, 0, -1)
     recovered: list[IngestionJob] = []
+    parsed: list[tuple[bytes, IngestionJob]] = []
     for raw in items:
         try:
             job = IngestionJob.deserialize(raw)
@@ -94,10 +95,17 @@ async def recover_stuck_jobs(redis) -> list[IngestionJob]:
             )
             await redis.lrem(PROCESSING_KEY, 1, raw)
             continue
-        if await processing_lease_active(redis, job.job_id):
-            continue
-        await redis.lrem(PROCESSING_KEY, 1, raw)
-        recovered.append(job)
+        parsed.append((raw, job))
+    if parsed:
+        pipe = redis.pipeline(transaction=False)
+        for _, job in parsed:
+            pipe.ttl(lease_key(job.job_id))
+        ttls = await pipe.execute()
+        for (raw, job), ttl in zip(parsed, ttls, strict=True):
+            if ttl >= LEASE_ACTIVE_MIN_TTL_SECONDS:
+                continue
+            await redis.lrem(PROCESSING_KEY, 1, raw)
+            recovered.append(job)
     if recovered:
         remaining = await redis.llen(PROCESSING_KEY)
         await redis.hset(STATS_KEY, "processing", remaining)
