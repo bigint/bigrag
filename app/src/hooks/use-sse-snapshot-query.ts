@@ -1,5 +1,12 @@
-import { type QueryFunction, type QueryKey, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import {
+  hashKey,
+  type QueryClient,
+  type QueryFunction,
+  type QueryKey,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiUrl } from "@/config/runtime";
 
 type SnapshotEvent<T> = {
@@ -20,11 +27,112 @@ type SseSnapshotQueryOptions<T> = {
 };
 
 const eventSourcePath = (path: string) => apiUrl(path);
-const MAX_ACTIVE_SSE_STREAMS = 2;
 const DEFAULT_FIRST_SNAPSHOT_TIMEOUT_MS = 5_000;
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
+const MAX_RECONNECT_ATTEMPTS = 5;
+const MAX_BACKOFF_MS = 30_000;
+const BASE_BACKOFF_MS = 1_000;
 
-let activeSseStreams = 0;
+type MessageListener = (event: MessageEvent<string>) => void;
+type ErrorListener = (event: Event) => void;
+
+type StreamEntry = {
+  es: EventSource;
+  listeners: Set<MessageListener>;
+  errorListeners: Set<ErrorListener>;
+  refcount: number;
+  reconnectAttempt: number;
+  reconnectTimer: ReturnType<typeof setTimeout> | null;
+};
+
+const streams = new Map<string, StreamEntry>();
+
+const jitter = (ms: number) => ms * (0.75 + Math.random() * 0.5);
+
+const backoffDelay = (attempt: number) =>
+  Math.round(jitter(Math.min(BASE_BACKOFF_MS * 2 ** attempt, MAX_BACKOFF_MS)));
+
+const dispatchError = (entry: StreamEntry, event: Event) => {
+  for (const listener of entry.errorListeners) listener(event);
+};
+
+const openStream = (path: string, entry: StreamEntry) => {
+  const url = eventSourcePath(path);
+  const es = new EventSource(url, { withCredentials: true });
+  entry.es = es;
+
+  es.addEventListener("snapshot", (event) => {
+    entry.reconnectAttempt = 0;
+    for (const listener of entry.listeners) listener(event as MessageEvent<string>);
+  });
+
+  es.addEventListener("error", (event) => {
+    dispatchError(entry, event);
+    scheduleReconnect(path, entry);
+  });
+
+  es.onerror = (event) => {
+    dispatchError(entry, event);
+    scheduleReconnect(path, entry);
+  };
+};
+
+const scheduleReconnect = (path: string, entry: StreamEntry) => {
+  if (entry.reconnectTimer) return;
+  if (entry.refcount === 0) return;
+  if (entry.reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) return;
+  try {
+    entry.es.close();
+  } catch {}
+  const delay = backoffDelay(entry.reconnectAttempt);
+  entry.reconnectAttempt += 1;
+  entry.reconnectTimer = setTimeout(() => {
+    entry.reconnectTimer = null;
+    if (entry.refcount === 0) return;
+    openStream(path, entry);
+  }, delay);
+};
+
+const subscribeStream = (
+  path: string,
+  onMessage: MessageListener,
+  onError: ErrorListener,
+): (() => void) => {
+  let entry = streams.get(path);
+  if (!entry) {
+    entry = {
+      es: null as unknown as EventSource,
+      listeners: new Set(),
+      errorListeners: new Set(),
+      refcount: 0,
+      reconnectAttempt: 0,
+      reconnectTimer: null,
+    };
+    streams.set(path, entry);
+    openStream(path, entry);
+  }
+  entry.listeners.add(onMessage);
+  entry.errorListeners.add(onError);
+  entry.refcount += 1;
+
+  return () => {
+    const current = streams.get(path);
+    if (!current) return;
+    current.listeners.delete(onMessage);
+    current.errorListeners.delete(onError);
+    current.refcount = Math.max(0, current.refcount - 1);
+    if (current.refcount === 0) {
+      if (current.reconnectTimer) {
+        clearTimeout(current.reconnectTimer);
+        current.reconnectTimer = null;
+      }
+      try {
+        current.es.close();
+      } catch {}
+      streams.delete(path);
+    }
+  };
+};
 
 export const useSseSnapshotQuery = <T>({
   closeWhen,
@@ -34,14 +142,21 @@ export const useSseSnapshotQuery = <T>({
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
   queryFn,
   queryKey,
-  streamPriority = "normal",
+  streamPriority: _streamPriority = "normal",
 }: SseSnapshotQueryOptions<T>) => {
   const queryClient = useQueryClient();
+  const queryClientRef = useRef<QueryClient>(queryClient);
   const closeWhenRef = useRef(closeWhen);
   const queryFnRef = useRef(queryFn);
   const fallbackStartedRef = useRef(true);
   const [realtimeUnavailable, setRealtimeUnavailable] = useState(false);
   const [streaming, setStreaming] = useState(false);
+  const queryKeyHash = useMemo(() => hashKey(queryKey), [queryKey]);
+  const queryKeyRef = useRef(queryKey);
+
+  useEffect(() => {
+    queryClientRef.current = queryClient;
+  }, [queryClient]);
 
   useEffect(() => {
     closeWhenRef.current = closeWhen;
@@ -51,98 +166,84 @@ export const useSseSnapshotQuery = <T>({
     queryFnRef.current = queryFn;
   }, [queryFn]);
 
+  useEffect(() => {
+    queryKeyRef.current = queryKey;
+  }, [queryKey]);
+
   const query = useQuery<T>({
     enabled,
     queryFn: (context) => queryFnRef.current(context),
     queryKey,
-    refetchInterval: realtimeUnavailable ? pollIntervalMs : false,
+    refetchInterval: (q) => {
+      if (closeWhenRef.current?.(q.state.data as T)) return false;
+      return realtimeUnavailable ? pollIntervalMs : false;
+    },
     retry: false,
   });
 
   useEffect(() => {
+    void queryKeyHash;
     if (!enabled) {
       setStreaming(false);
       setRealtimeUnavailable(false);
       return;
     }
 
-    if (
-      streamPriority === "low" ||
-      (streamPriority !== "high" && activeSseStreams >= MAX_ACTIVE_SSE_STREAMS)
-    ) {
-      setStreaming(false);
-      setRealtimeUnavailable(true);
-      return;
-    }
-
     fallbackStartedRef.current = false;
     setRealtimeUnavailable(false);
-    activeSseStreams += 1;
-    const source = new EventSource(eventSourcePath(path), { withCredentials: true });
-    let closed = false;
+    setStreaming(true);
+
     let sawSnapshot = false;
-    let released = false;
+    let unsubscribed = false;
+    let failureCount = 0;
+
     const firstSnapshotTimer = window.setTimeout(() => {
       if (!sawSnapshot) {
         fetchFallback();
-        close();
       }
     }, firstSnapshotTimeoutMs);
-
-    const releaseSlot = () => {
-      if (released) return;
-      released = true;
-      activeSseStreams = Math.max(0, activeSseStreams - 1);
-    };
-
-    const close = () => {
-      if (closed) return;
-      closed = true;
-      window.clearTimeout(firstSnapshotTimer);
-      releaseSlot();
-      source.close();
-      setStreaming(false);
-    };
 
     const fetchFallback = () => {
       if (fallbackStartedRef.current) return;
       fallbackStartedRef.current = true;
       setRealtimeUnavailable(true);
-      void queryClient.invalidateQueries({ queryKey });
+      void queryClientRef.current.invalidateQueries({ queryKey: queryKeyRef.current });
     };
 
-    source.onopen = () => {
-      if (!closed) setStreaming(true);
-    };
-
-    source.addEventListener("snapshot", (event) => {
+    const handleMessage = (event: MessageEvent<string>) => {
       try {
-        const snapshot = JSON.parse((event as MessageEvent<string>).data) as SnapshotEvent<T>;
+        const snapshot = JSON.parse(event.data) as SnapshotEvent<T>;
         sawSnapshot = true;
-        queryClient.setQueryData(queryKey, snapshot.payload);
+        failureCount = 0;
+        setRealtimeUnavailable(false);
+        fallbackStartedRef.current = false;
+        queryClientRef.current.setQueryData(queryKeyRef.current, snapshot.payload);
         if (closeWhenRef.current?.(snapshot.payload)) {
-          close();
+          unsubscribe();
+          unsubscribed = true;
+          setStreaming(false);
         }
       } catch {
         fetchFallback();
-        close();
-      }
-    });
-
-    source.addEventListener("error", () => {
-      fetchFallback();
-      close();
-    });
-
-    source.onerror = () => {
-      if (!closed) {
-        fetchFallback();
-        close();
       }
     };
 
-    return close;
-  }, [enabled, firstSnapshotTimeoutMs, path, queryClient, queryKey, streamPriority]);
+    const handleError = () => {
+      failureCount += 1;
+      if (failureCount >= MAX_RECONNECT_ATTEMPTS) {
+        fetchFallback();
+        setStreaming(false);
+      }
+    };
+
+    const unsubscribe = subscribeStream(path, handleMessage, handleError);
+
+    return () => {
+      window.clearTimeout(firstSnapshotTimer);
+      if (!unsubscribed) unsubscribe();
+      setStreaming(false);
+    };
+  }, [enabled, firstSnapshotTimeoutMs, path, queryKeyHash]);
 
   return { ...query, realtimeUnavailable, streaming };
 };
