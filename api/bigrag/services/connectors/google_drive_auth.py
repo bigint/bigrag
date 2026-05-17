@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import uuid
 import weakref
 from datetime import timedelta
@@ -136,7 +137,11 @@ async def complete_google_oauth(
         raise GoogleDriveConfigError("Google Drive connector is not configured")
 
     account = await get_google_account(session, user_id)
-    if account is None or not account.oauth_state or account.oauth_state != state:
+    if (
+        account is None
+        or not account.oauth_state
+        or not hmac.compare_digest(account.oauth_state, state)
+    ):
         raise GoogleDriveAuthError("Invalid Google OAuth state")
 
     token_payload = await google_drive_client.exchange_code(

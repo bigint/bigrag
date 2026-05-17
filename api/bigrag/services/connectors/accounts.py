@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import secrets
 import uuid
 from collections.abc import Callable
@@ -166,7 +167,11 @@ async def oauth_error_redirect_url(
     if not state:
         return path
     account = await get_connector_account(session, provider=provider, user_id=user_id)
-    if account is None or account.oauth_state != state:
+    if (
+        account is None
+        or not account.oauth_state
+        or not hmac.compare_digest(account.oauth_state, state)
+    ):
         return path
     return await oauth_redirect_url(account, path)
 
