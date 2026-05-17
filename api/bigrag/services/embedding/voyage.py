@@ -5,10 +5,18 @@ import asyncio
 import httpx
 
 from bigrag.services.embedding.base import EmbeddingModel, get_semaphore, logger, truncate_to_tokens
+from bigrag.services.url_security import pin_embedding_base_url, pinned_async_client
+
+
+class VoyageHTTPError(RuntimeError):
+    def __init__(self, status_code: int, message: str) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class VoyageEmbedding(EmbeddingModel):
-    _API_URL = "https://api.voyageai.com/v1/embeddings"
+    _DEFAULT_BASE_URL = "https://api.voyageai.com/v1"
+    _EMBEDDINGS_PATH = "/embeddings"
     _INPUT_TYPES = {"document", "query"}
     _MAX_INPUTS_PER_REQUEST = 128
 
@@ -35,14 +43,8 @@ class VoyageEmbedding(EmbeddingModel):
         async with self._client_lock:
             if self._client is not None:
                 return self._client
-            self._client = httpx.AsyncClient(
-                timeout=60.0,
-                limits=httpx.Limits(
-                    max_keepalive_connections=20,
-                    max_connections=100,
-                    keepalive_expiry=30,
-                ),
-            )
+            pinned = await pin_embedding_base_url(self._DEFAULT_BASE_URL)
+            self._client = pinned_async_client(pinned, timeout=60.0)
             return self._client
 
     async def aclose(self) -> None:
@@ -92,7 +94,11 @@ class VoyageEmbedding(EmbeddingModel):
         }
         client = await self._get_client()
         async with await get_semaphore(self._semaphore_key):
-            response = await client.post(self._API_URL, json=payload, headers=headers)
+            response = await client.post(
+                f"{self._DEFAULT_BASE_URL}{self._EMBEDDINGS_PATH}",
+                json=payload,
+                headers=headers,
+            )
         if response.status_code >= 400:
             logger.warning(
                 "voyage embed http error",
@@ -100,7 +106,10 @@ class VoyageEmbedding(EmbeddingModel):
                 body_preview=response.text[:500],
                 model=self._model_name,
             )
-            raise RuntimeError(f"Voyage embed failed ({response.status_code})")
+            raise VoyageHTTPError(
+                response.status_code,
+                f"Voyage embed failed ({response.status_code})",
+            )
         data = response.json()
         return [item["embedding"] for item in data["data"]]
 
