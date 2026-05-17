@@ -32,6 +32,7 @@ from bigrag.models.query import (
     VectorUpsertResponse,
 )
 from bigrag.routers import (
+    enforce_collection_pin,
     ensure_embedding_or_400,
     get_collection_or_404,
     get_embedding_model_for,
@@ -437,8 +438,9 @@ async def delete_vectors(
 async def collection_analytics(
     collection_name: str,
     request: Request,
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
 ):
+    enforce_collection_pin(user, collection_name)
     access_log.set_context(
         request,
         action="analytics.read",
