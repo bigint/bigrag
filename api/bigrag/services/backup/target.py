@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -18,16 +18,16 @@ class UploadedObject:
 
 @dataclass
 class BackupUploadStats:
-    objects: list[UploadedObject] = field(default_factory=list)
-    bytes: int = 0
+    object_count: int = 0
+    byte_count: int = 0
 
     @property
-    def object_count(self) -> int:
-        return len(self.objects)
+    def bytes(self) -> int:
+        return self.byte_count
 
     def add(self, obj: UploadedObject) -> None:
-        self.objects.append(obj)
-        self.bytes += obj.bytes
+        self.object_count += 1
+        self.byte_count += obj.bytes
 
 
 class BackupConfigError(RuntimeError):
@@ -81,6 +81,7 @@ class S3BackupTarget:
             str(source),
             self.bucket,
             object_key,
+            ExtraArgs={"ServerSideEncryption": "AES256"},
         )
         return UploadedObject(key=object_key, path=path, bytes=size, sha256=digest)
 

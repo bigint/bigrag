@@ -1,13 +1,28 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import uuid
 from datetime import UTC, datetime
 from typing import Any
+
+import orjson
 
 from bigrag import __version__
 
 from .constants import BACKUP_FORMAT_VERSION
 from .target import BackupUploadStats, S3BackupTarget
+
+
+def _signing_key() -> bytes | None:
+    try:
+        from bigrag.config import settings as _settings
+    except Exception:
+        return None
+    key = getattr(_settings, "master_key", None)
+    if not key:
+        return None
+    return key.encode("utf-8") if isinstance(key, str) else key
 
 
 def _manifest(
@@ -19,8 +34,9 @@ def _manifest(
     vector_counts: dict[str, int],
     upload_count: int,
     stats: BackupUploadStats,
+    db_revision: str | None = None,
 ) -> dict[str, Any]:
-    return {
+    payload: dict[str, Any] = {
         "backup_id": str(job_id),
         "format_version": BACKUP_FORMAT_VERSION,
         "app_version": __version__,
@@ -44,4 +60,25 @@ def _manifest(
         "uploads": {"files": upload_count},
         "object_count": stats.object_count,
         "byte_count": stats.bytes,
+        "db_revision": db_revision,
     }
+    key = _signing_key()
+    if key is not None:
+        body = orjson.dumps(payload, option=orjson.OPT_SORT_KEYS)
+        payload["hmac_sha256"] = hmac.new(key, body, hashlib.sha256).hexdigest()
+    return payload
+
+
+def verify_manifest(manifest: dict[str, Any]) -> bool:
+    signature = manifest.get("hmac_sha256")
+    if not signature:
+        return False
+    key = _signing_key()
+    if key is None:
+        return False
+    body = orjson.dumps(
+        {k: v for k, v in manifest.items() if k != "hmac_sha256"},
+        option=orjson.OPT_SORT_KEYS,
+    )
+    expected = hmac.new(key, body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)

@@ -3,10 +3,12 @@ from __future__ import annotations
 import asyncio
 import tempfile
 import uuid
+from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import orjson
 import sqlalchemy as sa
 
 from bigrag.db.engine import session_factory
@@ -26,17 +28,18 @@ logger = get_logger("bigrag.backup")
 
 async def create_backup_job(*, label: str, created_by: uuid.UUID | None) -> BackupJob:
     async with session_factory()() as session:
-        active = await session.scalar(
-            sa.select(BackupJob)
-            .where(BackupJob.status.in_(("pending", "running")))
-            .order_by(BackupJob.created_at.desc())
-            .limit(1)
-        )
-        if active is not None:
-            raise BackupConfigError("A backup is already pending or running")
-        job = BackupJob(label=label.strip(), created_by=created_by)
-        session.add(job)
-        await session.commit()
+        async with session.begin():
+            active = await session.scalar(
+                sa.select(BackupJob)
+                .where(BackupJob.status.in_(("pending", "running")))
+                .order_by(BackupJob.created_at.desc())
+                .limit(1)
+                .with_for_update()
+            )
+            if active is not None:
+                raise BackupConfigError("A backup is already pending or running")
+            job = BackupJob(label=label.strip(), created_by=created_by)
+            session.add(job)
         await session.refresh(job)
         return job
 
@@ -68,88 +71,80 @@ async def _run_locked_backup(job_id: uuid.UUID) -> None:
     table_counts: dict[str, int] = {}
     vector_counts: dict[str, int] = {}
     upload_count = 0
+    db_revision = await _read_alembic_revision()
 
     with tempfile.TemporaryDirectory(prefix=f"bigrag-backup-{job_id}-") as raw_dir:
         temp_dir = Path(raw_dir)
-        schema_path = temp_dir / "postgres" / "schema.sql"
-        await asyncio.to_thread(_write_schema, schema_path)
-        await _upload(target, stats, backup_prefix, "postgres/schema.sql", schema_path)
-        await _update_job(
-            job_id,
-            progress=0.18,
-            object_count=stats.object_count,
-            byte_count=stats.bytes,
-        )
-
-        table_counts = await _export_tables(temp_dir)
-        for table_name in sorted(table_counts):
-            source = temp_dir / "postgres" / "tables" / f"{table_name}.jsonl"
-            await _upload(
-                target,
-                stats,
-                backup_prefix,
-                f"postgres/tables/{table_name}.jsonl",
-                source,
-            )
-        await _update_job(
-            job_id,
-            progress=0.42,
-            object_count=stats.object_count,
-            byte_count=stats.bytes,
-        )
-
-        vector_counts = await _export_vector_store(temp_dir)
-        await _upload(
-            target,
-            stats,
-            backup_prefix,
-            "vector_store/collections.json",
-            temp_dir / "vector_store" / "collections.json",
-        )
-        for collection_name in sorted(vector_counts):
-            source = temp_dir / "vector_store" / "points" / f"{collection_name}.jsonl"
-            await _upload(
-                target,
-                stats,
-                backup_prefix,
-                f"vector_store/points/{collection_name}.jsonl",
-                source,
-            )
-        await _update_job(
-            job_id,
-            progress=0.68,
-            object_count=stats.object_count,
-            byte_count=stats.bytes,
-        )
-
-        upload_count = await _export_uploads(temp_dir)
-        upload_root = temp_dir / "uploads"
-        for source in sorted(upload_root.rglob("*")):
-            if source.is_file():
-                await _upload(
-                    target,
-                    stats,
-                    backup_prefix,
-                    source.relative_to(temp_dir).as_posix(),
-                    source,
-                )
-        await _update_job(
-            job_id,
-            progress=0.88,
-            object_count=stats.object_count,
-            byte_count=stats.bytes,
-        )
-
         checksums_path = temp_dir / "checksums.json"
-        _write_json(
-            checksums_path,
-            {
-                "backup_id": str(job_id),
-                "generated_at": datetime.now(UTC).isoformat(),
-                "objects": [obj.__dict__ for obj in stats.objects],
-            },
-        )
-        await _upload(target, stats, backup_prefix, "checksums.json", checksums_path)
+        with checksums_path.open("wb") as checksums_file:
+            checksums_file.write(
+                b'{"backup_id": "'
+                + str(job_id).encode()
+                + b'", "generated_at": "'
+                + datetime.now(UTC).isoformat().encode()
+                + b'", "objects": [\n'
+            )
+            first_object = [True]
+
+            async def upload(path: str, source: Path) -> None:
+                obj = await target.upload_file(source, backup_prefix=backup_prefix, path=path)
+                stats.add(obj)
+                if not first_object[0]:
+                    checksums_file.write(b",\n")
+                first_object[0] = False
+                checksums_file.write(orjson.dumps(asdict(obj)))
+
+            schema_path = temp_dir / "postgres" / "schema.sql"
+            await asyncio.to_thread(_write_schema, schema_path)
+            await upload("postgres/schema.sql", schema_path)
+            await _update_job(
+                job_id,
+                progress=0.18,
+                object_count=stats.object_count,
+                byte_count=stats.bytes,
+            )
+
+            table_counts = await _export_tables(temp_dir)
+            for table_name in sorted(table_counts):
+                source = temp_dir / "postgres" / "tables" / f"{table_name}.jsonl"
+                await upload(f"postgres/tables/{table_name}.jsonl", source)
+            await _update_job(
+                job_id,
+                progress=0.42,
+                object_count=stats.object_count,
+                byte_count=stats.bytes,
+            )
+
+            vector_counts = await _export_vector_store(temp_dir)
+            await upload(
+                "vector_store/collections.json",
+                temp_dir / "vector_store" / "collections.json",
+            )
+            for collection_name in sorted(vector_counts):
+                source = temp_dir / "vector_store" / "points" / f"{collection_name}.jsonl"
+                await upload(f"vector_store/points/{collection_name}.jsonl", source)
+            await _update_job(
+                job_id,
+                progress=0.68,
+                object_count=stats.object_count,
+                byte_count=stats.bytes,
+            )
+
+            upload_count = await _export_uploads(temp_dir)
+            upload_root = temp_dir / "uploads"
+            for source in sorted(upload_root.rglob("*")):
+                if source.is_file():
+                    await upload(source.relative_to(temp_dir).as_posix(), source)
+            await _update_job(
+                job_id,
+                progress=0.88,
+                object_count=stats.object_count,
+                byte_count=stats.bytes,
+            )
+
+            checksums_file.write(b"\n]}\n")
+
+        await upload_standalone(target, stats, backup_prefix, "checksums.json", checksums_path)
         manifest = _manifest(
             job_id=job_id,
             target=target,
@@ -158,10 +153,11 @@ async def _run_locked_backup(job_id: uuid.UUID) -> None:
             vector_counts=vector_counts,
             upload_count=upload_count,
             stats=stats,
+            db_revision=db_revision,
         )
         manifest_path = temp_dir / "manifest.json"
         _write_json(manifest_path, manifest)
-        await _upload(target, stats, backup_prefix, "manifest.json", manifest_path)
+        await upload_standalone(target, stats, backup_prefix, "manifest.json", manifest_path)
 
     manifest["object_count"] = stats.object_count
     manifest["byte_count"] = stats.bytes
@@ -174,17 +170,41 @@ async def _run_locked_backup(job_id: uuid.UUID) -> None:
     )
 
 
-async def _wait_for_ingestion_drain(job_id: uuid.UUID) -> None:
+async def upload_standalone(
+    target: S3BackupTarget,
+    stats: BackupUploadStats,
+    backup_prefix: str,
+    path: str,
+    source: Path,
+) -> None:
+    stats.add(await target.upload_file(source, backup_prefix=backup_prefix, path=path))
+
+
+async def _read_alembic_revision() -> str | None:
+    try:
+        async with session_factory()() as session:
+            return await session.scalar(sa.text("SELECT version_num FROM alembic_version LIMIT 1"))
+    except Exception:
+        return None
+
+
+async def _wait_for_ingestion_drain(job_id: uuid.UUID, max_wait_seconds: int = 1800) -> None:
+    deadline = asyncio.get_event_loop().time() + max_wait_seconds
     while True:
         stats = await ingestion_queue.stats
         processing = int(stats.get("processing") or 0)
         if processing <= 0:
             return
+        if asyncio.get_event_loop().time() >= deadline:
+            raise BackupConfigError(
+                f"Timed out waiting for ingestion drain after {max_wait_seconds}s"
+            )
         await _update_job(job_id, progress=0.08)
         await asyncio.sleep(1)
 
 
-async def _wait_for_connector_sync_drain(job_id: uuid.UUID) -> None:
+async def _wait_for_connector_sync_drain(job_id: uuid.UUID, max_wait_seconds: int = 1800) -> None:
+    deadline = asyncio.get_event_loop().time() + max_wait_seconds
     while True:
         async with session_factory()() as session:
             running = await session.scalar(
@@ -194,18 +214,12 @@ async def _wait_for_connector_sync_drain(job_id: uuid.UUID) -> None:
             )
         if int(running or 0) <= 0:
             return
+        if asyncio.get_event_loop().time() >= deadline:
+            raise BackupConfigError(
+                f"Timed out waiting for connector sync drain after {max_wait_seconds}s"
+            )
         await _update_job(job_id, progress=0.06)
         await asyncio.sleep(1)
-
-
-async def _upload(
-    target: S3BackupTarget,
-    stats: BackupUploadStats,
-    backup_prefix: str,
-    path: str,
-    source: Path,
-) -> None:
-    stats.add(await target.upload_file(source, backup_prefix=backup_prefix, path=path))
 
 
 async def _mark_job_running(job_id: uuid.UUID) -> None:

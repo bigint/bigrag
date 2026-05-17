@@ -9,29 +9,33 @@ import sqlalchemy as sa
 from bigrag.db.base import Base
 from bigrag.db.engine import session_factory
 from bigrag.db.models import Collection, Document, EmbeddingCache
+from bigrag.logging import get_logger
 from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
 
 from .constants import _SENSITIVE_COLUMN_NAMES, REDACTED
 from .filesystem import _readable_value, _write_json
 
+logger = get_logger("bigrag.backup")
+
 
 async def _export_tables(temp_dir: Path) -> dict[str, int]:
     out_dir = temp_dir / "postgres" / "tables"
     out_dir.mkdir(parents=True, exist_ok=True)
     counts: dict[str, int] = {}
-    for mapper in sorted(Base.registry.mappers, key=lambda item: item.local_table.name):
-        model = mapper.class_
-        table_name = mapper.local_table.name
-        count = 0
-        target = out_dir / f"{table_name}.jsonl"
-        async with session_factory()() as session:
+    async with session_factory()() as session:
+        await session.execute(sa.text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
+        for mapper in sorted(Base.registry.mappers, key=lambda item: item.local_table.name):
+            model = mapper.class_
+            table_name = mapper.local_table.name
+            count = 0
+            target = out_dir / f"{table_name}.jsonl"
             result = await session.stream_scalars(sa.select(model))
             with target.open("wb") as f:
                 async for row in result:
                     f.write(orjson.dumps(_row_payload(row, mapper)) + b"\n")
                     count += 1
-        counts[table_name] = count
+            counts[table_name] = count
     return counts
 
 
@@ -120,7 +124,14 @@ async def _export_uploads(temp_dir: Path) -> int:
         ).all()
     count = 0
     for doc in docs:
-        target = temp_dir / "uploads" / doc.file_path
-        await storage.write_to_path(doc.file_path, target)
+        rel = Path(doc.file_path)
+        if rel.is_absolute() or ".." in rel.parts:
+            raise ValueError(f"unsafe document file_path: {doc.file_path}")
+        target = temp_dir / "uploads" / rel
+        try:
+            await storage.write_to_path(doc.file_path, target)
+        except FileNotFoundError:
+            logger.warning("backup: missing upload", file_path=doc.file_path)
+            continue
         count += 1
     return count
