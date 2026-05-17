@@ -389,7 +389,10 @@ async def connector_sync_jobs(
 ) -> ConnectorSyncJobListResponse:
     route = _route_or_404(provider_slug)
     if source_id:
-        uuid_or_400(source_id)
+        try:
+            uuid.UUID(source_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid id") from exc
     jobs, total = await list_connector_sync_jobs(
         session,
         provider=route.provider,
@@ -402,10 +405,3 @@ async def connector_sync_jobs(
         jobs=[ConnectorSyncJobResponse(**job) for job in jobs],
         total=total,
     )
-
-
-def uuid_or_400(value: str):
-    try:
-        return uuid.UUID(value)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Invalid id") from exc
