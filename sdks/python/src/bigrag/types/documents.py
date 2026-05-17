@@ -32,7 +32,7 @@ class Document(TypedDict):
 
 class DocumentListResponse(TypedDict):
     documents: list[Document]
-    total: int
+    total: int | None
 
 
 class DocumentChunk(TypedDict):

@@ -33,7 +33,7 @@ class Collection(TypedDict):
 
 class CollectionListResponse(TypedDict):
     collections: list[Collection]
-    total: int
+    total: int | None
 
 
 class CollectionStatsResponse(TypedDict):

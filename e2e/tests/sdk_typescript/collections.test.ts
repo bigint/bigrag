@@ -55,7 +55,7 @@ describe("CollectionsResource", () => {
 
   it("list returns paged response and includes our collection", async () => {
     const created = await createTempCollection();
-    const page = await client.collections.list({ limit: 100 });
+    const page = await client.collections.list({ limit: 100, include_total: true });
     expect(typeof page.total).toBe("number");
     expect(Array.isArray(page.collections)).toBe(true);
     expect(page.collections.some((c) => c.name === created.name)).toBe(true);
@@ -118,9 +118,11 @@ describe("CollectionsResource", () => {
   });
 
   it("get on unknown name raises APIError(404)", async () => {
-    await expect(client.collections.get(uniqueName("nope"))).rejects.toMatchObject({
-      name: "APIError",
-      status: 404,
-    });
+    await expect(client.collections.get(uniqueName("nope"))).rejects.toBeInstanceOf(APIError);
+    try {
+      await client.collections.get(uniqueName("nope"));
+    } catch (err) {
+      expect((err as APIError).status).toBe(404);
+    }
   });
 });

@@ -229,7 +229,7 @@ async def login(
 async def logout(
     request: Request,
     response: Response,
-    auth_user: dict = Depends(require_session),
+    auth_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     cookie = request.cookies.get(_config.settings.session_cookie_name)

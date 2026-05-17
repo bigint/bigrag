@@ -27,7 +27,7 @@ export interface Document {
 
 export interface DocumentListResponse {
   documents: Document[];
-  total: number;
+  total: number | null;
 }
 
 export interface DocumentListOptions {
@@ -37,6 +37,7 @@ export interface DocumentListOptions {
   status?: string;
   limit?: number;
   offset?: number;
+  include_total?: boolean;
 }
 
 export interface DocumentChunk {
