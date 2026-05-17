@@ -12,6 +12,7 @@ from starlette.responses import StreamingResponse
 
 from bigrag.db.models import Collection, Document, EmbeddingPreset
 from bigrag.db.session import get_session
+from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.collection import (
@@ -33,6 +34,7 @@ from bigrag.services.event_tokens import (
     validate_event_token,
 )
 from bigrag.services.ingestion_job import create_ingestion_job
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
@@ -169,23 +171,44 @@ async def list_collections(
     name: str | None = Query(default=None, description="Filter by name prefix"),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
+    cursor: str | None = Query(default=None),
+    include_total: bool = Query(default=False),
     _: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     logger.info("list collections", name=name, limit=limit, offset=offset)
-    stmt = sa.select(Collection).order_by(Collection.created_at.desc())
+    stmt = sa.select(Collection).order_by(Collection.created_at.desc(), Collection.id.desc())
     count_stmt = sa.select(sa.func.count()).select_from(Collection)
     if name:
         stmt = stmt.where(Collection.name.ilike(f"{name}%"))
         count_stmt = count_stmt.where(Collection.name.ilike(f"{name}%"))
 
-    rows = (await session.scalars(stmt.limit(limit).offset(offset))).all()
-    total = await session.scalar(count_stmt)
+    cursor_tuple = None
+    if cursor:
+        try:
+            cursor_tuple = decode_cursor(cursor)
+        except ValidationError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    logger.info("list collections complete", count=len(rows))
+    if cursor_tuple is not None:
+        stmt = apply_cursor(stmt, Collection.created_at, Collection.id, cursor_tuple).limit(
+            limit + 1
+        )
+    else:
+        stmt = stmt.limit(limit + 1).offset(offset)
+
+    rows = (await session.scalars(stmt)).all()
+    page, next_cursor = build_response_cursor(list(rows), "created_at", "id", limit)
+
+    total: int | None = None
+    if include_total:
+        total = (await session.scalar(count_stmt)) or 0
+
+    logger.info("list collections complete", count=len(page))
     return CollectionListResponse(
-        collections=[_collection_response(c) for c in rows],
-        total=total or 0,
+        collections=[_collection_response(c) for c in page],
+        total=total,
+        next_cursor=next_cursor,
     )
 
 

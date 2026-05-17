@@ -92,7 +92,8 @@ class UpdateUserRequest(BaseModel):
 
 class UserListResponse(BaseModel):
     users: list[UserResponse]
-    total: int
+    total: int | None = None
+    next_cursor: str | None = None
 
 
 VALID_RESOURCES = frozenset(
@@ -184,7 +185,8 @@ class WhoamiResponse(BaseModel):
 
 class ApiKeyListResponse(BaseModel):
     keys: list[ApiKeyResponse]
-    total: int
+    total: int | None = None
+    next_cursor: str | None = None
 
 
 class AuditLogEntry(BaseModel):
@@ -203,4 +205,5 @@ class AuditLogEntry(BaseModel):
 
 class AuditLogListResponse(BaseModel):
     entries: list[AuditLogEntry]
-    total: int
+    total: int | None = None
+    next_cursor: str | None = None

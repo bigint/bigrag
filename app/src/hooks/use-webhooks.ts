@@ -10,7 +10,10 @@ const KEY = queryKeys.webhooks();
 export const useWebhooks = () =>
   useQuery({
     queryKey: KEY,
-    queryFn: () => apiClient.get<{ webhooks: Webhook[]; total: number }>("v1/admin/webhooks"),
+    queryFn: () =>
+      apiClient.get<{ webhooks: Webhook[]; total: number | null; next_cursor: string | null }>(
+        "v1/admin/webhooks",
+      ),
   });
 
 export const useCreateWebhook = () => {

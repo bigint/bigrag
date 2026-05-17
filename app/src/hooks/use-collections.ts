@@ -7,7 +7,11 @@ import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
 import type { Collection, CollectionStats } from "@/types/bigrag";
 
-type ListResponse = { collections: Collection[]; total: number };
+type ListResponse = {
+  collections: Collection[];
+  total: number | null;
+  next_cursor: string | null;
+};
 
 const invalidateCollectionData = (queryClient: QueryClient, name: string) => {
   queryClient.invalidateQueries({ queryKey: queryKeys.collections.all() });

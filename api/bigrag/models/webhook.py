@@ -81,7 +81,8 @@ class WebhookResponse(BaseModel):
 
 class WebhookListResponse(BaseModel):
     webhooks: list[WebhookResponse]
-    total: int
+    total: int | None = None
+    next_cursor: str | None = None
 
 
 class CreateWebhookResponse(WebhookResponse):
@@ -103,7 +104,8 @@ class WebhookDeliveryResponse(BaseModel):
 
 class WebhookDeliveryListResponse(BaseModel):
     deliveries: list[WebhookDeliveryResponse]
-    total: int
+    total: int | None = None
+    next_cursor: str | None = None
 
 
 class WebhookTestResponse(BaseModel):

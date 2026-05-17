@@ -28,4 +28,5 @@ class BackupJobResponse(BaseModel):
 
 class BackupJobListResponse(BaseModel):
     jobs: list[BackupJobResponse]
-    total: int
+    total: int | None = None
+    next_cursor: str | None = None

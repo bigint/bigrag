@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import Session as DbSession
 from bigrag.db.models import User
 from bigrag.db.session import get_session
+from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_auth_principals, require_admin_session
 from bigrag.models.auth import (
@@ -22,6 +23,7 @@ from bigrag.models.common import StatusResponse
 from bigrag.routers import is_unique_violation
 from bigrag.services import audit
 from bigrag.services.auth import hash_password
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
 
 logger = get_logger("bigrag.routers.admin_users")
 
@@ -46,16 +48,37 @@ async def _ensure_admin_role_can_change(
 async def list_users(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
+    cursor: str | None = Query(default=None),
+    include_total: bool = Query(default=False),
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> UserListResponse:
-    users = (
-        await session.scalars(
-            sa.select(User).order_by(User.created_at.asc()).limit(limit).offset(offset)
+    cursor_tuple = None
+    if cursor:
+        try:
+            cursor_tuple = decode_cursor(cursor)
+        except ValidationError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    stmt = sa.select(User).order_by(User.created_at.asc(), User.id.asc())
+    if cursor_tuple is not None:
+        stmt = apply_cursor(stmt, User.created_at, User.id, cursor_tuple, direction="asc").limit(
+            limit + 1
         )
-    ).all()
-    total = await session.scalar(sa.select(sa.func.count()).select_from(User))
-    return UserListResponse(users=[UserResponse.from_user(u) for u in users], total=total or 0)
+    else:
+        stmt = stmt.limit(limit + 1).offset(offset)
+
+    rows = (await session.scalars(stmt)).all()
+    page, next_cursor = build_response_cursor(list(rows), "created_at", "id", limit)
+
+    total: int | None = None
+    if include_total:
+        total = (await session.scalar(sa.select(sa.func.count()).select_from(User))) or 0
+    return UserListResponse(
+        users=[UserResponse.from_user(u) for u in page],
+        total=total,
+        next_cursor=next_cursor,
+    )
 
 
 @router.post("", response_model=UserResponse, status_code=201)

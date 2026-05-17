@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import Document
 from bigrag.db.session import get_session
+from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.common import StatusResponse
@@ -52,6 +53,7 @@ from bigrag.routers.documents_uploads import (
 from bigrag.services import audit, collection_cache
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import create_ingestion_job
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
@@ -285,6 +287,8 @@ async def list_documents(
     order: str = Query(default="desc"),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
+    cursor: str | None = Query(default=None),
+    include_total: bool = Query(default=False),
     _: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -328,13 +332,40 @@ async def list_documents(
         stmt = stmt.where(Document.status == status)
         count_stmt = count_stmt.where(Document.status == status)
 
-    docs = (await session.scalars(stmt.limit(limit).offset(offset))).all()
-    total = await session.scalar(count_stmt)
-    progresses = await document_progress_map(docs, collection_name)
+    cursor_tuple = None
+    if cursor:
+        if sort != "created_at":
+            raise HTTPException(
+                status_code=400,
+                detail="cursor pagination requires sort=created_at",
+            )
+        try:
+            cursor_tuple = decode_cursor(cursor)
+        except ValidationError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    documents = [document_response(doc, progress=progresses[str(doc.id)]) for doc in docs]
+    if cursor_tuple is not None:
+        stmt = apply_cursor(
+            stmt,
+            Document.created_at,
+            Document.id,
+            cursor_tuple,
+            direction=order,
+        ).limit(limit + 1)
+    else:
+        stmt = stmt.limit(limit + 1).offset(offset)
 
-    return DocumentListResponse(documents=documents, total=total or 0)
+    rows = (await session.scalars(stmt)).all()
+    page, next_cursor = build_response_cursor(list(rows), "created_at", "id", limit)
+
+    total: int | None = None
+    if include_total:
+        total = (await session.scalar(count_stmt)) or 0
+    progresses = await document_progress_map(page, collection_name)
+
+    documents = [document_response(doc, progress=progresses[str(doc.id)]) for doc in page]
+
+    return DocumentListResponse(documents=documents, total=total, next_cursor=next_cursor)
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)

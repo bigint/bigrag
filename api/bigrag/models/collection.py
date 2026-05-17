@@ -104,7 +104,8 @@ class CollectionResponse(BaseModel):
 
 class CollectionListResponse(BaseModel):
     collections: list[CollectionResponse]
-    total: int
+    total: int | None = None
+    next_cursor: str | None = None
 
 
 class CollectionStatsResponse(BaseModel):

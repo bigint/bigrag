@@ -28,7 +28,8 @@ type AuditEntry = {
 
 type AuditList = {
   entries: AuditEntry[];
-  total: number;
+  total: number | null;
+  next_cursor: string | null;
 };
 
 const PAGE_SIZE = 25;
@@ -46,6 +47,7 @@ export const AuditPage = () => {
   const params = useMemo(
     () => ({
       ...(action ? { action } : {}),
+      include_total: true,
       limit: PAGE_SIZE,
       offset,
       ...(resourceType ? { resource_type: resourceType } : {}),

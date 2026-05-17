@@ -16,7 +16,7 @@ export type AccessLogFilters = {
   offset?: number;
 };
 
-const compactFilters = (filters: AccessLogFilters) =>
+const compactFilters = (filters: AccessLogFilters & { include_total?: boolean }) =>
   Object.fromEntries(
     Object.entries(filters).filter(([, value]) => value !== undefined && value !== ""),
   ) as Record<string, string | number | boolean>;
@@ -50,6 +50,7 @@ export const useAccessLogs = (filters: AccessLogFilters, enabled = true) => {
         action,
         actor_id,
         collection,
+        include_total: true,
         limit,
         method,
         offset,

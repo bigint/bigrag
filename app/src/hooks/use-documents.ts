@@ -7,7 +7,11 @@ import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
 import type { Chunk, Document, UploadSession, UploadSessionFileResponse } from "@/types/bigrag";
 
-type DocListResponse = { documents: Document[]; total: number };
+type DocListResponse = {
+  documents: Document[];
+  total: number | null;
+  next_cursor: string | null;
+};
 export type DocumentListSort =
   | "created_at"
   | "updated_at"
@@ -68,6 +72,7 @@ export const useDocuments = (collection: string, filters: DocumentListFilters = 
           q,
           sort,
           status,
+          include_total: true,
         },
         signal,
       }),

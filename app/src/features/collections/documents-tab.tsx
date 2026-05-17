@@ -136,7 +136,7 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
   const accept = acceptAttribute(allowed);
   const workerAvailability = getWorkerAvailability(stats);
   const workerOffline = workerAvailability.offline;
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / pageSize)) : 1;
+  const totalPages = data?.total == null ? 1 : Math.max(1, Math.ceil(data.total / pageSize));
   const pageDocuments = data?.documents ?? [];
   const selectedVisibleCount = pageDocuments.filter((doc) => selected.has(doc.id)).length;
   const allVisibleSelected =
@@ -413,9 +413,9 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
           </form>
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
             <span>
-              {data
-                ? `${data.total.toLocaleString()} matching document${data.total === 1 ? "" : "s"}`
-                : "Documents"}
+              {data?.total == null
+                ? "Documents"
+                : `${data.total.toLocaleString()} matching document${data.total === 1 ? "" : "s"}`}
               {realtimeUnavailable ? " · realtime unavailable, polling" : ""}
             </span>
             {selected.size > 0 && (
@@ -481,7 +481,7 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
               <span className="text-right">Updated</span>
               <span className="w-6" />
             </div>
-            {data && data.total > data.documents.length && (
+            {data?.total != null && data.total > data.documents.length && (
               <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
                 Showing {offset + 1}-{Math.min(offset + data.documents.length, data.total)} of{" "}
                 {data.total} documents.

@@ -31,7 +31,8 @@ class AccessLogEntry(BaseModel):
 
 class AccessLogListResponse(BaseModel):
     entries: list[AccessLogEntry]
-    total: int
+    total: int | None = None
+    next_cursor: str | None = None
 
 
 class AccessLogBucket(BaseModel):

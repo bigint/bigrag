@@ -10,7 +10,10 @@ const KEY = queryKeys.apiKeys();
 export const useApiKeys = () =>
   useQuery({
     queryKey: KEY,
-    queryFn: () => apiClient.get<{ keys: ApiKey[]; total: number }>("v1/admin/api-keys"),
+    queryFn: () =>
+      apiClient.get<{ keys: ApiKey[]; total: number | null; next_cursor: string | null }>(
+        "v1/admin/api-keys",
+      ),
   });
 
 type ApiKeyMutationBody = {

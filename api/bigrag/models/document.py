@@ -34,7 +34,8 @@ class DocumentResponse(BaseModel):
 
 class DocumentListResponse(BaseModel):
     documents: list[DocumentResponse]
-    total: int
+    total: int | None = None
+    next_cursor: str | None = None
 
 
 class BatchStatusRequest(BaseModel):

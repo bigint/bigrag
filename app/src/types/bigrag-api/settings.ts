@@ -66,5 +66,6 @@ export type BackupJob = {
 
 export type BackupJobListResponse = {
   jobs: BackupJob[];
-  total: number;
+  total: number | null;
+  next_cursor: string | null;
 };

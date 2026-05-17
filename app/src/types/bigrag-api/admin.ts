@@ -167,5 +167,6 @@ export type AccessLogOverview = {
 
 export type AccessLogListResponse = {
   entries: AccessLogEntry[];
-  total: number;
+  total: number | null;
+  next_cursor: string | null;
 };
