@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any
 from uuid import UUID
@@ -24,6 +25,7 @@ from bigrag.services.runtime_setting_specs import (
 _CACHE_TTL_SECONDS = 5.0
 _cached_values: dict[str, Any] | None = None
 _cached_at = 0.0
+_cache_refresh_lock = asyncio.Lock()
 
 
 def spec_responses() -> list[InstanceSettingSpecResponse]:
@@ -150,7 +152,17 @@ def validate_setting_value(key: str, value: Any) -> Any:
         return coerced
     if spec.kind == "string":
         value = _coerce_none(value)
-        return None if value is None else str(value)
+        if value is None:
+            return None
+        coerced_str = str(value)
+        if key in {"storage_s3_endpoint_url", "backup_s3_endpoint_url"} and coerced_str.strip():
+            from bigrag.services.url_security import UnsafeOutboundUrlError, normalize_url_root
+
+            try:
+                coerced_str = normalize_url_root(coerced_str.strip())
+            except UnsafeOutboundUrlError as exc:
+                raise ValueError(str(exc)) from exc
+        return coerced_str
     if spec.kind == "secret":
         value = _coerce_none(value)
         return None if value is None else str(value)
@@ -249,14 +261,18 @@ async def _cached_runtime_values() -> dict[str, Any]:
     now = time.monotonic()
     if _cached_values is not None and now - _cached_at < _CACHE_TTL_SECONDS:
         return _cached_values
-    from bigrag.db.engine import session_factory
+    async with _cache_refresh_lock:
+        now = time.monotonic()
+        if _cached_values is not None and now - _cached_at < _CACHE_TTL_SECONDS:
+            return _cached_values
+        from bigrag.db.engine import session_factory
 
-    async with session_factory()() as session:
-        rows = await _rows_by_key(session)
-    values = {spec.key: _runtime_value(spec, rows.get(spec.key)) for spec in SETTING_SPECS}
-    _cached_values = values
-    _cached_at = now
-    return values
+        async with session_factory()() as session:
+            rows = await _rows_by_key(session)
+        values = {spec.key: _runtime_value(spec, rows.get(spec.key)) for spec in SETTING_SPECS}
+        _cached_values = values
+        _cached_at = now
+        return values
 
 
 async def _rows_by_key(session: AsyncSession) -> dict[str, InstanceSetting]:

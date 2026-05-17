@@ -22,7 +22,7 @@ _DEFAULT_BASE_URLS: dict[str, str] = {
 }
 
 
-class CredentialCheckError(Exception):
+class CredentialCheckError(ValueError):
     def __init__(self, code: str, message: str) -> None:
         self.code = code
         self.message = message
@@ -153,6 +153,7 @@ async def _verify_voyage(
         )
         raise CredentialCheckError("INVALID_KEY", "Invalid API key.")
     detail = _voyage_error_detail(response)
+    detail = "".join(c for c in detail[:200] if c.isprintable())
     logger.warning(
         "credential_check provider error",
         extra={"provider": "voyage", "base_url": base_url, "status": status},

@@ -712,5 +712,3 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
 )
 
 REGISTRY = {spec.key: spec for spec in SETTING_SPECS}
-
-REGISTRY = {spec.key: spec for spec in SETTING_SPECS}
