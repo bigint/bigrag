@@ -143,7 +143,8 @@ class OpenAIEmbedding(EmbeddingModel):
         self._base_url = validate_embedding_base_url_sync(base_url)
         self._semaphore_key = f"openai:{self._base_url or 'default'}"
         base_tag = hashlib.sha256((self._base_url or "").encode()).hexdigest()[:12]
-        self._cache_identity = f"openai:{model_name}:{dimension}:{base_tag}"
+        key_tag = hashlib.sha256((api_key or "").encode()).hexdigest()[:12]
+        self._cache_identity = f"openai:{model_name}:{dimension}:{base_tag}:{key_tag}"
         self._client = openai.AsyncOpenAI(
             api_key=api_key or "not-required",
             base_url=self._base_url,
@@ -222,7 +223,8 @@ class CohereEmbedding(EmbeddingModel):
         self._model_name = model_name
         self._dimension = dimension
         self._semaphore_key = "cohere"
-        self._cache_identity = f"cohere:{model_name}:{dimension}"
+        key_tag = hashlib.sha256((api_key or "").encode()).hexdigest()[:12]
+        self._cache_identity = f"cohere:{model_name}:{dimension}:{key_tag}"
         self._client = cohere.AsyncClient(api_key=api_key)
         logger.info("initialized cohere embedding", model=model_name, dimension=dimension)
 
@@ -291,7 +293,8 @@ class VoyageEmbedding(EmbeddingModel):
         self._dimension = dimension
         self._api_key = api_key
         self._semaphore_key = "voyage"
-        self._cache_identity = f"voyage:{model_name}:{dimension}"
+        key_tag = hashlib.sha256(api_key.encode()).hexdigest()[:12]
+        self._cache_identity = f"voyage:{model_name}:{dimension}:{key_tag}"
         logger.info("initialized voyage embedding", model=model_name, dimension=dimension)
 
     async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
