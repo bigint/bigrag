@@ -3,8 +3,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { Page } from "@/components/ui/page";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { useAccessLogs, useAccessOverview } from "@/hooks/use-access-logs";
@@ -54,8 +53,8 @@ export const AccessLogsPage = () => {
   }
 
   return (
-    <PageShell>
-      <PageHeader
+    <Page.Shell>
+      <Page.Header
         actions={
           <Button disabled={logs.isFetching} onClick={refresh} size="sm" variant="outline">
             <RefreshCw className="size-4" />
@@ -174,7 +173,7 @@ export const AccessLogsPage = () => {
           </div>
         </section>
       )}
-    </PageShell>
+    </Page.Shell>
   );
 };
 

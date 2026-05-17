@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Logo } from "@/components/brand/logo";
 import { MobileSidebar, Sidebar } from "@/components/navigation/sidebar";
 import { Button } from "@/components/ui/button";
-import { PageContainer } from "@/components/ui/page-container";
+import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession, useSetupStatus } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
@@ -90,7 +90,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           children
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-6 md:px-8 lg:px-10">
-            <PageContainer>{children}</PageContainer>
+            <Page.Container>{children}</Page.Container>
           </div>
         )}
       </main>

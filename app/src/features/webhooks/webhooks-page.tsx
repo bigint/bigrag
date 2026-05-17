@@ -2,8 +2,7 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { Page } from "@/components/ui/page";
 import { getWorkerAvailability } from "@/features/workers/worker-status";
 import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
 import { usePlatformStats } from "@/hooks/use-platform";
@@ -32,8 +31,8 @@ export const WebhooksPage = () => {
   };
 
   return (
-    <PageShell>
-      <PageHeader
+    <Page.Shell>
+      <Page.Header
         actions={
           <Button onClick={() => setFormOpen(true)}>
             <Plus className="size-4" /> Add Webhook
@@ -87,6 +86,6 @@ export const WebhooksPage = () => {
         open={deleteId !== null}
         title="Delete Webhook"
       />
-    </PageShell>
+    </Page.Shell>
   );
 };

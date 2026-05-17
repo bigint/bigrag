@@ -1,6 +1,24 @@
 import { cn } from "@/lib/cn";
 
-type Props = {
+type ContainerProps = {
+  readonly children: React.ReactNode;
+  readonly className?: string;
+};
+
+const Container = ({ children, className }: ContainerProps) => (
+  <div className={cn("mx-auto w-full max-w-7xl", className)}>{children}</div>
+);
+
+type ShellProps = {
+  readonly children: React.ReactNode;
+  readonly className?: string;
+};
+
+const Shell = ({ children, className }: ShellProps) => (
+  <div className={cn("flex w-full flex-col gap-6", className)}>{children}</div>
+);
+
+type HeaderProps = {
   title: string;
   description?: string;
   actions?: React.ReactNode;
@@ -8,7 +26,7 @@ type Props = {
   className?: string;
 };
 
-export const PageHeader = ({ title, description, actions, eyebrow, className }: Props) => (
+const Header = ({ title, description, actions, eyebrow, className }: HeaderProps) => (
   <div className={cn(className)}>
     {eyebrow && <div className="mb-1 text-xs font-semibold text-muted-foreground">{eyebrow}</div>}
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -24,3 +42,9 @@ export const PageHeader = ({ title, description, actions, eyebrow, className }: 
     </div>
   </div>
 );
+
+export const Page = {
+  Container,
+  Shell,
+  Header,
+};

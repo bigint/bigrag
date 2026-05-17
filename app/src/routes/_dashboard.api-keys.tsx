@@ -9,8 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { type Column, DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { Page } from "@/components/ui/page";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -194,8 +193,8 @@ const ApiKeysPage = () => {
   ];
 
   return (
-    <PageShell>
-      <PageHeader
+    <Page.Shell>
+      <Page.Header
         title="API keys"
         description="Mint long-lived keys for external services, shown once at creation."
         className="mb-0"
@@ -402,6 +401,6 @@ const ApiKeysPage = () => {
         open={!!deleteFor}
         title="Revoke API key"
       />
-    </PageShell>
+    </Page.Shell>
   );
 };

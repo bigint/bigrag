@@ -8,8 +8,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { type Column, DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { Page } from "@/components/ui/page";
 import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
 import { bigragApiUrl } from "@/config/runtime";
@@ -554,8 +553,8 @@ export const McpPage = () => {
   ];
 
   return (
-    <PageShell>
-      <PageHeader
+    <Page.Shell>
+      <Page.Header
         actions={
           <div className="flex items-center gap-2">
             <a
@@ -634,7 +633,7 @@ export const McpPage = () => {
         open={!!deleteFor}
         title="Delete MCP server"
       />
-    </PageShell>
+    </Page.Shell>
   );
 };
 

@@ -6,8 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
 import {
   getWorkerAvailability,
@@ -126,7 +125,7 @@ export const DocumentDetail = () => {
   const workerOffline = workerAvailability.offline;
 
   return (
-    <PageShell>
+    <Page.Shell>
       <Link
         params={{ name }}
         to="/collections/$name/documents"
@@ -137,7 +136,7 @@ export const DocumentDetail = () => {
 
       <WorkerOfflineBanner availability={workerAvailability} />
 
-      <PageHeader
+      <Page.Header
         className="mb-0"
         eyebrow={`${doc.file_type.toUpperCase()} · ${formatBytes(doc.file_size)}`}
         title={doc.filename}
@@ -258,7 +257,7 @@ export const DocumentDetail = () => {
           <Spinner />
         )}
       </div>
-    </PageShell>
+    </Page.Shell>
   );
 };
 

@@ -1,8 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft, Layers, type Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { Page } from "@/components/ui/page";
 import { LinkTabs } from "@/components/ui/tabs";
 import { useCollection, useCollectionStats } from "@/hooks/use-collections";
 import { formatBytes, formatNumber } from "@/lib/format";
@@ -33,7 +32,7 @@ const CollectionLayout = () => {
   }));
 
   return (
-    <PageShell>
+    <Page.Shell>
       <Link
         to="/collections"
         className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
@@ -42,7 +41,7 @@ const CollectionLayout = () => {
         All collections
       </Link>
 
-      <PageHeader
+      <Page.Header
         className="mb-0"
         eyebrow="Collection"
         title={name}
@@ -78,7 +77,7 @@ const CollectionLayout = () => {
       <div>
         <Outlet />
       </div>
-    </PageShell>
+    </Page.Shell>
   );
 };
 

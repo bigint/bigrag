@@ -5,8 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { type Column, DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { Page } from "@/components/ui/page";
 import { Tooltip } from "@/components/ui/tooltip";
 import { CreateCollectionModal } from "@/features/collections/create-collection-modal";
 import { useCollections } from "@/hooks/use-collections";
@@ -124,8 +123,8 @@ const CollectionsPage = () => {
   ];
 
   return (
-    <PageShell>
-      <PageHeader
+    <Page.Shell>
+      <Page.Header
         className="mb-0"
         title="Collections"
         description="Group documents, chunks, and vectors under one embedding config."
@@ -182,7 +181,7 @@ const CollectionsPage = () => {
       />
 
       <CreateCollectionModal open={modalOpen} onClose={closeModal} />
-    </PageShell>
+    </Page.Shell>
   );
 };
 

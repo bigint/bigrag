@@ -6,8 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { type Column, DataTable } from "@/components/ui/data-table";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { Page } from "@/components/ui/page";
 import { Tabs } from "@/components/ui/tabs";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -143,8 +142,8 @@ const ModelsPage = () => {
   ];
 
   return (
-    <PageShell>
-      <PageHeader
+    <Page.Shell>
+      <Page.Header
         className="mb-0"
         actions={
           activeTab === "presets" ? (
@@ -213,6 +212,6 @@ const ModelsPage = () => {
         open={!!deleteFor}
         title="Delete embedding preset"
       />
-    </PageShell>
+    </Page.Shell>
   );
 };
