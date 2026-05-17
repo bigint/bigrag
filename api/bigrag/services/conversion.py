@@ -17,9 +17,9 @@ _docling_converters = {}
 _docling_lock = threading.Lock()
 
 _executor: ProcessPoolExecutor | None = None
-_executor_lock: asyncio.Lock = asyncio.Lock()
+_executor_lock: asyncio.Lock | None = None
 _conversion_semaphore: asyncio.Semaphore | None = None
-_semaphore_lock: asyncio.Lock = asyncio.Lock()
+_semaphore_lock: asyncio.Lock | None = None
 
 
 def extract_pdf_text(path: str | Path) -> str:
@@ -182,9 +182,11 @@ def _pool_ocr_chunk(path: str, page_start: int, page_end: int) -> str:
 
 
 async def get_conversion_executor() -> ProcessPoolExecutor:
-    global _executor
+    global _executor, _executor_lock
     if _executor is not None:
         return _executor
+    if _executor_lock is None:
+        _executor_lock = asyncio.Lock()
     async with _executor_lock:
         if _executor is not None:
             return _executor
@@ -208,9 +210,11 @@ async def shutdown_conversion_executor() -> None:
 
 
 async def _get_conversion_semaphore() -> asyncio.Semaphore:
-    global _conversion_semaphore
+    global _conversion_semaphore, _semaphore_lock
     if _conversion_semaphore is not None:
         return _conversion_semaphore
+    if _semaphore_lock is None:
+        _semaphore_lock = asyncio.Lock()
     async with _semaphore_lock:
         if _conversion_semaphore is not None:
             return _conversion_semaphore
@@ -247,6 +251,21 @@ async def convert_document_isolated(
         )
     finally:
         await asyncio.to_thread(Path(tmp_path).unlink, True)
+
+
+async def convert_document_path_isolated(
+    path: str,
+    suffix: str,
+    *,
+    pdf_ocr_enabled: bool,
+    timeout: int,
+) -> str:
+    return await _convert_document_path_isolated(
+        path,
+        suffix,
+        pdf_ocr_enabled=pdf_ocr_enabled,
+        timeout=timeout,
+    )
 
 
 async def _convert_document_path_isolated(

@@ -57,9 +57,12 @@ def _paragraph_chunks(text: str, chunk_size: int) -> list[Chunk]:
                 sentences = para.replace(". ", ".\n").split("\n")
                 sub_cursor = para_start
                 for sentence in sentences:
-                    sent_start = text.find(sentence, sub_cursor)
-                    if sent_start < 0:
+                    slice_start = sub_cursor - para_start
+                    rel_idx = para.find(sentence, slice_start)
+                    if rel_idx < 0:
                         sent_start = sub_cursor
+                    else:
+                        sent_start = para_start + rel_idx
                     sub_cursor = sent_start + len(sentence)
                     if len(current_text) + len(sentence) + 1 <= chunk_size:
                         if current_text:
@@ -75,11 +78,12 @@ def _paragraph_chunks(text: str, chunk_size: int) -> list[Chunk]:
                                 part = sentence[pos : pos + chunk_size]
                                 part_start = sent_start + pos
                                 if pos + chunk_size < len(sentence):
+                                    leading = len(part) - len(part.lstrip())
                                     chunks.append(
                                         Chunk(
                                             text=part.strip(),
-                                            char_start=part_start,
-                                            char_end=part_start + len(part),
+                                            char_start=part_start + leading,
+                                            char_end=part_start + leading + len(part.strip()),
                                         )
                                     )
                                 else:
@@ -166,12 +170,13 @@ def _apply_overlap(chunks: list[Chunk], overlap: int) -> list[Chunk]:
     for i in range(1, len(chunks)):
         prev = chunks[i - 1]
         tail = prev.text[-overlap:]
+        original_tail_len = len(tail)
         space_idx = tail.find(" ")
         if space_idx != -1:
             tail = tail[space_idx + 1 :]
         tail_len = len(tail)
         merged_text = f"{tail} {chunks[i].text}" if tail else chunks[i].text
-        start = max(0, chunks[i].char_start - tail_len - (1 if tail_len else 0))
+        start = max(0, chunks[i].char_start - original_tail_len - (1 if tail_len else 0))
         result.append(
             Chunk(
                 text=merged_text,

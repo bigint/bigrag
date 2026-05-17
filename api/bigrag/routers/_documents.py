@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import tempfile
 import uuid
 from dataclasses import dataclass
@@ -9,10 +10,12 @@ from pathlib import Path
 
 import sqlalchemy as sa
 from fastapi import HTTPException, UploadFile
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.config import settings
 from bigrag.db.models import Collection, Document
+from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
 from bigrag.models.document import DocumentProgressResponse, DocumentResponse
 from bigrag.services import collection_cache, metadata_schema
@@ -21,6 +24,8 @@ from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import sync_value
 from bigrag.services.storage import get_storage
 from bigrag.services.tenant_enforcement import require_tenant_metadata, tenant_field
+
+_COLLECTION_SLUG_RE = re.compile(r"[a-zA-Z0-9_-]{1,128}")
 
 logger = get_logger("bigrag.routers.documents")
 
@@ -192,6 +197,8 @@ async def persist_document(
     content_hash: str,
     raise_on_enqueue_failure: bool,
 ) -> Document:
+    if not _COLLECTION_SLUG_RE.fullmatch(collection_name):
+        raise ValidationError(f"Invalid collection name: {collection_name!r}")
     doc_id = uuid.uuid4()
     file_ext = Path(filename or "document").suffix
     storage_key = f"{collection_name}/{doc_id}{file_ext}"
@@ -213,14 +220,18 @@ async def persist_document(
     )
     session.add(doc)
     try:
+        await session.flush()
+        await recount_collection_documents(session, collection["id"])
         await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        await storage.delete(storage_key)
+        raise
     except Exception:
         await session.rollback()
         await storage.delete(storage_key)
         raise
     await session.refresh(doc)
-    await recount_collection_documents(session, collection["id"])
-    await session.commit()
     await collection_cache.invalidate(collection_name)
 
     try:
