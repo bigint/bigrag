@@ -16,7 +16,6 @@ from typing import Any
 import httpx
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
-DOCUMENTS_DIR = FIXTURES_DIR / "documents"
 
 
 def unique_name(prefix: str = "e2e") -> str:
@@ -30,14 +29,10 @@ def unique_name(prefix: str = "e2e") -> str:
 
 def read_fixture(name: str) -> bytes:
     """Return the bytes of a file in ``e2e/fixtures/documents/<name>``."""
-    path = DOCUMENTS_DIR / name
+    path = FIXTURES_DIR / "documents" / name
     if not path.exists():
         raise FileNotFoundError(f"fixture not found: {path}")
     return path.read_bytes()
-
-
-def fixture_path(name: str) -> Path:
-    return DOCUMENTS_DIR / name
 
 
 def assert_envelope(response: httpx.Response, status: int) -> Any:
