@@ -47,7 +47,7 @@ def uuid_or_404(value: str, label: str) -> uuid.UUID:
 
 def upload_extension_or_400(filename: str | None, *, batch: bool = False) -> str:
     file_ext = Path(filename or "").suffix.lower()
-    if not file_ext or file_ext in SUPPORTED_EXTENSIONS:
+    if file_ext in SUPPORTED_EXTENSIONS:
         return file_ext
     if batch:
         detail = (

@@ -12,6 +12,8 @@ from bigrag.services.runtime_settings import get_values
 
 logger = get_logger("bigrag.cleanup")
 
+TERMINAL_SESSION_STATUSES = ("complete", "failed", "canceled")
+
 
 async def cleanup_old_data() -> None:
 
@@ -58,7 +60,9 @@ async def cleanup_old_data_once() -> None:
             sa.delete(WebhookDelivery).where(WebhookDelivery.created_at < webhook_cutoff)
         )
         us_result = await session.execute(
-            sa.delete(UploadSession).where(UploadSession.updated_at < upload_cutoff)
+            sa.delete(UploadSession)
+            .where(UploadSession.updated_at < upload_cutoff)
+            .where(UploadSession.status.in_(TERMINAL_SESSION_STATUSES))
         )
         await session.commit()
     logger.info("query_log cleanup", deleted=ql_result.rowcount or 0)

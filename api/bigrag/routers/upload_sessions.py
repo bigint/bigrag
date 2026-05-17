@@ -6,6 +6,7 @@ from pathlib import Path
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import Document, UploadSession, UploadSessionItem
@@ -141,7 +142,7 @@ def _session_status(upload_session: UploadSession, counts: dict[str, int]) -> st
         return "uploading" if counts["uploaded_files"] else "preparing"
     if active:
         return "ingesting"
-    if counts["failed_files"] and not counts["completed_files"] and not counts["canceled_files"]:
+    if not counts["completed_files"] and (counts["failed_files"] or counts["canceled_files"]):
         return "failed"
     return "complete"
 
@@ -414,6 +415,7 @@ async def upload_session_file(
     rows = await _session_rows(db, upload_session.id)
     if existing is None and len(rows) >= upload_session.total_files:
         raise HTTPException(status_code=400, detail="Upload session file count is already complete")
+    await db.commit()
     filename = file.filename or "document"
     file_ext = Path(filename).suffix.lower()
     if file_ext and file_ext not in SUPPORTED_EXTENSIONS:
@@ -508,17 +510,18 @@ async def upload_session_file(
                 item=_item_response(item, None, item.error_message),
                 session=response,
             )
-        item = await _reserve_item(
-            db,
-            upload_session,
-            existing,
-            item_key,
-            filename,
-            file_ext,
-            size,
-            content_hash,
-        )
+        item = existing
         try:
+            item = await _reserve_item(
+                db,
+                upload_session,
+                existing,
+                item_key,
+                filename,
+                file_ext,
+                size,
+                content_hash,
+            )
             existing_doc = await db.scalar(
                 content_hash_match(collection, content_hash, upload_session.meta or {})
             )
@@ -537,6 +540,16 @@ async def upload_session_file(
                 publish_queued_progress(doc, collection_name, "Queued from upload session")
             else:
                 doc = existing_doc
+        except IntegrityError:
+            await db.rollback()
+            duplicate = await _existing_item(db, upload_session.id, item_key)
+            if duplicate is None:
+                raise
+            response = await upload_session_response(db, upload_session, persist_counts=True)
+            return UploadSessionFileResponse(
+                item=_item_response(duplicate, None, None),
+                session=response,
+            )
         except Exception as exc:
             logger.exception(
                 "upload_session.persist_failed",
@@ -544,10 +557,23 @@ async def upload_session_file(
                 session_id=str(upload_session.id),
                 filename=filename,
             )
-            item.status = "failed"
-            item.error_message = f"upload failed: {exc}"
-            await db.commit()
-            await db.refresh(item)
+            if item is None:
+                await db.rollback()
+                item = await _fail_item(
+                    db,
+                    upload_session,
+                    item_key,
+                    filename,
+                    file_ext,
+                    f"upload failed: {exc}",
+                    file_size=size,
+                    content_hash=content_hash,
+                )
+            else:
+                item.status = "failed"
+                item.error_message = f"upload failed: {exc}"
+                await db.commit()
+                await db.refresh(item)
             response = await upload_session_response(db, upload_session, persist_counts=True)
             return UploadSessionFileResponse(
                 item=_item_response(item, None, item.error_message),
@@ -627,7 +653,7 @@ async def cancel_upload_session(
     db: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
-    upload_session = await _get_upload_session(
+    upload_session = await _get_upload_session_for_update(
         db, collection["id"], session_id, user_id=uuid.UUID(user["id"])
     )
     rows = await _session_rows(db, upload_session.id)
