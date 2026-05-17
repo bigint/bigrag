@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
+import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import { useCollection, useCollectionStats } from "@/hooks/use-collections";
 import { useDocuments } from "@/hooks/use-documents";
 import { formatBytes, formatNumber, formatRelative } from "@/lib/format";
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/_dashboard/collections/$name/")({
 
 const CollectionIndex = () => {
   const { name: rawName } = Route.useParams();
-  const name = decodeURIComponent(rawName);
+  const name = decodeCollectionName(rawName);
   const { data: collection, isPending: collectionPending } = useCollection(name);
   const { data: stats } = useCollectionStats(name);
   const { data: documentsData, isPending: documentsPending } = useDocuments(name, { limit: 5 });

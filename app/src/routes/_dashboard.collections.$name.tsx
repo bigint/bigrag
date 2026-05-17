@@ -3,6 +3,7 @@ import { ArrowLeft, Layers, type Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Page } from "@/components/ui/page";
 import { LinkTabs } from "@/components/ui/tabs";
+import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import { useCollection, useCollectionStats } from "@/hooks/use-collections";
 import { formatBytes, formatNumber } from "@/lib/format";
 
@@ -12,7 +13,7 @@ export const Route = createFileRoute("/_dashboard/collections/$name")({
 
 const CollectionLayout = () => {
   const { name: rawName } = Route.useParams();
-  const name = decodeURIComponent(rawName);
+  const name = decodeCollectionName(rawName);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { data: collection } = useCollection(name);
   const { data: stats } = useCollectionStats(name);

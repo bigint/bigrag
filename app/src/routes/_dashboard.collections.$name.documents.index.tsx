@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { DocumentsTab } from "@/features/collections/documents-tab";
+import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import type { DocumentListOrder, DocumentListSort } from "@/hooks/use-documents";
 
 const statuses = new Set(["", "pending", "processing", "ready", "failed"]);
@@ -43,7 +44,7 @@ const DocumentsRoute = () => {
   const { name: rawName } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const name = decodeURIComponent(rawName);
+  const name = decodeCollectionName(rawName);
   const filters = {
     order: search.order ?? "desc",
     page: search.page ?? 1,

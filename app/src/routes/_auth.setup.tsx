@@ -1,6 +1,5 @@
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,20 +10,13 @@ import {
   validatePassword,
   validateSetupFormValues,
 } from "@/features/auth/auth-form-state";
-import { useSetup, useSetupStatus } from "@/hooks/use-auth";
+import { useAuthGate } from "@/features/auth/use-auth-gate";
+import { useSetup } from "@/hooks/use-auth";
 import { errorText, firstString, submitWith } from "@/lib/form";
 
 export const Route = createFileRoute("/_auth/setup")({
   component: () => <SetupPage />,
 });
-
-const useRedirectIfSetupComplete = () => {
-  const navigate = useNavigate();
-  const { data: status, isPending } = useSetupStatus();
-  useEffect(() => {
-    if (!isPending && status && !status.needs_setup) navigate({ to: "/login", replace: true });
-  }, [isPending, status, navigate]);
-};
 
 const SetupPage = () => {
   const navigate = useNavigate();
@@ -45,7 +37,7 @@ const SetupPage = () => {
     },
   });
 
-  useRedirectIfSetupComplete();
+  useAuthGate({ when: "auth", to: "/login" });
 
   return (
     <div className="w-full max-w-md rounded-xl border border-border bg-card p-6">

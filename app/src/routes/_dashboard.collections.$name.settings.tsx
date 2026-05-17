@@ -11,6 +11,7 @@ import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import {
   useCollection,
   useDeleteCollection,
@@ -36,7 +37,7 @@ type CollectionSettingsDraftSetters = {
 
 const CollectionSettings = () => {
   const { name: rawName } = Route.useParams();
-  const name = decodeURIComponent(rawName);
+  const name = decodeCollectionName(rawName);
   const navigate = useNavigate();
   const { data: collection, error, isError, isPending, refetch } = useCollection(name);
   const update = useUpdateCollection(name);

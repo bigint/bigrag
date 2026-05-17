@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
 import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
+import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import {
   getWorkerAvailability,
   workerOfflineActionMessage,
@@ -97,7 +98,7 @@ const fallbackProgress = (status: DocumentStatus, chunkCount: number): DocumentP
 
 export const DocumentDetail = () => {
   const { name: rawName, docId } = routeApi.useParams();
-  const name = decodeURIComponent(rawName);
+  const name = decodeCollectionName(rawName);
   const navigate = useNavigate();
 
   const { data: doc, dataUpdatedAt, isPending, streaming } = useDocument(name, docId);
