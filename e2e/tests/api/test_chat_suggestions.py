@@ -19,7 +19,7 @@ from typing import Any
 
 import httpx
 
-from tests._helpers import assert_envelope, wait_until_searchable
+from tests._helpers import assert_envelope, seed_collection, wait_until_searchable
 
 
 CollectionFactory = Callable[..., Awaitable[dict[str, Any]]]
@@ -120,9 +120,7 @@ async def test_post_question_suggestions_round_trip_or_upstream_error(
 
     Both outcomes confirm the auth/scope/collection plumbing is wired.
     """
-    coll = await collection()
-    doc = await document(coll["name"], fixture="sample.txt")
-    assert doc["status"] == "ready"
+    coll = await seed_collection(collection, document, fixtures=("sample.txt",))
     await wait_until_searchable(admin_client, coll["name"], "Acme", top_k=3)
 
     post = await admin_client.post(

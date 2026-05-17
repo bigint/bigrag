@@ -77,6 +77,25 @@ async def poll_until(
         await asyncio.sleep(interval)
 
 
+async def seed_collection(
+    collection: Callable[..., Awaitable[dict[str, Any]]],
+    document: Callable[..., Awaitable[dict[str, Any]]],
+    *,
+    fixtures: tuple[str, ...] = ("sample.txt", "sample.md"),
+) -> dict[str, Any]:
+    """Create a fresh collection and upload ``fixtures`` into it.
+
+    Asserts every uploaded document reaches ``status == "ready"``. Returns
+    the collection dict (not the document dicts) — callers that need the
+    document IDs should do the uploads inline.
+    """
+    coll = await collection()
+    for fixture in fixtures:
+        doc = await document(coll["name"], fixture=fixture)
+        assert doc["status"] == "ready", doc
+    return coll
+
+
 async def wait_until_searchable(
     client: httpx.AsyncClient,
     name: str,
