@@ -20,6 +20,7 @@ from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.models.document import DocumentProgressResponse, DocumentResponse
 from bigrag.services import collection_cache, metadata_schema
+from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import sync_value
@@ -251,7 +252,7 @@ async def persist_document(
             collection=collection_name,
         )
         doc.status = "failed"
-        doc.error_message = f"enqueue failed: {exc.__class__.__name__}: {exc}"
+        doc.error_message = sanitize_message_text(f"enqueue failed: {type(exc).__name__}")
         await session.commit()
         await session.refresh(doc)
         if raise_on_enqueue_failure:

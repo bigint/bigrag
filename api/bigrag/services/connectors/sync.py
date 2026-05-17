@@ -30,6 +30,7 @@ from bigrag.services.connectors.types import (
     DownloadedConnectorFile,
     RemoteConnectorFile,
 )
+from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
@@ -281,7 +282,19 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             account.status = "needs_reauth"
             source.status = "needs_reauth"
             source.last_error = adapter.reauth_message
-            await fail_sync(session, job=job, source=source, message=str(exc), counters=counters)
+            logger.warning(
+                "connector: auth error during sync",
+                provider=adapter.provider,
+                job_id=job_id,
+                error_type=type(exc).__name__,
+            )
+            await fail_sync(
+                session,
+                job=job,
+                source=source,
+                message=sanitize_message_text(str(exc)) or "Sync auth error",
+                counters=counters,
+            )
         except asyncio.CancelledError:
             await fail_sync(
                 session,
@@ -297,7 +310,13 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 provider=adapter.provider,
                 job_id=job_id,
             )
-            await fail_sync(session, job=job, source=source, message=str(exc), counters=counters)
+            await fail_sync(
+                session,
+                job=job,
+                source=source,
+                message=sanitize_message_text(str(exc)) or "Sync failed",
+                counters=counters,
+            )
 
 
 async def sync_downloaded_file(
@@ -412,7 +431,7 @@ async def sync_downloaded_file(
         )
     except Exception as exc:
         doc.status = "failed"
-        doc.error_message = f"enqueue failed: {exc.__class__.__name__}: {exc}"
+        doc.error_message = sanitize_message_text(f"enqueue failed: {type(exc).__name__}")
         await session.commit()
         raise
 

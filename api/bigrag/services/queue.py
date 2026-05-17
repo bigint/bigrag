@@ -9,6 +9,7 @@ import redis.asyncio as aioredis
 
 from bigrag.logging import get_logger
 from bigrag.services import queue_conversion, queue_embedding, queue_state
+from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import IngestionJob
 
@@ -484,12 +485,13 @@ class IngestionQueue:
                     prefix=prefix,
                     log_message="failed to clean up cancelled vectors",
                 )
-                await _update_doc(status="failed", error_message=str(e))
+                safe_message = sanitize_message_text(str(e)) or "ingestion cancelled"
+                await _update_doc(status="failed", error_message=safe_message)
                 self._emit(
                     doc,
                     "cancelled",
                     "failed",
-                    str(e),
+                    safe_message,
                     0.0,
                     collection_name=job.collection_name,
                 )
@@ -506,6 +508,7 @@ class IngestionQueue:
                 )
 
                 delay = min(2**job.attempt, 30) + random.uniform(0, min(2**job.attempt, 10))
+                safe_error = sanitize_message_text(str(e)) or "ingestion failed"
                 self._emit(
                     doc,
                     "retrying",
@@ -513,13 +516,13 @@ class IngestionQueue:
                     f"Attempt {job.attempt} failed, retrying in {delay}s",
                     0.0,
                     collection_name=job.collection_name,
-                    error=str(e),
+                    error=safe_error,
                     attempt=job.attempt,
                     delay=delay,
                 )
                 await _update_doc(
                     status="pending",
-                    error_message=f"Attempt {job.attempt} failed: {e}. Retrying...",
+                    error_message=f"Attempt {job.attempt} failed: {safe_error}. Retrying...",
                 )
                 enqueue_ingestion_job(job, delay_seconds=delay)
             else:
@@ -536,14 +539,20 @@ class IngestionQueue:
                 await self._redis.hincrby(STATS_KEY, "failed", 1)
                 await self._redis.lpush(DEAD_LETTER_KEY, job.serialize())
                 await self._redis.ltrim(DEAD_LETTER_KEY, 0, 999)
-                await _update_doc(status="failed", error_message=str(e))
-                logger.error("job permanently failed", prefix=prefix, reason=reason)
+                safe_message = sanitize_message_text(str(e)) or "ingestion failed"
+                await _update_doc(status="failed", error_message=safe_message)
+                logger.error(
+                    "job permanently failed",
+                    prefix=prefix,
+                    reason=reason,
+                    error_type=type(e).__name__,
+                )
                 await self._fanout_webhook_event(
                     self._emit(
                         doc,
                         "failed",
                         "failed",
-                        str(e),
+                        safe_message,
                         0.0,
                         collection_name=job.collection_name,
                         attempts=job.attempt,

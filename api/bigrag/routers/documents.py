@@ -39,7 +39,7 @@ from bigrag.routers.documents_uploads import (
     validated_upload_to_temp,
 )
 from bigrag.services import audit, collection_cache
-from bigrag.services.error_sanitize import safe_error_detail
+from bigrag.services.error_sanitize import safe_error_detail, sanitize_message_text
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
@@ -366,8 +366,13 @@ async def reprocess_document(
             )
         )
     except Exception as exc:
+        logger.exception(
+            "reprocess: enqueue failed",
+            document_id=document_id,
+            collection=collection_name,
+        )
         doc.status = "failed"
-        doc.error_message = f"enqueue failed: {exc.__class__.__name__}: {exc}"
+        doc.error_message = sanitize_message_text(f"enqueue failed: {type(exc).__name__}")
         await session.commit()
         event_bus.publish(
             IngestionEvent(

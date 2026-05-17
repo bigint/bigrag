@@ -25,6 +25,7 @@ from bigrag.routers.documents_batch import batch_get_status
 from bigrag.routers.health import platform_stats, readiness
 from bigrag.routers.upload_sessions import get_upload_session as upload_session_detail
 from bigrag.routers.usage import get_usage
+from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.event_bus import SSE_RETRY_MS, event_bus, next_sse_id
 
 router = APIRouter(prefix="/v1/admin/realtime", tags=["admin:realtime"])
@@ -78,7 +79,8 @@ async def _load_frame(topic: str, load: SnapshotLoader) -> tuple[str, Any | None
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        return _error_frame(topic, str(exc)), None
+        safe = sanitize_message_text(f"{type(exc).__name__}") or "snapshot error"
+        return _error_frame(topic, safe), None
     return _snapshot_frame(topic, payload), payload
 
 
