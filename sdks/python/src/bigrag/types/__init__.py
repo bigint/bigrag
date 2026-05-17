@@ -1,4 +1,3 @@
-
 from bigrag.types.access import (
     AccessLogBucket,
     AccessLogEntry,
