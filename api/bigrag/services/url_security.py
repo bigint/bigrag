@@ -301,6 +301,42 @@ async def resolve_and_pin(
     )
 
 
+async def pin_chat_base_url(base_url: str) -> PinnedOutbound:
+    from bigrag.services.runtime_settings import get_values
+
+    runtime = await get_values(["allowed_chat_base_urls", "allow_private_chat_base_urls"])
+    return await resolve_and_pin(
+        base_url,
+        purpose="Chat provider base URL",
+        allowed_urls=runtime["allowed_chat_base_urls"],
+        allow_private=runtime["allow_private_chat_base_urls"],
+    )
+
+
+async def pin_embedding_base_url(base_url: str) -> PinnedOutbound:
+    from bigrag.services.runtime_settings import get_values
+
+    runtime = await get_values(["allowed_embedding_base_urls", "allow_private_embedding_base_urls"])
+    return await resolve_and_pin(
+        base_url,
+        purpose="Embedding base URL",
+        allowed_urls=runtime["allowed_embedding_base_urls"],
+        allow_private=runtime["allow_private_embedding_base_urls"],
+    )
+
+
+async def pin_webhook_url(url: str) -> PinnedOutbound:
+    from bigrag.services.runtime_settings import get_value
+
+    allow_local = await get_value("allow_local_webhooks")
+    return await resolve_and_pin(
+        url,
+        purpose="Webhook URL",
+        allow_loopback=allow_local,
+        allow_private=allow_local,
+    )
+
+
 class _IPPinnedTransport(httpx.AsyncHTTPTransport):
     def __init__(self, hostname: str, pinned_ip: str, **kwargs) -> None:
         super().__init__(**kwargs)

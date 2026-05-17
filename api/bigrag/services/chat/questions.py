@@ -223,7 +223,7 @@ async def _generate_questions_text(
     )
     last_error: Exception | None = None
     for credential in credentials:
-        client = _openai_client(openai, prepared, credential)
+        client = await _openai_client(openai, prepared, credential)
         try:
             response = await client.chat.completions.create(
                 model=model,

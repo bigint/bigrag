@@ -5,7 +5,11 @@ from typing import Literal
 import httpx
 
 from bigrag.logging import get_logger
-from bigrag.services.url_security import UnsafeOutboundUrlError, validate_embedding_base_url
+from bigrag.services.url_security import (
+    UnsafeOutboundUrlError,
+    pin_embedding_base_url,
+    pinned_async_client,
+)
 
 logger = get_logger("bigrag.services.credential_check")
 
@@ -23,11 +27,6 @@ class CredentialCheckError(Exception):
         self.code = code
         self.message = message
         super().__init__(message)
-
-
-def _build_client(timeout: float) -> httpx.AsyncClient:
-
-    return httpx.AsyncClient(timeout=timeout, follow_redirects=False)
 
 
 async def verify_provider_credentials(
@@ -56,19 +55,18 @@ async def _verify_via_models_listing(
     base_url: str | None,
     timeout_seconds: float,
 ) -> None:
+    effective = base_url or _DEFAULT_BASE_URLS[provider]
     try:
-        root = (
-            await validate_embedding_base_url(base_url)
-            if base_url
-            else _DEFAULT_BASE_URLS[provider]
-        ).rstrip("/")
+        pinned = await pin_embedding_base_url(effective)
     except UnsafeOutboundUrlError as exc:
         raise CredentialCheckError("UNSAFE_BASE_URL", str(exc)) from exc
-    url = f"{root}/models"
+    url = f"{pinned.normalized_url.rstrip('/')}/models"
     headers = {"Authorization": f"Bearer {api_key}"}
 
     try:
-        async with _build_client(timeout_seconds) as client:
+        async with pinned_async_client(
+            pinned, timeout=timeout_seconds, follow_redirects=False
+        ) as client:
             response = await client.get(url, headers=headers)
     except httpx.TimeoutException:
         logger.warning(
@@ -113,15 +111,12 @@ async def _verify_voyage(
     model: str | None,
     timeout_seconds: float,
 ) -> None:
+    effective = base_url or _DEFAULT_BASE_URLS["voyage"]
     try:
-        root = (
-            await validate_embedding_base_url(base_url)
-            if base_url
-            else _DEFAULT_BASE_URLS["voyage"]
-        ).rstrip("/")
+        pinned = await pin_embedding_base_url(effective)
     except UnsafeOutboundUrlError as exc:
         raise CredentialCheckError("UNSAFE_BASE_URL", str(exc)) from exc
-    url = f"{root}/embeddings"
+    url = f"{pinned.normalized_url.rstrip('/')}/embeddings"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -129,7 +124,9 @@ async def _verify_voyage(
     payload = {"input": ["ping"], "model": model or "voyage-3.5"}
 
     try:
-        async with _build_client(timeout_seconds) as client:
+        async with pinned_async_client(
+            pinned, timeout=timeout_seconds, follow_redirects=False
+        ) as client:
             response = await client.post(url, headers=headers, json=payload)
     except httpx.TimeoutException:
         logger.warning(

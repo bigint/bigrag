@@ -5,6 +5,11 @@ from typing import Any
 
 from bigrag.exceptions import ServerError, UpstreamError
 from bigrag.logging import get_logger
+from bigrag.services.url_security import (
+    UnsafeOutboundUrlError,
+    pin_chat_base_url,
+    pinned_async_client,
+)
 
 from .formatting import _safe_chat_error
 from .types import PreparedChatTurn, ProviderCredential
@@ -25,7 +30,7 @@ async def _complete_model(prepared: PreparedChatTurn) -> str:
 
     last_error: Exception | None = None
     for credential in prepared.credentials:
-        client = _openai_client(openai, prepared, credential)
+        client = await _openai_client(openai, prepared, credential)
         try:
             response = await client.chat.completions.create(
                 model=prepared.model,
@@ -63,7 +68,7 @@ async def _stream_model(prepared: PreparedChatTurn) -> AsyncIterator[str]:
 
     last_error: Exception | None = None
     for credential in prepared.credentials:
-        client = _openai_client(openai, prepared, credential)
+        client = await _openai_client(openai, prepared, credential)
         try:
             stream = await client.chat.completions.create(
                 model=prepared.model,
@@ -94,10 +99,18 @@ async def _stream_model(prepared: PreparedChatTurn) -> AsyncIterator[str]:
         raise _provider_error(last_error, prepared.credentials[-1]) from last_error
 
 
-def _openai_client(openai_module, prepared: PreparedChatTurn, credential: ProviderCredential):
+async def _openai_client(openai_module, prepared: PreparedChatTurn, credential: ProviderCredential):
     kwargs: dict[str, Any] = {"api_key": credential.api_key, "timeout": _MODEL_TIMEOUT_SECONDS}
-    if prepared.base_url:
-        kwargs["base_url"] = prepared.base_url
+    base_url = prepared.base_url or "https://api.openai.com/v1"
+    kwargs["base_url"] = base_url
+    try:
+        pinned = await pin_chat_base_url(base_url)
+    except UnsafeOutboundUrlError as exc:
+        raise UpstreamError(
+            f"chat base URL rejected by SSRF check: {exc}",
+            public_message="Chat provider URL was rejected by SSRF protection.",
+        ) from exc
+    kwargs["http_client"] = pinned_async_client(pinned, timeout=_MODEL_TIMEOUT_SECONDS)
     return openai_module.AsyncOpenAI(**kwargs)
 
 

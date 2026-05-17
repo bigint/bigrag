@@ -15,6 +15,8 @@ from bigrag.services.embedding_rate_limit import (
 )
 from bigrag.services.url_security import (
     normalize_url_root,
+    pinned_async_client,
+    resolve_and_pin_sync,
     validate_embedding_base_url_sync,
 )
 
@@ -144,9 +146,19 @@ class OpenAIEmbedding(EmbeddingModel):
         self._semaphore_key = f"openai:{self._base_url or 'default'}"
         base_tag = hashlib.sha256((self._base_url or "").encode()).hexdigest()[:12]
         self._cache_identity = f"openai:{model_name}:{dimension}:{base_tag}"
+        from bigrag.services.runtime_settings import sync_value
+
+        effective_base_url = self._base_url or "https://api.openai.com/v1"
+        pinned = resolve_and_pin_sync(
+            effective_base_url,
+            purpose="Embedding base URL",
+            allowed_urls=sync_value("allowed_embedding_base_urls"),
+            allow_private=sync_value("allow_private_embedding_base_urls"),
+        )
         self._client = openai.AsyncOpenAI(
             api_key=api_key or "not-required",
             base_url=self._base_url,
+            http_client=pinned_async_client(pinned, timeout=60.0),
         )
         logger.info(
             "initialized openai-compatible embedding",
