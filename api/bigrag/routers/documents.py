@@ -15,7 +15,7 @@ from bigrag.models.document import (
     DocumentListResponse,
     DocumentResponse,
 )
-from bigrag.routers import ensure_embedding_or_400, get_collection_or_404
+from bigrag.routers import enforce_collection_pin, ensure_embedding_or_400, get_collection_or_404
 from bigrag.routers._documents import (
     document_response,
     parse_form_metadata,
@@ -239,9 +239,10 @@ async def list_documents(
 async def get_document(
     collection_name: str,
     document_id: str,
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     doc = await session.scalar(
         sa.select(Document)
@@ -261,6 +262,7 @@ async def delete_document(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     doc = await session.scalar(
         sa.select(Document)
@@ -306,6 +308,7 @@ async def reprocess_document(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     doc = await session.scalar(
         sa.select(Document)
@@ -387,9 +390,10 @@ async def get_document_chunks(
     document_id: str,
     limit: int = Query(default=50, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, object]:
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     exists = await session.scalar(
         sa.select(Document.id)
@@ -413,9 +417,10 @@ async def get_document_chunks(
 async def download_document_file(
     collection_name: str,
     document_id: str,
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     doc = await session.scalar(
         sa.select(Document)
