@@ -41,7 +41,7 @@ async def embed_with_cache(
         inputs=len(texts),
     )
     cached = await embedding_cache.get_many(
-        cache_texts, provider, model_name, dimension, input_type
+        cache_texts, model.cache_identity, dimension, input_type
     )
     missing_idx = [i for i in range(len(texts)) if i not in cached]
     logger.info(
@@ -91,7 +91,7 @@ async def embed_with_cache(
             if any(not math.isfinite(v) for v in vec):
                 raise ValueError("embedding provider returned non-finite values")
         await embedding_cache.put_many(
-            missing_cache_texts, fresh, provider, model_name, dimension, input_type
+            missing_cache_texts, fresh, model.cache_identity, dimension, input_type
         )
         fresh_by_cache_text = dict(zip(missing_cache_texts, fresh, strict=False))
         for idx in missing_idx:
