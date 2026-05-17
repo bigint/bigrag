@@ -5,7 +5,6 @@ import threading
 import time
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import get_context
-from multiprocessing.connection import Connection
 from pathlib import Path
 
 from bigrag.config import settings
@@ -148,20 +147,6 @@ def _convert_file_path(path: str, suffix: str, pdf_ocr_enabled: bool) -> str:
     return _docling_result_text(converter.convert(path))
 
 
-def _conversion_worker(
-    conn: Connection,
-    path: str,
-    suffix: str,
-    pdf_ocr_enabled: bool,
-) -> None:
-    try:
-        conn.send(("ok", _convert_file_path(path, suffix, pdf_ocr_enabled)))
-    except Exception as exc:
-        conn.send(("error", f"{exc.__class__.__name__}: {exc}"))
-    finally:
-        conn.close()
-
-
 def _pool_convert(path: str, suffix: str, pdf_ocr_enabled: bool) -> str:
     return _convert_file_path(path, suffix, pdf_ocr_enabled)
 
@@ -220,37 +205,6 @@ async def _get_conversion_semaphore() -> asyncio.Semaphore:
             return _conversion_semaphore
         _conversion_semaphore = asyncio.Semaphore(settings.conversion_pool_workers)
         return _conversion_semaphore
-
-
-async def convert_document_isolated(
-    file_data: bytes,
-    suffix: str,
-    *,
-    pdf_ocr_enabled: bool,
-    timeout: int,
-) -> str:
-    import tempfile
-
-    def _write_tmp() -> str:
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-        try:
-            tmp.write(file_data)
-            tmp.close()
-            return tmp.name
-        except Exception:
-            tmp.close()
-            raise
-
-    tmp_path = await asyncio.to_thread(_write_tmp)
-    try:
-        return await _convert_document_path_isolated(
-            tmp_path,
-            suffix,
-            pdf_ocr_enabled=pdf_ocr_enabled,
-            timeout=timeout,
-        )
-    finally:
-        await asyncio.to_thread(Path(tmp_path).unlink, True)
 
 
 async def convert_document_path_isolated(
