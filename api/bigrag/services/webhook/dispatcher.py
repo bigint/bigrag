@@ -84,10 +84,7 @@ class WebhookDispatcher:
             timeout=timeout,
             follow_redirects=False,
         ) as client:
-            response = await client.post(url, content=payload, headers=headers)
-            _ = response.status_code
-            await response.aclose()
-            return response
+            return await client.post(url, content=payload, headers=headers)
 
     async def _get_webhooks(self) -> list[dict]:
         import sqlalchemy as sa
