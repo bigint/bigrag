@@ -49,3 +49,4 @@ target/
 # AI
 .codex-screenshots/
 .playwright-mcp/
+.claude/
