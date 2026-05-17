@@ -11,7 +11,6 @@ export type ChatStoreState = {
   selectFirstCollection: (collections: readonly { name: string }[]) => void;
   setStreaming: (isStreaming: boolean) => void;
   setMessages: (messages: ChatMessage[]) => void;
-  startNewChat: () => void;
   updateMessage: (id: string, update: (message: ChatMessage) => ChatMessage) => void;
 };
 
@@ -52,11 +51,6 @@ export const useChatStore = create<ChatStoreState>()((set) => ({
     }),
   setMessages: (messages) => set({ messages }),
   setStreaming: (isStreaming) => set({ isStreaming }),
-  startNewChat: () =>
-    set({
-      isStreaming: false,
-      messages: [],
-    }),
   updateMessage: (id, update) =>
     set((state) => ({
       messages: state.messages.map((message) => (message.id === id ? update(message) : message)),

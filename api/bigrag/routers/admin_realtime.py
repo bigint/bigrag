@@ -22,6 +22,7 @@ from bigrag.routers.collections import get_collection_stats
 from bigrag.routers.connectors import connector_sources, connector_sync_jobs
 from bigrag.routers.documents import get_document, list_documents
 from bigrag.routers.documents_batch import batch_get_status
+from bigrag.routers.documents_progress import TERMINAL_DOCUMENT_STATUSES
 from bigrag.routers.health import platform_stats, readiness
 from bigrag.routers.upload_sessions import get_upload_session as upload_session_detail
 from bigrag.routers.usage import get_usage
@@ -31,7 +32,6 @@ from bigrag.services.event_bus import SSE_RETRY_MS, event_bus, next_sse_id
 router = APIRouter(prefix="/v1/admin/realtime", tags=["admin:realtime"])
 
 HEARTBEAT_SECONDS = 30.0
-TERMINAL_DOCUMENT_STATUSES = {"ready", "failed"}
 ACTIVE_SYNC_JOB_STATUSES = {"pending", "running"}
 ACTIVE_BACKUP_JOB_STATUSES = {"pending", "running"}
 
