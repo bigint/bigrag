@@ -116,8 +116,6 @@ class Settings(BaseSettings):
             else:
                 if f"BIGRAG_{section.upper()}" not in os.environ:
                     flat[section] = values
-        flat.pop("run_migrations", None)
-        flat.pop("vector_store_provider", None)
         return cls(**flat)
 
 
