@@ -31,7 +31,7 @@ export const useSetupStatus = () =>
         signal,
         timeoutMs: AUTH_TIMEOUT_MS,
       }),
-    staleTime: 0,
+    staleTime: (query) => (query.state.data?.needs_setup === false ? Infinity : 0),
     retry: false,
   });
 

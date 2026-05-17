@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   SignalHigh,
 } from "lucide-react";
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
@@ -66,24 +67,30 @@ export const OverviewPage = () => {
   const failedPct = docs?.total ? Math.round((docs.failed / docs.total) * 100) : 0;
   const workerAvailability = getWorkerAvailability(stats);
   const queueHealth = stats?.queue_health;
-  const services = [
-    { label: "Postgres", ok: readiness?.postgres },
-    {
-      label: readiness?.vector_store_provider
-        ? `Vector store (${readiness.vector_store_provider.replace("_", " ")})`
-        : "Vector store",
-      ok: readiness?.vector_store,
-    },
-    { label: "Redis", ok: readiness?.redis },
-    { detail: readiness?.embedding_error, label: "Embeddings", ok: readiness?.embedding },
-    {
-      detail: workerAvailability.message,
-      label: "Worker",
-      ok: workerAvailability.unknown ? undefined : workerAvailability.online,
-    },
-  ];
+  const services = useMemo(
+    () => [
+      { label: "Postgres", ok: readiness?.postgres },
+      {
+        label: readiness?.vector_store_provider
+          ? `Vector store (${readiness.vector_store_provider.replace("_", " ")})`
+          : "Vector store",
+        ok: readiness?.vector_store,
+      },
+      { label: "Redis", ok: readiness?.redis },
+      { detail: readiness?.embedding_error, label: "Embeddings", ok: readiness?.embedding },
+      {
+        detail: workerAvailability.message,
+        label: "Worker",
+        ok: workerAvailability.unknown ? undefined : workerAvailability.online,
+      },
+    ],
+    [readiness, workerAvailability],
+  );
   const servicesOnline = services.filter((service) => service.ok).length;
-  const queueItems = Object.entries(stats?.queue ?? {}).filter(([, value]) => value > 0);
+  const queueItems = useMemo(
+    () => Object.entries(stats?.queue ?? {}).filter(([, value]) => value > 0),
+    [stats?.queue],
+  );
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-6 md:px-8 lg:px-10">

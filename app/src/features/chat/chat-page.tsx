@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { BookOpen, Clock3, FileText, type LucideIcon, Search } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
+import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ChatInput, type ChatState } from "@/features/chat/chat-input";
@@ -74,16 +75,31 @@ export const ChatPage = () => {
   const generateQuestions = useGenerateChatQuestions();
   const { data: collectionsData, isPending: collectionsLoading } = useCollections();
   const collections = useMemo(() => collectionsData?.collections ?? [], [collectionsData]);
-  const collection = useChatStore((state) => state.collection);
-  const messages = useChatStore((state) => state.messages);
-  const isStreaming = useChatStore((state) => state.isStreaming);
-  const appendMessages = useChatStore((state) => state.appendMessages);
-  const clearMessages = useChatStore((state) => state.clearMessages);
-  const selectCollection = useChatStore((state) => state.selectCollection);
-  const selectFirstCollection = useChatStore((state) => state.selectFirstCollection);
-  const setMessages = useChatStore((state) => state.setMessages);
-  const setStreaming = useChatStore((state) => state.setStreaming);
-  const updateMessage = useChatStore((state) => state.updateMessage);
+  const {
+    appendMessages,
+    clearMessages,
+    collection,
+    isStreaming,
+    messages,
+    selectCollection,
+    selectFirstCollection,
+    setMessages,
+    setStreaming,
+    updateMessage,
+  } = useChatStore(
+    useShallow((state) => ({
+      appendMessages: state.appendMessages,
+      clearMessages: state.clearMessages,
+      collection: state.collection,
+      isStreaming: state.isStreaming,
+      messages: state.messages,
+      selectCollection: state.selectCollection,
+      selectFirstCollection: state.selectFirstCollection,
+      setMessages: state.setMessages,
+      setStreaming: state.setStreaming,
+      updateMessage: state.updateMessage,
+    })),
+  );
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(
