@@ -4,12 +4,11 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
-import sqlalchemy as sa
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import Document, UploadSession, UploadSessionItem
+from bigrag.db.models import UploadSession
 from bigrag.db.session import get_session
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
@@ -18,7 +17,6 @@ from bigrag.models.common import StatusResponse
 from bigrag.models.upload_session import (
     UploadSessionCreateRequest,
     UploadSessionFileResponse,
-    UploadSessionItemResponse,
     UploadSessionResponse,
 )
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
@@ -29,6 +27,34 @@ from bigrag.routers._documents import (
     persist_document,
     prepare_document_metadata,
     stream_upload_to_temp,
+)
+from bigrag.routers._upload_sessions import (
+    TERMINAL_SESSION_STATUSES,
+    upload_session_response,
+)
+from bigrag.routers._upload_sessions import (
+    effective_item_status as _effective_item_status,
+)
+from bigrag.routers._upload_sessions import (
+    existing_item as _existing_item,
+)
+from bigrag.routers._upload_sessions import (
+    fail_item as _fail_item,
+)
+from bigrag.routers._upload_sessions import (
+    get_upload_session as _get_upload_session,
+)
+from bigrag.routers._upload_sessions import (
+    get_upload_session_for_update as _get_upload_session_for_update,
+)
+from bigrag.routers._upload_sessions import (
+    item_response as _item_response,
+)
+from bigrag.routers._upload_sessions import (
+    reserve_item as _reserve_item,
+)
+from bigrag.routers._upload_sessions import (
+    session_rows as _session_rows,
 )
 from bigrag.routers.documents_progress import document_progress, publish_queued_progress
 from bigrag.services import audit, collection_cache
@@ -44,271 +70,6 @@ router = APIRouter(
     prefix="/v1/collections/{collection_name}/upload-sessions",
     tags=["upload-sessions"],
 )
-
-TERMINAL_SESSION_STATUSES = {"complete", "failed", "canceled"}
-
-
-def _deleted_document_item(item: UploadSessionItem, document_status: str | None) -> bool:
-    return item.document_id is None and item.storage_key is not None and document_status is None
-
-
-def _effective_item_status(item: UploadSessionItem, document_status: str | None) -> str:
-    if _deleted_document_item(item, document_status):
-        return "canceled"
-    if item.status in {"failed", "canceled"}:
-        return item.status
-    if document_status == "ready":
-        return "complete"
-    if document_status == "failed":
-        return "failed"
-    if document_status == "processing":
-        return "ingesting"
-    return "queued"
-
-
-def _item_response(
-    item: UploadSessionItem,
-    document_status: str | None,
-    document_error: str | None,
-) -> UploadSessionItemResponse:
-    status = _effective_item_status(item, document_status)
-    error_message = item.error_message or document_error
-    if status == "canceled" and _deleted_document_item(item, document_status):
-        error_message = error_message or "Document deleted"
-    return UploadSessionItemResponse(
-        id=str(item.id),
-        client_item_id=item.client_item_id,
-        document_id=str(item.document_id) if item.document_id else None,
-        filename=item.filename,
-        file_type=item.file_type,
-        file_size=item.file_size,
-        content_hash=item.content_hash,
-        status=status,
-        document_status=document_status,
-        error_message=error_message,
-        created_at=item.created_at,
-        updated_at=item.updated_at,
-    )
-
-
-async def _session_rows(
-    db: AsyncSession,
-    upload_session_id: uuid.UUID,
-) -> list[tuple[UploadSessionItem, str | None, str | None]]:
-    item_rank = sa.case(
-        (Document.status.in_(("pending", "processing")), 0),
-        (Document.status == "failed", 1),
-        (UploadSessionItem.status.in_(("failed", "canceled")), 1),
-        else_=2,
-    )
-    rows = (
-        await db.execute(
-            sa.select(UploadSessionItem, Document.status, Document.error_message)
-            .outerjoin(Document, Document.id == UploadSessionItem.document_id)
-            .where(UploadSessionItem.session_id == upload_session_id)
-            .order_by(item_rank, UploadSessionItem.updated_at.desc())
-        )
-    ).all()
-    return [(item, status, error) for item, status, error in rows]
-
-
-def _counts(rows: list[tuple[UploadSessionItem, str | None, str | None]]) -> dict[str, int]:
-    counts = {
-        "uploaded_files": len(rows),
-        "queued_files": 0,
-        "processing_files": 0,
-        "completed_files": 0,
-        "failed_files": 0,
-        "canceled_files": 0,
-    }
-    for item, status, _error in rows:
-        effective = _effective_item_status(item, status)
-        if effective == "queued":
-            counts["queued_files"] += 1
-        elif effective == "ingesting":
-            counts["processing_files"] += 1
-        elif effective == "complete":
-            counts["completed_files"] += 1
-        elif effective == "failed":
-            counts["failed_files"] += 1
-        elif effective == "canceled":
-            counts["canceled_files"] += 1
-    return counts
-
-
-def _session_status(upload_session: UploadSession, counts: dict[str, int]) -> str:
-    if upload_session.status == "canceled":
-        return "canceled"
-    active = counts["queued_files"] + counts["processing_files"]
-    if counts["uploaded_files"] < upload_session.total_files:
-        return "uploading" if counts["uploaded_files"] else "preparing"
-    if active:
-        return "ingesting"
-    if not counts["completed_files"] and (counts["failed_files"] or counts["canceled_files"]):
-        return "failed"
-    return "complete"
-
-
-async def upload_session_response(
-    db: AsyncSession,
-    upload_session: UploadSession,
-    *,
-    persist_counts: bool = False,
-) -> UploadSessionResponse:
-    rows = await _session_rows(db, upload_session.id)
-    counts = _counts(rows)
-    status = _session_status(upload_session, counts)
-    active = counts["queued_files"] + counts["processing_files"]
-    if persist_counts:
-        for item, document_status, _error in rows:
-            if _deleted_document_item(item, document_status):
-                item.status = "canceled"
-                item.error_message = item.error_message or "Document deleted"
-        upload_session.status = status
-        upload_session.uploaded_files = counts["uploaded_files"]
-        upload_session.queued_files = counts["queued_files"]
-        upload_session.completed_files = counts["completed_files"]
-        upload_session.failed_files = counts["failed_files"]
-        upload_session.canceled_files = counts["canceled_files"]
-        if status in TERMINAL_SESSION_STATUSES and upload_session.closed_at is None:
-            upload_session.closed_at = datetime.now(UTC)
-        await db.commit()
-        await db.refresh(upload_session)
-    return UploadSessionResponse(
-        id=str(upload_session.id),
-        collection_id=str(upload_session.collection_id),
-        collection_name=upload_session.collection_name,
-        status=status,
-        total_files=upload_session.total_files,
-        total_bytes=upload_session.total_bytes,
-        uploaded_files=counts["uploaded_files"],
-        queued_files=counts["queued_files"],
-        processing_files=counts["processing_files"],
-        completed_files=counts["completed_files"],
-        failed_files=counts["failed_files"],
-        canceled_files=counts["canceled_files"],
-        active_files=active,
-        recent_items=[_item_response(item, status, error) for item, status, error in rows[:20]],
-        metadata=upload_session.meta or {},
-        created_at=upload_session.created_at,
-        updated_at=upload_session.updated_at,
-        closed_at=upload_session.closed_at,
-    )
-
-
-async def _get_upload_session(
-    db: AsyncSession,
-    collection_id: uuid.UUID,
-    session_id: str,
-    user_id: uuid.UUID | None = None,
-) -> UploadSession:
-    try:
-        target = uuid.UUID(session_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail="Upload session not found") from exc
-    stmt = (
-        sa.select(UploadSession)
-        .where(UploadSession.id == target)
-        .where(UploadSession.collection_id == collection_id)
-    )
-    if user_id is not None:
-        stmt = stmt.where(UploadSession.created_by == user_id)
-    row = await db.scalar(stmt)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Upload session not found")
-    return row
-
-
-async def _get_upload_session_for_update(
-    db: AsyncSession,
-    collection_id: uuid.UUID,
-    session_id: str,
-    user_id: uuid.UUID | None = None,
-) -> UploadSession:
-    try:
-        target = uuid.UUID(session_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail="Upload session not found") from exc
-    stmt = (
-        sa.select(UploadSession)
-        .where(UploadSession.id == target)
-        .where(UploadSession.collection_id == collection_id)
-        .with_for_update()
-    )
-    if user_id is not None:
-        stmt = stmt.where(UploadSession.created_by == user_id)
-    row = await db.scalar(stmt)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Upload session not found")
-    return row
-
-
-async def _existing_item(
-    db: AsyncSession,
-    upload_session_id: uuid.UUID,
-    client_item_id: str,
-) -> UploadSessionItem | None:
-    return await db.scalar(
-        sa.select(UploadSessionItem)
-        .where(UploadSessionItem.session_id == upload_session_id)
-        .where(UploadSessionItem.client_item_id == client_item_id)
-    )
-
-
-async def _fail_item(
-    db: AsyncSession,
-    upload_session: UploadSession,
-    client_item_id: str,
-    filename: str,
-    file_ext: str,
-    message: str,
-    *,
-    file_size: int = 0,
-    content_hash: str | None = None,
-) -> UploadSessionItem:
-    item = await _existing_item(db, upload_session.id, client_item_id)
-    if item is None:
-        item = UploadSessionItem(
-            session_id=upload_session.id,
-            client_item_id=client_item_id,
-            filename=filename,
-            file_type=file_ext.lstrip("."),
-        )
-        db.add(item)
-    item.filename = filename
-    item.file_type = file_ext.lstrip(".")
-    item.file_size = file_size
-    item.content_hash = content_hash
-    item.status = "failed"
-    item.error_message = message
-    await db.commit()
-    await db.refresh(item)
-    return item
-
-
-async def _reserve_item(
-    db: AsyncSession,
-    upload_session: UploadSession,
-    existing: UploadSessionItem | None,
-    client_item_id: str,
-    filename: str,
-    file_ext: str,
-    file_size: int,
-    content_hash: str,
-) -> UploadSessionItem:
-    item = existing or UploadSessionItem(
-        session_id=upload_session.id, client_item_id=client_item_id
-    )
-    item.filename = filename
-    item.file_type = file_ext.lstrip(".")
-    item.file_size = file_size
-    item.content_hash = content_hash
-    item.status = "queued"
-    item.error_message = None
-    db.add(item)
-    await db.commit()
-    await db.refresh(item)
-    return item
 
 
 @router.post("", response_model=UploadSessionResponse, status_code=201)
