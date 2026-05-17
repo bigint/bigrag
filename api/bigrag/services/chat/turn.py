@@ -68,6 +68,13 @@ async def _prepare_chat_turn(
     )
     credentials = await _resolve_api_credentials(session, user, body)
     base_url = await _resolve_base_url(body.provider_base_url, runtime["chat_base_url"])
+    if body.provider_base_url is not None and any(
+        cred.source == "instance chat key" for cred in credentials
+    ):
+        raise ValidationError(
+            "provider_base_url requires provider_api_key or a saved chat key; "
+            "the instance chat key cannot be sent to a custom base URL."
+        )
 
     try:
         embedding_model = get_embedding_model_for(collection)
