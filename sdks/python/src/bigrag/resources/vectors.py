@@ -1,4 +1,3 @@
-"""Raw vector operations resource."""
 
 from __future__ import annotations
 
@@ -12,10 +11,6 @@ if TYPE_CHECKING:
 
 
 class VectorsResource:
-    """Resource namespace for raw vector operations.
-
-    Access via ``client.vectors``.
-    """
 
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
@@ -23,7 +18,6 @@ class VectorsResource:
     async def upsert(
         self, collection: str, vectors: list[VectorEntry]
     ) -> UpsertResponse:
-        """Upsert vectors into a collection."""
         return await self._client._request(
             "POST",
             f"/v1/collections/{quote(collection, safe='')}/vectors/upsert",
@@ -31,7 +25,6 @@ class VectorsResource:
         )
 
     async def delete(self, collection: str, ids: list[str]) -> DeleteResponse:
-        """Delete vectors from a collection by ID."""
         return await self._client._request(
             "POST",
             f"/v1/collections/{quote(collection, safe='')}/vectors/delete",

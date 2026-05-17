@@ -1,4 +1,3 @@
-"""Connector resources."""
 
 from __future__ import annotations
 
@@ -23,7 +22,6 @@ if TYPE_CHECKING:
 
 
 class ConnectorsResource:
-    """Container for user connector resources."""
 
     google: GoogleDriveResource
 
@@ -32,13 +30,11 @@ class ConnectorsResource:
 
 
 class GoogleDriveResource:
-    """Google Drive connector resource."""
 
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 
     async def account(self) -> GoogleAccount:
-        """Get the current user's Google Drive account status."""
         return await self._client._request("GET", "/v1/connectors/google/account")
 
     async def files(
@@ -49,7 +45,6 @@ class GoogleDriveResource:
         page_token: str | None = None,
         page_size: int | None = None,
     ) -> GoogleDriveFileListResponse:
-        """List Google Drive files visible to the current user."""
         params: dict[str, str] = {"parent_id": parent_id}
         if query is not None:
             params["query"] = query
@@ -64,7 +59,6 @@ class GoogleDriveResource:
     async def oauth_start_url(
         self, *, redirect_path: str | None = None
     ) -> GoogleOAuthStartUrlResponse:
-        """Build a Google OAuth URL for the current user."""
         params: dict[str, str] = {}
         if redirect_path is not None:
             params["redirect_path"] = redirect_path
@@ -75,13 +69,11 @@ class GoogleDriveResource:
         )
 
     async def disconnect(self) -> StatusResponse:
-        """Disconnect the current user's Google Drive account."""
         return await self._client._request("POST", "/v1/connectors/google/disconnect")
 
     async def sources(
         self, *, collection: str | None = None
     ) -> GoogleSourceListResponse:
-        """List Google Drive sync sources."""
         params: dict[str, str] = {}
         if collection is not None:
             params["collection"] = collection
@@ -90,7 +82,6 @@ class GoogleDriveResource:
         )
 
     async def create_source(self, body: CreateGoogleSourceBody) -> GoogleSource:
-        """Create a Google Drive sync source."""
         return await self._client._request(
             "POST", "/v1/connectors/google/sources", json=body
         )
@@ -98,7 +89,6 @@ class GoogleDriveResource:
     async def update_source(
         self, source_id: str, body: UpdateGoogleSourceBody
     ) -> GoogleSource:
-        """Update a Google Drive sync source."""
         return await self._client._request(
             "PATCH",
             f"/v1/connectors/google/sources/{quote(source_id, safe='')}",
@@ -106,13 +96,11 @@ class GoogleDriveResource:
         )
 
     async def delete_source(self, source_id: str) -> StatusResponse:
-        """Delete a Google Drive sync source."""
         return await self._client._request(
             "DELETE", f"/v1/connectors/google/sources/{quote(source_id, safe='')}"
         )
 
     async def sync_source(self, source_id: str) -> GoogleSyncJob:
-        """Trigger an immediate sync for a Google Drive source."""
         return await self._client._request(
             "POST", f"/v1/connectors/google/sources/{quote(source_id, safe='')}/sync"
         )
@@ -124,7 +112,6 @@ class GoogleDriveResource:
         source_id: str | None = None,
         limit: int | None = None,
     ) -> GoogleSyncJobListResponse:
-        """List Google Drive sync jobs."""
         params: dict[str, str] = {}
         if collection is not None:
             params["collection"] = collection

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import threading
 from datetime import UTC, datetime
 
 from bigrag import __version__
@@ -20,20 +19,12 @@ from bigrag.startup_guard import check_production_safety
 
 logger = get_logger("bigrag.worker")
 _lock = asyncio.Lock()
-_thread_lock = threading.Lock()
 _initialized = False
 _storage = None
 
 
 async def ensure_worker_runtime() -> None:
     global _initialized, _storage
-    if _initialized:
-        await record_worker_heartbeat()
-        return
-    with _thread_lock:
-        if _initialized:
-            await record_worker_heartbeat()
-            return
     async with _lock:
         if _initialized:
             await record_worker_heartbeat()

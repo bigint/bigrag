@@ -1,4 +1,3 @@
-"""Webhook management resource."""
 
 from __future__ import annotations
 
@@ -21,22 +20,16 @@ if TYPE_CHECKING:
 
 
 class WebhooksResource:
-    """Resource namespace for webhook management.
-
-    Access via ``client.webhooks``.
-    """
 
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 
     async def create(self, body: CreateWebhookBody) -> CreateWebhookResponse:
-        """Register a new webhook."""
         return await self._client._request("POST", "/v1/admin/webhooks", json=body)
 
     async def list(
         self, *, limit: int | None = None, offset: int | None = None
     ) -> WebhookListResponse:
-        """List all registered webhooks."""
         params: dict[str, str] = {}
         if limit is not None:
             params["limit"] = str(limit)
@@ -45,19 +38,16 @@ class WebhooksResource:
         return await self._client._request("GET", "/v1/admin/webhooks", params=params)
 
     async def get(self, id: str) -> Webhook:
-        """Retrieve a single webhook by ID."""
         return await self._client._request(
             "GET", f"/v1/admin/webhooks/{quote(id, safe='')}"
         )
 
     async def update(self, id: str, body: UpdateWebhookBody) -> Webhook:
-        """Update an existing webhook."""
         return await self._client._request(
             "PUT", f"/v1/admin/webhooks/{quote(id, safe='')}", json=body
         )
 
     async def delete(self, id: str) -> StatusResponse:
-        """Delete a webhook."""
         return await self._client._request(
             "DELETE", f"/v1/admin/webhooks/{quote(id, safe='')}"
         )
@@ -69,7 +59,6 @@ class WebhooksResource:
         limit: int | None = None,
         offset: int | None = None,
     ) -> WebhookDeliveryListResponse:
-        """List delivery attempts for a webhook."""
         params: dict[str, str] = {}
         if limit is not None:
             params["limit"] = str(limit)
@@ -82,13 +71,11 @@ class WebhooksResource:
         )
 
     async def test(self, id: str) -> WebhookTestResponse:
-        """Send a test payload to a webhook endpoint."""
         return await self._client._request(
             "POST", f"/v1/admin/webhooks/{quote(id, safe='')}/test"
         )
 
     async def replay_delivery(self, id: str, delivery_id: str) -> WebhookTestResponse:
-        """Replay a previous webhook delivery."""
         return await self._client._request(
             "POST",
             (

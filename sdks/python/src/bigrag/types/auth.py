@@ -1,4 +1,3 @@
-"""Authentication and session types."""
 
 from __future__ import annotations
 

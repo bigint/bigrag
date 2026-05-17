@@ -1,4 +1,3 @@
-"""Document operations resource."""
 
 from __future__ import annotations
 
@@ -37,10 +36,6 @@ def _upload_session_path(collection: str, session_id: str | None = None) -> str:
 
 
 class DocumentsResource:
-    """Resource namespace for document operations.
-
-    Access via ``client.documents``.
-    """
 
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
@@ -52,7 +47,6 @@ class DocumentsResource:
         *,
         metadata: dict[str, Any] | None = None,
     ) -> Document:
-        """Upload a single document to a collection."""
         name, data = normalize_file_input(file)
         files: dict[str, Any] = {"file": (name, data)}
         form_data: dict[str, Any] | None = None
@@ -71,7 +65,6 @@ class DocumentsResource:
         *,
         metadata: dict[str, Any] | None = None,
     ) -> DocumentListResponse:
-        """Upload multiple documents in a single request."""
         file_list: list[tuple[str, tuple[str, bytes | Any]]] = []
         for f in files:
             name, data = normalize_file_input(f)
@@ -157,7 +150,6 @@ class DocumentsResource:
         limit: int | None = None,
         offset: int | None = None,
     ) -> DocumentListResponse:
-        """List documents in a collection."""
         params: dict[str, str] = {}
         if q is not None:
             params["q"] = q
@@ -178,22 +170,18 @@ class DocumentsResource:
         )
 
     async def get(self, collection: str, document_id: str) -> Document:
-        """Retrieve a document by ID within a collection."""
         return await self._client._request("GET", _doc_path(collection, document_id))
 
     async def get_by_id(self, document_id: str) -> Document:
-        """Retrieve a document by ID (without specifying collection)."""
         return await self._client._request(
             "GET",
             f"/v1/documents/{quote(document_id, safe='')}",
         )
 
     async def delete(self, collection: str, document_id: str) -> StatusResponse:
-        """Delete a document by ID."""
         return await self._client._request("DELETE", _doc_path(collection, document_id))
 
     async def reprocess(self, collection: str, document_id: str) -> StatusResponse:
-        """Trigger reprocessing of a document."""
         return await self._client._request(
             "POST",
             f"{_doc_path(collection, document_id)}/reprocess",
@@ -207,7 +195,6 @@ class DocumentsResource:
         limit: int | None = None,
         offset: int | None = None,
     ) -> DocumentChunkListResponse:
-        """Get all chunks for a document within a collection."""
         params: dict[str, str] = {}
         if limit is not None:
             params["limit"] = str(limit)
@@ -226,7 +213,6 @@ class DocumentsResource:
         limit: int | None = None,
         offset: int | None = None,
     ) -> DocumentChunkListResponse:
-        """Get chunks for a document by ID (without specifying collection)."""
         params: dict[str, str] = {}
         if limit is not None:
             params["limit"] = str(limit)
@@ -239,11 +225,6 @@ class DocumentsResource:
         )
 
     def get_file_url(self, collection: str, document_id: str) -> str:
-        """Build the authenticated endpoint URL for the original document file.
-
-        Download callers must send this client's bearer token in an
-        ``Authorization`` header.
-        """
         path = f"{_doc_path(collection, document_id)}/file"
         return f"{self._client.base_url}{path}"
 
@@ -252,7 +233,6 @@ class DocumentsResource:
         collection: str,
         document_ids: list[str],
     ) -> BatchStatusResponse:
-        """Get the processing status of multiple documents."""
         return await self._client._request(
             "POST",
             f"{_col_path(collection)}/documents/batch/status",
@@ -264,7 +244,6 @@ class DocumentsResource:
         collection: str,
         document_ids: list[str],
     ) -> BatchGetDocumentsResponse:
-        """Retrieve multiple documents at once."""
         return await self._client._request(
             "POST",
             f"{_col_path(collection)}/documents/batch/get",
@@ -276,7 +255,6 @@ class DocumentsResource:
         collection: str,
         document_ids: list[str],
     ) -> BatchDeleteDocumentsResponse:
-        """Delete multiple documents at once."""
         return await self._client._request(
             "POST",
             f"{_col_path(collection)}/documents/batch/delete",

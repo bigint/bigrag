@@ -1,4 +1,3 @@
-"""File input normalisation utilities."""
 
 from __future__ import annotations
 
@@ -20,11 +19,6 @@ FileInput = str | Path | bytes | BinaryIO | tuple[str, bytes] | tuple[str, Binar
 
 
 def normalize_file_input(file: FileInput) -> tuple[str, bytes | BinaryIO]:
-    """Normalize a :data:`FileInput` into a ``(filename, data)`` pair.
-
-    This is used internally by upload methods to produce arguments suitable
-    for ``httpx`` file uploads.
-    """
     # tuple[str, bytes | BinaryIO]
     if isinstance(file, tuple):
         return file

@@ -1,4 +1,3 @@
-"""bigRAG Python SDK."""
 
 from __future__ import annotations
 

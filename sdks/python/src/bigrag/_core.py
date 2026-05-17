@@ -1,4 +1,3 @@
-"""Low-level HTTP transport for the bigRAG API."""
 
 from __future__ import annotations
 
@@ -67,11 +66,6 @@ def _rewind_files(files: Any) -> None:
 
 
 class BigRAGCore:
-    """Low-level async HTTP transport with retry, auth, and error handling.
-
-    This class is not usually instantiated directly.  Use :class:`BigRAG`
-    instead, which adds high-level resource namespaces on top.
-    """
 
     api_key: str
     base_url: str
@@ -161,11 +155,6 @@ class BigRAGCore:
         json: Any = None,
         params: dict[str, str] | None = None,
     ) -> Any:
-        """Issue a JSON request and return the parsed response body.
-
-        Retries on infrastructure 429 responses, 5xx, and connection/timeout
-        errors using exponential back-off: ``min(0.5 * 2^attempt, 4)`` seconds.
-        """
         url = f"{self.base_url}{path}"
         headers = self._headers()
         if json is not None:
@@ -202,7 +191,6 @@ class BigRAGCore:
         files: Any,
         data: dict[str, Any] | None = None,
     ) -> Any:
-        """Issue a ``multipart/form-data`` POST and return the parsed body."""
         url = f"{self.base_url}{path}"
         headers = self._headers()
 
@@ -227,7 +215,6 @@ class BigRAGCore:
 
     @staticmethod
     async def _throw_for_status(response: httpx.Response) -> None:
-        """Parse an error body and raise the appropriate exception."""
         try:
             body = response.json()
         except Exception:
@@ -244,7 +231,6 @@ class BigRAGCore:
         raise error_for_status(response.status_code, message, code)
 
     async def aclose(self) -> None:
-        """Close the underlying HTTP client."""
         if self._owns_client:
             await self._client.aclose()
 
