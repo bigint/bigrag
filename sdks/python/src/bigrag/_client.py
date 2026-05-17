@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from typing import Any
-from urllib.parse import quote
 
 from bigrag._core import BigRAGCore
 from bigrag._files import FileInput
@@ -101,12 +100,6 @@ class BigRAG(BigRAGCore):
     async def list_embedding_models(self) -> EmbeddingModelListResponse:
         """List all available embedding models."""
         return await self._request("GET", "/v1/embeddings/models")
-
-    async def get_analytics(self, collection: str) -> AnalyticsResponse:
-        """Retrieve analytics for a specific collection."""
-        return await self._request(
-            "GET", f"/v1/collections/{quote(collection, safe='')}/analytics"
-        )
 
     async def get_usage(self, *, window_days: int | None = None) -> UsageResponse:
         """Retrieve workspace usage analytics."""
@@ -264,7 +257,7 @@ class CollectionClient:
 
     async def analytics(self) -> AnalyticsResponse:
         """Get analytics for this collection."""
-        return await self._client.get_analytics(self._name)
+        return await self._client.collections.analytics(self._name)
 
     async def stream_events(self) -> AsyncGenerator[ProgressEvent, None]:
         """Stream real-time events for this collection via SSE."""

@@ -8,6 +8,7 @@ from urllib.parse import quote
 
 from bigrag._errors import error_for_status
 from bigrag._sse import parse_sse_stream
+from bigrag.types.analytics import AnalyticsResponse
 from bigrag.types.collections import (
     Collection,
     CollectionListResponse,
@@ -74,6 +75,12 @@ class CollectionsResource:
         """Get statistics for a collection."""
         return await self._client._request(
             "GET", f"/v1/collections/{quote(name, safe='')}/stats"
+        )
+
+    async def analytics(self, name: str) -> AnalyticsResponse:
+        """Retrieve analytics for a specific collection."""
+        return await self._client._request(
+            "GET", f"/v1/collections/{quote(name, safe='')}/analytics"
         )
 
     async def truncate(self, name: str) -> StatusResponse:
