@@ -51,7 +51,7 @@ async def generate_question_suggestions(
 ) -> ChatQuestionSuggestionsResponse:
     collection_name = body.collection.strip()
     collection = await _assert_collection_allowed(user, collection_name)
-    runtime = await get_values(["chat_model", "chat_base_url", "chat_temperature"])
+    runtime = await get_values(["chat_provider", "chat_model", "chat_base_url", "chat_temperature"])
     model = body.model or runtime["chat_model"]
     temperature = body.temperature if body.temperature is not None else runtime["chat_temperature"]
     credentials = await _resolve_api_credentials(
@@ -60,7 +60,12 @@ async def generate_question_suggestions(
         SimpleNamespace(provider_api_key=None),
     )
     base_url = await _resolve_base_url(None, runtime["chat_base_url"])
-    assert_credentials_allowed_for_base_url(credentials, base_url, request_base_url=None)
+    assert_credentials_allowed_for_base_url(
+        credentials,
+        base_url,
+        request_base_url=None,
+        provider=runtime["chat_provider"],
+    )
     documents = await _sample_documents(session, collection["id"])
     chunks = await _sample_chunks(collection_name, collection, documents)
     text = await generate_questions_text(

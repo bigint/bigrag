@@ -105,7 +105,9 @@ async def collection_documents_stream(
                 order=order,
                 limit=limit,
                 offset=offset,
-                user=user,
+                cursor=None,
+                include_total=False,
+                _=user,
                 session=session,
             )
         )
@@ -263,6 +265,8 @@ async def backup_jobs_stream(
             lambda session: list_backup_jobs(
                 limit=limit,
                 offset=offset,
+                cursor=None,
+                include_total=False,
                 _=user,
                 session=session,
             )
@@ -329,6 +333,8 @@ async def access_logs_stream(
                 success=success,
                 limit=limit,
                 offset=offset,
+                cursor=None,
+                include_total=False,
                 _=user,
                 session=session,
             )
@@ -356,6 +362,8 @@ async def audit_stream(
                 resource_type=resource_type,
                 limit=limit,
                 offset=offset,
+                cursor=None,
+                include_total=False,
                 _=user,
                 session=session,
             )

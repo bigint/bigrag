@@ -83,6 +83,7 @@ def assert_credentials_allowed_for_base_url(
     base_url: str | None,
     *,
     request_base_url: str | None,
+    provider: str | None = None,
 ) -> None:
     if request_base_url is not None and any(
         cred.source == "instance chat key" for cred in credentials
@@ -91,6 +92,8 @@ def assert_credentials_allowed_for_base_url(
             "provider_base_url requires provider_api_key or a saved chat key; "
             "the instance chat key cannot be sent to a custom base URL."
         )
+    if provider == "openai_compatible":
+        return
     if (
         base_url is not None
         and not base_url.rstrip("/").startswith("https://api.openai.com")

@@ -68,7 +68,7 @@ async def _prepare_chat_turn(
     credentials = await _resolve_api_credentials(session, user, body)
     base_url = await _resolve_base_url(body.provider_base_url, runtime["chat_base_url"])
     assert_credentials_allowed_for_base_url(
-        credentials, base_url, request_base_url=body.provider_base_url
+        credentials, base_url, request_base_url=body.provider_base_url, provider=provider
     )
 
     try:
