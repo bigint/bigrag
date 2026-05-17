@@ -122,18 +122,18 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 ).all()
             }
 
-            download_semaphore = asyncio.Semaphore(4)
-
             async def _download(remote: RemoteConnectorFile):
-                async with download_semaphore:
-                    return await adapter.download(access_token=access_token, remote=remote)
+                return await adapter.download(access_token=access_token, remote=remote)
 
-            download_tasks = {
-                remote.id: asyncio.create_task(_download(remote)) for remote in remotes
-            }
-
-            try:
-                for index, remote in enumerate(remotes, start=1):
+            batch_size = 4
+            index = 0
+            for batch_start in range(0, len(remotes), batch_size):
+                batch = remotes[batch_start : batch_start + batch_size]
+                batch_results = await asyncio.gather(
+                    *[_download(r) for r in batch], return_exceptions=True
+                )
+                for remote, result in zip(batch, batch_results, strict=False):
+                    index += 1
                     manifest = manifests.get(remote.id)
                     await update_sync_progress(
                         session,
@@ -147,7 +147,9 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                     )
                     downloaded = None
                     try:
-                        downloaded = await download_tasks[remote.id]
+                        if isinstance(result, BaseException):
+                            raise result
+                        downloaded = result
                         await sync_downloaded_file(
                             session,
                             adapter=adapter,
@@ -185,20 +187,6 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                         processed_items=index,
                         total_items=len(remotes),
                     )
-            finally:
-                for task in download_tasks.values():
-                    if not task.done():
-                        task.cancel()
-                for task in download_tasks.values():
-                    try:
-                        result = await task
-                    except (asyncio.CancelledError, Exception):
-                        continue
-                    if result is not None:
-                        try:
-                            result.path.unlink()
-                        except OSError:
-                            pass
 
             missing = [
                 manifest
@@ -293,7 +281,16 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             source.status = "needs_reauth"
             source.last_error = adapter.reauth_message
             await fail_sync(session, job=job, source=source, message=str(exc), counters=counters)
-        except Exception as exc:
+        except asyncio.CancelledError:
+            await fail_sync(
+                session,
+                job=job,
+                source=source,
+                message="Sync cancelled",
+                counters=counters,
+            )
+            raise
+        except BaseException as exc:
             logger.exception(
                 "connector: sync job failed",
                 provider=adapter.provider,

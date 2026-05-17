@@ -100,8 +100,11 @@ async def create_sync_job(
         await ensure_writes_allowed()
     except MaintenanceActiveError as exc:
         raise ValueError(str(exc)) from exc
-    await session.execute(
-        sa.select(ConnectorSource.id).where(ConnectorSource.id == source.id).with_for_update()
+    locked_source = await session.scalar(
+        sa.select(ConnectorSource)
+        .where(ConnectorSource.id == source.id)
+        .where(ConnectorSource.status != "syncing")
+        .with_for_update()
     )
     existing = await session.scalar(
         sa.select(ConnectorSyncJob)
@@ -112,6 +115,8 @@ async def create_sync_job(
     )
     if existing is not None:
         return existing
+    if locked_source is None:
+        raise ValueError("Source is already syncing")
 
     source.status = "syncing"
     source.last_error = None

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import uuid
 from datetime import timedelta
 from typing import Any
 
@@ -29,6 +31,16 @@ from bigrag.services.connectors.google_drive_types import (
     _account_has_required_scope,
     google_drive_file_public,
 )
+
+_REFRESH_LOCKS: dict[uuid.UUID, asyncio.Lock] = {}
+
+
+def _refresh_lock_for(account_id: uuid.UUID) -> asyncio.Lock:
+    lock = _REFRESH_LOCKS.get(account_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _REFRESH_LOCKS[account_id] = lock
+    return lock
 
 
 async def get_google_config(session) -> ConnectorProviderConfig | None:
@@ -206,29 +218,39 @@ async def _access_token_for_account(
     if account.access_token and account.token_expires_at and account.token_expires_at > utcnow():
         return account.access_token
 
-    try:
-        payload = await google_drive_client.refresh_access_token(
-            config=config,
-            refresh_token=account.refresh_token,
-        )
-    except GoogleDriveAuthError:
-        account.status = "needs_reauth"
-        account.access_token = None
-        await session.execute(
-            sa.update(ConnectorSource)
-            .where(ConnectorSource.account_id == account.id)
-            .values(status="needs_reauth", last_error="Google account needs reconnection")
-        )
-        await session.commit()
-        raise
+    lock = _refresh_lock_for(account.id)
+    async with lock:
+        await session.refresh(account)
+        if (
+            account.access_token
+            and account.token_expires_at
+            and account.token_expires_at > utcnow()
+        ):
+            return account.access_token
 
-    account.access_token = payload["access_token"]
-    expires_in = int(payload.get("expires_in") or 3600)
-    account.token_expires_at = utcnow() + timedelta(seconds=max(60, expires_in - 60))
-    if payload.get("scope"):
-        account.scopes = str(payload["scope"]).split()
-    await session.commit()
-    return account.access_token
+        try:
+            payload = await google_drive_client.refresh_access_token(
+                config=config,
+                refresh_token=account.refresh_token,
+            )
+        except GoogleDriveAuthError:
+            account.status = "needs_reauth"
+            account.access_token = None
+            await session.execute(
+                sa.update(ConnectorSource)
+                .where(ConnectorSource.account_id == account.id)
+                .values(status="needs_reauth", last_error="Google account needs reconnection")
+            )
+            await session.commit()
+            raise
+
+        account.access_token = payload["access_token"]
+        expires_in = int(payload.get("expires_in") or 3600)
+        account.token_expires_at = utcnow() + timedelta(seconds=max(60, expires_in - 60))
+        if payload.get("scope"):
+            account.scopes = str(payload["scope"]).split()
+        await session.commit()
+        return account.access_token
 
 
 async def list_google_drive_files(

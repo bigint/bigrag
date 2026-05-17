@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import random
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -52,6 +54,23 @@ class GoogleDriveClient:
         if self._http_client is not None and not self._http_client.is_closed:
             await self._http_client.aclose()
         self._http_client = None
+
+    async def _request_with_retry(self, method: str, url: str, **kw: Any) -> httpx.Response:
+        client = self._client()
+        delay = 1.0
+        last: httpx.Response | None = None
+        for attempt in range(5):
+            response = await client.request(method, url, **kw)
+            if response.status_code not in (429, 500, 502, 503, 504):
+                return response
+            last = response
+            if attempt == 4:
+                break
+            sleep_for = min(delay, 64.0) + random.uniform(0, 1)
+            await asyncio.sleep(sleep_for)
+            delay = min(delay * 2, 64.0)
+        assert last is not None
+        return last
 
     async def exchange_code(
         self,
@@ -112,8 +131,8 @@ class GoogleDriveClient:
         return response.json()
 
     async def get_file(self, access_token: str, file_id: str) -> RemoteDriveFile:
-        client = self._client()
-        response = await client.get(
+        response = await self._request_with_retry(
+            "GET",
             f"https://www.googleapis.com/drive/v3/files/{file_id}",
             params={
                 "fields": GOOGLE_FILE_FIELDS,
@@ -153,9 +172,12 @@ class GoogleDriveClient:
     async def list_children(self, access_token: str, folder_id: str) -> list[RemoteDriveFile]:
         files: list[RemoteDriveFile] = []
         page_token: str | None = None
-        client = self._client()
+        seen_tokens: set[str] = set()
+        max_pages = 10000
+        pages = 0
         while True:
-            response = await client.get(
+            response = await self._request_with_retry(
+                "GET",
                 "https://www.googleapis.com/drive/v3/files",
                 params={
                     "q": f"'{folder_id}' in parents and trashed=false",
@@ -171,6 +193,24 @@ class GoogleDriveClient:
             files.extend(_remote_from_payload(item) for item in payload.get("files", []))
             page_token = payload.get("nextPageToken")
             if not page_token:
+                return files
+            if page_token in seen_tokens:
+                import warnings
+
+                warnings.warn(
+                    f"Google Drive list_children: repeated pageToken for folder {folder_id!r}",
+                    stacklevel=2,
+                )
+                return files
+            seen_tokens.add(page_token)
+            pages += 1
+            if pages >= max_pages:
+                import warnings
+
+                warnings.warn(
+                    f"Google Drive list_children: hit max_pages={max_pages} for {folder_id!r}",
+                    stacklevel=2,
+                )
                 return files
 
     async def list_files(
@@ -237,21 +277,34 @@ class GoogleDriveClient:
         total = 0
         client = self._client()
         try:
-            async with client.stream(
-                "GET",
-                url,
-                params=params,
-                headers={"Authorization": f"Bearer {access_token}"},
-            ) as response:
-                if response.status_code >= 400:
-                    await response.aread()
-                    self._raise_for_status(response)
-                async for chunk in response.aiter_bytes(chunk_size=64 * 1024):
-                    if not chunk:
+            delay = 1.0
+            for attempt in range(5):
+                hasher = hashlib.sha256()
+                total = 0
+                tmp.seek(0)
+                tmp.truncate(0)
+                async with client.stream(
+                    "GET",
+                    url,
+                    params=params,
+                    headers={"Authorization": f"Bearer {access_token}"},
+                ) as response:
+                    if response.status_code in (429, 500, 502, 503, 504) and attempt < 4:
+                        await response.aread()
+                        sleep_for = min(delay, 64.0) + random.uniform(0, 1)
+                        await asyncio.sleep(sleep_for)
+                        delay = min(delay * 2, 64.0)
                         continue
-                    hasher.update(chunk)
-                    tmp.write(chunk)
-                    total += len(chunk)
+                    if response.status_code >= 400:
+                        await response.aread()
+                        self._raise_for_status(response)
+                    async for chunk in response.aiter_bytes(chunk_size=64 * 1024):
+                        if not chunk:
+                            continue
+                        hasher.update(chunk)
+                        tmp.write(chunk)
+                        total += len(chunk)
+                    break
             tmp.flush()
         except BaseException:
             try:
