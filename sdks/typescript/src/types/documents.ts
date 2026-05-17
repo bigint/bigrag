@@ -52,10 +52,6 @@ export interface DocumentChunkListResponse {
   total: number;
 }
 
-export interface BatchStatusBody {
-  document_ids: string[];
-}
-
 export interface DocumentStatus {
   id: string;
   status: string;
@@ -72,10 +68,6 @@ export interface BatchStatusResponse {
 export interface BatchGetDocumentsResponse {
   documents: Document[];
   total: number;
-}
-
-export interface BatchDeleteBody {
-  document_ids: string[];
 }
 
 export interface BatchDeleteDocumentsResponse {
