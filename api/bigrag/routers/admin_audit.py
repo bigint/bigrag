@@ -12,6 +12,7 @@ from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_admin_session
 from bigrag.models.auth import AuditLogEntry, AuditLogListResponse
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
 
 logger = get_logger("bigrag.routers.admin_audit")
@@ -63,7 +64,9 @@ async def list_audit_log(
         try:
             cursor_tuple = decode_cursor(cursor)
         except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=400, detail=safe_error_detail(exc, "Invalid cursor.")
+            ) from exc
 
     stmt = (
         sa.select(AuditLog).where(*filters).order_by(AuditLog.created_at.desc(), AuditLog.id.desc())

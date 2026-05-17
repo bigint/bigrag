@@ -34,6 +34,7 @@ from bigrag.models.query import (
 from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
 from bigrag.services import access_log
 from bigrag.services.embedding import AVAILABLE_MODELS
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.retrieval import invalidate_collection_query_cache, retrieve, retrieve_multi
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.tenant_enforcement import require_tenant_filters, require_tenant_metadata
@@ -77,7 +78,11 @@ async def query_collection(
     try:
         embedding_model = get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        logger.warning("embedding model unavailable", error=repr(e))
+        raise HTTPException(
+            status_code=400,
+            detail=safe_error_detail(e, "Embedding provider is not available for this collection."),
+        ) from e
 
     top_k = body.top_k or collection.get("default_top_k", 10)
     min_score = (

@@ -26,6 +26,7 @@ from bigrag.services import audit
 from bigrag.services.client_ip import is_trusted_proxy
 from bigrag.services.connector_core import list_sync_jobs as list_connector_sync_jobs
 from bigrag.services.connector_registry import ConnectorRuntime, connector_runtime
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.runtime_settings import get_value
 
 router = APIRouter(prefix="/v1/connectors", tags=["connectors"])
@@ -102,11 +103,17 @@ async def connector_files(
             next_page_token=data["next_page_token"],
         )
     except route.config_error as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400, detail=safe_error_detail(exc, "Connector is not configured.")
+        ) from exc
     except route.auth_error as exc:
-        raise HTTPException(status_code=401, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=401, detail=safe_error_detail(exc, "Connector authentication failed.")
+        ) from exc
     except route.service_error as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=502, detail=safe_error_detail(exc, "Connector upstream error.")
+        ) from exc
 
 
 @router.get("/{provider_slug}/oauth/start", response_class=RedirectResponse)
@@ -127,7 +134,9 @@ async def connector_oauth_start(
             redirect_origin=await _allowed_spa_origin(request),
         )
     except route.config_error as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400, detail=safe_error_detail(exc, "Connector is not configured.")
+        ) from exc
     return RedirectResponse(auth_url)
 
 
@@ -149,7 +158,9 @@ async def connector_oauth_start_url(
             redirect_origin=await _allowed_spa_origin(request),
         )
     except route.config_error as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400, detail=safe_error_detail(exc, "Connector is not configured.")
+        ) from exc
     return {"auth_url": auth_url}
 
 
@@ -257,11 +268,17 @@ async def connector_source_create(
             metadata=body.metadata,
         )
     except route.config_error as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400, detail=safe_error_detail(exc, "Connector is not configured.")
+        ) from exc
     except route.auth_error as exc:
-        raise HTTPException(status_code=401, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=401, detail=safe_error_detail(exc, "Connector authentication failed.")
+        ) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=404, detail=safe_error_detail(exc, "Connector source not found.")
+        ) from exc
     account = await session.get(ConnectorAccount, source.account_id)
     audit.record(
         request,
@@ -297,7 +314,9 @@ async def connector_source_update(
             sync_interval_hours=body.sync_interval_hours,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=404, detail=safe_error_detail(exc, "Connector source not found.")
+        ) from exc
     account = await session.get(ConnectorAccount, source.account_id)
     return ConnectorSourceResponse(**route.source_public((source, account)))
 
@@ -314,7 +333,9 @@ async def connector_source_delete(
     try:
         await route.delete_source(session, user_id=user["id"], source_id=source_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=404, detail=safe_error_detail(exc, "Connector source not found.")
+        ) from exc
     audit.record(
         request,
         user=user,
@@ -343,7 +364,9 @@ async def connector_source_sync(
             trigger="manual",
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=404, detail=safe_error_detail(exc, "Connector source not found.")
+        ) from exc
     audit.record(
         request,
         user=user,

@@ -28,6 +28,7 @@ from bigrag.services.credential_check import (
     CredentialCheckError,
     verify_provider_credentials,
 )
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.event_tokens import (
     EVENT_TOKEN_TTL_SECONDS,
     create_event_token,
@@ -188,7 +189,9 @@ async def list_collections(
         try:
             cursor_tuple = decode_cursor(cursor)
         except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=400, detail=safe_error_detail(exc, "Invalid cursor.")
+            ) from exc
 
     if cursor_tuple is not None:
         stmt = apply_cursor(stmt, Collection.created_at, Collection.id, cursor_tuple).limit(
@@ -318,7 +321,11 @@ async def create_collection(
         )
         dimension = dimension_override or emb.dimension
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        logger.warning("embedding model unavailable", error=repr(e))
+        raise HTTPException(
+            status_code=400,
+            detail=safe_error_detail(e, "Embedding provider is not available."),
+        ) from e
 
     await _create_vector_store_collection(body, dimension)
 
@@ -699,7 +706,10 @@ async def create_collection_event_token(
     try:
         token = await create_event_token(user, name)
     except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=503,
+            detail=safe_error_detail(exc, "Event tokens are unavailable; check Redis."),
+        ) from exc
     return {"token": token, "expires_in": EVENT_TOKEN_TTL_SECONDS}
 
 

@@ -24,6 +24,7 @@ from bigrag.models.common import StatusResponse
 from bigrag.routers import is_unique_violation
 from bigrag.services import audit
 from bigrag.services.auth import hash_password
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
 
 logger = get_logger("bigrag.routers.admin_users")
@@ -59,7 +60,9 @@ async def list_users(
         try:
             cursor_tuple = decode_cursor(cursor)
         except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=400, detail=safe_error_detail(exc, "Invalid cursor.")
+            ) from exc
 
     stmt = sa.select(User).order_by(User.created_at.asc(), User.id.asc())
     if cursor_tuple is not None:

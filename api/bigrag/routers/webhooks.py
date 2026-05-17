@@ -25,6 +25,7 @@ from bigrag.models.webhook import (
     resolve_and_validate_url,
 )
 from bigrag.services import audit
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
 from bigrag.services.runtime_settings import get_value
 from bigrag.services.webhook import generate_secret, webhook_dispatcher
@@ -52,7 +53,9 @@ async def _validate_webhook_target(url: str) -> None:
     try:
         await resolve_and_validate_url(url)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400, detail=safe_error_detail(exc, "Webhook URL rejected.")
+        ) from exc
 
 
 def _webhook_response(wh: Webhook) -> WebhookResponse:
@@ -157,7 +160,9 @@ async def list_webhooks(
         try:
             cursor_tuple = decode_cursor(cursor)
         except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=400, detail=safe_error_detail(exc, "Invalid cursor.")
+            ) from exc
 
     stmt = sa.select(Webhook).order_by(Webhook.created_at.desc(), Webhook.id.desc())
     if cursor_tuple is not None:
@@ -281,7 +286,9 @@ async def list_deliveries(
         try:
             cursor_tuple = decode_cursor(cursor)
         except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=400, detail=safe_error_detail(exc, "Invalid cursor.")
+            ) from exc
 
     stmt = (
         sa.select(WebhookDelivery)

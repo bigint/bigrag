@@ -23,6 +23,7 @@ from bigrag.models.common import StatusResponse
 from bigrag.routers import validate_collection_name
 from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
 
 logger = get_logger("bigrag.routers.admin_api_keys")
@@ -82,7 +83,9 @@ async def list_api_keys(
         try:
             cursor_tuple = decode_cursor(cursor)
         except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=400, detail=safe_error_detail(exc, "Invalid cursor.")
+            ) from exc
 
     base = sa.select(ApiKey).where(sa.not_(_mcp_permissions_filter()))
     stmt = base.order_by(ApiKey.created_at.desc(), ApiKey.id.desc())
@@ -120,7 +123,7 @@ async def create_api_key(
     try:
         _validate_scopes(body.scopes)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise HTTPException(status_code=400, detail=safe_error_detail(e, "Invalid scopes.")) from e
 
     collection = await validate_collection_name(session, body.collection)
     permissions: dict = {}
@@ -192,7 +195,9 @@ async def update_api_key(
         try:
             _validate_scopes(body.scopes)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from e
+            raise HTTPException(
+                status_code=400, detail=safe_error_detail(e, "Invalid scopes.")
+            ) from e
         if body.scopes:
             existing["scopes"] = body.scopes
         else:

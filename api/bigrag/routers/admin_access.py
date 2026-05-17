@@ -21,6 +21,7 @@ from bigrag.models.access import (
 )
 from bigrag.services import redis_cache
 from bigrag.services.access_log import RAG_ACCESS_ACTIONS
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
 
 router = APIRouter(prefix="/v1/admin/access", tags=["admin:access"])
@@ -133,7 +134,9 @@ async def list_access_logs(
         try:
             cursor_tuple = decode_cursor(cursor)
         except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=400, detail=safe_error_detail(exc, "Invalid cursor.")
+            ) from exc
 
     stmt = (
         sa.select(AccessLog)

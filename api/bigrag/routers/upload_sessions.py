@@ -32,6 +32,7 @@ from bigrag.routers._documents import (
 )
 from bigrag.routers.documents_progress import document_progress, publish_queued_progress
 from bigrag.services import audit, collection_cache
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
@@ -322,7 +323,11 @@ async def create_upload_session(
     try:
         get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        logger.warning("embedding model unavailable", collection=collection_name, error=repr(e))
+        raise HTTPException(
+            status_code=400,
+            detail=safe_error_detail(e, "Embedding provider is not available for this collection."),
+        ) from e
     limits = await get_values(["max_upload_session_files", "max_upload_session_size_mb"])
     if body.total_files > limits["max_upload_session_files"]:
         raise HTTPException(
@@ -399,7 +404,11 @@ async def upload_session_file(
     try:
         get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        logger.warning("embedding model unavailable", collection=collection_name, error=repr(e))
+        raise HTTPException(
+            status_code=400,
+            detail=safe_error_detail(e, "Embedding provider is not available for this collection."),
+        ) from e
     upload_session = await _get_upload_session_for_update(
         db, collection["id"], session_id, user_id=uuid.UUID(user["id"])
     )

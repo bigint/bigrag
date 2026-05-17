@@ -32,3 +32,9 @@ def sanitize_message_text(text: str | None) -> str | None:
     cleaned = _SECRET_RE.sub("[REDACTED]", text)
     cleaned = _CONTEXTUAL_SECRET_RE.sub(r"\1\2[REDACTED]", cleaned)
     return cleaned[:500]
+
+
+def safe_error_detail(exc: BaseException, fallback: str) -> str:
+    if isinstance(exc, _PUBLIC_ERRORS):
+        return sanitize_message_text(str(exc)) or fallback
+    return fallback

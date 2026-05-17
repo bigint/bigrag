@@ -51,6 +51,7 @@ from bigrag.routers.documents_uploads import (
     validated_upload_to_temp,
 )
 from bigrag.services import audit, collection_cache
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
@@ -222,7 +223,11 @@ async def upload_document(
     try:
         get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        logger.warning("embedding model unavailable", collection=collection_name, error=repr(e))
+        raise HTTPException(
+            status_code=400,
+            detail=safe_error_detail(e, "Embedding provider is not available for this collection."),
+        ) from e
     logger.info("document upload", collection=collection_name, filename=file.filename)
 
     file_ext = upload_extension_or_400(file.filename)
@@ -371,7 +376,9 @@ async def list_documents(
         try:
             cursor_tuple = decode_cursor(cursor)
         except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=400, detail=safe_error_detail(exc, "Invalid cursor.")
+            ) from exc
 
     if cursor_tuple is not None:
         stmt = apply_cursor(
@@ -480,7 +487,11 @@ async def reprocess_document(
     try:
         get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        logger.warning("embedding model unavailable", collection=collection_name, error=repr(e))
+        raise HTTPException(
+            status_code=400,
+            detail=safe_error_detail(e, "Embedding provider is not available for this collection."),
+        ) from e
 
     if not await get_storage().exists(doc.file_path):
         raise HTTPException(
@@ -601,7 +612,11 @@ async def batch_upload_documents(
     try:
         get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        logger.warning("embedding model unavailable", collection=collection_name, error=repr(e))
+        raise HTTPException(
+            status_code=400,
+            detail=safe_error_detail(e, "Embedding provider is not available for this collection."),
+        ) from e
 
     if len(files) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 files per batch upload")

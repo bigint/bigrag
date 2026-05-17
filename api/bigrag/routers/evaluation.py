@@ -10,6 +10,7 @@ from bigrag.middleware.auth import get_current_user
 from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
 from bigrag.services import access_log
 from bigrag.services.collection_scope import assert_collection_matches_pin
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.retrieval import retrieve
 from bigrag.services.tenant_enforcement import require_tenant_filters
 
@@ -107,7 +108,11 @@ async def run_evaluation(
     try:
         embedding_model = get_embedding_model_for(collection)
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        logger.warning("embedding model unavailable", error=repr(e))
+        raise HTTPException(
+            status_code=400,
+            detail=safe_error_detail(e, "Embedding provider is not available for this collection."),
+        ) from e
 
     per_case: list[EvalPerCase] = []
     recall_sum = 0.0
