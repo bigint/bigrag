@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import uuid
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -18,7 +19,7 @@ def encode_cursor(created_at: datetime, id_: UUID | str) -> str:
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
 
 
-def decode_cursor(token: str) -> tuple[datetime, str]:
+def decode_cursor(token: str) -> tuple[datetime, UUID]:
     if not token:
         raise ValidationError("cursor is empty")
     padding = "=" * (-len(token) % 4)
@@ -37,16 +38,23 @@ def decode_cursor(token: str) -> tuple[datetime, str]:
         created_at = datetime.fromisoformat(created_at_raw)
     except ValueError as exc:
         raise ValidationError("cursor is malformed") from exc
-    return created_at, id_raw
+    if created_at.tzinfo is None:
+        raise ValidationError("cursor is malformed")
+    try:
+        id_ = uuid.UUID(id_raw)
+    except ValueError as exc:
+        raise ValidationError("cursor is malformed") from exc
+    return created_at, id_
 
 
 def apply_cursor(
     stmt: sa.sql.Select,
     created_col: sa.sql.ColumnElement,
     id_col: sa.sql.ColumnElement,
-    cursor: tuple[datetime, str] | None,
+    cursor: tuple[datetime, UUID] | None,
     direction: str = "desc",
 ) -> sa.sql.Select:
+    assert direction in {"asc", "desc"}
     if cursor is None:
         return stmt
     created_at, id_ = cursor

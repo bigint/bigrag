@@ -7,6 +7,7 @@ from pathlib import Path
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import Document
@@ -182,9 +183,20 @@ async def _persist_batch_upload_documents(
             await asyncio.gather(*put_tasks)
 
         if new_docs:
-            await session.flush()
-            await recount_collection_documents(session, collection["id"])
-            await session.commit()
+            try:
+                await session.flush()
+                await recount_collection_documents(session, collection["id"])
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                await _cleanup_stored_paths(stored_paths)
+                refetched = await _existing_documents_by_hash(session, collection, metadata, hashes)
+                rebuilt: list[tuple[Document, bool]] = []
+                for _file, _ext, _tmp, content_hash, _size in pending:
+                    existing = refetched.get(content_hash)
+                    if existing is not None:
+                        rebuilt.append((existing, True))
+                return rebuilt
     except Exception:
         await session.rollback()
         await _cleanup_stored_paths(stored_paths)
@@ -245,17 +257,32 @@ async def upload_document(
                 progress=await document_progress(existing, collection_name),
             )
 
-        doc = await persist_document(
-            session=session,
-            collection_name=collection_name,
-            collection=collection,
-            filename=file.filename or "document",
-            source=tmp_path,
-            file_size=file_size,
-            metadata=meta,
-            content_hash=content_hash,
-            raise_on_enqueue_failure=True,
-        )
+        try:
+            doc = await persist_document(
+                session=session,
+                collection_name=collection_name,
+                collection=collection,
+                filename=file.filename or "document",
+                source=tmp_path,
+                file_size=file_size,
+                metadata=meta,
+                content_hash=content_hash,
+                raise_on_enqueue_failure=True,
+            )
+        except IntegrityError:
+            existing = await session.scalar(content_hash_match(collection, content_hash, meta))
+            if existing is not None:
+                logger.info(
+                    "upload: integrity dedup hit — returning existing doc",
+                    content_hash=content_hash[:12],
+                    doc_id=str(existing.id),
+                )
+                return document_response(
+                    existing,
+                    deduped=True,
+                    progress=await document_progress(existing, collection_name),
+                )
+            raise
     finally:
         try:
             tmp_path.unlink()
@@ -310,7 +337,10 @@ async def list_documents(
     stmt = (
         sa.select(Document)
         .where(Document.collection_id == collection["id"])
-        .order_by(sort_column.asc() if order == "asc" else sort_column.desc(), Document.id.desc())
+        .order_by(
+            sort_column.asc() if order == "asc" else sort_column.desc(),
+            Document.id.asc() if order == "asc" else Document.id.desc(),
+        )
     )
     count_stmt = (
         sa.select(sa.func.count())
