@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.session import get_session
 from bigrag.middleware.auth import require_admin_session
-from bigrag.models.common import StatusResponse
+from bigrag.models import StatusResponse
 from bigrag.models.instance_settings import (
     InstanceSettingsResponse,
     InstanceSettingsTestResponse,

@@ -13,13 +13,13 @@ from bigrag.exceptions import ValidationError
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_auth_principals, require_admin_session
+from bigrag.models import StatusResponse
 from bigrag.models.auth import (
     CreateUserRequest,
     UpdateUserRequest,
     UserListResponse,
     UserResponse,
 )
-from bigrag.models.common import StatusResponse
 from bigrag.routers import is_unique_violation
 from bigrag.services import audit
 from bigrag.services.auth import hash_password

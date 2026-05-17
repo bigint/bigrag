@@ -11,7 +11,7 @@ from bigrag.db.session import get_session
 from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
-from bigrag.models.common import StatusResponse
+from bigrag.models import StatusResponse
 from bigrag.models.document import (
     DocumentListResponse,
     DocumentResponse,

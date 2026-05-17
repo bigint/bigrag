@@ -13,6 +13,7 @@ from bigrag.db.session import get_session
 from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
+from bigrag.models import StatusResponse
 from bigrag.models.collection import (
     CollectionListResponse,
     CollectionResponse,
@@ -20,7 +21,6 @@ from bigrag.models.collection import (
     CreateCollectionRequest,
     UpdateCollectionRequest,
 )
-from bigrag.models.common import StatusResponse
 from bigrag.services import audit, collection_cache
 from bigrag.services.credential_check import (
     CredentialCheckError,

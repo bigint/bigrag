@@ -19,6 +19,7 @@ from bigrag.middleware.auth import (
     require_session,
     session_expiry,
 )
+from bigrag.models import StatusResponse
 from bigrag.models.auth import (
     ChangePasswordRequest,
     LoginRequest,
@@ -28,7 +29,6 @@ from bigrag.models.auth import (
     UserResponse,
     WhoamiResponse,
 )
-from bigrag.models.common import StatusResponse
 from bigrag.services import audit
 from bigrag.services.auth import (
     DUMMY_PASSWORD_HASH,

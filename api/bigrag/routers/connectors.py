@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import ConnectorAccount
 from bigrag.db.session import get_session
 from bigrag.middleware.auth import require_session
-from bigrag.models.common import StatusResponse
+from bigrag.models import StatusResponse
 from bigrag.models.connector import (
     ConnectorAccountResponse,
     ConnectorFileListResponse,

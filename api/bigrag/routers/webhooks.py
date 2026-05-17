@@ -12,7 +12,7 @@ from bigrag.exceptions import ValidationError
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_admin_session
-from bigrag.models.common import StatusResponse
+from bigrag.models import StatusResponse
 from bigrag.models.webhook import (
     CreateWebhookRequest,
     CreateWebhookResponse,

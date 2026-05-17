@@ -12,6 +12,7 @@ from bigrag.exceptions import ValidationError
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_api_key_principal, require_admin_session
+from bigrag.models import StatusResponse
 from bigrag.models.auth import (
     ApiKeyListResponse,
     ApiKeyResponse,
@@ -19,7 +20,6 @@ from bigrag.models.auth import (
     CreateApiKeyResponse,
     UpdateApiKeyRequest,
 )
-from bigrag.models.common import StatusResponse
 from bigrag.routers import validate_collection_name
 from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
