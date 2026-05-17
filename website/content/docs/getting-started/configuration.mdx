@@ -75,6 +75,8 @@ The same surface is available through [`/v1/admin/settings`](/docs/api-reference
 |------|----------|
 | Security | Trusted proxies, provider URL allow-lists, embedding-cache mode, and private-network escape hatches. CORS origins and session-cookie policy are still supported, but you manage them from deployment config or the instance settings API instead of the Security tab. |
 | Data | Upload limits, OCR, ingestion workers, queue depth, webhook delivery limits, and retention windows. |
+
+Connector sync downloads use the same upload-limit settings, so synced source files are rejected when they exceed the configured maximum upload size.
 | Data Storage (`/data-storage`) | Storage backend, S3-compatible bucket, endpoint, region, prefix, credentials, and path-style behavior. |
 | Models (`/models`) | Default embedding provider, model, dimension, key, base URL, cache TTLs, chat provider, chat model, temperature, history count, and context budget. |
 | Vector Storage (`/vector-storage`) | Provider tabs for Qdrant URL, readiness behavior, and HNSW tuning or turbopuffer API key, region, and namespace prefix. |

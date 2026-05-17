@@ -123,71 +123,58 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 ).all()
             }
 
-            async def _download(remote: RemoteConnectorFile):
-                return await adapter.download(access_token=access_token, remote=remote)
-
-            batch_size = 4
-            index = 0
-            for batch_start in range(0, len(remotes), batch_size):
-                batch = remotes[batch_start : batch_start + batch_size]
-                batch_results = await asyncio.gather(
-                    *[_download(r) for r in batch], return_exceptions=True
+            for index, remote in enumerate(remotes, start=1):
+                manifest = manifests.get(remote.id)
+                await update_sync_progress(
+                    session,
+                    job=job,
+                    counters=counters,
+                    phase="syncing",
+                    message=f"Syncing {remote.name}",
+                    current_item=remote,
+                    processed_items=index - 1,
+                    total_items=len(remotes),
                 )
-                for remote, result in zip(batch, batch_results, strict=False):
-                    index += 1
-                    manifest = manifests.get(remote.id)
-                    await update_sync_progress(
+                downloaded = None
+                try:
+                    downloaded = await adapter.download(access_token=access_token, remote=remote)
+                    await sync_downloaded_file(
                         session,
-                        job=job,
+                        adapter=adapter,
+                        source=source,
+                        collection=collection,
+                        manifest=manifest,
+                        downloaded=downloaded,
                         counters=counters,
-                        phase="syncing",
-                        message=f"Syncing {remote.name}",
-                        current_item=remote,
-                        processed_items=index - 1,
-                        total_items=len(remotes),
                     )
-                    downloaded = None
-                    try:
-                        if isinstance(result, BaseException):
-                            raise result
-                        downloaded = result
-                        await sync_downloaded_file(
-                            session,
-                            adapter=adapter,
-                            source=source,
-                            collection=collection,
-                            manifest=manifest,
-                            downloaded=downloaded,
-                            counters=counters,
-                        )
-                    except (InvalidFileContentError, ValueError) as exc:
-                        counters.add_error(remote.id, remote.name, str(exc))
-                    except Exception as exc:
-                        logger.warning(
-                            "connector: file sync failed",
-                            provider=adapter.provider,
-                            source_id=str(source.id),
-                            remote_id=remote.id,
-                            error_type=exc.__class__.__name__,
-                            error=str(exc),
-                        )
-                        counters.add_error(remote.id, remote.name, str(exc))
-                    finally:
-                        if downloaded is not None:
-                            try:
-                                downloaded.path.unlink()
-                            except OSError:
-                                pass
-                    await update_sync_progress(
-                        session,
-                        job=job,
-                        counters=counters,
-                        phase="syncing",
-                        message=f"Synced {index} of {len(remotes)} Drive files",
-                        current_item=remote,
-                        processed_items=index,
-                        total_items=len(remotes),
+                except (InvalidFileContentError, ValueError) as exc:
+                    counters.add_error(remote.id, remote.name, str(exc))
+                except Exception as exc:
+                    logger.warning(
+                        "connector: file sync failed",
+                        provider=adapter.provider,
+                        source_id=str(source.id),
+                        remote_id=remote.id,
+                        error_type=exc.__class__.__name__,
+                        error=str(exc),
                     )
+                    counters.add_error(remote.id, remote.name, str(exc))
+                finally:
+                    if downloaded is not None:
+                        try:
+                            downloaded.path.unlink()
+                        except OSError:
+                            pass
+                await update_sync_progress(
+                    session,
+                    job=job,
+                    counters=counters,
+                    phase="syncing",
+                    message=f"Synced {index} of {len(remotes)} Drive files",
+                    current_item=remote,
+                    processed_items=index,
+                    total_items=len(remotes),
+                )
 
             missing = [
                 manifest
