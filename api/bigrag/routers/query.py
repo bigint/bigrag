@@ -212,8 +212,10 @@ async def multi_collection_query(
     embedding_models = {}
     reranking_configs = {}
     vector_store_providers = {}
-    for col_name in body.collections:
-        collection = await get_collection_or_404(col_name)
+    resolved_collections = await asyncio.gather(
+        *[get_collection_or_404(col_name) for col_name in body.collections]
+    )
+    for col_name, collection in zip(body.collections, resolved_collections, strict=True):
         require_tenant_filters(collection, body.filters)
         try:
             embedding_models[col_name] = get_embedding_model_for(collection)
@@ -272,35 +274,38 @@ async def batch_query(
     )
     logger.info("batch-query", queries=len(body.queries))
 
+    batch_semaphore = asyncio.Semaphore(8)
+
     async def run_one(item: BatchQueryItem) -> BatchQueryResultItem:
-        collection = await get_collection_or_404(item.collection)
-        require_tenant_filters(collection, item.filters)
-        try:
-            embedding_model = get_embedding_model_for(collection)
-        except (ImportError, ValueError) as e:
-            msg = f"Collection '{item.collection}': {e}"
-            raise HTTPException(status_code=400, detail=msg) from e
+        async with batch_semaphore:
+            collection = await get_collection_or_404(item.collection)
+            require_tenant_filters(collection, item.filters)
+            try:
+                embedding_model = get_embedding_model_for(collection)
+            except (ImportError, ValueError) as e:
+                msg = f"Collection '{item.collection}': {e}"
+                raise HTTPException(status_code=400, detail=msg) from e
 
-        outcome = await retrieve(
-            collection_name=item.collection,
-            query=item.query,
-            embedding_model=embedding_model,
-            top_k=item.top_k,
-            filters=item.filters,
-            min_score=item.min_score,
-            search_mode=item.search_mode,
-            reranking_config=get_reranking_config(collection),
-            rerank_override=item.rerank,
-            vector_store_provider=collection.get("vector_store_provider"),
-        )
+            outcome = await retrieve(
+                collection_name=item.collection,
+                query=item.query,
+                embedding_model=embedding_model,
+                top_k=item.top_k,
+                filters=item.filters,
+                min_score=item.min_score,
+                search_mode=item.search_mode,
+                reranking_config=get_reranking_config(collection),
+                rerank_override=item.rerank,
+                vector_store_provider=collection.get("vector_store_provider"),
+            )
 
-        results = await _results_with_document_filenames(outcome.results)
-        return BatchQueryResultItem(
-            results=[QueryResult(**_result_to_dict(r)) for r in results],
-            query=item.query,
-            collection=item.collection,
-            total=len(outcome.results),
-        )
+            results = await _results_with_document_filenames(outcome.results)
+            return BatchQueryResultItem(
+                results=[QueryResult(**_result_to_dict(r)) for r in results],
+                query=item.query,
+                collection=item.collection,
+                total=len(outcome.results),
+            )
 
     results = await asyncio.gather(*[run_one(item) for item in body.queries])
     access_log.set_context(

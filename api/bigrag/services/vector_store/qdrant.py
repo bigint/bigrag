@@ -354,29 +354,51 @@ class QdrantVectorStore:
         if not await self._run_with_retry(client.collection_exists, col):
             return [], 0
 
+        doc_filter = models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="document_id",
+                    match=models.MatchValue(value=document_id),
+                )
+            ]
+        )
+
+        try:
+            count_resp = await self._run_with_retry(
+                client.count,
+                collection_name=col,
+                count_filter=doc_filter,
+                exact=True,
+            )
+            total = int(getattr(count_resp, "count", 0))
+        except Exception:
+            total = 0
+
+        needed = offset + max(limit, 0)
+        if needed <= 0:
+            return [], total
+
         results = []
         next_offset = None
+        page_size = min(max(needed, 256), 10000)
         while True:
             batch, next_offset = await self._run_with_retry(
                 client.scroll,
                 collection_name=col,
-                scroll_filter=models.Filter(
-                    must=[
-                        models.FieldCondition(
-                            key="document_id",
-                            match=models.MatchValue(value=document_id),
-                        )
-                    ]
-                ),
+                scroll_filter=doc_filter,
                 with_payload=True,
                 with_vectors=False,
-                limit=10000,
+                limit=page_size,
                 offset=next_offset,
             )
             results.extend(batch)
             if next_offset is None:
                 break
-        return _chunk_rows_from_payloads([r.payload or {} for r in results], limit, offset)
+            if total and len(results) >= total:
+                break
+        payloads = [r.payload or {} for r in results]
+        rows, computed_total = _chunk_rows_from_payloads(payloads, limit, offset)
+        return rows, total or computed_total
 
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         col = self._col(collection)
@@ -449,7 +471,7 @@ class QdrantVectorStore:
                 scroll_filter=combined_filter,
                 with_payload=True,
                 with_vectors=False,
-                limit=top_k * 3,
+                limit=top_k * 10,
             )
         except _TRANSIENT_ERRORS:
             raise
@@ -503,7 +525,8 @@ class QdrantVectorStore:
         out = []
         offset = None
         while True:
-            points, offset = await client.scroll(
+            points, offset = await self._run_with_retry(
+                client.scroll,
                 collection_name=col,
                 limit=256,
                 offset=offset,

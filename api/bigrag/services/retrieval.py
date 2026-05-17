@@ -78,7 +78,8 @@ def _keyword_score(text: str, query_terms: list[str]) -> float:
     text_lower = text.lower()
     if not query_terms:
         return 0.0
-    matches = sum(1 for term in query_terms if term in text_lower)
+    patterns = [re.compile(r"\b" + re.escape(term) + r"\b") for term in query_terms]
+    matches = sum(1 for pat in patterns if pat.search(text_lower))
     return matches / len(query_terms)
 
 
@@ -140,7 +141,14 @@ async def invalidate_collection_query_cache(collection_name: str) -> None:
     redis = redis_cache.get_redis()
     if redis is None:
         return
-    await redis.incr(f"{_QUERY_EPOCH_PREFIX}{collection_name}")
+    key = f"{_QUERY_EPOCH_PREFIX}{collection_name}"
+    await redis.incr(key)
+    try:
+        ttl = await get_value("query_result_cache_ttl")
+    except Exception:
+        ttl = 0
+    expire_seconds = max(int(ttl) * 2, 3600) if ttl and int(ttl) > 0 else 172800
+    await redis.expire(key, expire_seconds)
 
 
 async def _embed_query_with_cache(
@@ -428,17 +436,18 @@ async def retrieve(
         timings["embed_ms"] = (time.monotonic() - t0) * 1000
 
         t0 = time.monotonic()
+        fusion_pool = min(top_k * 5, MAX_TOP_K)
         semantic_task = vector_store.search(
             collection=collection_name,
             query_embedding=query_embedding,
-            top_k=top_k,
+            top_k=fusion_pool,
             filters=filter_expr,
             provider=vector_store_provider,
         )
         keyword_task = vector_store.text_search(
             collection=collection_name,
             query_terms=query_terms,
-            top_k=top_k,
+            top_k=fusion_pool,
             filters=filter_expr,
             provider=vector_store_provider,
         )

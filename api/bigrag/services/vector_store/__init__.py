@@ -138,9 +138,9 @@ class VectorStore:
             self._configured_providers = set(other._configured_providers)
             self._fallback_provider = other._fallback_provider
             self._sync_client()
+            await _close_backends(old_backends, log_errors=True)
             self._swapping = False
             self._condition.notify_all()
-        await _close_backends(old_backends, log_errors=True)
 
     @asynccontextmanager
     async def _backend(self, provider: VectorStoreProvider) -> AsyncIterator[VectorStoreBackend]:
