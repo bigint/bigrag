@@ -13,6 +13,7 @@ from bigrag.services.crypto import EncryptedString
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (sa.Index("idx_users_created_at_id", "created_at", "id"),)
 
     id: Mapped[UUIDpk]
     email: Mapped[str] = mapped_column(sa.Text, unique=True, nullable=False)
@@ -63,6 +64,7 @@ class ApiKey(Base):
         sa.Index("idx_api_keys_expires_at", "expires_at"),
         sa.Index("idx_api_keys_active", "active"),
         sa.Index("idx_api_keys_prefix", "prefix"),
+        sa.Index("idx_api_keys_created_at_id", sa.desc("created_at"), sa.desc("id")),
     )
 
     id: Mapped[UUIDpk]
@@ -82,7 +84,10 @@ class ApiKey(Base):
 
 class Collection(Base):
     __tablename__ = "collections"
-    __table_args__ = (sa.Index("idx_collections_name", "name"),)
+    __table_args__ = (
+        sa.Index("idx_collections_name", "name"),
+        sa.Index("idx_collections_created_at_id", sa.desc("created_at"), sa.desc("id")),
+    )
 
     id: Mapped[UUIDpk]
     name: Mapped[str] = mapped_column(sa.Text, unique=True, nullable=False)
@@ -313,6 +318,7 @@ class BackupJob(Base):
     __table_args__ = (
         sa.Index("idx_backup_jobs_created_at", "created_at"),
         sa.Index("idx_backup_jobs_status", "status"),
+        sa.Index("idx_backup_jobs_created_at_id", sa.desc("created_at"), sa.desc("id")),
         sa.CheckConstraint(
             "status IN ('pending', 'running', 'succeeded', 'failed')",
             name="backup_jobs_status_check",
@@ -367,6 +373,7 @@ class ConnectorAccount(Base):
     __tablename__ = "connector_accounts"
     __table_args__ = (
         sa.Index("idx_connector_accounts_user_provider", "user_id", "provider"),
+        sa.Index("idx_connector_accounts_oauth_state", "oauth_state"),
         sa.UniqueConstraint("user_id", "provider", name="uq_connector_accounts_user_provider"),
         sa.CheckConstraint(
             "provider <> ''",
@@ -548,7 +555,11 @@ class ConnectorSyncJob(Base):
 
 class Webhook(Base):
     __tablename__ = "webhooks"
-    __table_args__ = (sa.Index("idx_webhooks_created_by", "created_by"),)
+    __table_args__ = (
+        sa.Index("idx_webhooks_created_by", "created_by"),
+        sa.Index("idx_webhooks_active", "active"),
+        sa.Index("idx_webhooks_created_at_id", sa.desc("created_at"), sa.desc("id")),
+    )
 
     id: Mapped[UUIDpk]
     url: Mapped[str] = mapped_column(sa.Text, nullable=False)
@@ -567,6 +578,12 @@ class WebhookDelivery(Base):
     __table_args__ = (
         sa.Index("idx_webhook_deliveries_webhook_id", "webhook_id"),
         sa.Index("idx_webhook_deliveries_status", "status"),
+        sa.Index(
+            "idx_webhook_deliveries_pending_retry",
+            "status",
+            "next_retry_at",
+            "created_at",
+        ),
     )
 
     id: Mapped[UUIDpk]

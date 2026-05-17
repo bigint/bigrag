@@ -83,5 +83,3 @@ def downgrade() -> None:
     op.execute("DROP TRIGGER IF EXISTS audit_log_no_content_update ON audit_log")
     op.execute("DROP FUNCTION IF EXISTS audit_log_block_delete()")
     op.execute("DROP FUNCTION IF EXISTS audit_log_block_content_modifications()")
-    op.execute("CREATE RULE no_audit_update AS ON UPDATE TO audit_log DO INSTEAD NOTHING")
-    op.execute("CREATE RULE no_audit_delete AS ON DELETE TO audit_log DO INSTEAD NOTHING")
