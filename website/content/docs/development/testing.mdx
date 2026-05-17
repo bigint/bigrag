@@ -33,6 +33,8 @@ The admin app scripts generate and clean `app/src/routeTree.gen.ts` before Vite 
 
 CI currently keeps formatter, lint, typecheck, SDK build, docs build, admin UI build, and Rust formatting and compile checks. It does not run package-level test or coverage jobs.
 
+The E2E workflow uses the local fake OpenAI service only. There is no maintained real OpenAI smoke job.
+
 ## E2E plan
 
 Future test coverage should be rebuilt around end-to-end flows that exercise realistic API, SDK, and admin UI behavior together. Add new commands and expectations here only after that E2E layer exists.

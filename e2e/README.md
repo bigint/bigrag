@@ -13,8 +13,7 @@ stack, runs ~200 tests, and tears it down. CI runs the same target on every
 PR.
 
 OpenAI cost is eliminated by routing `BIGRAG_EMBEDDING_*` and `BIGRAG_CHAT_*`
-at a small in-cluster fake (`fake-openai`). An opt-in smoke pass still
-validates the real OpenAI integration on a nightly cadence.
+at a small in-cluster fake (`fake-openai`).
 
 ## Prerequisites
 
@@ -43,7 +42,6 @@ make e2e       # up, test, down
 | `make test-sdk-py` | Runs Python SDK pytest suite                                   |
 | `make test-sdk-ts` | Runs TypeScript SDK vitest suite                               |
 | `make test-ui` | Runs Playwright UI suite                                           |
-| `make test-real` | Opt-in real-OpenAI smoke (`BIGRAG_E2E_REAL_OPENAI=1`)            |
 | `make test`    | All four suites (api + sdk-py + sdk-ts + ui)                       |
 | `make e2e`     | `up` → `test` → `down` (full end-to-end run)                       |
 
@@ -83,7 +81,6 @@ The fakes live in `stubs/`:
 | Mode                              | Approx cost per run |
 |-----------------------------------|---------------------|
 | `make e2e` (default)              | $0 — everything goes through `fake-openai` |
-| `make test-real`                  | ~$0.005 — small opt-in OpenAI smoke pass |
 
 To prove zero leakage, the suite includes a network assertion that no
 request reaches `api.openai.com`.
@@ -95,8 +92,7 @@ e2e/tests/
 ├── api/                 # REST endpoint coverage (pytest + httpx)
 ├── sdk_python/          # Python SDK (`bigrag`) contract tests
 ├── sdk_typescript/      # TypeScript SDK (`@bigrag/client`) vitest suite
-├── ui/                  # Playwright specs (10 critical flows)
-└── smoke_real_openai/   # Opt-in real-OpenAI smoke (skipped unless env set)
+└── ui/                  # Playwright specs (10 critical flows)
 ```
 
 ## Adding a new test
@@ -131,7 +127,6 @@ name limit. Each fixture cleans up in teardown so the suite is safe under
 | Python SDK       | 7     | 59    |
 | TypeScript SDK   | 6     | 47    |
 | Playwright UI    | 10    | 15    |
-| Real-OpenAI smoke| 3     | 3     |
 
 **Endpoint coverage:** 121 / 121 declared `@router.*` decorators across
 `api/bigrag/routers/` are exercised by at least one test path.

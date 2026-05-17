@@ -1,4 +1,4 @@
-.PHONY: up down logs install test-api test-sdk-py test-sdk-ts test-ui test-real test e2e wait-ready
+.PHONY: up down logs install test-api test-sdk-py test-sdk-ts test-ui test e2e wait-ready
 
 COMPOSE = docker compose -f ../docker-compose.yml -f docker-compose.e2e.yml
 API_BASE ?= http://localhost:4000
@@ -38,9 +38,6 @@ test-sdk-ts:
 
 test-ui:
 	pnpm playwright test
-
-test-real:
-	BIGRAG_E2E_REAL_OPENAI=1 uv run pytest tests/smoke_real_openai -v
 
 test: test-api test-sdk-py test-sdk-ts test-ui
 
