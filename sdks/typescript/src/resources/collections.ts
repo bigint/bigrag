@@ -83,7 +83,8 @@ export class CollectionsResource {
     });
 
     if (!response.ok) {
-      throw errorForStatus(response.status, response.statusText);
+      const message = await response.text().catch(() => response.statusText);
+      throw errorForStatus(response.status, message);
     }
 
     yield* parseSSEStream(response);

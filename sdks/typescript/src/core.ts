@@ -13,6 +13,7 @@ export interface BigRAGOptions {
   maxRetries?: number;
   fetch?: typeof globalThis.fetch;
   autoIdempotencyKey?: boolean;
+  signal?: AbortSignal;
 }
 
 export interface RequestClient {
@@ -23,23 +24,36 @@ export interface RequestClient {
       json?: unknown;
       params?: Record<string, string>;
       idempotencyKey?: string | null;
+      signal?: AbortSignal;
     },
   ): Promise<T>;
 
   _requestFormData<T>(
     path: string,
     formData: FormData,
-    opts?: { idempotencyKey?: string | null },
+    opts?: { idempotencyKey?: string | null; signal?: AbortSignal },
   ): Promise<T>;
 
   readonly baseUrl: string;
 
   readonly apiKey: string;
 
+  readonly timeout: number;
+
   readonly _fetch: typeof globalThis.fetch;
 }
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const SAFE_METHODS = new Set(["GET", "PUT", "DELETE"]);
+
+function combineSignals(signals: (AbortSignal | undefined)[]): AbortSignal | undefined {
+  const filtered = signals.filter((s): s is AbortSignal => s !== undefined);
+  if (filtered.length === 0) return undefined;
+  if (filtered.length === 1) return filtered[0];
+  const anyFn = (AbortSignal as unknown as { any?: (s: AbortSignal[]) => AbortSignal }).any;
+  if (typeof anyFn === "function") return anyFn(filtered);
+  return filtered[0];
+}
 
 function randomIdempotencyKey(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -79,22 +93,29 @@ export class BigRAGCore implements RequestClient {
     return h;
   }
 
-  async _fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  async _fetchWithRetry(
+    url: string,
+    init: RequestInit,
+    opts?: { signal?: AbortSignal; safeToRetry?: boolean },
+  ): Promise<Response> {
     let lastError: Error | undefined;
+    const safeToRetry = opts?.safeToRetry ?? false;
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       if (attempt > 0) {
-        await sleep(Math.min(0.5 * 2 ** attempt, 4) * 1000);
+        const backoff = Math.min(0.5 * 2 ** attempt, 4) * 1000 * (0.5 + Math.random() * 0.5);
+        await sleep(backoff);
       }
 
       let response: Response;
       try {
         response = await this._fetch(url, {
           ...init,
-          signal: AbortSignal.timeout(this.timeout),
+          signal: combineSignals([opts?.signal, AbortSignal.timeout(this.timeout)]),
         });
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
+        if (opts?.signal?.aborted) throw lastError;
         if (lastError.name === "TimeoutError" || lastError.name === "AbortError") {
           if (attempt < this.maxRetries) continue;
           throw new APITimeoutError(lastError.message);
@@ -103,12 +124,18 @@ export class BigRAGCore implements RequestClient {
         throw new APIConnectionError(lastError.message);
       }
 
-      if (response.status >= 500 && attempt < this.maxRetries) {
+      if (response.status >= 500 && attempt < this.maxRetries && safeToRetry) {
         lastError = new Error(await response.text().catch(() => "Server error"));
         continue;
       }
 
       if (response.status === 429 && attempt < this.maxRetries) {
+        const retryAfterHeader = response.headers.get("Retry-After");
+        const retryAfterMs = retryAfterHeader ? Math.max(0, Number(retryAfterHeader)) * 1000 : 0;
+        await response.text().catch(() => undefined);
+        const computedBackoff =
+          Math.min(0.5 * 2 ** (attempt + 1), 4) * 1000 * (0.5 + Math.random() * 0.5);
+        await sleep(Math.max(retryAfterMs, computedBackoff));
         lastError = new Error("Rate limited");
         continue;
       }
@@ -154,6 +181,7 @@ export class BigRAGCore implements RequestClient {
       json?: unknown;
       params?: Record<string, string>;
       idempotencyKey?: string | null;
+      signal?: AbortSignal;
     },
   ): Promise<T> {
     let url = `${this.baseUrl}${path}`;
@@ -170,7 +198,12 @@ export class BigRAGCore implements RequestClient {
     const idemKey = this._resolveIdempotencyKey(method, opts?.idempotencyKey);
     if (idemKey) headers["Idempotency-Key"] = idemKey;
 
-    const response = await this._fetchWithRetry(url, { method, headers, body });
+    const safeToRetry = SAFE_METHODS.has(method) || idemKey !== null;
+    const response = await this._fetchWithRetry(
+      url,
+      { method, headers, body },
+      { signal: opts?.signal, safeToRetry },
+    );
 
     if (response.status === 204) return { status: "ok" } as T;
     const text = await response.text();
@@ -181,17 +214,22 @@ export class BigRAGCore implements RequestClient {
   async _requestFormData<T>(
     path: string,
     formData: FormData,
-    opts?: { idempotencyKey?: string | null },
+    opts?: { idempotencyKey?: string | null; signal?: AbortSignal },
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = { ...this._headers() };
     const idemKey = this._resolveIdempotencyKey("POST", opts?.idempotencyKey);
     if (idemKey) headers["Idempotency-Key"] = idemKey;
-    const response = await this._fetchWithRetry(url, {
-      method: "POST",
-      headers,
-      body: formData,
-    });
+    const safeToRetry = idemKey !== null;
+    const response = await this._fetchWithRetry(
+      url,
+      {
+        method: "POST",
+        headers,
+        body: formData,
+      },
+      { signal: opts?.signal, safeToRetry },
+    );
     if (response.status === 204) return { status: "ok" } as T;
     const text = await response.text();
     if (!text) return { status: "ok" } as T;

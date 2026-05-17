@@ -286,6 +286,7 @@ export class AdminRealtimeResource {
       method: "GET",
       headers,
       credentials: "include",
+      signal: AbortSignal.timeout(this._client.timeout),
     });
     if (!response.ok || !response.body) {
       const message = await response.text().catch(() => response.statusText);

@@ -11,11 +11,19 @@ export async function normalizeFileInput(file: FileInput): Promise<{ blob: Blob;
   }
 
   if (typeof file === "object" && "path" in file) {
-    const { readFile } = await import("node:fs/promises");
+    const { createReadStream, statSync } = await import("node:fs");
     const { basename } = await import("node:path");
-    const data = await readFile(file.path);
+    const { Readable } = await import("node:stream");
     const name = file.name ?? basename(file.path);
-    return { blob: new Blob([data]), name };
+    const size = statSync(file.path).size;
+    const nodeStream = createReadStream(file.path);
+    const webStream = (
+      Readable as unknown as { toWeb: (s: NodeJS.ReadableStream) => ReadableStream }
+    ).toWeb(nodeStream);
+    const blob = await new Response(webStream, {
+      headers: { "Content-Length": String(size) },
+    }).blob();
+    return { blob, name };
   }
 
   throw new Error("Unsupported file input type");

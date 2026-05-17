@@ -14,9 +14,19 @@ class SSEParseError extends Error {
 export interface SSEFrame {
   event: string;
   data: string;
+  id?: string;
+  retry?: number;
 }
 
-export async function* parseSSEFrames(response: Response): AsyncGenerator<SSEFrame> {
+export interface SSEState {
+  lastEventId?: string;
+  retryMs?: number;
+}
+
+export async function* parseSSEFrames(
+  response: Response,
+  state?: SSEState,
+): AsyncGenerator<SSEFrame> {
   const body = response.body;
   if (!body) return;
 
@@ -25,11 +35,14 @@ export async function* parseSSEFrames(response: Response): AsyncGenerator<SSEFra
   let buffer = "";
   let event = "message";
   let dataLines: string[] = [];
+  let id: string | undefined;
 
   const flush = (): SSEFrame | null => {
     const payload = dataLines.join("\n");
     if (!payload || payload === "[DONE]") return null;
-    return { event, data: payload };
+    const frame: SSEFrame = { event, data: payload };
+    if (id !== undefined) frame.id = id;
+    return frame;
   };
 
   const consumeLine = (rawLine: string): SSEFrame | null => {
@@ -45,6 +58,12 @@ export async function* parseSSEFrames(response: Response): AsyncGenerator<SSEFra
       event = line.slice(6).replace(/^ /, "");
     } else if (line.startsWith("data:")) {
       dataLines.push(line.slice(5).replace(/^ /, ""));
+    } else if (line.startsWith("id:")) {
+      id = line.slice(3).replace(/^ /, "");
+      if (state) state.lastEventId = id;
+    } else if (line.startsWith("retry:")) {
+      const ms = Number(line.slice(6).replace(/^ /, ""));
+      if (Number.isFinite(ms) && ms >= 0 && state) state.retryMs = ms;
     }
     return null;
   };
@@ -55,7 +74,7 @@ export async function* parseSSEFrames(response: Response): AsyncGenerator<SSEFra
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
+      const lines = buffer.split(/\r?\n/);
       buffer = lines.pop() ?? "";
 
       for (const rawLine of lines) {

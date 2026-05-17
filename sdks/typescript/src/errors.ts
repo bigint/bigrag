@@ -31,6 +31,54 @@ export class APITimeoutError extends BigRAGError {
   }
 }
 
+export class AuthenticationError extends APIError {
+  constructor(message: string, code?: string) {
+    super(401, message, code);
+    this.name = "AuthenticationError";
+  }
+}
+
+export class PermissionDeniedError extends APIError {
+  constructor(message: string, code?: string) {
+    super(403, message, code);
+    this.name = "PermissionDeniedError";
+  }
+}
+
+export class NotFoundError extends APIError {
+  constructor(message: string, code?: string) {
+    super(404, message, code);
+    this.name = "NotFoundError";
+  }
+}
+
+export class UnprocessableEntityError extends APIError {
+  constructor(message: string, code?: string) {
+    super(422, message, code);
+    this.name = "UnprocessableEntityError";
+  }
+}
+
+export class RateLimitError extends APIError {
+  constructor(message: string, code?: string) {
+    super(429, message, code);
+    this.name = "RateLimitError";
+  }
+}
+
 export function errorForStatus(status: number, message: string, code?: string): APIError {
-  return new APIError(status, message, code);
+  switch (status) {
+    case 401:
+      return new AuthenticationError(message, code);
+    case 403:
+      return new PermissionDeniedError(message, code);
+    case 404:
+      return new NotFoundError(message, code);
+    case 422:
+      return new UnprocessableEntityError(message, code);
+    case 429:
+      return new RateLimitError(message, code);
+    default:
+      return new APIError(status, message, code);
+  }
 }
