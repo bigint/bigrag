@@ -17,7 +17,6 @@ from bigrag.db.models import (
 )
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
-from bigrag.routers._documents import prepare_document_metadata, recount_collection_documents
 from bigrag.services import collection_cache
 from bigrag.services.connectors.accounts import configured, get_provider_config
 from bigrag.services.connectors.progress import update_sync_progress
@@ -30,6 +29,7 @@ from bigrag.services.connectors.types import (
     DownloadedConnectorFile,
     RemoteConnectorFile,
 )
+from bigrag.services.documents import prepare_document_metadata, recount_collection_documents
 from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 from bigrag.services.ingestion_job import create_ingestion_job

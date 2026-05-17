@@ -9,7 +9,7 @@ from fastapi.responses import Response, StreamingResponse
 
 from bigrag.db.models import Document
 from bigrag.routers import uuid_or_404
-from bigrag.routers._documents import (
+from bigrag.services.documents import (
     SUPPORTED_EXTENSIONS,
     UploadBudget,
     stream_upload_to_temp,

@@ -11,7 +11,6 @@ import httpx
 
 from bigrag.config import settings
 from bigrag.db.models import ConnectorProviderConfig
-from bigrag.routers._documents import SUPPORTED_EXTENSIONS
 from bigrag.services.connectors.google_drive_types import (
     _GOOGLE_EXPORTS,
     GOOGLE_FILE_FIELDS,
@@ -28,6 +27,7 @@ from bigrag.services.connectors.google_drive_types import (
     _remote_from_payload,
     _sanitize_filename,
 )
+from bigrag.services.documents import SUPPORTED_EXTENSIONS
 
 
 class GoogleDriveClient:

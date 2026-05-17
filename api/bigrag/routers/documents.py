@@ -17,13 +17,8 @@ from bigrag.models.document import (
 )
 from bigrag.routers import ensure_embedding_or_400, get_collection_or_404
 from bigrag.routers._documents import (
-    content_hash_match,
     document_response,
-    get_document_with_collection,
     parse_form_metadata,
-    persist_document,
-    prepare_document_metadata,
-    recount_collection_documents,
 )
 from bigrag.routers.documents_progress import (
     document_progress,
@@ -38,6 +33,13 @@ from bigrag.routers.documents_uploads import (
     validated_upload_to_temp,
 )
 from bigrag.services import audit, collection_cache
+from bigrag.services.documents import (
+    content_hash_match,
+    get_document_with_collection,
+    persist_document,
+    prepare_document_metadata,
+    recount_collection_documents,
+)
 from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import create_ingestion_job

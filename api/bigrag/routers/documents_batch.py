@@ -25,11 +25,8 @@ from bigrag.models.document import (
 )
 from bigrag.routers import ensure_embedding_or_400, get_collection_or_404
 from bigrag.routers._documents import (
-    UploadBudget,
     document_response,
     parse_form_metadata,
-    prepare_document_metadata,
-    recount_collection_documents,
 )
 from bigrag.routers.documents import router
 from bigrag.routers.documents_progress import document_progress_map, publish_queued_progress
@@ -40,6 +37,11 @@ from bigrag.routers.documents_uploads import (
     validated_upload_to_temp,
 )
 from bigrag.services import audit, collection_cache
+from bigrag.services.documents import (
+    UploadBudget,
+    prepare_document_metadata,
+    recount_collection_documents,
+)
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache

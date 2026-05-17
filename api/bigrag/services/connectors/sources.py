@@ -318,9 +318,9 @@ async def delete_source(
         )
     ).all()
     if manifests:
-        from bigrag.routers._documents import recount_collection_documents
         from bigrag.services.connectors.sync import delete_synced_document
         from bigrag.services.connectors.types import ConnectorSyncCounters
+        from bigrag.services.documents import recount_collection_documents
 
         counters = ConnectorSyncCounters()
         collection = await session.get(Collection, source.collection_id)

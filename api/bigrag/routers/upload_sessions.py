@@ -21,12 +21,7 @@ from bigrag.models.upload_session import (
 )
 from bigrag.routers import ensure_embedding_or_400, get_collection_or_404
 from bigrag.routers._documents import (
-    SUPPORTED_EXTENSIONS,
-    content_hash_match,
     document_response,
-    persist_document,
-    prepare_document_metadata,
-    stream_upload_to_temp,
 )
 from bigrag.routers._upload_sessions import (
     TERMINAL_SESSION_STATUSES,
@@ -58,6 +53,13 @@ from bigrag.routers._upload_sessions import (
 )
 from bigrag.routers.documents_progress import document_progress, publish_queued_progress
 from bigrag.services import audit, collection_cache
+from bigrag.services.documents import (
+    SUPPORTED_EXTENSIONS,
+    content_hash_match,
+    persist_document,
+    prepare_document_metadata,
+    stream_upload_to_temp,
+)
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
