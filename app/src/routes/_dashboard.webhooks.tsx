@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { WebhooksPage } from "@/features/webhooks/webhooks-page";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_dashboard/webhooks")({
-  component: WebhooksPage,
+  component: lazyRouteComponent(() =>
+    import("@/features/webhooks/webhooks-page").then((m) => ({ default: m.WebhooksPage })),
+  ),
 });

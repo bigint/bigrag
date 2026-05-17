@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ChatPage } from "@/features/chat/chat-page";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_dashboard/chat")({
-  component: () => <ChatPage />,
+  component: lazyRouteComponent(() =>
+    import("@/features/chat/chat-page").then((m) => ({ default: m.ChatPage })),
+  ),
 });

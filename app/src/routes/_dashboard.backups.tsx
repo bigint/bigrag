@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { BackupsPage } from "@/features/backups/backups-page";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_dashboard/backups")({
-  component: () => <BackupsPage />,
+  component: lazyRouteComponent(() =>
+    import("@/features/backups/backups-page").then((m) => ({ default: m.BackupsPage })),
+  ),
 });

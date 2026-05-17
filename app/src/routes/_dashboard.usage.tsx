@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { UsagePage } from "@/features/usage/usage-page";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_dashboard/usage")({
-  component: () => <UsagePage />,
+  component: lazyRouteComponent(() =>
+    import("@/features/usage/usage-page").then((m) => ({ default: m.UsagePage })),
+  ),
 });

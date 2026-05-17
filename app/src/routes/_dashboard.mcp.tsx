@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { McpPage } from "@/features/mcp/mcp-page";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_dashboard/mcp")({
-  component: () => <McpPage />,
+  component: lazyRouteComponent(() =>
+    import("@/features/mcp/mcp-page").then((m) => ({ default: m.McpPage })),
+  ),
 });

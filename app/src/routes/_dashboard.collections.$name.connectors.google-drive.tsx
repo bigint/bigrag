@@ -1,13 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { GoogleDrivePanel } from "@/features/collections/google-drive-panel";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_dashboard/collections/$name/connectors/google-drive")({
-  component: () => <GoogleDriveConnector />,
+  component: lazyRouteComponent(() =>
+    import("@/features/collections/google-drive-route").then((m) => ({
+      default: m.GoogleDriveConnector,
+    })),
+  ),
 });
-
-const GoogleDriveConnector = () => {
-  const { name: rawName } = Route.useParams();
-  const name = decodeURIComponent(rawName);
-
-  return <GoogleDrivePanel collection={name} />;
-};

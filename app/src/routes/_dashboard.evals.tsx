@@ -1,19 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageShell } from "@/components/ui/page-shell";
-import { EvalRunner } from "@/features/evals/eval-runner";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_dashboard/evals")({
-  component: () => <EvalsPage />,
+  component: lazyRouteComponent(() =>
+    import("@/features/evals/evals-page").then((m) => ({ default: m.EvalsPage })),
+  ),
 });
-
-const EvalsPage = () => (
-  <PageShell>
-    <PageHeader
-      className="mb-0"
-      title="Retrieval evaluation"
-      description="Measure recall@k, MRR, and nDCG before changing chunking or embeddings."
-    />
-    <EvalRunner />
-  </PageShell>
-);
