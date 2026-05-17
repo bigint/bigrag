@@ -363,13 +363,21 @@ async def replay_delivery(
     if delivery is None:
         raise HTTPException(status_code=404, detail="Delivery not found")
 
+    from datetime import UTC, datetime
+
     import orjson
 
-    payload_str = orjson.dumps(delivery.payload).decode()
+    payload_dict = (
+        dict(delivery.payload) if isinstance(delivery.payload, dict) else delivery.payload
+    )
+    if isinstance(payload_dict, dict):
+        payload_dict["timestamp"] = datetime.now(UTC).isoformat()
+    payload_str = orjson.dumps(payload_dict).decode()
     result = await webhook_dispatcher.deliver_once(
         _webhook_to_dict(wh),
         delivery.event,
         payload_str,
+        delivery_id=str(delivery.id),
     )
     logger.info(
         "Webhook delivery replayed",

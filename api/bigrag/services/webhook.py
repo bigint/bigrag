@@ -41,9 +41,9 @@ def generate_secret() -> str:
     return f"whsec_{secrets.token_urlsafe(32)}"
 
 
-def compute_signature(payload: str, secret: str, timestamp: str | None = None) -> str:
+def compute_signature(payload: str, secret: str, timestamp: str) -> str:
 
-    signed_payload = f"{timestamp}.{payload}" if timestamp else payload
+    signed_payload = f"{timestamp}.{payload}"
     digest = hmac.new(secret.encode(), signed_payload.encode(), hashlib.sha256).hexdigest()
     return f"sha256={digest}"
 
@@ -52,7 +52,7 @@ def verify_signature(
     payload: str,
     secret: str,
     received: str,
-    timestamp: str | None = None,
+    timestamp: str,
 ) -> bool:
 
     expected = compute_signature(payload, secret, timestamp)
@@ -105,6 +105,7 @@ class WebhookDispatcher:
         from bigrag.services.url_security import pinned_async_client, resolve_and_pin
 
         allow_local = await get_value("allow_local_webhooks")
+        timeout = _delivery_timeout()
         pinned = await resolve_and_pin(
             url,
             purpose="Webhook URL",
@@ -113,10 +114,13 @@ class WebhookDispatcher:
         )
         async with pinned_async_client(
             pinned,
-            timeout=_delivery_timeout(),
+            timeout=timeout,
             follow_redirects=False,
         ) as client:
-            return await client.post(url, content=payload, headers=headers)
+            response = await client.post(url, content=payload, headers=headers)
+            _ = response.status_code
+            await response.aclose()
+            return response
 
     async def _get_webhooks(self) -> list[dict]:
         import sqlalchemy as sa
@@ -284,16 +288,27 @@ class WebhookDispatcher:
                 )
             await session.commit()
 
+        groups: dict[str, list[dict]] = {}
         for item in work:
-            await self._attempt_delivery(
-                item["webhook"],
-                item["event"],
-                item["payload"],
-                item["delivery_id"],
-                item["attempt"],
-                retry_delays,
-                max_attempts,
+            groups.setdefault(str(item["webhook"]["id"]), []).append(item)
+
+        async def _process_group(items: list[dict]) -> None:
+            await asyncio.gather(
+                *[
+                    self._attempt_delivery(
+                        item["webhook"],
+                        item["event"],
+                        item["payload"],
+                        item["delivery_id"],
+                        item["attempt"],
+                        retry_delays,
+                        max_attempts,
+                    )
+                    for item in items
+                ]
             )
+
+        await asyncio.gather(*[_process_group(items) for items in groups.values()])
         return len(work)
 
     async def _attempt_delivery(
@@ -399,7 +414,13 @@ class WebhookDispatcher:
                 error=last_error,
             )
 
-    async def deliver_once(self, webhook: dict, event: str, payload: str) -> dict:
+    async def deliver_once(
+        self,
+        webhook: dict,
+        event: str,
+        payload: str,
+        delivery_id: str | None = None,
+    ) -> dict:
         timestamp = str(int(datetime.now(UTC).timestamp()))
         signature = compute_signature(payload, webhook["secret"], timestamp)
         headers = {
@@ -407,7 +428,7 @@ class WebhookDispatcher:
             "X-BigRAG-Signature": signature,
             "X-BigRAG-Timestamp": timestamp,
             "X-BigRAG-Event": event,
-            "X-BigRAG-Delivery": str(uuid.uuid4()),
+            "X-BigRAG-Delivery": delivery_id if delivery_id is not None else str(uuid.uuid4()),
             "User-Agent": "bigrag-webhooks/1.0",
         }
         try:
@@ -432,7 +453,7 @@ class WebhookDispatcher:
                 "error": f"{exc.__class__.__name__}: {exc}",
             }
 
-    async def deliver_test(self, webhook: dict) -> dict:
+    async def deliver_test(self, webhook: dict, delivery_id: str | None = None) -> dict:
         secret = webhook["secret"]
         payload = orjson.dumps(
             {
@@ -448,7 +469,7 @@ class WebhookDispatcher:
             "X-BigRAG-Signature": signature,
             "X-BigRAG-Timestamp": timestamp,
             "X-BigRAG-Event": "webhook.test",
-            "X-BigRAG-Delivery": str(uuid.uuid4()),
+            "X-BigRAG-Delivery": delivery_id if delivery_id is not None else str(uuid.uuid4()),
             "User-Agent": "bigrag-webhooks/1.0",
         }
         try:
