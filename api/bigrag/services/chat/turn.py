@@ -67,7 +67,9 @@ async def _prepare_chat_turn(
         body.temperature if body.temperature is not None else float(runtime["chat_temperature"])
     )
     credentials = await _resolve_api_credentials(session, user, body)
-    base_url = await _resolve_base_url(body.provider_base_url, runtime["chat_base_url"])
+    base_url = await _resolve_base_url(
+        body.provider_base_url, runtime["chat_base_url"], credentials
+    )
 
     try:
         embedding_model = get_embedding_model_for(collection)
@@ -187,7 +189,18 @@ def _append_credential(
     credentials.append(ProviderCredential(api_key=api_key, source=source))
 
 
-async def _resolve_base_url(raw_base_url: str | None, default_base_url: str | None) -> str | None:
+async def _resolve_base_url(
+    raw_base_url: str | None,
+    default_base_url: str | None,
+    credentials: list[ProviderCredential],
+) -> str | None:
+    if raw_base_url is not None and any(
+        credential.source == "instance chat key" for credential in credentials
+    ):
+        raise ValidationError(
+            "provider_base_url cannot be used with the instance chat key. "
+            "Pass provider_api_key with the chat request."
+        )
     candidate = raw_base_url if raw_base_url is not None else default_base_url
     if not candidate:
         return None

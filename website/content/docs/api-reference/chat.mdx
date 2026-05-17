@@ -7,7 +7,7 @@ Base path: `/v1/chat`
 
 The chat API retrieves chunks from a collection, builds the grounded prompt on the backend, calls the configured chat provider, and returns cited answers for the current turn. It does not store chat messages or conversations. It supports session auth and API-key auth. Scoped API keys can use chat when granted `chat:write`; collection-pinned keys can only chat against their pinned collection.
 
-Supported providers are `openai` and `openai_compatible`. Save the provider key in the admin UI at `chat.openai_key`. API clients can also pass `provider_api_key` per request when they do not want to use the user's saved key.
+Supported providers are `openai` and `openai_compatible`. Save the provider key in the admin UI at `chat.openai_key`. API clients can also pass `provider_api_key` per request when they do not want to use the user's saved key. If a request sets `provider_base_url`, it must also include `provider_api_key`; instance-level fallback chat keys cannot be used with request-supplied base URLs.
 
 ## Question Suggestions
 
