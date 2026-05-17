@@ -17,14 +17,11 @@ from bigrag.models import StatusResponse
 from bigrag.routers import uuid_or_404, validate_collection_name
 from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
+from bigrag.services.scopes import is_mcp_key, mcp_permissions_filter
 
 logger = get_logger("bigrag.routers.mcp_servers")
 
 router = APIRouter(prefix="/v1/admin/mcp-servers", tags=["admin:mcp-servers"])
-
-
-def _mcp_permissions_filter():
-    return ApiKey.permissions.op("?")("mcp")
 
 
 class McpServerBase(BaseModel):
@@ -116,20 +113,13 @@ async def _server_name_conflict(
 
     q = sa.select(ApiKey).where(
         ApiKey.user_id == user_id,
-        _mcp_permissions_filter(),
+        mcp_permissions_filter(),
         ApiKey.permissions["mcp"]["server_name"].astext == server_name,
     )
     if exclude_id is not None:
         q = q.where(ApiKey.id != exclude_id)
     existing = await session.scalar(q)
     return existing is not None
-
-
-def _is_mcp(key: ApiKey | None) -> bool:
-    if key is None:
-        return False
-    permissions = key.permissions or {}
-    return isinstance(permissions, dict) and isinstance(permissions.get("mcp"), dict)
 
 
 @router.get("", response_model=McpServerListResponse)
@@ -142,7 +132,7 @@ async def list_mcp_servers(
         await session.scalars(
             sa.select(ApiKey)
             .where(ApiKey.user_id == user_id)
-            .where(_mcp_permissions_filter())
+            .where(mcp_permissions_filter())
             .order_by(ApiKey.created_at.desc())
         )
     ).all()
@@ -214,7 +204,7 @@ async def update_mcp_server(
     target_id = uuid_or_404(server_id, "MCP server")
 
     key = await session.get(ApiKey, target_id)
-    if not _is_mcp(key) or key.user_id != uuid.UUID(admin["id"]):
+    if not is_mcp_key(key) or key.user_id != uuid.UUID(admin["id"]):
         raise HTTPException(status_code=404, detail="MCP server not found")
     previous_hash = key.key_hash
 
@@ -276,7 +266,7 @@ async def rotate_mcp_server_key(
     target_id = uuid_or_404(server_id, "MCP server")
 
     key = await session.get(ApiKey, target_id)
-    if not _is_mcp(key) or key.user_id != uuid.UUID(admin["id"]):
+    if not is_mcp_key(key) or key.user_id != uuid.UUID(admin["id"]):
         raise HTTPException(status_code=404, detail="MCP server not found")
 
     previous_hash = key.key_hash
@@ -312,7 +302,7 @@ async def delete_mcp_server(
     target_id = uuid_or_404(server_id, "MCP server")
 
     key = await session.get(ApiKey, target_id)
-    if not _is_mcp(key) or key.user_id != uuid.UUID(admin["id"]):
+    if not is_mcp_key(key) or key.user_id != uuid.UUID(admin["id"]):
         raise HTTPException(status_code=404, detail="MCP server not found")
 
     metadata = key.permissions.get("mcp", {}) if isinstance(key.permissions, dict) else {}

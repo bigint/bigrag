@@ -24,14 +24,11 @@ from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
 from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
+from bigrag.services.scopes import is_mcp_key, mcp_permissions_filter
 
 logger = get_logger("bigrag.routers.admin_api_keys")
 
 router = APIRouter(prefix="/v1/admin/api-keys", tags=["admin:api-keys"])
-
-
-def _mcp_permissions_filter():
-    return ApiKey.permissions.op("?")("mcp")
 
 
 def _key_response(key: ApiKey) -> ApiKeyResponse:
@@ -62,12 +59,6 @@ def _validate_scopes(scopes: list[str] | None) -> None:
         validate_scope_string(s)
 
 
-def _is_mcp_key(key: ApiKey) -> bool:
-
-    permissions = key.permissions or {}
-    return isinstance(permissions, dict) and isinstance(permissions.get("mcp"), dict)
-
-
 @router.get("", response_model=ApiKeyListResponse)
 async def list_api_keys(
     limit: int = Query(default=50, ge=1, le=200),
@@ -79,7 +70,7 @@ async def list_api_keys(
 ) -> ApiKeyListResponse:
     cursor_tuple = decode_cursor_or_400(cursor)
 
-    base = sa.select(ApiKey).where(sa.not_(_mcp_permissions_filter()))
+    base = sa.select(ApiKey).where(sa.not_(mcp_permissions_filter()))
     stmt = base.order_by(ApiKey.created_at.desc(), ApiKey.id.desc())
     if cursor_tuple is not None:
         stmt = apply_cursor(stmt, ApiKey.created_at, ApiKey.id, cursor_tuple).limit(limit + 1)
@@ -95,7 +86,7 @@ async def list_api_keys(
             await session.scalar(
                 sa.select(sa.func.count())
                 .select_from(ApiKey)
-                .where(sa.not_(_mcp_permissions_filter()))
+                .where(sa.not_(mcp_permissions_filter()))
             )
         ) or 0
     return ApiKeyListResponse(
@@ -165,7 +156,7 @@ async def update_api_key(
     target_id = uuid_or_404(key_id, "API key")
 
     key = await session.get(ApiKey, target_id)
-    if key is None or _is_mcp_key(key):
+    if key is None or is_mcp_key(key):
         raise HTTPException(status_code=404, detail="API key not found")
     previous_hash = key.key_hash
 
@@ -226,7 +217,7 @@ async def rotate_api_key(
     target_id = uuid_or_404(key_id, "API key")
 
     key = await session.get(ApiKey, target_id)
-    if key is None or _is_mcp_key(key):
+    if key is None or is_mcp_key(key):
         raise HTTPException(status_code=404, detail="API key not found")
     previous_hash = key.key_hash
     plaintext, prefix, key_hash = generate_api_key()
@@ -259,7 +250,7 @@ async def delete_api_key(
     target_id = uuid_or_404(key_id, "API key")
 
     key = await session.get(ApiKey, target_id)
-    if key is None or _is_mcp_key(key):
+    if key is None or is_mcp_key(key):
         raise HTTPException(status_code=404, detail="API key not found")
     deleted_name = key.name
     deleted_hash = key.key_hash

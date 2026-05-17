@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from bigrag.db.models import ApiKey
+
 _ENDPOINT_SCOPES: list[tuple[str, str, str]] = [
     ("GET", "/v1/chat/question-suggestions", "chat:read"),
     ("POST", "/v1/chat/question-suggestions", "chat:write"),
@@ -99,6 +104,19 @@ def has_scope(granted_scopes: list[str] | None, required: str) -> bool:
     if not granted_scopes:
         return False
     return any(scope_matches(g, required) for g in granted_scopes)
+
+
+def is_mcp_key(key: ApiKey | None) -> bool:
+    if key is None:
+        return False
+    permissions = key.permissions or {}
+    return isinstance(permissions, dict) and isinstance(permissions.get("mcp"), dict)
+
+
+def mcp_permissions_filter():
+    from bigrag.db.models import ApiKey
+
+    return ApiKey.permissions.op("?")("mcp")
 
 
 def validate_scope_string(s: str) -> None:
