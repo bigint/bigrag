@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import uuid
-
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
@@ -20,7 +18,7 @@ from bigrag.models.auth import (
     UserListResponse,
     UserResponse,
 )
-from bigrag.routers import is_unique_violation
+from bigrag.routers import is_unique_violation, uuid_or_404
 from bigrag.services import audit
 from bigrag.services.auth import hash_password
 from bigrag.services.error_sanitize import safe_error_detail
@@ -127,10 +125,7 @@ async def update_user(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> UserResponse:
-    try:
-        target_id = uuid.UUID(user_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="User not found") from e
+    target_id = uuid_or_404(user_id, "User")
 
     target = await session.get(User, target_id)
     if target is None:
@@ -191,10 +186,7 @@ async def delete_user(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
-    try:
-        target_id = uuid.UUID(user_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="User not found") from e
+    target_id = uuid_or_404(user_id, "User")
 
     if str(target_id) == admin["id"]:
         raise HTTPException(status_code=400, detail="You cannot delete your own account")

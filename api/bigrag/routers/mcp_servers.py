@@ -14,7 +14,7 @@ from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_api_key_principal, require_admin_session
 from bigrag.models import StatusResponse
-from bigrag.routers import validate_collection_name
+from bigrag.routers import uuid_or_404, validate_collection_name
 from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
 
@@ -211,10 +211,7 @@ async def update_mcp_server(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> McpServerResponse:
-    try:
-        target_id = uuid.UUID(server_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="MCP server not found") from e
+    target_id = uuid_or_404(server_id, "MCP server")
 
     key = await session.get(ApiKey, target_id)
     if not _is_mcp(key) or key.user_id != uuid.UUID(admin["id"]):
@@ -276,10 +273,7 @@ async def rotate_mcp_server_key(
     session: AsyncSession = Depends(get_session),
 ) -> CreateMcpServerResponse:
 
-    try:
-        target_id = uuid.UUID(server_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="MCP server not found") from e
+    target_id = uuid_or_404(server_id, "MCP server")
 
     key = await session.get(ApiKey, target_id)
     if not _is_mcp(key) or key.user_id != uuid.UUID(admin["id"]):
@@ -315,10 +309,7 @@ async def delete_mcp_server(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
-    try:
-        target_id = uuid.UUID(server_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="MCP server not found") from e
+    target_id = uuid_or_404(server_id, "MCP server")
 
     key = await session.get(ApiKey, target_id)
     if not _is_mcp(key) or key.user_id != uuid.UUID(admin["id"]):

@@ -20,7 +20,7 @@ from bigrag.models.auth import (
     CreateApiKeyResponse,
     UpdateApiKeyRequest,
 )
-from bigrag.routers import validate_collection_name
+from bigrag.routers import uuid_or_404, validate_collection_name
 from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
 from bigrag.services.error_sanitize import safe_error_detail
@@ -170,10 +170,7 @@ async def update_api_key(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ApiKeyResponse:
-    try:
-        target_id = uuid.UUID(key_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="API key not found") from e
+    target_id = uuid_or_404(key_id, "API key")
 
     key = await session.get(ApiKey, target_id)
     if key is None or _is_mcp_key(key):
@@ -234,10 +231,7 @@ async def rotate_api_key(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> CreateApiKeyResponse:
-    try:
-        target_id = uuid.UUID(key_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="API key not found") from e
+    target_id = uuid_or_404(key_id, "API key")
 
     key = await session.get(ApiKey, target_id)
     if key is None or _is_mcp_key(key):
@@ -270,10 +264,7 @@ async def delete_api_key(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
-    try:
-        target_id = uuid.UUID(key_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="API key not found") from e
+    target_id = uuid_or_404(key_id, "API key")
 
     key = await session.get(ApiKey, target_id)
     if key is None or _is_mcp_key(key):

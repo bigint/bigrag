@@ -11,6 +11,7 @@ from bigrag.db.session import get_session
 from bigrag.exceptions import ValidationError
 from bigrag.middleware.auth import require_admin_session
 from bigrag.models.backup import BackupCreateRequest, BackupJobListResponse, BackupJobResponse
+from bigrag.routers import uuid_or_404
 from bigrag.services import audit
 from bigrag.services.backup import BackupConfigError, create_backup_job
 from bigrag.services.error_sanitize import safe_error_detail
@@ -82,10 +83,7 @@ async def get_backup_job(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> BackupJobResponse:
-    try:
-        target_id = UUID(backup_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Invalid backup_id") from exc
+    target_id = uuid_or_404(backup_id, "Backup job")
     job = await session.get(BackupJob, target_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Backup job not found")

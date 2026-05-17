@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import uuid
-
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
@@ -20,7 +18,7 @@ from bigrag.models.embedding_preset import (
     TestEmbeddingPresetRequest,
     UpdateEmbeddingPresetRequest,
 )
-from bigrag.routers import is_unique_violation
+from bigrag.routers import is_unique_violation, uuid_or_404
 from bigrag.services import audit, collection_cache
 from bigrag.services.credential_check import (
     CredentialCheckError,
@@ -141,10 +139,7 @@ async def test_saved_preset_credentials(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
-    try:
-        target_id = uuid.UUID(preset_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="Preset not found") from e
+    target_id = uuid_or_404(preset_id, "Preset")
     preset = await session.get(EmbeddingPreset, target_id)
     if preset is None:
         raise HTTPException(status_code=404, detail="Preset not found")
@@ -168,10 +163,7 @@ async def update_preset(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> EmbeddingPresetResponse:
-    try:
-        target_id = uuid.UUID(preset_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="Preset not found") from e
+    target_id = uuid_or_404(preset_id, "Preset")
 
     preset = await session.get(EmbeddingPreset, target_id)
     if preset is None:
@@ -235,10 +227,7 @@ async def delete_preset(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
-    try:
-        target_id = uuid.UUID(preset_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="Preset not found") from e
+    target_id = uuid_or_404(preset_id, "Preset")
 
     preset = await session.get(EmbeddingPreset, target_id)
     if preset is None:

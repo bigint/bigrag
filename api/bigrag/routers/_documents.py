@@ -19,6 +19,7 @@ from bigrag.exceptions import ValidationError
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.models.document import DocumentProgressResponse, DocumentResponse
+from bigrag.routers import uuid_or_404
 from bigrag.services import collection_cache, metadata_schema
 from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.ingestion_job import create_ingestion_job
@@ -270,10 +271,7 @@ async def get_document_with_collection(
     *,
     pinned_collection: str | None = None,
 ) -> tuple[Document, str]:
-    try:
-        target_id = uuid.UUID(document_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail="Document not found") from exc
+    target_id = uuid_or_404(document_id, "Document")
     stmt = (
         sa.select(Document, Collection.name)
         .join(Collection, Collection.id == Document.collection_id)
