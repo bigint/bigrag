@@ -18,6 +18,8 @@ POST /v1/chat/question-suggestions
 
 `GET` returns the last generated starter-question set for the collection, or an empty set when none has been generated. `POST` uses the saved chat/OpenAI key from the current user's preferences, samples ready documents and chunks from the selected collection, asks the configured chat model for exactly five questions, persists that set for the collection, and returns it.
 
+Question-suggestion endpoints require collections without `tenant_field` isolation. For tenant-isolated collections, use `POST /v1/chat` with the required `filters.<tenant_field>` instead.
+
 POST body:
 
 ```json

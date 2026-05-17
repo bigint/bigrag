@@ -17,6 +17,7 @@ from bigrag.models.chat import ChatQuestionSuggestionsRequest, ChatQuestionSugge
 from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
 from bigrag.services.collection_scope import assert_collection_matches_pin
 from bigrag.services.runtime_settings import get_values
+from bigrag.services.tenant_enforcement import require_tenant_filters
 from bigrag.services.vector_store import vector_store
 
 from .provider import _openai_client, _provider_error, _should_try_next_credential
@@ -36,6 +37,7 @@ async def get_question_suggestions(
 ) -> ChatQuestionSuggestionsResponse:
     collection_name = collection_name.strip()
     collection = await _assert_collection_allowed(user, collection_name)
+    require_tenant_filters(collection, None)
     row = await session.scalar(
         sa.select(ChatQuestionSuggestion).where(
             ChatQuestionSuggestion.collection_id == collection["id"]
@@ -51,6 +53,7 @@ async def generate_question_suggestions(
 ) -> ChatQuestionSuggestionsResponse:
     collection_name = body.collection.strip()
     collection = await _assert_collection_allowed(user, collection_name)
+    require_tenant_filters(collection, None)
     runtime = await get_values(["chat_model", "chat_base_url", "chat_temperature"])
     model = body.model or runtime["chat_model"]
     temperature = body.temperature if body.temperature is not None else runtime["chat_temperature"]
