@@ -15,6 +15,7 @@ def include_all_routers(app: FastAPI) -> None:
     from bigrag.routers.admin_vector_storage import router as admin_vector_storage_router
     from bigrag.routers.auth import router as auth_router
     from bigrag.routers.chat import router as chat_router
+    from bigrag.routers.collection_events import router as _collection_events_router  # noqa: F401
     from bigrag.routers.collections import router as collections_router
     from bigrag.routers.connectors import router as connectors_router
     from bigrag.routers.documents import global_router as documents_global_router
