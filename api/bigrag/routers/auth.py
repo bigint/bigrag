@@ -59,9 +59,11 @@ async def _enforce_login_rate_limit(request: Request, email: str) -> None:
     for scope, key in (("ip", ip), ("email", email)):
         bucket = f"bigrag:rate:login:{scope}:{key}"
         try:
-            current = await redis.incr(bucket)
-            if current == 1:
-                await redis.expire(bucket, LOGIN_RATE_WINDOW_SECONDS)
+            pipeline = redis.pipeline()
+            pipeline.incr(bucket)
+            pipeline.expire(bucket, LOGIN_RATE_WINDOW_SECONDS)
+            results = await pipeline.execute()
+            current = results[0]
         except Exception as exc:
             logger.warning(
                 "login rate limit unavailable; failing open",
@@ -227,6 +229,7 @@ async def login(
 async def logout(
     request: Request,
     response: Response,
+    auth_user: dict = Depends(require_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     cookie = request.cookies.get(_config.settings.session_cookie_name)
@@ -238,6 +241,9 @@ async def logout(
             .join(DbSession, DbSession.user_id == User.id)
             .where(DbSession.token_hash == token_hash)
         )
+        if actor_user is None or str(actor_user.id) != auth_user["id"]:
+            await _clear_session_cookie(response)
+            raise HTTPException(status_code=403, detail="Session mismatch")
         await session.execute(sa.delete(DbSession).where(DbSession.token_hash == token_hash))
         await session.commit()
         await invalidate_session_principal(token_hash)

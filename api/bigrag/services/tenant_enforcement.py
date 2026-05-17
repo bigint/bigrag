@@ -46,5 +46,5 @@ def _has_tenant_filter(field: str, filters: dict | None) -> bool:
                 if isinstance(items, list)
                 else []
             )
-            return len(valid_items) == 1
+            return len(valid_items) >= 1
     return False

@@ -69,6 +69,8 @@ def _path_matches(path: str, pattern: str) -> bool:
     a_parts = path.rstrip("/").split("/")
     if len(a_parts) < len(p_parts):
         return False
+    if len(a_parts) != len(p_parts):
+        return False
     for pp, ap in zip(p_parts, a_parts, strict=False):
         if pp.startswith("{") and pp.endswith("}"):
             continue

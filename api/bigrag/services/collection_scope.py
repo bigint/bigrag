@@ -8,6 +8,8 @@ _FORBIDDEN_FOR_SCOPED: tuple[tuple[str, str], ...] = (
     ("POST", "/v1/query"),
     ("POST", "/v1/batch/query"),
     ("POST", "/v1/collections"),
+    ("PUT", "/v1/collections/"),
+    ("DELETE", "/v1/collections/"),
     ("GET", "/v1/collections"),
     ("GET", "/v1/usage"),
     ("GET", "/v1/stats"),
@@ -51,7 +53,9 @@ async def enforce_collection_scope(request: Request, pinned: str) -> None:
         assert_collection_matches_pin(pinned, target)
 
     parts = stripped.strip("/").split("/")
-    is_collection_root = len(parts) == 3 and parts[0] == "v1" and parts[1] == "collections"
+    is_collection_root = (len(parts) == 3 and parts[0] == "v1" and parts[1] == "collections") or (
+        len(parts) == 2 and parts[1] == "collections"
+    )
     if is_collection_root and method in _FORBIDDEN_METHODS_ON_PINNED_COLLECTION:
         raise ForbiddenError(
             f"This API key is pinned to collection {pinned!r}; reconfiguring or "
