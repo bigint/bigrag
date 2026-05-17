@@ -57,6 +57,8 @@ bigrag/
 │   ├── alembic/
 │   └── pyproject.toml
 ├── sdks/typescript/       # TypeScript SDK (@bigrag/client)
+├── sdks/python/           # Python SDK (bigrag)
+├── app/                   # Admin UI (TanStack Router + React)
 ├── website/               # Docs site (Next.js + Fumadocs)
 ├── docker-compose.yml     # Full stack (Postgres, Redis, Qdrant, API)
 ├── biome.jsonc            # Biome linting config for TypeScript
