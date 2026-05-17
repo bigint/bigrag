@@ -1,0 +1,7 @@
+Acme Corp Overview
+
+Acme Corp was founded in 2017 in Singapore by a team of three engineers focused on shipping reliable RAG infrastructure for builders. The company now employs 47 people across Singapore, Bangalore, and Berlin, and reported $12.4 million in annual recurring revenue in fiscal year 2026.
+
+The flagship product is the Acme Knowledge Platform, a self-hostable retrieval-augmented-generation stack that ingests documents from Google Drive, Notion, S3, and arbitrary HTTP sources, chunks them with configurable strategies, and indexes them in Qdrant or Turbopuffer. Customers include teams at fictional firms Globex, Initech, and Soylent.
+
+The Acme support guarantee promises a four-hour response time for production incidents and a 99.95% uptime SLA on the managed control plane. The CEO is Jordan Park; the CTO is Priya Iyer; the head of customer success is Marco Vidal. The company's office is located at 1 Marina Boulevard, Singapore 018989.

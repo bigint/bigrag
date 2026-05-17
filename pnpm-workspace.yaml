@@ -2,5 +2,6 @@ packages:
   - "sdks/typescript"
   - "website"
   - "app"
+  - "e2e"
 
 minimumReleaseAge: 10080

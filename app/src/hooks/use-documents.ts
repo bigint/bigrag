@@ -120,6 +120,8 @@ export const useUploadSession = (collection: string, sessionId: string | null) =
       ),
     enabled,
     path: `v1/admin/realtime/collections/${encodeURIComponent(collection)}/upload-sessions/${sessionId}`,
+    pollIntervalMs: 2_000,
+    streamPriority: "high",
     closeWhen: (session) =>
       session.status === "complete" || session.status === "failed" || session.status === "canceled",
   });

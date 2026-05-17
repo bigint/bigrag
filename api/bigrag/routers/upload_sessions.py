@@ -46,7 +46,13 @@ router = APIRouter(
 TERMINAL_SESSION_STATUSES = {"complete", "failed", "canceled"}
 
 
+def _deleted_document_item(item: UploadSessionItem, document_status: str | None) -> bool:
+    return item.document_id is None and item.storage_key is not None and document_status is None
+
+
 def _effective_item_status(item: UploadSessionItem, document_status: str | None) -> str:
+    if _deleted_document_item(item, document_status):
+        return "canceled"
     if item.status in {"failed", "canceled"}:
         return item.status
     if document_status == "ready":
@@ -64,6 +70,9 @@ def _item_response(
     document_error: str | None,
 ) -> UploadSessionItemResponse:
     status = _effective_item_status(item, document_status)
+    error_message = item.error_message or document_error
+    if status == "canceled" and _deleted_document_item(item, document_status):
+        error_message = error_message or "Document deleted"
     return UploadSessionItemResponse(
         id=str(item.id),
         client_item_id=item.client_item_id,
@@ -74,7 +83,7 @@ def _item_response(
         content_hash=item.content_hash,
         status=status,
         document_status=document_status,
-        error_message=item.error_message or document_error,
+        error_message=error_message,
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
@@ -84,12 +93,18 @@ async def _session_rows(
     db: AsyncSession,
     upload_session_id: uuid.UUID,
 ) -> list[tuple[UploadSessionItem, str | None, str | None]]:
+    item_rank = sa.case(
+        (Document.status.in_(("pending", "processing")), 0),
+        (Document.status == "failed", 1),
+        (UploadSessionItem.status.in_(("failed", "canceled")), 1),
+        else_=2,
+    )
     rows = (
         await db.execute(
             sa.select(UploadSessionItem, Document.status, Document.error_message)
             .outerjoin(Document, Document.id == UploadSessionItem.document_id)
             .where(UploadSessionItem.session_id == upload_session_id)
-            .order_by(UploadSessionItem.updated_at.desc())
+            .order_by(item_rank, UploadSessionItem.updated_at.desc())
         )
     ).all()
     return [(item, status, error) for item, status, error in rows]
@@ -143,6 +158,10 @@ async def upload_session_response(
     status = _session_status(upload_session, counts)
     active = counts["queued_files"] + counts["processing_files"]
     if persist_counts:
+        for item, document_status, _error in rows:
+            if _deleted_document_item(item, document_status):
+                item.status = "canceled"
+                item.error_message = item.error_message or "Document deleted"
         upload_session.status = status
         upload_session.uploaded_files = counts["uploaded_files"]
         upload_session.queued_files = counts["queued_files"]

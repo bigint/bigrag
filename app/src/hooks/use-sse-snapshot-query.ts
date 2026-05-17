@@ -66,7 +66,10 @@ export const useSseSnapshotQuery = <T>({
       return;
     }
 
-    if (streamPriority === "low" || activeSseStreams >= MAX_ACTIVE_SSE_STREAMS) {
+    if (
+      streamPriority === "low" ||
+      (streamPriority !== "high" && activeSseStreams >= MAX_ACTIVE_SSE_STREAMS)
+    ) {
       setStreaming(false);
       setRealtimeUnavailable(true);
       return;

@@ -6,6 +6,13 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 
 from bigrag.logging import get_logger
+from bigrag.services.embedding_rate_limit import (
+    is_rate_limit_error,
+    rate_limit_cooldown_key,
+    rate_limit_delay,
+    record_rate_limit_cooldown,
+    wait_for_rate_limit_cooldown,
+)
 from bigrag.services.url_security import (
     normalize_url_root,
     validate_embedding_base_url_sync,
@@ -159,11 +166,20 @@ class OpenAIEmbedding(EmbeddingModel):
                 inputs=len(texts),
                 model=self._model_name,
             )
+        cooldown_key = rate_limit_cooldown_key(
+            self._cache_identity, self.provider, self._model_name, self._dimension
+        )
         async with _get_semaphore(self._semaphore_key):
-            response = await asyncio.wait_for(
-                self._client.embeddings.create(input=texts, model=self._model_name),
-                timeout=60,
-            )
+            await wait_for_rate_limit_cooldown(cooldown_key, self.provider, self._model_name)
+            try:
+                response = await asyncio.wait_for(
+                    self._client.embeddings.create(input=texts, model=self._model_name),
+                    timeout=60,
+                )
+            except Exception as exc:
+                if is_rate_limit_error(exc):
+                    await record_rate_limit_cooldown(cooldown_key, rate_limit_delay(exc, 1.0))
+                raise
         return [item.embedding for item in response.data]
 
     @property
@@ -221,16 +237,25 @@ class CohereEmbedding(EmbeddingModel):
                 model=self._model_name,
             )
         cohere_input_type = self._INPUT_TYPE_MAP.get(input_type, "search_document")
+        cooldown_key = rate_limit_cooldown_key(
+            self._cache_identity, self.provider, self._model_name, self._dimension
+        )
         async with _get_semaphore(self._semaphore_key):
-            response = await asyncio.wait_for(
-                self._client.embed(
-                    texts=texts,
-                    model=self._model_name,
-                    input_type=cohere_input_type,
-                    embedding_types=["float"],
-                ),
-                timeout=60,
-            )
+            await wait_for_rate_limit_cooldown(cooldown_key, self.provider, self._model_name)
+            try:
+                response = await asyncio.wait_for(
+                    self._client.embed(
+                        texts=texts,
+                        model=self._model_name,
+                        input_type=cohere_input_type,
+                        embedding_types=["float"],
+                    ),
+                    timeout=60,
+                )
+            except Exception as exc:
+                if is_rate_limit_error(exc):
+                    await record_rate_limit_cooldown(cooldown_key, rate_limit_delay(exc, 1.0))
+                raise
         return [list(e) for e in response.embeddings.float_]
 
     @property

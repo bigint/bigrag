@@ -15,6 +15,7 @@ COLLECTION_EPOCH_KEY_PREFIX = "bigrag:ingestion:collection_epoch:"
 DOCUMENT_EPOCH_KEY_PREFIX = "bigrag:ingestion:document_epoch:"
 LEASE_TTL_SECONDS = 30 * 60
 LEASE_RENEW_INTERVAL_SECONDS = 60
+LEASE_ACTIVE_MIN_TTL_SECONDS = LEASE_TTL_SECONDS - (LEASE_RENEW_INTERVAL_SECONDS * 2)
 RETRY_PROMOTION_LIMIT = 100
 
 ENQUEUE_LUA = """
@@ -79,9 +80,9 @@ def document_epoch_key(document_id: str) -> str:
     return f"{DOCUMENT_EPOCH_KEY_PREFIX}{document_id}"
 
 
-async def recover_stuck_jobs(redis) -> int:
+async def recover_stuck_jobs(redis) -> list[IngestionJob]:
     items = await redis.lrange(PROCESSING_KEY, 0, -1)
-    recovered = 0
+    recovered: list[IngestionJob] = []
     for raw in items:
         try:
             job = IngestionJob.deserialize(raw)
@@ -93,15 +94,19 @@ async def recover_stuck_jobs(redis) -> int:
             )
             await redis.lrem(PROCESSING_KEY, 1, raw)
             continue
-        if await redis.exists(lease_key(job.job_id)):
+        if await processing_lease_active(redis, job.job_id):
             continue
         await redis.lrem(PROCESSING_KEY, 1, raw)
-        await redis.lpush(QUEUE_KEY, raw)
-        recovered += 1
-    if recovered > 0:
+        recovered.append(job)
+    if recovered:
         remaining = await redis.llen(PROCESSING_KEY)
         await redis.hset(STATS_KEY, "processing", remaining)
     return recovered
+
+
+async def processing_lease_active(redis, job_id: str) -> bool:
+    ttl = await redis.ttl(lease_key(job_id))
+    return ttl >= LEASE_ACTIVE_MIN_TTL_SECONDS
 
 
 async def epoch_value(redis, key: str) -> int:
@@ -202,7 +207,7 @@ async def queue_stats(redis) -> dict:
         except (ValueError, TypeError, KeyError):
             stale_processing += 1
             continue
-        if await redis.exists(lease_key(job.job_id)):
+        if await processing_lease_active(redis, job.job_id):
             leased_processing += 1
         else:
             stale_processing += 1

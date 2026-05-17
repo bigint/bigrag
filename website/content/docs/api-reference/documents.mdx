@@ -271,7 +271,7 @@ POST /v1/collections/{collection_name}/upload-sessions/{session_id}/complete
 POST /v1/collections/{collection_name}/upload-sessions/{session_id}/cancel
 ```
 
-`GET` returns aggregate counts plus the latest active or failed items. `complete` marks the upload phase closed; ingestion can still continue until all linked documents are `ready` or `failed`. `cancel` closes the session and cancels active queued documents created by that session.
+`GET` returns aggregate counts plus the latest active or failed items. `complete` marks the upload phase closed; ingestion can still continue until all linked documents are `ready` or `failed`. If a linked document is deleted after upload, its session item is reported as `canceled` instead of `queued`. `cancel` closes the session and cancels active queued documents created by that session.
 
 ## Batch Status
 

@@ -105,7 +105,36 @@ class IngestionQueue:
         logger.info("[queue] all workers stopped")
 
     async def _recover_stuck_jobs(self) -> int:
-        return await queue_state.recover_stuck_jobs(self._redis)
+        if self._redis is None:
+            return 0
+        from bigrag.services.jobs.actors import enqueue_ingestion_job
+
+        jobs = await queue_state.recover_stuck_jobs(self._redis)
+        for job in jobs:
+            enqueue_ingestion_job(job)
+        if jobs:
+            await self._mark_recovered_jobs_pending(jobs)
+            await self._redis.hincrby(STATS_KEY, "queued", len(jobs))
+            logger.info("queue requeued stuck jobs", recovered=len(jobs))
+        return len(jobs)
+
+    async def _mark_recovered_jobs_pending(self, jobs: list[IngestionJob]) -> None:
+        import sqlalchemy as sa
+
+        from bigrag.db.engine import session_factory
+        from bigrag.db.models import Document
+
+        ids = [uuid.UUID(job.document_id) for job in jobs]
+        async with session_factory()() as session:
+            await session.execute(
+                sa.update(Document)
+                .where(Document.id.in_(ids))
+                .values(
+                    status="pending",
+                    error_message="Recovered stale processing lease; requeued.",
+                )
+            )
+            await session.commit()
 
     _ENQUEUE_LUA = queue_state.ENQUEUE_LUA
     _FLUSH_LUA = queue_state.FLUSH_LUA
@@ -184,6 +213,10 @@ class IngestionQueue:
         )
 
         stats = await queue_state.queue_stats(self._redis)
+        if int(stats.get("stale_processing") or 0) > 0:
+            recovered = await self._recover_stuck_jobs()
+            if recovered:
+                stats = await queue_state.queue_stats(self._redis)
         try:
             stats["pending"] = await queue_size(INGESTION_QUEUE)
         except Exception:

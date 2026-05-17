@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -158,6 +159,10 @@ async def _resolve_api_credentials(
     prefs = decrypt_preferences(dict(data)) if isinstance(data, dict) else {}
     chat = prefs.get("chat") if isinstance(prefs.get("chat"), dict) else {}
     _append_credential(credentials, chat.get("openai_key"), "saved chat key")
+
+    if not credentials:
+        env_key = os.environ.get("BIGRAG_CHAT_API_KEY")
+        _append_credential(credentials, env_key, "instance chat key")
 
     if not credentials:
         raise ValidationError(

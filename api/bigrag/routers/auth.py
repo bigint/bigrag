@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import uuid
 
 import sqlalchemy as sa
@@ -45,8 +46,8 @@ logger = get_logger("bigrag.routers.auth")
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
-LOGIN_RATE_LIMIT = 10
-LOGIN_RATE_WINDOW_SECONDS = 60
+LOGIN_RATE_LIMIT = int(os.environ.get("BIGRAG_LOGIN_RATE_LIMIT", "10"))
+LOGIN_RATE_WINDOW_SECONDS = int(os.environ.get("BIGRAG_LOGIN_RATE_WINDOW_SECONDS", "60"))
 SETUP_LOCK_KEY = 734119001
 
 

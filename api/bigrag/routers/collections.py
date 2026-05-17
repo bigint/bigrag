@@ -622,7 +622,7 @@ async def collection_events_sse(
     from bigrag.services.event_bus import event_bus
 
     if not await validate_event_token(token, name):
-        await get_current_user(request, session)
+        await get_current_user(request)
 
     exists = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
     if exists is None:

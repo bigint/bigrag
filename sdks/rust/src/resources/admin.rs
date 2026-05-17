@@ -884,4 +884,3 @@ fn stream_path(path: &str, query: Vec<(String, String)>) -> String {
         .join("&");
     format!("{}?{}", path, query)
 }
-
