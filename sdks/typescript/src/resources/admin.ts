@@ -45,7 +45,7 @@ import type {
   UsageResponse,
   User,
   UserListResponse,
-} from "../types.js";
+} from "../types/index.js";
 
 export class AdminResource {
   readonly users: AdminUsersResource;

@@ -6,7 +6,7 @@ import type {
   MultiQueryResponse,
   QueryBody,
   QueryResponse,
-} from "../types.js";
+} from "../types/index.js";
 
 export class QueryResource {
   constructor(private readonly _client: RequestClient) {}

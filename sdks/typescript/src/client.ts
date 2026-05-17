@@ -18,7 +18,7 @@ import type {
   PlatformStatsResponse,
   ReadinessResponse,
   UsageResponse,
-} from "./types.js";
+} from "./types/index.js";
 
 export class BigRAG extends BigRAGCore {
   readonly admin: AdminResource;

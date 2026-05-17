@@ -13,7 +13,7 @@ import type {
   UploadSession,
   UploadSessionCreateRequest,
   UploadSessionFileResponse,
-} from "../types.js";
+} from "../types/index.js";
 
 export class DocumentsResource {
   constructor(private readonly _client: RequestClient) {}

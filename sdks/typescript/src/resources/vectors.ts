@@ -1,5 +1,5 @@
 import type { RequestClient } from "../core.js";
-import type { DeleteResponse, UpsertResponse, VectorEntry } from "../types.js";
+import type { DeleteResponse, UpsertResponse, VectorEntry } from "../types/index.js";
 
 export class VectorsResource {
   constructor(private readonly _client: RequestClient) {}

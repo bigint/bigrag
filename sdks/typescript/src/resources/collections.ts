@@ -12,7 +12,7 @@ import type {
   ProgressEvent,
   StatusResponse,
   UpdateCollectionBody,
-} from "../types.js";
+} from "../types/index.js";
 
 export class CollectionsResource {
   constructor(private readonly _client: RequestClient) {}

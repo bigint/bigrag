@@ -1,7 +1,7 @@
 import { type RequestClient, USER_AGENT } from "../core.js";
 import { errorForStatus } from "../errors.js";
 import { parseSSEFrames } from "../sse.js";
-import type { ChatCreateBody, ChatCreateResponse, ChatStreamEvent } from "../types.js";
+import type { ChatCreateBody, ChatCreateResponse, ChatStreamEvent } from "../types/index.js";
 
 export class ChatResource {
   constructor(private readonly _client: RequestClient) {}

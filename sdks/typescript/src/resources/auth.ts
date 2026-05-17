@@ -9,7 +9,7 @@ import type {
   StatusResponse,
   UpdatePreferencesBody,
   WhoamiResponse,
-} from "../types.js";
+} from "../types/index.js";
 
 export class AuthResource {
   constructor(private readonly _client: RequestClient) {}
