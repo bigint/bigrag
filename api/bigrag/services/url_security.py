@@ -102,7 +102,7 @@ def _resolve_host_sync(hostname: str, port: int) -> list[str]:
     return [sockaddr[0] for _, _, _, _, sockaddr in addrinfo]
 
 
-def validate_outbound_url_sync(
+def _validate_outbound_url_with_addrs_sync(
     raw_url: str,
     *,
     purpose: str,
@@ -110,7 +110,7 @@ def validate_outbound_url_sync(
     allowed_urls: Iterable[str] = (),
     allow_private: bool = False,
     allow_loopback: bool = False,
-) -> str:
+) -> tuple[str, list[str]]:
     normalized = normalize_url_root(raw_url)
     explicitly_allowed = _is_explicitly_allowed(raw_url, allowed_urls)
     effective_allow_private = allow_private or explicitly_allowed
@@ -145,6 +145,26 @@ def validate_outbound_url_sync(
             )
         ):
             raise UnsafeOutboundUrlError(f"{purpose} must use HTTPS for public endpoints.")
+    return normalized, addresses
+
+
+def validate_outbound_url_sync(
+    raw_url: str,
+    *,
+    purpose: str,
+    require_https: bool = True,
+    allowed_urls: Iterable[str] = (),
+    allow_private: bool = False,
+    allow_loopback: bool = False,
+) -> str:
+    normalized, _ = _validate_outbound_url_with_addrs_sync(
+        raw_url,
+        purpose=purpose,
+        require_https=require_https,
+        allowed_urls=allowed_urls,
+        allow_private=allow_private,
+        allow_loopback=allow_loopback,
+    )
     return normalized
 
 
@@ -245,7 +265,7 @@ def resolve_and_pin_sync(
     allow_private: bool = False,
     allow_loopback: bool = False,
 ) -> PinnedOutbound:
-    normalized = validate_outbound_url_sync(
+    normalized, addresses = _validate_outbound_url_with_addrs_sync(
         raw_url,
         purpose=purpose,
         require_https=require_https,
@@ -260,7 +280,7 @@ def resolve_and_pin_sync(
     effective_allow_private = allow_private or explicitly_allowed
     effective_allow_loopback = allow_loopback or explicitly_allowed
     pinned_ip: str | None = None
-    for address in _resolve_host_sync(hostname, port):
+    for address in addresses:
         if not _is_blocked_ip(
             address,
             allow_private=effective_allow_private,

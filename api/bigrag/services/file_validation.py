@@ -20,6 +20,7 @@ _MAGIC_BYTES: dict[str, tuple[bytes, ...]] = {
 }
 
 _ZIP_EXTS = frozenset({".docx", ".pptx", ".xlsx", ".epub"})
+_OOXML_EXTS = frozenset({".docx", ".pptx", ".xlsx"})
 
 MAX_DECOMPRESSED_BYTES = 500 * 1024 * 1024
 _MAGIC_HEAD_BYTES = 16
@@ -49,6 +50,10 @@ def validate_magic_bytes(content: bytes | Path, extension: str) -> None:
 
 
 def _validate_zip_bomb_sync(source: bytes | Path, extension: str) -> None:
+    if isinstance(source, (bytes, bytearray)) and len(source) > MAX_DECOMPRESSED_BYTES:
+        raise InvalidFileContentError(
+            f"Archive too large ({len(source):,} bytes > {MAX_DECOMPRESSED_BYTES:,} limit)."
+        )
     try:
         if isinstance(source, (bytes, bytearray)):
             zf = zipfile.ZipFile(io.BytesIO(source))
@@ -57,6 +62,10 @@ def _validate_zip_bomb_sync(source: bytes | Path, extension: str) -> None:
     except zipfile.BadZipFile as exc:
         raise InvalidFileContentError(f"Not a valid {extension} archive.") from exc
     try:
+        if extension.lower() in _OOXML_EXTS and "[Content_Types].xml" not in zf.namelist():
+            raise InvalidFileContentError(
+                f"{extension} archive missing required [Content_Types].xml."
+            )
         total = 0
         for info in zf.infolist():
             if info.is_dir():
