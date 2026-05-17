@@ -37,7 +37,10 @@ pub enum BigRagError {
 
     /// 429 from proxy or infrastructure layers.
     #[error("rate limited")]
-    RateLimited,
+    RateLimited {
+        /// Suggested wait duration from the `Retry-After` header.
+        retry_after: Option<Duration>,
+    },
 
     /// 5xx — server-side failure.
     #[error("server error: {message}")]
@@ -82,7 +85,7 @@ impl BigRagError {
             Self::Authentication { .. } => Some(401),
             Self::NotFound { .. } => Some(404),
             Self::Conflict { .. } => Some(409),
-            Self::RateLimited => Some(429),
+            Self::RateLimited { .. } => Some(429),
             Self::ServerError { status, .. } => Some(*status),
             Self::Api { status, .. } => Some(*status),
             Self::Timeout(_) | Self::Connection(_) | Self::FileRead(_) | Self::Serialization(_) => {
@@ -95,7 +98,10 @@ impl BigRagError {
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
-            Self::RateLimited | Self::ServerError { .. } | Self::Timeout(_) | Self::Connection(_)
+            Self::RateLimited { .. }
+                | Self::ServerError { .. }
+                | Self::Timeout(_)
+                | Self::Connection(_)
         )
     }
 }
@@ -125,7 +131,7 @@ pub(crate) async fn parse_error_response(response: reqwest::Response) -> BigRagE
         401 | 403 => BigRagError::Authentication { message },
         404 => BigRagError::NotFound { message },
         409 => BigRagError::Conflict { message },
-        429 => BigRagError::RateLimited,
+        429 => BigRagError::RateLimited { retry_after: None },
         500..=599 => BigRagError::ServerError { message, status },
         _ => BigRagError::Api { status, message },
     }

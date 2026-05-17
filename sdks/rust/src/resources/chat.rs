@@ -56,6 +56,7 @@ pub struct ChatStream {
     inner: Pin<Box<dyn Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send>>,
     parser: FrameParser,
     pending: VecDeque<Result<ChatStreamEvent, BigRagError>>,
+    byte_buf: Vec<u8>,
 }
 
 impl ChatStream {
@@ -64,6 +65,7 @@ impl ChatStream {
             inner: Box::pin(response.bytes_stream()),
             parser: FrameParser::new(),
             pending: VecDeque::new(),
+            byte_buf: Vec::new(),
         }
     }
 }
@@ -78,7 +80,15 @@ impl Stream for ChatStream {
 
         match self.inner.as_mut().poll_next(cx) {
             Poll::Ready(Some(Ok(chunk))) => {
-                let text = String::from_utf8_lossy(&chunk);
+                self.byte_buf.extend_from_slice(&chunk);
+                let valid_up_to = match std::str::from_utf8(&self.byte_buf) {
+                    Ok(_) => self.byte_buf.len(),
+                    Err(e) => e.valid_up_to(),
+                };
+                let text = std::str::from_utf8(&self.byte_buf[..valid_up_to])
+                    .unwrap_or("")
+                    .to_string();
+                self.byte_buf.drain(..valid_up_to);
                 self.pending = self
                     .parser
                     .push(&text)
@@ -96,7 +106,6 @@ impl Stream for ChatStream {
                 if let Some(event) = self.pending.pop_front() {
                     Poll::Ready(Some(event))
                 } else {
-                    cx.waker().wake_by_ref();
                     Poll::Pending
                 }
             }

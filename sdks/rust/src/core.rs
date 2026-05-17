@@ -62,7 +62,7 @@ impl Transport {
         path: &str,
         query: Vec<(String, String)>,
     ) -> Result<T, BigRagError> {
-        self.request_with_retry(Method::GET, path, None::<&()>, query)
+        self.request_with_retry(Method::GET, path, None::<&()>, query, true)
             .await
     }
 
@@ -72,7 +72,7 @@ impl Transport {
         path: &str,
         body: &B,
     ) -> Result<T, BigRagError> {
-        self.request_with_retry(Method::POST, path, Some(body), vec![])
+        self.request_with_retry(Method::POST, path, Some(body), vec![], false)
             .await
     }
 
@@ -82,7 +82,7 @@ impl Transport {
         path: &str,
         body: &B,
     ) -> Result<T, BigRagError> {
-        self.request_with_retry(Method::PUT, path, Some(body), vec![])
+        self.request_with_retry(Method::PUT, path, Some(body), vec![], true)
             .await
     }
 
@@ -92,13 +92,13 @@ impl Transport {
         path: &str,
         body: &B,
     ) -> Result<T, BigRagError> {
-        self.request_with_retry(Method::PATCH, path, Some(body), vec![])
+        self.request_with_retry(Method::PATCH, path, Some(body), vec![], false)
             .await
     }
 
     /// DELETE request.
     pub async fn delete<T: DeserializeOwned>(&self, path: &str) -> Result<T, BigRagError> {
-        self.request_with_retry(Method::DELETE, path, None::<&()>, vec![])
+        self.request_with_retry(Method::DELETE, path, None::<&()>, vec![], true)
             .await
     }
 
@@ -187,19 +187,27 @@ impl Transport {
         path: &str,
         body: Option<&B>,
         query: Vec<(String, String)>,
+        retry: bool,
     ) -> Result<T, BigRagError> {
         let mut last_err = None;
+        let max_attempts = if retry { self.max_retries } else { 0 };
+        let mut override_delay: Option<Duration> = None;
 
-        for attempt in 0..=self.max_retries {
+        for attempt in 0..=max_attempts {
             if attempt > 0 {
-                let delay =
-                    Duration::from_millis(500 * 2u64.pow(attempt - 1)).min(Duration::from_secs(4));
+                let delay = override_delay.take().unwrap_or_else(|| {
+                    Duration::from_millis(500 * 2u64.pow(attempt - 1))
+                        .min(Duration::from_secs(4))
+                });
                 tokio::time::sleep(delay).await;
             }
 
             match self.do_request::<B, T>(&method, path, body, &query).await {
                 Ok(val) => return Ok(val),
-                Err(e) if e.is_retryable() && attempt < self.max_retries => {
+                Err(e) if e.is_retryable() && attempt < max_attempts => {
+                    if let BigRagError::RateLimited { retry_after: Some(d) } = &e {
+                        override_delay = Some(*d);
+                    }
                     last_err = Some(e);
                 }
                 Err(e) => return Err(e),
@@ -245,7 +253,21 @@ impl Transport {
                 message: format!("response deserialization failed: {}", e),
             })
         } else {
-            Err(parse_error_response(response).await)
+            let retry_after = if response.status().as_u16() == 429 {
+                response
+                    .headers()
+                    .get("retry-after")
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|s| s.trim().parse::<u64>().ok())
+                    .map(Duration::from_secs)
+            } else {
+                None
+            };
+            let mut err = parse_error_response(response).await;
+            if let (Some(d), BigRagError::RateLimited { retry_after }) = (retry_after, &mut err) {
+                *retry_after = Some(d);
+            }
+            Err(err)
         }
     }
 }

@@ -28,7 +28,7 @@ impl FrameParser {
         let mut frames = Vec::new();
         while let Some((pos, len)) = find_boundary(&self.buffer) {
             let block = self.buffer[..pos].to_string();
-            self.buffer = self.buffer[pos + len..].to_string();
+            self.buffer.drain(..pos + len);
             if let Some(frame) = parse_block(&block) {
                 frames.push(frame);
             }
@@ -85,7 +85,8 @@ fn trim_value(value: &str) -> &str {
 pub struct SseStream {
     inner: Pin<Box<dyn Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send>>,
     parser: FrameParser,
-    pending: VecDeque<ProgressEvent>,
+    pending: VecDeque<Result<ProgressEvent, BigRagError>>,
+    byte_buf: Vec<u8>,
 }
 
 impl SseStream {
@@ -94,6 +95,7 @@ impl SseStream {
             inner: Box::pin(response.bytes_stream()),
             parser: FrameParser::new(),
             pending: VecDeque::new(),
+            byte_buf: Vec::new(),
         }
     }
 }
@@ -103,24 +105,32 @@ impl Stream for SseStream {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if let Some(event) = self.pending.pop_front() {
-            return Poll::Ready(Some(Ok(event)));
+            return Poll::Ready(Some(event));
         }
 
         match self.inner.as_mut().poll_next(cx) {
             Poll::Ready(Some(Ok(chunk))) => {
-                let text = String::from_utf8_lossy(&chunk);
-                let mut events: VecDeque<ProgressEvent> = self
+                self.byte_buf.extend_from_slice(&chunk);
+                let valid_up_to = match std::str::from_utf8(&self.byte_buf) {
+                    Ok(_) => self.byte_buf.len(),
+                    Err(e) => e.valid_up_to(),
+                };
+                let text = std::str::from_utf8(&self.byte_buf[..valid_up_to])
+                    .unwrap_or("")
+                    .to_string();
+                self.byte_buf.drain(..valid_up_to);
+                self.pending = self
                     .parser
                     .push(&text)
                     .into_iter()
-                    .filter_map(|frame| serde_json::from_str(&frame.data).ok())
+                    .map(|frame| {
+                        serde_json::from_str(&frame.data).map_err(BigRagError::Serialization)
+                    })
                     .collect();
 
-                if let Some(first) = events.pop_front() {
-                    self.pending = events;
-                    Poll::Ready(Some(Ok(first)))
+                if let Some(first) = self.pending.pop_front() {
+                    Poll::Ready(Some(first))
                 } else {
-                    cx.waker().wake_by_ref();
                     Poll::Pending
                 }
             }
