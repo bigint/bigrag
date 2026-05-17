@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+import asyncio
+import math
+import time
+
+from bigrag.logging import get_logger
+from bigrag.services import embedding_cache
+from bigrag.services.embedding import truncate_to_tokens
+from bigrag.services.embedding_rate_limit import (
+    is_rate_limit_error,
+    rate_limit_cooldown_key,
+    rate_limit_delay,
+    record_rate_limit_cooldown,
+    wait_for_rate_limit_cooldown,
+)
+
+logger = get_logger("bigrag.queue")
+
+EMBEDDING_TIMEOUT_SECONDS = 60
+PERMANENT_ERRORS = (ValueError, UnicodeDecodeError, KeyError)
+
+
+async def embed_with_cache(
+    texts: list[str],
+    model,
+    provider: str,
+    model_name: str,
+    dimension: int,
+    input_type: str = "document",
+) -> list[list[float]]:
+    cache_texts, _ = truncate_to_tokens(texts, model_name)
+    logger.info(
+        "embedding cache lookup",
+        provider=provider,
+        model=model_name,
+        dimension=dimension,
+        inputs=len(texts),
+    )
+    cached = await embedding_cache.get_many(
+        cache_texts, model.cache_identity, dimension, input_type
+    )
+    missing_idx = [i for i in range(len(texts)) if i not in cached]
+    logger.info(
+        "embedding cache result",
+        provider=provider,
+        model=model_name,
+        hits=len(texts) - len(missing_idx),
+        misses=len(missing_idx),
+    )
+    if missing_idx:
+        missing_by_cache_text: dict[str, int] = {}
+        for idx in missing_idx:
+            missing_by_cache_text.setdefault(cache_texts[idx], idx)
+        provider_idx = list(missing_by_cache_text.values())
+        missing_texts = [texts[i] for i in provider_idx]
+        missing_cache_texts = [cache_texts[i] for i in provider_idx]
+        cooldown_key = rate_limit_cooldown_key(model, provider, model_name, dimension)
+        await wait_for_rate_limit_cooldown(cooldown_key, provider, model_name)
+        t0 = time.monotonic()
+        logger.info(
+            "embedding provider request",
+            provider=provider,
+            model=model_name,
+            inputs=len(missing_texts),
+        )
+        try:
+            fresh = await asyncio.wait_for(
+                model.embed(missing_texts, input_type=input_type),
+                timeout=EMBEDDING_TIMEOUT_SECONDS,
+            )
+        except Exception as exc:
+            if is_rate_limit_error(exc):
+                await record_rate_limit_cooldown(cooldown_key, rate_limit_delay(exc, 1.0))
+            raise
+        logger.info(
+            "embedding provider response",
+            provider=provider,
+            model=model_name,
+            inputs=len(missing_texts),
+            elapsed=round(time.monotonic() - t0, 2),
+        )
+        if len(fresh) != len(missing_texts):
+            raise ValueError(
+                f"embedding provider returned {len(fresh)} vectors for {len(missing_texts)} inputs"
+            )
+        for vec in fresh:
+            if any(not math.isfinite(v) for v in vec):
+                raise ValueError("embedding provider returned non-finite values")
+        await embedding_cache.put_many(
+            missing_cache_texts, fresh, model.cache_identity, dimension, input_type
+        )
+        fresh_by_cache_text = dict(zip(missing_cache_texts, fresh, strict=False))
+        for idx in missing_idx:
+            cached[idx] = fresh_by_cache_text[cache_texts[idx]]
+    return [cached[i] for i in range(len(texts))]
+
+
+async def delete_document_vectors_after_failure(
+    store,
+    collection_name: str,
+    document_id: str,
+    *,
+    prefix: str,
+    log_message: str,
+) -> None:
+    try:
+        await store.delete_by_document(collection_name, document_id)
+    except Exception as cleanup_err:
+        logger.warning(log_message, prefix=prefix, error=repr(cleanup_err))
