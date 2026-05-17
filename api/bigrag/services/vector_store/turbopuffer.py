@@ -217,15 +217,26 @@ class TurbopufferVectorStore:
         limit: int = 10000,
         offset: int = 0,
     ) -> tuple[list[dict], int]:
-        rows = await self._query_rows(
-            collection,
-            {
-                "rank_by": ["id", "asc"],
-                "filters": ["document_id", "Eq", document_id],
-                "limit": {"total": 10000},
-                "exclude_attributes": ["vector"],
-            },
-        )
+        rows: list[dict] = []
+        last_id: str | None = None
+        while True:
+            doc_filter = ["document_id", "Eq", document_id]
+            filters = (
+                doc_filter if last_id is None else ["And", [doc_filter, ["id", "Gt", last_id]]]
+            )
+            page = await self._query_rows(
+                collection,
+                {
+                    "rank_by": ["id", "asc"],
+                    "filters": filters,
+                    "limit": {"total": _EXPORT_PAGE_SIZE},
+                    "exclude_attributes": ["vector"],
+                },
+            )
+            rows.extend(page)
+            if len(page) < _EXPORT_PAGE_SIZE:
+                break
+            last_id = str(page[-1].get("id", ""))
         return _chunk_rows_from_payloads([_row_payload(row) for row in rows], limit, offset)
 
     async def _query_rows(self, collection: str, payload: dict) -> list[dict]:
