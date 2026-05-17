@@ -167,6 +167,8 @@ class OpenAIEmbedding(EmbeddingModel):
             base_url=self._base_url or "default",
         )
 
+    _MAX_INPUTS_PER_REQUEST = 2048
+
     async def embed(self, texts: list[str], *, input_type: str = "document") -> list[list[float]]:
         _ = input_type
         texts, warnings = truncate_to_tokens(texts, self._model_name)
@@ -178,6 +180,19 @@ class OpenAIEmbedding(EmbeddingModel):
                 inputs=len(texts),
                 model=self._model_name,
             )
+        if len(texts) > self._MAX_INPUTS_PER_REQUEST:
+            sub_batches = [
+                texts[i : i + self._MAX_INPUTS_PER_REQUEST]
+                for i in range(0, len(texts), self._MAX_INPUTS_PER_REQUEST)
+            ]
+            results = await asyncio.gather(*[self._embed_single(b) for b in sub_batches])
+            out: list[list[float]] = []
+            for r in results:
+                out.extend(r)
+            return out
+        return await self._embed_single(texts)
+
+    async def _embed_single(self, texts: list[str]) -> list[list[float]]:
         cooldown_key = rate_limit_cooldown_key(
             self._cache_identity, self.provider, self._model_name, self._dimension
         )

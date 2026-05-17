@@ -200,18 +200,21 @@ async def chunk_and_embed(
     max_batch_retries = 3
     batch_backoff_base = 2
 
+    batches: list[tuple[int, int, int, list]] = []
     for batch_start in range(0, len(chunks), batch_size):
         batch_end = min(batch_start + batch_size, len(chunks))
-        batch_chunks = chunks[batch_start:batch_end]
-        batch_texts = [c.text for c in batch_chunks]
         batch_num = batch_start // batch_size + 1
+        batches.append((batch_num, batch_start, batch_end, chunks[batch_start:batch_end]))
 
-        embed_elapsed = 0.0
-        insert_elapsed = 0.0
-        count = 0
-        attempt = 0
-        transient_attempt = 0
+    async def _embed_one(
+        batch_num: int,
+        batch_start: int,
+        batch_end: int,
+        batch_chunks: list,
+    ) -> tuple[int, int, int, list, list[list[float]], float]:
+        batch_texts = [c.text for c in batch_chunks]
         rate_limit_attempt = 0
+        attempt = 0
         while True:
             attempt += 1
             try:
@@ -232,7 +235,54 @@ async def chunk_and_embed(
                     job.embedding_dimension,
                 )
                 embed_elapsed = time.monotonic() - t0
+                return batch_num, batch_start, batch_end, batch_chunks, embeddings, embed_elapsed
+            except PERMANENT_ERRORS:
+                raise
+            except Exception as exc:
+                if is_rate_limit_error(exc):
+                    rate_limit_attempt += 1
+                    if rate_limit_attempt >= MAX_RATE_LIMIT_RETRIES:
+                        logger.error(
+                            "batch exhausted rate limit retries",
+                            prefix=prefix,
+                            batch=batch_num,
+                            total_batches=total_batches,
+                            chunks=len(batch_texts),
+                            attempt=attempt,
+                            max_rate_limit_attempts=MAX_RATE_LIMIT_RETRIES,
+                            error=repr(exc),
+                        )
+                        raise
+                    fallback_delay = batch_backoff_base ** min(rate_limit_attempt, 5)
+                    delay = rate_limit_delay(exc, float(fallback_delay))
+                    await record_rate_limit_cooldown(cooldown_key, delay)
+                    logger.warning(
+                        "batch rate limited",
+                        prefix=prefix,
+                        batch=batch_num,
+                        total_batches=total_batches,
+                        attempt=attempt,
+                        rate_limit_attempt=rate_limit_attempt,
+                        max_rate_limit_attempts=MAX_RATE_LIMIT_RETRIES,
+                        error=repr(exc),
+                        retrying_in=round(delay, 3),
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                raise
 
+    embed_results = await asyncio.gather(
+        *[_embed_one(bn, bs, be, bc) for bn, bs, be, bc in batches]
+    )
+    embed_results.sort(key=lambda r: r[0])
+
+    for batch_num, batch_start, batch_end, batch_chunks, embeddings, embed_elapsed in embed_results:
+        batch_texts = [c.text for c in batch_chunks]
+        insert_elapsed = 0.0
+        count = 0
+        transient_attempt = 0
+        while True:
+            try:
                 t1 = time.monotonic()
                 await ensure_job_current(job)
                 ids = [f"{doc}_{i}" for i in range(batch_start, batch_end)]
@@ -285,36 +335,6 @@ async def chunk_and_embed(
                         batch=batch_num,
                         error=repr(cleanup_exc),
                     )
-                if is_rate_limit_error(exc):
-                    rate_limit_attempt += 1
-                    if rate_limit_attempt >= MAX_RATE_LIMIT_RETRIES:
-                        logger.error(
-                            "batch exhausted rate limit retries",
-                            prefix=prefix,
-                            batch=batch_num,
-                            total_batches=total_batches,
-                            chunks=len(batch_texts),
-                            attempt=attempt,
-                            max_rate_limit_attempts=MAX_RATE_LIMIT_RETRIES,
-                            error=repr(exc),
-                        )
-                        raise
-                    fallback_delay = batch_backoff_base ** min(rate_limit_attempt, 5)
-                    delay = rate_limit_delay(exc, float(fallback_delay))
-                    await record_rate_limit_cooldown(cooldown_key, delay)
-                    logger.warning(
-                        "batch rate limited",
-                        prefix=prefix,
-                        batch=batch_num,
-                        total_batches=total_batches,
-                        attempt=attempt,
-                        rate_limit_attempt=rate_limit_attempt,
-                        max_rate_limit_attempts=MAX_RATE_LIMIT_RETRIES,
-                        error=repr(exc),
-                        retrying_in=round(delay, 3),
-                    )
-                    await asyncio.sleep(delay)
-                    continue
                 transient_attempt += 1
                 if transient_attempt >= max_batch_retries:
                     logger.error(
