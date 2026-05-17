@@ -37,14 +37,10 @@ from tests._helpers import (
 
 API_BASE = os.environ.get("BIGRAG_E2E_API_BASE", "http://localhost:4000")
 FAKE_OPENAI_BASE = os.environ.get("BIGRAG_E2E_FAKE_OPENAI", "http://localhost:9001")
-FAKE_GDRIVE_BASE = os.environ.get("BIGRAG_E2E_FAKE_GDRIVE", "http://localhost:9002")
 WEBHOOK_SINK_BASE = os.environ.get("BIGRAG_E2E_WEBHOOK_SINK", "http://localhost:9003")
 
 FAKE_OPENAI_INTERNAL_BASE = os.environ.get(
     "BIGRAG_E2E_FAKE_OPENAI_INTERNAL", "http://fake-openai:9001"
-)
-FAKE_GDRIVE_INTERNAL_BASE = os.environ.get(
-    "BIGRAG_E2E_FAKE_GDRIVE_INTERNAL", "http://fake-gdrive:9002"
 )
 WEBHOOK_SINK_INTERNAL_BASE = os.environ.get(
     "BIGRAG_E2E_WEBHOOK_SINK_INTERNAL", "http://webhook-sink:9003"
@@ -60,7 +56,6 @@ DOCUMENT_READY_TIMEOUT = 60.0
 __all__ = [
     "API_BASE",
     "FAKE_OPENAI_BASE",
-    "FAKE_GDRIVE_BASE",
     "WEBHOOK_SINK_BASE",
     "ADMIN_EMAIL",
     "ADMIN_PASSWORD",
@@ -86,45 +81,14 @@ def api_base_url() -> str:
 
 @pytest.fixture(scope="session")
 def fake_openai_base() -> str:
-    """URL bigRAG (running in Docker) uses to reach fake-openai.
-
-    Despite the local-sounding name, this returns the *internal* (Docker
-    network) hostname by default — that is the URL tests should pass *into*
-    bigRAG, because bigRAG dials it from inside the container network.
-    For tests that hit fake-openai *directly* from the host runner, use
-    ``fake_openai_host_base`` instead.
-    """
+    """URL bigRAG (running in Docker) uses to reach fake-openai (internal Docker hostname)."""
     return FAKE_OPENAI_INTERNAL_BASE
-
-
-@pytest.fixture(scope="session")
-def fake_openai_host_base() -> str:
-    """URL the test runner (running on the host) uses to reach fake-openai."""
-    return FAKE_OPENAI_BASE
-
-
-@pytest.fixture(scope="session")
-def fake_gdrive_base() -> str:
-    """Internal (Docker) URL of fake-gdrive — pass this *into* bigRAG."""
-    return FAKE_GDRIVE_INTERNAL_BASE
-
-
-@pytest.fixture(scope="session")
-def fake_gdrive_host_base() -> str:
-    """Host URL of fake-gdrive for direct calls from the test runner."""
-    return FAKE_GDRIVE_BASE
 
 
 @pytest.fixture(scope="session")
 def webhook_sink_base() -> str:
     """Internal (Docker) URL of webhook-sink — pass this *into* bigRAG."""
     return WEBHOOK_SINK_INTERNAL_BASE
-
-
-@pytest.fixture(scope="session")
-def webhook_sink_host_base() -> str:
-    """Host URL of webhook-sink for direct GET /received polling from tests."""
-    return WEBHOOK_SINK_BASE
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +143,7 @@ async def admin_setup() -> dict[str, str]:
 
     # bigRAG keeps url-safety flags in the DB-backed runtime_settings
     # (env vars only seed *some* of them). Apply the e2e-specific
-    # overrides every time so that fake-openai/webhook-sink/fake-gdrive
+    # overrides every time so that fake-openai/webhook-sink
     # (private Docker hostnames) are reachable.
     await _bootstrap_e2e_runtime_settings()
 
@@ -569,16 +533,6 @@ async def document(
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(scope="session")
-def webhook_sink_url() -> Callable[[str], str]:
-    """Returns webhook URLs *bigRAG* should call — internal Docker hostname."""
-
-    def _build(label: str) -> str:
-        return f"{WEBHOOK_SINK_INTERNAL_BASE}/webhook/{label}"
-
-    return _build
-
-
 @pytest_asyncio.fixture
 async def webhook_sink() -> AsyncIterator[dict[str, Any]]:
     """Reset the webhook sink before and after each test that uses it.
@@ -626,67 +580,6 @@ async def webhook_sink() -> AsyncIterator[dict[str, Any]]:
                 await client.post("/reset")
             except Exception:
                 pass
-
-
-# ---------------------------------------------------------------------------
-# Fake Google Drive OAuth helper
-# ---------------------------------------------------------------------------
-
-
-@pytest_asyncio.fixture
-async def gdrive_oauth_helper() -> AsyncIterator[dict[str, Any]]:
-    """Helper that drives the fake-gdrive OAuth code-grant flow.
-
-    Returns a bundle::
-
-        helper["consent_url"](client_id, redirect_uri, state, scope)
-        await helper["exchange_code"](client_id, client_secret, code, redirect_uri)
-    """
-    async with httpx.AsyncClient(base_url=FAKE_GDRIVE_BASE, timeout=DEFAULT_TIMEOUT) as client:
-
-        def consent_url(
-            client_id: str,
-            redirect_uri: str,
-            state: str,
-            scope: str = "https://www.googleapis.com/auth/drive.readonly",
-        ) -> str:
-            from urllib.parse import urlencode
-
-            qs = urlencode(
-                {
-                    "client_id": client_id,
-                    "redirect_uri": redirect_uri,
-                    "state": state,
-                    "scope": scope,
-                    "response_type": "code",
-                }
-            )
-            return f"{FAKE_GDRIVE_BASE}/o/oauth2/auth?{qs}"
-
-        async def exchange_code(
-            client_id: str,
-            client_secret: str,
-            code: str,
-            redirect_uri: str,
-        ) -> dict[str, Any]:
-            r = await client.post(
-                "/token",
-                data={
-                    "grant_type": "authorization_code",
-                    "code": code,
-                    "client_id": client_id,
-                    "client_secret": client_secret,
-                    "redirect_uri": redirect_uri,
-                },
-            )
-            r.raise_for_status()
-            return r.json()
-
-        yield {
-            "consent_url": consent_url,
-            "exchange_code": exchange_code,
-            "client": client,
-        }
 
 
 # ---------------------------------------------------------------------------
