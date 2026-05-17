@@ -14,12 +14,12 @@ __pycache__/
 *.egg-info/
 *.egg
 .pytest_cache/
+.ruff_cache/
 .coverage
 coverage/
 htmlcov/
 dist/
 build/
-api/.venv/
 .venv/
 
 # Node

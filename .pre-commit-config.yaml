@@ -24,6 +24,6 @@ repos:
         entry: pnpm exec biome check --write --no-errors-on-unmatched --files-ignore-unknown=true
         language: system
         files: \.(ts|tsx|js|jsx|mjs|cjs|json|jsonc|css)$
-        exclude: ^(api/|.*/node_modules/|.*/\.next/|.*/\.next-dev/|.*/dist/|pnpm-lock\.yaml$)
+        exclude: ^(api/|.*/node_modules/|.*/\.next/|.*/dist/|pnpm-lock\.yaml$)
         pass_filenames: true
         require_serial: true
