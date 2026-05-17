@@ -23,7 +23,7 @@ from bigrag.models.document import (
     DocumentListResponse,
     DocumentStatusResponse,
 )
-from bigrag.routers import get_collection_or_404, get_embedding_model_for
+from bigrag.routers import ensure_embedding_or_400, get_collection_or_404
 from bigrag.routers._documents import (
     UploadBudget,
     document_response,
@@ -40,7 +40,6 @@ from bigrag.routers.documents_uploads import (
     validated_upload_to_temp,
 )
 from bigrag.services import audit, collection_cache
-from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
@@ -205,14 +204,7 @@ async def batch_upload_documents(
     session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
-    try:
-        get_embedding_model_for(collection)
-    except (ImportError, ValueError) as e:
-        logger.warning("embedding model unavailable", collection=collection_name, error=repr(e))
-        raise HTTPException(
-            status_code=400,
-            detail=safe_error_detail(e, "Embedding provider is not available for this collection."),
-        ) from e
+    ensure_embedding_or_400(collection)
 
     if len(files) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 files per batch upload")

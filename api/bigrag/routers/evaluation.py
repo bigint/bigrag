@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import math
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
-from bigrag.routers import get_collection_or_404, get_embedding_model_for, get_reranking_config
+from bigrag.routers import ensure_embedding_or_400, get_collection_or_404, get_reranking_config
 from bigrag.services import access_log
 from bigrag.services.collection_scope import assert_collection_matches_pin
-from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.retrieval import retrieve
 from bigrag.services.tenant_enforcement import require_tenant_filters
 
@@ -105,14 +104,7 @@ async def run_evaluation(
 
     collection = await get_collection_or_404(body.collection)
     require_tenant_filters(collection, body.filters)
-    try:
-        embedding_model = get_embedding_model_for(collection)
-    except (ImportError, ValueError) as e:
-        logger.warning("embedding model unavailable", error=repr(e))
-        raise HTTPException(
-            status_code=400,
-            detail=safe_error_detail(e, "Embedding provider is not available for this collection."),
-        ) from e
+    embedding_model = ensure_embedding_or_400(collection)
 
     per_case: list[EvalPerCase] = []
     recall_sum = 0.0

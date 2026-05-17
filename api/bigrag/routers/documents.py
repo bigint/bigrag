@@ -15,7 +15,7 @@ from bigrag.models.document import (
     DocumentListResponse,
     DocumentResponse,
 )
-from bigrag.routers import get_collection_or_404, get_embedding_model_for
+from bigrag.routers import ensure_embedding_or_400, get_collection_or_404
 from bigrag.routers._documents import (
     content_hash_match,
     document_response,
@@ -38,7 +38,7 @@ from bigrag.routers.documents_uploads import (
     validated_upload_to_temp,
 )
 from bigrag.services import audit, collection_cache
-from bigrag.services.error_sanitize import safe_error_detail, sanitize_message_text
+from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
@@ -63,14 +63,7 @@ async def upload_document(
     session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
-    try:
-        get_embedding_model_for(collection)
-    except (ImportError, ValueError) as e:
-        logger.warning("embedding model unavailable", collection=collection_name, error=repr(e))
-        raise HTTPException(
-            status_code=400,
-            detail=safe_error_detail(e, "Embedding provider is not available for this collection."),
-        ) from e
+    ensure_embedding_or_400(collection)
     logger.info("document upload", collection=collection_name, filename=file.filename)
 
     file_ext = upload_extension_or_400(file.filename)
@@ -320,14 +313,7 @@ async def reprocess_document(
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    try:
-        get_embedding_model_for(collection)
-    except (ImportError, ValueError) as e:
-        logger.warning("embedding model unavailable", collection=collection_name, error=repr(e))
-        raise HTTPException(
-            status_code=400,
-            detail=safe_error_detail(e, "Embedding provider is not available for this collection."),
-        ) from e
+    ensure_embedding_or_400(collection)
 
     if not await get_storage().exists(doc.file_path):
         raise HTTPException(

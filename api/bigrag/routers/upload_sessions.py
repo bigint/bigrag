@@ -19,7 +19,7 @@ from bigrag.models.upload_session import (
     UploadSessionFileResponse,
     UploadSessionResponse,
 )
-from bigrag.routers import get_collection_or_404, get_embedding_model_for
+from bigrag.routers import ensure_embedding_or_400, get_collection_or_404
 from bigrag.routers._documents import (
     SUPPORTED_EXTENSIONS,
     content_hash_match,
@@ -58,7 +58,6 @@ from bigrag.routers._upload_sessions import (
 )
 from bigrag.routers.documents_progress import document_progress, publish_queued_progress
 from bigrag.services import audit, collection_cache
-from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
@@ -81,14 +80,7 @@ async def create_upload_session(
     db: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
-    try:
-        get_embedding_model_for(collection)
-    except (ImportError, ValueError) as e:
-        logger.warning("embedding model unavailable", collection=collection_name, error=repr(e))
-        raise HTTPException(
-            status_code=400,
-            detail=safe_error_detail(e, "Embedding provider is not available for this collection."),
-        ) from e
+    ensure_embedding_or_400(collection)
     limits = await get_values(["max_upload_session_files", "max_upload_session_size_mb"])
     if body.total_files > limits["max_upload_session_files"]:
         raise HTTPException(
@@ -162,14 +154,7 @@ async def upload_session_file(
     db: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
-    try:
-        get_embedding_model_for(collection)
-    except (ImportError, ValueError) as e:
-        logger.warning("embedding model unavailable", collection=collection_name, error=repr(e))
-        raise HTTPException(
-            status_code=400,
-            detail=safe_error_detail(e, "Embedding provider is not available for this collection."),
-        ) from e
+    ensure_embedding_or_400(collection)
     upload_session = await _get_upload_session_for_update(
         db, collection["id"], session_id, user_id=uuid.UUID(user["id"])
     )
