@@ -11,11 +11,11 @@ from bigrag.db.models import Document, UserPreference
 from bigrag.exceptions import ServerError, ValidationError
 from bigrag.ids import uuid7
 from bigrag.models.chat import ChatCreateRequest, ChatSource, ChatTimings
-from bigrag.routers.preferences import decrypt_preferences
 from bigrag.services import crypto
 from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
 from bigrag.services.collection_config import get_embedding_model_for, get_reranking_config
 from bigrag.services.collection_scope import assert_collection_matches_pin
+from bigrag.services.preferences import decrypt_preferences
 from bigrag.services.retrieval import retrieve
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.tenant_enforcement import require_tenant_filters
