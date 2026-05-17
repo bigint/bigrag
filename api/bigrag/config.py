@@ -49,8 +49,6 @@ class Settings(BaseSettings):
     auth_principal_cache_ttl: int = 60
     allow_public_bind_in_prod: bool = False
 
-    embedding_concurrency: int = 8
-    qdrant_search_ef: int | None = None
     queue_max_depth: int = 10000
     collection_cache_ttl: int = 30
     query_embedding_cache_ttl: int = 300
@@ -58,7 +56,6 @@ class Settings(BaseSettings):
     embedding_cache_mode: Literal["encrypted", "disabled"] = "encrypted"
     embedding_cache_retention_days: int = 30
     conversion_timeout: int = 300
-    conversion_pdf_ocr_enabled: bool = True
     conversion_pool_workers: int = max(1, (os.cpu_count() or 2) // 2)
     webhook_delivery_timeout: int = 10
     webhook_retry_delays: list[int] = [10, 30, 90]
