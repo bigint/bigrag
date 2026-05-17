@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_connect_timeout_seconds: int = 10
     qdrant_required: bool = False
+    qdrant_prefer_grpc: bool = False
+    qdrant_grpc_port: int = 6334
     turbopuffer_api_key: str | None = None
     turbopuffer_region: str = "aws-us-east-1"
     turbopuffer_namespace_prefix: str = "bigrag_"

@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any, cast
 
+from bigrag.config import settings as _app_settings
 from bigrag.logging import get_logger
 from bigrag.services._retrieval_filters import FilterExpression
 from bigrag.services.vector_store.base import (
@@ -59,17 +60,29 @@ class VectorStore:
         connect_timeout_seconds: int | float | None = 10,
         search_ef: int | None = None,
         qdrant_url: str | None = None,
+        qdrant_prefer_grpc: bool | None = None,
+        qdrant_grpc_port: int | None = None,
         turbopuffer_api_key: str | None = None,
         turbopuffer_region: str = "aws-us-east-1",
         turbopuffer_namespace_prefix: str = "bigrag_",
     ) -> None:
         if provider is not None:
             _validate_provider(provider)
+        prefer_grpc = (
+            qdrant_prefer_grpc
+            if qdrant_prefer_grpc is not None
+            else _app_settings.qdrant_prefer_grpc
+        )
+        grpc_port = (
+            qdrant_grpc_port if qdrant_grpc_port is not None else _app_settings.qdrant_grpc_port
+        )
         self.backends = {
             "qdrant": QdrantVectorStore(
                 qdrant_url or url or "http://localhost:6333",
                 connect_timeout_seconds=connect_timeout_seconds,
                 search_ef=search_ef,
+                prefer_grpc=prefer_grpc,
+                grpc_port=grpc_port,
             ),
             "turbopuffer": TurbopufferVectorStore(
                 api_key=turbopuffer_api_key,
@@ -263,10 +276,17 @@ class VectorStore:
         top_k: int = 10,
         filters: FilterExpression | None = None,
         provider: VectorStoreProvider | None = None,
+        payload_fields: list[str] | None = None,
     ) -> list[dict]:
         selected_provider = await self._provider_for(collection, provider)
         async with self._backend(selected_provider) as backend:
-            return await backend.search(collection, query_embedding, top_k, filters)
+            return await backend.search(
+                collection,
+                query_embedding,
+                top_k,
+                filters,
+                payload_fields=payload_fields,
+            )
 
     async def get_chunks(
         self,

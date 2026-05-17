@@ -183,12 +183,17 @@ class TurbopufferVectorStore:
         query_embedding: list[float],
         top_k: int = 10,
         filters: FilterExpression | None = None,
+        payload_fields: list[str] | None = None,
     ) -> list[dict]:
         payload: dict[str, Any] = {
             "rank_by": ["vector", "ANN", query_embedding],
             "top_k": top_k,
-            "exclude_attributes": ["vector"],
         }
+        if payload_fields:
+            attrs = [_PUBLIC_ID_FIELD if f == "id" else f for f in payload_fields]
+            payload["include_attributes"] = attrs
+        else:
+            payload["exclude_attributes"] = ["vector"]
         turbo_filter = _to_turbopuffer_filter(filters)
         if turbo_filter:
             payload["filters"] = turbo_filter

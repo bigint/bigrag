@@ -83,6 +83,8 @@ class QdrantVectorStore:
         connect_timeout_seconds: int | float | None = 10,
         search_ef: int | None = None,
         prefix: str = "bigrag_",
+        prefer_grpc: bool = False,
+        grpc_port: int = 6334,
     ) -> None:
         self.url = url
         self.client: AsyncQdrantClient | None = None
@@ -94,13 +96,22 @@ class QdrantVectorStore:
         )
         self._search_ef = search_ef if search_ef and search_ef > 0 else None
         self.prefix = prefix
+        self._prefer_grpc = bool(prefer_grpc)
+        self._grpc_port = int(grpc_port) if grpc_port else 6334
 
     def connect(self) -> None:
         self.client = AsyncQdrantClient(
             url=self.url,
             timeout=self._connect_timeout_seconds,
+            prefer_grpc=self._prefer_grpc,
+            grpc_port=self._grpc_port,
         )
-        logger.info("connected to qdrant", url=self.url)
+        logger.info(
+            "connected to qdrant",
+            url=self.url,
+            prefer_grpc=self._prefer_grpc,
+            grpc_port=self._grpc_port,
+        )
 
     async def reconnect(self) -> None:
         logger.warning("reconnecting to qdrant", url=self.url)
@@ -307,8 +318,13 @@ class QdrantVectorStore:
         query_embedding: list[float],
         top_k: int = 10,
         filters: FilterExpression | None = None,
+        payload_fields: list[str] | None = None,
     ) -> list[dict]:
         col = self._col(collection)
+
+        with_payload: Any = (
+            models.PayloadSelectorInclude(include=list(payload_fields)) if payload_fields else True
+        )
 
         client = self._client()
         results = await self._run_with_retry(
@@ -318,7 +334,7 @@ class QdrantVectorStore:
             limit=top_k,
             query_filter=_to_qdrant_filter(filters),
             search_params=self._search_params(),
-            with_payload=True,
+            with_payload=with_payload,
             with_vectors=False,
         )
 

@@ -9,6 +9,15 @@ VectorStoreProvider = Literal["qdrant", "turbopuffer"]
 
 _POINT_NAMESPACE = uuid.UUID("1b04f7ca-0c3b-5d76-a5bb-6e4b4a40f61d")
 _FIXED_PAYLOAD_FIELDS = {"id", "text", "document_id", "chunk_index", "embedding"}
+DEFAULT_SEARCH_PAYLOAD_FIELDS: list[str] = [
+    "id",
+    "text",
+    "document_id",
+    "chunk_index",
+    "page_no",
+    "char_start",
+    "char_end",
+]
 
 
 class VectorStoreFeatureError(RuntimeError):
@@ -52,6 +61,7 @@ class VectorStoreBackend(Protocol):
         query_embedding: list[float],
         top_k: int = 10,
         filters: FilterExpression | None = None,
+        payload_fields: list[str] | None = None,
     ) -> list[dict]: ...
 
     async def get_chunks(
