@@ -11,6 +11,7 @@ from bigrag.db.models import Session as DbSession
 from bigrag.db.models import User
 from bigrag.db.session import get_session
 from bigrag.exceptions import ValidationError
+from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_auth_principals, require_admin_session
 from bigrag.models.auth import (
@@ -89,7 +90,7 @@ async def create_user(
     session: AsyncSession = Depends(get_session),
 ) -> UserResponse:
     user = User(
-        id=uuid.uuid4(),
+        id=uuid7(),
         email=body.email.lower(),
         password_hash=hash_password(body.password),
         display_name=body.display_name,

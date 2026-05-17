@@ -8,6 +8,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, mapped_column
 
+from bigrag.ids import uuid7
+
 
 class Base(DeclarativeBase):
     type_annotation_map = {dict: JSONB, list: JSONB}
@@ -15,7 +17,7 @@ class Base(DeclarativeBase):
 
 UUIDpk = Annotated[
     UUID,
-    mapped_column(sa.Uuid, primary_key=True, server_default=sa.text("gen_random_uuid()")),
+    mapped_column(sa.Uuid, primary_key=True, default=uuid7),
 ]
 TS = Annotated[
     datetime,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import uuid
 from pathlib import Path
 
 import sqlalchemy as sa
@@ -13,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import Document
 from bigrag.db.session import get_session
 from bigrag.exceptions import ValidationError
+from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.common import StatusResponse
@@ -159,7 +159,7 @@ async def _persist_batch_upload_documents(
                 ordered.append((existing, True))
                 continue
 
-            doc_id = uuid.uuid4()
+            doc_id = uuid7()
             filename = file.filename or "document"
             storage_key = f"{collection_name}/{doc_id}{file_ext}"
             put_tasks.append(asyncio.create_task(_put_one(storage_key, tmp_path, size)))

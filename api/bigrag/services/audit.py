@@ -9,6 +9,7 @@ from fastapi import Request
 
 from bigrag.db.engine import session_factory
 from bigrag.db.models import AuditLog
+from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 
 logger = get_logger("bigrag.audit")
@@ -45,6 +46,7 @@ def _build_row(
     user_agent: str | None,
 ) -> dict[str, Any]:
     return {
+        "id": uuid7(),
         "actor_id": _uuid_or_none(actor_id),
         "actor_email": actor_email,
         "api_key_id": _uuid_or_none(api_key_id),

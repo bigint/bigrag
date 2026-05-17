@@ -11,6 +11,7 @@ from bigrag import config as _config
 from bigrag.db.models import Session as DbSession
 from bigrag.db.models import User
 from bigrag.db.session import get_session
+from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import (
     get_current_user,
@@ -124,7 +125,7 @@ async def _issue_session(session: AsyncSession, user_id: uuid.UUID) -> str:
     token = generate_session_token()
     session.add(
         DbSession(
-            id=uuid.uuid4(),
+            id=uuid7(),
             user_id=user_id,
             token_hash=hash_session_token(token),
             expires_at=session_expiry(),
@@ -154,7 +155,7 @@ async def setup(
         raise HTTPException(status_code=409, detail="Setup has already been completed")
 
     user = User(
-        id=uuid.uuid4(),
+        id=uuid7(),
         email=body.email.lower(),
         password_hash=hash_password(body.password),
         display_name=body.display_name,

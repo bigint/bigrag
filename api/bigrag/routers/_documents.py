@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.config import settings
 from bigrag.db.models import Collection, Document
 from bigrag.exceptions import ValidationError
+from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.models.document import DocumentProgressResponse, DocumentResponse
 from bigrag.services import collection_cache, metadata_schema
@@ -199,7 +200,7 @@ async def persist_document(
 ) -> Document:
     if not _COLLECTION_SLUG_RE.fullmatch(collection_name):
         raise ValidationError(f"Invalid collection name: {collection_name!r}")
-    doc_id = uuid.uuid4()
+    doc_id = uuid7()
     file_ext = Path(filename or "document").suffix
     storage_key = f"{collection_name}/{doc_id}{file_ext}"
     storage = get_storage()

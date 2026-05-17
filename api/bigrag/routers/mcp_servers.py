@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import ApiKey
 from bigrag.db.session import get_session
+from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_api_key_principal, require_admin_session
 from bigrag.models.common import StatusResponse
@@ -167,7 +168,7 @@ async def create_mcp_server(
     collection = await validate_collection_name(session, body.collection)
     plaintext, prefix, key_hash = generate_api_key()
     key = ApiKey(
-        id=uuid.uuid4(),
+        id=uuid7(),
         user_id=user_id,
         name=f"mcp:{body.server_name}",
         key_hash=key_hash,

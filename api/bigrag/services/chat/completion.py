@@ -3,12 +3,12 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-from uuid import uuid4
 
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.exceptions import UpstreamError
+from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.models.chat import ChatCreateRequest, ChatCreateResponse
 
@@ -44,7 +44,7 @@ async def create_chat_completion(
         raise UpstreamError(safe, public_message=safe) from exc
 
     assistant_message = _chat_message_response(
-        id=str(uuid4()),
+        id=str(uuid7()),
         role="assistant",
         content=content,
         model_provider=prepared.model_provider,
@@ -110,7 +110,7 @@ async def stream_chat_completion(
                     pass
 
         assistant = _chat_message_response(
-            id=str(uuid4()),
+            id=str(uuid7()),
             role="assistant",
             content="".join(content_parts),
             model_provider=prepared.model_provider,

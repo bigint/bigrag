@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from bigrag.db.models import ConnectorAccount, ConnectorProviderConfig, ConnectorSource
+from bigrag.ids import uuid7
 
 
 def configured(config: ConnectorProviderConfig | None) -> bool:
@@ -49,6 +50,7 @@ async def upsert_provider_config(
 ) -> ConnectorProviderConfig:
     existing = await get_provider_config(session, provider)
     values = {
+        "id": uuid7(),
         "provider": provider,
         "enabled": enabled,
         "client_id": client_id.strip(),

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import Collection, EmbeddingPreset
 from bigrag.db.session import get_session
+from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_admin_session
 from bigrag.models.common import StatusResponse
@@ -86,7 +87,7 @@ async def create_preset(
         raise HTTPException(status_code=422, detail=e.message) from e
 
     preset = EmbeddingPreset(
-        id=uuid.uuid4(),
+        id=uuid7(),
         name=body.name,
         provider=body.provider,
         model=body.model,

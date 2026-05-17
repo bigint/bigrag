@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import Document, UserPreference
 from bigrag.exceptions import ServerError, ValidationError
+from bigrag.ids import uuid7
 from bigrag.models.chat import ChatCreateRequest, ChatSource, ChatTimings
 from bigrag.routers.preferences import decrypt_preferences
 from bigrag.services import crypto
@@ -124,7 +125,7 @@ async def _prepare_chat_turn(
     }
 
     user_message = _chat_message_response(
-        id=str(uuid4()),
+        id=str(uuid7()),
         role="user",
         content=body.message,
         retrieval={},

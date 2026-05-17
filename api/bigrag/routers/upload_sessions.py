@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import Document, UploadSession, UploadSessionItem
 from bigrag.db.session import get_session
+from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.common import StatusResponse
@@ -404,7 +405,7 @@ async def upload_session_file(
     )
     if upload_session.status in TERMINAL_SESSION_STATUSES:
         raise HTTPException(status_code=409, detail="Upload session is closed")
-    item_key = client_item_id or str(uuid.uuid4())
+    item_key = client_item_id or str(uuid7())
     existing = await _existing_item(db, upload_session.id, item_key)
     if existing is not None and existing.status != "failed":
         response = await upload_session_response(db, upload_session, persist_counts=True)

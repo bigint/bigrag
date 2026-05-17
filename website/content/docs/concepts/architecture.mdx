@@ -38,6 +38,27 @@ plus an immediately nested page chunk. On the backend, Postgres keeps
 composite newest-first indexes for collection document lists and common
 access-log filters so admin timelines avoid full sorts as data grows.
 
+## Identifier model
+
+bigRAG-owned records use native Postgres `uuid` columns and are generated
+by the API as UUIDv7 values before insert. That gives users, sessions,
+API keys, collections, documents, upload sessions, backup jobs,
+connectors, webhooks, query logs, embedding presets, audit logs, and
+access logs one canonical identifier shape while keeping IDs time-ordered
+for healthier newest-first indexes.
+
+Existing UUIDv4 rows remain valid because UUIDv4 and UUIDv7 share the
+same Postgres `uuid` type. Foreign keys store raw UUID values internally,
+and the REST API plus SDKs expose them as strings.
+
+Not every field ending in `id` is a bigRAG record ID. External provider
+identifiers such as Google Drive file IDs, caller-provided vector IDs,
+collection names, settings keys, idempotency keys, OAuth states, session
+tokens, API keys, and webhook secrets remain opaque strings. Vector-store
+point IDs are backend-safe deterministic UUIDv5 values derived from the
+caller-facing vector or chunk ID, so Qdrant and turbopuffer can use stable
+point IDs without changing API-visible IDs.
+
 ## Request flow — `POST /v1/collections/{name}/documents`
 
 ```

@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 import orjson
 
+from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.services.event_bus import IngestionEvent, event_bus
 
@@ -217,7 +218,7 @@ class WebhookDispatcher:
 
         webhook_id = webhook["id"]
         wh_id_uuid = uuid.UUID(webhook_id) if isinstance(webhook_id, str) else webhook_id
-        delivery_id = uuid.uuid4()
+        delivery_id = uuid7()
 
         async with session_factory()() as session:
             session.add(
@@ -428,7 +429,7 @@ class WebhookDispatcher:
             "X-BigRAG-Signature": signature,
             "X-BigRAG-Timestamp": timestamp,
             "X-BigRAG-Event": event,
-            "X-BigRAG-Delivery": delivery_id if delivery_id is not None else str(uuid.uuid4()),
+            "X-BigRAG-Delivery": delivery_id if delivery_id is not None else str(uuid7()),
             "User-Agent": "bigrag-webhooks/1.0",
         }
         try:
@@ -469,7 +470,7 @@ class WebhookDispatcher:
             "X-BigRAG-Signature": signature,
             "X-BigRAG-Timestamp": timestamp,
             "X-BigRAG-Event": "webhook.test",
-            "X-BigRAG-Delivery": delivery_id if delivery_id is not None else str(uuid.uuid4()),
+            "X-BigRAG-Delivery": delivery_id if delivery_id is not None else str(uuid7()),
             "User-Agent": "bigrag-webhooks/1.0",
         }
         try:

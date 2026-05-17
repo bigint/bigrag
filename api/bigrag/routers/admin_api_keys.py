@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import ApiKey
 from bigrag.db.session import get_session
 from bigrag.exceptions import ValidationError
+from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_api_key_principal, require_admin_session
 from bigrag.models.auth import (
@@ -129,7 +130,7 @@ async def create_api_key(
         permissions["collection"] = collection
     plaintext, prefix, key_hash = generate_api_key()
     key = ApiKey(
-        id=uuid.uuid4(),
+        id=uuid7(),
         user_id=uuid.UUID(admin["id"]),
         name=body.name,
         key_hash=key_hash,

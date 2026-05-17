@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import Webhook, WebhookDelivery
 from bigrag.db.session import get_session
 from bigrag.exceptions import ValidationError
+from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_admin_session
 from bigrag.models.common import StatusResponse
@@ -116,7 +117,7 @@ async def create_webhook(
 
     secret = generate_secret()
     wh = Webhook(
-        id=uuid.uuid4(),
+        id=uuid7(),
         url=body.url,
         secret=secret,
         events=body.events,

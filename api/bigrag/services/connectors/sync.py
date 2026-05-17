@@ -15,6 +15,7 @@ from bigrag.db.models import (
     ConnectorSyncJob,
     Document,
 )
+from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.routers._documents import prepare_document_metadata, recount_collection_documents
 from bigrag.services import collection_cache
@@ -336,7 +337,7 @@ async def sync_downloaded_file(
             await storage.put_stream(storage_key, fh, size=downloaded.file_size)
 
     if manifest is None:
-        doc_id = uuid.uuid4()
+        doc_id = uuid7()
         storage_key = f"{source.collection_name}/{doc_id}{downloaded.file_ext}"
         await _put_downloaded(storage_key)
         doc = Document(
@@ -356,7 +357,7 @@ async def sync_downloaded_file(
     else:
         doc = existing_doc
         if doc is None:
-            doc_id = uuid.uuid4()
+            doc_id = uuid7()
             storage_key = f"{source.collection_name}/{doc_id}{downloaded.file_ext}"
             await _put_downloaded(storage_key)
             doc = Document(
