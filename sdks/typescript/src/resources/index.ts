@@ -1,4 +1,4 @@
-export { AdminResource } from "./admin.js";
+export { AdminResource } from "./admin/index.js";
 export { AuthResource } from "./auth.js";
 export { ChatResource } from "./chat.js";
 export { CollectionsResource } from "./collections.js";
