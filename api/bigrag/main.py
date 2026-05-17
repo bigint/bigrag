@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import json
 import os
+import traceback
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -283,8 +284,6 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
 
     @app.exception_handler(Exception)
     async def unhandled_handler(request: Request, exc: Exception) -> ORJSONResponse:
-        import traceback
-
         logger = get_logger("bigrag.unhandled")
         logger.error(
             "unhandled exception",

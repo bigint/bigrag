@@ -89,7 +89,7 @@ async def get_or_404(name: str) -> dict:
                 serialized = _serialize(collection, preset)
                 ttl = await get_value("collection_cache_ttl")
                 if ttl > 0:
-                    jittered_ttl = ttl + random.randint(0, ttl // 10)
+                    jittered_ttl = ttl + random.randint(0, max(1, ttl // 10))
                     await redis_cache.set(_cache_key(name), serialized, ttl=jittered_ttl)
                 return _deserialize(serialized)
         finally:
