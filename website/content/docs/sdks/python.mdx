@@ -359,7 +359,7 @@ usage = await client.get_usage(window_days=30)
 models = await client.list_embedding_models()
 
 # Collection analytics
-analytics = await client.get_analytics("docs")
+analytics = await client.collections.analytics("docs")
 ```
 
 ## Retry Behavior
