@@ -18,7 +18,10 @@ async def _complete_model(prepared: PreparedChatTurn) -> str:
     try:
         import openai
     except ImportError as exc:
-        raise ServerError("openai package is required for chat") from exc
+        raise ServerError(
+            "openai package is required for chat",
+            public_message="openai package is required for chat",
+        ) from exc
 
     last_error: Exception | None = None
     for credential in prepared.credentials:
@@ -53,7 +56,10 @@ async def _stream_model(prepared: PreparedChatTurn) -> AsyncIterator[str]:
     try:
         import openai
     except ImportError as exc:
-        raise ServerError("openai package is required for chat") from exc
+        raise ServerError(
+            "openai package is required for chat",
+            public_message="openai package is required for chat",
+        ) from exc
 
     last_error: Exception | None = None
     for credential in prepared.credentials:
@@ -126,7 +132,7 @@ def _provider_error(exc: Exception, credential: ProviderCredential) -> UpstreamE
                 f"OpenAI rejected the {credential.source}. Use a fresh key generated "
                 "from the OpenAI API keys page."
             )
-    return UpstreamError(message)
+    return UpstreamError(message, public_message=message)
 
 
 def _is_saved_key_auth_error(exc: Exception) -> bool:

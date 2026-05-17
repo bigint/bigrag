@@ -198,12 +198,32 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         return JSONResponse(status_code=403, content={"detail": str(exc)})
 
     @app.exception_handler(UpstreamError)
-    async def upstream_handler(_request: Request, exc: UpstreamError) -> JSONResponse:
-        return JSONResponse(status_code=502, content={"detail": str(exc)})
+    async def upstream_handler(request: Request, exc: UpstreamError) -> JSONResponse:
+        get_logger("bigrag.upstream").warning(
+            "upstream error",
+            method=request.method,
+            path=request.url.path,
+            exc_type=type(exc).__name__,
+            exc=str(exc),
+        )
+        return JSONResponse(
+            status_code=502,
+            content={"detail": exc.public_message, "code": exc.code},
+        )
 
     @app.exception_handler(ServerError)
-    async def server_handler(_request: Request, exc: ServerError) -> JSONResponse:
-        return JSONResponse(status_code=500, content={"detail": str(exc)})
+    async def server_handler(request: Request, exc: ServerError) -> JSONResponse:
+        get_logger("bigrag.server_error").error(
+            "server error",
+            method=request.method,
+            path=request.url.path,
+            exc_type=type(exc).__name__,
+            exc=str(exc),
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": exc.public_message, "code": exc.code},
+        )
 
     @app.exception_handler(Exception)
     async def unhandled_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -220,9 +240,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         )
         return JSONResponse(
             status_code=500,
-            content={
-                "detail": f"{type(exc).__name__}: {exc}",
-            },
+            content={"detail": "Internal server error", "code": "internal_error"},
         )
 
     from bigrag.routers.admin_access import router as admin_access_router

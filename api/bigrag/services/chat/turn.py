@@ -188,7 +188,8 @@ def _append_credential(
         return
     api_key = raw_api_key.strip()
     if api_key.startswith(crypto._FERNET_PREFIX):
-        raise ServerError(f"{source} cannot be decrypted. Configure BIGRAG_MASTER_KEY.")
+        msg = f"{source} cannot be decrypted. Configure BIGRAG_MASTER_KEY."
+        raise ServerError(msg, public_message=msg)
     if any(existing.api_key == api_key for existing in credentials):
         return
     credentials.append(ProviderCredential(api_key=api_key, source=source))

@@ -35,7 +35,8 @@ async def create_chat_completion(
             error_type=exc.__class__.__name__,
             error=_safe_chat_error(exc),
         )
-        raise UpstreamError(_safe_chat_error(exc)) from exc
+        safe = _safe_chat_error(exc)
+        raise UpstreamError(safe, public_message=safe) from exc
 
     assistant_message = _chat_message_response(
         id=str(uuid4()),

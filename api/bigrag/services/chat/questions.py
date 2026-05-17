@@ -209,7 +209,10 @@ async def _generate_questions_text(
     try:
         import openai
     except ImportError as exc:
-        raise UpstreamError("openai package is required to generate questions") from exc
+        raise UpstreamError(
+            "openai package is required to generate questions",
+            public_message="openai package is required to generate questions",
+        ) from exc
 
     prompt = _question_prompt(collection_name, documents, chunks)
     prepared = SimpleNamespace(
@@ -239,7 +242,10 @@ async def _generate_questions_text(
             )
             choices = getattr(response, "choices", None) or []
             if not choices:
-                raise UpstreamError("Question generation returned no choices")
+                raise UpstreamError(
+                    "Question generation returned no choices",
+                    public_message="Question generation returned no choices",
+                )
             return getattr(choices[0].message, "content", None) or ""
         except Exception as exc:
             last_error = exc
@@ -281,7 +287,10 @@ def _parse_questions(text: str) -> list[str]:
         questions = _line_questions(text)
     cleaned = _clean_questions(questions or [])
     if len(cleaned) != _QUESTION_COUNT:
-        raise UpstreamError("Question generation did not return five questions")
+        raise UpstreamError(
+            "Question generation did not return five questions",
+            public_message="Question generation did not return five questions",
+        )
     return cleaned
 
 

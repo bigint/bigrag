@@ -21,8 +21,22 @@ class ForbiddenError(BigRAGError):
 
 
 class UpstreamError(BigRAGError):
-    pass
+    code = "upstream_error"
+    default_public_message = "Upstream provider error"
+
+    def __init__(self, message: str, *, public_message: str | None = None) -> None:
+        super().__init__(message)
+        self.public_message = (
+            public_message if public_message is not None else self.default_public_message
+        )
 
 
 class ServerError(BigRAGError):
-    pass
+    code = "server_error"
+    default_public_message = "Internal server error"
+
+    def __init__(self, message: str, *, public_message: str | None = None) -> None:
+        super().__init__(message)
+        self.public_message = (
+            public_message if public_message is not None else self.default_public_message
+        )
