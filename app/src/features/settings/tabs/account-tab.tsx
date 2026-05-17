@@ -4,6 +4,7 @@ import { LogOut, Save, ShieldAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import {
   defaultPasswordFormValues,
@@ -41,6 +42,7 @@ export const AccountTab = () => {
   const logoutAll = useLogoutAll();
   const [profileValues, setProfileValues] = useState(defaultProfileFormValues);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [signOutAllOpen, setSignOutAllOpen] = useState(false);
   const form = useForm({
     defaultValues: defaultPasswordFormValues(),
     validators: {
@@ -102,12 +104,10 @@ export const AccountTab = () => {
   const displayNameError = profileError?.startsWith("Display name") ? profileError : null;
   const emailError = profileError && !displayNameError ? profileError : null;
 
-  const signOutEverywhere = async () => {
-    if (!window.confirm("Sign out of every device? You'll need to log in again everywhere.")) {
-      return;
-    }
+  const confirmSignOutEverywhere = async () => {
     try {
       await logoutAll.mutateAsync();
+      setSignOutAllOpen(false);
       navigate({ to: "/login", replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
@@ -294,7 +294,7 @@ export const AccountTab = () => {
               className="shrink-0"
               variant="outline"
               disabled={logoutAll.isPending}
-              onClick={signOutEverywhere}
+              onClick={() => setSignOutAllOpen(true)}
             >
               <LogOut className="size-3.5" />
               {logoutAll.isPending ? "Signing out…" : "Sign out everywhere"}
@@ -302,6 +302,15 @@ export const AccountTab = () => {
           </div>
         </div>
       </section>
+      <ConfirmDialog
+        open={signOutAllOpen}
+        onClose={() => setSignOutAllOpen(false)}
+        onConfirm={confirmSignOutEverywhere}
+        title="Sign out everywhere"
+        description="Sign out of every device? You'll need to log in again everywhere, including this one."
+        confirmLabel="Sign out"
+        loading={logoutAll.isPending}
+      />
     </div>
   );
 };

@@ -1,10 +1,11 @@
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, RefreshCcw, Trash2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
@@ -100,6 +101,7 @@ export const DocumentDetail = () => {
   const { name: rawName, docId } = routeApi.useParams();
   const name = decodeCollectionName(rawName);
   const navigate = useNavigate();
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { data: doc, dataUpdatedAt, isPending, streaming } = useDocument(name, docId);
   const { data: chunks, refetch: refetchChunks } = useChunks(name, docId);
@@ -163,18 +165,7 @@ export const DocumentDetail = () => {
               <RefreshCcw className="h-4 w-4" />
               Reprocess
             </Button>
-            <Button
-              variant="destructive"
-              onClick={async () => {
-                if (!confirm(`Delete "${doc.filename}"?`)) return;
-                await remove.mutateAsync(docId);
-                navigate({
-                  to: "/collections/$name/documents",
-                  params: { name },
-                  replace: true,
-                });
-              }}
-            >
+            <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
               <Trash2 className="h-4 w-4" />
               Delete
             </Button>
@@ -258,6 +249,27 @@ export const DocumentDetail = () => {
           <Spinner />
         )}
       </div>
+      <ConfirmDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={async () => {
+          try {
+            await remove.mutateAsync(docId);
+            setDeleteOpen(false);
+            navigate({
+              to: "/collections/$name/documents",
+              params: { name },
+              replace: true,
+            });
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Delete failed");
+          }
+        }}
+        title="Delete document"
+        description={`Delete "${doc.filename}"? This permanently removes its chunks and vectors.`}
+        confirmLabel="Delete"
+        loading={remove.isPending}
+      />
     </Page.Shell>
   );
 };

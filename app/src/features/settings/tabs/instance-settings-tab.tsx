@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Save, Trash2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -78,6 +79,7 @@ export const InstanceSettingsTab = ({
   const draft = useStore(form.store, (state) => state.values);
   const specsByGroup = useSpecsByGroup(data, targetGroups, includeKeys);
   const isBusy = isPending || save.isPending;
+  const [purgeOpen, setPurgeOpen] = useState(false);
 
   useEffect(() => {
     if (!data) return;
@@ -110,11 +112,7 @@ export const InstanceSettingsTab = ({
             isFocused={focusGroup === targetGroup}
             layoutOverride={layoutOverride}
             key={targetGroup}
-            onPurgeEmbeddingCache={() => {
-              if (window.confirm("Purge every persistent embedding cache row?")) {
-                purgeEmbeddingCache.mutate();
-              }
-            }}
+            onPurgeEmbeddingCache={() => setPurgeOpen(true)}
             onSave={() => save.mutate({ values: valuesForSubmit(specs, draft) })}
             purgePending={purgeEmbeddingCache.isPending}
             settingValues={data?.values ?? {}}
@@ -123,6 +121,19 @@ export const InstanceSettingsTab = ({
           />
         );
       })}
+      <ConfirmDialog
+        open={purgeOpen}
+        onClose={() => setPurgeOpen(false)}
+        onConfirm={() => {
+          purgeEmbeddingCache.mutate(undefined, {
+            onSettled: () => setPurgeOpen(false),
+          });
+        }}
+        title="Purge embedding cache"
+        description="Purge every persistent embedding cache row? Future requests will re-embed and pay the provider cost again."
+        confirmLabel="Purge"
+        loading={purgeEmbeddingCache.isPending}
+      />
     </div>
   );
 };
