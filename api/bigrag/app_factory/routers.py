@@ -19,6 +19,7 @@ def include_all_routers(app: FastAPI) -> None:
     from bigrag.routers.connectors import router as connectors_router
     from bigrag.routers.documents import global_router as documents_global_router
     from bigrag.routers.documents import router as documents_router
+    from bigrag.routers.documents_batch import router as documents_batch_router  # noqa: F401
     from bigrag.routers.embedding_presets import router as embedding_presets_router
     from bigrag.routers.evaluation import router as evaluation_router
     from bigrag.routers.health import router as health_router
