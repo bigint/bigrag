@@ -21,7 +21,7 @@ from bigrag.models.document import (
     DocumentListResponse,
     DocumentStatusResponse,
 )
-from bigrag.routers import ensure_embedding_or_400, get_collection_or_404
+from bigrag.routers import enforce_collection_pin, ensure_embedding_or_400, get_collection_or_404
 from bigrag.routers._documents import (
     document_response,
     parse_form_metadata,
@@ -137,9 +137,10 @@ async def batch_upload_documents(
 async def batch_get_status(
     collection_name: str,
     body: BatchStatusRequest,
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
 
     if len(body.document_ids) > 100:
@@ -174,9 +175,10 @@ async def batch_get_status(
 async def batch_get_documents(
     collection_name: str,
     body: BatchGetRequest,
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
 
     if len(body.document_ids) > 100:
@@ -210,6 +212,7 @@ async def batch_delete_documents(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
 
     if len(body.document_ids) > 100:
