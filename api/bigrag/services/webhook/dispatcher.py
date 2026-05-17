@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import hmac
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -13,6 +11,7 @@ import orjson
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.services.event_bus import IngestionEvent, event_bus
+from bigrag.services.webhook.signing import compute_signature
 
 logger = get_logger("bigrag.webhook")
 _RNG = secrets.SystemRandom()
@@ -37,31 +36,7 @@ _STEP_TO_EVENT = {
 }
 
 
-def generate_secret() -> str:
-
-    return f"whsec_{secrets.token_urlsafe(32)}"
-
-
-def compute_signature(payload: str, secret: str, timestamp: str) -> str:
-
-    signed_payload = f"{timestamp}.{payload}"
-    digest = hmac.new(secret.encode(), signed_payload.encode(), hashlib.sha256).hexdigest()
-    return f"sha256={digest}"
-
-
-def verify_signature(
-    payload: str,
-    secret: str,
-    received: str,
-    timestamp: str,
-) -> bool:
-
-    expected = compute_signature(payload, secret, timestamp)
-    return hmac.compare_digest(expected, received)
-
-
 def _matches_webhook(webhook: dict, event: str, collection: str) -> bool:
-
     if not webhook.get("active", True):
         return False
     if event not in webhook.get("events", []):
@@ -73,7 +48,6 @@ def _matches_webhook(webhook: dict, event: str, collection: str) -> bool:
 
 
 def _jittered_delay(base_delay: int, jitter_factor: float = 0.25) -> float:
-
     jitter = base_delay * jitter_factor
     return base_delay + _RNG.uniform(-jitter, jitter)
 
@@ -149,7 +123,6 @@ class WebhookDispatcher:
         return webhooks
 
     async def _listen(self) -> None:
-
         queue = event_bus.subscribe("*")
         try:
             while True:
@@ -166,7 +139,6 @@ class WebhookDispatcher:
             event_bus.unsubscribe("*", queue)
 
     async def _handle_event(self, event: IngestionEvent) -> None:
-
         webhook_event = _STEP_TO_EVENT.get(event.step)
         if webhook_event is None:
             return
@@ -185,7 +157,6 @@ class WebhookDispatcher:
                 await self._deliver(webhook, webhook_event, payload)
 
     async def _get_collection_for_document(self, document_id: str) -> str | None:
-
         import sqlalchemy as sa
 
         from bigrag.db.engine import session_factory
