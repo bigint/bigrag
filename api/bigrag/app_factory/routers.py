@@ -4,6 +4,9 @@ from fastapi import FastAPI
 
 
 def include_all_routers(app: FastAPI) -> None:
+    from bigrag.routers._upload_sessions_file import (
+        upload_session_file as _upload_session_file,  # noqa: F401
+    )
     from bigrag.routers.admin_access import router as admin_access_router
     from bigrag.routers.admin_api_keys import router as admin_api_keys_router
     from bigrag.routers.admin_audit import router as admin_audit_router
