@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 
 from bigrag.logging import get_logger
@@ -29,6 +30,7 @@ async def embed_with_cache(
     provider: str,
     model_name: str,
     dimension: int,
+    input_type: str = "document",
 ) -> list[list[float]]:
     cache_texts, _ = truncate_to_tokens(texts, model_name)
     logger.info(
@@ -38,7 +40,9 @@ async def embed_with_cache(
         dimension=dimension,
         inputs=len(texts),
     )
-    cached = await embedding_cache.get_many(cache_texts, provider, model_name, dimension)
+    cached = await embedding_cache.get_many(
+        cache_texts, provider, model_name, dimension, input_type
+    )
     missing_idx = [i for i in range(len(texts)) if i not in cached]
     logger.info(
         "embedding cache result",
@@ -65,7 +69,7 @@ async def embed_with_cache(
         )
         try:
             fresh = await asyncio.wait_for(
-                model.embed(missing_texts),
+                model.embed(missing_texts, input_type=input_type),
                 timeout=EMBEDDING_TIMEOUT_SECONDS,
             )
         except Exception as exc:
@@ -83,7 +87,12 @@ async def embed_with_cache(
             raise ValueError(
                 f"embedding provider returned {len(fresh)} vectors for {len(missing_texts)} inputs"
             )
-        await embedding_cache.put_many(missing_cache_texts, fresh, provider, model_name, dimension)
+        for vec in fresh:
+            if any(not math.isfinite(v) for v in vec):
+                raise ValueError("embedding provider returned non-finite values")
+        await embedding_cache.put_many(
+            missing_cache_texts, fresh, provider, model_name, dimension, input_type
+        )
         fresh_by_cache_text = dict(zip(missing_cache_texts, fresh, strict=False))
         for idx in missing_idx:
             cached[idx] = fresh_by_cache_text[cache_texts[idx]]
@@ -271,8 +280,14 @@ async def chunk_and_embed(
                     continue
                 raise
 
+    embed_sem = asyncio.Semaphore(8)
+
+    async def _embed_one_bounded(bn, bs, be, bc):
+        async with embed_sem:
+            return await _embed_one(bn, bs, be, bc)
+
     embed_results = await asyncio.gather(
-        *[_embed_one(bn, bs, be, bc) for bn, bs, be, bc in batches]
+        *[_embed_one_bounded(bn, bs, be, bc) for bn, bs, be, bc in batches]
     )
     embed_results.sort(key=lambda r: r[0])
 

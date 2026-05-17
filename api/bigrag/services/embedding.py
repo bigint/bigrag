@@ -23,6 +23,7 @@ from bigrag.services.url_security import (
 logger = get_logger("bigrag.embedding")
 
 _embed_semaphores: dict[str, asyncio.Semaphore] = {}
+_embed_semaphores_lock = asyncio.Lock()
 
 _TOKEN_LIMITS: dict[str, int] = {
     "text-embedding-3-small": 8000,
@@ -41,12 +42,15 @@ _TOKEN_LIMITS: dict[str, int] = {
 }
 
 
-def _get_semaphore(key: str) -> asyncio.Semaphore:
-    if key not in _embed_semaphores:
-        from bigrag.services.runtime_settings import sync_value
+async def _get_semaphore(key: str) -> asyncio.Semaphore:
+    if key in _embed_semaphores:
+        return _embed_semaphores[key]
+    async with _embed_semaphores_lock:
+        if key not in _embed_semaphores:
+            from bigrag.services.runtime_settings import sync_value
 
-        _embed_semaphores[key] = asyncio.Semaphore(sync_value("embedding_concurrency"))
-    return _embed_semaphores[key]
+            _embed_semaphores[key] = asyncio.Semaphore(sync_value("embedding_concurrency"))
+        return _embed_semaphores[key]
 
 
 def reset_embedding_semaphores() -> None:
@@ -196,7 +200,7 @@ class OpenAIEmbedding(EmbeddingModel):
         cooldown_key = rate_limit_cooldown_key(
             self._cache_identity, self.provider, self._model_name, self._dimension
         )
-        async with _get_semaphore(self._semaphore_key):
+        async with await _get_semaphore(self._semaphore_key):
             await wait_for_rate_limit_cooldown(cooldown_key, self.provider, self._model_name)
             try:
                 response = await asyncio.wait_for(
@@ -231,6 +235,7 @@ class CohereEmbedding(EmbeddingModel):
         "document": "search_document",
         "query": "search_query",
     }
+    _MAX_INPUTS_PER_REQUEST = 96
 
     def __init__(
         self,
@@ -264,10 +269,25 @@ class CohereEmbedding(EmbeddingModel):
                 model=self._model_name,
             )
         cohere_input_type = self._INPUT_TYPE_MAP.get(input_type, "search_document")
+        if len(texts) > self._MAX_INPUTS_PER_REQUEST:
+            sub_batches = [
+                texts[i : i + self._MAX_INPUTS_PER_REQUEST]
+                for i in range(0, len(texts), self._MAX_INPUTS_PER_REQUEST)
+            ]
+            results = await asyncio.gather(
+                *[self._embed_single(b, cohere_input_type) for b in sub_batches]
+            )
+            out: list[list[float]] = []
+            for r in results:
+                out.extend(r)
+            return out
+        return await self._embed_single(texts, cohere_input_type)
+
+    async def _embed_single(self, texts: list[str], cohere_input_type: str) -> list[list[float]]:
         cooldown_key = rate_limit_cooldown_key(
             self._cache_identity, self.provider, self._model_name, self._dimension
         )
-        async with _get_semaphore(self._semaphore_key):
+        async with await _get_semaphore(self._semaphore_key):
             await wait_for_rate_limit_cooldown(cooldown_key, self.provider, self._model_name)
             try:
                 response = await asyncio.wait_for(
@@ -305,6 +325,7 @@ class CohereEmbedding(EmbeddingModel):
 class VoyageEmbedding(EmbeddingModel):
     _API_URL = "https://api.voyageai.com/v1/embeddings"
     _INPUT_TYPES = {"document", "query"}
+    _MAX_INPUTS_PER_REQUEST = 128
 
     def __init__(
         self,
@@ -361,6 +382,21 @@ class VoyageEmbedding(EmbeddingModel):
                 model=self._model_name,
             )
         voyage_input_type = input_type if input_type in self._INPUT_TYPES else "document"
+        if len(texts) > self._MAX_INPUTS_PER_REQUEST:
+            sub_batches = [
+                texts[i : i + self._MAX_INPUTS_PER_REQUEST]
+                for i in range(0, len(texts), self._MAX_INPUTS_PER_REQUEST)
+            ]
+            results = await asyncio.gather(
+                *[self._embed_single(b, voyage_input_type) for b in sub_batches]
+            )
+            out: list[list[float]] = []
+            for r in results:
+                out.extend(r)
+            return out
+        return await self._embed_single(texts, voyage_input_type)
+
+    async def _embed_single(self, texts: list[str], voyage_input_type: str) -> list[list[float]]:
         payload = {
             "input": texts,
             "model": self._model_name,
@@ -372,7 +408,7 @@ class VoyageEmbedding(EmbeddingModel):
             "Content-Type": "application/json",
         }
         client = await self._get_client()
-        async with _get_semaphore(self._semaphore_key):
+        async with await _get_semaphore(self._semaphore_key):
             response = await client.post(self._API_URL, json=payload, headers=headers)
         if response.status_code >= 400:
             logger.warning(

@@ -15,8 +15,8 @@ from bigrag.services.runtime_settings import get_values
 logger = get_logger("bigrag.embedding_cache")
 
 
-def _model_key(provider: str, model: str, dimension: int) -> str:
-    return f"{provider}:{model}:{dimension}"
+def _model_key(provider: str, model: str, dimension: int, input_type: str = "document") -> str:
+    return f"{provider}:{model}:{dimension}:{input_type}"
 
 
 def _hash(text: str) -> str:
@@ -28,6 +28,10 @@ def _pack(vec: list[float]) -> bytes:
 
 
 def _unpack(blob: bytes, dimension: int) -> list[float]:
+    if len(blob) != dimension * 4:
+        raise ValueError(
+            f"embedding_cache: blob length {len(blob)} does not match dimension {dimension}"
+        )
     return list(struct.unpack(f"<{dimension}f", blob))
 
 
@@ -64,6 +68,7 @@ async def get_many(
     provider: str,
     model: str,
     dimension: int,
+    input_type: str = "document",
 ) -> dict[int, list[float]]:
 
     if not texts:
@@ -71,7 +76,7 @@ async def get_many(
     if not await _cache_enabled():
         return {}
     hashes = [_hash(t) for t in texts]
-    model_key = _model_key(provider, model, dimension)
+    model_key = _model_key(provider, model, dimension, input_type)
     try:
         async with session_factory()() as session:
             rows = (
@@ -81,24 +86,18 @@ async def get_many(
                     .where(EmbeddingCache.content_hash.in_(hashes))
                 )
             ).all()
-    except Exception as exc:
-        logger.warning("embedding_cache: lookup failed", error=str(exc))
-        return {}
-
-    by_hash = {r.content_hash: r.vector for r in rows}
-    out: dict[int, list[float]] = {}
-    for i, h in enumerate(hashes):
-        blob = by_hash.get(h)
-        if blob is None:
-            continue
-        vector = _decode_vector(blob, dimension)
-        if vector is None:
-            continue
-        out[i] = vector
-    if out:
-        hit_hashes = [hashes[i] for i in out]
-        try:
-            async with session_factory()() as session:
+            by_hash = {r.content_hash: r.vector for r in rows}
+            out: dict[int, list[float]] = {}
+            for i, h in enumerate(hashes):
+                blob = by_hash.get(h)
+                if blob is None:
+                    continue
+                vector = _decode_vector(blob, dimension)
+                if vector is None:
+                    continue
+                out[i] = vector
+            if out:
+                hit_hashes = [hashes[i] for i in out]
                 await session.execute(
                     sa.update(EmbeddingCache)
                     .where(EmbeddingCache.model_key == model_key)
@@ -106,9 +105,10 @@ async def get_many(
                     .values(last_hit_at=sa.func.now())
                 )
                 await session.commit()
-        except Exception as exc:
-            logger.warning("embedding_cache: last_hit_at update failed", error=str(exc))
-    return out
+            return out
+    except Exception as exc:
+        logger.warning("embedding_cache: lookup failed", error=str(exc))
+        return {}
 
 
 async def put_many(
@@ -117,13 +117,14 @@ async def put_many(
     provider: str,
     model: str,
     dimension: int,
+    input_type: str = "document",
 ) -> None:
 
     if not texts or len(texts) != len(vectors):
         return
     if not await _cache_enabled():
         return
-    model_key = _model_key(provider, model, dimension)
+    model_key = _model_key(provider, model, dimension, input_type)
     rows = [
         {
             "content_hash": _hash(t),

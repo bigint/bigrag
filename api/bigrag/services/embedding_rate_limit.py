@@ -135,9 +135,12 @@ async def record_rate_limit_cooldown(key: str, delay: float) -> None:
     redis = redis_cache.get_redis()
     if redis is not None:
         ttl_ms = max(1, int(ttl * 1000))
-        current_ttl_ms = await redis.pttl(key)
-        if current_ttl_ms < ttl_ms:
-            await redis.set(key, b"1", px=ttl_ms)
+        lua = (
+            "local cur = redis.call('PTTL', KEYS[1]) "
+            "if cur == -2 or cur == -1 or tonumber(ARGV[1]) > cur then "
+            "redis.call('SET', KEYS[1], '1', 'PX', ARGV[1]) return 1 end return 0"
+        )
+        await redis.eval(lua, 1, key, ttl_ms)
         return
     async with _local_rate_limit_lock:
         _local_rate_limit_until[key] = max(
