@@ -100,12 +100,13 @@ def validate_outbound_url_sync(
     allow_loopback: bool = False,
 ) -> str:
     normalized = normalize_url_root(raw_url)
-    if _is_explicitly_allowed(raw_url, allowed_urls):
-        return normalized
+    explicitly_allowed = _is_explicitly_allowed(raw_url, allowed_urls)
+    effective_allow_private = allow_private or explicitly_allowed
+    effective_allow_loopback = allow_loopback or explicitly_allowed
 
     parsed = urlparse(normalized)
     is_cleartext = parsed.scheme != "https"
-    if require_https and is_cleartext and not (allow_private or allow_loopback):
+    if require_https and is_cleartext and not (effective_allow_private or effective_allow_loopback):
         raise UnsafeOutboundUrlError(f"{purpose} must use HTTPS.")
 
     hostname = parsed.hostname
@@ -116,8 +117,8 @@ def validate_outbound_url_sync(
     for address in addresses:
         if _is_blocked_ip(
             address,
-            allow_private=allow_private,
-            allow_loopback=allow_loopback,
+            allow_private=effective_allow_private,
+            allow_loopback=effective_allow_loopback,
         ):
             raise UnsafeOutboundUrlError(
                 f"{purpose} must not target private, loopback, link-local, or reserved networks."
@@ -127,8 +128,8 @@ def validate_outbound_url_sync(
             and is_cleartext
             and not _is_cleartext_allowed_ip(
                 address,
-                allow_private=allow_private,
-                allow_loopback=allow_loopback,
+                allow_private=effective_allow_private,
+                allow_loopback=effective_allow_loopback,
             )
         ):
             raise UnsafeOutboundUrlError(f"{purpose} must use HTTPS for public endpoints.")
