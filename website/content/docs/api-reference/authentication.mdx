@@ -118,7 +118,7 @@ Scopes use `resource:action` with `*` as a wildcard. Common shapes:
 | `collection:read` | List / get collections |
 | `collection:write` | Create / update / reembed / truncate collections |
 | `document:upload` | Upload documents, batch upload, upload-session create/file/complete, and reprocess |
-| `document:read` | List / get / download documents, chunks, batch get/status, upload-session status, and global `/v1/documents/{id}` lookups |
+| `document:read` | List / get / download documents, including `/v1/collections/{name}/documents/{id}`, `/chunks`, and `/file`, plus batch get/status, upload-session status, and global `/v1/documents/{id}` lookups |
 | `document:delete` | Delete documents, cancel upload sessions, and batch delete |
 | `query:read` | Run queries |
 | `chat:read` | Read generated question suggestions |
