@@ -54,11 +54,7 @@ const LoginPage = () => {
     onSubmit: async ({ value }) => {
       try {
         await login.mutateAsync(loginBodyFromValues(value));
-        if (from) {
-          window.location.assign(from);
-        } else {
-          navigate({ to: "/overview", replace: true });
-        }
+        navigate({ to: from ?? "/overview", replace: true });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Login failed");
       }
