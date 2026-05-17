@@ -18,16 +18,6 @@ LEASE_RENEW_INTERVAL_SECONDS = 60
 LEASE_ACTIVE_MIN_TTL_SECONDS = LEASE_TTL_SECONDS - LEASE_RENEW_INTERVAL_SECONDS * 4
 RETRY_PROMOTION_LIMIT = 100
 
-ENQUEUE_LUA = """
-local depth = redis.call('LLEN', KEYS[1])
-if depth >= tonumber(ARGV[2]) then
-  return -1
-end
-redis.call('LPUSH', KEYS[1], ARGV[1])
-redis.call('HINCRBY', KEYS[2], 'queued', 1)
-return redis.call('LLEN', KEYS[1])
-"""
-
 PROMOTE_RETRIES_LUA = """
 local promoted = 0
 local due = redis.call('ZRANGEBYSCORE', KEYS[1], '-inf', ARGV[1], 'LIMIT', 0, tonumber(ARGV[3]))
@@ -144,24 +134,6 @@ async def ensure_job_current(redis, job: IngestionJob) -> None:
     document_value = await document_epoch(redis, job.document_id)
     if document_value != job.document_epoch:
         raise IngestionCancelledError(f"Ingestion cancelled for document '{job.document_id}'")
-
-
-async def enqueue_job(redis, job: IngestionJob, queue_max_depth: int) -> int:
-    return int(
-        await redis.eval(
-            ENQUEUE_LUA,
-            2,
-            QUEUE_KEY,
-            STATS_KEY,
-            job.serialize(),
-            queue_max_depth,
-        )
-    )
-
-
-async def schedule_retry_job(redis, job: IngestionJob, delay_seconds: int) -> int:
-    due_at = int(time_seconds()) + max(0, int(delay_seconds))
-    return int(await redis.zadd(RETRY_KEY, {job.serialize(): due_at}))
 
 
 async def promote_due_retries(redis, *, queue_max_depth: int, now: int | None = None) -> int:

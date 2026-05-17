@@ -39,31 +39,6 @@ _lease_key = queue_state.lease_key
 _collection_epoch_key = queue_state.collection_epoch_key
 _document_epoch_key = queue_state.document_epoch_key
 
-__all__ = [
-    "COLLECTION_EPOCH_KEY_PREFIX",
-    "DEAD_LETTER_KEY",
-    "DOCUMENT_EPOCH_KEY_PREFIX",
-    "IngestionCancelledError",
-    "IngestionQueue",
-    "LEASE_KEY_PREFIX",
-    "PROCESSING_KEY",
-    "QUEUE_KEY",
-    "RETRY_KEY",
-    "STATS_KEY",
-    "_EMBEDDING_TIMEOUT_SECONDS",
-    "_PERMANENT_ERRORS",
-    "_PDF_OCR_CHUNK_PAGES",
-    "_PDF_OCR_PROGRESS_END",
-    "_PDF_OCR_PROGRESS_START",
-    "_collection_epoch_key",
-    "_delete_document_vectors_after_failure",
-    "_docling_result_text",
-    "_document_epoch_key",
-    "_embed_with_cache",
-    "_lease_key",
-    "ingestion_queue",
-]
-
 
 class IngestionQueue:
     def __init__(self, num_workers: int = 4) -> None:
@@ -137,9 +112,6 @@ class IngestionQueue:
                 )
             )
             await session.commit()
-
-    _ENQUEUE_LUA = queue_state.ENQUEUE_LUA
-    _FLUSH_LUA = queue_state.FLUSH_LUA
 
     async def _epoch_value(self, key: str) -> int:
         return await queue_state.epoch_value(self._redis, key)
@@ -313,8 +285,6 @@ class IngestionQueue:
                 step=event.step,
                 error=repr(exc),
             )
-
-    _PLAIN_TEXT_EXTS = queue_conversion.PLAIN_TEXT_EXTS
 
     async def _ocr_scanned_pdf(
         self,
