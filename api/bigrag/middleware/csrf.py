@@ -19,6 +19,9 @@ class SessionCsrfMiddleware(BaseHTTPMiddleware):
         settings = request.app.state.settings
         if request.method not in MUTATING_METHODS:
             return await call_next(request)
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            return await call_next(request)
         if settings.session_cookie_name not in request.cookies:
             return await call_next(request)
         origin = request.headers.get("origin")

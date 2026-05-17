@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 from http.cookies import SimpleCookie
 
 from starlette.datastructures import Headers
@@ -44,4 +45,4 @@ def principal_id(scope: Scope, headers: Headers | None = None) -> str:
     ip = client_ip_from_scope(scope)
     if ip:
         return f"ip:{ip}"
-    return "ip:unknown"
+    return f"anon:{secrets.token_hex(16)}"

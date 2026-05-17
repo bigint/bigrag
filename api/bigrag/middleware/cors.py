@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from urllib.parse import urlparse
 
 from fastapi import Request
@@ -10,6 +11,21 @@ from bigrag.logging import get_logger
 from bigrag.services import runtime_settings
 
 logger = get_logger("bigrag.middleware.cors")
+
+_DEFAULT_ALLOW_HEADERS = "authorization, content-type, idempotency-key"
+_MAX_REQUEST_HEADERS_LEN = 1024
+_REQUEST_HEADERS_RE = re.compile(r"[A-Za-z0-9!#$%&'*+\-.^_`|~,\s]+")
+
+
+def _sanitize_request_headers(value: str | None) -> str:
+    if not value:
+        return _DEFAULT_ALLOW_HEADERS
+    cleaned = value.replace("\r", "").replace("\n", "")
+    if len(cleaned) > _MAX_REQUEST_HEADERS_LEN:
+        return _DEFAULT_ALLOW_HEADERS
+    if not _REQUEST_HEADERS_RE.fullmatch(cleaned):
+        return _DEFAULT_ALLOW_HEADERS
+    return cleaned
 
 
 class RuntimeCorsMiddleware(BaseHTTPMiddleware):
@@ -34,9 +50,8 @@ class RuntimeCorsMiddleware(BaseHTTPMiddleware):
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Methods"] = "DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT"
-        response.headers["Access-Control-Allow-Headers"] = request.headers.get(
-            "access-control-request-headers",
-            "authorization,content-type,idempotency-key",
+        response.headers["Access-Control-Allow-Headers"] = _sanitize_request_headers(
+            request.headers.get("access-control-request-headers")
         )
         response.headers["Access-Control-Max-Age"] = "600"
         response.headers.add_vary_header("Origin")

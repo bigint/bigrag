@@ -48,6 +48,13 @@ async def set(key: str, value: dict | list, ttl: int) -> None:
     await _redis.set(f"{PREFIX}{key}", _encode_value(value), ex=ttl)
 
 
+async def set_if_absent(key: str, value: dict | list, ttl: int) -> bool:
+    if not _redis:
+        return True
+    result = await _redis.set(f"{PREFIX}{key}", _encode_value(value), ex=ttl, nx=True)
+    return bool(result)
+
+
 async def delete(key: str) -> None:
 
     if not _redis:
@@ -60,9 +67,22 @@ async def delete_pattern(pattern: str) -> int:
     if not _redis:
         return 0
     count = 0
-    async for key in _redis.scan_iter(f"{PREFIX}{pattern}"):
-        await _redis.delete(key)
-        count += 1
+    batch: list[bytes | str] = []
+    async for key in _redis.scan_iter(f"{PREFIX}{pattern}", count=500):
+        batch.append(key)
+        if len(batch) >= 500:
+            pipe = _redis.pipeline()
+            for k in batch:
+                pipe.delete(k)
+            await pipe.execute()
+            count += len(batch)
+            batch = []
+    if batch:
+        pipe = _redis.pipeline()
+        for k in batch:
+            pipe.delete(k)
+        await pipe.execute()
+        count += len(batch)
     return count
 
 
@@ -76,6 +96,7 @@ def _encode_value(value: dict | list) -> bytes:
 def _decode_value(raw: bytes) -> dict | list | None:
     if crypto.is_configured():
         if not raw.startswith(ENCRYPTED_PREFIX):
+            logger.warning("redis cache value missing encrypted prefix while crypto is configured")
             return None
         try:
             payload = crypto.decrypt_bytes(raw[len(ENCRYPTED_PREFIX) :])

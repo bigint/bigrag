@@ -15,6 +15,8 @@ _DEFAULT_TTL_SECONDS = 24 * 60 * 60
 _MAX_CACHED_BODY_BYTES = 64 * 1024
 _MAX_REQUEST_BODY_BYTES = 8 * 1024 * 1024
 _SENSITIVE_RESPONSE_HEADERS = frozenset({"content-length", "set-cookie"})
+_IN_FLIGHT_SENTINEL = "__in_flight__"
+_IN_FLIGHT_TTL_SECONDS = 60
 
 
 def _cache_key(principal: str, idem_key: str, method: str, path: str) -> str:
@@ -81,6 +83,22 @@ async def _send_conflict(send) -> None:
     await send({"type": "http.response.body", "body": body})
 
 
+async def _send_in_flight(send) -> None:
+    body = orjson.dumps({"detail": "Idempotency-Key request is currently in flight; retry shortly"})
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 409,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode("ascii")),
+                (b"retry-after", str(_IN_FLIGHT_TTL_SECONDS).encode("ascii")),
+            ],
+        }
+    )
+    await send({"type": "http.response.body", "body": body})
+
+
 class IdempotencyMiddleware:
     def __init__(self, app, ttl_seconds: int = _DEFAULT_TTL_SECONDS) -> None:
         self.app = app
@@ -99,7 +117,7 @@ class IdempotencyMiddleware:
             await self.app(scope, receive, send)
             return
 
-        idem_key = idem_raw.decode("latin-1").strip()
+        idem_key = idem_raw.decode("utf-8", errors="replace").strip()
         if not idem_key:
             await self.app(scope, receive, send)
             return
@@ -116,6 +134,9 @@ class IdempotencyMiddleware:
 
         cached = await redis_cache.get(cache_key)
         if cached:
+            if cached.get("status") == _IN_FLIGHT_SENTINEL:
+                await _send_in_flight(send)
+                return
             if cached.get("request_hash") != fingerprint:
                 await _send_conflict(send)
                 return
@@ -126,6 +147,23 @@ class IdempotencyMiddleware:
             )
             await _send_cached(send, cached)
             return
+
+        acquired = await redis_cache.set_if_absent(
+            cache_key,
+            {"status": _IN_FLIGHT_SENTINEL, "request_hash": fingerprint},
+            ttl=_IN_FLIGHT_TTL_SECONDS,
+        )
+        if not acquired:
+            existing = await redis_cache.get(cache_key)
+            if existing and existing.get("status") == _IN_FLIGHT_SENTINEL:
+                await _send_in_flight(send)
+                return
+            if existing:
+                if existing.get("request_hash") != fingerprint:
+                    await _send_conflict(send)
+                    return
+                await _send_cached(send, existing)
+                return
 
         status_code = 0
         body_chunks: list[bytes] = []
@@ -166,7 +204,7 @@ class IdempotencyMiddleware:
                         for k, v in response_headers
                         if k.lower() not in _SENSITIVE_RESPONSE_HEADERS
                     ],
-                    "body": body.decode("latin-1"),
+                    "body": body.decode("utf-8", errors="replace"),
                 },
                 ttl=self.ttl_seconds,
             )
@@ -178,7 +216,7 @@ async def _send_cached(send, cached: dict) -> None:
         for k, v in cached.get("headers", [])
         if k.lower() not in _SENSITIVE_RESPONSE_HEADERS
     ]
-    body = cached["body"].encode("latin-1")
+    body = cached["body"].encode("utf-8", errors="replace")
     headers.append((b"idempotency-key-replayed", b"true"))
     headers.append((b"content-length", str(len(body)).encode("ascii")))
 
