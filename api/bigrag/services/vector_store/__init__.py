@@ -98,10 +98,6 @@ class VectorStore:
         self.provider = provider or "collection"
         self._sync_client()
 
-    @property
-    def supports_text_search(self) -> bool:
-        return self.backend.supports_text_search
-
     def supports_text_search_for(self, provider: VectorStoreProvider | None = None) -> bool:
         return self.backends[
             _validate_provider(provider or self._fallback_provider)

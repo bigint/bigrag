@@ -25,11 +25,25 @@ from bigrag.services.retrieval.log import log_query
 from bigrag.services.retrieval.rerank import close_cohere_clients, rerank_results
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.vector_store import VectorStoreFeatureError, VectorStoreProvider, vector_store
-from bigrag.utils import safe_create_task
 
 logger = get_logger("bigrag.retrieval")
 
 MAX_TOP_K = 200
+
+
+def _safe_create_task(coro, *, name: str) -> asyncio.Task:
+    task = asyncio.create_task(coro, name=name)
+
+    def _on_done(t: asyncio.Task) -> None:
+        if t.cancelled():
+            return
+        exc = t.exception()
+        if exc:
+            logger.warning("background task failed", task=name, error=repr(exc))
+
+    task.add_done_callback(_on_done)
+    return task
+
 
 __all__ = [
     "MAX_TOP_K",
@@ -109,7 +123,7 @@ async def retrieve(
                 if cached_outcome.results
                 else None
             )
-            safe_create_task(
+            _safe_create_task(
                 log_query(
                     collection_name=collection_name,
                     query=query,
@@ -236,7 +250,7 @@ async def retrieve(
             collection_name=collection_name,
         )
     )
-    safe_create_task(
+    _safe_create_task(
         log_query(
             collection_name=collection_name,
             query=query,
