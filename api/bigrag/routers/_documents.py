@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import tempfile
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,6 +11,7 @@ import sqlalchemy as sa
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bigrag.config import settings
 from bigrag.db.models import Collection, Document
 from bigrag.logging import get_logger
 from bigrag.models.document import DocumentProgressResponse, DocumentResponse
@@ -134,29 +137,47 @@ def content_hash_match(
     return stmt
 
 
-async def read_upload_content(
-    file: UploadFile,
+async def stream_upload_to_temp(
+    upload: UploadFile,
     *,
     max_size: int,
     budget: UploadBudget | None = None,
-) -> bytes:
-    chunks = []
-    total_size = 0
-    while True:
-        chunk = await file.read(1024 * 1024)
-        if not chunk:
-            break
-        total_size += len(chunk)
-        if total_size > max_size:
-            max_mb = sync_value("max_upload_size_mb")
-            raise HTTPException(
-                status_code=413,
-                detail=f"File too large. Max size: {max_mb}MB",
-            )
-        if budget is not None:
-            budget.consume(len(chunk))
-        chunks.append(chunk)
-    return b"".join(chunks)
+) -> tuple[Path, str, int]:
+    temp_dir = settings.upload_dir or None
+    if temp_dir:
+        Path(temp_dir).mkdir(parents=True, exist_ok=True)
+    tmp = tempfile.NamedTemporaryFile(delete=False, dir=temp_dir)
+    tmp_path = Path(tmp.name)
+    hasher = hashlib.sha256()
+    total = 0
+    try:
+        while True:
+            chunk = await upload.read(64 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > max_size:
+                max_mb = sync_value("max_upload_size_mb")
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File too large. Max size: {max_mb}MB",
+                )
+            if budget is not None:
+                budget.consume(len(chunk))
+            hasher.update(chunk)
+            tmp.write(chunk)
+    except BaseException:
+        try:
+            tmp.close()
+        finally:
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise
+    tmp.flush()
+    tmp.close()
+    return tmp_path, hasher.hexdigest(), total
 
 
 async def persist_document(
@@ -165,7 +186,8 @@ async def persist_document(
     collection_name: str,
     collection: dict,
     filename: str,
-    content: bytes,
+    source: Path,
+    file_size: int,
     metadata: dict,
     content_hash: str,
     raise_on_enqueue_failure: bool,
@@ -175,15 +197,16 @@ async def persist_document(
     storage_key = f"{collection_name}/{doc_id}{file_ext}"
     storage = get_storage()
 
-    await storage.put(storage_key, content)
-    logger.info("upload stored", key=storage_key, size=len(content))
+    with source.open("rb") as fh:
+        await storage.put_stream(storage_key, fh, size=file_size)
+    logger.info("upload stored", key=storage_key, size=file_size)
 
     doc = Document(
         id=doc_id,
         collection_id=collection["id"],
         filename=filename or "document",
         file_type=file_ext.lstrip("."),
-        file_size=len(content),
+        file_size=file_size,
         file_path=storage_key,
         content_hash=content_hash,
         meta=dict(metadata),

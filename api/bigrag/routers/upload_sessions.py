@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,7 +26,7 @@ from bigrag.routers._documents import (
     document_response,
     persist_document,
     prepare_document_metadata,
-    read_upload_content,
+    stream_upload_to_temp,
 )
 from bigrag.routers.documents_progress import document_progress, publish_queued_progress
 from bigrag.services import audit, collection_cache
@@ -436,7 +435,7 @@ async def upload_session_file(
         )
     limits = await get_values(["max_upload_size_mb", "max_upload_session_size_mb"])
     try:
-        content = await read_upload_content(
+        tmp_path, content_hash, size = await stream_upload_to_temp(
             file,
             max_size=limits["max_upload_size_mb"] * 1024 * 1024,
         )
@@ -454,133 +453,141 @@ async def upload_session_file(
             item=_item_response(item, None, item.error_message),
             session=response,
         )
-    content_hash = hashlib.sha256(content).hexdigest()
-    if len(content) == 0:
-        item = await _fail_item(
-            db,
-            upload_session,
-            item_key,
-            filename,
-            file_ext,
-            "File is empty",
-            content_hash=content_hash,
-        )
-        response = await upload_session_response(db, upload_session, persist_counts=True)
-        return UploadSessionFileResponse(
-            item=_item_response(item, None, item.error_message),
-            session=response,
-        )
-    uploaded_bytes = sum(
-        item.file_size for item, _status, _error in rows if item.status != "failed"
-    )
-    max_session_bytes = limits["max_upload_session_size_mb"] * 1024 * 1024
-    existing_size = existing.file_size if existing is not None else 0
-    if uploaded_bytes - existing_size + len(content) > max_session_bytes:
-        item = await _fail_item(
-            db,
-            upload_session,
-            item_key,
-            filename,
-            file_ext,
-            f"Upload session too large. Max size: {limits['max_upload_session_size_mb']}MB",
-            file_size=len(content),
-            content_hash=content_hash,
-        )
-        response = await upload_session_response(db, upload_session, persist_counts=True)
-        return UploadSessionFileResponse(
-            item=_item_response(item, None, item.error_message),
-            session=response,
-        )
     try:
-        validate_upload(content, file_ext)
-    except InvalidFileContentError as exc:
-        item = await _fail_item(
-            db,
-            upload_session,
-            item_key,
-            filename,
-            file_ext,
-            str(exc),
-            file_size=len(content),
-            content_hash=content_hash,
-        )
-        response = await upload_session_response(db, upload_session, persist_counts=True)
-        return UploadSessionFileResponse(
-            item=_item_response(item, None, item.error_message),
-            session=response,
-        )
-    item = await _reserve_item(
-        db,
-        upload_session,
-        existing,
-        item_key,
-        filename,
-        file_ext,
-        len(content),
-        content_hash,
-    )
-    try:
-        existing_doc = await db.scalar(
-            content_hash_match(collection, content_hash, upload_session.meta or {})
-        )
-        if existing_doc is None:
-            doc = await persist_document(
-                session=db,
-                collection_name=collection_name,
-                collection=collection,
-                filename=filename,
-                content=content,
-                metadata=upload_session.meta or {},
+        if size == 0:
+            item = await _fail_item(
+                db,
+                upload_session,
+                item_key,
+                filename,
+                file_ext,
+                "File is empty",
                 content_hash=content_hash,
-                raise_on_enqueue_failure=False,
             )
-            publish_queued_progress(doc, collection_name, "Queued from upload session")
-        else:
-            doc = existing_doc
-    except Exception as exc:
-        logger.exception(
-            "upload_session.persist_failed",
-            collection=collection_name,
-            session_id=str(upload_session.id),
-            filename=filename,
+            response = await upload_session_response(db, upload_session, persist_counts=True)
+            return UploadSessionFileResponse(
+                item=_item_response(item, None, item.error_message),
+                session=response,
+            )
+        uploaded_bytes = sum(
+            item.file_size for item, _status, _error in rows if item.status != "failed"
         )
-        item.status = "failed"
-        item.error_message = f"upload failed: {exc}"
+        max_session_bytes = limits["max_upload_session_size_mb"] * 1024 * 1024
+        existing_size = existing.file_size if existing is not None else 0
+        if uploaded_bytes - existing_size + size > max_session_bytes:
+            item = await _fail_item(
+                db,
+                upload_session,
+                item_key,
+                filename,
+                file_ext,
+                f"Upload session too large. Max size: {limits['max_upload_session_size_mb']}MB",
+                file_size=size,
+                content_hash=content_hash,
+            )
+            response = await upload_session_response(db, upload_session, persist_counts=True)
+            return UploadSessionFileResponse(
+                item=_item_response(item, None, item.error_message),
+                session=response,
+            )
+        try:
+            await validate_upload(tmp_path, file_ext)
+        except InvalidFileContentError as exc:
+            item = await _fail_item(
+                db,
+                upload_session,
+                item_key,
+                filename,
+                file_ext,
+                str(exc),
+                file_size=size,
+                content_hash=content_hash,
+            )
+            response = await upload_session_response(db, upload_session, persist_counts=True)
+            return UploadSessionFileResponse(
+                item=_item_response(item, None, item.error_message),
+                session=response,
+            )
+        item = await _reserve_item(
+            db,
+            upload_session,
+            existing,
+            item_key,
+            filename,
+            file_ext,
+            size,
+            content_hash,
+        )
+        try:
+            existing_doc = await db.scalar(
+                content_hash_match(collection, content_hash, upload_session.meta or {})
+            )
+            if existing_doc is None:
+                doc = await persist_document(
+                    session=db,
+                    collection_name=collection_name,
+                    collection=collection,
+                    filename=filename,
+                    source=tmp_path,
+                    file_size=size,
+                    metadata=upload_session.meta or {},
+                    content_hash=content_hash,
+                    raise_on_enqueue_failure=False,
+                )
+                publish_queued_progress(doc, collection_name, "Queued from upload session")
+            else:
+                doc = existing_doc
+        except Exception as exc:
+            logger.exception(
+                "upload_session.persist_failed",
+                collection=collection_name,
+                session_id=str(upload_session.id),
+                filename=filename,
+            )
+            item.status = "failed"
+            item.error_message = f"upload failed: {exc}"
+            await db.commit()
+            await db.refresh(item)
+            response = await upload_session_response(db, upload_session, persist_counts=True)
+            return UploadSessionFileResponse(
+                item=_item_response(item, None, item.error_message),
+                session=response,
+            )
+        item.document_id = doc.id
+        item.filename = filename
+        item.file_type = file_ext.lstrip(".")
+        item.file_size = size
+        item.content_hash = content_hash
+        item.storage_key = doc.file_path
+        item.status = "failed" if doc.status == "failed" else "queued"
+        item.error_message = doc.error_message if doc.status == "failed" else None
+        db.add(item)
         await db.commit()
         await db.refresh(item)
+        await collection_cache.invalidate(collection_name)
+        await invalidate_collection_query_cache(collection_name)
+        audit.record(
+            request,
+            user=user,
+            action="upload_session.file",
+            resource_type="upload_session",
+            resource_id=str(upload_session.id),
+            metadata={"collection": collection_name, "filename": filename, "size": size},
+        )
         response = await upload_session_response(db, upload_session, persist_counts=True)
+        item_progress = await document_progress(doc, collection_name)
+        doc_payload = document_response(
+            doc, deduped=existing_doc is not None, progress=item_progress
+        )
         return UploadSessionFileResponse(
-            item=_item_response(item, None, item.error_message),
+            item=_item_response(item, doc_payload.status, doc_payload.error_message),
             session=response,
         )
-    item.document_id = doc.id
-    item.filename = filename
-    item.file_type = file_ext.lstrip(".")
-    item.file_size = len(content)
-    item.content_hash = content_hash
-    item.storage_key = doc.file_path
-    item.status = "failed" if doc.status == "failed" else "queued"
-    item.error_message = doc.error_message if doc.status == "failed" else None
-    db.add(item)
-    await db.commit()
-    await db.refresh(item)
-    await collection_cache.invalidate(collection_name)
-    await invalidate_collection_query_cache(collection_name)
-    audit.record(
-        request,
-        user=user,
-        action="upload_session.file",
-        resource_type="upload_session",
-        resource_id=str(upload_session.id),
-        metadata={"collection": collection_name, "filename": filename, "size": len(content)},
-    )
-    response = await upload_session_response(db, upload_session, persist_counts=True)
-    item_progress = await document_progress(doc, collection_name)
-    doc_payload = document_response(doc, deduped=existing_doc is not None, progress=item_progress)
-    return UploadSessionFileResponse(
-        item=_item_response(item, doc_payload.status, doc_payload.error_message),
-        session=response,
-    )
+    finally:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
 
 
 @router.post("/{session_id}/complete", response_model=UploadSessionResponse)

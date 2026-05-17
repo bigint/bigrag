@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import uuid
+from pathlib import Path
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
@@ -47,7 +47,7 @@ from bigrag.routers.documents_uploads import (
     metadata_or_400,
     upload_extension_or_400,
     uuid_or_404,
-    validated_upload_content,
+    validated_upload_to_temp,
 )
 from bigrag.services import audit, collection_cache
 from bigrag.services.event_bus import IngestionEvent, event_bus
@@ -133,7 +133,7 @@ async def _persist_batch_upload_documents(
     collection_name: str,
     collection: dict,
     metadata: dict,
-    pending: list[tuple[UploadFile, str, bytes, str]],
+    pending: list[tuple[UploadFile, str, Path, str, int]],
 ) -> list[tuple[Document, bool]]:
     hashes = list(dict.fromkeys(item[3] for item in pending))
     seen_by_hash = await _existing_documents_by_hash(session, collection, metadata, hashes)
@@ -141,9 +141,16 @@ async def _persist_batch_upload_documents(
     new_docs: list[Document] = []
     stored_paths: list[str] = []
     storage = get_storage()
+    upload_semaphore = asyncio.Semaphore(4)
+
+    async def _put_one(storage_key: str, tmp_path: Path, size: int) -> None:
+        async with upload_semaphore:
+            with tmp_path.open("rb") as fh:
+                await storage.put_stream(storage_key, fh, size=size)
 
     try:
-        for file, file_ext, content, content_hash in pending:
+        put_tasks: list[asyncio.Task] = []
+        for file, file_ext, tmp_path, content_hash, size in pending:
             existing = seen_by_hash.get(content_hash)
             if existing is not None:
                 ordered.append((existing, True))
@@ -152,14 +159,14 @@ async def _persist_batch_upload_documents(
             doc_id = uuid.uuid4()
             filename = file.filename or "document"
             storage_key = f"{collection_name}/{doc_id}{file_ext}"
-            await storage.put(storage_key, content)
+            put_tasks.append(asyncio.create_task(_put_one(storage_key, tmp_path, size)))
             stored_paths.append(storage_key)
             doc = Document(
                 id=doc_id,
                 collection_id=collection["id"],
                 filename=filename,
                 file_type=file_ext.lstrip("."),
-                file_size=len(content),
+                file_size=size,
                 file_path=storage_key,
                 content_hash=content_hash,
                 meta=dict(metadata),
@@ -168,6 +175,9 @@ async def _persist_batch_upload_documents(
             seen_by_hash[content_hash] = doc
             new_docs.append(doc)
             ordered.append((doc, False))
+
+        if put_tasks:
+            await asyncio.gather(*put_tasks)
 
         if new_docs:
             await session.flush()
@@ -214,33 +224,41 @@ async def upload_document(
             detail=f"File too large. Max size: {max_upload_size_mb}MB",
         )
 
-    content = await validated_upload_content(file, file_ext, max_size=max_size)
-    meta = metadata_or_400(collection, metadata, prepare_document_metadata, parse_form_metadata)
-
-    content_hash = hashlib.sha256(content).hexdigest()
-    existing = await session.scalar(content_hash_match(collection, content_hash, meta))
-    if existing is not None:
-        logger.info(
-            "upload: dedup hit — returning existing doc",
-            content_hash=content_hash[:12],
-            doc_id=str(existing.id),
-        )
-        return document_response(
-            existing,
-            deduped=True,
-            progress=await document_progress(existing, collection_name),
-        )
-
-    doc = await persist_document(
-        session=session,
-        collection_name=collection_name,
-        collection=collection,
-        filename=file.filename or "document",
-        content=content,
-        metadata=meta,
-        content_hash=content_hash,
-        raise_on_enqueue_failure=True,
+    tmp_path, content_hash, file_size = await validated_upload_to_temp(
+        file, file_ext, max_size=max_size
     )
+    try:
+        meta = metadata_or_400(collection, metadata, prepare_document_metadata, parse_form_metadata)
+
+        existing = await session.scalar(content_hash_match(collection, content_hash, meta))
+        if existing is not None:
+            logger.info(
+                "upload: dedup hit — returning existing doc",
+                content_hash=content_hash[:12],
+                doc_id=str(existing.id),
+            )
+            return document_response(
+                existing,
+                deduped=True,
+                progress=await document_progress(existing, collection_name),
+            )
+
+        doc = await persist_document(
+            session=session,
+            collection_name=collection_name,
+            collection=collection,
+            filename=file.filename or "document",
+            source=tmp_path,
+            file_size=file_size,
+            metadata=meta,
+            content_hash=content_hash,
+            raise_on_enqueue_failure=True,
+        )
+    finally:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
     publish_queued_progress(doc, collection_name, "Queued for ingestion")
 
     audit.record(
@@ -547,25 +565,32 @@ async def batch_upload_documents(
         parse_form_metadata,
     )
 
-    pending: list[tuple[UploadFile, str, bytes, str]] = []
-    for file in files:
-        file_ext = upload_extension_or_400(file.filename, batch=True)
-        content = await validated_upload_content(
-            file,
-            file_ext,
-            max_size=max_size,
-            budget=budget,
-            batch=True,
-        )
-        pending.append((file, file_ext, content, hashlib.sha256(content).hexdigest()))
+    pending: list[tuple[UploadFile, str, Path, str, int]] = []
+    try:
+        for file in files:
+            file_ext = upload_extension_or_400(file.filename, batch=True)
+            tmp_path, content_hash, size = await validated_upload_to_temp(
+                file,
+                file_ext,
+                max_size=max_size,
+                budget=budget,
+                batch=True,
+            )
+            pending.append((file, file_ext, tmp_path, content_hash, size))
 
-    ordered_docs = await _persist_batch_upload_documents(
-        session=session,
-        collection_name=collection_name,
-        collection=collection,
-        metadata=shared_meta,
-        pending=pending,
-    )
+        ordered_docs = await _persist_batch_upload_documents(
+            session=session,
+            collection_name=collection_name,
+            collection=collection,
+            metadata=shared_meta,
+            pending=pending,
+        )
+    finally:
+        for _file, _ext, tmp_path, _hash, _size in pending:
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
     unique_docs = list({str(doc.id): doc for doc, _deduped in ordered_docs}.values())
     progresses = await document_progress_map(unique_docs, collection_name)
     created = [

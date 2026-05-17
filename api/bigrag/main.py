@@ -132,6 +132,7 @@ async def lifespan(app: FastAPI):
             ("cohere", _close_cohere),
             ("chat", _close_chat),
             ("embedding_models", _close_embedding_models),
+            ("google_drive", _close_google_drive),
         ):
             try:
                 await closer()
@@ -162,6 +163,12 @@ async def _close_embedding_models() -> None:
     from bigrag.services.embedding import close_embedding_models
 
     await close_embedding_models()
+
+
+async def _close_google_drive() -> None:
+    from bigrag.services.connectors.google_drive_client import google_drive_client
+
+    await google_drive_client.aclose()
 
 
 async def _check_database_migrations(s: Settings, logger) -> None:

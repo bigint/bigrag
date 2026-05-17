@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import io
+import os
+import shutil
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 from bigrag.logging import get_logger
 from bigrag.services import runtime_settings
@@ -17,7 +20,15 @@ class StorageBackend(ABC):
     async def put(self, key: str, data: bytes) -> None: ...
 
     @abstractmethod
+    async def put_stream(self, key: str, fileobj: BinaryIO, size: int | None = None) -> None: ...
+
+    @abstractmethod
     async def get(self, key: str) -> bytes: ...
+
+    @abstractmethod
+    async def get_stream(self, key: str, chunk_size: int = 65536) -> AsyncIterator[bytes]:
+        if False:
+            yield b""
 
     @abstractmethod
     async def delete(self, key: str) -> None: ...
@@ -48,14 +59,33 @@ class LocalStorage(StorageBackend):
         return resolved
 
     async def put(self, key: str, data: bytes) -> None:
+        await self.put_stream(key, io.BytesIO(data), size=len(data))
+
+    async def put_stream(self, key: str, fileobj: BinaryIO, size: int | None = None) -> None:
         path = self._safe_path(key)
+        tmp = path.with_suffix(path.suffix + ".tmp")
 
-        def _write():
+        def _write() -> int:
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(data)
+            written = 0
+            with tmp.open("wb") as out:
+                shutil.copyfileobj(fileobj, out, length=1024 * 1024)
+                out.flush()
+                os.fsync(out.fileno())
+                written = out.tell()
+            os.replace(tmp, path)
+            return written
 
-        await asyncio.to_thread(_write)
-        logger.info("local put", key=key, size=len(data))
+        try:
+            written = await asyncio.to_thread(_write)
+        except BaseException:
+            try:
+                if tmp.exists():
+                    tmp.unlink()
+            except OSError:
+                pass
+            raise
+        logger.info("local put", key=key, size=size if size is not None else written)
 
     async def get(self, key: str) -> bytes:
         path = self._safe_path(key)
@@ -69,6 +99,24 @@ class LocalStorage(StorageBackend):
         logger.info("local get", key=key, size=len(data))
         return data
 
+    async def get_stream(self, key: str, chunk_size: int = 65536) -> AsyncIterator[bytes]:
+        path = self._safe_path(key)
+
+        def _open():
+            if not path.exists():
+                raise FileNotFoundError(f"File not found: {key}")
+            return path.open("rb")
+
+        fh = await asyncio.to_thread(_open)
+        try:
+            while True:
+                chunk = await asyncio.to_thread(fh.read, chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            await asyncio.to_thread(fh.close)
+
     async def delete(self, key: str) -> None:
         path = self._safe_path(key)
 
@@ -80,8 +128,6 @@ class LocalStorage(StorageBackend):
         logger.info("local delete", key=key)
 
     async def delete_prefix(self, prefix: str) -> int:
-        import shutil
-
         target = self._safe_path(prefix)
 
         def _delete_prefix():
@@ -110,7 +156,6 @@ class LocalStorage(StorageBackend):
             if not source.exists():
                 raise FileNotFoundError(f"File not found: {key}")
             path.parent.mkdir(parents=True, exist_ok=True)
-            import shutil
 
             shutil.copyfile(source, path)
             return path.stat().st_size
@@ -137,6 +182,7 @@ class S3Storage(StorageBackend):
     ) -> None:
         try:
             import boto3
+            from boto3.s3.transfer import TransferConfig
             from botocore.config import Config
         except ImportError as exc:
             raise RuntimeError("boto3 is required for S3 storage") from exc
@@ -154,6 +200,12 @@ class S3Storage(StorageBackend):
         self._client = boto3.client("s3", **kwargs)
         self._bucket = bucket
         self._prefix = prefix.strip("/")
+        self._transfer_config = TransferConfig(
+            multipart_threshold=8 * 1024 * 1024,
+            multipart_chunksize=8 * 1024 * 1024,
+            max_concurrency=4,
+            use_threads=True,
+        )
 
     def _key(self, key: str) -> str:
         clean = key.lstrip("/")
@@ -164,14 +216,18 @@ class S3Storage(StorageBackend):
         return f"{self._prefix}/{clean}" if self._prefix else clean
 
     async def put(self, key: str, data: bytes) -> None:
+        await self.put_stream(key, io.BytesIO(data), size=len(data))
+
+    async def put_stream(self, key: str, fileobj: BinaryIO, size: int | None = None) -> None:
         object_key = self._key(key)
         await asyncio.to_thread(
-            self._client.put_object,
-            Bucket=self._bucket,
-            Key=object_key,
-            Body=data,
+            self._client.upload_fileobj,
+            fileobj,
+            self._bucket,
+            object_key,
+            Config=self._transfer_config,
         )
-        logger.info("s3 put", key=object_key, size=len(data))
+        logger.info("s3 put", key=object_key, size=size if size is not None else -1)
 
     async def get(self, key: str) -> bytes:
         object_key = self._key(key)
@@ -183,6 +239,25 @@ class S3Storage(StorageBackend):
         data = await asyncio.to_thread(_read)
         logger.info("s3 get", key=object_key, size=len(data))
         return data
+
+    async def get_stream(self, key: str, chunk_size: int = 65536) -> AsyncIterator[bytes]:
+        object_key = self._key(key)
+
+        def _open():
+            response = self._client.get_object(Bucket=self._bucket, Key=object_key)
+            return response["Body"]
+
+        body = await asyncio.to_thread(_open)
+        try:
+            while True:
+                chunk = await asyncio.to_thread(body.read, chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            close = getattr(body, "close", None)
+            if close is not None:
+                await asyncio.to_thread(close)
 
     async def delete(self, key: str) -> None:
         object_key = self._key(key)

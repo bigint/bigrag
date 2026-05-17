@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import Any
 
@@ -121,51 +122,83 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 ).all()
             }
 
-            for index, remote in enumerate(remotes, start=1):
-                manifest = manifests.get(remote.id)
-                await update_sync_progress(
-                    session,
-                    job=job,
-                    counters=counters,
-                    phase="syncing",
-                    message=f"Syncing {remote.name}",
-                    current_item=remote,
-                    processed_items=index - 1,
-                    total_items=len(remotes),
-                )
-                try:
-                    downloaded = await adapter.download(access_token=access_token, remote=remote)
-                    await sync_downloaded_file(
+            download_semaphore = asyncio.Semaphore(4)
+
+            async def _download(remote: RemoteConnectorFile):
+                async with download_semaphore:
+                    return await adapter.download(access_token=access_token, remote=remote)
+
+            download_tasks = {
+                remote.id: asyncio.create_task(_download(remote)) for remote in remotes
+            }
+
+            try:
+                for index, remote in enumerate(remotes, start=1):
+                    manifest = manifests.get(remote.id)
+                    await update_sync_progress(
                         session,
-                        adapter=adapter,
-                        source=source,
-                        collection=collection,
-                        manifest=manifest,
-                        downloaded=downloaded,
+                        job=job,
                         counters=counters,
+                        phase="syncing",
+                        message=f"Syncing {remote.name}",
+                        current_item=remote,
+                        processed_items=index - 1,
+                        total_items=len(remotes),
                     )
-                except (InvalidFileContentError, ValueError) as exc:
-                    counters.add_error(remote.id, remote.name, str(exc))
-                except Exception as exc:
-                    logger.warning(
-                        "connector: file sync failed",
-                        provider=adapter.provider,
-                        source_id=str(source.id),
-                        remote_id=remote.id,
-                        error_type=exc.__class__.__name__,
-                        error=str(exc),
+                    downloaded = None
+                    try:
+                        downloaded = await download_tasks[remote.id]
+                        await sync_downloaded_file(
+                            session,
+                            adapter=adapter,
+                            source=source,
+                            collection=collection,
+                            manifest=manifest,
+                            downloaded=downloaded,
+                            counters=counters,
+                        )
+                    except (InvalidFileContentError, ValueError) as exc:
+                        counters.add_error(remote.id, remote.name, str(exc))
+                    except Exception as exc:
+                        logger.warning(
+                            "connector: file sync failed",
+                            provider=adapter.provider,
+                            source_id=str(source.id),
+                            remote_id=remote.id,
+                            error_type=exc.__class__.__name__,
+                            error=str(exc),
+                        )
+                        counters.add_error(remote.id, remote.name, str(exc))
+                    finally:
+                        if downloaded is not None:
+                            try:
+                                downloaded.path.unlink()
+                            except OSError:
+                                pass
+                    await update_sync_progress(
+                        session,
+                        job=job,
+                        counters=counters,
+                        phase="syncing",
+                        message=f"Synced {index} of {len(remotes)} Drive files",
+                        current_item=remote,
+                        processed_items=index,
+                        total_items=len(remotes),
                     )
-                    counters.add_error(remote.id, remote.name, str(exc))
-                await update_sync_progress(
-                    session,
-                    job=job,
-                    counters=counters,
-                    phase="syncing",
-                    message=f"Synced {index} of {len(remotes)} Drive files",
-                    current_item=remote,
-                    processed_items=index,
-                    total_items=len(remotes),
-                )
+            finally:
+                for task in download_tasks.values():
+                    if not task.done():
+                        task.cancel()
+                for task in download_tasks.values():
+                    try:
+                        result = await task
+                    except (asyncio.CancelledError, Exception):
+                        continue
+                    if result is not None:
+                        try:
+                            result.path.unlink()
+                        except OSError:
+                            pass
 
             missing = [
                 manifest
@@ -293,7 +326,7 @@ async def sync_downloaded_file(
         manifest.web_url = remote.web_url
         return
 
-    validate_upload(downloaded.content, downloaded.file_ext)
+    await validate_upload(downloaded.path, downloaded.file_ext)
     collection_dict = collection_dict_for_sync(collection)
     metadata = prepare_document_metadata(
         collection_dict,
@@ -301,16 +334,20 @@ async def sync_downloaded_file(
     )
     storage = get_storage()
 
+    async def _put_downloaded(storage_key: str) -> None:
+        with downloaded.path.open("rb") as fh:
+            await storage.put_stream(storage_key, fh, size=downloaded.file_size)
+
     if manifest is None:
         doc_id = uuid.uuid4()
         storage_key = f"{source.collection_name}/{doc_id}{downloaded.file_ext}"
-        await storage.put(storage_key, downloaded.content)
+        await _put_downloaded(storage_key)
         doc = Document(
             id=doc_id,
             collection_id=collection.id,
             filename=downloaded.filename,
             file_type=downloaded.file_ext.lstrip("."),
-            file_size=len(downloaded.content),
+            file_size=downloaded.file_size,
             file_path=storage_key,
             content_hash=downloaded.content_hash,
             meta=metadata,
@@ -324,13 +361,13 @@ async def sync_downloaded_file(
         if doc is None:
             doc_id = uuid.uuid4()
             storage_key = f"{source.collection_name}/{doc_id}{downloaded.file_ext}"
-            await storage.put(storage_key, downloaded.content)
+            await _put_downloaded(storage_key)
             doc = Document(
                 id=doc_id,
                 collection_id=collection.id,
                 filename=downloaded.filename,
                 file_type=downloaded.file_ext.lstrip("."),
-                file_size=len(downloaded.content),
+                file_size=downloaded.file_size,
                 file_path=storage_key,
                 content_hash=downloaded.content_hash,
                 meta=metadata,
@@ -348,12 +385,12 @@ async def sync_downloaded_file(
             )
             old_path = doc.file_path
             storage_key = f"{source.collection_name}/{doc.id}{downloaded.file_ext}"
-            await storage.put(storage_key, downloaded.content)
+            await _put_downloaded(storage_key)
             if old_path != storage_key:
                 await storage.delete(old_path)
             doc.filename = downloaded.filename
             doc.file_type = downloaded.file_ext.lstrip(".")
-            doc.file_size = len(downloaded.content)
+            doc.file_size = downloaded.file_size
             doc.file_path = storage_key
             doc.content_hash = downloaded.content_hash
             doc.status = "pending"

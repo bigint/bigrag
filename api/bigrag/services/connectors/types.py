@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Protocol
 
 from bigrag.db.models import ConnectorAccount, ConnectorProviderConfig, ConnectorSource
@@ -40,7 +41,8 @@ class DownloadedConnectorFile:
     remote: RemoteConnectorFile
     filename: str
     file_ext: str
-    content: bytes
+    path: Path
+    file_size: int
     content_hash: str
 
 

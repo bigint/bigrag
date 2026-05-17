@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import tempfile
+from pathlib import Path
 from typing import Any
 
 import httpx
 
+from bigrag.config import settings
 from bigrag.db.models import ConnectorProviderConfig
 from bigrag.routers._documents import SUPPORTED_EXTENSIONS
 from bigrag.services.connectors.google_drive_types import (
@@ -34,9 +37,21 @@ class GoogleDriveClient:
     ) -> None:
         self._transport = transport
         self._timeout = timeout
+        self._http_client: httpx.AsyncClient | None = None
 
     def _client(self) -> httpx.AsyncClient:
-        return httpx.AsyncClient(transport=self._transport, timeout=self._timeout)
+        if self._http_client is None or self._http_client.is_closed:
+            self._http_client = httpx.AsyncClient(
+                transport=self._transport,
+                timeout=self._timeout,
+                limits=httpx.Limits(max_keepalive_connections=20, max_connections=50),
+            )
+        return self._http_client
+
+    async def aclose(self) -> None:
+        if self._http_client is not None and not self._http_client.is_closed:
+            await self._http_client.aclose()
+        self._http_client = None
 
     async def exchange_code(
         self,
@@ -45,17 +60,17 @@ class GoogleDriveClient:
         code: str,
         redirect_uri: str,
     ) -> dict[str, Any]:
-        async with self._client() as client:
-            response = await client.post(
-                "https://oauth2.googleapis.com/token",
-                data={
-                    "client_id": config.client_id,
-                    "client_secret": config.client_secret,
-                    "code": code,
-                    "grant_type": "authorization_code",
-                    "redirect_uri": redirect_uri,
-                },
-            )
+        client = self._client()
+        response = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "client_id": config.client_id,
+                "client_secret": config.client_secret,
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": redirect_uri,
+            },
+        )
         return self._token_response(response)
 
     async def refresh_access_token(
@@ -64,16 +79,16 @@ class GoogleDriveClient:
         config: ConnectorProviderConfig,
         refresh_token: str,
     ) -> dict[str, Any]:
-        async with self._client() as client:
-            response = await client.post(
-                "https://oauth2.googleapis.com/token",
-                data={
-                    "client_id": config.client_id,
-                    "client_secret": config.client_secret,
-                    "refresh_token": refresh_token,
-                    "grant_type": "refresh_token",
-                },
-            )
+        client = self._client()
+        response = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "client_id": config.client_id,
+                "client_secret": config.client_secret,
+                "refresh_token": refresh_token,
+                "grant_type": "refresh_token",
+            },
+        )
         return self._token_response(response)
 
     def _token_response(self, response: httpx.Response) -> dict[str, Any]:
@@ -87,25 +102,25 @@ class GoogleDriveClient:
         return response.json()
 
     async def userinfo(self, access_token: str) -> dict[str, Any]:
-        async with self._client() as client:
-            response = await client.get(
-                "https://openidconnect.googleapis.com/v1/userinfo",
-                headers={"Authorization": f"Bearer {access_token}"},
-            )
+        client = self._client()
+        response = await client.get(
+            "https://openidconnect.googleapis.com/v1/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
         if response.status_code >= 400:
             raise GoogleDriveAuthError(response.text)
         return response.json()
 
     async def get_file(self, access_token: str, file_id: str) -> RemoteDriveFile:
-        async with self._client() as client:
-            response = await client.get(
-                f"https://www.googleapis.com/drive/v3/files/{file_id}",
-                params={
-                    "fields": GOOGLE_FILE_FIELDS,
-                    "supportsAllDrives": "true",
-                },
-                headers={"Authorization": f"Bearer {access_token}"},
-            )
+        client = self._client()
+        response = await client.get(
+            f"https://www.googleapis.com/drive/v3/files/{file_id}",
+            params={
+                "fields": GOOGLE_FILE_FIELDS,
+                "supportsAllDrives": "true",
+            },
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
         payload = self._json_or_raise(response)
         remote = _remote_from_payload(payload)
         if not remote.id:
@@ -138,25 +153,25 @@ class GoogleDriveClient:
     async def list_children(self, access_token: str, folder_id: str) -> list[RemoteDriveFile]:
         files: list[RemoteDriveFile] = []
         page_token: str | None = None
-        async with self._client() as client:
-            while True:
-                response = await client.get(
-                    "https://www.googleapis.com/drive/v3/files",
-                    params={
-                        "q": f"'{folder_id}' in parents and trashed=false",
-                        "fields": f"nextPageToken,files({GOOGLE_FILE_FIELDS})",
-                        "pageSize": 1000,
-                        "pageToken": page_token,
-                        "includeItemsFromAllDrives": "true",
-                        "supportsAllDrives": "true",
-                    },
-                    headers={"Authorization": f"Bearer {access_token}"},
-                )
-                payload = self._json_or_raise(response)
-                files.extend(_remote_from_payload(item) for item in payload.get("files", []))
-                page_token = payload.get("nextPageToken")
-                if not page_token:
-                    return files
+        client = self._client()
+        while True:
+            response = await client.get(
+                "https://www.googleapis.com/drive/v3/files",
+                params={
+                    "q": f"'{folder_id}' in parents and trashed=false",
+                    "fields": f"nextPageToken,files({GOOGLE_FILE_FIELDS})",
+                    "pageSize": 1000,
+                    "pageToken": page_token,
+                    "includeItemsFromAllDrives": "true",
+                    "supportsAllDrives": "true",
+                },
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            payload = self._json_or_raise(response)
+            files.extend(_remote_from_payload(item) for item in payload.get("files", []))
+            page_token = payload.get("nextPageToken")
+            if not page_token:
+                return files
 
     async def list_files(
         self,
@@ -185,12 +200,12 @@ class GoogleDriveClient:
         if page_token:
             params["pageToken"] = page_token
 
-        async with self._client() as client:
-            response = await client.get(
-                "https://www.googleapis.com/drive/v3/files",
-                params=params,
-                headers={"Authorization": f"Bearer {access_token}"},
-            )
+        client = self._client()
+        response = await client.get(
+            "https://www.googleapis.com/drive/v3/files",
+            params=params,
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
         payload = self._json_or_raise(response)
         return (
             [_remote_from_payload(item) for item in payload.get("files", [])],
@@ -213,23 +228,55 @@ class GoogleDriveClient:
             url = f"https://www.googleapis.com/drive/v3/files/{remote.id}"
             params["alt"] = "media"
 
-        async with self._client() as client:
-            response = await client.get(
+        temp_dir = settings.upload_dir or None
+        if temp_dir:
+            Path(temp_dir).mkdir(parents=True, exist_ok=True)
+        tmp = tempfile.NamedTemporaryFile(delete=False, dir=temp_dir, suffix=file_ext)
+        tmp_path = Path(tmp.name)
+        hasher = hashlib.sha256()
+        total = 0
+        client = self._client()
+        try:
+            async with client.stream(
+                "GET",
                 url,
                 params=params,
                 headers={"Authorization": f"Bearer {access_token}"},
-            )
-        self._raise_for_status(response)
-        content = response.content
-        if not content:
+            ) as response:
+                if response.status_code >= 400:
+                    await response.aread()
+                    self._raise_for_status(response)
+                async for chunk in response.aiter_bytes(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
+                    hasher.update(chunk)
+                    tmp.write(chunk)
+                    total += len(chunk)
+            tmp.flush()
+        except BaseException:
+            try:
+                tmp.close()
+            finally:
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+            raise
+        tmp.close()
+        if total == 0:
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
             raise ValueError(f"Google Drive file '{remote.name}' is empty")
         filename = _sanitize_filename(remote.name, file_ext)
         return DownloadedDriveFile(
             remote=remote,
             filename=filename,
             file_ext=file_ext,
-            content=content,
-            content_hash=hashlib.sha256(content).hexdigest(),
+            path=tmp_path,
+            file_size=total,
+            content_hash=hasher.hexdigest(),
         )
 
     def _json_or_raise(self, response: httpx.Response) -> dict[str, Any]:

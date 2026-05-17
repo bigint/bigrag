@@ -6,13 +6,13 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import HTTPException, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 
 from bigrag.db.models import Document
 from bigrag.routers._documents import (
     SUPPORTED_EXTENSIONS,
     UploadBudget,
-    read_upload_content,
+    stream_upload_to_temp,
 )
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 
@@ -62,16 +62,18 @@ def upload_extension_or_400(filename: str | None, *, batch: bool = False) -> str
     raise HTTPException(status_code=400, detail=detail)
 
 
-async def validated_upload_content(
+async def validated_upload_to_temp(
     file: UploadFile,
     file_ext: str,
     *,
     max_size: int,
     budget: UploadBudget | None = None,
     batch: bool = False,
-) -> bytes:
+) -> tuple[Path, str, int]:
     try:
-        content = await read_upload_content(file, max_size=max_size, budget=budget)
+        tmp_path, content_hash, size = await stream_upload_to_temp(
+            file, max_size=max_size, budget=budget
+        )
     except HTTPException as exc:
         if not batch:
             raise
@@ -79,15 +81,23 @@ async def validated_upload_content(
             status_code=exc.status_code,
             detail=f"File '{file.filename}': {exc.detail}",
         ) from exc
-    if len(content) == 0:
+    if size == 0:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
         detail = f"File '{file.filename}' is empty" if batch else "File is empty"
         raise HTTPException(status_code=400, detail=detail)
     try:
-        validate_upload(content, file_ext)
+        await validate_upload(tmp_path, file_ext)
     except InvalidFileContentError as exc:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
         detail = f"File '{file.filename}': {exc}" if batch else str(exc)
         raise HTTPException(status_code=400, detail=detail) from exc
-    return content
+    return tmp_path, content_hash, size
 
 
 def metadata_or_400(collection: dict, metadata: str, prepare, parse) -> dict:
@@ -101,13 +111,12 @@ async def document_file_response(doc: Document, storage) -> Response:
     if not await storage.exists(doc.file_path):
         raise HTTPException(status_code=404, detail="File not found in storage")
 
-    data = await storage.get(doc.file_path)
     ext = doc.file_type.lower()
     content_type = CONTENT_TYPE_BY_EXTENSION.get(ext, "application/octet-stream")
     safe_ascii = re.sub(r"[\x00-\x1f\x7f\"\\]", "_", doc.filename)
     encoded = quote(doc.filename, safe="")
-    return Response(
-        content=data,
+    return StreamingResponse(
+        storage.get_stream(doc.file_path),
         media_type=content_type,
         headers={
             "Content-Disposition": (

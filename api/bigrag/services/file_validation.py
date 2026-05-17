@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import io
 import zipfile
 import zlib
+from pathlib import Path
 
 _MAGIC_BYTES: dict[str, tuple[bytes, ...]] = {
     ".pdf": (b"%PDF-",),
@@ -20,30 +22,38 @@ _MAGIC_BYTES: dict[str, tuple[bytes, ...]] = {
 _ZIP_EXTS = frozenset({".docx", ".pptx", ".xlsx", ".epub"})
 
 MAX_DECOMPRESSED_BYTES = 500 * 1024 * 1024
+_MAGIC_HEAD_BYTES = 16
 
 
 class InvalidFileContentError(Exception):
     pass
 
 
-def validate_magic_bytes(content: bytes, extension: str) -> None:
+def _read_head(source: bytes | Path, n: int) -> bytes:
+    if isinstance(source, (bytes, bytearray)):
+        return bytes(source[:n])
+    with Path(source).open("rb") as fh:
+        return fh.read(n)
+
+
+def validate_magic_bytes(content: bytes | Path, extension: str) -> None:
 
     prefixes = _MAGIC_BYTES.get(extension.lower())
     if not prefixes:
         return
-    head = content[: max(len(p) for p in prefixes)]
+    head = _read_head(content, max(len(p) for p in prefixes))
     if not any(head.startswith(p) for p in prefixes):
         raise InvalidFileContentError(
             f"File content does not match declared extension {extension!r}."
         )
 
 
-def validate_zip_bomb(content: bytes, extension: str) -> None:
-
-    if extension.lower() not in _ZIP_EXTS:
-        return
+def _validate_zip_bomb_sync(source: bytes | Path, extension: str) -> None:
     try:
-        zf = zipfile.ZipFile(io.BytesIO(content))
+        if isinstance(source, (bytes, bytearray)):
+            zf = zipfile.ZipFile(io.BytesIO(source))
+        else:
+            zf = zipfile.ZipFile(Path(source))
     except zipfile.BadZipFile as exc:
         raise InvalidFileContentError(f"Not a valid {extension} archive.") from exc
     try:
@@ -67,7 +77,14 @@ def validate_zip_bomb(content: bytes, extension: str) -> None:
         zf.close()
 
 
-def validate_upload(content: bytes, extension: str) -> None:
+async def validate_zip_bomb(content: bytes | Path, extension: str) -> None:
+
+    if extension.lower() not in _ZIP_EXTS:
+        return
+    await asyncio.to_thread(_validate_zip_bomb_sync, content, extension)
+
+
+async def validate_upload(content: bytes | Path, extension: str) -> None:
 
     validate_magic_bytes(content, extension)
-    validate_zip_bomb(content, extension)
+    await validate_zip_bomb(content, extension)
