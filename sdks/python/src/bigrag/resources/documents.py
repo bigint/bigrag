@@ -148,6 +148,7 @@ class DocumentsResource:
         order: str | None = None,
         limit: int | None = None,
         offset: int | None = None,
+        include_total: bool | None = None,
     ) -> DocumentListResponse:
         params: dict[str, str] = {}
         if q is not None:
@@ -162,6 +163,8 @@ class DocumentsResource:
             params["limit"] = str(limit)
         if offset is not None:
             params["offset"] = str(offset)
+        if include_total is not None:
+            params["include_total"] = "true" if include_total else "false"
         return await self._client._request(
             "GET",
             f"{_col_path(collection)}/documents",
