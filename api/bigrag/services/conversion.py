@@ -197,6 +197,23 @@ async def get_conversion_executor() -> ProcessPoolExecutor:
         return _executor
 
 
+async def _restart_conversion_executor() -> None:
+    global _executor
+    async with _executor_lock:
+        executor = _executor
+        if executor is None:
+            return
+        _executor = None
+        processes = list(getattr(executor, "_processes", {}).values())
+        for process in processes:
+            if process.is_alive():
+                process.terminate()
+        for process in processes:
+            if process.is_alive():
+                process.kill()
+        await asyncio.to_thread(executor.shutdown, False, cancel_futures=True)
+
+
 async def shutdown_conversion_executor() -> None:
     global _executor
     executor = _executor
@@ -271,6 +288,7 @@ async def _convert_document_path_isolated(
             return await asyncio.wait_for(future, timeout=timeout)
         except TimeoutError as exc:
             future.cancel()
+            await _restart_conversion_executor()
             raise TimeoutError(f"Document conversion timed out after {timeout}s") from exc
 
 
@@ -292,4 +310,9 @@ async def ocr_chunk_in_executor(
             page_start,
             page_end,
         )
-        return await asyncio.wait_for(future, timeout=timeout)
+        try:
+            return await asyncio.wait_for(future, timeout=timeout)
+        except TimeoutError as exc:
+            future.cancel()
+            await _restart_conversion_executor()
+            raise TimeoutError(f"OCR conversion timed out after {timeout}s") from exc

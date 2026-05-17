@@ -25,7 +25,7 @@ class _ConversionPoolMiddleware(Middleware):
         if executor is None:
             return
         conversion_module._executor = None
-        executor.shutdown(wait=True, cancel_futures=True)
+        executor.shutdown(wait=False, cancel_futures=True)
 
 
 broker = RedisBroker(url=config_module.settings.redis_url, namespace=NAMESPACE)
