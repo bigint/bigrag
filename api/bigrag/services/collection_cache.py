@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+import random
+import urllib.parse
 import uuid
 from datetime import datetime
 
@@ -8,25 +11,28 @@ import sqlalchemy as sa
 from bigrag.db.engine import session_factory
 from bigrag.db.models import Collection, EmbeddingPreset
 from bigrag.exceptions import NotFoundError
-from bigrag.services import redis_cache
+from bigrag.services import crypto, redis_cache
 from bigrag.services.runtime_settings import get_value
+
+_fill_locks: dict[str, asyncio.Lock] = {}
 
 
 def _cache_key(name: str) -> str:
-    return f"collection:{name}"
+    return f"collection:{urllib.parse.quote(name, safe='')}"
 
 
 def _serialize(c: Collection, preset: EmbeddingPreset | None = None) -> dict:
+    crypto_ready = crypto.is_configured()
     return {
         "id": str(c.id),
         "name": c.name,
         "description": c.description,
         "embedding_provider": c.embedding_provider,
         "embedding_model": c.embedding_model,
-        "embedding_api_key": c.embedding_api_key,
+        "embedding_api_key": c.embedding_api_key if crypto_ready else None,
         "embedding_base_url": c.embedding_base_url,
         "embedding_preset_id": str(c.embedding_preset_id) if c.embedding_preset_id else None,
-        "embedding_preset_api_key": preset.api_key if preset else None,
+        "embedding_preset_api_key": (preset.api_key if preset else None) if crypto_ready else None,
         "embedding_preset_base_url": preset.base_url if preset else None,
         "vector_store_provider": c.vector_store_provider,
         "dimension": c.dimension,
@@ -39,7 +45,7 @@ def _serialize(c: Collection, preset: EmbeddingPreset | None = None) -> dict:
         "default_search_mode": c.default_search_mode,
         "reranking_enabled": c.reranking_enabled,
         "reranking_model": c.reranking_model,
-        "reranking_api_key": c.reranking_api_key,
+        "reranking_api_key": c.reranking_api_key if crypto_ready else None,
         "index_type": c.index_type,
         "tenant_field": c.tenant_field,
         "metadata_schema": c.metadata_schema,
@@ -64,18 +70,30 @@ async def get_or_404(name: str) -> dict:
     if isinstance(cached, dict):
         return _deserialize(cached)
 
-    async with session_factory()() as session:
-        collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
-        if collection is None:
-            raise NotFoundError("Collection", name)
-        preset: EmbeddingPreset | None = None
-        if collection.embedding_preset_id is not None:
-            preset = await session.get(EmbeddingPreset, collection.embedding_preset_id)
-        serialized = _serialize(collection, preset)
-        ttl = await get_value("collection_cache_ttl")
-        if ttl > 0:
-            await redis_cache.set(_cache_key(name), serialized, ttl=ttl)
-        return serialized
+    lock = _fill_locks.setdefault(name, asyncio.Lock())
+    async with lock:
+        try:
+            cached = await redis_cache.get(_cache_key(name))
+            if isinstance(cached, dict):
+                return _deserialize(cached)
+
+            async with session_factory()() as session:
+                collection = await session.scalar(
+                    sa.select(Collection).where(Collection.name == name)
+                )
+                if collection is None:
+                    raise NotFoundError("Collection", name)
+                preset: EmbeddingPreset | None = None
+                if collection.embedding_preset_id is not None:
+                    preset = await session.get(EmbeddingPreset, collection.embedding_preset_id)
+                serialized = _serialize(collection, preset)
+                ttl = await get_value("collection_cache_ttl")
+                if ttl > 0:
+                    jittered_ttl = ttl + random.randint(0, ttl // 10)
+                    await redis_cache.set(_cache_key(name), serialized, ttl=jittered_ttl)
+                return _deserialize(serialized)
+        finally:
+            _fill_locks.pop(name, None)
 
 
 async def invalidate(name: str) -> None:
