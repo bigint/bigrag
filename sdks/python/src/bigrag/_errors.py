@@ -40,6 +40,24 @@ class NotFoundError(APIError):
         super().__init__(404, message, code)
 
 
+class ConflictError(APIError):
+
+    def __init__(self, message: str, code: str | None = None) -> None:
+        super().__init__(409, message, code)
+
+
+class PayloadTooLargeError(APIError):
+
+    def __init__(self, message: str, code: str | None = None) -> None:
+        super().__init__(413, message, code)
+
+
+class UnprocessableEntityError(APIError):
+
+    def __init__(self, message: str, code: str | None = None) -> None:
+        super().__init__(422, message, code)
+
+
 class RateLimitError(APIError):
 
     def __init__(self, message: str, code: str | None = None) -> None:
@@ -50,6 +68,18 @@ class InternalServerError(APIError):
 
     def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(500, message, code)
+
+
+class BadGatewayError(APIError):
+
+    def __init__(self, message: str, code: str | None = None) -> None:
+        super().__init__(502, message, code)
+
+
+class ServiceUnavailableError(APIError):
+
+    def __init__(self, message: str, code: str | None = None) -> None:
+        super().__init__(503, message, code)
 
 
 class APIConnectionError(BigRAGError):
@@ -69,8 +99,13 @@ _STATUS_MAP: dict[int, type[APIError]] = {
     401: AuthenticationError,
     403: PermissionDeniedError,
     404: NotFoundError,
+    409: ConflictError,
+    413: PayloadTooLargeError,
+    422: UnprocessableEntityError,
     429: RateLimitError,
     500: InternalServerError,
+    502: BadGatewayError,
+    503: ServiceUnavailableError,
 }
 
 
