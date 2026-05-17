@@ -4,28 +4,32 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from bigrag.services.google_drive import (
-    GOOGLE_PROVIDER,
-    GoogleDriveAuthError,
-    GoogleDriveConfigError,
-    GoogleDriveError,
+from bigrag.services.connectors.google_drive_auth import (
     build_google_oauth_url,
     complete_google_oauth,
-    create_google_source,
-    delete_google_source,
     disconnect_google_account,
     get_google_account,
     get_google_config,
     google_account_public,
     google_config_public,
     google_oauth_error_redirect_url,
+    list_google_drive_files,
+    upsert_google_config,
+)
+from bigrag.services.connectors.google_drive_sources import (
+    create_google_source,
+    delete_google_source,
     google_source_public,
     google_sync_job_public,
-    list_google_drive_files,
     list_google_sources,
     trigger_google_sync,
     update_google_source,
-    upsert_google_config,
+)
+from bigrag.services.connectors.google_drive_types import (
+    GOOGLE_PROVIDER,
+    GoogleDriveAuthError,
+    GoogleDriveConfigError,
+    GoogleDriveError,
 )
 
 

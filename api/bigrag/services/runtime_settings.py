@@ -46,12 +46,6 @@ def spec_responses() -> list[InstanceSettingSpecResponse]:
     ]
 
 
-def invalidate_runtime_settings_cache() -> None:
-    global _cached_at, _cached_values
-    _cached_values = None
-    _cached_at = 0.0
-
-
 def set_runtime_settings_cache(values: dict[str, Any]) -> None:
     global _cached_at, _cached_values
     _cached_values = dict(values)
