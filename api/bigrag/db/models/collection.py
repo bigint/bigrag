@@ -14,6 +14,10 @@ from bigrag.services.crypto import EncryptedString
 class Collection(Base):
     __tablename__ = "collections"
     __table_args__ = (
+        sa.CheckConstraint(
+            "vector_store_provider IN ('qdrant', 'turbopuffer')",
+            name="collections_vector_store_provider_check",
+        ),
         sa.Index("idx_collections_name", "name"),
         sa.Index("idx_collections_created_at_id", sa.desc("created_at"), sa.desc("id")),
     )
@@ -35,10 +39,6 @@ class Collection(Base):
     )
     vector_store_provider: Mapped[str] = mapped_column(
         sa.Text,
-        sa.CheckConstraint(
-            "vector_store_provider IN ('qdrant', 'turbopuffer')",
-            name="collections_vector_store_provider_check",
-        ),
         nullable=False,
         server_default="qdrant",
     )
@@ -81,16 +81,18 @@ class Collection(Base):
 
 class EmbeddingPreset(Base):
     __tablename__ = "embedding_presets"
-    __table_args__ = (sa.Index("idx_embedding_presets_name", "name"),)
+    __table_args__ = (
+        sa.CheckConstraint(
+            "provider IN ('openai', 'openai_compatible', 'cohere', 'voyage')",
+            name="embedding_presets_provider_check",
+        ),
+        sa.Index("idx_embedding_presets_name", "name"),
+    )
 
     id: Mapped[UUIDpk]
     name: Mapped[str] = mapped_column(sa.Text, unique=True, nullable=False)
     provider: Mapped[str] = mapped_column(
         sa.Text,
-        sa.CheckConstraint(
-            "provider IN ('openai', 'openai_compatible', 'cohere', 'voyage')",
-            name="embedding_presets_provider_check",
-        ),
         nullable=False,
     )
     model: Mapped[str] = mapped_column(sa.Text, nullable=False)

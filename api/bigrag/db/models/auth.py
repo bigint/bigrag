@@ -12,7 +12,10 @@ from bigrag.db.base import TS, Base, TSupd, UUIDpk
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (sa.Index("idx_users_created_at_id", "created_at", "id"),)
+    __table_args__ = (
+        sa.CheckConstraint("role IN ('admin', 'member')", name="users_role_check"),
+        sa.Index("idx_users_created_at_id", "created_at", "id"),
+    )
 
     id: Mapped[UUIDpk]
     email: Mapped[str] = mapped_column(sa.Text, unique=True, nullable=False)
@@ -20,7 +23,6 @@ class User(Base):
     display_name: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
     role: Mapped[str] = mapped_column(
         sa.Text,
-        sa.CheckConstraint("role IN ('admin', 'member')", name="users_role_check"),
         nullable=False,
         server_default="member",
     )

@@ -34,6 +34,10 @@ class Webhook(Base):
 class WebhookDelivery(Base):
     __tablename__ = "webhook_deliveries"
     __table_args__ = (
+        sa.CheckConstraint(
+            "status IN ('pending', 'delivered', 'failed')",
+            name="webhook_deliveries_status_check",
+        ),
         sa.Index("idx_webhook_deliveries_webhook_id", "webhook_id"),
         sa.Index("idx_webhook_deliveries_status", "status"),
         sa.Index(
@@ -52,10 +56,6 @@ class WebhookDelivery(Base):
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
     status: Mapped[str] = mapped_column(
         sa.Text,
-        sa.CheckConstraint(
-            "status IN ('pending', 'delivered', 'failed')",
-            name="webhook_deliveries_status_check",
-        ),
         nullable=False,
         server_default="pending",
     )

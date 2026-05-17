@@ -13,7 +13,10 @@ from bigrag.db.base import TS, Base, TSupd, UUIDpk
 class Document(Base):
     __tablename__ = "documents"
     __table_args__ = (
-        sa.Index("idx_documents_collection_id", "collection_id"),
+        sa.CheckConstraint(
+            "status IN ('pending', 'processing', 'ready', 'failed')",
+            name="documents_status_check",
+        ),
         sa.Index("idx_documents_status", "status"),
         sa.Index("idx_documents_created_at", "created_at"),
         sa.Index("idx_documents_collection_created_at", "collection_id", sa.desc("created_at")),
@@ -23,7 +26,12 @@ class Document(Base):
             "status",
             sa.desc("created_at"),
         ),
-        sa.Index("idx_documents_collection_hash", "collection_id", "content_hash"),
+        sa.Index(
+            "idx_documents_collection_hash",
+            "collection_id",
+            "content_hash",
+            postgresql_where=sa.text("content_hash IS NOT NULL"),
+        ),
     )
 
     id: Mapped[UUIDpk]
@@ -45,10 +53,6 @@ class Document(Base):
     content_hash: Mapped[str | None] = mapped_column(sa.Text)
     status: Mapped[str] = mapped_column(
         sa.Text,
-        sa.CheckConstraint(
-            "status IN ('pending', 'processing', 'ready', 'failed')",
-            name="documents_status_check",
-        ),
         nullable=False,
         server_default="pending",
     )

@@ -995,6 +995,41 @@ def upgrade() -> None:
         """
     )
 
+    op.create_check_constraint(
+        "users_role_check",
+        "users",
+        "role IN ('admin', 'member')",
+    )
+    op.create_check_constraint(
+        "documents_status_check",
+        "documents",
+        "status IN ('pending', 'processing', 'ready', 'failed')",
+    )
+    op.create_check_constraint(
+        "webhook_deliveries_status_check",
+        "webhook_deliveries",
+        "status IN ('pending', 'delivered', 'failed')",
+    )
+    op.create_check_constraint(
+        "collections_vector_store_provider_check",
+        "collections",
+        "vector_store_provider IN ('qdrant', 'turbopuffer')",
+    )
+    op.create_check_constraint(
+        "embedding_presets_provider_check",
+        "embedding_presets",
+        "provider IN ('openai', 'openai_compatible', 'cohere', 'voyage')",
+    )
+
+    op.drop_index("idx_documents_collection_hash", table_name="documents")
+    op.create_index(
+        "idx_documents_collection_hash",
+        "documents",
+        ["collection_id", "content_hash"],
+        unique=False,
+        postgresql_where=sa.text("content_hash IS NOT NULL"),
+    )
+
 
 def downgrade() -> None:
     op.execute("DROP TRIGGER IF EXISTS audit_log_no_delete ON audit_log")
