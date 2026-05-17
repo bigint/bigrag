@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import uuid
-from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import ConnectorAccount
 from bigrag.db.session import get_session
 from bigrag.middleware.auth import require_session
-from bigrag.models.common import StatusResponse
+from bigrag.models import StatusResponse
 from bigrag.models.connector import (
     ConnectorAccountResponse,
     ConnectorFileListResponse,
@@ -23,10 +21,9 @@ from bigrag.models.connector import (
     UpdateConnectorSourceRequest,
 )
 from bigrag.services import audit
-from bigrag.services.client_ip import is_trusted_proxy
 from bigrag.services.connector_core import list_sync_jobs as list_connector_sync_jobs
 from bigrag.services.connector_registry import ConnectorRuntime, connector_runtime
-from bigrag.services.runtime_settings import get_value
+from bigrag.services.error_sanitize import safe_error_detail
 
 router = APIRouter(prefix="/v1/connectors", tags=["connectors"])
 
@@ -36,30 +33,6 @@ def _route_or_404(provider_slug: str) -> ConnectorRuntime:
     if route is None:
         raise HTTPException(status_code=404, detail="Connector provider not found")
     return route
-
-
-def _redirect_uri(request: Request, route: ConnectorRuntime) -> str:
-    forwarded_host = request.headers.get("x-forwarded-host")
-    immediate = request.client[0] if request.client else None
-    if forwarded_host and is_trusted_proxy(immediate):
-        proto = request.headers.get("x-forwarded-proto") or request.url.scheme
-        prefix = request.headers.get("x-forwarded-prefix", "").rstrip("/")
-        return f"{proto}://{forwarded_host}{prefix}/v1/connectors/{route.slug}/oauth/callback"
-    return str(request.url_for("connector_oauth_callback", provider_slug=route.slug))
-
-
-def _safe_redirect_path(path: str | None) -> str:
-    if not path or not path.startswith("/") or path.startswith("//"):
-        return "/"
-    return path
-
-
-async def _allowed_spa_origin(request: Request) -> str | None:
-    origin = request.headers.get("origin")
-    cors_origins = await get_value("cors_origins")
-    if origin and origin in cors_origins:
-        return origin.rstrip("/")
-    return None
 
 
 @router.get("/{provider_slug}/account", response_model=ConnectorAccountResponse)
@@ -102,99 +75,17 @@ async def connector_files(
             next_page_token=data["next_page_token"],
         )
     except route.config_error as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400, detail=safe_error_detail(exc, "Connector is not configured.")
+        ) from exc
     except route.auth_error as exc:
-        raise HTTPException(status_code=401, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=401, detail=safe_error_detail(exc, "Connector authentication failed.")
+        ) from exc
     except route.service_error as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@router.get("/{provider_slug}/oauth/start", response_class=RedirectResponse)
-async def connector_oauth_start(
-    provider_slug: str,
-    request: Request,
-    redirect_path: str | None = Query(default="/"),
-    user: dict = Depends(require_session),
-    session: AsyncSession = Depends(get_session),
-):
-    route = _route_or_404(provider_slug)
-    try:
-        auth_url = await route.build_oauth_url(
-            session,
-            user_id=user["id"],
-            redirect_uri=_redirect_uri(request, route),
-            redirect_path=_safe_redirect_path(redirect_path),
-            redirect_origin=await _allowed_spa_origin(request),
-        )
-    except route.config_error as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return RedirectResponse(auth_url)
-
-
-@router.get("/{provider_slug}/oauth/start-url", response_model=dict[str, str])
-async def connector_oauth_start_url(
-    provider_slug: str,
-    request: Request,
-    redirect_path: str | None = Query(default="/"),
-    user: dict = Depends(require_session),
-    session: AsyncSession = Depends(get_session),
-) -> dict[str, str]:
-    route = _route_or_404(provider_slug)
-    try:
-        auth_url = await route.build_oauth_url(
-            session,
-            user_id=user["id"],
-            redirect_uri=_redirect_uri(request, route),
-            redirect_path=_safe_redirect_path(redirect_path),
-            redirect_origin=await _allowed_spa_origin(request),
-        )
-    except route.config_error as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {"auth_url": auth_url}
-
-
-@router.get(
-    "/{provider_slug}/oauth/callback",
-    name="connector_oauth_callback",
-    response_class=RedirectResponse,
-)
-async def connector_oauth_callback(
-    provider_slug: str,
-    request: Request,
-    code: str | None = Query(default=None),
-    state: str | None = Query(default=None),
-    error: str | None = Query(default=None),
-    user: dict = Depends(require_session),
-    session: AsyncSession = Depends(get_session),
-):
-    route = _route_or_404(provider_slug)
-    if error:
-        redirect_url = await route.oauth_error_redirect_url(
-            session,
-            user_id=user["id"],
-            state=state,
-            path=f"/settings?tab=connectors&{route.error_query_param}={quote(error)}",
-        )
-        return RedirectResponse(redirect_url)
-    if not code or not state:
-        raise HTTPException(status_code=400, detail="Missing OAuth code or state")
-    try:
-        redirect_path = await route.complete_oauth(
-            session,
-            user_id=user["id"],
-            code=code,
-            state=state,
-            redirect_uri=_redirect_uri(request, route),
-        )
-    except (route.auth_error, route.config_error) as exc:
-        redirect_url = await route.oauth_error_redirect_url(
-            session,
-            user_id=user["id"],
-            state=state,
-            path=f"/settings?tab=connectors&{route.error_query_param}={quote(str(exc))}",
-        )
-        return RedirectResponse(redirect_url)
-    return RedirectResponse(redirect_path)
+        raise HTTPException(
+            status_code=502, detail=safe_error_detail(exc, "Connector upstream error.")
+        ) from exc
 
 
 @router.post("/{provider_slug}/disconnect", response_model=StatusResponse)
@@ -257,11 +148,17 @@ async def connector_source_create(
             metadata=body.metadata,
         )
     except route.config_error as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400, detail=safe_error_detail(exc, "Connector is not configured.")
+        ) from exc
     except route.auth_error as exc:
-        raise HTTPException(status_code=401, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=401, detail=safe_error_detail(exc, "Connector authentication failed.")
+        ) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=404, detail=safe_error_detail(exc, "Connector source not found.")
+        ) from exc
     account = await session.get(ConnectorAccount, source.account_id)
     audit.record(
         request,
@@ -297,7 +194,9 @@ async def connector_source_update(
             sync_interval_hours=body.sync_interval_hours,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=404, detail=safe_error_detail(exc, "Connector source not found.")
+        ) from exc
     account = await session.get(ConnectorAccount, source.account_id)
     return ConnectorSourceResponse(**route.source_public((source, account)))
 
@@ -314,7 +213,9 @@ async def connector_source_delete(
     try:
         await route.delete_source(session, user_id=user["id"], source_id=source_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=404, detail=safe_error_detail(exc, "Connector source not found.")
+        ) from exc
     audit.record(
         request,
         user=user,
@@ -343,7 +244,9 @@ async def connector_source_sync(
             trigger="manual",
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=404, detail=safe_error_detail(exc, "Connector source not found.")
+        ) from exc
     audit.record(
         request,
         user=user,
@@ -366,7 +269,10 @@ async def connector_sync_jobs(
 ) -> ConnectorSyncJobListResponse:
     route = _route_or_404(provider_slug)
     if source_id:
-        uuid_or_400(source_id)
+        try:
+            uuid.UUID(source_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid id") from exc
     jobs, total = await list_connector_sync_jobs(
         session,
         provider=route.provider,
@@ -379,10 +285,3 @@ async def connector_sync_jobs(
         jobs=[ConnectorSyncJobResponse(**job) for job in jobs],
         total=total,
     )
-
-
-def uuid_or_400(value: str):
-    try:
-        return uuid.UUID(value)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Invalid id") from exc

@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import { useMemo } from "react";
 import { toast } from "sonner";
+import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -56,28 +57,38 @@ export const GoogleDrivePanel = ({
   const syncSource = useSyncGoogleSource(collection);
   const updateSource = useUpdateGoogleSource(collection);
   const deleteSource = useDeleteGoogleSource(collection);
-  const folderStack = useGoogleDriveBrowserStore(
-    (state) =>
-      state.browsers[collection]?.folderStack ?? DEFAULT_GOOGLE_DRIVE_BROWSER_STATE.folderStack,
+  const {
+    clearSelected,
+    folderStack,
+    goBack,
+    openFolder,
+    pageToken,
+    search,
+    selected,
+    setPageToken,
+    setSearch,
+    syncVisibleFiles,
+    toggleSelected,
+    visibleFiles,
+  } = useGoogleDriveBrowserStore(
+    useShallow((state) => {
+      const browser = state.browsers[collection];
+      return {
+        clearSelected: state.clearSelected,
+        folderStack: browser?.folderStack ?? DEFAULT_GOOGLE_DRIVE_BROWSER_STATE.folderStack,
+        goBack: state.goBack,
+        openFolder: state.openFolder,
+        pageToken: browser?.pageToken,
+        search: browser?.search ?? DEFAULT_GOOGLE_DRIVE_BROWSER_STATE.search,
+        selected: browser?.selected ?? DEFAULT_GOOGLE_DRIVE_BROWSER_STATE.selected,
+        setPageToken: state.setPageToken,
+        setSearch: state.setSearch,
+        syncVisibleFiles: state.syncVisibleFiles,
+        toggleSelected: state.toggleSelected,
+        visibleFiles: browser?.visibleFiles ?? DEFAULT_GOOGLE_DRIVE_BROWSER_STATE.visibleFiles,
+      };
+    }),
   );
-  const pageToken = useGoogleDriveBrowserStore((state) => state.browsers[collection]?.pageToken);
-  const search = useGoogleDriveBrowserStore(
-    (state) => state.browsers[collection]?.search ?? DEFAULT_GOOGLE_DRIVE_BROWSER_STATE.search,
-  );
-  const visibleFiles = useGoogleDriveBrowserStore(
-    (state) =>
-      state.browsers[collection]?.visibleFiles ?? DEFAULT_GOOGLE_DRIVE_BROWSER_STATE.visibleFiles,
-  );
-  const selected = useGoogleDriveBrowserStore(
-    (state) => state.browsers[collection]?.selected ?? DEFAULT_GOOGLE_DRIVE_BROWSER_STATE.selected,
-  );
-  const clearSelected = useGoogleDriveBrowserStore((state) => state.clearSelected);
-  const goBack = useGoogleDriveBrowserStore((state) => state.goBack);
-  const openFolder = useGoogleDriveBrowserStore((state) => state.openFolder);
-  const setPageToken = useGoogleDriveBrowserStore((state) => state.setPageToken);
-  const setSearch = useGoogleDriveBrowserStore((state) => state.setSearch);
-  const syncVisibleFiles = useGoogleDriveBrowserStore((state) => state.syncVisibleFiles);
-  const toggleSelected = useGoogleDriveBrowserStore((state) => state.toggleSelected);
 
   const configured = account.data?.configured ?? false;
   const connected = account.data?.connected ?? false;

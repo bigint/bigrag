@@ -35,12 +35,11 @@ async def validate_event_token(
     if raw is None:
         return False
     decoded = raw.decode("utf-8")
-    if "|" in decoded:
-        token_user_id, _, token_collection = decoded.partition("|")
-    else:
-        token_user_id, token_collection = "", decoded
+    token_user_id, sep, token_collection = decoded.partition("|")
+    if not sep:
+        return False
     if token_collection != collection_name:
         return False
-    if user is not None and token_user_id and token_user_id != str(user.get("id", "")):
+    if user is not None and token_user_id != str(user.get("id", "")):
         return False
     return True

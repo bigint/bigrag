@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-
-from bigrag.logging import get_logger
 from bigrag.services.connectors.accounts import (
     account_public,
     config_public,
@@ -60,24 +57,6 @@ from bigrag.services.connectors.types import (
     RemoteConnectorFile,
 )
 
-logger = get_logger("bigrag.connectors")
-
-
-async def run_due_syncs_logged(
-    *,
-    provider: str,
-    start_sync_job: Callable[[str], None],
-) -> None:
-    try:
-        await run_due_syncs(provider=provider, start_sync_job=start_sync_job)
-    except Exception as exc:
-        logger.warning(
-            "connector: scheduler tick failed",
-            provider=provider,
-            error=str(exc),
-        )
-
-
 __all__ = [
     "ConnectorAuthError",
     "ConnectorConfigError",
@@ -113,7 +92,6 @@ __all__ = [
     "prepare_oauth_account",
     "remote_signature",
     "run_due_syncs",
-    "run_due_syncs_logged",
     "source_for_user",
     "source_public",
     "sync_connector_job",

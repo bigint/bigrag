@@ -7,45 +7,21 @@ Endpoints covered:
 from __future__ import annotations
 
 import json
-from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
 import httpx
 
-from tests._helpers import assert_envelope, poll_until
-
-
-CollectionFactory = Callable[..., Awaitable[dict[str, Any]]]
-DocumentFactory = Callable[..., Awaitable[dict[str, Any]]]
-ApiKeyFactory = Callable[..., Awaitable[dict[str, Any]]]
-ApiKeyClientFactory = Callable[..., Awaitable[httpx.AsyncClient]]
-
+from tests._helpers import (
+    ApiKeyClientFactory,
+    ApiKeyFactory,
+    CollectionFactory,
+    DocumentFactory,
+    assert_envelope,
+    wait_until_searchable,
+)
 
 GOLDEN_SETS_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "golden_sets"
-
-
-async def _wait_until_searchable(
-    admin_client: httpx.AsyncClient,
-    collection_name: str,
-    query: str,
-    *,
-    timeout: float = 30.0,
-) -> None:
-    async def _do() -> dict[str, Any]:
-        resp = await admin_client.post(
-            f"/v1/collections/{collection_name}/query",
-            json={"query": query, "top_k": 3},
-        )
-        return assert_envelope(resp, 200)
-
-    await poll_until(
-        _do,
-        predicate=lambda body: len(body.get("results") or []) > 0,
-        timeout=timeout,
-        interval=0.5,
-        description=f"results for {query!r} on {collection_name}",
-    )
 
 
 def _load_golden_set() -> dict[str, Any]:
@@ -79,7 +55,7 @@ async def _seed_with_golden_docs(
         "__sample_html__": str(md["id"]),
     }
 
-    await _wait_until_searchable(admin_client, coll["name"], "Acme")
+    await wait_until_searchable(admin_client, coll["name"], "Acme", top_k=3)
     return coll, id_map
 
 

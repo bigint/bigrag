@@ -8,8 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag import config as _config
-from bigrag.db.models import Session as DbSession
-from bigrag.db.models import User
+from bigrag.db.models import User, UserSession
 from bigrag.db.session import get_session
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
@@ -20,6 +19,7 @@ from bigrag.middleware.auth import (
     require_session,
     session_expiry,
 )
+from bigrag.models import StatusResponse
 from bigrag.models.auth import (
     ChangePasswordRequest,
     LoginRequest,
@@ -29,7 +29,6 @@ from bigrag.models.auth import (
     UserResponse,
     WhoamiResponse,
 )
-from bigrag.models.common import StatusResponse
 from bigrag.services import audit
 from bigrag.services.auth import (
     DUMMY_PASSWORD_HASH,
@@ -124,7 +123,7 @@ async def _clear_session_cookie(response: Response) -> None:
 async def _issue_session(session: AsyncSession, user_id: uuid.UUID) -> str:
     token = generate_session_token()
     session.add(
-        DbSession(
+        UserSession(
             id=uuid7(),
             user_id=user_id,
             token_hash=hash_session_token(token),
@@ -230,7 +229,7 @@ async def login(
 async def logout(
     request: Request,
     response: Response,
-    auth_user: dict = Depends(require_session),
+    auth_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     cookie = request.cookies.get(_config.settings.session_cookie_name)
@@ -239,13 +238,13 @@ async def logout(
         token_hash = hash_session_token(cookie)
         actor_user = await session.scalar(
             sa.select(User)
-            .join(DbSession, DbSession.user_id == User.id)
-            .where(DbSession.token_hash == token_hash)
+            .join(UserSession, UserSession.user_id == User.id)
+            .where(UserSession.token_hash == token_hash)
         )
         if actor_user is None or str(actor_user.id) != auth_user["id"]:
             await _clear_session_cookie(response)
             raise HTTPException(status_code=403, detail="Session mismatch")
-        await session.execute(sa.delete(DbSession).where(DbSession.token_hash == token_hash))
+        await session.execute(sa.delete(UserSession).where(UserSession.token_hash == token_hash))
         await session.commit()
         await invalidate_session_principal(token_hash)
     await _clear_session_cookie(response)
@@ -270,7 +269,9 @@ async def logout_all(
 ) -> StatusResponse:
     if user.get("auth_method") != "session":
         raise HTTPException(status_code=403, detail="Session authentication required")
-    await session.execute(sa.delete(DbSession).where(DbSession.user_id == uuid.UUID(user["id"])))
+    await session.execute(
+        sa.delete(UserSession).where(UserSession.user_id == uuid.UUID(user["id"]))
+    )
     await session.commit()
     await invalidate_auth_principals()
     await _clear_session_cookie(response)
@@ -322,7 +323,7 @@ async def change_password(
         raise HTTPException(status_code=401, detail="Current password is incorrect")
 
     target.password_hash = hash_password(body.new_password)
-    await session.execute(sa.delete(DbSession).where(DbSession.user_id == target.id))
+    await session.execute(sa.delete(UserSession).where(UserSession.user_id == target.id))
     await session.commit()
     await invalidate_auth_principals()
     audit.record(

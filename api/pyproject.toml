@@ -17,7 +17,7 @@ dependencies = [
     "huggingface-hub>=0.36.0,<2",
     "openai>=2.33.0,<3",
     "cohere>=6.1.0,<7",
-    "pydantic[email]>=2.10.0,<3",
+    "pydantic>=2.10.0,<3",
     "pydantic-settings>=2.7.0,<3",
     "python-multipart>=0.0.18,<1",
     "httpx>=0.28.0,<1",
@@ -27,7 +27,6 @@ dependencies = [
     "argon2-cffi>=23.1.0,<26",
     "cryptography>=48.0.0,<49",
     "boto3>=1.42.0,<2",
-    "botocore>=1.42.0,<2",
     "mcp>=1.12.0,<2",
     "tiktoken>=0.8.0,<1",
     "dramatiq[redis]>=2.1.0,<3",
@@ -40,7 +39,7 @@ dev = [
 
 [project.scripts]
 bigrag = "bigrag.main:cli"
-bigrag-mcp = "bigrag.mcp_server:cli"
+bigrag-mcp = "bigrag.mcp:cli"
 bigrag-worker = "bigrag.worker:cli"
 
 [build-system]

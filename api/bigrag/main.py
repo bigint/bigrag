@@ -1,208 +1,28 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import os
-from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 
 from bigrag import __version__
 from bigrag import config as config_module
-from bigrag import db as db_module
+from bigrag.app_factory.exception_handlers import register_exception_handlers
+from bigrag.app_factory.lifespan import lifespan
+from bigrag.app_factory.routers import include_all_routers
 from bigrag.config import Settings
-from bigrag.db.bootstrap import run_migrations
-from bigrag.exceptions import (
-    ForbiddenError,
-    NotFoundError,
-    ServerError,
-    UpstreamError,
-    ValidationError,
-)
-from bigrag.logging import RequestLoggingMiddleware, configure_logging, get_logger
+from bigrag.logging import RequestLoggingMiddleware
 from bigrag.middleware.cors import RuntimeCorsMiddleware
 from bigrag.middleware.csrf import SessionCsrfMiddleware
 from bigrag.middleware.idempotency import IdempotencyMiddleware
 from bigrag.middleware.maintenance import MaintenanceWriteLockMiddleware
-from bigrag.services import crypto, redis_cache, runtime_settings
-from bigrag.services.access_log import (
-    AccessLogMiddleware,
-    start_access_log_flusher,
-    stop_access_log_flusher,
-)
-from bigrag.services.audit import start_audit_flusher, stop_audit_flusher
-from bigrag.services.conversion import get_conversion_executor, shutdown_conversion_executor
-from bigrag.services.event_bus import event_bus
-from bigrag.services.queue import ingestion_queue
-from bigrag.services.storage import init_storage_from_runtime
-from bigrag.services.vector_store import vector_store
-from bigrag.startup_guard import check_production_safety
+from bigrag.services.access_log import AccessLogMiddleware
 
 _CLI_CONFIG_PATH_ENV = "_BIGRAG_CLI_CONFIG_PATH"
 _CLI_OVERRIDES_ENV = "_BIGRAG_CLI_OVERRIDES"
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    s: Settings = app.state.settings
-
-    configure_logging(log_level=s.log_level, log_format=s.log_format)
-    logger = get_logger("bigrag")
-    logger.info("starting", version=__version__, env=s.env)
-
-    check_production_safety(s)
-
-    if "*" in s.cors_origins:
-        logger.warning("CORS allows all origins, restrict in production")
-    if not s.cors_origins and s.env != "dev":
-        logger.warning(
-            "BIGRAG_CORS_ORIGINS is empty — every cross-origin browser request will "
-            "be rejected. Set it explicitly (e.g. https://admin.example.com)."
-        )
-
-    crypto.configure(s.master_key, previous_keys=list(s.master_key_previous))
-    if not crypto.is_configured():
-        logger.warning(
-            "BIGRAG_MASTER_KEY not set — provider credentials will be stored "
-            "in plaintext. Set it before promoting this instance to prod."
-        )
-
-    await db_module.configure(s.database_url, pool_min=s.db_pool_min, pool_max=s.db_pool_max)
-    await _check_database_migrations(s, logger)
-
-    runtime = await runtime_settings.get_values(
-        [
-            "ingestion_workers",
-            "qdrant_connect_timeout_seconds",
-            "qdrant_required",
-            "qdrant_search_ef",
-            "qdrant_url",
-            "turbopuffer_api_key",
-            "turbopuffer_namespace_prefix",
-            "turbopuffer_region",
-        ]
-    )
-
-    vector_store.configure(
-        qdrant_url=runtime["qdrant_url"],
-        connect_timeout_seconds=runtime["qdrant_connect_timeout_seconds"],
-        search_ef=runtime["qdrant_search_ef"],
-        turbopuffer_api_key=runtime["turbopuffer_api_key"],
-        turbopuffer_region=runtime["turbopuffer_region"],
-        turbopuffer_namespace_prefix=runtime["turbopuffer_namespace_prefix"],
-    )
-    try:
-        vector_store.connect()
-        await vector_store.health_check()
-    except Exception as exc:
-        logger.warning(
-            "Vector store startup connection failed; API will start degraded",
-            provider=vector_store.provider,
-            error_type=exc.__class__.__name__,
-            error=str(exc),
-        )
-        if runtime["qdrant_required"]:
-            raise
-    app.state.vector_store = vector_store
-
-    storage = await init_storage_from_runtime(upload_dir=s.upload_dir)
-    app.state.storage = storage
-
-    await redis_cache.connect(s.redis_url)
-    await event_bus.connect(s.redis_url)
-
-    ingestion_queue._num_workers = runtime["ingestion_workers"]
-    await ingestion_queue.connect(s.redis_url)
-    ingestion_queue.bind_vector_store(vector_store)
-    app.state.queue = ingestion_queue
-
-    await get_conversion_executor()
-
-    await start_access_log_flusher()
-    await start_audit_flusher()
-
-    mcp_session_manager = getattr(app.state, "mcp_session_manager", None)
-    mcp_cm = mcp_session_manager.run() if mcp_session_manager is not None else None
-    if mcp_cm is not None:
-        await mcp_cm.__aenter__()
-
-    logger.info("server ready", host=s.host, port=s.port)
-    try:
-        yield
-    finally:
-        if mcp_cm is not None:
-            await mcp_cm.__aexit__(None, None, None)
-        await ingestion_queue.stop()
-        for closer_name, closer in (
-            ("cohere", _close_cohere),
-            ("chat", _close_chat),
-            ("embedding_models", _close_embedding_models),
-            ("google_drive", _close_google_drive),
-        ):
-            try:
-                await closer()
-            except Exception as exc:
-                logger.warning("shutdown close failed", target=closer_name, error=repr(exc))
-        await event_bus.close()
-        await redis_cache.close()
-        await storage.close()
-        await vector_store.close()
-        await shutdown_conversion_executor()
-        try:
-            await stop_audit_flusher()
-        except Exception as exc:
-            logger.warning("shutdown close failed", target="audit_flusher", error=repr(exc))
-        try:
-            await stop_access_log_flusher()
-        except Exception as exc:
-            logger.warning("shutdown close failed", target="access_log_flusher", error=repr(exc))
-        await db_module.close()
-        logger.info("shut down")
-
-
-async def _close_cohere() -> None:
-    from bigrag.services.retrieval import close_cohere_clients
-
-    await close_cohere_clients()
-
-
-async def _close_chat() -> None:
-    from bigrag.services.chat.provider import close_chat_clients
-
-    await close_chat_clients()
-
-
-async def _close_embedding_models() -> None:
-    from bigrag.services.embedding import close_embedding_models
-
-    await close_embedding_models()
-
-
-async def _close_google_drive() -> None:
-    from bigrag.services.connectors.google_drive_client import google_drive_client
-
-    await google_drive_client.aclose()
-
-
-async def _check_database_migrations(s: Settings, logger) -> None:
-    logger.info("checking database migrations", timeout_seconds=s.migration_timeout_seconds)
-    try:
-        if s.migration_timeout_seconds > 0:
-            await asyncio.wait_for(
-                run_migrations(),
-                timeout=s.migration_timeout_seconds,
-            )
-        else:
-            await run_migrations()
-    except TimeoutError:
-        logger.error(
-            "startup migrations timed out",
-            timeout_seconds=s.migration_timeout_seconds,
-        )
-        raise
 
 
 def _load_runtime_settings() -> Settings:
@@ -241,113 +61,8 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.add_middleware(SessionCsrfMiddleware)
     app.add_middleware(RuntimeCorsMiddleware)
 
-    @app.exception_handler(NotFoundError)
-    async def not_found_handler(_request: Request, exc: NotFoundError) -> ORJSONResponse:
-        return ORJSONResponse(status_code=404, content={"detail": str(exc)})
-
-    @app.exception_handler(ValidationError)
-    async def validation_handler(_request: Request, exc: ValidationError) -> ORJSONResponse:
-        return ORJSONResponse(status_code=400, content={"detail": str(exc)})
-
-    @app.exception_handler(ForbiddenError)
-    async def forbidden_handler(_request: Request, exc: ForbiddenError) -> ORJSONResponse:
-        return ORJSONResponse(status_code=403, content={"detail": str(exc)})
-
-    @app.exception_handler(UpstreamError)
-    async def upstream_handler(request: Request, exc: UpstreamError) -> ORJSONResponse:
-        get_logger("bigrag.upstream").warning(
-            "upstream error",
-            method=request.method,
-            path=request.url.path,
-            exc_type=type(exc).__name__,
-            exc=str(exc),
-        )
-        return ORJSONResponse(
-            status_code=502,
-            content={"detail": exc.public_message, "code": exc.code},
-        )
-
-    @app.exception_handler(ServerError)
-    async def server_handler(request: Request, exc: ServerError) -> ORJSONResponse:
-        get_logger("bigrag.server_error").error(
-            "server error",
-            method=request.method,
-            path=request.url.path,
-            exc_type=type(exc).__name__,
-            exc=str(exc),
-        )
-        return ORJSONResponse(
-            status_code=500,
-            content={"detail": exc.public_message, "code": exc.code},
-        )
-
-    @app.exception_handler(Exception)
-    async def unhandled_handler(request: Request, exc: Exception) -> ORJSONResponse:
-        import traceback
-
-        logger = get_logger("bigrag.unhandled")
-        logger.error(
-            "unhandled exception",
-            method=request.method,
-            path=request.url.path,
-            exc_type=type(exc).__name__,
-            exc=str(exc),
-            traceback=traceback.format_exc(),
-        )
-        return ORJSONResponse(
-            status_code=500,
-            content={"detail": "Internal server error", "code": "internal_error"},
-        )
-
-    from bigrag.routers.admin_access import router as admin_access_router
-    from bigrag.routers.admin_api_keys import router as admin_api_keys_router
-    from bigrag.routers.admin_audit import router as admin_audit_router
-    from bigrag.routers.admin_backups import router as admin_backups_router
-    from bigrag.routers.admin_connectors import router as admin_connectors_router
-    from bigrag.routers.admin_realtime import router as admin_realtime_router
-    from bigrag.routers.admin_settings import router as admin_settings_router
-    from bigrag.routers.admin_users import router as admin_users_router
-    from bigrag.routers.admin_vector_storage import router as admin_vector_storage_router
-    from bigrag.routers.auth import router as auth_router
-    from bigrag.routers.chat import router as chat_router
-    from bigrag.routers.collections import router as collections_router
-    from bigrag.routers.connectors import router as connectors_router
-    from bigrag.routers.documents import global_router as documents_global_router
-    from bigrag.routers.documents import router as documents_router
-    from bigrag.routers.embedding_presets import router as embedding_presets_router
-    from bigrag.routers.evaluation import router as evaluation_router
-    from bigrag.routers.health import router as health_router
-    from bigrag.routers.mcp_servers import router as mcp_servers_router
-    from bigrag.routers.preferences import router as preferences_router
-    from bigrag.routers.query import router as query_router
-    from bigrag.routers.upload_sessions import router as upload_sessions_router
-    from bigrag.routers.usage import router as usage_router
-    from bigrag.routers.webhooks import router as webhooks_router
-
-    app.include_router(health_router)
-    app.include_router(auth_router)
-    app.include_router(preferences_router)
-    app.include_router(admin_users_router)
-    app.include_router(admin_api_keys_router)
-    app.include_router(admin_connectors_router)
-    app.include_router(admin_backups_router)
-    app.include_router(admin_settings_router)
-    app.include_router(admin_access_router)
-    app.include_router(admin_vector_storage_router)
-    app.include_router(admin_realtime_router)
-    app.include_router(mcp_servers_router)
-    app.include_router(admin_audit_router)
-    app.include_router(embedding_presets_router)
-    app.include_router(collections_router)
-    app.include_router(connectors_router)
-    app.include_router(documents_router)
-    app.include_router(documents_global_router)
-    app.include_router(upload_sessions_router)
-    app.include_router(chat_router)
-    app.include_router(query_router)
-    app.include_router(evaluation_router)
-    app.include_router(usage_router)
-    app.include_router(webhooks_router)
+    register_exception_handlers(app)
+    include_all_routers(app)
 
     from bigrag.services.mcp_http import build_mcp_http_app
 

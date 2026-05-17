@@ -13,7 +13,7 @@ import type {
   UploadSession,
   UploadSessionCreateRequest,
   UploadSessionFileResponse,
-} from "../types.js";
+} from "../types/index.js";
 
 export class DocumentsResource {
   constructor(private readonly _client: RequestClient) {}
@@ -110,6 +110,9 @@ export class DocumentsResource {
     if (options?.order) params.order = options.order;
     if (options?.limit !== undefined) params.limit = String(options.limit);
     if (options?.offset !== undefined) params.offset = String(options.offset);
+    if (options?.include_total !== undefined) {
+      params.include_total = options.include_total ? "true" : "false";
+    }
     return this._client._request(
       "GET",
       `/v1/collections/${encodeURIComponent(collection)}/documents`,
@@ -132,7 +135,7 @@ export class DocumentsResource {
       for (const doc of page.documents) yield doc;
       if (page.documents.length < pageSize) return;
       offset += page.documents.length;
-      if (offset >= page.total) return;
+      if (page.total !== null && offset >= page.total) return;
     }
   }
 

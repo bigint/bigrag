@@ -8,11 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import AuditLog
 from bigrag.db.session import get_session
-from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_admin_session
 from bigrag.models.auth import AuditLogEntry, AuditLogListResponse
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 
 logger = get_logger("bigrag.routers.admin_audit")
 
@@ -58,12 +57,7 @@ async def list_audit_log(
     if resource_type:
         filters.append(AuditLog.resource_type == resource_type)
 
-    cursor_tuple = None
-    if cursor:
-        try:
-            cursor_tuple = decode_cursor(cursor)
-        except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    cursor_tuple = decode_cursor_or_400(cursor)
 
     stmt = (
         sa.select(AuditLog).where(*filters).order_by(AuditLog.created_at.desc(), AuditLog.id.desc())

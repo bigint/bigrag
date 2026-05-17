@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from bigrag.db.engine import session_factory
 from bigrag.db.models import MaintenanceLock
@@ -35,24 +35,28 @@ async def is_active() -> bool:
 
 
 async def acquire_backup_lock(owner_id: uuid.UUID, *, ttl_hours: int = 12) -> bool:
+    now = _now()
+    expires_at = now + timedelta(hours=ttl_hours)
+    stmt = pg_insert(MaintenanceLock).values(
+        name=BACKUP_LOCK_NAME,
+        owner_id=owner_id,
+        reason="readable backup",
+        expires_at=expires_at,
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[MaintenanceLock.name],
+        set_={
+            "owner_id": stmt.excluded.owner_id,
+            "reason": stmt.excluded.reason,
+            "expires_at": stmt.excluded.expires_at,
+        },
+        where=MaintenanceLock.expires_at <= now,
+    ).returning(MaintenanceLock.owner_id)
     async with session_factory()() as session:
-        await session.execute(
-            sa.delete(MaintenanceLock).where(MaintenanceLock.expires_at <= _now())
-        )
-        session.add(
-            MaintenanceLock(
-                name=BACKUP_LOCK_NAME,
-                owner_id=owner_id,
-                reason="readable backup",
-                expires_at=_now() + timedelta(hours=ttl_hours),
-            )
-        )
-        try:
-            await session.commit()
-        except IntegrityError:
-            await session.rollback()
-            return False
-        return True
+        result = await session.execute(stmt)
+        row = result.first()
+        await session.commit()
+        return row is not None and row[0] == owner_id
 
 
 async def release_backup_lock(owner_id: uuid.UUID) -> None:

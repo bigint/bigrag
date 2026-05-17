@@ -1,6 +1,5 @@
 import { Cloud, Database } from "lucide-react";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { Page } from "@/components/ui/page";
 import { Tabs } from "@/components/ui/tabs";
 import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 
@@ -53,8 +52,8 @@ export const VectorStoragePage = ({ provider, onProviderChange }: VectorStorageP
   const settings = VECTOR_PROVIDER_SETTINGS[activeProvider];
 
   return (
-    <PageShell>
-      <PageHeader
+    <Page.Shell>
+      <Page.Header
         className="mb-0"
         description="Keep vector backend credentials current. Collections choose Qdrant or turbopuffer when they are created."
         title="Vector Storage"
@@ -78,6 +77,6 @@ export const VectorStoragePage = ({ provider, onProviderChange }: VectorStorageP
           title: settings.title,
         }}
       />
-    </PageShell>
+    </Page.Shell>
   );
 };

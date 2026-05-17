@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { Page } from "@/components/ui/page";
 import { Tabs } from "@/components/ui/tabs";
 import {
   DATA_SETTINGS_GROUPS,
@@ -41,8 +40,8 @@ const SettingsPage = () => {
     });
 
   return (
-    <PageShell>
-      <PageHeader
+    <Page.Shell>
+      <Page.Header
         className="mb-0"
         description="Manage account access, platform health, security policy, and data flow without leaving the operator console."
         title="Settings"
@@ -53,7 +52,7 @@ const SettingsPage = () => {
       <section className="flex min-w-0 flex-col">
         <SettingsContent tab={tab} />
       </section>
-    </PageShell>
+    </Page.Shell>
   );
 };
 

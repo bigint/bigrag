@@ -58,7 +58,7 @@ async def test_audit_filter_by_action_only_returns_matches(
 
     resp = await admin_client.get(
         "/v1/admin/audit",
-        params={"action": "api_key.create", "limit": 50},
+        params={"action": "api_key.create", "limit": 50, "include_total": "true"},
     )
     body = assert_envelope(resp, 200)
     assert body["total"] >= 1

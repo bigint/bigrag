@@ -27,7 +27,7 @@ export interface Document {
 
 export interface DocumentListResponse {
   documents: Document[];
-  total: number;
+  total: number | null;
 }
 
 export interface DocumentListOptions {
@@ -37,6 +37,7 @@ export interface DocumentListOptions {
   status?: string;
   limit?: number;
   offset?: number;
+  include_total?: boolean;
 }
 
 export interface DocumentChunk {
@@ -50,10 +51,6 @@ export interface DocumentChunk {
 export interface DocumentChunkListResponse {
   chunks: DocumentChunk[];
   total: number;
-}
-
-export interface BatchStatusBody {
-  document_ids: string[];
 }
 
 export interface DocumentStatus {
@@ -72,10 +69,6 @@ export interface BatchStatusResponse {
 export interface BatchGetDocumentsResponse {
   documents: Document[];
   total: number;
-}
-
-export interface BatchDeleteBody {
-  document_ids: string[];
 }
 
 export interface BatchDeleteDocumentsResponse {

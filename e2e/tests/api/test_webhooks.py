@@ -97,7 +97,9 @@ async def test_list_webhooks_includes_created_and_paginates(
             wh = await _create_webhook(admin_client, webhook_sink["url"](label))
             created_ids.append(wh["id"])
 
-        resp = await admin_client.get("/v1/admin/webhooks", params={"limit": 100})
+        resp = await admin_client.get(
+            "/v1/admin/webhooks", params={"limit": 100, "include_total": "true"}
+        )
         body = assert_envelope(resp, 200)
         ids = {w["id"] for w in body["webhooks"]}
         for cid in created_ids:

@@ -10,7 +10,7 @@ import type {
   GoogleSyncJobListResponse,
   StatusResponse,
   UpdateGoogleSourceBody,
-} from "../types.js";
+} from "../types/index.js";
 
 export class ConnectorsResource {
   readonly google: GoogleDriveResource;

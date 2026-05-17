@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import time
+from collections import OrderedDict
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -21,8 +22,9 @@ logger = get_logger("bigrag.chat")
 
 _MODEL_TIMEOUT_SECONDS = 60
 _CHAT_CLIENT_TTL_SECONDS = 300
+_CHAT_CLIENTS_MAX = 64
 
-_chat_clients: dict[tuple[str, str], tuple[Any, float]] = {}
+_chat_clients: OrderedDict[tuple[str, str], tuple[Any, float]] = OrderedDict()
 _chat_clients_lock = asyncio.Lock()
 
 
@@ -154,6 +156,13 @@ async def _openai_client(openai_module, prepared: PreparedChatTurn, credential: 
         }
         client = openai_module.AsyncOpenAI(**kwargs)
         _chat_clients[cache_key] = (client, time.monotonic())
+        _chat_clients.move_to_end(cache_key)
+        while len(_chat_clients) > _CHAT_CLIENTS_MAX:
+            _, (evicted, _ts) = _chat_clients.popitem(last=False)
+            try:
+                await evicted.close()
+            except Exception as exc:
+                logger.warning("failed to close evicted chat client", error=repr(exc))
         return client
 
 

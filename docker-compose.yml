@@ -1,3 +1,19 @@
+x-bigrag-env: &bigrag-env
+  BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
+  BIGRAG_DATABASE_URL: "postgres://${POSTGRES_USER:-bigrag}:${POSTGRES_PASSWORD:-bigrag}@postgres:5432/${POSTGRES_DB:-bigrag}?sslmode=disable"
+  BIGRAG_QDRANT_URL: http://qdrant:6333
+  BIGRAG_REDIS_URL: "${BIGRAG_REDIS_URL:-redis://redis:6379/0}"
+  BIGRAG_MASTER_KEY: "${BIGRAG_MASTER_KEY:-}"
+  BIGRAG_MASTER_KEY_PREVIOUS: '${BIGRAG_MASTER_KEY_PREVIOUS:-[]}'
+  BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
+  BIGRAG_SESSION_COOKIE_SAMESITE: "${BIGRAG_SESSION_COOKIE_SAMESITE:-lax}"
+  BIGRAG_SESSION_COOKIE_DOMAIN: "${BIGRAG_SESSION_COOKIE_DOMAIN:-}"
+  BIGRAG_CORS_ORIGINS: '${BIGRAG_CORS_ORIGINS:-["http://localhost:3000"]}'
+  BIGRAG_TRUSTED_PROXIES: '${BIGRAG_TRUSTED_PROXIES:-[]}'
+  BIGRAG_LOG_LEVEL: "${BIGRAG_LOG_LEVEL:-debug}"
+  BIGRAG_LOG_FORMAT: "${BIGRAG_LOG_FORMAT:-text}"
+  BIGRAG_UPLOAD_DIR: /data/uploads
+
 services:
   bigrag-api:
     image: "${BIGRAG_API_IMAGE:-bigrag-api:local}"
@@ -9,25 +25,9 @@ services:
     volumes:
       - bigrag_data:/data
     environment:
-      # Default is 'dev'. Set BIGRAG_ENV=prod in production — this
-      # enables startup checks that refuse insecure defaults (wildcard
-      # CORS, non-secure cookies, default Postgres password).
-      BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
-      BIGRAG_DATABASE_URL: "postgres://${POSTGRES_USER:-bigrag}:${POSTGRES_PASSWORD:-bigrag}@postgres:5432/${POSTGRES_DB:-bigrag}?sslmode=disable"
-      BIGRAG_QDRANT_URL: http://qdrant:6333
-      BIGRAG_REDIS_URL: "${BIGRAG_REDIS_URL:-redis://redis:6379/0}"
+      <<: *bigrag-env
       BIGRAG_HOST: 0.0.0.0
-      BIGRAG_MASTER_KEY: "${BIGRAG_MASTER_KEY:-}"
-      BIGRAG_MASTER_KEY_PREVIOUS: '${BIGRAG_MASTER_KEY_PREVIOUS:-[]}'
       BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD: "${BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD:-false}"
-      BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
-      BIGRAG_SESSION_COOKIE_SAMESITE: "${BIGRAG_SESSION_COOKIE_SAMESITE:-lax}"
-      BIGRAG_SESSION_COOKIE_DOMAIN: "${BIGRAG_SESSION_COOKIE_DOMAIN:-}"
-      BIGRAG_CORS_ORIGINS: '${BIGRAG_CORS_ORIGINS:-["http://localhost:3000"]}'
-      BIGRAG_TRUSTED_PROXIES: '${BIGRAG_TRUSTED_PROXIES:-[]}'
-      BIGRAG_LOG_LEVEL: "${BIGRAG_LOG_LEVEL:-debug}"
-      BIGRAG_LOG_FORMAT: "${BIGRAG_LOG_FORMAT:-text}"
-      BIGRAG_UPLOAD_DIR: /data/uploads
     deploy:
       resources:
         limits:
@@ -53,29 +53,13 @@ services:
     command: ["bigrag-worker", "--processes", "1", "--threads", "${BIGRAG_WORKER_THREADS:-8}"]
     volumes:
       - bigrag_data:/data
-    environment:
-      BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
-      BIGRAG_DATABASE_URL: "postgres://${POSTGRES_USER:-bigrag}:${POSTGRES_PASSWORD:-bigrag}@postgres:5432/${POSTGRES_DB:-bigrag}?sslmode=disable"
-      BIGRAG_QDRANT_URL: http://qdrant:6333
-      BIGRAG_REDIS_URL: "${BIGRAG_REDIS_URL:-redis://redis:6379/0}"
-      BIGRAG_UPLOAD_DIR: /data/uploads
-      BIGRAG_MASTER_KEY: "${BIGRAG_MASTER_KEY:-}"
-      BIGRAG_MASTER_KEY_PREVIOUS: '${BIGRAG_MASTER_KEY_PREVIOUS:-[]}'
-      BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
-      BIGRAG_SESSION_COOKIE_SAMESITE: "${BIGRAG_SESSION_COOKIE_SAMESITE:-lax}"
-      BIGRAG_SESSION_COOKIE_DOMAIN: "${BIGRAG_SESSION_COOKIE_DOMAIN:-}"
-      BIGRAG_CORS_ORIGINS: '${BIGRAG_CORS_ORIGINS:-["http://localhost:3000"]}'
-      BIGRAG_TRUSTED_PROXIES: '${BIGRAG_TRUSTED_PROXIES:-[]}'
-      BIGRAG_LOG_LEVEL: "${BIGRAG_LOG_LEVEL:-debug}"
-      BIGRAG_LOG_FORMAT: "${BIGRAG_LOG_FORMAT:-text}"
+    environment: *bigrag-env
     deploy:
       resources:
         limits:
           memory: 4g
           cpus: "4"
     depends_on:
-      bigrag-api:
-        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
@@ -162,6 +146,7 @@ services:
       resources:
         limits:
           memory: 2g
+
 volumes:
   bigrag_data:
   postgres_data:

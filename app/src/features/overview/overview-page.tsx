@@ -16,8 +16,9 @@ import {
   ShieldCheck,
   SignalHigh,
 } from "lucide-react";
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { PageContainer } from "@/components/ui/page-container";
+import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
 import { getWorkerAvailability } from "@/features/workers/worker-status";
 import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
@@ -66,28 +67,34 @@ export const OverviewPage = () => {
   const failedPct = docs?.total ? Math.round((docs.failed / docs.total) * 100) : 0;
   const workerAvailability = getWorkerAvailability(stats);
   const queueHealth = stats?.queue_health;
-  const services = [
-    { label: "Postgres", ok: readiness?.postgres },
-    {
-      label: readiness?.vector_store_provider
-        ? `Vector store (${readiness.vector_store_provider.replace("_", " ")})`
-        : "Vector store",
-      ok: readiness?.vector_store,
-    },
-    { label: "Redis", ok: readiness?.redis },
-    { detail: readiness?.embedding_error, label: "Embeddings", ok: readiness?.embedding },
-    {
-      detail: workerAvailability.message,
-      label: "Worker",
-      ok: workerAvailability.unknown ? undefined : workerAvailability.online,
-    },
-  ];
+  const services = useMemo(
+    () => [
+      { label: "Postgres", ok: readiness?.postgres },
+      {
+        label: readiness?.vector_store_provider
+          ? `Vector store (${readiness.vector_store_provider.replace("_", " ")})`
+          : "Vector store",
+        ok: readiness?.vector_store,
+      },
+      { label: "Redis", ok: readiness?.redis },
+      { detail: readiness?.embedding_error, label: "Embeddings", ok: readiness?.embedding },
+      {
+        detail: workerAvailability.message,
+        label: "Worker",
+        ok: workerAvailability.unknown ? undefined : workerAvailability.online,
+      },
+    ],
+    [readiness, workerAvailability],
+  );
   const servicesOnline = services.filter((service) => service.ok).length;
-  const queueItems = Object.entries(stats?.queue ?? {}).filter(([, value]) => value > 0);
+  const queueItems = useMemo(
+    () => Object.entries(stats?.queue ?? {}).filter(([, value]) => value > 0),
+    [stats?.queue],
+  );
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-6 md:px-8 lg:px-10">
-      <PageContainer className="flex w-full flex-col gap-6">
+      <Page.Container className="flex w-full flex-col gap-6">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-3xl font-semibold leading-tight tracking-normal">
@@ -294,7 +301,7 @@ export const OverviewPage = () => {
             </div>
           </div>
         </section>
-      </PageContainer>
+      </Page.Container>
     </div>
   );
 };

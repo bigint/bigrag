@@ -15,8 +15,8 @@ from bigrag.services.runtime_settings import get_values
 logger = get_logger("bigrag.embedding_cache")
 
 
-def _model_key(provider: str, model: str, dimension: int, input_type: str = "document") -> str:
-    return f"{provider}:{model}:{dimension}:{input_type}"
+def _model_key(cache_identity: str, input_type: str = "document") -> str:
+    return f"{cache_identity}:{input_type}"
 
 
 def _hash(text: str) -> str:
@@ -65,8 +65,7 @@ async def _cache_enabled() -> bool:
 
 async def get_many(
     texts: list[str],
-    provider: str,
-    model: str,
+    cache_identity: str,
     dimension: int,
     input_type: str = "document",
 ) -> dict[int, list[float]]:
@@ -76,7 +75,7 @@ async def get_many(
     if not await _cache_enabled():
         return {}
     hashes = [_hash(t) for t in texts]
-    model_key = _model_key(provider, model, dimension, input_type)
+    model_key = _model_key(cache_identity, input_type)
     try:
         async with session_factory()() as session:
             rows = (
@@ -114,8 +113,7 @@ async def get_many(
 async def put_many(
     texts: list[str],
     vectors: list[list[float]],
-    provider: str,
-    model: str,
+    cache_identity: str,
     dimension: int,
     input_type: str = "document",
 ) -> None:
@@ -124,7 +122,7 @@ async def put_many(
         return
     if not await _cache_enabled():
         return
-    model_key = _model_key(provider, model, dimension, input_type)
+    model_key = _model_key(cache_identity, input_type)
     rows = [
         {
             "content_hash": _hash(t),

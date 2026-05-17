@@ -12,7 +12,7 @@ import type {
   ProgressEvent,
   StatusResponse,
   UpdateCollectionBody,
-} from "../types.js";
+} from "../types/index.js";
 
 export class CollectionsResource {
   constructor(private readonly _client: RequestClient) {}
@@ -22,6 +22,9 @@ export class CollectionsResource {
     if (options?.name) params.name = options.name;
     if (options?.limit !== undefined) params.limit = String(options.limit);
     if (options?.offset !== undefined) params.offset = String(options.offset);
+    if (options?.include_total !== undefined) {
+      params.include_total = options.include_total ? "true" : "false";
+    }
     return this._client._request("GET", "/v1/collections", { params });
   }
 
@@ -33,7 +36,7 @@ export class CollectionsResource {
       for (const c of page.collections) yield c;
       if (page.collections.length < pageSize) return;
       offset += page.collections.length;
-      if (offset >= page.total) return;
+      if (page.total !== null && offset >= page.total) return;
     }
   }
 

@@ -1,5 +1,3 @@
-"""Collection types."""
-
 from __future__ import annotations
 
 from typing import Any, NotRequired, TypedDict
@@ -35,7 +33,7 @@ class Collection(TypedDict):
 
 class CollectionListResponse(TypedDict):
     collections: list[Collection]
-    total: int
+    total: int | None
 
 
 class CollectionStatsResponse(TypedDict):

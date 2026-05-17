@@ -8,7 +8,7 @@ import type {
   WebhookDeliveryListResponse,
   WebhookListResponse,
   WebhookTestResponse,
-} from "../types.js";
+} from "../types/index.js";
 
 export class WebhooksResource {
   constructor(private readonly _client: RequestClient) {}

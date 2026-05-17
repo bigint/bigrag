@@ -132,7 +132,7 @@ async def test_list_returns_envelope_with_total(
     collection: Callable[..., Awaitable[dict[str, Any]]],
 ) -> None:
     await collection()
-    resp = await admin_client.get("/v1/collections")
+    resp = await admin_client.get("/v1/collections", params={"include_total": "true"})
     body = assert_envelope(resp, 200)
     assert "collections" in body
     assert "total" in body

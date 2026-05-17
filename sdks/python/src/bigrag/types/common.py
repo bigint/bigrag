@@ -1,5 +1,3 @@
-"""Common types shared across the SDK."""
-
 from __future__ import annotations
 
 from typing import NotRequired, TypedDict

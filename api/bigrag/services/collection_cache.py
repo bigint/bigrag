@@ -72,28 +72,23 @@ async def get_or_404(name: str) -> dict:
 
     lock = _fill_locks.setdefault(name, asyncio.Lock())
     async with lock:
-        try:
-            cached = await redis_cache.get(_cache_key(name))
-            if isinstance(cached, dict):
-                return _deserialize(cached)
+        cached = await redis_cache.get(_cache_key(name))
+        if isinstance(cached, dict):
+            return _deserialize(cached)
 
-            async with session_factory()() as session:
-                collection = await session.scalar(
-                    sa.select(Collection).where(Collection.name == name)
-                )
-                if collection is None:
-                    raise NotFoundError("Collection", name)
-                preset: EmbeddingPreset | None = None
-                if collection.embedding_preset_id is not None:
-                    preset = await session.get(EmbeddingPreset, collection.embedding_preset_id)
-                serialized = _serialize(collection, preset)
-                ttl = await get_value("collection_cache_ttl")
-                if ttl > 0:
-                    jittered_ttl = ttl + random.randint(0, ttl // 10)
-                    await redis_cache.set(_cache_key(name), serialized, ttl=jittered_ttl)
-                return _deserialize(serialized)
-        finally:
-            _fill_locks.pop(name, None)
+        async with session_factory()() as session:
+            collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
+            if collection is None:
+                raise NotFoundError("Collection", name)
+            preset: EmbeddingPreset | None = None
+            if collection.embedding_preset_id is not None:
+                preset = await session.get(EmbeddingPreset, collection.embedding_preset_id)
+            serialized = _serialize(collection, preset)
+            ttl = await get_value("collection_cache_ttl")
+            if ttl > 0:
+                jittered_ttl = ttl + random.randint(0, max(1, ttl // 10))
+                await redis_cache.set(_cache_key(name), serialized, ttl=jittered_ttl)
+            return _deserialize(serialized)
 
 
 async def invalidate(name: str) -> None:

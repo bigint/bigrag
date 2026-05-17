@@ -5,18 +5,7 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, model_validator
 
-from bigrag.services.url_security import validate_webhook_url as validate_outbound_webhook_url
-
 VALID_EVENTS = frozenset({"document.ready", "document.failed", "document.processing"})
-
-MAX_WEBHOOKS = 50
-
-
-async def resolve_and_validate_url(url: str) -> None:
-    try:
-        await validate_outbound_webhook_url(url)
-    except ValueError as exc:
-        raise ValueError(str(exc)) from exc
 
 
 def _validate_webhook_url(url: str) -> None:

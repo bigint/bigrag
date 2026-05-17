@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.session import get_session
 from bigrag.middleware.auth import require_admin_session
-from bigrag.models.common import StatusResponse
+from bigrag.models import StatusResponse
 from bigrag.models.instance_settings import (
     InstanceSettingsResponse,
     InstanceSettingsTestResponse,
@@ -16,6 +16,7 @@ from bigrag.models.instance_settings import (
     UpdateInstanceSettingsRequest,
 )
 from bigrag.services import audit, embedding_cache
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.runtime_settings import (
     get_public_settings,
     reset_settings,
@@ -54,7 +55,9 @@ async def update_instance_settings(
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=f"Unknown setting: {exc.args[0]}") from exc
     except (RuntimeError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400, detail=safe_error_detail(exc, "Settings update was rejected.")
+        ) from exc
     finally:
         if prepared is not None:
             await prepared.close()
@@ -81,7 +84,9 @@ async def test_instance_settings(
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=f"Unknown setting: {exc.args[0]}") from exc
     except (RuntimeError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400, detail=safe_error_detail(exc, "Settings update was rejected.")
+        ) from exc
     finally:
         if prepared is not None:
             await prepared.close()
@@ -107,7 +112,9 @@ async def reset_instance_settings(
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=f"Unknown setting: {exc.args[0]}") from exc
     except (RuntimeError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400, detail=safe_error_detail(exc, "Settings update was rejected.")
+        ) from exc
     finally:
         if prepared is not None:
             await prepared.close()

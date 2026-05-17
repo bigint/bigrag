@@ -1,5 +1,3 @@
-"""bigRAG Python SDK."""
-
 from __future__ import annotations
 
 from bigrag import types as _types
@@ -10,30 +8,24 @@ from bigrag._errors import (
     APIError,
     APITimeoutError,
     AuthenticationError,
+    BadGatewayError,
     BadRequestError,
     BigRAGError,
+    ConflictError,
     InternalServerError,
     NotFoundError,
+    PayloadTooLargeError,
     PermissionDeniedError,
     RateLimitError,
+    ServiceUnavailableError,
+    UnprocessableEntityError,
     error_for_status,
 )
 from bigrag._files import FileInput, normalize_file_input
 from bigrag._sse import parse_sse_stream
 from bigrag._version import __version__
 from bigrag.resources import (
-    AdminAccessResource,
-    AdminApiKeysResource,
-    AdminAuditResource,
-    AdminBackupsResource,
-    AdminConnectorsResource,
-    AdminEmbeddingPresetsResource,
-    AdminGoogleConnectorResource,
-    AdminMcpServersResource,
-    AdminRealtimeResource,
     AdminResource,
-    AdminSettingsResource,
-    AdminUsersResource,
     AuthResource,
     ChatResource,
     CollectionsResource,
@@ -58,12 +50,17 @@ __all__ = [
     "APIError",
     "APITimeoutError",
     "AuthenticationError",
+    "BadGatewayError",
     "BadRequestError",
     "BigRAGError",
+    "ConflictError",
     "InternalServerError",
     "NotFoundError",
+    "PayloadTooLargeError",
     "PermissionDeniedError",
     "RateLimitError",
+    "ServiceUnavailableError",
+    "UnprocessableEntityError",
     "error_for_status",
     # Files
     "FileInput",
@@ -71,18 +68,7 @@ __all__ = [
     # SSE
     "parse_sse_stream",
     # Resources
-    "AdminAccessResource",
-    "AdminApiKeysResource",
-    "AdminAuditResource",
-    "AdminBackupsResource",
-    "AdminConnectorsResource",
-    "AdminEmbeddingPresetsResource",
-    "AdminGoogleConnectorResource",
-    "AdminMcpServersResource",
-    "AdminRealtimeResource",
     "AdminResource",
-    "AdminSettingsResource",
-    "AdminUsersResource",
     "AuthResource",
     "ChatResource",
     "CollectionsResource",

@@ -64,7 +64,7 @@ async def test_list_users_returns_admin(
     admin_setup: dict[str, str],
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.get("/v1/admin/users")
+    resp = await admin_client.get("/v1/admin/users", params={"include_total": "true"})
     body = assert_envelope(resp, 200)
     assert body["total"] >= 1
     emails = {u["email"] for u in body["users"]}
@@ -77,7 +77,9 @@ async def test_list_users_pagination(
 ) -> None:
     await user_factory()
     await user_factory()
-    resp = await admin_client.get("/v1/admin/users", params={"limit": 1, "offset": 0})
+    resp = await admin_client.get(
+        "/v1/admin/users", params={"limit": 1, "offset": 0, "include_total": "true"}
+    )
     body = assert_envelope(resp, 200)
     assert len(body["users"]) == 1
     assert body["total"] >= 3

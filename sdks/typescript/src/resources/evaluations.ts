@@ -1,5 +1,5 @@
 import type { RequestClient } from "../core.js";
-import type { EvalBody, EvalResponse } from "../types.js";
+import type { EvalBody, EvalResponse } from "../types/index.js";
 
 export class EvaluationsResource {
   constructor(private readonly _client: RequestClient) {}

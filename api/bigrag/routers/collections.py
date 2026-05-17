@@ -1,20 +1,17 @@
 from __future__ import annotations
 
-import asyncio
 from uuid import UUID
 
-import httpx
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.responses import StreamingResponse
 
 from bigrag.db.models import Collection, Document, EmbeddingPreset
 from bigrag.db.session import get_session
-from bigrag.exceptions import ValidationError
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
+from bigrag.models import StatusResponse
 from bigrag.models.collection import (
     CollectionListResponse,
     CollectionResponse,
@@ -22,20 +19,20 @@ from bigrag.models.collection import (
     CreateCollectionRequest,
     UpdateCollectionRequest,
 )
-from bigrag.models.common import StatusResponse
+from bigrag.routers import enforce_collection_pin
 from bigrag.services import audit, collection_cache
-from bigrag.services.credential_check import (
-    CredentialCheckError,
-    verify_provider_credentials,
+from bigrag.services.collection_provision import (
+    create_vector_store_collection,
+    verify_embedding_credentials,
 )
-from bigrag.services.event_tokens import (
-    EVENT_TOKEN_TTL_SECONDS,
-    create_event_token,
-    validate_event_token,
+from bigrag.services.collections import (
+    delete_collection as service_delete_collection,
 )
-from bigrag.services.ingestion_job import create_ingestion_job
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
-from bigrag.services.queue import ingestion_queue
+from bigrag.services.collections import (
+    truncate_collection as service_truncate_collection,
+)
+from bigrag.services.error_sanitize import safe_error_detail
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.vector_store import vector_store
@@ -43,97 +40,6 @@ from bigrag.services.vector_store import vector_store
 logger = get_logger("bigrag.routers.collections")
 
 router = APIRouter(prefix="/v1/collections", tags=["collections"])
-
-
-async def _verify_embedding_credentials(
-    provider: str,
-    api_key: str,
-    base_url: str | None,
-    model: str | None,
-) -> None:
-    if provider not in ("openai", "openai_compatible", "cohere", "voyage"):
-        return
-    try:
-        await verify_provider_credentials(
-            provider,  # type: ignore[arg-type]
-            api_key,
-            base_url,
-            model=model,
-        )
-    except CredentialCheckError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Embedding provider rejected the API key: {exc.message}",
-        ) from exc
-
-
-def _vector_store_unavailable_detail(provider: str) -> str:
-    if provider == "turbopuffer":
-        return (
-            "turbopuffer is not configured. Save a turbopuffer API key in Vector Storage "
-            "before creating a turbopuffer collection."
-        )
-    return f"{provider} vector store is not configured."
-
-
-def _ensure_vector_store_provider_available(provider: str) -> None:
-    if provider in vector_store.configured_providers:
-        return
-    raise HTTPException(
-        status_code=400,
-        detail=_vector_store_unavailable_detail(provider),
-    )
-
-
-async def _create_vector_store_collection(
-    body: CreateCollectionRequest,
-    dimension: int,
-) -> None:
-    _ensure_vector_store_provider_available(body.vector_store_provider)
-    try:
-        await vector_store.create_collection(
-            body.name,
-            dimension,
-            index_type=body.index_type,
-            tenant_field=body.tenant_field,
-            provider=body.vector_store_provider,
-        )
-    except RuntimeError as e:
-        message = str(e)
-        if "API key is not configured" in message or "client is not connected" in message:
-            raise HTTPException(
-                status_code=400,
-                detail=_vector_store_unavailable_detail(body.vector_store_provider),
-            ) from e
-        logger.warning(
-            "vector collection create failed",
-            collection=body.name,
-            vector_store_provider=body.vector_store_provider,
-            error_type=e.__class__.__name__,
-            error=message,
-        )
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                f"Unable to create {body.vector_store_provider} vector collection. "
-                "Check Vector Storage settings."
-            ),
-        ) from e
-    except httpx.HTTPError as e:
-        logger.warning(
-            "vector collection create failed",
-            collection=body.name,
-            vector_store_provider=body.vector_store_provider,
-            error_type=e.__class__.__name__,
-            error=str(e),
-        )
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                f"Unable to create {body.vector_store_provider} vector collection. "
-                "Check Vector Storage settings."
-            ),
-        ) from e
 
 
 def _collection_response(c: Collection) -> CollectionResponse:
@@ -183,12 +89,7 @@ async def list_collections(
         stmt = stmt.where(Collection.name.ilike(f"{name}%"))
         count_stmt = count_stmt.where(Collection.name.ilike(f"{name}%"))
 
-    cursor_tuple = None
-    if cursor:
-        try:
-            cursor_tuple = decode_cursor(cursor)
-        except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    cursor_tuple = decode_cursor_or_400(cursor)
 
     if cursor_tuple is not None:
         stmt = apply_cursor(stmt, Collection.created_at, Collection.id, cursor_tuple).limit(
@@ -305,7 +206,7 @@ async def create_collection(
         body.dimension or (preset.dimension if preset else None) or defaults["embedding_dimension"]
     )
 
-    await _verify_embedding_credentials(provider, api_key, base_url, model)
+    await verify_embedding_credentials(provider, api_key, base_url, model)
     try:
         from bigrag.services.embedding import get_embedding_model
 
@@ -318,9 +219,13 @@ async def create_collection(
         )
         dimension = dimension_override or emb.dimension
     except (ImportError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        logger.warning("embedding model unavailable", error=repr(e))
+        raise HTTPException(
+            status_code=400,
+            detail=safe_error_detail(e, "Embedding provider is not available."),
+        ) from e
 
-    await _create_vector_store_collection(body, dimension)
+    await create_vector_store_collection(body, dimension)
 
     collection = Collection(
         name=body.name,
@@ -384,81 +289,13 @@ async def create_collection(
     return _collection_response(collection)
 
 
-@router.post("/{name}/reembed", response_model=StatusResponse)
-async def reembed_collection(
-    name: str,
-    request: Request,
-    user: dict = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-) -> StatusResponse:
-
-    collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
-    if collection is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-
-    docs = (
-        await session.execute(
-            sa.select(Document.id, Document.file_path)
-            .where(Document.collection_id == collection.id)
-            .where(Document.status.in_(("ready", "failed")))
-        )
-    ).all()
-
-    collection_dict = {
-        "embedding_provider": collection.embedding_provider,
-        "embedding_model": collection.embedding_model,
-        "embedding_api_key": collection.embedding_api_key,
-        "embedding_base_url": collection.embedding_base_url,
-        "dimension": collection.dimension,
-        "chunk_size": collection.chunk_size,
-        "chunk_overlap": collection.chunk_overlap,
-        "chunk_strategy": collection.chunk_strategy or "paragraph",
-        "vector_store_provider": collection.vector_store_provider,
-        "tenant_field": collection.tenant_field,
-    }
-    jobs = [
-        create_ingestion_job(
-            document_id=str(doc_id),
-            file_path=file_path,
-            collection_name=name,
-            collection=collection_dict,
-        )
-        for doc_id, file_path in docs
-    ]
-
-    for doc_id, _file_path in docs:
-        await session.execute(
-            sa.update(Document)
-            .where(Document.id == doc_id)
-            .values(status="pending", error_message=None)
-        )
-    await session.commit()
-
-    for job in jobs:
-        await ingestion_queue.enqueue(job)
-    await invalidate_collection_query_cache(name)
-
-    logger.info("reembed: queued", collection=name, docs=len(docs))
-    audit.record(
-        request,
-        user=user,
-        action="collection.reembed",
-        resource_type="collection",
-        resource_id=str(collection.id),
-        metadata={"name": name, "docs_queued": len(docs)},
-    )
-    return StatusResponse(
-        status="ok",
-        message=f"Queued {len(docs)} documents for re-embedding",
-    )
-
-
 @router.get("/{name}", response_model=CollectionResponse)
 async def get_collection(
     name: str,
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, name)
     logger.info("get collection", collection=name)
     collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
     if collection is None:
@@ -469,9 +306,10 @@ async def get_collection(
 @router.get("/{name}/stats", response_model=CollectionStatsResponse)
 async def get_collection_stats(
     name: str,
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, name)
     logger.info("collection stats", collection=name)
     collection_id = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
     if collection_id is None:
@@ -515,6 +353,7 @@ async def update_collection(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, name)
     logger.info("update collection", collection=name)
     collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
     if collection is None:
@@ -537,7 +376,7 @@ async def update_collection(
                     status_code=422,
                     detail="embedding_api_key cannot be empty.",
                 )
-            await _verify_embedding_credentials(
+            await verify_embedding_credentials(
                 collection.embedding_provider,
                 new_key,
                 collection.embedding_base_url,
@@ -596,32 +435,8 @@ async def delete_collection(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    logger.info("delete collection", collection=name)
-    collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
-    if collection is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-
-    flushed = await ingestion_queue.cancel_collection(name)
-    logger.info("delete collection jobs cancelled", collection=name, flushed=flushed)
-
-    await vector_store.delete_collection(
-        name,
-        provider=collection.vector_store_provider,
-    )
-    logger.info("delete collection vectors dropped", collection=name)
-
-    from bigrag.services.storage import get_storage
-
-    deleted = await get_storage().delete_prefix(f"{name}/")
-    logger.info("delete collection storage removed", collection=name, count=deleted)
-
-    deleted_id = str(collection.id)
-    await session.delete(collection)
-    await session.commit()
-    await collection_cache.invalidate(name)
-    await invalidate_collection_query_cache(name)
-    logger.info("delete collection database records removed", collection=name)
-
+    enforce_collection_pin(user, name)
+    deleted_id = await service_delete_collection(session, name)
     audit.record(
         request,
         user=user,
@@ -630,79 +445,7 @@ async def delete_collection(
         resource_id=deleted_id,
         metadata={"name": name},
     )
-
     return StatusResponse(status="ok", message=f"Collection '{name}' deleted")
-
-
-@router.get("/{name}/events", response_class=StreamingResponse)
-async def collection_events_sse(
-    name: str,
-    request: Request,
-    token: str | None = Query(default=None),
-    session: AsyncSession = Depends(get_session),
-):
-
-    from bigrag.services.event_bus import event_bus
-
-    if not await validate_event_token(token, name):
-        await get_current_user(request)
-
-    exists = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
-    if exists is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-
-    import orjson
-
-    async def generate():
-        yield (
-            f'data: {{"step":"connected","status":"connected",'
-            f'"message":"Listening for events on {name}","progress":0}}\n\n'
-        )
-
-        key = f"collection:{name}"
-        q = event_bus.subscribe(key)
-        try:
-            while True:
-                try:
-                    event = await asyncio.wait_for(q.get(), timeout=30)
-                except TimeoutError:
-                    yield ": heartbeat\n\n"
-                    continue
-                if event is None:
-                    break
-                data = {
-                    "document_id": event.document_id,
-                    "step": event.step,
-                    "status": event.status,
-                    "message": event.message,
-                    "progress": event.progress,
-                    **event.detail,
-                }
-                yield f"data: {orjson.dumps(data).decode()}\n\n"
-        finally:
-            event_bus.unsubscribe(key, q)
-
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-
-
-@router.post("/{name}/events/token", response_model=dict[str, str | int])
-async def create_collection_event_token(
-    name: str,
-    user: dict = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-) -> dict[str, str | int]:
-    exists = await session.scalar(sa.select(Collection.id).where(Collection.name == name))
-    if exists is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-    try:
-        token = await create_event_token(user, name)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    return {"token": token, "expires_in": EVENT_TOKEN_TTL_SECONDS}
 
 
 @router.post("/{name}/truncate", response_model=StatusResponse)
@@ -712,41 +455,14 @@ async def truncate_collection(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-
-    logger.info("truncate collection", collection=name)
-    collection = await session.scalar(sa.select(Collection).where(Collection.name == name))
-    if collection is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-
-    flushed = await ingestion_queue.cancel_collection(name)
-    logger.info("truncate collection jobs cancelled", collection=name, flushed=flushed)
-
-    await vector_store.delete_collection(
-        name,
-        provider=collection.vector_store_provider,
-    )
-    logger.info("truncate collection vectors cleared", collection=name)
-
-    from bigrag.services.storage import get_storage
-
-    deleted = await get_storage().delete_prefix(f"{name}/")
-    logger.info("truncate collection storage removed", collection=name, count=deleted)
-
-    await session.execute(sa.delete(Document).where(Document.collection_id == collection.id))
-    await session.execute(
-        sa.update(Collection).where(Collection.id == collection.id).values(document_count=0)
-    )
-    await session.commit()
-    await collection_cache.invalidate(name)
-    await invalidate_collection_query_cache(name)
-    logger.info("truncate collection documents removed", collection=name)
-
+    enforce_collection_pin(user, name)
+    collection_id = await service_truncate_collection(session, name)
     audit.record(
         request,
         user=user,
         action="collection.truncate",
         resource_type="collection",
-        resource_id=str(collection.id),
+        resource_id=collection_id,
         metadata={"name": name},
     )
     return StatusResponse(status="ok", message=f"Collection '{name}' truncated")

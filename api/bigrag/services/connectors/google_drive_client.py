@@ -11,7 +11,6 @@ import httpx
 
 from bigrag.config import settings
 from bigrag.db.models import ConnectorProviderConfig
-from bigrag.routers._documents import SUPPORTED_EXTENSIONS
 from bigrag.services.connectors.google_drive_types import (
     _GOOGLE_EXPORTS,
     GOOGLE_FILE_FIELDS,
@@ -28,6 +27,7 @@ from bigrag.services.connectors.google_drive_types import (
     _remote_from_payload,
     _sanitize_filename,
 )
+from bigrag.services.documents import SUPPORTED_EXTENSIONS
 
 
 class GoogleDriveClient:
@@ -116,8 +116,10 @@ class GoogleDriveClient:
                 payload = response.json()
             except ValueError:
                 payload = {}
-            error = payload.get("error_description") or payload.get("error") or response.text
-            raise GoogleDriveAuthError(str(error))
+            error = (
+                payload.get("error_description") or payload.get("error") or "token request failed"
+            )
+            raise GoogleDriveAuthError(str(error)[:200])
         return response.json()
 
     async def userinfo(self, access_token: str) -> dict[str, Any]:
@@ -127,7 +129,16 @@ class GoogleDriveClient:
             headers={"Authorization": f"Bearer {access_token}"},
         )
         if response.status_code >= 400:
-            raise GoogleDriveAuthError(response.text)
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = {}
+            error = (
+                payload.get("error_description")
+                or payload.get("error")
+                or f"userinfo request failed with {response.status_code}"
+            )
+            raise GoogleDriveAuthError(str(error)[:200])
         return response.json()
 
     async def get_file(self, access_token: str, file_id: str) -> RemoteDriveFile:

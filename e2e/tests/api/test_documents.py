@@ -201,7 +201,9 @@ async def test_list_documents_returns_envelope(
     coll = await collection()
     await document(coll["name"], fixture="sample.txt")
 
-    resp = await admin_client.get(f"/v1/collections/{coll['name']}/documents")
+    resp = await admin_client.get(
+        f"/v1/collections/{coll['name']}/documents", params={"include_total": "true"}
+    )
     body = assert_envelope(resp, 200)
     assert body["total"] >= 1
     assert len(body["documents"]) >= 1
@@ -247,7 +249,7 @@ async def test_list_documents_pagination_limit_one(
     )
     resp = await admin_client.get(
         f"/v1/collections/{coll['name']}/documents",
-        params={"limit": 1, "offset": 0},
+        params={"limit": 1, "offset": 0, "include_total": "true"},
     )
     body = assert_envelope(resp, 200)
     assert len(body["documents"]) == 1
@@ -294,7 +296,7 @@ async def test_list_documents_search_query_filters(
     )
     resp = await admin_client.get(
         f"/v1/collections/{coll['name']}/documents",
-        params={"q": needle},
+        params={"q": needle, "include_total": "true"},
     )
     body = assert_envelope(resp, 200)
     assert body["total"] >= 1
@@ -521,7 +523,7 @@ async def test_pinned_api_key_blocked_from_cross_collection_lookup(
 
     client = await api_key_client(collection=pinned["name"])
     resp = await client.get(f"/v1/documents/{doc_in_other['id']}")
-    assert resp.status_code == 403, resp.text
+    assert resp.status_code == 404, resp.text
 
 
 # ---------------------------------------------------------------------------

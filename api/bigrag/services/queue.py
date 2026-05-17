@@ -9,6 +9,7 @@ import redis.asyncio as aioredis
 
 from bigrag.logging import get_logger
 from bigrag.services import queue_conversion, queue_embedding, queue_state
+from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import IngestionJob
 
@@ -37,31 +38,6 @@ _delete_document_vectors_after_failure = queue_embedding.delete_document_vectors
 _lease_key = queue_state.lease_key
 _collection_epoch_key = queue_state.collection_epoch_key
 _document_epoch_key = queue_state.document_epoch_key
-
-__all__ = [
-    "COLLECTION_EPOCH_KEY_PREFIX",
-    "DEAD_LETTER_KEY",
-    "DOCUMENT_EPOCH_KEY_PREFIX",
-    "IngestionCancelledError",
-    "IngestionQueue",
-    "LEASE_KEY_PREFIX",
-    "PROCESSING_KEY",
-    "QUEUE_KEY",
-    "RETRY_KEY",
-    "STATS_KEY",
-    "_EMBEDDING_TIMEOUT_SECONDS",
-    "_PERMANENT_ERRORS",
-    "_PDF_OCR_CHUNK_PAGES",
-    "_PDF_OCR_PROGRESS_END",
-    "_PDF_OCR_PROGRESS_START",
-    "_collection_epoch_key",
-    "_delete_document_vectors_after_failure",
-    "_docling_result_text",
-    "_document_epoch_key",
-    "_embed_with_cache",
-    "_lease_key",
-    "ingestion_queue",
-]
 
 
 class IngestionQueue:
@@ -136,9 +112,6 @@ class IngestionQueue:
                 )
             )
             await session.commit()
-
-    _ENQUEUE_LUA = queue_state.ENQUEUE_LUA
-    _FLUSH_LUA = queue_state.FLUSH_LUA
 
     async def _epoch_value(self, key: str) -> int:
         return await queue_state.epoch_value(self._redis, key)
@@ -313,8 +286,6 @@ class IngestionQueue:
                 error=repr(exc),
             )
 
-    _PLAIN_TEXT_EXTS = queue_conversion.PLAIN_TEXT_EXTS
-
     async def _ocr_scanned_pdf(
         self,
         *,
@@ -484,12 +455,13 @@ class IngestionQueue:
                     prefix=prefix,
                     log_message="failed to clean up cancelled vectors",
                 )
-                await _update_doc(status="failed", error_message=str(e))
+                safe_message = sanitize_message_text(str(e)) or "ingestion cancelled"
+                await _update_doc(status="failed", error_message=safe_message)
                 self._emit(
                     doc,
                     "cancelled",
                     "failed",
-                    str(e),
+                    safe_message,
                     0.0,
                     collection_name=job.collection_name,
                 )
@@ -506,6 +478,7 @@ class IngestionQueue:
                 )
 
                 delay = min(2**job.attempt, 30) + random.uniform(0, min(2**job.attempt, 10))
+                safe_error = sanitize_message_text(str(e)) or "ingestion failed"
                 self._emit(
                     doc,
                     "retrying",
@@ -513,13 +486,13 @@ class IngestionQueue:
                     f"Attempt {job.attempt} failed, retrying in {delay}s",
                     0.0,
                     collection_name=job.collection_name,
-                    error=str(e),
+                    error=safe_error,
                     attempt=job.attempt,
                     delay=delay,
                 )
                 await _update_doc(
                     status="pending",
-                    error_message=f"Attempt {job.attempt} failed: {e}. Retrying...",
+                    error_message=f"Attempt {job.attempt} failed: {safe_error}. Retrying...",
                 )
                 enqueue_ingestion_job(job, delay_seconds=delay)
             else:
@@ -536,14 +509,20 @@ class IngestionQueue:
                 await self._redis.hincrby(STATS_KEY, "failed", 1)
                 await self._redis.lpush(DEAD_LETTER_KEY, job.serialize())
                 await self._redis.ltrim(DEAD_LETTER_KEY, 0, 999)
-                await _update_doc(status="failed", error_message=str(e))
-                logger.error("job permanently failed", prefix=prefix, reason=reason)
+                safe_message = sanitize_message_text(str(e)) or "ingestion failed"
+                await _update_doc(status="failed", error_message=safe_message)
+                logger.error(
+                    "job permanently failed",
+                    prefix=prefix,
+                    reason=reason,
+                    error_type=type(e).__name__,
+                )
                 await self._fanout_webhook_event(
                     self._emit(
                         doc,
                         "failed",
                         "failed",
-                        str(e),
+                        safe_message,
                         0.0,
                         collection_name=job.collection_name,
                         attempts=job.attempt,

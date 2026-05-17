@@ -17,6 +17,7 @@ from bigrag.services.vector_store.base import (
     _point_id,
     _row_from_payload,
 )
+from bigrag.services.vector_store.qdrant_filter import combine_filters, to_qdrant_filter
 
 logger = get_logger("bigrag.vector_store")
 
@@ -26,50 +27,6 @@ _TRANSIENT_ERRORS = (
     OSError,
     httpx.HTTPError,
 )
-
-
-def _to_qdrant_filter(filters: FilterExpression | None) -> models.Filter | None:
-    if filters is None:
-        return None
-    must: list[models.Condition] = []
-    must_not: list[models.Condition] = []
-    for condition in filters.conditions:
-        if condition.operator == "eq":
-            must.append(
-                models.FieldCondition(
-                    key=condition.field,
-                    match=models.MatchValue(value=condition.value),
-                )
-            )
-        elif condition.operator == "ne":
-            must_not.append(
-                models.FieldCondition(
-                    key=condition.field,
-                    match=models.MatchValue(value=condition.value),
-                )
-            )
-        elif condition.operator == "in":
-            must.append(
-                models.FieldCondition(
-                    key=condition.field,
-                    match=models.MatchAny(any=condition.value),
-                )
-            )
-        else:
-            must.append(
-                models.FieldCondition(
-                    key=condition.field,
-                    range=models.Range(
-                        gt=condition.value if condition.operator == "gt" else None,
-                        gte=condition.value if condition.operator == "gte" else None,
-                        lt=condition.value if condition.operator == "lt" else None,
-                        lte=condition.value if condition.operator == "lte" else None,
-                    ),
-                )
-            )
-    if not must and not must_not:
-        return None
-    return models.Filter(must=must or None, must_not=must_not or None)
 
 
 class QdrantVectorStore:
@@ -332,7 +289,7 @@ class QdrantVectorStore:
             collection_name=col,
             query=query_embedding,
             limit=top_k,
-            query_filter=_to_qdrant_filter(filters),
+            query_filter=to_qdrant_filter(filters),
             search_params=self._search_params(),
             with_payload=with_payload,
             with_vectors=False,
@@ -432,17 +389,6 @@ class QdrantVectorStore:
         )
         logger.info("delete vectors by ids", collection=col, count=len(ids))
 
-    @staticmethod
-    def _combine_filters(
-        *filters: models.Filter | None,
-    ) -> models.Filter | None:
-        active = [f for f in filters if f is not None]
-        if not active:
-            return None
-        if len(active) == 1:
-            return active[0]
-        return models.Filter(must=active)
-
     async def text_search(
         self,
         collection: str,
@@ -461,7 +407,7 @@ class QdrantVectorStore:
                 for term in terms
             ]
         )
-        combined_filter = self._combine_filters(_to_qdrant_filter(filters), text_filter)
+        combined_filter = combine_filters(to_qdrant_filter(filters), text_filter)
 
         try:
             client = self._client()

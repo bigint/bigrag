@@ -18,21 +18,15 @@ Endpoints covered (connectors):
 - GET  /v1/connectors/{provider_slug}/sync-jobs
 - POST /v1/connectors/{provider_slug}/disconnect
 
-Notes
------
 Google OAuth URLs in ``bigrag.services.connectors.google_drive_*`` are
-hardcoded to ``https://accounts.google.com`` and
-``https://oauth2.googleapis.com``. With the current code there is no env
-knob to redirect them at the fake-gdrive stub at port 9002. The tests
-below exercise everything reachable without completing the OAuth
-exchange and skip with a clear message where a connected account is
-required.
+hardcoded to the real google.com / googleapis.com endpoints; full happy
+path is not e2e-testable. The tests below cover everything reachable
+without completing the OAuth exchange.
 """
 
 from __future__ import annotations
 
 import httpx
-import pytest
 
 from tests._helpers import assert_envelope
 
@@ -429,19 +423,3 @@ async def test_unknown_provider_404_on_user_routes(
     assert resp.status_code == 404
     resp = await admin_client.get("/v1/connectors/notreal/sources")
     assert resp.status_code == 404
-
-
-# ---------------------------------------------------------------------------
-# Full happy path: deferred — see module docstring.
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.skip(
-    reason=(
-        "Full Google Drive OAuth happy path needs an env override pointing "
-        "the hardcoded google_drive_client and google_drive_auth URLs at the "
-        "fake-gdrive stub. With the current code there is no such knob."
-    )
-)
-async def test_full_oauth_happy_path_skipped() -> None:
-    pass

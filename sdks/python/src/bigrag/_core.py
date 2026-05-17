@@ -1,11 +1,10 @@
-"""Low-level HTTP transport for the bigRAG API."""
-
 from __future__ import annotations
 
 import asyncio
 import os
 import random
 from typing import Any
+from uuid import uuid4
 
 import httpx
 
@@ -21,6 +20,8 @@ USER_AGENT = f"bigrag-python/{__version__}"
 _DEFAULT_BASE_URL = "http://localhost:4000"
 _DEFAULT_TIMEOUT = 120.0
 _DEFAULT_MAX_RETRIES = 2
+_MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
 def _buffer_files(files: Any) -> Any:
@@ -67,11 +68,6 @@ def _rewind_files(files: Any) -> None:
 
 
 class BigRAGCore:
-    """Low-level async HTTP transport with retry, auth, and error handling.
-
-    This class is not usually instantiated directly.  Use :class:`BigRAG`
-    instead, which adds high-level resource namespaces on top.
-    """
 
     api_key: str
     base_url: str
@@ -109,7 +105,9 @@ class BigRAGCore:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
-    async def _execute_with_retry(self, send_fn) -> httpx.Response:
+    async def _execute_with_retry(
+        self, send_fn, *, safe_to_retry: bool = False
+    ) -> httpx.Response:
         last_error: Exception | None = None
         retry_after_override: float | None = None
 
@@ -135,7 +133,11 @@ class BigRAGCore:
                     continue
                 raise APIConnectionError(str(exc)) from exc
 
-            if response.status_code >= 500 and attempt < self.max_retries:
+            if (
+                response.status_code >= 500
+                and attempt < self.max_retries
+                and safe_to_retry
+            ):
                 last_error = Exception(response.text)
                 continue
 
@@ -160,16 +162,21 @@ class BigRAGCore:
         *,
         json: Any = None,
         params: dict[str, str] | None = None,
+        idempotency_key: str | None = None,
     ) -> Any:
-        """Issue a JSON request and return the parsed response body.
-
-        Retries on infrastructure 429 responses, 5xx, and connection/timeout
-        errors using exponential back-off: ``min(0.5 * 2^attempt, 4)`` seconds.
-        """
         url = f"{self.base_url}{path}"
         headers = self._headers()
         if json is not None:
             headers["Content-Type"] = "application/json"
+
+        method_upper = method.upper()
+        idem_key = idempotency_key
+        if idem_key is None and method_upper in _MUTATING_METHODS:
+            idem_key = uuid4().hex
+        if idem_key is not None:
+            headers["Idempotency-Key"] = idem_key
+
+        safe_to_retry = method_upper in _SAFE_METHODS or idem_key is not None
 
         async def _send() -> httpx.Response:
             return await self._client.request(
@@ -181,7 +188,7 @@ class BigRAGCore:
                 timeout=self.timeout,
             )
 
-        response = await self._execute_with_retry(_send)
+        response = await self._execute_with_retry(_send, safe_to_retry=safe_to_retry)
 
         if response.status_code >= 400:
             await self._throw_for_status(response)
@@ -201,10 +208,14 @@ class BigRAGCore:
         path: str,
         files: Any,
         data: dict[str, Any] | None = None,
+        *,
+        idempotency_key: str | None = None,
     ) -> Any:
-        """Issue a ``multipart/form-data`` POST and return the parsed body."""
         url = f"{self.base_url}{path}"
         headers = self._headers()
+
+        idem_key = idempotency_key if idempotency_key is not None else uuid4().hex
+        headers["Idempotency-Key"] = idem_key
 
         buffered_files = _buffer_files(files)
 
@@ -218,7 +229,7 @@ class BigRAGCore:
                 timeout=self.timeout,
             )
 
-        response = await self._execute_with_retry(_send)
+        response = await self._execute_with_retry(_send, safe_to_retry=True)
 
         if response.status_code >= 400:
             await self._throw_for_status(response)
@@ -227,7 +238,6 @@ class BigRAGCore:
 
     @staticmethod
     async def _throw_for_status(response: httpx.Response) -> None:
-        """Parse an error body and raise the appropriate exception."""
         try:
             body = response.json()
         except Exception:
@@ -244,7 +254,6 @@ class BigRAGCore:
         raise error_for_status(response.status_code, message, code)
 
     async def aclose(self) -> None:
-        """Close the underlying HTTP client."""
         if self._owns_client:
             await self._client.aclose()
 

@@ -1,5 +1,3 @@
-"""Chat resource."""
-
 from __future__ import annotations
 
 import json
@@ -17,26 +15,16 @@ if TYPE_CHECKING:
 
 
 class ChatResource:
-    """Resource namespace for chat playground operations.
-
-    Access via ``client.chat``.
-    """
 
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 
     async def create(self, body: ChatBody) -> ChatCreateResponse:
-        """Create a non-streaming chat turn."""
         payload = dict(body)
         payload["stream"] = False
         return await self._client._request("POST", "/v1/chat", json=payload)
 
     async def stream(self, body: ChatBody) -> AsyncGenerator[ChatStreamEvent, None]:
-        """Stream a chat turn as SSE events.
-
-        Yields dictionaries with ``event`` and ``data`` keys. Token deltas use
-        ``{"event": "delta", "data": {"delta": "..."}}``.
-        """
         payload = dict(body)
         payload["stream"] = True
         url = f"{self._client.base_url}/v1/chat"

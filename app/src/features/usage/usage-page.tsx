@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { Page } from "@/components/ui/page";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
@@ -50,8 +49,8 @@ export const UsagePage = () => {
   });
 
   return (
-    <PageShell>
-      <PageHeader
+    <Page.Shell>
+      <Page.Header
         className="mb-0"
         description="Track request volume, indexed data, token usage, and estimated embedding spend by collection."
         title="Usage"
@@ -176,7 +175,7 @@ export const UsagePage = () => {
           ) : null}
         </CardContent>
       </Card>
-    </PageShell>
+    </Page.Shell>
   );
 };
 

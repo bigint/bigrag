@@ -54,7 +54,6 @@ const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupLayout> 
     commonKeys: [
       "max_upload_size_mb",
       "max_batch_upload_size_mb",
-      "upload_session_upload_concurrency",
       "conversion_pdf_ocr_enabled",
       "conversion_timeout",
       "ingestion_workers",
@@ -81,10 +80,8 @@ const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupLayout> 
       "query_log_retention_days",
       "access_log_retention_days",
       "webhook_delivery_retention_days",
-      "progress_snapshot_retention_days",
       "upload_session_item_retention_hours",
       "embedding_cache_retention_days",
-      "audit_log_retention_days",
     ],
     description: "How long operational logs and temporary histories stay available.",
     emptyState: "Retention settings are not available from this API.",

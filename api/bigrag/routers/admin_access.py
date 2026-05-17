@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import AccessLog
 from bigrag.db.session import get_session
-from bigrag.exceptions import ValidationError
 from bigrag.middleware.auth import require_admin_session
 from bigrag.models.access import (
     AccessLogBucket,
@@ -21,7 +20,7 @@ from bigrag.models.access import (
 )
 from bigrag.services import redis_cache
 from bigrag.services.access_log import RAG_ACCESS_ACTIONS
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 
 router = APIRouter(prefix="/v1/admin/access", tags=["admin:access"])
 _RAG_ACTION_FILTER = AccessLog.action.in_(tuple(sorted(RAG_ACCESS_ACTIONS)))
@@ -128,12 +127,7 @@ async def list_access_logs(
     if success is not None:
         filters.append(AccessLog.success.is_(success))
 
-    cursor_tuple = None
-    if cursor:
-        try:
-            cursor_tuple = decode_cursor(cursor)
-        except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    cursor_tuple = decode_cursor_or_400(cursor)
 
     stmt = (
         sa.select(AccessLog)

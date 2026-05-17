@@ -150,7 +150,7 @@ async def test_logs_filter_by_collection(
     async def _fetch_filtered() -> dict:
         r = await admin_client.get(
             "/v1/admin/access/logs",
-            params={"collection": coll["name"], "limit": 50},
+            params={"collection": coll["name"], "limit": 50, "include_total": "true"},
         )
         return assert_envelope(r, 200)
 

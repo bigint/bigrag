@@ -57,6 +57,8 @@ bigrag/
 │   ├── alembic/
 │   └── pyproject.toml
 ├── sdks/typescript/       # TypeScript SDK (@bigrag/client)
+├── sdks/python/           # Python SDK (bigrag)
+├── app/                   # Admin UI (TanStack Router + React)
 ├── website/               # Docs site (Next.js + Fumadocs)
 ├── docker-compose.yml     # Full stack (Postgres, Redis, Qdrant, API)
 ├── biome.jsonc            # Biome linting config for TypeScript
@@ -87,7 +89,6 @@ pnpm --filter @bigrag/docs build
 # SDK and app build checks
 pnpm --filter @bigrag/client build
 pnpm --filter @bigrag/app build
-cargo check --manifest-path sdks/rust/Cargo.toml
 
 # Lint everything
 pnpm lint          # TypeScript (Biome)

@@ -10,8 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag import config as _config
 from bigrag.db.engine import session_factory
-from bigrag.db.models import ApiKey, User
-from bigrag.db.models import Session as DbSession
+from bigrag.db.models import ApiKey, User, UserSession
 from bigrag.logging import get_logger
 from bigrag.services import redis_cache
 from bigrag.services.auth import API_KEY_PREFIX, api_key_hashes_for_lookup, hash_session_token
@@ -70,10 +69,10 @@ async def _user_from_session(request: Request, session: AsyncSession) -> dict | 
 
     row = (
         await session.execute(
-            select(User, DbSession.expires_at)
-            .join(DbSession, DbSession.user_id == User.id)
-            .where(DbSession.token_hash == token_hash)
-            .where(DbSession.expires_at > datetime.now(UTC))
+            select(User, UserSession.expires_at)
+            .join(UserSession, UserSession.user_id == User.id)
+            .where(UserSession.token_hash == token_hash)
+            .where(UserSession.expires_at > datetime.now(UTC))
         )
     ).first()
     if row is None:
@@ -99,11 +98,14 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
 
     key_hashes = api_key_hashes_for_lookup(token)
     now = datetime.now(UTC)
-    matched_hash: str | None = None
     for key_hash in key_hashes:
         cached = await _cache_get(_api_key_cache_key(key_hash))
         if isinstance(cached, dict):
-            await _touch_api_key_last_used(session, cached.get("api_key_id"))
+            await _touch_api_key_last_used(
+                session,
+                cached.get("api_key_id"),
+                last_used_at=_parse_iso(cached.get("last_used_at")),
+            )
             return cached
 
     row = (
@@ -119,10 +121,6 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
         return None
 
     api_key, user = row
-    for key_hash in key_hashes:
-        if key_hash == api_key.key_hash:
-            matched_hash = key_hash
-            break
     await _touch_api_key_last_used(session, str(api_key.id), last_used_at=api_key.last_used_at)
 
     permissions = api_key.permissions or {}
@@ -133,10 +131,21 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
     principal["api_key_name"] = api_key.name
     principal["scopes"] = scopes if isinstance(scopes, list) else None
     principal["collection"] = collection
+    principal["last_used_at"] = api_key.last_used_at.isoformat() if api_key.last_used_at else None
     ttl = _ttl_until(api_key.expires_at)
     if ttl > 0:
-        await _cache_set(_api_key_cache_key(matched_hash or api_key.key_hash), principal, ttl=ttl)
+        for key_hash in key_hashes:
+            await _cache_set(_api_key_cache_key(key_hash), principal, ttl=ttl)
     return principal
+
+
+def _parse_iso(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 async def _touch_api_key_last_used(
@@ -179,6 +188,13 @@ async def invalidate_session_principal(token_hash: str) -> None:
 
 async def invalidate_api_key_principal(key_hash: str) -> None:
     await _cache_delete(_api_key_cache_key(key_hash))
+    try:
+        await asyncio.wait_for(
+            redis_cache.delete_pattern("auth:api_key:*"),
+            timeout=REDIS_AUTH_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        logger.debug("auth api-key cache pattern invalidation timed out")
 
 
 async def invalidate_auth_principals() -> None:

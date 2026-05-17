@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import uuid
 from pathlib import Path
 from urllib.parse import quote
 
@@ -9,12 +8,22 @@ from fastapi import HTTPException, UploadFile
 from fastapi.responses import Response, StreamingResponse
 
 from bigrag.db.models import Document
-from bigrag.routers._documents import (
+from bigrag.routers import uuid_or_404
+from bigrag.services.documents import (
     SUPPORTED_EXTENSIONS,
     UploadBudget,
     stream_upload_to_temp,
 )
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
+
+__all__ = [
+    "CONTENT_TYPE_BY_EXTENSION",
+    "document_file_response",
+    "metadata_or_400",
+    "upload_extension_or_400",
+    "uuid_or_404",
+    "validated_upload_to_temp",
+]
 
 CONTENT_TYPE_BY_EXTENSION = {
     "pdf": "application/pdf",
@@ -36,13 +45,6 @@ CONTENT_TYPE_BY_EXTENSION = {
     "tiff": "image/tiff",
     "bmp": "image/bmp",
 }
-
-
-def uuid_or_404(value: str, label: str) -> uuid.UUID:
-    try:
-        return uuid.UUID(value)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=f"{label} not found") from exc
 
 
 def upload_extension_or_400(filename: str | None, *, batch: bool = False) -> str:

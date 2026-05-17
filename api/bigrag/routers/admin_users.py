@@ -1,30 +1,26 @@
 from __future__ import annotations
 
-import uuid
-
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import Session as DbSession
-from bigrag.db.models import User
+from bigrag.db.models import User, UserSession
 from bigrag.db.session import get_session
-from bigrag.exceptions import ValidationError
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_auth_principals, require_admin_session
+from bigrag.models import StatusResponse
 from bigrag.models.auth import (
     CreateUserRequest,
     UpdateUserRequest,
     UserListResponse,
     UserResponse,
 )
-from bigrag.models.common import StatusResponse
-from bigrag.routers import is_unique_violation
+from bigrag.routers import is_unique_violation, uuid_or_404
 from bigrag.services import audit
 from bigrag.services.auth import hash_password
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 
 logger = get_logger("bigrag.routers.admin_users")
 
@@ -54,12 +50,7 @@ async def list_users(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> UserListResponse:
-    cursor_tuple = None
-    if cursor:
-        try:
-            cursor_tuple = decode_cursor(cursor)
-        except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    cursor_tuple = decode_cursor_or_400(cursor)
 
     stmt = sa.select(User).order_by(User.created_at.asc(), User.id.asc())
     if cursor_tuple is not None:
@@ -125,10 +116,7 @@ async def update_user(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> UserResponse:
-    try:
-        target_id = uuid.UUID(user_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="User not found") from e
+    target_id = uuid_or_404(user_id, "User")
 
     target = await session.get(User, target_id)
     if target is None:
@@ -152,7 +140,7 @@ async def update_user(
         fields.append("password")
 
     if password_changed:
-        await session.execute(sa.delete(DbSession).where(DbSession.user_id == target_id))
+        await session.execute(sa.delete(UserSession).where(UserSession.user_id == target_id))
     try:
         await session.commit()
     except IntegrityError as e:
@@ -189,10 +177,7 @@ async def delete_user(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
-    try:
-        target_id = uuid.UUID(user_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="User not found") from e
+    target_id = uuid_or_404(user_id, "User")
 
     if str(target_id) == admin["id"]:
         raise HTTPException(status_code=400, detail="You cannot delete your own account")

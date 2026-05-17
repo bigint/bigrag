@@ -8,11 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import Webhook, WebhookDelivery
 from bigrag.db.session import get_session
-from bigrag.exceptions import ValidationError
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import require_admin_session
-from bigrag.models.common import StatusResponse
+from bigrag.models import StatusResponse
 from bigrag.models.webhook import (
     CreateWebhookRequest,
     CreateWebhookResponse,
@@ -22,11 +21,12 @@ from bigrag.models.webhook import (
     WebhookListResponse,
     WebhookResponse,
     WebhookTestResponse,
-    resolve_and_validate_url,
 )
 from bigrag.services import audit
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
+from bigrag.services.error_sanitize import safe_error_detail
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 from bigrag.services.runtime_settings import get_value
+from bigrag.services.url_security import validate_webhook_url
 from bigrag.services.webhook import generate_secret, webhook_dispatcher
 
 logger = get_logger("bigrag.routers.webhooks")
@@ -50,9 +50,11 @@ def _delivery_uuid_or_404(value: str) -> uuid.UUID:
 
 async def _validate_webhook_target(url: str) -> None:
     try:
-        await resolve_and_validate_url(url)
+        await validate_webhook_url(url)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400, detail=safe_error_detail(exc, "Webhook URL rejected.")
+        ) from exc
 
 
 def _webhook_response(wh: Webhook) -> WebhookResponse:
@@ -152,12 +154,7 @@ async def list_webhooks(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
-    cursor_tuple = None
-    if cursor:
-        try:
-            cursor_tuple = decode_cursor(cursor)
-        except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    cursor_tuple = decode_cursor_or_400(cursor)
 
     stmt = sa.select(Webhook).order_by(Webhook.created_at.desc(), Webhook.id.desc())
     if cursor_tuple is not None:
@@ -276,12 +273,7 @@ async def list_deliveries(
     if wh_exists is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
-    cursor_tuple = None
-    if cursor:
-        try:
-            cursor_tuple = decode_cursor(cursor)
-        except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    cursor_tuple = decode_cursor_or_400(cursor)
 
     stmt = (
         sa.select(WebhookDelivery)

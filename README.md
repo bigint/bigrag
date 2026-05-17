@@ -23,7 +23,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 - **Webhooks** — HMAC-signed delivery, retries, circuit breaker, admin replay
 - **Encrypted sensitive caches at rest** — provider API keys, webhook secrets, embedding-cache rows, and Redis cache payloads sealed with Fernet (`BIGRAG_MASTER_KEY`)
 - **Self-hostable** — single `docker compose up` to run everything
-- **Clients** — [TypeScript](sdks/typescript), [Python](sdks/python), and [Rust](sdks/rust) SDKs plus an [MCP server](#mcp-server) for Claude Desktop, Cursor, and any MCP-aware runtime
+- **Clients** — [TypeScript](sdks/typescript) and [Python](sdks/python) SDKs plus an [MCP server](#mcp-server) for Claude Desktop, Cursor, and any MCP-aware runtime
 
 ## Quick Start
 
@@ -71,7 +71,7 @@ Python SDK publishes dated PyPI releases.
 graph TD
     MCP([MCP client<br/>Claude / Cursor]) -->|bigrag-mcp| API
     AdminUI([Admin UI]) -->|session cookie| API
-    SDK([TS / Python / Rust SDK]) -->|bigrag_sk_… key| API
+    SDK([TS / Python SDK]) -->|bigrag_sk_… key| API
     Curl([curl / any HTTP client]) -->|bigrag_sk_… key| API
 
     API[bigRAG API<br/>Python / FastAPI]
@@ -256,25 +256,6 @@ doc = await client.documents.upload("docs", "/path/to/paper.pdf")
 
 # Query
 result = await client.queries.query("docs", {"query": "What is RAG?"})
-```
-
-### Rust
-
-```toml
-# Cargo.toml
-[dependencies]
-bigrag = "2026.5.7"
-```
-
-```rust
-use bigrag::BigRag;
-
-let client = BigRag::new("http://localhost:4000", "your-key");
-let result = client.queries().query("docs", bigrag::types::QueryBody {
-    query: "What is RAG?".into(),
-    top_k: Some(10),
-    ..Default::default()
-}).await?;
 ```
 
 ## MCP server

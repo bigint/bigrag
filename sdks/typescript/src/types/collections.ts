@@ -30,11 +30,12 @@ export interface CollectionListOptions {
   name?: string;
   limit?: number;
   offset?: number;
+  include_total?: boolean;
 }
 
 export interface CollectionListResponse {
   collections: Collection[];
-  total: number;
+  total: number | null;
 }
 
 export interface CollectionStatsResponse {

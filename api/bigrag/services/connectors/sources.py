@@ -162,11 +162,20 @@ async def create_source(
     if collection is None:
         raise ValueError("Collection not found")
 
+    meta_dict = dict(metadata or {})
+    bind_tenant_id: str | None = None
+    if collection.tenant_field:
+        raw_tenant = meta_dict.get(collection.tenant_field)
+        if isinstance(raw_tenant, str) and raw_tenant:
+            bind_tenant_id = raw_tenant
+    if bind_tenant_id is not None and account.tenant_id != bind_tenant_id:
+        account.tenant_id = bind_tenant_id
     source = ConnectorSource(
         provider=provider,
         account_id=account.id,
         collection_id=collection.id,
         collection_name=collection.name,
+        tenant_id=bind_tenant_id,
         root_id=root_id,
         root_name=root_name,
         root_mime_type=root_mime_type or "",
@@ -175,7 +184,7 @@ async def create_source(
         sync_interval_hours=24,
         status="syncing",
         next_sync_at=utcnow() + timedelta(hours=24),
-        meta=dict(metadata or {}),
+        meta=meta_dict,
     )
     session.add(source)
     try:
@@ -318,9 +327,9 @@ async def delete_source(
         )
     ).all()
     if manifests:
-        from bigrag.routers._documents import recount_collection_documents
         from bigrag.services.connectors.sync import delete_synced_document
         from bigrag.services.connectors.types import ConnectorSyncCounters
+        from bigrag.services.documents import recount_collection_documents
 
         counters = ConnectorSyncCounters()
         collection = await session.get(Collection, source.collection_id)

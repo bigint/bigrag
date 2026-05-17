@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-
 import sqlalchemy as sa
 
 from bigrag.db.engine import session_factory
@@ -13,18 +11,6 @@ from bigrag.services.runtime_settings import get_values
 logger = get_logger("bigrag.cleanup")
 
 TERMINAL_SESSION_STATUSES = ("complete", "failed", "canceled")
-
-
-async def cleanup_old_data() -> None:
-
-    while True:
-        try:
-            await asyncio.sleep(86400)
-            await cleanup_old_data_once()
-        except asyncio.CancelledError:
-            return
-        except Exception as exc:
-            logger.warning("cleanup failed", error=repr(exc))
 
 
 async def cleanup_old_data_once() -> None:

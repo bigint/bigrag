@@ -5,7 +5,7 @@ import hashlib
 import orjson
 
 from bigrag.logging import get_logger
-from bigrag.middleware._principal import principal_id
+from bigrag.middleware.principal import principal_id
 from bigrag.services import redis_cache
 
 logger = get_logger("bigrag.idempotency")

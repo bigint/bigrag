@@ -16,6 +16,7 @@ import {
   defaultCollectionSearchFormValues,
   validateCollectionSearchFormValues,
 } from "@/features/collections/collection-form-state";
+import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import { useCollection } from "@/hooks/use-collections";
 import { useRunQuery } from "@/hooks/use-query";
 import { errorText, submitWith } from "@/lib/form";
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/_dashboard/collections/$name/search")({
 
 const SearchTab = () => {
   const { name: rawName } = Route.useParams();
-  const name = decodeURIComponent(rawName);
+  const name = decodeCollectionName(rawName);
   const { data: collection } = useCollection(name);
   const run = useRunQuery(name);
   const form = useForm({

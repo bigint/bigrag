@@ -35,7 +35,7 @@ body:
     id: version
     attributes:
       label: bigRAG version
-      placeholder: "0.1.x or commit SHA"
+      placeholder: "2026.5.7 or commit SHA"
     validations:
       required: true
   - type: dropdown

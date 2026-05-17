@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
 import { LinkTabs } from "@/components/ui/tabs";
+import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import {
   collectionConnectorProviders,
   connectorCollectionHref,
@@ -11,7 +12,7 @@ export const Route = createFileRoute("/_dashboard/collections/$name/connectors")
 
 const ConnectorsLayout = () => {
   const { name: rawName } = Route.useParams();
-  const name = decodeURIComponent(rawName);
+  const name = decodeCollectionName(rawName);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const tabs = collectionConnectorProviders.map((provider) => {
     const href = connectorCollectionHref(name, provider);

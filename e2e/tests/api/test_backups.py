@@ -108,7 +108,8 @@ async def test_list_backups_rejects_api_key(
 
 async def test_list_backups_returns_shape(admin_client: httpx.AsyncClient) -> None:
     resp = await admin_client.get(
-        "/v1/admin/backups", params={"limit": 5, "offset": 0}
+        "/v1/admin/backups",
+        params={"limit": 5, "offset": 0, "include_total": "true"},
     )
     body = assert_envelope(resp, 200)
     assert "jobs" in body and isinstance(body["jobs"], list)

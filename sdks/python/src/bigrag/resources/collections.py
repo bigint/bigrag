@@ -1,5 +1,3 @@
-"""Collection management resource."""
-
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
@@ -8,6 +6,7 @@ from urllib.parse import quote
 
 from bigrag._errors import error_for_status
 from bigrag._sse import parse_sse_stream
+from bigrag.types.analytics import AnalyticsResponse
 from bigrag.types.collections import (
     Collection,
     CollectionListResponse,
@@ -23,10 +22,6 @@ if TYPE_CHECKING:
 
 
 class CollectionsResource:
-    """Resource namespace for collection management.
-
-    Access via ``client.collections``.
-    """
 
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
@@ -38,7 +33,6 @@ class CollectionsResource:
         limit: int | None = None,
         offset: int | None = None,
     ) -> CollectionListResponse:
-        """List collections with optional filtering and pagination."""
         params: dict[str, str] = {}
         if name is not None:
             params["name"] = name
@@ -49,47 +43,44 @@ class CollectionsResource:
         return await self._client._request("GET", "/v1/collections", params=params)
 
     async def get(self, name: str) -> Collection:
-        """Retrieve a single collection by name."""
         return await self._client._request(
             "GET", f"/v1/collections/{quote(name, safe='')}"
         )
 
     async def create(self, body: CreateCollectionBody) -> Collection:
-        """Create a new collection."""
         return await self._client._request("POST", "/v1/collections", json=body)
 
     async def update(self, name: str, body: UpdateCollectionBody) -> Collection:
-        """Update an existing collection."""
         return await self._client._request(
             "PUT", f"/v1/collections/{quote(name, safe='')}", json=body
         )
 
     async def delete(self, name: str) -> StatusResponse:
-        """Delete a collection and all its documents."""
         return await self._client._request(
             "DELETE", f"/v1/collections/{quote(name, safe='')}"
         )
 
     async def stats(self, name: str) -> CollectionStatsResponse:
-        """Get statistics for a collection."""
         return await self._client._request(
             "GET", f"/v1/collections/{quote(name, safe='')}/stats"
         )
 
+    async def analytics(self, name: str) -> AnalyticsResponse:
+        return await self._client._request(
+            "GET", f"/v1/collections/{quote(name, safe='')}/analytics"
+        )
+
     async def truncate(self, name: str) -> StatusResponse:
-        """Truncate a collection — delete all documents and vectors."""
         return await self._client._request(
             "POST", f"/v1/collections/{quote(name, safe='')}/truncate"
         )
 
     async def reembed(self, name: str) -> StatusResponse:
-        """Queue all ready/failed documents in a collection for re-embedding."""
         return await self._client._request(
             "POST", f"/v1/collections/{quote(name, safe='')}/reembed"
         )
 
     async def stream_events(self, name: str) -> AsyncGenerator[ProgressEvent, None]:
-        """Stream real-time events for a collection via SSE."""
         path = f"/v1/collections/{quote(name, safe='')}/events"
         url = f"{self._client.base_url}{path}"
         async with self._client._client.stream(

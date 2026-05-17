@@ -6,7 +6,6 @@ from typing import Any
 import httpx
 
 from bigrag.db.models import ConnectorAccount, ConnectorSource
-from bigrag.routers._documents import SUPPORTED_EXTENSIONS
 from bigrag.services.connector_core import (
     ConnectorAuthError,
     ConnectorConfigError,
@@ -16,6 +15,7 @@ from bigrag.services.connector_core import (
     RemoteConnectorFile,
     parse_dt,
 )
+from bigrag.services.documents import SUPPORTED_EXTENSIONS
 
 GOOGLE_PROVIDER = "google_drive"
 GOOGLE_FOLDER_MIME = "application/vnd.google-apps.folder"

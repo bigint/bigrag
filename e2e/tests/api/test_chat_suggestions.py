@@ -14,40 +14,15 @@ assert ``200`` + persisted round-trip.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from typing import Any
-
 import httpx
 
-from tests._helpers import assert_envelope, poll_until
-
-
-CollectionFactory = Callable[..., Awaitable[dict[str, Any]]]
-DocumentFactory = Callable[..., Awaitable[dict[str, Any]]]
-
-
-async def _wait_until_searchable(
-    admin_client: httpx.AsyncClient,
-    collection_name: str,
-    query: str,
-    *,
-    timeout: float = 30.0,
-) -> None:
-    async def _do() -> dict[str, Any]:
-        resp = await admin_client.post(
-            f"/v1/collections/{collection_name}/query",
-            json={"query": query, "top_k": 3},
-        )
-        return assert_envelope(resp, 200)
-
-    await poll_until(
-        _do,
-        predicate=lambda body: len(body.get("results") or []) > 0,
-        timeout=timeout,
-        interval=0.5,
-        description=f"results for {query!r} on {collection_name}",
-    )
-
+from tests._helpers import (
+    CollectionFactory,
+    DocumentFactory,
+    assert_envelope,
+    seed_collection,
+    wait_until_searchable,
+)
 
 # ---------------------------------------------------------------------------
 # GET /v1/chat/question-suggestions
@@ -143,10 +118,8 @@ async def test_post_question_suggestions_round_trip_or_upstream_error(
 
     Both outcomes confirm the auth/scope/collection plumbing is wired.
     """
-    coll = await collection()
-    doc = await document(coll["name"], fixture="sample.txt")
-    assert doc["status"] == "ready"
-    await _wait_until_searchable(admin_client, coll["name"], "Acme")
+    coll = await seed_collection(collection, document, fixtures=("sample.txt",))
+    await wait_until_searchable(admin_client, coll["name"], "Acme", top_k=3)
 
     post = await admin_client.post(
         "/v1/chat/question-suggestions",

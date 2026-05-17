@@ -8,10 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import ApiKey
 from bigrag.db.session import get_session
-from bigrag.exceptions import ValidationError
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_api_key_principal, require_admin_session
+from bigrag.models import StatusResponse
 from bigrag.models.auth import (
     ApiKeyListResponse,
     ApiKeyResponse,
@@ -19,19 +19,16 @@ from bigrag.models.auth import (
     CreateApiKeyResponse,
     UpdateApiKeyRequest,
 )
-from bigrag.models.common import StatusResponse
-from bigrag.routers import validate_collection_name
+from bigrag.routers import uuid_or_404, validate_collection_name
 from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
+from bigrag.services.error_sanitize import safe_error_detail
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
+from bigrag.services.scopes import is_mcp_key, mcp_permissions_filter
 
 logger = get_logger("bigrag.routers.admin_api_keys")
 
 router = APIRouter(prefix="/v1/admin/api-keys", tags=["admin:api-keys"])
-
-
-def _mcp_permissions_filter():
-    return ApiKey.permissions.op("?")("mcp")
 
 
 def _key_response(key: ApiKey) -> ApiKeyResponse:
@@ -62,12 +59,6 @@ def _validate_scopes(scopes: list[str] | None) -> None:
         validate_scope_string(s)
 
 
-def _is_mcp_key(key: ApiKey) -> bool:
-
-    permissions = key.permissions or {}
-    return isinstance(permissions, dict) and isinstance(permissions.get("mcp"), dict)
-
-
 @router.get("", response_model=ApiKeyListResponse)
 async def list_api_keys(
     limit: int = Query(default=50, ge=1, le=200),
@@ -77,14 +68,9 @@ async def list_api_keys(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ApiKeyListResponse:
-    cursor_tuple = None
-    if cursor:
-        try:
-            cursor_tuple = decode_cursor(cursor)
-        except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    cursor_tuple = decode_cursor_or_400(cursor)
 
-    base = sa.select(ApiKey).where(sa.not_(_mcp_permissions_filter()))
+    base = sa.select(ApiKey).where(sa.not_(mcp_permissions_filter()))
     stmt = base.order_by(ApiKey.created_at.desc(), ApiKey.id.desc())
     if cursor_tuple is not None:
         stmt = apply_cursor(stmt, ApiKey.created_at, ApiKey.id, cursor_tuple).limit(limit + 1)
@@ -100,7 +86,7 @@ async def list_api_keys(
             await session.scalar(
                 sa.select(sa.func.count())
                 .select_from(ApiKey)
-                .where(sa.not_(_mcp_permissions_filter()))
+                .where(sa.not_(mcp_permissions_filter()))
             )
         ) or 0
     return ApiKeyListResponse(
@@ -120,7 +106,7 @@ async def create_api_key(
     try:
         _validate_scopes(body.scopes)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise HTTPException(status_code=400, detail=safe_error_detail(e, "Invalid scopes.")) from e
 
     collection = await validate_collection_name(session, body.collection)
     permissions: dict = {}
@@ -167,13 +153,10 @@ async def update_api_key(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ApiKeyResponse:
-    try:
-        target_id = uuid.UUID(key_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="API key not found") from e
+    target_id = uuid_or_404(key_id, "API key")
 
     key = await session.get(ApiKey, target_id)
-    if key is None or _is_mcp_key(key):
+    if key is None or is_mcp_key(key):
         raise HTTPException(status_code=404, detail="API key not found")
     previous_hash = key.key_hash
 
@@ -192,7 +175,9 @@ async def update_api_key(
         try:
             _validate_scopes(body.scopes)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from e
+            raise HTTPException(
+                status_code=400, detail=safe_error_detail(e, "Invalid scopes.")
+            ) from e
         if body.scopes:
             existing["scopes"] = body.scopes
         else:
@@ -229,13 +214,10 @@ async def rotate_api_key(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> CreateApiKeyResponse:
-    try:
-        target_id = uuid.UUID(key_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="API key not found") from e
+    target_id = uuid_or_404(key_id, "API key")
 
     key = await session.get(ApiKey, target_id)
-    if key is None or _is_mcp_key(key):
+    if key is None or is_mcp_key(key):
         raise HTTPException(status_code=404, detail="API key not found")
     previous_hash = key.key_hash
     plaintext, prefix, key_hash = generate_api_key()
@@ -265,13 +247,10 @@ async def delete_api_key(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
-    try:
-        target_id = uuid.UUID(key_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="API key not found") from e
+    target_id = uuid_or_404(key_id, "API key")
 
     key = await session.get(ApiKey, target_id)
-    if key is None or _is_mcp_key(key):
+    if key is None or is_mcp_key(key):
         raise HTTPException(status_code=404, detail="API key not found")
     deleted_name = key.name
     deleted_hash = key.key_hash

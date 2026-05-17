@@ -1,12 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { useRouterState } from "@tanstack/react-router";
 import { Menu as MenuIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Logo } from "@/components/brand/logo";
 import { MobileSidebar, Sidebar } from "@/components/navigation/sidebar";
-import { Button } from "@/components/ui/button";
-import { PageContainer } from "@/components/ui/page-container";
+import { ApiUnreachable } from "@/components/status/api-unreachable";
+import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
+import { useAuthGate } from "@/features/auth/use-auth-gate";
 import { useSession, useSetupStatus } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -14,36 +15,20 @@ const FULL_HEIGHT_ROUTES = ["/overview", "/chat"];
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const location = useRouterState({ select: (state) => state.location });
   const pathname = location.pathname;
   const currentHref = location.href || pathname;
-  const {
-    data: setupStatus,
-    error: setupError,
-    isError: setupIsError,
-    isPending: setupPending,
-  } = useSetupStatus();
-  const { data: session, error: sessionError, isError, isPending } = useSession();
+  const { error: setupError, isPending: setupPending } = useSetupStatus();
+  const { data: session, error: sessionError, isPending } = useSession();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  useDashboardAuthRedirect(
-    {
-      hasSession: Boolean(session),
-      isError,
-      isPending,
-      needsSetup: setupStatus?.needs_setup,
-      setupIsError,
-      setupPending,
-    },
-    navigate,
-    currentHref,
-  );
+  useAuthGate({ when: "setup-needed", to: "/setup" });
+  useAuthGate({ when: "logged-out", to: "/login", search: { from: currentHref } });
 
   const authError = setupError ?? sessionError;
   if (authError && !session) {
     return (
-      <AuthErrorState
+      <ApiUnreachable
         error={authError}
         onRetry={() => {
           queryClient.invalidateQueries({ queryKey: queryKeys.auth.all() });
@@ -90,60 +75,10 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           children
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-6 md:px-8 lg:px-10">
-            <PageContainer>{children}</PageContainer>
+            <Page.Container>{children}</Page.Container>
           </div>
         )}
       </main>
     </div>
   );
 };
-
-type DashboardAuthState = {
-  readonly hasSession: boolean;
-  readonly isError: boolean;
-  readonly isPending: boolean;
-  readonly needsSetup: boolean | undefined;
-  readonly setupIsError: boolean;
-  readonly setupPending: boolean;
-};
-
-const useDashboardAuthRedirect = (
-  { hasSession, isError, isPending, needsSetup, setupIsError, setupPending }: DashboardAuthState,
-  navigate: ReturnType<typeof useNavigate>,
-  currentHref: string,
-) => {
-  useEffect(() => {
-    if (isPending || setupPending || setupIsError) return;
-    if (hasSession || isError) return;
-    if (needsSetup) {
-      navigate({ to: "/setup", replace: true });
-      return;
-    }
-    if (!hasSession) {
-      navigate({ to: "/login", search: { from: currentHref }, replace: true });
-    }
-  }, [
-    currentHref,
-    hasSession,
-    isPending,
-    isError,
-    needsSetup,
-    navigate,
-    setupIsError,
-    setupPending,
-  ]);
-};
-
-const AuthErrorState = ({ error, onRetry }: { error: unknown; onRetry: () => void }) => (
-  <div className="flex min-h-screen items-center justify-center bg-background px-6">
-    <div className="w-full max-w-md rounded-xl border border-border bg-card p-6">
-      <h1 className="text-base font-semibold">API unreachable</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {error instanceof Error ? error.message : "The bigRAG API did not respond."}
-      </p>
-      <Button className="mt-4" onClick={onRetry}>
-        Retry
-      </Button>
-    </div>
-  </div>
-);

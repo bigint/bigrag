@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { ApiUnreachable } from "@/components/status/api-unreachable";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession, useSetupStatus } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
@@ -36,20 +36,10 @@ const Home = () => {
   const error = setupError ?? sessionError;
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-6">
-        <div className="w-full max-w-md rounded-xl border border-border bg-card p-6">
-          <h1 className="text-base font-semibold">API unreachable</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {error instanceof Error ? error.message : "The bigRAG API did not respond."}
-          </p>
-          <Button
-            className="mt-4"
-            onClick={() => queryClient.invalidateQueries({ queryKey: queryKeys.auth.all() })}
-          >
-            Retry
-          </Button>
-        </div>
-      </div>
+      <ApiUnreachable
+        error={error}
+        onRetry={() => queryClient.invalidateQueries({ queryKey: queryKeys.auth.all() })}
+      />
     );
   }
 

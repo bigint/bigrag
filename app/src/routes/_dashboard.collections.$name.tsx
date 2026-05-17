@@ -1,9 +1,9 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft, Layers, type Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/ui/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { Page } from "@/components/ui/page";
 import { LinkTabs } from "@/components/ui/tabs";
+import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import { useCollection, useCollectionStats } from "@/hooks/use-collections";
 import { formatBytes, formatNumber } from "@/lib/format";
 
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_dashboard/collections/$name")({
 
 const CollectionLayout = () => {
   const { name: rawName } = Route.useParams();
-  const name = decodeURIComponent(rawName);
+  const name = decodeCollectionName(rawName);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { data: collection } = useCollection(name);
   const { data: stats } = useCollectionStats(name);
@@ -33,7 +33,7 @@ const CollectionLayout = () => {
   }));
 
   return (
-    <PageShell>
+    <Page.Shell>
       <Link
         to="/collections"
         className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
@@ -42,7 +42,7 @@ const CollectionLayout = () => {
         All collections
       </Link>
 
-      <PageHeader
+      <Page.Header
         className="mb-0"
         eyebrow="Collection"
         title={name}
@@ -78,7 +78,7 @@ const CollectionLayout = () => {
       <div>
         <Outlet />
       </div>
-    </PageShell>
+    </Page.Shell>
   );
 };
 

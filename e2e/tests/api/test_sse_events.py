@@ -14,11 +14,12 @@ from typing import Any
 
 import httpx
 
-from tests._helpers import assert_envelope, read_fixture, unique_name
-
-
-CollectionFactory = Callable[..., Awaitable[dict[str, Any]]]
-DocumentFactory = Callable[..., Awaitable[dict[str, Any]]]
+from tests._helpers import (
+    CollectionFactory,
+    assert_envelope,
+    read_fixture,
+    unique_name,
+)
 
 
 def _parse_sse_data(raw_block: str) -> list[dict[str, Any]]:

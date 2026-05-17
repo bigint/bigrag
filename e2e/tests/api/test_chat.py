@@ -8,43 +8,20 @@ Endpoints covered:
 from __future__ import annotations
 
 import json
-from collections.abc import Awaitable, Callable
 from typing import Any
 
 import httpx
 import pytest
 
-from tests._helpers import assert_envelope, poll_until
-
-
-CollectionFactory = Callable[..., Awaitable[dict[str, Any]]]
-DocumentFactory = Callable[..., Awaitable[dict[str, Any]]]
-ApiKeyFactory = Callable[..., Awaitable[dict[str, Any]]]
-ApiKeyClientFactory = Callable[..., Awaitable[httpx.AsyncClient]]
-
-
-async def _wait_until_searchable(
-    admin_client: httpx.AsyncClient,
-    collection_name: str,
-    query: str,
-    *,
-    timeout: float = 30.0,
-) -> None:
-    async def _do() -> dict[str, Any]:
-        resp = await admin_client.post(
-            f"/v1/collections/{collection_name}/query",
-            json={"query": query, "top_k": 3},
-        )
-        return assert_envelope(resp, 200)
-
-    await poll_until(
-        _do,
-        predicate=lambda body: len(body.get("results") or []) > 0,
-        timeout=timeout,
-        interval=0.5,
-        description=f"results for {query!r} on {collection_name}",
-    )
-
+from tests._helpers import (
+    ApiKeyClientFactory,
+    ApiKeyFactory,
+    CollectionFactory,
+    DocumentFactory,
+    assert_envelope,
+    seed_collection,
+    wait_until_searchable,
+)
 
 # ---------------------------------------------------------------------------
 # Non-streaming chat
@@ -59,7 +36,7 @@ async def test_chat_non_streaming_returns_assistant_with_sources(
     coll = await collection()
     doc = await document(coll["name"], fixture="sample.txt")
     assert doc["status"] == "ready"
-    await _wait_until_searchable(admin_client, coll["name"], "Acme Corp")
+    await wait_until_searchable(admin_client, coll["name"], "Acme Corp", top_k=3)
 
     resp = await admin_client.post(
         "/v1/chat",
@@ -86,9 +63,8 @@ async def test_chat_non_streaming_model_override_propagates(
     collection: CollectionFactory,
     document: DocumentFactory,
 ) -> None:
-    coll = await collection()
-    await document(coll["name"], fixture="sample.txt")
-    await _wait_until_searchable(admin_client, coll["name"], "Acme")
+    coll = await seed_collection(collection, document, fixtures=("sample.txt",))
+    await wait_until_searchable(admin_client, coll["name"], "Acme", top_k=3)
 
     resp = await admin_client.post(
         "/v1/chat",
@@ -108,9 +84,8 @@ async def test_chat_non_streaming_top_k_passes_through(
     collection: CollectionFactory,
     document: DocumentFactory,
 ) -> None:
-    coll = await collection()
-    await document(coll["name"], fixture="sample.txt")
-    await _wait_until_searchable(admin_client, coll["name"], "Acme")
+    coll = await seed_collection(collection, document, fixtures=("sample.txt",))
+    await wait_until_searchable(admin_client, coll["name"], "Acme", top_k=3)
 
     resp = await admin_client.post(
         "/v1/chat",
@@ -154,9 +129,8 @@ async def test_chat_api_key_without_chat_write_scope_403(
     document: DocumentFactory,
     admin_client: httpx.AsyncClient,
 ) -> None:
-    coll = await collection()
-    await document(coll["name"], fixture="sample.txt")
-    await _wait_until_searchable(admin_client, coll["name"], "Acme")
+    coll = await seed_collection(collection, document, fixtures=("sample.txt",))
+    await wait_until_searchable(admin_client, coll["name"], "Acme", top_k=3)
 
     key = await api_key(scopes=["query:read"])
     client = await api_key_client(key=key)
@@ -178,9 +152,8 @@ async def test_chat_api_key_with_chat_write_scope_works(
     document: DocumentFactory,
     admin_client: httpx.AsyncClient,
 ) -> None:
-    coll = await collection()
-    await document(coll["name"], fixture="sample.txt")
-    await _wait_until_searchable(admin_client, coll["name"], "Acme")
+    coll = await seed_collection(collection, document, fixtures=("sample.txt",))
+    await wait_until_searchable(admin_client, coll["name"], "Acme", top_k=3)
 
     key = await api_key(scopes=["chat:write"])
     client = await api_key_client(key=key)
@@ -238,10 +211,8 @@ async def test_chat_streaming_yields_deltas_and_completion(
     collection: CollectionFactory,
     document: DocumentFactory,
 ) -> None:
-    coll = await collection()
-    doc = await document(coll["name"], fixture="sample.txt")
-    assert doc["status"] == "ready"
-    await _wait_until_searchable(admin_client, coll["name"], "Acme")
+    coll = await seed_collection(collection, document, fixtures=("sample.txt",))
+    await wait_until_searchable(admin_client, coll["name"], "Acme", top_k=3)
 
     raw_lines: list[str] = []
     async with admin_client.stream(

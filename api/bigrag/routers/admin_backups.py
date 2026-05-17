@@ -8,13 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import BackupJob
 from bigrag.db.session import get_session
-from bigrag.exceptions import ValidationError
 from bigrag.middleware.auth import require_admin_session
 from bigrag.models.backup import BackupCreateRequest, BackupJobListResponse, BackupJobResponse
 from bigrag.services import audit
 from bigrag.services.backup import BackupConfigError, create_backup_job
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.jobs.actors import enqueue_backup_job
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 
 router = APIRouter(prefix="/v1/admin/backups", tags=["admin:backups"])
 
@@ -47,12 +47,7 @@ async def list_backup_jobs(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> BackupJobListResponse:
-    cursor_tuple = None
-    if cursor:
-        try:
-            cursor_tuple = decode_cursor(cursor)
-        except ValidationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    cursor_tuple = decode_cursor_or_400(cursor)
 
     stmt = sa.select(BackupJob).order_by(BackupJob.created_at.desc(), BackupJob.id.desc())
     if cursor_tuple is not None:
@@ -99,7 +94,9 @@ async def start_backup_job(
     try:
         job = await create_backup_job(label=body.label, created_by=user_id)
     except BackupConfigError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=409, detail=safe_error_detail(exc, "Backup is not configured.")
+        ) from exc
     audit.record(
         request,
         user=admin,
