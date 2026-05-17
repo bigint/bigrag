@@ -5,7 +5,6 @@
 - `api/` — Python/FastAPI backend (Docling ingestion + Qdrant vector DB)
 - `sdks/typescript/` — TypeScript SDK (`@bigrag/client`)
 - `sdks/python/` — Python SDK (`bigrag`)
-- `sdks/rust/` — Rust SDK (`bigrag`)
 - `app/` — admin UI (Vite + TanStack Router + Tailwind v4 + Base UI, `@bigrag/app`)
 - `website/` — Documentation site (Next.js + Fumadocs, content in `website/content/docs/`)
 
@@ -30,13 +29,11 @@ Don't write comments or docstrings in code under `api/bigrag/`, `sdks/typescript
 - **Python backend**: `uv` (lockfile at `api/uv.lock`)
 - **Python SDK**: `uv` (lockfile at `sdks/python/uv.lock`)
 - **TypeScript SDK + Website + App**: `pnpm` workspaces (root `pnpm-workspace.yaml`)
-- **Rust SDK**: `cargo` (lockfile at `sdks/rust/Cargo.lock`)
 
 ## Linting
 
 - **Python**: `ruff` (config in `api/pyproject.toml`)
 - **TypeScript/JS**: `biome` (config in `biome.jsonc`)
-- **Rust**: `cargo fmt`
 
 **Always run lint + format before committing.** Either let the pre-commit hook run them, or invoke them manually — never commit unformatted code:
 
@@ -51,9 +48,6 @@ uv run --project api ruff format sdks/python/src
 
 # TS / JS / JSON / CSS (everything else)
 pnpm exec biome check --write .
-
-# Rust SDK
-cargo fmt --manifest-path sdks/rust/Cargo.toml
 ```
 
 ### Pre-commit hook

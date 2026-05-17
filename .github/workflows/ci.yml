@@ -79,21 +79,6 @@ jobs:
         run: uv build
         working-directory: sdks/python
 
-  rust-sdk-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust format check
-        run: cargo fmt --check
-        working-directory: sdks/rust
-
-      - name: Rust compile check
-        run: cargo check
-        working-directory: sdks/rust
-
   website-build:
     runs-on: ubuntu-latest
     steps:

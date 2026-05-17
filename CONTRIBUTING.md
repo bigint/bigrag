@@ -87,7 +87,6 @@ pnpm --filter @bigrag/docs build
 # SDK and app build checks
 pnpm --filter @bigrag/client build
 pnpm --filter @bigrag/app build
-cargo check --manifest-path sdks/rust/Cargo.toml
 
 # Lint everything
 pnpm lint          # TypeScript (Biome)

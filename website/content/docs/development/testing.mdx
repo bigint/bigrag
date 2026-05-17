@@ -21,8 +21,6 @@ pnpm --filter @bigrag/client typecheck
 pnpm --filter @bigrag/client build
 cd api && uv run ruff check . && uv run ruff format --check .
 cd sdks/python && uv build
-cargo fmt --manifest-path sdks/rust/Cargo.toml --check
-cargo check --manifest-path sdks/rust/Cargo.toml
 ```
 
 The docs package runs `fumadocs-mdx` before `next build`, so a clean checkout or container build generates `website/.source` before Turbopack resolves the docs source imports.
@@ -31,7 +29,7 @@ The admin app scripts generate and clean `app/src/routeTree.gen.ts` before Vite 
 
 ## CI verification
 
-CI currently keeps formatter, lint, typecheck, SDK build, docs build, admin UI build, Rust formatting and compile checks, and the API/SDK end-to-end workflow. It does not run package-level test, coverage, or UI end-to-end jobs.
+CI currently keeps formatter, lint, typecheck, SDK build, docs build, admin UI build, and the API/SDK end-to-end workflow. It does not run package-level test, coverage, or UI end-to-end jobs.
 
 The E2E workflow uses the local fake OpenAI service only. There is no maintained real OpenAI smoke job.
 
