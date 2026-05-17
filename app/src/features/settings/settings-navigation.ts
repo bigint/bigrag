@@ -45,7 +45,7 @@ const SETTINGS_NAV_GROUPS: readonly SettingsNavGroup[] = [
         value: "security",
       },
       {
-        description: "File storage, ingestion, queues, webhooks, and retention.",
+        description: "Ingestion, queues, webhooks, and retention.",
         icon: Database,
         label: "Data",
         value: "data",
@@ -60,7 +60,6 @@ export const SETTINGS_NAV_ITEMS = SETTINGS_NAV_GROUPS.flatMap((group) => group.i
 const SETTINGS_TAB_VALUES = new Set<SettingsTab>(SETTINGS_NAV_ITEMS.map((item) => item.value));
 
 export const DATA_SETTINGS_GROUPS: readonly InstanceSettingGroup[] = [
-  "storage",
   "ingestion",
   "queue",
   "retention",
