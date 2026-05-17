@@ -7,8 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import Session as DbSession
-from bigrag.db.models import User
+from bigrag.db.models import User, UserSession
 from bigrag.db.session import get_session
 from bigrag.exceptions import ValidationError
 from bigrag.ids import uuid7
@@ -155,7 +154,7 @@ async def update_user(
         fields.append("password")
 
     if password_changed:
-        await session.execute(sa.delete(DbSession).where(DbSession.user_id == target_id))
+        await session.execute(sa.delete(UserSession).where(UserSession.user_id == target_id))
     try:
         await session.commit()
     except IntegrityError as e:

@@ -10,8 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag import config as _config
 from bigrag.db.engine import session_factory
-from bigrag.db.models import ApiKey, User
-from bigrag.db.models import Session as DbSession
+from bigrag.db.models import ApiKey, User, UserSession
 from bigrag.logging import get_logger
 from bigrag.services import redis_cache
 from bigrag.services.auth import API_KEY_PREFIX, api_key_hashes_for_lookup, hash_session_token
@@ -70,10 +69,10 @@ async def _user_from_session(request: Request, session: AsyncSession) -> dict | 
 
     row = (
         await session.execute(
-            select(User, DbSession.expires_at)
-            .join(DbSession, DbSession.user_id == User.id)
-            .where(DbSession.token_hash == token_hash)
-            .where(DbSession.expires_at > datetime.now(UTC))
+            select(User, UserSession.expires_at)
+            .join(UserSession, UserSession.user_id == User.id)
+            .where(UserSession.token_hash == token_hash)
+            .where(UserSession.expires_at > datetime.now(UTC))
         )
     ).first()
     if row is None:

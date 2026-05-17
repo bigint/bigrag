@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from bigrag.db.models.auth import ApiKey, Session, User
+from bigrag.db.models.auth import ApiKey, User, UserSession
 from bigrag.db.models.collection import Collection, EmbeddingCache, EmbeddingPreset
 from bigrag.db.models.connector import (
     ConnectorAccount,
@@ -38,10 +38,10 @@ __all__ = [
     "InstanceSetting",
     "MaintenanceLock",
     "QueryLog",
-    "Session",
     "UploadSession",
     "UploadSessionItem",
     "User",
+    "UserSession",
     "UserPreference",
     "Webhook",
     "WebhookDelivery",

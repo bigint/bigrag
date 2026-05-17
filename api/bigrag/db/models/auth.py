@@ -29,7 +29,7 @@ class User(Base):
     updated_at: Mapped[TSupd]
 
 
-class Session(Base):
+class UserSession(Base):
     __tablename__ = "sessions"
     __table_args__ = (
         sa.Index("idx_sessions_user_id", "user_id"),
