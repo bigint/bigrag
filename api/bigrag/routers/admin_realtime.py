@@ -20,7 +20,8 @@ from bigrag.routers.admin_audit import list_audit_log
 from bigrag.routers.admin_backups import list_backup_jobs
 from bigrag.routers.collections import get_collection_stats
 from bigrag.routers.connectors import connector_sources, connector_sync_jobs
-from bigrag.routers.documents import batch_get_status, get_document, list_documents
+from bigrag.routers.documents import get_document, list_documents
+from bigrag.routers.documents_batch import batch_get_status
 from bigrag.routers.health import platform_stats, readiness
 from bigrag.routers.upload_sessions import get_upload_session as upload_session_detail
 from bigrag.routers.usage import get_usage
