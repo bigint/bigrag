@@ -313,6 +313,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("provider", sa.Text(), nullable=False),
         sa.Column("user_id", sa.Uuid(), nullable=False),
+        sa.Column("tenant_id", sa.Text(), nullable=True),
         sa.Column("account_email", sa.Text(), nullable=True),
         sa.Column("access_token", bigrag.services.crypto.EncryptedString(), nullable=True),
         sa.Column("refresh_token", bigrag.services.crypto.EncryptedString(), nullable=True),
@@ -355,6 +356,9 @@ def upgrade() -> None:
     )
     op.create_index(
         "idx_connector_accounts_oauth_state", "connector_accounts", ["oauth_state"], unique=False
+    )
+    op.create_index(
+        "idx_connector_accounts_tenant_id", "connector_accounts", ["tenant_id"], unique=False
     )
     op.create_index(
         "idx_connector_accounts_user_provider",
@@ -586,6 +590,7 @@ def upgrade() -> None:
         sa.Column("account_id", sa.Uuid(), nullable=False),
         sa.Column("collection_id", sa.Uuid(), nullable=False),
         sa.Column("collection_name", sa.Text(), nullable=False),
+        sa.Column("tenant_id", sa.Text(), nullable=True),
         sa.Column("root_id", sa.Text(), nullable=False),
         sa.Column("root_name", sa.Text(), nullable=False),
         sa.Column("root_mime_type", sa.Text(), server_default="", nullable=False),
@@ -642,6 +647,9 @@ def upgrade() -> None:
     )
     op.create_index(
         "idx_connector_sources_next_sync", "connector_sources", ["next_sync_at"], unique=False
+    )
+    op.create_index(
+        "idx_connector_sources_tenant_id", "connector_sources", ["tenant_id"], unique=False
     )
     op.create_table(
         "documents",
@@ -1070,6 +1078,7 @@ def downgrade() -> None:
     op.drop_index("idx_documents_collection_hash", table_name="documents")
     op.drop_index("idx_documents_collection_created_at", table_name="documents")
     op.drop_table("documents")
+    op.drop_index("idx_connector_sources_tenant_id", table_name="connector_sources")
     op.drop_index("idx_connector_sources_next_sync", table_name="connector_sources")
     op.drop_index("idx_connector_sources_collection_id", table_name="connector_sources")
     op.drop_index("idx_connector_sources_account_id", table_name="connector_sources")
@@ -1101,6 +1110,7 @@ def downgrade() -> None:
     op.drop_table("sessions")
     op.drop_table("instance_settings")
     op.drop_index("idx_connector_accounts_user_provider", table_name="connector_accounts")
+    op.drop_index("idx_connector_accounts_tenant_id", table_name="connector_accounts")
     op.drop_index("idx_connector_accounts_oauth_state", table_name="connector_accounts")
     op.drop_table("connector_accounts")
     op.drop_index("idx_collections_name", table_name="collections")

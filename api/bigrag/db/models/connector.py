@@ -38,6 +38,7 @@ class ConnectorAccount(Base):
     __table_args__ = (
         sa.Index("idx_connector_accounts_user_provider", "user_id", "provider"),
         sa.Index("idx_connector_accounts_oauth_state", "oauth_state"),
+        sa.Index("idx_connector_accounts_tenant_id", "tenant_id"),
         sa.UniqueConstraint("user_id", "provider", name="uq_connector_accounts_user_provider"),
         sa.CheckConstraint(
             "provider <> ''",
@@ -54,6 +55,7 @@ class ConnectorAccount(Base):
     user_id: Mapped[UUID] = mapped_column(
         sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    tenant_id: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     account_email: Mapped[str | None] = mapped_column(sa.Text)
     access_token: Mapped[str | None] = mapped_column(EncryptedString)
     refresh_token: Mapped[str | None] = mapped_column(EncryptedString)
@@ -77,6 +79,7 @@ class ConnectorSource(Base):
         sa.Index("idx_connector_sources_account_id", "account_id"),
         sa.Index("idx_connector_sources_collection_id", "collection_id"),
         sa.Index("idx_connector_sources_next_sync", "next_sync_at"),
+        sa.Index("idx_connector_sources_tenant_id", "tenant_id"),
         sa.UniqueConstraint(
             "account_id",
             "collection_id",
@@ -106,6 +109,7 @@ class ConnectorSource(Base):
         sa.ForeignKey("collections.id", ondelete="CASCADE"), nullable=False
     )
     collection_name: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    tenant_id: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     root_id: Mapped[str] = mapped_column(sa.Text, nullable=False)
     root_name: Mapped[str] = mapped_column(sa.Text, nullable=False)
     root_mime_type: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")

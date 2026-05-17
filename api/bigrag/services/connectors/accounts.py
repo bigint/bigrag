@@ -82,12 +82,16 @@ async def get_connector_account(
     *,
     provider: str,
     user_id: str | uuid.UUID,
+    tenant_id: str | None = None,
 ) -> ConnectorAccount | None:
-    return await session.scalar(
+    stmt = (
         sa.select(ConnectorAccount)
         .where(ConnectorAccount.provider == provider)
         .where(ConnectorAccount.user_id == uuid.UUID(str(user_id)))
     )
+    if tenant_id is not None:
+        stmt = stmt.where(ConnectorAccount.tenant_id == tenant_id)
+    return await session.scalar(stmt)
 
 
 def account_public(
@@ -122,17 +126,23 @@ async def prepare_oauth_account(
     user_id: str,
     redirect_path: str,
     redirect_origin: str | None,
+    tenant_id: str | None = None,
 ) -> tuple[ConnectorAccount, str]:
     state = secrets.token_urlsafe(32)
     user_uuid = uuid.UUID(user_id)
-    account = await get_connector_account(session, provider=provider, user_id=user_uuid)
+    account = await get_connector_account(
+        session, provider=provider, user_id=user_uuid, tenant_id=tenant_id
+    )
     if account is None:
         account = ConnectorAccount(
             provider=provider,
             user_id=user_uuid,
+            tenant_id=tenant_id,
             status="pending",
         )
         session.add(account)
+    elif tenant_id is not None and account.tenant_id != tenant_id:
+        account.tenant_id = tenant_id
     account.oauth_state = state
     account.status = "pending" if account.status != "connected" else account.status
     account.meta = {
@@ -163,10 +173,13 @@ async def oauth_error_redirect_url(
     user_id: str,
     state: str | None,
     path: str,
+    tenant_id: str | None = None,
 ) -> str:
     if not state:
         return path
-    account = await get_connector_account(session, provider=provider, user_id=user_id)
+    account = await get_connector_account(
+        session, provider=provider, user_id=user_id, tenant_id=tenant_id
+    )
     if (
         account is None
         or not account.oauth_state
@@ -182,8 +195,11 @@ async def disconnect_account(
     provider: str,
     user_id: str,
     source_error: str,
+    tenant_id: str | None = None,
 ) -> None:
-    account = await get_connector_account(session, provider=provider, user_id=user_id)
+    account = await get_connector_account(
+        session, provider=provider, user_id=user_id, tenant_id=tenant_id
+    )
     if account is None:
         return
     account.status = "revoked"
