@@ -30,7 +30,6 @@ from bigrag.models.document import (
 from bigrag.routers import get_collection_or_404, get_embedding_model_for
 from bigrag.routers._documents import (
     UploadBudget,
-    assert_collection_pin_matches,
     content_hash_match,
     document_response,
     get_document_with_collection,
@@ -821,8 +820,9 @@ async def get_document_global(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    doc, collection_name = await get_document_with_collection(session, document_id)
-    assert_collection_pin_matches(user, collection_name=collection_name)
+    doc, collection_name = await get_document_with_collection(
+        session, document_id, pinned_collection=user.get("collection")
+    )
     return document_response(doc, progress=await document_progress(doc, collection_name))
 
 
@@ -834,8 +834,9 @@ async def get_document_chunks_global(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    doc, collection_name = await get_document_with_collection(session, document_id)
-    assert_collection_pin_matches(user, collection_name=collection_name)
+    doc, collection_name = await get_document_with_collection(
+        session, document_id, pinned_collection=user.get("collection")
+    )
     collection = await get_collection_or_404(collection_name)
     chunks, total = await vector_store.get_chunks(
         collection_name,

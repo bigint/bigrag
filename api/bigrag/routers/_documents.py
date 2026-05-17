@@ -263,33 +263,24 @@ async def persist_document(
     return doc
 
 
-def assert_collection_pin_matches(user: dict, *, collection_name: str) -> None:
-    pinned = user.get("collection")
-    if pinned and pinned != collection_name:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                f"This API key is pinned to collection {pinned!r}; "
-                f"request targeted {collection_name!r}."
-            ),
-        )
-
-
 async def get_document_with_collection(
     session: AsyncSession,
     document_id: str,
+    *,
+    pinned_collection: str | None = None,
 ) -> tuple[Document, str]:
     try:
         target_id = uuid.UUID(document_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Document not found") from exc
-    row = (
-        await session.execute(
-            sa.select(Document, Collection.name)
-            .join(Collection, Collection.id == Document.collection_id)
-            .where(Document.id == target_id)
-        )
-    ).first()
+    stmt = (
+        sa.select(Document, Collection.name)
+        .join(Collection, Collection.id == Document.collection_id)
+        .where(Document.id == target_id)
+    )
+    if pinned_collection:
+        stmt = stmt.where(Collection.name == pinned_collection)
+    row = (await session.execute(stmt)).first()
     if row is None:
         raise HTTPException(status_code=404, detail="Document not found")
     doc, collection_name = row
