@@ -1,16 +1,14 @@
 # bigRAG E2E Test Suite
 
-A live, end-to-end test suite that exercises every layer of bigRAG against a
-real `docker compose` stack — REST API, both SDKs, and critical UI flows — at
-~$0 of OpenAI spend per run.
+A live, end-to-end test suite that exercises bigRAG API and SDK behavior
+against a real `docker compose` stack at ~$0 of OpenAI spend per run.
 
 ## Why
 
-bigRAG ships ~100 HTTP endpoints, two SDKs, and a React admin app. Without an
-end-to-end harness, regressions in routing, schemas, streaming, or auth slip
-out unnoticed. This suite is the safety net: one `make e2e` brings up the
-stack, runs ~200 tests, and tears it down. CI runs the same target on every
-PR.
+bigRAG ships ~100 HTTP endpoints and two SDKs. Without an end-to-end harness,
+regressions in routing, schemas, streaming, or auth slip out unnoticed. This
+suite is the safety net: one `make e2e` brings up the stack, runs API and SDK
+tests, and tears it down. CI runs the same target on every PR.
 
 OpenAI cost is eliminated by routing `BIGRAG_EMBEDDING_*` and `BIGRAG_CHAT_*`
 at a small in-cluster fake (`fake-openai`).
@@ -19,8 +17,7 @@ at a small in-cluster fake (`fake-openai`).
 
 - Docker / Docker Compose v2
 - [uv](https://docs.astral.sh/uv/) for Python
-- [pnpm](https://pnpm.io/) for TypeScript / Playwright
-- Playwright browsers: `pnpm run playwright:install`
+- [pnpm](https://pnpm.io/) for TypeScript SDK tests
 
 ## Quick start
 
@@ -32,38 +29,36 @@ make e2e       # up, test, down
 
 ## Make targets
 
-| Target         | What it does                                                       |
-|----------------|--------------------------------------------------------------------|
-| `make up`      | Brings up the e2e compose stack and waits for `/health/ready`      |
-| `make down`    | Tears down the stack and removes volumes                           |
-| `make logs`    | Tails compose logs                                                 |
-| `make install` | `uv sync` + `pnpm install`                                         |
-| `make test-api`| Runs API pytest suite                                              |
-| `make test-sdk-py` | Runs Python SDK pytest suite                                   |
-| `make test-sdk-ts` | Runs TypeScript SDK vitest suite                               |
-| `make test-ui` | Runs Playwright UI suite                                           |
-| `make test`    | All four suites (api + sdk-py + sdk-ts + ui)                       |
-| `make e2e`     | `up` → `test` → `down` (full end-to-end run)                       |
+| Target             | What it does                                                       |
+|--------------------|--------------------------------------------------------------------|
+| `make up`          | Brings up the API/SDK e2e compose stack and waits for `/health/ready` |
+| `make down`        | Tears down the stack and removes volumes                           |
+| `make logs`        | Tails compose logs                                                 |
+| `make install`     | `uv sync` + `pnpm install`                                         |
+| `make test-api`    | Runs API pytest suite                                              |
+| `make test-sdk-py` | Runs Python SDK pytest suite                                       |
+| `make test-sdk-ts` | Runs TypeScript SDK vitest suite                                   |
+| `make test`        | Runs API + Python SDK + TypeScript SDK suites                      |
+| `make e2e`         | `up` → `test` → `down` (full API/SDK end-to-end run)               |
 
 ## Architecture
 
 ```
-        +--------------------+
-        |  pytest / vitest / |
-        |  playwright        |
-        +----------+---------+
-                   |
-        host:4000  v  host:3000        host:9001/9002/9003
-   +---------------+----------+   +-----------------------------+
-   |  bigrag-api  |  bigrag-ui|   | fake-openai | fake-gdrive | |
-   |  bigrag-worker            |  | webhook-sink                |
-   +--+----+-------+-----+-----+   +-----------------------------+
-      |    |       |     |             ^         ^         ^
-      v    v       v     v             |         |         |
-  postgres redis qdrant  +-------------+---------+---------+
-                          (bigrag-api routes embeddings, chat,
-                           Google Drive connector, and webhook
-                           deliveries at these local fakes)
+        +-----------------+
+        | pytest / vitest |
+        +--------+--------+
+                 |
+        host:4000 v                 host:9001/9002/9003
+   +-------------+--------+   +-----------------------------+
+   | bigrag-api           |   | fake-openai | fake-gdrive | |
+   | bigrag-worker        |   | webhook-sink                |
+   +--+---------+---------+   +-----------------------------+
+      |         |                         ^         ^    ^
+      v         v                         |         |    |
+  postgres   redis   qdrant  +------------+---------+----+
+                              (bigrag-api routes embeddings, chat,
+                               Google Drive connector, and webhook
+                               deliveries at these local fakes)
 ```
 
 The fakes live in `stubs/`:
@@ -91,8 +86,7 @@ request reaches `api.openai.com`.
 e2e/tests/
 ├── api/                 # REST endpoint coverage (pytest + httpx)
 ├── sdk_python/          # Python SDK (`bigrag`) contract tests
-├── sdk_typescript/      # TypeScript SDK (`@bigrag/client`) vitest suite
-└── ui/                  # Playwright specs (10 critical flows)
+└── sdk_typescript/      # TypeScript SDK (`@bigrag/client`) vitest suite
 ```
 
 ## Adding a new test
@@ -123,10 +117,9 @@ name limit. Each fixture cleans up in teardown so the suite is safe under
 
 | Layer            | Files | Tests |
 |------------------|-------|-------|
-| API (pytest)     | 28    | ~400  |
-| Python SDK       | 7     | 59    |
+| API (pytest)     | 27    | 389   |
+| Python SDK       | 6     | 59    |
 | TypeScript SDK   | 6     | 47    |
-| Playwright UI    | 10    | 15    |
 
 **Endpoint coverage:** 121 / 121 declared `@router.*` decorators across
 `api/bigrag/routers/` are exercised by at least one test path.
@@ -142,7 +135,7 @@ endpoint_re = re.compile(
     re.IGNORECASE,
 )
 test_text = ""
-for d in ("e2e/tests/api","e2e/tests/sdk_python","e2e/tests/ui","e2e/tests/sdk_typescript"):
+for d in ("e2e/tests/api","e2e/tests/sdk_python","e2e/tests/sdk_typescript"):
     for fn in glob.glob(f"{d}/**/*", recursive=True):
         if os.path.isfile(fn) and fn.endswith(('.py','.ts')):
             with open(fn) as f: test_text += f.read()+"\n"
@@ -167,7 +160,7 @@ PY
 
 ## Known limitations
 
-Three bigRAG behaviors bypass the fake servers because they have hardcoded
+Two bigRAG behaviors bypass the fake servers because they have hardcoded
 upstream URLs. They're called out so test coverage of the relevant happy
 paths is "best effort" rather than full:
 
@@ -179,13 +172,6 @@ paths is "best effort" rather than full:
    has hardcoded `accounts.google.com` / `googleapis.com` URLs.
    `test_connectors.py` covers CRUD, start-URL shape, and OAuth callback
    error paths; the full token-exchange happy path is skipped.
-3. **Chat-suggestions in the Playwright `chat-streaming.spec.ts`** can't be
-   end-to-end driven through the UI because saving an OpenAI key in
-   preferences triggers (1). The spec validates the chat shell + collection
-   picker instead. The API-level chat-suggestions tests in
-   `tests/api/test_chat_suggestions.py` exercise the happy path because
-   they bypass the preferences UI flow.
-
 To close any of these, add a `BIGRAG_*_DEFAULT_BASE_URL` env override to the
 relevant bigRAG service (e.g., `credential_check.py`,
 `services/connectors/google_drive_auth.py`) and point it at the local fakes

@@ -69,9 +69,9 @@ After that, every `git commit` runs the same formatters for API Python and TS/JS
 
 ## Verification
 
-The old package-level unit/integration suites and coverage commands have been removed. Do not add package test runners or coverage requirements back to feature work unless the project reintroduces them deliberately.
+The old package-level unit/integration suites and coverage commands have been removed. Do not add package test runners or coverage requirements back to feature work unless the project reintroduces them deliberately. The current `e2e/` suite is API and SDK only; do not add UI end-to-end tests unless that layer is deliberately reintroduced.
 
-Use lint, typecheck, build, compile, and runtime smoke checks for current verification. End-to-end coverage is planned as the next testing layer. Keep `website/content/docs/development/testing.mdx` in sync when verification guidance changes, and do not commit generated coverage artifacts.
+Use lint, typecheck, build, compile, API/SDK end-to-end, and runtime smoke checks for current verification. Keep `website/content/docs/development/testing.mdx` in sync when verification guidance changes, and do not commit generated coverage artifacts.
 
 ## Architecture Notes
 

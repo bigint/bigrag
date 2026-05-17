@@ -12,7 +12,7 @@ services:
       HF_HOME: /data/hf
       HF_HUB_CACHE: /data/hf/hub
       TRANSFORMERS_CACHE: /data/hf/transformers
-      BIGRAG_CORS_ORIGINS: '["http://localhost:3000","http://localhost:4000","http://127.0.0.1:3000","http://127.0.0.1:4000"]'
+      BIGRAG_CORS_ORIGINS: '["http://localhost:4000","http://127.0.0.1:4000"]'
       BIGRAG_EMBEDDING_PROVIDER: openai_compatible
       BIGRAG_EMBEDDING_MODEL: text-embedding-3-small
       BIGRAG_EMBEDDING_DIMENSION: "1536"

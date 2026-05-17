@@ -1,10 +1,11 @@
-.PHONY: up down logs install test-api test-sdk-py test-sdk-ts test-ui test e2e wait-ready
+.PHONY: up down logs install test-api test-sdk-py test-sdk-ts test e2e wait-ready
 
 COMPOSE = docker compose -f ../docker-compose.yml -f docker-compose.e2e.yml
 API_BASE ?= http://localhost:4000
+E2E_SERVICES = bigrag-api bigrag-worker fake-openai fake-gdrive webhook-sink minio
 
 up:
-	$(COMPOSE) up -d --build
+	$(COMPOSE) up -d --build $(E2E_SERVICES)
 	$(MAKE) wait-ready
 
 wait-ready:
@@ -36,10 +37,7 @@ test-sdk-py:
 test-sdk-ts:
 	pnpm vitest run tests/sdk_typescript
 
-test-ui:
-	pnpm playwright test
-
-test: test-api test-sdk-py test-sdk-ts test-ui
+test: test-api test-sdk-py test-sdk-ts
 
 e2e:
 	$(MAKE) up

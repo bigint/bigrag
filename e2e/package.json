@@ -5,16 +5,12 @@
   "type": "module",
   "packageManager": "pnpm@10.18.1",
   "scripts": {
-    "test:sdk": "vitest run tests/sdk_typescript",
-    "test:ui": "playwright test",
-    "test:ui:headed": "playwright test --headed",
-    "playwright:install": "playwright install --with-deps chromium"
+    "test:sdk": "vitest run tests/sdk_typescript"
   },
   "dependencies": {
     "@bigrag/client": "workspace:*"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.0",
     "@types/node": "^22.10.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",

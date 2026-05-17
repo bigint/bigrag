@@ -7,7 +7,7 @@ description: "Current verification guidance after removal of package-level test 
 
 The previous package-level unit and integration test suites have been removed from the backend, SDKs, and admin UI. The related coverage commands and local coverage reports have also been removed.
 
-Do not rely on removed package test runners or coverage commands as required verification for this repository while this reset is in place. End-to-end coverage is planned as the next testing layer.
+Do not rely on removed package test runners or coverage commands as required verification for this repository while this reset is in place. The maintained end-to-end suite is API and SDK only; UI end-to-end tests are not part of the current verification layer.
 
 ## Local verification
 
@@ -31,10 +31,10 @@ The admin app scripts generate and clean `app/src/routeTree.gen.ts` before Vite 
 
 ## CI verification
 
-CI currently keeps formatter, lint, typecheck, SDK build, docs build, admin UI build, and Rust formatting and compile checks. It does not run package-level test or coverage jobs.
+CI currently keeps formatter, lint, typecheck, SDK build, docs build, admin UI build, Rust formatting and compile checks, and the API/SDK end-to-end workflow. It does not run package-level test, coverage, or UI end-to-end jobs.
 
 The E2E workflow uses the local fake OpenAI service only. There is no maintained real OpenAI smoke job.
 
-## E2E plan
+## E2E
 
-Future test coverage should be rebuilt around end-to-end flows that exercise realistic API, SDK, and admin UI behavior together. Add new commands and expectations here only after that E2E layer exists.
+The `e2e/` workspace contains API pytest coverage, Python SDK contract tests, and TypeScript SDK Vitest coverage. It intentionally does not include Playwright or other UI browser tests.

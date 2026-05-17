@@ -36,7 +36,6 @@ from tests._helpers import (
 )
 
 API_BASE = os.environ.get("BIGRAG_E2E_API_BASE", "http://localhost:4000")
-APP_BASE = os.environ.get("BIGRAG_E2E_APP_BASE", "http://localhost:3000")
 FAKE_OPENAI_BASE = os.environ.get("BIGRAG_E2E_FAKE_OPENAI", "http://localhost:9001")
 FAKE_GDRIVE_BASE = os.environ.get("BIGRAG_E2E_FAKE_GDRIVE", "http://localhost:9002")
 WEBHOOK_SINK_BASE = os.environ.get("BIGRAG_E2E_WEBHOOK_SINK", "http://localhost:9003")
@@ -60,7 +59,6 @@ DOCUMENT_READY_TIMEOUT = 60.0
 
 __all__ = [
     "API_BASE",
-    "APP_BASE",
     "FAKE_OPENAI_BASE",
     "FAKE_GDRIVE_BASE",
     "WEBHOOK_SINK_BASE",
@@ -84,11 +82,6 @@ __all__ = [
 @pytest.fixture(scope="session")
 def api_base_url() -> str:
     return API_BASE
-
-
-@pytest.fixture(scope="session")
-def app_base_url() -> str:
-    return APP_BASE
 
 
 @pytest.fixture(scope="session")
@@ -182,9 +175,7 @@ async def admin_setup() -> dict[str, str]:
                 headers=_origin_headers(),
             )
             if resp.status_code not in (200, 201):
-                raise RuntimeError(
-                    f"failed to setup admin: {resp.status_code} {resp.text}"
-                )
+                raise RuntimeError(f"failed to setup admin: {resp.status_code} {resp.text}")
 
     # bigRAG keeps url-safety flags in the DB-backed runtime_settings
     # (env vars only seed *some* of them). Apply the e2e-specific
@@ -553,9 +544,7 @@ async def document(
         terminal = terminal_statuses or {"ready", "failed"}
 
         async def _fetch() -> dict[str, Any]:
-            r = await admin_client.get(
-                f"/v1/collections/{collection_name}/documents/{doc_id}"
-            )
+            r = await admin_client.get(f"/v1/collections/{collection_name}/documents/{doc_id}")
             r.raise_for_status()
             return r.json()
 
@@ -569,9 +558,7 @@ async def document(
         if doc.get("status") == "failed" and "failed" not in (terminal_statuses or set()):
             err = doc.get("error") or doc.get("error_message") or doc.get("status_message")
             if err:
-                raise AssertionError(
-                    f"document {doc_id} ({upload_name}) ingestion failed: {err}"
-                )
+                raise AssertionError(f"document {doc_id} ({upload_name}) ingestion failed: {err}")
         return doc
 
     yield _upload
@@ -585,6 +572,7 @@ async def document(
 @pytest.fixture(scope="session")
 def webhook_sink_url() -> Callable[[str], str]:
     """Returns webhook URLs *bigRAG* should call — internal Docker hostname."""
+
     def _build(label: str) -> str:
         return f"{WEBHOOK_SINK_INTERNAL_BASE}/webhook/{label}"
 
