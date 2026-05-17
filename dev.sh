@@ -10,11 +10,11 @@ NC='\033[0m'
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PIDS=()
 
-# --- Parse flags ---
 START_INFRA=false
 START_BACKEND=false
 START_WEBSITE=false
 NO_INSTALL=false
+STARTED_INFRA=false
 
 if [ $# -eq 0 ]; then
   START_INFRA=true
@@ -48,7 +48,7 @@ cleanup() {
   for pid in "${PIDS[@]+"${PIDS[@]}"}"; do
     kill "$pid" 2>/dev/null || true
   done
-  if [ "$START_INFRA" = true ]; then
+  if [ "$STARTED_INFRA" = true ]; then
     docker compose -f "$ROOT_DIR/docker-compose.yml" down 2>/dev/null || true
   fi
   echo -e "${GREEN}All services stopped.${NC}"
@@ -56,7 +56,29 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-# --- Kill stale processes on dev ports ---
+wait_for() {
+  local name="$1"
+  local check_cmd="$2"
+  local attempts="$3"
+  echo -e "${CYAN}Waiting for ${name}...${NC}"
+  for i in $(seq 1 "$attempts"); do
+    if eval "$check_cmd" > /dev/null 2>&1; then
+      echo -e "${GREEN}${name} is ready.${NC}"
+      return 0
+    fi
+    if [ "$i" -eq "$attempts" ]; then
+      echo -e "${RED}${name} failed to start within ${attempts}s.${NC}"
+      exit 1
+    fi
+    sleep 1
+  done
+}
+
+prefix_logs() {
+  local tag="$1"
+  while IFS= read -r line; do printf '[%s] %s\n' "$tag" "$line"; done
+}
+
 if [ "$START_BACKEND" = true ] || [ "$START_WEBSITE" = true ]; then
   ports=()
   [ "$START_BACKEND" = true ] && ports+=(4000)
@@ -71,7 +93,6 @@ if [ "$START_BACKEND" = true ] || [ "$START_WEBSITE" = true ]; then
   done
 fi
 
-# --- Preflight checks ---
 if [ "$START_INFRA" = true ]; then
   for cmd in docker curl; do
     if ! command -v "$cmd" > /dev/null 2>&1; then
@@ -93,50 +114,22 @@ if [ "$START_WEBSITE" = true ]; then
   fi
 fi
 
-# --- Docker services ---
 if [ "$START_INFRA" = true ]; then
   echo -e "${CYAN}Starting Docker services (Postgres, Redis, Qdrant)...${NC}"
+  if ! docker compose -f "$ROOT_DIR/docker-compose.yml" ps --status running --quiet postgres redis qdrant | grep -q .; then
+    STARTED_INFRA=true
+  fi
   docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres redis qdrant -d
 
-  # Wait for Postgres
-  echo -e "${CYAN}Waiting for Postgres...${NC}"
-  for i in $(seq 1 30); do
-    if docker exec bigrag-postgres pg_isready -U bigrag > /dev/null 2>&1; then
-      echo -e "${GREEN}Postgres is ready.${NC}"
-      break
-    fi
-    if [ "$i" -eq 30 ]; then echo -e "${RED}Postgres failed to start.${NC}"; exit 1; fi
-    sleep 1
-  done
-
-  # Wait for Redis
-  echo -e "${CYAN}Waiting for Redis...${NC}"
-  for i in $(seq 1 15); do
-    if docker exec bigrag-redis redis-cli ping > /dev/null 2>&1; then
-      echo -e "${GREEN}Redis is ready.${NC}"
-      break
-    fi
-    if [ "$i" -eq 15 ]; then echo -e "${RED}Redis failed to start.${NC}"; exit 1; fi
-    sleep 1
-  done
-
-  # Wait for Qdrant
-  echo -e "${CYAN}Waiting for Qdrant...${NC}"
-  for i in $(seq 1 60); do
-    if curl -sf http://localhost:6333/healthz > /dev/null 2>&1; then
-      echo -e "${GREEN}Qdrant is ready.${NC}"
-      break
-    fi
-    if [ "$i" -eq 60 ]; then echo -e "${RED}Qdrant failed to start within 60s.${NC}"; exit 1; fi
-    sleep 1
-  done
+  wait_for "Postgres" "docker exec bigrag-postgres pg_isready -U bigrag" 30
+  wait_for "Redis" "docker exec bigrag-redis redis-cli ping" 15
+  wait_for "Qdrant" "curl -sf http://localhost:6333/healthz" 60
 fi
 
 DATABASE_URL="postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 QDRANT_URL="http://localhost:6333"
 REDIS_URL="redis://localhost:6379/0"
 
-# --- Python backend ---
 if [ "$START_BACKEND" = true ]; then
   echo -e "${CYAN}Setting up Python backend...${NC}"
 
@@ -145,46 +138,30 @@ if [ "$START_BACKEND" = true ]; then
     uv sync --directory "$ROOT_DIR/api" --quiet
   fi
 
-  # Fixed dev Fernet key so contributor setups are one-command. DO NOT reuse
-  # in prod — the production startup guard requires an operator-supplied key.
   DEV_MASTER_KEY="${BIGRAG_MASTER_KEY:-Zm5VZ4vO8r0y3rVsT0xz7nxV_wP7u6-n5tB1GAlHZIw=}"
 
+  export BIGRAG_DATABASE_URL="$DATABASE_URL"
+  export BIGRAG_QDRANT_URL="$QDRANT_URL"
+  export BIGRAG_REDIS_URL="$REDIS_URL"
+  export BIGRAG_MASTER_KEY="$DEV_MASTER_KEY"
+  export BIGRAG_CORS_ORIGINS="${BIGRAG_CORS_ORIGINS:-[\"http://localhost:3000\"]}"
+  export PYTHONUNBUFFERED=1
+
   echo -e "${CYAN}Starting Python backend (auto-reload)...${NC}"
-  BIGRAG_DATABASE_URL="$DATABASE_URL" \
-  BIGRAG_QDRANT_URL="$QDRANT_URL" \
-  BIGRAG_REDIS_URL="$REDIS_URL" \
-  BIGRAG_MASTER_KEY="$DEV_MASTER_KEY" \
-  BIGRAG_CORS_ORIGINS="${BIGRAG_CORS_ORIGINS:-[\"http://localhost:3000\"]}" \
-  PYTHONUNBUFFERED=1 \
   uv run --directory "$ROOT_DIR/api" uvicorn bigrag.main:create_app \
     --factory --host 0.0.0.0 --port 4000 \
     --reload --reload-dir "$ROOT_DIR/api/bigrag" \
-    --log-level debug 2>&1 | while IFS= read -r line; do printf '[backend] %s\n' "$line"; done &
+    --log-level debug 2>&1 | prefix_logs backend &
   PIDS+=($!)
 
-  # Wait for backend
-  echo -e "${CYAN}Waiting for backend...${NC}"
-  for i in $(seq 1 120); do
-    if curl -sf http://localhost:4000/health > /dev/null 2>&1; then
-      echo -e "${GREEN}Backend is ready.${NC}"
-      break
-    fi
-    if [ "$i" -eq 120 ]; then echo -e "${RED}Backend failed to start within 120s.${NC}"; exit 1; fi
-    sleep 1
-  done
+  wait_for "Backend" "curl -sf http://localhost:4000/health" 120
 
   echo -e "${CYAN}Starting Python worker (Dramatiq)...${NC}"
-  BIGRAG_DATABASE_URL="$DATABASE_URL" \
-  BIGRAG_QDRANT_URL="$QDRANT_URL" \
-  BIGRAG_REDIS_URL="$REDIS_URL" \
-  BIGRAG_MASTER_KEY="$DEV_MASTER_KEY" \
-  PYTHONUNBUFFERED=1 \
   uv run --directory "$ROOT_DIR/api" bigrag-worker --processes 1 --threads "${BIGRAG_WORKER_THREADS:-8}" \
-    2>&1 | while IFS= read -r line; do printf '[worker] %s\n' "$line"; done &
+    2>&1 | prefix_logs worker &
   PIDS+=($!)
 fi
 
-# --- Website dev server ---
 if [ "$START_WEBSITE" = true ]; then
   if [ "$NO_INSTALL" = false ]; then
     echo -e "${CYAN}Installing website dependencies...${NC}"
@@ -192,7 +169,7 @@ if [ "$START_WEBSITE" = true ]; then
   fi
 
   echo -e "${CYAN}Starting website dev server...${NC}"
-  pnpm --filter @bigrag/docs dev 2>&1 | while IFS= read -r line; do printf '[website] %s\n' "$line"; done &
+  pnpm --filter @bigrag/docs dev 2>&1 | prefix_logs website &
   PIDS+=($!)
 fi
 
