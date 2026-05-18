@@ -35,7 +35,6 @@ def _upload_session_path(collection: str, session_id: str | None = None) -> str:
 
 
 class DocumentsResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 

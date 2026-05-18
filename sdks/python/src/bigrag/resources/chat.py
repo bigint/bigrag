@@ -15,7 +15,6 @@ if TYPE_CHECKING:
 
 
 class ChatResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 

@@ -15,7 +15,6 @@ if TYPE_CHECKING:
 
 
 class AdminBackupsResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 

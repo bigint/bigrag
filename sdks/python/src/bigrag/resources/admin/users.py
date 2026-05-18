@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
 
 class AdminUsersResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 

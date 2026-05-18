@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 
 class AdminConnectorsResource:
-
     google: AdminGoogleConnectorResource
 
     def __init__(self, client: BigRAGCore) -> None:
@@ -20,7 +19,6 @@ class AdminConnectorsResource:
 
 
 class AdminGoogleConnectorResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 

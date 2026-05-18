@@ -11,7 +11,6 @@ if TYPE_CHECKING:
 
 
 class AdminRealtimeResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 
@@ -154,9 +153,9 @@ class AdminRealtimeResource:
     def custom(
         self, path: str, params: dict[str, str | int | bool | None] | None = None
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
-        assert path.startswith(
-            "/v1/admin/realtime/"
-        ), "admin.realtime.custom path must start with /v1/admin/realtime/"
+        assert path.startswith("/v1/admin/realtime/"), (
+            "admin.realtime.custom path must start with /v1/admin/realtime/"
+        )
         return self._stream(path, params or {})
 
     async def _stream(

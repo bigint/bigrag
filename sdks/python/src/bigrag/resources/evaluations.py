@@ -9,7 +9,6 @@ if TYPE_CHECKING:
 
 
 class EvaluationsResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 

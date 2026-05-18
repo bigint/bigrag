@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 
 
 class AdminResource:
-
     users: AdminUsersResource
     api_keys: AdminApiKeysResource
     access: AdminAccessResource

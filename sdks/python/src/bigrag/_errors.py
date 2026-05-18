@@ -6,7 +6,6 @@ class BigRAGError(Exception):
 
 
 class APIError(BigRAGError):
-
     status: int
     code: str | None
 
@@ -17,79 +16,66 @@ class APIError(BigRAGError):
 
 
 class BadRequestError(APIError):
-
     def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(400, message, code)
 
 
 class AuthenticationError(APIError):
-
     def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(401, message, code)
 
 
 class PermissionDeniedError(APIError):
-
     def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(403, message, code)
 
 
 class NotFoundError(APIError):
-
     def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(404, message, code)
 
 
 class ConflictError(APIError):
-
     def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(409, message, code)
 
 
 class PayloadTooLargeError(APIError):
-
     def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(413, message, code)
 
 
 class UnprocessableEntityError(APIError):
-
     def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(422, message, code)
 
 
 class RateLimitError(APIError):
-
     def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(429, message, code)
 
 
 class InternalServerError(APIError):
-
     def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(500, message, code)
 
 
 class BadGatewayError(APIError):
-
     def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(502, message, code)
 
 
 class ServiceUnavailableError(APIError):
-
     def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(503, message, code)
 
 
 class APIConnectionError(BigRAGError):
-
     def __init__(self, message: str = "Connection error") -> None:
         super().__init__(message)
 
 
 class APITimeoutError(BigRAGError):
-
     def __init__(self, message: str = "Request timed out") -> None:
         super().__init__(message)
 

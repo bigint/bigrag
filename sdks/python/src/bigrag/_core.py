@@ -68,7 +68,6 @@ def _rewind_files(files: Any) -> None:
 
 
 class BigRAGCore:
-
     api_key: str
     base_url: str
     timeout: float
@@ -201,7 +200,6 @@ class BigRAGCore:
             return {"status": "ok"}
 
         return response.json()
-
 
     async def _request_form(
         self,

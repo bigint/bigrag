@@ -50,7 +50,6 @@ from bigrag.types.usage import UsageResponse
 
 
 class BigRAG(BigRAGCore):
-
     collections: CollectionsResource
     connectors: ConnectorsResource
     documents: DocumentsResource
@@ -107,7 +106,6 @@ class BigRAG(BigRAGCore):
 
 
 class CollectionClient:
-
     def __init__(self, client: BigRAG, name: str) -> None:
         self._client = client
         self._name = name

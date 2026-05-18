@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 
 
 class WebhooksResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 

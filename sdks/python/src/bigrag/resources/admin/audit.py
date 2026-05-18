@@ -10,7 +10,6 @@ if TYPE_CHECKING:
 
 
 class AdminAuditResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 

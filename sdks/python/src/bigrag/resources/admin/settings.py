@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 
 
 class AdminSettingsResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 

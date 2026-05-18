@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 
 
 class CollectionsResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 

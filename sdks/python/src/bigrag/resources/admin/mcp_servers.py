@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 
 class AdminMcpServersResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 

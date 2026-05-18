@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 
 
 class ConnectorsResource:
-
     google: GoogleDriveResource
 
     def __init__(self, client: BigRAGCore) -> None:
@@ -29,7 +28,6 @@ class ConnectorsResource:
 
 
 class GoogleDriveResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 

@@ -18,7 +18,6 @@ if TYPE_CHECKING:
 
 
 class AdminApiKeysResource:
-
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 
