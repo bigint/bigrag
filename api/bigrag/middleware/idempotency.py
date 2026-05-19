@@ -31,6 +31,30 @@ def _find_header(headers: list[tuple[bytes, bytes]], name: bytes) -> bytes | Non
     return None
 
 
+def _header_text(headers: list[tuple[bytes, bytes]], name: bytes) -> str:
+    raw = _find_header(headers, name)
+    return raw.decode("latin-1", errors="replace").strip() if raw else ""
+
+
+def _content_length(headers: list[tuple[bytes, bytes]]) -> int | None:
+    raw = _header_text(headers, b"content-length")
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def _should_skip_body(scope) -> bool:
+    headers = scope.get("headers") or []
+    content_type = _header_text(headers, b"content-type").lower()
+    if content_type.startswith("multipart/form-data"):
+        return True
+    content_length = _content_length(headers)
+    return content_length is not None and content_length > _MAX_CACHED_BODY_BYTES
+
+
 async def _read_request_body(receive) -> tuple[bytes, bool, list[dict]]:
     chunks: list[bytes] = []
     messages: list[dict] = []
@@ -119,6 +143,9 @@ class IdempotencyMiddleware:
 
         idem_key = idem_raw.decode("utf-8", errors="replace").strip()
         if not idem_key:
+            await self.app(scope, receive, send)
+            return
+        if redis_cache.get_redis() is None or _should_skip_body(scope):
             await self.app(scope, receive, send)
             return
 

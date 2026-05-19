@@ -123,17 +123,6 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                     )
                 ).all()
             }
-            document_ids = [manifest.document_id for manifest in manifests.values()]
-            existing_docs = {}
-            if document_ids:
-                existing_docs = {
-                    doc.id: doc
-                    for doc in (
-                        await session.scalars(
-                            sa.select(Document).where(Document.id.in_(document_ids))
-                        )
-                    ).all()
-                }
 
             async def _download(remote: RemoteConnectorFile):
                 return await adapter.download(access_token=access_token, remote=remote)
@@ -142,6 +131,22 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             index = 0
             for batch_start in range(0, len(remotes), batch_size):
                 batch = remotes[batch_start : batch_start + batch_size]
+                batch_manifests = {
+                    remote.id: manifests.get(remote.id)
+                    for remote in batch
+                    if manifests.get(remote.id) is not None
+                }
+                batch_document_ids = [manifest.document_id for manifest in batch_manifests.values()]
+                existing_docs = {}
+                if batch_document_ids:
+                    existing_docs = {
+                        doc.id: doc
+                        for doc in (
+                            await session.scalars(
+                                sa.select(Document).where(Document.id.in_(batch_document_ids))
+                            )
+                        ).all()
+                    }
                 skipped_remote_ids = set()
                 download_targets = []
                 for remote in batch:
@@ -178,21 +183,21 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                             if manifest is not None:
                                 update_manifest_remote(manifest, remote)
                             counters.skipped += 1
-                            continue
-                        result = downloaded_by_remote_id[remote.id]
-                        if isinstance(result, BaseException):
-                            raise result
-                        downloaded = result
-                        await sync_downloaded_file(
-                            session,
-                            adapter=adapter,
-                            source=source,
-                            collection=collection,
-                            manifest=manifest,
-                            existing_doc=existing_doc,
-                            downloaded=downloaded,
-                            counters=counters,
-                        )
+                        else:
+                            result = downloaded_by_remote_id[remote.id]
+                            if isinstance(result, BaseException):
+                                raise result
+                            downloaded = result
+                            await sync_downloaded_file(
+                                session,
+                                adapter=adapter,
+                                source=source,
+                                collection=collection,
+                                manifest=manifest,
+                                existing_doc=existing_doc,
+                                downloaded=downloaded,
+                                counters=counters,
+                            )
                     except (InvalidFileContentError, ValueError) as exc:
                         counters.add_error(remote.id, remote.name, str(exc))
                     except Exception as exc:
