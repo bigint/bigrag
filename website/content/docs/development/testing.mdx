@@ -36,3 +36,5 @@ The E2E workflow uses the local fake OpenAI service only. There is no maintained
 ## E2E
 
 The `e2e/` workspace contains API pytest coverage, Python SDK contract tests, and TypeScript SDK Vitest coverage. It intentionally does not include Playwright or other UI browser tests.
+
+The local `e2e/Makefile` runs Docker Compose under the `bigrag-e2e` project name. `make down` removes that isolated e2e stack and its volumes without deleting the default `bigrag` dev volumes used by `./dev.sh`.

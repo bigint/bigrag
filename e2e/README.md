@@ -41,6 +41,10 @@ make e2e       # up, test, down
 | `make test`        | Runs API + Python SDK + TypeScript SDK suites                      |
 | `make e2e`         | `up` → `test` → `down` (full API/SDK end-to-end run)               |
 
+The Makefile uses the `bigrag-e2e` Docker Compose project. Its `down` target
+removes e2e volumes only and does not remove the default `bigrag` dev volumes
+used by `./dev.sh`.
+
 ## Architecture
 
 ```

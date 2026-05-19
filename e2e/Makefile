@@ -1,6 +1,7 @@
 .PHONY: up down logs install test-api test-sdk-py test-sdk-ts test e2e wait-ready
 
-COMPOSE = docker compose -f ../docker-compose.yml -f docker-compose.e2e.yml
+E2E_PROJECT ?= bigrag-e2e
+COMPOSE = docker compose -p $(E2E_PROJECT) -f ../docker-compose.yml -f docker-compose.e2e.yml
 API_BASE ?= http://localhost:4000
 E2E_SERVICES = bigrag-api bigrag-worker fake-openai webhook-sink minio
 
