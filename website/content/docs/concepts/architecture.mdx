@@ -175,7 +175,10 @@ a future pgvector backend.
 Connector routes stay provider-neutral through `connector_registry.py`.
 Reusable connector behavior lives in `bigrag.services.connectors`:
 account/config management, source and sync-job persistence, progress
-payloads, manifest updates, and document handoff to the ingestion actor.
+payloads, manifest updates, sync status handling, and document handoff
+to the ingestion actor. The ingestion queue keeps Redis lease/recovery
+state separate from per-document processing so retry, dead-letter, and
+webhook fanout behavior can evolve without changing route-level APIs.
 Scheduled connector ticks run as Dramatiq maintenance actors and claim
 due sources with row locks so multiple worker replicas do not create
 duplicate scheduled sync jobs. Provider modules layer on top of those
