@@ -287,7 +287,17 @@ class TurbopufferVectorStore:
         *,
         with_vectors: bool = True,
     ) -> list[dict]:
-        points = []
+        return [
+            point
+            async for point in self.iter_collection_points(collection, with_vectors=with_vectors)
+        ]
+
+    async def iter_collection_points(
+        self,
+        collection: str,
+        *,
+        with_vectors: bool = True,
+    ):
         last_id: str | None = None
         while True:
             payload: dict[str, Any] = {
@@ -302,14 +312,11 @@ class TurbopufferVectorStore:
                 payload["filters"] = ["id", "Gt", last_id]
             rows = await self._query_rows(collection, payload)
             for row in rows:
-                points.append(
-                    {
-                        "id": str(row.get("id", "")),
-                        "payload": _row_payload(row),
-                        "vector": row.get("vector") if with_vectors else None,
-                    }
-                )
+                yield {
+                    "id": str(row.get("id", "")),
+                    "payload": _row_payload(row),
+                    "vector": row.get("vector") if with_vectors else None,
+                }
             if len(rows) < _EXPORT_PAGE_SIZE:
                 break
             last_id = str(rows[-1].get("id", ""))
-        return points

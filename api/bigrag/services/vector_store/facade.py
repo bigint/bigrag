@@ -351,5 +351,20 @@ class VectorStore:
         async with self._backend(selected_provider) as backend:
             return await backend.export_collection_points(collection, with_vectors=with_vectors)
 
+    async def iter_collection_points(
+        self,
+        collection: str,
+        *,
+        with_vectors: bool = True,
+        provider: VectorStoreProvider | None = None,
+    ):
+        selected_provider = await self._provider_for(collection, provider)
+        async with self._backend(selected_provider) as backend:
+            async for point in backend.iter_collection_points(
+                collection,
+                with_vectors=with_vectors,
+            ):
+                yield point
+
 
 vector_store = VectorStore()

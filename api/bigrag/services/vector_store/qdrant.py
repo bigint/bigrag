@@ -464,11 +464,21 @@ class QdrantVectorStore:
         *,
         with_vectors: bool = True,
     ) -> list[dict]:
+        return [
+            point
+            async for point in self.iter_collection_points(collection, with_vectors=with_vectors)
+        ]
+
+    async def iter_collection_points(
+        self,
+        collection: str,
+        *,
+        with_vectors: bool = True,
+    ):
         col = self._col(collection)
         client = self._client()
         if not await self._run_with_retry(client.collection_exists, col):
-            return []
-        out = []
+            return
         offset = None
         while True:
             points, offset = await self._run_with_retry(
@@ -480,13 +490,10 @@ class QdrantVectorStore:
                 with_vectors=with_vectors,
             )
             for point in points:
-                out.append(
-                    {
-                        "id": str(getattr(point, "id", "")),
-                        "payload": getattr(point, "payload", {}) or {},
-                        "vector": getattr(point, "vector", None) if with_vectors else None,
-                    }
-                )
+                yield {
+                    "id": str(getattr(point, "id", "")),
+                    "payload": getattr(point, "payload", {}) or {},
+                    "vector": getattr(point, "vector", None) if with_vectors else None,
+                }
             if offset is None:
                 break
-        return out
