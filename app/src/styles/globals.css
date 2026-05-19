@@ -33,6 +33,7 @@
   --color-destructive: var(--atelier-color-destructive);
   --color-destructive-foreground: var(--atelier-color-destructive-foreground);
   --color-success: var(--atelier-color-success);
+  --color-success-foreground: var(--atelier-color-success-foreground);
   --color-warning: var(--atelier-color-warning);
   --color-warning-foreground: var(--atelier-color-warning-foreground);
   --color-info: var(--atelier-color-info);

@@ -103,31 +103,33 @@ async def _run_google_drive_sync(job_id: str) -> None:
 
 @dramatiq.actor(queue_name=MAINTENANCE_QUEUE, max_retries=0, broker=broker)
 def run_google_drive_scheduler() -> None:
-    _run(_run_google_drive_scheduler)
-
-
-async def _run_google_drive_scheduler() -> None:
-    await ensure_worker_runtime()
     try:
-        logger.info("google drive scheduler tick starting")
-        from bigrag.services.connectors.google_drive_sync import run_due_google_syncs
-
-        await run_due_google_syncs()
-        logger.info("google drive scheduler tick complete")
+        _run(_run_google_drive_scheduler)
     finally:
-        await _schedule_once(
+        _schedule_sync(
             run_google_drive_scheduler,
             GOOGLE_DRIVE_SCHEDULER_KEY,
             GOOGLE_DRIVE_SCHEDULER_SECONDS,
         )
 
 
+async def _run_google_drive_scheduler() -> None:
+    await ensure_worker_runtime()
+    logger.info("google drive scheduler tick starting")
+    from bigrag.services.connectors.google_drive_sync import run_due_google_syncs
+
+    await run_due_google_syncs()
+    logger.info("google drive scheduler tick complete")
+
+
 @dramatiq.actor(queue_name=WEBHOOKS_QUEUE, max_retries=0, broker=broker)
 def process_webhook_outbox(delivery_id: str | None = None) -> None:
-    _run(_process_webhook_outbox, delivery_id)
+    delay_seconds = _run(_process_webhook_outbox, delivery_id)
+    if delay_seconds is not None:
+        process_webhook_outbox.send_with_options(delay=delay_seconds * 1000)
 
 
-async def _process_webhook_outbox(delivery_id: str | None = None) -> None:
+async def _process_webhook_outbox(delivery_id: str | None = None) -> int | None:
     await ensure_worker_runtime()
     from bigrag.services.webhook import WebhookDispatcher
 
@@ -140,7 +142,10 @@ async def _process_webhook_outbox(delivery_id: str | None = None) -> None:
     )
     logger.info("webhook outbox tick complete", delivery_id=delivery_id, processed=processed)
     if target_id is None:
-        await _schedule_once(process_webhook_outbox, WEBHOOK_OUTBOX_KEY, 1 if processed else 5)
+        delay_seconds = 1 if processed else 5
+        if await _claim_schedule_once(WEBHOOK_OUTBOX_KEY, delay_seconds):
+            return delay_seconds
+    return None
 
 
 @dramatiq.actor(queue_name=BACKUPS_QUEUE, max_retries=0, broker=broker)
@@ -157,27 +162,30 @@ async def _run_backup(job_id: str) -> None:
 
 @dramatiq.actor(queue_name=MAINTENANCE_QUEUE, max_retries=0, broker=broker)
 def run_cleanup() -> None:
-    _run(_run_cleanup)
+    try:
+        _run(_run_cleanup)
+    finally:
+        _schedule_sync(run_cleanup, CLEANUP_SCHEDULER_KEY, CLEANUP_SECONDS)
 
 
 async def _run_cleanup() -> None:
     await ensure_worker_runtime()
-    try:
-        from bigrag.services.cleanup import cleanup_old_data_once
+    from bigrag.services.cleanup import cleanup_old_data_once
 
-        await cleanup_old_data_once()
-    finally:
-        await _schedule_once(run_cleanup, CLEANUP_SCHEDULER_KEY, CLEANUP_SECONDS)
+    await cleanup_old_data_once()
 
 
-async def _schedule_once(actor, key: str, delay_seconds: int) -> None:
+def _schedule_sync(actor, key: str, delay_seconds: int) -> None:
+    if _run(_claim_schedule_once, key, delay_seconds):
+        actor.send_with_options(delay=delay_seconds * 1000)
+
+
+async def _claim_schedule_once(key: str, delay_seconds: int) -> bool:
     from bigrag.services.queue import ingestion_queue
 
     await record_worker_heartbeat()
     redis = ingestion_queue.redis
     if redis is None:
-        actor.send_with_options(delay=delay_seconds * 1000)
-        return
+        return True
     scheduled = await redis.set(key, b"1", ex=max(1, delay_seconds), nx=True)
-    if scheduled:
-        actor.send_with_options(delay=delay_seconds * 1000)
+    return bool(scheduled)
