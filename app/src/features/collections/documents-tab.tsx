@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   ConfirmDialog,
   cn,
   Empty,
@@ -299,21 +300,23 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
             Folder
           </Button>
         </div>
-        <input
+        <Input
           ref={fileInput}
           id="doc-upload"
           type="file"
           multiple
           className="sr-only"
+          containerClassName="sr-only"
           accept={accept}
           disabled={workerOffline}
           onChange={(e) => e.target.files && onFiles(e.target.files)}
         />
-        <input
+        <Input
           ref={folderInput}
           type="file"
           multiple
           className="sr-only"
+          containerClassName="sr-only"
           accept={accept}
           disabled={workerOffline}
           onChange={(e) => e.target.files && onFiles(e.target.files)}
@@ -471,12 +474,10 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
         <div className="overflow-hidden rounded-xl border border-border bg-card">
           <div className="border-b border-border">
             <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              <input
+              <Checkbox
                 aria-label="Select visible documents"
                 checked={allVisibleSelected}
-                className="size-4 rounded border-border"
-                onChange={toggleVisibleSelection}
-                type="checkbox"
+                onCheckedChange={toggleVisibleSelection}
               />
               <span>Filename</span>
               <span className="text-right">Size</span>
@@ -497,12 +498,10 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
                 key={d.id}
                 className="group grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-4 px-4 py-3 hover:bg-muted"
               >
-                <input
+                <Checkbox
                   aria-label={`Select ${d.filename}`}
                   checked={selected.has(d.id)}
-                  className="size-4 rounded border-border"
-                  onChange={() => toggleDocumentSelection(d.id)}
-                  type="checkbox"
+                  onCheckedChange={() => toggleDocumentSelection(d.id)}
                 />
                 <Link
                   params={{ docId: d.id, name }}

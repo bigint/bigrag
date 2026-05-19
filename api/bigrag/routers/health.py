@@ -18,7 +18,7 @@ from bigrag.services.health import (
     cache_set,
     readiness_status,
 )
-from bigrag.services.jobs.broker import WORKER_HEARTBEAT_KEY
+from bigrag.services.jobs.broker import INGESTION_QUEUE, worker_heartbeat_key
 
 logger = get_logger("bigrag.routers.health")
 
@@ -77,7 +77,7 @@ async def platform_stats(
         heartbeat = None
         redis = getattr(queue, "redis", None) or getattr(queue, "_redis", None)
         if redis is not None and hasattr(redis, "get"):
-            raw = await redis.get(WORKER_HEARTBEAT_KEY)
+            raw = await redis.get(worker_heartbeat_key(INGESTION_QUEUE))
             if raw is not None:
                 heartbeat = raw.decode() if isinstance(raw, bytes) else str(raw)
         online = False

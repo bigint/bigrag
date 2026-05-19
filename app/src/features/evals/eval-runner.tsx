@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
   Input,
+  Select,
   Textarea,
 } from "@atelier/ui";
 import { useForm, useStore } from "@tanstack/react-form";
@@ -104,42 +105,25 @@ export const EvalRunner = () => {
               ) : null;
             }}
           </form.Subscribe>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="eval-col">
-              Collection
-            </label>
-            <form.Field
-              name="collection"
-              validators={{
-                onSubmit: ({ value }) => (value ? undefined : "Collection is required"),
-              }}
-            >
-              {(field) => (
-                <>
-                  <select
-                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                    id="eval-col"
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    required
-                    value={field.state.value}
-                  >
-                    <option value="" disabled>
-                      Pick a collection...
-                    </option>
-                    {collections.map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                  {errorText(field.state.meta.errors) && (
-                    <p className="text-xs text-destructive">{errorText(field.state.meta.errors)}</p>
-                  )}
-                </>
-              )}
-            </form.Field>
-          </div>
+          <form.Field
+            name="collection"
+            validators={{
+              onSubmit: ({ value }) => (value ? undefined : "Collection is required"),
+            }}
+          >
+            {(field) => (
+              <Select
+                error={errorText(field.state.meta.errors)}
+                id="eval-col"
+                label="Collection"
+                onBlur={field.handleBlur}
+                onChange={field.handleChange}
+                options={collections.map((c) => ({ label: c.name, value: c.name }))}
+                placeholder="Pick a collection..."
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
 
           <form.Field
             name="topK"

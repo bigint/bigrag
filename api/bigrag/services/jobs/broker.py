@@ -17,6 +17,7 @@ BACKUPS_QUEUE = "backups"
 MAINTENANCE_QUEUE = "maintenance"
 NAMESPACE = "bigrag:dramatiq"
 WORKER_HEARTBEAT_KEY = "bigrag:dramatiq:worker:heartbeat"
+WORKER_HEARTBEAT_KEY_PREFIX = "bigrag:dramatiq:worker:heartbeat:"
 PERIODIC_SEED_KEY = "bigrag:dramatiq:periodic:startup_seed"
 
 
@@ -58,3 +59,7 @@ def delayed_messages_key(queue_name: str) -> str:
 
 def dead_letter_key(queue_name: str) -> str:
     return f"{NAMESPACE}:{queue_name}.XQ"
+
+
+def worker_heartbeat_key(queue_name: str) -> str:
+    return f"{WORKER_HEARTBEAT_KEY_PREFIX}{queue_name}"

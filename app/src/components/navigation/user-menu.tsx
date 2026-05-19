@@ -1,5 +1,4 @@
-import { cn, ThemeControl } from "@atelier/ui";
-import { Menu } from "@base-ui/react/menu";
+import { Button, cn, Menu, MenuItem, MenuSeparator, ThemeControl } from "@atelier/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
 import { useLogout, useSession } from "@/hooks/use-auth";
@@ -26,56 +25,44 @@ export const UserMenu = ({ compact = false }: { compact?: boolean }) => {
   };
 
   return (
-    <Menu.Root>
-      <Menu.Trigger
-        className={cn(
-          compact
-            ? "mx-auto mb-1 flex size-8 items-center justify-center rounded-full text-left hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            : "flex w-full items-center gap-2.5 border-t border-border p-3 text-left hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        )}
-        title={user.display_name || user.email}
-      >
-        <div className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-          {initials(user.display_name, user.email)}
-        </div>
-        {!compact && (
-          <div className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-medium text-foreground">
-              {user.display_name || user.email}
-            </span>
-            <span className="truncate text-xs text-muted-foreground">{user.email}</span>
-          </div>
-        )}
-      </Menu.Trigger>
-      <Menu.Portal>
-        <Menu.Positioner
-          align={compact ? "start" : "center"}
-          side={compact ? "right" : "top"}
-          sideOffset={compact ? 10 : 6}
-          className="z-50"
+    <Menu
+      align={compact ? "start" : "center"}
+      popupStyle={compact ? undefined : { width: "calc(var(--anchor-width) - 1rem)" }}
+      side={compact ? "right" : "top"}
+      sideOffset={compact ? 10 : 6}
+      trigger={
+        <Button
+          className={cn(
+            compact
+              ? "mx-auto mb-1 size-8 rounded-full p-0 text-left hover:bg-background"
+              : "h-auto w-full justify-start gap-2.5 rounded-none border-border border-t p-3 text-left",
+          )}
+          title={user.display_name || user.email}
+          variant="ghost"
         >
-          <Menu.Popup
-            className="min-w-52 rounded-md border border-border bg-popover p-1 text-sm focus:outline-none"
-            style={compact ? undefined : { width: "calc(var(--anchor-width) - 1rem)" }}
-          >
-            <div className="flex items-center justify-between gap-3 px-2 py-1.5">
-              <span className="text-xs font-semibold text-muted-foreground">Theme</span>
-              <ThemeControl className="shrink-0" />
+          <div className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+            {initials(user.display_name, user.email)}
+          </div>
+          {!compact && (
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-sm font-medium text-foreground">
+                {user.display_name || user.email}
+              </span>
+              <span className="truncate text-xs text-muted-foreground">{user.email}</span>
             </div>
-            <div className="my-1 h-px bg-border" />
-            <Menu.Item
-              onClick={onSignOut}
-              className={cn(
-                "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-destructive outline-none",
-                "data-[highlighted]:bg-accent",
-              )}
-            >
-              <LogOut className="size-4" />
-              <span>Sign out</span>
-            </Menu.Item>
-          </Menu.Popup>
-        </Menu.Positioner>
-      </Menu.Portal>
-    </Menu.Root>
+          )}
+        </Button>
+      }
+    >
+      <div className="flex items-center justify-between gap-3 px-2 py-1.5">
+        <span className="text-xs font-semibold text-muted-foreground">Theme</span>
+        <ThemeControl className="shrink-0" />
+      </div>
+      <MenuSeparator />
+      <MenuItem className="text-destructive" onClick={onSignOut}>
+        <LogOut className="size-4" />
+        <span>Sign out</span>
+      </MenuItem>
+    </Menu>
   );
 };

@@ -1,4 +1,4 @@
-import { Card, cn } from "@atelier/ui";
+import { Button, Card, cn } from "@atelier/ui";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Home, RefreshCcw } from "lucide-react";
@@ -146,14 +146,10 @@ export const AppErrorPage = ({ error, reset }: AppErrorPageProps) => {
       details={getErrorDetails(error)}
       title="Something went wrong"
     >
-      <button
-        className={cn(actionClassName, "bg-primary text-primary-foreground")}
-        onClick={retry}
-        type="button"
-      >
+      <Button className={cn(actionClassName, "bg-primary text-primary-foreground")} onClick={retry}>
         <RefreshCcw className="size-4" />
         Try again
-      </button>
+      </Button>
       <Link className={cn(actionClassName, "border border-border bg-background")} to="/overview">
         <Home className="size-4" />
         Overview

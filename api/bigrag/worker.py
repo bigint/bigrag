@@ -29,8 +29,10 @@ def cli(argv: list[str] | None = None) -> int:
 
     os.environ["BIGRAG_WORKER_SEED_PERIODIC"] = "1"
     if args.queues:
+        os.environ["BIGRAG_WORKER_QUEUES"] = ",".join(args.queues)
         os.environ["BIGRAG_WORKER_PERIODIC_QUEUES"] = ",".join(args.queues)
     else:
+        os.environ.pop("BIGRAG_WORKER_QUEUES", None)
         os.environ.pop("BIGRAG_WORKER_PERIODIC_QUEUES", None)
 
     dramatiq_args = [

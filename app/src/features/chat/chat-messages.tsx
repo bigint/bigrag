@@ -1,4 +1,4 @@
-import { Button, cn, Modal, Textarea } from "@atelier/ui";
+import { Button, Checkbox, cn, Modal, Textarea } from "@atelier/ui";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -81,15 +81,16 @@ const renderInlineCitations = (
       nodes.push(
         <span key={`c-${key++}`} className="inline-flex items-center gap-0.5">
           {citations.map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => onCite(n)}
-              className="mx-0.5 inline-flex items-center rounded-md border border-border bg-muted px-1.5 align-baseline font-mono text-xs font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            <Button
               aria-label={`Jump to source ${n}`}
+              className="mx-0.5 h-auto rounded-md px-1.5 py-0 align-baseline font-mono text-xs"
+              key={n}
+              onClick={() => onCite(n)}
+              size="sm"
+              variant="secondary"
             >
               [{n}]
-            </button>
+            </Button>
           ))}
         </span>,
       );
@@ -173,11 +174,11 @@ const markdownComponents = (chunkCount: number, onCite: (n: number) => void): Co
     </h4>
   ),
   input: ({ checked }) => (
-    <input
+    <Checkbox
+      aria-label={checked ? "Checked task" : "Unchecked task"}
       checked={Boolean(checked)}
-      className="mr-2 size-3.5 align-text-top"
-      readOnly
-      type="checkbox"
+      className="mr-2 inline-flex align-text-top"
+      onCheckedChange={() => undefined}
     />
   ),
   li: ({ children, className }) => (
@@ -284,34 +285,37 @@ const AssistantMessage = memo(
                 </>
               )}
               {message.content && (
-                <button
-                  type="button"
-                  className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted hover:text-foreground"
-                  onClick={() => navigator.clipboard.writeText(message.content)}
+                <Button
                   aria-label="Copy answer"
+                  className="size-7 p-0"
+                  onClick={() => navigator.clipboard.writeText(message.content)}
+                  size="icon"
+                  variant="ghost"
                 >
                   <Copy className="size-3.5" />
-                </button>
+                </Button>
               )}
               {message.status === "stopped" && onResume ? (
-                <button
-                  type="button"
-                  className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted hover:text-foreground"
-                  onClick={() => onResume(message.id)}
+                <Button
                   aria-label="Resume answer"
+                  className="size-7 p-0"
+                  onClick={() => onResume(message.id)}
+                  size="icon"
+                  variant="ghost"
                 >
                   <Play className="size-3.5" />
-                </button>
+                </Button>
               ) : (
                 onRegenerate && (
-                  <button
-                    type="button"
-                    className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted hover:text-foreground"
-                    onClick={() => onRegenerate(message.id)}
+                  <Button
                     aria-label="Regenerate answer"
+                    className="size-7 p-0"
+                    onClick={() => onRegenerate(message.id)}
+                    size="icon"
+                    variant="ghost"
                   >
                     <RotateCcw className="size-3.5" />
-                  </button>
+                  </Button>
                 )
               )}
             </div>
@@ -435,14 +439,15 @@ const UserMessage = ({
       <div className="flex items-start gap-3">
         <span className="whitespace-pre-wrap">{content}</span>
         {onEdit && (
-          <button
-            type="button"
-            className="mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 hover:bg-background hover:text-foreground group-hover:opacity-100"
-            onClick={openEdit}
+          <Button
             aria-label="Edit message"
+            className="mt-0.5 size-7 shrink-0 p-0 opacity-0 group-hover:opacity-100"
+            onClick={openEdit}
+            size="icon"
+            variant="ghost"
           >
             <FilePenLine className="size-3.5" />
-          </button>
+          </Button>
         )}
       </div>
       <Modal
@@ -608,14 +613,10 @@ export const ChatMessages = ({
       <div className="mx-auto flex max-w-4xl flex-col gap-4" role="log">
         {messages.length > 0 && onClear && (
           <div className="flex justify-end">
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
-              onClick={onClear}
-            >
+            <Button className="h-8 px-2.5 text-xs" onClick={onClear} size="sm" variant="outline">
               <Trash2 className="size-3.5" />
               Clear
-            </button>
+            </Button>
           </div>
         )}
         {messages.map((message, index) =>

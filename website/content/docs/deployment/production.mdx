@@ -75,6 +75,7 @@ services:
       BIGRAG_LOG_LEVEL: info
       BIGRAG_LOG_FORMAT: json
       BIGRAG_UPLOAD_DIR: /data/uploads
+      BIGRAG_WORKER_HEALTHCHECK_KEY: "${BIGRAG_WORKER_HEALTHCHECK_KEY:-bigrag:dramatiq:worker:heartbeat}"
     deploy:
       resources:
         limits:
@@ -121,6 +122,16 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c 'import os, sys, redis; client = redis.Redis.from_url(os.environ.get(\"BIGRAG_REDIS_URL\", \"redis://redis:6379/0\")); key = os.environ.get(\"BIGRAG_WORKER_HEALTHCHECK_KEY\", \"bigrag:dramatiq:worker:heartbeat\"); sys.exit(0 if client.ttl(key) > 0 else 1)'",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   bigrag-ui:
     image: yoginth/bigrag-ui:2026.4.30
@@ -299,6 +310,11 @@ docker exec bigrag-postgres pg_isready -U bigrag
 curl -f http://localhost:6333/healthz
 docker exec bigrag-redis redis-cli ping
 ```
+
+The worker container healthcheck reads the worker heartbeat from Redis rather
+than calling the API HTTP server. If you split workers by queue, set
+`BIGRAG_WORKER_HEALTHCHECK_KEY` to the matching queue heartbeat key, such as
+`bigrag:dramatiq:worker:heartbeat:webhooks`.
 
 ### Documents stuck in "pending"
 

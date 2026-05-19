@@ -1,4 +1,4 @@
-import { Page, Spinner } from "@atelier/ui";
+import { Button, Page, Spinner } from "@atelier/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import { Menu as MenuIcon } from "lucide-react";
@@ -59,14 +59,15 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       <MobileSidebar open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} role={role} />
       <main id="main" className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-3 py-2.5 lg:hidden">
-          <button
-            type="button"
+          <Button
             aria-label="Open navigation"
             onClick={() => setMobileNavOpen(true)}
-            className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            className="size-9 p-0"
+            size="icon"
+            variant="ghost"
           >
             <MenuIcon className="size-5" />
-          </button>
+          </Button>
           <Logo />
           <span className="size-9" aria-hidden />
         </header>

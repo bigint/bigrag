@@ -53,7 +53,9 @@ services:
     command: ["bigrag-worker", "--processes", "1", "--threads", "${BIGRAG_WORKER_THREADS:-8}"]
     volumes:
       - bigrag_data:/data
-    environment: *bigrag-env
+    environment:
+      <<: *bigrag-env
+      BIGRAG_WORKER_HEALTHCHECK_KEY: "${BIGRAG_WORKER_HEALTHCHECK_KEY:-bigrag:dramatiq:worker:heartbeat}"
     deploy:
       resources:
         limits:
@@ -66,6 +68,16 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c 'import os, sys, redis; client = redis.Redis.from_url(os.environ.get(\"BIGRAG_REDIS_URL\", \"redis://redis:6379/0\")); key = os.environ.get(\"BIGRAG_WORKER_HEALTHCHECK_KEY\", \"bigrag:dramatiq:worker:heartbeat\"); sys.exit(0 if client.ttl(key) > 0 else 1)'",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   bigrag-ui:
     image: "${BIGRAG_UI_IMAGE:-bigrag-ui:local}"

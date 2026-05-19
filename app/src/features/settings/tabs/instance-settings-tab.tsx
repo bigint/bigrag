@@ -411,18 +411,18 @@ const AdvancedSettings = ({
   readonly stacked: boolean;
 }) => (
   <div className="border-border border-t bg-muted/20">
-    <button
+    <Button
       aria-expanded={open}
-      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="h-auto w-full justify-between rounded-none px-4 py-3 text-left text-sm font-semibold"
       onClick={() => onOpenChange(!open)}
-      type="button"
+      variant="ghost"
     >
       <span>Advanced controls</span>
       <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
         {specs.length} settings
         {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
       </span>
-    </button>
+    </Button>
     {open && (
       <div className="divide-y divide-border border-border border-t bg-card">
         {specs.map((spec) => (

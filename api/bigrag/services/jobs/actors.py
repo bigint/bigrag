@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 
 import dramatiq
@@ -60,10 +61,25 @@ def enqueue_backup_job(job_id: str) -> None:
 
 def seed_periodic_jobs(enabled_queues: set[str] | None = None) -> None:
     if enabled_queues is None or MAINTENANCE_QUEUE in enabled_queues:
-        run_google_drive_scheduler.send()
-        run_cleanup.send_with_options(delay=CLEANUP_SECONDS * 1000)
+        _schedule_sync(
+            run_google_drive_scheduler,
+            GOOGLE_DRIVE_SCHEDULER_KEY,
+            GOOGLE_DRIVE_SCHEDULER_SECONDS,
+            skip_if_delayed_exists=True,
+        )
+        _schedule_sync(
+            run_cleanup,
+            CLEANUP_SCHEDULER_KEY,
+            CLEANUP_SECONDS,
+            skip_if_delayed_exists=True,
+        )
     if enabled_queues is None or WEBHOOKS_QUEUE in enabled_queues:
-        process_webhook_outbox.send()
+        _schedule_sync(
+            process_webhook_outbox,
+            WEBHOOK_OUTBOX_KEY,
+            1,
+            skip_if_delayed_exists=True,
+        )
 
 
 @dramatiq.actor(queue_name=INGESTION_QUEUE, max_retries=0, broker=broker)
@@ -175,17 +191,40 @@ async def _run_cleanup() -> None:
     await cleanup_old_data_once()
 
 
-def _schedule_sync(actor, key: str, delay_seconds: int) -> None:
-    if _run(_claim_schedule_once, key, delay_seconds):
+def _schedule_sync(
+    actor,
+    key: str,
+    delay_seconds: int,
+    *,
+    skip_if_delayed_exists: bool = False,
+) -> None:
+    if _run(_claim_schedule_once, key, delay_seconds, actor if skip_if_delayed_exists else None):
         actor.send_with_options(delay=delay_seconds * 1000)
 
 
-async def _claim_schedule_once(key: str, delay_seconds: int) -> bool:
+async def _claim_schedule_once(key: str, delay_seconds: int, actor=None) -> bool:
     from bigrag.services.queue import ingestion_queue
 
     await record_worker_heartbeat()
     redis = ingestion_queue.redis
     if redis is None:
         return True
+    if actor is not None and await _delayed_actor_exists(redis, actor):
+        return False
     scheduled = await redis.set(key, b"1", ex=max(1, delay_seconds), nx=True)
     return bool(scheduled)
+
+
+async def _delayed_actor_exists(redis, actor) -> bool:
+    from bigrag.services.jobs.broker import delayed_messages_key
+
+    raw_messages = await redis.hvals(delayed_messages_key(actor.queue_name))
+    for raw_message in raw_messages:
+        try:
+            text = raw_message.decode() if isinstance(raw_message, bytes) else raw_message
+            message = json.loads(text)
+        except (TypeError, ValueError, UnicodeDecodeError):
+            continue
+        if message.get("actor_name") == actor.actor_name:
+            return True
+    return False

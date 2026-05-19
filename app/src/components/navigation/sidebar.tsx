@@ -1,5 +1,4 @@
-import { cn } from "@atelier/ui";
-import { Dialog } from "@base-ui/react/dialog";
+import { cn, Sheet } from "@atelier/ui";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -153,23 +152,15 @@ export const MobileSidebar = ({
   role: string;
 }) => {
   return (
-    <Dialog.Root
+    <Sheet
+      backdropClassName="lg:hidden"
+      className="lg:hidden"
+      onClose={onClose}
       open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
+      side="left"
+      title="Navigation"
     >
-      <Dialog.Portal>
-        <Dialog.Backdrop render={<div className="fixed inset-0 z-50 bg-black/50 lg:hidden" />} />
-        <Dialog.Popup
-          render={
-            <div className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-sm flex-col border-r border-border bg-background lg:hidden" />
-          }
-        >
-          <Dialog.Title className="sr-only">Navigation</Dialog.Title>
-          <SidebarBody onNavigate={onClose} role={role} />
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+      <SidebarBody onNavigate={onClose} role={role} />
+    </Sheet>
   );
 };

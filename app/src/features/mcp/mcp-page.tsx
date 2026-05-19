@@ -495,13 +495,13 @@ export const McpPage = () => {
       header: "Title",
       key: "title",
       render: (s) => (
-        <button
-          className="flex items-center gap-2 text-left font-medium text-sm hover:underline"
+        <Button
+          className="h-auto justify-start p-0 text-left text-sm hover:underline"
           onClick={() => setDetailId(s.id)}
-          type="button"
+          variant="ghost"
         >
           <Plug className="size-4 shrink-0 text-muted-foreground" /> {s.title}
-        </button>
+        </Button>
       ),
     },
     {

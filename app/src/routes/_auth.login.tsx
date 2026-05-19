@@ -54,6 +54,7 @@ const LoginPage = () => {
   });
 
   useAuthGate({ when: "setup-needed", to: "/setup" });
+  useAuthGate({ when: "logged-in", to: from ?? "/overview" });
 
   if (isPending || setupStatus?.needs_setup) {
     return (
@@ -103,6 +104,7 @@ const LoginPage = () => {
               label="Email"
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.target.value)}
+              placeholder="admin@example.com"
               required
               type="email"
               value={field.state.value}
@@ -123,6 +125,7 @@ const LoginPage = () => {
               minLength={8}
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.target.value)}
+              placeholder="Enter password"
               required
               type="password"
               value={field.state.value}

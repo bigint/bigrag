@@ -158,9 +158,12 @@ a future pgvector backend.
   ingestion, connector syncs, webhook outbox delivery, backups, and
   cleanup. Worker heartbeat and queue state are visible through
   `/v1/stats`. Each worker process initializes runtime dependencies
-  before reserving jobs. Periodic maintenance and webhook outbox ticks
-  are seeded after boot, with Redis startup guards to avoid duplicate
-  scheduler messages across replicas.
+  before reserving jobs, aborts boot if initialization fails, refreshes
+  queue-scoped heartbeats while idle, and recovers stale processing
+  leases on startup. Periodic maintenance and webhook outbox ticks are
+  seeded after boot through the same Redis scheduler guards used by the
+  actors, so restarts and replicas do not create duplicate delayed
+  messages.
 - **Vector backend choice**: use local Qdrant for self-hosted installs
   or turbopuffer for a managed vector search service. Turbopuffer
   namespaces are created on first write and store bigRAG vector IDs as
