@@ -4,6 +4,7 @@ import logging
 import sys
 
 import structlog
+from structlog.dev import Column, ConsoleRenderer, KeyValueColumnFormatter, LogLevelColumnFormatter
 
 _SENSITIVE_KEYS = frozenset(
     {
@@ -79,6 +80,83 @@ def redact_secrets(_logger, _method_name, event_dict):
     return _redact(event_dict)
 
 
+def shorten_logger_name(_logger, _method_name, event_dict):
+    value = event_dict.get("logger")
+    if isinstance(value, str):
+        for prefix in (
+            "bigrag.services.",
+            "bigrag.routers.",
+            "bigrag.middleware.",
+            "bigrag.app_factory.",
+            "bigrag.",
+            "dramatiq.",
+            "uvicorn.",
+        ):
+            if value.startswith(prefix):
+                value = value.removeprefix(prefix)
+                break
+        event_dict["logger"] = f"...{value[-29:]}" if len(value) > 32 else value
+    return event_dict
+
+
+def _field_value(value: object) -> str:
+    return truncate_log_value(str(value))
+
+
+def _console_renderer() -> ConsoleRenderer:
+    styles = ConsoleRenderer.get_default_column_styles(True, True)
+    level_styles = ConsoleRenderer.get_default_level_styles(True)
+    level_styles = {key: value + styles.bright for key, value in level_styles.items()}
+    return ConsoleRenderer(
+        sort_keys=False,
+        columns=[
+            Column(
+                "timestamp",
+                KeyValueColumnFormatter(
+                    key_style=None,
+                    value_style=styles.timestamp,
+                    reset_style=styles.reset,
+                    value_repr=str,
+                    width=8,
+                ),
+            ),
+            Column(
+                "level",
+                LogLevelColumnFormatter(level_styles, reset_style=styles.reset, width=0),
+            ),
+            Column(
+                "logger",
+                KeyValueColumnFormatter(
+                    key_style=None,
+                    value_style=styles.logger_name,
+                    reset_style=styles.reset,
+                    value_repr=str,
+                    width=22,
+                ),
+            ),
+            Column(
+                "event",
+                KeyValueColumnFormatter(
+                    key_style=None,
+                    value_style=styles.bright,
+                    reset_style=styles.reset,
+                    value_repr=str,
+                    width=30,
+                ),
+            ),
+            Column(
+                "",
+                KeyValueColumnFormatter(
+                    key_style=styles.kv_key,
+                    value_style=styles.kv_value,
+                    reset_style=styles.reset,
+                    value_repr=_field_value,
+                ),
+            ),
+        ],
+    )
+
+
 def configure_logging(log_level: str = "debug", log_format: str = "text") -> None:
 
     level = getattr(logging, log_level.upper(), logging.INFO)
@@ -87,19 +165,22 @@ def configure_logging(log_level: str = "debug", log_format: str = "text") -> Non
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
-        redact_secrets,
-        structlog.processors.TimeStamper(fmt="%H:%M:%S" if log_format == "text" else "iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.UnicodeDecoder(),
     ]
+    if log_format == "text":
+        shared_processors.append(shorten_logger_name)
+    shared_processors.extend(
+        [
+            redact_secrets,
+            structlog.processors.TimeStamper(fmt="%H:%M:%S" if log_format == "text" else "iso"),
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.UnicodeDecoder(),
+        ]
+    )
 
     if log_format == "json":
         renderer: structlog.types.Processor = structlog.processors.JSONRenderer()
     else:
-        renderer = structlog.dev.ConsoleRenderer(
-            colors=True,
-            pad_event_to=32,
-        )
+        renderer = _console_renderer()
 
     structlog.configure(
         processors=[
@@ -127,10 +208,16 @@ def configure_logging(log_level: str = "debug", log_format: str = "text") -> Non
     root.addHandler(handler)
     root.setLevel(level)
 
-    noisy_dependency_level = logging.INFO if level <= logging.DEBUG else logging.WARNING
-    for name in ("qdrant_client", "httpx", "uvicorn.access"):
-        logging.getLogger(name).setLevel(noisy_dependency_level)
-    for name in ("httpcore", "hpack"):
+    for name in (
+        "alembic",
+        "asyncio",
+        "dramatiq",
+        "hpack",
+        "httpcore",
+        "httpx",
+        "qdrant_client",
+        "uvicorn.access",
+    ):
         logging.getLogger(name).setLevel(logging.WARNING)
 
 

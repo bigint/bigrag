@@ -92,10 +92,10 @@ This script:
 6. Starts `bigrag-worker` with Dramatiq on Redis
 7. Gracefully stops everything on Ctrl+C
 
-If the admin UI shows `bigrag-worker is offline`, check the terminal for `[worker]`
-logs. A healthy local worker should keep running after the `Dramatiq ... is booting
-up` line and `/v1/stats` should report a recent worker heartbeat for the signed-in
-admin session.
+If the admin UI shows `bigrag-worker is offline`, check the terminal for the
+colored `work` log stream. A healthy local worker should keep running and
+`/v1/stats` should report a recent worker heartbeat for the signed-in admin
+session.
 
 ## Verify
 

@@ -36,6 +36,7 @@ def cli(argv: list[str] | None = None) -> int:
         os.environ.pop("BIGRAG_WORKER_PERIODIC_QUEUES", None)
 
     dramatiq_args = [
+        "--skip-logging",
         "--processes",
         str(args.processes),
         "--threads",

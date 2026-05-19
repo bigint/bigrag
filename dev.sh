@@ -76,7 +76,14 @@ wait_for() {
 
 prefix_logs() {
   local tag="$1"
-  while IFS= read -r line; do printf '[%s] %s\n' "$tag" "$line"; done
+  local color="$CYAN"
+  local label="$tag"
+  case "$tag" in
+    backend) color="$GREEN"; label="api" ;;
+    worker) color="$YELLOW"; label="work" ;;
+    website) color="$CYAN"; label="docs" ;;
+  esac
+  while IFS= read -r line; do printf '%b%-5s%b | %s\n' "$color" "$label" "$NC" "$line"; done
 }
 
 if [ "$START_BACKEND" = true ] || [ "$START_WEBSITE" = true ]; then

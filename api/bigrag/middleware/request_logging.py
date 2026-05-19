@@ -63,13 +63,12 @@ def _multi_value_set(target: dict[str, object], key: str, value: str) -> None:
         target[key] = [existing, value]
 
 
-def _headers_from_scope(scope: Scope) -> dict[str, object]:
-    headers: dict[str, object] = {}
+def _header_from_scope(scope: Scope, target: str) -> str | None:
+    wanted = target.lower().encode()
     for raw_name, raw_value in scope.get("headers", []):
-        name = raw_name.decode("latin-1", errors="ignore").lower()
-        value = raw_value.decode("latin-1", errors="replace")
-        _multi_value_set(headers, name, _safe_value(name, value))
-    return headers
+        if raw_name.lower() == wanted:
+            return raw_value.decode("latin-1", errors="replace")
+    return None
 
 
 def _query_from_scope(scope: Scope) -> dict[str, object]:
@@ -111,17 +110,26 @@ def _access_context(scope: Scope) -> dict[str, object]:
 def _request_start_fields(
     scope: Scope, method: str, path: str, request_id: str
 ) -> dict[str, object]:
-    return {
+    fields: dict[str, object] = {
         "request_id": request_id,
         "method": method,
         "path": path,
-        "root_path": scope.get("root_path") or None,
-        "query": _query_from_scope(scope),
-        "headers": _headers_from_scope(scope),
         "client_ip": _client_ip_from_scope(scope),
-        "scheme": scope.get("scheme"),
-        "http_version": scope.get("http_version"),
     }
+    query = _query_from_scope(scope)
+    if query:
+        fields["query"] = query
+    for header, key in (
+        ("host", "host"),
+        ("user-agent", "user_agent"),
+        ("content-type", "content_type"),
+        ("content-length", "content_length"),
+        ("referer", "referer"),
+    ):
+        value = _header_from_scope(scope, header)
+        if value:
+            fields[key] = _safe_value(header, value)
+    return fields
 
 
 def _request_complete_fields(
@@ -167,11 +175,7 @@ class RequestLoggingMiddleware:
         scope.setdefault("state", {})["request_id"] = request_id
         status_code = 500
         first_byte_ms: float | None = None
-        context_tokens = structlog.contextvars.bind_contextvars(
-            request_id=request_id,
-            http_method=method,
-            http_path=path,
-        )
+        context_tokens = structlog.contextvars.bind_contextvars(request_id=request_id)
         self._logger.info("request_start", **_request_start_fields(scope, method, path, request_id))
 
         async def send_wrapper(message):

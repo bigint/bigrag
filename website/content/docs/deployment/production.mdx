@@ -275,10 +275,13 @@ materializing a full collection in API memory.
 
 API and worker logs are emitted through `structlog` with stable event names and
 key-value fields for request, ingestion, vector-store, webhook, and auth activity.
-Text logs are colored by default. Every API request logs `request_start`,
-`response_start`, and `request_complete`; unhandled failures log
+Text logs are colored by default with fixed columns for time, level, logger,
+event, and fields. Dependency loggers such as Dramatiq, Alembic, Uvicorn access,
+HTTPX, and Qdrant are kept at warning level so local terminals show bigRAG
+actions instead of library startup chatter. Every API request logs
+`request_start`, `response_start`, and `request_complete`; unhandled failures log
 `request_failed`. Request logs include method, path, sanitized query params,
-sanitized headers, client IP, route, endpoint/action context, status,
+selected request headers, client IP, route, endpoint/action context, status,
 `first_byte_ms`, and total `elapsed_ms`. Raw request bodies, prompts, document
 content, cookies, authorization headers, and secret-like query params are not
 rendered. Set `BIGRAG_LOG_FORMAT=json` when Docker, Railway, Fluent Bit, or
