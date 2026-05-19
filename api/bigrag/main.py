@@ -14,11 +14,11 @@ from bigrag.app_factory.exception_handlers import register_exception_handlers
 from bigrag.app_factory.lifespan import lifespan
 from bigrag.app_factory.routers import include_all_routers
 from bigrag.config import Settings
-from bigrag.logging import RequestLoggingMiddleware
 from bigrag.middleware.cors import RuntimeCorsMiddleware
 from bigrag.middleware.csrf import SessionCsrfMiddleware
 from bigrag.middleware.idempotency import IdempotencyMiddleware
 from bigrag.middleware.maintenance import MaintenanceWriteLockMiddleware
+from bigrag.middleware.request_logging import RequestLoggingMiddleware
 from bigrag.services.access_log import AccessLogMiddleware
 
 _CLI_CONFIG_PATH_ENV = "_BIGRAG_CLI_CONFIG_PATH"
@@ -54,12 +54,12 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     )
     app.state.settings = s
 
-    app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(AccessLogMiddleware)
     app.add_middleware(IdempotencyMiddleware)
     app.add_middleware(MaintenanceWriteLockMiddleware)
     app.add_middleware(SessionCsrfMiddleware)
     app.add_middleware(RuntimeCorsMiddleware)
+    app.add_middleware(RequestLoggingMiddleware)
 
     register_exception_handlers(app)
     include_all_routers(app)
