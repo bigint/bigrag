@@ -1,9 +1,8 @@
+import { cn, ThemeControl } from "@atelier/ui";
 import { Menu } from "@base-ui/react/menu";
 import { useNavigate } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
-import { ThemeControl } from "@/features/theme/theme-control";
 import { useLogout, useSession } from "@/hooks/use-auth";
-import { cn } from "@/lib/cn";
 
 const initials = (name: string, email: string) => {
   const source = name?.trim() || email || "?";

@@ -1,8 +1,7 @@
+import { Button, Modal } from "@atelier/ui";
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
 
 interface Props {
   secret: string | null;

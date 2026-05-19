@@ -1,11 +1,10 @@
+import { Button, Spinner } from "@atelier/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { BookOpen, Clock3, FileText, type LucideIcon, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { ChatInput, type ChatState } from "@/features/chat/chat-input";
 import type { ChatMessage } from "@/features/chat/chat-messages";
 import { ChatMessages } from "@/features/chat/chat-messages";

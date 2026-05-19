@@ -1,8 +1,14 @@
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Page,
+  Select,
+  Spinner,
+} from "@atelier/ui";
 import { useMemo, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Page } from "@/components/ui/page";
-import { Select } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
 import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";

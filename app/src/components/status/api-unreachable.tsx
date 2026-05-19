@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@atelier/ui";
 
 type Props = {
   readonly error?: unknown;

@@ -40,6 +40,8 @@ async def ensure_worker_runtime() -> None:
             pool_max=settings.db_pool_max,
         )
         await run_migrations()
+        configure_logging(log_level=settings.log_level, log_format=settings.log_format)
+        logger.info("worker migrations complete")
         runtime = await runtime_settings.get_values(
             [
                 "ingestion_workers",
@@ -52,6 +54,7 @@ async def ensure_worker_runtime() -> None:
                 "turbopuffer_region",
             ]
         )
+        logger.info("worker runtime settings loaded")
         vector_store.configure(
             qdrant_url=runtime["qdrant_url"],
             connect_timeout_seconds=runtime["qdrant_connect_timeout_seconds"],
@@ -62,6 +65,7 @@ async def ensure_worker_runtime() -> None:
         )
         vector_store.connect()
         await vector_store.health_check()
+        logger.info("worker vector store ready")
         _storage = await init_storage_from_runtime(upload_dir=settings.upload_dir)
         await redis_cache.connect(settings.redis_url)
         await event_bus.connect(settings.redis_url)
@@ -69,6 +73,7 @@ async def ensure_worker_runtime() -> None:
         await ingestion_queue.connect(settings.redis_url)
         ingestion_queue.bind_vector_store(vector_store)
         await get_conversion_executor()
+        logger.info("worker queues ready")
         _initialized = True
         await record_worker_heartbeat()
         logger.info("worker ready")

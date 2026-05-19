@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
-import { LinkTabs } from "@/components/ui/tabs";
+import { LinkTabs } from "@/components/navigation/link-tabs";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import {
   collectionConnectorProviders,

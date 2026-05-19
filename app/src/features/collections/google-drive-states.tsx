@@ -1,6 +1,6 @@
+import { Button } from "@atelier/ui";
 import { Cloud, Settings, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
 
 export const SetupRequired = () => (
   <ConnectorState

@@ -1,6 +1,6 @@
+import { Spinner } from "@atelier/ui";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Spinner } from "@/components/ui/spinner";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import {
   collectionConnectorProviders,

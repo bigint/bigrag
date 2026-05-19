@@ -1,8 +1,8 @@
+import { Spinner } from "@atelier/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { ApiUnreachable } from "@/components/status/api-unreachable";
-import { Spinner } from "@/components/ui/spinner";
 import { useSession, useSetupStatus } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 

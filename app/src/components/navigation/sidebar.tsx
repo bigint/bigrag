@@ -1,3 +1,4 @@
+import { cn } from "@atelier/ui";
 import { Dialog } from "@base-ui/react/dialog";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
@@ -20,7 +21,6 @@ import {
   Webhook,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
-import { cn } from "@/lib/cn";
 import { UserMenu } from "./user-menu";
 
 interface NavItem {

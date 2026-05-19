@@ -1,3 +1,15 @@
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  ConfirmDialog,
+  cn,
+  Empty,
+  Input,
+  Select,
+  Spinner,
+} from "@atelier/ui";
 import { Link } from "@tanstack/react-router";
 import {
   CheckCircle2,
@@ -13,14 +25,6 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Empty } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
 import { useUploadSessionStore } from "@/features/collections/upload-session-store";
 import {
   getWorkerAvailability,
@@ -40,7 +44,6 @@ import {
   useUploadSessionDocuments,
 } from "@/hooks/use-documents";
 import { usePlatformStats } from "@/hooks/use-platform";
-import { cn } from "@/lib/cn";
 import { acceptAttribute, filterBlockedFiles, getAllowedFileTypes } from "@/lib/file-types";
 import { formatBytes, formatRelative } from "@/lib/format";
 import type { DocumentStatus, UploadSession } from "@/types/bigrag";

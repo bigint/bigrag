@@ -1,3 +1,4 @@
+import { Badge, cn, Page, Spinner } from "@atelier/ui";
 import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -17,16 +18,12 @@ import {
   SignalHigh,
 } from "lucide-react";
 import { useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Page } from "@/components/ui/page";
-import { Spinner } from "@/components/ui/spinner";
 import { getWorkerAvailability } from "@/features/workers/worker-status";
 import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
 import { useAccessOverview } from "@/hooks/use-access-logs";
 import { useSession } from "@/hooks/use-auth";
 import { useCollections } from "@/hooks/use-collections";
 import { usePlatformStats, useReadiness } from "@/hooks/use-platform";
-import { cn } from "@/lib/cn";
 import { formatBytes, formatNumber, formatRelative } from "@/lib/format";
 import type { AccessLogOverview } from "@/types/bigrag";
 

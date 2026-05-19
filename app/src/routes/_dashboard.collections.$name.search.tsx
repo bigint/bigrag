@@ -1,15 +1,18 @@
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  Empty,
+  Input,
+  Select,
+  Spinner,
+  Switch,
+} from "@atelier/ui";
 import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CircleAlert, Copy, RotateCcw, Search, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Empty } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
 import {
   type CollectionSearchMode,
   collectionSearchBodyFromValues,

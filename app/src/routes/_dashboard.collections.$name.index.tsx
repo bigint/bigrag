@@ -1,9 +1,15 @@
+import {
+  Badge,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Empty,
+  Spinner,
+} from "@atelier/ui";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, FileText, type LucideIcon, Search, Settings } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Empty } from "@/components/ui/empty";
-import { Spinner } from "@/components/ui/spinner";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import { useCollection, useCollectionStats } from "@/hooks/use-collections";
 import { useDocuments } from "@/hooks/use-documents";

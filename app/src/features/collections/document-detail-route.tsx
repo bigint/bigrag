@@ -1,14 +1,18 @@
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  ConfirmDialog,
+  cn,
+  Empty,
+  Page,
+  Spinner,
+} from "@atelier/ui";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, RefreshCcw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Empty } from "@/components/ui/empty";
-import { Page } from "@/components/ui/page";
-import { Spinner } from "@/components/ui/spinner";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import {
   getWorkerAvailability,
@@ -22,7 +26,6 @@ import {
   useReprocessDocument,
 } from "@/hooks/use-documents";
 import { usePlatformStats } from "@/hooks/use-platform";
-import { cn } from "@/lib/cn";
 import { formatBytes, formatNumber, formatRelative } from "@/lib/format";
 import type { DocumentProgress, DocumentStatus } from "@/types/bigrag";
 

@@ -1,8 +1,6 @@
+import { Button, ConfirmDialog, Page } from "@atelier/ui";
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Page } from "@/components/ui/page";
 import { getWorkerAvailability } from "@/features/workers/worker-status";
 import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
 import { usePlatformStats } from "@/hooks/use-platform";

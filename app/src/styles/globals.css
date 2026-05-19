@@ -1,6 +1,8 @@
 @import "tailwindcss";
+@import "@atelier/ui/theme.css";
 
 @source "../**/*.tsx";
+@source "../../../../atelier/packages/ui/src/**/*.{ts,tsx}";
 
 @theme {
   --font-sans:
@@ -12,79 +14,39 @@
   --font-weight-medium: 500;
   --font-weight-semibold: 540;
   --font-weight-bold: 640;
-  --color-background: #ffffff;
-  --color-foreground: #0a0a0a;
-  --color-card: #ffffff;
-  --color-card-foreground: #0a0a0a;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #0a0a0a;
-  --color-primary: #0a0a0a;
-  --color-primary-foreground: #fafafa;
-  --color-muted: #f7f7f6;
-  --color-muted-foreground: #5f5f5c;
-  --color-surface: #f3f3f2;
-  --color-border: #ececea;
-  --color-input: #ebebe9;
-  --color-ring: #0a0a0a;
-  --color-accent: #eeeeec;
-  --color-accent-foreground: #171717;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #ffffff;
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-warning-foreground: #ffffff;
-  --color-info: #3b82f6;
-  --color-info-foreground: #ffffff;
-  --color-primary-hover: #262626;
-  --color-logo-cutout: #ffffff;
-  --color-switch-ring: rgb(0 0 0 / 0.1);
-  --color-hover-border: #d4d4d4;
-  --color-soft-shadow: rgb(0 0 0 / 0.02);
+  --color-background: var(--atelier-color-background);
+  --color-foreground: var(--atelier-color-foreground);
+  --color-card: var(--atelier-color-card);
+  --color-card-foreground: var(--atelier-color-card-foreground);
+  --color-popover: var(--atelier-color-popover);
+  --color-popover-foreground: var(--atelier-color-popover-foreground);
+  --color-primary: var(--atelier-color-primary);
+  --color-primary-foreground: var(--atelier-color-primary-foreground);
+  --color-muted: var(--atelier-color-muted);
+  --color-muted-foreground: var(--atelier-color-muted-foreground);
+  --color-surface: var(--atelier-color-surface);
+  --color-border: var(--atelier-color-border);
+  --color-input: var(--atelier-color-input);
+  --color-ring: var(--atelier-color-ring);
+  --color-accent: var(--atelier-color-accent);
+  --color-accent-foreground: var(--atelier-color-accent-foreground);
+  --color-destructive: var(--atelier-color-destructive);
+  --color-destructive-foreground: var(--atelier-color-destructive-foreground);
+  --color-success: var(--atelier-color-success);
+  --color-warning: var(--atelier-color-warning);
+  --color-warning-foreground: var(--atelier-color-warning-foreground);
+  --color-info: var(--atelier-color-info);
+  --color-info-foreground: var(--atelier-color-info-foreground);
+  --color-primary-hover: var(--atelier-color-primary-hover);
+  --color-logo-cutout: var(--atelier-color-logo-cutout);
+  --color-switch-ring: var(--atelier-color-switch-ring);
+  --color-hover-border: var(--atelier-color-hover-border);
+  --color-soft-shadow: var(--atelier-color-soft-shadow);
 
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
   --radius-xl: 1.5rem;
-}
-
-:root {
-  color-scheme: light;
-  --color-body-pattern: rgb(0 0 0 / 0.025);
-  --color-selection: rgb(10 10 10 / 0.12);
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --color-background: #101112;
-  --color-foreground: #f4f3ef;
-  --color-card: #171819;
-  --color-card-foreground: #f4f3ef;
-  --color-popover: #171819;
-  --color-popover-foreground: #f4f3ef;
-  --color-primary: #f4f3ef;
-  --color-primary-foreground: #101112;
-  --color-muted: #1d1e20;
-  --color-muted-foreground: #a4a29d;
-  --color-surface: #141516;
-  --color-border: #2a2b2d;
-  --color-input: #313235;
-  --color-ring: #e8e4dc;
-  --color-accent: #252629;
-  --color-accent-foreground: #f4f3ef;
-  --color-destructive: #f87171;
-  --color-destructive-foreground: #170b0b;
-  --color-success: #4ade80;
-  --color-warning: #fbbf24;
-  --color-warning-foreground: #17120a;
-  --color-info: #60a5fa;
-  --color-info-foreground: #07111f;
-  --color-primary-hover: #e6e1d8;
-  --color-logo-cutout: #101112;
-  --color-switch-ring: rgb(255 255 255 / 0.16);
-  --color-hover-border: #484a4d;
-  --color-soft-shadow: rgb(0 0 0 / 0.32);
-  --color-body-pattern: rgb(255 255 255 / 0.032);
-  --color-selection: rgb(244 243 239 / 0.18);
 }
 
 body {
@@ -123,12 +85,6 @@ input[type="range"],
 [role="option"],
 label[for] {
   cursor: pointer;
-}
-
-*, *::before, *::after {
-  animation: none !important;
-  scroll-behavior: auto !important;
-  transition: none !important;
 }
 
 @keyframes spinner-spin {

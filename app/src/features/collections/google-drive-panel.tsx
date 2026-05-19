@@ -1,10 +1,8 @@
+import { Button, Input, Spinner } from "@atelier/ui";
 import { Search } from "lucide-react";
 import { useMemo } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import {
   DriveBreadcrumb,
   DriveBrowser,

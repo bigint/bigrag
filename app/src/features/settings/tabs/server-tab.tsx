@@ -1,6 +1,6 @@
+import { cn } from "@atelier/ui";
 import { getWorkerAvailability } from "@/features/workers/worker-status";
 import { usePlatformStats, useReadiness } from "@/hooks/use-platform";
-import { cn } from "@/lib/cn";
 
 type Status = "ok" | "degraded" | "down" | "unknown";
 

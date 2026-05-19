@@ -1,14 +1,17 @@
+import {
+  Badge,
+  Button,
+  ConfirmDialog,
+  cn,
+  Empty,
+  Input,
+  Select,
+  Switch,
+  Textarea,
+} from "@atelier/ui";
 import { useForm, useStore } from "@tanstack/react-form";
 import { ChevronDown, ChevronRight, Save, Trash2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Empty } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import {
   groupSpecs,
   type InstanceSettingsFormValues,
@@ -34,7 +37,6 @@ import {
   usePurgeEmbeddingCache,
   useUpdateInstanceSettings,
 } from "@/hooks/use-instance-settings";
-import { cn } from "@/lib/cn";
 import type {
   InstanceSettingGroup,
   InstanceSettingSpec,

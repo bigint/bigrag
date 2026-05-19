@@ -1,14 +1,8 @@
+import { Badge, Button, cn, Input, Page, Select, Spinner } from "@atelier/ui";
 import { RefreshCw, ShieldCheck } from "lucide-react";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Page } from "@/components/ui/page";
-import { Select } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
 import { useAccessLogs, useAccessOverview } from "@/hooks/use-access-logs";
 import { useSession } from "@/hooks/use-auth";
-import { cn } from "@/lib/cn";
 import { formatNumber, formatRelative } from "@/lib/format";
 import type { AccessLogEntry } from "@/types/bigrag";
 

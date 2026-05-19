@@ -1,8 +1,7 @@
+import { Button, cn } from "@atelier/ui";
 import { Popover } from "@base-ui/react/popover";
 import { Check, Sparkles } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/cn";
 import type { Collection } from "@/types/bigrag";
 
 export const OPENAI_MODELS = [

@@ -1,10 +1,7 @@
+import { Button, Input, Modal, Select } from "@atelier/ui";
 import { useForm, useStore } from "@tanstack/react-form";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
-import { Select } from "@/components/ui/select";
 import {
   DEFAULT_MODELS,
   defaultPresetFormValues,

@@ -1,3 +1,4 @@
+import { Button, cn } from "@atelier/ui";
 import {
   ArrowUp,
   BookOpen,
@@ -8,8 +9,6 @@ import {
   Square,
 } from "lucide-react";
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/cn";
 import type { Collection } from "@/types/bigrag";
 import {
   type ChatPatch,

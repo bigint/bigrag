@@ -1,12 +1,7 @@
+import { Badge, Button, type Column, DataTable, Input, Page, Tooltip } from "@atelier/ui";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowUpRight, BookOpen, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { type Column, DataTable } from "@/components/ui/data-table";
-import { Input } from "@/components/ui/input";
-import { Page } from "@/components/ui/page";
-import { Tooltip } from "@/components/ui/tooltip";
 import { CreateCollectionModal } from "@/features/collections/create-collection-modal";
 import { useCollections } from "@/hooks/use-collections";
 import { formatNumber, formatRelative } from "@/lib/format";

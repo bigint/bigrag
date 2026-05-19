@@ -1,3 +1,4 @@
+import { Button, cn, Modal, Textarea } from "@atelier/ui";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -29,10 +30,6 @@ import {
 } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/cn";
 import type { ChatSource, QueryTimings } from "@/types/bigrag";
 
 export type ChatMessage = {

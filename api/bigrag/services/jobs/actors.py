@@ -77,6 +77,7 @@ async def _process_ingestion_job(payload: str) -> None:
     from bigrag.services.maintenance import is_active
 
     job = IngestionJob.deserialize(payload.encode())
+    logger.info("ingestion actor received job", job=job.job_id, doc=job.document_id)
     if await is_active():
         enqueue_ingestion_job(job, delay_seconds=10)
         return
@@ -108,9 +109,11 @@ def run_google_drive_scheduler() -> None:
 async def _run_google_drive_scheduler() -> None:
     await ensure_worker_runtime()
     try:
+        logger.info("google drive scheduler tick starting")
         from bigrag.services.connectors.google_drive_sync import run_due_google_syncs
 
         await run_due_google_syncs()
+        logger.info("google drive scheduler tick complete")
     finally:
         await _schedule_once(
             run_google_drive_scheduler,
@@ -128,12 +131,14 @@ async def _process_webhook_outbox(delivery_id: str | None = None) -> None:
     await ensure_worker_runtime()
     from bigrag.services.webhook import WebhookDispatcher
 
+    logger.info("webhook outbox tick starting", delivery_id=delivery_id)
     dispatcher = WebhookDispatcher()
     target_id = uuid.UUID(delivery_id) if delivery_id else None
     processed = await dispatcher.process_due_deliveries(
         delivery_id=target_id,
         limit=1 if target_id else 25,
     )
+    logger.info("webhook outbox tick complete", delivery_id=delivery_id, processed=processed)
     if target_id is None:
         await _schedule_once(process_webhook_outbox, WEBHOOK_OUTBOX_KEY, 1 if processed else 5)
 

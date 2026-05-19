@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 import dramatiq.cli
@@ -26,9 +27,11 @@ def cli(argv: list[str] | None = None) -> int:
         log_format=config_module.settings.log_format,
     )
 
-    from bigrag.services.jobs.actors import seed_periodic_jobs
-
-    seed_periodic_jobs(set(args.queues) if args.queues else None)
+    os.environ["BIGRAG_WORKER_SEED_PERIODIC"] = "1"
+    if args.queues:
+        os.environ["BIGRAG_WORKER_PERIODIC_QUEUES"] = ",".join(args.queues)
+    else:
+        os.environ.pop("BIGRAG_WORKER_PERIODIC_QUEUES", None)
 
     dramatiq_args = [
         "--processes",

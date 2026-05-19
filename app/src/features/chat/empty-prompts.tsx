@@ -1,5 +1,5 @@
+import { Button } from "@atelier/ui";
 import { ArrowUpRight, RefreshCcw, Shuffle, TriangleAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface Props {
   collection: string;

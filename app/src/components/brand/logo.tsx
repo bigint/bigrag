@@ -1,4 +1,4 @@
-import { cn } from "@/lib/cn";
+import { cn } from "@atelier/ui";
 
 type Props = { className?: string; withWordmark?: boolean };
 

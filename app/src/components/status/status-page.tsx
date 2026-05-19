@@ -1,10 +1,9 @@
+import { Card, cn } from "@atelier/ui";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Home, RefreshCcw } from "lucide-react";
 import type { ReactNode } from "react";
 import { Logo } from "@/components/brand/logo";
-import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/cn";
 
 const actionClassName =
   "inline-flex h-9 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";

@@ -157,7 +157,10 @@ a future pgvector backend.
 - **Dramatiq workers**: run one or more `bigrag-worker` processes for
   ingestion, connector syncs, webhook outbox delivery, backups, and
   cleanup. Worker heartbeat and queue state are visible through
-  `/v1/stats`.
+  `/v1/stats`. Each worker process initializes runtime dependencies
+  before reserving jobs. Periodic maintenance and webhook outbox ticks
+  are seeded after boot, with Redis startup guards to avoid duplicate
+  scheduler messages across replicas.
 - **Vector backend choice**: use local Qdrant for self-hosted installs
   or turbopuffer for a managed vector search service. Turbopuffer
   namespaces are created on first write and store bigRAG vector IDs as

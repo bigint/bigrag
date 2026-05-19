@@ -1,14 +1,17 @@
+import {
+  Badge,
+  Button,
+  type Column,
+  ConfirmDialog,
+  DataTable,
+  Page,
+  Tabs,
+  Tooltip,
+} from "@atelier/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Cpu, Pencil, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { type Column, DataTable } from "@/components/ui/data-table";
-import { Page } from "@/components/ui/page";
-import { Tabs } from "@/components/ui/tabs";
-import { Tooltip } from "@/components/ui/tooltip";
 import { MODEL_SETTINGS_GROUPS, type ModelsTab } from "@/features/models/model-tabs";
 import { PresetForm } from "@/features/models/preset-form";
 import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";

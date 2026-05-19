@@ -1,11 +1,17 @@
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Empty,
+  Input,
+  Page,
+} from "@atelier/ui";
 import { Archive, CloudUpload, DatabaseBackup, ShieldAlert } from "lucide-react";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Empty } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
-import { Page } from "@/components/ui/page";
 import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 import {
   getWorkerAvailability,

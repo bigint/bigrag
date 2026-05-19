@@ -1,3 +1,4 @@
+import { Page, Spinner } from "@atelier/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import { Menu as MenuIcon } from "lucide-react";
@@ -5,8 +6,6 @@ import { useState } from "react";
 import { Logo } from "@/components/brand/logo";
 import { MobileSidebar, Sidebar } from "@/components/navigation/sidebar";
 import { ApiUnreachable } from "@/components/status/api-unreachable";
-import { Page } from "@/components/ui/page";
-import { Spinner } from "@/components/ui/spinner";
 import { useAuthGate } from "@/features/auth/use-auth-gate";
 import { useSession, useSetupStatus } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
