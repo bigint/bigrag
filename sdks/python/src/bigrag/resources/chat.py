@@ -4,6 +4,7 @@ import json
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 
+from bigrag._sse import parse_sse_frames
 from bigrag.types.chat import (
     ChatBody,
     ChatCreateResponse,
@@ -41,28 +42,11 @@ class ChatResource:
                 await response.aread()
                 await self._client._throw_for_status(response)
 
-            buffer = ""
-            async for chunk in response.aiter_text():
-                buffer += chunk
-                frames = buffer.split("\n\n")
-                buffer = frames.pop() or ""
-                for frame in frames:
-                    event = _parse_frame(frame)
-                    if event is not None:
-                        yield event
+            async for frame in parse_sse_frames(response):
+                yield _parse_frame(frame.event, frame.data)
 
 
-def _parse_frame(frame: str) -> ChatStreamEvent | None:
-    event_name = "message"
-    data_lines: list[str] = []
-    for line in frame.splitlines():
-        if line.startswith("event: "):
-            event_name = line[7:].strip()
-        elif line.startswith("data: "):
-            data_lines.append(line[6:])
-    payload = "\n".join(data_lines)
-    if not payload or payload == "[DONE]":
-        return None
+def _parse_frame(event_name: str, payload: str) -> ChatStreamEvent:
     try:
         data = json.loads(payload)
     except json.JSONDecodeError:

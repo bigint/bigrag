@@ -98,43 +98,6 @@ async def _export_vector_store(temp_dir: Path) -> dict[str, int]:
     return counts
 
 
-async def _export_vector_store_legacy(temp_dir: Path) -> dict[str, int]:
-    points_dir = temp_dir / "vector_store" / "points"
-    points_dir.mkdir(parents=True, exist_ok=True)
-    collections_meta = []
-    counts: dict[str, int] = {}
-    async with session_factory()() as session:
-        collections = (
-            await session.scalars(sa.select(Collection).order_by(Collection.name.asc()))
-        ).all()
-    for collection in collections:
-        points = await vector_store.export_collection_points(
-            collection.name,
-            with_vectors=False,
-            provider=collection.vector_store_provider,
-        )
-        exists = bool(points) or collection.document_count == 0
-        count = len(points)
-        target = points_dir / f"{collection.name}.jsonl"
-        with target.open("wb") as f:
-            for point in points:
-                f.write(orjson.dumps(_point_payload(point)) + b"\n")
-        if not exists and collection.document_count > 0:
-            raise RuntimeError(f"Vector store collection missing: {collection.name}")
-        counts[collection.name] = count
-        collections_meta.append(
-            {
-                "collection": collection.name,
-                "provider": collection.vector_store_provider,
-                "vector_store_collection": collection.name,
-                "exists": exists,
-                "points": count,
-            }
-        )
-    _write_json(temp_dir / "vector_store" / "collections.json", collections_meta)
-    return counts
-
-
 def _point_payload(point: Any) -> dict[str, Any]:
     if isinstance(point, dict):
         return {

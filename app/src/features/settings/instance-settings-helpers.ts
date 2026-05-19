@@ -92,11 +92,13 @@ export const draftValue = (
 export const valuesForSubmit = (
   specs: readonly InstanceSettingSpec[],
   draft: Readonly<Record<string, DraftValue>>,
+  settingValues: Readonly<Record<string, InstanceSettingValue | undefined>>,
 ): Record<string, unknown> => {
   const values: Record<string, unknown> = {};
   for (const spec of specs) {
     const value = draft[spec.key];
     if (spec.kind === "secret" && !value) continue;
+    if (spec.kind !== "secret" && value === draftValue(spec, settingValues[spec.key])) continue;
     values[spec.key] = value;
   }
   return values;

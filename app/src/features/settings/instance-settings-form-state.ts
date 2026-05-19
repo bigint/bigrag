@@ -23,13 +23,12 @@ export const groupSpecs = (
   data: InstanceSettingsResponse | undefined,
   groups: readonly InstanceSettingGroup[],
 ) => {
+  const activeGroups = new Set(groups);
   const byGroup = Object.fromEntries(groups.map((targetGroup) => [targetGroup, []])) as Partial<
     Record<InstanceSettingGroup, InstanceSettingSpec[]>
   >;
   for (const spec of data?.specs ?? []) {
-    if (groups.includes(spec.group)) {
-      byGroup[spec.group] = [...(byGroup[spec.group] ?? []), spec];
-    }
+    if (activeGroups.has(spec.group)) byGroup[spec.group]?.push(spec);
   }
   return byGroup;
 };

@@ -193,6 +193,7 @@ async def update_settings(
     values: dict[str, Any],
     *,
     updated_by: UUID | None,
+    values_are_validated: bool = False,
 ) -> list[str]:
     changed: list[str] = []
     rows = await _rows_by_key(session)
@@ -200,8 +201,10 @@ async def update_settings(
         spec = REGISTRY.get(key)
         if spec is None:
             raise KeyError(key)
-        value = validate_setting_value(key, raw_value)
+        value = raw_value if values_are_validated else validate_setting_value(key, raw_value)
         row = rows.get(key)
+        if _stored_value_matches(spec, row, value):
+            continue
         if row is None:
             row = InstanceSetting(key=key, updated_by=updated_by)
             session.add(row)
@@ -214,10 +217,25 @@ async def update_settings(
             row.secret_value = None
         row.updated_by = updated_by
         changed.append(key)
+    if not changed:
+        return changed
     await session.commit()
     set_runtime_settings_cache(
         {spec.key: _runtime_value(spec, rows.get(spec.key)) for spec in SETTING_SPECS}
     )
+    return changed
+
+
+async def changed_setting_values(session: AsyncSession, values: dict[str, Any]) -> dict[str, Any]:
+    rows = await _rows_by_key(session)
+    changed: dict[str, Any] = {}
+    for key, raw_value in values.items():
+        spec = REGISTRY.get(key)
+        if spec is None:
+            raise KeyError(key)
+        value = validate_setting_value(key, raw_value)
+        if not _stored_value_matches(spec, rows.get(key), value):
+            changed[key] = value
     return changed
 
 
@@ -282,6 +300,14 @@ def _runtime_value(spec: SettingSpec, row: InstanceSetting | None) -> Any:
     if spec.secret:
         return row.secret_value
     return row.value
+
+
+def _stored_value_matches(spec: SettingSpec, row: InstanceSetting | None, value: Any) -> bool:
+    if row is None:
+        return value == _default_for(spec)
+    if spec.secret:
+        return row.secret_value == value
+    return row.value == value
 
 
 def _source_for(row: InstanceSetting | None, spec: SettingSpec) -> SettingSource:

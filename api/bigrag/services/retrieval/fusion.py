@@ -2,18 +2,23 @@ from __future__ import annotations
 
 import re
 
+KeywordPattern = re.Pattern[str]
+
 
 def tokenize_query(query: str) -> list[str]:
     return [w.lower() for w in re.split(r"\s+", query.strip()) if len(w) >= 2]
 
 
-def keyword_score(text: str, query_terms: list[str]) -> float:
+def keyword_patterns(query_terms: list[str]) -> list[KeywordPattern]:
+    return [re.compile(r"\b" + re.escape(term) + r"\b") for term in query_terms]
+
+
+def keyword_score(text: str, patterns: list[KeywordPattern]) -> float:
     text_lower = text.lower()
-    if not query_terms:
+    if not patterns:
         return 0.0
-    patterns = [re.compile(r"\b" + re.escape(term) + r"\b") for term in query_terms]
     matches = sum(1 for pat in patterns if pat.search(text_lower))
-    return matches / len(query_terms)
+    return matches / len(patterns)
 
 
 def reciprocal_rank_fusion(

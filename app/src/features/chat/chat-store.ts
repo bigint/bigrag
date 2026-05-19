@@ -46,7 +46,11 @@ export const useChatStore = create<ChatStoreState>()((set) => ({
   setMessages: (messages) => set({ messages }),
   setStreaming: (isStreaming) => set({ isStreaming }),
   updateMessage: (id, update) =>
-    set((state) => ({
-      messages: state.messages.map((message) => (message.id === id ? update(message) : message)),
-    })),
+    set((state) => {
+      const index = state.messages.findIndex((message) => message.id === id);
+      if (index < 0) return state;
+      const messages = state.messages.slice();
+      messages[index] = update(messages[index]);
+      return { messages };
+    }),
 }));

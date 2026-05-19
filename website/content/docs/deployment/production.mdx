@@ -257,7 +257,8 @@ rows, vector-store points and payloads, uploaded files, and logs. Provider
 secrets, token/hash columns, S3 credentials, and embedding-cache vectors are
 redacted. They are useful for inspection and data portability, but they are not a
 substitute for encrypted infrastructure snapshots or tested disaster recovery
-runbooks.
+runbooks. Vector-store point exports stream provider pages into JSONL instead of
+materializing a full collection in API memory.
 
 ## Logging
 

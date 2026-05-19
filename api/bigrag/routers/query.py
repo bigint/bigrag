@@ -267,7 +267,7 @@ async def batch_query(
 
     batch_semaphore = asyncio.Semaphore(8)
 
-    async def run_one(item: BatchQueryItem) -> BatchQueryResultItem:
+    async def run_one(item: BatchQueryItem) -> tuple[BatchQueryItem, list[dict], int]:
         async with batch_semaphore:
             collection = await get_collection_or_404(item.collection)
             require_tenant_filters(collection, item.filters)
@@ -290,15 +290,28 @@ async def batch_query(
                 vector_store_provider=collection.get("vector_store_provider"),
             )
 
-            results = await _results_with_document_filenames(outcome.results)
-            return BatchQueryResultItem(
-                results=[QueryResult(**_result_to_dict(r)) for r in results],
+            return item, outcome.results, len(outcome.results)
+
+    raw_results = await asyncio.gather(*[run_one(item) for item in body.queries])
+    flat_rows = []
+    row_counts = []
+    for _, rows, _ in raw_results:
+        row_counts.append(len(rows))
+        flat_rows.extend(rows)
+    enriched_rows = await _results_with_document_filenames(flat_rows)
+    results = []
+    cursor = 0
+    for (item, _, total), row_count in zip(raw_results, row_counts, strict=True):
+        rows = enriched_rows[cursor : cursor + row_count]
+        cursor += row_count
+        results.append(
+            BatchQueryResultItem(
+                results=[QueryResult(**_result_to_dict(r)) for r in rows],
                 query=item.query,
                 collection=item.collection,
-                total=len(outcome.results),
+                total=total,
             )
-
-    results = await asyncio.gather(*[run_one(item) for item in body.queries])
+        )
     access_log.set_context(
         request,
         metadata={

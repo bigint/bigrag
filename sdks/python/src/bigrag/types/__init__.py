@@ -142,7 +142,6 @@ from bigrag.types.webhooks import (
 )
 
 __all__ = [
-    # Common
     "StatusResponse",
     "HealthResponse",
     "ReadinessResponse",
@@ -150,7 +149,6 @@ __all__ = [
     "WorkerStatsResponse",
     "DocumentStats",
     "PlatformStatsResponse",
-    # Auth
     "SetupStatusResponse",
     "LoginBody",
     "SetupBody",
@@ -159,13 +157,11 @@ __all__ = [
     "SessionResponse",
     "WhoamiResponse",
     "PreferencesResponse",
-    # Chat
     "ChatBody",
     "ChatSource",
     "ChatMessage",
     "ChatCreateResponse",
     "ChatStreamEvent",
-    # Admin
     "UserListResponse",
     "CreateUserBody",
     "UpdateUserBody",
@@ -203,13 +199,11 @@ __all__ = [
     "AccessLogBucket",
     "AccessLogTimelinePoint",
     "AccessLogOverviewResponse",
-    # Collections
     "Collection",
     "CollectionListResponse",
     "CollectionStatsResponse",
     "CreateCollectionBody",
     "UpdateCollectionBody",
-    # Connectors
     "GoogleProvider",
     "ConnectorAccountStatus",
     "ConnectorSourceStatus",
@@ -232,7 +226,6 @@ __all__ = [
     "GoogleSyncProgress",
     "GoogleSyncProgressCounts",
     "GoogleSyncProgressPhase",
-    # Documents
     "Document",
     "DocumentListResponse",
     "DocumentChunk",
@@ -246,7 +239,6 @@ __all__ = [
     "UploadSessionItem",
     "UploadSession",
     "UploadSessionFileResponse",
-    # Query
     "QueryBody",
     "QueryResult",
     "QueryTimings",
@@ -258,16 +250,13 @@ __all__ = [
     "BatchQueryBody",
     "BatchQueryResultItem",
     "BatchQueryResponse",
-    # Evaluations
     "EvalCase",
     "EvalBody",
     "EvalPerCase",
     "EvalResponse",
-    # Vectors
     "VectorEntry",
     "UpsertResponse",
     "DeleteResponse",
-    # Webhooks
     "Webhook",
     "CreateWebhookBody",
     "CreateWebhookResponse",
@@ -276,16 +265,12 @@ __all__ = [
     "WebhookDelivery",
     "WebhookDeliveryListResponse",
     "WebhookTestResponse",
-    # Analytics
     "PeriodStats",
     "TopQuery",
     "AnalyticsResponse",
-    # Embeddings
     "EmbeddingModelInfo",
     "EmbeddingModelListResponse",
-    # Usage
     "CollectionUsage",
     "UsageResponse",
-    # SSE
     "ProgressEvent",
 ]

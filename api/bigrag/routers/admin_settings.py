@@ -18,6 +18,7 @@ from bigrag.models.instance_settings import (
 from bigrag.services import audit, embedding_cache
 from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.runtime_settings import (
+    changed_setting_values,
     get_public_settings,
     reset_settings,
     update_settings,
@@ -48,10 +49,21 @@ async def update_instance_settings(
 ) -> InstanceSettingsResponse:
     user_id = UUID(admin["id"]) if admin.get("id") else None
     prepared = None
+    changed: list[str] = []
     try:
-        prepared = await prepare_runtime_settings_update(request.app, body.values)
-        changed = await update_settings(session, body.values, updated_by=user_id)
-        await apply_prepared_runtime_settings(request.app, prepared)
+        changed_values = await changed_setting_values(session, body.values)
+        if changed_values:
+            prepared = await prepare_runtime_settings_update(
+                request.app, changed_values, values_are_validated=True
+            )
+            changed = await update_settings(
+                session,
+                prepared.patch,
+                updated_by=user_id,
+                values_are_validated=True,
+            )
+            if changed:
+                await apply_prepared_runtime_settings(request.app, prepared)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=f"Unknown setting: {exc.args[0]}") from exc
     except (RuntimeError, ValueError) as exc:
@@ -61,14 +73,15 @@ async def update_instance_settings(
     finally:
         if prepared is not None:
             await prepared.close()
-    audit.record(
-        request,
-        user=admin,
-        action="instance_settings.update",
-        resource_type="instance_settings",
-        resource_id="instance",
-        metadata={"keys": changed},
-    )
+    if changed:
+        audit.record(
+            request,
+            user=admin,
+            action="instance_settings.update",
+            resource_type="instance_settings",
+            resource_id="instance",
+            metadata={"keys": changed},
+        )
     return await get_public_settings(session)
 
 

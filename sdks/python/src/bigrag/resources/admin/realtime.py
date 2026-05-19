@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING
 from urllib.parse import quote
 
+from bigrag._sse import parse_sse_frames
 from bigrag.types.admin import AdminRealtimeEvent
 
 if TYPE_CHECKING:
@@ -39,14 +41,16 @@ class AdminRealtimeResource:
         self, collection: str, document_id: str
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
         return self._stream(
-            f"/v1/admin/realtime/collections/{quote(collection, safe='')}/documents/{quote(document_id, safe='')}"
+            "/v1/admin/realtime/collections/"
+            f"{quote(collection, safe='')}/documents/{quote(document_id, safe='')}"
         )
 
     def upload_session(
         self, collection: str, session_id: str
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
         return self._stream(
-            f"/v1/admin/realtime/collections/{quote(collection, safe='')}/upload-sessions/{quote(session_id, safe='')}"
+            "/v1/admin/realtime/collections/"
+            f"{quote(collection, safe='')}/upload-sessions/{quote(session_id, safe='')}"
         )
 
     def collection_stats(
@@ -153,9 +157,10 @@ class AdminRealtimeResource:
     def custom(
         self, path: str, params: dict[str, str | int | bool | None] | None = None
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
-        assert path.startswith("/v1/admin/realtime/"), (
-            "admin.realtime.custom path must start with /v1/admin/realtime/"
-        )
+        if not path.startswith("/v1/admin/realtime/"):
+            raise ValueError(
+                "admin.realtime.custom path must start with /v1/admin/realtime/"
+            )
         return self._stream(path, params or {})
 
     async def _stream(
@@ -172,21 +177,8 @@ class AdminRealtimeResource:
             if response.status_code >= 400:
                 await response.aread()
                 await self._client._throw_for_status(response)
-            buffer = ""
-            async for chunk in response.aiter_text():
-                buffer += chunk
-                while True:
-                    frame = _pop_sse_frame(buffer)
-                    if frame is None:
-                        break
-                    block, buffer = frame
-                    event = _parse_realtime_frame(block)
-                    if event is not None:
-                        yield event
-            if buffer.strip():
-                event = _parse_realtime_frame(buffer)
-                if event is not None:
-                    yield event
+            async for frame in parse_sse_frames(response):
+                yield {"event": frame.event, "data": json.loads(frame.data)}
 
 
 def _stream_params(params: dict[str, str | int | bool | None]) -> dict[str, str]:
@@ -199,32 +191,3 @@ def _stream_params(params: dict[str, str | int | bool | None]) -> dict[str, str]
         else:
             query[key] = str(value)
     return query
-
-
-def _pop_sse_frame(buffer: str) -> tuple[str, str] | None:
-    lf = buffer.find("\n\n")
-    crlf = buffer.find("\r\n\r\n")
-    if lf == -1 and crlf == -1:
-        return None
-    if lf != -1 and (crlf == -1 or lf < crlf):
-        return buffer[:lf], buffer[lf + 2 :]
-    return buffer[:crlf], buffer[crlf + 4 :]
-
-
-def _parse_realtime_frame(frame: str) -> AdminRealtimeEvent | None:
-    event = "message"
-    data: list[str] = []
-    for raw_line in frame.splitlines():
-        line = raw_line.rstrip("\r")
-        if not line or line.startswith(":"):
-            continue
-        if line.startswith("event:"):
-            event = line[6:].lstrip()
-        elif line.startswith("data:"):
-            data.append(line[5:].lstrip())
-    if not data:
-        return None
-    payload = "\n".join(data)
-    if payload == "[DONE]":
-        return None
-    return {"event": event, "data": json.loads(payload)}

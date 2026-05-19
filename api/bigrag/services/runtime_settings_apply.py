@@ -57,6 +57,7 @@ _apply_lock = asyncio.Lock()
 class PreparedRuntimeSettings:
     keys: list[str]
     values: dict[str, Any]
+    patch: dict[str, Any]
     storage_backend: StorageBackend | None = None
     vector_backend: VectorStore | None = None
 
@@ -72,15 +73,21 @@ class PreparedRuntimeSettings:
 async def prepare_runtime_settings_update(
     app: Any,
     raw_values: dict[str, Any],
+    *,
+    values_are_validated: bool = False,
 ) -> PreparedRuntimeSettings:
     values = await runtime_settings.all_runtime_values()
     patch: dict[str, Any] = {}
     keys: list[str] = []
     for key, raw_value in raw_values.items():
-        patch[key] = runtime_settings.validate_setting_value(key, raw_value)
+        patch[key] = (
+            raw_value
+            if values_are_validated
+            else runtime_settings.validate_setting_value(key, raw_value)
+        )
         keys.append(key)
     values.update(patch)
-    return await _prepare_runtime_settings(app, keys, values)
+    return await _prepare_runtime_settings(app, keys, values, patch)
 
 
 async def prepare_runtime_settings_reset(app: Any, keys: list[str]) -> PreparedRuntimeSettings:
@@ -90,7 +97,7 @@ async def prepare_runtime_settings_reset(app: Any, keys: list[str]) -> PreparedR
         raise KeyError(unknown[0])
     values = await runtime_settings.all_runtime_values()
     values.update(runtime_settings.default_values(target_keys))
-    return await _prepare_runtime_settings(app, target_keys, values)
+    return await _prepare_runtime_settings(app, target_keys, values, {})
 
 
 async def apply_prepared_runtime_settings(app: Any, prepared: PreparedRuntimeSettings) -> None:
@@ -115,8 +122,9 @@ async def _prepare_runtime_settings(
     app: Any,
     keys: list[str],
     values: dict[str, Any],
+    patch: dict[str, Any],
 ) -> PreparedRuntimeSettings:
-    prepared = PreparedRuntimeSettings(keys=keys, values=values)
+    prepared = PreparedRuntimeSettings(keys=keys, values=values, patch=patch)
     keyset = set(keys)
     try:
         if keyset & BACKUP_KEYS:

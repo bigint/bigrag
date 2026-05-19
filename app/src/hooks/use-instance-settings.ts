@@ -6,7 +6,6 @@ import { queryKeys } from "@/lib/query-keys";
 import type { InstanceSettingsResponse } from "@/types/bigrag";
 
 type SettingsBody = { values: Record<string, unknown> };
-type SettingsTestResponse = { status: string; checked: string[]; message: string };
 
 export const useInstanceSettings = () =>
   useQuery({
@@ -18,10 +17,8 @@ export const useInstanceSettings = () =>
 export const useUpdateInstanceSettings = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: SettingsBody) => {
-      await apiClient.post<SettingsTestResponse>("v1/admin/settings/test", body);
-      return apiClient.put<InstanceSettingsResponse>("v1/admin/settings", body);
-    },
+    mutationFn: (body: SettingsBody) =>
+      apiClient.put<InstanceSettingsResponse>("v1/admin/settings", body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.instanceSettings() });
       qc.invalidateQueries({ queryKey: queryKeys.platform.readiness() });

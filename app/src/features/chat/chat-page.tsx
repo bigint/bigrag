@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { BookOpen, Clock3, FileText, type LucideIcon, Search } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/button";
@@ -127,191 +127,249 @@ export const ChatPage = () => {
     };
   }, [prefsQuery.data]);
 
-  const patchState = (patch: Partial<ChatState> & { openaiKey?: string }) => {
-    const mapped: Record<string, unknown> = {};
-    if (patch.openaiKey !== undefined) mapped.openai_key = patch.openaiKey;
-    if (patch.model !== undefined) mapped.model = patch.model;
-    if (patch.topK !== undefined) mapped.top_k = patch.topK;
-    if (patch.temperature !== undefined) mapped.temperature = patch.temperature;
-    if (patch.searchMode !== undefined) mapped.search_mode = patch.searchMode;
-    if (patch.rerank !== undefined) mapped.rerank = patch.rerank;
-    if (patch.systemPrompt !== undefined) mapped.system_prompt = patch.systemPrompt;
-    updatePrefs.mutate(
-      { chat: mapped },
-      {
-        onSuccess: () => {
-          if (patch.openaiKey !== undefined) {
-            toast.success(patch.openaiKey ? "OpenAI key saved" : "OpenAI key cleared");
-          }
+  const patchState = useCallback(
+    (patch: Partial<ChatState> & { openaiKey?: string }) => {
+      const mapped: Record<string, unknown> = {};
+      if (patch.openaiKey !== undefined) mapped.openai_key = patch.openaiKey;
+      if (patch.model !== undefined) mapped.model = patch.model;
+      if (patch.topK !== undefined) mapped.top_k = patch.topK;
+      if (patch.temperature !== undefined) mapped.temperature = patch.temperature;
+      if (patch.searchMode !== undefined) mapped.search_mode = patch.searchMode;
+      if (patch.rerank !== undefined) mapped.rerank = patch.rerank;
+      if (patch.systemPrompt !== undefined) mapped.system_prompt = patch.systemPrompt;
+      updatePrefs.mutate(
+        { chat: mapped },
+        {
+          onSuccess: () => {
+            if (patch.openaiKey !== undefined) {
+              toast.success(patch.openaiKey ? "OpenAI key saved" : "OpenAI key cleared");
+            }
+          },
+          onError: (error) => {
+            if (patch.openaiKey !== undefined) {
+              toast.error(error instanceof Error ? error.message : "Could not save OpenAI key");
+            }
+          },
         },
-        onError: (error) => {
-          if (patch.openaiKey !== undefined) {
-            toast.error(error instanceof Error ? error.message : "Could not save OpenAI key");
-          }
-        },
-      },
-    );
-  };
+      );
+    },
+    [updatePrefs],
+  );
 
   const questionsQuery = useChatQuestionSuggestions(collection);
 
-  const stopStreaming = () => {
+  const stopStreaming = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
     setStreaming(false);
-  };
+  }, [setStreaming]);
 
-  const handleCollectionChange = (name: string) => {
-    selectCollection(name);
-  };
+  const handleCollectionChange = useCallback(
+    (name: string) => {
+      selectCollection(name);
+    },
+    [selectCollection],
+  );
 
-  const handleGenerateQuestions = () => {
+  const handleGenerateQuestions = useCallback(() => {
     if (!collection) return;
     generateQuestions.mutate({
       collection: collection,
       model: state.model,
       temperature: state.temperature,
     });
-  };
+  }, [collection, generateQuestions, state.model, state.temperature]);
 
-  const handleSend = async (text: string) => {
-    if (isStreaming) return;
-    if (!state.hasOpenAIKey) {
-      toast.error("Add your OpenAI API key first");
-      return;
-    }
-    if (!collection) {
-      toast.error("Pick a collection first");
-      return;
-    }
-
-    const userId = newId();
-    const assistantId = newId();
-    let currentAssistantId = assistantId;
-    const userMsg: ChatMessage = { id: userId, role: "user", content: text };
-    const assistantMsg: ChatMessage = { id: assistantId, role: "assistant", content: "" };
-    appendMessages([userMsg, assistantMsg]);
-    setStreaming(true);
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const refreshPreferencesIfCredentialError = (message: string) => {
-      if (message.includes("OpenAI rejected") || message.includes("Save an OpenAI API key")) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.preferences() });
+  const handleSend = useCallback(
+    async (text: string) => {
+      if (isStreaming) return;
+      if (!state.hasOpenAIKey) {
+        toast.error("Add your OpenAI API key first");
+        return;
       }
-    };
-
-    try {
-      await streamChat({
-        signal: controller.signal,
-        body: {
-          message: text,
-          collection: collection,
-          model_provider: "openai",
-          model: state.model,
-          temperature: state.temperature,
-          top_k: state.topK,
-          search_mode: state.searchMode,
-          rerank: state.rerank,
-          system_prompt: state.systemPrompt,
-        },
-        onEvent: (event) => {
-          if (event.event === "sources") {
-            updateMessage(currentAssistantId, (message) => ({
-              ...message,
-              meta: {
-                collection: event.data.collection,
-                sources: event.data.sources,
-                timings: normalizeTimings(event.data.timings),
-              },
-            }));
-            return;
-          }
-          if (event.event === "delta") {
-            updateMessage(currentAssistantId, (message) => ({
-              ...message,
-              content: message.content + event.data.delta,
-            }));
-            return;
-          }
-          if (event.event === "assistant_message") {
-            updateMessage(currentAssistantId, (message) => ({
-              ...message,
-              id: event.data.id,
-              content: event.data.content,
-              status: event.data.status,
-              errorMessage: event.data.error_message,
-              meta: {
-                collection: collection,
-                sources: event.data.sources,
-                timings: timingsFromRetrieval(event.data),
-              },
-            }));
-            currentAssistantId = event.data.id;
-            return;
-          }
-          if (event.event === "error") {
-            updateMessage(currentAssistantId, (message) => ({
-              ...message,
-              status: "error",
-              errorMessage: event.data.error,
-            }));
-            refreshPreferencesIfCredentialError(event.data.error);
-            toast.error(event.data.error);
-          }
-        },
-      });
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        updateMessage(currentAssistantId, (chatMessage) => ({
-          ...chatMessage,
-          status: "stopped",
-        }));
-      } else {
-        const message = err instanceof Error ? err.message : "Chat request failed";
-        updateMessage(currentAssistantId, (chatMessage) => ({
-          ...chatMessage,
-          status: "error",
-          errorMessage: message,
-        }));
-        refreshPreferencesIfCredentialError(message);
-        toast.error(message);
+      if (!collection) {
+        toast.error("Pick a collection first");
+        return;
       }
-    } finally {
-      setStreaming(false);
-      abortRef.current = null;
-    }
-  };
 
-  const handleClear = () => {
+      const userId = newId();
+      const assistantId = newId();
+      let currentAssistantId = assistantId;
+      const userMsg: ChatMessage = { id: userId, role: "user", content: text };
+      const assistantMsg: ChatMessage = { id: assistantId, role: "assistant", content: "" };
+      appendMessages([userMsg, assistantMsg]);
+      setStreaming(true);
+
+      const controller = new AbortController();
+      abortRef.current = controller;
+      let deltaBuffer = "";
+      let deltaFrame: number | null = null;
+      const flushDelta = () => {
+        deltaFrame = null;
+        if (!deltaBuffer) return;
+        const delta = deltaBuffer;
+        deltaBuffer = "";
+        updateMessage(currentAssistantId, (message) => ({
+          ...message,
+          content: message.content + delta,
+        }));
+      };
+      const enqueueDelta = (delta: string) => {
+        deltaBuffer += delta;
+        if (deltaFrame === null) {
+          deltaFrame = window.requestAnimationFrame(flushDelta);
+        }
+      };
+      const refreshPreferencesIfCredentialError = (message: string) => {
+        if (message.includes("OpenAI rejected") || message.includes("Save an OpenAI API key")) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.preferences() });
+        }
+      };
+
+      try {
+        await streamChat({
+          signal: controller.signal,
+          body: {
+            message: text,
+            collection: collection,
+            model_provider: "openai",
+            model: state.model,
+            temperature: state.temperature,
+            top_k: state.topK,
+            search_mode: state.searchMode,
+            rerank: state.rerank,
+            system_prompt: state.systemPrompt,
+          },
+          onEvent: (event) => {
+            if (event.event === "sources") {
+              updateMessage(currentAssistantId, (message) => ({
+                ...message,
+                meta: {
+                  collection: event.data.collection,
+                  sources: event.data.sources,
+                  timings: normalizeTimings(event.data.timings),
+                },
+              }));
+              return;
+            }
+            if (event.event === "delta") {
+              enqueueDelta(event.data.delta);
+              return;
+            }
+            if (event.event === "assistant_message") {
+              flushDelta();
+              updateMessage(currentAssistantId, (message) => ({
+                ...message,
+                id: event.data.id,
+                content: event.data.content,
+                status: event.data.status,
+                errorMessage: event.data.error_message,
+                meta: {
+                  collection: collection,
+                  sources: event.data.sources,
+                  timings: timingsFromRetrieval(event.data),
+                },
+              }));
+              currentAssistantId = event.data.id;
+              return;
+            }
+            if (event.event === "error") {
+              flushDelta();
+              updateMessage(currentAssistantId, (message) => ({
+                ...message,
+                status: "error",
+                errorMessage: event.data.error,
+              }));
+              refreshPreferencesIfCredentialError(event.data.error);
+              toast.error(event.data.error);
+            }
+          },
+        });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          flushDelta();
+          updateMessage(currentAssistantId, (chatMessage) => ({
+            ...chatMessage,
+            status: "stopped",
+          }));
+        } else {
+          const message = err instanceof Error ? err.message : "Chat request failed";
+          flushDelta();
+          updateMessage(currentAssistantId, (chatMessage) => ({
+            ...chatMessage,
+            status: "error",
+            errorMessage: message,
+          }));
+          refreshPreferencesIfCredentialError(message);
+          toast.error(message);
+        }
+      } finally {
+        if (deltaFrame !== null) {
+          window.cancelAnimationFrame(deltaFrame);
+          flushDelta();
+        }
+        setStreaming(false);
+        abortRef.current = null;
+      }
+    },
+    [
+      appendMessages,
+      collection,
+      isStreaming,
+      queryClient,
+      setStreaming,
+      state.hasOpenAIKey,
+      state.model,
+      state.rerank,
+      state.searchMode,
+      state.systemPrompt,
+      state.temperature,
+      state.topK,
+      updateMessage,
+    ],
+  );
+
+  const handleClear = useCallback(() => {
     stopStreaming();
     clearMessages();
-  };
+  }, [clearMessages, stopStreaming]);
 
-  const resendFrom = (messageIndex: number, content: string) => {
-    setMessages(messages.slice(0, messageIndex));
-    void handleSend(content);
-  };
+  const resendFrom = useCallback(
+    (messageIndex: number, content: string) => {
+      const currentMessages = useChatStore.getState().messages;
+      setMessages(currentMessages.slice(0, messageIndex));
+      void handleSend(content);
+    },
+    [handleSend, setMessages],
+  );
 
-  const handleEditUserMessage = (messageId: string, content: string) => {
-    const index = messages.findIndex((message) => message.id === messageId);
-    if (index < 0) return;
-    resendFrom(index, content);
-  };
+  const handleEditUserMessage = useCallback(
+    (messageId: string, content: string) => {
+      const currentMessages = useChatStore.getState().messages;
+      const index = currentMessages.findIndex((message) => message.id === messageId);
+      if (index < 0) return;
+      resendFrom(index, content);
+    },
+    [resendFrom],
+  );
 
-  const handleRegenerate = (messageId: string) => {
-    const assistantIndex = messages.findIndex((message) => message.id === messageId);
-    if (assistantIndex < 0) return;
-    let userIndex = -1;
-    for (let index = assistantIndex - 1; index >= 0; index -= 1) {
-      if (messages[index].role === "user") {
-        userIndex = index;
-        break;
+  const handleRegenerate = useCallback(
+    (messageId: string) => {
+      const currentMessages = useChatStore.getState().messages;
+      const assistantIndex = currentMessages.findIndex((message) => message.id === messageId);
+      if (assistantIndex < 0) return;
+      let userIndex = -1;
+      for (let index = assistantIndex - 1; index >= 0; index -= 1) {
+        if (currentMessages[index].role === "user") {
+          userIndex = index;
+          break;
+        }
       }
-    }
-    if (userIndex < 0) return;
-    resendFrom(userIndex, messages[userIndex].content);
-  };
+      if (userIndex < 0) return;
+      resendFrom(userIndex, currentMessages[userIndex].content);
+    },
+    [resendFrom],
+  );
 
   const loading = collectionsLoading || prefsQuery.isPending;
   const disabled = !state.hasOpenAIKey || !collection;

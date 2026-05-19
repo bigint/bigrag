@@ -21,7 +21,6 @@ Notes
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import Any
 
 import httpx
 import pytest_asyncio
@@ -101,10 +100,7 @@ async def test_settings_secret_values_are_masked(
         resp = await admin_client.get("/v1/admin/settings")
         body = assert_envelope(resp, 200)
         entry = body["values"]["embedding_api_key"]
-        assert entry["value"] is None, (
-            "secret value must never leak; got"
-            f" {entry['value']!r}"
-        )
+        assert entry["value"] is None, f"secret value must never leak; got {entry['value']!r}"
         assert entry["has_value"] is True
         assert entry["source"] == "database"
         sentinel_str = sentinel
@@ -137,6 +133,77 @@ async def test_settings_put_then_get_round_trip(
     follow = await admin_client.get("/v1/admin/settings")
     follow_body = assert_envelope(follow, 200)
     assert follow_body["values"]["chat_temperature"]["value"] == new_value
+
+
+async def test_settings_put_unchanged_default_does_not_create_override(
+    admin_client: httpx.AsyncClient,
+) -> None:
+    await admin_client.post(
+        "/v1/admin/settings/reset",
+        json={"keys": ["chat_temperature"]},
+    )
+    before_resp = await admin_client.get("/v1/admin/settings")
+    before = assert_envelope(before_resp, 200)["values"]["chat_temperature"]
+    assert before["source"] in ("default", "bootstrap")
+
+    put_resp = await admin_client.put(
+        "/v1/admin/settings",
+        json={"values": {"chat_temperature": before["value"]}},
+    )
+    after = assert_envelope(put_resp, 200)["values"]["chat_temperature"]
+    assert after["value"] == before["value"]
+    assert after["source"] == before["source"]
+    assert after["updated_at"] is None
+
+
+async def test_settings_put_unchanged_database_value_preserves_override_timestamp(
+    admin_client: httpx.AsyncClient,
+    restore_chat_temperature,
+) -> None:
+    await admin_client.put(
+        "/v1/admin/settings",
+        json={"values": {"chat_temperature": 0.37}},
+    )
+    first_resp = await admin_client.get("/v1/admin/settings")
+    first = assert_envelope(first_resp, 200)["values"]["chat_temperature"]
+    assert first["source"] == "database"
+
+    second_resp = await admin_client.put(
+        "/v1/admin/settings",
+        json={"values": {"chat_temperature": first["value"]}},
+    )
+    second = assert_envelope(second_resp, 200)["values"]["chat_temperature"]
+    assert second["source"] == "database"
+    assert second["updated_at"] == first["updated_at"]
+
+
+async def test_settings_put_unchanged_secret_preserves_override_timestamp(
+    admin_client: httpx.AsyncClient,
+) -> None:
+    sentinel = "sk-test-unchanged-secret"
+    try:
+        await admin_client.put(
+            "/v1/admin/settings",
+            json={"values": {"embedding_api_key": sentinel}},
+        )
+        first_resp = await admin_client.get("/v1/admin/settings")
+        first = assert_envelope(first_resp, 200)["values"]["embedding_api_key"]
+        assert first["source"] == "database"
+        assert first["has_value"] is True
+
+        second_resp = await admin_client.put(
+            "/v1/admin/settings",
+            json={"values": {"embedding_api_key": sentinel}},
+        )
+        second = assert_envelope(second_resp, 200)["values"]["embedding_api_key"]
+        assert second["source"] == "database"
+        assert second["has_value"] is True
+        assert second["updated_at"] == first["updated_at"]
+    finally:
+        await admin_client.post(
+            "/v1/admin/settings/reset",
+            json={"keys": ["embedding_api_key"]},
+        )
 
 
 async def test_settings_put_unknown_key_returns_400(
@@ -265,7 +332,9 @@ async def test_settings_endpoints_reject_api_key_writes(
         ("POST", "/v1/admin/settings/embedding-cache/purge"),
     ):
         resp = await client.request(
-            method, path, json={"values": {}, "keys": []},
+            method,
+            path,
+            json={"values": {}, "keys": []},
         )
         assert resp.status_code in (401, 403), (
             f"{method} {path}: expected 401/403, got {resp.status_code} {resp.text}"

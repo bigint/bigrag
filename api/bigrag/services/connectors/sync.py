@@ -123,6 +123,17 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                     )
                 ).all()
             }
+            document_ids = [manifest.document_id for manifest in manifests.values()]
+            existing_docs = {}
+            if document_ids:
+                existing_docs = {
+                    doc.id: doc
+                    for doc in (
+                        await session.scalars(
+                            sa.select(Document).where(Document.id.in_(document_ids))
+                        )
+                    ).all()
+                }
 
             async def _download(remote: RemoteConnectorFile):
                 return await adapter.download(access_token=access_token, remote=remote)
@@ -131,12 +142,26 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             index = 0
             for batch_start in range(0, len(remotes), batch_size):
                 batch = remotes[batch_start : batch_start + batch_size]
+                skipped_remote_ids = set()
+                download_targets = []
+                for remote in batch:
+                    manifest = manifests.get(remote.id)
+                    existing_doc = existing_docs.get(manifest.document_id) if manifest else None
+                    if manifest_remote_unchanged(manifest, existing_doc, remote):
+                        skipped_remote_ids.add(remote.id)
+                    else:
+                        download_targets.append(remote)
                 batch_results = await asyncio.gather(
-                    *[_download(r) for r in batch], return_exceptions=True
+                    *[_download(r) for r in download_targets], return_exceptions=True
                 )
-                for remote, result in zip(batch, batch_results, strict=False):
+                downloaded_by_remote_id = {
+                    remote.id: result
+                    for remote, result in zip(download_targets, batch_results, strict=True)
+                }
+                for remote in batch:
                     index += 1
                     manifest = manifests.get(remote.id)
+                    existing_doc = existing_docs.get(manifest.document_id) if manifest else None
                     await update_sync_progress(
                         session,
                         job=job,
@@ -149,6 +174,12 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                     )
                     downloaded = None
                     try:
+                        if remote.id in skipped_remote_ids:
+                            if manifest is not None:
+                                update_manifest_remote(manifest, remote)
+                            counters.skipped += 1
+                            continue
+                        result = downloaded_by_remote_id[remote.id]
                         if isinstance(result, BaseException):
                             raise result
                         downloaded = result
@@ -158,6 +189,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                             source=source,
                             collection=collection,
                             manifest=manifest,
+                            existing_doc=existing_doc,
                             downloaded=downloaded,
                             counters=counters,
                         )
@@ -326,11 +358,11 @@ async def sync_downloaded_file(
     source: ConnectorSource,
     collection: Collection | None,
     manifest: ConnectorDocument | None,
+    existing_doc: Document | None,
     downloaded: DownloadedConnectorFile,
     counters: ConnectorSyncCounters,
 ) -> None:
     remote = downloaded.remote
-    existing_doc = await session.get(Document, manifest.document_id) if manifest else None
     if (
         manifest is not None
         and existing_doc is not None
@@ -456,6 +488,18 @@ def remote_signature(remote: RemoteConnectorFile) -> str | None:
     return remote.md5_checksum or remote.version
 
 
+def manifest_remote_unchanged(
+    manifest: ConnectorDocument | None,
+    existing_doc: Document | None,
+    remote: RemoteConnectorFile,
+) -> bool:
+    if manifest is None or existing_doc is None or existing_doc.status == "failed":
+        return False
+    signature = remote_signature(remote)
+    old_signature = manifest.remote_checksum or manifest.remote_version
+    return bool(signature and old_signature and signature == old_signature)
+
+
 def manifest_unchanged(
     manifest: ConnectorDocument,
     downloaded: DownloadedConnectorFile,
@@ -490,16 +534,20 @@ def manifest_for_download(
     )
 
 
-def update_manifest(manifest: ConnectorDocument, downloaded: DownloadedConnectorFile) -> None:
-    remote = downloaded.remote
+def update_manifest_remote(manifest: ConnectorDocument, remote: RemoteConnectorFile) -> None:
     manifest.remote_name = remote.name
     manifest.remote_mime_type = remote.mime_type
     manifest.remote_checksum = remote.md5_checksum
     manifest.remote_version = remote.version
     manifest.remote_modified_time = remote.modified_time
-    manifest.content_hash = downloaded.content_hash
     manifest.web_url = remote.web_url
     manifest.status = "active"
+
+
+def update_manifest(manifest: ConnectorDocument, downloaded: DownloadedConnectorFile) -> None:
+    remote = downloaded.remote
+    update_manifest_remote(manifest, remote)
+    manifest.content_hash = downloaded.content_hash
 
 
 async def delete_synced_document(

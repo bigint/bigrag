@@ -8,16 +8,13 @@ FileInput = str | Path | bytes | BinaryIO | tuple[str, bytes] | tuple[str, Binar
 
 
 def normalize_file_input(file: FileInput) -> tuple[str, bytes | BinaryIO]:
-    # tuple[str, bytes | BinaryIO]
     if isinstance(file, tuple):
         return file
 
-    # str or Path -- read from filesystem
     if isinstance(file, (str, Path)):
         path = Path(file)
         return (path.name, path.read_bytes())
 
-    # bytes
     if isinstance(file, bytes):
         return ("document", file)
 

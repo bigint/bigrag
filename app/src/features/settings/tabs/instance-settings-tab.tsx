@@ -113,7 +113,9 @@ export const InstanceSettingsTab = ({
             layoutOverride={layoutOverride}
             key={targetGroup}
             onPurgeEmbeddingCache={() => setPurgeOpen(true)}
-            onSave={() => save.mutate({ values: valuesForSubmit(specs, draft) })}
+            onSave={() =>
+              save.mutate({ values: valuesForSubmit(specs, draft, data?.values ?? {}) })
+            }
             purgePending={purgeEmbeddingCache.isPending}
             settingValues={data?.values ?? {}}
             specs={specs}

@@ -40,12 +40,10 @@ for _name in _types.__all__:
     globals()[_name] = getattr(_types, _name)
 
 __all__ = [
-    # Client
     "BigRAG",
     "BigRAGCore",
     "CollectionClient",
     "__version__",
-    # Errors
     "APIConnectionError",
     "APIError",
     "APITimeoutError",
@@ -62,12 +60,9 @@ __all__ = [
     "ServiceUnavailableError",
     "UnprocessableEntityError",
     "error_for_status",
-    # Files
     "FileInput",
     "normalize_file_input",
-    # SSE
     "parse_sse_stream",
-    # Resources
     "AdminResource",
     "AuthResource",
     "ChatResource",

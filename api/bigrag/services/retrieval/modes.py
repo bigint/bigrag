@@ -7,7 +7,7 @@ from bigrag.exceptions import ValidationError
 from bigrag.services._retrieval_filters import FilterExpression
 from bigrag.services.embedding import EmbeddingModel
 from bigrag.services.retrieval.cache import embed_query_with_cache
-from bigrag.services.retrieval.fusion import keyword_score, reciprocal_rank_fusion
+from bigrag.services.retrieval.fusion import keyword_patterns, keyword_score, reciprocal_rank_fusion
 from bigrag.services.vector_store import VectorStoreFeatureError, VectorStoreProvider, vector_store
 
 
@@ -33,9 +33,10 @@ async def keyword_search(
         raise ValidationError(str(exc)) from exc
     timings["search_ms"] = (time.monotonic() - t0) * 1000
 
+    patterns = keyword_patterns(query_terms)
     results = []
     for r in raw_results:
-        score = keyword_score(r.get("text", ""), query_terms)
+        score = keyword_score(r.get("text", ""), patterns)
         if score > 0:
             r["score"] = round(score, 4)
             results.append(r)
@@ -81,9 +82,10 @@ async def hybrid_search(
         raise ValidationError(str(exc)) from exc
     timings["search_ms"] = (time.monotonic() - t0) * 1000
 
+    patterns = keyword_patterns(query_terms)
     keyword_results = []
     for r in keyword_raw:
-        score = keyword_score(r.get("text", ""), query_terms)
+        score = keyword_score(r.get("text", ""), patterns)
         if score > 0:
             r["score"] = round(score, 4)
             keyword_results.append(r)
