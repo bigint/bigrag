@@ -1,7 +1,8 @@
-import { Badge, Page } from "@atelier/ui";
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft, Layers, type Settings } from "lucide-react";
-import { LinkTabs } from "@/components/navigation/link-tabs";
+import { Badge } from "@/components/ui/badge";
+import { Page } from "@/components/ui/page";
+import { LinkTabs } from "@/components/ui/tabs";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import { useCollection, useCollectionStats } from "@/hooks/use-collections";
 import { formatBytes, formatNumber } from "@/lib/format";

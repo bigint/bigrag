@@ -1,4 +1,4 @@
-import { Page } from "@atelier/ui";
+import { Page } from "@/components/ui/page";
 import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 
 export const DataStoragePage = () => (

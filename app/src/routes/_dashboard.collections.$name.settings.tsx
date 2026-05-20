@@ -1,22 +1,16 @@
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Checkbox,
-  ConfirmDialog,
-  Input,
-  Select,
-  Spinner,
-  Switch,
-  Textarea,
-} from "@atelier/ui";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { KeyRound, Trash2, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import {
   useCollection,

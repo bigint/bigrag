@@ -1,9 +1,11 @@
-import { Button, ConfirmDialog, Input } from "@atelier/ui";
 import { useForm, useStore } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { LogOut, Save, ShieldAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Input } from "@/components/ui/input";
 import {
   defaultPasswordFormValues,
   defaultProfileFormValues,

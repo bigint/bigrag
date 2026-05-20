@@ -1,5 +1,8 @@
-import { Badge, Button, type Column, DataTable, Tooltip } from "@atelier/ui";
 import { Plus, Send, Trash2, Webhook as WebhookIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { type Column, DataTable } from "@/components/ui/data-table";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { Webhook } from "@/types/bigrag";
 
 interface Props {

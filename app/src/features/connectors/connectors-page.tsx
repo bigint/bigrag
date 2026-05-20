@@ -1,8 +1,14 @@
-import { Badge, Button, cn, Input, Page, Spinner, Switch, Tabs } from "@atelier/ui";
 import { useForm, useStore } from "@tanstack/react-form";
 import { CheckCircle2, Copy, KeyRound, Plug, ShieldCheck, Unplug } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Page } from "@/components/ui/page";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { Tabs } from "@/components/ui/tabs";
 import {
   type ConnectorProvider,
   type ConnectorProviderId,
@@ -23,6 +29,7 @@ import {
   useGoogleConnectorConfig,
   useUpdateGoogleConnectorConfig,
 } from "@/hooks/use-google-drive";
+import { cn } from "@/lib/cn";
 import { firstString } from "@/lib/form";
 import type { GoogleAccount, GoogleConnectorConfig } from "@/types/bigrag";
 

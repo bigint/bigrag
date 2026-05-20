@@ -1,9 +1,14 @@
-import { Button, Input, Modal, Select, Spinner, Textarea } from "@atelier/ui";
 import { useForm, useStore } from "@tanstack/react-form";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Cpu } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { Select } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import {
   type CreateCollectionFormValues,
   createCollectionBodyFromValues,

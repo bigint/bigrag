@@ -11,7 +11,7 @@ The bundled interface uses normal-weight body text with slightly restrained emph
 
 The admin UI supports light, dark, and system themes. The selection is stored in the browser, applies before the React app loads, and is available from both the login/setup screens and the signed-in account menu.
 
-Submitted operator forms use TanStack Form for client-side draft state, validation, resets, and submit handling while keeping shared Atelier UI controls. This covers setup, login, collection creation and search, eval runs, API keys, MCP servers, account password changes, runtime settings, embedding presets, webhook creation, and connector credential forms. Login fields keep visible labels and short placeholders for the required credentials.
+Submitted operator forms use TanStack Form for client-side draft state, validation, resets, and submit handling while keeping the existing Base UI controls. This covers setup, login, collection creation and search, eval runs, API keys, MCP servers, account password changes, runtime settings, embedding presets, webhook creation, and connector credential forms.
 
 ## Running the Admin UI
 
@@ -28,7 +28,7 @@ For cross-site production deployments, enable secure session cookies and usually
 | Path | Purpose |
 |------|---------|
 | `/setup` | One-time page to create the first admin account. Disappears once `needs_setup: false`. |
-| `/login` | Email + password login for admins and members. Already-authenticated sessions are sent back to the requested admin route. |
+| `/login` | Email + password login for admins and members. |
 | `/overview` | Platform-wide stats — collection count, document states, stored token count, queue depth, readiness, and worker heartbeat. |
 | `/collections` | List, create, delete, and search collections. |
 | `/collections/[name]` | Collection overview with configuration badges, status counts, recent documents, and shortcuts. |

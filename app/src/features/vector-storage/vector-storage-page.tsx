@@ -1,5 +1,6 @@
-import { Page, Tabs } from "@atelier/ui";
 import { Cloud, Database } from "lucide-react";
+import { Page } from "@/components/ui/page";
+import { Tabs } from "@/components/ui/tabs";
 import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 
 export type VectorStorageProvider = "qdrant" | "turbopuffer";

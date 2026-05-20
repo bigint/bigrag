@@ -1,4 +1,3 @@
-import { Button, Checkbox, cn, Empty, Spinner, Tooltip } from "@atelier/ui";
 import {
   ChevronLeft,
   Cloud,
@@ -10,6 +9,12 @@ import {
   Search,
   TriangleAlert,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Empty } from "@/components/ui/empty";
+import { Spinner } from "@/components/ui/spinner";
+import { Tooltip } from "@/components/ui/tooltip";
+import { cn } from "@/lib/cn";
 import { formatBytes, formatRelative } from "@/lib/format";
 import type { GoogleDriveFile } from "@/types/bigrag";
 

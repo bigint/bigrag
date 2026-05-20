@@ -1,4 +1,4 @@
-import { Page } from "@atelier/ui";
+import { Page } from "@/components/ui/page";
 import { EvalRunner } from "@/features/evals/eval-runner";
 
 export const EvalsPage = () => (

@@ -1,19 +1,16 @@
-import {
-  Badge,
-  Button,
-  type Column,
-  ConfirmDialog,
-  DataTable,
-  Input,
-  Modal,
-  Page,
-  Select,
-  Tooltip,
-} from "@atelier/ui";
 import { useForm, useStore } from "@tanstack/react-form";
 import { Check, Copy, ExternalLink, KeyRound, Plug, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { type Column, DataTable } from "@/components/ui/data-table";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { Page } from "@/components/ui/page";
+import { Select } from "@/components/ui/select";
+import { Tooltip } from "@/components/ui/tooltip";
 import { bigragApiUrl } from "@/config/runtime";
 import {
   defaultMcpCreateFormValues,
@@ -495,13 +492,13 @@ export const McpPage = () => {
       header: "Title",
       key: "title",
       render: (s) => (
-        <Button
-          className="h-auto justify-start p-0 text-left text-sm hover:underline"
+        <button
+          className="flex items-center gap-2 text-left font-medium text-sm hover:underline"
           onClick={() => setDetailId(s.id)}
-          variant="ghost"
+          type="button"
         >
           <Plug className="size-4 shrink-0 text-muted-foreground" /> {s.title}
-        </Button>
+        </button>
       ),
     },
     {

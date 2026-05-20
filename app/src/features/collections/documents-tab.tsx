@@ -1,16 +1,3 @@
-import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  Checkbox,
-  ConfirmDialog,
-  cn,
-  Empty,
-  Input,
-  Select,
-  Spinner,
-} from "@atelier/ui";
 import { Link } from "@tanstack/react-router";
 import {
   CheckCircle2,
@@ -26,6 +13,14 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Empty } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { useUploadSessionStore } from "@/features/collections/upload-session-store";
 import {
   getWorkerAvailability,
@@ -45,6 +40,7 @@ import {
   useUploadSessionDocuments,
 } from "@/hooks/use-documents";
 import { usePlatformStats } from "@/hooks/use-platform";
+import { cn } from "@/lib/cn";
 import { acceptAttribute, filterBlockedFiles, getAllowedFileTypes } from "@/lib/file-types";
 import { formatBytes, formatRelative } from "@/lib/format";
 import type { DocumentStatus, UploadSession } from "@/types/bigrag";
@@ -300,23 +296,21 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
             Folder
           </Button>
         </div>
-        <Input
+        <input
           ref={fileInput}
           id="doc-upload"
           type="file"
           multiple
           className="sr-only"
-          containerClassName="sr-only"
           accept={accept}
           disabled={workerOffline}
           onChange={(e) => e.target.files && onFiles(e.target.files)}
         />
-        <Input
+        <input
           ref={folderInput}
           type="file"
           multiple
           className="sr-only"
-          containerClassName="sr-only"
           accept={accept}
           disabled={workerOffline}
           onChange={(e) => e.target.files && onFiles(e.target.files)}
@@ -474,10 +468,12 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
         <div className="overflow-hidden rounded-xl border border-border bg-card">
           <div className="border-b border-border">
             <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              <Checkbox
+              <input
                 aria-label="Select visible documents"
                 checked={allVisibleSelected}
-                onCheckedChange={toggleVisibleSelection}
+                className="size-4 rounded border-border"
+                onChange={toggleVisibleSelection}
+                type="checkbox"
               />
               <span>Filename</span>
               <span className="text-right">Size</span>
@@ -498,10 +494,12 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
                 key={d.id}
                 className="group grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-4 px-4 py-3 hover:bg-muted"
               >
-                <Checkbox
+                <input
                   aria-label={`Select ${d.filename}`}
                   checked={selected.has(d.id)}
-                  onCheckedChange={() => toggleDocumentSelection(d.id)}
+                  className="size-4 rounded border-border"
+                  onChange={() => toggleDocumentSelection(d.id)}
+                  type="checkbox"
                 />
                 <Link
                   params={{ docId: d.id, name }}

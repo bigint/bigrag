@@ -1,5 +1,5 @@
-import { Button } from "@atelier/ui";
 import { ArrowUpRight, RefreshCcw, Shuffle, TriangleAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   collection: string;
@@ -78,19 +78,19 @@ export const EmptyPrompts = ({
           {hasQuestions ? (
             <div className="divide-y divide-border">
               {questions.map((question, index) => (
-                <Button
-                  className="group h-auto min-h-[3.25rem] w-full justify-start gap-2.5 rounded-none px-4 py-2.5 text-left text-sm"
+                <button
+                  className="group flex min-h-[3.25rem] w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-muted disabled:cursor-not-allowed disabled:opacity-45"
                   disabled={disabled}
                   key={question}
                   onClick={() => onSelect(question)}
-                  variant="ghost"
+                  type="button"
                 >
                   <span className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-xs font-semibold text-muted-foreground">
                     {index + 1}
                   </span>
                   <span className="min-w-0 flex-1 text-sm font-semibold leading-5">{question}</span>
                   <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" />
-                </Button>
+                </button>
               ))}
             </div>
           ) : (

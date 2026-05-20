@@ -1,5 +1,5 @@
-import { ThemeControl } from "@atelier/ui";
 import { Logo } from "@/components/brand/logo";
+import { ThemeControl } from "@/features/theme/theme-control";
 
 export const AuthLayout = ({ children }: { children: React.ReactNode }) => (
   <main

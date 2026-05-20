@@ -1,21 +1,18 @@
-import {
-  Badge,
-  Button,
-  type Column,
-  ConfirmDialog,
-  DataTable,
-  Input,
-  Modal,
-  Page,
-  Select,
-  Switch,
-  Textarea,
-  Tooltip,
-} from "@atelier/ui";
 import { useForm } from "@tanstack/react-form";
 import { Check, Copy, KeyRound, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { type Column, DataTable } from "@/components/ui/data-table";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { Page } from "@/components/ui/page";
+import { Select } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip } from "@/components/ui/tooltip";
 import { bigragApiUrl } from "@/config/runtime";
 import {
   API_KEY_UNSCOPED,
