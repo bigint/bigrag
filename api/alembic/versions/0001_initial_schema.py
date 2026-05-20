@@ -1176,9 +1176,7 @@ def downgrade() -> None:
     op.drop_index("idx_collections_name", table_name="collections")
     op.drop_index("idx_collections_created_at_id", table_name="collections")
     op.drop_index("idx_vector_migration_jobs_status", table_name="vector_migration_jobs")
-    op.drop_index(
-        "idx_vector_migration_jobs_created_at_id", table_name="vector_migration_jobs"
-    )
+    op.drop_index("idx_vector_migration_jobs_created_at_id", table_name="vector_migration_jobs")
     op.drop_index("idx_vector_migration_jobs_collection", table_name="vector_migration_jobs")
     op.drop_table("vector_migration_jobs")
     op.drop_table("collections")

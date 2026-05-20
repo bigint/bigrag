@@ -251,7 +251,7 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             <div>
               <div className="text-sm font-semibold">Advanced safeguards</div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Optional tenant isolation and metadata validation.
+                Optional rules for multi-customer data and uploaded metadata.
               </p>
             </div>
             <span className="text-xs font-medium text-muted-foreground">Configure</span>
@@ -260,13 +260,13 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             <div className="rounded-md border border-border bg-background p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold">Require tenant filter</div>
+                  <div className="text-sm font-semibold">Separate customer data</div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Use when one collection stores documents for multiple customers.
+                    Require every upload and search to include one customer key.
                   </p>
                 </div>
                 <Switch
-                  aria-label="Require tenant filter"
+                  aria-label="Separate customer data"
                   checked={values.tenantGuardEnabled}
                   onCheckedChange={toggleTenantGuard}
                 />
@@ -288,7 +288,7 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
                       <Input
                         description="Uploads and searches must include this metadata key."
                         error={errorText(field.state.meta.errors)}
-                        label="Tenant metadata key"
+                        label="Customer metadata key"
                         maxLength={64}
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
@@ -303,13 +303,13 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             <div className="rounded-md border border-border bg-background p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold">Validate metadata shape</div>
+                  <div className="text-sm font-semibold">Validate uploaded metadata</div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Reject uploads whose metadata does not match a JSON schema.
                   </p>
                 </div>
                 <Switch
-                  aria-label="Validate metadata shape"
+                  aria-label="Validate uploaded metadata"
                   checked={values.metadataSchemaEnabled}
                   onCheckedChange={toggleMetadataSchema}
                 />

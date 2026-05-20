@@ -86,9 +86,7 @@ def _backup_jobs_interval(payload: Any | None) -> float:
 
 def _vector_migration_jobs_interval(payload: Any | None) -> float:
     jobs = getattr(payload, "jobs", []) if payload is not None else []
-    active = any(
-        getattr(job, "status", None) in ACTIVE_VECTOR_MIGRATION_STATUSES for job in jobs
-    )
+    active = any(getattr(job, "status", None) in ACTIVE_VECTOR_MIGRATION_STATUSES for job in jobs)
     return 2.0 if active else 15.0
 
 

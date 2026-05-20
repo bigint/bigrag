@@ -230,9 +230,7 @@ def _normalise_point(point: dict[str, Any]) -> dict[str, Any]:
         "text": str(payload.get("text") or ""),
         "vector": vector,
         "metadata": {
-            k: v
-            for k, v in payload.items()
-            if k not in _FIXED_PAYLOAD_FIELDS and v is not None
+            k: v for k, v in payload.items() if k not in _FIXED_PAYLOAD_FIELDS and v is not None
         },
     }
 

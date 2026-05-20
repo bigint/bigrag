@@ -13,7 +13,7 @@ The admin UI supports light, dark, and system themes. The selection is stored in
 
 Submitted operator forms use TanStack Form for client-side draft state, validation, resets, and submit handling while keeping the existing Base UI controls. This covers setup, login, collection creation and search, eval runs, API keys, MCP servers, account password changes, runtime settings, embedding presets, webhook creation, and connector credential forms.
 
-Collection creation keeps tenant-filter enforcement and JSON metadata-schema validation inside Advanced safeguards. Most collections can leave these disabled; enable tenant filtering only when one collection contains data for multiple customers, and enable metadata validation only when uploads need a fixed metadata shape.
+Collection creation keeps customer/tenant filter enforcement and JSON metadata-schema validation inside Advanced safeguards. Most collections can leave these disabled; enable customer separation only when one collection contains data for multiple customers, and enable metadata validation only when uploads need a fixed metadata shape.
 
 ## Running the Admin UI
 
