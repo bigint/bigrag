@@ -106,6 +106,8 @@ Upload progress restoration and the current Drive browser selection are browser-
 
 REST document status endpoints remain available for API clients and SDKs that prefer polling. `GET /v1/collections/{name}/events` remains available for collection-wide ingestion events outside the admin UI.
 
+Realtime pages only evaluate terminal-state predicates after the first snapshot or poll response exists, so stale browser-local upload-session state cannot crash the documents route during initial load.
+
 ## Chat specifics
 
 The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, and citations happen on the backend, but chat messages and conversations are not persisted anywhere. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
