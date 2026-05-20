@@ -141,7 +141,7 @@ If a key is pinned to a single `collection`, that pin is enforced even on the gl
 | `POST /v1/auth/login` | — | — | ✓ |
 | `/v1/auth/*` (logout, me, whoami, password) | ✓ | ✓* | — |
 | `/v1/collections`, `/v1/collections/**`, `/v1/query`, `/v1/batch/query`, `/v1/stats`, `/v1/usage`, `/v1/embeddings/models` | ✓ | ✓ | — |
-| `/v1/admin/api-keys`, `/v1/admin/users`, `/v1/admin/settings`, `/v1/admin/backups`, `/v1/admin/connectors`, `/v1/admin/webhooks`, `/v1/admin/embedding-presets`, `/v1/admin/mcp-servers` | ✓ | — | — |
+| `/v1/admin/api-keys`, `/v1/admin/users`, `/v1/admin/settings`, `/v1/admin/backups`, `/v1/admin/vector-storage`, `/v1/admin/connectors`, `/v1/admin/webhooks`, `/v1/admin/embedding-presets`, `/v1/admin/mcp-servers` | ✓ | — | — |
 | `/v1/admin/access`, `/v1/admin/audit`, `/v1/admin/realtime`, `/v1/auth/preferences` | ✓ | — | — |
 
 \* Read-only auth endpoints (`/me`) accept either; state-changing ones (`/password`, `/logout-all`) require a session.

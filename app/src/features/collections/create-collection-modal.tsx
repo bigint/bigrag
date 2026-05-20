@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   type CreateCollectionFormValues,
@@ -66,6 +67,18 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
     form.setFieldValue("presetId", presetId),
   );
   useResetCreateCollectionForm(open, form, create.reset);
+
+  const toggleTenantGuard = (enabled: boolean) => {
+    form.setFieldValue("tenantGuardEnabled", enabled);
+    if (enabled && !values.tenantField.trim()) form.setFieldValue("tenantField", "tenant_id");
+  };
+
+  const toggleMetadataSchema = (enabled: boolean) => {
+    form.setFieldValue("metadataSchemaEnabled", enabled);
+    if (enabled && !values.metadataSchemaText.trim()) {
+      form.setFieldValue("metadataSchemaText", DEFAULT_METADATA_SCHEMA);
+    }
+  };
 
   return (
     <Modal onClose={onClose} open={open} title="New collection">
@@ -233,42 +246,93 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             )}
           </form.Field>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <form.Field
-            name="tenantField"
-            validators={{
-              onSubmit: ({ value }) =>
-                value.trim().length > 64
-                  ? "Tenant field must be 64 characters or fewer"
-                  : undefined,
-            }}
-          >
-            {(field) => (
-              <Input
-                description="Optional metadata key required on uploads and queries."
-                error={errorText(field.state.meta.errors)}
-                label="Tenant field"
-                maxLength={64}
-                onBlur={field.handleBlur}
-                onChange={(e) => field.handleChange(e.target.value)}
-                placeholder="tenant_id"
-                value={field.state.value}
-              />
-            )}
-          </form.Field>
-          <form.Field name="metadataSchemaText">
-            {(field) => (
-              <Textarea
-                className="min-h-10"
-                label="Metadata schema"
-                onBlur={field.handleBlur}
-                onChange={(e) => field.handleChange(e.target.value)}
-                placeholder='{"type":"object"}'
-                value={field.state.value}
-              />
-            )}
-          </form.Field>
-        </div>
+        <details className="rounded-md border border-border bg-muted/30">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden">
+            <div>
+              <div className="text-sm font-semibold">Advanced safeguards</div>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Optional tenant isolation and metadata validation.
+              </p>
+            </div>
+            <span className="text-xs font-medium text-muted-foreground">Configure</span>
+          </summary>
+          <div className="space-y-3 border-t border-border px-3 py-3">
+            <div className="rounded-md border border-border bg-background p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold">Require tenant filter</div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Use when one collection stores documents for multiple customers.
+                  </p>
+                </div>
+                <Switch
+                  aria-label="Require tenant filter"
+                  checked={values.tenantGuardEnabled}
+                  onCheckedChange={toggleTenantGuard}
+                />
+              </div>
+              {values.tenantGuardEnabled && (
+                <form.Field
+                  name="tenantField"
+                  validators={{
+                    onSubmit: ({ value }) => {
+                      if (!value.trim()) return "Enter the tenant metadata key";
+                      return value.trim().length > 64
+                        ? "Tenant field must be 64 characters or fewer"
+                        : undefined;
+                    },
+                  }}
+                >
+                  {(field) => (
+                    <div className="mt-3">
+                      <Input
+                        description="Uploads and searches must include this metadata key."
+                        error={errorText(field.state.meta.errors)}
+                        label="Tenant metadata key"
+                        maxLength={64}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        placeholder="tenant_id"
+                        value={field.state.value}
+                      />
+                    </div>
+                  )}
+                </form.Field>
+              )}
+            </div>
+            <div className="rounded-md border border-border bg-background p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold">Validate metadata shape</div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Reject uploads whose metadata does not match a JSON schema.
+                  </p>
+                </div>
+                <Switch
+                  aria-label="Validate metadata shape"
+                  checked={values.metadataSchemaEnabled}
+                  onCheckedChange={toggleMetadataSchema}
+                />
+              </div>
+              {values.metadataSchemaEnabled && (
+                <form.Field name="metadataSchemaText">
+                  {(field) => (
+                    <div className="mt-3">
+                      <Textarea
+                        className="min-h-28 font-mono"
+                        label="JSON schema"
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        placeholder={DEFAULT_METADATA_SCHEMA}
+                        value={field.state.value}
+                      />
+                    </div>
+                  )}
+                </form.Field>
+              )}
+            </div>
+          </div>
+        </details>
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
@@ -286,6 +350,8 @@ const VECTOR_STORAGE_OPTIONS = [
   { value: "qdrant", label: "Qdrant" },
   { value: "turbopuffer", label: "Turbopuffer" },
 ] as const;
+
+const DEFAULT_METADATA_SCHEMA = '{\n  "type": "object"\n}';
 
 const useDefaultEmbeddingPreset = (
   open: boolean,

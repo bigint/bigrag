@@ -45,7 +45,7 @@ curl -X POST http://localhost:4000/v1/collections \
 | `description` | string | no | `""` | Human-readable description |
 | `embedding_provider` | string | no | Server default | `openai`, `openai_compatible`, `cohere`, or `voyage` |
 | `embedding_model` | string | no | Server default | Model name for the provider |
-| `vector_store_provider` | string | no | `"qdrant"` | `qdrant` or `turbopuffer`; fixed after creation. `turbopuffer` requires a saved turbopuffer API key in Vector Storage before creation |
+| `vector_store_provider` | string | no | `"qdrant"` | `qdrant` or `turbopuffer`; changed only through a vector migration job. `turbopuffer` requires a saved turbopuffer API key in Vector Storage before creation or migration |
 | `embedding_api_key` | string | no | — | API key for the embedding provider; use any non-empty value for local OpenAI-compatible gateways without auth |
 | `embedding_base_url` | string | no | — | Required for `openai_compatible` providers |
 | `dimension` | integer | no | Server default | Embedding vector dimension |
@@ -60,6 +60,8 @@ curl -X POST http://localhost:4000/v1/collections \
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
 
 For turbopuffer collections, creation validates the saved turbopuffer connection, then the provider namespace is created on the first document or vector write.
+
+To move an existing collection between Qdrant and turbopuffer, start a vector migration from `/vector-storage` or `POST /v1/admin/vector-storage/migrations`. The migration pauses writes, copies existing vectors to the configured target provider, switches the collection, and deletes the old source vectors after cutover.
 
 ## Collection Stats
 
@@ -147,7 +149,7 @@ curl -X PUT http://localhost:4000/v1/collections/research_papers \
 All fields are optional — only provided fields are updated.
 
 <Callout type="warn">
-  Embedding configuration (provider, model, dimension) and chunk settings cannot be changed after creation. To change these, delete the collection and create a new one.
+  Embedding configuration (provider, model, dimension) and chunk settings cannot be changed after creation. Vector storage provider changes must use a vector migration job.
 </Callout>
 
 ## Deleting a Collection

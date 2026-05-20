@@ -11,6 +11,7 @@ from bigrag.models.document import BatchStatusRequest
 from bigrag.routers.admin_access import access_overview, list_access_logs
 from bigrag.routers.admin_audit import list_audit_log
 from bigrag.routers.admin_backups import list_backup_jobs
+from bigrag.routers.admin_vector_migrations import list_vector_migration_jobs
 from bigrag.routers.collections import get_collection_stats
 from bigrag.routers.connectors import connector_sources, connector_sync_jobs
 from bigrag.routers.documents import get_document, list_documents
@@ -36,6 +37,7 @@ router = APIRouter(prefix="/v1/admin/realtime", tags=["admin:realtime"])
 
 ACTIVE_SYNC_JOB_STATUSES = {"pending", "running"}
 ACTIVE_BACKUP_JOB_STATUSES = {"pending", "running"}
+ACTIVE_VECTOR_MIGRATION_STATUSES = {"pending", "running"}
 
 
 def _parse_document_ids(document_ids: list[str]) -> list[str]:
@@ -79,6 +81,14 @@ def _connector_jobs_interval(payload: Any | None) -> float:
 def _backup_jobs_interval(payload: Any | None) -> float:
     jobs = getattr(payload, "jobs", []) if payload is not None else []
     active = any(getattr(job, "status", None) in ACTIVE_BACKUP_JOB_STATUSES for job in jobs)
+    return 2.0 if active else 15.0
+
+
+def _vector_migration_jobs_interval(payload: Any | None) -> float:
+    jobs = getattr(payload, "jobs", []) if payload is not None else []
+    active = any(
+        getattr(job, "status", None) in ACTIVE_VECTOR_MIGRATION_STATUSES for job in jobs
+    )
     return 2.0 if active else 15.0
 
 
@@ -273,6 +283,31 @@ async def backup_jobs_stream(
         )
 
     return _interval_response(topic, load, _backup_jobs_interval)
+
+
+@router.get("/vector-migrations", response_class=StreamingResponse)
+async def vector_migration_jobs_stream(
+    collection: str | None = Query(default=None, max_length=128),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    user: dict = Depends(require_admin_session),
+):
+    topic = f"vector-migrations:{collection or 'all'}:{limit}:{offset}"
+
+    async def load():
+        return await _with_session(
+            lambda session: list_vector_migration_jobs(
+                collection=collection,
+                limit=limit,
+                offset=offset,
+                cursor=None,
+                include_total=False,
+                _=user,
+                session=session,
+            )
+        )
+
+    return _interval_response(topic, load, _vector_migration_jobs_interval)
 
 
 @router.get("/access/overview", response_class=StreamingResponse)

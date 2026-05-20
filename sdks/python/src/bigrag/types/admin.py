@@ -100,6 +100,40 @@ class BackupJobListResponse(TypedDict):
     total: int
 
 
+VectorMigrationProvider = Literal["qdrant", "turbopuffer"]
+
+
+class VectorMigrationCreateBody(TypedDict):
+    collection: str
+    target_provider: VectorMigrationProvider
+
+
+class VectorMigrationJob(TypedDict):
+    id: str
+    collection_id: str | None
+    collection_name: str
+    source_provider: VectorMigrationProvider
+    target_provider: VectorMigrationProvider
+    status: str
+    phase: str
+    progress: float
+    copied_points: int
+    total_points: int | None
+    details: dict[str, Any]
+    error_message: str | None
+    created_by: str | None
+    started_at: str | None
+    completed_at: str | None
+    created_at: str
+    updated_at: str
+
+
+class VectorMigrationJobListResponse(TypedDict):
+    jobs: list[VectorMigrationJob]
+    total: int | None
+    next_cursor: str | None
+
+
 class AdminRealtimeEvent(TypedDict):
     event: str
     data: Any

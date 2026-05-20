@@ -98,7 +98,7 @@ POST /v1/collections
 | `description` | string | no | `""` | — |
 | `embedding_provider` | string | no | Server default | `openai`, `cohere`, `voyage`, `openai_compatible` |
 | `embedding_model` | string | no | Server default | Model name |
-| `vector_store_provider` | string | no | `"qdrant"` | `qdrant` or `turbopuffer`; fixed at creation. `turbopuffer` requires a saved turbopuffer API key in Vector Storage before creation |
+| `vector_store_provider` | string | no | `"qdrant"` | `qdrant` or `turbopuffer`; changed only through a vector migration job. `turbopuffer` requires a saved turbopuffer API key in Vector Storage before creation or migration |
 | `embedding_preset_id` | string | no | — | Link the collection to a saved embedding preset. The collection inherits the preset's provider, model, dimension, base URL, and key live |
 | `embedding_api_key` | string | no | — | Required when `embedding_preset_id` is not provided; validated against the provider before the collection is created. Use any non-empty value for local OpenAI-compatible gateways without auth. Ignored when a preset is supplied — the collection inherits the preset's key live |
 | `embedding_base_url` | string | no | — | Required for `openai_compatible` (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) |
@@ -160,7 +160,7 @@ Lightweight endpoint returning document and chunk counts.
 PUT /v1/collections/{name}
 ```
 
-Only the fields below are mutable. Embedding provider / model / dimension, vector store provider, chunk size / overlap, `index_type`, and `tenant_field` are fixed at creation — changing them would invalidate existing vectors.
+Only the fields below are mutable. Embedding provider / model / dimension, chunk size / overlap, `index_type`, and `tenant_field` are fixed at creation. Use `POST /v1/admin/vector-storage/migrations` to change a collection's vector store provider.
 
 | Field | Type | Notes |
 |-------|------|-------|

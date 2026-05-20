@@ -2,9 +2,11 @@ export type CreateCollectionFormValues = {
   chunkOverlap: number;
   chunkSize: number;
   description: string;
+  metadataSchemaEnabled: boolean;
   metadataSchemaText: string;
   name: string;
   presetId: string;
+  tenantGuardEnabled: boolean;
   tenantField: string;
   vectorStoreProvider: "qdrant" | "turbopuffer";
 };
@@ -22,9 +24,11 @@ export const defaultCreateCollectionFormValues = (): CreateCollectionFormValues 
   chunkOverlap: 50,
   chunkSize: 512,
   description: "",
+  metadataSchemaEnabled: false,
   metadataSchemaText: "",
   name: "",
   presetId: "",
+  tenantGuardEnabled: false,
   tenantField: "",
   vectorStoreProvider: "qdrant",
 });
@@ -53,9 +57,11 @@ const parseMetadataSchema = (value: string): Record<string, unknown> | undefined
 export const validateCreateCollectionFormValues = ({
   chunkOverlap,
   chunkSize,
+  metadataSchemaEnabled,
   metadataSchemaText,
   name,
   presetId,
+  tenantGuardEnabled,
   tenantField,
 }: CreateCollectionFormValues): string | undefined => {
   const normalizedName = normalizeCollectionName(name);
@@ -67,11 +73,17 @@ export const validateCreateCollectionFormValues = ({
   if (chunkSize < 64 || chunkSize > 10000) return "Chunk size must be between 64 and 10000";
   if (chunkOverlap < 0 || chunkOverlap > 5000) return "Chunk overlap must be between 0 and 5000";
   if (chunkOverlap >= chunkSize) return "Chunk overlap must be less than chunk size";
-  if (tenantField.trim().length > 64) return "Tenant field must be 64 characters or fewer";
-  try {
-    parseMetadataSchema(metadataSchemaText);
-  } catch (err) {
-    return err instanceof Error ? err.message : "Metadata schema must be valid JSON";
+  if (tenantGuardEnabled) {
+    if (!tenantField.trim()) return "Enter the tenant metadata key";
+    if (tenantField.trim().length > 64) return "Tenant field must be 64 characters or fewer";
+  }
+  if (metadataSchemaEnabled) {
+    if (!metadataSchemaText.trim()) return "Enter a metadata schema";
+    try {
+      parseMetadataSchema(metadataSchemaText);
+    } catch (err) {
+      return err instanceof Error ? err.message : "Metadata schema must be valid JSON";
+    }
   }
   return undefined;
 };
@@ -89,9 +101,11 @@ export const createCollectionBodyFromValues = ({
   chunkOverlap,
   chunkSize,
   description,
+  metadataSchemaEnabled,
   metadataSchemaText,
   name,
   presetId,
+  tenantGuardEnabled,
   tenantField,
   vectorStoreProvider,
 }: CreateCollectionFormValues) => ({
@@ -99,9 +113,9 @@ export const createCollectionBodyFromValues = ({
   chunk_size: chunkSize,
   description,
   embedding_preset_id: presetId,
-  metadata_schema: parseMetadataSchema(metadataSchemaText),
+  metadata_schema: metadataSchemaEnabled ? parseMetadataSchema(metadataSchemaText) : undefined,
   name: normalizeCollectionName(name),
-  tenant_field: tenantField.trim() || null,
+  tenant_field: tenantGuardEnabled ? tenantField.trim() || null : null,
   vector_store_provider: vectorStoreProvider,
 });
 

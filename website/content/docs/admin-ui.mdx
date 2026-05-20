@@ -13,6 +13,8 @@ The admin UI supports light, dark, and system themes. The selection is stored in
 
 Submitted operator forms use TanStack Form for client-side draft state, validation, resets, and submit handling while keeping the existing Base UI controls. This covers setup, login, collection creation and search, eval runs, API keys, MCP servers, account password changes, runtime settings, embedding presets, webhook creation, and connector credential forms.
 
+Collection creation keeps tenant-filter enforcement and JSON metadata-schema validation inside Advanced safeguards. Most collections can leave these disabled; enable tenant filtering only when one collection contains data for multiple customers, and enable metadata validation only when uploads need a fixed metadata shape.
+
 ## Running the Admin UI
 
 ```bash
@@ -37,7 +39,7 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/collections/[name]/connectors` | Redirects to the first available collection connector from the provider catalog. |
 | `/collections/[name]/connectors/google-drive` | Browse Google Drive, sync selected files/folders, monitor Drive sync progress, trigger manual resync, and manage sync schedules. Source creation and manual sync are disabled when the worker is offline. |
 | `/collections/[name]/search` | Query tester scoped to the collection — bounded requests, cancel/retry states, result metadata, document filenames, and chunk deep links. |
-| `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
+| `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, default query params, and collection vector migration. |
 | `/chat` | Browser-local playground chat UI; retrieve from one collection, stream cited answers, render safe markdown, and keep local sessions across reloads. |
 | `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets), including provider connection tests and OpenAI-compatible base URLs, plus fallback embedding, retrieval, and chat model settings. |
 | `/mcp` | Mint, scope, rotate, and revoke [MCP server](/docs/api-reference/mcp-servers) credentials for Claude Desktop / Cursor / custom MCP clients. |
@@ -49,7 +51,7 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/connectors` | Browse the provider catalog, configure connector credentials, and review account state. |
 | `/backups` | Configure readable backup storage, start full-instance exports, and monitor backup history. Backup starts are disabled when the worker heartbeat is offline or no bucket is configured. |
 | `/data-storage` | Configure uploaded source-file storage for local disk or S3-compatible object stores. |
-| `/vector-storage` | Review vector provider health and per-collection routing/stats, then configure Qdrant and turbopuffer connection settings. Collections choose a vector provider when they are created. |
+| `/vector-storage` | Review vector provider health and per-collection routing/stats, configure Qdrant and turbopuffer connection settings, and migrate collections between configured providers. |
 | `/settings` | Operator-console settings workspace for account, platform, and data sections. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
@@ -67,7 +69,7 @@ The `/backups` page renders backup destination settings directly above export co
 
 The `/data-storage` page is a standalone runtime settings surface for uploaded source-file storage. It uses `GET /v1/admin/settings` and `PUT /v1/admin/settings` for local disk and S3-compatible object-store settings.
 
-The `/vector-storage` page is a standalone runtime settings surface for vector provider connection details. It separates Qdrant and turbopuffer into provider tabs and uses `GET /v1/admin/settings` and `PUT /v1/admin/settings`; collection creation owns the per-collection provider choice.
+The `/vector-storage` page is a standalone runtime settings surface for vector provider connection details. It separates Qdrant and turbopuffer into provider tabs and uses `GET /v1/admin/settings` and `PUT /v1/admin/settings`; vector migrations use `POST /v1/admin/vector-storage/migrations`, `GET /v1/admin/vector-storage/migrations`, and `GET /v1/admin/realtime/vector-migrations`. A migration pauses writes, copies existing vectors, switches the collection, and deletes old source vectors after cutover.
 
 The settings page is a compact task-oriented workspace:
 

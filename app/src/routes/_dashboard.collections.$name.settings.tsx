@@ -12,6 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
+import { VectorMigrationPanel } from "@/features/vector-storage/vector-migration-panel";
 import {
   useCollection,
   useDeleteCollection,
@@ -319,6 +320,8 @@ const CollectionSettings = () => {
           </div>
         </CardContent>
       </Card>
+
+      <VectorMigrationPanel collection={collection} />
 
       <Card className="border-destructive/40">
         <CardHeader>

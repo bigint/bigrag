@@ -233,6 +233,10 @@ client.admin.backups.list({ limit?, offset? })
 client.admin.backups.get(backupId)
 client.admin.backups.create({ label? })
 
+client.admin.vectorMigrations.list({ collection?, limit?, offset? })
+client.admin.vectorMigrations.get(migrationId)
+client.admin.vectorMigrations.create({ collection, target_provider })
+
 client.admin.connectors.google.get()
 client.admin.connectors.google.update({ enabled?, client_id?, client_secret? })
 

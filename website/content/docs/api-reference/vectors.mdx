@@ -37,6 +37,52 @@ Session-only. Returns configured vector providers, provider health, and per-coll
 }
 ```
 
+## Admin Vector Migrations
+
+```
+GET /v1/admin/vector-storage/migrations
+POST /v1/admin/vector-storage/migrations
+GET /v1/admin/vector-storage/migrations/{migration_id}
+GET /v1/admin/realtime/vector-migrations
+```
+
+Session-only. Migrates one collection in place from its current vector provider to a configured target provider.
+
+`POST /v1/admin/vector-storage/migrations` starts a background maintenance job:
+
+```json
+{
+  "collection": "docs",
+  "target_provider": "turbopuffer"
+}
+```
+
+The job pauses writes with the maintenance lock, waits for active ingestion and connector sync work to drain, copies provider-neutral vector points, switches `vector_store_provider`, invalidates collection/search caches, and deletes the old source provider collection after a successful cutover.
+
+**Response** `201`:
+
+```json
+{
+  "id": "0196f3c9-8f45-7d39-9ad3-cfc3f34bd23d",
+  "collection_name": "docs",
+  "source_provider": "qdrant",
+  "target_provider": "turbopuffer",
+  "status": "pending",
+  "phase": "queued",
+  "progress": 0,
+  "copied_points": 0,
+  "total_points": null,
+  "error_message": null
+}
+```
+
+`GET /v1/admin/realtime/vector-migrations` is an SSE stream whose `snapshot` payload matches the list response. Add `?collection=docs` to scope the stream to one collection.
+
+**Errors:**
+
+- `400` — Collection missing or target provider not configured
+- `409` — The collection already uses the target provider or another migration is active
+
 ## Upsert Vectors
 
 ```

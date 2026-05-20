@@ -72,7 +72,7 @@ The SDK follows a resource namespace pattern:
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
 | `client.auth` | Setup, login, logout, identity, password, and preferences |
-| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, backups, admin realtime streams, connector config, embedding presets, and MCP server keys |
+| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, backups, vector migrations, admin realtime streams, connector config, embedding presets, and MCP server keys |
 | `client.connectors.google` | Google Drive account, file browsing, sources, and sync jobs |
 | `client.evaluations` | Golden-set retrieval evaluation runs |
 
@@ -331,6 +331,13 @@ await client.admin.settings.purge_embedding_cache()
 backups = await client.admin.backups.list(limit=20)
 backup = await client.admin.backups.create({"label": "before migration"})
 backup = await client.admin.backups.get(backup["id"])
+
+vector_migrations = await client.admin.vector_migrations.list(collection="docs")
+vector_migration = await client.admin.vector_migrations.create({
+    "collection": "docs",
+    "target_provider": "turbopuffer",
+})
+vector_migration = await client.admin.vector_migrations.get(vector_migration["id"])
 
 async for event in client.admin.realtime.backups(limit=20):
     if event["event"] == "snapshot":
