@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
+import { Modal } from "@/components/ui/modal";
 import {
   useStartVectorMigration,
   useVectorMigrations,
@@ -36,8 +37,48 @@ const targetProvider = (provider: VectorMigrationProvider): VectorMigrationProvi
 const providerLabel = (provider: VectorMigrationProvider) => PROVIDER_META[provider].label;
 
 const activeStatuses = new Set(["pending", "running"]);
+const migrationDescription =
+  "Move a collection between vector providers. Writes are paused during the job, then old source vectors are deleted after cutover.";
 
 export const VectorMigrationPanel = ({ collection }: VectorMigrationPanelProps) => {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ArrowRightLeft className="size-4" />
+          Vector migration
+        </CardTitle>
+        <CardDescription>{migrationDescription}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <VectorMigrationContent collection={collection} />
+      </CardContent>
+    </Card>
+  );
+};
+
+export const VectorMigrationModal = ({
+  collection,
+  onClose,
+  open,
+}: VectorMigrationPanelProps & {
+  readonly onClose: () => void;
+  readonly open: boolean;
+}) => (
+  <Modal
+    onClose={onClose}
+    open={open}
+    size="xl"
+    title={collection ? `Migrate ${collection.name}` : "Migrate vector provider"}
+  >
+    <div className="flex flex-col gap-5">
+      <p className="text-sm text-muted-foreground">{migrationDescription}</p>
+      <VectorMigrationContent collection={collection} />
+    </div>
+  </Modal>
+);
+
+const VectorMigrationContent = ({ collection }: VectorMigrationPanelProps) => {
   const queryClient = useQueryClient();
   const overview = useVectorStorageOverview();
   const migrations = useVectorMigrations({ collection: collection?.name });
@@ -84,18 +125,8 @@ export const VectorMigrationPanel = ({ collection }: VectorMigrationPanelProps) 
   }, [collection, completionKey, queryClient]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ArrowRightLeft className="size-4" />
-          Vector migration
-        </CardTitle>
-        <CardDescription>
-          Move a collection between vector providers. Writes are paused during the job, then old
-          source vectors are deleted after cutover.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
+    <>
+      <div className="flex flex-col gap-5">
         {rows.length ? (
           <div className="overflow-hidden rounded-md border border-border">
             <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-border bg-muted/60 px-4 py-2 text-xs font-semibold text-muted-foreground">
@@ -155,7 +186,7 @@ export const VectorMigrationPanel = ({ collection }: VectorMigrationPanelProps) 
           />
         )}
         <MigrationJobs jobs={jobs} />
-      </CardContent>
+      </div>
       <ConfirmDialog
         open={Boolean(target)}
         onClose={() => setTarget(null)}
@@ -180,7 +211,7 @@ export const VectorMigrationPanel = ({ collection }: VectorMigrationPanelProps) 
           setTarget(null);
         }}
       />
-    </Card>
+    </>
   );
 };
 

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { KeyRound, Trash2, TriangleAlert } from "lucide-react";
+import { ArrowRightLeft, KeyRound, Trash2, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
-import { VectorMigrationPanel } from "@/features/vector-storage/vector-migration-panel";
+import { VectorMigrationModal } from "@/features/vector-storage/vector-migration-panel";
 import {
   useCollection,
   useDeleteCollection,
@@ -53,6 +53,7 @@ const CollectionSettings = () => {
   const [allowedTypes, setAllowedTypes] = useState<Set<string>>(new Set(ALL_FILE_TYPES));
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [confirmTruncateOpen, setConfirmTruncateOpen] = useState(false);
+  const [migrationOpen, setMigrationOpen] = useState(false);
 
   useCollectionSettingsDraft(collection, {
     setAllowedTypes,
@@ -321,7 +322,24 @@ const CollectionSettings = () => {
         </CardContent>
       </Card>
 
-      <VectorMigrationPanel collection={collection} />
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ArrowRightLeft className="size-4" />
+            Vector migration
+          </CardTitle>
+          <CardDescription>
+            Move this collection to another configured vector provider. Source vectors are deleted
+            after a successful cutover.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="secondary" onClick={() => setMigrationOpen(true)}>
+            <ArrowRightLeft className="size-4" />
+            Migrate vector provider
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card className="border-destructive/40">
         <CardHeader>
@@ -342,6 +360,12 @@ const CollectionSettings = () => {
           </Button>
         </CardContent>
       </Card>
+
+      <VectorMigrationModal
+        collection={collection}
+        onClose={() => setMigrationOpen(false)}
+        open={migrationOpen}
+      />
 
       <ConfirmDialog
         open={confirmTruncateOpen}
