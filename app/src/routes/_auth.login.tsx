@@ -105,6 +105,7 @@ const LoginPage = () => {
               label="Email"
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.target.value)}
+              placeholder="admin@example.com"
               required
               type="email"
               value={field.state.value}
@@ -125,6 +126,7 @@ const LoginPage = () => {
               minLength={8}
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.target.value)}
+              placeholder="Password"
               required
               type="password"
               value={field.state.value}
