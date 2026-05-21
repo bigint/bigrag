@@ -54,15 +54,15 @@ used by `./dev.sh`.
                  |
         host:4000 v                 host:9001/9002/9003
    +-------------+--------+   +-----------------------------+
-   | bigrag-api           |   | fake-openai | fake-gdrive | |
+   | bigrag-api           |   | fake-openai | fake-turbo | |
    | bigrag-worker        |   | webhook-sink                |
    +--+---------+---------+   +-----------------------------+
       |         |                         ^         ^    ^
       v         v                         |         |    |
-  postgres   redis   qdrant  +------------+---------+----+
+  postgres   redis   turbopuffer +--------+---------+----+
                               (bigrag-api routes embeddings, chat,
-                               Google Drive connector, and webhook
-                               deliveries at these local fakes)
+                               vectors, and webhook deliveries at
+                               these local fakes)
 ```
 
 The fakes live in `stubs/`:
@@ -70,8 +70,8 @@ The fakes live in `stubs/`:
 - `fake-openai` — OpenAI-compatible `/v1/embeddings`, `/v1/chat/completions`
   (non-stream + SSE), `/v1/models`. Deterministic embeddings via
   sha256-seeded numpy RNG; canned chat responses.
-- `fake-gdrive` — Mock OAuth (`/o/oauth2/*`) + Drive (`/drive/v3/*`) for the
-  Google Drive connector tests.
+- `fake-turbopuffer` — Turbopuffer-compatible namespace writes, vector query,
+  fake BM25 keyword query, and hybrid-friendly rows.
 - `webhook-sink` — Records every incoming webhook delivery; tests poll
   `/received?label=...` to assert.
 
@@ -113,8 +113,8 @@ All Python suites share fixtures from `e2e/conftest.py`:
 
 See `e2e/conftest.py` and `e2e/tests/_helpers.py` for the full contract.
 
-Collection names are short — `e2e_<8 hex>` — so they fit Qdrant's collection
-name limit. Each fixture cleans up in teardown so the suite is safe under
+Collection names are short — `e2e_<8 hex>` — so generated namespace names stay
+compact. Each fixture cleans up in teardown so the suite is safe under
 `pytest-xdist -n auto`.
 
 ## Coverage

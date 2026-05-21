@@ -43,7 +43,6 @@ async def test_create_collection_returns_201_with_defaults(
     assert coll["dimension"] == 1536
     assert coll["embedding_model"] == "text-embedding-3-small"
     assert coll["embedding_provider"] == "openai_compatible"
-    assert coll["vector_store_provider"] == "qdrant"
     assert coll["chunk_size"] == 512
     assert coll["chunk_overlap"] == 50
     assert coll["chunk_strategy"] == "paragraph"

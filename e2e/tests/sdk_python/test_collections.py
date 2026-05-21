@@ -32,7 +32,6 @@ async def test_collections_create_returns_full_collection(
         {
             "name": name,
             "description": "sdk create",
-            "vector_store_provider": "qdrant",
             "dimension": 1536,
             "chunk_size": 512,
             "chunk_overlap": 50,
@@ -48,7 +47,6 @@ async def test_collections_create_returns_full_collection(
             "description",
             "embedding_provider",
             "embedding_model",
-            "vector_store_provider",
             "dimension",
             "chunk_size",
             "chunk_overlap",

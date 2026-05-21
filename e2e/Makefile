@@ -3,7 +3,7 @@
 E2E_PROJECT ?= bigrag-e2e
 COMPOSE = docker compose -p $(E2E_PROJECT) -f ../docker-compose.yml -f docker-compose.e2e.yml
 API_BASE ?= http://localhost:4000
-E2E_SERVICES = bigrag-api bigrag-worker fake-openai webhook-sink minio
+E2E_SERVICES = bigrag-api bigrag-worker fake-openai fake-turbopuffer webhook-sink minio
 
 up:
 	$(COMPOSE) up -d --build $(E2E_SERVICES)

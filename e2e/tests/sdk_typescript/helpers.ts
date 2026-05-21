@@ -256,9 +256,6 @@ export async function createCollection(
   const body: CreateCollectionBody = {
     name: uniqueName("e2e"),
     description: "sdk e2e collection",
-    vector_store_provider: "qdrant",
-    // bigRAG requires `dimension` for openai_compatible providers (the
-    // default in e2e). text-embedding-3-small uses 1536.
     dimension: 1536,
     chunk_size: 512,
     chunk_overlap: 50,

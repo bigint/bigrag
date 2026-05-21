@@ -19,7 +19,6 @@ async function createTempCollection(): Promise<Collection> {
   const body: Parameters<typeof client.collections.create>[0] = {
     name: uniqueName("sdkcoll"),
     description: "sdk collections.test",
-    vector_store_provider: "qdrant",
     dimension: 1536,
     chunk_size: 512,
     chunk_overlap: 50,
@@ -38,7 +37,6 @@ describe("CollectionsResource", () => {
     expect(typeof created.id).toBe("string");
     expect(created.id.length).toBeGreaterThan(0);
     expect(typeof created.name).toBe("string");
-    expect(created.vector_store_provider).toBe("qdrant");
     expect(typeof created.dimension).toBe("number");
     expect(created.dimension).toBeGreaterThan(0);
     expect(created.document_count).toBe(0);

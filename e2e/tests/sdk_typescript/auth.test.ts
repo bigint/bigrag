@@ -64,7 +64,6 @@ describe("AuthResource", () => {
     const body: Parameters<typeof adminClient.collections.create>[0] = {
       name: collName,
       description: "auth pin test",
-      vector_store_provider: "qdrant",
       dimension: 1536,
       chunk_size: 512,
       chunk_overlap: 50,

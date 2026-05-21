@@ -128,7 +128,6 @@ async def test_409_duplicate_collection_name(
         json={
             "name": first["name"],
             "description": "dup attempt",
-            "vector_store_provider": "qdrant",
             "chunk_size": 512,
             "chunk_overlap": 50,
             "chunk_strategy": "paragraph",
@@ -195,9 +194,8 @@ async def test_422_bad_enum_on_create_collection(
         "/v1/collections",
         json={
             "name": unique_name("enum"),
-            "vector_store_provider": "not-a-real-provider",
             "chunk_strategy": "paragraph",
-            "default_search_mode": "semantic",
+            "default_search_mode": "not-a-real-mode",
         },
     )
     assert resp.status_code == 422, resp.text

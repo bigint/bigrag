@@ -24,6 +24,10 @@ services:
       BIGRAG_CHAT_BASE_URL: http://fake-openai:9001/v1
       BIGRAG_CHAT_API_KEY: e2e-fake-key
       BIGRAG_ALLOW_PRIVATE_CHAT_BASE_URLS: "true"
+      BIGRAG_TURBOPUFFER_API_KEY: e2e-fake-turbopuffer-key
+      BIGRAG_TURBOPUFFER_REGION: e2e
+      BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX: e2e_
+      BIGRAG_TURBOPUFFER_BASE_URL: http://fake-turbopuffer:9002
       BIGRAG_ALLOW_LOCAL_WEBHOOKS: "true"
       BIGRAG_BACKUP_S3_BUCKET: bigrag-backups
       BIGRAG_BACKUP_S3_ENDPOINT_URL: http://minio:9000
@@ -36,9 +40,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
-        condition: service_started
       fake-openai:
+        condition: service_healthy
+      fake-turbopuffer:
         condition: service_healthy
 
   bigrag-worker:
@@ -64,6 +68,10 @@ services:
       BIGRAG_CHAT_BASE_URL: http://fake-openai:9001/v1
       BIGRAG_CHAT_API_KEY: e2e-fake-key
       BIGRAG_ALLOW_PRIVATE_CHAT_BASE_URLS: "true"
+      BIGRAG_TURBOPUFFER_API_KEY: e2e-fake-turbopuffer-key
+      BIGRAG_TURBOPUFFER_REGION: e2e
+      BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX: e2e_
+      BIGRAG_TURBOPUFFER_BASE_URL: http://fake-turbopuffer:9002
       BIGRAG_ALLOW_LOCAL_WEBHOOKS: "true"
     depends_on:
       bigrag-api:
@@ -72,9 +80,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
-        condition: service_started
       fake-openai:
+        condition: service_healthy
+      fake-turbopuffer:
         condition: service_healthy
 
   fake-openai:
@@ -85,6 +93,18 @@ services:
       - "127.0.0.1:9001:9001"
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(\"http://localhost:9001/health\").status==200 else 1)'"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  fake-turbopuffer:
+    build: ./e2e/stubs/fake_turbopuffer
+    container_name: bigrag-e2e-fake-turbopuffer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9002:9002"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(\"http://localhost:9002/health\").status==200 else 1)'"]
       interval: 5s
       timeout: 3s
       retries: 10

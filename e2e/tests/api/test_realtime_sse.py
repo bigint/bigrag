@@ -9,7 +9,6 @@ Endpoints covered (all SSE / text/event-stream):
 - GET /v1/admin/realtime/{provider_slug}/sources
 - GET /v1/admin/realtime/{provider_slug}/sync-jobs
 - GET /v1/admin/realtime/backups
-- GET /v1/admin/realtime/vector-migrations
 - GET /v1/admin/realtime/access/overview
 - GET /v1/admin/realtime/access/logs
 - GET /v1/admin/realtime/audit
@@ -170,20 +169,6 @@ async def test_realtime_backups_stream(
     path = "/v1/admin/realtime/backups"
     snapshot = await _first_snapshot(admin_client, path)
     assert snapshot["topic"].startswith("backups:")
-    assert "payload" in snapshot
-
-    await _assert_unauth_blocked(unauth_client, path)
-    await _assert_api_key_blocked(api_key_client, path)
-
-
-async def test_realtime_vector_migrations_stream(
-    admin_client: httpx.AsyncClient,
-    unauth_client: httpx.AsyncClient,
-    api_key_client: Callable[..., Awaitable[httpx.AsyncClient]],
-) -> None:
-    path = "/v1/admin/realtime/vector-migrations"
-    snapshot = await _first_snapshot(admin_client, path)
-    assert snapshot["topic"].startswith("vector-migrations:")
     assert "payload" in snapshot
 
     await _assert_unauth_blocked(unauth_client, path)

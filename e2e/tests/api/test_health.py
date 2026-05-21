@@ -32,7 +32,9 @@ async def test_health_readiness_reports_each_dependency(
         assert dep in body, f"missing dependency key {dep!r} in {body!r}"
         assert isinstance(body[dep], bool)
     assert "vector_store_provider" in body
-    assert "qdrant" in body
+    assert body["vector_store_provider"] == "turbopuffer"
+    assert "turbopuffer" in body
+    assert "qdrant" not in body
 
 
 async def test_health_readiness_status_matches_http_code(
