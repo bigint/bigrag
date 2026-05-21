@@ -22,11 +22,11 @@ Tick these off before pointing real traffic at a bigRAG deployment:
   proxies if bigRAG sits behind nginx, Caddy, Traefik, or a load balancer.
 - [ ] Redis with `requirepass` set and `appendonly yes` persisted to
   a mounted volume.
-- [ ] Qdrant cluster mode or turbopuffer if you expect >10M vectors or need managed HA.
+- [ ] Turbopuffer API key and region saved from the admin UI for managed vector and full-text search.
 - [ ] Postgres warm-standby replica for failover.
 - [ ] Backup strategy: configure readable S3/R2 backups from `/backups`,
   protect that bucket as sensitive, and separately keep encrypted infrastructure
-  snapshots for Postgres, vector-store backends, Redis, and uploads.
+  snapshots for Postgres, Turbopuffer exports, Redis, and uploads.
 - [ ] Set `metadata_schema` on collections that accept untrusted
   metadata so uploads with invalid shape are rejected at the edge.
 - [ ] Wire `GET /v1/admin/audit` into your SIEM / log pipeline.
@@ -62,7 +62,6 @@ services:
     environment:
       BIGRAG_ENV: prod
       BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
-      BIGRAG_QDRANT_URL: http://qdrant:6333
       BIGRAG_REDIS_URL: ${BIGRAG_REDIS_URL}
       BIGRAG_HOST: 0.0.0.0
       BIGRAG_MASTER_KEY: ${BIGRAG_MASTER_KEY}
@@ -86,8 +85,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
-        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
       interval: 30s
@@ -102,7 +99,6 @@ services:
     environment:
       BIGRAG_ENV: prod
       BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
-      BIGRAG_QDRANT_URL: http://qdrant:6333
       BIGRAG_REDIS_URL: ${BIGRAG_REDIS_URL}
       BIGRAG_MASTER_KEY: ${BIGRAG_MASTER_KEY}
       BIGRAG_MASTER_KEY_PREVIOUS: '${BIGRAG_MASTER_KEY_PREVIOUS:-[]}'
@@ -120,8 +116,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
-        condition: service_started
     healthcheck:
       test:
         [
@@ -161,18 +155,6 @@ services:
       timeout: 5s
       retries: 5
 
-  qdrant:
-    image: qdrant/qdrant:v1.17.1
-    ports:
-      - "127.0.0.1:6333:6333"
-      - "127.0.0.1:6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
-    deploy:
-      resources:
-        limits:
-          memory: 2g
-
   redis:
     image: redis:7-alpine
     environment:
@@ -197,7 +179,6 @@ services:
 volumes:
   bigrag_data:
   postgres_data:
-  qdrant_data:
   redis_data:
 ```
 
@@ -236,7 +217,6 @@ BIGRAG_WORKERS=8                    # Match CPU cores
 BIGRAG_INGESTION_WORKERS=8          # UI/runtime concurrency target for ingestion
 BIGRAG_DB_POOL_MAX=100              # Increase for high concurrency
 BIGRAG_EMBEDDING_CONCURRENCY=16     # Parallel embedding requests
-BIGRAG_QDRANT_SEARCH_EF=128         # Optional HNSW recall/latency tuning
 
 # Worker command
 bigrag-worker --processes 1 --threads 8
@@ -279,7 +259,7 @@ Text logs are colored by default with fixed columns for time, level, logger,
 event, and fields. Text rendering escapes control characters in event and field
 values before writing to stdout, so request paths and headers cannot create
 extra terminal lines or emit terminal control sequences. Dependency loggers such
-as Dramatiq, Alembic, Uvicorn access, HTTPX, and Qdrant are kept at warning level
+as Dramatiq, Alembic, Uvicorn access, HTTPX, and Turbopuffer are kept at warning level
 so local terminals show bigRAG actions instead of library startup chatter. Every
 API request logs
 `request_start`, `response_start`, and `request_complete`; unhandled failures log
@@ -322,7 +302,6 @@ Ensure all infrastructure services are running and healthy:
 
 ```bash
 docker exec bigrag-postgres pg_isready -U bigrag
-curl -f http://localhost:6333/healthz
 docker exec bigrag-redis redis-cli ping
 ```
 
@@ -352,7 +331,7 @@ File exceeds the max upload size. Increase `BIGRAG_MAX_UPLOAD_SIZE_MB`.
 
 ### `/health/ready` returns 503 but services are running
 
-The readiness endpoint also checks the embedding provider. If no collection has an `embedding_api_key` configured, it reports degraded status. Check `/health` first to confirm the server itself is running, then create a collection with a valid embedding key.
+The readiness endpoint also checks Turbopuffer and the embedding provider. Check `/health` first to confirm the server itself is running, then save Turbopuffer settings in the admin UI and create a collection with a valid embedding key.
 
 ### Document uploads fail with embedding errors
 

@@ -75,7 +75,15 @@ async def test_settings_get_returns_specs_and_values(
     assert "values" in body and isinstance(body["values"], dict)
 
     spec_keys = {spec["key"] for spec in body["specs"]}
-    for sample in ("chat_temperature", "embedding_api_key", "max_upload_size_mb"):
+    for sample in (
+        "chat_temperature",
+        "embedding_api_key",
+        "max_upload_size_mb",
+        "turbopuffer_api_key",
+        "turbopuffer_base_url",
+        "turbopuffer_namespace_prefix",
+        "turbopuffer_region",
+    ):
         assert sample in spec_keys, f"expected setting key {sample!r} in spec list"
         assert sample in body["values"], f"missing value entry for {sample!r}"
 
@@ -244,6 +252,29 @@ async def test_settings_test_validates_chat_provider_settings(
     body = assert_envelope(resp, 200)
     assert body["status"] == "ok"
     assert set(body["checked"]) >= {"chat_base_url", "chat_model", "chat_temperature"}
+
+
+async def test_settings_test_validates_turbopuffer_settings(
+    admin_client: httpx.AsyncClient,
+    fake_turbopuffer_base: str,
+) -> None:
+    resp = await admin_client.post(
+        "/v1/admin/settings/test",
+        json={
+            "values": {
+                "turbopuffer_api_key": "e2e-fake-turbopuffer-key",
+                "turbopuffer_base_url": fake_turbopuffer_base,
+                "turbopuffer_region": "e2e",
+            },
+        },
+    )
+    body = assert_envelope(resp, 200)
+    assert body["status"] == "ok"
+    assert set(body["checked"]) >= {
+        "turbopuffer_api_key",
+        "turbopuffer_base_url",
+        "turbopuffer_region",
+    }
 
 
 async def test_settings_test_rejects_broken_base_url(

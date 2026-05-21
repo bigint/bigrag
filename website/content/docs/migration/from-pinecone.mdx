@@ -90,15 +90,15 @@ Recommended if you're in the middle of a chunking rethink anyway.
 ## API differences to watch
 
 - **Filters stay as JSON objects**. Pass a dict like
-  `{"department": "sales"}` and bigRAG translates it into Qdrant
-  payload filters.
+  `{"department": "sales"}` and bigRAG translates it into Turbopuffer
+  filters.
 - **Namespaces → metadata filters**. Pinecone's `namespace="docs"`
   becomes `metadata.namespace = "docs"`. Set
   `tenant_field: "namespace"` on the collection when that field should
-  get a Qdrant payload index and become required on uploads, raw vector
-  upserts, queries, and chat requests.
+  become required on uploads, raw vector upserts, queries, and chat
+  requests.
 - **Hybrid search is built-in**. `search_mode: "hybrid"` runs keyword
-  + vector in parallel and fuses with reciprocal rank fusion.
+  BM25 + vector search in parallel and fuses with reciprocal rank fusion.
   No separate "sparse" vectors to maintain.
 
 ## Cut-over

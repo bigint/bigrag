@@ -211,11 +211,6 @@ async def readiness_status(vs, queue) -> tuple[dict[str, object], bool]:
             healthy = False
         else:
             checks[name] = True
-    checks["vector_store_provider"] = "per_collection"
-    checks["qdrant"] = (
-        checks["vector_store"] if "qdrant" in getattr(vs, "configured_providers", ()) else None
-    )
-
     embedding_result = await check_embedding_provider()
     checks.update(embedding_result)
     if not embedding_result.get("embedding"):

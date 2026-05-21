@@ -9,10 +9,10 @@ import { Route as DashboardRouteImport } from "./routes/_dashboard";
 import { Route as AuthRouteImport } from "./routes/_auth";
 import { Route as IndexRouteImport } from "./routes/index";
 import { Route as DashboardWebhooksRouteImport } from "./routes/_dashboard.webhooks";
-import { Route as DashboardVectorStorageRouteImport } from "./routes/_dashboard.vector-storage";
 import { Route as DashboardUsageRouteImport } from "./routes/_dashboard.usage";
 import { Route as DashboardSettingsRouteImport } from "./routes/_dashboard.settings";
 import { Route as DashboardOverviewRouteImport } from "./routes/_dashboard.overview";
+import { Route as DashboardOnboardingRouteImport } from "./routes/_dashboard.onboarding";
 import { Route as DashboardModelsRouteImport } from "./routes/_dashboard.models";
 import { Route as DashboardMcpRouteImport } from "./routes/_dashboard.mcp";
 import { Route as DashboardEvalsRouteImport } from "./routes/_dashboard.evals";
@@ -54,11 +54,6 @@ const DashboardWebhooksRoute = DashboardWebhooksRouteImport.update({
   path: "/webhooks",
   getParentRoute: () => DashboardRoute,
 } as any);
-const DashboardVectorStorageRoute = DashboardVectorStorageRouteImport.update({
-  id: "/vector-storage",
-  path: "/vector-storage",
-  getParentRoute: () => DashboardRoute,
-} as any);
 const DashboardUsageRoute = DashboardUsageRouteImport.update({
   id: "/usage",
   path: "/usage",
@@ -72,6 +67,11 @@ const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
 const DashboardOverviewRoute = DashboardOverviewRouteImport.update({
   id: "/overview",
   path: "/overview",
+  getParentRoute: () => DashboardRoute,
+} as any);
+const DashboardOnboardingRoute = DashboardOnboardingRouteImport.update({
+  id: "/onboarding",
+  path: "/onboarding",
   getParentRoute: () => DashboardRoute,
 } as any);
 const DashboardModelsRoute = DashboardModelsRouteImport.update({
@@ -209,10 +209,10 @@ export interface FileRoutesByFullPath {
   "/evals": typeof DashboardEvalsRoute;
   "/mcp": typeof DashboardMcpRoute;
   "/models": typeof DashboardModelsRoute;
+  "/onboarding": typeof DashboardOnboardingRoute;
   "/overview": typeof DashboardOverviewRoute;
   "/settings": typeof DashboardSettingsRoute;
   "/usage": typeof DashboardUsageRoute;
-  "/vector-storage": typeof DashboardVectorStorageRoute;
   "/webhooks": typeof DashboardWebhooksRoute;
   "/collections/$name": typeof DashboardCollectionsNameRouteWithChildren;
   "/collections/": typeof DashboardCollectionsIndexRoute;
@@ -239,10 +239,10 @@ export interface FileRoutesByTo {
   "/evals": typeof DashboardEvalsRoute;
   "/mcp": typeof DashboardMcpRoute;
   "/models": typeof DashboardModelsRoute;
+  "/onboarding": typeof DashboardOnboardingRoute;
   "/overview": typeof DashboardOverviewRoute;
   "/settings": typeof DashboardSettingsRoute;
   "/usage": typeof DashboardUsageRoute;
-  "/vector-storage": typeof DashboardVectorStorageRoute;
   "/webhooks": typeof DashboardWebhooksRoute;
   "/collections": typeof DashboardCollectionsIndexRoute;
   "/collections/$name/search": typeof DashboardCollectionsNameSearchRoute;
@@ -270,10 +270,10 @@ export interface FileRoutesById {
   "/_dashboard/evals": typeof DashboardEvalsRoute;
   "/_dashboard/mcp": typeof DashboardMcpRoute;
   "/_dashboard/models": typeof DashboardModelsRoute;
+  "/_dashboard/onboarding": typeof DashboardOnboardingRoute;
   "/_dashboard/overview": typeof DashboardOverviewRoute;
   "/_dashboard/settings": typeof DashboardSettingsRoute;
   "/_dashboard/usage": typeof DashboardUsageRoute;
-  "/_dashboard/vector-storage": typeof DashboardVectorStorageRoute;
   "/_dashboard/webhooks": typeof DashboardWebhooksRoute;
   "/_dashboard/collections/$name": typeof DashboardCollectionsNameRouteWithChildren;
   "/_dashboard/collections/": typeof DashboardCollectionsIndexRoute;
@@ -302,10 +302,10 @@ export interface FileRouteTypes {
     | "/evals"
     | "/mcp"
     | "/models"
+    | "/onboarding"
     | "/overview"
     | "/settings"
     | "/usage"
-    | "/vector-storage"
     | "/webhooks"
     | "/collections/$name"
     | "/collections/"
@@ -332,10 +332,10 @@ export interface FileRouteTypes {
     | "/evals"
     | "/mcp"
     | "/models"
+    | "/onboarding"
     | "/overview"
     | "/settings"
     | "/usage"
-    | "/vector-storage"
     | "/webhooks"
     | "/collections"
     | "/collections/$name/search"
@@ -362,10 +362,10 @@ export interface FileRouteTypes {
     | "/_dashboard/evals"
     | "/_dashboard/mcp"
     | "/_dashboard/models"
+    | "/_dashboard/onboarding"
     | "/_dashboard/overview"
     | "/_dashboard/settings"
     | "/_dashboard/usage"
-    | "/_dashboard/vector-storage"
     | "/_dashboard/webhooks"
     | "/_dashboard/collections/$name"
     | "/_dashboard/collections/"
@@ -415,13 +415,6 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DashboardWebhooksRouteImport;
       parentRoute: typeof DashboardRoute;
     };
-    "/_dashboard/vector-storage": {
-      id: "/_dashboard/vector-storage";
-      path: "/vector-storage";
-      fullPath: "/vector-storage";
-      preLoaderRoute: typeof DashboardVectorStorageRouteImport;
-      parentRoute: typeof DashboardRoute;
-    };
     "/_dashboard/usage": {
       id: "/_dashboard/usage";
       path: "/usage";
@@ -441,6 +434,13 @@ declare module "@tanstack/react-router" {
       path: "/overview";
       fullPath: "/overview";
       preLoaderRoute: typeof DashboardOverviewRouteImport;
+      parentRoute: typeof DashboardRoute;
+    };
+    "/_dashboard/onboarding": {
+      id: "/_dashboard/onboarding";
+      path: "/onboarding";
+      fullPath: "/onboarding";
+      preLoaderRoute: typeof DashboardOnboardingRouteImport;
       parentRoute: typeof DashboardRoute;
     };
     "/_dashboard/models": {
@@ -669,10 +669,10 @@ interface DashboardRouteChildren {
   DashboardEvalsRoute: typeof DashboardEvalsRoute;
   DashboardMcpRoute: typeof DashboardMcpRoute;
   DashboardModelsRoute: typeof DashboardModelsRoute;
+  DashboardOnboardingRoute: typeof DashboardOnboardingRoute;
   DashboardOverviewRoute: typeof DashboardOverviewRoute;
   DashboardSettingsRoute: typeof DashboardSettingsRoute;
   DashboardUsageRoute: typeof DashboardUsageRoute;
-  DashboardVectorStorageRoute: typeof DashboardVectorStorageRoute;
   DashboardWebhooksRoute: typeof DashboardWebhooksRoute;
   DashboardCollectionsNameRoute: typeof DashboardCollectionsNameRouteWithChildren;
   DashboardCollectionsIndexRoute: typeof DashboardCollectionsIndexRoute;
@@ -689,10 +689,10 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardEvalsRoute: DashboardEvalsRoute,
   DashboardMcpRoute: DashboardMcpRoute,
   DashboardModelsRoute: DashboardModelsRoute,
+  DashboardOnboardingRoute: DashboardOnboardingRoute,
   DashboardOverviewRoute: DashboardOverviewRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardUsageRoute: DashboardUsageRoute,
-  DashboardVectorStorageRoute: DashboardVectorStorageRoute,
   DashboardWebhooksRoute: DashboardWebhooksRoute,
   DashboardCollectionsNameRoute: DashboardCollectionsNameRouteWithChildren,
   DashboardCollectionsIndexRoute: DashboardCollectionsIndexRoute,

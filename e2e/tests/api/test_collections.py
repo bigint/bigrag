@@ -29,7 +29,6 @@ import httpx
 
 from tests._helpers import assert_envelope, unique_name
 
-
 # ---------------------------------------------------------------------------
 # Create
 # ---------------------------------------------------------------------------
@@ -43,7 +42,6 @@ async def test_create_collection_returns_201_with_defaults(
     assert coll["dimension"] == 1536
     assert coll["embedding_model"] == "text-embedding-3-small"
     assert coll["embedding_provider"] == "openai_compatible"
-    assert coll["vector_store_provider"] == "qdrant"
     assert coll["chunk_size"] == 512
     assert coll["chunk_overlap"] == 50
     assert coll["chunk_strategy"] == "paragraph"
@@ -246,9 +244,7 @@ async def test_delete_collection_also_removes_documents(
     resp = await admin_client.delete(f"/v1/collections/{coll['name']}")
     assert resp.status_code == 200, resp.text
 
-    follow_up = await admin_client.get(
-        f"/v1/collections/{coll['name']}/documents/{doc['id']}"
-    )
+    follow_up = await admin_client.get(f"/v1/collections/{coll['name']}/documents/{doc['id']}")
     assert follow_up.status_code == 404, follow_up.text
 
 
@@ -329,9 +325,7 @@ async def test_reembed_kicks_off_for_existing_collection(
 async def test_reembed_unknown_collection_returns_404(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.post(
-        f"/v1/collections/{unique_name('missing')}/reembed"
-    )
+    resp = await admin_client.post(f"/v1/collections/{unique_name('missing')}/reembed")
     assert resp.status_code == 404, resp.text
 
 
@@ -355,9 +349,7 @@ async def test_truncate_removes_documents_but_keeps_collection(
 async def test_truncate_unknown_collection_returns_404(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.post(
-        f"/v1/collections/{unique_name('missing')}/truncate"
-    )
+    resp = await admin_client.post(f"/v1/collections/{unique_name('missing')}/truncate")
     assert resp.status_code == 404, resp.text
 
 
@@ -371,9 +363,7 @@ async def test_event_token_returns_short_lived_token(
     collection: Callable[..., Awaitable[dict[str, Any]]],
 ) -> None:
     coll = await collection()
-    resp = await admin_client.post(
-        f"/v1/collections/{coll['name']}/events/token"
-    )
+    resp = await admin_client.post(f"/v1/collections/{coll['name']}/events/token")
     body = assert_envelope(resp, 200)
     assert isinstance(body["token"], str) and len(body["token"]) > 0
     assert isinstance(body["expires_in"], int) and body["expires_in"] > 0
@@ -382,9 +372,7 @@ async def test_event_token_returns_short_lived_token(
 async def test_event_token_unknown_collection_returns_404(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.post(
-        f"/v1/collections/{unique_name('missing')}/events/token"
-    )
+    resp = await admin_client.post(f"/v1/collections/{unique_name('missing')}/events/token")
     assert resp.status_code == 404, resp.text
 
 
@@ -394,9 +382,7 @@ async def test_collection_events_unknown_collection_returns_404(
     """Hit the SSE GET endpoint just enough to verify it 404s for unknown
     collections without consuming the stream (full SSE flow is covered by
     test_sse_events.py)."""
-    resp = await admin_client.get(
-        f"/v1/collections/{unique_name('missing')}/events"
-    )
+    resp = await admin_client.get(f"/v1/collections/{unique_name('missing')}/events")
     assert resp.status_code == 404, resp.text
 
 

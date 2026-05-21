@@ -54,15 +54,15 @@ The middleware enforces both the scopes and the collection pin, so a leaked tena
 <Callout type="warn">
 Collections-per-tenant is simple but creates operational overhead as
 tenant count grows. Above small/medium tenant counts, move to Pattern B
-so one Qdrant collection can use indexed tenant payload filters.
+so one Turbopuffer namespace can use tenant metadata filters.
 </Callout>
 
 ## Pattern B — shared collection with tenant filters
 
 One collection, tenant isolation via a required metadata filter. Setting
-`tenant_field` tells bigRAG to create a Qdrant payload index for that
-field and reject uploads, raw vector upserts, queries, and chat calls that
-omit the tenant field.
+`tenant_field` tells bigRAG to configure that field for backend filtering
+and reject uploads, raw vector upserts, queries, and chat calls that omit
+the tenant field.
 
 ```python
 await client.collections.create({

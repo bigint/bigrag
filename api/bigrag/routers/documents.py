@@ -286,7 +286,6 @@ async def delete_document(
     await vector_store.delete_by_document(
         collection_name,
         document_id,
-        provider=collection.get("vector_store_provider"),
     )
     storage = get_storage()
     await storage.delete(file_path)
@@ -333,7 +332,6 @@ async def reprocess_document(
     await vector_store.delete_by_document(
         collection_name,
         document_id,
-        provider=collection.get("vector_store_provider"),
     )
 
     doc.status = "pending"
@@ -451,7 +449,6 @@ async def get_document_chunks(
         document_id,
         limit=limit,
         offset=offset,
-        provider=collection.get("vector_store_provider"),
     )
     return {"chunks": chunks, "total": total}
 

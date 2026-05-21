@@ -7,7 +7,6 @@ import {
   BookOpen,
   Cloud,
   Cpu,
-  Database,
   FlaskConical,
   HardDrive,
   KeyRound,
@@ -68,7 +67,6 @@ const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       { admin: true, href: "/backups", icon: Archive, label: "Backups" },
       { admin: true, href: "/data-storage", icon: HardDrive, label: "Data Storage" },
-      { admin: true, href: "/vector-storage", icon: Database, label: "Vector Storage" },
       { admin: true, href: "/settings", icon: Settings, label: "Settings" },
     ],
   },

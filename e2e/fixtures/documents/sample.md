@@ -15,7 +15,7 @@ through CSRF, scope, and audit middleware.
 2. Conversion service (Docling) extracts text from PDF/DOCX/HTML/PNG
 3. Chunker splits the document by `chunk_strategy`
 4. Embedding worker batches chunks and embeds via the configured provider
-5. Vectors and payloads are upserted into Qdrant or Turbopuffer
+5. Vectors and payloads are upserted into Turbopuffer
 
 ## Retrieval
 

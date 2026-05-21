@@ -14,6 +14,7 @@ from bigrag.services import audit
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
+from bigrag.services.vector_store import vector_store
 
 logger = get_logger("bigrag.routers.collections_embedding")
 
@@ -47,7 +48,6 @@ async def reembed_collection(
         "chunk_size": collection.chunk_size,
         "chunk_overlap": collection.chunk_overlap,
         "chunk_strategy": collection.chunk_strategy or "paragraph",
-        "vector_store_provider": collection.vector_store_provider,
         "tenant_field": collection.tenant_field,
     }
     jobs = [
@@ -61,6 +61,8 @@ async def reembed_collection(
     ]
 
     doc_ids = [doc_id for doc_id, _ in docs]
+    for doc_id in doc_ids:
+        await vector_store.delete_by_document(name, str(doc_id))
     await session.execute(
         sa.update(Document)
         .where(Document.id.in_(doc_ids))

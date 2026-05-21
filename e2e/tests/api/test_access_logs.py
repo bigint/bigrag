@@ -33,9 +33,7 @@ async def _wait_for_action(
     timeout: float = 10.0,
 ) -> list[dict]:
     async def _fetch() -> list[dict]:
-        r = await admin_client.get(
-            "/v1/admin/access/logs", params={"action": action, "limit": 50}
-        )
+        r = await admin_client.get("/v1/admin/access/logs", params={"action": action, "limit": 50})
         r.raise_for_status()
         return r.json().get("entries", [])
 
@@ -175,9 +173,7 @@ async def test_logs_filter_by_method(
     await _seed_query(admin_client, coll["name"])
     await _wait_for_action(admin_client, "query.run")
 
-    resp = await admin_client.get(
-        "/v1/admin/access/logs", params={"method": "post", "limit": 20}
-    )
+    resp = await admin_client.get("/v1/admin/access/logs", params={"method": "post", "limit": 20})
     body = assert_envelope(resp, 200)
     for entry in body["entries"]:
         assert entry["method"] == "POST"
@@ -193,9 +189,7 @@ async def test_logs_filter_by_path_substring(
     await _seed_query(admin_client, coll["name"])
     await _wait_for_action(admin_client, "query.run")
 
-    resp = await admin_client.get(
-        "/v1/admin/access/logs", params={"path": "/query", "limit": 20}
-    )
+    resp = await admin_client.get("/v1/admin/access/logs", params={"path": "/query", "limit": 20})
     body = assert_envelope(resp, 200)
     for entry in body["entries"]:
         assert "/query" in entry["path"]
@@ -229,9 +223,7 @@ async def test_logs_filter_by_success(
     await _seed_query(admin_client, coll["name"])
     await _wait_for_action(admin_client, "query.run")
 
-    resp = await admin_client.get(
-        "/v1/admin/access/logs", params={"success": "true", "limit": 20}
-    )
+    resp = await admin_client.get("/v1/admin/access/logs", params={"success": "true", "limit": 20})
     body = assert_envelope(resp, 200)
     for entry in body["entries"]:
         assert entry["success"] is True
@@ -240,18 +232,14 @@ async def test_logs_filter_by_success(
 async def test_logs_invalid_actor_id_returns_400(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.get(
-        "/v1/admin/access/logs", params={"actor_id": "not-a-uuid"}
-    )
+    resp = await admin_client.get("/v1/admin/access/logs", params={"actor_id": "not-a-uuid"})
     assert resp.status_code == 400
 
 
 async def test_logs_invalid_status_family_returns_422(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.get(
-        "/v1/admin/access/logs", params={"status_family": "9xx"}
-    )
+    resp = await admin_client.get("/v1/admin/access/logs", params={"status_family": "9xx"})
     assert resp.status_code == 422
 
 
@@ -298,9 +286,7 @@ async def test_overview_shape_and_window(
     await _seed_query(admin_client, coll["name"])
     await _wait_for_action(admin_client, "query.run")
 
-    resp = await admin_client.get(
-        "/v1/admin/access/overview", params={"window_days": 7}
-    )
+    resp = await admin_client.get("/v1/admin/access/overview", params={"window_days": 7})
     body = assert_envelope(resp, 200)
     for key in (
         "window_days",
@@ -332,12 +318,8 @@ async def test_overview_default_window(admin_client: httpx.AsyncClient) -> None:
 async def test_overview_invalid_window_rejected(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.get(
-        "/v1/admin/access/overview", params={"window_days": 0}
-    )
+    resp = await admin_client.get("/v1/admin/access/overview", params={"window_days": 0})
     assert resp.status_code == 422
 
-    resp = await admin_client.get(
-        "/v1/admin/access/overview", params={"window_days": 1000}
-    )
+    resp = await admin_client.get("/v1/admin/access/overview", params={"window_days": 1000})
     assert resp.status_code == 422

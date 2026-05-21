@@ -36,9 +36,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
-        condition: service_started
       fake-openai:
+        condition: service_healthy
+      fake-turbopuffer:
         condition: service_healthy
 
   bigrag-worker:
@@ -72,9 +72,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
-        condition: service_started
       fake-openai:
+        condition: service_healthy
+      fake-turbopuffer:
         condition: service_healthy
 
   fake-openai:
@@ -85,6 +85,18 @@ services:
       - "127.0.0.1:9001:9001"
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(\"http://localhost:9001/health\").status==200 else 1)'"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  fake-turbopuffer:
+    build: ./e2e/stubs/fake_turbopuffer
+    container_name: bigrag-e2e-fake-turbopuffer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9002:9002"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(\"http://localhost:9002/health\").status==200 else 1)'"]
       interval: 5s
       timeout: 3s
       retries: 10

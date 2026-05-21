@@ -114,11 +114,7 @@ export const ServerTab = () => {
           <HealthRow label="Postgres" ok={readiness?.postgres} hint={readiness?.postgres_error} />
           <HealthRow label="Redis" ok={readiness?.redis} hint={readiness?.redis_error} />
           <HealthRow
-            label={
-              readiness?.vector_store_provider
-                ? `Vector store · ${readiness.vector_store_provider.replace("_", " ")}`
-                : "Vector store"
-            }
+            label="Vector store"
             ok={readiness?.vector_store}
             hint={readiness?.vector_store_error}
           />

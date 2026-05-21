@@ -30,7 +30,7 @@ const SetupPage = () => {
       try {
         await setup.mutateAsync(setupBodyFromValues(value));
         toast.success("Admin account created");
-        navigate({ to: "/overview", replace: true });
+        navigate({ to: "/onboarding", replace: true });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Setup failed");
       }

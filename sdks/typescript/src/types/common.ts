@@ -13,8 +13,6 @@ export interface ReadinessResponse {
   version: string;
   postgres: boolean;
   vector_store: boolean;
-  vector_store_provider?: string;
-  qdrant?: boolean | null;
   redis: boolean;
   embedding?: boolean;
   embedding_source?: string;

@@ -17,7 +17,6 @@ class IngestionJob:
     chunk_size: int
     chunk_overlap: int
     chunk_strategy: str = "paragraph"
-    vector_store_provider: str = "qdrant"
     tenant_field: str | None = None
     embedding_base_url: str | None = None
     multimodal_enabled: bool = False
@@ -45,7 +44,6 @@ class IngestionJob:
                 "chunk_size": self.chunk_size,
                 "chunk_overlap": self.chunk_overlap,
                 "chunk_strategy": self.chunk_strategy,
-                "vector_store_provider": self.vector_store_provider,
                 "tenant_field": self.tenant_field,
                 "attempt": self.attempt,
                 "max_attempts": self.max_attempts,
@@ -79,7 +77,6 @@ def create_ingestion_job(
         chunk_size=collection["chunk_size"],
         chunk_overlap=collection["chunk_overlap"],
         chunk_strategy=collection.get("chunk_strategy") or "paragraph",
-        vector_store_provider=collection.get("vector_store_provider") or "qdrant",
         tenant_field=collection.get("tenant_field"),
         multimodal_enabled=bool(collection.get("multimodal_enabled")),
         multimodal_enrichment_enabled=bool(collection.get("multimodal_enrichment_enabled")),

@@ -70,12 +70,7 @@ export const OverviewPage = () => {
   const services = useMemo(
     () => [
       { label: "Postgres", ok: readiness?.postgres },
-      {
-        label: readiness?.vector_store_provider
-          ? `Vector store (${readiness.vector_store_provider.replace("_", " ")})`
-          : "Vector store",
-        ok: readiness?.vector_store,
-      },
+      { label: "Vector store", ok: readiness?.vector_store },
       { label: "Redis", ok: readiness?.redis },
       { detail: readiness?.embedding_error, label: "Embeddings", ok: readiness?.embedding },
       {

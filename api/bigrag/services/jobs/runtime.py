@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 from bigrag import __version__
 from bigrag import config as config_module
@@ -31,8 +32,16 @@ _lock = asyncio.Lock()
 _initialized = False
 _storage = None
 _heartbeat_task: asyncio.Task | None = None
+_vector_store_settings: tuple[object, ...] | None = None
 _HEARTBEAT_SECONDS = 30
 _HEARTBEAT_TTL_SECONDS = 120
+_RUNTIME_SETTING_KEYS = (
+    "ingestion_workers",
+    "turbopuffer_api_key",
+    "turbopuffer_base_url",
+    "turbopuffer_namespace_prefix",
+    "turbopuffer_region",
+)
 _DEFAULT_QUEUES = {
     INGESTION_QUEUE,
     CONNECTORS_QUEUE,
@@ -46,6 +55,7 @@ async def ensure_worker_runtime() -> None:
     global _initialized, _storage
     async with _lock:
         if _initialized:
+            await _sync_runtime_settings()
             await start_worker_heartbeat()
             return
         settings = config_module.settings
@@ -61,30 +71,9 @@ async def ensure_worker_runtime() -> None:
         await run_migrations()
         configure_logging(log_level=settings.log_level, log_format=settings.log_format)
         logger.info("worker migrations complete")
-        runtime = await runtime_settings.get_values(
-            [
-                "ingestion_workers",
-                "qdrant_connect_timeout_seconds",
-                "qdrant_required",
-                "qdrant_search_ef",
-                "qdrant_url",
-                "turbopuffer_api_key",
-                "turbopuffer_namespace_prefix",
-                "turbopuffer_region",
-            ]
-        )
+        runtime = await runtime_settings.get_values(list(_RUNTIME_SETTING_KEYS))
         logger.info("worker runtime settings loaded")
-        vector_store.configure(
-            qdrant_url=runtime["qdrant_url"],
-            connect_timeout_seconds=runtime["qdrant_connect_timeout_seconds"],
-            search_ef=runtime["qdrant_search_ef"],
-            turbopuffer_api_key=runtime["turbopuffer_api_key"],
-            turbopuffer_region=runtime["turbopuffer_region"],
-            turbopuffer_namespace_prefix=runtime["turbopuffer_namespace_prefix"],
-        )
-        vector_store.connect()
-        await vector_store.health_check()
-        logger.info("worker vector store ready")
+        await _sync_vector_store(runtime)
         _storage = await init_storage_from_runtime(upload_dir=settings.upload_dir)
         await redis_cache.connect(settings.redis_url)
         await event_bus.connect(settings.redis_url)
@@ -97,6 +86,48 @@ async def ensure_worker_runtime() -> None:
         _initialized = True
         await start_worker_heartbeat()
         logger.info("worker ready")
+
+
+async def _sync_runtime_settings() -> None:
+    runtime = await runtime_settings.get_values(list(_RUNTIME_SETTING_KEYS))
+    ingestion_queue._num_workers = runtime["ingestion_workers"]
+    await _sync_vector_store(runtime)
+
+
+async def _sync_vector_store(runtime: dict[str, Any]) -> None:
+    global _vector_store_settings
+    settings = (
+        runtime["turbopuffer_api_key"],
+        runtime["turbopuffer_base_url"],
+        runtime["turbopuffer_namespace_prefix"],
+        runtime["turbopuffer_region"],
+    )
+    if settings == _vector_store_settings:
+        return
+    if _vector_store_settings is not None:
+        await vector_store.close()
+    vector_store.configure(
+        turbopuffer_api_key=runtime["turbopuffer_api_key"],
+        turbopuffer_base_url=runtime["turbopuffer_base_url"],
+        turbopuffer_region=runtime["turbopuffer_region"],
+        turbopuffer_namespace_prefix=runtime["turbopuffer_namespace_prefix"],
+    )
+    if runtime["turbopuffer_api_key"]:
+        try:
+            vector_store.connect()
+            await vector_store.health_check()
+            logger.info("worker vector store ready")
+        except Exception as exc:
+            logger.warning(
+                "worker vector store connection failed; worker will continue degraded",
+                provider="turbopuffer",
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
+    else:
+        logger.warning("worker vector store not configured", provider="turbopuffer")
+    _vector_store_settings = settings
+    ingestion_queue.bind_vector_store(vector_store)
 
 
 async def record_worker_heartbeat() -> None:

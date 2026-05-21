@@ -1,6 +1,6 @@
 ---
 title: Admin UI
-description: Setup, collections, chat, connectors, API keys, usage, audit, webhooks, data storage, vector storage, backups, and settings.
+description: Setup, collections, chat, connectors, API keys, usage, audit, webhooks, data storage, backups, and settings.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
@@ -30,6 +30,7 @@ For cross-site production deployments, enable secure session cookies and usually
 | Path | Purpose |
 |------|---------|
 | `/setup` | One-time page to create the first admin account. Disappears once `needs_setup: false`. |
+| `/onboarding` | Authenticated first-run provider setup. Requires one verified embedding preset, prompts for Turbopuffer, and then continues to `/overview`. |
 | `/login` | Email + password login for admins and members. |
 | `/overview` | Platform-wide stats — collection count, document states, stored token count, queue depth, readiness, and worker heartbeat. |
 | `/collections` | List, create, delete, and search collections. |
@@ -39,7 +40,7 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/collections/[name]/connectors` | Redirects to the first available collection connector from the provider catalog. |
 | `/collections/[name]/connectors/google-drive` | Browse Google Drive, sync selected files/folders, monitor Drive sync progress, trigger manual resync, and manage sync schedules. Source creation and manual sync are disabled when the worker is offline. |
 | `/collections/[name]/search` | Query tester scoped to the collection — bounded requests, cancel/retry states, result metadata, document filenames, and chunk deep links. |
-| `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, default query params, and collection vector migration. |
+| `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
 | `/chat` | Browser-local playground chat UI; retrieve from one collection, stream cited answers, render safe markdown, and keep local sessions across reloads. |
 | `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets), including provider connection tests and OpenAI-compatible base URLs, plus fallback embedding, retrieval, and chat model settings. |
 | `/mcp` | Mint, scope, rotate, and revoke [MCP server](/docs/api-reference/mcp-servers) credentials for Claude Desktop / Cursor / custom MCP clients. |
@@ -51,13 +52,12 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/connectors` | Browse the provider catalog, configure connector credentials, and review account state. |
 | `/backups` | Configure readable backup storage, start full-instance exports, and monitor backup history. Backup starts are disabled when the worker heartbeat is offline or no bucket is configured. |
 | `/data-storage` | Configure uploaded source-file storage for local disk or S3-compatible object stores. |
-| `/vector-storage` | Review vector provider health and per-collection routing/stats, configure Qdrant and turbopuffer connection settings, and migrate collections between configured providers. |
 | `/settings` | Operator-console settings workspace for account, platform, and data sections. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
 Unknown admin routes render the built-in 404 screen with links back to overview and collections. Unexpected route render failures use the admin 500 screen with a retry action, overview fallback, and a readable error-details panel showing the boundary error message, cause, and digest when available.
 
-The sidebar is grouped by operator task: Workspace for day-to-day retrieval surfaces, Interfaces for client and integration entry points, Observability for logs and spend, and Administration for backup, data storage, vector storage, and instance settings. Member accounts only see groups that still contain at least one available destination. Standard admin pages share one centered dashboard body width so page headers, tabs, and primary panels align across routes; shared tabs rely on the page stack gap so spacing above and below the tab row stays even. The desktop sidebar keeps matching top and bottom insets so it reads as a floating surface, while page scroll areas still keep their own bottom edge available so footer actions are not clipped by a reserved app gutter. The footer account menu opens almost as wide as the sidebar footer trigger, with a small horizontal inset.
+The sidebar is grouped by operator task: Workspace for day-to-day retrieval surfaces, Interfaces for client and integration entry points, Observability for logs and spend, and Administration for backup, data storage, and instance settings. Member accounts only see groups that still contain at least one available destination. Standard admin pages share one centered dashboard body width so page headers, tabs, and primary panels align across routes; shared tabs rely on the page stack gap so spacing above and below the tab row stays even. The desktop sidebar keeps matching top and bottom insets so it reads as a floating surface, while page scroll areas still keep their own bottom edge available so footer actions are not clipped by a reserved app gutter. The footer account menu opens almost as wide as the sidebar footer trigger, with a small horizontal inset.
 
 ## Settings sections
 
@@ -65,22 +65,20 @@ The `/models` page owns reusable embedding presets and runtime model settings. `
 
 The `/connectors` page renders provider tabs above the selected provider setup panel. It owns provider credentials and account state through `GET /v1/admin/connectors/{provider}`, `GET /v1/connectors/{provider}/account`, `PUT /v1/admin/connectors/{provider}`, and `POST /v1/connectors/{provider}/disconnect`. The collection connector pages read from the same provider catalog while staying scoped to browsing, source selection, sync schedules, and sync-job progress.
 
-The `/backups` page renders backup destination settings directly above export controls backed by `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups`, and `POST /v1/admin/backups` so backup operations stay out of the general Settings workspace. Backup starts are rejected while a vector migration is pending, running, or canceling. Usage, audit, data storage, and vector storage also live as first-class sidebar pages at `/usage`, `/audit`, `/data-storage`, and `/vector-storage`.
+The `/backups` page renders backup destination settings directly above export controls backed by `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups`, and `POST /v1/admin/backups` so backup operations stay out of the general Settings workspace. Usage, audit, and data storage also live as first-class sidebar pages at `/usage`, `/audit`, and `/data-storage`.
 
 The `/data-storage` page is a standalone runtime settings surface for uploaded source-file storage. It uses `GET /v1/admin/settings` and `PUT /v1/admin/settings` for local disk and S3-compatible object-store settings.
-
-The `/vector-storage` page is a standalone runtime settings surface for vector provider connection details. It separates Qdrant and turbopuffer into provider tabs and uses `GET /v1/admin/settings` and `PUT /v1/admin/settings`; vector migrations use `POST /v1/admin/vector-storage/migrations`, `GET /v1/admin/vector-storage/migrations`, `DELETE /v1/admin/vector-storage/migrations/{migration_id}`, and `GET /v1/admin/realtime/vector-migrations`. A migration pauses writes, copies existing vectors, switches the collection, and deletes old source vectors after cutover. Stop-and-delete remains available while the migration maintenance lock is active.
 
 The settings page is a compact task-oriented workspace:
 
 - **Top tab control** for Account, Health, Security, and Data — no nested settings sidebar; each tab opens directly into its area without a repeated section heading.
 - **Stacked layout** — settings content is stacked sequentially rather than split into desktop columns. Common controls appear first; raw setting keys and source metadata stay inside Advanced controls; each runtime panel keeps its guidance plus Save action together in the panel footer.
 - **Security tab** focuses on trusted-proxy handling, outbound URL policy, and embedding-cache posture. CORS origins and session-cookie deployment controls stay in deployment config and the instance settings API.
-- **Data tab** covers ingestion, queue, retention, and webhook runtime settings after file storage moved to `/data-storage`.
+- **Data tab** covers Turbopuffer, ingestion, queue, retention, and webhook runtime settings after file storage moved to `/data-storage`.
 - **Placeholders** — empty controls show default or example values so unset settings remain readable.
-- **Validation** — saving probes applicable storage, backup, and vector targets before persistence.
+- **Validation** — saving probes applicable storage, backup, and Turbopuffer targets before persistence.
 
-Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, and `/settings?tab=data`. Backups, usage, audit, connectors, models, evals, data storage, and vector storage are standalone routes rather than Settings deep-link redirects.
+Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, and `/settings?tab=data`. Backups, usage, audit, connectors, models, evals, and data storage are standalone routes rather than Settings deep-link redirects.
 
 | Group | Section | Reads from | Writes to |
 |-------|---------|-----------|-----------|
@@ -126,6 +124,6 @@ The admin UI uses session cookies exclusively. To automate anything the admin UI
 
 ## When to skip the Admin UI
 
-- **Pure backend deployment** — no admin UI process, everything via API keys and SDKs. Set `BIGRAG_ENV=prod` and use [`POST /v1/auth/setup`](/docs/api-reference/authentication) from an admin workstation to bootstrap.
+- **Pure backend deployment** — no admin UI process, everything via API keys and SDKs. Set `BIGRAG_ENV=prod`, use [`POST /v1/auth/setup`](/docs/api-reference/authentication) from an admin workstation to bootstrap, then create at least one embedding preset through the admin API before indexing documents.
 - **Embedded experiences** — if you're surfacing search inside your own app, skip admin UI and build against the [query API](/docs/api-reference/query).
 - **Read-only operators** — create a `member` account; they get `/overview`, `/collections` (read), and `/chat` but can't mutate.

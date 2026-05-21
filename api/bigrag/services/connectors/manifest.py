@@ -26,7 +26,6 @@ def collection_dict_for_sync(collection: Collection) -> dict[str, Any]:
         "chunk_size": collection.chunk_size,
         "chunk_overlap": collection.chunk_overlap,
         "chunk_strategy": collection.chunk_strategy or "paragraph",
-        "vector_store_provider": collection.vector_store_provider,
         "tenant_field": collection.tenant_field,
         "metadata_schema": collection.metadata_schema,
     }

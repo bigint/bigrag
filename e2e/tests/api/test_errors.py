@@ -26,7 +26,6 @@ import httpx
 
 from tests._helpers import unique_name
 
-
 # ---------------------------------------------------------------------------
 # 401 — missing authentication on a protected endpoint.
 # ---------------------------------------------------------------------------
@@ -93,23 +92,18 @@ async def test_404_unknown_document(
 ) -> None:
     coll = await collection()
     resp = await admin_client.get(
-        f"/v1/collections/{coll['name']}/documents/"
-        "00000000-0000-0000-0000-000000000000"
+        f"/v1/collections/{coll['name']}/documents/00000000-0000-0000-0000-000000000000"
     )
     assert resp.status_code == 404, resp.text
 
 
 async def test_404_unknown_user(admin_client: httpx.AsyncClient) -> None:
-    resp = await admin_client.delete(
-        "/v1/admin/users/00000000-0000-0000-0000-000000000000"
-    )
+    resp = await admin_client.delete("/v1/admin/users/00000000-0000-0000-0000-000000000000")
     assert resp.status_code == 404, resp.text
 
 
 async def test_404_unknown_webhook(admin_client: httpx.AsyncClient) -> None:
-    resp = await admin_client.get(
-        "/v1/admin/webhooks/00000000-0000-0000-0000-000000000000"
-    )
+    resp = await admin_client.get("/v1/admin/webhooks/00000000-0000-0000-0000-000000000000")
     assert resp.status_code == 404, resp.text
 
 
@@ -128,7 +122,6 @@ async def test_409_duplicate_collection_name(
         json={
             "name": first["name"],
             "description": "dup attempt",
-            "vector_store_provider": "qdrant",
             "chunk_size": 512,
             "chunk_overlap": 50,
             "chunk_strategy": "paragraph",
@@ -195,9 +188,8 @@ async def test_422_bad_enum_on_create_collection(
         "/v1/collections",
         json={
             "name": unique_name("enum"),
-            "vector_store_provider": "not-a-real-provider",
             "chunk_strategy": "paragraph",
-            "default_search_mode": "semantic",
+            "default_search_mode": "not-a-real-mode",
         },
     )
     assert resp.status_code == 422, resp.text
@@ -224,9 +216,7 @@ async def test_422_wrong_type_on_create_collection(
 async def test_422_out_of_range_pagination(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.get(
-        "/v1/admin/api-keys", params={"limit": 0}
-    )
+    resp = await admin_client.get("/v1/admin/api-keys", params={"limit": 0})
     assert resp.status_code == 422, resp.text
 
 

@@ -282,9 +282,7 @@ async def test_patch_duplicate_server_name_409(
 async def test_rotate_returns_new_key(admin_client: httpx.AsyncClient) -> None:
     created = await _create(admin_client)
     try:
-        resp = await admin_client.post(
-            f"/v1/admin/mcp-servers/{created['id']}/rotate"
-        )
+        resp = await admin_client.post(f"/v1/admin/mcp-servers/{created['id']}/rotate")
         body = assert_envelope(resp, 200)
         assert body["api_key"].startswith("bigrag_sk_")
         assert body["api_key"] != created["api_key"]
@@ -309,9 +307,7 @@ async def test_rotated_old_key_no_longer_authenticates(
             resp = await old_client.get("/v1/collections")
             assert resp.status_code == 200
 
-        rotated = (
-            await admin_client.post(f"/v1/admin/mcp-servers/{created['id']}/rotate")
-        ).json()
+        rotated = (await admin_client.post(f"/v1/admin/mcp-servers/{created['id']}/rotate")).json()
 
         async with httpx.AsyncClient(
             base_url=str(admin_client.base_url),

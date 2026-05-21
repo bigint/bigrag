@@ -13,7 +13,6 @@ const examplePlaceholders: Record<string, string> = {
   chat_base_url: "https://api.openai.com/v1",
   embedding_api_key: "Paste API key",
   embedding_base_url: "https://api.openai.com/v1",
-  qdrant_search_ef: "Optional, e.g. 128",
   storage_s3_access_key_id: "Access key ID",
   storage_s3_bucket: "bigrag-documents",
   storage_s3_endpoint_url: "https://account-id.r2.cloudflarestorage.com",

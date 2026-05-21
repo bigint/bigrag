@@ -18,8 +18,6 @@ class ReadinessResponse(TypedDict):
     version: str
     postgres: bool
     vector_store: bool
-    vector_store_provider: NotRequired[str]
-    qdrant: NotRequired[bool | None]
     redis: bool
     embedding: NotRequired[bool]
     embedding_source: NotRequired[str]

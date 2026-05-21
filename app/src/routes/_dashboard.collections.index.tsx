@@ -58,20 +58,6 @@ const CollectionsPage = () => {
       ),
     },
     {
-      header: "Provider",
-      key: "provider",
-      render: (c) => (
-        <Badge variant={c.embedding_provider === "openai" ? "primary" : "info"}>
-          {c.embedding_provider}
-        </Badge>
-      ),
-    },
-    {
-      header: "Storage",
-      key: "storage",
-      render: (c) => <Badge variant="neutral">{storageLabel(c.vector_store_provider)}</Badge>,
-    },
-    {
       header: "Model",
       key: "model",
       className: "font-mono text-xs text-muted-foreground",
@@ -184,6 +170,3 @@ const CollectionsPage = () => {
     </Page.Shell>
   );
 };
-
-const storageLabel = (provider: Collection["vector_store_provider"]) =>
-  provider === "turbopuffer" ? "Turbopuffer" : "Qdrant";

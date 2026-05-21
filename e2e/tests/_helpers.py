@@ -25,11 +25,7 @@ ApiKeyClientFactory = Callable[..., Awaitable[httpx.AsyncClient]]
 
 
 def unique_name(prefix: str = "e2e") -> str:
-    """Return a unique, Qdrant-safe collection name.
-
-    Qdrant collection names are limited; we keep the prefix tiny and use
-    8 hex characters of a UUID4 to stay well under any provider limit.
-    """
+    """Return a compact unique collection name."""
     return f"{prefix}_{uuid.uuid4().hex[:8]}"
 
 

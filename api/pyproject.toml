@@ -1,7 +1,7 @@
 [project]
 name = "bigrag"
 version = "2026.4.30"
-description = "Self-hostable RAG platform with Docling ingestion and pluggable vector storage"
+description = "Self-hostable RAG platform with Docling ingestion and Turbopuffer vector storage"
 license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
@@ -11,7 +11,6 @@ dependencies = [
     "asyncpg>=0.30.0,<1",
     "sqlalchemy[asyncio]>=2.0.36,<3",
     "alembic>=1.14.0,<2",
-    "qdrant-client>=1.17.0,<2",
     "docling>=2.25.0,<3",
     "pypdfium2>=5.7.0,<6",
     "huggingface-hub>=0.36.0,<2",
@@ -30,6 +29,7 @@ dependencies = [
     "mcp>=1.12.0,<2",
     "tiktoken>=0.8.0,<1",
     "dramatiq[redis]>=2.1.0,<3",
+    "turbopuffer>=2.1.0,<3",
 ]
 
 [dependency-groups]

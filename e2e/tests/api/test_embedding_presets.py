@@ -19,7 +19,6 @@ import pytest_asyncio
 
 from tests._helpers import assert_envelope, unique_name
 
-
 PresetFactory = Callable[..., Awaitable[dict[str, Any]]]
 
 
@@ -103,18 +102,14 @@ async def test_list_presets_pagination(
 ) -> None:
     a = await preset()
     b = await preset()
-    resp = await admin_client.get(
-        "/v1/admin/embedding-presets", params={"limit": 1, "offset": 0}
-    )
+    resp = await admin_client.get("/v1/admin/embedding-presets", params={"limit": 1, "offset": 0})
     body = assert_envelope(resp, 200)
     assert isinstance(body["presets"], list)
     assert len(body["presets"]) == 1
     assert body["total"] >= 2
     all_ids = {a["id"], b["id"]}
     page1_id = body["presets"][0]["id"]
-    resp2 = await admin_client.get(
-        "/v1/admin/embedding-presets", params={"limit": 1, "offset": 1}
-    )
+    resp2 = await admin_client.get("/v1/admin/embedding-presets", params={"limit": 1, "offset": 1})
     body2 = assert_envelope(resp2, 200)
     assert len(body2["presets"]) == 1
     page2_id = body2["presets"][0]["id"]
@@ -143,9 +138,7 @@ async def test_test_saved_preset_against_fake_openai(
     preset: PresetFactory,
 ) -> None:
     created = await preset()
-    resp = await admin_client.post(
-        f"/v1/admin/embedding-presets/{created['id']}/test"
-    )
+    resp = await admin_client.post(f"/v1/admin/embedding-presets/{created['id']}/test")
     body = assert_envelope(resp, 200)
     assert body["status"] == "ok"
 
@@ -153,9 +146,7 @@ async def test_test_saved_preset_against_fake_openai(
 async def test_test_saved_preset_unknown_id_returns_404(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.post(
-        "/v1/admin/embedding-presets/not-a-uuid/test"
-    )
+    resp = await admin_client.post("/v1/admin/embedding-presets/not-a-uuid/test")
     assert resp.status_code == 404, resp.text
 
     resp2 = await admin_client.post(
@@ -242,9 +233,10 @@ async def test_collection_can_use_preset(
 ) -> None:
     created = await preset()
     coll = await collection(embedding_preset_id=created["id"])
-    assert coll.get("embedding_preset_id") == created["id"] or coll.get("embedding_preset") is not None or coll.get("embedding_provider") in (
-        "openai_compatible",
-        "openai",
+    assert (
+        coll.get("embedding_preset_id") == created["id"]
+        or coll.get("embedding_preset") is not None
+        or coll.get("embedding_provider") in ("openai_compatible", "openai")
     )
 
 
@@ -253,16 +245,12 @@ async def test_delete_preset_makes_it_unfindable(
     preset: PresetFactory,
 ) -> None:
     created = await preset()
-    resp = await admin_client.delete(
-        f"/v1/admin/embedding-presets/{created['id']}"
-    )
+    resp = await admin_client.delete(f"/v1/admin/embedding-presets/{created['id']}")
     body = assert_envelope(resp, 200)
     assert body["status"] == "ok"
 
     # Subsequent lookups should 404.
-    test_resp = await admin_client.post(
-        f"/v1/admin/embedding-presets/{created['id']}/test"
-    )
+    test_resp = await admin_client.post(f"/v1/admin/embedding-presets/{created['id']}/test")
     assert test_resp.status_code == 404, test_resp.text
 
     patch_resp = await admin_client.patch(
@@ -284,9 +272,7 @@ async def test_delete_preset_in_use_returns_409(
     created = await preset()
     coll = await collection(embedding_preset_id=created["id"])
     try:
-        resp = await admin_client.delete(
-            f"/v1/admin/embedding-presets/{created['id']}"
-        )
+        resp = await admin_client.delete(f"/v1/admin/embedding-presets/{created['id']}")
         assert resp.status_code == 409, resp.text
     finally:
         # collection factory tears the collection down; force-delete it
@@ -297,9 +283,7 @@ async def test_delete_preset_in_use_returns_409(
 async def test_delete_preset_unknown_id_returns_404(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.delete(
-        "/v1/admin/embedding-presets/not-a-uuid"
-    )
+    resp = await admin_client.delete("/v1/admin/embedding-presets/not-a-uuid")
     assert resp.status_code == 404, resp.text
 
     resp2 = await admin_client.delete(

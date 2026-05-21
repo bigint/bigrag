@@ -8,7 +8,7 @@ import { Callout } from "fumadocs-ui/components/callout";
 bigRAG treats "at-rest encryption" as a split responsibility:
 
 - **App-layer envelope encryption** (handled by bigRAG) — sensitive credential columns, persistent embedding-cache rows, and Redis cache payloads are Fernet-encrypted before they ever touch disk.
-- **Storage-layer encryption** (handled by the operator) — document chunks, Qdrant vectors and payloads, uploaded files, Redis persistence, and backups still rely on the disk or object-store encrypting its own data.
+- **Storage-layer encryption** (handled by the operator) — document chunks, Turbopuffer vectors and payload attributes, uploaded files, Redis persistence, and backups still rely on the disk, managed service, or object-store encrypting its own data.
 
 Both layers are required for a defensible "encrypted at rest" posture.
 
@@ -57,10 +57,10 @@ bigRAG delegates the bulk of at-rest protection to your infrastructure. For a pr
 - **RDS / Aurora**: enable **Storage encryption** with a customer-managed KMS key. Enable the same on every read replica and snapshot target.
 - **Backups**: pipe `pg_dump` into a GPG or `age`-encrypted file, or store it in an encrypted backup system.
 
-### Qdrant
+### Turbopuffer
 
-- Qdrant stores vectors, payloads, and indexes under `/qdrant/storage` in the Docker deployment. Put that volume on encrypted storage.
-- For Qdrant Cloud, enable the provider's encryption controls and restrict API keys to the bigRAG service.
+- Turbopuffer stores vectors, full-text fields, payload attributes, and indexes in its managed service. Select the production region deliberately and keep the API key scoped to the bigRAG service.
+- Save the Turbopuffer API key in the admin UI so it is encrypted in the `instance_settings` table with `BIGRAG_MASTER_KEY`. Rotate it on the same cadence as other provider credentials, and restrict outbound network access where your platform allows it.
 
 ### Redis
 
@@ -74,7 +74,7 @@ The upload directory (default `./data/uploads`) must live on an encrypted volume
 
 ### Readable backups
 
-Readable backups created from `/backups` are intentionally not client-side encrypted. They keep logs, Qdrant payloads, and raw uploaded files inspectable, but redact provider keys, OAuth tokens, webhook secrets, S3 credentials, API key hashes, session hashes, and embedding-cache vectors. Put the backup bucket behind strict IAM/R2 token policy, bucket encryption, private networking where available, lifecycle retention, and access logging.
+Readable backups created from `/backups` are intentionally not client-side encrypted. They keep logs, Turbopuffer payload exports, and raw uploaded files inspectable, but redact provider keys, OAuth tokens, webhook secrets, S3 credentials, API key hashes, session hashes, and embedding-cache vectors. Put the backup bucket behind strict IAM/R2 token policy, bucket encryption, private networking where available, lifecycle retention, and access logging.
 
 ## Rotation
 
@@ -94,7 +94,7 @@ A built-in `bigrag crypto rotate` command is not available yet; use a controlled
 | Data | Why |
 |------|-----|
 | Document chunks (`document_chunks.content`) | Per-query decrypt kills search latency; rely on disk encryption. |
-| Vectors and text payloads in Qdrant | Search needs raw floats and filterable payloads, so use Qdrant auth, tenant filters, network isolation, and encrypted storage. |
+| Vectors and text payloads in Turbopuffer | Search needs raw floats and filterable payloads, so use Turbopuffer API-key controls, tenant filters, network isolation, and managed-service encryption. |
 | Audit log rows | Append-only. Store encrypted at the disk layer; querying encrypted metadata is prohibitive. |
 | User display names / emails | PII, not credentials. Disk-layer + column-level access control is the right split. |
 

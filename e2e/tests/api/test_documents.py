@@ -31,7 +31,6 @@ import pytest
 
 from tests._helpers import assert_envelope, read_fixture, unique_name
 
-
 # ---------------------------------------------------------------------------
 # Upload: happy path across formats
 # ---------------------------------------------------------------------------
@@ -138,9 +137,7 @@ async def test_upload_broken_pdf_ends_failed_with_message(
     from tests._helpers import poll_until
 
     async def fetch():
-        r = await admin_client.get(
-            f"/v1/collections/{coll['name']}/documents/{body['id']}"
-        )
+        r = await admin_client.get(f"/v1/collections/{coll['name']}/documents/{body['id']}")
         r.raise_for_status()
         return r.json()
 
@@ -315,9 +312,7 @@ async def test_get_document_returns_full_payload(
 ) -> None:
     coll = await collection()
     doc = await document(coll["name"], fixture="sample.txt")
-    resp = await admin_client.get(
-        f"/v1/collections/{coll['name']}/documents/{doc['id']}"
-    )
+    resp = await admin_client.get(f"/v1/collections/{coll['name']}/documents/{doc['id']}")
     body = assert_envelope(resp, 200)
     assert body["id"] == doc["id"]
     assert body["filename"] == doc["filename"]
@@ -340,9 +335,7 @@ async def test_get_document_invalid_uuid_returns_404(
     collection: Callable[..., Awaitable[dict[str, Any]]],
 ) -> None:
     coll = await collection()
-    resp = await admin_client.get(
-        f"/v1/collections/{coll['name']}/documents/not-a-uuid"
-    )
+    resp = await admin_client.get(f"/v1/collections/{coll['name']}/documents/not-a-uuid")
     assert resp.status_code == 404, resp.text
 
 
@@ -353,9 +346,7 @@ async def test_get_document_chunks_shape(
 ) -> None:
     coll = await collection()
     doc = await document(coll["name"], fixture="sample.txt")
-    resp = await admin_client.get(
-        f"/v1/collections/{coll['name']}/documents/{doc['id']}/chunks"
-    )
+    resp = await admin_client.get(f"/v1/collections/{coll['name']}/documents/{doc['id']}/chunks")
     body = assert_envelope(resp, 200)
     assert "chunks" in body
     assert "total" in body
@@ -385,9 +376,7 @@ async def test_download_document_file_matches_content_type(
 ) -> None:
     coll = await collection()
     doc = await document(coll["name"], fixture="sample.txt")
-    resp = await admin_client.get(
-        f"/v1/collections/{coll['name']}/documents/{doc['id']}/file"
-    )
+    resp = await admin_client.get(f"/v1/collections/{coll['name']}/documents/{doc['id']}/file")
     assert resp.status_code == 200, resp.text
     assert resp.headers["content-type"].startswith("text/plain")
     assert b"Acme" in resp.content
@@ -399,8 +388,7 @@ async def test_download_unknown_document_returns_404(
 ) -> None:
     coll = await collection()
     resp = await admin_client.get(
-        f"/v1/collections/{coll['name']}/documents/"
-        "00000000-0000-0000-0000-000000000000/file"
+        f"/v1/collections/{coll['name']}/documents/00000000-0000-0000-0000-000000000000/file"
     )
     assert resp.status_code == 404, resp.text
 
@@ -430,8 +418,7 @@ async def test_reprocess_unknown_document_returns_404(
 ) -> None:
     coll = await collection()
     resp = await admin_client.post(
-        f"/v1/collections/{coll['name']}/documents/"
-        "00000000-0000-0000-0000-000000000000/reprocess"
+        f"/v1/collections/{coll['name']}/documents/00000000-0000-0000-0000-000000000000/reprocess"
     )
     assert resp.status_code == 404, resp.text
 
@@ -443,14 +430,10 @@ async def test_delete_document_removes_it(
 ) -> None:
     coll = await collection()
     doc = await document(coll["name"], fixture="sample.txt")
-    resp = await admin_client.delete(
-        f"/v1/collections/{coll['name']}/documents/{doc['id']}"
-    )
+    resp = await admin_client.delete(f"/v1/collections/{coll['name']}/documents/{doc['id']}")
     assert resp.status_code == 200, resp.text
 
-    follow_up = await admin_client.get(
-        f"/v1/collections/{coll['name']}/documents/{doc['id']}"
-    )
+    follow_up = await admin_client.get(f"/v1/collections/{coll['name']}/documents/{doc['id']}")
     assert follow_up.status_code == 404, follow_up.text
 
 
@@ -460,8 +443,7 @@ async def test_delete_unknown_document_returns_404(
 ) -> None:
     coll = await collection()
     resp = await admin_client.delete(
-        f"/v1/collections/{coll['name']}/documents/"
-        "00000000-0000-0000-0000-000000000000"
+        f"/v1/collections/{coll['name']}/documents/00000000-0000-0000-0000-000000000000"
     )
     assert resp.status_code == 404, resp.text
 
@@ -486,9 +468,7 @@ async def test_get_document_cross_collection(
 async def test_get_document_cross_collection_unknown_returns_404(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.get(
-        "/v1/documents/00000000-0000-0000-0000-000000000000"
-    )
+    resp = await admin_client.get("/v1/documents/00000000-0000-0000-0000-000000000000")
     assert resp.status_code == 404, resp.text
 
 

@@ -21,14 +21,6 @@
 # db_pool_max = 50
 # migration_timeout_seconds = 60
 
-# qdrant_url = "http://localhost:6333"
-# qdrant_connect_timeout_seconds = 10
-# qdrant_required = false
-
-# turbopuffer_api_key = ""         # required only for collections using turbopuffer
-# turbopuffer_region = "aws-us-east-1"
-# turbopuffer_namespace_prefix = "bigrag_"
-
 # redis_url = "redis://localhost:6379/0"
 
 # Encryption key for provider secrets at rest. Required in env=prod.

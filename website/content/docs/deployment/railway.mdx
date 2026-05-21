@@ -1,11 +1,11 @@
 ---
 title: Railway
-description: Deploy bigRAG to Railway with managed Postgres and Redis plus self-hosted Qdrant.
+description: Deploy bigRAG to Railway with managed Postgres, Redis, and Turbopuffer search.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-This guide deploys the API, Dramatiq worker, admin UI, Postgres, Redis, and Qdrant in one Railway project. Qdrant runs as a single Docker-image service and does not need etcd in this setup.
+This guide deploys the API, Dramatiq worker, admin UI, Postgres, and Redis in one Railway project. Turbopuffer provides managed vector, keyword, and hybrid search.
 
 ## What you get
 
@@ -14,11 +14,12 @@ This guide deploys the API, Dramatiq worker, admin UI, Postgres, Redis, and Qdra
 - **App** — admin UI, public domain.
 - **Postgres 17** — Railway plugin, exposes `DATABASE_URL`.
 - **Redis 7** — Railway plugin, exposes `REDIS_URL`.
-- **Qdrant** — Qdrant Docker image, internal-only.
+- **Turbopuffer** — managed vector and full-text search, configured from the admin UI.
 
 ## Prerequisites
 
-- Railway Pro plan for comfortable API and vector-store memory limits.
+- Railway Pro plan for comfortable API and worker memory limits.
+- A Turbopuffer API key.
 - An OpenAI, Cohere, Voyage, or OpenAI-compatible embedding provider key.
 - A region close to your users and embedding provider.
 
@@ -28,21 +29,9 @@ Provision in this order so API variables can reference private service domains:
 
 1. Postgres plugin.
 2. Redis plugin.
-3. `Qdrant` Docker image.
-4. `App` from the repository root.
-5. `API` from the repo root directory `/api`.
-6. `Worker` from the repo root directory `/api`.
-
-## Qdrant
-
-| Setting | Value |
-|---|---|
-| Source | Docker image `qdrant/qdrant:v1.17.1` |
-| Start command | leave empty |
-| Volume | 10 GB at `/qdrant/storage` |
-| Public domain | none |
-
-Qdrant exposes HTTP on `6333` and gRPC on `6334`. The API uses HTTP.
+3. `App` from the repository root.
+4. `API` from the repo root directory `/api`.
+5. `Worker` from the repo root directory `/api`.
 
 ## App
 
@@ -79,7 +68,6 @@ BIGRAG_LOG_LEVEL=info
 BIGRAG_LOG_FORMAT=json
 BIGRAG_DATABASE_URL=${{Postgres.DATABASE_URL}}
 BIGRAG_REDIS_URL=${{Redis.REDIS_URL}}
-BIGRAG_QDRANT_URL=http://${{Qdrant.RAILWAY_PRIVATE_DOMAIN}}:6333
 BIGRAG_EMBEDDING_API_KEY=<your embedding key>
 BIGRAG_MASTER_KEY=<generated Fernet key>
 BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD=true
@@ -89,7 +77,7 @@ BIGRAG_CORS_ORIGINS=["https://${{App.RAILWAY_PUBLIC_DOMAIN}}"]
 BIGRAG_UPLOAD_DIR=/data/uploads
 ```
 
-Use the Railway Qdrant service URL for `BIGRAG_QDRANT_URL`.
+Save the Turbopuffer API key and region from the admin UI after setup.
 
 ## Worker
 
@@ -102,7 +90,7 @@ Use the Railway Qdrant service URL for `BIGRAG_QDRANT_URL`.
 | Volume | same mounted upload volume path as API |
 | Public domain | no |
 
-Use the same environment as `API`, including `BIGRAG_DATABASE_URL`, `BIGRAG_REDIS_URL`, `BIGRAG_QDRANT_URL`, `BIGRAG_MASTER_KEY`, and `BIGRAG_UPLOAD_DIR`.
+Use the same environment as `API`, including `BIGRAG_DATABASE_URL`, `BIGRAG_REDIS_URL`, `BIGRAG_MASTER_KEY`, and `BIGRAG_UPLOAD_DIR`.
 
 ## Generate the master key
 
@@ -116,15 +104,16 @@ Back the master key up immediately. It encrypts provider secrets, webhook secret
 
 ## First Run
 
-1. Wait for Postgres, Redis, Qdrant, API, Worker, and app services to deploy.
+1. Wait for Postgres, Redis, API, Worker, and app services to deploy.
 2. Open the admin UI public URL.
 3. Complete `/setup` to create the first admin account.
-4. Create a collection and upload a small document.
-5. Check `/health/ready`; it should report `vector_store: true`.
+4. Save the Turbopuffer API key and region in the admin UI.
+5. Create a collection and upload a small document.
+6. Check `/health/ready`; it should report `vector_store: true`.
 
 ## Troubleshooting
 
-**API deploy logs stop while connecting to Qdrant.** Keep the default optional Qdrant readiness behavior so the API can boot and `/health` can respond while `/health/ready` reports the degraded vector-store dependency. Fix the Qdrant service URL or credentials, then redeploy.
+**`/health/ready` reports a degraded vector store.** Check the Turbopuffer settings in the admin UI and any outbound network restrictions.
 
 **API exits with `ImportError: Can't find Python file .../site-packages/alembic/env.py`.** Rebuild from the latest repo revision and clear Railway's build cache if it keeps reusing an old image. The API image bundles bigRAG's Alembic migration environment into the installed package; this error means the deployed image was built without that migration environment.
 

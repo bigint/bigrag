@@ -128,9 +128,7 @@ async def chat_completions(request: Request):
             "object": "chat.completion.chunk",
             "created": created,
             "model": model,
-            "choices": [
-                {"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}
-            ],
+            "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}],
         }
         yield _sse_chunk(first)
 
@@ -140,9 +138,7 @@ async def chat_completions(request: Request):
                 "object": "chat.completion.chunk",
                 "created": created,
                 "model": model,
-                "choices": [
-                    {"index": 0, "delta": {"content": piece}, "finish_reason": None}
-                ],
+                "choices": [{"index": 0, "delta": {"content": piece}, "finish_reason": None}],
             }
             yield _sse_chunk(chunk)
 

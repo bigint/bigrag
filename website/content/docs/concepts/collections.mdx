@@ -5,14 +5,13 @@ description: Collections are logical groupings of documents that share the same 
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-A **collection** is a logical grouping of documents that share the same embedding and vector-storage configuration. Each collection maps to one backend object in its selected vector store.
+A **collection** is a logical grouping of documents that share the same embedding configuration. Each collection maps to one Turbopuffer namespace for vector, metadata, and full-text search.
 
 ## What is a Collection?
 
 When you create a collection, you define:
 
 - **Embedding provider and model** — how documents will be embedded (e.g., OpenAI `text-embedding-3-small`)
-- **Vector storage provider** — where vectors for this collection live (`qdrant` or `turbopuffer`)
 - **Chunk size and overlap** — how documents are split into searchable segments
 - **Default query settings** — `top_k`, `min_score`, and `search_mode` defaults
 - **Multimodal element handling** — whether ingestion stores headings, tables, equations, images, page bounds, and optional VLM summaries
@@ -30,7 +29,6 @@ curl -X POST http://localhost:4000/v1/collections \
     "description": "Academic research papers",
     "embedding_provider": "openai",
     "embedding_model": "text-embedding-3-small",
-    "vector_store_provider": "qdrant",
     "embedding_api_key": "sk-...",
     "dimension": 1536,
     "chunk_size": 512,
@@ -46,7 +44,6 @@ curl -X POST http://localhost:4000/v1/collections \
 | `description` | string | no | `""` | Human-readable description |
 | `embedding_provider` | string | no | Server default | `openai`, `openai_compatible`, `cohere`, or `voyage` |
 | `embedding_model` | string | no | Server default | Model name for the provider |
-| `vector_store_provider` | string | no | `"qdrant"` | `qdrant` or `turbopuffer`; changed only through a vector migration job. `turbopuffer` requires a saved turbopuffer API key in Vector Storage before creation or migration |
 | `embedding_api_key` | string | no | — | API key for the embedding provider; use any non-empty value for local OpenAI-compatible gateways without auth |
 | `embedding_base_url` | string | no | — | Required for `openai_compatible` providers |
 | `dimension` | integer | no | Server default | Embedding vector dimension |
@@ -62,9 +59,7 @@ curl -X POST http://localhost:4000/v1/collections \
 | `multimodal_enrichment_enabled` | boolean | no | `false` | Queue VLM summaries for image, table, and equation elements; requires `multimodal_enabled` |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
 
-For turbopuffer collections, creation validates the saved turbopuffer connection, then the provider namespace is created on the first document or vector write.
-
-To move an existing collection between Qdrant and turbopuffer, start a vector migration from `/vector-storage` or `POST /v1/admin/vector-storage/migrations`. The migration pauses writes, copies existing vectors to the configured target provider, switches the collection, and deletes the old source vectors after cutover. Pending, running, or canceling migrations can be stopped and removed from `/vector-storage` or `DELETE /v1/admin/vector-storage/migrations/{migration_id}`. Backups and vector migrations share the same maintenance lane, so only one of them can be pending or running at a time.
+Collection creation validates the saved Turbopuffer connection. The namespace is created on the first document or vector write, and chunk text is stored with full-text search enabled so semantic, keyword, and hybrid retrieval use the same backend.
 
 ## Collection Stats
 
@@ -160,7 +155,7 @@ curl -X PUT http://localhost:4000/v1/collections/research_papers \
 All fields are optional — only provided fields are updated.
 
 <Callout type="warn">
-  Embedding configuration (provider, model, dimension) and chunk settings cannot be changed after creation. Vector storage provider changes must use a vector migration job.
+  Embedding configuration (provider, model, dimension) and chunk settings cannot be changed after creation.
 </Callout>
 
 ## Deleting a Collection

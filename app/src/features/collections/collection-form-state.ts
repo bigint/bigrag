@@ -10,7 +10,6 @@ export type CreateCollectionFormValues = {
   presetId: string;
   tenantGuardEnabled: boolean;
   tenantField: string;
-  vectorStoreProvider: "qdrant" | "turbopuffer";
 };
 
 export type CollectionSearchMode = "semantic" | "keyword" | "hybrid";
@@ -34,7 +33,6 @@ export const defaultCreateCollectionFormValues = (): CreateCollectionFormValues 
   presetId: "",
   tenantGuardEnabled: false,
   tenantField: "",
-  vectorStoreProvider: "qdrant",
 });
 
 export const defaultCollectionSearchFormValues = (): CollectionSearchFormValues => ({
@@ -118,7 +116,6 @@ export const createCollectionBodyFromValues = ({
   presetId,
   tenantGuardEnabled,
   tenantField,
-  vectorStoreProvider,
 }: CreateCollectionFormValues) => ({
   chunk_overlap: chunkOverlap,
   chunk_size: chunkSize,
@@ -129,7 +126,6 @@ export const createCollectionBodyFromValues = ({
   multimodal_enrichment_enabled: multimodalEnrichmentEnabled,
   name: normalizeCollectionName(name),
   tenant_field: tenantGuardEnabled ? tenantField.trim() || null : null,
-  vector_store_provider: vectorStoreProvider,
 });
 
 export const collectionSearchBodyFromValues = ({

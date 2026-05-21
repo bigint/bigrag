@@ -36,21 +36,19 @@ async def verify_embedding_credentials(
         ) from exc
 
 
-def vector_store_unavailable_detail(provider: str) -> str:
-    if provider == "turbopuffer":
-        return (
-            "turbopuffer is not configured. Save a turbopuffer API key in Vector Storage "
-            "before creating a turbopuffer collection."
-        )
-    return f"{provider} vector store is not configured."
+def vector_store_unavailable_detail() -> str:
+    return (
+        "Turbopuffer is not configured. Save a turbopuffer API key in Settings "
+        "before creating a collection."
+    )
 
 
-def ensure_vector_store_provider_available(provider: str) -> None:
-    if provider in vector_store.configured_providers:
+def ensure_vector_store_available() -> None:
+    if vector_store.is_configured():
         return
     raise HTTPException(
         status_code=400,
-        detail=vector_store_unavailable_detail(provider),
+        detail=vector_store_unavailable_detail(),
     )
 
 
@@ -58,48 +56,38 @@ async def create_vector_store_collection(
     body: CreateCollectionRequest,
     dimension: int,
 ) -> None:
-    ensure_vector_store_provider_available(body.vector_store_provider)
+    ensure_vector_store_available()
     try:
         await vector_store.create_collection(
             body.name,
             dimension,
-            index_type=body.index_type,
             tenant_field=body.tenant_field,
-            provider=body.vector_store_provider,
         )
     except RuntimeError as e:
         message = str(e)
         if "API key is not configured" in message or "client is not connected" in message:
             raise HTTPException(
                 status_code=400,
-                detail=vector_store_unavailable_detail(body.vector_store_provider),
+                detail=vector_store_unavailable_detail(),
             ) from e
         logger.warning(
             "vector collection create failed",
             collection=body.name,
-            vector_store_provider=body.vector_store_provider,
             error_type=e.__class__.__name__,
             error=message,
         )
         raise HTTPException(
             status_code=502,
-            detail=(
-                f"Unable to create {body.vector_store_provider} vector collection. "
-                "Check Vector Storage settings."
-            ),
+            detail="Unable to create vector collection. Check Turbopuffer settings.",
         ) from e
     except httpx.HTTPError as e:
         logger.warning(
             "vector collection create failed",
             collection=body.name,
-            vector_store_provider=body.vector_store_provider,
             error_type=e.__class__.__name__,
             error=str(e),
         )
         raise HTTPException(
             status_code=502,
-            detail=(
-                f"Unable to create {body.vector_store_provider} vector collection. "
-                "Check Vector Storage settings."
-            ),
+            detail="Unable to create vector collection. Check Turbopuffer settings.",
         ) from e

@@ -39,7 +39,7 @@ export const CodeSection = () => (
               <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-fd-border bg-fd-card">
                 <Database className="size-4 text-fd-foreground" />
               </div>
-              <span>Qdrant vector database with HNSW search and cosine similarity</span>
+              <span>Turbopuffer vector search with semantic, keyword, and hybrid modes</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-fd-border bg-fd-card">

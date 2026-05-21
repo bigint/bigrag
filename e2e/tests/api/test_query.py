@@ -36,9 +36,7 @@ async def test_query_collection_returns_results_with_timings(
     document: DocumentFactory,
 ) -> None:
     coll = await seed_collection(collection, document)
-    await wait_until_searchable(
-        admin_client, coll["name"], "Acme Corp founded Singapore", top_k=3
-    )
+    await wait_until_searchable(admin_client, coll["name"], "Acme Corp founded Singapore", top_k=3)
     resp = await admin_client.post(
         f"/v1/collections/{coll['name']}/query",
         json={"query": "Acme Corp founded Singapore", "top_k": 5},
@@ -176,15 +174,11 @@ async def test_query_cache_hit_on_second_call(
     await wait_until_searchable(admin_client, coll["name"], "cache probe Acme")
 
     payload = {"query": "cache probe Acme", "top_k": 5}
-    first = await admin_client.post(
-        f"/v1/collections/{coll['name']}/query", json=payload
-    )
+    first = await admin_client.post(f"/v1/collections/{coll['name']}/query", json=payload)
     first_body = assert_envelope(first, 200)
     assert "cache_hit" in first_body["timings"]
 
-    second = await admin_client.post(
-        f"/v1/collections/{coll['name']}/query", json=payload
-    )
+    second = await admin_client.post(f"/v1/collections/{coll['name']}/query", json=payload)
     second_body = assert_envelope(second, 200)
     # Cache may or may not hit on the immediate second call depending on
     # whether result caching is enabled by the runtime config; just assert

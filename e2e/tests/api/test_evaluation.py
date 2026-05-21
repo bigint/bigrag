@@ -28,9 +28,7 @@ def _load_golden_set() -> dict[str, Any]:
     return json.loads((GOLDEN_SETS_DIR / "acme.json").read_text())
 
 
-def _substitute_ids(
-    golden: dict[str, Any], id_map: dict[str, str]
-) -> list[dict[str, Any]]:
+def _substitute_ids(golden: dict[str, Any], id_map: dict[str, str]) -> list[dict[str, Any]]:
     cases: list[dict[str, Any]] = []
     for entry in golden["queries"]:
         expected = [id_map.get(raw, raw) for raw in entry["expected_doc_ids"]]

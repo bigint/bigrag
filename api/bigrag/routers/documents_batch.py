@@ -241,7 +241,6 @@ async def batch_delete_documents(
             await vector_store.delete_by_document(
                 collection_name,
                 doc_id,
-                provider=collection.get("vector_store_provider"),
             )
             storage = get_storage()
             await storage.delete(doc.file_path)

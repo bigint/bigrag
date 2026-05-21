@@ -2,12 +2,12 @@
 
 ## Project Structure
 
-- `api/` — Python/FastAPI backend (Docling ingestion + Qdrant/Turbopuffer vector DB)
+- `api/` — Python/FastAPI backend (Docling ingestion + Turbopuffer vector search)
 - `sdks/typescript/` — TypeScript SDK (`@bigrag/client`)
 - `sdks/python/` — Python SDK (`bigrag`)
 - `app/` — admin UI (Vite + TanStack Router + Tailwind v4 + Base UI, `@bigrag/app`)
 - `website/` — Documentation site (Next.js + Fumadocs, content in `website/content/docs/`)
-- `e2e/` — pytest + vitest end-to-end suites against a fake-OpenAI + real Postgres/Redis/Qdrant stack
+- `e2e/` — pytest + vitest end-to-end suites against fake OpenAI/Turbopuffer services plus real Postgres/Redis
 
 ## Style Guide
 
@@ -33,8 +33,8 @@ When adding new code, prefer the smallest meaningful module instead of dropping 
 
 ## Tech Stack
 
-- **Backend**: Python 3.12+, FastAPI, SQLAlchemy 2 (async) + asyncpg, Alembic, qdrant-client, docling, openai, cohere, cryptography (Fernet for at-rest encryption of provider secrets), dramatiq (Redis broker)
-- **Vector DB**: Qdrant default; turbopuffer alternative (selected per collection)
+- **Backend**: Python 3.12+, FastAPI, SQLAlchemy 2 (async) + asyncpg, Alembic, docling, openai, cohere, cryptography (Fernet for at-rest encryption of provider secrets), dramatiq (Redis broker)
+- **Vector DB**: Turbopuffer
 - **Metadata DB**: PostgreSQL 17
 - **Ingestion**: Docling (PDF, DOCX, PPTX, XLSX, HTML, Markdown, images)
 - **Embedding**: OpenAI, Cohere, Voyage, and OpenAI-compatible providers
@@ -124,7 +124,7 @@ If a feature is removed, remove it from the docs too. Never leave stale referenc
 
 ```bash
 ./dev.sh            # starts infra + backend + worker
-./dev.sh --infra    # postgres + redis + qdrant only
+./dev.sh --infra    # postgres + redis only
 ./dev.sh --website  # docs site only
 pnpm dev:app        # admin UI on localhost:3000
 ```
@@ -133,7 +133,6 @@ pnpm dev:app        # admin UI on localhost:3000
 - Backend API: http://localhost:4000 (Swagger docs at /docs)
 - Postgres: localhost:5432
 - Redis: localhost:6379
-- Qdrant: localhost:6333
 
 `dev.sh` only tears down the docker stack that it started — if you ran `docker compose up` separately before invoking `dev.sh`, it leaves that running on exit.
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import NotRequired, TypedDict
 
+from .query import SearchMode
+
 
 class EvalCase(TypedDict):
     query: str
@@ -13,7 +15,7 @@ class EvalBody(TypedDict):
     collection: str
     cases: list[EvalCase]
     top_k: NotRequired[int]
-    search_mode: NotRequired[str]
+    search_mode: NotRequired[SearchMode]
 
 
 class EvalPerCase(TypedDict):

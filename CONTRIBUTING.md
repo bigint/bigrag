@@ -8,7 +8,7 @@ Thank you for your interest in contributing to bigRAG. This guide will help you 
 
 - **Python 3.12+** with [uv](https://docs.astral.sh/uv/)
 - **Node.js 20+** with [pnpm](https://pnpm.io/) (via corepack)
-- **Docker** and **Docker Compose** — for Postgres, Redis, Qdrant
+- **Docker** and **Docker Compose** — for Postgres and Redis
 
 ### Development Setup
 
@@ -31,7 +31,7 @@ Or manually:
 
 ```bash
 # Start infrastructure
-docker compose up postgres redis qdrant -d
+docker compose up postgres redis -d
 
 # Set up the Python backend
 cd api
@@ -60,7 +60,7 @@ bigrag/
 ├── sdks/python/           # Python SDK (bigrag)
 ├── app/                   # Admin UI (TanStack Router + React)
 ├── website/               # Docs site (Next.js + Fumadocs)
-├── docker-compose.yml     # Full stack (Postgres, Redis, Qdrant, API)
+├── docker-compose.yml     # Full stack (Postgres, Redis, API)
 ├── biome.jsonc            # Biome linting config for TypeScript
 ├── pnpm-workspace.yaml    # pnpm workspace config
 ├── dev.sh                 # One-command dev setup

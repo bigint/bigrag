@@ -70,7 +70,7 @@ async def _collect_events(
             for trigger in triggers:
                 await trigger()
         await asyncio.wait_for(reader, timeout=timeout)
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         reader.cancel()
         raise TimeoutError(
             f"SSE stream {path!r} did not satisfy predicate within {timeout}s; "
@@ -109,9 +109,7 @@ async def test_events_token_requires_auth(
 async def test_events_token_unknown_collection_404(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.post(
-        f"/v1/collections/{unique_name('missing')}/events/token"
-    )
+    resp = await admin_client.post(f"/v1/collections/{unique_name('missing')}/events/token")
     assert resp.status_code == 404, resp.text
 
 
@@ -173,18 +171,14 @@ async def test_events_stream_requires_auth_without_token(
     collection: CollectionFactory,
 ) -> None:
     coll = await collection()
-    resp = await unauth_client.get(
-        f"/v1/collections/{coll['name']}/events"
-    )
+    resp = await unauth_client.get(f"/v1/collections/{coll['name']}/events")
     assert resp.status_code == 401, resp.text
 
 
 async def test_events_stream_unknown_collection_returns_404(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.get(
-        f"/v1/collections/{unique_name('missing')}/events"
-    )
+    resp = await admin_client.get(f"/v1/collections/{unique_name('missing')}/events")
     assert resp.status_code == 404, resp.text
 
 
@@ -194,9 +188,7 @@ async def test_events_stream_token_grants_anonymous_access(
     collection: CollectionFactory,
 ) -> None:
     coll = await collection()
-    token_resp = await admin_client.post(
-        f"/v1/collections/{coll['name']}/events/token"
-    )
+    token_resp = await admin_client.post(f"/v1/collections/{coll['name']}/events/token")
     token_body = assert_envelope(token_resp, 200)
     token = token_body["token"]
 

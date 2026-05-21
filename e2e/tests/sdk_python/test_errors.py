@@ -22,7 +22,6 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import pytest
-
 from bigrag import (
     APIConnectionError,
     APIError,
@@ -36,6 +35,7 @@ from bigrag import (
     RateLimitError,
     error_for_status,
 )
+
 from tests._helpers import unique_name
 
 
@@ -43,9 +43,7 @@ async def test_invalid_api_key_raises_authentication_error(
     api_base_url: str,
 ) -> None:
     """An obviously-bogus bearer token returns 401."""
-    async with BigRAG(
-        api_key="bigrag_sk_not_a_valid_key_at_all", base_url=api_base_url
-    ) as client:
+    async with BigRAG(api_key="bigrag_sk_not_a_valid_key_at_all", base_url=api_base_url) as client:
         with pytest.raises(AuthenticationError) as excinfo:
             await client.collections.list()
         assert excinfo.value.status == 401
@@ -84,9 +82,7 @@ async def test_unknown_webhook_raises_not_found(
 ) -> None:
     # Webhook admin endpoints require session auth, not API key.
     with pytest.raises(NotFoundError):
-        await session_sdk_client.webhooks.get(
-            "00000000-0000-0000-0000-000000000000"
-        )
+        await session_sdk_client.webhooks.get("00000000-0000-0000-0000-000000000000")
 
 
 async def test_validation_error_surfaces_as_api_error(

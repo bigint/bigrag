@@ -8,7 +8,7 @@ from bigrag.services._retrieval_filters import FilterExpression
 from bigrag.services.embedding import EmbeddingModel
 from bigrag.services.retrieval.cache import embed_query_with_cache
 from bigrag.services.retrieval.fusion import keyword_patterns, keyword_score, reciprocal_rank_fusion
-from bigrag.services.vector_store import VectorStoreFeatureError, VectorStoreProvider, vector_store
+from bigrag.services.vector_store import vector_store
 
 
 async def keyword_search(
@@ -17,7 +17,6 @@ async def keyword_search(
     query_terms: list[str],
     top_k: int,
     filter_expr: FilterExpression | None,
-    vector_store_provider: VectorStoreProvider | None,
     timings: dict[str, float],
 ) -> list[dict]:
     t0 = time.monotonic()
@@ -27,9 +26,8 @@ async def keyword_search(
             query_terms=query_terms,
             top_k=top_k,
             filters=filter_expr,
-            provider=vector_store_provider,
         )
-    except VectorStoreFeatureError as exc:
+    except RuntimeError as exc:
         raise ValidationError(str(exc)) from exc
     timings["search_ms"] = (time.monotonic() - t0) * 1000
 
@@ -53,7 +51,6 @@ async def hybrid_search(
     top_k: int,
     max_top_k: int,
     filter_expr: FilterExpression | None,
-    vector_store_provider: VectorStoreProvider | None,
     timings: dict[str, float],
 ) -> tuple[list[dict], list[float] | None]:
     t0 = time.monotonic()
@@ -67,18 +64,16 @@ async def hybrid_search(
         query_embedding=query_embedding,
         top_k=fusion_pool,
         filters=filter_expr,
-        provider=vector_store_provider,
     )
     keyword_task = vector_store.text_search(
         collection=collection_name,
         query_terms=query_terms,
         top_k=fusion_pool,
         filters=filter_expr,
-        provider=vector_store_provider,
     )
     try:
         semantic_results, keyword_raw = await asyncio.gather(semantic_task, keyword_task)
-    except VectorStoreFeatureError as exc:
+    except RuntimeError as exc:
         raise ValidationError(str(exc)) from exc
     timings["search_ms"] = (time.monotonic() - t0) * 1000
 
@@ -102,7 +97,6 @@ async def semantic_search(
     embedding_model: EmbeddingModel,
     top_k: int,
     filter_expr: FilterExpression | None,
-    vector_store_provider: VectorStoreProvider | None,
     timings: dict[str, float],
 ) -> tuple[list[dict], list[float]]:
     t0 = time.monotonic()
@@ -115,7 +109,6 @@ async def semantic_search(
         query_embedding=query_embedding,
         top_k=top_k,
         filters=filter_expr,
-        provider=vector_store_provider,
     )
     timings["search_ms"] = (time.monotonic() - t0) * 1000
     return results, query_embedding

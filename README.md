@@ -9,7 +9,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 - **Document ingestion** — PDF, DOCX, PPTX, HTML, Markdown, images, and more via [Docling](https://github.com/DS4SD/docling)
 - **Embedding providers** — OpenAI, OpenAI-compatible gateways, Cohere, and Voyage
 - **Embedding presets** — save named provider/model configs once, reuse across collections
-- **Vector search** — semantic, keyword, and hybrid search modes via [Qdrant](https://qdrant.io) or [turbopuffer](https://turbopuffer.com)
+- **Vector search** — semantic, keyword, and hybrid search modes via [Turbopuffer](https://turbopuffer.com)
 - **Reranking** — Cohere reranking for improved result relevance
 - **Multi-collection queries** — search across collections in a single request
 - **Generated chat** — stateless backend-grounded playground chat with streaming and citations
@@ -31,7 +31,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 docker compose up -d
 ```
 
-This starts bigRAG API, worker, admin UI, Postgres, Redis, and Qdrant (or turbopuffer per collection). Open http://localhost:3000 for the admin UI or http://localhost:4000/docs for the interactive API docs.
+This starts bigRAG API, worker, admin UI, Postgres, and Redis. Configure Turbopuffer before ingesting or querying collections. Open http://localhost:3000 for the admin UI or http://localhost:4000/docs for the interactive API docs.
 
 ```bash
 # Create a collection
@@ -52,7 +52,7 @@ curl -X POST http://localhost:4000/v1/collections/docs/query \
 ### Development
 
 ```bash
-./dev.sh  # starts Postgres, Redis, Qdrant, the API with hot reload, and the worker
+./dev.sh  # starts Postgres, Redis, the API with hot reload, and the worker
 ```
 
 ### Docker Images
@@ -90,7 +90,7 @@ graph TD
 
     Worker -->|parse| Docling[Docling<br/>PDF, DOCX, HTML, Images]
     Worker -->|embed| Embedding[Embedding provider<br/>OpenAI / compatible / Cohere / Voyage]
-    Worker -->|store vectors| Vectors[(Qdrant<br/>or turbopuffer)]
+    Worker -->|store vectors| Vectors[(Turbopuffer)]
 
     Query -->|search| Vectors
     Query -->|embed query| Embedding
@@ -288,8 +288,8 @@ Full-workspace keys expose 8 tools — `list_collections`, `get_collection`, `ge
 
 ## Configuration
 
-Most settings use the `BIGRAG_` prefix as environment variables, or configure via `bigrag.toml`.
-Backend logging defaults to `debug` / `text` for local development. Use `BIGRAG_LOG_LEVEL=info` and `BIGRAG_LOG_FORMAT=json` for production log collection.
+Bootstrap settings use the `BIGRAG_` prefix as environment variables, or configure via `bigrag.toml`.
+Backend logging defaults to `debug` / `text` for local development. Use `BIGRAG_LOG_LEVEL=info` and `BIGRAG_LOG_FORMAT=json` for production log collection. Configure Turbopuffer from the admin UI; it is stored in Postgres with the other instance settings.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -303,13 +303,6 @@ Backend logging defaults to `debug` / `text` for local development. Use `BIGRAG_
 | `BIGRAG_DB_POOL_MIN` | Min Postgres pool size | `5` |
 | `BIGRAG_DB_POOL_MAX` | Max Postgres pool size | `50` |
 | `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration check timeout (`0` disables the timeout) | `60` |
-| `BIGRAG_QDRANT_URL` | Qdrant URL | `http://localhost:6333` |
-| `BIGRAG_QDRANT_CONNECT_TIMEOUT_SECONDS` | Qdrant startup connection timeout (`0` disables the timeout) | `10` |
-| `BIGRAG_QDRANT_REQUIRED` | Fail API startup if Qdrant cannot be reached | `false` |
-| `BIGRAG_QDRANT_SEARCH_EF` | Optional Qdrant HNSW search recall/latency tuning | — |
-| `BIGRAG_TURBOPUFFER_API_KEY` | turbopuffer API key (only required for collections using turbopuffer) | — |
-| `BIGRAG_TURBOPUFFER_REGION` | turbopuffer region | `aws-us-east-1` |
-| `BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX` | Prefix prepended to turbopuffer namespace names | `bigrag_` |
 | `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
 | `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
 | `BIGRAG_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and access logs | `[]` |

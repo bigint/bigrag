@@ -9,7 +9,6 @@ Endpoints covered (all SSE / text/event-stream):
 - GET /v1/admin/realtime/{provider_slug}/sources
 - GET /v1/admin/realtime/{provider_slug}/sync-jobs
 - GET /v1/admin/realtime/backups
-- GET /v1/admin/realtime/vector-migrations
 - GET /v1/admin/realtime/access/overview
 - GET /v1/admin/realtime/access/logs
 - GET /v1/admin/realtime/audit
@@ -33,7 +32,6 @@ import httpx
 import pytest
 
 from conftest import sse_events
-from tests._helpers import unique_name
 
 SSE_TIMEOUT_SECONDS = 10.0
 
@@ -52,9 +50,7 @@ async def _first_snapshot(
                 if event.event == "snapshot":
                     return json.loads(event.data)
                 if event.event == "error":
-                    raise AssertionError(
-                        f"SSE error event for {path!r}: {event.data}"
-                    )
+                    raise AssertionError(f"SSE error event for {path!r}: {event.data}")
         raise AssertionError(f"no snapshot event received from {path!r}")
 
     return await asyncio.wait_for(_read(), timeout=timeout)
@@ -65,7 +61,9 @@ async def _assert_unauth_blocked(
     path: str,
 ) -> None:
     resp = await unauth_client.get(path)
-    assert resp.status_code == 401, f"{path}: expected 401 unauth, got {resp.status_code} {resp.text}"
+    assert resp.status_code == 401, (
+        f"{path}: expected 401 unauth, got {resp.status_code} {resp.text}"
+    )
 
 
 async def _assert_api_key_blocked(
@@ -150,9 +148,7 @@ async def test_realtime_collection_documents_batch_status_requires_ids(
     collection: Callable[..., Awaitable[dict[str, Any]]],
 ) -> None:
     coll = await collection()
-    path = (
-        f"/v1/admin/realtime/collections/{coll['name']}/documents/batch-status"
-    )
+    path = f"/v1/admin/realtime/collections/{coll['name']}/documents/batch-status"
     resp = await admin_client.get(path)
     assert resp.status_code == 400, resp.text
 
@@ -170,20 +166,6 @@ async def test_realtime_backups_stream(
     path = "/v1/admin/realtime/backups"
     snapshot = await _first_snapshot(admin_client, path)
     assert snapshot["topic"].startswith("backups:")
-    assert "payload" in snapshot
-
-    await _assert_unauth_blocked(unauth_client, path)
-    await _assert_api_key_blocked(api_key_client, path)
-
-
-async def test_realtime_vector_migrations_stream(
-    admin_client: httpx.AsyncClient,
-    unauth_client: httpx.AsyncClient,
-    api_key_client: Callable[..., Awaitable[httpx.AsyncClient]],
-) -> None:
-    path = "/v1/admin/realtime/vector-migrations"
-    snapshot = await _first_snapshot(admin_client, path)
-    assert snapshot["topic"].startswith("vector-migrations:")
     assert "payload" in snapshot
 
     await _assert_unauth_blocked(unauth_client, path)
@@ -303,8 +285,7 @@ async def test_realtime_upload_session_unauth(
     unauth_client: httpx.AsyncClient,
 ) -> None:
     path = (
-        "/v1/admin/realtime/collections/nope/upload-sessions/"
-        "00000000-0000-0000-0000-000000000000"
+        "/v1/admin/realtime/collections/nope/upload-sessions/00000000-0000-0000-0000-000000000000"
     )
     resp = await unauth_client.get(path)
     assert resp.status_code == 401, resp.text

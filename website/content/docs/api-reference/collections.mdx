@@ -32,12 +32,10 @@ GET /v1/collections
       "description": "Academic research papers",
       "embedding_provider": "openai",
       "embedding_model": "text-embedding-3-small",
-      "vector_store_provider": "qdrant",
       "dimension": 1536,
       "chunk_size": 512,
       "chunk_overlap": 50,
       "chunk_strategy": "paragraph",
-      "index_type": "HNSW",
       "tenant_field": null,
       "has_metadata_schema": false,
       "document_count": 15,
@@ -74,12 +72,10 @@ POST /v1/collections
   "description": "Academic research papers",
   "embedding_provider": "openai",
   "embedding_model": "text-embedding-3-small",
-  "vector_store_provider": "qdrant",
   "dimension": 1536,
   "chunk_size": 512,
   "chunk_overlap": 50,
   "chunk_strategy": "paragraph",
-  "index_type": "HNSW",
   "tenant_field": "tenant_id",
   "metadata_schema": {
     "type": "object",
@@ -102,7 +98,6 @@ POST /v1/collections
 | `description` | string | no | `""` | — |
 | `embedding_provider` | string | no | Server default | `openai`, `cohere`, `voyage`, `openai_compatible` |
 | `embedding_model` | string | no | Server default | Model name |
-| `vector_store_provider` | string | no | `"qdrant"` | `qdrant` or `turbopuffer`; changed only through a vector migration job. `turbopuffer` requires a saved turbopuffer API key in Vector Storage before creation or migration |
 | `embedding_preset_id` | string | no | — | Link the collection to a saved embedding preset. The collection inherits the preset's provider, model, dimension, base URL, and key live |
 | `embedding_api_key` | string | no | — | Required when `embedding_preset_id` is not provided; validated against the provider before the collection is created. Use any non-empty value for local OpenAI-compatible gateways without auth. Ignored when a preset is supplied — the collection inherits the preset's key live |
 | `embedding_base_url` | string | no | — | Required for `openai_compatible` (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) |
@@ -110,8 +105,7 @@ POST /v1/collections
 | `chunk_size` | integer | no | `512` | 64–10,000 |
 | `chunk_overlap` | integer | no | `50` | 0–5,000, must be `< chunk_size` |
 | `chunk_strategy` | string | no | `"paragraph"` | `paragraph` (split on blank lines) or `recursive` (hierarchical) |
-| `index_type` | string | no | `"HNSW"` | Dense-vector index preference |
-| `tenant_field` | string | no | — | Metadata key indexed by supported vector stores and required on uploads, raw vector upserts, query filters, and chat filters |
+| `tenant_field` | string | no | — | Metadata key required on uploads, raw vector upserts, query filters, and chat filters |
 | `metadata_schema` | object | no | — | JSON Schema validated on every upload / upsert |
 | `default_top_k` | integer | no | `10` | 1–1,000 |
 | `default_min_score` | float | no | `null` | Minimum similarity score |
@@ -127,8 +121,8 @@ POST /v1/collections
 
 **Errors:**
 
-- `400` — Invalid name, chunk config, dimension mismatch, or unconfigured vector provider
-- `502` — Selected vector provider rejected collection provisioning
+- `400` — Invalid name, chunk config, or dimension mismatch
+- `502` — Vector store rejected collection provisioning
 - `409` — Collection name already exists
 
 ## Get Collection
@@ -166,7 +160,7 @@ Lightweight endpoint returning document and chunk counts.
 PUT /v1/collections/{name}
 ```
 
-Only the fields below are mutable. Embedding provider / model / dimension, chunk size / overlap, `index_type`, and `tenant_field` are fixed at creation. Use `POST /v1/admin/vector-storage/migrations` to change a collection's vector store provider.
+Only the fields below are mutable. Embedding provider / model / dimension, chunk size / overlap, and `tenant_field` are fixed at creation.
 
 | Field | Type | Notes |
 |-------|------|-------|

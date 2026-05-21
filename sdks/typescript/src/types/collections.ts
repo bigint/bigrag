@@ -2,14 +2,11 @@ export interface Collection {
   id: string;
   name: string;
   description: string;
-  embedding_provider: string;
   embedding_model: string;
-  vector_store_provider: "qdrant" | "turbopuffer";
   dimension: number;
   chunk_size: number;
   chunk_overlap: number;
   chunk_strategy: string;
-  index_type: string;
   tenant_field: string | null;
   has_metadata_schema: boolean;
   document_count: number;
@@ -52,9 +49,7 @@ export interface CollectionStatsResponse {
 export interface CreateCollectionBody {
   name: string;
   description?: string;
-  vector_store_provider?: "qdrant" | "turbopuffer";
   embedding_preset_id?: string;
-  embedding_provider?: string;
   embedding_model?: string;
   embedding_api_key?: string;
   embedding_base_url?: string;
@@ -62,7 +57,6 @@ export interface CreateCollectionBody {
   chunk_size?: number;
   chunk_overlap?: number;
   chunk_strategy?: "paragraph" | "recursive";
-  index_type?: "HNSW";
   tenant_field?: string;
   metadata_schema?: Record<string, unknown>;
   metadata?: Record<string, unknown>;

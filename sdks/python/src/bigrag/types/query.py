@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from .documents import MultimodalElementRef
+
+SearchMode = Literal["semantic", "keyword", "hybrid"]
 
 
 class QueryBody(TypedDict):
@@ -10,7 +12,7 @@ class QueryBody(TypedDict):
     top_k: NotRequired[int]
     filters: NotRequired[dict[str, Any]]
     min_score: NotRequired[float]
-    search_mode: NotRequired[str]
+    search_mode: NotRequired[SearchMode]
     rerank: NotRequired[bool]
     multimodal: NotRequired[bool]
 
@@ -52,7 +54,7 @@ class MultiQueryBody(TypedDict):
     top_k: NotRequired[int]
     filters: NotRequired[dict[str, Any]]
     min_score: NotRequired[float]
-    search_mode: NotRequired[str]
+    search_mode: NotRequired[SearchMode]
     rerank: NotRequired[bool]
     multimodal: NotRequired[bool]
 
@@ -82,7 +84,7 @@ class BatchQueryItem(TypedDict):
     top_k: NotRequired[int]
     filters: NotRequired[dict[str, Any]]
     min_score: NotRequired[float]
-    search_mode: NotRequired[str]
+    search_mode: NotRequired[SearchMode]
     rerank: NotRequired[bool]
     multimodal: NotRequired[bool]
 

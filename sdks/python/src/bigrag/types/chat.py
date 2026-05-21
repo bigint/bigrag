@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, NotRequired, TypedDict
 
 from .documents import MultimodalElementRef
-from .query import QueryTimings
+from .query import QueryTimings, SearchMode
 
 
 class ChatBody(TypedDict):
@@ -14,7 +14,7 @@ class ChatBody(TypedDict):
     model: NotRequired[str]
     temperature: NotRequired[float]
     top_k: NotRequired[int]
-    search_mode: NotRequired[str]
+    search_mode: NotRequired[SearchMode]
     min_score: NotRequired[float | None]
     rerank: NotRequired[bool | None]
     filters: NotRequired[dict[str, Any] | None]

@@ -27,7 +27,6 @@ import httpx
 
 from tests._helpers import assert_envelope, poll_until, unique_name
 
-
 # ---------------------------------------------------------------------------
 # Create / Get
 # ---------------------------------------------------------------------------
@@ -74,9 +73,7 @@ async def test_get_upload_session_returns_payload(
     body = assert_envelope(create, 201)
     session_id = body["id"]
 
-    resp = await admin_client.get(
-        f"/v1/collections/{coll['name']}/upload-sessions/{session_id}"
-    )
+    resp = await admin_client.get(f"/v1/collections/{coll['name']}/upload-sessions/{session_id}")
     got = assert_envelope(resp, 200)
     assert got["id"] == session_id
     assert got["total_files"] == 1
@@ -88,8 +85,7 @@ async def test_get_unknown_upload_session_returns_404(
 ) -> None:
     coll = await collection()
     resp = await admin_client.get(
-        f"/v1/collections/{coll['name']}/upload-sessions/"
-        "00000000-0000-0000-0000-000000000000"
+        f"/v1/collections/{coll['name']}/upload-sessions/00000000-0000-0000-0000-000000000000"
     )
     assert resp.status_code == 404, resp.text
 
@@ -99,9 +95,7 @@ async def test_get_invalid_session_uuid_returns_404(
     collection: Callable[..., Awaitable[dict[str, Any]]],
 ) -> None:
     coll = await collection()
-    resp = await admin_client.get(
-        f"/v1/collections/{coll['name']}/upload-sessions/not-a-uuid"
-    )
+    resp = await admin_client.get(f"/v1/collections/{coll['name']}/upload-sessions/not-a-uuid")
     assert resp.status_code == 404, resp.text
 
 
@@ -148,9 +142,7 @@ async def test_full_lifecycle_two_files_end_up_in_collection(
     assert complete_body["uploaded_files"] == 2
 
     async def fetch_session() -> dict[str, Any]:
-        r = await admin_client.get(
-            f"/v1/collections/{coll['name']}/upload-sessions/{session_id}"
-        )
+        r = await admin_client.get(f"/v1/collections/{coll['name']}/upload-sessions/{session_id}")
         r.raise_for_status()
         return r.json()
 

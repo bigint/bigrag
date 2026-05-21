@@ -122,19 +122,17 @@ if [ "$START_WEBSITE" = true ]; then
 fi
 
 if [ "$START_INFRA" = true ]; then
-  echo -e "${CYAN}Starting Docker services (Postgres, Redis, Qdrant)...${NC}"
-  if ! docker compose -f "$ROOT_DIR/docker-compose.yml" ps --status running --quiet postgres redis qdrant | grep -q .; then
+  echo -e "${CYAN}Starting Docker services (Postgres, Redis)...${NC}"
+  if ! docker compose -f "$ROOT_DIR/docker-compose.yml" ps --status running --quiet postgres redis | grep -q .; then
     STARTED_INFRA=true
   fi
-  docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres redis qdrant -d
+  docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres redis -d
 
   wait_for "Postgres" "docker exec bigrag-postgres pg_isready -U bigrag" 30
   wait_for "Redis" "docker exec bigrag-redis redis-cli ping" 15
-  wait_for "Qdrant" "curl -sf http://localhost:6333/healthz" 60
 fi
 
 DATABASE_URL="postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
-QDRANT_URL="http://localhost:6333"
 REDIS_URL="redis://localhost:6379/0"
 
 if [ "$START_BACKEND" = true ]; then
@@ -148,7 +146,6 @@ if [ "$START_BACKEND" = true ]; then
   DEV_MASTER_KEY="${BIGRAG_MASTER_KEY:-Zm5VZ4vO8r0y3rVsT0xz7nxV_wP7u6-n5tB1GAlHZIw=}"
 
   export BIGRAG_DATABASE_URL="$DATABASE_URL"
-  export BIGRAG_QDRANT_URL="$QDRANT_URL"
   export BIGRAG_REDIS_URL="$REDIS_URL"
   export BIGRAG_MASTER_KEY="$DEV_MASTER_KEY"
   export BIGRAG_CORS_ORIGINS="${BIGRAG_CORS_ORIGINS:-[\"http://localhost:3000\"]}"
@@ -186,7 +183,6 @@ echo -e "\n${GREEN}Services started:${NC}"
 [ "$START_BACKEND" = true ] && echo -e "  API Docs → http://localhost:4000/docs"
 [ "$START_INFRA" = true ]   && echo -e "  Postgres → localhost:5432"
 [ "$START_INFRA" = true ]   && echo -e "  Redis    → localhost:6379"
-[ "$START_INFRA" = true ]   && echo -e "  Qdrant   → localhost:6333"
 [ "$START_WEBSITE" = true ] && echo -e "  Website  → http://localhost:3100"
 echo -e "\n${YELLOW}Press Ctrl+C to stop all services.${NC}"
 

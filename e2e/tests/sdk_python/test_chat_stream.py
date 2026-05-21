@@ -18,7 +18,6 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import pytest
-
 from bigrag import BigRAG, NotFoundError
 
 
@@ -129,15 +128,11 @@ async def test_chat_client_aliases_create_and_stream(
     coll = await collection()
     await document(coll["name"], fixture="sample.txt")
 
-    non_stream = await client.chat_create(
-        {"collection": coll["name"], "message": "hello"}
-    )
+    non_stream = await client.chat_create({"collection": coll["name"], "message": "hello"})
     assert non_stream["assistant_message"]["role"] == "assistant"
 
     saw_event = False
-    async for event in client.chat_stream(
-        {"collection": coll["name"], "message": "hello stream"}
-    ):
+    async for event in client.chat_stream({"collection": coll["name"], "message": "hello stream"}):
         saw_event = True
         if event["event"] == "done":
             break

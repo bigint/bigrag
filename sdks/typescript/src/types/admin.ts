@@ -93,40 +93,6 @@ export interface BackupJobListResponse {
   total: number;
 }
 
-export type VectorMigrationProvider = "qdrant" | "turbopuffer";
-export type VectorMigrationJobStatus = "pending" | "running" | "canceling" | "succeeded" | "failed";
-
-export interface VectorMigrationCreateBody {
-  collection: string;
-  target_provider: VectorMigrationProvider;
-}
-
-export interface VectorMigrationJob {
-  id: string;
-  collection_id: string | null;
-  collection_name: string;
-  source_provider: VectorMigrationProvider;
-  target_provider: VectorMigrationProvider;
-  status: VectorMigrationJobStatus;
-  phase: string;
-  progress: number;
-  copied_points: number;
-  total_points: number | null;
-  details: Record<string, unknown>;
-  error_message: string | null;
-  created_by: string | null;
-  started_at: string | null;
-  completed_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface VectorMigrationJobListResponse {
-  jobs: VectorMigrationJob[];
-  total: number | null;
-  next_cursor: string | null;
-}
-
 export interface AdminRealtimeSnapshot<T = unknown> {
   event: "snapshot";
   data: {

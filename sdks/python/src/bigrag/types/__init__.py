@@ -38,11 +38,6 @@ from bigrag.types.admin import (
     UpdateMcpServerBody,
     UpdateUserBody,
     UserListResponse,
-    VectorMigrationCreateBody,
-    VectorMigrationJob,
-    VectorMigrationJobListResponse,
-    VectorMigrationJobStatus,
-    VectorMigrationProvider,
 )
 from bigrag.types.analytics import AnalyticsResponse, PeriodStats, TopQuery
 from bigrag.types.auth import (
@@ -134,6 +129,7 @@ from bigrag.types.query import (
     QueryResponse,
     QueryResult,
     QueryTimings,
+    SearchMode,
 )
 from bigrag.types.sse import ProgressEvent
 from bigrag.types.usage import CollectionUsage, UsageResponse
@@ -201,11 +197,6 @@ __all__ = [
     "BackupCreateBody",
     "BackupJob",
     "BackupJobListResponse",
-    "VectorMigrationProvider",
-    "VectorMigrationJobStatus",
-    "VectorMigrationCreateBody",
-    "VectorMigrationJob",
-    "VectorMigrationJobListResponse",
     "AdminRealtimeEvent",
     "AccessLogEntry",
     "AccessLogListResponse",
@@ -258,6 +249,7 @@ __all__ = [
     "QueryBody",
     "QueryResult",
     "QueryTimings",
+    "SearchMode",
     "QueryResponse",
     "MultiQueryBody",
     "MultiQueryResult",

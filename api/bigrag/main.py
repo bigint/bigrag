@@ -47,7 +47,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title="bigRAG",
-        description="Self-hostable RAG platform with Docling + Qdrant",
+        description="Self-hostable RAG platform with Docling + turbopuffer",
         version=__version__,
         lifespan=lifespan,
         default_response_class=ORJSONResponse,
@@ -79,7 +79,6 @@ def cli() -> None:
     parser.add_argument("--host", help="Server host")
     parser.add_argument("--port", type=int, help="Server port")
     parser.add_argument("--database-url", help="Postgres connection URL")
-    parser.add_argument("--qdrant-url", help="Qdrant connection URL")
     parser.add_argument("--redis-url", help="Redis connection URL")
     args = parser.parse_args()
 
@@ -92,8 +91,6 @@ def cli() -> None:
         overrides["port"] = args.port
     if args.database_url is not None:
         overrides["database_url"] = args.database_url
-    if args.qdrant_url is not None:
-        overrides["qdrant_url"] = args.qdrant_url
     if args.redis_url is not None:
         overrides["redis_url"] = args.redis_url
     for key, value in overrides.items():

@@ -35,9 +35,11 @@ from tests._helpers import (
 
 API_BASE = os.environ.get("BIGRAG_E2E_API_BASE", "http://localhost:4000")
 FAKE_OPENAI_BASE = os.environ.get("BIGRAG_E2E_FAKE_OPENAI", "http://localhost:9001")
+FAKE_TURBOPUFFER_BASE = os.environ.get("BIGRAG_E2E_FAKE_TURBOPUFFER", "http://localhost:9002")
 WEBHOOK_SINK_BASE = os.environ.get("BIGRAG_E2E_WEBHOOK_SINK", "http://localhost:9003")
 
 FAKE_OPENAI_INTERNAL_BASE = "http://fake-openai:9001"
+FAKE_TURBOPUFFER_INTERNAL_BASE = "http://fake-turbopuffer:9002"
 WEBHOOK_SINK_INTERNAL_BASE = "http://webhook-sink:9003"
 
 ADMIN_EMAIL = "e2e-admin@example.com"
@@ -62,6 +64,11 @@ def api_base_url() -> str:
 def fake_openai_base() -> str:
     """URL bigRAG (running in Docker) uses to reach fake-openai (internal Docker hostname)."""
     return FAKE_OPENAI_INTERNAL_BASE
+
+
+@pytest.fixture(scope="session")
+def fake_turbopuffer_base() -> str:
+    return FAKE_TURBOPUFFER_INTERNAL_BASE
 
 
 # ---------------------------------------------------------------------------
@@ -137,15 +144,26 @@ async def _bootstrap_e2e_runtime_settings() -> None:
     ) as client:
         for k, v in cookies.items():
             client.cookies.set(k, v)
+        settings_resp = await client.get("/v1/admin/settings")
+        if settings_resp.status_code != 200:
+            return
+        spec_keys = {spec["key"] for spec in settings_resp.json().get("specs", [])}
+        values: dict[str, Any] = {
+            "allow_private_embedding_base_urls": True,
+            "allow_private_chat_base_urls": True,
+            "allow_local_webhooks": True,
+        }
+        if "turbopuffer_api_key" in spec_keys:
+            values["turbopuffer_api_key"] = "e2e-fake-turbopuffer-key"
+        if "turbopuffer_region" in spec_keys:
+            values["turbopuffer_region"] = "e2e"
+        if "turbopuffer_namespace_prefix" in spec_keys:
+            values["turbopuffer_namespace_prefix"] = "e2e_"
+        if "turbopuffer_base_url" in spec_keys:
+            values["turbopuffer_base_url"] = FAKE_TURBOPUFFER_INTERNAL_BASE
         resp = await client.put(
             "/v1/admin/settings",
-            json={
-                "values": {
-                    "allow_private_embedding_base_urls": True,
-                    "allow_private_chat_base_urls": True,
-                    "allow_local_webhooks": True,
-                }
-            },
+            json={"values": values},
         )
         if resp.status_code not in (200, 204):
             return
@@ -389,9 +407,7 @@ async def collection(
     The instance is configured with embedding credentials at deploy time
     (``BIGRAG_EMBEDDING_*`` env vars point at fake-openai), so we only
     need to supply the bare minimum here. To override, pass any
-    ``CreateCollectionRequest`` field as a kwarg::
-
-        coll = await collection(dimension=384, vector_store_provider="qdrant")
+    ``CreateCollectionRequest`` field as a kwarg.
     """
     created_names: list[str] = []
 
@@ -400,7 +416,6 @@ async def collection(
         name: str | None = None,
         description: str = "e2e fixture collection",
         dimension: int | None = 1536,
-        vector_store_provider: str = "qdrant",
         chunk_size: int = 512,
         chunk_overlap: int = 50,
         chunk_strategy: str = "paragraph",
@@ -423,7 +438,6 @@ async def collection(
         body: dict[str, Any] = {
             "name": name or unique_name("e2e"),
             "description": description,
-            "vector_store_provider": vector_store_provider,
             "chunk_size": chunk_size,
             "chunk_overlap": chunk_overlap,
             "chunk_strategy": chunk_strategy,

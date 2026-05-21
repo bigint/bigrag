@@ -18,8 +18,8 @@ from typing import Any
 
 import httpx
 import pytest
-
 from bigrag import APIError, AuthenticationError, BigRAG, NotFoundError
+
 from tests._helpers import unique_name
 
 

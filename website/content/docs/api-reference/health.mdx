@@ -21,7 +21,7 @@ No authentication required. Returns 200 if the server is running.
 GET /health/ready
 ```
 
-No authentication required. Tests connectivity to Postgres, configured vector-store clients, Redis, and the configured embedding provider.
+No authentication required. Tests connectivity to Postgres, Turbopuffer, Redis, and the configured embedding provider.
 
 **Response** `200`:
 
@@ -31,8 +31,6 @@ No authentication required. Tests connectivity to Postgres, configured vector-st
   "version": "2026.4.30",
   "postgres": true,
   "vector_store": true,
-  "vector_store_provider": "per_collection",
-  "qdrant": true,
   "redis": true,
   "embedding": true,
   "embedding_source": "settings"
@@ -47,8 +45,6 @@ When a dependency is unreachable or misconfigured:
   "version": "2026.4.30",
   "postgres": true,
   "vector_store": true,
-  "vector_store_provider": "per_collection",
-  "qdrant": true,
   "redis": false,
   "redis_error": "unreachable",
   "embedding": false,

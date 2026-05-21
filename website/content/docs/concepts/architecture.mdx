@@ -10,9 +10,8 @@ import { Callout } from "fumadocs-ui/components/callout";
 bigRAG intentionally keeps four distinct stores instead of shoving
 everything into Postgres with pgvector. Each one earns its keep:
 
-- **Vector store** — Qdrant by default, with turbopuffer available as an
-  instance-level managed backend. The vector store owns dense embeddings,
-  payload metadata, and filtered semantic search.
+- **Vector store** — Turbopuffer owns dense embeddings, chunk text,
+  payload metadata, BM25 full-text search, and filtered semantic search.
 - **Postgres** — metadata and control plane. Collections, documents,
   users, API keys, webhooks, query logs, audit trail, embedding cache.
   Transactions keep ingestion consistent across stores.
@@ -26,10 +25,14 @@ everything into Postgres with pgvector. Each one earns its keep:
   re-uploading.
 
 <Callout type="info">
-bigRAG can run entirely from `docker compose up` on a single machine
-with Qdrant. Turbopuffer moves vector operations out of the local
-deployment when you prefer a managed vector service.
+bigRAG runs Postgres and Redis locally with `docker compose up`, while
+Turbopuffer provides the vector and full-text search backend.
 </Callout>
+
+The backend talks to Turbopuffer through the official Python client for
+namespace writes, deletes, health listing, vector queries, and BM25
+queries. The local e2e stack points that same client at the fake
+Turbopuffer service through `turbopuffer_base_url`.
 
 The admin UI leans on TanStack Router's built-in route code splitting
 instead of wrapping dashboard pages in extra `React.lazy` boundaries,
@@ -56,8 +59,8 @@ identifiers such as Google Drive file IDs, caller-provided vector IDs,
 collection names, settings keys, idempotency keys, OAuth states, session
 tokens, API keys, and webhook secrets remain opaque strings. Vector-store
 point IDs are backend-safe deterministic UUIDv5 values derived from the
-caller-facing vector or chunk ID, so Qdrant and turbopuffer can use stable
-point IDs without changing API-visible IDs.
+caller-facing vector or chunk ID, so Turbopuffer writes, deletes, and
+exports can use stable point IDs without changing API-visible IDs.
 
 ## Request flow — `POST /v1/collections/{name}/documents`
 
@@ -99,7 +102,7 @@ Client → FastAPI
   │ 1. auth → scope check (query:read)
   │ 2. embed query when search mode needs vectors
   │ 3. vector search (with metadata filters)
-  │ 4. optional hybrid fusion — Qdrant keyword search + reciprocal rank fusion
+  │ 4. optional hybrid fusion — Turbopuffer BM25 + reciprocal rank fusion
   │ 5. optional rerank — Cohere Rerank v3.5
   │ 6. attach timings (embed/search/rerank/cache/total)
   ▼
@@ -107,9 +110,9 @@ Response JSON with results and timings
 ```
 
 Keyword mode skips embeddings. Semantic and hybrid mode use the
-collection's configured embedding model. In v1, keyword and hybrid
-search are available on Qdrant; turbopuffer supports semantic search
-and returns a clear error for keyword or hybrid mode.
+collection's configured embedding model. Keyword search runs BM25 over
+Turbopuffer full-text chunk data, and hybrid search fuses Turbopuffer
+ANN results with BM25 results using reciprocal rank fusion.
 Query-result cache hits return the cached chunks but report the current
 cache lookup latency, not the original uncached retrieval timings.
 
@@ -128,25 +131,24 @@ images, and exposes layout provenance we can thread into citation metadata
 (`page_no`, `bbox`). PDFs with embedded text use a faster direct extractor;
 local OCR for scanned PDFs is enabled by default.
 
-## Why Qdrant by default
+## Why Turbopuffer
 
-pgvector is tempting — one less store, one less deploy. But at scale
-the gap widens:
+pgvector is tempting — one less external service. But at scale the gap
+widens:
 
-- **Vector engine**: Qdrant gives bigRAG a dedicated HNSW vector
-  store with payload-aware filtering and operational knobs such as
-  search `ef`. pgvector can work well, but it shares capacity and
-  tuning with the transactional database.
-- **Payload indexes**: Qdrant can index tenant IDs, document IDs,
-  chunk offsets, pages, and text payloads alongside vectors. pgvector
-  deployments usually need extra Postgres indexes and careful query
-  planning to keep filtered ANN search predictable.
-- **Dedicated memory management**: Qdrant won't blow out Postgres's
-  shared buffers during a large ANN scan.
+- **Managed vector engine**: Turbopuffer keeps ANN search and payload
+  filtering outside the transactional database, so Postgres remains the
+  metadata and control plane.
+- **Full-text plus vectors**: Turbopuffer stores chunk text with
+  full-text search enabled, which lets keyword search run as BM25 and
+  hybrid search fuse BM25 with semantic results.
+- **Namespace isolation**: each collection maps to a namespace, keeping
+  collection deletion, truncation, export, and raw vector writes scoped
+  to one backend object.
 
 For single-tenant deployments under ~1M vectors, pgvector would work
-— and the `VectorStore` abstraction in bigRAG leaves a door open for
-a future pgvector backend.
+well. bigRAG keeps Postgres focused on durable metadata and uses
+Turbopuffer for retrieval-specific storage and query execution.
 
 ## Scaling notes
 
@@ -164,11 +166,9 @@ a future pgvector backend.
   seeded after boot through the same Redis scheduler guards used by the
   actors, so restarts and replicas do not create duplicate delayed
   messages.
-- **Vector backend choice**: use local Qdrant for self-hosted installs
-  or turbopuffer for a managed vector search service. Turbopuffer
-  namespaces are created on first write and store bigRAG vector IDs as
-  payload attributes while using backend-safe IDs internally for writes,
-  deletes, and exports.
+- **Vector backend**: Turbopuffer namespaces are created on first write
+  and store bigRAG vector IDs as payload attributes while using
+  backend-safe IDs internally for writes, deletes, and exports.
 - **Postgres replication**: the control plane is read-light; a
   warm-standby suffices for failover.
 - **Redis persistence**: enable `appendonly yes` (already set in the
