@@ -30,6 +30,7 @@ For cross-site production deployments, enable secure session cookies and usually
 | Path | Purpose |
 |------|---------|
 | `/setup` | One-time page to create the first admin account. Disappears once `needs_setup: false`. |
+| `/onboarding` | Authenticated first-run provider setup. Requires one verified embedding preset, prompts for Turbopuffer, and then continues to `/overview`. |
 | `/login` | Email + password login for admins and members. |
 | `/overview` | Platform-wide stats — collection count, document states, stored token count, queue depth, readiness, and worker heartbeat. |
 | `/collections` | List, create, delete, and search collections. |
@@ -123,6 +124,6 @@ The admin UI uses session cookies exclusively. To automate anything the admin UI
 
 ## When to skip the Admin UI
 
-- **Pure backend deployment** — no admin UI process, everything via API keys and SDKs. Set `BIGRAG_ENV=prod` and use [`POST /v1/auth/setup`](/docs/api-reference/authentication) from an admin workstation to bootstrap.
+- **Pure backend deployment** — no admin UI process, everything via API keys and SDKs. Set `BIGRAG_ENV=prod`, use [`POST /v1/auth/setup`](/docs/api-reference/authentication) from an admin workstation to bootstrap, then create at least one embedding preset through the admin API before indexing documents.
 - **Embedded experiences** — if you're surfacing search inside your own app, skip admin UI and build against the [query API](/docs/api-reference/query).
 - **Read-only operators** — create a `member` account; they get `/overview`, `/collections` (read), and `/chat` but can't mutate.

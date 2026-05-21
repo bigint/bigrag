@@ -12,6 +12,7 @@ import { Route as DashboardWebhooksRouteImport } from "./routes/_dashboard.webho
 import { Route as DashboardUsageRouteImport } from "./routes/_dashboard.usage";
 import { Route as DashboardSettingsRouteImport } from "./routes/_dashboard.settings";
 import { Route as DashboardOverviewRouteImport } from "./routes/_dashboard.overview";
+import { Route as DashboardOnboardingRouteImport } from "./routes/_dashboard.onboarding";
 import { Route as DashboardModelsRouteImport } from "./routes/_dashboard.models";
 import { Route as DashboardMcpRouteImport } from "./routes/_dashboard.mcp";
 import { Route as DashboardEvalsRouteImport } from "./routes/_dashboard.evals";
@@ -66,6 +67,11 @@ const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
 const DashboardOverviewRoute = DashboardOverviewRouteImport.update({
   id: "/overview",
   path: "/overview",
+  getParentRoute: () => DashboardRoute,
+} as any);
+const DashboardOnboardingRoute = DashboardOnboardingRouteImport.update({
+  id: "/onboarding",
+  path: "/onboarding",
   getParentRoute: () => DashboardRoute,
 } as any);
 const DashboardModelsRoute = DashboardModelsRouteImport.update({
@@ -203,6 +209,7 @@ export interface FileRoutesByFullPath {
   "/evals": typeof DashboardEvalsRoute;
   "/mcp": typeof DashboardMcpRoute;
   "/models": typeof DashboardModelsRoute;
+  "/onboarding": typeof DashboardOnboardingRoute;
   "/overview": typeof DashboardOverviewRoute;
   "/settings": typeof DashboardSettingsRoute;
   "/usage": typeof DashboardUsageRoute;
@@ -232,6 +239,7 @@ export interface FileRoutesByTo {
   "/evals": typeof DashboardEvalsRoute;
   "/mcp": typeof DashboardMcpRoute;
   "/models": typeof DashboardModelsRoute;
+  "/onboarding": typeof DashboardOnboardingRoute;
   "/overview": typeof DashboardOverviewRoute;
   "/settings": typeof DashboardSettingsRoute;
   "/usage": typeof DashboardUsageRoute;
@@ -262,6 +270,7 @@ export interface FileRoutesById {
   "/_dashboard/evals": typeof DashboardEvalsRoute;
   "/_dashboard/mcp": typeof DashboardMcpRoute;
   "/_dashboard/models": typeof DashboardModelsRoute;
+  "/_dashboard/onboarding": typeof DashboardOnboardingRoute;
   "/_dashboard/overview": typeof DashboardOverviewRoute;
   "/_dashboard/settings": typeof DashboardSettingsRoute;
   "/_dashboard/usage": typeof DashboardUsageRoute;
@@ -293,6 +302,7 @@ export interface FileRouteTypes {
     | "/evals"
     | "/mcp"
     | "/models"
+    | "/onboarding"
     | "/overview"
     | "/settings"
     | "/usage"
@@ -322,6 +332,7 @@ export interface FileRouteTypes {
     | "/evals"
     | "/mcp"
     | "/models"
+    | "/onboarding"
     | "/overview"
     | "/settings"
     | "/usage"
@@ -351,6 +362,7 @@ export interface FileRouteTypes {
     | "/_dashboard/evals"
     | "/_dashboard/mcp"
     | "/_dashboard/models"
+    | "/_dashboard/onboarding"
     | "/_dashboard/overview"
     | "/_dashboard/settings"
     | "/_dashboard/usage"
@@ -422,6 +434,13 @@ declare module "@tanstack/react-router" {
       path: "/overview";
       fullPath: "/overview";
       preLoaderRoute: typeof DashboardOverviewRouteImport;
+      parentRoute: typeof DashboardRoute;
+    };
+    "/_dashboard/onboarding": {
+      id: "/_dashboard/onboarding";
+      path: "/onboarding";
+      fullPath: "/onboarding";
+      preLoaderRoute: typeof DashboardOnboardingRouteImport;
       parentRoute: typeof DashboardRoute;
     };
     "/_dashboard/models": {
@@ -650,6 +669,7 @@ interface DashboardRouteChildren {
   DashboardEvalsRoute: typeof DashboardEvalsRoute;
   DashboardMcpRoute: typeof DashboardMcpRoute;
   DashboardModelsRoute: typeof DashboardModelsRoute;
+  DashboardOnboardingRoute: typeof DashboardOnboardingRoute;
   DashboardOverviewRoute: typeof DashboardOverviewRoute;
   DashboardSettingsRoute: typeof DashboardSettingsRoute;
   DashboardUsageRoute: typeof DashboardUsageRoute;
@@ -669,6 +689,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardEvalsRoute: DashboardEvalsRoute,
   DashboardMcpRoute: DashboardMcpRoute,
   DashboardModelsRoute: DashboardModelsRoute,
+  DashboardOnboardingRoute: DashboardOnboardingRoute,
   DashboardOverviewRoute: DashboardOverviewRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardUsageRoute: DashboardUsageRoute,
