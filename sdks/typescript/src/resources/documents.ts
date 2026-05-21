@@ -6,6 +6,7 @@ import type {
   BatchStatusResponse,
   Document,
   DocumentChunkListResponse,
+  DocumentElementListResponse,
   DocumentListOptions,
   DocumentListResponse,
   FileInput,
@@ -171,6 +172,21 @@ export class DocumentsResource {
     return this._client._request(
       "GET",
       `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/chunks`,
+      { params },
+    );
+  }
+
+  getElements(
+    collection: string,
+    documentId: string,
+    options?: { limit?: number; offset?: number },
+  ): Promise<DocumentElementListResponse> {
+    const params: Record<string, string> = {};
+    if (options?.limit !== undefined) params.limit = String(options.limit);
+    if (options?.offset !== undefined) params.offset = String(options.offset);
+    return this._client._request(
+      "GET",
+      `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/elements`,
       { params },
     );
   }

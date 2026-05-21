@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, NotRequired, TypedDict
 
+from .documents import MultimodalElementRef
 from .query import QueryTimings
 
 
@@ -17,6 +18,7 @@ class ChatBody(TypedDict):
     min_score: NotRequired[float | None]
     rerank: NotRequired[bool | None]
     filters: NotRequired[dict[str, Any] | None]
+    multimodal: NotRequired[bool]
     system_prompt: NotRequired[str]
     provider_api_key: NotRequired[str]
     provider_base_url: NotRequired[str | None]
@@ -32,6 +34,7 @@ class ChatSource(TypedDict):
     page_no: int | None
     char_start: int | None
     char_end: int | None
+    multimodal_elements: list[MultimodalElementRef]
     metadata: dict[str, Any]
 
 

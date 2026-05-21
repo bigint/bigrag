@@ -101,7 +101,9 @@ class BackupJobListResponse(TypedDict):
 
 
 VectorMigrationProvider = Literal["qdrant", "turbopuffer"]
-VectorMigrationJobStatus = Literal["pending", "running", "canceling", "succeeded", "failed"]
+VectorMigrationJobStatus = Literal[
+    "pending", "running", "canceling", "succeeded", "failed"
+]
 
 
 class VectorMigrationCreateBody(TypedDict):

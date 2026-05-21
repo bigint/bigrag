@@ -12,6 +12,7 @@ from bigrag.services import (
     queue_recovery,
     queue_state,
 )
+from bigrag.services.document_elements import ParsedDocument
 from bigrag.services.event_bus import IngestionEvent, event_bus
 from bigrag.services.ingestion_job import IngestionJob
 
@@ -272,7 +273,7 @@ class IngestionQueue:
             ensure_job_current=self._ensure_job_current,
         )
 
-    async def _convert_document(self, job: IngestionJob, prefix: str) -> str:
+    async def _convert_document(self, job: IngestionJob, prefix: str) -> ParsedDocument:
         return await queue_conversion.convert_document(
             job,
             prefix,
@@ -280,10 +281,15 @@ class IngestionQueue:
             ensure_job_current=self._ensure_job_current,
         )
 
-    async def _chunk_and_embed(self, job: IngestionJob, text: str, prefix: str) -> tuple[int, int]:
+    async def _chunk_and_embed(
+        self,
+        job: IngestionJob,
+        parsed: ParsedDocument,
+        prefix: str,
+    ) -> tuple[int, int]:
         return await queue_embedding.chunk_and_embed(
             job,
-            text,
+            parsed,
             prefix,
             vector_store=self._vector_store,
             emit=self._emit,

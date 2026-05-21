@@ -80,6 +80,16 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
     }
   };
 
+  const toggleMultimodal = (enabled: boolean) => {
+    form.setFieldValue("multimodalEnabled", enabled);
+    if (!enabled) form.setFieldValue("multimodalEnrichmentEnabled", false);
+  };
+
+  const toggleMultimodalEnrichment = (enabled: boolean) => {
+    form.setFieldValue("multimodalEnrichmentEnabled", enabled);
+    if (enabled) form.setFieldValue("multimodalEnabled", true);
+  };
+
   return (
     <Modal onClose={onClose} open={open} title="New collection">
       <p className="mb-4 text-sm text-muted-foreground">
@@ -257,6 +267,36 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             <span className="text-xs font-medium text-muted-foreground">Configure</span>
           </summary>
           <div className="space-y-3 border-t border-border px-3 py-3">
+            <div className="rounded-md border border-border bg-background p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold">Store document elements</div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Preserve headings, tables, equations, images, page bounds, and asset refs.
+                  </p>
+                </div>
+                <Switch
+                  aria-label="Store document elements"
+                  checked={values.multimodalEnabled}
+                  onCheckedChange={toggleMultimodal}
+                />
+              </div>
+              {values.multimodalEnabled && (
+                <div className="mt-3 flex items-start justify-between gap-3 rounded-md border border-border bg-muted/30 p-3">
+                  <div>
+                    <div className="text-sm font-semibold">VLM enrichment</div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Queue generated summaries for tables, equations, and images.
+                    </p>
+                  </div>
+                  <Switch
+                    aria-label="VLM enrichment"
+                    checked={values.multimodalEnrichmentEnabled}
+                    onCheckedChange={toggleMultimodalEnrichment}
+                  />
+                </div>
+              )}
+            </div>
             <div className="rounded-md border border-border bg-background p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>

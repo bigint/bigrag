@@ -18,6 +18,8 @@ DEFAULT_SEARCH_PAYLOAD_FIELDS: list[str] = [
     "page_no",
     "char_start",
     "char_end",
+    "content_kinds",
+    "multimodal_elements",
 ]
 
 

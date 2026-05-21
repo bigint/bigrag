@@ -82,6 +82,7 @@ client.collections.create({
   tenant_field?,            // metadata key required for tenant filtering
   metadata_schema?,         // JSON Schema
   reranking_enabled?, reranking_model?, reranking_api_key?,
+  multimodal_enabled?, multimodal_enrichment_enabled?,
   default_top_k?, default_min_score?, default_search_mode?,
   metadata?,
 })
@@ -91,6 +92,7 @@ client.collections.update(name, {
   description?, metadata?, embedding_api_key?,
   chunk_strategy?, metadata_schema?,
   reranking_enabled?, reranking_model?, reranking_api_key?,
+  multimodal_enabled?, multimodal_enrichment_enabled?,
   default_top_k?, default_min_score?, default_search_mode?,
 })
 client.collections.delete(name)
@@ -121,6 +123,7 @@ client.documents.batchGet(collection, documentIds)
 client.documents.batchDelete(collection, documentIds)
 client.documents.reprocess(collection, documentId)
 client.documents.getChunks(collection, documentId, { limit?, offset? }?)
+client.documents.getElements(collection, documentId, { limit?, offset? }?)
 client.documents.getFileUrl(collection, documentId)         // returns URL string
 
 // Global document access (without collection scope)
@@ -157,11 +160,13 @@ client.queries.query(collection, {
   top_k?, filters?, min_score?,
   search_mode?,             // "semantic" | "keyword" | "hybrid"
   rerank?,
+  multimodal?,
 })
 // Response exposes: results, query, collection, total, timings
+// Multimodal collections include result.multimodal_elements
 
 client.queries.multiQuery({
-  query, collections, top_k?, filters?, min_score?, search_mode?, rerank?
+  query, collections, top_k?, filters?, min_score?, search_mode?, rerank?, multimodal?
 })
 client.queries.batchQuery({
   queries: [{ collection, query, top_k?, search_mode? }, ...]

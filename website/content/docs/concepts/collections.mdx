@@ -15,6 +15,7 @@ When you create a collection, you define:
 - **Vector storage provider** — where vectors for this collection live (`qdrant` or `turbopuffer`)
 - **Chunk size and overlap** — how documents are split into searchable segments
 - **Default query settings** — `top_k`, `min_score`, and `search_mode` defaults
+- **Multimodal element handling** — whether ingestion stores headings, tables, equations, images, page bounds, and optional VLM summaries
 
 All documents within a collection use the same embedding model, ensuring consistent vector dimensions for search.
 
@@ -57,6 +58,8 @@ curl -X POST http://localhost:4000/v1/collections \
 | `reranking_enabled` | boolean | no | `false` | Enable reranking for this collection |
 | `reranking_model` | string | no | `"rerank-v3.5"` | Cohere reranking model |
 | `reranking_api_key` | string | no | `null` | Cohere API key |
+| `multimodal_enabled` | boolean | no | `false` | Store Docling/text-derived document elements separately from chunks |
+| `multimodal_enrichment_enabled` | boolean | no | `false` | Queue VLM summaries for image, table, and equation elements; requires `multimodal_enabled` |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
 
 For turbopuffer collections, creation validates the saved turbopuffer connection, then the provider namespace is created on the first document or vector write.
@@ -116,6 +119,12 @@ curl -X POST http://localhost:4000/v1/collections \
 
 You can override reranking per query by passing `"rerank": true` or `"rerank": false`.
 
+## Multimodal Elements
+
+Set `multimodal_enabled: true` on a collection to preserve document structure alongside chunk vectors. Ingestion stores first-class element records for headings, tables, equations, images, page numbers, bounding boxes, captions, nearby context, and asset references where available. Query and chat responses remain backward compatible; multimodal provenance appears in `multimodal_elements` when a retrieved chunk overlaps stored elements.
+
+Set `multimodal_enrichment_enabled: true` to queue asynchronous VLM summaries for image, table, and equation elements using the configured OpenAI-compatible chat provider. Core document readiness is still based on parse/chunk/embed completion; enrichment can finish later or fail independently.
+
 ## Updating a Collection
 
 You can update a collection's description, metadata, reranking settings, and default query settings:
@@ -142,6 +151,8 @@ curl -X PUT http://localhost:4000/v1/collections/research_papers \
 | `reranking_enabled` | boolean | Enable/disable reranking |
 | `reranking_model` | string | Cohere reranking model |
 | `reranking_api_key` | string | Cohere API key |
+| `multimodal_enabled` | boolean | Enable/disable element extraction for future ingestions |
+| `multimodal_enrichment_enabled` | boolean | Enable/disable asynchronous VLM element summaries |
 | `default_top_k` | integer | Default number of results (1–1,000) |
 | `default_min_score` | float | Default minimum similarity score |
 | `default_search_mode` | string | `semantic`, `keyword`, or `hybrid` |

@@ -20,6 +20,8 @@ class IngestionJob:
     vector_store_provider: str = "qdrant"
     tenant_field: str | None = None
     embedding_base_url: str | None = None
+    multimodal_enabled: bool = False
+    multimodal_enrichment_enabled: bool = False
     collection_epoch: int = 0
     document_epoch: int = 0
     attempt: int = 0
@@ -36,6 +38,8 @@ class IngestionJob:
                 "embedding_model": self.embedding_model,
                 "embedding_dimension": self.embedding_dimension,
                 "embedding_base_url": self.embedding_base_url,
+                "multimodal_enabled": self.multimodal_enabled,
+                "multimodal_enrichment_enabled": self.multimodal_enrichment_enabled,
                 "collection_epoch": self.collection_epoch,
                 "document_epoch": self.document_epoch,
                 "chunk_size": self.chunk_size,
@@ -77,4 +81,6 @@ def create_ingestion_job(
         chunk_strategy=collection.get("chunk_strategy") or "paragraph",
         vector_store_provider=collection.get("vector_store_provider") or "qdrant",
         tenant_field=collection.get("tenant_field"),
+        multimodal_enabled=bool(collection.get("multimodal_enabled")),
+        multimodal_enrichment_enabled=bool(collection.get("multimodal_enrichment_enabled")),
     )

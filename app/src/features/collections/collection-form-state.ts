@@ -4,6 +4,8 @@ export type CreateCollectionFormValues = {
   description: string;
   metadataSchemaEnabled: boolean;
   metadataSchemaText: string;
+  multimodalEnabled: boolean;
+  multimodalEnrichmentEnabled: boolean;
   name: string;
   presetId: string;
   tenantGuardEnabled: boolean;
@@ -26,6 +28,8 @@ export const defaultCreateCollectionFormValues = (): CreateCollectionFormValues 
   description: "",
   metadataSchemaEnabled: false,
   metadataSchemaText: "",
+  multimodalEnabled: false,
+  multimodalEnrichmentEnabled: false,
   name: "",
   presetId: "",
   tenantGuardEnabled: false,
@@ -59,6 +63,8 @@ export const validateCreateCollectionFormValues = ({
   chunkSize,
   metadataSchemaEnabled,
   metadataSchemaText,
+  multimodalEnabled,
+  multimodalEnrichmentEnabled,
   name,
   presetId,
   tenantGuardEnabled,
@@ -70,6 +76,9 @@ export const validateCreateCollectionFormValues = ({
     return "Name must start with a letter and use only letters, numbers, and underscores";
   }
   if (!presetId) return "Pick an embedding preset first";
+  if (multimodalEnrichmentEnabled && !multimodalEnabled) {
+    return "Enable multimodal elements before enrichment";
+  }
   if (chunkSize < 64 || chunkSize > 10000) return "Chunk size must be between 64 and 10000";
   if (chunkOverlap < 0 || chunkOverlap > 5000) return "Chunk overlap must be between 0 and 5000";
   if (chunkOverlap >= chunkSize) return "Chunk overlap must be less than chunk size";
@@ -103,6 +112,8 @@ export const createCollectionBodyFromValues = ({
   description,
   metadataSchemaEnabled,
   metadataSchemaText,
+  multimodalEnabled,
+  multimodalEnrichmentEnabled,
   name,
   presetId,
   tenantGuardEnabled,
@@ -114,6 +125,8 @@ export const createCollectionBodyFromValues = ({
   description,
   embedding_preset_id: presetId,
   metadata_schema: metadataSchemaEnabled ? parseMetadataSchema(metadataSchemaText) : undefined,
+  multimodal_enabled: multimodalEnabled,
+  multimodal_enrichment_enabled: multimodalEnrichmentEnabled,
   name: normalizeCollectionName(name),
   tenant_field: tenantGuardEnabled ? tenantField.trim() || null : null,
   vector_store_provider: vectorStoreProvider,

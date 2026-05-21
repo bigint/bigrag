@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from bigrag.models.multimodal import MultimodalElementRef
+
 
 class QueryRequest(BaseModel):
     query: str
@@ -10,6 +12,7 @@ class QueryRequest(BaseModel):
     min_score: float | None = None
     search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
     rerank: bool | None = None
+    multimodal: bool = False
 
 
 class VectorEntry(BaseModel):
@@ -47,6 +50,7 @@ class QueryResult(BaseModel):
     page_no: int | None = None
     char_start: int | None = None
     char_end: int | None = None
+    multimodal_elements: list[MultimodalElementRef] = Field(default_factory=list)
     metadata: dict = {}
 
 
@@ -75,6 +79,7 @@ class MultiQueryRequest(BaseModel):
     min_score: float | None = None
     search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
     rerank: bool | None = None
+    multimodal: bool = False
 
 
 class MultiQueryResult(BaseModel):
@@ -85,6 +90,7 @@ class MultiQueryResult(BaseModel):
     document_filename: str | None = None
     chunk_index: int | None = None
     collection: str = ""
+    multimodal_elements: list[MultimodalElementRef] = Field(default_factory=list)
     metadata: dict = {}
 
 
@@ -103,6 +109,7 @@ class BatchQueryItem(BaseModel):
     min_score: float | None = None
     search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
     rerank: bool | None = None
+    multimodal: bool = False
 
 
 class BatchQueryRequest(BaseModel):

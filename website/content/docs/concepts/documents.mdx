@@ -47,12 +47,15 @@ Regardless of ingestion method, every document goes through the same pipeline:
 1. **Store** — file is saved to the local upload directory
 2. **Queue** — document is sent to the Dramatiq Redis broker with status `pending`
 3. **Parse** — a Dramatiq worker picks up the document and extracts text directly for text PDFs or parses richer formats with Docling
-4. **Chunk** — extracted text is split into chunks based on the collection's `chunk_size` and `chunk_overlap`
-5. **Embed** — each chunk is embedded using the collection's configured embedding model
-6. **Store** — embeddings are batch-inserted into the collection's selected vector store
-7. **Ready** — document status is updated to `ready` with the chunk count
+4. **Elements** — multimodal collections store document elements such as headings, tables, equations, images, page bounds, captions, and nearby context
+5. **Chunk** — extracted text is split into chunks based on the collection's `chunk_size` and `chunk_overlap`
+6. **Embed** — each chunk is embedded using the collection's configured embedding model
+7. **Store** — embeddings are batch-inserted into the collection's selected vector store
+8. **Ready** — document status is updated to `ready` with the chunk count
 
 Workers renew processing leases while a document is active. Transient failures are rescheduled as delayed Dramatiq messages before the next attempt; exhausted jobs are marked `failed` and retained in the dead-letter list.
+
+When `multimodal_enrichment_enabled` is set on the collection, a follow-up worker job generates summaries for image, table, and equation elements. This enrichment is asynchronous and does not block the document from becoming searchable.
 
 ## Processing Status
 
@@ -105,12 +108,24 @@ The document response includes:
 |-------|------|-------------|
 | `status` | string | Current status (`pending`, `processing`, `ready`, `failed`) |
 | `chunk_count` | integer | Number of chunks currently stored for the document |
+| `multimodal_element_count` | integer | Number of stored document elements for multimodal collections |
 | `progress.step` | string | Current ingestion step (`queued`, `ocr`, `embedding`, `complete`, etc.) |
 | `progress.message` | string | Latest human-readable progress update |
 | `progress.progress` | float | Completed fraction from `0` to `1` |
 | `progress.detail` | object | Step-specific counters such as page ranges or batch numbers |
 | `error_message` | string | Failure detail when status is `failed` |
 | `updated_at` | string | Timestamp for the latest document update |
+
+## Document Elements
+
+For collections created or updated with `multimodal_enabled: true`, use:
+
+```bash
+curl "http://localhost:4000/v1/collections/research/documents/DOC_ID/elements" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY"
+```
+
+Each element includes `kind`, extracted `text`, optional `summary`, `caption`, `asset_path`, `page_no`, `bbox`, character offsets, nearby context, enrichment status, and source metadata. Existing text-only retrieval still works; the element records add provenance for query and chat clients that want richer context.
 
 ## Batch Operations
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, NotRequired, TypedDict
 
+from .documents import MultimodalElementRef
+
 
 class QueryBody(TypedDict):
     query: str
@@ -10,6 +12,7 @@ class QueryBody(TypedDict):
     min_score: NotRequired[float]
     search_mode: NotRequired[str]
     rerank: NotRequired[bool]
+    multimodal: NotRequired[bool]
 
 
 class QueryResult(TypedDict):
@@ -22,6 +25,7 @@ class QueryResult(TypedDict):
     page_no: int | None
     char_start: int | None
     char_end: int | None
+    multimodal_elements: list[MultimodalElementRef]
     metadata: dict[str, Any]
 
 
@@ -50,6 +54,7 @@ class MultiQueryBody(TypedDict):
     min_score: NotRequired[float]
     search_mode: NotRequired[str]
     rerank: NotRequired[bool]
+    multimodal: NotRequired[bool]
 
 
 class MultiQueryResult(TypedDict):
@@ -60,6 +65,7 @@ class MultiQueryResult(TypedDict):
     document_filename: str | None
     chunk_index: int | None
     collection: str
+    multimodal_elements: list[MultimodalElementRef]
     metadata: dict[str, Any]
 
 
@@ -78,6 +84,7 @@ class BatchQueryItem(TypedDict):
     min_score: NotRequired[float]
     search_mode: NotRequired[str]
     rerank: NotRequired[bool]
+    multimodal: NotRequired[bool]
 
 
 class BatchQueryBody(TypedDict):

@@ -46,6 +46,8 @@ def _serialize(c: Collection, preset: EmbeddingPreset | None = None) -> dict:
         "reranking_enabled": c.reranking_enabled,
         "reranking_model": c.reranking_model,
         "reranking_api_key": c.reranking_api_key if crypto_ready else None,
+        "multimodal_enabled": c.multimodal_enabled,
+        "multimodal_enrichment_enabled": c.multimodal_enrichment_enabled,
         "index_type": c.index_type,
         "tenant_field": c.tenant_field,
         "metadata_schema": c.metadata_schema,

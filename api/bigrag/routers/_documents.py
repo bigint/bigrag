@@ -43,6 +43,7 @@ def document_response(
         file_type=doc.file_type,
         file_size=doc.file_size,
         chunk_count=doc.chunk_count,
+        multimodal_element_count=doc.multimodal_element_count,
         status=doc.status,
         error_message=doc.error_message,
         metadata=doc.meta or {},

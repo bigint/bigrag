@@ -49,6 +49,8 @@ class CreateCollectionRequest(BaseModel):
     reranking_enabled: bool = False
     reranking_model: str = "rerank-v3.5"
     reranking_api_key: str | None = None
+    multimodal_enabled: bool = False
+    multimodal_enrichment_enabled: bool = False
     default_top_k: int = Field(default=10, ge=1, le=1000)
     default_min_score: float | None = None
     default_search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
@@ -57,6 +59,8 @@ class CreateCollectionRequest(BaseModel):
     def validate_overlap_less_than_size(self):
         if self.chunk_overlap >= self.chunk_size:
             raise ValueError("chunk_overlap must be less than chunk_size")
+        if self.multimodal_enrichment_enabled and not self.multimodal_enabled:
+            raise ValueError("multimodal_enrichment_enabled requires multimodal_enabled")
         return self
 
 
@@ -67,11 +71,19 @@ class UpdateCollectionRequest(BaseModel):
     reranking_enabled: bool | None = None
     reranking_model: str | None = None
     reranking_api_key: str | None = None
+    multimodal_enabled: bool | None = None
+    multimodal_enrichment_enabled: bool | None = None
     default_top_k: int | None = Field(default=None, ge=1, le=1000)
     default_min_score: float | None = None
     default_search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
     chunk_strategy: str | None = Field(default=None, pattern=r"^(paragraph|recursive)$")
     metadata_schema: dict | None = None
+
+    @model_validator(mode="after")
+    def validate_multimodal_enrichment(self):
+        if self.multimodal_enabled is False and self.multimodal_enrichment_enabled is True:
+            raise ValueError("multimodal_enrichment_enabled requires multimodal_enabled")
+        return self
 
 
 class CollectionResponse(BaseModel):
@@ -94,6 +106,8 @@ class CollectionResponse(BaseModel):
     reranking_enabled: bool = False
     reranking_model: str = "rerank-v3.5"
     has_reranking_api_key: bool = False
+    multimodal_enabled: bool = False
+    multimodal_enrichment_enabled: bool = False
     default_top_k: int = 10
     default_min_score: float | None = None
     default_search_mode: str = "semantic"

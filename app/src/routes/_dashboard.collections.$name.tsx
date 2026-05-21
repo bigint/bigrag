@@ -59,6 +59,7 @@ const CollectionLayout = () => {
               {collection.reranking_enabled && (
                 <Badge variant="info">rerank: {collection.reranking_model}</Badge>
               )}
+              {collection.multimodal_enabled && <Badge variant="info">multimodal</Badge>}
             </div>
           )
         }

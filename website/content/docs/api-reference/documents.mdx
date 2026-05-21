@@ -8,7 +8,7 @@ Base path: `/v1/collections/{collection_name}/documents`
 All endpoints require [authentication](/docs/api-reference/authentication). API keys need:
 
 - `document:upload` for upload, batch upload, and reprocess
-- `document:read` for list/get/download/chunks and batch get/status
+- `document:read` for list/get/download/chunks/elements and batch get/status
 - `document:delete` for delete and batch delete
 
 ## Upload Document
@@ -45,6 +45,7 @@ curl -X POST http://localhost:4000/v1/collections/research/documents \
   "file_type": "pdf",
   "file_size": 1048576,
   "chunk_count": 0,
+  "multimodal_element_count": 0,
   "status": "pending",
   "error_message": null,
   "metadata": { "author": "Smith", "year": 2026 },
@@ -85,6 +86,7 @@ GET /v1/collections/{collection_name}/documents
       "file_type": "pdf",
       "file_size": 1048576,
       "chunk_count": 24,
+      "multimodal_element_count": 6,
       "status": "ready",
       "error_message": null,
       "metadata": {},
@@ -169,6 +171,52 @@ Get chunks for a processed document.
 ```
 
 Each chunk returns `document_id` as a top-level field. `metadata` contains the remaining chunk/document payload metadata and omits fixed fields such as `text`, `chunk_index`, and `document_id`.
+
+## Get Elements
+
+```
+GET /v1/collections/{collection_name}/documents/{document_id}/elements
+```
+
+List stored multimodal document elements. This returns an empty list unless the collection had `multimodal_enabled` when the document was ingested.
+
+| Parameter | Type | Default | Constraints |
+|-----------|------|---------|-------------|
+| `limit` | integer | `100` | 1–1,000 |
+| `offset` | integer | `0` | 0+ |
+
+**Response** `200`:
+
+```json
+{
+  "elements": [
+    {
+      "id": "880e8400-e29b-41d4-a716-446655440000",
+      "document_id": "660e8400-e29b-41d4-a716-446655440000",
+      "collection_id": "550e8400-e29b-41d4-a716-446655440000",
+      "element_index": 2,
+      "kind": "table",
+      "text": "| Metric | Value |",
+      "summary": null,
+      "caption": null,
+      "asset_path": null,
+      "page_no": 1,
+      "bbox": null,
+      "char_start": 240,
+      "char_end": 410,
+      "surrounding_context": "Nearby extracted text...",
+      "metadata": { "source": "docling" },
+      "enrichment_status": "not_requested",
+      "enrichment_error": null,
+      "created_at": "2026-04-01T00:00:00Z",
+      "updated_at": "2026-04-01T00:00:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+`kind` is one of `text`, `heading`, `table`, `image`, `equation`, or `unknown`. `enrichment_status` is `not_requested`, `pending`, `ready`, or `failed`.
 
 ## Download File
 

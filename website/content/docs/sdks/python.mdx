@@ -99,6 +99,7 @@ collection = await client.collections.get("docs")
 await client.collections.update("docs", {
     "description": "Updated description",
     "embedding_api_key": None,
+    "multimodal_enabled": True,
     "default_search_mode": "hybrid",
 })
 
@@ -164,6 +165,9 @@ await client.documents.reprocess("docs", "doc-id")
 # Get chunks
 chunks = await client.documents.get_chunks("docs", "doc-id")
 
+# Get multimodal elements
+elements = await client.documents.get_elements("docs", "doc-id")
+
 # Get file download URL
 url = client.documents.get_file_url("docs", "doc-id")
 
@@ -208,6 +212,7 @@ result = await client.queries.query("docs", {
     "search_mode": "hybrid",  # "semantic", "keyword", or "hybrid"
     "min_score": 0.5,
     "rerank": True,
+    "multimodal": True,
 })
 
 # Multi-collection query

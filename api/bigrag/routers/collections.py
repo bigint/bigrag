@@ -63,6 +63,8 @@ def _collection_response(c: Collection) -> CollectionResponse:
         reranking_enabled=c.reranking_enabled,
         reranking_model=c.reranking_model,
         has_reranking_api_key=bool(c.reranking_api_key),
+        multimodal_enabled=c.multimodal_enabled,
+        multimodal_enrichment_enabled=c.multimodal_enrichment_enabled,
         default_top_k=c.default_top_k,
         default_min_score=c.default_min_score,
         default_search_mode=c.default_search_mode,
@@ -247,6 +249,8 @@ async def create_collection(
         reranking_enabled=body.reranking_enabled,
         reranking_model=body.reranking_model,
         reranking_api_key=body.reranking_api_key,
+        multimodal_enabled=body.multimodal_enabled,
+        multimodal_enrichment_enabled=body.multimodal_enrichment_enabled,
         default_top_k=body.default_top_k,
         default_min_score=body.default_min_score,
         default_search_mode=body.default_search_mode,
@@ -396,6 +400,18 @@ async def update_collection(
     if "reranking_api_key" in body.model_fields_set:
         collection.reranking_api_key = body.reranking_api_key
         fields.append("reranking_api_key")
+    if body.multimodal_enabled is not None:
+        collection.multimodal_enabled = body.multimodal_enabled
+        fields.append("multimodal_enabled")
+        if not body.multimodal_enabled and collection.multimodal_enrichment_enabled:
+            collection.multimodal_enrichment_enabled = False
+            fields.append("multimodal_enrichment_enabled")
+    if body.multimodal_enrichment_enabled is not None:
+        if body.multimodal_enrichment_enabled and not collection.multimodal_enabled:
+            collection.multimodal_enabled = True
+            fields.append("multimodal_enabled")
+        collection.multimodal_enrichment_enabled = body.multimodal_enrichment_enabled
+        fields.append("multimodal_enrichment_enabled")
     if body.default_top_k is not None:
         collection.default_top_k = body.default_top_k
         fields.append("default_top_k")

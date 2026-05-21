@@ -1,3 +1,4 @@
+import type { MultimodalElementRef } from "./documents.js";
 import type { QueryTimings } from "./query.js";
 
 export interface ChatCreateBody {
@@ -12,6 +13,7 @@ export interface ChatCreateBody {
   min_score?: number | null;
   rerank?: boolean | null;
   filters?: Record<string, unknown> | null;
+  multimodal?: boolean;
   system_prompt?: string;
   provider_api_key?: string;
   provider_base_url?: string | null;
@@ -27,6 +29,7 @@ export interface ChatSource {
   page_no?: number | null;
   char_start?: number | null;
   char_end?: number | null;
+  multimodal_elements: MultimodalElementRef[];
   metadata: Record<string, unknown>;
 }
 

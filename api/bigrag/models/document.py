@@ -22,6 +22,7 @@ class DocumentResponse(BaseModel):
     file_type: str
     file_size: int
     chunk_count: int
+    multimodal_element_count: int = 0
     status: str
     error_message: str | None = None
     metadata: dict
@@ -47,6 +48,7 @@ class DocumentStatusResponse(BaseModel):
     status: str
     error_message: str | None = None
     chunk_count: int
+    multimodal_element_count: int = 0
     progress: DocumentProgressResponse | None = None
 
 

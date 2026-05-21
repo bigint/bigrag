@@ -9,6 +9,11 @@ from pathlib import Path
 
 from bigrag.config import settings
 from bigrag.logging import get_logger
+from bigrag.services.document_elements import (
+    ParsedDocument,
+    parsed_document_from_docling_result,
+    parsed_document_from_text,
+)
 
 logger = get_logger("bigrag.conversion")
 
@@ -108,6 +113,8 @@ def _get_docling_converter(*, pdf_ocr_enabled: bool = True):
 
         pdf_opts = PdfPipelineOptions()
         pdf_opts.do_ocr = pdf_ocr_enabled
+        if hasattr(pdf_opts, "generate_picture_images"):
+            pdf_opts.generate_picture_images = True
 
         converter = DocumentConverter(
             format_options={
@@ -123,32 +130,45 @@ def _get_docling_converter(*, pdf_ocr_enabled: bool = True):
     return converter
 
 
-def _docling_result_text(result) -> str:
-    doc = getattr(result, "document", None)
-    if doc is not None:
-        for method in ("export_to_markdown", "export_to_text"):
-            fn = getattr(doc, method, None)
-            if callable(fn):
-                try:
-                    text = fn()
-                    if text:
-                        return str(text)
-                except Exception:
-                    continue
-    return str(result)
-
-
-def _convert_file_path(path: str, suffix: str, pdf_ocr_enabled: bool) -> str:
-    if suffix == ".pdf":
+def _convert_file_path(
+    path: str,
+    suffix: str,
+    pdf_ocr_enabled: bool,
+    include_elements: bool,
+    source_asset_path: str | None,
+) -> ParsedDocument:
+    if suffix == ".pdf" and not include_elements:
         text = extract_pdf_text(path)
         if text.strip() or not pdf_ocr_enabled:
-            return text
+            return parsed_document_from_text(
+                text,
+                suffix=suffix,
+                source_asset_path=source_asset_path,
+                include_elements=False,
+            )
     converter = _get_docling_converter(pdf_ocr_enabled=pdf_ocr_enabled)
-    return _docling_result_text(converter.convert(path))
+    return parsed_document_from_docling_result(
+        converter.convert(path),
+        suffix=suffix,
+        source_asset_path=source_asset_path,
+        include_elements=include_elements,
+    )
 
 
-def _pool_convert(path: str, suffix: str, pdf_ocr_enabled: bool) -> str:
-    return _convert_file_path(path, suffix, pdf_ocr_enabled)
+def _pool_convert(
+    path: str,
+    suffix: str,
+    pdf_ocr_enabled: bool,
+    include_elements: bool,
+    source_asset_path: str | None,
+) -> ParsedDocument:
+    return _convert_file_path(
+        path,
+        suffix,
+        pdf_ocr_enabled,
+        include_elements,
+        source_asset_path,
+    )
 
 
 def _pool_ocr_chunk(path: str, page_start: int, page_end: int) -> str:
@@ -213,12 +233,16 @@ async def convert_document_path_isolated(
     *,
     pdf_ocr_enabled: bool,
     timeout: int,
-) -> str:
+    include_elements: bool = False,
+    source_asset_path: str | None = None,
+) -> ParsedDocument:
     return await _convert_document_path_isolated(
         path,
         suffix,
         pdf_ocr_enabled=pdf_ocr_enabled,
         timeout=timeout,
+        include_elements=include_elements,
+        source_asset_path=source_asset_path,
     )
 
 
@@ -228,7 +252,9 @@ async def _convert_document_path_isolated(
     *,
     pdf_ocr_enabled: bool,
     timeout: int,
-) -> str:
+    include_elements: bool,
+    source_asset_path: str | None,
+) -> ParsedDocument:
     executor = await get_conversion_executor()
     semaphore = await _get_conversion_semaphore()
     loop = asyncio.get_running_loop()
@@ -239,6 +265,8 @@ async def _convert_document_path_isolated(
             path,
             suffix,
             pdf_ocr_enabled,
+            include_elements,
+            source_asset_path,
         )
         try:
             return await asyncio.wait_for(future, timeout=timeout)

@@ -12,6 +12,7 @@ from bigrag.db.models.connector import (
 from bigrag.db.models.document import (
     ChatQuestionSuggestion,
     Document,
+    DocumentElement,
     UploadSession,
     UploadSessionItem,
 )
@@ -34,6 +35,7 @@ __all__ = [
     "ConnectorSource",
     "ConnectorSyncJob",
     "Document",
+    "DocumentElement",
     "EmbeddingCache",
     "EmbeddingPreset",
     "InstanceSetting",

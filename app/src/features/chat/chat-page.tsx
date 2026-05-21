@@ -35,6 +35,7 @@ const DEFAULT_STATE: ChatState = {
   temperature: 0.2,
   searchMode: "semantic",
   rerank: false,
+  multimodal: false,
   systemPrompt: DEFAULT_SYSTEM,
 };
 
@@ -123,6 +124,7 @@ export const ChatPage = () => {
         typeof chat.temperature === "number" ? chat.temperature : DEFAULT_STATE.temperature,
       searchMode: chat.search_mode ?? DEFAULT_STATE.searchMode,
       rerank: typeof chat.rerank === "boolean" ? chat.rerank : DEFAULT_STATE.rerank,
+      multimodal: typeof chat.multimodal === "boolean" ? chat.multimodal : DEFAULT_STATE.multimodal,
       systemPrompt: chat.system_prompt ?? DEFAULT_STATE.systemPrompt,
     };
   }, [prefsQuery.data]);
@@ -136,6 +138,7 @@ export const ChatPage = () => {
       if (patch.temperature !== undefined) mapped.temperature = patch.temperature;
       if (patch.searchMode !== undefined) mapped.search_mode = patch.searchMode;
       if (patch.rerank !== undefined) mapped.rerank = patch.rerank;
+      if (patch.multimodal !== undefined) mapped.multimodal = patch.multimodal;
       if (patch.systemPrompt !== undefined) mapped.system_prompt = patch.systemPrompt;
       updatePrefs.mutate(
         { chat: mapped },
@@ -238,6 +241,7 @@ export const ChatPage = () => {
             top_k: state.topK,
             search_mode: state.searchMode,
             rerank: state.rerank,
+            multimodal: state.multimodal,
             system_prompt: state.systemPrompt,
           },
           onEvent: (event) => {
@@ -320,6 +324,7 @@ export const ChatPage = () => {
       setStreaming,
       state.hasOpenAIKey,
       state.model,
+      state.multimodal,
       state.rerank,
       state.searchMode,
       state.systemPrompt,

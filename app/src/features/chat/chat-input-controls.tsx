@@ -20,6 +20,7 @@ export type ChatState = {
   temperature: number;
   searchMode: "semantic" | "keyword" | "hybrid";
   rerank: boolean;
+  multimodal: boolean;
   systemPrompt: string;
 };
 
@@ -198,6 +199,22 @@ export const SettingsMenu = ({
         className="size-4 accent-primary"
         type="checkbox"
         onChange={(e) => onPatch({ rerank: e.target.checked })}
+      />
+    </label>
+
+    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
+      <span>
+        <span className="block text-sm font-semibold">Multimodal sources</span>
+        <span className="block text-xs text-muted-foreground">
+          Sends retrieved image content when the collection supports it.
+        </span>
+      </span>
+      <input
+        aria-label="Use multimodal sources"
+        checked={state.multimodal}
+        className="size-4 accent-primary"
+        type="checkbox"
+        onChange={(e) => onPatch({ multimodal: e.target.checked })}
       />
     </label>
 

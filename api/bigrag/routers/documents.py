@@ -6,7 +6,7 @@ from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import Document
+from bigrag.db.models import Document, DocumentElement
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
@@ -15,6 +15,7 @@ from bigrag.models.document import (
     DocumentListResponse,
     DocumentResponse,
 )
+from bigrag.models.multimodal import DocumentElementListResponse, DocumentElementResponse
 from bigrag.routers import enforce_collection_pin, ensure_embedding_or_400, get_collection_or_404
 from bigrag.routers._documents import (
     document_response,
@@ -33,6 +34,7 @@ from bigrag.routers.documents_uploads import (
     validated_upload_to_temp,
 )
 from bigrag.services import audit, collection_cache
+from bigrag.services.document_elements import element_asset_prefix_for_file_path
 from bigrag.services.documents import (
     content_hash_match,
     persist_document,
@@ -286,7 +288,9 @@ async def delete_document(
         document_id,
         provider=collection.get("vector_store_provider"),
     )
-    await get_storage().delete(file_path)
+    storage = get_storage()
+    await storage.delete(file_path)
+    await storage.delete_prefix(element_asset_prefix_for_file_path(file_path))
 
     audit.record(
         request,
@@ -383,6 +387,46 @@ async def reprocess_document(
     return StatusResponse(status="ok", message="Document reprocessing started")
 
 
+@router.get("/{document_id}/elements", response_model=DocumentElementListResponse)
+async def get_document_elements(
+    collection_name: str,
+    document_id: str,
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> DocumentElementListResponse:
+    enforce_collection_pin(user, collection_name)
+    collection = await get_collection_or_404(collection_name)
+    doc_id = uuid_or_404(document_id, "Document")
+    exists = await session.scalar(
+        sa.select(Document.id)
+        .where(Document.id == doc_id)
+        .where(Document.collection_id == collection["id"])
+    )
+    if exists is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    total = await session.scalar(
+        sa.select(sa.func.count())
+        .select_from(DocumentElement)
+        .where(DocumentElement.document_id == doc_id)
+    )
+    rows = (
+        await session.scalars(
+            sa.select(DocumentElement)
+            .where(DocumentElement.document_id == doc_id)
+            .order_by(DocumentElement.element_index.asc())
+            .limit(limit)
+            .offset(offset)
+        )
+    ).all()
+    return DocumentElementListResponse(
+        elements=[_document_element_response(row) for row in rows],
+        total=total or 0,
+    )
+
+
 @router.get("/{document_id}/chunks", response_model=dict[str, object])
 async def get_document_chunks(
     collection_name: str,
@@ -430,3 +474,27 @@ async def download_document_file(
         raise HTTPException(status_code=404, detail="Document not found")
 
     return await document_file_response(doc, get_storage())
+
+
+def _document_element_response(row: DocumentElement) -> DocumentElementResponse:
+    return DocumentElementResponse(
+        id=str(row.id),
+        document_id=str(row.document_id),
+        collection_id=str(row.collection_id),
+        element_index=row.element_index,
+        kind=row.kind,
+        text=row.text,
+        summary=row.summary,
+        caption=row.caption,
+        asset_path=row.asset_path,
+        page_no=row.page_no,
+        bbox=row.bbox,
+        char_start=row.char_start,
+        char_end=row.char_end,
+        surrounding_context=row.surrounding_context,
+        metadata=row.meta or {},
+        enrichment_status=row.enrichment_status,
+        enrichment_error=row.enrichment_error,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )

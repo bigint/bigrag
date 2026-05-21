@@ -11,6 +11,7 @@ type ChatPrefs = {
   system_prompt?: string;
   search_mode?: "semantic" | "keyword" | "hybrid";
   rerank?: boolean;
+  multimodal?: boolean;
 };
 
 type Preferences = {

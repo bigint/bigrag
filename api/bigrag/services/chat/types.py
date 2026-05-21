@@ -16,7 +16,7 @@ class ProviderCredential:
 class PreparedChatTurn:
     collection: str
     user_message: ChatMessageResponse
-    model_messages: list[dict[str, str]]
+    model_messages: list[dict[str, Any]]
     sources: list[ChatSource]
     timings: ChatTimings
     retrieval: dict[str, Any]

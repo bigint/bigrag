@@ -23,6 +23,8 @@ _ENDPOINT_SCOPES: list[tuple[str, str, str]] = [
     ("GET", "/v1/collections/{name}/upload-sessions", "document:read"),
     ("POST", "/v1/collections/{name}/documents", "document:upload"),
     ("GET", "/v1/collections/{name}/documents", "document:read"),
+    ("GET", "/v1/collections/{name}/documents/{id}/elements", "document:read"),
+    ("GET", "/v1/collections/{name}/documents/{id}/chunks", "document:read"),
     ("DELETE", "/v1/collections/{name}/documents", "document:delete"),
     ("POST", "/v1/collections/{name}/reembed", "collection:write"),
     ("POST", "/v1/collections/{name}/truncate", "collection:delete"),

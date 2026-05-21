@@ -15,6 +15,7 @@ from bigrag.services.connectors.types import (
     ConnectorSyncCounters,
     DownloadedConnectorFile,
 )
+from bigrag.services.document_elements import element_asset_prefix_for_file_path
 from bigrag.services.documents import prepare_document_metadata
 from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.file_validation import validate_upload
@@ -157,7 +158,9 @@ async def delete_synced_document(
             str(doc.id),
             provider=collection.vector_store_provider,
         )
-        await get_storage().delete(doc.file_path)
+        storage = get_storage()
+        await storage.delete(doc.file_path)
+        await storage.delete_prefix(element_asset_prefix_for_file_path(doc.file_path))
         await session.delete(doc)
     await session.delete(manifest)
     counters.deleted += 1

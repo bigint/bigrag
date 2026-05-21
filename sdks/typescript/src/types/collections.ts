@@ -18,6 +18,8 @@ export interface Collection {
   reranking_enabled: boolean;
   reranking_model: string;
   has_reranking_api_key: boolean;
+  multimodal_enabled: boolean;
+  multimodal_enrichment_enabled: boolean;
   default_top_k: number;
   default_min_score: number | null;
   default_search_mode: string;
@@ -67,6 +69,8 @@ export interface CreateCollectionBody {
   reranking_enabled?: boolean;
   reranking_model?: string;
   reranking_api_key?: string;
+  multimodal_enabled?: boolean;
+  multimodal_enrichment_enabled?: boolean;
   default_top_k?: number;
   default_min_score?: number;
   default_search_mode?: "semantic" | "keyword" | "hybrid";
@@ -79,6 +83,8 @@ export interface UpdateCollectionBody {
   reranking_enabled?: boolean;
   reranking_model?: string;
   reranking_api_key?: string | null;
+  multimodal_enabled?: boolean;
+  multimodal_enrichment_enabled?: boolean;
   default_top_k?: number;
   default_min_score?: number;
   default_search_mode?: "semantic" | "keyword" | "hybrid";

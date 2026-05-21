@@ -61,6 +61,8 @@ type CreateCollectionBody = {
   reranking_enabled?: boolean;
   reranking_model?: string;
   reranking_api_key?: string | null;
+  multimodal_enabled?: boolean;
+  multimodal_enrichment_enabled?: boolean;
   default_top_k?: number;
   default_search_mode?: "semantic" | "keyword" | "hybrid";
   metadata?: Record<string, unknown>;

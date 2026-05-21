@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from bigrag.models.multimodal import MultimodalElementRef
+
 ChatRole = Literal["user", "assistant", "system"]
 ChatProvider = Literal["openai", "openai_compatible"]
 ChatSearchMode = Literal["semantic", "keyword", "hybrid"]
@@ -22,6 +24,7 @@ class ChatCreateRequest(BaseModel):
     min_score: float | None = None
     rerank: bool | None = None
     filters: dict | None = None
+    multimodal: bool = False
     system_prompt: str | None = Field(default=None, max_length=20_000)
     provider_api_key: str | None = Field(default=None, max_length=10_000)
     provider_base_url: str | None = Field(default=None, max_length=2_000)
@@ -50,6 +53,7 @@ class ChatSource(BaseModel):
     page_no: int | None = None
     char_start: int | None = None
     char_end: int | None = None
+    multimodal_elements: list[MultimodalElementRef] = Field(default_factory=list)
     metadata: dict = Field(default_factory=dict)
 
 

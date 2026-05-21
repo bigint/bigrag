@@ -66,10 +66,67 @@ def _minimal_pdf() -> bytes:
     return buf.getvalue()
 
 
+def _multimodal_pdf() -> bytes:
+    objects: list[bytes] = []
+
+    def obj(num: int, body: bytes) -> bytes:
+        return f"{num} 0 obj\n".encode() + body + b"\nendobj\n"
+
+    catalog = b"<< /Type /Catalog /Pages 2 0 R >>"
+    pages = b"<< /Type /Pages /Count 1 /Kids [3 0 R] >>"
+    page = (
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+        b"/Contents 5 0 R /Resources << /Font << /F1 4 0 R >> >> >>"
+    )
+    font = b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
+    stream = b"\n".join(
+        [
+            b"BT /F1 16 Tf 72 720 Td 22 TL",
+            b"(Multimodal sample report) Tj T*",
+            b"(| Metric | Value |) Tj T*",
+            b"(| Revenue | 42 |) Tj T*",
+            b"(E = mc^2) Tj T*",
+            b"(Figure: simple red block) Tj",
+            b"ET",
+            b"0.8 0.1 0.1 rg",
+            b"72 560 120 80 re f",
+        ]
+    )
+    content = f"<< /Length {len(stream)} >>\nstream\n".encode() + stream + b"\nendstream"
+
+    objects.extend(
+        [
+            obj(1, catalog),
+            obj(2, pages),
+            obj(3, page),
+            obj(4, font),
+            obj(5, content),
+        ]
+    )
+
+    buf = io.BytesIO()
+    buf.write(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets: list[int] = []
+    for raw in objects:
+        offsets.append(buf.tell())
+        buf.write(raw)
+    xref_pos = buf.tell()
+    buf.write(f"xref\n0 {len(objects) + 1}\n".encode())
+    buf.write(b"0000000000 65535 f \n")
+    for off in offsets:
+        buf.write(f"{off:010d} 00000 n \n".encode())
+    buf.write(
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+        f"startxref\n{xref_pos}\n%%EOF\n".encode()
+    )
+    return buf.getvalue()
+
+
 _DOCX_CONTENT_TYPES = (
     b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
     b'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-    b'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+    b'<Default Extension="rels" '
+    b'ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
     b'<Default Extension="xml" ContentType="application/xml"/>'
     b'<Override PartName="/word/document.xml" '
     b'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
@@ -121,16 +178,14 @@ def _minimal_png(width: int = 16, height: int = 16) -> bytes:
         raw += b"\x00" + b"\x4f\x97\xb3" * width  # filter byte + RGB pixels
     idat = zlib.compress(raw, 9)
     return (
-        signature
-        + _png_chunk(b"IHDR", ihdr)
-        + _png_chunk(b"IDAT", idat)
-        + _png_chunk(b"IEND", b"")
+        signature + _png_chunk(b"IHDR", ihdr) + _png_chunk(b"IDAT", idat) + _png_chunk(b"IEND", b"")
     )
 
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "sample.pdf").write_bytes(_minimal_pdf())
+    (OUT / "sample_multimodal.pdf").write_bytes(_multimodal_pdf())
     (OUT / "sample.docx").write_bytes(_minimal_docx())
     (OUT / "sample.png").write_bytes(_minimal_png())
     print("wrote", OUT)

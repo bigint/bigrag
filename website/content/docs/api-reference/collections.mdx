@@ -46,6 +46,8 @@ GET /v1/collections
       "reranking_enabled": false,
       "reranking_model": "rerank-v3.5",
       "has_reranking_api_key": false,
+      "multimodal_enabled": false,
+      "multimodal_enrichment_enabled": false,
       "default_top_k": 10,
       "default_min_score": null,
       "default_search_mode": "semantic",
@@ -85,6 +87,8 @@ POST /v1/collections
     "required": ["tenant_id"]
   },
   "reranking_enabled": true,
+  "multimodal_enabled": true,
+  "multimodal_enrichment_enabled": false,
   "default_top_k": 10,
   "default_min_score": 0.3,
   "default_search_mode": "hybrid",
@@ -115,6 +119,8 @@ POST /v1/collections
 | `reranking_enabled` | boolean | no | `false` | Re-rank results with Cohere cross-encoder |
 | `reranking_model` | string | no | `"rerank-v3.5"` | Cohere reranking model |
 | `reranking_api_key` | string | no | — | Cohere API key |
+| `multimodal_enabled` | boolean | no | `false` | Store first-class document elements and chunk provenance for future ingestions |
+| `multimodal_enrichment_enabled` | boolean | no | `false` | Queue VLM summaries for images, tables, and equations; requires `multimodal_enabled` |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
 
 **Response** `201`: Full collection object.
@@ -172,6 +178,8 @@ Only the fields below are mutable. Embedding provider / model / dimension, chunk
 | `reranking_enabled` | boolean | — |
 | `reranking_model` | string | — |
 | `reranking_api_key` | string | — |
+| `multimodal_enabled` | boolean | Disabling it also disables enrichment for future ingestions |
+| `multimodal_enrichment_enabled` | boolean | Enabling it also enables `multimodal_enabled` |
 | `default_top_k` | integer | 1–1,000 |
 | `default_min_score` | float | — |
 | `default_search_mode` | string | `semantic`, `keyword`, `hybrid` |

@@ -31,6 +31,8 @@ type SearchMode = "semantic" | "keyword" | "hybrid";
 type CollectionSettingsDraftSetters = {
   readonly setAllowedTypes: (types: Set<string>) => void;
   readonly setDescription: (description: string) => void;
+  readonly setMultimodalEnabled: (enabled: boolean) => void;
+  readonly setMultimodalEnrichmentEnabled: (enabled: boolean) => void;
   readonly setRerankingEnabled: (enabled: boolean) => void;
   readonly setSearchMode: (mode: SearchMode) => void;
   readonly setTopK: (topK: number) => void;
@@ -49,6 +51,8 @@ const CollectionSettings = () => {
   const [topK, setTopK] = useState(10);
   const [searchMode, setSearchMode] = useState<SearchMode>("semantic");
   const [rerankingEnabled, setRerankingEnabled] = useState(false);
+  const [multimodalEnabled, setMultimodalEnabled] = useState(false);
+  const [multimodalEnrichmentEnabled, setMultimodalEnrichmentEnabled] = useState(false);
   const [embeddingKeyDraft, setEmbeddingKeyDraft] = useState("");
   const [allowedTypes, setAllowedTypes] = useState<Set<string>>(new Set(ALL_FILE_TYPES));
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -58,6 +62,8 @@ const CollectionSettings = () => {
   useCollectionSettingsDraft(collection, {
     setAllowedTypes,
     setDescription,
+    setMultimodalEnabled,
+    setMultimodalEnrichmentEnabled,
     setRerankingEnabled,
     setSearchMode,
     setTopK,
@@ -127,6 +133,27 @@ const CollectionSettings = () => {
     }
   };
 
+  const saveMultimodal = async () => {
+    try {
+      await update.mutateAsync({
+        multimodal_enabled: multimodalEnabled,
+        multimodal_enrichment_enabled: multimodalEnrichmentEnabled,
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    }
+  };
+
+  const toggleMultimodal = (enabled: boolean) => {
+    setMultimodalEnabled(enabled);
+    if (!enabled) setMultimodalEnrichmentEnabled(false);
+  };
+
+  const toggleMultimodalEnrichment = (enabled: boolean) => {
+    setMultimodalEnrichmentEnabled(enabled);
+    if (enabled) setMultimodalEnabled(true);
+  };
+
   const saveEmbeddingKey = async () => {
     const trimmed = embeddingKeyDraft.trim();
     if (!trimmed) return;
@@ -169,6 +196,9 @@ const CollectionSettings = () => {
     topK !== collection.default_top_k ||
     searchMode !== collection.default_search_mode ||
     rerankingEnabled !== collection.reranking_enabled;
+  const multimodalDirty =
+    multimodalEnabled !== collection.multimodal_enabled ||
+    multimodalEnrichmentEnabled !== collection.multimodal_enrichment_enabled;
   const fileTypesDirty = fileTypesDraft.join(",") !== initialTypes.join(",");
   const embeddingKeyStatus = collection.has_api_key
     ? collection.embedding_preset_id
@@ -324,6 +354,32 @@ const CollectionSettings = () => {
 
       <Card>
         <CardHeader>
+          <CardTitle>Document elements</CardTitle>
+          <CardDescription>
+            Preserve structure and optional VLM summaries for multimodal retrieval.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <Switch
+            label="Store document elements"
+            checked={multimodalEnabled}
+            onCheckedChange={toggleMultimodal}
+          />
+          <Switch
+            label="VLM enrichment"
+            checked={multimodalEnrichmentEnabled}
+            onCheckedChange={toggleMultimodalEnrichment}
+          />
+          <div>
+            <Button onClick={saveMultimodal} disabled={update.isPending || !multimodalDirty}>
+              Save document elements
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ArrowRightLeft className="size-4" />
             Vector migration
@@ -406,6 +462,8 @@ const useCollectionSettingsDraft = (
   {
     setAllowedTypes,
     setDescription,
+    setMultimodalEnabled,
+    setMultimodalEnrichmentEnabled,
     setRerankingEnabled,
     setSearchMode,
     setTopK,
@@ -417,7 +475,18 @@ const useCollectionSettingsDraft = (
     setTopK(collection.default_top_k);
     setSearchMode(collection.default_search_mode);
     setRerankingEnabled(collection.reranking_enabled);
+    setMultimodalEnabled(collection.multimodal_enabled);
+    setMultimodalEnrichmentEnabled(collection.multimodal_enrichment_enabled);
     const stored = getAllowedFileTypes(collection.metadata);
     setAllowedTypes(new Set(stored.length ? stored : ALL_FILE_TYPES));
-  }, [collection, setAllowedTypes, setDescription, setRerankingEnabled, setSearchMode, setTopK]);
+  }, [
+    collection,
+    setAllowedTypes,
+    setDescription,
+    setMultimodalEnabled,
+    setMultimodalEnrichmentEnabled,
+    setRerankingEnabled,
+    setSearchMode,
+    setTopK,
+  ]);
 };

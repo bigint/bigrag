@@ -20,6 +20,7 @@ class Document(TypedDict):
     file_type: str
     file_size: int
     chunk_count: int
+    multimodal_element_count: int
     status: str
     error_message: str | None
     metadata: dict[str, Any]
@@ -48,11 +49,52 @@ class DocumentChunkListResponse(TypedDict):
     total: int
 
 
+class MultimodalElementRef(TypedDict):
+    document_id: str | None
+    element_index: int
+    kind: str
+    text: str
+    summary: str | None
+    caption: str | None
+    asset_path: str | None
+    page_no: int | None
+    bbox: dict[str, Any] | list[Any] | None
+    metadata: dict[str, Any]
+
+
+class DocumentElement(TypedDict):
+    id: str
+    document_id: str
+    collection_id: str
+    element_index: int
+    kind: str
+    text: str
+    summary: str | None
+    caption: str | None
+    asset_path: str | None
+    page_no: int | None
+    bbox: dict[str, Any] | list[Any] | None
+    char_start: int | None
+    char_end: int | None
+    surrounding_context: str | None
+    metadata: dict[str, Any]
+    enrichment_status: str
+    enrichment_error: str | None
+    created_at: str
+    updated_at: str
+
+
+class DocumentElementListResponse(TypedDict):
+    elements: list[DocumentElement]
+    total: int
+
+
 class DocumentStatus(TypedDict):
     id: str
     status: str
     error_message: str | None
     chunk_count: int
+    multimodal_element_count: int
     progress: DocumentProgress | None
 
 

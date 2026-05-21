@@ -6,6 +6,7 @@ from pathlib import Path
 
 from bigrag.logging import get_logger
 from bigrag.services.conversion import convert_document_path_isolated
+from bigrag.services.document_elements import ParsedDocument, parsed_document_from_text
 from bigrag.services.ingestion_job import IngestionJob
 from bigrag.services.queue_conversion.pdf_ocr import ocr_scanned_pdf
 
@@ -20,7 +21,7 @@ async def convert_document(
     *,
     emit,
     ensure_job_current,
-) -> str:
+) -> ParsedDocument:
     import tempfile
 
     from bigrag.services.runtime_settings import get_values
@@ -41,6 +42,7 @@ async def convert_document(
     pdf_ocr_enabled = runtime["conversion_pdf_ocr_enabled"]
     suffix = Path(job.file_path).suffix.lower()
     storage = get_storage()
+    include_elements = job.multimodal_enabled or job.multimodal_enrichment_enabled
 
     def _make_tmp() -> str:
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -80,6 +82,12 @@ async def convert_document(
             text = await asyncio.to_thread(_read_text)
             if not text.strip():
                 raise ValueError("Document produced no extractable text")
+            parsed = parsed_document_from_text(
+                text,
+                suffix=suffix,
+                source_asset_path=job.file_path,
+                include_elements=include_elements,
+            )
             elapsed = time.monotonic() - t0
             logger.info("plain text read", prefix=prefix, elapsed=round(elapsed, 2))
             emit(
@@ -91,7 +99,7 @@ async def convert_document(
                 collection_name=job.collection_name,
                 chars=len(text),
             )
-            return text
+            return parsed
 
         logger.info(
             "isolated converter start",
@@ -102,15 +110,17 @@ async def convert_document(
         )
         if suffix == ".pdf":
             try:
-                text = await convert_document_path_isolated(
+                parsed = await convert_document_path_isolated(
                     tmp_path,
                     suffix,
                     pdf_ocr_enabled=False,
                     timeout=conversion_timeout,
+                    include_elements=include_elements,
+                    source_asset_path=job.file_path,
                 )
             except TimeoutError as e:
                 raise ValueError(str(e)) from e
-            if text.strip() or not pdf_ocr_enabled:
+            if parsed.text.strip() or not pdf_ocr_enabled:
                 elapsed = time.monotonic() - t0
                 logger.info(
                     "pdf text conversion complete", prefix=prefix, elapsed=round(elapsed, 2)
@@ -124,20 +134,20 @@ async def convert_document(
                     collection_name=job.collection_name,
                     elapsed=round(elapsed, 2),
                 )
-                if not text.strip():
+                if not parsed.text.strip():
                     raise ValueError("Document produced no extractable text")
-                logger.info("text extracted", prefix=prefix, chars=len(text))
+                logger.info("text extracted", prefix=prefix, chars=len(parsed.text))
                 emit(
                     job.document_id,
                     "text_extracted",
                     "processing",
-                    f"Extracted {len(text):,} characters",
+                    f"Extracted {len(parsed.text):,} characters",
                     0.40,
                     collection_name=job.collection_name,
-                    chars=len(text),
+                    chars=len(parsed.text),
                 )
-                return text
-            return await ocr_scanned_pdf(
+                return parsed
+            text = await ocr_scanned_pdf(
                 tmp_path=tmp_path,
                 suffix=suffix,
                 job=job,
@@ -146,13 +156,21 @@ async def convert_document(
                 emit=emit,
                 ensure_job_current=ensure_job_current,
             )
+            return parsed_document_from_text(
+                text,
+                suffix=suffix,
+                source_asset_path=job.file_path,
+                include_elements=include_elements,
+            )
 
         try:
-            text = await convert_document_path_isolated(
+            parsed = await convert_document_path_isolated(
                 tmp_path,
                 suffix,
                 pdf_ocr_enabled=pdf_ocr_enabled,
                 timeout=conversion_timeout,
+                include_elements=include_elements,
+                source_asset_path=job.file_path,
             )
         except TimeoutError as e:
             raise ValueError(str(e)) from e
@@ -169,19 +187,19 @@ async def convert_document(
             elapsed=round(elapsed, 2),
         )
 
-        if not text.strip():
+        if not parsed.text.strip():
             raise ValueError("Document produced no extractable text")
 
-        logger.info("text extracted", prefix=prefix, chars=len(text))
+        logger.info("text extracted", prefix=prefix, chars=len(parsed.text))
         emit(
             job.document_id,
             "text_extracted",
             "processing",
-            f"Extracted {len(text):,} characters",
+            f"Extracted {len(parsed.text):,} characters",
             0.40,
             collection_name=job.collection_name,
-            chars=len(text),
+            chars=len(parsed.text),
         )
-        return text
+        return parsed
     finally:
         await asyncio.to_thread(Path(tmp_path).unlink, True)

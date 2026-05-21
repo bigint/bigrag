@@ -8,7 +8,7 @@ import sqlalchemy as sa
 
 from bigrag.db.base import Base
 from bigrag.db.engine import session_factory
-from bigrag.db.models import Collection, Document, EmbeddingCache
+from bigrag.db.models import Collection, Document, DocumentElement, EmbeddingCache
 from bigrag.logging import get_logger
 from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
@@ -115,13 +115,23 @@ def _point_payload(point: Any) -> dict[str, Any]:
 async def _export_uploads(temp_dir: Path) -> int:
     storage = get_storage()
     async with session_factory()() as session:
-        paths = await session.stream_scalars(
-            sa.select(Document.file_path)
-            .where(Document.file_path != "")
-            .order_by(Document.collection_id.asc(), Document.id.asc())
-        )
+        document_paths = (
+            await session.scalars(
+                sa.select(Document.file_path)
+                .where(Document.file_path != "")
+                .order_by(Document.collection_id.asc(), Document.id.asc())
+            )
+        ).all()
+        asset_paths = (
+            await session.scalars(
+                sa.select(DocumentElement.asset_path)
+                .where(DocumentElement.asset_path.is_not(None))
+                .order_by(DocumentElement.collection_id.asc(), DocumentElement.document_id.asc())
+            )
+        ).all()
+        paths = sorted({path for path in [*document_paths, *asset_paths] if path})
         count = 0
-        async for file_path in paths:
+        for file_path in paths:
             rel = Path(file_path)
             if rel.is_absolute() or ".." in rel.parts:
                 raise ValueError(f"unsafe document file_path: {file_path}")

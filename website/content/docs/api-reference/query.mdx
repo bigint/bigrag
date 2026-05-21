@@ -22,7 +22,8 @@ Perform a search against a collection. The query is embedded with the collection
   "filters": { "author": "Smith", "year": { "$gte": 2024 } },
   "min_score": 0.5,
   "search_mode": "hybrid",
-  "rerank": true
+  "rerank": true,
+  "multimodal": true
 }
 ```
 
@@ -34,6 +35,7 @@ Perform a search against a collection. The query is embedded with the collection
 | `min_score` | float | no | Collection default | Drop results below this score |
 | `search_mode` | string | no | Collection default | `semantic`, `keyword`, or `hybrid` |
 | `rerank` | boolean | no | Collection setting | Force Cohere reranking on/off for this query |
+| `multimodal` | boolean | no | `false` | Request multimodal provenance when the collection has stored elements |
 
 **Response** `200`:
 
@@ -50,6 +52,20 @@ Perform a search against a collection. The query is embedded with the collection
       "page_no": 5,
       "char_start": 1820,
       "char_end": 2310,
+      "multimodal_elements": [
+        {
+          "document_id": "660e8400-e29b-41d4-a716-446655440000",
+          "element_index": 4,
+          "kind": "table",
+          "text": "| Metric | Value |",
+          "summary": null,
+          "caption": null,
+          "asset_path": null,
+          "page_no": 5,
+          "bbox": null,
+          "metadata": { "source": "docling" }
+        }
+      ],
       "metadata": { "author": "Smith" }
     }
   ],
@@ -81,6 +97,7 @@ Perform a search against a collection. The query is embedded with the collection
 | `results[].page_no` | integer? | Source page number when Docling surfaced one (PDF, DOCX, PPTX). `null` for plain-text formats. |
 | `results[].char_start` | integer? | Inclusive character offset of the chunk inside the source document. |
 | `results[].char_end` | integer? | Exclusive character offset of the chunk inside the source document. |
+| `results[].multimodal_elements` | array | Overlapping element refs for multimodal collections, including kind, text/summary, caption, page, bbox, and asset path when available |
 | `results[].metadata` | object | Chunk + document metadata merged |
 | `timings` | object | Per-stage latency in milliseconds, plus `cache_hit` for reused query-result cache entries |
 

@@ -11,6 +11,7 @@ from bigrag.db.engine import session_factory
 from bigrag.db.models import Document
 from bigrag.logging import get_logger
 from bigrag.services import queue_embedding, queue_state
+from bigrag.services.document_elements import replace_document_elements
 from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.event_bus import event_bus
 from bigrag.services.ingestion_job import IngestionJob
@@ -73,10 +74,19 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             )
         )
 
-        text = await queue._convert_document(job, prefix)
+        parsed = await queue._convert_document(job, prefix)
         await queue._ensure_job_current(job)
-        total_inserted, total_expected = await queue._chunk_and_embed(job, text, prefix)
-        token_count = len(text) // 4
+        async with session_factory()() as session:
+            element_count = await replace_document_elements(
+                session,
+                document_id=doc_uuid,
+                elements=parsed.elements,
+                enrichment_enabled=job.multimodal_enrichment_enabled,
+            )
+            await session.commit()
+
+        total_inserted, total_expected = await queue._chunk_and_embed(job, parsed, prefix)
+        token_count = len(parsed.text) // 4
 
         if total_inserted == 0:
             raise RuntimeError(f"All {total_expected} chunk batches failed embedding/insert")
@@ -95,6 +105,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
                     status="ready",
                     chunk_count=total_inserted,
                     token_count=token_count,
+                    multimodal_element_count=element_count,
                     error_message=partial_msg,
                 )
             )
@@ -103,6 +114,10 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
         from bigrag.services.retrieval import invalidate_collection_query_cache
 
         await invalidate_collection_query_cache(job.collection_name)
+        if job.multimodal_enrichment_enabled and element_count > 0:
+            from bigrag.services.jobs.actors import enqueue_multimodal_enrichment
+
+            enqueue_multimodal_enrichment(job.document_id)
         total_elapsed = time.monotonic() - start_time
         await queue._redis.hincrby(queue_state.STATS_KEY, "completed", 1)
         await queue._redis.hincrby(queue_state.STATS_KEY, "processing", -1)

@@ -51,6 +51,9 @@ class Document(Base):
     token_count: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("0")
     )
+    multimodal_element_count: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
     content_hash: Mapped[str | None] = mapped_column(sa.Text)
     status: Mapped[str] = mapped_column(
         sa.Text,
@@ -61,6 +64,52 @@ class Document(Base):
     meta: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
     )
+    created_at: Mapped[TS]
+    updated_at: Mapped[TSupd]
+
+
+class DocumentElement(Base):
+    __tablename__ = "document_elements"
+    __table_args__ = (
+        sa.CheckConstraint(
+            "kind IN ('text', 'heading', 'table', 'image', 'equation', 'unknown')",
+            name="document_elements_kind_check",
+        ),
+        sa.CheckConstraint(
+            "enrichment_status IN ('not_requested', 'pending', 'ready', 'failed')",
+            name="document_elements_enrichment_status_check",
+        ),
+        sa.UniqueConstraint("document_id", "element_index", name="uq_document_elements_index"),
+        sa.Index("idx_document_elements_document", "document_id", "element_index"),
+        sa.Index("idx_document_elements_collection_kind", "collection_id", "kind"),
+        sa.Index("idx_document_elements_enrichment", "enrichment_status"),
+    )
+
+    id: Mapped[UUIDpk]
+    document_id: Mapped[UUID] = mapped_column(
+        sa.ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
+    )
+    collection_id: Mapped[UUID] = mapped_column(
+        sa.ForeignKey("collections.id", ondelete="CASCADE"), nullable=False
+    )
+    element_index: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    text: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
+    summary: Mapped[str | None] = mapped_column(sa.Text)
+    caption: Mapped[str | None] = mapped_column(sa.Text)
+    asset_path: Mapped[str | None] = mapped_column(sa.Text)
+    page_no: Mapped[int | None] = mapped_column(sa.Integer)
+    bbox: Mapped[dict | list | None] = mapped_column(JSONB)
+    char_start: Mapped[int | None] = mapped_column(sa.Integer)
+    char_end: Mapped[int | None] = mapped_column(sa.Integer)
+    surrounding_context: Mapped[str | None] = mapped_column(sa.Text)
+    meta: Mapped[dict] = mapped_column(
+        "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
+    )
+    enrichment_status: Mapped[str] = mapped_column(
+        sa.Text, nullable=False, server_default="not_requested"
+    )
+    enrichment_error: Mapped[str | None] = mapped_column(sa.Text)
     created_at: Mapped[TS]
     updated_at: Mapped[TSupd]
 

@@ -15,6 +15,7 @@ export interface Document {
   file_type: string;
   file_size: number;
   chunk_count: number;
+  multimodal_element_count: number;
   status: string;
   error_message: string | null;
   metadata: Record<string, unknown>;
@@ -53,11 +54,43 @@ export interface DocumentChunkListResponse {
   total: number;
 }
 
+export interface MultimodalElementRef {
+  document_id: string | null;
+  element_index: number;
+  kind: string;
+  text: string;
+  summary: string | null;
+  caption: string | null;
+  asset_path: string | null;
+  page_no: number | null;
+  bbox: Record<string, unknown> | unknown[] | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface DocumentElement extends MultimodalElementRef {
+  id: string;
+  document_id: string;
+  collection_id: string;
+  char_start: number | null;
+  char_end: number | null;
+  surrounding_context: string | null;
+  enrichment_status: "not_requested" | "pending" | "ready" | "failed" | string;
+  enrichment_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentElementListResponse {
+  elements: DocumentElement[];
+  total: number;
+}
+
 export interface DocumentStatus {
   id: string;
   status: string;
   error_message: string | null;
   chunk_count: number;
+  multimodal_element_count: number;
   progress: DocumentProgress | null;
 }
 

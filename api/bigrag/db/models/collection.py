@@ -69,6 +69,12 @@ class Collection(Base):
         sa.Text, nullable=False, server_default="rerank-v3.5"
     )
     reranking_api_key: Mapped[str | None] = mapped_column(EncryptedString)
+    multimodal_enabled: Mapped[bool] = mapped_column(
+        sa.Boolean, nullable=False, server_default=sa.false()
+    )
+    multimodal_enrichment_enabled: Mapped[bool] = mapped_column(
+        sa.Boolean, nullable=False, server_default=sa.false()
+    )
     index_type: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="HNSW")
     tenant_field: Mapped[str | None] = mapped_column(sa.Text)
     metadata_schema: Mapped[dict | None] = mapped_column(JSONB)

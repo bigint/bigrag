@@ -1,3 +1,5 @@
+import type { MultimodalElementRef } from "./documents.js";
+
 export interface QueryBody {
   query: string;
   top_k?: number;
@@ -5,6 +7,7 @@ export interface QueryBody {
   min_score?: number;
   search_mode?: "semantic" | "keyword" | "hybrid";
   rerank?: boolean;
+  multimodal?: boolean;
 }
 
 export interface QueryResult {
@@ -17,6 +20,7 @@ export interface QueryResult {
   page_no?: number | null;
   char_start?: number | null;
   char_end?: number | null;
+  multimodal_elements: MultimodalElementRef[];
   metadata: Record<string, unknown>;
 }
 
@@ -45,6 +49,7 @@ export interface MultiQueryBody {
   min_score?: number;
   search_mode?: "semantic" | "keyword" | "hybrid";
   rerank?: boolean;
+  multimodal?: boolean;
 }
 
 export interface MultiQueryResult {
@@ -55,6 +60,7 @@ export interface MultiQueryResult {
   document_filename: string | null;
   chunk_index: number | null;
   collection: string;
+  multimodal_elements: MultimodalElementRef[];
   metadata: Record<string, unknown>;
 }
 
@@ -73,6 +79,7 @@ export interface BatchQueryItem {
   min_score?: number;
   search_mode?: "semantic" | "keyword" | "hybrid";
   rerank?: boolean;
+  multimodal?: boolean;
 }
 
 export interface BatchQueryBody {

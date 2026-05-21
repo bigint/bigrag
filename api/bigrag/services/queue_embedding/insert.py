@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import time
+from typing import Any
 
 from bigrag.logging import get_logger
+from bigrag.services.document_elements import ParsedDocument, element_refs_for_chunk
 from bigrag.services.embedding_rate_limit import (
     MAX_RATE_LIMIT_RETRIES,
     is_rate_limit_error,
@@ -20,7 +22,7 @@ logger = get_logger("bigrag.queue")
 
 async def chunk_and_embed(
     job: IngestionJob,
-    text: str,
+    parsed: ParsedDocument | str,
     prefix: str,
     *,
     vector_store,
@@ -36,6 +38,9 @@ async def chunk_and_embed(
     if vector_store is None:
         from bigrag.services.vector_store import vector_store
 
+    text = parsed.text if isinstance(parsed, ParsedDocument) else parsed
+    elements = parsed.elements if isinstance(parsed, ParsedDocument) else []
+    include_elements = job.multimodal_enabled or job.multimodal_enrichment_enabled
     t0 = time.monotonic()
     logger.info("loading collection config", prefix=prefix, collection=job.collection_name)
     collection = await get_collection_or_404(job.collection_name)
@@ -208,9 +213,24 @@ async def chunk_and_embed(
                 ids = [f"{doc}_{i}" for i in range(batch_start, batch_end)]
                 doc_ids = [doc] * len(batch_texts)
                 indices = list(range(batch_start, batch_end))
-                metadata = [
-                    {"char_start": c.char_start, "char_end": c.char_end} for c in batch_chunks
-                ]
+                metadata = []
+                for chunk_offset, c in enumerate(batch_chunks):
+                    item: dict[str, Any] = {"char_start": c.char_start, "char_end": c.char_end}
+                    refs = (
+                        element_refs_for_chunk(
+                            elements,
+                            document_id=doc,
+                            chunk_start=c.char_start,
+                            chunk_end=c.char_end,
+                            chunk_index=batch_start + chunk_offset,
+                        )
+                        if include_elements
+                        else []
+                    )
+                    if refs:
+                        item["multimodal_elements"] = refs
+                        item["content_kinds"] = sorted({ref["kind"] for ref in refs})
+                    metadata.append(item)
                 logger.info(
                     "batch vector insert start",
                     prefix=prefix,

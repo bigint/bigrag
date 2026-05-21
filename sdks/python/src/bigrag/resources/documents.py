@@ -12,6 +12,7 @@ from bigrag.types.documents import (
     BatchStatusResponse,
     Document,
     DocumentChunkListResponse,
+    DocumentElementListResponse,
     DocumentListResponse,
     UploadSession,
     UploadSessionFileResponse,
@@ -204,6 +205,25 @@ class DocumentsResource:
         return await self._client._request(
             "GET",
             f"{_doc_path(collection, document_id)}/chunks",
+            params=params,
+        )
+
+    async def get_elements(
+        self,
+        collection: str,
+        document_id: str,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> DocumentElementListResponse:
+        params: dict[str, str] = {}
+        if limit is not None:
+            params["limit"] = str(limit)
+        if offset is not None:
+            params["offset"] = str(offset)
+        return await self._client._request(
+            "GET",
+            f"{_doc_path(collection, document_id)}/elements",
             params=params,
         )
 

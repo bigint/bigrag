@@ -274,6 +274,15 @@ def upgrade() -> None:
         ),
         sa.Column("reranking_model", sa.Text(), server_default="rerank-v3.5", nullable=False),
         sa.Column("reranking_api_key", bigrag.services.crypto.EncryptedString(), nullable=True),
+        sa.Column(
+            "multimodal_enabled", sa.Boolean(), server_default=sa.text("false"), nullable=False
+        ),
+        sa.Column(
+            "multimodal_enrichment_enabled",
+            sa.Boolean(),
+            server_default=sa.text("false"),
+            nullable=False,
+        ),
         sa.Column("index_type", sa.Text(), server_default="HNSW", nullable=False),
         sa.Column("tenant_field", sa.Text(), nullable=True),
         sa.Column("metadata_schema", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
@@ -721,6 +730,12 @@ def upgrade() -> None:
         sa.Column("file_path", sa.Text(), server_default="", nullable=False),
         sa.Column("chunk_count", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("token_count", sa.Integer(), server_default=sa.text("0"), nullable=False),
+        sa.Column(
+            "multimodal_element_count",
+            sa.Integer(),
+            server_default=sa.text("0"),
+            nullable=False,
+        ),
         sa.Column("content_hash", sa.Text(), nullable=True),
         sa.Column("status", sa.Text(), server_default="pending", nullable=False),
         sa.Column("error_message", sa.Text(), nullable=True),
@@ -766,6 +781,78 @@ def upgrade() -> None:
     )
     op.create_index("idx_documents_created_at", "documents", ["created_at"], unique=False)
     op.create_index("idx_documents_status", "documents", ["status"], unique=False)
+    op.create_table(
+        "document_elements",
+        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("document_id", sa.Uuid(), nullable=False),
+        sa.Column("collection_id", sa.Uuid(), nullable=False),
+        sa.Column("element_index", sa.Integer(), nullable=False),
+        sa.Column("kind", sa.Text(), nullable=False),
+        sa.Column("text", sa.Text(), server_default="", nullable=False),
+        sa.Column("summary", sa.Text(), nullable=True),
+        sa.Column("caption", sa.Text(), nullable=True),
+        sa.Column("asset_path", sa.Text(), nullable=True),
+        sa.Column("page_no", sa.Integer(), nullable=True),
+        sa.Column("bbox", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("char_start", sa.Integer(), nullable=True),
+        sa.Column("char_end", sa.Integer(), nullable=True),
+        sa.Column("surrounding_context", sa.Text(), nullable=True),
+        sa.Column(
+            "metadata",
+            postgresql.JSONB(astext_type=sa.Text()),
+            server_default=sa.text("'{}'::jsonb"),
+            nullable=False,
+        ),
+        sa.Column(
+            "enrichment_status",
+            sa.Text(),
+            server_default="not_requested",
+            nullable=False,
+        ),
+        sa.Column("enrichment_error", sa.Text(), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "kind IN ('text', 'heading', 'table', 'image', 'equation', 'unknown')",
+            name="document_elements_kind_check",
+        ),
+        sa.CheckConstraint(
+            "enrichment_status IN ('not_requested', 'pending', 'ready', 'failed')",
+            name="document_elements_enrichment_status_check",
+        ),
+        sa.ForeignKeyConstraint(["collection_id"], ["collections.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["document_id"], ["documents.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("document_id", "element_index", name="uq_document_elements_index"),
+    )
+    op.create_index(
+        "idx_document_elements_collection_kind",
+        "document_elements",
+        ["collection_id", "kind"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_document_elements_document",
+        "document_elements",
+        ["document_id", "element_index"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_document_elements_enrichment",
+        "document_elements",
+        ["enrichment_status"],
+        unique=False,
+    )
     op.create_table(
         "query_log",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -1131,6 +1218,10 @@ def downgrade() -> None:
     op.drop_index("idx_query_log_collection_id", table_name="query_log")
     op.drop_index("idx_query_log_collection", table_name="query_log")
     op.drop_table("query_log")
+    op.drop_index("idx_document_elements_enrichment", table_name="document_elements")
+    op.drop_index("idx_document_elements_document", table_name="document_elements")
+    op.drop_index("idx_document_elements_collection_kind", table_name="document_elements")
+    op.drop_table("document_elements")
     op.drop_index("idx_documents_status", table_name="documents")
     op.drop_index("idx_documents_created_at", table_name="documents")
     op.drop_index("idx_documents_collection_status_created_at", table_name="documents")

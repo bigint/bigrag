@@ -41,6 +41,18 @@ def enqueue_ingestion_job(job: IngestionJob, *, delay_seconds: int = 0) -> None:
     )
 
 
+def enqueue_multimodal_enrichment(
+    document_id: str,
+    *,
+    delay_seconds: int = 0,
+    attempt: int = 0,
+) -> None:
+    process_multimodal_enrichment.send_with_options(
+        args=(document_id, attempt),
+        delay=max(0, int(delay_seconds)) * 1000 if delay_seconds else None,
+    )
+
+
 def enqueue_webhook_outbox(*, delivery_id: str | None = None, delay_seconds: int = 0) -> None:
     process_webhook_outbox.send_with_options(
         kwargs={"delivery_id": delivery_id},
@@ -102,6 +114,41 @@ async def _process_ingestion_job(payload: str) -> None:
         enqueue_ingestion_job(job, delay_seconds=10)
         return
     await queue.ingestion_queue.process_leased_job("dramatiq", job)
+
+
+@dramatiq.actor(queue_name=INGESTION_QUEUE, max_retries=0, broker=broker)
+def process_multimodal_enrichment(document_id: str, attempt: int = 0) -> None:
+    _run(_process_multimodal_enrichment, document_id, attempt)
+
+
+async def _process_multimodal_enrichment(document_id: str, attempt: int = 0) -> None:
+    await ensure_worker_runtime()
+    from bigrag.services.multimodal_enrichment import (
+        enrich_document_elements,
+        mark_document_enrichment_failed,
+    )
+
+    try:
+        enriched = await enrich_document_elements(document_id)
+        logger.info("multimodal enrichment complete", doc=document_id, enriched=enriched)
+    except Exception as exc:
+        if attempt < 3:
+            delay = min(2 ** (attempt + 1), 30)
+            logger.warning(
+                "multimodal enrichment retrying",
+                doc=document_id,
+                attempt=attempt,
+                delay=delay,
+                error=repr(exc),
+            )
+            enqueue_multimodal_enrichment(
+                document_id,
+                delay_seconds=delay,
+                attempt=attempt + 1,
+            )
+            return
+        await mark_document_enrichment_failed(document_id, str(exc))
+        logger.error("multimodal enrichment failed", doc=document_id, error=repr(exc))
 
 
 @dramatiq.actor(queue_name=CONNECTORS_QUEUE, max_retries=0, broker=broker)

@@ -105,8 +105,12 @@ async def query_collection(
         total_ms=outcome.total_ms,
     )
     results = await _results_with_document_filenames(outcome.results)
+    include_multimodal = bool(body.multimodal and collection.get("multimodal_enabled"))
     response = QueryResponse(
-        results=[QueryResult(**_result_to_dict(r)) for r in results],
+        results=[
+            QueryResult(**_result_to_dict(r, include_multimodal=include_multimodal))
+            for r in results
+        ],
         query=body.query,
         collection=collection_name,
         total=len(outcome.results),
@@ -137,13 +141,21 @@ async def query_collection(
     return response
 
 
-def _result_to_dict(row: dict) -> dict:
+def _result_to_dict(row: dict, *, include_multimodal: bool) -> dict:
 
     cleaned = {k: v for k, v in row.items() if k != "embedding"}
     metadata = cleaned.get("metadata") or {}
     for field_name in ("page_no", "char_start", "char_end", "document_filename"):
         if field_name in metadata and field_name not in cleaned:
             cleaned[field_name] = metadata[field_name]
+    if (
+        include_multimodal
+        and "multimodal_elements" in metadata
+        and "multimodal_elements" not in cleaned
+    ):
+        cleaned["multimodal_elements"] = metadata["multimodal_elements"]
+    if not include_multimodal and isinstance(metadata, dict):
+        cleaned["metadata"] = {k: v for k, v in metadata.items() if k != "multimodal_elements"}
     return cleaned
 
 
@@ -214,6 +226,10 @@ async def multi_collection_query(
             raise HTTPException(status_code=400, detail=f"Collection '{col_name}': {e}") from e
         reranking_configs[col_name] = get_reranking_config(collection)
         vector_store_providers[col_name] = collection.get("vector_store_provider") or "qdrant"
+    include_multimodal_by_collection = {
+        col_name: bool(body.multimodal and collection.get("multimodal_enabled"))
+        for col_name, collection in zip(body.collections, resolved_collections, strict=True)
+    }
 
     results = await retrieve_multi(
         collection_names=body.collections,
@@ -238,7 +254,18 @@ async def multi_collection_query(
     )
     results_with_filenames = await _results_with_document_filenames(results)
     return MultiQueryResponse(
-        results=[MultiQueryResult(**_result_to_dict(r)) for r in results_with_filenames],
+        results=[
+            MultiQueryResult(
+                **_result_to_dict(
+                    r,
+                    include_multimodal=include_multimodal_by_collection.get(
+                        str(r.get("collection")),
+                        False,
+                    ),
+                )
+            )
+            for r in results_with_filenames
+        ],
         query=body.query,
         collections=body.collections,
         total=len(results),
@@ -267,7 +294,7 @@ async def batch_query(
 
     batch_semaphore = asyncio.Semaphore(8)
 
-    async def run_one(item: BatchQueryItem) -> tuple[BatchQueryItem, list[dict], int]:
+    async def run_one(item: BatchQueryItem) -> tuple[BatchQueryItem, list[dict], int, bool]:
         async with batch_semaphore:
             collection = await get_collection_or_404(item.collection)
             require_tenant_filters(collection, item.filters)
@@ -290,23 +317,31 @@ async def batch_query(
                 vector_store_provider=collection.get("vector_store_provider"),
             )
 
-            return item, outcome.results, len(outcome.results)
+            include_multimodal = bool(item.multimodal and collection.get("multimodal_enabled"))
+            return item, outcome.results, len(outcome.results), include_multimodal
 
     raw_results = await asyncio.gather(*[run_one(item) for item in body.queries])
     flat_rows = []
     row_counts = []
-    for _, rows, _ in raw_results:
+    for _, rows, _, _ in raw_results:
         row_counts.append(len(rows))
         flat_rows.extend(rows)
     enriched_rows = await _results_with_document_filenames(flat_rows)
     results = []
     cursor = 0
-    for (item, _, total), row_count in zip(raw_results, row_counts, strict=True):
+    for (item, _, total, include_multimodal), row_count in zip(
+        raw_results,
+        row_counts,
+        strict=True,
+    ):
         rows = enriched_rows[cursor : cursor + row_count]
         cursor += row_count
         results.append(
             BatchQueryResultItem(
-                results=[QueryResult(**_result_to_dict(r)) for r in rows],
+                results=[
+                    QueryResult(**_result_to_dict(r, include_multimodal=include_multimodal))
+                    for r in rows
+                ],
                 query=item.query,
                 collection=item.collection,
                 total=total,

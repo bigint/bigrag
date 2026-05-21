@@ -23,6 +23,8 @@ class Collection(TypedDict):
     reranking_enabled: bool
     reranking_model: str
     has_reranking_api_key: bool
+    multimodal_enabled: bool
+    multimodal_enrichment_enabled: bool
     default_top_k: int
     default_min_score: float | None
     default_search_mode: str
@@ -65,6 +67,8 @@ class CreateCollectionBody(TypedDict):
     reranking_enabled: NotRequired[bool]
     reranking_model: NotRequired[str]
     reranking_api_key: NotRequired[str]
+    multimodal_enabled: NotRequired[bool]
+    multimodal_enrichment_enabled: NotRequired[bool]
     default_top_k: NotRequired[int]
     default_min_score: NotRequired[float]
     default_search_mode: NotRequired[str]
@@ -77,6 +81,8 @@ class UpdateCollectionBody(TypedDict, total=False):
     reranking_enabled: bool
     reranking_model: str
     reranking_api_key: str | None
+    multimodal_enabled: bool
+    multimodal_enrichment_enabled: bool
     default_top_k: int
     default_min_score: float
     default_search_mode: str

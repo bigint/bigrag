@@ -36,6 +36,7 @@ from bigrag.types.documents import (
     BatchStatusResponse,
     Document,
     DocumentChunkListResponse,
+    DocumentElementListResponse,
     DocumentListResponse,
     UploadSession,
     UploadSessionFileResponse,
@@ -212,6 +213,17 @@ class CollectionClient:
         offset: int | None = None,
     ) -> DocumentChunkListResponse:
         return await self._client.documents.get_chunks(
+            self._name, document_id, limit=limit, offset=offset
+        )
+
+    async def get_document_elements(
+        self,
+        document_id: str,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> DocumentElementListResponse:
+        return await self._client.documents.get_elements(
             self._name, document_id, limit=limit, offset=offset
         )
 
