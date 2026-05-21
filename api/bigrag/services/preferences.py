@@ -45,14 +45,22 @@ async def _validate_sensitive(data: dict) -> None:
     if not isinstance(value, str):
         raise HTTPException(status_code=422, detail="OpenAI API key must be a string.")
 
+    from bigrag.services.runtime_settings import get_values
+
+    runtime = await get_values(["chat_provider", "chat_base_url"])
     try:
-        await verify_provider_credentials("openai", value, None)
+        await verify_provider_credentials(
+            runtime["chat_provider"],
+            value,
+            runtime["chat_base_url"],
+            url_purpose="chat",
+        )
     except CredentialCheckError as exc:
         raise HTTPException(
             status_code=422,
             detail=(
-                "OpenAI rejected this API key. Create a fresh key from the OpenAI API "
-                "keys page and try again."
+                "Chat provider rejected this API key. Check the configured chat "
+                "provider and base URL, then try again."
             ),
         ) from exc
 

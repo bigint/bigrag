@@ -110,11 +110,11 @@ Realtime pages only evaluate terminal-state predicates after the first snapshot 
 
 ## Chat specifics
 
-The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, and citations happen on the backend, but chat messages and conversations are not persisted anywhere. The saved OpenAI key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
+The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, and citations happen on the backend, but chat messages and conversations are not persisted anywhere. The saved chat provider key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
 
 Playground answers render safe CommonMark/GFM Markdown, including emphasis, lists, task lists, code, blockquotes, links, and tables. Raw HTML is not enabled, and source citations remain clickable inside rendered Markdown.
 
-The empty chat screen no longer shows generic default prompts. After a collection is selected, operators can generate five random starter questions using the saved chat/OpenAI key. The backend samples that collection's ready documents and chunks, saves the latest generated set for the collection, and returns that saved set after reloads.
+The empty chat screen no longer shows generic default prompts. After a collection is selected, operators can generate five random starter questions using the saved chat provider key. The backend samples that collection's ready documents and chunks, saves the latest generated set for the collection, and returns that saved set after reloads.
 
 ### Citations
 

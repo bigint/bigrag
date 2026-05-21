@@ -12,9 +12,14 @@ from bigrag.models.chat import ChatCreateRequest
 from bigrag.services import crypto
 from bigrag.services.chat.types import ProviderCredential
 from bigrag.services.preferences import decrypt_preferences
-from bigrag.services.url_security import UnsafeOutboundUrlError, validate_chat_base_url
+from bigrag.services.url_security import (
+    UnsafeOutboundUrlError,
+    normalize_url_root,
+    validate_chat_base_url,
+)
 
 _PROVIDERS = {"openai", "openai_compatible"}
+_DEFAULT_OPENAI_CHAT_BASE_URL = "https://api.openai.com/v1"
 
 
 def _resolve_provider(provider: str | None, default_provider: str | None = "openai") -> str:
@@ -83,26 +88,29 @@ def assert_credentials_allowed_for_base_url(
     base_url: str | None,
     *,
     request_base_url: str | None,
-    provider: str | None = None,
 ) -> None:
-    if request_base_url is not None and any(
-        cred.source == "instance chat key" for cred in credentials
-    ):
+    has_instance_key = _has_instance_chat_key(credentials)
+    if request_base_url is not None and has_instance_key:
         raise ValidationError(
             "provider_base_url requires provider_api_key or a saved chat key; "
             "the instance chat key cannot be sent to a custom base URL."
         )
-    if provider == "openai_compatible":
-        return
-    if (
-        base_url is not None
-        and not base_url.rstrip("/").startswith("https://api.openai.com")
-        and any(cred.source == "instance chat key" for cred in credentials)
-    ):
+    if base_url is not None and not _is_default_openai_chat_base_url(base_url) and has_instance_key:
         raise ValidationError(
             "The instance chat key cannot be sent to a non-default chat base URL; "
             "save a chat key in Chat settings or pass provider_api_key."
         )
+
+
+def _has_instance_chat_key(credentials: list[ProviderCredential]) -> bool:
+    return any(cred.source == "instance chat key" for cred in credentials)
+
+
+def _is_default_openai_chat_base_url(base_url: str) -> bool:
+    try:
+        return normalize_url_root(base_url) == _DEFAULT_OPENAI_CHAT_BASE_URL
+    except UnsafeOutboundUrlError:
+        return False
 
 
 async def _clear_saved_chat_key(session: AsyncSession, user: dict) -> None:

@@ -7,6 +7,7 @@ import httpx
 from bigrag.logging import get_logger
 from bigrag.services.url_security import (
     UnsafeOutboundUrlError,
+    pin_chat_base_url,
     pin_embedding_base_url,
     pinned_async_client,
 )
@@ -14,6 +15,7 @@ from bigrag.services.url_security import (
 logger = get_logger("bigrag.services.credential_check")
 
 Provider = Literal["openai", "openai_compatible", "cohere", "voyage"]
+CredentialCheckPurpose = Literal["embedding", "chat"]
 
 _DEFAULT_BASE_URLS: dict[str, str] = {
     "openai": "https://api.openai.com/v1",
@@ -36,17 +38,18 @@ async def verify_provider_credentials(
     *,
     model: str | None = None,
     timeout_seconds: float = 5.0,
+    url_purpose: CredentialCheckPurpose = "embedding",
 ) -> None:
 
     if provider == "openai_compatible" and not base_url:
         raise CredentialCheckError(
             "MISSING_BASE_URL",
-            "base_url is required for OpenAI-compatible embedding providers.",
+            "base_url is required for OpenAI-compatible providers.",
         )
     if provider == "voyage":
-        await _verify_voyage(api_key, base_url, model, timeout_seconds)
+        await _verify_voyage(api_key, base_url, model, timeout_seconds, url_purpose)
         return
-    await _verify_via_models_listing(provider, api_key, base_url, timeout_seconds)
+    await _verify_via_models_listing(provider, api_key, base_url, timeout_seconds, url_purpose)
 
 
 async def _verify_via_models_listing(
@@ -54,10 +57,11 @@ async def _verify_via_models_listing(
     api_key: str,
     base_url: str | None,
     timeout_seconds: float,
+    url_purpose: CredentialCheckPurpose,
 ) -> None:
     effective = base_url or _DEFAULT_BASE_URLS[provider]
     try:
-        pinned = await pin_embedding_base_url(effective)
+        pinned = await _pin_base_url(effective, url_purpose)
     except UnsafeOutboundUrlError as exc:
         raise CredentialCheckError("UNSAFE_BASE_URL", str(exc)) from exc
     url = f"{pinned.normalized_url.rstrip('/')}/models"
@@ -110,10 +114,11 @@ async def _verify_voyage(
     base_url: str | None,
     model: str | None,
     timeout_seconds: float,
+    url_purpose: CredentialCheckPurpose,
 ) -> None:
     effective = base_url or _DEFAULT_BASE_URLS["voyage"]
     try:
-        pinned = await pin_embedding_base_url(effective)
+        pinned = await _pin_base_url(effective, url_purpose)
     except UnsafeOutboundUrlError as exc:
         raise CredentialCheckError("UNSAFE_BASE_URL", str(exc)) from exc
     url = f"{pinned.normalized_url.rstrip('/')}/embeddings"
@@ -161,6 +166,12 @@ async def _verify_voyage(
     raise CredentialCheckError(
         "PROVIDER_ERROR", f"Voyage returned {status}{f': {detail}' if detail else '.'}"
     )
+
+
+async def _pin_base_url(base_url: str, purpose: CredentialCheckPurpose):
+    if purpose == "chat":
+        return await pin_chat_base_url(base_url)
+    return await pin_embedding_base_url(base_url)
 
 
 def _voyage_error_detail(response: httpx.Response) -> str:

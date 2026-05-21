@@ -164,15 +164,11 @@ PY
 
 ## Known limitations
 
-Two bigRAG behaviors bypass the fake servers because they have hardcoded
-upstream URLs. They're called out so test coverage of the relevant happy
-paths is "best effort" rather than full:
+One bigRAG behavior bypasses the fake servers because it has hardcoded
+upstream URLs. It's called out so test coverage of the relevant happy path is
+"best effort" rather than full:
 
-1. **`POST /v1/auth/preferences`** with key `chat.openai_key` validates the
-   value against `api.openai.com` (provider literal is `"openai"`, not
-   `"openai_compatible"`). `test_preferences.py` round-trips other keys to
-   avoid this network call.
-2. **Google Drive connector OAuth flow** (`api/bigrag/services/connectors/`)
+1. **Google Drive connector OAuth flow** (`api/bigrag/services/connectors/`)
    has hardcoded `accounts.google.com` / `googleapis.com` URLs.
    `test_connectors.py` covers CRUD, start-URL shape, and OAuth callback
    error paths; the full token-exchange happy path is skipped.

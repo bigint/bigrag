@@ -9,6 +9,8 @@ The chat API retrieves chunks from a collection, builds the grounded prompt on t
 
 Supported providers are `openai` and `openai_compatible`. Save the provider key in the admin UI at `chat.openai_key`. API clients can also pass `provider_api_key` per request when they do not want to use the user's saved key.
 
+`BIGRAG_CHAT_API_KEY` is an instance-level fallback for the default OpenAI chat endpoint only. If `chat_base_url` or request `provider_base_url` points to a non-default OpenAI-compatible endpoint, chat requests must use a saved chat key or `provider_api_key`; the instance fallback key is rejected before any provider call.
+
 ## Question Suggestions
 
 ```
@@ -16,7 +18,7 @@ GET /v1/chat/question-suggestions?collection=handbook
 POST /v1/chat/question-suggestions
 ```
 
-`GET` returns the last generated starter-question set for the collection, or an empty set when none has been generated. `POST` uses the saved chat/OpenAI key from the current user's preferences, samples ready documents and chunks from the selected collection, asks the configured chat model for exactly five questions, persists that set for the collection, and returns it.
+`GET` returns the last generated starter-question set for the collection, or an empty set when none has been generated. `POST` uses the saved chat/OpenAI key from the current user's preferences or the instance fallback when the default OpenAI endpoint is in use. With a non-default chat base URL, question generation requires a saved chat key because it cannot accept a per-request provider key.
 
 POST body:
 

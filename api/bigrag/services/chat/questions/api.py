@@ -64,7 +64,6 @@ async def generate_question_suggestions(
         credentials,
         base_url,
         request_base_url=None,
-        provider=runtime["chat_provider"],
     )
     documents = await _sample_documents(session, collection["id"])
     chunks = await _sample_chunks(collection_name, collection, documents)

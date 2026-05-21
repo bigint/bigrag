@@ -80,6 +80,8 @@ The same surface is available through [`/v1/admin/settings`](/docs/api-reference
 | Vector Storage (`/vector-storage`) | Provider tabs for Qdrant URL, readiness behavior, and HNSW tuning or turbopuffer API key, region, and namespace prefix. |
 | Backups | S3-compatible readable backup bucket, endpoint, region, prefix, and credentials for S3, R2, or MinIO. |
 
+`BIGRAG_CHAT_API_KEY` can seed a default instance chat credential for OpenAI's standard API endpoint. For non-default `chat_base_url` values, configure a saved chat key in the admin UI or pass `provider_api_key` on chat requests so the instance fallback key is never sent to a custom provider.
+
 The UI uses the same compact top tab control and shared dashboard body width as the other admin pages for Account, Health, Security, and Data, then opens directly into the selected Settings area without a repeated section heading. Each area is arranged sequentially from top to bottom. Each runtime panel shows common controls first, keeps raw setting keys, source metadata, and rarely changed limits in Advanced controls, keeps Save in the panel footer, and uses default or example placeholders for empty controls. Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, and `/settings?tab=data`; file storage lives at `/data-storage`.
 
 Database-backed admin settings apply immediately on save. Storage, backup, and vector-store connection changes validate the new target before saving, then swap the runtime client in place where applicable.

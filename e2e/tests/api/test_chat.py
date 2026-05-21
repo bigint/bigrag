@@ -11,7 +11,6 @@ import json
 from typing import Any
 
 import httpx
-import pytest
 
 from tests._helpers import (
     ApiKeyClientFactory,
@@ -120,6 +119,27 @@ async def test_chat_unknown_collection_returns_404(
         },
     )
     assert resp.status_code == 404, resp.text
+
+
+async def test_chat_rejects_instance_key_for_custom_runtime_base_url(
+    temp_member_client: httpx.AsyncClient,
+    admin_client: httpx.AsyncClient,
+    collection: CollectionFactory,
+    document: DocumentFactory,
+) -> None:
+    coll = await seed_collection(collection, document, fixtures=("sample.txt",))
+    await wait_until_searchable(admin_client, coll["name"], "Acme", top_k=3)
+
+    resp = await temp_member_client.post(
+        "/v1/chat",
+        json={
+            "collection": coll["name"],
+            "message": "hello",
+            "stream": False,
+        },
+    )
+    assert resp.status_code == 400, resp.text
+    assert "instance chat key cannot be sent to a non-default chat base URL" in resp.text
 
 
 async def test_chat_api_key_without_chat_write_scope_403(

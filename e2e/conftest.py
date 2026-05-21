@@ -149,10 +149,14 @@ async def _bootstrap_e2e_runtime_settings() -> None:
         )
         if resp.status_code not in (200, 204):
             return
-        await client.put(
+        pref_resp = await client.put(
             "/v1/auth/preferences",
             json={"data": {"chat": {"openai_key": "e2e-fake-key"}}},
         )
+        if pref_resp.status_code not in (200, 204):
+            raise RuntimeError(
+                f"failed to seed e2e chat key: {pref_resp.status_code} {pref_resp.text}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -240,6 +244,48 @@ async def admin_client(
             for k, v in _ADMIN_COOKIE_CACHE.items():
                 client.cookies.set(k, v)
         yield client
+
+
+@pytest_asyncio.fixture
+async def temp_member_client(
+    admin_client: httpx.AsyncClient,
+    unauth_client: httpx.AsyncClient,
+) -> AsyncIterator[httpx.AsyncClient]:
+    email = f"{unique_name('e2e-member')}@example.com"
+    password = "e2e-member-password-9!"
+    resp = await admin_client.post(
+        "/v1/admin/users",
+        json={
+            "email": email,
+            "password": password,
+            "role": "member",
+            "display_name": unique_name("member"),
+        },
+    )
+    body = assert_envelope(resp, 201)
+    user_id = body["id"]
+
+    member_client = httpx.AsyncClient(
+        base_url=str(unauth_client.base_url),
+        timeout=DEFAULT_TIMEOUT,
+        follow_redirects=True,
+        headers=_origin_headers(),
+    )
+    login = await member_client.post(
+        "/v1/auth/login",
+        json={"email": email, "password": password},
+        headers=_origin_headers(),
+    )
+    assert login.status_code == 200, login.text
+
+    try:
+        yield member_client
+    finally:
+        await member_client.aclose()
+        try:
+            await admin_client.delete(f"/v1/admin/users/{user_id}")
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------

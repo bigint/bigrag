@@ -4,12 +4,8 @@ Endpoints covered (bigrag.routers.chat):
 - GET  /v1/chat/question-suggestions?collection=...
 - POST /v1/chat/question-suggestions
 
-NOTE: The fake-openai stub returns a single sentence rather than the strict
-``{"questions":[...]}`` JSON the suggestion generator requires, so the
-POST happy-path resolves to ``502`` (UpstreamError) in this environment.
-The tests below exercise every observable code path; if/when the fake is
-upgraded to return a JSON object, the POST test should be expanded to
-assert ``200`` + persisted round-trip.
+The fake-openai stub returns strict ``{"questions":[...]}`` JSON for question
+generation so the POST happy path can assert persistence round-trips.
 """
 
 from __future__ import annotations
@@ -106,18 +102,28 @@ async def test_post_question_suggestions_unknown_collection_404(
     assert resp.status_code == 404, resp.text
 
 
-async def test_post_question_suggestions_round_trip_or_upstream_error(
+async def test_post_question_suggestions_rejects_instance_key_for_custom_runtime_base_url(
+    temp_member_client: httpx.AsyncClient,
     admin_client: httpx.AsyncClient,
     collection: CollectionFactory,
     document: DocumentFactory,
 ) -> None:
-    """When ready docs exist the endpoint either:
+    coll = await seed_collection(collection, document, fixtures=("sample.txt",))
+    await wait_until_searchable(admin_client, coll["name"], "Acme", top_k=3)
 
-    * returns 200 + 5 persisted questions (GET round-trips them), or
-    * returns 502 because the fake-openai stub doesn't emit JSON.
+    resp = await temp_member_client.post(
+        "/v1/chat/question-suggestions",
+        json={"collection": coll["name"]},
+    )
+    assert resp.status_code == 400, resp.text
+    assert "instance chat key cannot be sent to a non-default chat base URL" in resp.text
 
-    Both outcomes confirm the auth/scope/collection plumbing is wired.
-    """
+
+async def test_post_question_suggestions_round_trip(
+    admin_client: httpx.AsyncClient,
+    collection: CollectionFactory,
+    document: DocumentFactory,
+) -> None:
     coll = await seed_collection(collection, document, fixtures=("sample.txt",))
     await wait_until_searchable(admin_client, coll["name"], "Acme", top_k=3)
 
@@ -125,23 +131,20 @@ async def test_post_question_suggestions_round_trip_or_upstream_error(
         "/v1/chat/question-suggestions",
         json={"collection": coll["name"]},
     )
-    assert post.status_code in (200, 502), post.text
+    body = assert_envelope(post, 200)
+    assert body["collection"] == coll["name"]
+    assert isinstance(body["questions"], list)
+    assert len(body["questions"]) > 0
+    assert body["generated_at"] is not None
+    assert body["model"]
 
-    if post.status_code == 200:
-        body = post.json()
-        assert body["collection"] == coll["name"]
-        assert isinstance(body["questions"], list)
-        assert len(body["questions"]) > 0
-        assert body["generated_at"] is not None
-        assert body["model"]
-
-        get_resp = await admin_client.get(
-            "/v1/chat/question-suggestions",
-            params={"collection": coll["name"]},
-        )
-        get_body = assert_envelope(get_resp, 200)
-        assert get_body["questions"] == body["questions"]
-        assert get_body["model"] == body["model"]
+    get_resp = await admin_client.get(
+        "/v1/chat/question-suggestions",
+        params={"collection": coll["name"]},
+    )
+    get_body = assert_envelope(get_resp, 200)
+    assert get_body["questions"] == body["questions"]
+    assert get_body["model"] == body["model"]
 
 
 async def test_question_suggestions_independent_across_collections(
