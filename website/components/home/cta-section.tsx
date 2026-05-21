@@ -7,11 +7,11 @@ export const CtaSection = () => (
       <div className="flex flex-col items-center rounded-xl border border-fd-border bg-fd-card p-10 text-center shadow-sm md:p-16">
         <Server className="mb-6 size-10 text-fd-muted-foreground" />
         <h2 className="mb-3 text-3xl font-bold tracking-tight text-fd-foreground md:text-4xl">
-          Deploy on your infrastructure
+          Deploy bigRAG with Turbopuffer search
         </h2>
         <p className="mb-8 max-w-lg text-fd-muted-foreground md:text-lg">
-          Your documents, embeddings, and search data never leave your servers. One command to get
-          started.
+          Run the API, admin UI, Postgres, and Redis yourself, then connect Turbopuffer for managed
+          vector and full-text retrieval.
         </p>
         <div className="mb-8 w-full max-w-md overflow-hidden rounded-lg border border-fd-border bg-fd-background shadow-sm">
           <pre className="px-5 py-4 text-left text-sm">

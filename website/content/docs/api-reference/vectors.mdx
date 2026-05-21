@@ -1,11 +1,11 @@
 ---
 title: Vectors
-description: API endpoints for direct vector operations.
+description: Direct Turbopuffer-backed vector operations.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-For advanced use cases, you can directly manage vectors without going through the document ingestion pipeline. This is useful for custom embeddings or integrating with external embedding services.
+For advanced use cases, you can directly manage Turbopuffer vectors without going through the document ingestion pipeline. This is useful for custom embeddings or integrating with external embedding services.
 
 Scoped API keys need `vector:write` for upsert and `vector:delete` for delete. `collection:write` no longer grants raw vector mutation.
 
@@ -43,7 +43,7 @@ Session-only. Returns Turbopuffer health plus collection and vector totals for a
 POST /v1/collections/{collection_name}/vectors/upsert
 ```
 
-Insert or update vectors directly.
+Insert or update vectors directly in the collection's Turbopuffer namespace.
 
 **Request body:**
 

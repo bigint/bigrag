@@ -1,21 +1,22 @@
 ---
 title: Introduction
-description: bigRAG is an open-source, self-hostable RAG platform for document ingestion, vector search, and retrieval-augmented generation.
+description: bigRAG is an open-source, self-hostable RAG platform for document ingestion and Turbopuffer-backed retrieval-augmented generation.
 full: true
 ---
 
 import { Cards, Card } from "fumadocs-ui/components/card";
 import { Mermaid } from "@/components/mermaid";
 
-bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provides a complete pipeline for document ingestion, chunking, embedding, and vector search — behind a REST API, TypeScript / Python SDKs, an admin UI, and an MCP server for Claude Desktop, Cursor, and any MCP-aware runtime.
+bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform with Turbopuffer at the retrieval layer. It provides a complete pipeline for document ingestion, chunking, embedding, semantic search, keyword search, and hybrid search behind a REST API, TypeScript / Python SDKs, an admin UI, and an MCP server for Claude Desktop, Cursor, and any MCP-aware runtime.
 
 ## Key Features
 
 - **End-to-end RAG pipeline** — upload documents, auto-chunk, embed, search, and rerank in one platform
 - **Any document format** — PDF, DOCX, PPTX, XLSX, HTML, Markdown, CSV/TSV/XML/JSON, and scanned images (OCR) via [Docling](https://github.com/DS4SD/docling)
 - **Any embedding model** — OpenAI, Cohere, Voyage, or `openai_compatible` gateways (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) configured per collection
-- **Three search modes** — semantic, keyword, and hybrid, with optional Cohere reranking
-- **Turbopuffer vector search** — semantic, keyword, and hybrid retrieval with namespace isolation
+- **Turbopuffer search backend** — vectors, chunk text, payload metadata, BM25 keyword search, and hybrid retrieval in one managed backend
+- **Namespace isolation** — every collection maps to a Turbopuffer namespace for scoped writes, exports, deletion, and retrieval
+- **Three search modes** — semantic, keyword, and hybrid search with optional Cohere reranking
 - **First-class auth** — admin accounts, session cookies, scoped `bigrag_sk_…` API keys, and full audit/access logs
 - **Operational features** — batch ingestion, Google Drive sync, webhooks with HMAC signatures, metadata-schema validation, an evaluation runner, and per-collection query analytics
 - **Admin UI** — first-run setup, collection browser, stateless chat, connector management, access logs, MCP credentials, and API-key minting
@@ -37,7 +38,7 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
     Redis --> Worker["Ingestion worker"]
     Worker --> Docling["Docling conversion"]
     Docling --> Embeddings["Embedding providers"]
-    Embeddings --> Turbopuffer[("Turbopuffer vectors")]
+    Embeddings --> Turbopuffer[("Turbopuffer search")]
 
     Retrieval --> Embeddings
     Retrieval --> Turbopuffer
@@ -63,7 +64,7 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 | **bigRAG API** | REST API server (FastAPI) | `http://localhost:4000` |
 | **Admin UI** | Admin web app | `http://localhost:3000` |
 | **PostgreSQL** | Users, sessions, API keys, metadata, audit | `localhost:5432` |
-| **Turbopuffer** | Vector storage and semantic, keyword, and hybrid search | Managed service |
+| **Turbopuffer** | Vector storage, chunk text, metadata filters, BM25 keyword search, and hybrid retrieval | Managed service |
 | **Redis** | Ingestion + event bus | `localhost:6379` |
 
 ## Explore
@@ -73,7 +74,10 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
     Set up bigRAG on your machine
   </Card>
   <Card title="Quickstart" href="/docs/getting-started/quickstart">
-    Upload and search your first document in minutes
+    Configure Turbopuffer, then upload and search your first document
+  </Card>
+  <Card title="Turbopuffer Search" href="/docs/concepts/search">
+    Semantic, keyword, and hybrid retrieval on Turbopuffer
   </Card>
   <Card title="Admin UI" href="/docs/admin-ui">
     The admin UI tour — setup, chat, keys, webhooks

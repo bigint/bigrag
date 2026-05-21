@@ -13,7 +13,6 @@ __pycache__/
 *.pyo
 *.egg-info/
 *.egg
-.pytest_cache/
 .ruff_cache/
 .coverage
 coverage/

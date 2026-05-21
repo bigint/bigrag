@@ -1,13 +1,13 @@
 ---
 title: Quickstart
-description: Upload and search your first document with bigRAG in under 5 minutes.
+description: Configure Turbopuffer, then upload and search your first document with bigRAG.
 ---
 
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 import { Callout } from "fumadocs-ui/components/callout";
 
-Follow these steps to go from zero to searching your documents.
+Follow these steps to go from zero to Turbopuffer-backed search over your documents.
 
 <Steps>
 <Step>
@@ -42,13 +42,13 @@ curl -X POST $BASE/v1/auth/setup \
   -c cookies.txt
 ```
 
-The response sets a `bigrag_session` cookie. The admin UI exposes the same flow at `http://localhost:3000/setup`, then redirects to `/onboarding` where you create one verified embedding preset and can optionally save Turbopuffer settings before landing on `/overview`.
+The response sets a `bigrag_session` cookie. The admin UI exposes the same flow at `http://localhost:3000/setup`, then redirects to `/onboarding` where you create one verified embedding preset and save Turbopuffer settings before collection work.
 </Step>
 
 <Step>
 ### Complete provider onboarding
 
-In the admin UI, finish `/onboarding` by adding one embedding preset. Turbopuffer can be saved there too, or skipped and configured later from the runtime settings API.
+In the admin UI, finish `/onboarding` by adding one embedding preset and saving Turbopuffer connection details. You can skip Turbopuffer during onboarding for a read-only tour, but collections cannot ingest or query until the backend has a working Turbopuffer connection.
 </Step>
 
 <Step>
@@ -72,7 +72,7 @@ All further examples use `$BIGRAG_API_KEY` as a bearer token. See [Authenticatio
 <Step>
 ### Create a collection
 
-A collection groups documents that share the same embedding configuration.
+A collection groups documents that share the same embedding configuration and Turbopuffer namespace.
 
 <Tabs items={["curl", "TypeScript SDK"]}>
 <Tab value="curl">
@@ -179,7 +179,7 @@ while (current.status === "pending" || current.status === "processing") {
 <Step>
 ### Query the collection
 
-Once documents are `ready`, you can search:
+Once documents are `ready`, you can query Turbopuffer-backed semantic search:
 
 <Tabs items={["curl", "TypeScript SDK"]}>
 <Tab value="curl">
@@ -214,6 +214,6 @@ console.log(`embed=${timings.embed_ms}ms search=${timings.search_ms}ms total=${t
 
 - Open the [admin UI](/docs/admin-ui) at `http://localhost:3000` for a visual view of collections, documents, and query analytics.
 - Learn about [Collections](/docs/concepts/collections) and per-collection chunking, reranking, metadata schemas, and tenant-aware filtering.
-- Explore [Search modes](/docs/concepts/search) — semantic, keyword, and hybrid.
+- Explore [Search modes](/docs/concepts/search) backed by Turbopuffer — semantic, keyword, and hybrid.
 - Set up [Webhooks](/docs/concepts/webhooks) for ingestion notifications.
 - Read the full [API Reference](/docs/api-reference/collections).

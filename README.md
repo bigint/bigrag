@@ -1,6 +1,6 @@
 # bigRAG
 
-Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, and search — all behind a simple REST API.
+Open-source, self-hostable RAG platform with Turbopuffer-backed search. Upload documents, auto-chunk, embed, and retrieve through semantic, keyword, and hybrid modes behind a simple REST API.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -9,7 +9,8 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 - **Document ingestion** — PDF, DOCX, PPTX, HTML, Markdown, images, and more via [Docling](https://github.com/DS4SD/docling)
 - **Embedding providers** — OpenAI, OpenAI-compatible gateways, Cohere, and Voyage
 - **Embedding presets** — save named provider/model configs once, reuse across collections
-- **Vector search** — semantic, keyword, and hybrid search modes via [Turbopuffer](https://turbopuffer.com)
+- **Turbopuffer search** — vectors, chunk text, metadata filters, BM25 keyword search, and hybrid retrieval via [Turbopuffer](https://turbopuffer.com)
+- **Namespace isolation** — each collection maps to a Turbopuffer namespace for scoped writes, exports, truncation, and deletion
 - **Reranking** — Cohere reranking for improved result relevance
 - **Multi-collection queries** — search across collections in a single request
 - **Generated chat** — stateless backend-grounded playground chat with streaming and citations
@@ -31,7 +32,7 @@ Open-source, self-hostable RAG platform. Upload documents, auto-chunk, embed, an
 docker compose up -d
 ```
 
-This starts bigRAG API, worker, admin UI, Postgres, and Redis. Configure Turbopuffer before ingesting or querying collections. Open http://localhost:3000 for the admin UI or http://localhost:4000/docs for the interactive API docs.
+This starts bigRAG API, worker, admin UI, Postgres, and Redis. Configure Turbopuffer from onboarding before ingesting or querying collections. Open http://localhost:3000 for the admin UI or http://localhost:4000/docs for the interactive API docs.
 
 ```bash
 # Create a collection
@@ -90,7 +91,7 @@ graph TD
 
     Worker -->|parse| Docling[Docling<br/>PDF, DOCX, HTML, Images]
     Worker -->|embed| Embedding[Embedding provider<br/>OpenAI / compatible / Cohere / Voyage]
-    Worker -->|store vectors| Vectors[(Turbopuffer)]
+    Worker -->|store vectors + text| Vectors[(Turbopuffer)]
 
     Query -->|search| Vectors
     Query -->|embed query| Embedding

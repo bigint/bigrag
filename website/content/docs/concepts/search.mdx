@@ -1,17 +1,17 @@
 ---
 title: Search
-description: Semantic, keyword, and hybrid search.
+description: Turbopuffer-backed semantic, keyword, and hybrid search.
 ---
 
-bigRAG exposes three search modes and an optional rerank pass. Keep query-time choices narrow: pick a mode, set `top_k` and filters, and enable reranking only when a collection is configured for it.
+bigRAG exposes three search modes on Turbopuffer and an optional rerank pass. Keep query-time choices narrow: pick a mode, set `top_k` and filters, and enable reranking only when a collection is configured for it.
 
 ## Modes
 
 | Mode | Description |
 |------|-------------|
-| `semantic` | Default. Cosine similarity against stored vectors. |
+| `semantic` | Default. Cosine similarity against vectors stored in Turbopuffer. |
 | `keyword` | Turbopuffer BM25 full-text matching over stored chunk text. No embedding involved. |
-| `hybrid` | Runs semantic and keyword in parallel, then merges with reciprocal rank fusion. |
+| `hybrid` | Runs Turbopuffer ANN and BM25 queries in parallel, then merges with reciprocal rank fusion. |
 
 ### Semantic
 
@@ -45,6 +45,10 @@ curl -X POST http://localhost:4000/v1/collections/docs/query \
 ```
 
 Best for queries that mix natural language with specific terms.
+
+## Turbopuffer retrieval layer
+
+Each bigRAG collection maps to one Turbopuffer namespace. Document chunks are written with vectors, chunk text, metadata, document provenance, and backend-safe IDs, so semantic, keyword, hybrid, filter, export, truncate, and delete operations stay scoped to the collection.
 
 ## Query parameters
 

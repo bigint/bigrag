@@ -2,7 +2,6 @@ packages:
   - "sdks/typescript"
   - "website"
   - "app"
-  - "e2e"
 
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
@@ -21,13 +20,6 @@ minimumReleaseAgeExclude:
   - "@tanstack/virtual-file-routes@1.162.0"
   - "@types/node@25.9.0"
   - "@vitejs/plugin-react@6.0.2"
-  - "@vitest/expect@4.1.6"
-  - "@vitest/mocker@4.1.6"
-  - "@vitest/pretty-format@4.1.6"
-  - "@vitest/runner@4.1.6"
-  - "@vitest/snapshot@4.1.6"
-  - "@vitest/spy@4.1.6"
-  - "@vitest/utils@4.1.6"
   - "date-fns@4.2.1"
   - "fumadocs-core@16.8.11"
   - "fumadocs-mdx@15.0.6"
@@ -36,7 +28,6 @@ minimumReleaseAgeExclude:
   - "rolldown@1.0.1"
   - "tsx@4.22.1"
   - "vite@8.0.13"
-  - "vitest@4.1.6"
   - "@rolldown/binding-android-arm64@1.0.1"
   - "@rolldown/binding-darwin-arm64@1.0.1"
   - "@rolldown/binding-darwin-x64@1.0.1"

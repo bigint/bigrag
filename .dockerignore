@@ -5,7 +5,6 @@ data/
 **/dist/
 **/coverage/
 **/.turbo/
-**/.pytest_cache/
 **/.ruff_cache/
 **/tsconfig.tsbuildinfo
 *.md

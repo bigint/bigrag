@@ -1,6 +1,6 @@
 ---
 title: Embeddings
-description: Supported embedding providers and models for vector search.
+description: Supported embedding providers and models for Turbopuffer-backed retrieval.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
@@ -138,7 +138,7 @@ Any gateway that speaks the OpenAI `/embeddings` shape works. Common choices:
 1. Text extraction (via Docling) splits the document into pages and paragraphs.
 2. The chunker produces chunks according to the collection's `chunk_size`, `chunk_overlap`, and `chunk_strategy`.
 3. Each chunk's SHA-256 content hash is looked up in the persistent `embedding_cache`. Hits are reused; misses are sent to the provider.
-4. New vectors are batched at `BIGRAG_INGESTION_BATCH_SIZE` and written to the collection's selected vector store.
+4. New vectors are batched at `BIGRAG_INGESTION_BATCH_SIZE` and written to the collection's Turbopuffer namespace.
 5. Queries embed the same way, with short-lived Redis caching for repeated query embeddings.
 
 The cache key is `(content_hash, provider, model, dimension)`. A new collection that uses a different model gets a separate cache key space, so unchanged chunks under that model start cold while previous model cache entries remain available to collections that still use them.

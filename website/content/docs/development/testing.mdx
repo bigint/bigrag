@@ -1,13 +1,13 @@
 ---
 title: "Testing"
-description: "Current verification guidance after removal of package-level test and coverage suites."
+description: "Current verification guidance after removal of package-level, end-to-end, and coverage suites."
 ---
 
 ## Current status
 
-The previous package-level unit and integration test suites have been removed from the backend, SDKs, and admin UI. The related coverage commands and local coverage reports have also been removed.
+The previous package-level unit tests, integration tests, end-to-end tests, and coverage suites have been removed from the backend, SDKs, and admin UI. The related coverage commands, local coverage reports, fake-provider test stack, and test-only Docker Compose workflow have also been removed.
 
-Do not rely on removed package test runners or coverage commands as required verification for this repository while this reset is in place. The maintained end-to-end suite is API and SDK only; UI end-to-end tests are not part of the current verification layer.
+Do not rely on removed package test runners, end-to-end runners, or coverage commands as required verification for this repository while this reset is in place.
 
 ## Local verification
 
@@ -29,12 +29,4 @@ The admin app scripts generate and clean `app/src/routeTree.gen.ts` before Vite 
 
 ## CI verification
 
-CI currently keeps formatter, lint, typecheck, SDK build, docs build, admin UI build, and the API/SDK end-to-end workflow. It does not run package-level test, coverage, or UI end-to-end jobs.
-
-The E2E workflow uses the local fake OpenAI service only. There is no maintained real OpenAI smoke job.
-
-## E2E
-
-The `e2e/` workspace contains API pytest coverage, Python SDK contract tests, and TypeScript SDK Vitest coverage. It intentionally does not include Playwright or other UI browser tests.
-
-The local `e2e/Makefile` runs Docker Compose under the `bigrag-e2e` project name. `make up` waits for API liveness on `/health`; pytest then creates the first admin when needed and seeds fake-provider runtime settings before provider-dependent tests run. `make down` removes that isolated e2e stack and its volumes without deleting the default `bigrag` dev volumes used by `./dev.sh`.
+CI currently keeps formatter, lint, typecheck, SDK build, docs build, and admin UI build. It does not run package-level test, coverage, end-to-end, or UI browser-test jobs.

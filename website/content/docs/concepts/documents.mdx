@@ -1,11 +1,11 @@
 ---
 title: Documents
-description: How bigRAG ingests, parses, chunks, and embeds documents for vector search.
+description: How bigRAG ingests, parses, chunks, embeds, and stores documents in Turbopuffer.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-Documents are files uploaded to a collection. When uploaded, they are automatically parsed, chunked, embedded, and stored for vector search.
+Documents are files uploaded to a collection. When uploaded, they are automatically parsed, chunked, embedded, and written to the collection's Turbopuffer namespace for semantic, keyword, and hybrid search.
 
 ## Supported Formats
 
@@ -50,7 +50,7 @@ Regardless of ingestion method, every document goes through the same pipeline:
 4. **Elements** — multimodal collections store document elements such as headings, tables, equations, images, page bounds, captions, and nearby context
 5. **Chunk** — extracted text is split into chunks based on the collection's `chunk_size` and `chunk_overlap`
 6. **Embed** — each chunk is embedded using the collection's configured embedding model
-7. **Store** — embeddings are batch-inserted into the collection's selected vector store
+7. **Store** — embeddings, chunk text, and metadata are batch-inserted into Turbopuffer
 8. **Ready** — document status is updated to `ready` with the chunk count
 
 Workers renew processing leases while a document is active. Transient failures are rescheduled as delayed Dramatiq messages before the next attempt; exhausted jobs are marked `failed` and retained in the dead-letter list.

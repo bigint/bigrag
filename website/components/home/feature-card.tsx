@@ -1,4 +1,4 @@
-import { FileSearch, FileText, Layers, Search, Upload, Webhook } from "lucide-react";
+import { Database, FileSearch, FileText, Layers, Search, Webhook } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -12,24 +12,24 @@ export const features = [
   },
   {
     description:
-      "OpenAI and Cohere embedding models with per-collection configuration. Mix providers across collections.",
+      "OpenAI, Cohere, Voyage, and OpenAI-compatible models with per-collection configuration. Mix providers across collections.",
     href: "/docs/concepts/embeddings",
     icon: <Layers className="size-5" />,
     title: "Any Embedding Model",
   },
   {
     description:
-      "Semantic, keyword, or hybrid search with Reciprocal Rank Fusion. Optional Cohere reranking for top results.",
+      "Turbopuffer powers semantic, keyword, and hybrid search from the same chunk store, with Reciprocal Rank Fusion for mixed queries.",
     href: "/docs/concepts/search",
     icon: <Search className="size-5" />,
-    title: "Hybrid Search",
+    title: "Turbopuffer Search",
   },
   {
     description:
-      "Poll document and batch status over REST. Track queued, processing, ready, and failed ingest states.",
-    href: "/docs/api-reference/documents",
-    icon: <Upload className="size-5" />,
-    title: "Status Polling",
+      "Each collection maps to a Turbopuffer namespace, keeping vector writes, keyword indexes, exports, and deletes scoped.",
+    href: "/docs/concepts/collections",
+    icon: <Database className="size-5" />,
+    title: "Namespace Isolation",
   },
   {
     description:

@@ -21,16 +21,16 @@ export const Hero = () => (
       <div className="max-w-2xl">
         <div className="mb-6 inline-flex items-center gap-2 rounded-md border border-fd-border/80 bg-fd-background/85 px-3 py-1.5 text-[13px] text-fd-muted-foreground shadow-sm backdrop-blur">
           <Zap className="size-3.5" />
-          Open-source &middot; Self-hosted &middot; Full control
+          Open-source &middot; Self-hosted control plane &middot; Turbopuffer search
         </div>
 
         <h1 className="max-w-4xl text-4xl font-bold tracking-tight text-fd-foreground sm:text-5xl md:text-6xl lg:text-[4rem] lg:leading-[1.1]">
-          Document ingestion and vector search you can self-host
+          Turbopuffer-backed RAG for your documents
         </h1>
 
         <p className="mt-6 max-w-2xl text-base text-fd-muted-foreground md:text-lg md:leading-relaxed">
-          Upload documents, parse with Docling, embed with your provider, and retrieve cited chunks
-          through one API.
+          Upload documents, parse with Docling, embed with your provider, and use Turbopuffer for
+          semantic, keyword, and hybrid retrieval through one API.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center gap-3">

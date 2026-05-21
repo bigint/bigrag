@@ -248,7 +248,7 @@ rows, vector-store points and payloads, uploaded files, and logs. Provider
 secrets, token/hash columns, S3 credentials, and embedding-cache vectors are
 redacted. They are useful for inspection and data portability, but they are not a
 substitute for encrypted infrastructure snapshots or tested disaster recovery
-runbooks. Vector-store point exports stream provider pages into JSONL instead of
+runbooks. Turbopuffer point exports stream provider pages into JSONL instead of
 materializing a full collection in API memory.
 
 ## Logging
@@ -284,7 +284,7 @@ log rendering.
 Use this quick path before deeper debugging:
 
 1. `GET /health` confirms the API process is alive.
-2. `GET /health/ready` confirms Postgres, Redis, the vector store, and the
+2. `GET /health/ready` confirms Postgres, Redis, Turbopuffer search, and the
    embedding provider are reachable. Dependency errors are category labels such
    as `timeout`, `unreachable`, `auth_failed`, `misconfigured`, or `unknown`.
 3. `GET /v1/stats` confirms document counts, queue depth, queue health, and the

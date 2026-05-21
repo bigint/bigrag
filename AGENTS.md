@@ -7,7 +7,6 @@
 - `sdks/python/` — Python SDK (`bigrag`)
 - `app/` — admin UI (Vite + TanStack Router + Tailwind v4 + Base UI, `@bigrag/app`)
 - `website/` — Documentation site (Next.js + Fumadocs, content in `website/content/docs/`)
-- `e2e/` — pytest + vitest end-to-end suites against fake OpenAI/Turbopuffer services plus real Postgres/Redis
 
 ## Style Guide
 
@@ -17,7 +16,7 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 
 Don't write comments or docstrings in code under `api/bigrag/`, `sdks/typescript/src/`, `sdks/python/src/`, `app/`, or `website/`. This includes `#`, `//`, `/* */`, `/** */` JSDoc, and Python `"""docstrings"""`. The diff and well-named identifiers should speak for themselves; surprising invariants belong in commit messages or PR descriptions, not in the code. The only allowed exceptions are functional directives — shebangs, `# type: ignore`, `# noqa`, `# ruff:`, `// @ts-…`, `// biome-ignore`, `// eslint-…`, and similar tool pragmas, plus Pydantic `Field(description="...")` strings that are load-bearing for OpenAPI.
 
-If you find yourself wanting to explain code, rename or restructure it instead. `e2e/` tests are exempt.
+If you find yourself wanting to explain code, rename or restructure it instead.
 
 ### One thing per file
 
@@ -81,9 +80,9 @@ After that, every `git commit` runs the same formatters for API Python and TS/JS
 
 ## Verification
 
-The old package-level unit/integration suites and coverage commands have been removed. Do not add package test runners or coverage requirements back to feature work unless the project reintroduces them deliberately. The current `e2e/` suite is API and SDK only; do not add UI end-to-end tests unless that layer is deliberately reintroduced.
+The old package-level unit/integration suites, end-to-end suites, and coverage commands have been removed. Do not add package test runners, end-to-end test runners, or coverage requirements back to feature work unless the project reintroduces them deliberately.
 
-Use lint, typecheck, build, compile, API/SDK end-to-end, and runtime smoke checks for current verification. Keep `website/content/docs/development/testing.mdx` in sync when verification guidance changes, and do not commit generated coverage artifacts.
+Use lint, typecheck, build, compile, and runtime smoke checks for current verification. Keep `website/content/docs/development/testing.mdx` in sync when verification guidance changes, and do not commit generated coverage artifacts.
 
 ## Architecture Notes
 

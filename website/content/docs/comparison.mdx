@@ -44,6 +44,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 
 **Where bigRAG is a better fit:**
 - Multi-collection architecture with per-collection embedding configuration (OpenRAG uses a single index)
+- Turbopuffer namespaces per collection for scoped vector, keyword, hybrid, export, and delete operations
 - Mature webhook system with HMAC signatures, retry logic, and delivery tracking
 - Batch operations — 100-file upload, SSE admin progress, 20-query batch, bulk status/delete
 - Query analytics with 24h/7d/30d windows and top queries per collection
@@ -68,7 +69,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 **Where bigRAG is a better fit:**
 - Lighter footprint — RAGFlow requires 4+ cores and 16 GB RAM minimum
 - API-first design for developers building integrations, not end-user apps
-- Purpose-built Turbopuffer storage for semantic, keyword, and hybrid search
+- Turbopuffer-backed storage for semantic, keyword, and hybrid search without running Elasticsearch locally
 - Webhook-driven architecture for event-based workflows
 - Simpler deployment and configuration
 
@@ -87,6 +88,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 
 **Where bigRAG is a better fit:**
 - Purpose-built as an API-first retrieval and grounded-chat service with optional admin operations
+- Turbopuffer-backed search instead of choosing and operating one of several vector database plugins
 - Docling-based parsing handles complex documents (scanned PDFs, PPTX, XLSX) better
 - Webhook notifications for processing events
 - Designed for programmatic access and backend integration
@@ -105,6 +107,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 
 **Where bigRAG is a better fit:**
 - More robust document parsing via Docling
+- Managed Turbopuffer search for teams that do not need every dependency to run offline
 - Hybrid and keyword search modes alongside semantic search
 - Webhook notifications and event-driven architecture
 - TypeScript SDK for frontend and Node.js integration
@@ -174,6 +177,7 @@ bigRAG is a great fit when you:
 - Want **self-hosted** deployment with full control over your data
 - Need **webhook notifications** to trigger downstream workflows when documents are processed
 - Want **multiple search modes** (semantic, keyword, hybrid) with per-collection configuration
+- Want **Turbopuffer namespaces** for scoped collection search, raw vector writes, exports, truncation, and deletion
 - Prefer a **lean, focused platform** with an optional admin UI instead of a feature-heavy end-user chat product
 - Need a **TypeScript SDK** for frontend or Node.js integration
 

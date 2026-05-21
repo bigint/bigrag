@@ -63,7 +63,7 @@ Environment variables override TOML values. CLI flags passed to `python -m bigra
 
 ## Runtime settings
 
-After the first admin account exists, the admin UI sends first-run operators to `/onboarding` to create one verified embedding preset and optionally save Turbopuffer settings. Later, go to `/settings` to manage platform runtime settings, `/data-storage` to manage uploaded source-file storage, and `/models` to manage model presets and model runtime settings. Turbopuffer is configured from the UI, is the vector backend for every collection, and is stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
+After the first admin account exists, the admin UI sends first-run operators to `/onboarding` to create one verified embedding preset and save Turbopuffer settings for collection work. Later, go to `/settings` to manage platform runtime settings, `/data-storage` to manage uploaded source-file storage, and `/models` to manage model presets and model runtime settings. Turbopuffer is configured from the UI, is the search backend for every collection, and is stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
 
 The same surface is available through [`/v1/admin/settings`](/docs/api-reference/instance-settings).
 
@@ -73,7 +73,7 @@ The same surface is available through [`/v1/admin/settings`](/docs/api-reference
 | Data | Upload limits, OCR, ingestion workers, queue depth, webhook delivery limits, and retention windows. |
 | Data Storage (`/data-storage`) | Storage backend, S3-compatible bucket, endpoint, region, prefix, credentials, and path-style behavior. |
 | Models (`/models`) | Default embedding provider, model, dimension, key, base URL, cache TTLs, chat provider, chat model, temperature, history count, and context budget. |
-| Vector search | Turbopuffer API key, region, namespace prefix, and optional compatible base URL. |
+| Turbopuffer search | API key, region, namespace prefix, and optional compatible base URL for vector, keyword, and hybrid retrieval. |
 | Backups | S3-compatible readable backup bucket, endpoint, region, prefix, and credentials for S3, R2, or MinIO. |
 
 `BIGRAG_CHAT_API_KEY` can seed a default instance chat credential for OpenAI's standard API endpoint. For non-default `chat_base_url` values, configure a saved chat key in the admin UI or pass `provider_api_key` on chat requests so the instance fallback key is never sent to a custom provider.
@@ -83,7 +83,7 @@ The UI uses the same compact top tab control and shared dashboard body width as 
 Database-backed admin settings apply immediately on save. Storage, backup, and Turbopuffer connection changes validate the new target before saving, then swap the runtime client in place where applicable.
 
 <Callout type="info">
-Turbopuffer settings are not bootstrap environment variables. Save them from the admin UI so the API and worker read the same database-backed instance settings.
+Turbopuffer settings are not bootstrap environment variables. Save them from the admin UI so the API and worker read the same database-backed instance settings before creating collections.
 </Callout>
 
 ## CLI flags

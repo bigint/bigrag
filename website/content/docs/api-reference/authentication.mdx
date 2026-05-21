@@ -32,7 +32,7 @@ curl -X POST http://localhost:4000/v1/auth/setup \
 
 Once at least one admin exists, `setup-status` returns `{"needs_setup": false}` and `/v1/auth/setup` returns `409`.
 
-The admin UI exposes the same flow at `http://localhost:3000/setup`. After the first admin is created, the UI redirects the signed-in admin to `/onboarding` to create a verified embedding preset and optionally save Turbopuffer settings before continuing to `/overview`. The setup endpoint itself still only creates the first admin and session.
+The admin UI exposes the same flow at `http://localhost:3000/setup`. After the first admin is created, the UI redirects the signed-in admin to `/onboarding` to create a verified embedding preset and save Turbopuffer settings before collection work. The setup endpoint itself still only creates the first admin and session.
 
 ## Session auth (admin UI, browser)
 

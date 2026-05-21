@@ -5,9 +5,14 @@ const stats = [
     value: "15+",
   },
   {
+    label: "Search backend",
+    sublabel: "Turbopuffer",
+    value: "1",
+  },
+  {
     label: "Embedding models",
-    sublabel: "OpenAI and Cohere",
-    value: "6",
+    sublabel: "OpenAI, Cohere, Voyage",
+    value: "12+",
   },
   {
     label: "To deploy",
@@ -18,7 +23,7 @@ const stats = [
 
 export const StatsSection = () => (
   <section className="border-b border-fd-border bg-fd-card/50">
-    <div className="mx-auto grid max-w-6xl gap-px sm:grid-cols-3">
+    <div className="mx-auto grid max-w-6xl gap-px sm:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat) => (
         <div
           className="flex flex-col items-center justify-center px-6 py-14 text-center"

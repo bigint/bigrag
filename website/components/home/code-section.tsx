@@ -25,8 +25,8 @@ export const CodeSection = () => (
           </h2>
           <p className="mb-8 text-fd-muted-foreground md:text-lg md:leading-relaxed">
             bigRAG handles the entire RAG pipeline. Upload any document format, and it automatically
-            parses, chunks, embeds, and indexes for vector search. Use the TypeScript SDK or REST
-            API.
+            parses, chunks, embeds, and indexes in Turbopuffer for vector and full-text search. Use
+            the TypeScript SDK or REST API.
           </p>
           <div className="flex flex-col gap-3 text-sm text-fd-muted-foreground">
             <div className="flex items-center gap-3">
@@ -39,7 +39,7 @@ export const CodeSection = () => (
               <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-fd-border bg-fd-card">
                 <Database className="size-4 text-fd-foreground" />
               </div>
-              <span>Turbopuffer vector search with semantic, keyword, and hybrid modes</span>
+              <span>Turbopuffer stores vectors, chunk text, metadata, and keyword indexes</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-fd-border bg-fd-card">

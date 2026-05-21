@@ -1,11 +1,11 @@
 ---
 title: Collections
-description: Collections are logical groupings of documents that share the same embedding configuration.
+description: Collections group documents, embedding settings, and one Turbopuffer namespace.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-A **collection** is a logical grouping of documents that share the same embedding configuration. Each collection maps to one Turbopuffer namespace for vector, metadata, and full-text search.
+A **collection** is a logical grouping of documents that share the same embedding configuration and Turbopuffer namespace. The namespace holds dense vectors, chunk text, payload metadata, and full-text search indexes for that collection.
 
 ## What is a Collection?
 
@@ -14,6 +14,7 @@ When you create a collection, you define:
 - **Embedding provider and model** — how documents will be embedded (e.g., OpenAI `text-embedding-3-small`)
 - **Chunk size and overlap** — how documents are split into searchable segments
 - **Default query settings** — `top_k`, `min_score`, and `search_mode` defaults
+- **Turbopuffer namespace** — the backend search object used for writes, deletes, exports, filters, and retrieval
 - **Multimodal element handling** — whether ingestion stores headings, tables, equations, images, page bounds, and optional VLM summaries
 
 All documents within a collection use the same embedding model, ensuring consistent vector dimensions for search.

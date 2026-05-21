@@ -11,8 +11,8 @@ import { Callout } from "fumadocs-ui/components/callout";
 
 - **Docker** and **Docker Compose** (recommended)
 - **Python 3.12+** and [**uv**](https://docs.astral.sh/uv/) (for running the backend from source)
-- An **OpenAI** or **Cohere** API key for embeddings
-- A **Turbopuffer** API key for vector search
+- An **OpenAI**, **Cohere**, **Voyage**, or OpenAI-compatible API key for embeddings
+- A **Turbopuffer** API key for managed vector, keyword, and hybrid search
 
 ## Install
 
@@ -28,8 +28,11 @@ docker compose up -d
 This starts:
 
 - **bigRAG API** on port `4000` (Swagger docs at `/docs`)
+- **Admin UI** on port `3000`
 - **PostgreSQL** for metadata on port `5432`
 - **Redis** for the ingestion queue on port `6379`
+
+Turbopuffer is configured from the admin UI after setup and provides the managed search backend; it is not a local Compose service.
 
 Pre-built images are published to Docker Hub:
 

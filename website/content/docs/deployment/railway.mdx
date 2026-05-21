@@ -14,7 +14,7 @@ This guide deploys the API, Dramatiq worker, admin UI, Postgres, and Redis in on
 - **App** — admin UI, public domain.
 - **Postgres 17** — Railway plugin, exposes `DATABASE_URL`.
 - **Redis 7** — Railway plugin, exposes `REDIS_URL`.
-- **Turbopuffer** — managed vector and full-text search, configured from the admin UI.
+- **Turbopuffer** — managed vector, keyword, and hybrid search, configured from the admin UI.
 
 ## Prerequisites
 
@@ -113,7 +113,7 @@ Back the master key up immediately. It encrypts provider secrets, webhook secret
 
 ## Troubleshooting
 
-**`/health/ready` reports a degraded vector store.** Check the Turbopuffer settings in the admin UI and any outbound network restrictions.
+**`/health/ready` reports degraded Turbopuffer search.** Check the Turbopuffer settings in the admin UI and any outbound network restrictions.
 
 **API exits with `ImportError: Can't find Python file .../site-packages/alembic/env.py`.** Rebuild from the latest repo revision and clear Railway's build cache if it keeps reusing an old image. The API image bundles bigRAG's Alembic migration environment into the installed package; this error means the deployed image was built without that migration environment.
 

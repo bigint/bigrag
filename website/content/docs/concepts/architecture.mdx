@@ -1,6 +1,6 @@
 ---
 title: Architecture deep-dive
-description: Why vector storage + Postgres + Redis + Docling, how requests flow end-to-end, and where the ingestion pipeline actually does its work.
+description: Why Turbopuffer + Postgres + Redis + Docling, how requests flow end-to-end, and where the ingestion pipeline actually does its work.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
@@ -10,8 +10,9 @@ import { Callout } from "fumadocs-ui/components/callout";
 bigRAG intentionally keeps four distinct stores instead of shoving
 everything into Postgres with pgvector. Each one earns its keep:
 
-- **Vector store** — Turbopuffer owns dense embeddings, chunk text,
-  payload metadata, BM25 full-text search, and filtered semantic search.
+- **Turbopuffer search** — dense embeddings, chunk text, payload
+  metadata, BM25 full-text search, filtered semantic search, and
+  collection namespaces.
 - **Postgres** — metadata and control plane. Collections, documents,
   users, API keys, webhooks, query logs, audit trail, embedding cache.
   Transactions keep ingestion consistent across stores.
@@ -26,13 +27,12 @@ everything into Postgres with pgvector. Each one earns its keep:
 
 <Callout type="info">
 bigRAG runs Postgres and Redis locally with `docker compose up`, while
-Turbopuffer provides the vector and full-text search backend.
+Turbopuffer provides the managed vector and full-text search backend.
 </Callout>
 
 The backend talks to Turbopuffer through the official Python client for
 namespace writes, deletes, health listing, vector queries, and BM25
-queries. The local e2e stack points that same client at the fake
-Turbopuffer service through `turbopuffer_base_url`.
+queries.
 
 The admin UI leans on TanStack Router's built-in route code splitting
 instead of wrapping dashboard pages in extra `React.lazy` boundaries,
@@ -101,7 +101,7 @@ are retained in the dead-letter list for operator visibility.
 Client → FastAPI
   │ 1. auth → scope check (query:read)
   │ 2. embed query when search mode needs vectors
-  │ 3. vector search (with metadata filters)
+  │ 3. Turbopuffer semantic search (with metadata filters)
   │ 4. optional hybrid fusion — Turbopuffer BM25 + reciprocal rank fusion
   │ 5. optional rerank — Cohere Rerank v3.5
   │ 6. attach timings (embed/search/rerank/cache/total)
