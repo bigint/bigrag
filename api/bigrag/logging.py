@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import sys
 
 import structlog
@@ -30,11 +31,32 @@ _SENSITIVE_KEYS = frozenset(
         "cookie",
         "set-cookie",
         "x-api-key",
+        "x_api_key",
+        "apikey",
+        "api_secret_key",
+        "secret_key",
+        "credential",
+        "credentials",
+        "signature",
         "signing_secret",
         "webhook_secret",
         "secret",
         "master_key",
         "master_key_previous",
+    }
+)
+_SENSITIVE_COMPACT_KEYS = frozenset(
+    key.replace("_", "").replace("-", "") for key in _SENSITIVE_KEYS
+)
+_SENSITIVE_KEY_MARKERS = frozenset(
+    {
+        "api_key",
+        "apikey",
+        "access_key",
+        "password",
+        "secret",
+        "credential",
+        "signature",
     }
 )
 REQUEST_ID_HEADER = "x-request-id"
@@ -51,13 +73,17 @@ def is_sensitive_log_key(value: object) -> bool:
     if not isinstance(value, str):
         return False
     lowered = value.lower()
-    normalized = lowered.replace("-", "_")
+    normalized = re.sub(r"[^a-z0-9]+", "_", lowered).strip("_")
+    compact = re.sub(r"[^a-z0-9]+", "", lowered)
     return (
         lowered in _SENSITIVE_KEYS
         or normalized in _SENSITIVE_KEYS
+        or compact in _SENSITIVE_COMPACT_KEYS
         or normalized.endswith("_token")
         or normalized.endswith("_secret")
-        or "password" in normalized
+        or compact.endswith("token")
+        or compact.endswith("secret")
+        or any(marker in normalized or marker in compact for marker in _SENSITIVE_KEY_MARKERS)
     )
 
 

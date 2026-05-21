@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit, urlunsplit
 
 import structlog
 from starlette.datastructures import MutableHeaders
@@ -42,7 +42,23 @@ def _safe_url(value: str) -> str:
         ]
     )
     fragment = "[REDACTED]" if parts.fragment else ""
-    return truncate_log_value(urlunsplit((parts.scheme, parts.netloc, parts.path, query, fragment)))
+    return truncate_log_value(
+        urlunsplit((parts.scheme, _safe_netloc(parts), parts.path, query, fragment))
+    )
+
+
+def _safe_netloc(parts: SplitResult) -> str:
+    if not parts.netloc or (parts.username is None and parts.password is None):
+        return parts.netloc
+    hostname = parts.hostname or ""
+    if ":" in hostname and not hostname.startswith("["):
+        hostname = f"[{hostname}]"
+    try:
+        port = parts.port
+    except ValueError:
+        port = None
+    suffix = f":{port}" if port is not None else ""
+    return f"[REDACTED]@{hostname}{suffix}"
 
 
 def _safe_value(key: str, value: str) -> str:
