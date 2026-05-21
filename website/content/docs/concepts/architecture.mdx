@@ -29,6 +29,11 @@ bigRAG runs Postgres and Redis locally with `docker compose up`, while
 Turbopuffer provides the vector and full-text search backend.
 </Callout>
 
+The backend talks to Turbopuffer through the official Python client for
+namespace writes, deletes, health listing, vector queries, and BM25
+queries. The local e2e stack points that same client at the fake
+Turbopuffer service through `turbopuffer_base_url`.
+
 The admin UI leans on TanStack Router's built-in route code splitting
 instead of wrapping dashboard pages in extra `React.lazy` boundaries,
 so each route transition pays for one route chunk, not a route chunk

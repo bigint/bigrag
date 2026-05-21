@@ -1,7 +1,7 @@
 [project]
 name = "bigrag"
 version = "2026.4.30"
-description = "Self-hostable RAG platform with Docling ingestion and pluggable vector storage"
+description = "Self-hostable RAG platform with Docling ingestion and Turbopuffer vector storage"
 license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
@@ -29,6 +29,7 @@ dependencies = [
     "mcp>=1.12.0,<2",
     "tiktoken>=0.8.0,<1",
     "dramatiq[redis]>=2.1.0,<3",
+    "turbopuffer>=2.1.0,<3",
 ]
 
 [dependency-groups]

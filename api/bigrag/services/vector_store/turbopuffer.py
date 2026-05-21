@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import httpx
+from turbopuffer import AsyncTurbopuffer, NotFoundError
 
 from bigrag.logging import get_logger
 from bigrag.services._retrieval_filters import FilterCondition, FilterExpression
@@ -20,7 +20,7 @@ _PUBLIC_ID_FIELD = "bigrag_id"
 _EXPORT_PAGE_SIZE = 10000
 
 
-def _to_turbopuffer_filter(filters: FilterExpression | None) -> list | None:
+def _to_turbopuffer_filter(filters: FilterExpression | None) -> tuple | None:
     if filters is None:
         return None
     clauses = [_to_turbopuffer_condition(condition) for condition in filters.conditions]
@@ -28,10 +28,10 @@ def _to_turbopuffer_filter(filters: FilterExpression | None) -> list | None:
         return None
     if len(clauses) == 1:
         return clauses[0]
-    return ["And", clauses]
+    return ("And", tuple(clauses))
 
 
-def _to_turbopuffer_condition(condition: FilterCondition) -> list:
+def _to_turbopuffer_condition(condition: FilterCondition) -> tuple:
     field = _PUBLIC_ID_FIELD if condition.field == "id" else condition.field
     op = {
         "eq": "Eq",
@@ -42,7 +42,7 @@ def _to_turbopuffer_condition(condition: FilterCondition) -> list:
         "lte": "Lte",
         "in": "In",
     }[condition.operator]
-    return [field, op, condition.value]
+    return (field, op, condition.value)
 
 
 def _schema(dimension: int) -> dict:
@@ -65,6 +65,16 @@ def _row_payload(row: dict) -> dict:
     return payload
 
 
+def _response_row(row: Any) -> dict:
+    if isinstance(row, dict):
+        return row
+    if hasattr(row, "to_dict"):
+        return row.to_dict()
+    if hasattr(row, "model_dump"):
+        return row.model_dump(mode="json", by_alias=True)
+    return dict(row)
+
+
 class TurbopufferVectorStore:
     def __init__(
         self,
@@ -78,24 +88,34 @@ class TurbopufferVectorStore:
         self.region = region
         self.prefix = namespace_prefix or "bigrag_"
         self.base_url = base_url.rstrip("/") if base_url else None
-        self.client: httpx.AsyncClient | None = None
+        self.client: AsyncTurbopuffer | None = None
 
     def connect(self) -> None:
         if not self.api_key:
             raise RuntimeError("turbopuffer API key is not configured")
-        self.client = httpx.AsyncClient(
-            base_url=self.base_url or f"https://{self.region}.turbopuffer.com",
-            headers={"Authorization": f"Bearer {self.api_key}"},
+        kwargs: dict[str, Any] = {
+            "api_key": self.api_key,
+        }
+        if self.base_url:
+            kwargs["base_url"] = self.base_url
+        else:
+            kwargs["region"] = self.region
+        self.client = AsyncTurbopuffer(
+            **kwargs,
+            max_retries=2,
             timeout=30,
         )
         logger.info("connected to turbopuffer", region=self.region, base_url=self.base_url)
 
-    def _client(self) -> httpx.AsyncClient:
+    def _client(self) -> AsyncTurbopuffer:
         if self.client is None:
             self.connect()
         if self.client is None:
             raise RuntimeError("turbopuffer client is not connected")
         return self.client
+
+    def _namespace_client(self, name: str):
+        return self._client().namespace(self._namespace(name))
 
     def _namespace(self, name: str) -> str:
         return _backend_name(self.prefix, name)
@@ -105,13 +125,12 @@ class TurbopufferVectorStore:
 
     async def close(self) -> None:
         if self.client is not None:
-            await self.client.aclose()
+            await self.client.close()
             self.client = None
 
     async def health_check(self) -> None:
-        client = self._client()
-        response = await client.get("/v1/namespaces")
-        response.raise_for_status()
+        async for _ in self._client().namespaces(prefix=self.prefix, page_size=1):
+            break
 
     async def create_collection(
         self,
@@ -122,11 +141,10 @@ class TurbopufferVectorStore:
         await self.health_check()
 
     async def delete_collection(self, name: str) -> None:
-        client = self._client()
-        response = await client.delete(f"/v2/namespaces/{self._namespace(name)}")
-        if response.status_code == 404:
+        try:
+            await self._namespace_client(name).delete_all()
+        except NotFoundError:
             return
-        response.raise_for_status()
 
     async def insert(
         self,
@@ -167,10 +185,10 @@ class TurbopufferVectorStore:
         return len(rows)
 
     async def _write(self, collection: str, payload: dict) -> dict:
-        client = self._client()
-        response = await client.post(f"/v2/namespaces/{self._namespace(collection)}", json=payload)
-        response.raise_for_status()
-        return response.json() if response.content else {}
+        response = await self._namespace_client(collection).write(**payload)
+        if hasattr(response, "to_dict"):
+            return response.to_dict()
+        return {}
 
     async def search(
         self,
@@ -192,14 +210,8 @@ class TurbopufferVectorStore:
         turbo_filter = _to_turbopuffer_filter(filters)
         if turbo_filter:
             payload["filters"] = turbo_filter
-        client = self._client()
-        response = await client.post(
-            f"/v2/namespaces/{self._namespace(collection)}/query",
-            json=payload,
-        )
-        response.raise_for_status()
         rows = []
-        for row in response.json().get("rows", []):
+        for row in await self._query_rows(collection, payload):
             point_id = str(row.get("id", ""))
             distance = float(row.get("$dist", 0.0))
             rows.append(_row_from_payload(point_id, max(0.0, 1.0 - distance), _row_payload(row)))
@@ -235,13 +247,8 @@ class TurbopufferVectorStore:
         return _chunk_rows_from_payloads([_row_payload(row) for row in rows], limit, offset)
 
     async def _query_rows(self, collection: str, payload: dict) -> list[dict]:
-        client = self._client()
-        response = await client.post(
-            f"/v2/namespaces/{self._namespace(collection)}/query",
-            json=payload,
-        )
-        response.raise_for_status()
-        return response.json().get("rows", [])
+        response = await self._namespace_client(collection).query(**payload)
+        return [_response_row(row) for row in response.rows]
 
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         await self._write(collection, {"delete_by_filter": ["document_id", "Eq", document_id]})
