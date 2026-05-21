@@ -27,11 +27,6 @@ class Settings(BaseSettings):
     db_pool_max: int = 50
     migration_timeout_seconds: int = 60
 
-    turbopuffer_api_key: str | None = None
-    turbopuffer_base_url: str | None = None
-    turbopuffer_region: str = "aws-us-east-1"
-    turbopuffer_namespace_prefix: str = "bigrag_"
-
     redis_url: str = "redis://localhost:6379/0"
 
     master_key: str | None = None

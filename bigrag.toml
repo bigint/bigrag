@@ -21,11 +21,6 @@
 # db_pool_max = 50
 # migration_timeout_seconds = 60
 
-# turbopuffer_api_key = ""         # required for Turbopuffer-backed search
-# turbopuffer_region = "aws-us-east-1"
-# turbopuffer_namespace_prefix = "bigrag_"
-# turbopuffer_base_url = ""        # optional Turbopuffer-compatible endpoint
-
 # redis_url = "redis://localhost:6379/0"
 
 # Encryption key for provider secrets at rest. Required in env=prod.

@@ -60,7 +60,7 @@ bigRAG delegates the bulk of at-rest protection to your infrastructure. For a pr
 ### Turbopuffer
 
 - Turbopuffer stores vectors, full-text fields, payload attributes, and indexes in its managed service. Select the production region deliberately and keep the API key scoped to the bigRAG service.
-- Store `BIGRAG_TURBOPUFFER_API_KEY` in your secrets manager, rotate it on the same cadence as other provider credentials, and restrict outbound network access where your platform allows it.
+- Save the Turbopuffer API key in the admin UI so it is encrypted in the `instance_settings` table with `BIGRAG_MASTER_KEY`. Rotate it on the same cadence as other provider credentials, and restrict outbound network access where your platform allows it.
 
 ### Redis
 

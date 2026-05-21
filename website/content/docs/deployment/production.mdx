@@ -22,7 +22,7 @@ Tick these off before pointing real traffic at a bigRAG deployment:
   proxies if bigRAG sits behind nginx, Caddy, Traefik, or a load balancer.
 - [ ] Redis with `requirepass` set and `appendonly yes` persisted to
   a mounted volume.
-- [ ] Turbopuffer API key and region configured for managed vector and full-text search.
+- [ ] Turbopuffer API key and region saved from the admin UI for managed vector and full-text search.
 - [ ] Postgres warm-standby replica for failover.
 - [ ] Backup strategy: configure readable S3/R2 backups from `/backups`,
   protect that bucket as sensitive, and separately keep encrypted infrastructure
@@ -62,10 +62,6 @@ services:
     environment:
       BIGRAG_ENV: prod
       BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
-      BIGRAG_TURBOPUFFER_API_KEY: ${BIGRAG_TURBOPUFFER_API_KEY}
-      BIGRAG_TURBOPUFFER_REGION: ${BIGRAG_TURBOPUFFER_REGION:-aws-us-east-1}
-      BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX: ${BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX:-bigrag_}
-      BIGRAG_TURBOPUFFER_BASE_URL: ${BIGRAG_TURBOPUFFER_BASE_URL:-}
       BIGRAG_REDIS_URL: ${BIGRAG_REDIS_URL}
       BIGRAG_HOST: 0.0.0.0
       BIGRAG_MASTER_KEY: ${BIGRAG_MASTER_KEY}
@@ -103,10 +99,6 @@ services:
     environment:
       BIGRAG_ENV: prod
       BIGRAG_DATABASE_URL: postgres://bigrag:strongpassword@postgres:5432/bigrag
-      BIGRAG_TURBOPUFFER_API_KEY: ${BIGRAG_TURBOPUFFER_API_KEY}
-      BIGRAG_TURBOPUFFER_REGION: ${BIGRAG_TURBOPUFFER_REGION:-aws-us-east-1}
-      BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX: ${BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX:-bigrag_}
-      BIGRAG_TURBOPUFFER_BASE_URL: ${BIGRAG_TURBOPUFFER_BASE_URL:-}
       BIGRAG_REDIS_URL: ${BIGRAG_REDIS_URL}
       BIGRAG_MASTER_KEY: ${BIGRAG_MASTER_KEY}
       BIGRAG_MASTER_KEY_PREVIOUS: '${BIGRAG_MASTER_KEY_PREVIOUS:-[]}'
@@ -219,9 +211,6 @@ REDIS_PASSWORD=<strong Redis password>
 BIGRAG_REDIS_URL=redis://:<url-encoded Redis password>@redis:6379/0
 BIGRAG_MASTER_KEY=<generated Fernet key>
 BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD=true  # required when the API image binds 0.0.0.0 in prod
-BIGRAG_TURBOPUFFER_API_KEY=<turbopuffer API key>
-BIGRAG_TURBOPUFFER_REGION=aws-us-east-1
-BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX=bigrag_
 
 # Performance
 BIGRAG_WORKERS=8                    # Match CPU cores
@@ -342,7 +331,7 @@ File exceeds the max upload size. Increase `BIGRAG_MAX_UPLOAD_SIZE_MB`.
 
 ### `/health/ready` returns 503 but services are running
 
-The readiness endpoint also checks the embedding provider. If no collection has an `embedding_api_key` configured, it reports degraded status. Check `/health` first to confirm the server itself is running, then create a collection with a valid embedding key.
+The readiness endpoint also checks Turbopuffer and the embedding provider. Check `/health` first to confirm the server itself is running, then save Turbopuffer settings in the admin UI and create a collection with a valid embedding key.
 
 ### Document uploads fail with embedding errors
 

@@ -14,7 +14,7 @@ This guide deploys the API, Dramatiq worker, admin UI, Postgres, and Redis in on
 - **App** — admin UI, public domain.
 - **Postgres 17** — Railway plugin, exposes `DATABASE_URL`.
 - **Redis 7** — Railway plugin, exposes `REDIS_URL`.
-- **Turbopuffer** — managed vector and full-text search, configured with environment variables.
+- **Turbopuffer** — managed vector and full-text search, configured from the admin UI.
 
 ## Prerequisites
 
@@ -68,9 +68,6 @@ BIGRAG_LOG_LEVEL=info
 BIGRAG_LOG_FORMAT=json
 BIGRAG_DATABASE_URL=${{Postgres.DATABASE_URL}}
 BIGRAG_REDIS_URL=${{Redis.REDIS_URL}}
-BIGRAG_TURBOPUFFER_API_KEY=<your Turbopuffer key>
-BIGRAG_TURBOPUFFER_REGION=aws-us-east-1
-BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX=bigrag_
 BIGRAG_EMBEDDING_API_KEY=<your embedding key>
 BIGRAG_MASTER_KEY=<generated Fernet key>
 BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD=true
@@ -80,7 +77,7 @@ BIGRAG_CORS_ORIGINS=["https://${{App.RAILWAY_PUBLIC_DOMAIN}}"]
 BIGRAG_UPLOAD_DIR=/data/uploads
 ```
 
-Use the Turbopuffer region closest to your Railway services and embedding provider.
+Save the Turbopuffer API key and region from the admin UI after setup.
 
 ## Worker
 
@@ -93,7 +90,7 @@ Use the Turbopuffer region closest to your Railway services and embedding provid
 | Volume | same mounted upload volume path as API |
 | Public domain | no |
 
-Use the same environment as `API`, including `BIGRAG_DATABASE_URL`, `BIGRAG_REDIS_URL`, `BIGRAG_TURBOPUFFER_API_KEY`, `BIGRAG_TURBOPUFFER_REGION`, `BIGRAG_MASTER_KEY`, and `BIGRAG_UPLOAD_DIR`.
+Use the same environment as `API`, including `BIGRAG_DATABASE_URL`, `BIGRAG_REDIS_URL`, `BIGRAG_MASTER_KEY`, and `BIGRAG_UPLOAD_DIR`.
 
 ## Generate the master key
 
@@ -110,12 +107,13 @@ Back the master key up immediately. It encrypts provider secrets, webhook secret
 1. Wait for Postgres, Redis, API, Worker, and app services to deploy.
 2. Open the admin UI public URL.
 3. Complete `/setup` to create the first admin account.
-4. Create a collection and upload a small document.
-5. Check `/health/ready`; it should report `vector_store: true`.
+4. Save the Turbopuffer API key and region in the admin UI.
+5. Create a collection and upload a small document.
+6. Check `/health/ready`; it should report `vector_store: true`.
 
 ## Troubleshooting
 
-**`/health/ready` reports a degraded vector store.** Check `BIGRAG_TURBOPUFFER_API_KEY`, `BIGRAG_TURBOPUFFER_REGION`, and any outbound network restrictions, then redeploy the API and Worker services.
+**`/health/ready` reports a degraded vector store.** Check the Turbopuffer settings in the admin UI and any outbound network restrictions.
 
 **API exits with `ImportError: Can't find Python file .../site-packages/alembic/env.py`.** Rebuild from the latest repo revision and clear Railway's build cache if it keeps reusing an old image. The API image bundles bigRAG's Alembic migration environment into the installed package; this error means the deployed image was built without that migration environment.
 

@@ -79,8 +79,8 @@ class TurbopufferVectorStore:
     def __init__(
         self,
         *,
-        api_key: str | None,
-        region: str,
+        api_key: str | None = None,
+        region: str = "aws-us-east-1",
         namespace_prefix: str = "bigrag_",
         base_url: str | None = None,
     ) -> None:

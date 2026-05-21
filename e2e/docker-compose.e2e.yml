@@ -24,10 +24,6 @@ services:
       BIGRAG_CHAT_BASE_URL: http://fake-openai:9001/v1
       BIGRAG_CHAT_API_KEY: e2e-fake-key
       BIGRAG_ALLOW_PRIVATE_CHAT_BASE_URLS: "true"
-      BIGRAG_TURBOPUFFER_API_KEY: e2e-fake-turbopuffer-key
-      BIGRAG_TURBOPUFFER_REGION: e2e
-      BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX: e2e_
-      BIGRAG_TURBOPUFFER_BASE_URL: http://fake-turbopuffer:9002
       BIGRAG_ALLOW_LOCAL_WEBHOOKS: "true"
       BIGRAG_BACKUP_S3_BUCKET: bigrag-backups
       BIGRAG_BACKUP_S3_ENDPOINT_URL: http://minio:9000
@@ -68,10 +64,6 @@ services:
       BIGRAG_CHAT_BASE_URL: http://fake-openai:9001/v1
       BIGRAG_CHAT_API_KEY: e2e-fake-key
       BIGRAG_ALLOW_PRIVATE_CHAT_BASE_URLS: "true"
-      BIGRAG_TURBOPUFFER_API_KEY: e2e-fake-turbopuffer-key
-      BIGRAG_TURBOPUFFER_REGION: e2e
-      BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX: e2e_
-      BIGRAG_TURBOPUFFER_BASE_URL: http://fake-turbopuffer:9002
       BIGRAG_ALLOW_LOCAL_WEBHOOKS: "true"
     depends_on:
       bigrag-api:

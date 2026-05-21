@@ -5,7 +5,6 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from bigrag.config import settings as _app_settings
 from bigrag.services._retrieval_filters import FilterExpression
 from bigrag.services.vector_store.base import VectorStoreBackend
 from bigrag.services.vector_store.turbopuffer import TurbopufferVectorStore
@@ -13,12 +12,7 @@ from bigrag.services.vector_store.turbopuffer import TurbopufferVectorStore
 
 class VectorStore:
     def __init__(self) -> None:
-        self._backend_instance: VectorStoreBackend = TurbopufferVectorStore(
-            api_key=_app_settings.turbopuffer_api_key,
-            region=_app_settings.turbopuffer_region,
-            namespace_prefix=_app_settings.turbopuffer_namespace_prefix,
-            base_url=_app_settings.turbopuffer_base_url,
-        )
+        self._backend_instance: VectorStoreBackend = TurbopufferVectorStore()
         self.client: Any | None = None
         self._condition = asyncio.Condition()
         self._active = 0
