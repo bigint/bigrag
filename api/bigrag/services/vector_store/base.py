@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator
-from typing import Literal, Protocol
+from typing import Protocol
 
 from bigrag.services._retrieval_filters import FilterExpression
-
-VectorStoreProvider = Literal["turbopuffer"]
 
 _POINT_NAMESPACE = uuid.UUID("1b04f7ca-0c3b-5d76-a5bb-6e4b4a40f61d")
 _FIXED_PAYLOAD_FIELDS = {"id", "text", "document_id", "chunk_index", "embedding"}
@@ -23,13 +21,7 @@ DEFAULT_SEARCH_PAYLOAD_FIELDS: list[str] = [
 ]
 
 
-class VectorStoreFeatureError(RuntimeError):
-    pass
-
-
 class VectorStoreBackend(Protocol):
-    provider: VectorStoreProvider
-
     def connect(self) -> None: ...
 
     async def close(self) -> None: ...
@@ -40,7 +32,6 @@ class VectorStoreBackend(Protocol):
         self,
         name: str,
         dimension: int,
-        index_type: str = "HNSW",
         tenant_field: str | None = None,
     ) -> None: ...
 

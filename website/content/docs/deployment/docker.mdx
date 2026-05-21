@@ -27,7 +27,7 @@ BIGRAG_UI_IMAGE=yoginth/bigrag-ui:2026.4.30 \
 docker compose up -d --no-build
 ```
 
-This starts bigRAG API, worker, admin UI, Postgres, Redis, and Qdrant.
+This starts bigRAG API, worker, admin UI, Postgres, and Redis. Turbopuffer runs as the managed vector and full-text search backend.
 </Step>
 <Step>
 ### Verify
@@ -40,7 +40,7 @@ curl http://localhost:4000/health
 
 ## Docker Compose
 
-The default `docker-compose.yml` runs Qdrant as a single service. Qdrant does not require etcd for this standalone setup. When hacking from a checkout, plain `docker compose up -d` builds local API and UI images. When deploying published images, set the image variables shown above and use `--no-build`.
+The default `docker-compose.yml` runs the API, worker, admin UI, Postgres, and Redis. Turbopuffer is configured through environment variables and does not run as a local Compose service. When hacking from a checkout, plain `docker compose up -d` builds local API and UI images. When deploying published images, set the image variables shown above and use `--no-build`.
 
 ```yaml
 services:
@@ -53,7 +53,10 @@ services:
     environment:
       BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
       BIGRAG_DATABASE_URL: postgres://bigrag:bigrag@postgres:5432/bigrag?sslmode=disable
-      BIGRAG_QDRANT_URL: http://qdrant:6333
+      BIGRAG_TURBOPUFFER_API_KEY: "${BIGRAG_TURBOPUFFER_API_KEY:-}"
+      BIGRAG_TURBOPUFFER_REGION: "${BIGRAG_TURBOPUFFER_REGION:-aws-us-east-1}"
+      BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX: "${BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX:-bigrag_}"
+      BIGRAG_TURBOPUFFER_BASE_URL: "${BIGRAG_TURBOPUFFER_BASE_URL:-}"
       BIGRAG_REDIS_URL: "${BIGRAG_REDIS_URL:-redis://redis:6379/0}"
       BIGRAG_MASTER_KEY: "${BIGRAG_MASTER_KEY:-}"
       BIGRAG_MASTER_KEY_PREVIOUS: '${BIGRAG_MASTER_KEY_PREVIOUS:-[]}'
@@ -70,8 +73,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
-        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
       interval: 30s
@@ -86,7 +87,10 @@ services:
     environment:
       BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
       BIGRAG_DATABASE_URL: postgres://bigrag:bigrag@postgres:5432/bigrag?sslmode=disable
-      BIGRAG_QDRANT_URL: http://qdrant:6333
+      BIGRAG_TURBOPUFFER_API_KEY: "${BIGRAG_TURBOPUFFER_API_KEY:-}"
+      BIGRAG_TURBOPUFFER_REGION: "${BIGRAG_TURBOPUFFER_REGION:-aws-us-east-1}"
+      BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX: "${BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX:-bigrag_}"
+      BIGRAG_TURBOPUFFER_BASE_URL: "${BIGRAG_TURBOPUFFER_BASE_URL:-}"
       BIGRAG_REDIS_URL: "${BIGRAG_REDIS_URL:-redis://redis:6379/0}"
       BIGRAG_UPLOAD_DIR: /data/uploads
       BIGRAG_MASTER_KEY: "${BIGRAG_MASTER_KEY:-}"
@@ -103,8 +107,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
-        condition: service_started
     healthcheck:
       test:
         [
@@ -140,14 +142,6 @@ services:
       timeout: 5s
       retries: 5
 
-  qdrant:
-    image: qdrant/qdrant:v1.17.1
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
-
   redis:
     image: redis:7-alpine
     environment:
@@ -171,7 +165,6 @@ services:
 volumes:
   bigrag_data:
   postgres_data:
-  qdrant_data:
   redis_data:
 ```
 
@@ -208,8 +201,6 @@ Scale the worker with more `bigrag-worker` containers from the `bigrag-api` imag
 |---------|-------------|
 | bigRAG API | 4000 |
 | PostgreSQL | 5432 |
-| Qdrant HTTP | 6333 |
-| Qdrant gRPC | 6334 |
 | Redis | 6379 |
 
 ## Health Checks
@@ -219,7 +210,7 @@ bigRAG exposes two health endpoints:
 | Endpoint | Purpose | Notes |
 |----------|---------|-------|
 | `/health` | Liveness check | Always returns `200` if the server is running |
-| `/health/ready` | Readiness check | Returns `503` if Postgres, Redis, configured vector-store clients, or the embedding provider is unreachable |
+| `/health/ready` | Readiness check | Returns `503` if Postgres, Redis, Turbopuffer, or the embedding provider is unreachable |
 
 ```bash
 # Quick liveness check
@@ -230,7 +221,6 @@ curl http://localhost:4000/health/ready
 
 # Infrastructure services
 docker exec bigrag-postgres pg_isready -U bigrag
-curl -f http://localhost:6333/healthz
 docker exec bigrag-redis redis-cli ping
 ```
 

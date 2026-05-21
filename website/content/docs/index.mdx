@@ -15,11 +15,11 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 - **Any document format** — PDF, DOCX, PPTX, XLSX, HTML, Markdown, CSV/TSV/XML/JSON, and scanned images (OCR) via [Docling](https://github.com/DS4SD/docling)
 - **Any embedding model** — OpenAI, Cohere, Voyage, or `openai_compatible` gateways (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) configured per collection
 - **Three search modes** — semantic, keyword, and hybrid, with optional Cohere reranking
-- **Qdrant vector database** — HNSW vector search with tenant-aware payload indexes
+- **Turbopuffer vector search** — semantic, keyword, and hybrid retrieval with namespace isolation
 - **First-class auth** — admin accounts, session cookies, scoped `bigrag_sk_…` API keys, and full audit/access logs
 - **Operational features** — batch ingestion, Google Drive sync, webhooks with HMAC signatures, metadata-schema validation, an evaluation runner, and per-collection query analytics
 - **Admin UI** — first-run setup, collection browser, stateless chat, connector management, access logs, MCP credentials, and API-key minting
-- **Self-hostable** — Docker Compose, no external dependencies
+- **Self-hostable control plane** — Docker Compose for the API, admin UI, Postgres, and Redis
 - **MIT licensed** — run it anywhere, forever free
 
 ## Architecture
@@ -37,10 +37,10 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
     Redis --> Worker["Ingestion worker"]
     Worker --> Docling["Docling conversion"]
     Docling --> Embeddings["Embedding providers"]
-    Embeddings --> Qdrant[("Qdrant vectors")]
+    Embeddings --> Turbopuffer[("Turbopuffer vectors")]
 
     Retrieval --> Embeddings
-    Retrieval --> Qdrant
+    Retrieval --> Turbopuffer
     Retrieval --> LLM["Chat provider"]
     LLM --> Answer["Retrieved answer"]
 
@@ -55,7 +55,7 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
     class API api
     class Control,Ingestion,Retrieval plane
     class Redis,Worker,Docling pipeline
-    class Postgres,Files,Embeddings,Qdrant,LLM store
+    class Postgres,Files,Embeddings,Turbopuffer,LLM store
     class Answer output' />
 
 | Component | Purpose | Default Address |
@@ -63,7 +63,7 @@ bigRAG is an open-source RAG (Retrieval-Augmented Generation) platform. It provi
 | **bigRAG API** | REST API server (FastAPI) | `http://localhost:4000` |
 | **Admin UI** | Admin web app | `http://localhost:3000` |
 | **PostgreSQL** | Users, sessions, API keys, metadata, audit | `localhost:5432` |
-| **Qdrant** | Vector storage and search | `localhost:6333` |
+| **Turbopuffer** | Vector storage and semantic, keyword, and hybrid search | Managed service |
 | **Redis** | Ingestion + event bus | `localhost:6379` |
 
 ## Explore

@@ -81,11 +81,11 @@ async def test_settings_get_returns_specs_and_values(
         "max_upload_size_mb",
         "turbopuffer_api_key",
         "turbopuffer_base_url",
+        "turbopuffer_namespace_prefix",
+        "turbopuffer_region",
     ):
         assert sample in spec_keys, f"expected setting key {sample!r} in spec list"
         assert sample in body["values"], f"missing value entry for {sample!r}"
-    assert "qdrant_url" not in spec_keys
-    assert "qdrant_required" not in spec_keys
 
     for spec in body["specs"]:
         for key in ("key", "group", "label", "description", "kind", "default", "options", "secret"):

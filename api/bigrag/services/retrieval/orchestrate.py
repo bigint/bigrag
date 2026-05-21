@@ -19,7 +19,6 @@ from bigrag.services.retrieval.log import log_query
 from bigrag.services.retrieval.modes import hybrid_search, keyword_search, semantic_search
 from bigrag.services.retrieval.rerank import rerank_results
 from bigrag.services.runtime_settings import get_values
-from bigrag.services.vector_store import VectorStoreProvider, vector_store
 
 logger = get_logger("bigrag.retrieval")
 
@@ -40,10 +39,6 @@ def _safe_create_task(coro, *, name: str) -> asyncio.Task:
     return task
 
 
-def _supports_text_search(provider: VectorStoreProvider | None) -> bool:
-    return vector_store.supports_text_search_for(provider)
-
-
 async def retrieve(
     collection_name: str,
     query: str,
@@ -54,7 +49,6 @@ async def retrieve(
     search_mode: str = "semantic",
     reranking_config: dict | None = None,
     rerank_override: bool | None = None,
-    vector_store_provider: VectorStoreProvider | None = None,
 ) -> RetrievalOutcome:
     if top_k > MAX_TOP_K:
         raise ValidationError(f"top_k {top_k} exceeds maximum {MAX_TOP_K}")
@@ -75,9 +69,6 @@ async def retrieve(
         filter_expr = build_filter(filters) if filters else None
     except ValueError as exc:
         raise ValidationError(str(exc)) from exc
-    if search_mode in {"keyword", "hybrid"} and not _supports_text_search(vector_store_provider):
-        provider_label = vector_store_provider or vector_store.provider
-        raise ValidationError(f"{provider_label} does not support {search_mode} search in v1")
     query_terms = tokenize_query(query)
 
     result_cache_key: str | None = None
@@ -126,7 +117,6 @@ async def retrieve(
             query_terms=query_terms,
             top_k=top_k,
             filter_expr=filter_expr,
-            vector_store_provider=vector_store_provider,
             timings=timings,
         )
     elif search_mode == "hybrid":
@@ -138,7 +128,6 @@ async def retrieve(
             top_k=top_k,
             max_top_k=MAX_TOP_K,
             filter_expr=filter_expr,
-            vector_store_provider=vector_store_provider,
             timings=timings,
         )
     else:
@@ -148,7 +137,6 @@ async def retrieve(
             embedding_model=embedding_model,
             top_k=top_k,
             filter_expr=filter_expr,
-            vector_store_provider=vector_store_provider,
             timings=timings,
         )
 
@@ -225,7 +213,6 @@ async def retrieve_multi(
     search_mode: str = "semantic",
     reranking_configs: dict[str, dict] | None = None,
     rerank_override: bool | None = None,
-    vector_store_providers: dict[str, VectorStoreProvider] | None = None,
 ) -> list[dict]:
     if top_k > MAX_TOP_K:
         raise ValidationError(f"top_k {top_k} exceeds maximum {MAX_TOP_K}")
@@ -242,7 +229,6 @@ async def retrieve_multi(
             search_mode=search_mode,
             reranking_config=col_reranking,
             rerank_override=rerank_override,
-            vector_store_provider=(vector_store_providers or {}).get(col_name),
         )
         for r in outcome.results:
             r["collection"] = col_name

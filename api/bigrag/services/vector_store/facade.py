@@ -7,7 +7,6 @@ from typing import Any
 
 from bigrag.config import settings as _app_settings
 from bigrag.services._retrieval_filters import FilterExpression
-from bigrag.services.vector_store._util import close_backends
 from bigrag.services.vector_store.base import VectorStoreBackend
 from bigrag.services.vector_store.turbopuffer import TurbopufferVectorStore
 
@@ -24,6 +23,9 @@ class VectorStore:
         self._condition = asyncio.Condition()
         self._active = 0
         self._swapping = False
+
+    def is_configured(self) -> bool:
+        return bool(getattr(self.backend, "api_key", None))
 
     @property
     def backend(self) -> VectorStoreBackend:
@@ -75,7 +77,10 @@ class VectorStore:
             old_backend = self.backend
             self.backend = other.backend
             self._sync_client()
-            await close_backends({"turbopuffer": old_backend}, log_errors=True)
+            try:
+                await old_backend.close()
+            except Exception:
+                pass
             self._swapping = False
             self._condition.notify_all()
 
@@ -112,17 +117,14 @@ class VectorStore:
         self,
         name: str,
         dimension: int,
-        index_type: str = "HNSW",
         tenant_field: str | None = None,
-        **_: Any,
     ) -> None:
         async with self._backend() as backend:
-            await backend.create_collection(name, dimension, index_type, tenant_field)
+            await backend.create_collection(name, dimension, tenant_field)
 
     async def delete_collection(
         self,
         name: str,
-        **_: Any,
     ) -> None:
         async with self._backend() as backend:
             await backend.delete_collection(name)
@@ -136,7 +138,6 @@ class VectorStore:
         texts: list[str],
         embeddings: list[list[float]],
         metadata: list[dict] | None = None,
-        **_: Any,
     ) -> int:
         async with self._backend() as backend:
             return await backend.insert(
@@ -156,7 +157,6 @@ class VectorStore:
         top_k: int = 10,
         filters: FilterExpression | None = None,
         payload_fields: list[str] | None = None,
-        **_: Any,
     ) -> list[dict]:
         async with self._backend() as backend:
             return await backend.search(
@@ -173,7 +173,6 @@ class VectorStore:
         document_id: str,
         limit: int = 10000,
         offset: int = 0,
-        **_: Any,
     ) -> tuple[list[dict], int]:
         async with self._backend() as backend:
             return await backend.get_chunks(collection, document_id, limit, offset)
@@ -182,7 +181,6 @@ class VectorStore:
         self,
         collection: str,
         document_id: str,
-        **_: Any,
     ) -> None:
         async with self._backend() as backend:
             await backend.delete_by_document(collection, document_id)
@@ -191,7 +189,6 @@ class VectorStore:
         self,
         collection: str,
         ids: list[str],
-        **_: Any,
     ) -> None:
         async with self._backend() as backend:
             await backend.delete_by_ids(collection, ids)
@@ -202,7 +199,6 @@ class VectorStore:
         query_terms: list[str],
         top_k: int = 10,
         filters: FilterExpression | None = None,
-        **_: Any,
     ) -> list[dict]:
         async with self._backend() as backend:
             return await backend.text_search(collection, query_terms, top_k, filters)
@@ -214,7 +210,6 @@ class VectorStore:
         embeddings: list[list[float]],
         texts: list[str],
         metadata: list[dict] | None = None,
-        **_: Any,
     ) -> int:
         async with self._backend() as backend:
             return await backend.upsert(collection, ids, embeddings, texts, metadata)
@@ -224,7 +219,6 @@ class VectorStore:
         collection: str,
         *,
         with_vectors: bool = True,
-        **_: Any,
     ) -> list[dict]:
         async with self._backend() as backend:
             return await backend.export_collection_points(collection, with_vectors=with_vectors)

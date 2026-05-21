@@ -38,13 +38,13 @@ async def verify_embedding_credentials(
 
 def vector_store_unavailable_detail() -> str:
     return (
-        "Turbopuffer is not configured. Save a turbopuffer API key in Vector Storage "
+        "Turbopuffer is not configured. Save a turbopuffer API key in Settings "
         "before creating a collection."
     )
 
 
 def ensure_vector_store_available() -> None:
-    if vector_store.provider in vector_store.configured_providers:
+    if vector_store.is_configured():
         return
     raise HTTPException(
         status_code=400,
@@ -68,8 +68,8 @@ async def create_vector_store_collection(
         if "API key is not configured" in message or "client is not connected" in message:
             raise HTTPException(
                 status_code=400,
-                detail=vector_store_unavailable_detail(),
-            ) from e
+            detail=vector_store_unavailable_detail(),
+        ) from e
         logger.warning(
             "vector collection create failed",
             collection=body.name,
@@ -78,7 +78,7 @@ async def create_vector_store_collection(
         )
         raise HTTPException(
             status_code=502,
-            detail="Unable to create vector collection. Check Vector Storage settings.",
+            detail="Unable to create vector collection. Check Turbopuffer settings.",
         ) from e
     except httpx.HTTPError as e:
         logger.warning(
@@ -89,5 +89,5 @@ async def create_vector_store_collection(
         )
         raise HTTPException(
             status_code=502,
-            detail="Unable to create vector collection. Check Vector Storage settings.",
+            detail="Unable to create vector collection. Check Turbopuffer settings.",
         ) from e

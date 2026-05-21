@@ -70,7 +70,6 @@ client.collections.listAll({ name?, limit? })  // AsyncGenerator that pages thro
 client.collections.create({
   name,
   description?,
-  vector_store_provider?,   // "qdrant" | "turbopuffer"
   embedding_preset_id?,
   embedding_provider?,      // "openai" | "cohere" | "voyage" | "openai_compatible"
   embedding_model?,
@@ -78,7 +77,6 @@ client.collections.create({
   embedding_base_url?,
   dimension?,
   chunk_size?, chunk_overlap?, chunk_strategy?,    // "paragraph" | "recursive"
-  index_type?,              // "HNSW"
   tenant_field?,            // metadata key required for tenant filtering
   metadata_schema?,         // JSON Schema
   reranking_enabled?, reranking_model?, reranking_api_key?,
@@ -238,11 +236,6 @@ client.admin.backups.list({ limit?, offset? })
 client.admin.backups.get(backupId)
 client.admin.backups.create({ label? })
 
-client.admin.vectorMigrations.list({ collection?, cursor?, includeTotal?, limit?, offset? })
-client.admin.vectorMigrations.get(migrationId)
-client.admin.vectorMigrations.create({ collection, target_provider })
-client.admin.vectorMigrations.delete(migrationId)
-
 client.admin.connectors.google.get()
 client.admin.connectors.google.update({ enabled?, client_id?, client_secret? })
 
@@ -262,12 +255,6 @@ client.admin.mcpServers.delete(serverId)
 
 ```typescript
 for await (const event of client.admin.realtime.backups({ limit: 20 })) {
-  if (event.event === "snapshot") {
-    console.log(event.data.payload.jobs)
-  }
-}
-
-for await (const event of client.admin.realtime.vectorMigrations({ collection: "docs" })) {
   if (event.event === "snapshot") {
     console.log(event.data.payload.jobs)
   }

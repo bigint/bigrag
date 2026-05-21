@@ -22,7 +22,7 @@ There are many ways to build a RAG pipeline. This page compares bigRAG to popula
 | **Python SDK** | Yes | Yes | No | No | No | Yes | Yes | Yes | Yes |
 | **Web UI** | Yes (admin UI) | Yes | Yes | Yes | Yes | No | No | No | Yes |
 | **LLM generation** | Yes (chat API) | Yes | Yes | Yes | Yes | Via code | Via code | Via code | Yes |
-| **Vector DB** | Qdrant default, turbopuffer | OpenSearch | Elasticsearch | 9 options | Qdrant or pgvector | Integrations | Integrations | Integrations | Proprietary |
+| **Vector DB** | Turbopuffer | OpenSearch | Elasticsearch | 9 options | Local vector DB or pgvector | Integrations | Integrations | Integrations | Proprietary |
 | **Multi-collection** | Yes | No | Yes | Yes | No | N/A | N/A | N/A | Yes |
 | **Setup complexity** | Low | Low | Medium | Low | Medium | High | High | High | None |
 
@@ -68,7 +68,7 @@ These are the closest alternatives to bigRAG — self-hostable platforms that ha
 **Where bigRAG is a better fit:**
 - Lighter footprint — RAGFlow requires 4+ cores and 16 GB RAM minimum
 - API-first design for developers building integrations, not end-user apps
-- Purpose-built vector storage: Qdrant by default, with turbopuffer as a managed cloud backend
+- Purpose-built Turbopuffer storage for semantic, keyword, and hybrid search
 - Webhook-driven architecture for event-based workflows
 - Simpler deployment and configuration
 

@@ -35,14 +35,11 @@ async def test_vector_storage_overview_returns_provider_shape(
     resp = await admin_client.get("/v1/admin/vector-storage/overview")
     body = assert_envelope(resp, 200)
 
-    for key in ("provider", "health", "collections", "totals"):
-        assert key in body, f"missing top-level key {key!r} in {body!r}"
+    assert set(body) == {"provider", "health", "collections", "totals"}
 
     assert body["provider"] == "turbopuffer"
     assert isinstance(body["health"], dict)
     assert body["health"].get("status") in {"ok", "error"}
-    for removed_key in ("fallback_provider", "configured_providers", "provider_health"):
-        assert removed_key not in body
 
     assert isinstance(body["collections"], list)
     totals = body["totals"]

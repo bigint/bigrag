@@ -72,7 +72,7 @@ The SDK follows a resource namespace pattern:
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
 | `client.auth` | Setup, login, logout, identity, password, and preferences |
-| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, backups, vector migrations, admin realtime streams, connector config, embedding presets, and MCP server keys |
+| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, backups, admin realtime streams, connector config, embedding presets, and MCP server keys |
 | `client.connectors.google` | Google Drive account, file browsing, sources, and sync jobs |
 | `client.evaluations` | Golden-set retrieval evaluation runs |
 
@@ -87,7 +87,6 @@ result = await client.collections.list(name="prefix", limit=10)
 # Create
 collection = await client.collections.create({
     "name": "docs",
-    "vector_store_provider": "qdrant",
     "embedding_provider": "openai",
     "embedding_model": "text-embedding-3-small",
 })
@@ -328,31 +327,16 @@ except APITimeoutError:
 
 ```python
 settings = await client.admin.settings.list()
-await client.admin.settings.test({"values": {"qdrant_url": "http://qdrant:6333"}})
+await client.admin.settings.test({"values": {"turbopuffer_region": "aws-us-west-2"}})
 await client.admin.settings.update({"values": {"trusted_proxies": ["10.0.0.0/8"]}})
 await client.admin.settings.reset({"keys": ["trusted_proxies"]})
 await client.admin.settings.purge_embedding_cache()
 
 backups = await client.admin.backups.list(limit=20)
-backup = await client.admin.backups.create({"label": "before migration"})
+backup = await client.admin.backups.create({"label": "nightly export"})
 backup = await client.admin.backups.get(backup["id"])
 
-vector_migrations = await client.admin.vector_migrations.list(
-    collection="docs",
-    include_total=True,
-)
-vector_migration = await client.admin.vector_migrations.create({
-    "collection": "docs",
-    "target_provider": "turbopuffer",
-})
-vector_migration = await client.admin.vector_migrations.get(vector_migration["id"])
-await client.admin.vector_migrations.delete(vector_migration["id"])
-
 async for event in client.admin.realtime.backups(limit=20):
-    if event["event"] == "snapshot":
-        print(event["data"]["payload"]["jobs"])
-
-async for event in client.admin.realtime.vector_migrations(collection="docs"):
     if event["event"] == "snapshot":
         print(event["data"]["payload"]["jobs"])
 
@@ -366,7 +350,7 @@ async for event in client.admin.realtime.platform_readiness():
 # Health check
 health = await client.health()
 
-# Readiness (checks Postgres, Qdrant, Redis, embedding provider)
+# Readiness (checks Postgres, Redis, Turbopuffer, embedding provider)
 ready = await client.readiness()
 
 # Platform stats

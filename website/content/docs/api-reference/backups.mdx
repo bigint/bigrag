@@ -70,15 +70,15 @@ Content-Type: application/json
 
 Creates a backup job and enqueues it on the Dramatiq backup worker. Only one backup can be pending or running at a time.
 
-While the job runs, bigRAG acquires a maintenance lock. Mutating API requests are rejected with `423`, new ingestion jobs are rejected, Dramatiq ingestion and connector actors delay themselves, and scheduled Google Drive syncs do not start. Backups and vector migrations share the same maintenance lane, so a pending or running backup blocks new vector migrations and a pending, running, or canceling vector migration blocks new backups.
+While the job runs, bigRAG acquires a maintenance lock. Mutating API requests are rejected with `423`, new ingestion jobs are rejected, Dramatiq ingestion and connector actors delay themselves, and scheduled Google Drive syncs do not start.
 
 The backup fails if:
 
 - The backup bucket settings are incomplete or invalid.
-- A configured vector-store client cannot be reached.
+- Turbopuffer cannot be reached.
 - A stored upload file referenced by a document row is missing.
 
-Starting a backup returns `409` when another backup, vector migration, or maintenance lock is active.
+Starting a backup returns `409` when another backup or maintenance lock is active.
 
 ## Realtime stream
 

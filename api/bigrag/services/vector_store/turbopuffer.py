@@ -7,7 +7,6 @@ import httpx
 from bigrag.logging import get_logger
 from bigrag.services._retrieval_filters import FilterCondition, FilterExpression
 from bigrag.services.vector_store.base import (
-    VectorStoreProvider,
     _backend_name,
     _build_payload,
     _chunk_rows_from_payloads,
@@ -67,8 +66,6 @@ def _row_payload(row: dict) -> dict:
 
 
 class TurbopufferVectorStore:
-    provider: VectorStoreProvider = "turbopuffer"
-
     def __init__(
         self,
         *,
@@ -120,7 +117,6 @@ class TurbopufferVectorStore:
         self,
         name: str,
         dimension: int,
-        index_type: str = "HNSW",
         tenant_field: str | None = None,
     ) -> None:
         await self.health_check()
