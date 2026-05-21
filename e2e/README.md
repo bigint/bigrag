@@ -31,7 +31,7 @@ make e2e       # up, test, down
 
 | Target             | What it does                                                       |
 |--------------------|--------------------------------------------------------------------|
-| `make up`          | Brings up the API/SDK e2e compose stack and waits for `/health/ready` |
+| `make up`          | Brings up the API/SDK e2e compose stack and waits for `/health`       |
 | `make down`        | Tears down the stack and removes volumes                           |
 | `make logs`        | Tails compose logs                                                 |
 | `make install`     | `uv sync` + `pnpm install`                                         |
@@ -44,6 +44,11 @@ make e2e       # up, test, down
 The Makefile uses the `bigrag-e2e` Docker Compose project. Its `down` target
 removes e2e volumes only and does not remove the default `bigrag` dev volumes
 used by `./dev.sh`.
+
+`make up` waits for API liveness on `/health`. The pytest admin fixture then
+creates the first admin when needed and seeds e2e runtime settings for
+`fake-openai`, `fake-turbopuffer`, and `webhook-sink` before tests that need
+configured providers run.
 
 ## Architecture
 

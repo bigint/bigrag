@@ -3,6 +3,7 @@
 E2E_PROJECT ?= bigrag-e2e
 COMPOSE = docker compose -p $(E2E_PROJECT) -f ../docker-compose.yml -f docker-compose.e2e.yml
 API_BASE ?= http://localhost:4000
+API_LIVENESS ?= $(API_BASE)/health
 E2E_SERVICES = bigrag-api bigrag-worker fake-openai fake-turbopuffer webhook-sink minio
 
 up:
@@ -10,14 +11,14 @@ up:
 	$(MAKE) wait-ready
 
 wait-ready:
-	@echo "Waiting for $(API_BASE)/health/ready ..."
+	@echo "Waiting for $(API_LIVENESS) ..."
 	@for i in $$(seq 1 60); do \
-		if curl -fsS $(API_BASE)/health/ready >/dev/null 2>&1; then \
+		if curl -fsS $(API_LIVENESS) >/dev/null 2>&1; then \
 			echo "ready"; exit 0; \
 		fi; \
 		sleep 2; \
 	done; \
-	echo "timed out waiting for /health/ready"; exit 1
+	echo "timed out waiting for $(API_LIVENESS)"; exit 1
 
 down:
 	$(COMPOSE) down -v
@@ -41,13 +42,20 @@ test-sdk-ts:
 test: test-api test-sdk-py test-sdk-ts
 
 e2e:
-	$(MAKE) up
+	@if ! $(MAKE) up; then \
+		echo "=== bigrag-api logs (last 1000 lines) ==="; \
+		$(COMPOSE) logs --tail=1000 bigrag-api || true; \
+		echo "=== bigrag-worker logs (last 1000 lines) ==="; \
+		$(COMPOSE) logs --tail=1000 bigrag-worker || true; \
+		$(COMPOSE) down -v || true; \
+		exit 1; \
+	fi
 	@if ! $(MAKE) test; then \
 		echo "=== bigrag-api logs (last 1000 lines) ==="; \
 		$(COMPOSE) logs --tail=1000 bigrag-api || true; \
 		echo "=== bigrag-worker logs (last 1000 lines) ==="; \
 		$(COMPOSE) logs --tail=1000 bigrag-worker || true; \
-		$(MAKE) down; \
+		$(COMPOSE) down -v || true; \
 		exit 1; \
 	fi
 	$(MAKE) down
