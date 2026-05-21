@@ -12,7 +12,7 @@ import orjson
 import sqlalchemy as sa
 
 from bigrag.db.engine import session_factory
-from bigrag.db.models import AuditLog, BackupJob, ConnectorSyncJob, VectorMigrationJob
+from bigrag.db.models import AuditLog, BackupJob, ConnectorSyncJob
 from bigrag.logging import get_logger
 from bigrag.services.maintenance import acquire_backup_lock, active_lock, release_backup_lock
 from bigrag.services.queue import ingestion_queue
@@ -24,8 +24,6 @@ from .manifest import _manifest
 from .target import BackupConfigError, BackupUploadStats, S3BackupTarget, build_backup_target
 
 logger = get_logger("bigrag.backup")
-
-ACTIVE_VECTOR_MIGRATION_STATUSES = ("pending", "running", "canceling")
 
 
 async def create_backup_job(*, label: str, created_by: uuid.UUID | None) -> BackupJob:
@@ -43,17 +41,6 @@ async def create_backup_job(*, label: str, created_by: uuid.UUID | None) -> Back
             )
             if active is not None:
                 raise BackupConfigError("A backup is already pending or running")
-            active_migration = await session.scalar(
-                sa.select(VectorMigrationJob)
-                .where(VectorMigrationJob.status.in_(ACTIVE_VECTOR_MIGRATION_STATUSES))
-                .order_by(VectorMigrationJob.created_at.desc())
-                .limit(1)
-                .with_for_update()
-            )
-            if active_migration is not None:
-                raise BackupConfigError(
-                    "A vector migration is already pending, running, or canceling"
-                )
             job = BackupJob(label=label.strip(), created_by=created_by)
             session.add(job)
         await session.refresh(job)

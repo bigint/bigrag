@@ -6,7 +6,7 @@ from typing import Literal, Protocol
 
 from bigrag.services._retrieval_filters import FilterExpression
 
-VectorStoreProvider = Literal["qdrant", "turbopuffer"]
+VectorStoreProvider = Literal["turbopuffer"]
 
 _POINT_NAMESPACE = uuid.UUID("1b04f7ca-0c3b-5d76-a5bb-6e4b4a40f61d")
 _FIXED_PAYLOAD_FIELDS = {"id", "text", "document_id", "chunk_index", "embedding"}
@@ -29,7 +29,6 @@ class VectorStoreFeatureError(RuntimeError):
 
 class VectorStoreBackend(Protocol):
     provider: VectorStoreProvider
-    supports_text_search: bool
 
     def connect(self) -> None: ...
 

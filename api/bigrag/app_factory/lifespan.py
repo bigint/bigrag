@@ -52,21 +52,16 @@ async def lifespan(app: FastAPI):
     runtime = await runtime_settings.get_values(
         [
             "ingestion_workers",
-            "qdrant_connect_timeout_seconds",
-            "qdrant_required",
-            "qdrant_search_ef",
-            "qdrant_url",
             "turbopuffer_api_key",
+            "turbopuffer_base_url",
             "turbopuffer_namespace_prefix",
             "turbopuffer_region",
         ]
     )
 
     vector_store.configure(
-        qdrant_url=runtime["qdrant_url"],
-        connect_timeout_seconds=runtime["qdrant_connect_timeout_seconds"],
-        search_ef=runtime["qdrant_search_ef"],
         turbopuffer_api_key=runtime["turbopuffer_api_key"],
+        turbopuffer_base_url=runtime["turbopuffer_base_url"],
         turbopuffer_region=runtime["turbopuffer_region"],
         turbopuffer_namespace_prefix=runtime["turbopuffer_namespace_prefix"],
     )
@@ -76,12 +71,10 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning(
             "Vector store startup connection failed; API will start degraded",
-            provider=vector_store.provider,
+            provider="turbopuffer",
             error_type=exc.__class__.__name__,
             error=str(exc),
         )
-        if runtime["qdrant_required"]:
-            raise
     app.state.vector_store = vector_store
 
     storage = await init_storage_from_runtime(upload_dir=s.upload_dir)

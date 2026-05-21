@@ -7,7 +7,6 @@ import httpx
 from bigrag.logging import get_logger
 from bigrag.services._retrieval_filters import FilterCondition, FilterExpression
 from bigrag.services.vector_store.base import (
-    VectorStoreFeatureError,
     VectorStoreProvider,
     _backend_name,
     _build_payload,
@@ -53,7 +52,7 @@ def _schema(dimension: int) -> dict:
         _PUBLIC_ID_FIELD: {"type": "string"},
         "document_id": {"type": "string"},
         "chunk_index": {"type": "int"},
-        "text": {"type": "string", "filterable": False},
+        "text": {"type": "string", "full_text_search": True},
     }
 
 
@@ -69,7 +68,6 @@ def _row_payload(row: dict) -> dict:
 
 class TurbopufferVectorStore:
     provider: VectorStoreProvider = "turbopuffer"
-    supports_text_search = False
 
     def __init__(
         self,
@@ -77,22 +75,23 @@ class TurbopufferVectorStore:
         api_key: str | None,
         region: str,
         namespace_prefix: str = "bigrag_",
+        base_url: str | None = None,
     ) -> None:
         self.api_key = api_key
         self.region = region
         self.prefix = namespace_prefix or "bigrag_"
+        self.base_url = base_url.rstrip("/") if base_url else None
         self.client: httpx.AsyncClient | None = None
 
     def connect(self) -> None:
         if not self.api_key:
             raise RuntimeError("turbopuffer API key is not configured")
-        base_url = f"https://{self.region}.turbopuffer.com"
         self.client = httpx.AsyncClient(
-            base_url=base_url,
+            base_url=self.base_url or f"https://{self.region}.turbopuffer.com",
             headers={"Authorization": f"Bearer {self.api_key}"},
             timeout=30,
         )
-        logger.info("connected to turbopuffer", region=self.region)
+        logger.info("connected to turbopuffer", region=self.region, base_url=self.base_url)
 
     def _client(self) -> httpx.AsyncClient:
         if self.client is None:
@@ -261,7 +260,26 @@ class TurbopufferVectorStore:
         top_k: int = 10,
         filters: FilterExpression | None = None,
     ) -> list[dict]:
-        raise VectorStoreFeatureError("turbopuffer does not support keyword or hybrid search in v1")
+        query = " ".join(term for term in query_terms if term).strip()
+        if not query:
+            return []
+        payload: dict[str, Any] = {
+            "rank_by": ["text", "BM25", query],
+            "top_k": top_k,
+            "exclude_attributes": ["vector"],
+        }
+        turbo_filter = _to_turbopuffer_filter(filters)
+        if turbo_filter:
+            payload["filters"] = turbo_filter
+        rows = await self._query_rows(collection, payload)
+        results = []
+        for row in rows:
+            point_id = str(row.get("id", ""))
+            score = row.get("$score")
+            if score is None:
+                score = max(0.0, 1.0 - float(row.get("$dist", 0.0)))
+            results.append(_row_from_payload(point_id, float(score), _row_payload(row)))
+        return results
 
     async def upsert(
         self,

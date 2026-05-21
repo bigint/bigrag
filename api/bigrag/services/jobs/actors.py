@@ -71,10 +71,6 @@ def enqueue_backup_job(job_id: str) -> None:
     run_backup.send(job_id)
 
 
-def enqueue_vector_migration_job(job_id: str) -> None:
-    run_vector_migration.send(job_id)
-
-
 def seed_periodic_jobs(enabled_queues: set[str] | None = None) -> None:
     if enabled_queues is None or MAINTENANCE_QUEUE in enabled_queues:
         _schedule_sync(
@@ -225,18 +221,6 @@ async def _run_backup(job_id: str) -> None:
     from bigrag.services.backup import run_backup_job
 
     await run_backup_job(job_id)
-
-
-@dramatiq.actor(queue_name=MAINTENANCE_QUEUE, max_retries=0, broker=broker)
-def run_vector_migration(job_id: str) -> None:
-    _run(_run_vector_migration, job_id)
-
-
-async def _run_vector_migration(job_id: str) -> None:
-    await ensure_worker_runtime()
-    from bigrag.services.vector_migration import run_vector_migration_job
-
-    await run_vector_migration_job(job_id)
 
 
 @dramatiq.actor(queue_name=MAINTENANCE_QUEUE, max_retries=0, broker=broker)

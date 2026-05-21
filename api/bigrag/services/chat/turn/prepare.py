@@ -90,7 +90,6 @@ async def _prepare_chat_turn(
         search_mode=search_mode,
         reranking_config=get_reranking_config(collection),
         rerank_override=rerank,
-        vector_store_provider=collection.get("vector_store_provider"),
     )
     sources = await _sources_from_results(session, outcome.results)
     timings = ChatTimings(

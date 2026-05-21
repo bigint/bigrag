@@ -260,7 +260,6 @@ def upgrade() -> None:
         sa.Column("embedding_api_key", bigrag.services.crypto.EncryptedString(), nullable=True),
         sa.Column("embedding_base_url", sa.Text(), nullable=True),
         sa.Column("embedding_preset_id", sa.Uuid(), nullable=True),
-        sa.Column("vector_store_provider", sa.Text(), server_default="qdrant", nullable=False),
         sa.Column("dimension", sa.Integer(), server_default=sa.text("1536"), nullable=False),
         sa.Column("chunk_size", sa.Integer(), server_default=sa.text("512"), nullable=False),
         sa.Column("chunk_overlap", sa.Integer(), server_default=sa.text("50"), nullable=False),
@@ -283,7 +282,6 @@ def upgrade() -> None:
             server_default=sa.text("false"),
             nullable=False,
         ),
-        sa.Column("index_type", sa.Text(), server_default="HNSW", nullable=False),
         sa.Column("tenant_field", sa.Text(), nullable=True),
         sa.Column("metadata_schema", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column(
@@ -317,66 +315,6 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_index("idx_collections_name", "collections", ["name"], unique=False)
-    op.create_table(
-        "vector_migration_jobs",
-        sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column("collection_id", sa.Uuid(), nullable=True),
-        sa.Column("collection_name", sa.Text(), nullable=False),
-        sa.Column("source_provider", sa.Text(), nullable=False),
-        sa.Column("target_provider", sa.Text(), nullable=False),
-        sa.Column("status", sa.Text(), server_default="pending", nullable=False),
-        sa.Column("phase", sa.Text(), server_default="queued", nullable=False),
-        sa.Column("progress", sa.Double(), server_default=sa.text("0"), nullable=False),
-        sa.Column("copied_points", sa.Integer(), server_default=sa.text("0"), nullable=False),
-        sa.Column("total_points", sa.Integer(), nullable=True),
-        sa.Column(
-            "details",
-            postgresql.JSONB(astext_type=sa.Text()),
-            server_default=sa.text("'{}'::jsonb"),
-            nullable=False,
-        ),
-        sa.Column("error_message", sa.Text(), nullable=True),
-        sa.Column("created_by", sa.Uuid(), nullable=True),
-        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.CheckConstraint(
-            "status IN ('pending', 'running', 'canceling', 'succeeded', 'failed')",
-            name="vector_migration_jobs_status_check",
-        ),
-        sa.ForeignKeyConstraint(["collection_id"], ["collections.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index(
-        "idx_vector_migration_jobs_collection",
-        "vector_migration_jobs",
-        ["collection_name"],
-        unique=False,
-    )
-    op.create_index(
-        "idx_vector_migration_jobs_created_at_id",
-        "vector_migration_jobs",
-        [sa.literal_column("created_at DESC"), sa.literal_column("id DESC")],
-        unique=False,
-    )
-    op.create_index(
-        "idx_vector_migration_jobs_status",
-        "vector_migration_jobs",
-        ["status"],
-        unique=False,
-    )
     op.create_table(
         "connector_accounts",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -1171,11 +1109,6 @@ def upgrade() -> None:
         "status IN ('pending', 'delivered', 'failed')",
     )
     op.create_check_constraint(
-        "collections_vector_store_provider_check",
-        "collections",
-        "vector_store_provider IN ('qdrant', 'turbopuffer')",
-    )
-    op.create_check_constraint(
         "embedding_presets_provider_check",
         "embedding_presets",
         "provider IN ('openai', 'openai_compatible', 'cohere', 'voyage')",
@@ -1266,10 +1199,6 @@ def downgrade() -> None:
     op.drop_table("connector_accounts")
     op.drop_index("idx_collections_name", table_name="collections")
     op.drop_index("idx_collections_created_at_id", table_name="collections")
-    op.drop_index("idx_vector_migration_jobs_status", table_name="vector_migration_jobs")
-    op.drop_index("idx_vector_migration_jobs_created_at_id", table_name="vector_migration_jobs")
-    op.drop_index("idx_vector_migration_jobs_collection", table_name="vector_migration_jobs")
-    op.drop_table("vector_migration_jobs")
     op.drop_table("collections")
     op.drop_index("idx_backup_jobs_status", table_name="backup_jobs")
     op.drop_index("idx_backup_jobs_created_at_id", table_name="backup_jobs")

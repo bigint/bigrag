@@ -101,10 +101,8 @@ export type ReadinessReport = {
   version: string;
   postgres: boolean;
   postgres_error?: string;
-  qdrant: boolean | null;
   vector_store: boolean;
   vector_store_error?: string;
-  vector_store_provider: "per_collection";
   redis: boolean;
   redis_error?: string;
   embedding: boolean;

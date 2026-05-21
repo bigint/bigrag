@@ -14,10 +14,6 @@ from bigrag.services.crypto import EncryptedString
 class Collection(Base):
     __tablename__ = "collections"
     __table_args__ = (
-        sa.CheckConstraint(
-            "vector_store_provider IN ('qdrant', 'turbopuffer')",
-            name="collections_vector_store_provider_check",
-        ),
         sa.Index("idx_collections_name", "name"),
         sa.Index("idx_collections_created_at_id", sa.desc("created_at"), sa.desc("id")),
     )
@@ -36,11 +32,6 @@ class Collection(Base):
     embedding_preset_id: Mapped[UUID | None] = mapped_column(
         sa.ForeignKey("embedding_presets.id", ondelete="RESTRICT"),
         nullable=True,
-    )
-    vector_store_provider: Mapped[str] = mapped_column(
-        sa.Text,
-        nullable=False,
-        server_default="qdrant",
     )
     dimension: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("1536")
@@ -75,7 +66,6 @@ class Collection(Base):
     multimodal_enrichment_enabled: Mapped[bool] = mapped_column(
         sa.Boolean, nullable=False, server_default=sa.false()
     )
-    index_type: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="HNSW")
     tenant_field: Mapped[str | None] = mapped_column(sa.Text)
     metadata_schema: Mapped[dict | None] = mapped_column(JSONB)
     meta: Mapped[dict] = mapped_column(

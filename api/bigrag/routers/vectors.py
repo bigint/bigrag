@@ -90,7 +90,6 @@ async def upsert_vectors(
         embeddings=embeddings,
         texts=texts,
         metadata=metadata,
-        provider=collection.get("vector_store_provider"),
     )
     await invalidate_collection_query_cache(collection_name)
     logger.info("vector upsert complete", collection=collection_name, upserted=count)
@@ -123,12 +122,11 @@ async def delete_vectors(
             status_code=413,
             detail=f"Too many vector IDs. Max: {limits['max_vector_delete_count']}",
         )
-    collection = await get_collection_or_404(collection_name)
+    await get_collection_or_404(collection_name)
     logger.info("vector delete", collection=collection_name, ids=len(body.ids))
     await vector_store.delete_by_ids(
         collection_name,
         body.ids,
-        provider=collection.get("vector_store_provider"),
     )
     await invalidate_collection_query_cache(collection_name)
     access_log.set_context(request, metadata={"deleted": len(body.ids)})

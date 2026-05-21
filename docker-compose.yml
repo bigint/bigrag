@@ -1,8 +1,11 @@
 x-bigrag-env: &bigrag-env
   BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
   BIGRAG_DATABASE_URL: "postgres://${POSTGRES_USER:-bigrag}:${POSTGRES_PASSWORD:-bigrag}@postgres:5432/${POSTGRES_DB:-bigrag}?sslmode=disable"
-  BIGRAG_QDRANT_URL: http://qdrant:6333
   BIGRAG_REDIS_URL: "${BIGRAG_REDIS_URL:-redis://redis:6379/0}"
+  BIGRAG_TURBOPUFFER_API_KEY: "${BIGRAG_TURBOPUFFER_API_KEY:-}"
+  BIGRAG_TURBOPUFFER_REGION: "${BIGRAG_TURBOPUFFER_REGION:-aws-us-east-1}"
+  BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX: "${BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX:-bigrag_}"
+  BIGRAG_TURBOPUFFER_BASE_URL: "${BIGRAG_TURBOPUFFER_BASE_URL:-}"
   BIGRAG_MASTER_KEY: "${BIGRAG_MASTER_KEY:-}"
   BIGRAG_MASTER_KEY_PREVIOUS: '${BIGRAG_MASTER_KEY_PREVIOUS:-[]}'
   BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
@@ -38,8 +41,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
-        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
       interval: 30s
@@ -66,8 +67,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
-        condition: service_started
     healthcheck:
       test:
         [
@@ -145,22 +144,7 @@ services:
       timeout: 5s
       retries: 5
 
-  qdrant:
-    image: qdrant/qdrant:v1.17.1
-    container_name: bigrag-qdrant
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:6333:6333"
-      - "127.0.0.1:6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
-    deploy:
-      resources:
-        limits:
-          memory: 2g
-
 volumes:
   bigrag_data:
   postgres_data:
   redis_data:
-  qdrant_data:

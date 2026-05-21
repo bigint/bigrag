@@ -7,7 +7,7 @@ from bigrag.services.vector_store.base import VectorStoreBackend, VectorStorePro
 
 logger = get_logger("bigrag.vector_store")
 
-PROVIDERS: tuple[VectorStoreProvider, ...] = ("qdrant", "turbopuffer")
+PROVIDERS: tuple[VectorStoreProvider, ...] = ("turbopuffer",)
 
 
 def validate_provider(value: str) -> VectorStoreProvider:

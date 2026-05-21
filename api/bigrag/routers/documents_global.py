@@ -60,6 +60,5 @@ async def get_document_chunks_global(
         document_id,
         limit=limit,
         offset=offset,
-        provider=collection.get("vector_store_provider"),
     )
     return {"chunks": chunks, "total": total}

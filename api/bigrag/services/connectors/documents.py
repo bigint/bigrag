@@ -104,7 +104,6 @@ async def sync_downloaded_file(
             await vector_store.delete_by_document(
                 source.collection_name,
                 str(doc.id),
-                provider=collection.vector_store_provider,
             )
             old_path = doc.file_path
             storage_key = f"{source.collection_name}/{doc.id}{downloaded.file_ext}"
@@ -156,7 +155,6 @@ async def delete_synced_document(
         await vector_store.delete_by_document(
             source.collection_name,
             str(doc.id),
-            provider=collection.vector_store_provider,
         )
         storage = get_storage()
         await storage.delete(doc.file_path)

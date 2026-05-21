@@ -192,7 +192,6 @@ async def _sample_chunks(
             str(document.id),
             limit=CHUNK_LIMIT,
             offset=offset,
-            provider=collection.get("vector_store_provider"),
         )
         for chunk in chunks:
             item = dict(chunk)

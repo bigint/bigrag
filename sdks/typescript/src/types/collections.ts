@@ -2,9 +2,7 @@ export interface Collection {
   id: string;
   name: string;
   description: string;
-  embedding_provider: string;
   embedding_model: string;
-  vector_store_provider: "qdrant" | "turbopuffer";
   dimension: number;
   chunk_size: number;
   chunk_overlap: number;
@@ -52,9 +50,7 @@ export interface CollectionStatsResponse {
 export interface CreateCollectionBody {
   name: string;
   description?: string;
-  vector_store_provider?: "qdrant" | "turbopuffer";
   embedding_preset_id?: string;
-  embedding_provider?: string;
   embedding_model?: string;
   embedding_api_key?: string;
   embedding_base_url?: string;

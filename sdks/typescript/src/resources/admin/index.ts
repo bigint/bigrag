@@ -9,7 +9,6 @@ import { AdminMcpServersResource } from "./mcp_servers.js";
 import { AdminRealtimeResource } from "./realtime.js";
 import { AdminSettingsResource } from "./settings.js";
 import { AdminUsersResource } from "./users.js";
-import { AdminVectorMigrationsResource } from "./vector_migrations.js";
 
 export { AdminAccessResource } from "./access.js";
 export { AdminApiKeysResource } from "./api_keys.js";
@@ -21,7 +20,6 @@ export { AdminMcpServersResource } from "./mcp_servers.js";
 export { AdminRealtimeResource } from "./realtime.js";
 export { AdminSettingsResource } from "./settings.js";
 export { AdminUsersResource } from "./users.js";
-export { AdminVectorMigrationsResource } from "./vector_migrations.js";
 
 export class AdminResource {
   readonly users: AdminUsersResource;
@@ -34,7 +32,6 @@ export class AdminResource {
   readonly mcpServers: AdminMcpServersResource;
   readonly realtime: AdminRealtimeResource;
   readonly settings: AdminSettingsResource;
-  readonly vectorMigrations: AdminVectorMigrationsResource;
 
   constructor(client: RequestClient) {
     this.users = new AdminUsersResource(client);
@@ -47,6 +44,5 @@ export class AdminResource {
     this.mcpServers = new AdminMcpServersResource(client);
     this.realtime = new AdminRealtimeResource(client);
     this.settings = new AdminSettingsResource(client);
-    this.vectorMigrations = new AdminVectorMigrationsResource(client);
   }
 }

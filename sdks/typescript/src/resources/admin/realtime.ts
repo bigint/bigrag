@@ -17,7 +17,6 @@ import type {
   ReadinessResponse,
   UploadSession,
   UsageResponse,
-  VectorMigrationJobListResponse,
 } from "../../types/index.js";
 
 export class AdminRealtimeResource {
@@ -100,16 +99,6 @@ export class AdminRealtimeResource {
     options: { limit?: number; offset?: number } = {},
   ): AsyncGenerator<AdminRealtimeEvent<BackupJobListResponse>> {
     return this._stream("/v1/admin/realtime/backups", options);
-  }
-
-  vectorMigrations(
-    options: { collection?: string; limit?: number; offset?: number } = {},
-  ): AsyncGenerator<AdminRealtimeEvent<VectorMigrationJobListResponse>> {
-    return this._stream("/v1/admin/realtime/vector-migrations", {
-      collection: options.collection,
-      limit: options.limit,
-      offset: options.offset,
-    });
   }
 
   accessOverview(

@@ -147,18 +147,6 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
             />
           )}
         </form.Field>
-        <form.Field name="vectorStoreProvider">
-          {(field) => (
-            <Select
-              label="Vector storage"
-              onChange={(value) =>
-                field.handleChange(value === "turbopuffer" ? "turbopuffer" : "qdrant")
-              }
-              options={VECTOR_STORAGE_OPTIONS}
-              value={field.state.value}
-            />
-          )}
-        </form.Field>
         {presetsPending ? (
           <div className="flex items-center gap-3 rounded-md border border-border bg-muted/50 px-3 py-3 text-sm text-muted-foreground">
             <Spinner size="sm" />
@@ -385,11 +373,6 @@ export const CreateCollectionModal = ({ open, onClose }: Props) => {
     </Modal>
   );
 };
-
-const VECTOR_STORAGE_OPTIONS = [
-  { value: "qdrant", label: "Qdrant" },
-  { value: "turbopuffer", label: "Turbopuffer" },
-] as const;
 
 const DEFAULT_METADATA_SCHEMA = '{\n  "type": "object"\n}';
 

@@ -9,7 +9,6 @@ import { Route as DashboardRouteImport } from "./routes/_dashboard";
 import { Route as AuthRouteImport } from "./routes/_auth";
 import { Route as IndexRouteImport } from "./routes/index";
 import { Route as DashboardWebhooksRouteImport } from "./routes/_dashboard.webhooks";
-import { Route as DashboardVectorStorageRouteImport } from "./routes/_dashboard.vector-storage";
 import { Route as DashboardUsageRouteImport } from "./routes/_dashboard.usage";
 import { Route as DashboardSettingsRouteImport } from "./routes/_dashboard.settings";
 import { Route as DashboardOverviewRouteImport } from "./routes/_dashboard.overview";
@@ -52,11 +51,6 @@ const IndexRoute = IndexRouteImport.update({
 const DashboardWebhooksRoute = DashboardWebhooksRouteImport.update({
   id: "/webhooks",
   path: "/webhooks",
-  getParentRoute: () => DashboardRoute,
-} as any);
-const DashboardVectorStorageRoute = DashboardVectorStorageRouteImport.update({
-  id: "/vector-storage",
-  path: "/vector-storage",
   getParentRoute: () => DashboardRoute,
 } as any);
 const DashboardUsageRoute = DashboardUsageRouteImport.update({
@@ -212,7 +206,6 @@ export interface FileRoutesByFullPath {
   "/overview": typeof DashboardOverviewRoute;
   "/settings": typeof DashboardSettingsRoute;
   "/usage": typeof DashboardUsageRoute;
-  "/vector-storage": typeof DashboardVectorStorageRoute;
   "/webhooks": typeof DashboardWebhooksRoute;
   "/collections/$name": typeof DashboardCollectionsNameRouteWithChildren;
   "/collections/": typeof DashboardCollectionsIndexRoute;
@@ -242,7 +235,6 @@ export interface FileRoutesByTo {
   "/overview": typeof DashboardOverviewRoute;
   "/settings": typeof DashboardSettingsRoute;
   "/usage": typeof DashboardUsageRoute;
-  "/vector-storage": typeof DashboardVectorStorageRoute;
   "/webhooks": typeof DashboardWebhooksRoute;
   "/collections": typeof DashboardCollectionsIndexRoute;
   "/collections/$name/search": typeof DashboardCollectionsNameSearchRoute;
@@ -273,7 +265,6 @@ export interface FileRoutesById {
   "/_dashboard/overview": typeof DashboardOverviewRoute;
   "/_dashboard/settings": typeof DashboardSettingsRoute;
   "/_dashboard/usage": typeof DashboardUsageRoute;
-  "/_dashboard/vector-storage": typeof DashboardVectorStorageRoute;
   "/_dashboard/webhooks": typeof DashboardWebhooksRoute;
   "/_dashboard/collections/$name": typeof DashboardCollectionsNameRouteWithChildren;
   "/_dashboard/collections/": typeof DashboardCollectionsIndexRoute;
@@ -305,7 +296,6 @@ export interface FileRouteTypes {
     | "/overview"
     | "/settings"
     | "/usage"
-    | "/vector-storage"
     | "/webhooks"
     | "/collections/$name"
     | "/collections/"
@@ -335,7 +325,6 @@ export interface FileRouteTypes {
     | "/overview"
     | "/settings"
     | "/usage"
-    | "/vector-storage"
     | "/webhooks"
     | "/collections"
     | "/collections/$name/search"
@@ -365,7 +354,6 @@ export interface FileRouteTypes {
     | "/_dashboard/overview"
     | "/_dashboard/settings"
     | "/_dashboard/usage"
-    | "/_dashboard/vector-storage"
     | "/_dashboard/webhooks"
     | "/_dashboard/collections/$name"
     | "/_dashboard/collections/"
@@ -413,13 +401,6 @@ declare module "@tanstack/react-router" {
       path: "/webhooks";
       fullPath: "/webhooks";
       preLoaderRoute: typeof DashboardWebhooksRouteImport;
-      parentRoute: typeof DashboardRoute;
-    };
-    "/_dashboard/vector-storage": {
-      id: "/_dashboard/vector-storage";
-      path: "/vector-storage";
-      fullPath: "/vector-storage";
-      preLoaderRoute: typeof DashboardVectorStorageRouteImport;
       parentRoute: typeof DashboardRoute;
     };
     "/_dashboard/usage": {
@@ -672,7 +653,6 @@ interface DashboardRouteChildren {
   DashboardOverviewRoute: typeof DashboardOverviewRoute;
   DashboardSettingsRoute: typeof DashboardSettingsRoute;
   DashboardUsageRoute: typeof DashboardUsageRoute;
-  DashboardVectorStorageRoute: typeof DashboardVectorStorageRoute;
   DashboardWebhooksRoute: typeof DashboardWebhooksRoute;
   DashboardCollectionsNameRoute: typeof DashboardCollectionsNameRouteWithChildren;
   DashboardCollectionsIndexRoute: typeof DashboardCollectionsIndexRoute;
@@ -692,7 +672,6 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardOverviewRoute: DashboardOverviewRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardUsageRoute: DashboardUsageRoute,
-  DashboardVectorStorageRoute: DashboardVectorStorageRoute,
   DashboardWebhooksRoute: DashboardWebhooksRoute,
   DashboardCollectionsNameRoute: DashboardCollectionsNameRouteWithChildren,
   DashboardCollectionsIndexRoute: DashboardCollectionsIndexRoute,

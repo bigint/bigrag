@@ -7,7 +7,7 @@ from starlette.requests import Request
 from bigrag.services.maintenance import active_lock
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-CONTROL_PATH_PREFIXES = ("/v1/admin/backups", "/v1/admin/vector-storage/migrations")
+CONTROL_PATH_PREFIXES = ("/v1/admin/backups",)
 
 
 def _is_control_path(path: str) -> bool:

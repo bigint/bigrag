@@ -25,14 +25,13 @@ async def delete_collection(session: AsyncSession, name: str) -> str:
     logger.info("delete collection jobs cancelled", collection=name, flushed=flushed)
 
     deleted_id = str(collection.id)
-    vector_store_provider = collection.vector_store_provider
     await session.delete(collection)
     await session.commit()
     await collection_cache.invalidate(name)
     await invalidate_collection_query_cache(name)
     logger.info("delete collection database records removed", collection=name)
 
-    await vector_store.delete_collection(name, provider=vector_store_provider)
+    await vector_store.delete_collection(name)
     logger.info("delete collection vectors dropped", collection=name)
 
     deleted = await get_storage().delete_prefix(f"{name}/")
@@ -51,7 +50,6 @@ async def truncate_collection(session: AsyncSession, name: str) -> str:
     logger.info("truncate collection jobs cancelled", collection=name, flushed=flushed)
 
     collection_id = str(collection.id)
-    vector_store_provider = collection.vector_store_provider
     await session.execute(sa.delete(Document).where(Document.collection_id == collection.id))
     await session.execute(
         sa.update(Collection).where(Collection.id == collection.id).values(document_count=0)
@@ -61,7 +59,7 @@ async def truncate_collection(session: AsyncSession, name: str) -> str:
     await invalidate_collection_query_cache(name)
     logger.info("truncate collection documents removed", collection=name)
 
-    await vector_store.delete_collection(name, provider=vector_store_provider)
+    await vector_store.delete_collection(name)
     logger.info("truncate collection vectors cleared", collection=name)
 
     deleted = await get_storage().delete_prefix(f"{name}/")

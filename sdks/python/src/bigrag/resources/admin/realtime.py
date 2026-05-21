@@ -88,18 +88,6 @@ class AdminRealtimeResource:
             "/v1/admin/realtime/backups", {"limit": limit, "offset": offset}
         )
 
-    def vector_migrations(
-        self,
-        *,
-        collection: str | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
-    ) -> AsyncGenerator[AdminRealtimeEvent, None]:
-        return self._stream(
-            "/v1/admin/realtime/vector-migrations",
-            {"collection": collection, "limit": limit, "offset": offset},
-        )
-
     def access_overview(
         self, *, window_days: int | None = None
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import Any, NotRequired, TypedDict
 
+from .query import SearchMode
+
 
 class Collection(TypedDict):
     id: str
     name: str
     description: str
-    embedding_provider: str
     embedding_model: str
-    vector_store_provider: str
     dimension: int
     chunk_size: int
     chunk_overlap: int
@@ -27,7 +27,7 @@ class Collection(TypedDict):
     multimodal_enrichment_enabled: bool
     default_top_k: int
     default_min_score: float | None
-    default_search_mode: str
+    default_search_mode: SearchMode
     metadata: dict[str, Any]
     created_at: str
     updated_at: str
@@ -50,9 +50,7 @@ class CollectionStatsResponse(TypedDict):
 class CreateCollectionBody(TypedDict):
     name: str
     description: NotRequired[str]
-    vector_store_provider: NotRequired[str]
     embedding_preset_id: NotRequired[str]
-    embedding_provider: NotRequired[str]
     embedding_model: NotRequired[str]
     embedding_api_key: NotRequired[str]
     embedding_base_url: NotRequired[str]
@@ -71,7 +69,7 @@ class CreateCollectionBody(TypedDict):
     multimodal_enrichment_enabled: NotRequired[bool]
     default_top_k: NotRequired[int]
     default_min_score: NotRequired[float]
-    default_search_mode: NotRequired[str]
+    default_search_mode: NotRequired[SearchMode]
 
 
 class UpdateCollectionBody(TypedDict, total=False):
@@ -85,6 +83,6 @@ class UpdateCollectionBody(TypedDict, total=False):
     multimodal_enrichment_enabled: bool
     default_top_k: int
     default_min_score: float
-    default_search_mode: str
+    default_search_mode: SearchMode
     chunk_strategy: str
     metadata_schema: dict[str, Any]

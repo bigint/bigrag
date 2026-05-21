@@ -49,12 +49,10 @@ def _collection_response(c: Collection) -> CollectionResponse:
         description=c.description,
         embedding_provider=c.embedding_provider,
         embedding_model=c.embedding_model,
-        vector_store_provider=c.vector_store_provider,
         dimension=c.dimension,
         chunk_size=c.chunk_size,
         chunk_overlap=c.chunk_overlap,
         chunk_strategy=c.chunk_strategy,
-        index_type=c.index_type,
         tenant_field=c.tenant_field,
         has_metadata_schema=bool(c.metadata_schema),
         document_count=c.document_count,
@@ -125,7 +123,6 @@ async def create_collection(
     logger.info(
         "create collection",
         name=body.name,
-        vector_store_provider=body.vector_store_provider,
         provider=body.embedding_provider,
         model=body.embedding_model,
     )
@@ -232,14 +229,12 @@ async def create_collection(
     collection = Collection(
         name=body.name,
         description=body.description,
-        vector_store_provider=body.vector_store_provider,
         embedding_provider=provider,
         embedding_model=model,
         dimension=dimension,
         chunk_size=body.chunk_size,
         chunk_overlap=body.chunk_overlap,
         chunk_strategy=body.chunk_strategy,
-        index_type=body.index_type,
         tenant_field=body.tenant_field,
         meta=body.metadata,
         metadata_schema=body.metadata_schema,
@@ -260,11 +255,11 @@ async def create_collection(
         await session.commit()
     except IntegrityError as e:
         await session.rollback()
-        await vector_store.delete_collection(body.name, provider=body.vector_store_provider)
+        await vector_store.delete_collection(body.name)
         raise HTTPException(status_code=409, detail="Collection already exists") from e
     except Exception:
         await session.rollback()
-        await vector_store.delete_collection(body.name, provider=body.vector_store_provider)
+        await vector_store.delete_collection(body.name)
         raise
     await session.refresh(collection)
     await collection_cache.invalidate(body.name)
@@ -285,7 +280,6 @@ async def create_collection(
         metadata={
             "name": body.name,
             "provider": provider,
-            "vector_store_provider": body.vector_store_provider,
             "model": model,
             "dimension": dimension,
         },

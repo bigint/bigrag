@@ -95,7 +95,6 @@ async def query_collection(
         search_mode=search_mode,
         reranking_config=get_reranking_config(collection),
         rerank_override=body.rerank,
-        vector_store_provider=collection.get("vector_store_provider"),
     )
 
     logger.info(
@@ -214,7 +213,6 @@ async def multi_collection_query(
 
     embedding_models = {}
     reranking_configs = {}
-    vector_store_providers = {}
     resolved_collections = await asyncio.gather(
         *[get_collection_or_404(col_name) for col_name in body.collections]
     )
@@ -225,7 +223,6 @@ async def multi_collection_query(
         except (ImportError, ValueError) as e:
             raise HTTPException(status_code=400, detail=f"Collection '{col_name}': {e}") from e
         reranking_configs[col_name] = get_reranking_config(collection)
-        vector_store_providers[col_name] = collection.get("vector_store_provider") or "qdrant"
     include_multimodal_by_collection = {
         col_name: bool(body.multimodal and collection.get("multimodal_enabled"))
         for col_name, collection in zip(body.collections, resolved_collections, strict=True)
@@ -241,7 +238,6 @@ async def multi_collection_query(
         search_mode=body.search_mode,
         reranking_configs=reranking_configs,
         rerank_override=body.rerank,
-        vector_store_providers=vector_store_providers,
     )
 
     logger.info("multi-query complete", collections=body.collections, results=len(results))
@@ -314,7 +310,6 @@ async def batch_query(
                 search_mode=item.search_mode,
                 reranking_config=get_reranking_config(collection),
                 rerank_override=item.rerank,
-                vector_store_provider=collection.get("vector_store_provider"),
             )
 
             include_multimodal = bool(item.multimodal and collection.get("multimodal_enabled"))

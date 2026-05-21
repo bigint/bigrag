@@ -64,21 +64,16 @@ async def ensure_worker_runtime() -> None:
         runtime = await runtime_settings.get_values(
             [
                 "ingestion_workers",
-                "qdrant_connect_timeout_seconds",
-                "qdrant_required",
-                "qdrant_search_ef",
-                "qdrant_url",
                 "turbopuffer_api_key",
+                "turbopuffer_base_url",
                 "turbopuffer_namespace_prefix",
                 "turbopuffer_region",
             ]
         )
         logger.info("worker runtime settings loaded")
         vector_store.configure(
-            qdrant_url=runtime["qdrant_url"],
-            connect_timeout_seconds=runtime["qdrant_connect_timeout_seconds"],
-            search_ef=runtime["qdrant_search_ef"],
             turbopuffer_api_key=runtime["turbopuffer_api_key"],
+            turbopuffer_base_url=runtime["turbopuffer_base_url"],
             turbopuffer_region=runtime["turbopuffer_region"],
             turbopuffer_namespace_prefix=runtime["turbopuffer_namespace_prefix"],
         )

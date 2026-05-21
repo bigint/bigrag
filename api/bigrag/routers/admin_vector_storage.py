@@ -22,7 +22,6 @@ async def vector_storage_overview(
         await session.execute(
             sa.select(
                 Collection.name,
-                Collection.vector_store_provider,
                 sa.func.count(Document.id).label("documents"),
                 sa.func.coalesce(sa.func.sum(Document.chunk_count), 0).label("chunks"),
                 sa.func.coalesce(sa.func.sum(Document.file_size), 0).label("bytes"),
@@ -35,12 +34,11 @@ async def vector_storage_overview(
     collections = [
         {
             "name": name,
-            "provider": provider,
             "documents": int(documents or 0),
             "chunks": int(chunks or 0),
             "bytes": int(bytes_ or 0),
         }
-        for name, provider, documents, chunks, bytes_ in rows
+        for name, documents, chunks, bytes_ in rows
     ]
     totals = {
         "collections": len(collections),

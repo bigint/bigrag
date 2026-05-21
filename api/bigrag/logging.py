@@ -255,7 +255,6 @@ def configure_logging(log_level: str = "debug", log_format: str = "text") -> Non
         "hpack",
         "httpcore",
         "httpx",
-        "qdrant_client",
         "uvicorn.access",
     ):
         logging.getLogger(name).setLevel(logging.WARNING)

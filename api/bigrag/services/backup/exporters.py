@@ -77,7 +77,6 @@ async def _export_vector_store(temp_dir: Path) -> dict[str, int]:
             async for point in vector_store.iter_collection_points(
                 collection.name,
                 with_vectors=False,
-                provider=collection.vector_store_provider,
             ):
                 f.write(orjson.dumps(_point_payload(point)) + b"\n")
                 count += 1
@@ -88,7 +87,6 @@ async def _export_vector_store(temp_dir: Path) -> dict[str, int]:
         collections_meta.append(
             {
                 "collection": collection.name,
-                "provider": collection.vector_store_provider,
                 "vector_store_collection": collection.name,
                 "exists": exists,
                 "points": count,

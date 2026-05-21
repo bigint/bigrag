@@ -52,10 +52,6 @@ type AuditListParams = {
   readonly resourceType?: string;
 };
 
-type VectorMigrationsParams = {
-  readonly collection?: string;
-};
-
 export const queryKeys = {
   auth: {
     all: () => ["auth"] as const,
@@ -64,9 +60,6 @@ export const queryKeys = {
   },
   apiKeys: () => ["api-keys"] as const,
   backups: () => ["backups"] as const,
-  vectorStorageOverview: () => ["vector-storage", "overview"] as const,
-  vectorMigrations: ({ collection }: VectorMigrationsParams = {}) =>
-    ["vector-migrations", { collection: collection ?? "all" }] as const,
   access: {
     logs: (filters: Record<string, unknown>) => ["access", "logs", filters] as const,
     overview: ({ windowDays }: WindowDaysParams) => ["access", "overview", { windowDays }] as const,

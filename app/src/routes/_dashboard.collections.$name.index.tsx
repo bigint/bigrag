@@ -40,10 +40,6 @@ const CollectionIndex = () => {
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <Fact label="Embedding model" value={collection.embedding_model} />
-          <Fact
-            label="Vector storage"
-            value={collection.vector_store_provider === "turbopuffer" ? "Turbopuffer" : "Qdrant"}
-          />
           <Fact label="Dimensions" value={`${formatNumber(collection.dimension)}d`} />
           <Fact label="Chunking" value={`${collection.chunk_size}/${collection.chunk_overlap}`} />
           <Fact label="Default search" value={collection.default_search_mode} />

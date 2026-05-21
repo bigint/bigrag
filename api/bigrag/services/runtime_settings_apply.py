@@ -42,10 +42,8 @@ STORAGE_CONFIG_KEYS = {
 }
 
 VECTOR_CONFIG_KEYS = {
-    "qdrant_connect_timeout_seconds",
-    "qdrant_search_ef",
-    "qdrant_url",
     "turbopuffer_api_key",
+    "turbopuffer_base_url",
     "turbopuffer_namespace_prefix",
     "turbopuffer_region",
 }
@@ -155,8 +153,9 @@ async def _prepare_vector_backend(values: dict[str, Any]) -> VectorStore:
     store = VectorStore()
     _configure_vector_store(store, values)
     try:
-        store.connect()
-        await store.health_check()
+        if values.get("turbopuffer_api_key"):
+            store.connect()
+            await store.health_check()
         return store
     except Exception:
         await store.close()
@@ -165,10 +164,8 @@ async def _prepare_vector_backend(values: dict[str, Any]) -> VectorStore:
 
 def _configure_vector_store(store: VectorStore, values: dict[str, Any]) -> None:
     store.configure(
-        qdrant_url=values["qdrant_url"],
-        connect_timeout_seconds=values["qdrant_connect_timeout_seconds"],
-        search_ef=values["qdrant_search_ef"],
         turbopuffer_api_key=values["turbopuffer_api_key"],
+        turbopuffer_base_url=values["turbopuffer_base_url"],
         turbopuffer_region=values["turbopuffer_region"],
         turbopuffer_namespace_prefix=values["turbopuffer_namespace_prefix"],
     )
