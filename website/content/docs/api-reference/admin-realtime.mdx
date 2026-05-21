@@ -55,6 +55,8 @@ Connector source streams accept `collection`. Sync-job streams accept `collectio
 
 These streams support the same query parameters as their REST counterparts. Where no domain event source exists yet, the backend emits full snapshots from a server-side refresh tick so browsers do not need to poll.
 
+Backup streams refresh quickly while jobs are pending or running. Vector migration streams refresh quickly while jobs are pending, running, or canceling so stop-and-delete progress is visible.
+
 ## API Client Fallback
 
 External clients should continue to use the REST endpoints and may poll document status or batch status until documents become `ready` or `failed`. Collection-wide ingestion events remain available through `GET /v1/collections/{name}/events` for API-key clients that need event-level progress.

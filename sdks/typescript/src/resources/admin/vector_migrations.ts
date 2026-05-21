@@ -7,16 +7,26 @@ import type {
 } from "../../types/index.js";
 import { pagination } from "./_shared.js";
 
+type VectorMigrationListOptions = {
+  collection?: string;
+  cursor?: string;
+  includeTotal?: boolean;
+  limit?: number;
+  offset?: number;
+};
+
 export class AdminVectorMigrationsResource {
   constructor(private readonly _client: RequestClient) {}
 
-  list(
-    options: { collection?: string; limit?: number; offset?: number } = {},
-  ): Promise<VectorMigrationJobListResponse> {
+  list(options: VectorMigrationListOptions = {}): Promise<VectorMigrationJobListResponse> {
     return this._client._request("GET", "/v1/admin/vector-storage/migrations", {
       params: {
         ...pagination(options),
         ...(options.collection ? { collection: options.collection } : {}),
+        ...(options.cursor ? { cursor: options.cursor } : {}),
+        ...(options.includeTotal === undefined
+          ? {}
+          : { include_total: String(options.includeTotal) }),
       },
     });
   }

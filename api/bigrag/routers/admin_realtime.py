@@ -37,7 +37,7 @@ router = APIRouter(prefix="/v1/admin/realtime", tags=["admin:realtime"])
 
 ACTIVE_SYNC_JOB_STATUSES = {"pending", "running"}
 ACTIVE_BACKUP_JOB_STATUSES = {"pending", "running"}
-ACTIVE_VECTOR_MIGRATION_STATUSES = {"pending", "running"}
+ACTIVE_VECTOR_MIGRATION_STATUSES = {"pending", "running", "canceling"}
 
 
 def _parse_document_ids(document_ids: list[str]) -> list[str]:

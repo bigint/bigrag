@@ -332,7 +332,10 @@ backups = await client.admin.backups.list(limit=20)
 backup = await client.admin.backups.create({"label": "before migration"})
 backup = await client.admin.backups.get(backup["id"])
 
-vector_migrations = await client.admin.vector_migrations.list(collection="docs")
+vector_migrations = await client.admin.vector_migrations.list(
+    collection="docs",
+    include_total=True,
+)
 vector_migration = await client.admin.vector_migrations.create({
     "collection": "docs",
     "target_provider": "turbopuffer",
@@ -341,6 +344,10 @@ vector_migration = await client.admin.vector_migrations.get(vector_migration["id
 await client.admin.vector_migrations.delete(vector_migration["id"])
 
 async for event in client.admin.realtime.backups(limit=20):
+    if event["event"] == "snapshot":
+        print(event["data"]["payload"]["jobs"])
+
+async for event in client.admin.realtime.vector_migrations(collection="docs"):
     if event["event"] == "snapshot":
         print(event["data"]["payload"]["jobs"])
 

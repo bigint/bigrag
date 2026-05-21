@@ -23,12 +23,18 @@ class AdminVectorMigrationsResource:
         self,
         *,
         collection: str | None = None,
+        cursor: str | None = None,
+        include_total: bool | None = None,
         limit: int | None = None,
         offset: int | None = None,
     ) -> VectorMigrationJobListResponse:
         params = _pagination(limit=limit, offset=offset)
         if collection is not None:
             params["collection"] = collection
+        if cursor is not None:
+            params["cursor"] = cursor
+        if include_total is not None:
+            params["include_total"] = "true" if include_total else "false"
         return await self._client._request(
             "GET", "/v1/admin/vector-storage/migrations", params=params
         )

@@ -49,6 +49,16 @@ GET /v1/admin/realtime/vector-migrations
 
 Session-only. Migrates one collection in place from its current vector provider to a configured target provider.
 
+`GET /v1/admin/vector-storage/migrations` accepts:
+
+| Name | Type | Default | Notes |
+|------|------|---------|-------|
+| `collection` | string | — | Filter jobs to one collection |
+| `limit` | integer | `20` | 1-100 |
+| `offset` | integer | `0` | Offset pagination when `cursor` is omitted |
+| `cursor` | string | — | Cursor returned as `next_cursor` |
+| `include_total` | boolean | `false` | Include the total job count for the filter |
+
 `POST /v1/admin/vector-storage/migrations` starts a background maintenance job:
 
 ```json
@@ -58,9 +68,9 @@ Session-only. Migrates one collection in place from its current vector provider 
 }
 ```
 
-The job pauses writes with the maintenance lock, waits for active ingestion and connector sync work to drain, copies provider-neutral vector points, switches `vector_store_provider`, invalidates collection/search caches, and deletes the old source provider collection after a successful cutover.
+The job pauses writes with the maintenance lock, waits for active ingestion and connector sync work to drain, copies provider-neutral vector points, switches `vector_store_provider`, invalidates collection/search caches, and deletes the old source provider collection after a successful cutover. Backups and vector migrations share the same maintenance lane, so a pending or running backup blocks new vector migrations and a pending, running, or canceling vector migration blocks new backups.
 
-`DELETE /v1/admin/vector-storage/migrations/{migration_id}` deletes completed or failed migration records. If the job is pending or running, it requests a stop first and removes the record after the worker has cleaned up any partial target collection. A migration that has already entered cutover finishes cleanup before removal.
+`DELETE /v1/admin/vector-storage/migrations/{migration_id}` deletes completed or failed migration records. If the job is pending, running, or canceling, it requests a stop first and removes the record after the worker has cleaned up any partial target collection. A migration that has already entered cutover finishes cleanup before removal. This endpoint remains available while the maintenance lock is active so operators can stop a running migration.
 
 **Response** `201`:
 
@@ -79,12 +89,12 @@ The job pauses writes with the maintenance lock, waits for active ingestion and 
 }
 ```
 
-`GET /v1/admin/realtime/vector-migrations` is an SSE stream whose `snapshot` payload matches the list response. Add `?collection=docs` to scope the stream to one collection.
+`GET /v1/admin/realtime/vector-migrations` is an SSE stream whose `snapshot` payload matches the list response. Add `?collection=docs` to scope the stream to one collection. Pending, running, and canceling jobs keep the stream on the short refresh interval.
 
 **Errors:**
 
 - `400` — Collection missing or target provider not configured
-- `409` — The collection already uses the target provider or another migration is active
+- `409` — The collection already uses the target provider, another migration or backup is active, or another maintenance lock is active
 - `404` — Migration job not found
 
 ## Upsert Vectors

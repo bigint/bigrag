@@ -8,7 +8,7 @@ from typing import Any
 import sqlalchemy as sa
 
 from bigrag.db.engine import session_factory
-from bigrag.db.models import AuditLog, Collection, ConnectorSyncJob, VectorMigrationJob
+from bigrag.db.models import AuditLog, BackupJob, Collection, ConnectorSyncJob, VectorMigrationJob
 from bigrag.logging import get_logger
 from bigrag.services import collection_cache
 from bigrag.services.error_sanitize import sanitize_message_text
@@ -27,6 +27,7 @@ from bigrag.services.vector_store.base import _FIXED_PAYLOAD_FIELDS
 logger = get_logger("bigrag.vector_migration")
 
 ACTIVE_STATUSES = ("pending", "running", "canceling")
+ACTIVE_BACKUP_STATUSES = ("pending", "running")
 
 
 class VectorMigrationError(RuntimeError):
@@ -55,6 +56,15 @@ async def create_vector_migration_job(
         raise VectorMigrationError(f"{target} vector store is not configured")
     async with session_factory()() as session:
         async with session.begin():
+            active_backup = await session.scalar(
+                sa.select(BackupJob)
+                .where(BackupJob.status.in_(ACTIVE_BACKUP_STATUSES))
+                .order_by(BackupJob.created_at.desc())
+                .limit(1)
+                .with_for_update()
+            )
+            if active_backup is not None:
+                raise VectorMigrationConflictError("A backup is already pending or running")
             active = await session.scalar(
                 sa.select(VectorMigrationJob)
                 .where(VectorMigrationJob.status.in_(ACTIVE_STATUSES))
