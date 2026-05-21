@@ -1,8 +1,14 @@
-import { Badge, Button, cn, Input, Page, Select, Spinner } from "@atelier/ui";
 import { RefreshCw, ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Page } from "@/components/ui/page";
+import { Select } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { useAccessLogs, useAccessOverview } from "@/hooks/use-access-logs";
 import { useSession } from "@/hooks/use-auth";
+import { cn } from "@/lib/cn";
 import { formatNumber, formatRelative } from "@/lib/format";
 import type { AccessLogEntry } from "@/types/bigrag";
 
@@ -205,11 +211,11 @@ const AccessLogTable = ({
 }) => (
   <div className="divide-y divide-border">
     {entries.map((entry) => (
-      <Button
-        className="grid h-auto w-full justify-normal gap-4 rounded-none px-5 py-4 text-left font-normal xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_12rem_9rem]"
+      <button
+        type="button"
+        className="grid w-full gap-4 px-5 py-4 text-left hover:bg-muted/60 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_12rem_9rem]"
         key={entry.id}
         onClick={() => onSelect(entry)}
-        variant="ghost"
       >
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -246,7 +252,7 @@ const AccessLogTable = ({
             </div>
           </div>
         </div>
-      </Button>
+      </button>
     ))}
   </div>
 );

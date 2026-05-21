@@ -1,17 +1,14 @@
-import {
-  Badge,
-  Button,
-  ConfirmDialog,
-  cn,
-  Empty,
-  Input,
-  Select,
-  Switch,
-  Textarea,
-} from "@atelier/ui";
 import { useForm, useStore } from "@tanstack/react-form";
 import { ChevronDown, ChevronRight, Save, Trash2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Empty } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   groupSpecs,
   type InstanceSettingsFormValues,
@@ -37,6 +34,7 @@ import {
   usePurgeEmbeddingCache,
   useUpdateInstanceSettings,
 } from "@/hooks/use-instance-settings";
+import { cn } from "@/lib/cn";
 import type {
   InstanceSettingGroup,
   InstanceSettingSpec,
@@ -411,18 +409,18 @@ const AdvancedSettings = ({
   readonly stacked: boolean;
 }) => (
   <div className="border-border border-t bg-muted/20">
-    <Button
+    <button
       aria-expanded={open}
-      className="h-auto w-full justify-between rounded-none px-4 py-3 text-left text-sm font-semibold"
+      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={() => onOpenChange(!open)}
-      variant="ghost"
+      type="button"
     >
       <span>Advanced controls</span>
       <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
         {specs.length} settings
         {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
       </span>
-    </Button>
+    </button>
     {open && (
       <div className="divide-y divide-border border-border border-t bg-card">
         {specs.map((spec) => (

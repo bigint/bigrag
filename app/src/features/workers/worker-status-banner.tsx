@@ -1,5 +1,5 @@
-import { cn } from "@atelier/ui";
 import { TriangleAlert } from "lucide-react";
+import { cn } from "@/lib/cn";
 import type { WorkerAvailability } from "./worker-status";
 
 export const WorkerOfflineBanner = ({

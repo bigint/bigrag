@@ -1,5 +1,11 @@
-import { Badge, Button, Empty, Select, Spinner, Switch, Tooltip } from "@atelier/ui";
 import { FolderSync, RefreshCw, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
+import { Select } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip } from "@/components/ui/tooltip";
 import { intervalOptions, statusVariant } from "@/features/collections/google-drive-panel.utils";
 import {
   clampGoogleSyncProgress,

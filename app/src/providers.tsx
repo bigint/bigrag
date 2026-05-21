@@ -1,7 +1,7 @@
-import { ThemeProvider } from "@atelier/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { Toaster } from "sonner";
+import { AdminThemeProvider } from "@/features/theme/theme-provider";
 
 export const Providers = ({ children }: { children: React.ReactNode }) => {
   const [client] = useState(
@@ -19,7 +19,7 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
   );
 
   return (
-    <ThemeProvider storageKey="bigrag:theme-mode">
+    <AdminThemeProvider>
       <QueryClientProvider client={client}>
         {children}
         <Toaster
@@ -33,6 +33,6 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
           }}
         />
       </QueryClientProvider>
-    </ThemeProvider>
+    </AdminThemeProvider>
   );
 };

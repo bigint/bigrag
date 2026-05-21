@@ -195,7 +195,7 @@ export const useSseSnapshotQuery = <T>({
     queryFn: (context) => queryFnRef.current(context),
     queryKey,
     refetchInterval: (q) => {
-      if (closeWhenRef.current?.(q.state.data as T)) return false;
+      if (q.state.data != null && closeWhenRef.current?.(q.state.data as T)) return false;
       return realtimeUnavailable ? pollIntervalMs : false;
     },
     retry: false,
@@ -238,7 +238,7 @@ export const useSseSnapshotQuery = <T>({
         setRealtimeUnavailable(false);
         fallbackStartedRef.current = false;
         queryClientRef.current.setQueryData(queryKeyRef.current, snapshot.payload);
-        if (closeWhenRef.current?.(snapshot.payload)) {
+        if (snapshot.payload != null && closeWhenRef.current?.(snapshot.payload)) {
           unsubscribe();
           unsubscribed = true;
           setStreaming(false);

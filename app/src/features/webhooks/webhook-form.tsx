@@ -1,7 +1,11 @@
-import { Button, Checkbox, Input, Modal, Textarea } from "@atelier/ui";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { Textarea } from "@/components/ui/textarea";
 import {
   defaultWebhookFormValues,
   toggleWebhookCategory,

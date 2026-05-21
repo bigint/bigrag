@@ -1,8 +1,10 @@
-import { Button, Input, Spinner } from "@atelier/ui";
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ApiUnreachable } from "@/components/status/api-unreachable";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import {
   defaultLoginFormValues,
   loginBodyFromValues,
@@ -54,7 +56,6 @@ const LoginPage = () => {
   });
 
   useAuthGate({ when: "setup-needed", to: "/setup" });
-  useAuthGate({ when: "logged-in", to: from ?? "/overview" });
 
   if (isPending || setupStatus?.needs_setup) {
     return (
@@ -125,7 +126,7 @@ const LoginPage = () => {
               minLength={8}
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.target.value)}
-              placeholder="Enter password"
+              placeholder="Password"
               required
               type="password"
               value={field.state.value}

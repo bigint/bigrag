@@ -38,6 +38,11 @@ from bigrag.types.admin import (
     UpdateMcpServerBody,
     UpdateUserBody,
     UserListResponse,
+    VectorMigrationCreateBody,
+    VectorMigrationJob,
+    VectorMigrationJobListResponse,
+    VectorMigrationJobStatus,
+    VectorMigrationProvider,
 )
 from bigrag.types.analytics import AnalyticsResponse, PeriodStats, TopQuery
 from bigrag.types.auth import (
@@ -193,6 +198,11 @@ __all__ = [
     "BackupCreateBody",
     "BackupJob",
     "BackupJobListResponse",
+    "VectorMigrationProvider",
+    "VectorMigrationJobStatus",
+    "VectorMigrationCreateBody",
+    "VectorMigrationJob",
+    "VectorMigrationJobListResponse",
     "AdminRealtimeEvent",
     "AccessLogEntry",
     "AccessLogListResponse",

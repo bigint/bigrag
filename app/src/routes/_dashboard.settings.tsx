@@ -1,5 +1,6 @@
-import { Page, Tabs } from "@atelier/ui";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Page } from "@/components/ui/page";
+import { Tabs } from "@/components/ui/tabs";
 import {
   DATA_SETTINGS_GROUPS,
   getSettingsTab,

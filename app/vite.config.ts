@@ -18,7 +18,6 @@ export default defineConfig({
     alias: {
       "@": new URL("./src", import.meta.url).pathname,
     },
-    dedupe: ["@base-ui/react", "lucide-react", "react", "react-dom"],
   },
   build: {
     target: "es2022",

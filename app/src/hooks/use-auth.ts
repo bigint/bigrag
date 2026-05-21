@@ -52,7 +52,7 @@ export const useSession = () =>
       }
     },
     retry: false,
-    staleTime: (query) => (query.state.data === null ? 0 : 30_000),
+    staleTime: 30_000,
   });
 
 export const useLogin = () => {

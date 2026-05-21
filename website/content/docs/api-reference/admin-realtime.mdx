@@ -48,11 +48,14 @@ Connector source streams accept `collection`. Sync-job streams accept `collectio
 | `GET /v1/admin/realtime/access/logs` | `GET /v1/admin/access/logs` |
 | `GET /v1/admin/realtime/audit` | `GET /v1/admin/audit` |
 | `GET /v1/admin/realtime/backups` | `GET /v1/admin/backups` |
+| `GET /v1/admin/realtime/vector-migrations` | `GET /v1/admin/vector-storage/migrations` |
 | `GET /v1/admin/realtime/usage` | `GET /v1/usage` |
 | `GET /v1/admin/realtime/platform/stats` | `GET /v1/stats` |
 | `GET /v1/admin/realtime/platform/readiness` | `GET /health/ready` |
 
 These streams support the same query parameters as their REST counterparts. Where no domain event source exists yet, the backend emits full snapshots from a server-side refresh tick so browsers do not need to poll.
+
+Backup streams refresh quickly while jobs are pending or running. Vector migration streams refresh quickly while jobs are pending, running, or canceling so stop-and-delete progress is visible.
 
 ## API Client Fallback
 

@@ -1,15 +1,8 @@
-import {
-  Button,
-  Checkbox,
-  cn,
-  Input,
-  Popover,
-  SegmentedControl,
-  Slider,
-  Textarea,
-} from "@atelier/ui";
+import { Popover } from "@base-ui/react/popover";
 import { Check, Sparkles } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 import type { Collection } from "@/types/bigrag";
 
 export const OPENAI_MODELS = [
@@ -53,9 +46,10 @@ export const KeyMenu = ({
         Stored by the backend and used only for chat generation.
       </p>
     </div>
-    <Input
+    <input
       aria-label="OpenAI API key"
       autoComplete="off"
+      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onChange={(e) => setKeyDraft(e.target.value)}
       placeholder={keyIsSet ? "Paste a replacement key" : "sk-..."}
       type="password"
@@ -88,19 +82,19 @@ export const ModelMenu = ({
 }) => (
   <div className="w-[min(18rem,calc(100vw-2rem))] p-1.5">
     {OPENAI_MODELS.map((model) => (
-      <Button
+      <button
+        type="button"
         key={model.value}
         onClick={() => onChange(model.value)}
-        variant="ghost"
         className={cn(
-          "h-10 w-full justify-start rounded-md px-3 text-left text-sm font-normal",
+          "flex h-10 w-full items-center gap-3 rounded-md px-3 text-left text-sm hover:bg-accent",
           model.value === value && "bg-accent font-semibold text-foreground",
         )}
       >
         <Sparkles className="size-4 shrink-0 text-warning" />
         <span className="flex-1 truncate">{model.label}</span>
         {model.value === value && <Check className="size-4" />}
-      </Button>
+      </button>
     ))}
   </div>
 );
@@ -119,12 +113,12 @@ export const CollectionMenu = ({
       <p className="px-3 py-2 text-xs text-muted-foreground">No collections yet</p>
     )}
     {collections.map((collection) => (
-      <Button
+      <button
+        type="button"
         key={collection.id}
         onClick={() => onChange(collection.name)}
-        variant="ghost"
         className={cn(
-          "min-h-11 w-full justify-start rounded-md px-3 text-left text-sm font-normal",
+          "flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-sm hover:bg-accent",
           collection.name === value && "bg-accent font-semibold text-foreground",
         )}
       >
@@ -136,7 +130,7 @@ export const CollectionMenu = ({
         </span>
         <span className="font-mono text-xs text-muted-foreground">{collection.document_count}</span>
         {collection.name === value && <Check className="size-3.5" />}
-      </Button>
+      </button>
     ))}
   </div>
 );
@@ -151,68 +145,111 @@ export const SettingsMenu = ({
   state: ChatState;
 }) => (
   <div className="w-[min(24rem,calc(100vw-2rem))] space-y-4 p-4">
-    <Slider
+    <RangeControl
       label="Temperature"
       max={1}
       min={0}
       step={0.1}
       value={state.temperature}
       valueLabel={state.temperature.toFixed(1)}
-      onValueChange={(value) => onPatch({ temperature: value })}
+      onChange={(value) => onPatch({ temperature: value })}
     />
-    <Slider
+    <RangeControl
       label="Top K chunks"
       max={20}
       min={1}
       step={1}
       value={state.topK}
       valueLabel={String(state.topK)}
-      onValueChange={(value) => onPatch({ topK: Math.round(value) })}
+      onChange={(value) => onPatch({ topK: Math.round(value) })}
     />
 
     <div className="space-y-2">
       <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         Search mode
       </span>
-      <SegmentedControl
-        aria-label="Search mode"
-        className="grid-cols-3"
-        onChange={(searchMode) => onPatch({ searchMode })}
-        options={[
-          { label: "Semantic", value: "semantic" },
-          { label: "Keyword", value: "keyword" },
-          { label: "Hybrid", value: "hybrid" },
-        ]}
-        value={state.searchMode}
-      />
+      <div className="grid grid-cols-3 overflow-hidden rounded-md border border-border">
+        {(["semantic", "keyword", "hybrid"] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            className={cn(
+              "h-9 border-r border-border px-2 text-xs font-semibold capitalize last:border-r-0 hover:bg-accent",
+              state.searchMode === mode && "bg-foreground text-background hover:bg-foreground",
+            )}
+            onClick={() => onPatch({ searchMode: mode })}
+          >
+            {mode}
+          </button>
+        ))}
+      </div>
     </div>
 
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
+    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
       <span>
         <span className="block text-sm font-semibold">Rerank when configured</span>
         <span className="block text-xs text-muted-foreground">
           Uses the collection reranker if available.
         </span>
       </span>
-      <Checkbox
+      <input
         aria-label="Use reranker when configured"
         checked={state.rerank}
-        onCheckedChange={(checked) => onPatch({ rerank: checked })}
+        className="size-4 accent-primary"
+        type="checkbox"
+        onChange={(e) => onPatch({ rerank: e.target.checked })}
       />
-    </div>
+    </label>
 
     <div className="space-y-2">
       <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         System prompt
       </span>
-      <Textarea
+      <textarea
         aria-label="System prompt"
-        className="min-h-28 rounded-lg px-3 py-2 text-xs leading-5"
+        className="min-h-28 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-xs leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onChange={(e) => onPatch({ systemPrompt: e.target.value })}
         value={state.systemPrompt}
       />
     </div>
     {saving && <div className="text-xs text-muted-foreground">Saving...</div>}
+  </div>
+);
+
+const RangeControl = ({
+  label,
+  max,
+  min,
+  onChange,
+  step,
+  value,
+  valueLabel,
+}: {
+  label: string;
+  max: number;
+  min: number;
+  onChange: (value: number) => void;
+  step: number;
+  value: number;
+  valueLabel: string;
+}) => (
+  <div className="space-y-2">
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </span>
+      <span className="font-mono text-xs font-semibold">{valueLabel}</span>
+    </div>
+    <input
+      aria-label={label}
+      className="w-full accent-primary"
+      max={max}
+      min={min}
+      step={step}
+      type="range"
+      value={value}
+      onChange={(e) => onChange(Number.parseFloat(e.target.value))}
+    />
   </div>
 );
 
@@ -229,14 +266,14 @@ export const ToolbarPopover = ({
   onOpenChange: (open: boolean) => void;
   trigger: ReactElement;
 }) => (
-  <Popover
-    align={align}
-    onOpenChange={onOpenChange}
-    open={open}
-    side="top"
-    sideOffset={8}
-    trigger={trigger}
-  >
-    {children}
-  </Popover>
+  <Popover.Root open={open} onOpenChange={onOpenChange}>
+    <Popover.Trigger render={trigger} />
+    <Popover.Portal>
+      <Popover.Positioner align={align} className="z-50" side="top" sideOffset={8}>
+        <Popover.Popup className="overflow-hidden rounded-xl border border-border bg-popover shadow-sm outline-none">
+          {children}
+        </Popover.Popup>
+      </Popover.Positioner>
+    </Popover.Portal>
+  </Popover.Root>
 );

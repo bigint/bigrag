@@ -1,4 +1,3 @@
-import { Button, Checkbox, cn, Modal, Textarea } from "@atelier/ui";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -30,6 +29,10 @@ import {
 } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/cn";
 import type { ChatSource, QueryTimings } from "@/types/bigrag";
 
 export type ChatMessage = {
@@ -81,16 +84,15 @@ const renderInlineCitations = (
       nodes.push(
         <span key={`c-${key++}`} className="inline-flex items-center gap-0.5">
           {citations.map((n) => (
-            <Button
-              aria-label={`Jump to source ${n}`}
-              className="mx-0.5 h-auto rounded-md px-1.5 py-0 align-baseline font-mono text-xs"
+            <button
               key={n}
+              type="button"
               onClick={() => onCite(n)}
-              size="sm"
-              variant="secondary"
+              className="mx-0.5 inline-flex items-center rounded-md border border-border bg-muted px-1.5 align-baseline font-mono text-xs font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`Jump to source ${n}`}
             >
               [{n}]
-            </Button>
+            </button>
           ))}
         </span>,
       );
@@ -174,11 +176,11 @@ const markdownComponents = (chunkCount: number, onCite: (n: number) => void): Co
     </h4>
   ),
   input: ({ checked }) => (
-    <Checkbox
-      aria-label={checked ? "Checked task" : "Unchecked task"}
+    <input
       checked={Boolean(checked)}
-      className="mr-2 inline-flex align-text-top"
-      onCheckedChange={() => undefined}
+      className="mr-2 size-3.5 align-text-top"
+      readOnly
+      type="checkbox"
     />
   ),
   li: ({ children, className }) => (
@@ -285,37 +287,34 @@ const AssistantMessage = memo(
                 </>
               )}
               {message.content && (
-                <Button
-                  aria-label="Copy answer"
-                  className="size-7 p-0"
+                <button
+                  type="button"
+                  className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted hover:text-foreground"
                   onClick={() => navigator.clipboard.writeText(message.content)}
-                  size="icon"
-                  variant="ghost"
+                  aria-label="Copy answer"
                 >
                   <Copy className="size-3.5" />
-                </Button>
+                </button>
               )}
               {message.status === "stopped" && onResume ? (
-                <Button
-                  aria-label="Resume answer"
-                  className="size-7 p-0"
+                <button
+                  type="button"
+                  className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted hover:text-foreground"
                   onClick={() => onResume(message.id)}
-                  size="icon"
-                  variant="ghost"
+                  aria-label="Resume answer"
                 >
                   <Play className="size-3.5" />
-                </Button>
+                </button>
               ) : (
                 onRegenerate && (
-                  <Button
-                    aria-label="Regenerate answer"
-                    className="size-7 p-0"
+                  <button
+                    type="button"
+                    className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted hover:text-foreground"
                     onClick={() => onRegenerate(message.id)}
-                    size="icon"
-                    variant="ghost"
+                    aria-label="Regenerate answer"
                   >
                     <RotateCcw className="size-3.5" />
-                  </Button>
+                  </button>
                 )
               )}
             </div>
@@ -439,15 +438,14 @@ const UserMessage = ({
       <div className="flex items-start gap-3">
         <span className="whitespace-pre-wrap">{content}</span>
         {onEdit && (
-          <Button
-            aria-label="Edit message"
-            className="mt-0.5 size-7 shrink-0 p-0 opacity-0 group-hover:opacity-100"
+          <button
+            type="button"
+            className="mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 hover:bg-background hover:text-foreground group-hover:opacity-100"
             onClick={openEdit}
-            size="icon"
-            variant="ghost"
+            aria-label="Edit message"
           >
             <FilePenLine className="size-3.5" />
-          </Button>
+          </button>
         )}
       </div>
       <Modal
@@ -613,10 +611,14 @@ export const ChatMessages = ({
       <div className="mx-auto flex max-w-4xl flex-col gap-4" role="log">
         {messages.length > 0 && onClear && (
           <div className="flex justify-end">
-            <Button className="h-8 px-2.5 text-xs" onClick={onClear} size="sm" variant="outline">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={onClear}
+            >
               <Trash2 className="size-3.5" />
               Clear
-            </Button>
+            </button>
           </div>
         )}
         {messages.map((message, index) =>

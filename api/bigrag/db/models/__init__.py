@@ -18,6 +18,7 @@ from bigrag.db.models.document import (
 from bigrag.db.models.instance import InstanceSetting, MaintenanceLock
 from bigrag.db.models.observability import AccessLog, AuditLog, BackupJob, QueryLog
 from bigrag.db.models.preference import UserPreference
+from bigrag.db.models.vector_migration import VectorMigrationJob
 from bigrag.db.models.webhook import Webhook, WebhookDelivery
 
 __all__ = [
@@ -43,6 +44,7 @@ __all__ = [
     "User",
     "UserSession",
     "UserPreference",
+    "VectorMigrationJob",
     "Webhook",
     "WebhookDelivery",
 ]

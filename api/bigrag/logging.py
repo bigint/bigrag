@@ -39,6 +39,12 @@ _SENSITIVE_KEYS = frozenset(
 )
 REQUEST_ID_HEADER = "x-request-id"
 _MAX_LOG_VALUE_LENGTH = 2048
+_CONTROL_CHAR_REPLACEMENTS = {
+    "\n": r"\n",
+    "\r": r"\r",
+    "\t": r"\t",
+    "\x1b": r"\x1b",
+}
 
 
 def is_sensitive_log_key(value: object) -> bool:
@@ -59,6 +65,14 @@ def truncate_log_value(value: str) -> str:
     if len(value) <= _MAX_LOG_VALUE_LENGTH:
         return value
     return f"{value[:_MAX_LOG_VALUE_LENGTH]}..."
+
+
+def _escape_control_characters(value: str) -> str:
+    return "".join(
+        _CONTROL_CHAR_REPLACEMENTS.get(char)
+        or (f"\\x{ord(char):02x}" if ord(char) < 32 or 127 <= ord(char) <= 159 else char)
+        for char in value
+    )
 
 
 def _redact(value: object) -> object:
@@ -100,7 +114,7 @@ def shorten_logger_name(_logger, _method_name, event_dict):
 
 
 def _field_value(value: object) -> str:
-    return truncate_log_value(str(value))
+    return truncate_log_value(_escape_control_characters(str(value)))
 
 
 def _console_renderer() -> ConsoleRenderer:
@@ -140,7 +154,7 @@ def _console_renderer() -> ConsoleRenderer:
                     key_style=None,
                     value_style=styles.bright,
                     reset_style=styles.reset,
-                    value_repr=str,
+                    value_repr=_field_value,
                     width=30,
                 ),
             ),

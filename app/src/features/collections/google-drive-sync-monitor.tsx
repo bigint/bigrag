@@ -1,5 +1,6 @@
-import { Badge, cn, Spinner } from "@atelier/ui";
 import { HardDriveDownload } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Spinner } from "@/components/ui/spinner";
 import { jobVariant } from "@/features/collections/google-drive-panel.utils";
 import {
   clampGoogleSyncProgress,
@@ -7,6 +8,7 @@ import {
   googleSyncProgressForJob,
   googleSyncProgressLabel,
 } from "@/features/collections/google-drive-progress";
+import { cn } from "@/lib/cn";
 import type { GoogleDriveSyncJob, GoogleSyncProgress } from "@/types/bigrag";
 
 export const SyncMonitor = ({
