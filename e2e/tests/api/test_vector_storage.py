@@ -10,6 +10,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import httpx
+
 from tests._helpers import assert_envelope
 
 

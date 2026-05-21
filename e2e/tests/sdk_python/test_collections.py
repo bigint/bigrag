@@ -18,8 +18,8 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import pytest
-
 from bigrag import BigRAG, NotFoundError
+
 from tests._helpers import unique_name
 
 
