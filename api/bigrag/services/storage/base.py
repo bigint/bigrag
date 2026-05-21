@@ -17,9 +17,7 @@ class StorageBackend(ABC):
     async def get(self, key: str) -> bytes: ...
 
     @abstractmethod
-    async def get_stream(self, key: str, chunk_size: int = 65536) -> AsyncIterator[bytes]:
-        if False:
-            yield b""
+    def get_stream(self, key: str, chunk_size: int = 65536) -> AsyncIterator[bytes]: ...
 
     @abstractmethod
     async def delete(self, key: str) -> None: ...

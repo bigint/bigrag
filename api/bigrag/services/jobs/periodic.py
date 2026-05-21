@@ -8,7 +8,7 @@ class PeriodicSeedMiddleware(Middleware):
         self.enabled_queues = enabled_queues
         self.seed_key = seed_key
 
-    def after_worker_boot(self, broker, worker) -> None:
+    def after_worker_boot(self, broker, _worker) -> None:
         if not self._claim_seed(broker):
             return
         from bigrag.services.jobs.actors import seed_periodic_jobs

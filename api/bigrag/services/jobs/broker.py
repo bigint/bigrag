@@ -22,7 +22,7 @@ PERIODIC_SEED_KEY = "bigrag:dramatiq:periodic:startup_seed"
 
 
 class _ConversionPoolMiddleware(Middleware):
-    def after_worker_shutdown(self, broker, worker):
+    def after_worker_shutdown(self, _broker, _worker):
         from bigrag.services import conversion as conversion_module
 
         executor = conversion_module._executor

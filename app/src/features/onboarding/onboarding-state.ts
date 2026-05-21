@@ -7,8 +7,8 @@ export type TurbopufferDraft = {
   region: string;
 };
 
-export const DEFAULT_TURBOPUFFER_REGION = "aws-us-east-1";
-export const DEFAULT_TURBOPUFFER_NAMESPACE_PREFIX = "bigrag_";
+const DEFAULT_TURBOPUFFER_REGION = "aws-us-east-1";
+const DEFAULT_TURBOPUFFER_NAMESPACE_PREFIX = "bigrag_";
 
 const settingString = (
   settings: InstanceSettingsResponse | undefined,

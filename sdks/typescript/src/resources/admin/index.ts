@@ -14,7 +14,7 @@ export { AdminAccessResource } from "./access.js";
 export { AdminApiKeysResource } from "./api_keys.js";
 export { AdminAuditResource } from "./audit.js";
 export { AdminBackupsResource } from "./backups.js";
-export { AdminConnectorsResource, AdminGoogleConnectorResource } from "./connectors.js";
+export { AdminConnectorsResource } from "./connectors.js";
 export { AdminEmbeddingPresetsResource } from "./embedding_presets.js";
 export { AdminMcpServersResource } from "./mcp_servers.js";
 export { AdminRealtimeResource } from "./realtime.js";

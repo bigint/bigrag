@@ -14,11 +14,10 @@ import type {
 
 export const API_BASE = process.env.BIGRAG_E2E_API_BASE ?? "http://localhost:4000";
 
-export const ADMIN_EMAIL = process.env.BIGRAG_E2E_ADMIN_EMAIL ?? "e2e-admin@example.com";
-export const ADMIN_PASSWORD =
+const ADMIN_EMAIL = process.env.BIGRAG_E2E_ADMIN_EMAIL ?? "e2e-admin@example.com";
+const ADMIN_PASSWORD =
   process.env.BIGRAG_E2E_ADMIN_PASSWORD ?? "e2e-admin-password-123!";
-export const ADMIN_DISPLAY_NAME =
-  process.env.BIGRAG_E2E_ADMIN_DISPLAY_NAME ?? "E2E Admin";
+const ADMIN_DISPLAY_NAME = process.env.BIGRAG_E2E_ADMIN_DISPLAY_NAME ?? "E2E Admin";
 
 const FIXTURES_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../../fixtures/documents");
 
@@ -156,10 +155,7 @@ async function getAdminSessionCookie(): Promise<string> {
   return cookie;
 }
 
-export async function adminSessionFetch(
-  path: string,
-  init: FetchInit = {},
-): Promise<Response> {
+async function adminSessionFetch(path: string, init: FetchInit = {}): Promise<Response> {
   const cookie = await getAdminSessionCookie();
   const mutating = ["POST", "PUT", "PATCH", "DELETE"].includes(
     (init.method ?? "GET").toUpperCase(),
@@ -353,6 +349,6 @@ export async function waitForDocument(
   );
 }
 
-export function sleep(ms: number): Promise<void> {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

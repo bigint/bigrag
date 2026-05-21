@@ -5,7 +5,7 @@ from dramatiq.middleware import Middleware, MiddlewareError
 
 
 class WorkerRuntimeMiddleware(Middleware):
-    def before_worker_boot(self, broker, worker) -> None:
+    def before_worker_boot(self, _broker, _worker) -> None:
         event_loop_thread = get_event_loop_thread()
         if event_loop_thread is None:
             raise MiddlewareError("Worker runtime requires the Dramatiq AsyncIO middleware")
@@ -16,7 +16,7 @@ class WorkerRuntimeMiddleware(Middleware):
         except Exception as exc:
             raise MiddlewareError("Worker runtime initialization failed") from exc
 
-    def after_worker_shutdown(self, broker, worker) -> None:
+    def after_worker_shutdown(self, _broker, _worker) -> None:
         event_loop_thread = get_event_loop_thread()
         if event_loop_thread is None:
             return
