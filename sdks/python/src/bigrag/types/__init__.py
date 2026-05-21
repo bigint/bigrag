@@ -41,6 +41,7 @@ from bigrag.types.admin import (
     VectorMigrationCreateBody,
     VectorMigrationJob,
     VectorMigrationJobListResponse,
+    VectorMigrationJobStatus,
     VectorMigrationProvider,
 )
 from bigrag.types.analytics import AnalyticsResponse, PeriodStats, TopQuery
@@ -198,6 +199,7 @@ __all__ = [
     "BackupJob",
     "BackupJobListResponse",
     "VectorMigrationProvider",
+    "VectorMigrationJobStatus",
     "VectorMigrationCreateBody",
     "VectorMigrationJob",
     "VectorMigrationJobListResponse",

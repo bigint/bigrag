@@ -108,12 +108,16 @@ async def test_vector_migrations_rejects_api_key(
 async def test_vector_migrations_list_returns_shape(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.get("/v1/admin/vector-storage/migrations")
+    resp = await admin_client.get(
+        "/v1/admin/vector-storage/migrations",
+        params={"include_total": "true", "limit": 1},
+    )
     body = assert_envelope(resp, 200)
     assert "jobs" in body
     assert "total" in body
     assert "next_cursor" in body
     assert isinstance(body["jobs"], list)
+    assert isinstance(body["total"], int)
 
 
 async def test_vector_migration_unknown_collection_returns_400(

@@ -94,6 +94,7 @@ export interface BackupJobListResponse {
 }
 
 export type VectorMigrationProvider = "qdrant" | "turbopuffer";
+export type VectorMigrationJobStatus = "pending" | "running" | "canceling" | "succeeded" | "failed";
 
 export interface VectorMigrationCreateBody {
   collection: string;
@@ -106,7 +107,7 @@ export interface VectorMigrationJob {
   collection_name: string;
   source_provider: VectorMigrationProvider;
   target_provider: VectorMigrationProvider;
-  status: string;
+  status: VectorMigrationJobStatus;
   phase: string;
   progress: number;
   copied_points: number;

@@ -20,7 +20,9 @@ Query parameters:
 | Name | Type | Default | Notes |
 |------|------|---------|-------|
 | `limit` | integer | `20` | 1-100 |
-| `offset` | integer | `0` | Pagination offset |
+| `offset` | integer | `0` | Offset pagination when `cursor` is omitted |
+| `cursor` | string | — | Cursor returned as `next_cursor` |
+| `include_total` | boolean | `false` | Include the total backup count |
 
 Response:
 
@@ -44,7 +46,8 @@ Response:
       "updated_at": "2026-05-07T10:01:12Z"
     }
   ],
-  "total": 1
+  "total": 1,
+  "next_cursor": null
 }
 ```
 

@@ -101,6 +101,7 @@ class BackupJobListResponse(TypedDict):
 
 
 VectorMigrationProvider = Literal["qdrant", "turbopuffer"]
+VectorMigrationJobStatus = Literal["pending", "running", "canceling", "succeeded", "failed"]
 
 
 class VectorMigrationCreateBody(TypedDict):
@@ -114,7 +115,7 @@ class VectorMigrationJob(TypedDict):
     collection_name: str
     source_provider: VectorMigrationProvider
     target_provider: VectorMigrationProvider
-    status: str
+    status: VectorMigrationJobStatus
     phase: str
     progress: float
     copied_points: int
