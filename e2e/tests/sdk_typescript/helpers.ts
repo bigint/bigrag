@@ -315,7 +315,6 @@ export async function uploadFixture(
   fixture: string,
   options: UploadFixtureOptions = {},
 ): Promise<Document> {
-  const content = await readFixture(fixture);
   const filename = options.filename ?? fixture;
   const doc = await client.documents.upload(
     collectionName,

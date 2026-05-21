@@ -9,9 +9,9 @@ export type ApiRequestOptions = {
   timeoutMs?: number;
 };
 
-export const API_TIMEOUT_MS = 20_000;
+const API_TIMEOUT_MS = 20_000;
 export const AUTH_TIMEOUT_MS = 6_000;
-export const LONG_REQUEST_TIMEOUT_MS = 120_000;
+const LONG_REQUEST_TIMEOUT_MS = 120_000;
 export const SEARCH_TIMEOUT_MS = 30_000;
 
 const api: KyInstance = ky.create({
