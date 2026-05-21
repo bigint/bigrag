@@ -39,7 +39,6 @@ import httpx
 
 from tests._helpers import assert_envelope
 
-
 PROGRESS_KEYS = {
     "document_id",
     "collection_name",
@@ -87,9 +86,7 @@ async def test_get_document_includes_progress_field(
 ) -> None:
     coll = await collection()
     doc = await document(coll["name"], fixture="sample.txt")
-    resp = await admin_client.get(
-        f"/v1/collections/{coll['name']}/documents/{doc['id']}"
-    )
+    resp = await admin_client.get(f"/v1/collections/{coll['name']}/documents/{doc['id']}")
     body = assert_envelope(resp, 200)
     _assert_progress_shape(body["progress"], doc_id=doc["id"])
 

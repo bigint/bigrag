@@ -15,8 +15,8 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import pytest
-
 from bigrag import BigRAG, NotFoundError
+
 from tests._helpers import unique_name
 
 
@@ -60,9 +60,7 @@ async def test_query_top_k_limits_result_count(
     coll = await collection()
     await document(coll["name"], fixture="sample.txt")
 
-    response = await client.queries.query(
-        coll["name"], {"query": "sample", "top_k": 1}
-    )
+    response = await client.queries.query(coll["name"], {"query": "sample", "top_k": 1})
     assert len(response["results"]) <= 1
 
 
@@ -135,9 +133,7 @@ async def test_query_empty_collection_returns_empty_results(
     client = await sdk_client()
     coll = await collection()
 
-    response = await client.queries.query(
-        coll["name"], {"query": "anything", "top_k": 5}
-    )
+    response = await client.queries.query(coll["name"], {"query": "anything", "top_k": 5})
     assert response["results"] == []
     assert response["total"] == 0
 
@@ -203,9 +199,7 @@ async def test_query_unknown_collection_raises_not_found(
 ) -> None:
     client = await sdk_client()
     with pytest.raises(NotFoundError):
-        await client.queries.query(
-            unique_name("missing"), {"query": "x", "top_k": 1}
-        )
+        await client.queries.query(unique_name("missing"), {"query": "x", "top_k": 1})
 
 
 async def test_collection_client_query_wrapper(

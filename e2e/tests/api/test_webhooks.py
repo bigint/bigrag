@@ -198,9 +198,7 @@ async def test_test_delivery_reaches_sink_with_valid_signature(
 async def test_test_delivery_404_for_missing_webhook(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.post(
-        "/v1/admin/webhooks/00000000-0000-0000-0000-000000000000/test"
-    )
+    resp = await admin_client.post("/v1/admin/webhooks/00000000-0000-0000-0000-000000000000/test")
     assert resp.status_code == 404
 
 
@@ -255,9 +253,7 @@ async def test_replay_delivery_redelivers(
         assert_envelope(resp, 200)
         await webhook_sink["wait"](label, count=1)
 
-        body = (
-            await admin_client.get(f"/v1/admin/webhooks/{created['id']}/deliveries")
-        ).json()
+        body = (await admin_client.get(f"/v1/admin/webhooks/{created['id']}/deliveries")).json()
 
         if not body.get("deliveries"):
             pytest.skip("No persisted delivery to replay (test endpoint does not persist)")

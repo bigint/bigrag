@@ -24,9 +24,7 @@ from tests._helpers import assert_envelope
 API_BASE_HEADERS = {"Origin": "http://localhost:4000"}
 
 
-async def _login(
-    client: httpx.AsyncClient, email: str, password: str
-) -> httpx.Response:
+async def _login(client: httpx.AsyncClient, email: str, password: str) -> httpx.Response:
     return await client.post(
         "/v1/auth/login",
         json={"email": email, "password": password},
@@ -114,9 +112,7 @@ async def test_logout_all_invalidates_other_sessions(
     admin_client: httpx.AsyncClient,
     unauth_client: httpx.AsyncClient,
 ) -> None:
-    second_login = await _login(
-        unauth_client, admin_setup["email"], admin_setup["password"]
-    )
+    second_login = await _login(unauth_client, admin_setup["email"], admin_setup["password"])
     assert second_login.status_code == 200, second_login.text
     other_me = await unauth_client.get("/v1/auth/me")
     assert other_me.status_code == 200

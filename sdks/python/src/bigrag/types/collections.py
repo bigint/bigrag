@@ -14,7 +14,6 @@ class Collection(TypedDict):
     chunk_size: int
     chunk_overlap: int
     chunk_strategy: str
-    index_type: str
     tenant_field: str | None
     has_metadata_schema: bool
     document_count: int
@@ -58,7 +57,6 @@ class CreateCollectionBody(TypedDict):
     chunk_size: NotRequired[int]
     chunk_overlap: NotRequired[int]
     chunk_strategy: NotRequired[str]
-    index_type: NotRequired[str]
     tenant_field: NotRequired[str]
     metadata_schema: NotRequired[dict[str, Any]]
     metadata: NotRequired[dict[str, Any]]

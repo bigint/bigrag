@@ -18,8 +18,8 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import pytest
-
 from bigrag import BigRAG, NotFoundError
+
 from tests._helpers import poll_until, read_fixture, unique_name
 
 
@@ -83,9 +83,7 @@ async def test_documents_list_and_pagination(
     coll = await collection()
     doc = await document(coll["name"], fixture="sample.txt")
 
-    listing = await client.documents.list(
-        coll["name"], limit=10, offset=0, include_total=True
-    )
+    listing = await client.documents.list(coll["name"], limit=10, offset=0, include_total=True)
     assert listing["total"] >= 1
     ids = [d["id"] for d in listing["documents"]]
     assert doc["id"] in ids

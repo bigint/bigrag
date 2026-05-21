@@ -42,7 +42,10 @@ def ensure_backup_bucket() -> None:
     try:
         import boto3  # type: ignore[import-untyped]
         from botocore.client import Config  # type: ignore[import-untyped]
-        from botocore.exceptions import ClientError, EndpointConnectionError  # type: ignore[import-untyped]
+        from botocore.exceptions import (  # type: ignore[import-untyped]
+            ClientError,
+            EndpointConnectionError,
+        )
     except ImportError as exc:
         pytest.skip(f"boto3 not available: {exc}")
 
@@ -119,9 +122,7 @@ async def test_list_backups_returns_shape(admin_client: httpx.AsyncClient) -> No
 async def test_get_backup_unknown_id_returns_404(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.get(
-        "/v1/admin/backups/00000000-0000-0000-0000-000000000000"
-    )
+    resp = await admin_client.get("/v1/admin/backups/00000000-0000-0000-0000-000000000000")
     assert resp.status_code == 404, resp.text
 
 
@@ -174,17 +175,14 @@ async def test_create_backup_job_runs_to_terminal_status(
     )
     if final["status"] == "failed":
         pytest.skip(
-            "backup job failed (likely environment-specific); "
-            f"error={final.get('error_message')!r}"
+            f"backup job failed (likely environment-specific); error={final.get('error_message')!r}"
         )
     assert final["progress"] == 1.0
     assert final["object_count"] >= 1
     assert final["destination_prefix"]
 
     # And it must show up in the list.
-    list_resp = await admin_client.get(
-        "/v1/admin/backups", params={"limit": 50}
-    )
+    list_resp = await admin_client.get("/v1/admin/backups", params={"limit": 50})
     list_body = assert_envelope(list_resp, 200)
     assert any(j["id"] == job_id for j in list_body["jobs"])
 

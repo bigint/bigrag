@@ -152,9 +152,7 @@ async def test_patch_user_unknown_id_returns_404(
 async def test_delete_user_unknown_id_returns_404(
     admin_client: httpx.AsyncClient,
 ) -> None:
-    resp = await admin_client.delete(
-        "/v1/admin/users/00000000-0000-0000-0000-000000000000"
-    )
+    resp = await admin_client.delete("/v1/admin/users/00000000-0000-0000-0000-000000000000")
     assert resp.status_code == 404, resp.text
 
 

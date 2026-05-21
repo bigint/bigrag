@@ -17,7 +17,6 @@ from typing import Any
 
 import httpx
 import pytest_asyncio
-
 from bigrag import BigRAG
 
 SdkClientFactory = Callable[..., Awaitable[BigRAG]]
@@ -97,9 +96,7 @@ async def session_sdk_client(
         base_url=api_base_url,
         http_client=http_client,
     )
-    await client.auth.login(
-        {"email": admin_setup["email"], "password": admin_setup["password"]}
-    )
+    await client.auth.login({"email": admin_setup["email"], "password": admin_setup["password"]})
     try:
         yield client
     finally:

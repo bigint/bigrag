@@ -7,7 +7,6 @@ export interface Collection {
   chunk_size: number;
   chunk_overlap: number;
   chunk_strategy: string;
-  index_type: string;
   tenant_field: string | null;
   has_metadata_schema: boolean;
   document_count: number;
@@ -58,7 +57,6 @@ export interface CreateCollectionBody {
   chunk_size?: number;
   chunk_overlap?: number;
   chunk_strategy?: "paragraph" | "recursive";
-  index_type?: "HNSW";
   tenant_field?: string;
   metadata_schema?: Record<string, unknown>;
   metadata?: Record<string, unknown>;

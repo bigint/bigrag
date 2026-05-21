@@ -68,8 +68,8 @@ async def create_vector_store_collection(
         if "API key is not configured" in message or "client is not connected" in message:
             raise HTTPException(
                 status_code=400,
-            detail=vector_store_unavailable_detail(),
-        ) from e
+                detail=vector_store_unavailable_detail(),
+            ) from e
         logger.warning(
             "vector collection create failed",
             collection=body.name,
