@@ -61,7 +61,7 @@ curl -X POST http://localhost:4000/v1/collections \
 
 For turbopuffer collections, creation validates the saved turbopuffer connection, then the provider namespace is created on the first document or vector write.
 
-To move an existing collection between Qdrant and turbopuffer, start a vector migration from `/vector-storage` or `POST /v1/admin/vector-storage/migrations`. The migration pauses writes, copies existing vectors to the configured target provider, switches the collection, and deletes the old source vectors after cutover.
+To move an existing collection between Qdrant and turbopuffer, start a vector migration from `/vector-storage` or `POST /v1/admin/vector-storage/migrations`. The migration pauses writes, copies existing vectors to the configured target provider, switches the collection, and deletes the old source vectors after cutover. Pending or running migrations can be stopped and removed from `/vector-storage` or `DELETE /v1/admin/vector-storage/migrations/{migration_id}`.
 
 ## Collection Stats
 

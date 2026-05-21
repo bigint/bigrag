@@ -9,11 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import VectorMigrationJob
 from bigrag.db.session import get_session
 from bigrag.middleware.auth import require_admin_session
+from bigrag.models import StatusResponse
 from bigrag.models.vector_migration import (
     VectorMigrationCreateRequest,
     VectorMigrationJobListResponse,
     VectorMigrationJobResponse,
 )
+from bigrag.routers import uuid_or_404
 from bigrag.services import audit
 from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.jobs.actors import enqueue_vector_migration_job
@@ -22,6 +24,7 @@ from bigrag.services.vector_migration import (
     VectorMigrationConflictError,
     VectorMigrationError,
     create_vector_migration_job,
+    delete_vector_migration_job,
 )
 
 router = APIRouter(
@@ -149,3 +152,26 @@ async def start_vector_migration_job(
     )
     enqueue_vector_migration_job(str(job.id))
     return vector_migration_job_response(job)
+
+
+@router.delete("/{migration_id}", response_model=StatusResponse)
+async def delete_vector_migration_job_route(
+    migration_id: str,
+    request: Request,
+    admin: dict = Depends(require_admin_session),
+) -> StatusResponse:
+    target_id = uuid_or_404(migration_id, "Vector migration job")
+    result = await delete_vector_migration_job(target_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Vector migration job not found")
+    audit.record(
+        request,
+        user=admin,
+        action="vector_migration.delete",
+        resource_type="vector_migration_job",
+        resource_id=migration_id,
+        metadata={"result": result},
+    )
+    if result == "stop_requested":
+        return StatusResponse(status="ok", message="Vector migration stop requested")
+    return StatusResponse(status="ok", message="Vector migration deleted")

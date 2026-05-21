@@ -338,6 +338,7 @@ vector_migration = await client.admin.vector_migrations.create({
     "target_provider": "turbopuffer",
 })
 vector_migration = await client.admin.vector_migrations.get(vector_migration["id"])
+await client.admin.vector_migrations.delete(vector_migration["id"])
 
 async for event in client.admin.realtime.backups(limit=20):
     if event["event"] == "snapshot":

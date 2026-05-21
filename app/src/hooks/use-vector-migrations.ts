@@ -15,6 +15,11 @@ type VectorMigrationListOptions = {
   readonly collection?: string;
 };
 
+type StatusResponse = {
+  readonly status: string;
+  readonly message?: string;
+};
+
 type VectorStorageOverview = {
   fallback_provider: string;
   configured_providers: VectorMigrationProvider[];
@@ -77,5 +82,28 @@ export const useStartVectorMigration = () => {
       toast.success("Vector migration started");
     },
     onError: errorToast("Failed to start migration"),
+  });
+};
+
+export const useDeleteVectorMigration = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (job: VectorMigrationJob) =>
+      apiClient.delete<StatusResponse>(
+        `v1/admin/vector-storage/migrations/${encodeURIComponent(job.id)}`,
+      ),
+    onSuccess: (response, job) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.vectorMigrations({}) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.vectorMigrations({ collection: job.collection_name }),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.collections.all() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.collections.one({ name: job.collection_name }),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.vectorStorageOverview() });
+      toast.success(response.message ?? "Vector migration deleted");
+    },
+    onError: errorToast("Failed to delete migration"),
   });
 };

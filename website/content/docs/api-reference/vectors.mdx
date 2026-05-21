@@ -43,6 +43,7 @@ Session-only. Returns configured vector providers, provider health, and per-coll
 GET /v1/admin/vector-storage/migrations
 POST /v1/admin/vector-storage/migrations
 GET /v1/admin/vector-storage/migrations/{migration_id}
+DELETE /v1/admin/vector-storage/migrations/{migration_id}
 GET /v1/admin/realtime/vector-migrations
 ```
 
@@ -58,6 +59,8 @@ Session-only. Migrates one collection in place from its current vector provider 
 ```
 
 The job pauses writes with the maintenance lock, waits for active ingestion and connector sync work to drain, copies provider-neutral vector points, switches `vector_store_provider`, invalidates collection/search caches, and deletes the old source provider collection after a successful cutover.
+
+`DELETE /v1/admin/vector-storage/migrations/{migration_id}` deletes completed or failed migration records. If the job is pending or running, it requests a stop first and removes the record after the worker has cleaned up any partial target collection. A migration that has already entered cutover finishes cleanup before removal.
 
 **Response** `201`:
 
@@ -82,6 +85,7 @@ The job pauses writes with the maintenance lock, waits for active ingestion and 
 
 - `400` — Collection missing or target provider not configured
 - `409` — The collection already uses the target provider or another migration is active
+- `404` — Migration job not found
 
 ## Upsert Vectors
 

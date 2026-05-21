@@ -14,7 +14,7 @@ class VectorMigrationJob(Base):
     __tablename__ = "vector_migration_jobs"
     __table_args__ = (
         sa.CheckConstraint(
-            "status IN ('pending', 'running', 'succeeded', 'failed')",
+            "status IN ('pending', 'running', 'canceling', 'succeeded', 'failed')",
             name="vector_migration_jobs_status_check",
         ),
         sa.Index("idx_vector_migration_jobs_collection", "collection_name"),

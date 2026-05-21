@@ -26,7 +26,7 @@ from bigrag.services.vector_store.base import _FIXED_PAYLOAD_FIELDS
 
 logger = get_logger("bigrag.vector_migration")
 
-ACTIVE_STATUSES = ("pending", "running")
+ACTIVE_STATUSES = ("pending", "running", "canceling")
 
 
 class VectorMigrationError(RuntimeError):
@@ -34,6 +34,10 @@ class VectorMigrationError(RuntimeError):
 
 
 class VectorMigrationConflictError(VectorMigrationError):
+    pass
+
+
+class VectorMigrationCanceledError(VectorMigrationError):
     pass
 
 
@@ -60,7 +64,7 @@ async def create_vector_migration_job(
             )
             if active is not None:
                 raise VectorMigrationConflictError(
-                    "A vector migration is already pending or running"
+                    "A vector migration is already pending, running, or canceling"
                 )
             collection = await session.scalar(
                 sa.select(Collection).where(Collection.name == collection_name).with_for_update()
@@ -80,6 +84,28 @@ async def create_vector_migration_job(
             session.add(job)
         await session.refresh(job)
         return job
+
+
+async def delete_vector_migration_job(job_id: uuid.UUID) -> str | None:
+    async with session_factory()() as session:
+        async with session.begin():
+            job = await session.scalar(
+                sa.select(VectorMigrationJob)
+                .where(VectorMigrationJob.id == job_id)
+                .with_for_update()
+            )
+            if job is None:
+                return None
+            if job.status == "pending" or job.status in {"succeeded", "failed"}:
+                await session.delete(job)
+                return "deleted"
+            details = dict(job.details or {})
+            details["delete_requested"] = True
+            job.details = details
+            job.status = "canceling"
+            job.phase = "canceling"
+            job.updated_at = datetime.now(UTC)
+            return "stop_requested"
 
 
 async def run_vector_migration_job(job_id: str) -> None:
@@ -103,10 +129,14 @@ async def run_vector_migration_job(job_id: str) -> None:
         if not locked:
             await _fail_job(owner_id, "Another maintenance lock is active")
             return
-        await _mark_running(owner_id)
+        if not await _mark_running(owner_id):
+            return
+        await _raise_if_delete_requested(owner_id)
         await _wait_for_connector_sync_drain(owner_id)
         await _wait_for_ingestion_drain(owner_id)
         await _run_locked_migration(owner_id)
+    except VectorMigrationCanceledError:
+        await _delete_job(owner_id, "vector_migration.deleted", {"reason": "canceled"})
     except Exception as exc:
         logger.exception("vector migration failed", job_id=job_id, error=str(exc))
         await _fail_job(owner_id, sanitize_message_text(str(exc)) or "Vector migration failed")
@@ -131,8 +161,10 @@ async def _run_locked_migration(job_id: uuid.UUID) -> None:
             raise VectorMigrationError(
                 "Collection vector provider changed before migration started"
             )
+        await _raise_if_delete_requested(job_id)
         await _update_job(job_id, phase="provisioning", progress=0.2)
         await vector_store.delete_collection(collection.name, provider=target)
+        await _raise_if_delete_requested(job_id)
         await vector_store.create_collection(
             collection.name,
             collection.dimension,
@@ -140,7 +172,9 @@ async def _run_locked_migration(job_id: uuid.UUID) -> None:
             tenant_field=collection.tenant_field,
             provider=target,
         )
+        await _raise_if_delete_requested(job_id)
         copied = await _copy_points(job_id, collection.name, source, target)
+        await _raise_if_delete_requested(job_id)
         await _update_job(
             job_id,
             phase="verifying",
@@ -153,6 +187,7 @@ async def _run_locked_migration(job_id: uuid.UUID) -> None:
             raise VectorMigrationError(
                 f"Target point count mismatch: copied {copied}, target has {target_count}"
             )
+        await _raise_if_delete_requested(job_id)
         await _cutover_collection(job_id, collection.id, collection.name, source, target)
         cutover_done = True
         await _update_job(
@@ -164,6 +199,18 @@ async def _run_locked_migration(job_id: uuid.UUID) -> None:
         )
         await vector_store.delete_collection(collection.name, provider=source)
         await _complete_job(job_id, copied)
+    except VectorMigrationCanceledError:
+        if not cutover_done:
+            try:
+                await vector_store.delete_collection(collection.name, provider=target)
+            except Exception as cleanup_exc:
+                logger.warning(
+                    "canceled vector migration cleanup failed",
+                    collection=collection.name,
+                    target_provider=target,
+                    error=str(cleanup_exc),
+                )
+        await _delete_job(job_id, "vector_migration.deleted", {"reason": "canceled"})
     except Exception as exc:
         message = sanitize_message_text(str(exc)) or "Vector migration failed"
         if not cutover_done:
@@ -194,12 +241,14 @@ async def _copy_points(
     batch_size = max(1, min(int(await get_value("ingestion_batch_size")), 1000))
     copied = 0
     batch: list[dict[str, Any]] = []
+    await _raise_if_delete_requested(job_id)
     await _update_job(job_id, phase="copying", progress=0.32)
     async for point in vector_store.iter_collection_points(
         collection,
         with_vectors=True,
         provider=source,
     ):
+        await _raise_if_delete_requested(job_id)
         batch.append(_normalise_point(point))
         if len(batch) >= batch_size:
             copied += await _insert_batch(collection, target, batch)
@@ -210,6 +259,7 @@ async def _copy_points(
                 progress=min(0.84, 0.34 + copied / (copied + batch_size) * 0.48),
             )
     if batch:
+        await _raise_if_delete_requested(job_id)
         copied += await _insert_batch(collection, target, batch)
     await _update_job(job_id, copied_points=copied, progress=0.84)
     return copied
@@ -288,6 +338,7 @@ async def _cutover_collection(
 async def _wait_for_ingestion_drain(job_id: uuid.UUID, max_wait_seconds: int = 1800) -> None:
     deadline = asyncio.get_event_loop().time() + max_wait_seconds
     while True:
+        await _raise_if_delete_requested(job_id)
         stats = await ingestion_queue.stats
         processing = int(stats.get("processing") or 0)
         if processing <= 0:
@@ -303,6 +354,7 @@ async def _wait_for_ingestion_drain(job_id: uuid.UUID, max_wait_seconds: int = 1
 async def _wait_for_connector_sync_drain(job_id: uuid.UUID, max_wait_seconds: int = 1800) -> None:
     deadline = asyncio.get_event_loop().time() + max_wait_seconds
     while True:
+        await _raise_if_delete_requested(job_id)
         async with session_factory()() as session:
             running = await session.scalar(
                 sa.select(sa.func.count())
@@ -337,15 +389,18 @@ async def _get_job(job_id: uuid.UUID) -> VectorMigrationJob | None:
         return await session.get(VectorMigrationJob, job_id)
 
 
-async def _mark_running(job_id: uuid.UUID) -> None:
-    await _update_job(
+async def _mark_running(job_id: uuid.UUID) -> bool:
+    updated = await _update_job(
         job_id,
         status="running",
         phase="draining",
         progress=0.04,
         started_at=datetime.now(UTC),
     )
+    if updated <= 0:
+        return False
     await _insert_audit(job_id, "vector_migration.start", {})
+    return True
 
 
 async def _complete_job(job_id: uuid.UUID, copied_points: int) -> None:
@@ -359,6 +414,12 @@ async def _complete_job(job_id: uuid.UUID, copied_points: int) -> None:
         completed_at=datetime.now(UTC),
     )
     await _insert_audit(job_id, "vector_migration.succeeded", {"copied_points": copied_points})
+    if await _delete_requested(job_id):
+        await _delete_job(
+            job_id,
+            "vector_migration.deleted",
+            {"reason": "completed_after_delete_request"},
+        )
 
 
 async def _fail_job(
@@ -381,15 +442,22 @@ async def _fail_job(
         values["total_points"] = total_points
     await _update_job(job_id, **values)
     await _insert_audit(job_id, "vector_migration.failed", {"error": values["error_message"]})
+    if await _delete_requested(job_id):
+        await _delete_job(
+            job_id,
+            "vector_migration.deleted",
+            {"reason": "failed_after_delete_request"},
+        )
 
 
-async def _update_job(job_id: uuid.UUID, **values: Any) -> None:
+async def _update_job(job_id: uuid.UUID, **values: Any) -> int:
     async with session_factory()() as session:
         values["updated_at"] = sa.func.now()
-        await session.execute(
+        result = await session.execute(
             sa.update(VectorMigrationJob).where(VectorMigrationJob.id == job_id).values(**values)
         )
         await session.commit()
+        return result.rowcount or 0
 
 
 async def _insert_audit(job_id: uuid.UUID, action: str, metadata: dict[str, Any]) -> None:
@@ -408,4 +476,37 @@ async def _insert_audit(job_id: uuid.UUID, action: str, metadata: dict[str, Any]
                 user_agent=None,
             )
         )
+        await session.commit()
+
+
+async def _delete_requested(job_id: uuid.UUID) -> bool:
+    job = await _get_job(job_id)
+    if job is None:
+        return False
+    return job.status == "canceling" or bool((job.details or {}).get("delete_requested"))
+
+
+async def _raise_if_delete_requested(job_id: uuid.UUID) -> None:
+    if await _delete_requested(job_id):
+        raise VectorMigrationCanceledError("Vector migration deletion requested")
+
+
+async def _delete_job(job_id: uuid.UUID, action: str, metadata: dict[str, Any]) -> None:
+    async with session_factory()() as session:
+        job = await session.get(VectorMigrationJob, job_id)
+        session.add(
+            AuditLog(
+                actor_id=job.created_by if job else None,
+                actor_email=None,
+                api_key_id=None,
+                action=action,
+                resource_type="vector_migration_job",
+                resource_id=str(job_id),
+                meta=metadata,
+                ip=None,
+                user_agent=None,
+            )
+        )
+        if job is not None:
+            await session.delete(job)
         await session.commit()

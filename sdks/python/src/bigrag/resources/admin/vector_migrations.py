@@ -9,6 +9,7 @@ from bigrag.types.admin import (
     VectorMigrationJob,
     VectorMigrationJobListResponse,
 )
+from bigrag.types.common import StatusResponse
 
 if TYPE_CHECKING:
     from bigrag._core import BigRAGCore
@@ -40,4 +41,10 @@ class AdminVectorMigrationsResource:
     async def create(self, body: VectorMigrationCreateBody) -> VectorMigrationJob:
         return await self._client._request(
             "POST", "/v1/admin/vector-storage/migrations", json=body
+        )
+
+    async def delete(self, migration_id: str) -> StatusResponse:
+        return await self._client._request(
+            "DELETE",
+            f"/v1/admin/vector-storage/migrations/{quote(migration_id, safe='')}",
         )

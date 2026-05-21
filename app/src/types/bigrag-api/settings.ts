@@ -78,7 +78,7 @@ export type VectorMigrationJob = {
   collection_name: string;
   source_provider: VectorMigrationProvider;
   target_provider: VectorMigrationProvider;
-  status: "pending" | "running" | "succeeded" | "failed";
+  status: "pending" | "running" | "canceling" | "succeeded" | "failed";
   phase: string;
   progress: number;
   copied_points: number;

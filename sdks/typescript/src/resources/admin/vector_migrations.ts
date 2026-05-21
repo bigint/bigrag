@@ -1,5 +1,6 @@
 import type { RequestClient } from "../../core.js";
 import type {
+  StatusResponse,
   VectorMigrationCreateBody,
   VectorMigrationJob,
   VectorMigrationJobListResponse,
@@ -31,5 +32,12 @@ export class AdminVectorMigrationsResource {
     return this._client._request("POST", "/v1/admin/vector-storage/migrations", {
       json: body,
     });
+  }
+
+  delete(migrationId: string): Promise<StatusResponse> {
+    return this._client._request(
+      "DELETE",
+      `/v1/admin/vector-storage/migrations/${encodeURIComponent(migrationId)}`,
+    );
   }
 }

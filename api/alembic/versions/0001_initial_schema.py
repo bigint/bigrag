@@ -343,7 +343,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.CheckConstraint(
-            "status IN ('pending', 'running', 'succeeded', 'failed')",
+            "status IN ('pending', 'running', 'canceling', 'succeeded', 'failed')",
             name="vector_migration_jobs_status_check",
         ),
         sa.ForeignKeyConstraint(["collection_id"], ["collections.id"], ondelete="SET NULL"),

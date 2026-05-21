@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRightLeft, Cloud, Database } from "lucide-react";
+import { ArrowRightLeft, CircleStop, Cloud, Database, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Modal } from "@/components/ui/modal";
 import {
+  useDeleteVectorMigration,
   useStartVectorMigration,
   useVectorMigrations,
   useVectorStorageOverview,
@@ -36,7 +38,7 @@ const targetProvider = (provider: VectorMigrationProvider): VectorMigrationProvi
 
 const providerLabel = (provider: VectorMigrationProvider) => PROVIDER_META[provider].label;
 
-const activeStatuses = new Set(["pending", "running"]);
+const activeStatuses = new Set(["pending", "running", "canceling"]);
 const migrationDescription =
   "Move a collection between vector providers. Writes are paused during the job, then old source vectors are deleted after cutover.";
 
@@ -83,7 +85,9 @@ const VectorMigrationContent = ({ collection }: VectorMigrationPanelProps) => {
   const overview = useVectorStorageOverview();
   const migrations = useVectorMigrations({ collection: collection?.name });
   const startMigration = useStartVectorMigration();
+  const deleteMigration = useDeleteVectorMigration();
   const [target, setTarget] = useState<MigrationTarget | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<VectorMigrationJob | null>(null);
 
   const configuredProviders = overview.data?.configured_providers ?? [];
   const rows = useMemo(() => {
@@ -185,7 +189,11 @@ const VectorMigrationContent = ({ collection }: VectorMigrationPanelProps) => {
             className="rounded-md border border-dashed border-border bg-muted/40"
           />
         )}
-        <MigrationJobs jobs={jobs} />
+        <MigrationJobs
+          deleting={deleteMigration.isPending}
+          jobs={jobs}
+          onDelete={setDeleteTarget}
+        />
       </div>
       <ConfirmDialog
         open={Boolean(target)}
@@ -211,6 +219,31 @@ const VectorMigrationContent = ({ collection }: VectorMigrationPanelProps) => {
           setTarget(null);
         }}
       />
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        title={deleteTarget ? deleteTitle(deleteTarget) : "Delete migration?"}
+        description={deleteTarget ? deleteDescription(deleteTarget) : ""}
+        confirmLabel={
+          deleteTarget && activeStatuses.has(deleteTarget.status) ? "Stop and delete" : "Delete"
+        }
+        confirmationLabel={
+          deleteTarget
+            ? `Type ${deleteTarget.collection_name} to ${activeStatuses.has(deleteTarget.status) ? "stop and delete" : "delete"} migration`
+            : undefined
+        }
+        confirmationText={deleteTarget?.collection_name}
+        loading={deleteMigration.isPending}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          try {
+            await deleteMigration.mutateAsync(deleteTarget);
+            setDeleteTarget(null);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed");
+          }
+        }}
+      />
     </>
   );
 };
@@ -225,7 +258,15 @@ const ProviderBadge = ({ provider }: { readonly provider: VectorMigrationProvide
   );
 };
 
-const MigrationJobs = ({ jobs }: { readonly jobs: VectorMigrationJob[] }) => {
+const MigrationJobs = ({
+  deleting,
+  jobs,
+  onDelete,
+}: {
+  readonly deleting: boolean;
+  readonly jobs: VectorMigrationJob[];
+  readonly onDelete: (job: VectorMigrationJob) => void;
+}) => {
   if (!jobs.length) {
     return (
       <Empty
@@ -239,22 +280,31 @@ const MigrationJobs = ({ jobs }: { readonly jobs: VectorMigrationJob[] }) => {
   }
   return (
     <div className="overflow-hidden rounded-md border border-border">
-      <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-border bg-muted/60 px-4 py-2 text-xs font-semibold text-muted-foreground">
+      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 border-b border-border bg-muted/60 px-4 py-2 text-xs font-semibold text-muted-foreground">
         <span>Migration</span>
         <span>Copied</span>
         <span>Status</span>
+        <span>Action</span>
       </div>
       <div className="divide-y divide-border">
         {jobs.map((job) => (
-          <MigrationJobRow key={job.id} job={job} />
+          <MigrationJobRow deleting={deleting} job={job} key={job.id} onDelete={onDelete} />
         ))}
       </div>
     </div>
   );
 };
 
-const MigrationJobRow = ({ job }: { readonly job: VectorMigrationJob }) => (
-  <div className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_auto_auto] md:items-center">
+const MigrationJobRow = ({
+  deleting,
+  job,
+  onDelete,
+}: {
+  readonly deleting: boolean;
+  readonly job: VectorMigrationJob;
+  readonly onDelete: (job: VectorMigrationJob) => void;
+}) => (
+  <div className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_auto_auto_auto] md:items-center">
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-2">
         <div className="truncate text-sm font-semibold">{job.collection_name}</div>
@@ -282,6 +332,24 @@ const MigrationJobRow = ({ job }: { readonly job: VectorMigrationJob }) => (
     <Badge variant={statusVariant(job.status)} dot>
       {job.status}
     </Badge>
+    <Button
+      disabled={deleting || job.status === "canceling"}
+      onClick={() => onDelete(job)}
+      size="sm"
+      variant={activeStatuses.has(job.status) ? "destructive" : "secondary"}
+    >
+      {activeStatuses.has(job.status) ? (
+        <>
+          <CircleStop className="size-3.5" />
+          Stop and delete
+        </>
+      ) : (
+        <>
+          <Trash2 className="size-3.5" />
+          Delete
+        </>
+      )}
+    </Button>
   </div>
 );
 
@@ -289,5 +357,14 @@ const statusVariant = (status: VectorMigrationJob["status"]) => {
   if (status === "succeeded") return "success";
   if (status === "failed") return "error";
   if (status === "running") return "primary";
+  if (status === "canceling") return "error";
   return "neutral";
 };
+
+const deleteTitle = (job: VectorMigrationJob) =>
+  activeStatuses.has(job.status) ? "Stop and delete migration?" : "Delete migration?";
+
+const deleteDescription = (job: VectorMigrationJob) =>
+  activeStatuses.has(job.status)
+    ? `Stop the ${providerLabel(job.source_provider)} to ${providerLabel(job.target_provider)} migration for ${job.collection_name} and remove it from the migration list. If cutover already started, bigRAG will finish cleanup before removing it.`
+    : `Delete the ${providerLabel(job.source_provider)} to ${providerLabel(job.target_provider)} migration record for ${job.collection_name}.`;
