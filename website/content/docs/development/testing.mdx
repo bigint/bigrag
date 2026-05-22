@@ -27,6 +27,28 @@ The docs package runs `fumadocs-mdx` before `next build`, so a clean checkout or
 
 The admin app scripts generate and clean `app/src/routeTree.gen.ts` before Vite starts, before app builds, and before app typecheck. Vite code splitting reads that generated route tree but does not rewrite it during normal dev-server file watching.
 
+## Runtime load harnesses
+
+Runtime load harnesses under `tests/` are manual smoke/load utilities. They do not reintroduce package-level test suites, end-to-end runners, or coverage requirements.
+
+The streaming upload harness continuously uploads unique JSON documents to an existing collection at the requested RPS until you stop it:
+
+```bash
+cd tests/load
+./test.sh 10
+```
+
+Configuration:
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `BIGRAG_URL` | `http://localhost:4000` | API base URL |
+| `BIGRAG_API_KEY` | — | Required bearer API key with `document:upload` |
+| `BIGRAG_COLLECTION` | `docs` | Existing target collection |
+| `BIGRAG_METADATA_JSON` | `{"source":"tests-load-streaming"}` | JSON object sent as upload metadata |
+| `BIGRAG_STREAMING_MAX_IN_FLIGHT` | `ceil(rps * 2)` | Maximum concurrent uploads |
+| `BIGRAG_STREAMING_REPORT_INTERVAL` | `5` | Seconds between progress reports |
+
 ## CI verification
 
 CI currently keeps formatter, lint, typecheck, SDK build, docs build, and admin UI build. It does not run package-level test, coverage, end-to-end, or UI browser-test jobs.
