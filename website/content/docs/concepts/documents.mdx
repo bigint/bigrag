@@ -5,15 +5,15 @@ description: How bigRAG ingests, parses, chunks, embeds, and stores documents in
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-Documents are files uploaded to a collection. When uploaded, they are automatically parsed, chunked, embedded, and written to the collection's Turbopuffer namespace for semantic, keyword, and hybrid search.
+Documents are files uploaded to a collection. Once uploaded they are automatically parsed, chunked, embedded, and written to the collection's Turbopuffer namespace for semantic, keyword, and hybrid search.
 
 ## Supported Formats
 
-bigRAG extracts embedded text from PDFs directly, and uses [Docling](https://github.com/DS4SD/docling) for other rich document parsing:
+bigRAG extracts embedded text from PDFs directly and uses [Docling](https://github.com/DS4SD/docling) for other rich document parsing:
 
 | Format | Extensions | Notes |
 |--------|------------|-------|
-| PDF | `.pdf` | Fast embedded-text extraction; scanned-PDF OCR is enabled by default |
+| PDF | `.pdf` | Fast embedded-text extraction; scanned-PDF OCR enabled by default |
 | Microsoft Word | `.docx` | Full layout support |
 | Microsoft PowerPoint | `.pptx` | Slide content extraction |
 | Microsoft Excel | `.xlsx` | Table data extraction |
@@ -27,10 +27,6 @@ bigRAG extracts embedded text from PDFs directly, and uses [Docling](https://git
 
 ## Ingestion Methods
 
-### File Upload
-
-Upload documents directly via the API or SDKs:
-
 | Method | Best for |
 |--------|----------|
 | Single upload | One interactive file |
@@ -38,28 +34,26 @@ Upload documents directly via the API or SDKs:
 | Upload session | Large local folder/file imports up to the configured session limits |
 | Connector sync | Cloud files managed by a provider such as Google Drive |
 
-Upload sessions accept one file per request under a durable session ID. The admin UI uses this path for local files and folders so it can keep browser memory bounded, retry individual failures, and restore progress after navigation.
+Upload sessions accept one file per request under a durable session ID. The admin UI uses this path for local files and folders to keep browser memory bounded, retry individual failures, and restore progress after navigation.
 
 ## Ingestion Pipeline
 
-Regardless of ingestion method, every document goes through the same pipeline:
+Every document goes through the same pipeline regardless of ingestion method:
 
-1. **Store** — file is saved to the local upload directory
-2. **Queue** — document is sent to the Dramatiq Redis broker with status `pending`
-3. **Parse** — a Dramatiq worker picks up the document and extracts text directly for text PDFs or parses richer formats with Docling
-4. **Elements** — multimodal collections store document elements such as headings, tables, equations, images, page bounds, captions, and nearby context
-5. **Chunk** — extracted text is split into chunks based on the collection's `chunk_size` and `chunk_overlap`
-6. **Embed** — each chunk is embedded using the collection's configured embedding model
-7. **Store** — embeddings, chunk text, and metadata are batch-inserted into Turbopuffer
-8. **Ready** — document status is updated to `ready` with the chunk count
+1. **Store** — file saved to the local upload directory
+2. **Queue** — document sent to the Dramatiq Redis broker with status `pending`
+3. **Parse** — worker extracts text directly for text PDFs, or parses richer formats with Docling
+4. **Elements** — multimodal collections store document elements: headings, tables, equations, images, page bounds, captions, and nearby context
+5. **Chunk** — extracted text split into chunks based on the collection's `chunk_size` and `chunk_overlap`
+6. **Embed** — each chunk embedded using the collection's configured model
+7. **Store** — embeddings, chunk text, and metadata batch-inserted into Turbopuffer
+8. **Ready** — document status updated to `ready` with the chunk count
 
-Workers renew processing leases while a document is active. Transient failures are rescheduled as delayed Dramatiq messages before the next attempt; exhausted jobs are marked `failed` and retained in the dead-letter list.
+Workers renew processing leases while a document is active. Transient failures are rescheduled as delayed Dramatiq messages; exhausted jobs are marked `failed` and retained in the dead-letter list.
 
 When `multimodal_enrichment_enabled` is set on the collection, a follow-up worker job generates summaries for image, table, and equation elements. This enrichment is asynchronous and does not block the document from becoming searchable.
 
 ## Processing Status
-
-Documents transition through these states:
 
 | Status | Description |
 |--------|-------------|
@@ -84,13 +78,13 @@ Chunking splits document text into overlapping segments for embedding and retrie
 | `chunk_size` | 512 | 64–10,000 | Maximum characters per chunk |
 | `chunk_overlap` | 50 | 0–5,000 | Overlap characters between adjacent chunks |
 
-- **Smaller chunks** (256–512) are better for precise answers and factual retrieval
-- **Larger chunks** (1,000–2,000) provide more context per result
-- **Overlap** ensures important content at chunk boundaries is not lost
+- **Smaller chunks** (256–512) — better for precise answers and factual retrieval
+- **Larger chunks** (1,000–2,000) — more context per result
+- **Overlap** — ensures important content at chunk boundaries is not lost
 
 ## API-Client Status Polling
 
-API clients can monitor document processing by polling the document record:
+Poll the document record to monitor processing:
 
 ```javascript
 let document = await client.documents.get("research", "DOC_ID");
@@ -118,14 +112,14 @@ The document response includes:
 
 ## Document Elements
 
-For collections created or updated with `multimodal_enabled: true`, use:
+For collections created or updated with `multimodal_enabled: true`:
 
 ```bash
 curl "http://localhost:4000/v1/collections/research/documents/DOC_ID/elements" \
   -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 
-Each element includes `kind`, extracted `text`, optional `summary`, `caption`, `asset_path`, `page_no`, `bbox`, character offsets, nearby context, enrichment status, and source metadata. Existing text-only retrieval still works; the element records add provenance for query and chat clients that want richer context.
+Each element includes `kind`, extracted `text`, optional `summary`, `caption`, `asset_path`, `page_no`, `bbox`, character offsets, nearby context, enrichment status, and source metadata. Existing text-only retrieval still works; element records add provenance for query and chat clients that want richer context.
 
 ## Batch Operations
 
@@ -159,7 +153,7 @@ curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/delete \
 ```
 
 <Callout type="info">
-  Batch operations support up to 100 items per request. API clients can poll batch status after upload to read each document's latest progress snapshot until every document is ready or failed. Partial success is supported for batch delete — failed items are reported in the `errors` array.
+Batch operations support up to 100 items per request. API clients can poll batch status after upload to read each document's latest progress snapshot until every document is ready or failed. Partial success is supported for batch delete — failed items are reported in the `errors` array.
 </Callout>
 
 ## Large Upload Sessions

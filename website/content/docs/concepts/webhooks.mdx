@@ -48,12 +48,12 @@ curl -X POST http://localhost:4000/v1/admin/webhooks \
 | `collections` | string[] | no | Filter by collection names (`null` = all) |
 
 <Callout type="warn">
-  The response includes a `secret` field that is shown only once. Store it — it's used to verify webhook signatures.
+The response includes a `secret` field that is shown only once. Store it — it's used to verify webhook signatures.
 </Callout>
 
 ## Payload Format
 
-The existing `document.processing`, `document.ready`, and `document.failed` events keep their original payload shape:
+The `document.processing`, `document.ready`, and `document.failed` events use this shape:
 
 ```json
 {
@@ -120,7 +120,7 @@ def verify(payload: bytes, secret: str, timestamp: str, signature: str) -> bool:
 
 ## Retry Policy
 
-Failed deliveries are stored in the delivery outbox before the first attempt. Retries use the configured exponential backoff window and remain `pending` with `next_retry_at` until the next due attempt, so process restarts can resume delivery. After all attempts, the delivery is marked as `failed`.
+Failed deliveries are stored in the delivery outbox before the first attempt. Retries use the configured exponential backoff window and remain `pending` with `next_retry_at` until the next due attempt, so process restarts can resume delivery. After all attempts, the delivery is marked `failed`.
 
 Check delivery history:
 

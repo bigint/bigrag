@@ -5,62 +5,35 @@ description: Why Turbopuffer + Postgres + Redis + Docling, how requests flow end
 
 import { Callout } from "fumadocs-ui/components/callout";
 
+bigRAG uses four distinct stores, each with a specific role, wired together through a FastAPI backend and Dramatiq worker queue.
+
 ## Four-store design
 
-bigRAG intentionally keeps four distinct stores instead of shoving
-everything into Postgres with pgvector. Each one earns its keep:
-
-- **Turbopuffer search** — dense embeddings, chunk text, payload
-  metadata, BM25 full-text search, filtered semantic search, and
-  collection namespaces.
-- **Postgres** — metadata and control plane. Collections, documents,
-  users, API keys, webhooks, query logs, audit trail, embedding cache.
-  Transactions keep ingestion consistent across stores.
-- **Redis** — Dramatiq broker storage for ingestion, connector,
-  webhook, backup, and maintenance actors; processing leases,
-  cancellation epochs, idempotency-key cache, auth/collection/query
-  hot-path caches, batched document-progress lookups, and short-lived
-  platform/health caches.
-- **Local disk** — raw uploaded documents. Needed to produce
-  citations back into source files and to support re-embedding without
-  re-uploading.
+| Store | Role |
+|-------|------|
+| **Turbopuffer** | Dense embeddings, chunk text, payload metadata, BM25 full-text search, filtered semantic search, collection namespaces |
+| **Postgres** | Metadata and control plane: collections, documents, users, API keys, webhooks, query logs, audit trail, embedding cache. Transactions keep ingestion consistent across stores. |
+| **Redis** | Dramatiq broker for ingestion, connector, webhook, backup, and maintenance actors; processing leases, cancellation epochs, idempotency-key cache, auth/collection/query hot-path caches, batched document-progress lookups, short-lived platform/health caches |
+| **Local disk** | Raw uploaded documents. Required for citations back into source files and for re-embedding without re-uploading. |
 
 <Callout type="info">
-bigRAG runs Postgres and Redis locally with `docker compose up`, while
-Turbopuffer provides the managed vector and full-text search backend.
+Postgres and Redis run locally via `docker compose up`. Turbopuffer is the managed vector and full-text search backend.
 </Callout>
 
-The backend talks to Turbopuffer through the official Python client for
-namespace writes, deletes, health listing, vector queries, and BM25
-queries.
+The backend talks to Turbopuffer through the official Python client for namespace writes, deletes, health listing, vector queries, and BM25 queries.
 
-The admin UI leans on TanStack Router's built-in route code splitting
-instead of wrapping dashboard pages in extra `React.lazy` boundaries,
-so each route transition pays for one route chunk, not a route chunk
-plus an immediately nested page chunk. On the backend, Postgres keeps
-composite newest-first indexes for collection document lists and common
-access-log filters so admin timelines avoid full sorts as data grows.
+The admin UI uses TanStack Router's built-in route code splitting — each route transition pays for one route chunk, not a route chunk plus a nested page chunk. Postgres uses composite newest-first indexes for collection document lists and common access-log filters to avoid full sorts as data grows.
 
 ## Identifier model
 
-bigRAG-owned records use native Postgres `uuid` columns and are generated
-by the API as UUIDv7 values before insert. That gives users, sessions,
-API keys, collections, documents, upload sessions, backup jobs,
-connectors, webhooks, query logs, embedding presets, audit logs, and
-access logs one canonical identifier shape while keeping IDs time-ordered
-for healthier newest-first indexes.
+bigRAG-owned records use native Postgres `uuid` columns generated as UUIDv7 values before insert. This covers users, sessions, API keys, collections, documents, upload sessions, backup jobs, connectors, webhooks, query logs, embedding presets, audit logs, and access logs — one canonical identifier shape, time-ordered for healthier newest-first indexes.
 
-Existing UUIDv4 rows remain valid because UUIDv4 and UUIDv7 share the
-same Postgres `uuid` type. Foreign keys store raw UUID values internally,
-and the REST API plus SDKs expose them as strings.
+Existing UUIDv4 rows remain valid because UUIDv4 and UUIDv7 share the same Postgres `uuid` type. Foreign keys store raw UUID values internally; the REST API and SDKs expose them as strings.
 
-Not every field ending in `id` is a bigRAG record ID. External provider
-identifiers such as Google Drive file IDs, caller-provided vector IDs,
-collection names, settings keys, idempotency keys, OAuth states, session
-tokens, API keys, and webhook secrets remain opaque strings. Vector-store
-point IDs are backend-safe deterministic UUIDv5 values derived from the
-caller-facing vector or chunk ID, so Turbopuffer writes, deletes, and
-exports can use stable point IDs without changing API-visible IDs.
+Not every field ending in `id` is a bigRAG record ID:
+
+- External provider identifiers (Google Drive file IDs, collection names, settings keys, OAuth states, session tokens, API keys, webhook secrets) remain opaque strings.
+- Vector-store point IDs are deterministic UUIDv5 values derived from the caller-facing vector or chunk ID, so Turbopuffer writes, deletes, and exports use stable point IDs without changing API-visible IDs.
 
 ## Request flow — `POST /v1/collections/{name}/documents`
 
@@ -90,10 +63,7 @@ Webhook outbox actor
   │ data-operation fan-out through pending delivery rows
 ```
 
-Failure at any step marks the document `failed` with a typed error
-message. Active workers renew Redis leases while long jobs run. Transient
-failures are rescheduled as delayed Dramatiq messages, and exhausted jobs
-are retained in the dead-letter list for operator visibility.
+Failure at any step marks the document `failed` with a typed error message. Active workers renew Redis leases while long jobs run. Transient failures are rescheduled as delayed Dramatiq messages; exhausted jobs are retained in the dead-letter list for operator visibility.
 
 ## Request flow — `POST /v1/collections/{name}/query`
 
@@ -109,86 +79,51 @@ Client → FastAPI
 Response JSON with results and timings
 ```
 
-Keyword mode skips embeddings. Semantic and hybrid mode use the
-collection's configured embedding model. Keyword search runs BM25 over
-Turbopuffer full-text chunk data, and hybrid search fuses Turbopuffer
-ANN results with BM25 results using reciprocal rank fusion.
-Query-result cache hits return the cached chunks but report the current
-cache lookup latency, not the original uncached retrieval timings.
+- **Keyword mode**: skips embeddings; runs BM25 over Turbopuffer full-text chunk data.
+- **Semantic mode**: uses the collection's configured embedding model.
+- **Hybrid mode**: fuses Turbopuffer ANN results with BM25 results via reciprocal rank fusion.
+- **Cache hits**: return the cached chunks with the current cache lookup latency, not the original uncached retrieval timings.
 
 ## Why Docling
 
-Alternatives considered and why we didn't pick them:
+Alternatives considered:
 
-- **Unstructured.io** — great coverage but requires network calls and
-  a hosted inference server by default. bigRAG needs to run offline.
-- **PyMuPDF + LangChain** — OK for PDFs but nothing else, and loses
-  layout structure.
-- **LlamaParse** — hosted only.
+| Alternative | Why not |
+|-------------|---------|
+| Unstructured.io | Requires network calls and a hosted inference server by default; bigRAG needs to run offline |
+| PyMuPDF + LangChain | OK for PDFs only; loses layout structure |
+| LlamaParse | Hosted only |
 
-Docling runs entirely locally, handles DOCX / PPTX / HTML / Markdown /
-images, and exposes layout provenance we can thread into citation metadata
-(`page_no`, `bbox`). PDFs with embedded text use a faster direct extractor;
-local OCR for scanned PDFs is enabled by default.
+Docling runs entirely locally, handles DOCX / PPTX / HTML / Markdown / images, and exposes layout provenance for citation metadata (`page_no`, `bbox`). PDFs with embedded text use a faster direct extractor; local OCR for scanned PDFs is enabled by default.
 
 ## Why Turbopuffer
 
-pgvector is tempting — one less external service. But at scale the gap
-widens:
+| Capability | Why it matters |
+|------------|----------------|
+| Managed vector engine | Keeps ANN search and payload filtering outside the transactional database; Postgres stays the metadata and control plane |
+| Full-text plus vectors | Stores chunk text with full-text search enabled, so keyword search runs as BM25 and hybrid search fuses BM25 with semantic results |
+| Namespace isolation | Each collection maps to one namespace; deletion, truncation, export, and raw vector writes are scoped to one backend object |
 
-- **Managed vector engine**: Turbopuffer keeps ANN search and payload
-  filtering outside the transactional database, so Postgres remains the
-  metadata and control plane.
-- **Full-text plus vectors**: Turbopuffer stores chunk text with
-  full-text search enabled, which lets keyword search run as BM25 and
-  hybrid search fuse BM25 with semantic results.
-- **Namespace isolation**: each collection maps to a namespace, keeping
-  collection deletion, truncation, export, and raw vector writes scoped
-  to one backend object.
-
-For single-tenant deployments under ~1M vectors, pgvector would work
-well. bigRAG keeps Postgres focused on durable metadata and uses
-Turbopuffer for retrieval-specific storage and query execution.
+For single-tenant deployments under ~1M vectors, pgvector would work well. bigRAG keeps Postgres focused on durable metadata and uses Turbopuffer for retrieval-specific storage and query execution.
 
 ## Scaling notes
 
-- **Horizontal API workers**: FastAPI is stateless past the lifespan.
-  Run N replicas behind a load balancer; they share Postgres, Redis,
-  and the configured vector-store clients. API replicas enqueue work but do not
-  run background jobs in-process.
-- **Dramatiq workers**: run one or more `bigrag-worker` processes for
-  ingestion, connector syncs, webhook outbox delivery, backups, and
-  cleanup. Worker heartbeat and queue state are visible through
-  `/v1/stats`. Each worker process initializes runtime dependencies
-  before reserving jobs, aborts boot if initialization fails, refreshes
-  queue-scoped heartbeats while idle, and recovers stale processing
-  leases on startup. Periodic maintenance and webhook outbox ticks are
-  seeded after boot through the same Redis scheduler guards used by the
-  actors, so restarts and replicas do not create duplicate delayed
-  messages.
-- **Vector backend**: Turbopuffer namespaces are created on first write
-  and store bigRAG vector IDs as payload attributes while using
-  backend-safe IDs internally for writes, deletes, and exports.
-- **Postgres replication**: the control plane is read-light; a
-  warm-standby suffices for failover.
-- **Redis persistence**: enable `appendonly yes` (already set in the
-  shipped compose file). Pending Dramatiq messages, delayed retries,
-  processing leases, and dead-letter entries survive process restarts
-  within the Redis durability window.
+- **Horizontal API workers**: FastAPI is stateless past the lifespan. Run N replicas behind a load balancer; they share Postgres, Redis, and the configured vector-store clients. API replicas enqueue work but do not run background jobs in-process.
+- **Dramatiq workers**: run one or more `bigrag-worker` processes for ingestion, connector syncs, webhook outbox delivery, backups, and cleanup. Worker heartbeat and queue state are visible through `/v1/stats`. Each worker initializes runtime dependencies before reserving jobs, aborts boot on failure, refreshes queue-scoped heartbeats while idle, and recovers stale processing leases on startup. Periodic maintenance and webhook outbox ticks are seeded after boot through Redis scheduler guards, so restarts and replicas do not create duplicate delayed messages.
+- **Vector backend**: Turbopuffer namespaces are created on first write and store bigRAG vector IDs as payload attributes while using backend-safe IDs internally for writes, deletes, and exports.
+- **Postgres replication**: the control plane is read-light; a warm-standby suffices for failover.
+- **Redis persistence**: enable `appendonly yes` (already set in the shipped compose file). Pending Dramatiq messages, delayed retries, processing leases, and dead-letter entries survive process restarts within the Redis durability window.
 
 ## Connector service layout
 
-Connector routes stay provider-neutral through `connector_registry.py`.
-Reusable connector behavior lives in `bigrag.services.connectors`:
-account/config management, source and sync-job persistence, progress
-payloads, manifest updates, sync status handling, and document handoff
-to the ingestion actor. The ingestion queue keeps Redis lease/recovery
-state separate from per-document processing so retry, dead-letter, and
-webhook fanout behavior can evolve without changing route-level APIs.
-Scheduled connector ticks run as Dramatiq maintenance actors and claim
-due sources with row locks so multiple worker replicas do not create
-duplicate scheduled sync jobs. Provider modules layer on top of those
-shared helpers; the Google
-Drive provider keeps OAuth/account handling, Drive API calls, source
-helpers, and sync adapter wiring in separate modules while preserving
-`bigrag.services.google_drive` as the public import surface.
+Connector routes stay provider-neutral through `connector_registry.py`. Reusable connector behavior lives in `bigrag.services.connectors`:
+
+- Account/config management
+- Source and sync-job persistence
+- Progress payloads and manifest updates
+- Sync status handling
+- Document handoff to the ingestion actor
+
+The ingestion queue keeps Redis lease/recovery state separate from per-document processing so retry, dead-letter, and webhook fanout behavior can evolve without changing route-level APIs.
+
+Scheduled connector ticks run as Dramatiq maintenance actors and claim due sources with row locks so multiple worker replicas do not create duplicate scheduled sync jobs. The Google Drive provider keeps OAuth/account handling, Drive API calls, source helpers, and sync adapter wiring in separate modules while preserving `bigrag.services.google_drive` as the public import surface.
