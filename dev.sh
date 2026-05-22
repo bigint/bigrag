@@ -99,6 +99,14 @@ if [ "$START_BACKEND" = true ] || [ "$START_WEBSITE" = true ]; then
     fi
   done
 fi
+if [ "$START_BACKEND" = true ]; then
+  stale_workers=$(ps -axo pid=,command= | awk -v root="$ROOT_DIR" '$0 ~ root "/api" && $0 ~ /bigrag-worker/ {print $1}' || true)
+  if [ -n "$stale_workers" ]; then
+    echo -e "${YELLOW}Killing stale bigrag-worker process(es)${NC}"
+    echo "$stale_workers" | xargs kill -9 2>/dev/null || true
+    sleep 1
+  fi
+fi
 
 if [ "$START_INFRA" = true ]; then
   for cmd in docker curl; do
