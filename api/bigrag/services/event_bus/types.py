@@ -30,20 +30,6 @@ class IngestionEvent:
     detail: dict = field(default_factory=dict)
     collection_name: str = ""
 
-    def to_sse(self) -> str:
-        data = {
-            "document_id": self.document_id,
-            "collection_name": self.collection_name,
-            "step": self.step,
-            "status": self.status,
-            "message": self.message,
-            "progress": self.progress,
-            **self.detail,
-        }
-        return (
-            f"id: {next_sse_id()}\nretry: {SSE_RETRY_MS}\ndata: {orjson.dumps(data).decode()}\n\n"
-        )
-
     def serialize(self) -> bytes:
         return orjson.dumps(asdict(self))
 

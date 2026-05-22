@@ -6,7 +6,6 @@ from bigrag.db.models import ConnectorAccount, ConnectorSource, ConnectorSyncJob
 from bigrag.services.connector_core import (
     configured,
     create_source,
-    create_sync_job,
     delete_source,
     list_sources,
     source_public,
@@ -80,24 +79,6 @@ async def create_google_source(
         user_id=user_id,
         infer_source_type=_infer_source_type,
         start_sync_job=start_google_sync_job,
-    )
-
-
-async def create_google_sync_job(
-    session,
-    *,
-    source: ConnectorSource,
-    trigger: str,
-    user_id: str | None,
-    commit: bool = True,
-) -> ConnectorSyncJob:
-    return await create_sync_job(
-        session,
-        provider=GOOGLE_PROVIDER,
-        source=source,
-        trigger=trigger,
-        user_id=user_id,
-        commit=commit,
     )
 
 

@@ -164,21 +164,6 @@ async def stop_audit_flusher() -> None:
     _audit_queue = None
 
 
-async def flush_audit_logs() -> None:
-    queue = _audit_queue
-    if queue is None:
-        return
-    while not queue.empty():
-        batch: list[dict[str, Any]] = []
-        while len(batch) < _AUDIT_BATCH_MAX:
-            try:
-                batch.append(queue.get_nowait())
-            except asyncio.QueueEmpty:
-                break
-        if batch:
-            await _flush_batch(batch)
-
-
 def record(
     request: Request,
     *,

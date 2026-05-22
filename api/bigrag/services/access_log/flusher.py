@@ -21,10 +21,6 @@ _access_log_stop_event: asyncio.Event | None = None
 _access_log_flusher_task: asyncio.Task | None = None
 
 
-def get_queue() -> asyncio.Queue[dict[str, Any]] | None:
-    return _access_log_queue
-
-
 async def _drain_batch(queue: asyncio.Queue[dict[str, Any]]) -> list[dict[str, Any]]:
     try:
         first = await asyncio.wait_for(queue.get(), timeout=_ACCESS_LOG_FLUSH_INTERVAL)
