@@ -74,7 +74,9 @@ const orderOptions: { value: DocumentListOrder; label: string }[] = [
 ];
 
 const shouldDismissUploadSession = (session: UploadSession) =>
-  session.status === "complete" && session.active_files === 0 && session.failed_files === 0;
+  (session.status === "complete" || session.status === "failed" || session.status === "canceled") &&
+  session.active_files === 0 &&
+  session.failed_files === 0;
 
 type DocumentsTabFilters = {
   order: DocumentListOrder;

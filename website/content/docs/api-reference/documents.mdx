@@ -146,7 +146,9 @@ Re-parse, re-chunk, and re-embed a document.
 GET /v1/collections/{collection_name}/documents/{document_id}/chunks
 ```
 
-Get chunks for a processed document.
+Get chunks for a processed document. If the document exists but its
+Turbopuffer namespace has not been created yet or was already removed, the
+endpoint returns an empty chunk list with `total: 0`.
 
 | Parameter | Type | Default | Constraints |
 |-----------|------|---------|-------------|

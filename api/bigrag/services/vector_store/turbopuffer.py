@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from turbopuffer import AsyncTurbopuffer, NotFoundError
+from turbopuffer import AsyncTurbopuffer
+from turbopuffer import NotFoundError as TurbopufferNotFoundError
 
 from bigrag.logging import get_logger
 from bigrag.services._retrieval_filters import FilterCondition, FilterExpression
@@ -143,7 +144,7 @@ class TurbopufferVectorStore:
     async def delete_collection(self, name: str) -> None:
         try:
             await self._namespace_client(name).delete_all()
-        except NotFoundError:
+        except TurbopufferNotFoundError:
             return
 
     async def insert(
@@ -247,14 +248,24 @@ class TurbopufferVectorStore:
         return _chunk_rows_from_payloads([_row_payload(row) for row in rows], limit, offset)
 
     async def _query_rows(self, collection: str, payload: dict) -> list[dict]:
-        response = await self._namespace_client(collection).query(**payload)
+        try:
+            response = await self._namespace_client(collection).query(**payload)
+        except TurbopufferNotFoundError:
+            return []
         return [_response_row(row) for row in response.rows]
 
     async def delete_by_document(self, collection: str, document_id: str) -> None:
-        await self._write(collection, {"delete_by_filter": ["document_id", "Eq", document_id]})
+        try:
+            await self._write(collection, {"delete_by_filter": ["document_id", "Eq", document_id]})
+        except TurbopufferNotFoundError:
+            return
 
     async def delete_by_ids(self, collection: str, ids: list[str]) -> None:
-        await self._write(collection, {"deletes": [self._point_id(collection, id_) for id_ in ids]})
+        try:
+            deletes = [self._point_id(collection, id_) for id_ in ids]
+            await self._write(collection, {"deletes": deletes})
+        except TurbopufferNotFoundError:
+            return
 
     async def text_search(
         self,
