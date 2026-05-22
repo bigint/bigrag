@@ -3,24 +3,35 @@ title: Chat
 description: Stateless playground chat API with retrieval, generated answers, and citations.
 ---
 
+import { Callout } from "fumadocs-ui/components/callout";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
+
 Base path: `/v1/chat`
 
-The chat API retrieves chunks from a collection, builds the grounded prompt on the backend, calls the configured chat provider, and returns cited answers for the current turn. Source context includes document IDs, filenames, chunk labels, document metadata, and chunk text so the model can answer metadata questions as well as content questions. It does not store chat messages or conversations. It supports session auth and API-key auth. Scoped API keys can use chat when granted `chat:write`; collection-pinned keys can only chat against their pinned collection.
+The chat API retrieves chunks from a collection, builds the grounded prompt on the backend, calls the configured chat provider, and returns cited answers. Source context includes document IDs, filenames, chunk labels, document metadata, and chunk text. It does not store chat messages or conversations.
 
-Supported providers are `openai` and `openai_compatible`. Save the provider key in the admin UI at `chat.openai_key`. API clients can also pass `provider_api_key` per request when they do not want to use the user's saved key.
+Accepts session auth and API-key auth. Scoped API keys can use chat when granted `chat:write`; collection-pinned keys can only chat against their pinned collection.
 
-`BIGRAG_CHAT_API_KEY` is an instance-level fallback for the default OpenAI chat endpoint only. If `chat_base_url` or request `provider_base_url` points to a non-default OpenAI-compatible endpoint, chat requests must use a saved chat key or `provider_api_key`; the instance fallback key is rejected before any provider call.
+**Provider configuration:**
 
-## Question Suggestions
+- Supported providers: `openai` and `openai_compatible`. Save the provider key in the admin UI at `chat.openai_key`.
+- API clients can also pass `provider_api_key` per request to bypass the saved key.
+- `BIGRAG_CHAT_API_KEY` is an instance-level fallback for the default OpenAI chat endpoint only. If `chat_base_url` or request `provider_base_url` points to a non-default OpenAI-compatible endpoint, a saved chat key or `provider_api_key` is required — the instance fallback key is rejected before any provider call.
+
+<Accordions type="multiple">
+
+<Accordion title="GET /POST /v1/chat/question-suggestions — Question suggestions">
 
 ```
 GET /v1/chat/question-suggestions?collection=handbook
 POST /v1/chat/question-suggestions
 ```
 
-`GET` returns the last generated starter-question set for the collection, or an empty set when none has been generated. `POST` uses the saved chat/OpenAI key from the current user's preferences or the instance fallback when the default OpenAI endpoint is in use. With a non-default chat base URL, question generation requires a saved chat key because it cannot accept a per-request provider key.
+`GET` returns the last generated starter-question set for the collection, or an empty set when none has been generated.
 
-POST body:
+`POST` uses the saved chat/OpenAI key from the current user's preferences or the instance fallback when the default OpenAI endpoint is in use. With a non-default chat base URL, question generation requires a saved chat key because it cannot accept a per-request provider key.
+
+**POST body:**
 
 ```json
 {
@@ -30,7 +41,7 @@ POST body:
 }
 ```
 
-Response:
+**Response:**
 
 ```json
 {
@@ -47,13 +58,15 @@ Response:
 }
 ```
 
-## Create Chat Turn
+</Accordion>
+
+<Accordion title="POST /v1/chat — Create chat turn">
 
 ```
 POST /v1/chat
 ```
 
-Request body:
+**Request body:**
 
 ```json
 {
@@ -74,9 +87,7 @@ Set `multimodal: true` to include retrieved image content for vision-capable mod
 
 When `search_mode` is `semantic` and the message contains identifier-like tokens such as UUIDs, chat uses hybrid retrieval for that turn so exact IDs and error codes are matched lexically. The response retrieval payload includes both `requested_search_mode` and the effective `search_mode`. If the message names a document UUID in the selected collection, the source list can include a metadata-only source for that document.
 
-## Stream Chat Turn
-
-Set `stream: true` to receive Server-Sent Events:
+**Streaming:** Set `stream: true` to receive Server-Sent Events:
 
 ```text
 event: user_message
@@ -98,3 +109,7 @@ data: [DONE]
 ```
 
 If provider generation fails after streaming starts, the API emits an `error` event followed by `data: [DONE]`.
+
+</Accordion>
+
+</Accordions>

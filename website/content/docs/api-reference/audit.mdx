@@ -3,19 +3,19 @@ title: Audit Log
 description: Read admin audit trails and RAG access telemetry.
 ---
 
-Base path: `/v1/admin`
+import { Callout } from "fumadocs-ui/components/callout";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
-Session-only. Audit records are immutable.
+Base path: `/v1/admin` — Session-only. Audit records are immutable.
 
-bigRAG separates two operational trails:
+bigRAG maintains two separate operational trails:
 
-- `audit_log` records privileged state changes and selected operator/retrieval actions such as API-key creation, collection mutations, evaluation runs, and vector writes.
-- `access_log` records RAG calls with actor, auth method, endpoint, status, collection context,
-  and latency. Query, batch query, vector mutation, and evaluation calls are included; admin UI
-  refreshes and admin/control-plane reads are excluded. Request bodies, raw prompts, document
-  content, secrets, and credentials are not stored.
+- **`audit_log`** — privileged state changes and selected operator/retrieval actions: API-key creation, collection mutations, evaluation runs, and vector writes.
+- **`access_log`** — RAG calls with actor, auth method, endpoint, status, collection context, and latency. Includes query, batch query, vector mutation, and evaluation calls; excludes admin UI refreshes and admin/control-plane reads. Request bodies, raw prompts, document content, secrets, and credentials are never stored.
 
-## List Audit Entries
+<Accordions type="multiple">
+
+<Accordion title="GET /v1/admin/audit — List audit entries">
 
 ```
 GET /v1/admin/audit
@@ -31,7 +31,9 @@ GET /v1/admin/audit
 | `limit` | integer | 1–1,000, default 100 |
 | `offset` | integer | Default 0 |
 
-Date-range filtering isn't yet supported — paginate and filter `created_at` client-side if you need a time window.
+<Callout type="info">
+  Date-range filtering isn't yet supported — paginate and filter `created_at` client-side if you need a time window.
+</Callout>
 
 **Response** `200`:
 
@@ -56,13 +58,13 @@ Date-range filtering isn't yet supported — paginate and filter `created_at` cl
 }
 ```
 
-### Field notes
+**Field notes:**
 
-- `actor_id` / `actor_email` identify the admin account that performed the action. Both are `null` for system-initiated events (e.g. cleanup workers).
-- `api_key_id` is populated when the action was performed via an API key — the field holds the key's UUID, and `actor_id` is the admin who owns the key. For session-cookie (admin UI) calls, `api_key_id` is `null`.
-- `metadata` is per-action context (never credentials or document content). Shape varies by `action` — e.g. `api_key.create` includes `name` and `scopes`.
+- `actor_id` / `actor_email` — the admin account that performed the action. Both are `null` for system-initiated events (e.g. cleanup workers).
+- `api_key_id` — populated when the action was performed via an API key; holds the key's UUID, and `actor_id` is the owning admin. `null` for session-cookie (admin UI) calls.
+- `metadata` — per-action context (never credentials or document content). Shape varies by `action` — e.g. `api_key.create` includes `name` and `scopes`.
 
-### Currently emitted actions
+**Currently emitted actions:**
 
 | Action family | Emitted by |
 |---------------|------------|
@@ -78,15 +80,17 @@ Date-range filtering isn't yet supported — paginate and filter `created_at` cl
 | `backup.requested` | Readable backup request |
 | `query.*`, `vectors.*`, `analytics.read`, `evaluation.run`, `chat.*` | Retrieval, vector, analytics, evaluation, and chat actions |
 
-Use the structured application log stream alongside the audit log when you need full request diagnostics, raw route timing, or operational events that are intentionally outside the audit action vocabulary.
+Use the structured application log stream alongside the audit log when you need full request diagnostics, raw route timing, or operational events outside the audit action vocabulary.
 
-## Access Overview
+</Accordion>
+
+<Accordion title="GET /v1/admin/access/overview — Access overview">
+
+Session-only admin endpoint.
 
 ```
 GET /v1/admin/access/overview
 ```
-
-Session-only admin endpoint.
 
 **Query parameters:**
 
@@ -96,7 +100,9 @@ Session-only admin endpoint.
 
 **Response** `200` includes total RAG events, success/error rate, average and p95 latency, query event count, action buckets, latency-by-action buckets, a timeline, and the most recent access rows.
 
-## List Access Logs
+</Accordion>
+
+<Accordion title="GET /v1/admin/access/logs — List access logs">
 
 ```
 GET /v1/admin/access/logs
@@ -117,3 +123,7 @@ GET /v1/admin/access/logs
 | `offset` | integer | Default 0 |
 
 Access-log rows include actor/API-key identity when available, route/path, status code, latency, IP, user-agent, request ID, collection context, and safe metadata such as query hash, query length, top-k, result count, evaluation metrics, and cache use.
+
+</Accordion>
+
+</Accordions>

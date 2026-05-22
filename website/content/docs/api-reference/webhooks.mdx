@@ -3,15 +3,17 @@ title: Webhooks
 description: API endpoints for managing webhook registrations.
 ---
 
+import { Callout } from "fumadocs-ui/components/callout";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
+
 Base path: `/v1/admin/webhooks`
 
 Session-only admin endpoints. API-key bearer tokens are rejected.
 
-## Register Webhook
+## Management
 
-```
-POST /v1/admin/webhooks
-```
+<Accordions type="multiple">
+<Accordion title="POST /v1/admin/webhooks — Register webhook">
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -33,7 +35,9 @@ curl -X POST http://localhost:4000/v1/admin/webhooks \
 
 Supported event types: `document.processing`, `document.ready`, `document.failed`, `document.deleted`, `collection.created`, `collection.updated`, `collection.deleted`, `collection.truncated`, `collection.reembed.queued`, `connector.sync.started`, `connector.sync.completed`, `connector.sync.failed`, `connector.sync.needs_reauth`, `backup.started`, `backup.succeeded`, `backup.failed`.
 
-## List Webhooks
+</Accordion>
+
+<Accordion title="GET /v1/admin/webhooks — List webhooks">
 
 ```
 GET /v1/admin/webhooks?limit=50&offset=0
@@ -50,27 +54,31 @@ GET /v1/admin/webhooks?limit=50&offset=0
 
 `total` is the total number of configured webhooks before pagination.
 
-## Get Webhook
+</Accordion>
 
-```
-GET /v1/admin/webhooks/{id}
-```
+<Accordion title="GET /v1/admin/webhooks/{id} — Get webhook">
 
-## Update Webhook
+Returns the full webhook object.
 
-```
-PUT /v1/admin/webhooks/{id}
-```
+</Accordion>
+
+<Accordion title="PUT /v1/admin/webhooks/{id} — Update webhook">
 
 Updatable fields: `url`, `events`, `collections`, `active`.
 
-## Delete Webhook
+</Accordion>
 
-```
-DELETE /v1/admin/webhooks/{id}
-```
+<Accordion title="DELETE /v1/admin/webhooks/{id} — Delete webhook">
 
-## List Deliveries
+Deletes the webhook registration.
+
+</Accordion>
+</Accordions>
+
+## Deliveries
+
+<Accordions type="multiple">
+<Accordion title="GET /v1/admin/webhooks/{id}/deliveries — List deliveries">
 
 ```
 GET /v1/admin/webhooks/{id}/deliveries?limit=50&offset=0
@@ -78,19 +86,15 @@ GET /v1/admin/webhooks/{id}/deliveries?limit=50&offset=0
 
 Returns delivery history for a webhook, useful for debugging.
 
-## Test Webhook
+</Accordion>
 
-```
-POST /v1/admin/webhooks/{id}/test
-```
+<Accordion title="POST /v1/admin/webhooks/{id}/test — Test webhook">
 
 Sends a `webhook.test` event to verify the endpoint is reachable.
 
-## Replay Delivery
+</Accordion>
 
-```
-POST /v1/admin/webhooks/{id}/deliveries/{delivery_id}/replay
-```
+<Accordion title="POST /v1/admin/webhooks/{id}/deliveries/{delivery_id}/replay — Replay delivery">
 
 Re-sends the original stored delivery payload to the webhook URL and records the replay attempt in the audit log. Use this after fixing a subscriber outage or endpoint bug.
 
@@ -104,9 +108,12 @@ Re-sends the original stored delivery payload to the webhook URL and records the
 }
 ```
 
-## Webhook Payload
+</Accordion>
+</Accordions>
 
-The existing document processing events keep their original flat payload for compatibility:
+## Payload format
+
+Document processing events use a flat payload for compatibility:
 
 ```json
 {
@@ -148,7 +155,7 @@ New data-operation events use a common envelope:
 Admin-plane events (`user.create`, `api_key.*`, `webhook.*`, settings changes) remain in the [audit log](/docs/api-reference/audit). Per-query success webhooks are intentionally not emitted; use access logs and analytics for high-RPS query monitoring.
 </Callout>
 
-## Headers
+## Headers & retry
 
 Each delivery includes these headers:
 
@@ -160,7 +167,5 @@ X-BigRAG-Delivery: <delivery-uuid>
 ```
 
 The signature is `HMAC-SHA256(secret, "{timestamp}.{raw_body}")`, where `timestamp` is the exact `X-BigRAG-Timestamp` value and `raw_body` is the delivered JSON body bytes decoded as UTF-8.
-
-## Retry Policy
 
 Failed deliveries remain in the delivery outbox as `pending` with `next_retry_at` set for the next attempt. The dispatcher claims due rows, updates `attempts`, and marks the delivery `delivered` or `failed` once the retry budget is exhausted.

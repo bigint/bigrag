@@ -3,13 +3,14 @@ title: Query & Search
 description: Turbopuffer-backed API endpoints for semantic, keyword, and hybrid search.
 ---
 
-All endpoints require [authentication](/docs/api-reference/authentication) — a session cookie or an API key with `query:read`. Queries run against Turbopuffer namespaces, using semantic vectors, BM25 keyword search, or hybrid fusion depending on `search_mode`.
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
-## Single Collection Query
+All endpoints require [authentication](/docs/api-reference/authentication) — a session cookie or an API key with `query:read`. Queries run against Turbopuffer namespaces using semantic vectors, BM25 keyword search, or hybrid fusion depending on `search_mode`.
 
-```
-POST /v1/collections/{collection_name}/query
-```
+## Search
+
+<Accordions type="multiple">
+<Accordion title="POST /v1/collections/{collection_name}/query — Single collection query">
 
 Run a search against one collection's Turbopuffer namespace. Semantic and hybrid modes embed the query with the collection's configured embedding model; keyword mode skips embedding.
 
@@ -83,7 +84,7 @@ Run a search against one collection's Turbopuffer namespace. Semantic and hybrid
 }
 ```
 
-### Response fields
+**Response fields:**
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -103,11 +104,9 @@ Run a search against one collection's Turbopuffer namespace. Semantic and hybrid
 
 **Errors:** `404` — collection not found.
 
-## Multi-Collection Query
+</Accordion>
 
-```
-POST /v1/query
-```
+<Accordion title="POST /v1/query — Multi-collection query">
 
 Search across multiple collections and merge the results by score.
 
@@ -140,11 +139,9 @@ curl -X POST http://localhost:4000/v1/query \
   -d '{"query":"machine learning","collections":["docs","papers"],"top_k":20}'
 ```
 
-## Batch Query
+</Accordion>
 
-```
-POST /v1/batch/query
-```
+<Accordion title="POST /v1/batch/query — Batch query">
 
 Run up to 20 independent queries in parallel. Each query item accepts the full single-collection body.
 
@@ -160,11 +157,13 @@ Run up to 20 independent queries in parallel. Each query item accepts the full s
 
 Response: `{"results": [...]}` — an array of query responses in the same order as the input.
 
-## Collection Analytics
+</Accordion>
+</Accordions>
 
-```
-GET /v1/collections/{name}/analytics
-```
+## Analytics
+
+<Accordions type="multiple">
+<Accordion title="GET /v1/collections/{name}/analytics — Collection analytics">
 
 Rolling 24-hour, 7-day, and 30-day query statistics, cached for five minutes.
 
@@ -181,3 +180,6 @@ Rolling 24-hour, 7-day, and 30-day query statistics, cached for five minutes.
   ]
 }
 ```
+
+</Accordion>
+</Accordions>

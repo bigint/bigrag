@@ -3,15 +3,18 @@ title: API Keys
 description: Mint, list, update, rotate, and revoke bigrag_sk_ keys.
 ---
 
-Base path: `/v1/admin/api-keys`
+import { Callout } from "fumadocs-ui/components/callout";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
-API keys are the credential that SDKs and backend services use against bigRAG. Plaintext values are returned **once** on creation or rotation and then never re-retrievable; only the prefix and a keyed hash are persisted. When `BIGRAG_MASTER_KEY` is unset, older development keys may use the legacy SHA-256 hash format.
+Base path: `/v1/admin/api-keys` — Session-only. You cannot mint new keys using an existing key.
+
+Plaintext values are returned **once** on creation or rotation and are never re-retrievable — only the prefix and a keyed hash are persisted. When `BIGRAG_MASTER_KEY` is unset, older development keys may use the legacy SHA-256 hash format.
 
 During master-key rotation, API-key lookup checks `BIGRAG_MASTER_KEY` plus `BIGRAG_MASTER_KEY_PREVIOUS`, so existing keys continue to authenticate while you rotate and rewrite stored hashes.
 
-Session-only: every endpoint below requires a session cookie. You cannot mint new keys using an existing key.
+<Accordions type="multiple">
 
-## List Keys
+<Accordion title="GET /v1/admin/api-keys — List keys">
 
 ```
 GET /v1/admin/api-keys?limit=50&offset=0
@@ -39,7 +42,9 @@ GET /v1/admin/api-keys?limit=50&offset=0
 }
 ```
 
-## Create Key
+</Accordion>
+
+<Accordion title="POST /v1/admin/api-keys — Create key">
 
 ```
 POST /v1/admin/api-keys
@@ -78,9 +83,13 @@ POST /v1/admin/api-keys
 }
 ```
 
-Store `key` immediately — it is not retrievable later.
+<Callout type="warn">
+  Store `key` immediately — it is not retrievable later.
+</Callout>
 
-## Update Key
+</Accordion>
+
+<Accordion title="PATCH /v1/admin/api-keys/{key_id} — Update key">
 
 ```
 PATCH /v1/admin/api-keys/{key_id}
@@ -94,7 +103,9 @@ Any combination of `name`, `active`, `expires_at`, `scopes`, and `collection` is
 
 **Response** `200`: updated key (without `key`).
 
-## Rotate Key
+</Accordion>
+
+<Accordion title="POST /v1/admin/api-keys/{key_id}/rotate — Rotate key">
 
 ```
 POST /v1/admin/api-keys/{key_id}/rotate
@@ -104,7 +115,9 @@ Rotates the plaintext secret, resets `last_used_at`, re-enables the key, and inv
 
 **Response** `200`: same shape as create, including one-time `key`.
 
-## Delete Key
+</Accordion>
+
+<Accordion title="DELETE /v1/admin/api-keys/{key_id} — Delete key">
 
 ```
 DELETE /v1/admin/api-keys/{key_id}
@@ -113,3 +126,7 @@ DELETE /v1/admin/api-keys/{key_id}
 Permanently revokes the key. Any in-flight request that has already been authenticated still completes; subsequent requests return `401`.
 
 **Response** `200`: `{"status": "ok", "message": "API key deleted"}`.
+
+</Accordion>
+
+</Accordions>

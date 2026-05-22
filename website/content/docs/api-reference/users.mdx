@@ -3,11 +3,15 @@ title: Users
 description: Admin endpoints for managing accounts.
 ---
 
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
+
 Base path: `/v1/admin/users`
 
 All endpoints require a **session** (they reject API keys) and the caller must be an admin. The first admin is created via [`POST /v1/auth/setup`](/docs/api-reference/authentication); this resource mints every admin after that.
 
-## List Users
+<Accordions type="multiple">
+
+<Accordion title="GET /v1/admin/users — List users">
 
 ```
 GET /v1/admin/users
@@ -39,7 +43,9 @@ GET /v1/admin/users
 }
 ```
 
-## Create User
+</Accordion>
+
+<Accordion title="POST /v1/admin/users — Create user">
 
 ```
 POST /v1/admin/users
@@ -65,7 +71,9 @@ POST /v1/admin/users
 
 **Errors:** `422` (short password or invalid body), `409` (email taken).
 
-## Update User
+</Accordion>
+
+<Accordion title="PATCH /v1/admin/users/{user_id} — Update user">
 
 ```
 PATCH /v1/admin/users/{user_id}
@@ -88,13 +96,17 @@ Changing `password` revokes every existing session for that user.
 
 **Errors:** `400` (last-admin demotion), `409` (email taken), `404`.
 
-## Delete User
+</Accordion>
+
+<Accordion title="DELETE /v1/admin/users/{user_id} — Delete user">
 
 ```
 DELETE /v1/admin/users/{user_id}
 ```
 
-Deletes a user along with their sessions, API keys, and audit footprint. Rejected when:
+Deletes a user along with their sessions, API keys, and audit footprint.
+
+Rejected when:
 
 - The caller is trying to delete themselves
 - The target is the only remaining admin
@@ -102,3 +114,7 @@ Deletes a user along with their sessions, API keys, and audit footprint. Rejecte
 **Response** `200`: `{"status": "ok", "message": "..."}`.
 
 **Errors:** `400` (last-admin / self-delete), `404`.
+
+</Accordion>
+
+</Accordions>
