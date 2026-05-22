@@ -21,7 +21,6 @@ logger = get_logger("bigrag.queue")
 QUEUE_KEY = queue_state.QUEUE_KEY
 PROCESSING_KEY = queue_state.PROCESSING_KEY
 DEAD_LETTER_KEY = queue_state.DEAD_LETTER_KEY
-RETRY_KEY = queue_state.RETRY_KEY
 STATS_KEY = queue_state.STATS_KEY
 LEASE_KEY_PREFIX = queue_state.LEASE_KEY_PREFIX
 COLLECTION_EPOCH_KEY_PREFIX = queue_state.COLLECTION_EPOCH_KEY_PREFIX
@@ -149,18 +148,6 @@ class IngestionQueue:
                 await self._redis.zcard(dead_letter_key(INGESTION_QUEUE)),
             )
         return stats
-
-    async def _promote_due_retries(self) -> int:
-        from bigrag.services.runtime_settings import get_value
-
-        queue_max_depth = await get_value("queue_max_depth")
-        promoted = await queue_state.promote_due_retries(
-            self._redis,
-            queue_max_depth=queue_max_depth,
-        )
-        if promoted:
-            logger.info("queue promoted retry jobs", count=promoted)
-        return promoted
 
     async def _renew_lease(self, job_id: str) -> None:
         lease_key = _lease_key(job_id)
