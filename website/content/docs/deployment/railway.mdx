@@ -4,17 +4,20 @@ description: Deploy bigRAG to Railway with managed Postgres, Redis, and Turbopuf
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
+import { Accordions, Accordion } from "fumadocs-ui/components/accordion";
 
-This guide deploys the API, Dramatiq worker, admin UI, Postgres, and Redis in one Railway project. Turbopuffer provides managed vector, keyword, and hybrid search.
+Deploy the API, Dramatiq worker, admin UI, Postgres, and Redis in one Railway project. Turbopuffer provides managed vector, keyword, and hybrid search.
 
 ## What you get
 
-- **API** — FastAPI backend, public domain.
-- **Worker** — Dramatiq background jobs for ingestion, connectors, webhooks, backups, and cleanup.
-- **App** — admin UI, public domain.
-- **Postgres 17** — Railway plugin, exposes `DATABASE_URL`.
-- **Redis 7** — Railway plugin, exposes `REDIS_URL`.
-- **Turbopuffer** — managed vector, keyword, and hybrid search, configured from the admin UI.
+| Service | Notes |
+|---------|-------|
+| **API** | FastAPI backend, public domain |
+| **Worker** | Dramatiq background jobs for ingestion, connectors, webhooks, backups, and cleanup |
+| **App** | Admin UI, public domain |
+| **Postgres 17** | Railway plugin, exposes `DATABASE_URL` |
+| **Redis 7** | Railway plugin, exposes `REDIS_URL` |
+| **Turbopuffer** | Managed vector, keyword, and hybrid search, configured from the admin UI |
 
 ## Prerequisites
 
@@ -113,14 +116,42 @@ Back the master key up immediately. It encrypts provider secrets, webhook secret
 
 ## Troubleshooting
 
-**`/health/ready` reports degraded Turbopuffer search.** Check the Turbopuffer settings in the admin UI and any outbound network restrictions.
+<Accordions type="single">
 
-**API exits with `ImportError: Can't find Python file .../site-packages/alembic/env.py`.** Rebuild from the latest repo revision and clear Railway's build cache if it keeps reusing an old image. The API image bundles bigRAG's Alembic migration environment into the installed package; this error means the deployed image was built without that migration environment.
+<Accordion title="/health/ready reports degraded Turbopuffer search">
 
-**App loads but API calls fail with CORS errors.** Check `BIGRAG_CORS_ORIGINS` on `API`; it must match the app public domain exactly.
+Check the Turbopuffer settings in the admin UI and any outbound network restrictions.
 
-**Documents stay pending.** Check the Worker service logs and confirm `/v1/stats` shows a recent worker heartbeat.
+</Accordion>
 
-**Admin UI says `bigrag-worker is offline`.** Uploads, document reprocessing, backups, webhook deliveries, and Google Drive sync require the Worker service. Restart the Worker service and confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
+<Accordion title="API exits with ImportError: Can't find Python file .../site-packages/alembic/env.py">
 
-**App build fails with workspace errors.** Confirm the root directory is `/`, the build command uses `pnpm --filter @bigrag/app build`, and the start command uses `pnpm --filter @bigrag/app start`.
+Rebuild from the latest repo revision and clear Railway's build cache if it keeps reusing an old image. The API image bundles bigRAG's Alembic migration environment into the installed package; this error means the deployed image was built without that migration environment.
+
+</Accordion>
+
+<Accordion title="App loads but API calls fail with CORS errors">
+
+Check `BIGRAG_CORS_ORIGINS` on `API`; it must match the app public domain exactly.
+
+</Accordion>
+
+<Accordion title="Documents stay pending">
+
+Check the Worker service logs and confirm `/v1/stats` shows a recent worker heartbeat.
+
+</Accordion>
+
+<Accordion title="Admin UI says bigrag-worker is offline">
+
+Uploads, document reprocessing, backups, webhook deliveries, and Google Drive sync require the Worker service. Restart the Worker service and confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
+
+</Accordion>
+
+<Accordion title="App build fails with workspace errors">
+
+Confirm the root directory is `/`, the build command uses `pnpm --filter @bigrag/app build`, and the start command uses `pnpm --filter @bigrag/app start`.
+
+</Accordion>
+
+</Accordions>

@@ -44,12 +44,12 @@ export BIGRAG_MASTER_KEY="<paste-the-output-of-the-fernet-generate-command>"
 In `BIGRAG_ENV=dev`, an unset key leaves secret encryption unavailable and disables the persistent embedding cache. `dev.sh` ships a fixed dev key so fresh clones start cleanly.
 
 <Callout type="warn">
-	Losing `BIGRAG_MASTER_KEY` means the encrypted columns above become permanently unreadable. Back it up the same way you back up your Postgres root credentials — offline, split across owners.
+  Losing `BIGRAG_MASTER_KEY` means the encrypted columns above become permanently unreadable. Back it up the same way you back up your Postgres root credentials — offline, split across owners.
 </Callout>
 
 ## What the operator must encrypt
 
-bigRAG delegates the bulk of at-rest protection to your infrastructure. For a production deployment you must configure at least the following:
+bigRAG delegates the bulk of at-rest protection to your infrastructure. For a production deployment, configure at least the following:
 
 ### Postgres
 
@@ -59,12 +59,17 @@ bigRAG delegates the bulk of at-rest protection to your infrastructure. For a pr
 
 ### Turbopuffer
 
-- Turbopuffer stores vectors, full-text fields, payload attributes, and indexes in its managed service. Select the production region deliberately and keep the API key scoped to the bigRAG service.
-- Save the Turbopuffer API key in the admin UI so it is encrypted in the `instance_settings` table with `BIGRAG_MASTER_KEY`. Rotate it on the same cadence as other provider credentials, and restrict outbound network access where your platform allows it.
+Turbopuffer stores vectors, full-text fields, payload attributes, and indexes in its managed service.
+
+- Select the production region deliberately.
+- Keep the API key scoped to the bigRAG service.
+- Save the Turbopuffer API key in the admin UI so it is encrypted in the `instance_settings` table with `BIGRAG_MASTER_KEY`.
+- Rotate it on the same cadence as other provider credentials, and restrict outbound network access where your platform allows it.
 
 ### Redis
 
-- Redis holds the ingestion queue, the event bus, idempotency responses, and short-lived platform caches. bigRAG encrypts cache values when `BIGRAG_MASTER_KEY` is configured, but queue and event-bus payloads still need infrastructure protection.
+Redis holds the ingestion queue, the event bus, idempotency responses, and short-lived platform caches. bigRAG encrypts cache values when `BIGRAG_MASTER_KEY` is configured, but queue and event-bus payloads still need infrastructure protection.
+
 - Disable RDB/AOF persistence in prod, or put the persistence directory on an encrypted volume.
 - Use TLS (`rediss://`) between bigRAG and Redis.
 
@@ -74,7 +79,9 @@ The upload directory (default `./data/uploads`) must live on an encrypted volume
 
 ### Readable backups
 
-Readable backups created from `/settings?tab=backups` are intentionally not client-side encrypted. They keep logs, Turbopuffer payload exports, and raw uploaded files inspectable, but redact provider keys, OAuth tokens, webhook secrets, S3 credentials, API key hashes, session hashes, and embedding-cache vectors. Put the backup bucket behind strict IAM/R2 token policy, bucket encryption, private networking where available, lifecycle retention, and access logging.
+Readable backups created from `/settings?tab=backups` are intentionally not client-side encrypted. They keep logs, Turbopuffer payload exports, and raw uploaded files inspectable, but redact provider keys, OAuth tokens, webhook secrets, S3 credentials, API key hashes, session hashes, and embedding-cache vectors.
+
+Protect the backup bucket with strict IAM/R2 token policy, bucket encryption, private networking where available, lifecycle retention, and access logging.
 
 ## Rotation
 
@@ -89,7 +96,7 @@ Manual process:
 
 A built-in `bigrag crypto rotate` command is not available yet; use a controlled maintenance script for step 3.
 
-## What's intentionally **not** app-layer encrypted
+## What's intentionally not app-layer encrypted
 
 | Data | Why |
 |------|-----|

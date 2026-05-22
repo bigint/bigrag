@@ -4,6 +4,7 @@ description: Configuration and best practices for production deployments.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
+import { Accordions, Accordion } from "fumadocs-ui/components/accordion";
 
 ## Production hardening checklist
 
@@ -12,33 +13,21 @@ Tick these off before pointing real traffic at a bigRAG deployment:
 - [ ] `BIGRAG_ENV=prod` — enables the startup guard.
 - [ ] `BIGRAG_MASTER_KEY` set to a 32-byte Fernet key (see [Encryption at rest](/docs/deployment/encryption)).
 - [ ] Rotate `POSTGRES_PASSWORD` from the shipped default (`bigrag`).
-- [ ] `BIGRAG_SESSION_COOKIE_SECURE=true` and terminate TLS at your
-  reverse proxy (nginx, Caddy, Traefik, Cloudflare).
-- [ ] `BIGRAG_LOG_LEVEL=info` and `BIGRAG_LOG_FORMAT=json` for production log
-  collection. Local `dev.sh` also uses `info` by default for readable progress.
-- [ ] `BIGRAG_CORS_ORIGINS` set to an explicit list of your admin UI /
-  app origins — no `*`.
-- [ ] `BIGRAG_TRUSTED_PROXIES` set to the CIDRs of your own reverse
-  proxies if bigRAG sits behind nginx, Caddy, Traefik, or a load balancer.
-- [ ] Redis with `requirepass` set and `appendonly yes` persisted to
-  a mounted volume.
+- [ ] `BIGRAG_SESSION_COOKIE_SECURE=true` and terminate TLS at your reverse proxy (nginx, Caddy, Traefik, Cloudflare).
+- [ ] `BIGRAG_LOG_LEVEL=info` and `BIGRAG_LOG_FORMAT=json` for production log collection. Local `dev.sh` also uses `info` by default for readable progress.
+- [ ] `BIGRAG_CORS_ORIGINS` set to an explicit list of your admin UI / app origins — no `*`.
+- [ ] `BIGRAG_TRUSTED_PROXIES` set to the CIDRs of your own reverse proxies if bigRAG sits behind nginx, Caddy, Traefik, or a load balancer.
+- [ ] Redis with `requirepass` set and `appendonly yes` persisted to a mounted volume.
 - [ ] Turbopuffer API key and region saved from the admin UI for managed vector and full-text search.
 - [ ] Postgres warm-standby replica for failover.
-- [ ] Backup strategy: configure readable S3/R2 backups from `/settings?tab=backups`,
-  protect that bucket as sensitive, and separately keep encrypted infrastructure
-  snapshots for Postgres, Turbopuffer exports, Redis, and uploads.
-- [ ] Set `metadata_schema` on collections that accept untrusted
-  metadata so uploads with invalid shape are rejected at the edge.
+- [ ] Backup strategy: configure readable S3/R2 backups from `/settings?tab=backups`, protect that bucket as sensitive, and separately keep encrypted infrastructure snapshots for Postgres, Turbopuffer exports, Redis, and uploads.
+- [ ] Set `metadata_schema` on collections that accept untrusted metadata so uploads with invalid shape are rejected at the edge.
 - [ ] Wire `GET /v1/admin/audit` into your SIEM / log pipeline.
-- [ ] Configure webhooks to your monitoring stack for
-  `document.failed`, `connector.sync.failed`, and `backup.failed` events so
-  data-operation errors don't sit silently.
+- [ ] Configure webhooks to your monitoring stack for `document.failed`, `connector.sync.failed`, and `backup.failed` events so data-operation errors don't sit silently.
 
 ## Startup safety guard
 
-bigRAG refuses to boot when `BIGRAG_ENV=prod` is set **and** any of the following
-insecure defaults are still active. Setting `BIGRAG_ENV=prod` in production catches
-config mistakes that would otherwise ship silently:
+bigRAG refuses to boot when `BIGRAG_ENV=prod` is set **and** any of the following insecure defaults are still active:
 
 - `BIGRAG_SESSION_COOKIE_SECURE` is `false` — set to `true` so cookies are HTTPS-only.
 - `BIGRAG_DATABASE_URL` still uses the shipped `bigrag:bigrag` credentials — rotate the Postgres password.
@@ -46,9 +35,7 @@ config mistakes that would otherwise ship silently:
 - `BIGRAG_HOST` binds to `0.0.0.0` or `::` without `BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD=true` after you have confirmed the service sits behind TLS and a network boundary.
 - `BIGRAG_SESSION_COOKIE_DOMAIN` is set while `BIGRAG_TRUSTED_PROXIES` is empty.
 
-When the guard trips, it logs every violation before exiting so you can fix the whole
-list in one edit. If you intentionally want to run with the development defaults (e.g.
-on a private network behind a VPN), leave `BIGRAG_ENV` unset or set it to `dev`.
+When the guard trips, it logs every violation before exiting so you can fix the whole list in one edit. To run with development defaults (e.g. on a private network behind a VPN), leave `BIGRAG_ENV` unset or set it to `dev`.
 
 ## Production Docker Compose
 
@@ -183,9 +170,7 @@ volumes:
   redis_data:
 ```
 
-Set `REDIS_PASSWORD` and a matching `BIGRAG_REDIS_URL` in the Compose
-environment. If the password contains `@`, `:`, `/`, `?`, `#`, or other
-URL-reserved characters, URL-encode it in `BIGRAG_REDIS_URL`.
+Set `REDIS_PASSWORD` and a matching `BIGRAG_REDIS_URL` in the Compose environment. If the password contains `@`, `:`, `/`, `?`, `#`, or other URL-reserved characters, URL-encode it in `BIGRAG_REDIS_URL`.
 
 ## Recommended Settings
 
@@ -240,66 +225,62 @@ upload_dir = "./data/uploads"
 
 ## Readable backups
 
-The admin UI can create backup-only full-instance exports from `/settings?tab=backups`.
-The destination is S3-compatible, so AWS S3, Cloudflare R2, and MinIO all work.
-Use a bucket or prefix dedicated to backups rather than reusing the upload bucket.
+The admin UI creates backup-only full-instance exports from `/settings?tab=backups`. The destination is S3-compatible — AWS S3, Cloudflare R2, and MinIO all work. Use a bucket or prefix dedicated to backups rather than reusing the upload bucket.
 
-Readable backups are plain JSON, JSONL, SQL, and raw files. They include Postgres
-rows, vector-store points and payloads, uploaded files, and logs. Provider
-secrets, token/hash columns, S3 credentials, and embedding-cache vectors are
-redacted. They are useful for inspection and data portability, but they are not a
-substitute for encrypted infrastructure snapshots or tested disaster recovery
-runbooks. Turbopuffer point exports stream provider pages into JSONL instead of
-materializing a full collection in API memory.
+**What's included:**
+
+- Postgres rows, vector-store points and payloads, uploaded files, and logs — all in plain JSON, JSONL, SQL, and raw files.
+- Turbopuffer point exports stream provider pages into JSONL instead of materializing a full collection in API memory.
+
+**What's redacted:**
+
+- Provider secrets, token/hash columns, S3 credentials, and embedding-cache vectors.
+
+<Callout type="info">
+  Readable backups are useful for inspection and data portability, but they are not a substitute for encrypted infrastructure snapshots or tested disaster recovery runbooks.
+</Callout>
 
 ## Logging
 
-API and worker logs are emitted through `structlog` with stable event names and
-key-value fields for request, vector-store, webhook, and auth activity.
-Text logs are colored by default with fixed columns for time, level, logger,
-event, and fields. Text rendering escapes control characters in event and field
-values before writing to stdout, so request paths and headers cannot create
-extra terminal lines or emit terminal control sequences. Dependency loggers such
-as Dramatiq, Alembic, OpenAI, Uvicorn access, HTTPX, and Turbopuffer are kept at warning level
-so local terminals show bigRAG actions instead of library startup chatter. Text
-logs at `info` render each API request as one concise method/path/status/latency
-line. Worker logs include the Dramatiq process label and PID, such as
-`worker=worker-1 pid=12345`, so concurrent worker output can be traced back to
-the active process. Ingestion and RAG reads also log concise one-line progress messages;
-internal chunk, cache, provider, job, request, and document identifiers stay out
-of the default text terminal stream. JSON logs and `debug` request logs retain
-structured method, path, sanitized query params, selected request headers,
-client IP, route, endpoint/action context, status, `first_byte_ms`, and total
-`elapsed_ms`. Raw request bodies, prompts, document
-content, cookies, authorization headers, and secret-like query params are not
-rendered. URL-valued headers such as `Referer` are logged without URL userinfo,
-with secret-like query params and fragments redacted. Set
-`BIGRAG_LOG_FORMAT=json` when Docker, Railway, Fluent Bit, or another log
-shipper will parse stdout. Use `BIGRAG_LOG_LEVEL=debug` only for short-lived
-diagnostics.
+API and worker logs are emitted through `structlog` with stable event names and key-value fields.
 
-Every HTTP response includes `X-Request-ID`. If a client sends that header,
-bigRAG preserves it; otherwise the API generates one and includes it in request
-JSON logs and access-log rows. Secrets are redacted before log rendering.
+**What's logged:**
+
+- Request activity: method, path, sanitized query params, selected request headers, client IP, route, endpoint/action context, status, `first_byte_ms`, and total `elapsed_ms` — in JSON and `debug` request logs.
+- Vector-store, webhook, and auth activity.
+- Worker output: Dramatiq process label and PID (e.g. `worker=worker-1 pid=12345`) so concurrent output can be traced back to the active process.
+- Ingestion and RAG reads as concise one-line progress messages.
+- Every HTTP response includes `X-Request-ID`. If a client sends that header, bigRAG preserves it; otherwise the API generates one and includes it in request JSON logs and access-log rows.
+
+**What's redacted:**
+
+- Raw request bodies, prompts, document content, cookies, authorization headers, and secret-like query params.
+- URL-valued headers such as `Referer` are logged without URL userinfo, with secret-like query params and fragments stripped.
+- Secrets are redacted before log rendering.
+
+**Format and level notes:**
+
+- Text logs use colored output with fixed columns for time, level, logger, event, and fields. Control characters in event and field values are escaped before writing to stdout, so request paths and headers cannot emit terminal control sequences.
+- Dependency loggers (Dramatiq, Alembic, OpenAI, Uvicorn access, HTTPX, Turbopuffer) are kept at warning level so local terminals show bigRAG actions instead of library startup chatter.
+- Text logs at `info` render each API request as one concise method/path/status/latency line. Internal chunk, cache, provider, job, request, and document identifiers stay out of the default text terminal stream.
+- Set `BIGRAG_LOG_FORMAT=json` when Docker, Railway, Fluent Bit, or another log shipper will parse stdout.
+- Use `BIGRAG_LOG_LEVEL=debug` only for short-lived diagnostics.
 
 ## Basic operations checklist
 
 Use this quick path before deeper debugging:
 
-1. `GET /health` confirms the API process is alive.
-2. `GET /health/ready` confirms Postgres, Redis, Turbopuffer search, and the
-   embedding provider are reachable. Dependency errors are category labels such
-   as `timeout`, `unreachable`, `auth_failed`, `misconfigured`, or `unknown`.
-3. `GET /v1/stats` confirms document counts, queue depth, queue health, and the
-   latest `bigrag-worker` heartbeat.
-4. The admin UI Health tab shows the same dependency and queue state without
-   opening logs.
-5. If documents stop moving, check worker logs, then inspect `queue_health`,
-   `workers.status`, `dead_lettered`, `retrying`, and `stale_processing`.
+1. `GET /health` — confirms the API process is alive.
+2. `GET /health/ready` — confirms Postgres, Redis, Turbopuffer search, and the embedding provider are reachable. Dependency errors are category labels such as `timeout`, `unreachable`, `auth_failed`, `misconfigured`, or `unknown`.
+3. `GET /v1/stats` — confirms document counts, queue depth, queue health, and the latest `bigrag-worker` heartbeat.
+4. The admin UI Health tab shows the same dependency and queue state without opening logs.
+5. If documents stop moving, check worker logs, then inspect `queue_health`, `workers.status`, `dead_lettered`, `retrying`, and `stale_processing`.
 
 ## Troubleshooting
 
-### Connection refused on startup
+<Accordions type="single">
+
+<Accordion title="Connection refused on startup">
 
 Ensure all infrastructure services are running and healthy:
 
@@ -308,39 +289,54 @@ docker exec bigrag-postgres pg_isready -U bigrag
 docker exec bigrag-redis redis-cli ping
 ```
 
-The worker container healthcheck reads the worker heartbeat from Redis rather
-than calling the API HTTP server. If you split workers by queue, set
-`BIGRAG_WORKER_HEALTHCHECK_KEY` to the matching queue heartbeat key, such as
-`bigrag:dramatiq:worker:heartbeat:webhooks`.
+The worker container healthcheck reads the worker heartbeat from Redis rather than calling the API HTTP server. If you split workers by queue, set `BIGRAG_WORKER_HEALTHCHECK_KEY` to the matching queue heartbeat key, such as `bigrag:dramatiq:worker:heartbeat:webhooks`.
 
-### Documents stuck in "pending"
+</Accordion>
 
-- Verify Redis is running and accessible
-- Verify the `bigrag-worker` process is running
-- Check worker logs for ingestion or connector actor errors
-- Check `/v1/stats` for worker heartbeat and queue depth
+<Accordion title="Documents stuck in 'pending'">
 
-### Worker-dependent actions are disabled in the admin UI
+- Verify Redis is running and accessible.
+- Verify the `bigrag-worker` process is running.
+- Check worker logs for ingestion or connector actor errors.
+- Check `/v1/stats` for worker heartbeat and queue depth.
+
+</Accordion>
+
+<Accordion title="Worker-dependent actions are disabled in the admin UI">
 
 Uploads, document reprocessing, backups, webhook deliveries, and Google Drive sync all depend on `bigrag-worker`. If the admin UI shows `bigrag-worker is offline`, start or restart the worker service, then confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
 
-### Dimension mismatch on query
+</Accordion>
+
+<Accordion title="Dimension mismatch on query">
 
 The query embedding dimension doesn't match the collection's configured dimension. Ensure you're querying with the same embedding model.
 
-### File upload returns 413
+</Accordion>
+
+<Accordion title="File upload returns 413">
 
 File exceeds the max upload size. Increase `BIGRAG_MAX_UPLOAD_SIZE_MB`.
 
-### `/health/ready` returns 503 but services are running
+</Accordion>
+
+<Accordion title="/health/ready returns 503 but services are running">
 
 The readiness endpoint also checks Turbopuffer and the embedding provider. Check `/health` first to confirm the server itself is running, then save Turbopuffer settings in the admin UI and create a collection with a valid embedding key.
 
-### Document uploads fail with embedding errors
+</Accordion>
+
+<Accordion title="Document uploads fail with embedding errors">
 
 Ensure the collection has a valid `embedding_api_key` set. You can provide it when creating the collection or set `BIGRAG_EMBEDDING_API_KEY` as a server-wide default.
 
-### Slow embedding performance
+</Accordion>
 
-- Increase `BIGRAG_INGESTION_BATCH_SIZE` for better throughput
-- Increase `BIGRAG_EMBEDDING_CONCURRENCY` for more parallelism
+<Accordion title="Slow embedding performance">
+
+- Increase `BIGRAG_INGESTION_BATCH_SIZE` for better throughput.
+- Increase `BIGRAG_EMBEDDING_CONCURRENCY` for more parallelism.
+
+</Accordion>
+
+</Accordions>

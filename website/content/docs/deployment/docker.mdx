@@ -27,7 +27,7 @@ BIGRAG_UI_IMAGE=yoginth/bigrag-ui:2026.4.30 \
 docker compose up -d --no-build
 ```
 
-This starts bigRAG API, worker, admin UI, Postgres, and Redis. Turbopuffer runs as the managed vector, keyword, and hybrid search backend.
+Starts the bigRAG API, worker, admin UI, Postgres, and Redis. Turbopuffer runs as the managed vector, keyword, and hybrid search backend.
 </Step>
 <Step>
 ### Verify
@@ -40,7 +40,10 @@ curl http://localhost:4000/health
 
 ## Docker Compose
 
-The default `docker-compose.yml` runs the API, worker, admin UI, Postgres, and Redis. Turbopuffer is configured from the admin UI and stored in Postgres; it does not run as a local Compose service. When hacking from a checkout, plain `docker compose up -d` builds local API and UI images. When deploying published images, set the image variables shown above and use `--no-build`.
+The default `docker-compose.yml` runs the API, worker, admin UI, Postgres, and Redis. Turbopuffer is configured from the admin UI and stored in Postgres; it does not run as a local Compose service.
+
+- When hacking from a checkout, plain `docker compose up -d` builds local API and UI images.
+- When deploying published images, set the image variables shown above and use `--no-build`.
 
 ```yaml
 services:
@@ -180,8 +183,6 @@ Set `BIGRAG_CORS_ORIGINS='["http://localhost:3000"]'` on the API when running th
 
 ## Image split
 
-Build and publish two images by default:
-
 - `bigrag-api` — backend API and the `bigrag-worker` entrypoint.
 - `bigrag-ui` — static admin UI served by Nginx.
 
@@ -216,10 +217,7 @@ docker exec bigrag-postgres pg_isready -U bigrag
 docker exec bigrag-redis redis-cli ping
 ```
 
-The worker container healthcheck reads the worker heartbeat from Redis rather
-than calling the API HTTP server. If you split workers by queue, set
-`BIGRAG_WORKER_HEALTHCHECK_KEY` to the matching queue heartbeat key, such as
-`bigrag:dramatiq:worker:heartbeat:webhooks`.
+The worker container healthcheck reads the worker heartbeat from Redis rather than calling the API HTTP server. If you split workers by queue, set `BIGRAG_WORKER_HEALTHCHECK_KEY` to the matching queue heartbeat key, such as `bigrag:dramatiq:worker:heartbeat:webhooks`.
 
 <Callout type="warn">
   `/health/ready` also validates the embedding provider. If no collection has an `embedding_api_key` configured, it returns `503`. Use `/health` if you just need to check the server is running.
