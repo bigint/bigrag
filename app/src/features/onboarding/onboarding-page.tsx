@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { CheckCircle2, Cpu, Database, Plus, TriangleAlert } from "lucide-react";
+import { Cpu, Database, Plus, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
 import { PresetForm } from "@/features/models/preset-form";
-import { ProgressPanel } from "@/features/onboarding/onboarding-progress";
 import {
   canSaveTurbopufferDraft,
   type TurbopufferDraft,
@@ -42,11 +41,12 @@ export const OnboardingPage = () => {
       navigate({ to: "/login", search: { from: "/onboarding" }, replace: true });
       return;
     }
-    if (!setup.requiresOnboarding) {
+    if (!setup.requiresOnboarding || setup.complete) {
       navigate({ to: "/overview", replace: true });
     }
   }, [
     navigate,
+    setup.complete,
     setup.error,
     setup.loading,
     setup.needsAdminSetup,
@@ -71,11 +71,6 @@ export const OnboardingPage = () => {
         navigate({ to: "/overview", replace: true });
       }
     } catch {}
-  };
-
-  const finish = () => {
-    if (!setup.complete) return;
-    navigate({ to: "/overview", replace: true });
   };
 
   if (setup.error) {
@@ -105,7 +100,13 @@ export const OnboardingPage = () => {
     );
   }
 
-  if (setup.loading || setup.needsAdminSetup || !setup.session || !setup.requiresOnboarding) {
+  if (
+    setup.loading ||
+    setup.needsAdminSetup ||
+    !setup.session ||
+    !setup.requiresOnboarding ||
+    setup.complete
+  ) {
     return (
       <div className="flex min-h-[28rem] items-center justify-center">
         <Spinner size="lg" />
@@ -114,71 +115,56 @@ export const OnboardingPage = () => {
   }
 
   return (
-    <Page.Shell className="max-w-5xl">
+    <Page.Shell className="max-w-3xl">
       <Page.Header
-        actions={
-          <Button disabled={!setup.complete} onClick={finish} size="lg">
-            <CheckCircle2 className="size-4" />
-            Finish setup
-          </Button>
-        }
         description="Connect the provider pieces bigRAG needs before indexing documents."
         eyebrow={<Badge variant="primary">First-run onboarding</Badge>}
         title="Connect providers"
       />
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <StepPanel
-            active={!setup.embeddingComplete}
-            complete={setup.embeddingComplete}
-            icon={Cpu}
-            index={1}
-            title="Embedding preset"
-          >
-            {setup.embeddingComplete && firstPreset ? (
-              <PresetSummary preset={firstPreset} total={presetList.length} />
-            ) : (
-              <div className="flex flex-col gap-4">
-                <p className="text-muted-foreground text-sm leading-6">
-                  Create one verified embedding preset. Collections can reuse it when they are
-                  created.
-                </p>
-                <div>
-                  <Button onClick={() => setPresetOpen(true)}>
-                    <Plus className="size-4" />
-                    Create embedding preset
-                  </Button>
-                </div>
+      <div className="flex min-w-0 flex-col gap-4">
+        <StepPanel
+          active={!setup.embeddingComplete}
+          complete={setup.embeddingComplete}
+          icon={Cpu}
+          index={1}
+          title="Embedding"
+        >
+          {setup.embeddingComplete && firstPreset ? (
+            <PresetSummary preset={firstPreset} total={presetList.length} />
+          ) : (
+            <div className="flex flex-col gap-4">
+              <p className="text-muted-foreground text-sm leading-6">
+                Create one verified embedding preset. Collections can reuse it when they are
+                created.
+              </p>
+              <div>
+                <Button onClick={() => setPresetOpen(true)}>
+                  <Plus className="size-4" />
+                  Create embedding preset
+                </Button>
               </div>
-            )}
-          </StepPanel>
+            </div>
+          )}
+        </StepPanel>
 
-          <StepPanel
-            active={setup.embeddingComplete && !setup.vectorStorageComplete}
+        <StepPanel
+          active={setup.embeddingComplete && !setup.vectorStorageComplete}
+          complete={setup.vectorStorageComplete}
+          icon={Database}
+          index={2}
+          title="Vector config"
+        >
+          <TurbopufferForm
             complete={setup.vectorStorageComplete}
-            icon={Database}
-            index={2}
-            title="Vector storage"
-          >
-            <TurbopufferForm
-              complete={setup.vectorStorageComplete}
-              draft={draft}
-              onDraftChange={setDraft}
-              onSave={saveTurbopuffer}
-              pending={saveSettings.isPending}
-              saveDisabled={!canSaveTurbopuffer}
-              saveLabel={setup.embeddingComplete ? "Save and Finish" : "Save vector storage"}
-            />
-          </StepPanel>
-        </div>
-
-        <ProgressPanel
-          embeddingComplete={setup.embeddingComplete}
-          onFinish={finish}
-          setupComplete={setup.complete}
-          vectorStorageComplete={setup.vectorStorageComplete}
-        />
+            draft={draft}
+            onDraftChange={setDraft}
+            onSave={saveTurbopuffer}
+            pending={saveSettings.isPending}
+            saveDisabled={!setup.embeddingComplete || !canSaveTurbopuffer}
+            saveLabel="Save and Finish"
+          />
+        </StepPanel>
       </div>
 
       <PresetForm editing={null} onClose={() => setPresetOpen(false)} open={presetOpen} />

@@ -66,7 +66,7 @@ export const TurbopufferForm = ({
       <div className="flex flex-col gap-3 border-border border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 text-muted-foreground text-sm">
           {complete
-            ? "Vector storage is configured for this instance."
+            ? "Vector config is saved for this instance."
             : "Save a working Turbopuffer connection before entering the dashboard."}
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
@@ -76,7 +76,7 @@ export const TurbopufferForm = ({
             ) : (
               <Save className="size-4" />
             )}
-            {complete ? "Update vector storage" : saveLabel}
+            {complete ? "Update vector config" : saveLabel}
           </Button>
         </div>
       </div>

@@ -30,7 +30,7 @@ For cross-site production deployments, enable secure session cookies and usually
 | Path | Purpose |
 |------|---------|
 | `/setup` | One-time page to create the first admin account. Disappears once `needs_setup: false`. |
-| `/onboarding` | Authenticated first-run instance setup outside the dashboard shell. Requires one verified embedding preset and saved Turbopuffer API key, region, and namespace prefix; the Turbopuffer save action finishes setup and continues to `/overview`. The Turbopuffer base URL is optional. |
+| `/onboarding` | Authenticated first-run instance setup outside the dashboard shell. Shows embedding setup and vector config. The vector config **Save and Finish** action saves Turbopuffer API key, region, namespace prefix, and optional base URL, then continues to `/overview`. Completed instances that open `/onboarding` redirect back to `/overview`. |
 | `/login` | Email + password login for admins and members. |
 | `/overview` | Platform-wide stats — collection count, document states, stored token count, queue depth, readiness, and worker heartbeat. |
 | `/collections` | List, create, delete, and search collections. |

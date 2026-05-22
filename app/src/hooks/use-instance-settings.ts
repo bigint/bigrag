@@ -21,7 +21,8 @@ export const useUpdateInstanceSettings = () => {
   return useMutation({
     mutationFn: (body: SettingsBody) =>
       apiClient.put<InstanceSettingsResponse>("v1/admin/settings", body),
-    onSuccess: () => {
+    onSuccess: (settings) => {
+      qc.setQueryData(queryKeys.instanceSettings(), settings);
       qc.invalidateQueries({ queryKey: queryKeys.instanceSettings() });
       qc.invalidateQueries({ queryKey: queryKeys.platform.readiness() });
       toast.success("Settings saved");
