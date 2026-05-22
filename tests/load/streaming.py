@@ -5,6 +5,7 @@ import asyncio
 import json
 import math
 import os
+import random
 import signal
 import sys
 import time
@@ -15,6 +16,10 @@ from urllib.parse import quote
 from uuid import uuid4
 
 import httpx
+
+MIN_PAYLOAD_BYTES = 1024
+MAX_PAYLOAD_BYTES = 5 * 1024
+PAYLOAD_BODY_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789 "
 
 
 @dataclass(frozen=True)
@@ -128,18 +133,24 @@ def read_config(rps: float) -> Config:
 
 def build_payload(sequence: int) -> bytes:
     now = time.time_ns()
+    target_size = random.randint(MIN_PAYLOAD_BYTES, MAX_PAYLOAD_BYTES)
     payload = {
         "id": uuid4().hex,
         "sequence": sequence,
         "title": f"Streaming load document {sequence}",
         "created_at_ns": now,
+        "target_size_bytes": target_size,
         "tags": ["load", "streaming", uuid4().hex[:12]],
         "measurements": [
             {"name": "alpha", "value": sequence % 997},
             {"name": "beta", "value": now % 1000003},
         ],
-        "body": f"Random valid JSON payload {uuid4().hex} for bigRAG ingestion.",
+        "body": "",
     }
+    base = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+    payload["body"] = "".join(
+        random.choices(PAYLOAD_BODY_ALPHABET, k=max(0, target_size - len(base)))
+    )
     return json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
 
 

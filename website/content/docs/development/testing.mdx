@@ -31,7 +31,7 @@ The admin app scripts generate and clean `app/src/routeTree.gen.ts` before Vite 
 
 Runtime load harnesses under `tests/` are manual smoke/load utilities. They do not reintroduce package-level test suites, end-to-end runners, or coverage requirements.
 
-The streaming upload harness continuously uploads unique JSON documents to an existing collection at the requested RPS until you stop it:
+The streaming upload harness continuously uploads unique 1-5 KiB JSON documents to an existing collection at the requested RPS until you stop it:
 
 ```bash
 cd tests/load
