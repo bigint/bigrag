@@ -32,7 +32,8 @@ async def _sources_for_chat(
     filters: dict | None,
     results: list[dict],
 ) -> list[ChatSource]:
-    sources = await _sources_from_results(session, results)
+    collection_id = _as_uuid(collection.get("id"))
+    sources = await _sources_from_results(session, results, collection_id=collection_id)
     seen_document_ids = {source.document_id for source in sources if source.document_id}
     exact_sources = await _exact_document_sources(
         session,
@@ -44,18 +45,21 @@ async def _sources_for_chat(
     return [*exact_sources, *sources]
 
 
-async def _sources_from_results(session: AsyncSession, results: list[dict]) -> list[ChatSource]:
+async def _sources_from_results(
+    session: AsyncSession,
+    results: list[dict],
+    *,
+    collection_id: UUID | None,
+) -> list[ChatSource]:
     document_ids = {_as_uuid(row.get("document_id")) for row in results if row.get("document_id")}
     document_ids.discard(None)
-    documents = await _documents_by_id(session, document_ids)
-    hydrated_refs = await _hydrated_element_refs(session, results)
+    documents = await _documents_by_id(session, document_ids, collection_id=collection_id)
+    hydrated_refs = await _hydrated_element_refs(session, results, collection_id=collection_id)
     sources: list[ChatSource] = []
     for row in results:
         cleaned = {key: value for key, value in row.items() if key != "embedding"}
         metadata = cleaned.get("metadata") if isinstance(cleaned.get("metadata"), dict) else {}
-        multimodal_elements = hydrated_refs.get(str(cleaned.get("id"))) or metadata.get(
-            "multimodal_elements"
-        )
+        multimodal_elements = hydrated_refs.get(str(cleaned.get("id")), [])
         document_id = str(cleaned["document_id"]) if cleaned.get("document_id") else None
         document = documents.get(document_id or "")
         source_metadata = dict(metadata)
@@ -186,20 +190,28 @@ def _ordered_match(value: object, target: object, compare) -> bool:
 async def _documents_by_id(
     session: AsyncSession,
     document_ids: set[UUID | None],
+    *,
+    collection_id: UUID | None,
 ) -> dict[str, Document]:
     valid_ids = {document_id for document_id in document_ids if document_id is not None}
-    if not valid_ids:
+    if not valid_ids or collection_id is None:
         return {}
-    rows = await session.scalars(sa.select(Document).where(Document.id.in_(valid_ids)))
+    rows = await session.scalars(
+        sa.select(Document)
+        .where(Document.collection_id == collection_id)
+        .where(Document.id.in_(valid_ids))
+    )
     return {str(document.id): document for document in rows.all()}
 
 
 async def _hydrated_element_refs(
     session: AsyncSession,
     results: list[dict],
+    *,
+    collection_id: UUID | None,
 ) -> dict[str, list[dict[str, Any]]]:
-    pairs = []
-    by_result: dict[str, list[tuple[str, int]]] = {}
+    pairs: set[tuple[UUID, int]] = set()
+    by_result: dict[str, list[tuple[UUID, int]]] = {}
     for row in results:
         result_id = str(row.get("id") or "")
         metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
@@ -209,7 +221,7 @@ async def _hydrated_element_refs(
         for ref in refs:
             if not isinstance(ref, dict):
                 continue
-            raw_document_id = ref.get("document_id") or row.get("document_id")
+            raw_document_id = row.get("document_id")
             raw_index = ref.get("element_index")
             if raw_document_id is None or raw_index is None:
                 continue
@@ -220,24 +232,21 @@ async def _hydrated_element_refs(
                 continue
             if doc_uuid is None:
                 continue
-            key = (str(doc_uuid), element_index)
-            pairs.append(key)
+            key = (doc_uuid, element_index)
+            pairs.add(key)
             by_result.setdefault(result_id, []).append(key)
-    if not pairs:
+    if not pairs or collection_id is None:
         return {}
     rows = (
         await session.scalars(
             sa.select(DocumentElement).where(
-                sa.tuple_(DocumentElement.document_id, DocumentElement.element_index).in_(
-                    {(_as_uuid(doc_id), index) for doc_id, index in pairs}
-                )
+                DocumentElement.collection_id == collection_id,
+                sa.tuple_(DocumentElement.document_id, DocumentElement.element_index).in_(pairs),
             )
         )
     ).all()
     hydrated = {
-        (str(row.document_id), row.element_index): element_ref(
-            row, document_id=str(row.document_id)
-        )
+        (row.document_id, row.element_index): element_ref(row, document_id=str(row.document_id))
         for row in rows
     }
     return {
