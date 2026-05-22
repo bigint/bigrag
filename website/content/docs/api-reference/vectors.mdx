@@ -81,6 +81,7 @@ Default request safety caps reject requests above 1,000 vectors per upsert, 100,
 **Errors:**
 
 - `400` — Dimension mismatch, invalid vectors, or missing tenant metadata
+- `409` — Existing Turbopuffer namespace uses a different vector dimension than the collection
 - `413` — Too many vectors, too much vector text, or too much vector metadata
 - `404` — Collection not found
 
@@ -134,5 +135,5 @@ curl -X POST http://localhost:4000/v1/collections/custom/vectors/delete \
 ```
 
 <Callout type="warn">
-  The embedding dimension must match the collection's configured dimension. A dimension mismatch will return a 400 error.
+  The embedding dimension must match the collection's configured dimension. Request vectors with the wrong dimension return `400`; an existing Turbopuffer namespace with a different dimension returns `409`.
 </Callout>

@@ -17,6 +17,7 @@ from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.tenant_enforcement import require_tenant_metadata
 from bigrag.services.vector_store import vector_store
+from bigrag.services.vector_store.dimensions import VectorStoreDimensionMismatchError
 
 logger = get_logger("bigrag.routers.vectors")
 
@@ -84,13 +85,21 @@ async def upsert_vectors(
     for index, meta in enumerate(metadata):
         require_tenant_metadata(collection, meta, label=f"vectors[{index}].metadata")
 
-    count = await vector_store.upsert(
-        collection=collection_name,
-        ids=ids,
-        embeddings=embeddings,
-        texts=texts,
-        metadata=metadata,
-    )
+    try:
+        await vector_store.create_collection(
+            collection_name,
+            expected_dimension,
+            tenant_field=collection.get("tenant_field"),
+        )
+        count = await vector_store.upsert(
+            collection=collection_name,
+            ids=ids,
+            embeddings=embeddings,
+            texts=texts,
+            metadata=metadata,
+        )
+    except VectorStoreDimensionMismatchError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
     await invalidate_collection_query_cache(collection_name)
     logger.info("vector upsert complete", collection=collection_name, upserted=count)
     access_log.set_context(request, metadata={"upserted": count})

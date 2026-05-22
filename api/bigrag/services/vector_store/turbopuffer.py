@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from turbopuffer import AsyncTurbopuffer
+from turbopuffer import BadRequestError as TurbopufferBadRequestError
 from turbopuffer import NotFoundError as TurbopufferNotFoundError
 
 from bigrag.logging import get_logger
@@ -13,6 +14,15 @@ from bigrag.services.vector_store.base import (
     _chunk_rows_from_payloads,
     _point_id,
     _row_from_payload,
+)
+from bigrag.services.vector_store.dimensions import (
+    VectorStoreDimensionMismatchError,
+    collection_schema,
+    is_turbopuffer_dimension_mismatch,
+    turbopuffer_error_message,
+    turbopuffer_mismatch_dimension,
+    vector_dimension,
+    write_payload_dimension,
 )
 
 logger = get_logger("bigrag.vector_store")
@@ -44,16 +54,6 @@ def _to_turbopuffer_condition(condition: FilterCondition) -> tuple:
         "in": "In",
     }[condition.operator]
     return (field, op, condition.value)
-
-
-def _schema(dimension: int) -> dict:
-    return {
-        "vector": {"type": f"[{dimension}]f32", "ann": True},
-        _PUBLIC_ID_FIELD: {"type": "string"},
-        "document_id": {"type": "string"},
-        "chunk_index": {"type": "int"},
-        "text": {"type": "string", "full_text_search": True},
-    }
 
 
 def _row_payload(row: dict) -> dict:
@@ -140,6 +140,25 @@ class TurbopufferVectorStore:
         tenant_field: str | None = None,
     ) -> None:
         await self.health_check()
+        schema = await self._collection_schema(name)
+        actual_dimension = vector_dimension(schema)
+        if actual_dimension is not None and actual_dimension != dimension:
+            raise VectorStoreDimensionMismatchError(
+                collection=name,
+                namespace=self._namespace(name),
+                expected=dimension,
+                actual=actual_dimension,
+            )
+        if schema is not None and actual_dimension is None:
+            await self._namespace_client(name).update_schema(
+                schema=collection_schema(dimension, _PUBLIC_ID_FIELD)
+            )
+
+    async def _collection_schema(self, name: str) -> dict[str, Any] | None:
+        try:
+            return await self._namespace_client(name).schema()
+        except TurbopufferNotFoundError:
+            return None
 
     async def delete_collection(self, name: str) -> None:
         try:
@@ -181,12 +200,23 @@ class TurbopufferVectorStore:
         }
         if embeddings:
             dimension = len(embeddings[0])
-            write_payload["schema"] = _schema(dimension)
+            write_payload["schema"] = collection_schema(dimension, _PUBLIC_ID_FIELD)
         await self._write(collection, write_payload)
         return len(rows)
 
     async def _write(self, collection: str, payload: dict) -> dict:
-        response = await self._namespace_client(collection).write(**payload)
+        try:
+            response = await self._namespace_client(collection).write(**payload)
+        except TurbopufferBadRequestError as exc:
+            message = turbopuffer_error_message(exc)
+            if is_turbopuffer_dimension_mismatch(message):
+                raise VectorStoreDimensionMismatchError(
+                    collection=collection,
+                    namespace=self._namespace(collection),
+                    expected=write_payload_dimension(payload) or 0,
+                    actual=turbopuffer_mismatch_dimension(message),
+                ) from exc
+            raise
         if hasattr(response, "to_dict"):
             return response.to_dict()
         return {}

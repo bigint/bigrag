@@ -636,9 +636,12 @@ const countDuplicateNames = (files: File[]) => {
 };
 
 const getErrorStatus = (error: unknown) => {
-  if (!error || typeof error !== "object" || !("status" in error)) return undefined;
-  const status = (error as { status?: unknown }).status;
-  return typeof status === "number" ? status : undefined;
+  if (!error || typeof error !== "object") return undefined;
+  const { response, status } = error as { response?: unknown; status?: unknown };
+  if (typeof status === "number") return status;
+  if (!response || typeof response !== "object") return undefined;
+  const { status: responseStatus } = response as { status?: unknown };
+  return typeof responseStatus === "number" ? responseStatus : undefined;
 };
 
 const sessionVariant = (

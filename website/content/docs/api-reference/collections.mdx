@@ -121,9 +121,9 @@ POST /v1/collections
 
 **Errors:**
 
-- `400` — Invalid name, chunk config, or dimension mismatch
+- `400` — Invalid name, chunk config, or invalid dimension
+- `409` — Collection name already exists, or the Turbopuffer namespace already exists with a different vector dimension
 - `502` — Vector store rejected collection provisioning
-- `409` — Collection name already exists
 
 ## Get Collection
 

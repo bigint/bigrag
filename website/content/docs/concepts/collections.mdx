@@ -60,7 +60,7 @@ curl -X POST http://localhost:4000/v1/collections \
 | `multimodal_enrichment_enabled` | boolean | no | `false` | Queue VLM summaries for image, table, and equation elements; requires `multimodal_enabled` |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
 
-Collection creation validates the saved Turbopuffer connection. The namespace is created on the first document or vector write, and chunk text is stored with full-text search enabled so semantic, keyword, and hybrid retrieval use the same backend.
+Collection creation validates the saved Turbopuffer connection and any existing namespace schema for the collection name. The namespace is created on the first document or vector write, and chunk text is stored with full-text search enabled so semantic, keyword, and hybrid retrieval use the same backend. If the namespace already uses a different vector dimension, create a new collection name, delete or truncate the collection, or use a different Turbopuffer namespace prefix before switching embedding dimensions.
 
 ## Collection Stats
 
