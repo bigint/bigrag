@@ -3,52 +3,50 @@ title: MCP Server
 description: Expose a bigRAG instance over the Model Context Protocol so Claude Desktop, Cursor, and other MCP clients can retrieve from your collections natively.
 ---
 
-bigRAG ships an [MCP](https://modelcontextprotocol.io) server in two
-shapes:
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps, Step } from "fumadocs-ui/components/steps";
 
-- **Remote HTTP** — mounted on the bigRAG API at `/mcp`, for
-  streamable-http clients that can send an `Authorization: Bearer ...`
-  header. No local install.
-- **Local stdio** — the `bigrag-mcp` CLI, for Claude Desktop's
-  `config.json` and older Cursor setups.
+bigRAG ships an [MCP](https://modelcontextprotocol.io) server in two shapes:
 
-Both derive scope (all-collections vs pinned to one collection) from the
-API key. Local stdio adjusts its registered toolset at startup; remote
-HTTP always advertises the full tool list and enforces scope at call time.
+- **Remote HTTP** — mounted on the bigRAG API at `/mcp`, for streamable-http clients that can send an `Authorization: Bearer ...` header. No local install.
+- **Local stdio** — the `bigrag-mcp` CLI, for Claude Desktop's `config.json` and older Cursor setups.
 
-## Admin UI credentials
+Both derive scope (all-collections vs pinned to one collection) from the API key. Local stdio adjusts its registered toolset at startup; remote HTTP always advertises the full tool list and enforces scope at call time.
+
+## Admin UI Setup
 
 The admin UI's **MCP** page (`/mcp`) is the canonical way to set one up.
-Creating an MCP there:
 
-1. mints a fresh bigRAG API key dedicated to that MCP (not shared
-   with `/api-keys`) scoped to `collection:read`, `document:read`, and
-   `query:read`;
-2. shows the full API key exactly once — copy it straight into your
-   MCP client's bearer header or Claude Desktop config;
-3. persists the MCP as a first-class server-side resource (title,
-   server name, collection scope, key prefix) that you can later
-   rotate or delete.
+<Steps>
 
-You do **not** pick from existing keys on `/api-keys` — MCP credentials
-live in their own namespace. If a key leaks or is lost, click **Rotate
-key** on the MCP's detail dialog. The previous key stops working
-immediately on the next request.
+<Step>
+Mint a fresh bigRAG API key dedicated to that MCP (not shared with `/api-keys`), scoped to `collection:read`, `document:read`, and `query:read`.
+</Step>
 
-## Scoping to a single collection
+<Step>
+Copy the full API key — it is shown exactly once. Paste it directly into your MCP client's bearer header or Claude Desktop config.
+</Step>
 
-When creating the MCP in the admin UI, set **Collection scope** to pin it to
-one collection. The bigRAG API blocks cross-collection endpoints for
-scoped MCPs with a 403.
+<Step>
+The MCP is persisted as a first-class server-side resource (title, server name, collection scope, key prefix) that you can later rotate or delete.
+</Step>
+
+</Steps>
+
+<Callout type="info">
+  You do not pick from existing keys on `/api-keys` — MCP credentials live in their own namespace. If a key leaks or is lost, click **Rotate key** on the MCP's detail dialog. The previous key stops working immediately on the next request.
+</Callout>
+
+## Scoping to a Single Collection
+
+When creating the MCP in the admin UI, set **Collection scope** to pin it to one collection. The bigRAG API blocks cross-collection endpoints for scoped MCPs with a 403.
 
 | MCP scope | Local stdio tools | Remote HTTP tools |
 |-----------|-------------------|-------------------|
 | **All collections** | 8 tools including `list_collections` and `multi_collection_query` | 8 tools |
 | **Pinned to `X`** | 6 tools, all with `collection` pre-bound to `X`; `list_collections` and `multi_collection_query` are hidden | 8 tools advertised; cross-collection calls return 403 |
 
-There is no separate `BIGRAG_COLLECTION` env var — the key itself
-carries its scope. To change scope, delete the MCP and create a new
-one (or rotate after editing via the REST API).
+There is no separate `BIGRAG_COLLECTION` env var — the key itself carries its scope. To change scope, delete the MCP and create a new one (or rotate after editing via the REST API).
 
 ## Remote HTTP
 
@@ -64,14 +62,13 @@ Every request must send the MCP key in an HTTP authorization header:
 Authorization: Bearer bigrag_sk_...
 ```
 
-Use remote clients that can attach bearer headers. If your client only
-supports URL-only remote servers, use the local stdio bridge below
-until OAuth support is available.
+<Callout type="info">
+  Under the hood the endpoint is a FastMCP server with `stateless_http=True` and `json_response=True`; every request carries the bearer key and is dispatched through the bigRAG REST API, so auth and scope rules apply uniformly.
+</Callout>
 
-Under the hood the endpoint is a FastMCP server with
-`stateless_http=True` and `json_response=True`; every request carries
-the bearer key and is dispatched through the bigRAG REST API, so auth and
-scope rules apply uniformly.
+<Callout type="warn">
+  If your client only supports URL-only remote servers, use the local stdio bridge below until OAuth support is available.
+</Callout>
 
 ## Local stdio (Claude Desktop, older Cursor)
 
@@ -90,7 +87,7 @@ BIGRAG_API_KEY=bigrag_sk_... \
 bigrag-mcp
 ```
 
-Flags:
+### Flags
 
 | Flag | Default | Notes |
 |------|---------|-------|
@@ -101,14 +98,11 @@ Flags:
 
 For `streamable-http`, `--port` sets the FastMCP bind port. The stdio transport ignores it.
 
-Scope is discovered on startup via `GET /v1/auth/whoami`. If the key
-is pinned to a collection, the CLI registers the scoped toolset
-automatically.
+Scope is discovered on startup via `GET /v1/auth/whoami`. If the key is pinned to a collection, the CLI registers the scoped toolset automatically.
 
-### Claude Desktop config
+### Claude Desktop Config
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`
-(macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
@@ -124,13 +118,11 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`
 }
 ```
 
-Restart Claude Desktop. The server appears under the tools icon with
-the tools registered for that key's scope.
+Restart Claude Desktop. The server appears under the tools icon with the tools registered for that key's scope.
 
 ## Tools
 
-All tools are thin wrappers around `/v1/*` endpoints. They honor the
-same auth and scopes as any other API client.
+All tools are thin wrappers around `/v1/*` endpoints. They honor the same auth and scopes as any other API client.
 
 ### Full-workspace key
 
@@ -147,30 +139,20 @@ same auth and scopes as any other API client.
 
 ### Collection-pinned key
 
-Local stdio registers six tools minus `list_collections` and
-`multi_collection_query`, with the `collection` / `name` argument removed
-because it is pre-bound from the key's scope. Remote HTTP advertises the
-same eight tool names as a full-workspace key, but scoped-key calls that
-would cross collection boundaries fail with 403.
+Local stdio registers six tools minus `list_collections` and `multi_collection_query`, with the `collection` / `name` argument removed because it is pre-bound from the key's scope. Remote HTTP advertises the same eight tool names as a full-workspace key, but scoped-key calls that would cross collection boundaries fail with 403.
 
-## Example interaction
+## Example Interaction
 
 Once configured:
 
 > **User:** What does our runbook say about Postgres failover?
 >
-> **Model:** _(invokes `query` with `collection: runbooks`,_
-> _`query: "Postgres failover procedure"`, `top_k: 5`)_
+> **Model:** _(invokes `query` with `collection: runbooks`, `query: "Postgres failover procedure"`, `top_k: 5`)_
 >
 > _(receives top-5 chunks; synthesises an answer citing `document_id`s)_
 
 ## Limitations
 
-- Ingestion (upload and webhooks) is intentionally not exposed —
-  MCP tools target retrieval workflows. Use the HTTP API, a language
-  SDK, or the admin UI for writes.
-- Streaming SSE endpoints (collection events) are not wrapped — MCP tools
-  are request/response only.
-- OAuth 2.0 flows are not implemented. Remote HTTP clients must send
-  `Authorization: Bearer ...`; URL query-token authentication is not
-  accepted on `/mcp`.
+- Ingestion (upload and webhooks) is intentionally not exposed — MCP tools target retrieval workflows. Use the HTTP API, a language SDK, or the admin UI for writes.
+- Streaming SSE endpoints (collection events) are not wrapped — MCP tools are request/response only.
+- OAuth 2.0 flows are not implemented. Remote HTTP clients must send `Authorization: Bearer ...`; URL query-token authentication is not accepted on `/mcp`.

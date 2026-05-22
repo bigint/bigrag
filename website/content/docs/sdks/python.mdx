@@ -5,6 +5,7 @@ description: Async Python client for the bigRAG API with full type hints and zer
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 import { Callout } from "fumadocs-ui/components/callout";
+import { Accordions, Accordion } from "fumadocs-ui/components/accordion";
 
 ## Installation
 
@@ -61,8 +62,6 @@ The client reads `BIGRAG_API_KEY` from the environment if `api_key` is not passe
 
 ## Resource Namespaces
 
-The SDK follows a resource namespace pattern:
-
 | Namespace | Description |
 |---|---|
 | `client.collections` | Collection CRUD, stats, event tokens, and event streams |
@@ -117,7 +116,9 @@ async for event in client.collections.stream_events("docs", token=token["token"]
     print(event)
 ```
 
-Set `embedding_api_key` or `reranking_api_key` to `None` in update calls to clear the stored key.
+<Callout type="info">
+  Set `embedding_api_key` or `reranking_api_key` to `None` in update calls to clear the stored key.
+</Callout>
 
 ## Documents
 
@@ -132,14 +133,24 @@ doc = await client.documents.upload(
     "docs", "/path/to/file.pdf",
     metadata={"department": "engineering"},
 )
+```
 
-# Batch upload
+<Accordions type="multiple">
+
+<Accordion title="Batch upload">
+
+```python
 result = await client.documents.batch_upload("docs", [
     "/path/to/a.pdf",
     "/path/to/b.docx",
 ])
+```
 
-# Large upload session
+</Accordion>
+
+<Accordion title="Large upload session">
+
+```python
 session = await client.documents.create_upload_session(
     "docs",
     total_files=2,
@@ -153,7 +164,13 @@ await client.documents.upload_session_file(
     client_item_id="000001",
 )
 session = await client.documents.complete_upload_session("docs", session["id"])
+```
 
+</Accordion>
+
+<Accordion title="List, get, delete, reprocess">
+
+```python
 # List documents
 docs = await client.documents.list("docs", status="ready", limit=20)
 
@@ -161,7 +178,13 @@ docs = await client.documents.list("docs", status="ready", limit=20)
 doc = await client.documents.get("docs", "doc-id")
 await client.documents.delete("docs", "doc-id")
 await client.documents.reprocess("docs", "doc-id")
+```
 
+</Accordion>
+
+<Accordion title="Chunks, elements, and file URL">
+
+```python
 # Get chunks
 chunks = await client.documents.get_chunks("docs", "doc-id")
 
@@ -170,16 +193,30 @@ elements = await client.documents.get_elements("docs", "doc-id")
 
 # Get file download URL
 url = client.documents.get_file_url("docs", "doc-id")
+```
 
-# Batch operations
+</Accordion>
+
+<Accordion title="Batch operations">
+
+```python
 statuses = await client.documents.batch_get_status("docs", ["id1", "id2"])
 docs = await client.documents.batch_get("docs", ["id1", "id2"])
 result = await client.documents.batch_delete("docs", ["id1", "id2"])
+```
 
-# Global document access (without collection scope)
+</Accordion>
+
+<Accordion title="Global document access (without collection scope)">
+
+```python
 doc = await client.documents.get_by_id("doc-id")
 chunks = await client.documents.get_chunks_by_id("doc-id")
 ```
+
+</Accordion>
+
+</Accordions>
 
 ## Chat
 
@@ -273,9 +310,11 @@ deliveries = await client.webhooks.list_deliveries("webhook-id", limit=10)
 
 Webhook events cover document, collection, connector sync, and backup data-operation changes. Examples: `document.ready`, `document.deleted`, `collection.truncated`, `connector.sync.failed`, and `backup.succeeded`.
 
-Webhook management calls `/v1/admin/webhooks` and requires session-cookie admin auth; API-key clients receive `403`.
+<Callout type="warn">
+  Webhook management calls `/v1/admin/webhooks` and requires session-cookie admin auth. API-key clients receive `403`.
+</Callout>
 
-## API-Client Status Polling
+## Status Polling
 
 Track document processing with REST polling:
 
@@ -303,31 +342,6 @@ doc = await col.upload("/path/to/file.pdf")
 results = await col.query({"query": "search terms"})
 stats = await col.stats()
 analytics = await col.analytics()
-```
-
-## Error Handling
-
-```python
-from bigrag import (
-    BigRAGError,        # base for all errors
-    APIError,           # any HTTP error
-    BadRequestError,    # 400
-    AuthenticationError, # 401
-    NotFoundError,      # 404
-    RateLimitError,     # 429
-    InternalServerError, # 500
-    APIConnectionError, # network errors
-    APITimeoutError,    # timeout
-)
-
-try:
-    await client.collections.get("missing")
-except NotFoundError as e:
-    print(f"Not found: {e} (status={e.status})")
-except APIConnectionError:
-    print("Cannot reach the API server")
-except APITimeoutError:
-    print("Request timed out")
 ```
 
 ## Admin
@@ -375,9 +389,35 @@ models = await client.list_embedding_models()
 analytics = await client.collections.analytics("docs")
 ```
 
+## Error Handling
+
+```python
+from bigrag import (
+    BigRAGError,        # base for all errors
+    APIError,           # any HTTP error
+    BadRequestError,    # 400
+    AuthenticationError, # 401
+    NotFoundError,      # 404
+    RateLimitError,     # 429
+    InternalServerError, # 500
+    APIConnectionError, # network errors
+    APITimeoutError,    # timeout
+)
+
+try:
+    await client.collections.get("missing")
+except NotFoundError as e:
+    print(f"Not found: {e} (status={e.status})")
+except APIConnectionError:
+    print("Cannot reach the API server")
+except APITimeoutError:
+    print("Request timed out")
+```
+
 ## Retry Behavior
 
 The SDK automatically retries on:
+
 - HTTP 429 from proxy or infrastructure layers
 - HTTP 5xx (server errors)
 - Connection errors and timeouts

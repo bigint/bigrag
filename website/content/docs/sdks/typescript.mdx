@@ -5,6 +5,7 @@ description: Zero-dependency TypeScript client for Node.js, browsers, Deno, Bun,
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 import { Callout } from "fumadocs-ui/components/callout";
+import { Accordions, Accordion } from "fumadocs-ui/components/accordion";
 
 ## Installation
 
@@ -101,36 +102,61 @@ client.collections.createEventToken(name)
 client.collections.streamEvents(name, { token? })    // AsyncIterable of collection events (SSE)
 ```
 
-For update calls, send `embedding_api_key: null` or `reranking_api_key: null` to clear the stored key.
+<Callout type="info">
+  For update calls, send `embedding_api_key: null` or `reranking_api_key: null` to clear the stored key.
+</Callout>
 
 ## Documents
 
 ```typescript
 client.documents.upload(collection, file, metadata?)
 client.documents.batchUpload(collection, files, metadata?)
+client.documents.list(collection, { q?, status?, sort?, order?, limit?, offset? })
+client.documents.listAll(collection, { q?, status?, sort?, order?, limit? })  // AsyncGenerator
+client.documents.get(collection, documentId)
+client.documents.delete(collection, documentId)
+client.documents.reprocess(collection, documentId)
+client.documents.getChunks(collection, documentId, { limit?, offset? }?)
+client.documents.getElements(collection, documentId, { limit?, offset? }?)
+client.documents.getFileUrl(collection, documentId)         // returns URL string
+```
+
+File uploads accept `File`, `Blob`, `Buffer`, `Uint8Array`, or `{ path: string; name?: string }`.
+
+<Accordions type="multiple">
+
+<Accordion title="Upload sessions">
+
+```typescript
 client.documents.createUploadSession(collection, { total_files, total_bytes, metadata? })
 client.documents.uploadSessionFile(collection, sessionId, file, { clientItemId?, filename? })
 client.documents.getUploadSession(collection, sessionId)
 client.documents.completeUploadSession(collection, sessionId)
 client.documents.cancelUploadSession(collection, sessionId)
-client.documents.list(collection, { q?, status?, sort?, order?, limit?, offset? })
-client.documents.listAll(collection, { q?, status?, sort?, order?, limit? })  // AsyncGenerator
-client.documents.get(collection, documentId)
-client.documents.delete(collection, documentId)
+```
+
+</Accordion>
+
+<Accordion title="Batch operations">
+
+```typescript
 client.documents.batchGetStatus(collection, documentIds)
 client.documents.batchGet(collection, documentIds)
 client.documents.batchDelete(collection, documentIds)
-client.documents.reprocess(collection, documentId)
-client.documents.getChunks(collection, documentId, { limit?, offset? }?)
-client.documents.getElements(collection, documentId, { limit?, offset? }?)
-client.documents.getFileUrl(collection, documentId)         // returns URL string
+```
 
-// Global document access (without collection scope)
+</Accordion>
+
+<Accordion title="Global document access (without collection scope)">
+
+```typescript
 client.documents.getById(documentId)
 client.documents.getChunksById(documentId, { limit?, offset? }?)
 ```
 
-File uploads accept `File`, `Blob`, `Buffer`, `Uint8Array`, or `{ path: string; name?: string }`.
+</Accordion>
+
+</Accordions>
 
 ## Chat
 
@@ -197,7 +223,9 @@ client.webhooks.replayDelivery(id, deliveryId)
 
 Webhook events cover document, collection, connector sync, and backup data-operation changes. Examples: `document.ready`, `document.deleted`, `collection.truncated`, `connector.sync.failed`, and `backup.succeeded`.
 
-Webhook management calls `/v1/admin/webhooks` and requires session-cookie admin auth; API-key clients receive `403`.
+<Callout type="warn">
+  Webhook management calls `/v1/admin/webhooks` and requires session-cookie admin auth. API-key clients receive `403`.
+</Callout>
 
 ## Auth
 
@@ -261,6 +289,10 @@ client.admin.mcpServers.rotate(serverId)
 client.admin.mcpServers.delete(serverId)
 ```
 
+<Accordions type="multiple">
+
+<Accordion title="Admin realtime streams">
+
 ```typescript
 for await (const event of client.admin.realtime.backups({ limit: 20 })) {
   if (event.event === "snapshot") {
@@ -272,6 +304,14 @@ for await (const event of client.admin.realtime.platformReadiness()) {
   console.log(event.data)
 }
 ```
+
+</Accordion>
+
+</Accordions>
+
+<Callout type="info">
+  Admin endpoints (`/v1/admin/*`, most of `/v1/auth/*`, and Google Drive connector OAuth flows) are session-only. API keys remain the right fit for read/query/ingest workloads.
+</Callout>
 
 ## Connectors
 
@@ -309,10 +349,6 @@ client.listEmbeddingModels()             // GET /v1/embeddings/models
 client.getUsage({ windowDays? })          // GET /v1/usage
 client.collections.analytics(collection) // GET /v1/collections/{name}/analytics
 ```
-
-<Callout type="info">
-Admin endpoints (`/v1/admin/*`, most of `/v1/auth/*`, and Google Drive connector OAuth flows) are session-only. API keys remain the right fit for read/query/ingest workloads.
-</Callout>
 
 ## Error Handling
 
