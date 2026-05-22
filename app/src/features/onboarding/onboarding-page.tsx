@@ -75,19 +75,6 @@ export const OnboardingPage = () => {
     navigate({ to: "/overview", replace: true });
   };
 
-  if (
-    setup.loading ||
-    setup.needsAdminSetup ||
-    !setup.session ||
-    !setup.requiresOnboarding
-  ) {
-    return (
-      <div className="flex min-h-[28rem] items-center justify-center">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
   if (setup.error) {
     return (
       <Page.Shell>
@@ -115,14 +102,22 @@ export const OnboardingPage = () => {
     );
   }
 
+  if (setup.loading || setup.needsAdminSetup || !setup.session || !setup.requiresOnboarding) {
+    return (
+      <div className="flex min-h-[28rem] items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
   return (
-      <Page.Shell className="max-w-5xl">
-        <Page.Header
-          actions={
-            <Button disabled={!setup.complete} onClick={finish} size="lg">
-              <CheckCircle2 className="size-4" />
-              Finish setup
-            </Button>
+    <Page.Shell className="max-w-5xl">
+      <Page.Header
+        actions={
+          <Button disabled={!setup.complete} onClick={finish} size="lg">
+            <CheckCircle2 className="size-4" />
+            Finish setup
+          </Button>
         }
         description="Connect the provider pieces bigRAG needs before indexing documents."
         eyebrow={<Badge variant="primary">First-run onboarding</Badge>}

@@ -73,12 +73,12 @@ The same surface is available through [`/v1/admin/settings`](/docs/api-reference
 | Data | Upload limits, OCR, ingestion workers, queue depth, webhook delivery limits, and retention windows. |
 | Storage (`/settings?tab=storage`) | Storage backend, S3-compatible bucket, endpoint, region, prefix, credentials, and path-style behavior. |
 | Models (`/models`) | Default embedding provider, model, dimension, key, base URL, cache TTLs, chat provider, chat model, temperature, history count, and context budget. |
-| Turbopuffer search | API key, region, namespace prefix, and optional compatible base URL for vector, keyword, and hybrid retrieval. |
+| Turbopuffer search | API key, public-region dropdown, namespace prefix, and optional compatible base URL for vector, keyword, and hybrid retrieval. |
 | Backups (`/settings?tab=backups`) | S3-compatible readable backup bucket, endpoint, region, prefix, credentials, export controls, and backup history. |
 
 `BIGRAG_CHAT_API_KEY` can seed a default instance chat credential for OpenAI's standard API endpoint. For non-default `chat_base_url` values, configure a saved chat key in the admin UI or pass `provider_api_key` on chat requests so the instance fallback key is never sent to a custom provider.
 
-The UI uses the same compact top tab control and shared dashboard body width as the other admin pages for Account, Health, Security, Data, Storage, and Backups, then opens directly into the selected Settings area without a repeated section heading. Each area is arranged sequentially from top to bottom. Each runtime panel shows common controls first, keeps raw setting keys, source metadata, and rarely changed limits in Advanced controls, keeps Save in the panel footer, and uses default or example placeholders for empty controls. Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, `/settings?tab=data`, `/settings?tab=storage`, and `/settings?tab=backups`.
+The UI uses the same compact top tab control and shared dashboard body width as the other admin pages for Account, Health, Security, Data, Storage, Vector storage, and Backups, then opens directly into the selected Settings area without a repeated section heading. Each area is arranged sequentially from top to bottom. Each runtime panel shows common controls first, keeps raw setting keys, source metadata, and rarely changed limits in Advanced controls, keeps Save in the panel footer, and uses default or example placeholders for empty controls. Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, `/settings?tab=data`, `/settings?tab=storage`, `/settings?tab=vector_store`, and `/settings?tab=backups`.
 
 Database-backed admin settings apply immediately on save. Storage, backup, and Turbopuffer connection changes validate the new target before saving, then swap the runtime client in place where applicable.
 

@@ -22,6 +22,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
+    if (pathname === "/login" || pathname === "/setup" || pathname === "/onboarding") return;
     if (setup.loading || setup.error) return;
     if (setup.needsAdminSetup) {
       navigate({ to: "/setup", replace: true });
@@ -37,6 +38,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   }, [
     currentHref,
     navigate,
+    pathname,
     setup.complete,
     setup.error,
     setup.loading,

@@ -1,8 +1,10 @@
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import type { TurbopufferDraft } from "@/features/onboarding/onboarding-state";
+import { TURBOPUFFER_REGION_OPTIONS } from "@/features/turbopuffer/region-options";
 
 type TurbopufferFormProps = {
   readonly complete: boolean;
@@ -39,9 +41,10 @@ export const TurbopufferForm = ({
           type="password"
           value={draft.apiKey}
         />
-        <Input
+        <Select
           label="Region"
-          onChange={(event) => patchDraft({ region: event.target.value })}
+          onChange={(value) => patchDraft({ region: value })}
+          options={TURBOPUFFER_REGION_OPTIONS}
           placeholder="aws-us-east-1"
           value={draft.region}
         />

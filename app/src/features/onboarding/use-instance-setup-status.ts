@@ -7,7 +7,9 @@ export const useInstanceSetupStatus = () => {
   const setupStatus = useSetupStatus();
   const session = useSession();
   const user = session.data?.user ?? null;
-  const shouldLoadProviderStatus = Boolean(user?.role === "admin" && setupStatus.data?.needs_setup === false);
+  const shouldLoadProviderStatus = Boolean(
+    user?.role === "admin" && setupStatus.data?.needs_setup === false,
+  );
   const presets = useEmbeddingPresets({ enabled: shouldLoadProviderStatus });
   const settings = useInstanceSettings({ enabled: shouldLoadProviderStatus });
   const presetList = presets.data?.presets ?? [];
@@ -16,7 +18,7 @@ export const useInstanceSetupStatus = () => {
   const requiresOnboarding = shouldLoadProviderStatus;
   const complete = requiresOnboarding && embeddingComplete && vectorStorageComplete;
   const providerPending = shouldLoadProviderStatus && (presets.isPending || settings.isPending);
-  const providerError = shouldLoadProviderStatus ? presets.error ?? settings.error : null;
+  const providerError = shouldLoadProviderStatus ? (presets.error ?? settings.error) : null;
 
   return {
     complete,
@@ -26,11 +28,11 @@ export const useInstanceSetupStatus = () => {
     needsAdminSetup: Boolean(setupStatus.data?.needs_setup),
     presets: presetList,
     refetch: () => {
-      setupStatus.refetch();
-      session.refetch();
+      void setupStatus.refetch();
+      void session.refetch();
       if (shouldLoadProviderStatus) {
-        presets.refetch();
-        settings.refetch();
+        void presets.refetch();
+        void settings.refetch();
       }
     },
     requiresOnboarding,

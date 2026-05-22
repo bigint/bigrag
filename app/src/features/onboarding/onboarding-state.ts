@@ -1,3 +1,4 @@
+import { DEFAULT_TURBOPUFFER_REGION } from "@/features/turbopuffer/region-options";
 import type { InstanceSettingsResponse } from "@/types/bigrag";
 
 export type TurbopufferDraft = {
@@ -7,7 +8,6 @@ export type TurbopufferDraft = {
   region: string;
 };
 
-const DEFAULT_TURBOPUFFER_REGION = "aws-us-east-1";
 const DEFAULT_TURBOPUFFER_NAMESPACE_PREFIX = "bigrag_";
 
 const settingString = (

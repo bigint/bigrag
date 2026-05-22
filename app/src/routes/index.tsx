@@ -38,10 +38,7 @@ const Home = () => {
 
 type HomeRedirectState = ReturnType<typeof useInstanceSetupStatus>;
 
-const useHomeRedirect = (
-  setup: HomeRedirectState,
-  navigate: ReturnType<typeof useNavigate>,
-) => {
+const useHomeRedirect = (setup: HomeRedirectState, navigate: ReturnType<typeof useNavigate>) => {
   useEffect(() => {
     if (setup.loading || setup.error) return;
     if (setup.needsAdminSetup) {

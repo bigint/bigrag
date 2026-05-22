@@ -29,6 +29,7 @@ import {
   settingsStatusSummary,
   splitSettingsByImportance,
 } from "@/features/settings/settings-layout";
+import { TURBOPUFFER_REGION_OPTIONS } from "@/features/turbopuffer/region-options";
 import {
   useInstanceSettings,
   usePurgeEmbeddingCache,
@@ -515,6 +516,17 @@ const SettingControl = ({
         aria-label={spec.label}
         onChange={field.onChange}
         options={spec.options.map((option) => ({ label: option, value: option }))}
+        placeholder={placeholder}
+        value={String(field.value ?? "")}
+      />
+    );
+  }
+  if (spec.key === "turbopuffer_region") {
+    return (
+      <Select
+        aria-label={spec.label}
+        onChange={field.onChange}
+        options={TURBOPUFFER_REGION_OPTIONS}
         placeholder={placeholder}
         value={String(field.value ?? "")}
       />
