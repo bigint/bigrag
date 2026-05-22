@@ -87,20 +87,15 @@ The easiest way to start everything for development:
 
 This script:
 
-1. Kills stale processes on port 4000 and old local `bigrag-worker` processes
-2. Validates required commands (`docker`, `curl`, `uv`)
-3. Starts Docker services (Postgres and Redis) and waits for readiness
-4. Installs Python dependencies with `uv`
-5. Starts the backend with auto-reload
-6. Starts `bigrag-worker` with five Dramatiq processes on Redis
-7. Gracefully stops everything on Ctrl+C
+1. Kills stale processes on port 4000 and old local `bigrag-worker` processes.
+2. Validates required commands (`docker`, `curl`, `uv`).
+3. Starts Docker services (Postgres and Redis) and waits for readiness.
+4. Installs Python dependencies with `uv`.
+5. Starts the backend with auto-reload.
+6. Starts `bigrag-worker` with five Dramatiq processes on Redis.
+7. Gracefully stops everything on Ctrl+C.
 
-If the admin UI shows `bigrag-worker is offline`, check the terminal for the
-colored `work` log stream. Each worker-side log line includes the active
-Dramatiq process label and PID, such as `worker=worker-1 pid=12345`. Override the local process count with
-`BIGRAG_WORKER_PROCESSES` and thread count with `BIGRAG_WORKER_THREADS`. A
-healthy local worker should keep running and `/v1/stats` should report a recent
-worker heartbeat for the signed-in admin session.
+If the admin UI shows `bigrag-worker is offline`, check the terminal for the colored `work` log stream. Each worker-side log line includes the active Dramatiq process label and PID, such as `worker=worker-1 pid=12345`. Override the local process count with `BIGRAG_WORKER_PROCESSES` and thread count with `BIGRAG_WORKER_THREADS`. A healthy local worker should keep running and `/v1/stats` should report a recent worker heartbeat for the signed-in admin session.
 
 ## Verify
 

@@ -48,7 +48,11 @@ The response sets a `bigrag_session` cookie. The admin UI exposes the same flow 
 <Step>
 ### Complete provider onboarding
 
-In the admin UI, finish `/onboarding` by adding one embedding preset and saving Turbopuffer connection details. A successful Turbopuffer save sends you to `/overview`. You can skip Turbopuffer during onboarding for a read-only tour, but collections cannot ingest or query until the backend has a working Turbopuffer connection.
+In the admin UI, finish `/onboarding` by adding one embedding preset and saving Turbopuffer connection details. A successful Turbopuffer save sends you to `/overview`.
+
+<Callout type="info">
+  You can skip Turbopuffer during onboarding for a read-only tour, but collections cannot ingest or query until the backend has a working Turbopuffer connection.
+</Callout>
 </Step>
 
 <Step>
@@ -76,6 +80,7 @@ A collection groups documents that share the same embedding configuration and Tu
 
 <Tabs items={["curl", "TypeScript SDK"]}>
 <Tab value="curl">
+
 ```bash
 curl -X POST $BASE/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
@@ -90,8 +95,10 @@ curl -X POST $BASE/v1/collections \
     "chunk_overlap": 50
   }'
 ```
+
 </Tab>
 <Tab value="TypeScript SDK">
+
 ```typescript
 import { BigRAG } from "@bigrag/client";
 
@@ -110,6 +117,7 @@ const collection = await client.collections.create({
   chunk_overlap: 50,
 });
 ```
+
 </Tab>
 </Tabs>
 
@@ -123,6 +131,7 @@ No managed embedding key handy? Use `embedding_provider: "openai_compatible"` wi
 
 <Tabs items={["curl", "TypeScript SDK"]}>
 <Tab value="curl">
+
 ```bash
 curl -X POST $BASE/v1/collections/knowledge_base/documents \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
@@ -132,8 +141,10 @@ curl -X POST $BASE/v1/collections/knowledge_base/documents \
 
 export DOC_ID=$(jq -r .id /tmp/document.json)
 ```
+
 </Tab>
 <Tab value="TypeScript SDK">
+
 ```typescript
 const doc = await client.documents.upload(
   "knowledge_base",
@@ -141,6 +152,7 @@ const doc = await client.documents.upload(
   { department: "engineering" }
 );
 ```
+
 </Tab>
 </Tabs>
 
@@ -152,6 +164,7 @@ The document starts as `pending` and transitions to `processing` then `ready`.
 
 <Tabs items={["curl", "TypeScript SDK"]}>
 <Tab value="curl">
+
 ```bash
 while true; do
   doc=$(curl -s "$BASE/v1/collections/knowledge_base/documents/$DOC_ID" \
@@ -162,8 +175,10 @@ while true; do
   sleep 2
 done
 ```
+
 </Tab>
 <Tab value="TypeScript SDK">
+
 ```typescript
 let current = doc;
 while (current.status === "pending" || current.status === "processing") {
@@ -172,6 +187,7 @@ while (current.status === "pending" || current.status === "processing") {
   console.log(current.progress?.message ?? current.status);
 }
 ```
+
 </Tab>
 </Tabs>
 </Step>
@@ -183,6 +199,7 @@ Once documents are `ready`, you can query Turbopuffer-backed semantic search:
 
 <Tabs items={["curl", "TypeScript SDK"]}>
 <Tab value="curl">
+
 ```bash
 curl -X POST $BASE/v1/collections/knowledge_base/query \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
@@ -192,8 +209,10 @@ curl -X POST $BASE/v1/collections/knowledge_base/query \
     "top_k": 5
   }'
 ```
+
 </Tab>
 <Tab value="TypeScript SDK">
+
 ```typescript
 const { results, timings } = await client.queries.query("knowledge_base", {
   query: "What is the PTO policy?",
@@ -205,6 +224,7 @@ for (const result of results) {
 }
 console.log(`embed=${timings.embed_ms}ms search=${timings.search_ms}ms total=${timings.total_ms}ms`);
 ```
+
 </Tab>
 </Tabs>
 </Step>
