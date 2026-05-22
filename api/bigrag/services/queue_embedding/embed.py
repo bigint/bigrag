@@ -30,7 +30,7 @@ async def embed_with_cache(
     input_type: str = "document",
 ) -> list[list[float]]:
     cache_texts, _ = truncate_to_tokens(texts, model_name)
-    logger.info(
+    logger.debug(
         "embedding cache lookup",
         provider=provider,
         model=model_name,
@@ -41,7 +41,7 @@ async def embed_with_cache(
         cache_texts, model.cache_identity, dimension, input_type
     )
     missing_idx = [i for i in range(len(texts)) if i not in cached]
-    logger.info(
+    logger.debug(
         "embedding cache result",
         provider=provider,
         model=model_name,
@@ -58,7 +58,7 @@ async def embed_with_cache(
         cooldown_key = rate_limit_cooldown_key(model, provider, model_name, dimension)
         await wait_for_rate_limit_cooldown(cooldown_key, provider, model_name)
         t0 = time.monotonic()
-        logger.info(
+        logger.debug(
             "embedding provider request",
             provider=provider,
             model=model_name,
@@ -73,7 +73,7 @@ async def embed_with_cache(
             if is_rate_limit_error(exc):
                 await record_rate_limit_cooldown(cooldown_key, rate_limit_delay(exc, 1.0))
             raise
-        logger.info(
+        logger.debug(
             "embedding provider response",
             provider=provider,
             model=model_name,

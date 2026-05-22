@@ -60,7 +60,7 @@ async def query_collection(
     )
     collection = await get_collection_or_404(collection_name)
     require_tenant_filters(collection, body.filters)
-    logger.info(
+    logger.debug(
         "query collection",
         collection=collection_name,
         query=body.query[:80],
@@ -97,7 +97,7 @@ async def query_collection(
         rerank_override=body.rerank,
     )
 
-    logger.info(
+    logger.debug(
         "query complete",
         collection=collection_name,
         results=len(outcome.results),
@@ -204,7 +204,7 @@ async def multi_collection_query(
             "search_mode": body.search_mode,
         },
     )
-    logger.info(
+    logger.debug(
         "multi-query",
         collections=body.collections,
         query=body.query[:80],
@@ -240,7 +240,7 @@ async def multi_collection_query(
         rerank_override=body.rerank,
     )
 
-    logger.info("multi-query complete", collections=body.collections, results=len(results))
+    logger.debug("multi-query complete", collections=body.collections, results=len(results))
     access_log.set_context(
         request,
         metadata={
@@ -286,7 +286,7 @@ async def batch_query(
             ],
         },
     )
-    logger.info("batch-query", queries=len(body.queries))
+    logger.debug("batch-query", queries=len(body.queries))
 
     batch_semaphore = asyncio.Semaphore(8)
 

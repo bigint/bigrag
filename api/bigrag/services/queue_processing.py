@@ -41,7 +41,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
     doc = job.document_id
 
     await queue._redis.hincrby(queue_state.STATS_KEY, "processing", 1)
-    logger.info(
+    logger.debug(
         "job starting",
         prefix=prefix,
         attempt=job.attempt,
@@ -121,7 +121,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
         total_elapsed = time.monotonic() - start_time
         await queue._redis.hincrby(queue_state.STATS_KEY, "completed", 1)
         await queue._redis.hincrby(queue_state.STATS_KEY, "processing", -1)
-        logger.info(
+        logger.debug(
             "job complete",
             prefix=prefix,
             chunks=total_inserted,
@@ -144,14 +144,8 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
     except Exception as e:
         total_elapsed = time.monotonic() - start_time
         await queue._redis.hincrby(queue_state.STATS_KEY, "processing", -1)
-        logger.error(
-            "job failed",
-            prefix=prefix,
-            attempt=job.attempt,
-            max_attempts=job.max_attempts,
-            error=repr(e),
-            elapsed=round(total_elapsed, 2),
-        )
+        safe_error = sanitize_message_text(str(e)) or "ingestion failed"
+        logger.error(f"{job.collection_name} | failed after {total_elapsed:.1f}s | {safe_error}")
 
         is_permanent = isinstance(e, _PERMANENT_ERRORS)
 
@@ -186,7 +180,6 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             )
 
             delay = min(2**job.attempt, 30) + random.uniform(0, min(2**job.attempt, 10))
-            safe_error = sanitize_message_text(str(e)) or "ingestion failed"
             queue._emit(
                 doc,
                 "retrying",
@@ -215,9 +208,9 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             await queue._redis.hincrby(queue_state.STATS_KEY, "failed", 1)
             await queue._redis.lpush(queue_state.DEAD_LETTER_KEY, job.serialize())
             await queue._redis.ltrim(queue_state.DEAD_LETTER_KEY, 0, 999)
-            safe_message = sanitize_message_text(str(e)) or "ingestion failed"
+            safe_message = safe_error
             await _update_doc(status="failed", error_message=safe_message)
-            logger.error(
+            logger.debug(
                 "job permanently failed",
                 prefix=prefix,
                 reason=reason,

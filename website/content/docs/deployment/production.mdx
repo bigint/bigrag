@@ -15,7 +15,7 @@ Tick these off before pointing real traffic at a bigRAG deployment:
 - [ ] `BIGRAG_SESSION_COOKIE_SECURE=true` and terminate TLS at your
   reverse proxy (nginx, Caddy, Traefik, Cloudflare).
 - [ ] `BIGRAG_LOG_LEVEL=info` and `BIGRAG_LOG_FORMAT=json` for production log
-  collection. Keep `debug` / `text` for local `dev.sh` sessions.
+  collection. Local `dev.sh` also uses `info` by default for readable progress.
 - [ ] `BIGRAG_CORS_ORIGINS` set to an explicit list of your admin UI /
   app origins — no `*`.
 - [ ] `BIGRAG_TRUSTED_PROXIES` set to the CIDRs of your own reverse
@@ -254,30 +254,30 @@ materializing a full collection in API memory.
 ## Logging
 
 API and worker logs are emitted through `structlog` with stable event names and
-key-value fields for request, ingestion, vector-store, webhook, and auth activity.
+key-value fields for request, vector-store, webhook, and auth activity.
 Text logs are colored by default with fixed columns for time, level, logger,
 event, and fields. Text rendering escapes control characters in event and field
 values before writing to stdout, so request paths and headers cannot create
 extra terminal lines or emit terminal control sequences. Dependency loggers such
-as Dramatiq, Alembic, Uvicorn access, HTTPX, and Turbopuffer are kept at warning level
-so local terminals show bigRAG actions instead of library startup chatter. Every
-API request logs
-`request_start`, `response_start`, and `request_complete`; unhandled failures log
-`request_failed`. Request logs include method, path, sanitized query params,
-selected request headers, client IP, route, endpoint/action context, status,
-`first_byte_ms`, and total `elapsed_ms`. Raw request bodies, prompts, document
+as Dramatiq, Alembic, OpenAI, Uvicorn access, HTTPX, and Turbopuffer are kept at warning level
+so local terminals show bigRAG actions instead of library startup chatter. Text
+logs at `info` render each API request as one concise method/path/status/latency
+line. Ingestion and RAG reads also log concise one-line progress messages;
+internal chunk, cache, provider, job, request, and document identifiers stay out
+of the default text terminal stream. JSON logs and `debug` request logs retain
+structured method, path, sanitized query params, selected request headers,
+client IP, route, endpoint/action context, status, `first_byte_ms`, and total
+`elapsed_ms`. Raw request bodies, prompts, document
 content, cookies, authorization headers, and secret-like query params are not
 rendered. URL-valued headers such as `Referer` are logged without URL userinfo,
 with secret-like query params and fragments redacted. Set
 `BIGRAG_LOG_FORMAT=json` when Docker, Railway, Fluent Bit, or another log
-shipper will parse stdout. Set `BIGRAG_LOG_LEVEL=info` in production and keep
-`debug` for local development when you want detailed ingestion progress in the
-terminal.
+shipper will parse stdout. Use `BIGRAG_LOG_LEVEL=debug` only for short-lived
+diagnostics.
 
 Every HTTP response includes `X-Request-ID`. If a client sends that header,
 bigRAG preserves it; otherwise the API generates one and includes it in request
-logs, downstream action logs, and access-log rows. Secrets are redacted before
-log rendering.
+JSON logs and access-log rows. Secrets are redacted before log rendering.
 
 ## Basic operations checklist
 

@@ -11,7 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="BIGRAG_", env_nested_delimiter="__")
 
-    log_level: Literal["debug", "info", "warning", "error"] = "debug"
+    log_level: Literal["debug", "info", "warning", "error"] = "info"
     log_format: Literal["text", "json"] = "text"
 
     env: Literal["dev", "prod"] = "dev"

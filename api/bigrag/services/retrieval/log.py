@@ -1,8 +1,47 @@
 from __future__ import annotations
 
 from bigrag.logging import get_logger
+from bigrag.services.error_sanitize import sanitize_message_text
 
 logger = get_logger("bigrag.retrieval")
+
+
+def log_retrieval_start(
+    *,
+    collection_name: str,
+    top_k: int,
+    search_mode: str,
+) -> None:
+    logger.info(f"{collection_name} | searching | {search_mode} top {top_k}")
+
+
+def log_retrieval_cache_hit(
+    *,
+    collection_name: str,
+    result_count: int,
+    total_ms: float,
+) -> None:
+    logger.info(f"{collection_name} | cached | {result_count} results in {total_ms:.0f}ms")
+
+
+def log_retrieval_complete(
+    *,
+    collection_name: str,
+    result_count: int,
+    timings: dict[str, float],
+) -> None:
+    total_ms = timings.get("total_ms", 0)
+    logger.info(f"{collection_name} | found {result_count} results in {total_ms:.0f}ms")
+
+
+def log_retrieval_failed(
+    *,
+    collection_name: str,
+    elapsed_ms: float,
+    exc: Exception,
+) -> None:
+    error = sanitize_message_text(str(exc)) or exc.__class__.__name__
+    logger.warning(f"{collection_name} | search failed after {elapsed_ms:.0f}ms | {error}")
 
 
 async def log_query(

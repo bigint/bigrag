@@ -105,7 +105,7 @@ async def _process_ingestion_job(payload: str) -> None:
     from bigrag.services.maintenance import is_active
 
     job = IngestionJob.deserialize(payload.encode())
-    logger.info("ingestion actor received job", job=job.job_id, doc=job.document_id)
+    logger.debug("ingestion actor received job", job=job.job_id, doc=job.document_id)
     if await is_active():
         enqueue_ingestion_job(job, delay_seconds=10)
         return
@@ -126,7 +126,7 @@ async def _process_multimodal_enrichment(document_id: str, attempt: int = 0) -> 
 
     try:
         enriched = await enrich_document_elements(document_id)
-        logger.info("multimodal enrichment complete", doc=document_id, enriched=enriched)
+        logger.info(f"multimodal enrichment complete | {enriched} elements")
     except Exception as exc:
         if attempt < 3:
             delay = min(2 ** (attempt + 1), 30)

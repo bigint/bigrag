@@ -139,6 +139,28 @@ def shorten_logger_name(_logger, _method_name, event_dict):
     return event_dict
 
 
+def hide_terminal_context(_logger, _method_name, event_dict):
+    event_dict.pop("request_id", None)
+    return event_dict
+
+
+def compact_terminal_event(_logger, _method_name, event_dict):
+    event = event_dict.get("event")
+    if event not in {"request_complete", "request_failed"}:
+        return event_dict
+    method = event_dict.get("method")
+    path = event_dict.get("path")
+    status = event_dict.get("status")
+    elapsed_ms = event_dict.get("elapsed_ms")
+    if method and path and status is not None and elapsed_ms is not None:
+        suffix = " failed" if event == "request_failed" else ""
+        event_dict["event"] = f"{method} {path} -> {status} in {elapsed_ms:.0f}ms{suffix}"
+    for key in tuple(event_dict):
+        if key not in {"event", "level", "logger"}:
+            event_dict.pop(key, None)
+    return event_dict
+
+
 def _field_value(value: object) -> str:
     return truncate_log_value(_escape_control_characters(str(value)))
 
@@ -197,7 +219,7 @@ def _console_renderer() -> ConsoleRenderer:
     )
 
 
-def configure_logging(log_level: str = "debug", log_format: str = "text") -> None:
+def configure_logging(log_level: str = "info", log_format: str = "text") -> None:
 
     level = getattr(logging, log_level.upper(), logging.INFO)
 
@@ -208,6 +230,8 @@ def configure_logging(log_level: str = "debug", log_format: str = "text") -> Non
     ]
     if log_format == "text":
         shared_processors.append(shorten_logger_name)
+        shared_processors.append(compact_terminal_event)
+        shared_processors.append(hide_terminal_context)
     shared_processors.extend(
         [
             redact_secrets,
@@ -255,6 +279,8 @@ def configure_logging(log_level: str = "debug", log_format: str = "text") -> Non
         "hpack",
         "httpcore",
         "httpx",
+        "openai",
+        "openai._base_client",
         "uvicorn.access",
     ):
         logging.getLogger(name).setLevel(logging.WARNING)

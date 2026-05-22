@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import time
 from dataclasses import dataclass
 
 import orjson
 
+from bigrag.logging import get_logger
 from bigrag.services import redis_cache
+from bigrag.services.access_log.payload import query_fingerprint
 from bigrag.services.embedding import EmbeddingModel
 from bigrag.services.runtime_settings import get_value
+
+logger = get_logger("bigrag.retrieval")
 
 QUERY_EPOCH_PREFIX = "bigrag:query_epoch:"
 QUERY_CACHE_VERSION = 1
@@ -71,9 +76,27 @@ async def embed_query_with_cache(
 ) -> list[float]:
     ttl = await get_value("query_embedding_cache_ttl")
     if ttl <= 0:
+        t0 = time.monotonic()
+        logger.debug(
+            "query_embedding_provider_request",
+            provider=embedding_model.provider,
+            model=embedding_model.name,
+            dimension=embedding_model.dimension,
+            cache_enabled=False,
+            **query_fingerprint(query),
+        )
         embeddings = await asyncio.wait_for(
             embedding_model.embed([query], input_type="query"),
             timeout=EMBEDDING_TIMEOUT_SECONDS,
+        )
+        logger.debug(
+            "query_embedding_provider_response",
+            provider=embedding_model.provider,
+            model=embedding_model.name,
+            dimension=embedding_model.dimension,
+            vectors=len(embeddings),
+            elapsed=round(time.monotonic() - t0, 2),
+            **query_fingerprint(query),
         )
         return embeddings[0]
 
@@ -81,11 +104,36 @@ async def embed_query_with_cache(
     cache_key = f"query_embedding:{identity}:{stable_hash(query)}"
     cached = await redis_cache.get(cache_key)
     if isinstance(cached, list) and len(cached) == embedding_model.dimension:
+        logger.debug(
+            "query_embedding_cache_hit",
+            provider=embedding_model.provider,
+            model=embedding_model.name,
+            dimension=embedding_model.dimension,
+            **query_fingerprint(query),
+        )
         return [float(v) for v in cached]
 
+    t0 = time.monotonic()
+    logger.debug(
+        "query_embedding_provider_request",
+        provider=embedding_model.provider,
+        model=embedding_model.name,
+        dimension=embedding_model.dimension,
+        cache_enabled=True,
+        **query_fingerprint(query),
+    )
     embeddings = await asyncio.wait_for(
         embedding_model.embed([query], input_type="query"),
         timeout=EMBEDDING_TIMEOUT_SECONDS,
+    )
+    logger.debug(
+        "query_embedding_provider_response",
+        provider=embedding_model.provider,
+        model=embedding_model.name,
+        dimension=embedding_model.dimension,
+        vectors=len(embeddings),
+        elapsed=round(time.monotonic() - t0, 2),
+        **query_fingerprint(query),
     )
     vector = embeddings[0]
     await redis_cache.set(cache_key, vector, ttl=ttl)

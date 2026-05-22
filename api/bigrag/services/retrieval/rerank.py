@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import time
 
 from bigrag.logging import get_logger
+from bigrag.services.access_log.payload import query_fingerprint
 
 logger = get_logger("bigrag.retrieval")
 
@@ -57,6 +59,13 @@ async def rerank_results(
     client = await _get_cohere_client(api_key or "", None)
     try:
         texts = [r.get("text", "") for r in results]
+        t0 = time.monotonic()
+        logger.debug(
+            "rerank_start",
+            model=model,
+            inputs=len(texts),
+            **query_fingerprint(query),
+        )
         response = await asyncio.wait_for(
             client.rerank(
                 query=query,
@@ -72,6 +81,13 @@ async def rerank_results(
             result = results[item.index].copy()
             result["score"] = round(item.relevance_score, 6)
             reranked.append(result)
+        logger.debug(
+            "rerank_complete",
+            model=model,
+            inputs=len(texts),
+            elapsed=round(time.monotonic() - t0, 2),
+            **query_fingerprint(query),
+        )
         return reranked
     except Exception as exc:
         logger.error("reranking failed", error=repr(exc))

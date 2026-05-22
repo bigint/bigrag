@@ -43,7 +43,7 @@ async def ocr_scanned_pdf(
 
     chunk_pages = PDF_OCR_CHUNK_PAGES
     total_chunks = (total_pages + chunk_pages - 1) // chunk_pages
-    logger.info(
+    logger.debug(
         "scanned pdf OCR start",
         prefix=prefix,
         pages=total_pages,
@@ -110,7 +110,7 @@ async def ocr_scanned_pdf(
         progress = PDF_OCR_PROGRESS_START + (
             (PDF_OCR_PROGRESS_END - PDF_OCR_PROGRESS_START) * (pages_done / total_pages)
         )
-        logger.info(
+        logger.debug(
             "scanned pdf OCR chunk complete",
             prefix=prefix,
             page_start=current_start,
@@ -143,7 +143,7 @@ async def ocr_scanned_pdf(
         raise ValueError("Document produced no extractable text")
 
     elapsed = time.monotonic() - start_time
-    logger.info(
+    logger.debug(
         "scanned pdf OCR complete",
         prefix=prefix,
         pages_total=total_pages,

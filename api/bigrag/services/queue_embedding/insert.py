@@ -42,14 +42,14 @@ async def chunk_and_embed(
     elements = parsed.elements if isinstance(parsed, ParsedDocument) else []
     include_elements = job.multimodal_enabled or job.multimodal_enrichment_enabled
     t0 = time.monotonic()
-    logger.info("loading collection config", prefix=prefix, collection=job.collection_name)
+    logger.debug("loading collection config", prefix=prefix, collection=job.collection_name)
     collection = await get_collection_or_404(job.collection_name)
     try:
         embedding_model = get_embedding_model_for(collection)
     except ValidationError as exc:
         raise ValueError(str(exc)) from exc
     elapsed = time.monotonic() - t0
-    logger.info(
+    logger.debug(
         "model loaded",
         prefix=prefix,
         provider=job.embedding_provider,
@@ -84,7 +84,7 @@ async def chunk_and_embed(
     )
     if not chunks:
         raise ValueError("Document produced no chunks")
-    logger.info("document chunked", prefix=prefix, chunks=len(chunks), strategy=strategy)
+    logger.debug("document chunked", prefix=prefix, chunks=len(chunks), strategy=strategy)
     emit(
         job.document_id,
         "chunked",
@@ -97,7 +97,7 @@ async def chunk_and_embed(
     )
 
     await ensure_job_current(job)
-    logger.info(
+    logger.debug(
         "ensuring vector collection",
         prefix=prefix,
         collection=job.collection_name,
@@ -137,7 +137,7 @@ async def chunk_and_embed(
             attempt += 1
             try:
                 t0 = time.monotonic()
-                logger.info(
+                logger.debug(
                     "batch embedding start",
                     prefix=prefix,
                     batch=batch_num,
@@ -230,7 +230,7 @@ async def chunk_and_embed(
                         item["multimodal_elements"] = refs
                         item["content_kinds"] = sorted({ref["kind"] for ref in refs})
                     metadata.append(item)
-                logger.info(
+                logger.debug(
                     "batch vector insert start",
                     prefix=prefix,
                     batch=batch_num,
@@ -297,7 +297,7 @@ async def chunk_and_embed(
         total_inserted += count
 
         progress = 0.45 + (0.45 * batch_num / total_batches)
-        logger.info(
+        logger.debug(
             "batch inserted",
             prefix=prefix,
             batch=batch_num,

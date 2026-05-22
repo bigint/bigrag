@@ -114,13 +114,7 @@ class IngestionQueue:
         enqueue_ingestion_job(job)
         if self._redis is not None:
             await self._redis.hincrby(STATS_KEY, "queued", 1)
-        logger.info(
-            "queue enqueued job",
-            job=job.job_id,
-            doc=job.document_id,
-            collection=job.collection_name,
-            pending=pending + 1,
-        )
+        logger.info(f"{job.collection_name} | queued | {pending + 1} pending")
 
     async def flush_collection(self, collection_name: str) -> int:
         if not self._redis:
@@ -217,16 +211,9 @@ class IngestionQueue:
         collection_name: str = "",
         **detail,
     ) -> IngestionEvent:
-        logger.info(
-            "ingestion event",
-            doc=doc_id,
-            collection=collection_name,
-            step=step,
-            status=status,
-            progress=progress,
-            message=msg,
-            detail=detail,
-        )
+        progress_text = f"{round(progress * 100)}%"
+        prefix = f"{collection_name} | " if collection_name else ""
+        logger.info(f"{prefix}{progress_text} | {msg}")
         event = IngestionEvent(
             document_id=doc_id,
             step=step,

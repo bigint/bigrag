@@ -192,7 +192,9 @@ class RequestLoggingMiddleware:
         status_code = 500
         first_byte_ms: float | None = None
         context_tokens = structlog.contextvars.bind_contextvars(request_id=request_id)
-        self._logger.info("request_start", **_request_start_fields(scope, method, path, request_id))
+        self._logger.debug(
+            "request_start", **_request_start_fields(scope, method, path, request_id)
+        )
 
         async def send_wrapper(message):
             nonlocal status_code, first_byte_ms
@@ -201,7 +203,7 @@ class RequestLoggingMiddleware:
                 first_byte_ms = (time.monotonic() - start) * 1000
                 message.setdefault("headers", [])
                 MutableHeaders(scope=message)["X-Request-ID"] = request_id
-                self._logger.info(
+                self._logger.debug(
                     "response_start",
                     request_id=request_id,
                     method=method,

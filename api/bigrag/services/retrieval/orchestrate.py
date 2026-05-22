@@ -15,7 +15,13 @@ from bigrag.services.retrieval.cache import (
     store_query_result,
 )
 from bigrag.services.retrieval.fusion import tokenize_query
-from bigrag.services.retrieval.log import log_query
+from bigrag.services.retrieval.log import (
+    log_query,
+    log_retrieval_cache_hit,
+    log_retrieval_complete,
+    log_retrieval_failed,
+    log_retrieval_start,
+)
 from bigrag.services.retrieval.modes import hybrid_search, keyword_search, semantic_search
 from bigrag.services.retrieval.rerank import rerank_results
 from bigrag.services.runtime_settings import get_values
@@ -54,153 +60,177 @@ async def retrieve(
         raise ValidationError(f"top_k {top_k} exceeds maximum {MAX_TOP_K}")
     _retrieve_start = time.monotonic()
     timings = {"embed_ms": 0.0, "search_ms": 0.0, "rerank_ms": 0.0}
-
-    event_bus.publish(
-        IngestionEvent(
-            document_id="",
-            step="search",
-            status="processing",
-            message=f"Searching: {query[:80]}",
-            detail={"top_k": top_k, "mode": search_mode},
-            collection_name=collection_name,
-        )
+    log_retrieval_start(
+        collection_name=collection_name,
+        top_k=top_k,
+        search_mode=search_mode,
     )
+
     try:
-        filter_expr = build_filter(filters) if filters else None
-    except ValueError as exc:
-        raise ValidationError(str(exc)) from exc
-    query_terms = tokenize_query(query)
-
-    result_cache_key: str | None = None
-    cache_settings = await get_values(["query_result_cache_ttl"])
-    if cache_settings["query_result_cache_ttl"] > 0:
-        cache_t0 = time.monotonic()
-        result_cache_key = await query_result_cache_key(
-            collection_name=collection_name,
-            query=query,
-            embedding_model=embedding_model,
-            top_k=top_k,
-            filters=filters,
-            min_score=min_score,
-            search_mode=search_mode,
-            reranking_config=reranking_config,
-            rerank_override=rerank_override,
-        )
-        cached_outcome = await cached_query_result(result_cache_key)
-        if cached_outcome is not None:
-            cache_ms = (time.monotonic() - cache_t0) * 1000
-            total_ms = (time.monotonic() - _retrieve_start) * 1000
-            cached_outcome.cache_ms = round(cache_ms, 2)
-            cached_outcome.total_ms = round(total_ms, 2)
-            avg_score = (
-                sum(r.get("score", 0) for r in cached_outcome.results) / len(cached_outcome.results)
-                if cached_outcome.results
-                else None
+        event_bus.publish(
+            IngestionEvent(
+                document_id="",
+                step="search",
+                status="processing",
+                message=f"Searching: {query[:80]}",
+                detail={"top_k": top_k, "mode": search_mode},
+                collection_name=collection_name,
             )
-            _safe_create_task(
-                log_query(
-                    collection_name=collection_name,
-                    query=query,
-                    top_k=top_k,
-                    result_count=len(cached_outcome.results),
-                    avg_score=avg_score,
-                    latency_ms=cached_outcome.total_ms,
-                    search_mode=search_mode,
-                ),
-                name="log_cached_query",
-            )
-            return cached_outcome
+        )
+        try:
+            filter_expr = build_filter(filters) if filters else None
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+        query_terms = tokenize_query(query)
 
-    if search_mode == "keyword":
-        results = await keyword_search(
-            collection_name=collection_name,
-            query_terms=query_terms,
-            top_k=top_k,
-            filter_expr=filter_expr,
-            timings=timings,
-        )
-    elif search_mode == "hybrid":
-        results, _ = await hybrid_search(
-            collection_name=collection_name,
-            query=query,
-            query_terms=query_terms,
-            embedding_model=embedding_model,
-            top_k=top_k,
-            max_top_k=MAX_TOP_K,
-            filter_expr=filter_expr,
-            timings=timings,
-        )
-    else:
-        results, _ = await semantic_search(
-            collection_name=collection_name,
-            query=query,
-            embedding_model=embedding_model,
-            top_k=top_k,
-            filter_expr=filter_expr,
-            timings=timings,
-        )
-
-    if reranking_config and results:
-        should_rerank = reranking_config.get("enabled", False)
-        if rerank_override is not None:
-            should_rerank = rerank_override
-        if should_rerank:
-            t0 = time.monotonic()
-            results = await rerank_results(
-                results=results,
+        result_cache_key: str | None = None
+        cache_settings = await get_values(["query_result_cache_ttl"])
+        if cache_settings["query_result_cache_ttl"] > 0:
+            cache_t0 = time.monotonic()
+            result_cache_key = await query_result_cache_key(
+                collection_name=collection_name,
                 query=query,
-                model=reranking_config.get("model", "rerank-v3.5"),
-                api_key=reranking_config.get("api_key"),
+                embedding_model=embedding_model,
+                top_k=top_k,
+                filters=filters,
+                min_score=min_score,
+                search_mode=search_mode,
+                reranking_config=reranking_config,
+                rerank_override=rerank_override,
             )
-            timings["rerank_ms"] = (time.monotonic() - t0) * 1000
+            cached_outcome = await cached_query_result(result_cache_key)
+            if cached_outcome is not None:
+                cache_ms = (time.monotonic() - cache_t0) * 1000
+                total_ms = (time.monotonic() - _retrieve_start) * 1000
+                cached_outcome.cache_ms = round(cache_ms, 2)
+                cached_outcome.total_ms = round(total_ms, 2)
+                avg_score = (
+                    sum(r.get("score", 0) for r in cached_outcome.results)
+                    / len(cached_outcome.results)
+                    if cached_outcome.results
+                    else None
+                )
+                log_retrieval_cache_hit(
+                    collection_name=collection_name,
+                    result_count=len(cached_outcome.results),
+                    total_ms=total_ms,
+                )
+                _safe_create_task(
+                    log_query(
+                        collection_name=collection_name,
+                        query=query,
+                        top_k=top_k,
+                        result_count=len(cached_outcome.results),
+                        avg_score=avg_score,
+                        latency_ms=cached_outcome.total_ms,
+                        search_mode=search_mode,
+                    ),
+                    name="log_cached_query",
+                )
+                return cached_outcome
 
-    results = results[:top_k]
+        if search_mode == "keyword":
+            results = await keyword_search(
+                collection_name=collection_name,
+                query_terms=query_terms,
+                top_k=top_k,
+                filter_expr=filter_expr,
+                timings=timings,
+            )
+        elif search_mode == "hybrid":
+            results, _ = await hybrid_search(
+                collection_name=collection_name,
+                query=query,
+                query_terms=query_terms,
+                embedding_model=embedding_model,
+                top_k=top_k,
+                max_top_k=MAX_TOP_K,
+                filter_expr=filter_expr,
+                timings=timings,
+            )
+        else:
+            results, _ = await semantic_search(
+                collection_name=collection_name,
+                query=query,
+                embedding_model=embedding_model,
+                top_k=top_k,
+                filter_expr=filter_expr,
+                timings=timings,
+            )
 
-    if min_score is not None:
-        results = [r for r in results if r.get("score", 0) >= min_score]
+        if reranking_config and results:
+            should_rerank = reranking_config.get("enabled", False)
+            if rerank_override is not None:
+                should_rerank = rerank_override
+            if should_rerank:
+                t0 = time.monotonic()
+                results = await rerank_results(
+                    results=results,
+                    query=query,
+                    model=reranking_config.get("model", "rerank-v3.5"),
+                    api_key=reranking_config.get("api_key"),
+                )
+                timings["rerank_ms"] = (time.monotonic() - t0) * 1000
 
-    total_ms = (time.monotonic() - _retrieve_start) * 1000
-    timings["total_ms"] = total_ms
-    avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else None
+        results = results[:top_k]
 
-    event_bus.publish(
-        IngestionEvent(
-            document_id="",
-            step="search_complete",
-            status="complete",
-            message=f"{len(results)} results in {total_ms:.0f}ms",
-            detail={
-                "results": len(results),
-                "latency_ms": round(total_ms, 1),
-                "avg_score": round(avg_score, 4) if avg_score else 0,
-                "mode": search_mode,
-            },
-            collection_name=collection_name,
+        if min_score is not None:
+            results = [r for r in results if r.get("score", 0) >= min_score]
+
+        total_ms = (time.monotonic() - _retrieve_start) * 1000
+        timings["total_ms"] = total_ms
+        avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else None
+
+        event_bus.publish(
+            IngestionEvent(
+                document_id="",
+                step="search_complete",
+                status="complete",
+                message=f"{len(results)} results in {total_ms:.0f}ms",
+                detail={
+                    "results": len(results),
+                    "latency_ms": round(total_ms, 1),
+                    "avg_score": round(avg_score, 4) if avg_score else 0,
+                    "mode": search_mode,
+                },
+                collection_name=collection_name,
+            )
         )
-    )
-    _safe_create_task(
-        log_query(
+        log_retrieval_complete(
             collection_name=collection_name,
-            query=query,
-            top_k=top_k,
             result_count=len(results),
-            avg_score=avg_score,
-            latency_ms=round(total_ms, 2),
-            search_mode=search_mode,
-        ),
-        name="log_query",
-    )
+            timings=timings,
+        )
+        _safe_create_task(
+            log_query(
+                collection_name=collection_name,
+                query=query,
+                top_k=top_k,
+                result_count=len(results),
+                avg_score=avg_score,
+                latency_ms=round(total_ms, 2),
+                search_mode=search_mode,
+            ),
+            name="log_query",
+        )
 
-    outcome = RetrievalOutcome(
-        results=results,
-        embed_ms=round(timings["embed_ms"], 2),
-        search_ms=round(timings["search_ms"], 2),
-        rerank_ms=round(timings["rerank_ms"], 2),
-        total_ms=round(total_ms, 2),
-    )
-    if result_cache_key is not None:
-        await store_query_result(result_cache_key, outcome)
-    return outcome
+        outcome = RetrievalOutcome(
+            results=results,
+            embed_ms=round(timings["embed_ms"], 2),
+            search_ms=round(timings["search_ms"], 2),
+            rerank_ms=round(timings["rerank_ms"], 2),
+            total_ms=round(total_ms, 2),
+        )
+        if result_cache_key is not None:
+            await store_query_result(result_cache_key, outcome)
+        return outcome
+    except Exception as exc:
+        log_retrieval_failed(
+            collection_name=collection_name,
+            elapsed_ms=(time.monotonic() - _retrieve_start) * 1000,
+            exc=exc,
+        )
+        raise
 
 
 async def retrieve_multi(

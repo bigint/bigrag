@@ -157,13 +157,14 @@ if [ "$START_BACKEND" = true ]; then
   export BIGRAG_REDIS_URL="$REDIS_URL"
   export BIGRAG_MASTER_KEY="$DEV_MASTER_KEY"
   export BIGRAG_CORS_ORIGINS="${BIGRAG_CORS_ORIGINS:-[\"http://localhost:3000\"]}"
+  export BIGRAG_LOG_LEVEL="${BIGRAG_LOG_LEVEL:-info}"
   export PYTHONUNBUFFERED=1
 
   echo -e "${CYAN}Starting Python backend (auto-reload)...${NC}"
   uv run --directory "$ROOT_DIR/api" uvicorn bigrag.main:create_app \
     --factory --host 0.0.0.0 --port 4000 \
     --reload --reload-dir "$ROOT_DIR/api/bigrag" \
-    --log-level debug 2>&1 | prefix_logs backend &
+    --log-level info 2>&1 | prefix_logs backend &
   PIDS+=($!)
 
   wait_for "Backend" "curl -sf http://localhost:4000/health" 120

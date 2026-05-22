@@ -64,7 +64,7 @@ async def convert_document(
         finally:
             await asyncio.to_thread(fh.close)
 
-        logger.info(
+        logger.debug(
             "conversion start",
             prefix=prefix,
             collection=job.collection_name,
@@ -89,7 +89,7 @@ async def convert_document(
                 include_elements=include_elements,
             )
             elapsed = time.monotonic() - t0
-            logger.info("plain text read", prefix=prefix, elapsed=round(elapsed, 2))
+            logger.debug("plain text read", prefix=prefix, elapsed=round(elapsed, 2))
             emit(
                 job.document_id,
                 "text_extracted",
@@ -101,7 +101,7 @@ async def convert_document(
             )
             return parsed
 
-        logger.info(
+        logger.debug(
             "isolated converter start",
             prefix=prefix,
             suffix=suffix,
@@ -122,7 +122,7 @@ async def convert_document(
                 raise ValueError(str(e)) from e
             if parsed.text.strip() or not pdf_ocr_enabled:
                 elapsed = time.monotonic() - t0
-                logger.info(
+                logger.debug(
                     "pdf text conversion complete", prefix=prefix, elapsed=round(elapsed, 2)
                 )
                 emit(
@@ -136,7 +136,7 @@ async def convert_document(
                 )
                 if not parsed.text.strip():
                     raise ValueError("Document produced no extractable text")
-                logger.info("text extracted", prefix=prefix, chars=len(parsed.text))
+                logger.debug("text extracted", prefix=prefix, chars=len(parsed.text))
                 emit(
                     job.document_id,
                     "text_extracted",
@@ -176,7 +176,7 @@ async def convert_document(
             raise ValueError(str(e)) from e
 
         elapsed = time.monotonic() - t0
-        logger.info("isolated conversion complete", prefix=prefix, elapsed=round(elapsed, 2))
+        logger.debug("isolated conversion complete", prefix=prefix, elapsed=round(elapsed, 2))
         emit(
             job.document_id,
             "converted",
@@ -190,7 +190,7 @@ async def convert_document(
         if not parsed.text.strip():
             raise ValueError("Document produced no extractable text")
 
-        logger.info("text extracted", prefix=prefix, chars=len(parsed.text))
+        logger.debug("text extracted", prefix=prefix, chars=len(parsed.text))
         emit(
             job.document_id,
             "text_extracted",
