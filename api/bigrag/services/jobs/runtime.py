@@ -35,6 +35,7 @@ _heartbeat_task: asyncio.Task | None = None
 _vector_store_settings: tuple[object, ...] | None = None
 _HEARTBEAT_SECONDS = 30
 _HEARTBEAT_TTL_SECONDS = 120
+_SKIP_MIGRATIONS_ENV = "BIGRAG_WORKER_RUNTIME_SKIP_MIGRATIONS"
 _RUNTIME_SETTING_KEYS = (
     "ingestion_workers",
     "turbopuffer_api_key",
@@ -68,9 +69,12 @@ async def ensure_worker_runtime() -> None:
             pool_min=settings.db_pool_min,
             pool_max=settings.db_pool_max,
         )
-        await run_migrations()
-        configure_logging(log_level=settings.log_level, log_format=settings.log_format)
-        logger.info("worker migrations complete")
+        if os.environ.get(_SKIP_MIGRATIONS_ENV) == "1":
+            logger.info("worker migrations already complete")
+        else:
+            await run_migrations()
+            configure_logging(log_level=settings.log_level, log_format=settings.log_format)
+            logger.info("worker migrations complete")
         runtime = await runtime_settings.get_values(list(_RUNTIME_SETTING_KEYS))
         logger.info("worker runtime settings loaded")
         await _sync_vector_store(runtime)

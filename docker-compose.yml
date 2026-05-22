@@ -47,7 +47,7 @@ services:
     image: "${BIGRAG_WORKER_IMAGE:-bigrag-api:local}"
     container_name: bigrag-worker
     restart: unless-stopped
-    command: ["bigrag-worker", "--processes", "1", "--threads", "${BIGRAG_WORKER_THREADS:-8}"]
+    command: ["bigrag-worker", "--processes", "${BIGRAG_WORKER_PROCESSES:-5}", "--threads", "${BIGRAG_WORKER_THREADS:-8}"]
     volumes:
       - bigrag_data:/data
     environment:

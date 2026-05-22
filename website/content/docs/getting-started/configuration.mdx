@@ -36,7 +36,7 @@ Bootstrap config is the small set of values the API needs before it can connect 
 
 The admin UI has one frontend bootstrap value: point it at the API with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container when frontend and backend are deployed separately.
 
-Run background jobs with `bigrag-worker`. The worker reads the same `BIGRAG_` environment and accepts `--processes`, `--threads`, `--queues`, and `--config` for deployment-specific concurrency and TOML bootstrap.
+Run background jobs with `bigrag-worker`. The worker reads the same `BIGRAG_` environment and accepts `--processes`, `--threads`, `--queues`, and `--config` for deployment-specific concurrency and TOML bootstrap. The worker parent runs database migrations once before spawning Dramatiq processes, and child processes skip migration bootstrap. The local dev script and Docker Compose default to `BIGRAG_WORKER_PROCESSES=5` and `BIGRAG_WORKER_THREADS=8`.
 
 ## TOML bootstrap file
 

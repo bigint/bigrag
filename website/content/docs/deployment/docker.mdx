@@ -77,7 +77,7 @@ services:
 
   bigrag-worker:
     image: yoginth/bigrag-api:2026.4.30
-    command: ["bigrag-worker", "--processes", "1", "--threads", "8"]
+    command: ["bigrag-worker", "--processes", "${BIGRAG_WORKER_PROCESSES:-5}", "--threads", "${BIGRAG_WORKER_THREADS:-8}"]
     volumes:
       - bigrag_data:/data
     environment:
