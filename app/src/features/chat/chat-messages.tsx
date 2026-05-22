@@ -589,7 +589,7 @@ const SourceCard = ({
         </div>
         <span className="shrink-0 font-mono text-muted-foreground">{source.score.toFixed(3)}</span>
       </div>
-      <p className="mt-2 line-clamp-3 min-w-0 whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">
+      <p className="mt-2 line-clamp-3 min-w-0 break-all whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">
         {source.text}
       </p>
     </li>

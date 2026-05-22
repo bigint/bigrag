@@ -33,7 +33,7 @@ export const features = [
   },
   {
     description:
-      "HMAC-signed webhook payloads with automatic retries. Get notified when documents are processed or fail.",
+      "HMAC-signed webhook payloads with automatic retries for document, collection, connector, and backup events.",
     href: "/docs/concepts/webhooks",
     icon: <Webhook className="size-5" />,
     title: "Webhooks",

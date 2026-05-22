@@ -39,13 +39,13 @@ export const WebhooksPage = () => {
           </Button>
         }
         className="mb-0"
-        description="Receive real-time collection event notifications."
+        description="Receive real-time data-operation notifications."
         title="Webhooks"
       />
 
       <WorkerOfflineBanner
         availability={workerAvailability}
-        message="Document-event deliveries require bigrag-worker. Queued work will not run until the worker is started."
+        message="Data-operation deliveries require bigrag-worker. Queued work will not run until the worker is started."
       />
 
       {error && (

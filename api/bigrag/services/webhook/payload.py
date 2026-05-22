@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 import orjson
 
 from bigrag.services.event_bus import IngestionEvent
-from bigrag.services.webhook.events import DOCUMENT_STEP_EVENTS
 
 
 def matches_webhook(webhook: dict, event: str, collection: str | None) -> bool:
