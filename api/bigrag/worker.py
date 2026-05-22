@@ -10,7 +10,7 @@ import dramatiq.cli
 from bigrag import config as config_module
 from bigrag.config import Settings
 from bigrag.db.bootstrap import run_migrations
-from bigrag.logging import configure_logging
+from bigrag.logging import WORKER_LOG_CONTEXT_ENV, configure_logging
 from bigrag.startup_guard import check_production_safety
 
 SKIP_CHILD_MIGRATIONS_ENV = "BIGRAG_WORKER_RUNTIME_SKIP_MIGRATIONS"
@@ -27,6 +27,7 @@ def cli(argv: list[str] | None = None) -> int:
     if args.config:
         config_module.settings = Settings.from_toml(args.config)
 
+    os.environ[WORKER_LOG_CONTEXT_ENV] = "1"
     configure_logging(
         log_level=config_module.settings.log_level,
         log_format=config_module.settings.log_format,

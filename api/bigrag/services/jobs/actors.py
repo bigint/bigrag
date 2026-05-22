@@ -7,7 +7,7 @@ import uuid
 import dramatiq
 from dramatiq.asyncio import async_to_sync, get_event_loop_thread
 
-from bigrag.logging import get_logger
+from bigrag.logging import current_worker_label, get_logger
 from bigrag.services.ingestion_job import IngestionJob
 from bigrag.services.jobs.broker import (
     BACKUPS_QUEUE,
@@ -109,7 +109,7 @@ async def _process_ingestion_job(payload: str) -> None:
     if await is_active():
         enqueue_ingestion_job(job, delay_seconds=10)
         return
-    await queue.ingestion_queue.process_leased_job("dramatiq", job)
+    await queue.ingestion_queue.process_leased_job(current_worker_label(), job)
 
 
 @dramatiq.actor(queue_name=INGESTION_QUEUE, max_retries=0, broker=broker)

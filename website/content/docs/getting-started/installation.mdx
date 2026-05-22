@@ -96,7 +96,8 @@ This script:
 7. Gracefully stops everything on Ctrl+C
 
 If the admin UI shows `bigrag-worker is offline`, check the terminal for the
-colored `work` log stream. Override the local process count with
+colored `work` log stream. Each worker-side log line includes the active
+Dramatiq process label and PID, such as `worker=worker-1 pid=12345`. Override the local process count with
 `BIGRAG_WORKER_PROCESSES` and thread count with `BIGRAG_WORKER_THREADS`. A
 healthy local worker should keep running and `/v1/stats` should report a recent
 worker heartbeat for the signed-in admin session.

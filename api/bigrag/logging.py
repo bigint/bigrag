@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import logging
+import multiprocessing
+import os
 import re
 import sys
 
 import structlog
 from structlog.dev import Column, ConsoleRenderer, KeyValueColumnFormatter, LogLevelColumnFormatter
 
+WORKER_LOG_CONTEXT_ENV = "BIGRAG_WORKER_LOG_CONTEXT"
 _SENSITIVE_KEYS = frozenset(
     {
         "api_key",
@@ -144,6 +147,24 @@ def hide_terminal_context(_logger, _method_name, event_dict):
     return event_dict
 
 
+def current_worker_label() -> str:
+    process_name = multiprocessing.current_process().name
+    if process_name != "MainProcess":
+        match = re.search(r"(\d+)$", process_name)
+        if match:
+            return f"worker-{match.group(1)}"
+        return process_name
+    return "worker-parent"
+
+
+def add_worker_context(_logger, _method_name, event_dict):
+    if os.environ.get(WORKER_LOG_CONTEXT_ENV) != "1":
+        return event_dict
+    event_dict.setdefault("worker", current_worker_label())
+    event_dict.setdefault("pid", os.getpid())
+    return event_dict
+
+
 def compact_terminal_event(_logger, _method_name, event_dict):
     event = event_dict.get("event")
     if event not in {"request_complete", "request_failed"}:
@@ -232,6 +253,7 @@ def configure_logging(log_level: str = "info", log_format: str = "text") -> None
         shared_processors.append(shorten_logger_name)
         shared_processors.append(compact_terminal_event)
         shared_processors.append(hide_terminal_context)
+    shared_processors.append(add_worker_context)
     shared_processors.extend(
         [
             redact_secrets,

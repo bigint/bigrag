@@ -262,7 +262,9 @@ extra terminal lines or emit terminal control sequences. Dependency loggers such
 as Dramatiq, Alembic, OpenAI, Uvicorn access, HTTPX, and Turbopuffer are kept at warning level
 so local terminals show bigRAG actions instead of library startup chatter. Text
 logs at `info` render each API request as one concise method/path/status/latency
-line. Ingestion and RAG reads also log concise one-line progress messages;
+line. Worker logs include the Dramatiq process label and PID, such as
+`worker=worker-1 pid=12345`, so concurrent worker output can be traced back to
+the active process. Ingestion and RAG reads also log concise one-line progress messages;
 internal chunk, cache, provider, job, request, and document identifiers stay out
 of the default text terminal stream. JSON logs and `debug` request logs retain
 structured method, path, sanitized query params, selected request headers,
