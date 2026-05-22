@@ -5,16 +5,11 @@ description: Patterns for serving many customers from one bigRAG deployment — 
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-This recipe turns bigRAG into a per-tenant RAG backbone for a typical
-SaaS app — one collection per customer (or one collection shared with
-tenant filtering), scoped API keys, usage dashboards, and cost caps.
-Python snippets assume the async SDK is running inside an async function with
-an initialized `client`.
+This recipe turns bigRAG into a per-tenant RAG backbone for a typical SaaS app — one collection per customer (or one collection shared with tenant filtering), scoped API keys, usage dashboards, and cost caps. Python snippets assume the async SDK is running inside an async function with an initialized `client`.
 
 ## Pattern A — collection per tenant
 
-Simplest isolation model. Each tenant's data lives in its own
-collection; queries are physically scoped by the collection name.
+Simplest isolation model. Each tenant's data lives in its own collection; queries are physically scoped by the collection name.
 
 ### Provisioning
 
@@ -37,8 +32,7 @@ await client.collections.create({
 
 ### Per-tenant API key
 
-Mint a scoped key so the tenant's browser / mobile app can query but
-can't touch other collections or admin APIs:
+Mint a scoped key so the tenant's browser/mobile app can query but can't touch other collections or admin APIs:
 
 ```python
 key = await client.admin.api_keys.create({
@@ -52,17 +46,12 @@ tenant_api_key = key["key"]
 The middleware enforces both the scopes and the collection pin, so a leaked tenant key can only reach its own collection.
 
 <Callout type="warn">
-Collections-per-tenant is simple but creates operational overhead as
-tenant count grows. Above small/medium tenant counts, move to Pattern B
-so one Turbopuffer namespace can use tenant metadata filters.
+Collections-per-tenant is simple but creates operational overhead as tenant count grows. Above small/medium tenant counts, move to Pattern B so one Turbopuffer namespace can use tenant metadata filters.
 </Callout>
 
 ## Pattern B — shared collection with tenant filters
 
-One collection, tenant isolation via a required metadata filter. Setting
-`tenant_field` tells bigRAG to configure that field for backend filtering
-and reject uploads, raw vector upserts, queries, and chat calls that omit
-the tenant field.
+One collection, tenant isolation via a required metadata filter. Setting `tenant_field` tells bigRAG to configure that field for backend filtering and reject uploads, raw vector upserts, queries, and chat calls that omit the tenant field.
 
 ```python
 await client.collections.create({
@@ -100,17 +89,11 @@ usage = await client.get_usage(window_days=30)
 # }
 ```
 
-Join this with your billing system's `tenant_id ↔ collection_name`
-map and you have a per-tenant invoice line. For pattern B, the built-in
-usage endpoint is collection-level; keep per-tenant counters in your own
-application when multiple tenants share one collection.
+Join this with your billing system's `tenant_id ↔ collection_name` map and you have a per-tenant invoice line. For Pattern B, the built-in usage endpoint is collection-level; keep per-tenant counters in your own application when multiple tenants share one collection.
 
 ## Audit trail for compliance
 
-Privileged actions such as key creation, webhook config, user updates,
-collection mutations, and document mutations are in `audit_log`. Surface
-them in internal tooling by filtering on `actor_id`, `resource_type`, or
-the relevant `resource_id`:
+Privileged actions such as key creation, webhook config, user updates, collection mutations, and document mutations are in `audit_log`. Surface them in internal tooling by filtering on `actor_id`, `resource_type`, or the relevant `resource_id`:
 
 ```bash
 curl -b cookies.txt \
@@ -129,8 +112,4 @@ await client.collections.delete(f"tenant_{tenant_id}")
 await client.documents.batch_delete("shared_tenants", document_ids)
 ```
 
-For shared collections, keep a tenant-owned document ID index in your
-application so offboarding can delete the right documents. If you use raw
-vector upserts directly, keep vector IDs and call `client.vectors.delete`.
-Revoke the tenant's API keys via `client.admin.api_keys.delete(key_id)` and
-archive the relevant audit rows for your records.
+For shared collections, keep a tenant-owned document ID index in your application so offboarding can delete the right documents. If you use raw vector upserts directly, keep vector IDs and call `client.vectors.delete`. Revoke the tenant's API keys via `client.admin.api_keys.delete(key_id)` and archive the relevant audit rows for your records.
