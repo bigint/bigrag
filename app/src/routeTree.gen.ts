@@ -5,6 +5,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./routes/__root";
+import { Route as OnboardingRouteImport } from "./routes/onboarding";
 import { Route as DashboardRouteImport } from "./routes/_dashboard";
 import { Route as AuthRouteImport } from "./routes/_auth";
 import { Route as IndexRouteImport } from "./routes/index";
@@ -12,7 +13,6 @@ import { Route as DashboardWebhooksRouteImport } from "./routes/_dashboard.webho
 import { Route as DashboardUsageRouteImport } from "./routes/_dashboard.usage";
 import { Route as DashboardSettingsRouteImport } from "./routes/_dashboard.settings";
 import { Route as DashboardOverviewRouteImport } from "./routes/_dashboard.overview";
-import { Route as DashboardOnboardingRouteImport } from "./routes/_dashboard.onboarding";
 import { Route as DashboardModelsRouteImport } from "./routes/_dashboard.models";
 import { Route as DashboardMcpRouteImport } from "./routes/_dashboard.mcp";
 import { Route as DashboardEvalsRouteImport } from "./routes/_dashboard.evals";
@@ -36,6 +36,11 @@ import { Route as DashboardCollectionsNameConnectorsIndexRouteImport } from "./r
 import { Route as DashboardCollectionsNameDocumentsDocIdRouteImport } from "./routes/_dashboard.collections.$name.documents.$docId";
 import { Route as DashboardCollectionsNameConnectorsGoogleDriveRouteImport } from "./routes/_dashboard.collections.$name.connectors.google-drive";
 
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: "/onboarding",
+  path: "/onboarding",
+  getParentRoute: () => rootRouteImport,
+} as any);
 const DashboardRoute = DashboardRouteImport.update({
   id: "/_dashboard",
   getParentRoute: () => rootRouteImport,
@@ -67,11 +72,6 @@ const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
 const DashboardOverviewRoute = DashboardOverviewRouteImport.update({
   id: "/overview",
   path: "/overview",
-  getParentRoute: () => DashboardRoute,
-} as any);
-const DashboardOnboardingRoute = DashboardOnboardingRouteImport.update({
-  id: "/onboarding",
-  path: "/onboarding",
   getParentRoute: () => DashboardRoute,
 } as any);
 const DashboardModelsRoute = DashboardModelsRouteImport.update({
@@ -197,6 +197,7 @@ const DashboardCollectionsNameConnectorsGoogleDriveRoute =
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
+  "/onboarding": typeof OnboardingRoute;
   "/login": typeof AuthLoginRoute;
   "/setup": typeof AuthSetupRoute;
   "/access-logs": typeof DashboardAccessLogsRoute;
@@ -209,7 +210,6 @@ export interface FileRoutesByFullPath {
   "/evals": typeof DashboardEvalsRoute;
   "/mcp": typeof DashboardMcpRoute;
   "/models": typeof DashboardModelsRoute;
-  "/onboarding": typeof DashboardOnboardingRoute;
   "/overview": typeof DashboardOverviewRoute;
   "/settings": typeof DashboardSettingsRoute;
   "/usage": typeof DashboardUsageRoute;
@@ -227,6 +227,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
+  "/onboarding": typeof OnboardingRoute;
   "/login": typeof AuthLoginRoute;
   "/setup": typeof AuthSetupRoute;
   "/access-logs": typeof DashboardAccessLogsRoute;
@@ -239,7 +240,6 @@ export interface FileRoutesByTo {
   "/evals": typeof DashboardEvalsRoute;
   "/mcp": typeof DashboardMcpRoute;
   "/models": typeof DashboardModelsRoute;
-  "/onboarding": typeof DashboardOnboardingRoute;
   "/overview": typeof DashboardOverviewRoute;
   "/settings": typeof DashboardSettingsRoute;
   "/usage": typeof DashboardUsageRoute;
@@ -258,6 +258,7 @@ export interface FileRoutesById {
   "/": typeof IndexRoute;
   "/_auth": typeof AuthRouteWithChildren;
   "/_dashboard": typeof DashboardRouteWithChildren;
+  "/onboarding": typeof OnboardingRoute;
   "/_auth/login": typeof AuthLoginRoute;
   "/_auth/setup": typeof AuthSetupRoute;
   "/_dashboard/access-logs": typeof DashboardAccessLogsRoute;
@@ -270,7 +271,6 @@ export interface FileRoutesById {
   "/_dashboard/evals": typeof DashboardEvalsRoute;
   "/_dashboard/mcp": typeof DashboardMcpRoute;
   "/_dashboard/models": typeof DashboardModelsRoute;
-  "/_dashboard/onboarding": typeof DashboardOnboardingRoute;
   "/_dashboard/overview": typeof DashboardOverviewRoute;
   "/_dashboard/settings": typeof DashboardSettingsRoute;
   "/_dashboard/usage": typeof DashboardUsageRoute;
@@ -290,6 +290,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | "/"
+    | "/onboarding"
     | "/login"
     | "/setup"
     | "/access-logs"
@@ -302,7 +303,6 @@ export interface FileRouteTypes {
     | "/evals"
     | "/mcp"
     | "/models"
-    | "/onboarding"
     | "/overview"
     | "/settings"
     | "/usage"
@@ -320,6 +320,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
+    | "/onboarding"
     | "/login"
     | "/setup"
     | "/access-logs"
@@ -332,7 +333,6 @@ export interface FileRouteTypes {
     | "/evals"
     | "/mcp"
     | "/models"
-    | "/onboarding"
     | "/overview"
     | "/settings"
     | "/usage"
@@ -350,6 +350,7 @@ export interface FileRouteTypes {
     | "/"
     | "/_auth"
     | "/_dashboard"
+    | "/onboarding"
     | "/_auth/login"
     | "/_auth/setup"
     | "/_dashboard/access-logs"
@@ -362,7 +363,6 @@ export interface FileRouteTypes {
     | "/_dashboard/evals"
     | "/_dashboard/mcp"
     | "/_dashboard/models"
-    | "/_dashboard/onboarding"
     | "/_dashboard/overview"
     | "/_dashboard/settings"
     | "/_dashboard/usage"
@@ -383,10 +383,18 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
   AuthRoute: typeof AuthRouteWithChildren;
   DashboardRoute: typeof DashboardRouteWithChildren;
+  OnboardingRoute: typeof OnboardingRoute;
 }
 
 declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
+    "/onboarding": {
+      id: "/onboarding";
+      path: "/onboarding";
+      fullPath: "/onboarding";
+      preLoaderRoute: typeof OnboardingRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     "/_dashboard": {
       id: "/_dashboard";
       path: "";
@@ -434,13 +442,6 @@ declare module "@tanstack/react-router" {
       path: "/overview";
       fullPath: "/overview";
       preLoaderRoute: typeof DashboardOverviewRouteImport;
-      parentRoute: typeof DashboardRoute;
-    };
-    "/_dashboard/onboarding": {
-      id: "/_dashboard/onboarding";
-      path: "/onboarding";
-      fullPath: "/onboarding";
-      preLoaderRoute: typeof DashboardOnboardingRouteImport;
       parentRoute: typeof DashboardRoute;
     };
     "/_dashboard/models": {
@@ -669,7 +670,6 @@ interface DashboardRouteChildren {
   DashboardEvalsRoute: typeof DashboardEvalsRoute;
   DashboardMcpRoute: typeof DashboardMcpRoute;
   DashboardModelsRoute: typeof DashboardModelsRoute;
-  DashboardOnboardingRoute: typeof DashboardOnboardingRoute;
   DashboardOverviewRoute: typeof DashboardOverviewRoute;
   DashboardSettingsRoute: typeof DashboardSettingsRoute;
   DashboardUsageRoute: typeof DashboardUsageRoute;
@@ -689,7 +689,6 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardEvalsRoute: DashboardEvalsRoute,
   DashboardMcpRoute: DashboardMcpRoute,
   DashboardModelsRoute: DashboardModelsRoute,
-  DashboardOnboardingRoute: DashboardOnboardingRoute,
   DashboardOverviewRoute: DashboardOverviewRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardUsageRoute: DashboardUsageRoute,
@@ -706,6 +705,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRouteWithChildren,
   DashboardRoute: DashboardRouteWithChildren,
+  OnboardingRoute: OnboardingRoute,
 };
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

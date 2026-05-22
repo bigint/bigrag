@@ -5,24 +5,21 @@ import { Button } from "@/components/ui/button";
 export const ProgressPanel = ({
   embeddingComplete,
   onFinish,
-  turbopufferComplete,
-  turbopufferSkipped,
+  setupComplete,
+  vectorStorageComplete,
 }: {
   readonly embeddingComplete: boolean;
   readonly onFinish: () => void;
-  readonly turbopufferComplete: boolean;
-  readonly turbopufferSkipped: boolean;
+  readonly setupComplete: boolean;
+  readonly vectorStorageComplete: boolean;
 }) => (
   <aside className="rounded-md border border-border bg-card p-4 xl:sticky xl:top-6 xl:self-start">
     <div className="font-semibold text-sm">Setup progress</div>
     <div className="mt-4 flex flex-col gap-3">
       <ProgressRow complete={embeddingComplete} label="Embedding preset" required />
-      <ProgressRow
-        complete={turbopufferComplete}
-        label={turbopufferSkipped ? "Turbopuffer skipped" : "Turbopuffer"}
-      />
+      <ProgressRow complete={vectorStorageComplete} label="Vector storage" required />
     </div>
-    <Button className="mt-5 w-full" disabled={!embeddingComplete} onClick={onFinish}>
+    <Button className="mt-5 w-full" disabled={!setupComplete} onClick={onFinish}>
       <CheckCircle2 className="size-4" />
       Finish setup
     </Button>

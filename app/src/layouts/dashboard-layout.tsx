@@ -1,43 +1,68 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouterState } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Menu as MenuIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/brand/logo";
 import { MobileSidebar, Sidebar } from "@/components/navigation/sidebar";
 import { ApiUnreachable } from "@/components/status/api-unreachable";
 import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
-import { useAuthGate } from "@/features/auth/use-auth-gate";
-import { useSession, useSetupStatus } from "@/hooks/use-auth";
+import { useInstanceSetupStatus } from "@/features/onboarding/use-instance-setup-status";
 import { queryKeys } from "@/lib/query-keys";
 
 const FULL_HEIGHT_ROUTES = ["/overview", "/chat"];
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const location = useRouterState({ select: (state) => state.location });
   const pathname = location.pathname;
   const currentHref = location.href || pathname;
-  const { error: setupError, isPending: setupPending } = useSetupStatus();
-  const { data: session, error: sessionError, isPending } = useSession();
+  const setup = useInstanceSetupStatus();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  useAuthGate({ when: "setup-needed", to: "/setup" });
-  useAuthGate({ when: "logged-out", to: "/login", search: { from: currentHref } });
+  useEffect(() => {
+    if (setup.loading || setup.error) return;
+    if (setup.needsAdminSetup) {
+      navigate({ to: "/setup", replace: true });
+      return;
+    }
+    if (!setup.session) {
+      navigate({ to: "/login", search: { from: currentHref }, replace: true });
+      return;
+    }
+    if (setup.requiresOnboarding && !setup.complete) {
+      navigate({ to: "/onboarding", replace: true });
+    }
+  }, [
+    currentHref,
+    navigate,
+    setup.complete,
+    setup.error,
+    setup.loading,
+    setup.needsAdminSetup,
+    setup.requiresOnboarding,
+    setup.session,
+  ]);
 
-  const authError = setupError ?? sessionError;
-  if (authError && !session) {
+  if (setup.error) {
     return (
       <ApiUnreachable
-        error={authError}
+        error={setup.error}
         onRetry={() => {
           queryClient.invalidateQueries({ queryKey: queryKeys.auth.all() });
+          setup.refetch();
         }}
       />
     );
   }
 
-  if (setupPending || isPending || !session) {
+  if (
+    setup.loading ||
+    setup.needsAdminSetup ||
+    !setup.session ||
+    (setup.requiresOnboarding && !setup.complete)
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Spinner size="lg" />
@@ -46,7 +71,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   }
 
   const isFullHeight = FULL_HEIGHT_ROUTES.some((r) => pathname.startsWith(r));
-  const role = session.user.role;
+  const role = setup.session.user.role;
 
   return (
     <div className="flex h-dvh overflow-hidden bg-background pt-2 pl-2">

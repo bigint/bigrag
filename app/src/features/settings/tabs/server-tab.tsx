@@ -67,7 +67,7 @@ const EnvRow = ({ label, value }: { label: string; value: string }) => (
 const ENV_ROWS: ReadonlyArray<{ label: string; value: string }> = [
   { label: "Postgres", value: "BIGRAG_DATABASE_URL" },
   { label: "Redis", value: "BIGRAG_REDIS_URL" },
-  { label: "Vector store", value: "Admin Settings / Vector store" },
+  { label: "Vector store", value: "Settings / Vector storage" },
   { label: "Encryption", value: "BIGRAG_MASTER_KEY" },
   { label: "Bind address", value: "BIGRAG_HOST / BIGRAG_PORT" },
   { label: "Split admin UI", value: "admin UI backend URL" },

@@ -1,8 +1,11 @@
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { toast } from "sonner";
+import { ApiUnreachable } from "@/components/status/api-unreachable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import {
   defaultSetupFormValues,
   setupBodyFromValues,
@@ -10,7 +13,7 @@ import {
   validatePassword,
   validateSetupFormValues,
 } from "@/features/auth/auth-form-state";
-import { useAuthGate } from "@/features/auth/use-auth-gate";
+import { useInstanceSetupStatus } from "@/features/onboarding/use-instance-setup-status";
 import { useSetup } from "@/hooks/use-auth";
 import { errorText, firstString, submitWith } from "@/lib/form";
 
@@ -21,6 +24,7 @@ export const Route = createFileRoute("/_auth/setup")({
 const SetupPage = () => {
   const navigate = useNavigate();
   const setup = useSetup();
+  const instanceSetup = useInstanceSetupStatus();
   const form = useForm({
     defaultValues: defaultSetupFormValues(),
     validators: {
@@ -37,7 +41,38 @@ const SetupPage = () => {
     },
   });
 
-  useAuthGate({ when: "auth", to: "/login" });
+  useEffect(() => {
+    if (instanceSetup.loading || instanceSetup.error || instanceSetup.needsAdminSetup) return;
+    if (!instanceSetup.session) {
+      navigate({ to: "/login", replace: true });
+      return;
+    }
+    if (instanceSetup.requiresOnboarding && !instanceSetup.complete) {
+      navigate({ to: "/onboarding", replace: true });
+      return;
+    }
+    navigate({ to: "/overview", replace: true });
+  }, [
+    instanceSetup.complete,
+    instanceSetup.error,
+    instanceSetup.loading,
+    instanceSetup.needsAdminSetup,
+    instanceSetup.requiresOnboarding,
+    instanceSetup.session,
+    navigate,
+  ]);
+
+  if (instanceSetup.error) {
+    return <ApiUnreachable error={instanceSetup.error} variant="card" />;
+  }
+
+  if (instanceSetup.loading || !instanceSetup.needsAdminSetup) {
+    return (
+      <div className="flex min-h-[240px] w-full items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md rounded-xl border border-border bg-card p-6">

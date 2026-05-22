@@ -75,6 +75,9 @@ const SettingsContent = ({ tab }: { tab: SettingsTab }) => {
   if (tab === "storage") {
     return <InstanceSettingsTab group="storage" stacked />;
   }
+  if (tab === "vector_store") {
+    return <InstanceSettingsTab group="vector_store" stacked />;
+  }
   if (tab === "backups") {
     return <BackupSettingsTab />;
   }

@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { ApiUnreachable } from "@/components/status/api-unreachable";
 import { Spinner } from "@/components/ui/spinner";
-import { useSession, useSetupStatus } from "@/hooks/use-auth";
+import { useInstanceSetupStatus } from "@/features/onboarding/use-instance-setup-status";
 import { queryKeys } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/")({
@@ -13,32 +13,18 @@ export const Route = createFileRoute("/")({
 const Home = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const {
-    data: setupStatus,
-    error: setupError,
-    isError: setupIsError,
-    isPending: setupPending,
-  } = useSetupStatus();
-  const { data: session, error: sessionError, isError, isPending: sessionPending } = useSession();
+  const setup = useInstanceSetupStatus();
 
-  useHomeRedirect(
-    {
-      hasSession: Boolean(session),
-      isError,
-      sessionPending,
-      setupIsError,
-      setupNeedsSetup: setupStatus?.needs_setup,
-      setupPending,
-    },
-    navigate,
-  );
+  useHomeRedirect(setup, navigate);
 
-  const error = setupError ?? sessionError;
-  if (error) {
+  if (setup.error) {
     return (
       <ApiUnreachable
-        error={error}
-        onRetry={() => queryClient.invalidateQueries({ queryKey: queryKeys.auth.all() })}
+        error={setup.error}
+        onRetry={() => {
+          queryClient.invalidateQueries({ queryKey: queryKeys.auth.all() });
+          setup.refetch();
+        }}
       />
     );
   }
@@ -50,34 +36,30 @@ const Home = () => {
   );
 };
 
-type HomeRedirectState = {
-  readonly hasSession: boolean;
-  readonly isError: boolean;
-  readonly sessionPending: boolean;
-  readonly setupIsError: boolean;
-  readonly setupNeedsSetup: boolean | undefined;
-  readonly setupPending: boolean;
-};
+type HomeRedirectState = ReturnType<typeof useInstanceSetupStatus>;
 
 const useHomeRedirect = (
-  {
-    hasSession,
-    isError,
-    sessionPending,
-    setupIsError,
-    setupNeedsSetup,
-    setupPending,
-  }: HomeRedirectState,
+  setup: HomeRedirectState,
   navigate: ReturnType<typeof useNavigate>,
 ) => {
   useEffect(() => {
-    if (setupPending || sessionPending || setupIsError || isError) return;
-    if (setupNeedsSetup) {
+    if (setup.loading || setup.error) return;
+    if (setup.needsAdminSetup) {
       navigate({ to: "/setup", replace: true });
-    } else if (hasSession) {
-      navigate({ to: "/overview", replace: true });
-    } else {
+    } else if (!setup.session) {
       navigate({ to: "/login", replace: true });
+    } else if (setup.requiresOnboarding && !setup.complete) {
+      navigate({ to: "/onboarding", replace: true });
+    } else {
+      navigate({ to: "/overview", replace: true });
     }
-  }, [hasSession, isError, sessionPending, setupIsError, setupNeedsSetup, setupPending, navigate]);
+  }, [
+    navigate,
+    setup.complete,
+    setup.error,
+    setup.loading,
+    setup.needsAdminSetup,
+    setup.requiresOnboarding,
+    setup.session,
+  ]);
 };

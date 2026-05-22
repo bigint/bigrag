@@ -1,4 +1,4 @@
-import { ArrowRight, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -9,10 +9,8 @@ type TurbopufferFormProps = {
   readonly draft: TurbopufferDraft;
   readonly onDraftChange: (draft: TurbopufferDraft) => void;
   readonly onSave: () => void;
-  readonly onSkip: () => void;
   readonly pending: boolean;
   readonly saveDisabled: boolean;
-  readonly skipped: boolean;
 };
 
 export const TurbopufferForm = ({
@@ -20,10 +18,8 @@ export const TurbopufferForm = ({
   draft,
   onDraftChange,
   onSave,
-  onSkip,
   pending,
   saveDisabled,
-  skipped,
 }: TurbopufferFormProps) => {
   const patchDraft = (patch: Partial<TurbopufferDraft>) => onDraftChange({ ...draft, ...patch });
   return (
@@ -65,25 +61,17 @@ export const TurbopufferForm = ({
       <div className="flex flex-col gap-3 border-border border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 text-muted-foreground text-sm">
           {complete
-            ? "Turbopuffer is configured for this instance."
-            : skipped
-              ? "Skipped for now. System health will keep reporting vector readiness."
-              : "Save a working vector store now, or skip and configure it later."}
+            ? "Vector storage is configured for this instance."
+            : "Save a working Turbopuffer connection before entering the dashboard."}
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          {!complete && (
-            <Button disabled={pending} onClick={onSkip} type="button" variant="secondary">
-              Skip for now
-              <ArrowRight className="size-4" />
-            </Button>
-          )}
           <Button disabled={pending || saveDisabled} type="submit">
             {pending ? (
               <Spinner className="border-primary-foreground" size="sm" />
             ) : (
               <Save className="size-4" />
             )}
-            {complete ? "Update Turbopuffer" : "Save Turbopuffer"}
+            {complete ? "Update vector storage" : "Save vector storage"}
           </Button>
         </div>
       </div>

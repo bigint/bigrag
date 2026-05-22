@@ -6,12 +6,14 @@ import { queryKeys } from "@/lib/query-keys";
 import type { EmbeddingPreset } from "@/types/bigrag";
 
 const KEY = queryKeys.embeddingPresets();
+type EmbeddingPresetsOptions = { readonly enabled?: boolean };
 
-export const useEmbeddingPresets = () =>
+export const useEmbeddingPresets = ({ enabled = true }: EmbeddingPresetsOptions = {}) =>
   useQuery({
     queryKey: KEY,
     queryFn: () =>
       apiClient.get<{ presets: EmbeddingPreset[]; total: number }>("v1/admin/embedding-presets"),
+    enabled,
   });
 
 export type EmbeddingPresetBody = {

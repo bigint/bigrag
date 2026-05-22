@@ -6,11 +6,13 @@ import { queryKeys } from "@/lib/query-keys";
 import type { InstanceSettingsResponse } from "@/types/bigrag";
 
 type SettingsBody = { values: Record<string, unknown> };
+type InstanceSettingsOptions = { readonly enabled?: boolean };
 
-export const useInstanceSettings = () =>
+export const useInstanceSettings = ({ enabled = true }: InstanceSettingsOptions = {}) =>
   useQuery({
     queryKey: queryKeys.instanceSettings(),
     queryFn: () => apiClient.get<InstanceSettingsResponse>("v1/admin/settings"),
+    enabled,
     retry: false,
   });
 

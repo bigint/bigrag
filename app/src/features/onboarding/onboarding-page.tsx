@@ -10,58 +10,77 @@ import { PresetForm } from "@/features/models/preset-form";
 import { ProgressPanel } from "@/features/onboarding/onboarding-progress";
 import {
   canSaveTurbopufferDraft,
-  hasTurbopufferApiKey,
   type TurbopufferDraft,
   turbopufferDraftFromSettings,
   turbopufferSettingsBody,
 } from "@/features/onboarding/onboarding-state";
 import { PresetSummary, StepPanel } from "@/features/onboarding/onboarding-step-panel";
 import { TurbopufferForm } from "@/features/onboarding/turbopuffer-form";
-import { useEmbeddingPresets } from "@/hooks/use-embedding-presets";
-import { useInstanceSettings, useUpdateInstanceSettings } from "@/hooks/use-instance-settings";
+import { useInstanceSetupStatus } from "@/features/onboarding/use-instance-setup-status";
+import { useUpdateInstanceSettings } from "@/hooks/use-instance-settings";
 
 export const OnboardingPage = () => {
   const navigate = useNavigate();
-  const presets = useEmbeddingPresets();
-  const settings = useInstanceSettings();
+  const setup = useInstanceSetupStatus();
   const saveSettings = useUpdateInstanceSettings();
   const [presetOpen, setPresetOpen] = useState(false);
-  const [turbopufferSkipped, setTurbopufferSkipped] = useState(false);
   const [draft, setDraft] = useState<TurbopufferDraft>(() =>
     turbopufferDraftFromSettings(undefined),
   );
 
   useEffect(() => {
-    if (settings.data) setDraft(turbopufferDraftFromSettings(settings.data));
-  }, [settings.data]);
+    if (setup.settings) setDraft(turbopufferDraftFromSettings(setup.settings));
+  }, [setup.settings]);
 
-  const presetList = presets.data?.presets ?? [];
+  useEffect(() => {
+    if (setup.loading || setup.error) return;
+    if (setup.needsAdminSetup) {
+      navigate({ to: "/setup", replace: true });
+      return;
+    }
+    if (!setup.session) {
+      navigate({ to: "/login", search: { from: "/onboarding" }, replace: true });
+      return;
+    }
+    if (!setup.requiresOnboarding) {
+      navigate({ to: "/overview", replace: true });
+    }
+  }, [
+    navigate,
+    setup.error,
+    setup.loading,
+    setup.needsAdminSetup,
+    setup.requiresOnboarding,
+    setup.session,
+  ]);
+
+  const presetList = setup.presets;
   const firstPreset = presetList[0];
-  const embeddingComplete = presetList.length > 0;
-  const turbopufferComplete = hasTurbopufferApiKey(settings.data);
-  const canSaveTurbopuffer = canSaveTurbopufferDraft(draft, turbopufferComplete);
-  const loading = presets.isPending || settings.isPending;
-  const error = presets.error ?? settings.error;
+  const canSaveTurbopuffer = canSaveTurbopufferDraft(draft, setup.vectorStorageComplete);
 
   const saveTurbopuffer = async () => {
     if (!canSaveTurbopuffer) {
-      toast.error("Add a Turbopuffer API key or skip this step");
+      toast.error("Add a Turbopuffer API key");
       return;
     }
     try {
       await saveSettings.mutateAsync({
-        values: turbopufferSettingsBody(draft, turbopufferComplete),
+        values: turbopufferSettingsBody(draft, setup.vectorStorageComplete),
       });
-      setTurbopufferSkipped(false);
     } catch {}
   };
 
   const finish = () => {
-    if (!embeddingComplete) return;
+    if (!setup.complete) return;
     navigate({ to: "/overview", replace: true });
   };
 
-  if (loading) {
+  if (
+    setup.loading ||
+    setup.needsAdminSetup ||
+    !setup.session ||
+    !setup.requiresOnboarding
+  ) {
     return (
       <div className="flex min-h-[28rem] items-center justify-center">
         <Spinner size="lg" />
@@ -69,7 +88,7 @@ export const OnboardingPage = () => {
     );
   }
 
-  if (error) {
+  if (setup.error) {
     return (
       <Page.Shell>
         <section className="rounded-md border border-destructive/30 bg-destructive/10 p-5">
@@ -78,13 +97,12 @@ export const OnboardingPage = () => {
             <div className="min-w-0">
               <h1 className="font-semibold text-destructive text-sm">Onboarding unavailable</h1>
               <p className="mt-1 text-destructive/80 text-sm">
-                {error instanceof Error ? error.message : "Could not load setup state."}
+                {setup.error instanceof Error ? setup.error.message : "Could not load setup state."}
               </p>
               <Button
                 className="mt-4"
                 onClick={() => {
-                  presets.refetch();
-                  settings.refetch();
+                  setup.refetch();
                 }}
                 variant="secondary"
               >
@@ -98,13 +116,13 @@ export const OnboardingPage = () => {
   }
 
   return (
-    <Page.Shell className="max-w-5xl">
-      <Page.Header
-        actions={
-          <Button disabled={!embeddingComplete} onClick={finish} size="lg">
-            <CheckCircle2 className="size-4" />
-            Finish setup
-          </Button>
+      <Page.Shell className="max-w-5xl">
+        <Page.Header
+          actions={
+            <Button disabled={!setup.complete} onClick={finish} size="lg">
+              <CheckCircle2 className="size-4" />
+              Finish setup
+            </Button>
         }
         description="Connect the provider pieces bigRAG needs before indexing documents."
         eyebrow={<Badge variant="primary">First-run onboarding</Badge>}
@@ -114,13 +132,13 @@ export const OnboardingPage = () => {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="flex min-w-0 flex-col gap-4">
           <StepPanel
-            active={!embeddingComplete}
-            complete={embeddingComplete}
+            active={!setup.embeddingComplete}
+            complete={setup.embeddingComplete}
             icon={Cpu}
             index={1}
             title="Embedding preset"
           >
-            {embeddingComplete && firstPreset ? (
+            {setup.embeddingComplete && firstPreset ? (
               <PresetSummary preset={firstPreset} total={presetList.length} />
             ) : (
               <div className="flex flex-col gap-4">
@@ -139,34 +157,28 @@ export const OnboardingPage = () => {
           </StepPanel>
 
           <StepPanel
-            active={embeddingComplete && !turbopufferComplete && !turbopufferSkipped}
-            complete={turbopufferComplete}
+            active={setup.embeddingComplete && !setup.vectorStorageComplete}
+            complete={setup.vectorStorageComplete}
             icon={Database}
             index={2}
-            optional
-            title="Turbopuffer"
+            title="Vector storage"
           >
             <TurbopufferForm
-              complete={turbopufferComplete}
+              complete={setup.vectorStorageComplete}
               draft={draft}
               onDraftChange={setDraft}
               onSave={saveTurbopuffer}
-              onSkip={() => {
-                setTurbopufferSkipped(true);
-                toast.message("Turbopuffer skipped for now");
-              }}
               pending={saveSettings.isPending}
               saveDisabled={!canSaveTurbopuffer}
-              skipped={turbopufferSkipped}
             />
           </StepPanel>
         </div>
 
         <ProgressPanel
-          embeddingComplete={embeddingComplete}
+          embeddingComplete={setup.embeddingComplete}
           onFinish={finish}
-          turbopufferComplete={turbopufferComplete}
-          turbopufferSkipped={turbopufferSkipped}
+          setupComplete={setup.complete}
+          vectorStorageComplete={setup.vectorStorageComplete}
         />
       </div>
 

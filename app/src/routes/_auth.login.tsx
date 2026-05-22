@@ -1,5 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { ApiUnreachable } from "@/components/status/api-unreachable";
 import { Button } from "@/components/ui/button";
@@ -12,8 +13,8 @@ import {
   validateLoginFormValues,
   validatePassword,
 } from "@/features/auth/auth-form-state";
-import { useAuthGate } from "@/features/auth/use-auth-gate";
-import { useLogin, useSetupStatus } from "@/hooks/use-auth";
+import { useInstanceSetupStatus } from "@/features/onboarding/use-instance-setup-status";
+import { useLogin } from "@/hooks/use-auth";
 import { errorText, firstString, submitWith } from "@/lib/form";
 
 type LoginSearch = {
@@ -39,7 +40,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { from } = Route.useSearch();
   const login = useLogin();
-  const { data: setupStatus, isPending, isError, error } = useSetupStatus();
+  const setup = useInstanceSetupStatus();
   const form = useForm({
     defaultValues: defaultLoginFormValues(),
     validators: {
@@ -48,16 +49,37 @@ const LoginPage = () => {
     onSubmit: async ({ value }) => {
       try {
         await login.mutateAsync(loginBodyFromValues(value));
-        navigate({ to: from ?? "/overview", replace: true });
+        navigate({ to: from ?? "/", replace: true });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Login failed");
       }
     },
   });
 
-  useAuthGate({ when: "setup-needed", to: "/setup" });
+  useEffect(() => {
+    if (setup.loading || setup.error) return;
+    if (setup.needsAdminSetup) {
+      navigate({ to: "/setup", replace: true });
+      return;
+    }
+    if (!setup.session) return;
+    if (setup.requiresOnboarding && !setup.complete) {
+      navigate({ to: "/onboarding", replace: true });
+      return;
+    }
+    navigate({ to: from ?? "/overview", replace: true });
+  }, [
+    from,
+    navigate,
+    setup.complete,
+    setup.error,
+    setup.loading,
+    setup.needsAdminSetup,
+    setup.requiresOnboarding,
+    setup.session,
+  ]);
 
-  if (isPending || setupStatus?.needs_setup) {
+  if (setup.loading || setup.needsAdminSetup || setup.session) {
     return (
       <div className="flex min-h-[240px] w-full items-center justify-center">
         <Spinner size="lg" />
@@ -65,8 +87,8 @@ const LoginPage = () => {
     );
   }
 
-  if (isError) {
-    return <ApiUnreachable error={error} variant="card" />;
+  if (setup.error) {
+    return <ApiUnreachable error={setup.error} variant="card" />;
   }
 
   return (

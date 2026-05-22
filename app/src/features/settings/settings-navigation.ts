@@ -2,7 +2,14 @@ import type { LucideIcon } from "lucide-react";
 import { Activity, Archive, Database, HardDrive, Lock, UserRound } from "lucide-react";
 import type { InstanceSettingGroup } from "@/types/bigrag";
 
-export type SettingsTab = "account" | "health" | "security" | "data" | "storage" | "backups";
+export type SettingsTab =
+  | "account"
+  | "health"
+  | "security"
+  | "data"
+  | "storage"
+  | "vector_store"
+  | "backups";
 
 type SettingsNavItem = {
   readonly value: SettingsTab;
@@ -55,6 +62,12 @@ const SETTINGS_NAV_GROUPS: readonly SettingsNavGroup[] = [
         icon: HardDrive,
         label: "Storage",
         value: "storage",
+      },
+      {
+        description: "Turbopuffer API key, region, and namespace prefix.",
+        icon: Database,
+        label: "Vector storage",
+        value: "vector_store",
       },
       {
         description: "Readable backup destination, export controls, and backup history.",
