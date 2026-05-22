@@ -3,12 +3,10 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
-  Archive,
   BookOpen,
   Cloud,
   Cpu,
   FlaskConical,
-  HardDrive,
   KeyRound,
   LayoutDashboard,
   ListChecks,
@@ -64,11 +62,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Administration",
-    items: [
-      { admin: true, href: "/backups", icon: Archive, label: "Backups" },
-      { admin: true, href: "/data-storage", icon: HardDrive, label: "Data Storage" },
-      { admin: true, href: "/settings", icon: Settings, label: "Settings" },
-    ],
+    items: [{ admin: true, href: "/settings", icon: Settings, label: "Settings" }],
   },
 ];
 

@@ -1,8 +1,8 @@
 import type { LucideIcon } from "lucide-react";
-import { Activity, Database, Lock, UserRound } from "lucide-react";
+import { Activity, Archive, Database, HardDrive, Lock, UserRound } from "lucide-react";
 import type { InstanceSettingGroup } from "@/types/bigrag";
 
-export type SettingsTab = "account" | "health" | "security" | "data";
+export type SettingsTab = "account" | "health" | "security" | "data" | "storage" | "backups";
 
 type SettingsNavItem = {
   readonly value: SettingsTab;
@@ -49,6 +49,18 @@ const SETTINGS_NAV_GROUPS: readonly SettingsNavGroup[] = [
         icon: Database,
         label: "Data",
         value: "data",
+      },
+      {
+        description: "Uploaded source-file storage for local disk or S3-compatible buckets.",
+        icon: HardDrive,
+        label: "Storage",
+        value: "storage",
+      },
+      {
+        description: "Readable backup destination, export controls, and backup history.",
+        icon: Archive,
+        label: "Backups",
+        value: "backups",
       },
     ],
     label: "Operate",

@@ -18,7 +18,7 @@ import { usePlatformStats } from "@/hooks/use-platform";
 import { formatBytes, formatRelative } from "@/lib/format";
 import type { BackupJob } from "@/types/bigrag";
 
-export const BackupsPage = () => {
+export const BackupSettingsTab = () => {
   const backups = useBackups();
   const settings = useInstanceSettings();
   const { data: stats } = usePlatformStats();
@@ -31,12 +31,7 @@ export const BackupsPage = () => {
   const workerOffline = workerAvailability.offline;
 
   return (
-    <Page.Shell>
-      <Page.Header
-        className="mb-0"
-        description="Configure the readable backup destination and export full-instance snapshots to S3-compatible storage."
-        title="Backups"
-      />
+    <div className="flex flex-col gap-4">
       <WorkerOfflineBanner availability={workerAvailability} />
       <InstanceSettingsTab group="backups" />
       <Card className="rounded-md">
@@ -115,9 +110,20 @@ export const BackupsPage = () => {
           )}
         </CardContent>
       </Card>
-    </Page.Shell>
+    </div>
   );
 };
+
+export const BackupsPage = () => (
+  <Page.Shell>
+    <Page.Header
+      className="mb-0"
+      description="Configure the readable backup destination and export full-instance snapshots to S3-compatible storage."
+      title="Backups"
+    />
+    <BackupSettingsTab />
+  </Page.Shell>
+);
 
 const EmptyBackups = () => (
   <Empty

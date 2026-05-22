@@ -74,7 +74,7 @@ The upload directory (default `./data/uploads`) must live on an encrypted volume
 
 ### Readable backups
 
-Readable backups created from `/backups` are intentionally not client-side encrypted. They keep logs, Turbopuffer payload exports, and raw uploaded files inspectable, but redact provider keys, OAuth tokens, webhook secrets, S3 credentials, API key hashes, session hashes, and embedding-cache vectors. Put the backup bucket behind strict IAM/R2 token policy, bucket encryption, private networking where available, lifecycle retention, and access logging.
+Readable backups created from `/settings?tab=backups` are intentionally not client-side encrypted. They keep logs, Turbopuffer payload exports, and raw uploaded files inspectable, but redact provider keys, OAuth tokens, webhook secrets, S3 credentials, API key hashes, session hashes, and embedding-cache vectors. Put the backup bucket behind strict IAM/R2 token policy, bucket encryption, private networking where available, lifecycle retention, and access logging.
 
 ## Rotation
 

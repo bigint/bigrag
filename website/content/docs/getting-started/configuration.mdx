@@ -5,7 +5,7 @@ description: Bootstrap bigRAG, then manage runtime settings from the admin UI.
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-bigRAG uses a UI-first configuration model. Operators provide only the wiring needed before the API can read Postgres, then admins manage product/runtime settings from `/settings`, `/data-storage`, and `/models`.
+bigRAG uses a UI-first configuration model. Operators provide only the wiring needed before the API can read Postgres, then admins manage product/runtime settings from `/settings` and `/models`.
 
 Auth is admin accounts + session cookies and minted `bigrag_sk_…` API keys — see [Authentication](/docs/api-reference/authentication).
 
@@ -63,7 +63,7 @@ Environment variables override TOML values. CLI flags passed to `python -m bigra
 
 ## Runtime settings
 
-After the first admin account exists, the admin UI sends first-run operators to `/onboarding` to create one verified embedding preset and save Turbopuffer settings for collection work. Later, go to `/settings` to manage platform runtime settings, `/data-storage` to manage uploaded source-file storage, and `/models` to manage model presets and model runtime settings. Turbopuffer is configured from the UI, is the search backend for every collection, and is stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
+After the first admin account exists, the admin UI sends first-run operators to `/onboarding` to create one verified embedding preset and save Turbopuffer settings for collection work. Later, go to `/settings` to manage platform runtime settings, uploaded source-file storage, and backups, and `/models` to manage model presets and model runtime settings. Turbopuffer is configured from the UI, is the search backend for every collection, and is stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
 
 The same surface is available through [`/v1/admin/settings`](/docs/api-reference/instance-settings).
 
@@ -71,14 +71,14 @@ The same surface is available through [`/v1/admin/settings`](/docs/api-reference
 |------|----------|
 | Security | Trusted proxies, provider URL allow-lists, embedding-cache mode, and private-network escape hatches. CORS origins and session-cookie policy are still supported, but you manage them from deployment config or the instance settings API instead of the Security tab. |
 | Data | Upload limits, OCR, ingestion workers, queue depth, webhook delivery limits, and retention windows. |
-| Data Storage (`/data-storage`) | Storage backend, S3-compatible bucket, endpoint, region, prefix, credentials, and path-style behavior. |
+| Storage (`/settings?tab=storage`) | Storage backend, S3-compatible bucket, endpoint, region, prefix, credentials, and path-style behavior. |
 | Models (`/models`) | Default embedding provider, model, dimension, key, base URL, cache TTLs, chat provider, chat model, temperature, history count, and context budget. |
 | Turbopuffer search | API key, region, namespace prefix, and optional compatible base URL for vector, keyword, and hybrid retrieval. |
-| Backups | S3-compatible readable backup bucket, endpoint, region, prefix, and credentials for S3, R2, or MinIO. |
+| Backups (`/settings?tab=backups`) | S3-compatible readable backup bucket, endpoint, region, prefix, credentials, export controls, and backup history. |
 
 `BIGRAG_CHAT_API_KEY` can seed a default instance chat credential for OpenAI's standard API endpoint. For non-default `chat_base_url` values, configure a saved chat key in the admin UI or pass `provider_api_key` on chat requests so the instance fallback key is never sent to a custom provider.
 
-The UI uses the same compact top tab control and shared dashboard body width as the other admin pages for Account, Health, Security, and Data, then opens directly into the selected Settings area without a repeated section heading. Each area is arranged sequentially from top to bottom. Each runtime panel shows common controls first, keeps raw setting keys, source metadata, and rarely changed limits in Advanced controls, keeps Save in the panel footer, and uses default or example placeholders for empty controls. Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, and `/settings?tab=data`; file storage lives at `/data-storage`.
+The UI uses the same compact top tab control and shared dashboard body width as the other admin pages for Account, Health, Security, Data, Storage, and Backups, then opens directly into the selected Settings area without a repeated section heading. Each area is arranged sequentially from top to bottom. Each runtime panel shows common controls first, keeps raw setting keys, source metadata, and rarely changed limits in Advanced controls, keeps Save in the panel footer, and uses default or example placeholders for empty controls. Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, `/settings?tab=data`, `/settings?tab=storage`, and `/settings?tab=backups`.
 
 Database-backed admin settings apply immediately on save. Storage, backup, and Turbopuffer connection changes validate the new target before saving, then swap the runtime client in place where applicable.
 

@@ -1,6 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { DataStoragePage } from "@/features/data-storage/data-storage-page";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_dashboard/data-storage")({
-  component: () => <DataStoragePage />,
+  component: () => <Navigate replace search={{ tab: "storage" }} to="/settings" />,
 });

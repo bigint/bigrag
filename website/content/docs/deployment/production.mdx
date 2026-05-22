@@ -24,7 +24,7 @@ Tick these off before pointing real traffic at a bigRAG deployment:
   a mounted volume.
 - [ ] Turbopuffer API key and region saved from the admin UI for managed vector and full-text search.
 - [ ] Postgres warm-standby replica for failover.
-- [ ] Backup strategy: configure readable S3/R2 backups from `/backups`,
+- [ ] Backup strategy: configure readable S3/R2 backups from `/settings?tab=backups`,
   protect that bucket as sensitive, and separately keep encrypted infrastructure
   snapshots for Postgres, Turbopuffer exports, Redis, and uploads.
 - [ ] Set `metadata_schema` on collections that accept untrusted
@@ -239,7 +239,7 @@ upload_dir = "./data/uploads"
 
 ## Readable backups
 
-The admin UI can create backup-only full-instance exports from `/backups`.
+The admin UI can create backup-only full-instance exports from `/settings?tab=backups`.
 The destination is S3-compatible, so AWS S3, Cloudflare R2, and MinIO all work.
 Use a bucket or prefix dedicated to backups rather than reusing the upload bucket.
 

@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Page } from "@/components/ui/page";
 import { Tabs } from "@/components/ui/tabs";
+import { BackupSettingsTab } from "@/features/backups/backups-page";
 import {
   DATA_SETTINGS_GROUPS,
   getSettingsTab,
@@ -70,6 +71,12 @@ const SettingsContent = ({ tab }: { tab: SettingsTab }) => {
   }
   if (tab === "data") {
     return <InstanceSettingsTab groups={DATA_SETTINGS_GROUPS} stacked />;
+  }
+  if (tab === "storage") {
+    return <InstanceSettingsTab group="storage" stacked />;
+  }
+  if (tab === "backups") {
+    return <BackupSettingsTab />;
   }
   return <AccountTab />;
 };
