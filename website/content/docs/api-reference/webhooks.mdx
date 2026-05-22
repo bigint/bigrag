@@ -16,7 +16,7 @@ POST /v1/admin/webhooks
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `url` | string | yes | Delivery URL. HTTPS is required unless `allow_local_webhooks` is enabled and the URL is loopback HTTP |
-| `events` | string[] | yes | Event types (only these three deliver via webhooks today): `document.processing`, `document.ready`, `document.failed` |
+| `events` | string[] | yes | Event types to subscribe to. Supported families are `document.*`, `collection.*`, `connector.sync.*`, and `backup.*` data-operation events |
 | `collections` | string[] | no | Filter by collection names (`null` = all) |
 | `description` | string | no | Human-readable description |
 
@@ -28,9 +28,11 @@ curl -X POST http://localhost:4000/v1/admin/webhooks \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com/webhook",
-    "events": ["document.ready", "document.failed"]
+    "events": ["document.ready", "document.failed", "connector.sync.failed"]
   }'
 ```
+
+Supported event types: `document.processing`, `document.ready`, `document.failed`, `document.deleted`, `collection.created`, `collection.updated`, `collection.deleted`, `collection.truncated`, `collection.reembed.queued`, `connector.sync.started`, `connector.sync.completed`, `connector.sync.failed`, `connector.sync.needs_reauth`, `backup.started`, `backup.succeeded`, `backup.failed`.
 
 ## List Webhooks
 
@@ -105,6 +107,8 @@ Re-sends the original stored delivery payload to the webhook URL and records the
 
 ## Webhook Payload
 
+The existing document processing events keep their original flat payload for compatibility:
+
 ```json
 {
   "event": "document.ready",
@@ -117,8 +121,32 @@ Re-sends the original stored delivery payload to the webhook URL and records the
 }
 ```
 
+New data-operation events use a common envelope:
+
+```json
+{
+  "event": "connector.sync.completed",
+  "timestamp": "2026-05-22T00:00:00Z",
+  "collection": "docs",
+  "data": {
+    "provider": "google_drive",
+    "source_id": "source-id",
+    "job_id": "job-id",
+    "status": "complete",
+    "counts": {
+      "found": 12,
+      "created": 2,
+      "updated": 1,
+      "skipped": 9,
+      "deleted": 0,
+      "failed": 0
+    }
+  }
+}
+```
+
 <Callout type="info">
-Webhooks deliver **document lifecycle events only**. Admin-plane events (`user.create`, `api_key.*`, `webhook.*`, `collection.*`) are recorded in the [audit log](/docs/api-reference/audit) and are not dispatched to webhooks.
+Admin-plane events (`user.create`, `api_key.*`, `webhook.*`, settings changes) remain in the [audit log](/docs/api-reference/audit). Per-query success webhooks are intentionally not emitted; use access logs and analytics for high-RPS query monitoring.
 </Callout>
 
 ## Headers

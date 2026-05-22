@@ -141,6 +141,7 @@ from bigrag.types.webhooks import (
     Webhook,
     WebhookDelivery,
     WebhookDeliveryListResponse,
+    WebhookEvent,
     WebhookListResponse,
     WebhookTestResponse,
 )
@@ -272,6 +273,7 @@ __all__ = [
     "WebhookListResponse",
     "WebhookDelivery",
     "WebhookDeliveryListResponse",
+    "WebhookEvent",
     "WebhookTestResponse",
     "PeriodStats",
     "TopQuery",

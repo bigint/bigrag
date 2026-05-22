@@ -5,7 +5,21 @@ export type WebhookFormValues = {
 };
 
 export const WEBHOOK_EVENT_CATEGORIES: Record<string, string[]> = {
-  Documents: ["document.processing", "document.ready", "document.failed"],
+  Documents: ["document.processing", "document.ready", "document.failed", "document.deleted"],
+  Collections: [
+    "collection.created",
+    "collection.updated",
+    "collection.deleted",
+    "collection.truncated",
+    "collection.reembed.queued",
+  ],
+  Connectors: [
+    "connector.sync.started",
+    "connector.sync.completed",
+    "connector.sync.failed",
+    "connector.sync.needs_reauth",
+  ],
+  Backups: ["backup.started", "backup.succeeded", "backup.failed"],
 };
 
 const DEFAULT_WEBHOOK_EVENTS = Object.values(WEBHOOK_EVENT_CATEGORIES).flat();

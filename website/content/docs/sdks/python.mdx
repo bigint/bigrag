@@ -249,9 +249,9 @@ result = await client.vectors.delete("docs", ["v1", "v2"])
 # Create
 webhook = await client.webhooks.create({
     "url": "https://example.com/webhook",
-    "events": ["document.ready", "document.failed"],
+    "events": ["document.ready", "document.failed", "connector.sync.failed"],
 })
-print(webhook["secret"])  # save this for verification
+print(webhook["secret"])
 
 # List, get, update, delete
 webhooks = await client.webhooks.list(limit=50, offset=0)
@@ -265,6 +265,8 @@ result = await client.webhooks.test("webhook-id")
 # Delivery history
 deliveries = await client.webhooks.list_deliveries("webhook-id", limit=10)
 ```
+
+Webhook events cover document, collection, connector sync, and backup data-operation changes. Examples: `document.ready`, `document.deleted`, `collection.truncated`, `connector.sync.failed`, and `backup.succeeded`.
 
 Webhook management calls `/v1/admin/webhooks` and requires session-cookie admin auth; API-key clients receive `403`.
 

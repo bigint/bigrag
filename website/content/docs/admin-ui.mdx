@@ -46,7 +46,7 @@ For cross-site production deployments, enable secure session cookies and usually
 | `/access-logs` | Filterable access-log explorer for query, vector, chat, and evaluation traffic, with latency sorting and detail panels. |
 | `/usage` | Usage and cost explorer for requests, indexed data, tokens, average latency, and timeline trends. |
 | `/audit` | Filterable immutable admin audit trail with actor, action, resource, result, IP, redacted metadata detail, and timestamp details. |
-| `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. The page warns when document-event deliveries are blocked by an offline worker. |
+| `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. The page warns when data-operation deliveries are blocked by an offline worker. |
 | `/connectors` | Browse the provider catalog, configure connector credentials, and review account state. |
 | `/settings` | Operator-console settings workspace for account, platform health, security, data flow, uploaded-file storage, vector storage, and backups. |
 | `/evals` | Run golden-set retrieval evaluations. |
@@ -104,6 +104,8 @@ Realtime pages only evaluate terminal-state predicates after the first snapshot 
 The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, and citations happen on the backend, but chat messages and conversations are not persisted anywhere. The saved chat provider key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
 
 Playground answers render safe CommonMark/GFM Markdown, including emphasis, lists, task lists, code, blockquotes, links, and tables. Raw HTML is not enabled, and source citations remain clickable inside rendered Markdown.
+
+Source cards keep long extracted snippets inside the chat column, including compact JSON, IDs, and other unbroken tokens from synthetic or machine-generated documents.
 
 The empty chat screen no longer shows generic default prompts. After a collection is selected, operators can generate five random starter questions using the saved chat provider key. The backend samples that collection's ready documents and chunks, saves the latest generated set for the collection, and returns that saved set after reloads.
 

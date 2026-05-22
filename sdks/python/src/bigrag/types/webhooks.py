@@ -1,12 +1,31 @@
 from __future__ import annotations
 
-from typing import Any, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
+
+WebhookEvent = Literal[
+    "document.processing",
+    "document.ready",
+    "document.failed",
+    "document.deleted",
+    "collection.created",
+    "collection.updated",
+    "collection.deleted",
+    "collection.truncated",
+    "collection.reembed.queued",
+    "connector.sync.started",
+    "connector.sync.completed",
+    "connector.sync.failed",
+    "connector.sync.needs_reauth",
+    "backup.started",
+    "backup.succeeded",
+    "backup.failed",
+]
 
 
 class Webhook(TypedDict):
     id: str
     url: str
-    events: list[str]
+    events: list[WebhookEvent]
     collections: list[str] | None
     description: str
     active: bool
@@ -17,7 +36,7 @@ class Webhook(TypedDict):
 
 class CreateWebhookBody(TypedDict):
     url: str
-    events: list[str]
+    events: list[WebhookEvent]
     collections: NotRequired[list[str]]
     description: NotRequired[str]
 
@@ -25,7 +44,7 @@ class CreateWebhookBody(TypedDict):
 class CreateWebhookResponse(TypedDict):
     id: str
     url: str
-    events: list[str]
+    events: list[WebhookEvent]
     collections: list[str] | None
     description: str
     active: bool
@@ -37,7 +56,7 @@ class CreateWebhookResponse(TypedDict):
 
 class UpdateWebhookBody(TypedDict, total=False):
     url: str
-    events: list[str]
+    events: list[WebhookEvent]
     collections: list[str] | None
     description: str
     active: bool

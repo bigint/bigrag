@@ -87,7 +87,7 @@ Dramatiq ingestion worker
   │ f. UPDATE documents status = 'ready' and publish progress snapshots
   ▼
 Webhook outbox actor
-  │ document.ready fan-out through pending delivery rows
+  │ data-operation fan-out through pending delivery rows
 ```
 
 Failure at any step marks the document `failed` with a typed error

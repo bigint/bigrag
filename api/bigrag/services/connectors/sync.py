@@ -31,7 +31,7 @@ from bigrag.services.connectors.manifest import (
     update_manifest,
     update_manifest_remote,
 )
-from bigrag.services.connectors.progress import update_sync_progress
+from bigrag.services.connectors.progress import sync_counter_details, update_sync_progress
 from bigrag.services.connectors.status import fail_sync
 from bigrag.services.connectors.time import next_sync_at, utcnow
 from bigrag.services.connectors.types import (
@@ -43,6 +43,7 @@ from bigrag.services.connectors.types import (
 from bigrag.services.documents import recount_collection_documents
 from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.retrieval import invalidate_collection_query_cache
+from bigrag.services.webhook import enqueue_webhook_event
 
 logger = get_logger("bigrag.connectors")
 
@@ -94,6 +95,18 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             counters=counters,
             phase="authenticating",
             message="Connecting to Google Drive",
+        )
+        await enqueue_webhook_event(
+            "connector.sync.started",
+            collection=source.collection_name,
+            data={
+                "provider": adapter.provider,
+                "source_id": str(source.id),
+                "job_id": str(job.id),
+                "trigger": job.trigger,
+                "collection": source.collection_name,
+                "status": job.status,
+            },
         )
 
         if account is None or config is None or not configured(config) or collection is None:
@@ -233,6 +246,26 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             )
             await collection_cache.invalidate(source.collection_name)
             await invalidate_collection_query_cache(source.collection_name)
+            webhook_event = (
+                "connector.sync.completed" if job.status == "complete" else "connector.sync.failed"
+            )
+            await enqueue_webhook_event(
+                webhook_event,
+                collection=source.collection_name,
+                data={
+                    "provider": adapter.provider,
+                    "source_id": str(source.id),
+                    "job_id": str(job.id),
+                    "trigger": job.trigger,
+                    "collection": source.collection_name,
+                    "status": job.status,
+                    "error_message": job.error_message,
+                    "counts": {
+                        "found": counters.found,
+                        **sync_counter_details(counters),
+                    },
+                },
+            )
             logger.info(
                 "connector: sync complete",
                 provider=adapter.provider,

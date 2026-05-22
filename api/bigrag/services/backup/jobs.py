@@ -14,9 +14,11 @@ import sqlalchemy as sa
 from bigrag.db.engine import session_factory
 from bigrag.db.models import AuditLog, BackupJob, ConnectorSyncJob
 from bigrag.logging import get_logger
+from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.maintenance import acquire_backup_lock, active_lock, release_backup_lock
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import all_runtime_values
+from bigrag.services.webhook import enqueue_webhook_event
 
 from .exporters import _export_tables, _export_uploads, _export_vector_store
 from .filesystem import _backup_prefix, _write_json, _write_schema
@@ -228,6 +230,7 @@ async def _wait_for_connector_sync_drain(job_id: uuid.UUID, max_wait_seconds: in
 async def _mark_job_running(job_id: uuid.UUID) -> None:
     await _update_job(job_id, status="running", progress=0.03, started_at=datetime.now(UTC))
     await _insert_audit(job_id, "backup.start", {})
+    await _enqueue_backup_event(job_id, "backup.started")
 
 
 async def _complete_job(
@@ -249,6 +252,7 @@ async def _complete_job(
         completed_at=datetime.now(UTC),
     )
     await _insert_audit(job_id, "backup.succeeded", {"destination_prefix": destination_prefix})
+    await _enqueue_backup_event(job_id, "backup.succeeded")
 
 
 async def _fail_job(job_id: uuid.UUID, message: str) -> None:
@@ -259,6 +263,7 @@ async def _fail_job(job_id: uuid.UUID, message: str) -> None:
         completed_at=datetime.now(UTC),
     )
     await _insert_audit(job_id, "backup.failed", {"error": message})
+    await _enqueue_backup_event(job_id, "backup.failed")
 
 
 async def _update_job(job_id: uuid.UUID, **values: Any) -> None:
@@ -285,3 +290,26 @@ async def _insert_audit(job_id: uuid.UUID, action: str, metadata: dict[str, Any]
             )
         )
         await session.commit()
+
+
+async def _enqueue_backup_event(job_id: uuid.UUID, event: str) -> None:
+    data = await _backup_event_data(job_id)
+    await enqueue_webhook_event(event, data=data)
+
+
+async def _backup_event_data(job_id: uuid.UUID) -> dict[str, Any]:
+    async with session_factory()() as session:
+        job = await session.get(BackupJob, job_id)
+    if job is None:
+        return {"job_id": str(job_id)}
+    error_message = sanitize_message_text(job.error_message or "") if job.error_message else None
+    return {
+        "job_id": str(job.id),
+        "label": job.label,
+        "status": job.status,
+        "progress": job.progress,
+        "destination_prefix": job.destination_prefix,
+        "object_count": job.object_count,
+        "byte_count": job.byte_count,
+        "error_message": error_message,
+    }

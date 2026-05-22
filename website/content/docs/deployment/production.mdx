@@ -31,7 +31,8 @@ Tick these off before pointing real traffic at a bigRAG deployment:
   metadata so uploads with invalid shape are rejected at the edge.
 - [ ] Wire `GET /v1/admin/audit` into your SIEM / log pipeline.
 - [ ] Configure webhooks to your monitoring stack for
-  `document.failed` events so ingestion errors don't sit silently.
+  `document.failed`, `connector.sync.failed`, and `backup.failed` events so
+  data-operation errors don't sit silently.
 
 ## Startup safety guard
 
