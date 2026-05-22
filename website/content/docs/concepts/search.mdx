@@ -10,7 +10,7 @@ bigRAG exposes three search modes on Turbopuffer and an optional rerank pass. Ke
 | Mode | Description |
 |------|-------------|
 | `semantic` | Default. Cosine similarity against vectors stored in Turbopuffer. |
-| `keyword` | Turbopuffer BM25 full-text matching over stored chunk text. No embedding involved. |
+| `keyword` | Turbopuffer BM25 full-text matching over stored chunk text. No embedding involved. Quoted identifiers and trailing punctuation are normalized into searchable lexical tokens. |
 | `hybrid` | Runs Turbopuffer ANN and BM25 queries in parallel, then merges with reciprocal rank fusion. |
 
 ### Semantic

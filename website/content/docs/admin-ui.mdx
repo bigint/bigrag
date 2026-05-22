@@ -109,7 +109,7 @@ The empty chat screen no longer shows generic default prompts. After a collectio
 
 ### Citations
 
-Retrieved chunks carry citation provenance — `document_id`, `document_filename`, `chunk_index`, and Docling-derived `page_no` / `char_start` / `char_end` (see [`ChatSource`](/docs/api-reference/chat)). The backend hands every chunk to the LLM as `[N] (filename, page X) <text>` and instructs the model to cite with bracketed numbers. In the rendered answer, `[N]` and grouped `[N,M]` citations are clickable, expand the answer's **Sources** section, and scroll to matching source cards; source cards deep-link to the document chunk when the document is available.
+Retrieved chunks carry citation provenance — `document_id`, `document_filename`, `chunk_index`, and Docling-derived `page_no` / `char_start` / `char_end` (see [`ChatSource`](/docs/api-reference/chat)). The backend hands source IDs, filenames, chunk labels, document metadata, and chunk text to the LLM and instructs the model to cite with bracketed numbers. If a question names an exact document UUID, the backend can add that document's metadata as a source even when the matching chunk text was not retrieved. In the rendered answer, `[N]` and grouped `[N,M]` citations are clickable, expand the answer's **Sources** section, and scroll to matching source cards; source cards deep-link to the document chunk when the document is available.
 
 <Callout type="info">
 The admin UI uses session cookies exclusively. To automate anything the admin UI does, mint an API key at `/api-keys` and use it with one of the [SDKs](/docs/sdks/typescript) — or with raw HTTP using the same REST endpoints.

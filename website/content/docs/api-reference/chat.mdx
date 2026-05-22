@@ -5,7 +5,7 @@ description: Stateless playground chat API with retrieval, generated answers, an
 
 Base path: `/v1/chat`
 
-The chat API retrieves chunks from a collection, builds the grounded prompt on the backend, calls the configured chat provider, and returns cited answers for the current turn. It does not store chat messages or conversations. It supports session auth and API-key auth. Scoped API keys can use chat when granted `chat:write`; collection-pinned keys can only chat against their pinned collection.
+The chat API retrieves chunks from a collection, builds the grounded prompt on the backend, calls the configured chat provider, and returns cited answers for the current turn. Source context includes document IDs, filenames, chunk labels, document metadata, and chunk text so the model can answer metadata questions as well as content questions. It does not store chat messages or conversations. It supports session auth and API-key auth. Scoped API keys can use chat when granted `chat:write`; collection-pinned keys can only chat against their pinned collection.
 
 Supported providers are `openai` and `openai_compatible`. Save the provider key in the admin UI at `chat.openai_key`. API clients can also pass `provider_api_key` per request when they do not want to use the user's saved key.
 
@@ -71,6 +71,8 @@ Request body:
 Non-streaming responses include the current user message, current assistant message, sources, and timings.
 
 Set `multimodal: true` to include retrieved image content for vision-capable models when the collection has `multimodal_enabled`. If no image payload can be sent, chat falls back to stored element text, captions, or generated summaries. Source objects include `multimodal_elements` with the same element refs returned by query.
+
+When `search_mode` is `semantic` and the message contains identifier-like tokens such as UUIDs, chat uses hybrid retrieval for that turn so exact IDs and error codes are matched lexically. The response retrieval payload includes both `requested_search_mode` and the effective `search_mode`. If the message names a document UUID in the selected collection, the source list can include a metadata-only source for that document.
 
 ## Stream Chat Turn
 

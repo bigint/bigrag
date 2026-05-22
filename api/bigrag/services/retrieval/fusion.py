@@ -3,10 +3,15 @@ from __future__ import annotations
 import re
 
 KeywordPattern = re.Pattern[str]
+_QUERY_TOKEN_RE = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_.:-]*")
 
 
 def tokenize_query(query: str) -> list[str]:
-    return [w.lower() for w in re.split(r"\s+", query.strip()) if len(w) >= 2]
+    return [
+        match.group(0).lower()
+        for match in _QUERY_TOKEN_RE.finditer(query)
+        if len(match.group(0)) >= 2
+    ]
 
 
 def keyword_patterns(query_terms: list[str]) -> list[KeywordPattern]:

@@ -1,31 +1,32 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
-from typing import Any
 
-import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import Document, DocumentElement
 from bigrag.exceptions import ValidationError
 from bigrag.ids import uuid7
-from bigrag.models.chat import ChatCreateRequest, ChatSource, ChatTimings
-from bigrag.services.chat.formatting import _as_uuid, _chat_message_response, _int_or_none
+from bigrag.models.chat import ChatCreateRequest, ChatTimings
+from bigrag.services.chat.formatting import _chat_message_response
+from bigrag.services.chat.turn.context import _model_messages
 from bigrag.services.chat.turn.credentials import (
     _resolve_api_credentials,
     _resolve_base_url,
     _resolve_provider,
     assert_credentials_allowed_for_base_url,
 )
+from bigrag.services.chat.turn.sources import _sources_for_chat
 from bigrag.services.chat.types import PreparedChatTurn
 from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
 from bigrag.services.collection_config import get_embedding_model_for, get_reranking_config
 from bigrag.services.collection_scope import assert_collection_matches_pin
-from bigrag.services.document_elements import element_ref
-from bigrag.services.multimodal_assets import image_content_parts_for_refs
 from bigrag.services.retrieval import retrieve
+from bigrag.services.retrieval.fusion import tokenize_query
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.tenant_enforcement import require_tenant_filters
+
+_IDENTIFIER_TOKEN_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{11,}$", re.IGNORECASE)
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are bigRAG's grounded chat assistant. Answer using only the retrieved context. "
@@ -61,7 +62,8 @@ async def _prepare_chat_turn(
     system_prompt = body.system_prompt or DEFAULT_SYSTEM_PROMPT
     multimodal = bool(body.multimodal and collection.get("multimodal_enabled"))
     top_k = max(1, min(int(body.top_k or collection.get("default_top_k") or 5), 100))
-    search_mode = body.search_mode or collection.get("default_search_mode", "semantic")
+    requested_search_mode = body.search_mode or collection.get("default_search_mode", "semantic")
+    search_mode = _effective_search_mode(requested_search_mode, body.message)
     min_score = (
         body.min_score if body.min_score is not None else collection.get("default_min_score")
     )
@@ -91,7 +93,13 @@ async def _prepare_chat_turn(
         reranking_config=get_reranking_config(collection),
         rerank_override=rerank,
     )
-    sources = await _sources_from_results(session, outcome.results)
+    sources = await _sources_for_chat(
+        session,
+        collection=collection,
+        message=body.message,
+        filters=body.filters,
+        results=outcome.results,
+    )
     timings = ChatTimings(
         embed_ms=outcome.embed_ms,
         search_ms=outcome.search_ms,
@@ -105,6 +113,7 @@ async def _prepare_chat_turn(
         "query": body.message,
         "top_k": top_k,
         "search_mode": search_mode,
+        "requested_search_mode": requested_search_mode,
         "min_score": min_score,
         "rerank": rerank,
         "multimodal": multimodal,
@@ -144,161 +153,13 @@ async def _prepare_chat_turn(
     )
 
 
-async def _sources_from_results(session: AsyncSession, results: list[dict]) -> list[ChatSource]:
-    document_ids = {_as_uuid(row.get("document_id")) for row in results if row.get("document_id")}
-    document_ids.discard(None)
-    filenames: dict[str, str] = {}
-    if document_ids:
-        rows = await session.execute(
-            sa.select(Document.id, Document.filename).where(Document.id.in_(document_ids))
-        )
-        filenames = {str(doc_id): filename for doc_id, filename in rows}
-
-    hydrated_refs = await _hydrated_element_refs(session, results)
-    sources: list[ChatSource] = []
-    for row in results:
-        cleaned = {key: value for key, value in row.items() if key != "embedding"}
-        metadata = cleaned.get("metadata") if isinstance(cleaned.get("metadata"), dict) else {}
-        multimodal_elements = hydrated_refs.get(str(cleaned.get("id"))) or metadata.get(
-            "multimodal_elements"
-        )
-        document_id = str(cleaned["document_id"]) if cleaned.get("document_id") else None
-        sources.append(
-            ChatSource(
-                id=str(cleaned.get("id") or len(sources) + 1),
-                text=str(cleaned.get("text") or ""),
-                score=float(cleaned.get("score") or 0.0),
-                document_id=document_id,
-                document_filename=filenames.get(document_id or ""),
-                chunk_index=_int_or_none(cleaned.get("chunk_index")),
-                page_no=_int_or_none(cleaned.get("page_no", metadata.get("page_no"))),
-                char_start=_int_or_none(cleaned.get("char_start", metadata.get("char_start"))),
-                char_end=_int_or_none(cleaned.get("char_end", metadata.get("char_end"))),
-                multimodal_elements=multimodal_elements
-                if isinstance(multimodal_elements, list)
-                else [],
-                metadata=metadata,
-            )
-        )
-    return sources
+def _effective_search_mode(search_mode: str, message: str) -> str:
+    if search_mode != "semantic":
+        return search_mode
+    if any(_is_identifier_token(token) for token in tokenize_query(message)):
+        return "hybrid"
+    return search_mode
 
 
-async def _hydrated_element_refs(
-    session: AsyncSession,
-    results: list[dict],
-) -> dict[str, list[dict[str, Any]]]:
-    pairs = []
-    by_result: dict[str, list[tuple[str, int]]] = {}
-    for row in results:
-        result_id = str(row.get("id") or "")
-        metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
-        refs = metadata.get("multimodal_elements")
-        if not isinstance(refs, list):
-            continue
-        for ref in refs:
-            if not isinstance(ref, dict):
-                continue
-            raw_document_id = ref.get("document_id") or row.get("document_id")
-            raw_index = ref.get("element_index")
-            if raw_document_id is None or raw_index is None:
-                continue
-            doc_uuid = _as_uuid(raw_document_id)
-            try:
-                element_index = int(raw_index)
-            except (TypeError, ValueError):
-                continue
-            if doc_uuid is None:
-                continue
-            key = (str(doc_uuid), element_index)
-            pairs.append(key)
-            by_result.setdefault(result_id, []).append(key)
-    if not pairs:
-        return {}
-    rows = (
-        await session.scalars(
-            sa.select(DocumentElement).where(
-                sa.tuple_(DocumentElement.document_id, DocumentElement.element_index).in_(
-                    {(_as_uuid(doc_id), index) for doc_id, index in pairs}
-                )
-            )
-        )
-    ).all()
-    hydrated = {
-        (str(row.document_id), row.element_index): element_ref(
-            row, document_id=str(row.document_id)
-        )
-        for row in rows
-    }
-    return {
-        result_id: [hydrated[key] for key in keys if key in hydrated]
-        for result_id, keys in by_result.items()
-    }
-
-
-async def _model_messages(
-    *,
-    system_prompt: str,
-    collection: str,
-    sources: list[ChatSource],
-    user_message: str,
-    max_context_chars: int,
-    multimodal: bool,
-) -> list[dict[str, Any]]:
-    context = _context_block(sources, max_context_chars, include_elements=multimodal)
-    combined_system = (
-        f'{system_prompt}\n\nRetrieved context from collection "{collection}":\n\n{context}'
-    )
-    user_content: str | list[dict[str, Any]] = user_message
-    if multimodal:
-        refs = [
-            ref.model_dump(mode="json") for source in sources for ref in source.multimodal_elements
-        ]
-        image_parts = await image_content_parts_for_refs(refs)
-        if image_parts:
-            user_content = [{"type": "text", "text": user_message}, *image_parts]
-    messages: list[dict[str, Any]] = [
-        {"role": "system", "content": combined_system},
-        {"role": "user", "content": user_content},
-    ]
-    return messages
-
-
-def _context_block(
-    sources: list[ChatSource],
-    max_context_chars: int,
-    *,
-    include_elements: bool,
-) -> str:
-    if not sources:
-        return "(no matching chunks were found)"
-    remaining = max(100, min(max_context_chars, 200_000))
-    parts: list[str] = []
-    for idx, source in enumerate(sources, start=1):
-        label_parts = []
-        if source.document_filename:
-            label_parts.append(source.document_filename)
-        if source.page_no is not None:
-            label_parts.append(f"page {source.page_no}")
-        label = f" ({', '.join(label_parts)})" if label_parts else ""
-        prefix = f"[{idx}]{label} "
-        budget = remaining - len(prefix) - 16
-        if budget <= 0:
-            break
-        text = source.text[:budget]
-        element_text = _source_element_context(source) if include_elements else ""
-        parts.append(f"{prefix}{text}{element_text}")
-        remaining -= len(prefix) + len(text) + len(element_text)
-    return "\n\n---\n\n".join(parts)
-
-
-def _source_element_context(source: ChatSource) -> str:
-    if not source.multimodal_elements:
-        return ""
-    lines = []
-    for element in source.multimodal_elements[:5]:
-        detail = element.summary or element.caption or element.text
-        if detail:
-            lines.append(f"- {element.kind}: {detail[:600]}")
-        else:
-            lines.append(f"- {element.kind}")
-    return "\n\nRetrieved elements:\n" + "\n".join(lines)
+def _is_identifier_token(token: str) -> bool:
+    return bool(_IDENTIFIER_TOKEN_RE.match(token)) and any(char.isdigit() for char in token)
