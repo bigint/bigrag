@@ -2,6 +2,7 @@ import { RootProvider } from "fumadocs-ui/provider/next";
 import { GeistMono } from "geist/font/mono";
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
+import Script from "next/script";
 import type { ReactNode } from "react";
 import "./global.css";
 
@@ -24,6 +25,11 @@ const Layout = ({ children }: { children: ReactNode }) => (
   <html className={`${outfit.variable} ${GeistMono.variable}`} lang="en">
     <body className="flex min-h-screen flex-col font-sans">
       <RootProvider theme={{ enabled: false }}>{children}</RootProvider>
+      <Script
+        data-cf-beacon='{"token": "233368b558774f258455c43b21e99404"}'
+        defer
+        src="https://static.cloudflareinsights.com/beacon.min.js"
+      />
     </body>
   </html>
 );
