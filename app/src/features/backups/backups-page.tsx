@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
-import { Page } from "@/components/ui/page";
 import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 import {
   getWorkerAvailability,
@@ -113,17 +112,6 @@ export const BackupSettingsTab = () => {
     </div>
   );
 };
-
-export const BackupsPage = () => (
-  <Page.Shell>
-    <Page.Header
-      className="mb-0"
-      description="Configure the readable backup destination and export full-instance snapshots to S3-compatible storage."
-      title="Backups"
-    />
-    <BackupSettingsTab />
-  </Page.Shell>
-);
 
 const EmptyBackups = () => (
   <Empty
