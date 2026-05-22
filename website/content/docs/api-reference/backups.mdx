@@ -3,19 +3,26 @@ title: Backups
 description: Admin endpoints for readable S3-compatible full-instance backups.
 ---
 
-Readable backups export Postgres rows, vector-store points, and uploaded source files to an S3-compatible bucket. Vector-store points are written to JSONL as each provider page arrives, so backup memory usage does not grow with the full vector collection size. They are backup-only; bigRAG does not expose restore endpoints.
-
-Backups are plain JSON, JSONL, SQL, and raw files. They are not client-side encrypted, so the destination bucket must be treated as sensitive. Secret-bearing database columns and embedding-cache vectors are redacted during export.
+import { Callout } from "fumadocs-ui/components/callout";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
 Base path: `/v1/admin/backups`
 
-## List backups
+Readable backups export Postgres rows, vector-store points, and uploaded source files to an S3-compatible bucket. Vector-store points are written to JSONL as each provider page arrives, so backup memory usage does not grow with the full vector collection size. bigRAG does not expose restore endpoints.
+
+<Callout type="warn">
+  Backups are plain JSON, JSONL, SQL, and raw files — not client-side encrypted. Treat the destination bucket as sensitive. Secret-bearing database columns and embedding-cache vectors are redacted during export.
+</Callout>
+
+<Accordions type="multiple">
+
+<Accordion title="GET /v1/admin/backups — List backups">
 
 ```http
 GET /v1/admin/backups
 ```
 
-Query parameters:
+**Query parameters:**
 
 | Name | Type | Default | Notes |
 |------|------|---------|-------|
@@ -24,7 +31,7 @@ Query parameters:
 | `cursor` | string | — | Cursor returned as `next_cursor` |
 | `include_total` | boolean | `false` | Include the total backup count |
 
-Response:
+**Response:**
 
 ```json
 {
@@ -51,7 +58,9 @@ Response:
 }
 ```
 
-## Get backup
+</Accordion>
+
+<Accordion title="GET /v1/admin/backups/{backup_id} — Get backup">
 
 ```http
 GET /v1/admin/backups/{backup_id}
@@ -59,7 +68,9 @@ GET /v1/admin/backups/{backup_id}
 
 Returns one backup job or `404` if it does not exist.
 
-## Start backup
+</Accordion>
+
+<Accordion title="POST /v1/admin/backups — Start backup">
 
 ```http
 POST /v1/admin/backups
@@ -70,23 +81,34 @@ Content-Type: application/json
 
 Creates a backup job and enqueues it on the Dramatiq backup worker. Only one backup can be pending or running at a time.
 
-While the job runs, bigRAG acquires a maintenance lock. Mutating API requests are rejected with `423`, new ingestion jobs are rejected, Dramatiq ingestion and connector actors delay themselves, and scheduled Google Drive syncs do not start.
+While the job runs, bigRAG acquires a maintenance lock:
+
+- Mutating API requests are rejected with `423`
+- New ingestion jobs are rejected
+- Dramatiq ingestion and connector actors delay themselves
+- Scheduled Google Drive syncs do not start
 
 The backup fails if:
 
-- The backup bucket settings are incomplete or invalid.
-- Turbopuffer cannot be reached.
-- A stored upload file referenced by a document row is missing.
+- The backup bucket settings are incomplete or invalid
+- Turbopuffer cannot be reached
+- A stored upload file referenced by a document row is missing
 
-Starting a backup returns `409` when another backup or maintenance lock is active.
+Returns `409` when another backup or maintenance lock is active.
 
-## Realtime stream
+</Accordion>
+
+<Accordion title="GET /v1/admin/realtime/backups — Realtime stream">
 
 ```http
 GET /v1/admin/realtime/backups
 ```
 
-Session-cookie SSE stream used by the admin UI. Each `snapshot` payload has the same shape as `GET /v1/admin/backups`.
+Session-cookie SSE stream used by the admin UI. Each `snapshot` payload has the same shape as `GET /v1/admin/backups`. Refreshes quickly while jobs are pending or running.
+
+</Accordion>
+
+</Accordions>
 
 ## Object layout
 

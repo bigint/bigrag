@@ -60,11 +60,13 @@ curl -X POST http://localhost:4000/v1/collections \
 | `multimodal_enrichment_enabled` | boolean | no | `false` | Queue VLM summaries for image, table, and equation elements; requires `multimodal_enabled` |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
 
-Collection creation validates the saved Turbopuffer connection and any existing namespace schema for the collection name. The namespace is created on the first document or vector write, and chunk text is stored with full-text search enabled so semantic, keyword, and hybrid retrieval use the same backend. If the namespace already uses a different vector dimension, create a new collection name, delete or truncate the collection, or use a different Turbopuffer namespace prefix before switching embedding dimensions.
+Collection creation validates the saved Turbopuffer connection and any existing namespace schema for the collection name. The namespace is created on the first document or vector write, and chunk text is stored with full-text search enabled so semantic, keyword, and hybrid retrieval use the same backend.
+
+<Callout type="warn">
+If the namespace already uses a different vector dimension, create a new collection name, delete or truncate the collection, or use a different Turbopuffer namespace prefix before switching embedding dimensions.
+</Callout>
 
 ## Collection Stats
-
-Get a lightweight summary of a collection's document and chunk counts without fetching platform-wide stats:
 
 ```bash
 curl http://localhost:4000/v1/collections/research_papers/stats \
@@ -117,13 +119,11 @@ You can override reranking per query by passing `"rerank": true` or `"rerank": f
 
 ## Multimodal Elements
 
-Set `multimodal_enabled: true` on a collection to preserve document structure alongside chunk vectors. Ingestion stores first-class element records for headings, tables, equations, images, page numbers, bounding boxes, captions, nearby context, and asset references where available. Query and chat responses remain backward compatible; multimodal provenance appears in `multimodal_elements` when a retrieved chunk overlaps stored elements.
+Set `multimodal_enabled: true` to preserve document structure alongside chunk vectors. Ingestion stores first-class element records for headings, tables, equations, images, page numbers, bounding boxes, captions, nearby context, and asset references where available. Query and chat responses remain backward compatible; multimodal provenance appears in `multimodal_elements` when a retrieved chunk overlaps stored elements.
 
 Set `multimodal_enrichment_enabled: true` to queue asynchronous VLM summaries for image, table, and equation elements using the configured OpenAI-compatible chat provider. Core document readiness is still based on parse/chunk/embed completion; enrichment can finish later or fail independently.
 
 ## Updating a Collection
-
-You can update a collection's description, metadata, reranking settings, and default query settings:
 
 ```bash
 curl -X PUT http://localhost:4000/v1/collections/research_papers \
@@ -156,7 +156,7 @@ curl -X PUT http://localhost:4000/v1/collections/research_papers \
 All fields are optional — only provided fields are updated.
 
 <Callout type="warn">
-  Embedding configuration (provider, model, dimension) and chunk settings cannot be changed after creation.
+Embedding configuration (provider, model, dimension) and chunk settings cannot be changed after creation.
 </Callout>
 
 ## Deleting a Collection

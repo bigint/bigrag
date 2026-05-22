@@ -3,13 +3,18 @@ title: Embedding Presets
 description: Reusable embedding provider + model configurations.
 ---
 
-Base path: `/v1/admin/embedding-presets`
+import { Callout } from "fumadocs-ui/components/callout";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
-Presets let you save an embedding provider, model, dimension, base URL, and API key once and reference them when creating collections. Collections linked with `embedding_preset_id` read the preset live, so preset updates affect those collections and invalidate their cached config.
+Base path: `/v1/admin/embedding-presets` — Session-only.
 
-Session-only. The `api_key` column is Fernet-encrypted at rest with `BIGRAG_MASTER_KEY` — see [Encryption at rest](/docs/deployment/encryption).
+Presets save an embedding provider, model, dimension, base URL, and API key once, then let you reference them when creating collections. Collections linked with `embedding_preset_id` read the preset live — preset updates affect those collections and invalidate their cached config.
 
-## List Presets
+The `api_key` column is Fernet-encrypted at rest with `BIGRAG_MASTER_KEY` — see [Encryption at rest](/docs/deployment/encryption).
+
+<Accordions type="multiple">
+
+<Accordion title="GET /v1/admin/embedding-presets — List presets">
 
 ```
 GET /v1/admin/embedding-presets?limit=100&offset=0
@@ -38,7 +43,9 @@ GET /v1/admin/embedding-presets?limit=100&offset=0
 
 The raw `api_key` is never returned; only `has_api_key` is surfaced.
 
-## Create Preset
+</Accordion>
+
+<Accordion title="POST /v1/admin/embedding-presets — Create preset">
 
 ```
 POST /v1/admin/embedding-presets
@@ -65,15 +72,21 @@ POST /v1/admin/embedding-presets
 
 **Response** `201`: preset without `api_key`.
 
-## Update Preset
+</Accordion>
+
+<Accordion title="PATCH /v1/admin/embedding-presets/{preset_id} — Update preset">
 
 ```
 PATCH /v1/admin/embedding-presets/{preset_id}
 ```
 
-Partial — any combination of `name`, `provider`, `model`, `base_url`, `dimension`, `api_key`. Updating credentials propagates immediately to every collection linked via `embedding_preset_id`; their cached config is invalidated as part of the request.
+Partial update — any combination of `name`, `provider`, `model`, `base_url`, `dimension`, `api_key`. Updating credentials propagates immediately to every collection linked via `embedding_preset_id`; their cached config is invalidated as part of the request.
 
-## Test Preset Credentials
+</Accordion>
+
+<Accordion title="POST /v1/admin/embedding-presets/test — Test preset credentials">
+
+Two forms:
 
 ```
 POST /v1/admin/embedding-presets/test
@@ -93,10 +106,16 @@ The first form tests plaintext form values before create/update:
 
 The saved-preset form tests the encrypted key already stored for an existing preset. Both return `{"status":"ok","message":"Embedding provider connection succeeded"}` on success.
 
-## Delete Preset
+</Accordion>
+
+<Accordion title="DELETE /v1/admin/embedding-presets/{preset_id} — Delete preset">
 
 ```
 DELETE /v1/admin/embedding-presets/{preset_id}
 ```
 
 Removes the preset. Returns `409` when any collection still references it via `embedding_preset_id` — switch those collections to a per-collection key (or another preset) first.
+
+</Accordion>
+
+</Accordions>

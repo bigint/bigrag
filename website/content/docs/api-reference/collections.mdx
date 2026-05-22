@@ -3,17 +3,16 @@ title: Collections
 description: API endpoints for managing collections.
 ---
 
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
+
 Base path: `/v1/collections`
 
-All endpoints require [authentication](/docs/api-reference/authentication) — a session cookie or an API key with `collection:read` (for reads) or `collection:write` (for create / update / delete).
+All endpoints require [authentication](/docs/api-reference/authentication) — a session cookie or an API key with `collection:read` (reads) or `collection:write` (create / update / delete).
 
-## List Collections
+## CRUD
 
-```
-GET /v1/collections
-```
-
-**Query parameters:**
+<Accordions type="multiple">
+<Accordion title="GET /v1/collections — List collections">
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -58,11 +57,9 @@ GET /v1/collections
 }
 ```
 
-## Create Collection
+</Accordion>
 
-```
-POST /v1/collections
-```
+<Accordion title="POST /v1/collections — Create collection">
 
 **Request body:**
 
@@ -98,8 +95,8 @@ POST /v1/collections
 | `description` | string | no | `""` | — |
 | `embedding_provider` | string | no | Server default | `openai`, `cohere`, `voyage`, `openai_compatible` |
 | `embedding_model` | string | no | Server default | Model name |
-| `embedding_preset_id` | string | no | — | Link the collection to a saved embedding preset. The collection inherits the preset's provider, model, dimension, base URL, and key live |
-| `embedding_api_key` | string | no | — | Required when `embedding_preset_id` is not provided; validated against the provider before the collection is created. Use any non-empty value for local OpenAI-compatible gateways without auth. Ignored when a preset is supplied — the collection inherits the preset's key live |
+| `embedding_preset_id` | string | no | — | Link to a saved embedding preset; inherits provider, model, dimension, base URL, and key live |
+| `embedding_api_key` | string | no | — | Required when `embedding_preset_id` is not provided; validated against the provider before the collection is created. Use any non-empty value for local OpenAI-compatible gateways without auth. Ignored when a preset is supplied |
 | `embedding_base_url` | string | no | — | Required for `openai_compatible` (Ollama, vLLM, TEI, LiteLLM, Azure, Bedrock) |
 | `dimension` | integer | no | Provider default | Must match the model |
 | `chunk_size` | integer | no | `512` | 64–10,000 |
@@ -125,40 +122,15 @@ POST /v1/collections
 - `409` — Collection name already exists, or the Turbopuffer namespace already exists with a different vector dimension
 - `502` — Vector store rejected collection provisioning
 
-## Get Collection
+</Accordion>
 
-```
-GET /v1/collections/{name}
-```
+<Accordion title="GET /v1/collections/{name} — Get collection">
 
 **Response** `200`: Full collection object. **Errors:** `404`.
 
-## Get Collection Stats
+</Accordion>
 
-```
-GET /v1/collections/{name}/stats
-```
-
-Lightweight endpoint returning document and chunk counts.
-
-**Response** `200`:
-
-```json
-{
-  "collection": "research_papers",
-  "document_count": 15,
-  "total_chunks": 482,
-  "total_tokens": 125000,
-  "total_size_bytes": 52428800,
-  "status_counts": { "ready": 12, "pending": 2, "processing": 1, "failed": 0 }
-}
-```
-
-## Update Collection
-
-```
-PUT /v1/collections/{name}
-```
+<Accordion title="PUT /v1/collections/{name} — Update collection">
 
 Only the fields below are mutable. Embedding provider / model / dimension, chunk size / overlap, and `tenant_field` are fixed at creation.
 
@@ -180,11 +152,9 @@ Only the fields below are mutable. Embedding provider / model / dimension, chunk
 
 **Response** `200`: Updated collection object. **Errors:** `404`, `422` (when `embedding_api_key` is empty or rejected by the provider).
 
-## Delete Collection
+</Accordion>
 
-```
-DELETE /v1/collections/{name}
-```
+<Accordion title="DELETE /v1/collections/{name} — Delete collection">
 
 Deletes the collection, every document, every vector, and every stored file.
 
@@ -196,11 +166,32 @@ Deletes the collection, every document, every vector, and every stored file.
 
 **Errors:** `404`.
 
-## Truncate Collection
+</Accordion>
+</Accordions>
 
+## Stats & operations
+
+<Accordions type="multiple">
+<Accordion title="GET /v1/collections/{name}/stats — Collection stats">
+
+Lightweight endpoint returning document and chunk counts.
+
+**Response** `200`:
+
+```json
+{
+  "collection": "research_papers",
+  "document_count": 15,
+  "total_chunks": 482,
+  "total_tokens": 125000,
+  "total_size_bytes": 52428800,
+  "status_counts": { "ready": 12, "pending": 2, "processing": 1, "failed": 0 }
+}
 ```
-POST /v1/collections/{name}/truncate
-```
+
+</Accordion>
+
+<Accordion title="POST /v1/collections/{name}/truncate — Truncate collection">
 
 Deletes every document, vector, and file in the collection but keeps the collection configuration.
 
@@ -212,11 +203,9 @@ Deletes every document, vector, and file in the collection but keeps the collect
 
 **Errors:** `404`.
 
-## Re-embed Collection
+</Accordion>
 
-```
-POST /v1/collections/{name}/reembed
-```
+<Accordion title="POST /v1/collections/{name}/reembed — Re-embed collection">
 
 Re-queues every `ready` or `failed` document for conversion, chunking, and embedding using the collection's current immutable embedding configuration. Vectors already cached by `content_hash + model_key` are reused automatically.
 
@@ -228,15 +217,17 @@ Re-queues every `ready` or `failed` document for conversion, chunking, and embed
 
 **Errors:** `404`.
 
-## Stream Collection Events (SSE)
+</Accordion>
+</Accordions>
 
-```
-GET /v1/collections/{name}/events
-```
+## Streams
 
-Server-Sent Events stream for **every** document event in the collection — useful for admin UI integrations, dashboards, and multi-document status panels.
+<Accordions type="multiple">
+<Accordion title="GET /v1/collections/{name}/events — Stream collection events (SSE)">
 
-SSE clients that can't set headers should first mint a short-lived event token and then pass it as `?token=...`.
+Server-Sent Events stream for every document event in the collection — useful for admin UI integrations, dashboards, and multi-document status panels.
+
+SSE clients that can't set headers should first mint a short-lived event token and then pass it as `?token=...`:
 
 ```http
 POST /v1/collections/{name}/events/token
@@ -264,3 +255,6 @@ Only short-lived event tokens are accepted in the query string. Long-lived API k
 ```
 
 `step` values: `received`, `converted`, `embedded`, `indexed`, `completed`, `failed`.
+
+</Accordion>
+</Accordions>

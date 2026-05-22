@@ -3,6 +3,8 @@ title: Evaluation
 description: Measure retrieval quality against a labelled query set.
 ---
 
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
+
 ```
 POST /v1/evaluation
 ```
@@ -11,7 +13,13 @@ Runs a batch of queries against a collection and scores the retrieved chunks aga
 
 Accepts a session cookie or an API key with `query:read`.
 
-## Request
+The admin UI exposes the same runner under **Settings → Evaluation**.
+
+<Accordions type="multiple">
+
+<Accordion title="POST /v1/evaluation — Run evaluation">
+
+**Request:**
 
 ```json
 {
@@ -48,7 +56,7 @@ Accepts a session cookie or an API key with `query:read`.
 
 The collection's saved reranking config is applied automatically — there is no `rerank` flag.
 
-## Response
+**Response:**
 
 ```json
 {
@@ -70,8 +78,12 @@ The collection's saved reranking config is applied automatically — there is no
 }
 ```
 
+**Metrics:**
+
 - **Recall@k** — fraction of `relevant_ids` that appear anywhere in the top-k hits
 - **MRR** — `1 / rank` of the first relevant hit, averaged across cases
 - **nDCG@k** — rank-discounted relevance, averaged across cases
 
-The admin UI exposes the same runner under **Settings → Evaluation**.
+</Accordion>
+
+</Accordions>

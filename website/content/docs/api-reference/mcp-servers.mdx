@@ -3,21 +3,24 @@ title: MCP Servers
 description: Mint and manage Model Context Protocol server credentials for Claude Desktop, Cursor, and other MCP clients.
 ---
 
-Base path: `/v1/admin/mcp-servers`
+import { Callout } from "fumadocs-ui/components/callout";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
-Each MCP server is an API key with extra metadata pinned to it (`title`, `server_name`, optional `collection` scope). MCP keys are read/query-only by default with `collection:read`, `document:read`, and `query:read`. Under the hood it reuses the same `ApiKey` row, authentication, scope, and audit/access-logging machinery as ordinary API keys — but the `/v1/admin/api-keys` endpoints filter MCP-tagged keys out, so they don't pollute that list.
+Base path: `/v1/admin/mcp-servers` — Session-only (admin UI).
 
-Session-only (admin UI).
+Each MCP server is an API key with extra metadata (`title`, `server_name`, optional `collection` scope). MCP keys are read/query-only by default with `collection:read`, `document:read`, and `query:read`. They reuse the same `ApiKey` row, auth, scope, and audit machinery as ordinary API keys — but `/v1/admin/api-keys` filters MCP-tagged keys out to keep that list clean.
 
-A delete on the underlying API key cascades through. Generic API keys minted via `/v1/admin/api-keys` and MCP servers minted via this endpoint share a uniqueness constraint on `key_hash`.
+A delete on the underlying API key cascades through. Generic API keys and MCP servers share a uniqueness constraint on `key_hash`.
 
-## List MCP Servers
+<Accordions type="multiple">
+
+<Accordion title="GET /v1/admin/mcp-servers — List MCP servers">
+
+Returns only MCP-tagged keys owned by the calling admin.
 
 ```
 GET /v1/admin/mcp-servers
 ```
-
-Returns only MCP-tagged keys owned by the calling admin.
 
 **Response** `200`:
 
@@ -40,21 +43,23 @@ Returns only MCP-tagged keys owned by the calling admin.
 }
 ```
 
-## Create MCP Server
+</Accordion>
+
+<Accordion title="POST /v1/admin/mcp-servers — Create MCP server">
+
+Mints a fresh API key bound to the new server. The plaintext token is returned **once** in `api_key` — store it before the response leaves the wire.
 
 ```
 POST /v1/admin/mcp-servers
 ```
 
-Mints a fresh API key bound to the new server. The plaintext token is returned **once** in `api_key` — store it before the response leaves the wire.
-
-**Request:**
+**Request fields:**
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `title` | string | yes | 1–80 chars. Display name in the admin UI and the client's connector list. |
-| `server_name` | string | yes | 1–60 chars. Lowercase alphanumeric and dashes (`^[a-z0-9][a-z0-9-]*$`). Used as the key under `mcpServers` in the client config and must be unique per owner. |
-| `collection` | string | no | Pin the credential to a single collection. If set, the collection must exist. Omit (or set to empty) for a global key. |
+| `server_name` | string | yes | 1–60 chars. Lowercase alphanumeric and dashes (`^[a-z0-9][a-z0-9-]*$`). Used as the key under `mcpServers` in the client config; must be unique per owner. |
+| `collection` | string | no | Pin the credential to a single collection. If set, the collection must exist. Omit or set to empty for a global key. |
 
 **Response** `201`:
 
@@ -73,15 +78,17 @@ Mints a fresh API key bound to the new server. The plaintext token is returned *
 }
 ```
 
-`409` if `server_name` already exists for this user. `400` if `collection` does not exist.
+**Errors:** `409` if `server_name` already exists for this user. `400` if `collection` does not exist.
 
-## Update MCP Server
+</Accordion>
+
+<Accordion title="PATCH /v1/admin/mcp-servers/{server_id} — Update MCP server">
+
+Edit `title`, `server_name`, and/or `collection`. Send only the fields you want to change.
 
 ```
 PATCH /v1/admin/mcp-servers/{server_id}
 ```
-
-Edit `title`, `server_name`, and/or `collection`. Send only the fields you want to change.
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -91,29 +98,37 @@ Edit `title`, `server_name`, and/or `collection`. Send only the fields you want 
 
 **Response** `200`: same shape as the list entry above.
 
-## Rotate Credential
+</Accordion>
+
+<Accordion title="POST /v1/admin/mcp-servers/{server_id}/rotate — Rotate credential">
+
+Mints a new API key for an existing server and invalidates the old one immediately. Use this if the previous URL leaked or was lost.
 
 ```
 POST /v1/admin/mcp-servers/{server_id}/rotate
 ```
 
-Mint a new API key for an existing server and invalidate the old one immediately. Use this if the previous URL leaked or was lost.
-
 **Response** `200`: same shape as create — includes a one-shot `api_key`.
 
-## Delete MCP Server
+</Accordion>
+
+<Accordion title="DELETE /v1/admin/mcp-servers/{server_id} — Delete MCP server">
+
+Removes the server and its underlying API key. Existing connector URLs stop working on the next request.
 
 ```
 DELETE /v1/admin/mcp-servers/{server_id}
 ```
-
-Removes the server and its underlying API key. Existing connector URLs stop working on the next request.
 
 **Response** `200`:
 
 ```json
 { "status": "ok", "message": "MCP server deleted" }
 ```
+
+</Accordion>
+
+</Accordions>
 
 ## See also
 

@@ -4,18 +4,23 @@ description: Direct Turbopuffer-backed vector operations.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
-For advanced use cases, you can directly manage Turbopuffer vectors without going through the document ingestion pipeline. This is useful for custom embeddings or integrating with external embedding services.
+Direct vector operations for custom embeddings or external embedding services, bypassing the document ingestion pipeline.
 
 Scoped API keys need `vector:write` for upsert and `vector:delete` for delete. `collection:write` no longer grants raw vector mutation.
 
-## Admin Vector Storage Overview
+<Accordions type="multiple">
+
+<Accordion title="GET /v1/admin/vector-storage/overview — Admin storage overview">
+
+Session-only. Returns Turbopuffer health plus collection and vector totals for admin diagnostics.
 
 ```
 GET /v1/admin/vector-storage/overview
 ```
 
-Session-only. Returns Turbopuffer health plus collection and vector totals for admin diagnostics.
+**Response** `200`:
 
 ```json
 {
@@ -37,13 +42,15 @@ Session-only. Returns Turbopuffer health plus collection and vector totals for a
 }
 ```
 
-## Upsert Vectors
+</Accordion>
+
+<Accordion title="POST /v1/collections/{collection_name}/vectors/upsert — Upsert vectors">
+
+Insert or update vectors directly in the collection's Turbopuffer namespace.
 
 ```
 POST /v1/collections/{collection_name}/vectors/upsert
 ```
-
-Insert or update vectors directly in the collection's Turbopuffer namespace.
 
 **Request body:**
 
@@ -85,13 +92,15 @@ Default request safety caps reject requests above 1,000 vectors per upsert, 100,
 - `413` — Too many vectors, too much vector text, or too much vector metadata
 - `404` — Collection not found
 
-## Delete Vectors
+</Accordion>
+
+<Accordion title="POST /v1/collections/{collection_name}/vectors/delete — Delete vectors">
+
+Delete vectors by their IDs.
 
 ```
 POST /v1/collections/{collection_name}/vectors/delete
 ```
-
-Delete vectors by their IDs.
 
 The default request safety cap rejects requests above 10,000 IDs per delete. Admins can tune this in instance settings.
 
@@ -108,6 +117,10 @@ The default request safety cap rejects requests above 10,000 IDs per delete. Adm
 ```
 
 **Errors:** `404` — Collection not found
+
+</Accordion>
+
+</Accordions>
 
 ## Example: Custom Embeddings
 

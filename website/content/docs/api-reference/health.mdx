@@ -3,27 +3,27 @@ title: Health & Stats
 description: Health checks and platform statistics endpoints.
 ---
 
-## Liveness Check
+import { Callout } from "fumadocs-ui/components/callout";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
-```
-GET /health
-```
+## Health
 
-No authentication required. Returns 200 if the server is running.
+<Accordions type="multiple">
+<Accordion title="GET /health — Liveness check">
+
+No authentication required. Returns `200` if the server is running.
 
 ```json
 { "status": "ok", "version": "2026.4.30" }
 ```
 
-## Readiness Check
+</Accordion>
 
-```
-GET /health/ready
-```
+<Accordion title="GET /health/ready — Readiness check">
 
 No authentication required. Tests connectivity to Postgres, Turbopuffer, Redis, and the configured embedding provider.
 
-**Response** `200`:
+**Response** `200` (healthy):
 
 ```json
 {
@@ -37,7 +37,7 @@ No authentication required. Tests connectivity to Postgres, Turbopuffer, Redis, 
 }
 ```
 
-When a dependency is unreachable or misconfigured:
+**Response** `503` (degraded):
 
 ```json
 {
@@ -55,11 +55,13 @@ When a dependency is unreachable or misconfigured:
 
 Returns HTTP `503` with `"status": "degraded"` when any dependency is unhealthy. Dependency errors are category labels only: `auth_failed`, `rate_limited`, `timeout`, `unreachable`, `misconfigured`, or `unknown`. The embedding health check result is cached for 60 seconds.
 
-## Platform Stats
+</Accordion>
+</Accordions>
 
-```
-GET /v1/stats
-```
+## Stats & models
+
+<Accordions type="multiple">
+<Accordion title="GET /v1/stats — Platform stats">
 
 Platform-wide statistics including collections, documents, and queue status.
 
@@ -104,15 +106,21 @@ Platform-wide statistics including collections, documents, and queue status.
 }
 ```
 
-`status` summarizes the queue and worker state. `ok` means no queue risk was detected, `degraded` means the worker or queue needs attention but is not blocked, and `down` means queued or processing work exists while the worker heartbeat is offline. `queue_health.reasons` can include `worker_offline`, `worker_offline_with_active_queue`, `dead_lettered_jobs`, `stale_processing_jobs`, and `retrying_jobs`. When stats detect expired or unrefreshed processing leases, the worker marks those documents pending again and requeues them through the active ingestion queue instead of leaving them as permanently processing.
+`status` summarizes the queue and worker state:
 
-Every HTTP response includes an `X-Request-ID` header. Send your own value to correlate client logs with API logs, or let bigRAG generate one.
+| Value | Meaning |
+|-------|---------|
+| `ok` | No queue risk detected |
+| `degraded` | Worker or queue needs attention but is not blocked |
+| `down` | Queued or processing work exists while the worker heartbeat is offline |
 
-## Embedding Models
+`queue_health.reasons` can include: `worker_offline`, `worker_offline_with_active_queue`, `dead_lettered_jobs`, `stale_processing_jobs`, `retrying_jobs`.
 
-```
-GET /v1/embeddings/models
-```
+When stats detect expired or unrefreshed processing leases, the worker marks those documents pending again and requeues them through the active ingestion queue instead of leaving them as permanently processing.
+
+</Accordion>
+
+<Accordion title="GET /v1/embeddings/models — Embedding models">
 
 Requires authentication. Lists all available embedding models and providers.
 
@@ -171,7 +179,10 @@ Requires authentication. Lists all available embedding models and providers.
 }
 ```
 
-## Error Codes
+</Accordion>
+</Accordions>
+
+## Error codes
 
 All API errors return a JSON body with a `detail` field:
 
@@ -188,3 +199,7 @@ All API errors return a JSON body with a `detail` field:
 | `409` | Conflict | Duplicate name |
 | `413` | Payload Too Large | File exceeds `BIGRAG_MAX_UPLOAD_SIZE_MB` |
 | `500` | Internal Server Error | Server-side error |
+
+<Callout type="info">
+Every HTTP response includes an `X-Request-ID` header. Send your own value to correlate client logs with API logs, or let bigRAG generate one.
+</Callout>

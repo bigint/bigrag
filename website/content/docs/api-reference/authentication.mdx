@@ -47,8 +47,6 @@ curl -X POST http://localhost:4000/v1/auth/login \
 curl http://localhost:4000/v1/auth/me -b cookies.txt
 ```
 
-Session endpoints:
-
 | Method | Path | Purpose |
 |--------|------|---------|
 | `POST` | `/v1/auth/login` | Email + password → session cookie |
@@ -111,7 +109,7 @@ Collection SSE accepts bearer headers or short-lived event tokens. Long-lived AP
 
 ### Scopes
 
-Scopes use `resource:action` with `*` as a wildcard. Common shapes:
+Scopes use `resource:action` with `*` as a wildcard.
 
 | Scope | Grants |
 |-------|--------|

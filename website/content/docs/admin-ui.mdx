@@ -7,11 +7,10 @@ import { Callout } from "fumadocs-ui/components/callout";
 
 The admin UI is the Vite + TanStack Router single-page app packaged with bigRAG. Every control is also a REST API, so the admin UI is optional — you can run bigRAG headless — but it's the fastest way to bootstrap, prototype, and operate the platform.
 
-The admin UI supports light, dark, and system themes. The selection is stored in the browser, applies before the React app loads, and is available from both the login/setup screens and the signed-in account menu.
-
-Submitted operator forms use TanStack Form for client-side draft state, validation, resets, and submit handling while keeping the existing Base UI controls. This covers setup, login, collection creation and search, eval runs, API keys, MCP servers, account password changes, runtime settings, embedding presets, webhook creation, and connector credential forms.
-
-Collection creation keeps customer/tenant filter enforcement and JSON metadata-schema validation inside Advanced safeguards. Most collections can leave these disabled; enable customer separation only when one collection contains data for multiple customers, and enable metadata validation only when uploads need a fixed metadata shape.
+Key UI behaviors:
+- Supports light, dark, and system themes; selection is stored in the browser and applies before the React app loads.
+- Operator forms use TanStack Form for client-side draft state, validation, resets, and submit handling with existing Base UI controls. This covers setup, login, collection creation and search, eval runs, API keys, MCP servers, account password changes, runtime settings, embedding presets, webhook creation, and connector credential forms.
+- Collection creation keeps customer/tenant filter enforcement and JSON metadata-schema validation inside Advanced safeguards. Most collections can leave these disabled; enable customer separation only when one collection holds data for multiple customers, and enable metadata validation only when uploads need a fixed metadata shape.
 
 ## Running the Admin UI
 
@@ -21,7 +20,7 @@ pnpm dev:app        # admin UI on http://localhost:3000
 
 The admin UI calls the FastAPI backend directly. The default API URL is `http://localhost:4000`; override it with `VITE_BIGRAG_URL` at build/dev time or `BIGRAG_URL` in the app container. Configure browser origins through deployment config or the [instance settings API](/docs/api-reference/instance-settings) when running a split admin UI.
 
-For cross-site production deployments, enable secure session cookies and usually set `SameSite=none` through `BIGRAG_SESSION_COOKIE_*` bootstrap values or the instance settings API. Same-site subdomain deployments can usually keep `SameSite=lax`.
+For cross-site production deployments, enable secure session cookies and set `SameSite=none` through `BIGRAG_SESSION_COOKIE_*` bootstrap values or the instance settings API. Same-site subdomain deployments can usually keep `SameSite=lax`.
 
 ## Route map
 
@@ -63,13 +62,11 @@ The `/connectors` page renders provider tabs above the selected provider setup p
 
 The Settings Backups tab renders backup destination settings directly above export controls backed by `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups`, and `POST /v1/admin/backups`. Backup starts are disabled when the worker heartbeat is offline or no bucket is configured.
 
-The Settings Storage tab manages uploaded source-file storage. It uses `GET /v1/admin/settings` and `PUT /v1/admin/settings` for local disk and S3-compatible object-store settings.
+The Settings Storage tab manages uploaded source-file storage via `GET /v1/admin/settings` and `PUT /v1/admin/settings` for local disk and S3-compatible object-store settings.
 
 The Settings Vector storage tab exposes the saved Turbopuffer API key state, public-region dropdown, namespace prefix, and optional base URL through the same instance settings API.
 
-Settings are grouped into Account, Health, Security, Data, Storage, Vector storage, and Backups. Security covers trusted proxies, outbound URL policy, and embedding-cache posture. Data covers ingestion, queue, retention, and webhook runtime settings. Storage, Vector storage, and Backups own their matching runtime settings and validation checks.
-
-Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, `/settings?tab=data`, `/settings?tab=storage`, `/settings?tab=vector_store`, and `/settings?tab=backups`. Legacy `/data-storage` and `/backups` URLs redirect to their Settings tabs.
+Settings accepts tab values via query param: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, `/settings?tab=data`, `/settings?tab=storage`, `/settings?tab=vector_store`, and `/settings?tab=backups`. Legacy `/data-storage` and `/backups` URLs redirect to their Settings tabs.
 
 | Group | Section | Reads from | Writes to |
 |-------|---------|-----------|-----------|
@@ -83,15 +80,15 @@ Settings only accepts current tab values: `/settings?tab=account`, `/settings?ta
 
 ## Realtime updates
 
-The admin UI uses session-cookie [admin realtime SSE streams](/docs/api-reference/admin-realtime) for live document progress, batch upload progress, collection stats, connector sync state, access logs, paginated audit log pages, usage, platform stats, and readiness. Each stream sends an immediate full `snapshot` payload that matches the related REST response, then sends later snapshots as data changes.
+The admin UI uses session-cookie [admin realtime SSE streams](/docs/api-reference/admin-realtime) for live document progress, batch upload progress, collection stats, connector sync state, access logs, paginated audit log pages, usage, platform stats, and readiness. Each stream sends an immediate full `snapshot` payload matching the related REST response, then sends later snapshots as data changes.
 
-The expensive overview surfaces also keep short-lived backend caches behind the readiness and access-overview loaders so several open admin sessions do not rerun the same aggregate or dependency checks on every interval tick.
+Expensive overview surfaces keep short-lived backend caches behind the readiness and access-overview loaders so several open admin sessions do not rerun the same aggregate or dependency checks on every interval tick.
 
-The same platform stats stream powers the worker-offline UX. When `workers.online` is `false`, the admin UI shows `bigrag-worker is offline`, includes the last heartbeat age when available, and disables actions that would enqueue uploads, document reprocessing, backups, Google Drive source sync, or manual Drive resync. Missing worker stats are treated as unknown, so actions remain available until an offline heartbeat is confirmed.
+**Worker-offline UX:** The same platform stats stream drives the offline indicator. When `workers.online` is `false`, the admin UI shows `bigrag-worker is offline`, includes the last heartbeat age when available, and disables actions that would enqueue uploads, document reprocessing, backups, Google Drive source sync, or manual Drive resync. Missing worker stats are treated as unknown, so actions remain available until an offline heartbeat is confirmed.
 
-After a large local upload starts, the collection documents page opens `GET /v1/admin/realtime/collections/{name}/upload-sessions/{session_id}` as a high-priority realtime stream. The stream returns received, queued, ingesting, completed, failed, and canceled counts; the panel renders the active summary plus a small item window that prioritizes active and failed files before older completed rows, so 10,000-file uploads do not require a 10,000-ID status stream. If the browser cannot keep an SSE connection open, the panel falls back to two-second polling. If a linked document is deleted while the upload session remains visible, the item is treated as canceled rather than active queued work. Terminal sessions are removed from the page automatically once no active or failed work remains.
+**Large upload progress:** After a large local upload starts, the collection documents page opens `GET /v1/admin/realtime/collections/{name}/upload-sessions/{session_id}` as a high-priority realtime stream. The stream returns received, queued, ingesting, completed, failed, and canceled counts. The panel renders the active summary plus a small item window that prioritizes active and failed files before older completed rows, so 10,000-file uploads do not require a 10,000-ID status stream. If the browser cannot keep an SSE connection open, the panel falls back to two-second polling. If a linked document is deleted while the upload session remains visible, the item is treated as canceled rather than active queued work. Terminal sessions are removed automatically once no active or failed work remains.
 
-The Google Drive connector page opens `GET /v1/admin/realtime/google/sync-jobs?collection={name}` beside the source stream. The sync monitor shows Drive scanning, download/update progress, remote deletion cleanup, and queued-for-ingestion completion; document conversion and indexing continue through the normal document progress surfaces.
+**Google Drive:** The Drive connector page opens `GET /v1/admin/realtime/google/sync-jobs?collection={name}` beside the source stream. The sync monitor shows Drive scanning, download/update progress, remote deletion cleanup, and queued-for-ingestion completion; document conversion and indexing continue through the normal document progress surfaces.
 
 Upload progress restoration and the current Drive browser selection are browser-local admin UI state. Upload session IDs are persisted in local storage so a collection's upload panel can reconnect after navigation; stale upload-session IDs are cleared without a failure alert when the API returns `404`. Chat turns are in-memory only and are not persisted in browser storage or the REST API.
 
@@ -101,13 +98,13 @@ Realtime pages only evaluate terminal-state predicates after the first snapshot 
 
 ## Chat specifics
 
-The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, and citations happen on the backend, but chat messages and conversations are not persisted anywhere. The saved chat provider key stays on the backend; preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
+The chat UI sends each turn to `POST /v1/chat`. Retrieval, prompt assembly, provider calls, and citations happen on the backend; chat messages and conversations are not persisted anywhere. The saved chat provider key stays on the backend — preference responses only expose whether a key is configured. Preferences such as model, temperature, `top_k`, search mode, rerank preference, and system prompt persist via `/v1/auth/preferences`.
 
 Playground answers render safe CommonMark/GFM Markdown, including emphasis, lists, task lists, code, blockquotes, links, and tables. Raw HTML is not enabled, and source citations remain clickable inside rendered Markdown.
 
 Source cards keep long extracted snippets inside the chat column, including compact JSON, IDs, and other unbroken tokens from synthetic or machine-generated documents.
 
-The empty chat screen no longer shows generic default prompts. After a collection is selected, operators can generate five random starter questions using the saved chat provider key. The backend samples that collection's ready documents and chunks, saves the latest generated set for the collection, and returns that saved set after reloads.
+The empty chat screen does not show generic default prompts. After a collection is selected, operators can generate five random starter questions using the saved chat provider key. The backend samples that collection's ready documents and chunks, saves the latest generated set for the collection, and returns that saved set after reloads.
 
 ### Citations
 

@@ -21,7 +21,6 @@ logger = get_logger("bigrag.queue")
 QUEUE_KEY = queue_state.QUEUE_KEY
 PROCESSING_KEY = queue_state.PROCESSING_KEY
 DEAD_LETTER_KEY = queue_state.DEAD_LETTER_KEY
-RETRY_KEY = queue_state.RETRY_KEY
 STATS_KEY = queue_state.STATS_KEY
 LEASE_KEY_PREFIX = queue_state.LEASE_KEY_PREFIX
 COLLECTION_EPOCH_KEY_PREFIX = queue_state.COLLECTION_EPOCH_KEY_PREFIX
@@ -81,9 +80,6 @@ class IngestionQueue:
             return 0
         return await queue_recovery.recover_stuck_jobs(self._redis)
 
-    async def _epoch_value(self, key: str) -> int:
-        return await queue_state.epoch_value(self._redis, key)
-
     async def _collection_epoch(self, collection_name: str) -> int:
         return await queue_state.collection_epoch(self._redis, collection_name)
 
@@ -115,14 +111,6 @@ class IngestionQueue:
         if self._redis is not None:
             await self._redis.hincrby(STATS_KEY, "queued", 1)
         logger.info(f"{job.collection_name} | queued | {pending + 1} pending")
-
-    async def flush_collection(self, collection_name: str) -> int:
-        if not self._redis:
-            return 0
-        removed = await queue_state.flush_collection_jobs(self._redis, collection_name)
-        if removed:
-            logger.info("queue flushed jobs", collection=collection_name, removed=removed)
-        return int(removed)
 
     async def cancel_collection(self, collection_name: str) -> int:
         if not self._redis:
@@ -160,18 +148,6 @@ class IngestionQueue:
                 await self._redis.zcard(dead_letter_key(INGESTION_QUEUE)),
             )
         return stats
-
-    async def _promote_due_retries(self) -> int:
-        from bigrag.services.runtime_settings import get_value
-
-        queue_max_depth = await get_value("queue_max_depth")
-        promoted = await queue_state.promote_due_retries(
-            self._redis,
-            queue_max_depth=queue_max_depth,
-        )
-        if promoted:
-            logger.info("queue promoted retry jobs", count=promoted)
-        return promoted
 
     async def _renew_lease(self, job_id: str) -> None:
         lease_key = _lease_key(job_id)
@@ -240,25 +216,6 @@ class IngestionQueue:
                 step=event.step,
                 error=repr(exc),
             )
-
-    async def _ocr_scanned_pdf(
-        self,
-        *,
-        file_data: bytes,
-        suffix: str,
-        job: IngestionJob,
-        prefix: str,
-        start_time: float,
-    ) -> str:
-        return await queue_conversion.ocr_scanned_pdf(
-            file_data=file_data,
-            suffix=suffix,
-            job=job,
-            prefix=prefix,
-            start_time=start_time,
-            emit=self._emit,
-            ensure_job_current=self._ensure_job_current,
-        )
 
     async def _convert_document(self, job: IngestionJob, prefix: str) -> ParsedDocument:
         return await queue_conversion.convert_document(

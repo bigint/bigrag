@@ -10,10 +10,12 @@ bigRAG supports four provider families. Each collection picks one at creation ti
 
 ## Providers
 
-- **`openai`** — the OpenAI API
-- **`cohere`** — the Cohere Embed API
-- **`voyage`** — the Voyage AI Embed API (general-purpose, code, finance, and legal models)
-- **`openai_compatible`** — any HTTP endpoint that implements the OpenAI `/embeddings` shape (Ollama, vLLM, TEI / HuggingFace Text Embedding Inference, Infinity, LiteLLM, Azure OpenAI, Bedrock via LiteLLM, self-hosted models, …)
+| Provider | Description |
+|----------|-------------|
+| `openai` | The OpenAI API |
+| `cohere` | The Cohere Embed API |
+| `voyage` | The Voyage AI Embed API (general-purpose, code, finance, and legal models) |
+| `openai_compatible` | Any HTTP endpoint that implements the OpenAI `/embeddings` shape — Ollama, vLLM, TEI / HuggingFace Text Embedding Inference, Infinity, LiteLLM, Azure OpenAI, Bedrock via LiteLLM, self-hosted models, and more |
 
 ## Managed models
 
@@ -42,6 +44,7 @@ curl http://localhost:4000/v1/embeddings/models \
 
 <Tabs items={["OpenAI", "Cohere", "Voyage", "Ollama (openai_compatible)", "vLLM / TEI / LiteLLM"]}>
 <Tab value="OpenAI">
+
 ```bash
 curl -X POST http://localhost:4000/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
@@ -54,8 +57,10 @@ curl -X POST http://localhost:4000/v1/collections \
     "dimension": 1536
   }'
 ```
+
 </Tab>
 <Tab value="Cohere">
+
 ```bash
 curl -X POST http://localhost:4000/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
@@ -68,8 +73,10 @@ curl -X POST http://localhost:4000/v1/collections \
     "dimension": 1024
   }'
 ```
+
 </Tab>
 <Tab value="Voyage">
+
 ```bash
 curl -X POST http://localhost:4000/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
@@ -84,8 +91,10 @@ curl -X POST http://localhost:4000/v1/collections \
 ```
 
 `voyage-3-large`, `voyage-3.5`, `voyage-3.5-lite`, and `voyage-code-3` accept Matryoshka dimensions (256, 512, 1024, 2048). Pass `dimension` accordingly. `voyage-finance-2` and `voyage-law-2` are fixed at 1024.
+
 </Tab>
 <Tab value="Ollama (openai_compatible)">
+
 ```bash
 curl -X POST http://localhost:4000/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
@@ -99,8 +108,10 @@ curl -X POST http://localhost:4000/v1/collections \
     "dimension": 768
   }'
 ```
+
 </Tab>
 <Tab value="vLLM / TEI / LiteLLM">
+
 ```bash
 curl -X POST http://localhost:4000/v1/collections \
   -H "Authorization: Bearer $BIGRAG_API_KEY" \
@@ -114,6 +125,7 @@ curl -X POST http://localhost:4000/v1/collections \
     "dimension": 1024
   }'
 ```
+
 </Tab>
 </Tabs>
 
@@ -121,7 +133,7 @@ curl -X POST http://localhost:4000/v1/collections \
 
 ### OpenAI-compatible endpoints in practice
 
-Any gateway that speaks the OpenAI `/embeddings` shape works. Common choices:
+Any gateway that speaks the OpenAI `/embeddings` shape works:
 
 | Tool | Typical `embedding_base_url` |
 |------|------------------------------|
@@ -141,15 +153,22 @@ Any gateway that speaks the OpenAI `/embeddings` shape works. Common choices:
 4. New vectors are batched at `BIGRAG_INGESTION_BATCH_SIZE` and written to the collection's Turbopuffer namespace.
 5. Queries embed the same way, with short-lived Redis caching for repeated query embeddings.
 
-The cache key is `(content_hash, provider, model, dimension)`. A new collection that uses a different model gets a separate cache key space, so unchanged chunks under that model start cold while previous model cache entries remain available to collections that still use them.
+The cache key is `(content_hash, provider, model, dimension)`. A new collection using a different model starts cold for that model while previous cache entries remain available to collections still using the old model.
 
-Persistent embedding-cache rows are encrypted by default with `BIGRAG_MASTER_KEY`. Set `embedding_cache_mode` to `disabled` in `/settings` when you prefer provider cost over storing reusable vectors. The default retention window is 30 days after last use, and admins can purge the cache from the Security settings tab.
+Persistent embedding-cache rows are encrypted by default with `BIGRAG_MASTER_KEY`. Set `embedding_cache_mode` to `disabled` in `/settings` to prefer provider cost over storing reusable vectors. The default retention window is 30 days after last use; admins can purge the cache from the Security settings tab.
 
 Redis query caches are also encrypted when `BIGRAG_MASTER_KEY` is configured. The default query embedding TTL is 300 seconds; set `query_embedding_cache_ttl` to `0` to disable it.
 
 ## Concurrency & throughput
 
-Embedding requests are guarded by a semaphore (`BIGRAG_EMBEDDING_CONCURRENCY`, default 8). Raise it for high-QPS providers; lower it if your embedding provider throttles requests. When a provider returns a rate limit with `Retry-After`, `retry-after-ms`, or a message such as `Please try again in 37ms`, ingestion records a short Redis cooldown for that provider/model, waits for the hint, and retries the same batch without consuming the generic transient retry budget. Repeated rate limits are capped per batch, so sustained TPM pressure should still be handled by lowering concurrency or batch size. Token counting uses `tiktoken` where the provider ships a tokenizer and falls back to a 4-character-per-token heuristic otherwise.
+Embedding requests are guarded by a semaphore (`BIGRAG_EMBEDDING_CONCURRENCY`, default 8):
+
+- Raise it for high-QPS providers.
+- Lower it if your embedding provider throttles requests.
+
+When a provider returns a rate limit with `Retry-After`, `retry-after-ms`, or a message such as `Please try again in 37ms`, ingestion records a short Redis cooldown for that provider/model, waits for the hint, and retries the same batch without consuming the generic transient retry budget. Repeated rate limits are capped per batch, so sustained TPM pressure should be handled by lowering concurrency or batch size.
+
+Token counting uses `tiktoken` where the provider ships a tokenizer and falls back to a 4-character-per-token heuristic otherwise.
 
 ## Reranking
 

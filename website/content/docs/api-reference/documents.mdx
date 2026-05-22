@@ -3,19 +3,21 @@ title: Documents
 description: API endpoints for uploading, managing, and monitoring documents.
 ---
 
+import { Callout } from "fumadocs-ui/components/callout";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
+
 Base path: `/v1/collections/{collection_name}/documents`
 
 All endpoints require [authentication](/docs/api-reference/authentication). API keys need:
 
-- `document:upload` for upload, batch upload, and reprocess
-- `document:read` for list/get/download/chunks/elements and batch get/status
-- `document:delete` for delete and batch delete
+- `document:upload` — upload, batch upload, reprocess
+- `document:read` — list, get, download, chunks, elements, batch get/status
+- `document:delete` — delete, batch delete
 
-## Upload Document
+## Core
 
-```
-POST /v1/collections/{collection_name}/documents
-```
+<Accordions type="multiple">
+<Accordion title="POST /v1/collections/{collection_name}/documents — Upload document">
 
 Upload a document for ingestion. Uses `multipart/form-data`.
 
@@ -60,11 +62,9 @@ curl -X POST http://localhost:4000/v1/collections/research/documents \
 
 **Errors:** `400` — Unsupported file type or blocked by metadata-schema checks, `404` — Collection not found, `413` — File too large, `503` — Queue unavailable (document is stored as `failed`)
 
-## List Documents
+</Accordion>
 
-```
-GET /v1/collections/{collection_name}/documents
-```
+<Accordion title="GET /v1/collections/{collection_name}/documents — List documents">
 
 | Parameter | Type | Default | Constraints |
 |-----------|------|---------|-------------|
@@ -100,21 +100,17 @@ GET /v1/collections/{collection_name}/documents
 }
 ```
 
-## Get Document
+</Accordion>
 
-```
-GET /v1/collections/{collection_name}/documents/{document_id}
-```
+<Accordion title="GET /v1/collections/{collection_name}/documents/{document_id} — Get document">
 
 **Response** `200`: Full document object.
 
 **Errors:** `404` — Document or collection not found
 
-## Delete Document
+</Accordion>
 
-```
-DELETE /v1/collections/{collection_name}/documents/{document_id}
-```
+<Accordion title="DELETE /v1/collections/{collection_name}/documents/{document_id} — Delete document">
 
 Deletes the document and its associated vectors.
 
@@ -126,11 +122,9 @@ Deletes the document and its associated vectors.
 
 **Errors:** `404` — Document or collection not found
 
-## Reprocess Document
+</Accordion>
 
-```
-POST /v1/collections/{collection_name}/documents/{document_id}/reprocess
-```
+<Accordion title="POST /v1/collections/{collection_name}/documents/{document_id}/reprocess — Reprocess document">
 
 Re-parse, re-chunk, and re-embed a document.
 
@@ -140,15 +134,17 @@ Re-parse, re-chunk, and re-embed a document.
 { "status": "ok", "message": "Document reprocessing started" }
 ```
 
-## Get Chunks
+</Accordion>
 
-```
-GET /v1/collections/{collection_name}/documents/{document_id}/chunks
-```
+<Accordion title="GET /v1/collections/{collection_name}/documents/{document_id}/file — Download file">
 
-Get chunks for a processed document. If the document exists but its
-Turbopuffer namespace has not been created yet or was already removed, the
-endpoint returns an empty chunk list with `total: 0`.
+Download the original uploaded file. Returns binary content with appropriate `Content-Type`.
+
+</Accordion>
+
+<Accordion title="GET /v1/collections/{collection_name}/documents/{document_id}/chunks — Get chunks">
+
+Get chunks for a processed document. If the document exists but its Turbopuffer namespace has not been created yet or was already removed, the endpoint returns an empty chunk list with `total: 0`.
 
 | Parameter | Type | Default | Constraints |
 |-----------|------|---------|-------------|
@@ -174,13 +170,11 @@ endpoint returns an empty chunk list with `total: 0`.
 
 Each chunk returns `document_id` as a top-level field. `metadata` contains the remaining chunk/document payload metadata and omits fixed fields such as `text`, `chunk_index`, and `document_id`.
 
-## Get Elements
+</Accordion>
 
-```
-GET /v1/collections/{collection_name}/documents/{document_id}/elements
-```
+<Accordion title="GET /v1/collections/{collection_name}/documents/{document_id}/elements — Get elements">
 
-List stored multimodal document elements. This returns an empty list unless the collection had `multimodal_enabled` when the document was ingested.
+List stored multimodal document elements. Returns an empty list unless the collection had `multimodal_enabled` when the document was ingested.
 
 | Parameter | Type | Default | Constraints |
 |-----------|------|---------|-------------|
@@ -220,19 +214,24 @@ List stored multimodal document elements. This returns an empty list unless the 
 
 `kind` is one of `text`, `heading`, `table`, `image`, `equation`, or `unknown`. `enrichment_status` is `not_requested`, `pending`, `ready`, or `failed`.
 
-## Download File
+</Accordion>
+
+<Accordion title="GET /v1/documents/{document_id} — Global document lookup">
+
+Convenience read endpoints that resolve the document by UUID without the caller supplying the collection name. Still requires `document:read`; collection-pinned API keys can only use them for documents that belong to their pinned collection.
 
 ```
-GET /v1/collections/{collection_name}/documents/{document_id}/file
+GET /v1/documents/{document_id}
+GET /v1/documents/{document_id}/chunks
 ```
 
-Download the original uploaded file. Returns binary content with appropriate `Content-Type`.
+</Accordion>
+</Accordions>
 
-## Batch Upload
+## Batch & sessions
 
-```
-POST /v1/collections/{collection_name}/documents/batch/upload
-```
+<Accordions type="multiple">
+<Accordion title="POST /v1/collections/{collection_name}/documents/batch/upload — Batch upload">
 
 Upload up to 100 files in one request. Each file goes through the same extension sniffing, metadata-schema validation, and `content_hash` deduplication pipeline as the single-file upload endpoint.
 
@@ -268,9 +267,13 @@ curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/upload \
 
 If queueing fails for an item, that document is still returned but with `status: "failed"` plus an `error_message`, rather than being left stuck in `pending`.
 
-## Upload Sessions
+</Accordion>
+
+<Accordion title="POST /v1/collections/{collection_name}/upload-sessions — Upload sessions">
 
 Upload sessions are the large-upload path for thousands of local files. They create one durable session, then upload files one request at a time so browsers and proxies never build a giant multipart body.
+
+**Create session:**
 
 ```
 POST /v1/collections/{collection_name}/upload-sessions
@@ -300,11 +303,11 @@ POST /v1/collections/{collection_name}/upload-sessions
 }
 ```
 
+**Upload one file:**
+
 ```
 POST /v1/collections/{collection_name}/upload-sessions/{session_id}/files
 ```
-
-Upload one file with `multipart/form-data`:
 
 ```bash
 curl -X POST http://localhost:4000/v1/collections/docs/upload-sessions/$SESSION_ID/files \
@@ -315,33 +318,21 @@ curl -X POST http://localhost:4000/v1/collections/docs/upload-sessions/$SESSION_
 
 Each accepted file is validated, deduped by `content_hash`, stored, converted into a `Document`, and queued for ingestion. Failed files are recorded as upload-session items and do not abort the session.
 
+**Session lifecycle endpoints:**
+
 ```
-GET /v1/collections/{collection_name}/upload-sessions/{session_id}
+GET  /v1/collections/{collection_name}/upload-sessions/{session_id}
 POST /v1/collections/{collection_name}/upload-sessions/{session_id}/complete
 POST /v1/collections/{collection_name}/upload-sessions/{session_id}/cancel
 ```
 
-`GET` returns aggregate counts plus the latest active or failed items. `complete` marks the upload phase closed; ingestion can still continue until all linked documents are `ready` or `failed`. If a linked document is deleted after upload, its session item is reported as `canceled` instead of `queued`. `cancel` closes the session and cancels active queued documents created by that session.
+- `GET` — returns aggregate counts plus the latest active or failed items.
+- `complete` — marks the upload phase closed; ingestion can still continue until all linked documents are `ready` or `failed`. If a linked document is deleted after upload, its session item is reported as `canceled` instead of `queued`.
+- `cancel` — closes the session and cancels active queued documents created by that session.
 
-## Batch Status
+</Accordion>
 
-```
-POST /v1/collections/{collection_name}/documents/batch/status
-```
-
-Check status of up to 100 documents.
-
-```json
-{ "document_ids": ["doc-id-1", "doc-id-2"] }
-```
-
-Returns `id`, `status`, `chunk_count`, `error_message`, and the latest `progress` snapshot for each found document. API clients can poll this endpoint after batch upload until every requested document is `ready` or `failed`; the admin UI uses the session-cookie admin realtime batch stream instead.
-
-## Batch Get
-
-```
-POST /v1/collections/{collection_name}/documents/batch/get
-```
+<Accordion title="POST /v1/collections/{collection_name}/documents/batch/get — Batch get">
 
 Fetch full metadata for up to 100 documents by ID.
 
@@ -376,11 +367,9 @@ Fetch full metadata for up to 100 documents by ID.
 
 Unlike Batch Status (which returns only `id`, `status`, `error_message`, `chunk_count`), this endpoint returns the complete document object including `filename`, `file_size`, `file_type`, and `metadata`.
 
-## Batch Delete
+</Accordion>
 
-```
-POST /v1/collections/{collection_name}/documents/batch/delete
-```
+<Accordion title="POST /v1/collections/{collection_name}/documents/batch/delete — Batch delete">
 
 Delete up to 100 documents. Partial success is supported — missing or failed deletes are returned in `errors` rather than aborting the whole batch.
 
@@ -400,18 +389,27 @@ Delete up to 100 documents. Partial success is supported — missing or failed d
 }
 ```
 
-## Global Document Lookup
+</Accordion>
+</Accordions>
 
+## Status & polling
+
+<Accordions type="multiple">
+<Accordion title="POST /v1/collections/{collection_name}/documents/batch/status — Batch status">
+
+Check status of up to 100 documents.
+
+```json
+{ "document_ids": ["doc-id-1", "doc-id-2"] }
 ```
-GET /v1/documents/{document_id}
-GET /v1/documents/{document_id}/chunks
-```
 
-Convenience read endpoints that resolve the document by UUID without the caller supplying the collection name. They still require `document:read`, and collection-pinned API keys can only use them for documents that belong to their pinned collection.
+Returns `id`, `status`, `chunk_count`, `error_message`, and the latest `progress` snapshot for each found document. API clients can poll this endpoint after batch upload until every requested document is `ready` or `failed`; the admin UI uses the session-cookie admin realtime batch stream instead.
 
-## API-Client Status Polling
+</Accordion>
 
-Use `GET /v1/collections/{collection_name}/documents/{document_id}` for a single document, or `POST /v1/collections/{collection_name}/documents/batch/status` for multiple documents. API clients can poll while `status` is `pending` or `processing`, then stop once it reaches `ready` or `failed`. The admin UI uses [admin realtime SSE streams](/docs/api-reference/admin-realtime) for the same full payloads.
+<Accordion title="GET /v1/collections/{collection_name}/documents/{document_id} — Single document polling">
+
+Use `GET /v1/collections/{collection_name}/documents/{document_id}` for a single document. Poll while `status` is `pending` or `processing`, then stop once it reaches `ready` or `failed`. The admin UI uses [admin realtime SSE streams](/docs/api-reference/admin-realtime) for the same full payloads.
 
 Document status responses include a `progress` object with the latest ingestion event snapshot:
 
@@ -428,3 +426,6 @@ Document status responses include a `progress` object with the latest ingestion 
   }
 }
 ```
+
+</Accordion>
+</Accordions>

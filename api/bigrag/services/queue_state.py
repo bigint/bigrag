@@ -16,23 +16,6 @@ DOCUMENT_EPOCH_KEY_PREFIX = "bigrag:ingestion:document_epoch:"
 LEASE_TTL_SECONDS = 30 * 60
 LEASE_RENEW_INTERVAL_SECONDS = 60
 LEASE_ACTIVE_MIN_TTL_SECONDS = LEASE_TTL_SECONDS - LEASE_RENEW_INTERVAL_SECONDS * 4
-RETRY_PROMOTION_LIMIT = 100
-
-PROMOTE_RETRIES_LUA = """
-local promoted = 0
-local due = redis.call('ZRANGEBYSCORE', KEYS[1], '-inf', ARGV[1], 'LIMIT', 0, tonumber(ARGV[3]))
-for _, raw in ipairs(due) do
-  local depth = redis.call('LLEN', KEYS[2])
-  if depth >= tonumber(ARGV[2]) then
-    break
-  end
-  if redis.call('ZREM', KEYS[1], raw) == 1 then
-    redis.call('LPUSH', KEYS[2], raw)
-    promoted = promoted + 1
-  end
-end
-return promoted
-"""
 
 FLUSH_LUA = """
 local items = redis.call('LRANGE', KEYS[1], 0, -1)
@@ -134,21 +117,6 @@ async def ensure_job_current(redis, job: IngestionJob) -> None:
     document_value = await document_epoch(redis, job.document_id)
     if document_value != job.document_epoch:
         raise IngestionCancelledError(f"Ingestion cancelled for document '{job.document_id}'")
-
-
-async def promote_due_retries(redis, *, queue_max_depth: int, now: int | None = None) -> int:
-    due_at = int(time_seconds() if now is None else now)
-    return int(
-        await redis.eval(
-            PROMOTE_RETRIES_LUA,
-            2,
-            RETRY_KEY,
-            QUEUE_KEY,
-            due_at,
-            queue_max_depth,
-            RETRY_PROMOTION_LIMIT,
-        )
-    )
 
 
 async def flush_collection_jobs(redis, collection_name: str) -> int:

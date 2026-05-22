@@ -3,18 +3,24 @@ title: Connectors
 description: Provider-neutral connector configuration, OAuth, source selection, and resync APIs.
 ---
 
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
+
 Cloud connectors import remote files into the normal bigRAG document pipeline. The connector core owns provider config, user accounts, sources, sync jobs, manifests, scheduling, document replacement, and remote deletion handling. Provider adapters own OAuth details, remote listing, export/download behavior, and provider-specific metadata.
 
 Google Drive is the first provider and uses the `google` route slug with `google_drive` as the stored provider id. Future providers such as SharePoint or OneDrive should plug into the same route shape instead of cloning the source and sync job flow.
 
-## Admin Provider Config
+<Accordions type="multiple">
+
+<Accordion title="GET/PUT /v1/admin/connectors/{provider} — Admin provider config">
+
+Session-only admin endpoints. For Google Drive, use `/v1/admin/connectors/google`.
 
 ```
 GET /v1/admin/connectors/{provider}
 PUT /v1/admin/connectors/{provider}
 ```
 
-Session-only admin endpoints. For Google Drive, use `/v1/admin/connectors/google`. The `PUT` body stores OAuth credentials:
+The `PUT` body stores OAuth credentials:
 
 ```json
 {
@@ -26,7 +32,11 @@ Session-only admin endpoints. For Google Drive, use `/v1/admin/connectors/google
 
 Responses mask secret values and include `callback_url`, which must be registered with the provider. Google Drive returns a callback URL ending in `/v1/connectors/google/oauth/callback`.
 
-## User Connection
+</Accordion>
+
+<Accordion title="User connection — OAuth flow and account management">
+
+These endpoints require session authentication.
 
 ```
 GET /v1/connectors/{provider}/account
@@ -36,9 +46,11 @@ GET /v1/connectors/{provider}/oauth/callback
 POST /v1/connectors/{provider}/disconnect
 ```
 
-These endpoints require session authentication. For Google Drive, the OAuth flow uses `openid email profile` and `https://www.googleapis.com/auth/drive.readonly` so bigRAG can render an in-app Drive browser and sync selected files/folders.
+For Google Drive, the OAuth flow uses `openid email profile` and `https://www.googleapis.com/auth/drive.readonly` so bigRAG can render an in-app Drive browser and sync selected files/folders.
 
-## Drive Browser
+</Accordion>
+
+<Accordion title="GET /v1/connectors/{provider}/files — Drive browser">
 
 ```
 GET /v1/connectors/{provider}/files?parent_id=root
@@ -47,7 +59,9 @@ GET /v1/connectors/{provider}/files?query=handbook
 
 Returns the connected user's visible remote files and folders, plus whether each item is supported by the ingestion pipeline. For Google Drive, native Docs, Sheets, and Slides are exported to DOCX, XLSX, and PPTX before ingestion.
 
-## Sources
+</Accordion>
+
+<Accordion title="Sources — CRUD, sync, and sync-job listing">
 
 ```
 GET /v1/connectors/{provider}/sources?collection=docs
@@ -95,3 +109,7 @@ Sync jobs can be filtered by `collection`, `source_id`, and `limit`. While a Goo
 ```
 
 Terminal `complete` jobs mean Drive files were scanned, downloaded or updated, remote deletions were applied, and changed documents were queued for the normal ingestion pipeline. Conversion, chunking, embedding, and indexing continue through document status progress.
+
+</Accordion>
+
+</Accordions>
