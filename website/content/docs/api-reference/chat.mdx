@@ -70,7 +70,7 @@ Request body:
 
 Non-streaming responses include the current user message, current assistant message, sources, and timings.
 
-Set `multimodal: true` to include retrieved image content for vision-capable models when the collection has `multimodal_enabled`. If no image payload can be sent, chat falls back to stored element text, captions, or generated summaries. Source objects include `multimodal_elements` with the same element refs returned by query.
+Set `multimodal: true` to include retrieved image content for vision-capable models when the collection has `multimodal_enabled`. If no image payload can be sent, chat falls back to stored element text, captions, or generated summaries. Source objects include `multimodal_elements` generated from the retrieved chunk's own document inside the requested collection.
 
 ## Stream Chat Turn
 
