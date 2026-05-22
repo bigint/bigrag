@@ -67,6 +67,9 @@ export const OnboardingPage = () => {
       await saveSettings.mutateAsync({
         values: turbopufferSettingsBody(draft, setup.vectorStorageComplete),
       });
+      if (setup.embeddingComplete) {
+        navigate({ to: "/overview", replace: true });
+      }
     } catch {}
   };
 
@@ -165,6 +168,7 @@ export const OnboardingPage = () => {
               onSave={saveTurbopuffer}
               pending={saveSettings.isPending}
               saveDisabled={!canSaveTurbopuffer}
+              saveLabel={setup.embeddingComplete ? "Save and Finish" : "Save vector storage"}
             />
           </StepPanel>
         </div>

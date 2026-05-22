@@ -13,6 +13,7 @@ type TurbopufferFormProps = {
   readonly onSave: () => void;
   readonly pending: boolean;
   readonly saveDisabled: boolean;
+  readonly saveLabel: string;
 };
 
 export const TurbopufferForm = ({
@@ -22,6 +23,7 @@ export const TurbopufferForm = ({
   onSave,
   pending,
   saveDisabled,
+  saveLabel,
 }: TurbopufferFormProps) => {
   const patchDraft = (patch: Partial<TurbopufferDraft>) => onDraftChange({ ...draft, ...patch });
   return (
@@ -74,7 +76,7 @@ export const TurbopufferForm = ({
             ) : (
               <Save className="size-4" />
             )}
-            {complete ? "Update vector storage" : "Save vector storage"}
+            {complete ? "Update vector storage" : saveLabel}
           </Button>
         </div>
       </div>

@@ -63,7 +63,7 @@ Environment variables override TOML values. CLI flags passed to `python -m bigra
 
 ## Runtime settings
 
-After the first admin account exists, the admin UI sends first-run operators to `/onboarding` to create one verified embedding preset and save Turbopuffer settings for collection work. Later, go to `/settings` to manage platform runtime settings, uploaded source-file storage, and backups, and `/models` to manage model presets and model runtime settings. Turbopuffer is configured from the UI, is the search backend for every collection, and is stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
+After the first admin account exists, the admin UI sends first-run operators to `/onboarding` to create one verified embedding preset and save Turbopuffer settings for collection work. The Turbopuffer step's **Save and Finish** action saves the vector settings and opens `/overview`. Later, go to `/settings` to manage platform runtime settings, uploaded source-file storage, and backups, and `/models` to manage model presets and model runtime settings. Turbopuffer is configured from the UI, is the search backend for every collection, and is stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
 
 The same surface is available through [`/v1/admin/settings`](/docs/api-reference/instance-settings).
 
