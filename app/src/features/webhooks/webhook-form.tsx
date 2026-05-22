@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { Textarea } from "@/components/ui/textarea";
 import {
   defaultWebhookFormValues,
   toggleWebhookCategory,
@@ -40,7 +39,6 @@ export const WebhookForm = ({ open, onClose, onCreated, workerAvailability }: We
         const webhook = await create.mutateAsync({
           url: value.url.trim(),
           events: value.events,
-          description: value.description,
         });
         onCreated(webhook.secret);
         reset();
@@ -113,20 +111,6 @@ export const WebhookForm = ({ open, onClose, onCreated, workerAvailability }: We
               onChange={(event) => field.handleChange(event.target.value)}
               placeholder="https://example.com/webhook"
               type="url"
-              value={field.state.value}
-            />
-          )}
-        </form.Field>
-
-        <form.Field name="description">
-          {(field) => (
-            <Textarea
-              id="webhook-description"
-              label="Description"
-              name={field.name}
-              onBlur={field.handleBlur}
-              onChange={(event) => field.handleChange(event.target.value)}
-              placeholder="Optional — a note for your team"
               value={field.state.value}
             />
           )}

@@ -21,7 +21,6 @@ export interface Webhook {
   url: string;
   events: WebhookEvent[];
   collections: string[] | null;
-  description: string;
   active: boolean;
   created_by: string | null;
   created_at: string;
@@ -32,7 +31,6 @@ export interface CreateWebhookBody {
   url: string;
   events: WebhookEvent[];
   collections?: string[];
-  description?: string;
 }
 
 export interface CreateWebhookResponse extends Webhook {
@@ -43,7 +41,6 @@ export interface UpdateWebhookBody {
   url?: string;
   events?: WebhookEvent[];
   collections?: string[] | null;
-  description?: string;
   active?: boolean;
 }
 

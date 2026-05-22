@@ -24,7 +24,6 @@ class Webhook(Base):
     secret: Mapped[str] = mapped_column(EncryptedString, nullable=False)
     events: Mapped[list[str]] = mapped_column(ARRAY(sa.Text), nullable=False)
     collections: Mapped[list[str] | None] = mapped_column(ARRAY(sa.Text))
-    description: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
     active: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default=sa.true())
     created_by: Mapped[UUID | None] = mapped_column(sa.ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[TS]

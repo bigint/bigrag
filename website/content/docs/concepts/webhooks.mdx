@@ -37,8 +37,7 @@ curl -X POST http://localhost:4000/v1/admin/webhooks \
   -d '{
     "url": "https://example.com/webhook",
     "events": ["document.ready", "document.failed", "connector.sync.failed"],
-    "collections": ["knowledge_base"],
-    "description": "Notify on data operations"
+    "collections": ["knowledge_base"]
   }'
 ```
 
@@ -47,7 +46,6 @@ curl -X POST http://localhost:4000/v1/admin/webhooks \
 | `url` | string | yes | Delivery URL. HTTPS is required unless `allow_local_webhooks` is enabled and the URL is loopback HTTP |
 | `events` | string[] | yes | Event types to subscribe to |
 | `collections` | string[] | no | Filter by collection names (`null` = all) |
-| `description` | string | no | Human-readable description |
 
 <Callout type="warn">
   The response includes a `secret` field that is shown only once. Store it — it's used to verify webhook signatures.

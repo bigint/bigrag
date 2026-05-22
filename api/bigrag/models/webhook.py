@@ -31,7 +31,6 @@ class CreateWebhookRequest(BaseModel):
     url: str
     events: list[str] = Field(min_length=1)
     collections: list[str] | None = None
-    description: str = ""
 
     @model_validator(mode="after")
     def validate_url_and_events(self):
@@ -44,7 +43,6 @@ class UpdateWebhookRequest(BaseModel):
     url: str | None = None
     events: list[str] | None = None
     collections: list[str] | None = None
-    description: str | None = None
     active: bool | None = None
 
     @model_validator(mode="after")
@@ -61,7 +59,6 @@ class WebhookResponse(BaseModel):
     url: str
     events: list[str]
     collections: list[str] | None
-    description: str
     active: bool
     created_by: str | None
     created_at: datetime

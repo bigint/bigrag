@@ -18,7 +18,6 @@ POST /v1/admin/webhooks
 | `url` | string | yes | Delivery URL. HTTPS is required unless `allow_local_webhooks` is enabled and the URL is loopback HTTP |
 | `events` | string[] | yes | Event types to subscribe to. Supported families are `document.*`, `collection.*`, `connector.sync.*`, and `backup.*` data-operation events |
 | `collections` | string[] | no | Filter by collection names (`null` = all) |
-| `description` | string | no | Human-readable description |
 
 **Response** `201`: Webhook object with `secret` field (shown once only). The secret is Fernet-encrypted at rest — see [Encryption at rest](/docs/deployment/encryption).
 
@@ -63,7 +62,7 @@ GET /v1/admin/webhooks/{id}
 PUT /v1/admin/webhooks/{id}
 ```
 
-Updatable fields: `url`, `events`, `collections`, `description`, `active`.
+Updatable fields: `url`, `events`, `collections`, `active`.
 
 ## Delete Webhook
 

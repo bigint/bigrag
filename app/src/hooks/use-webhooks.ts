@@ -19,12 +19,8 @@ export const useWebhooks = () =>
 export const useCreateWebhook = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: {
-      url: string;
-      events: string[];
-      collections?: string[] | null;
-      description?: string;
-    }) => apiClient.post<Webhook & { secret: string }>("v1/admin/webhooks", body),
+    mutationFn: (body: { url: string; events: string[]; collections?: string[] | null }) =>
+      apiClient.post<Webhook & { secret: string }>("v1/admin/webhooks", body),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
     onError: errorToast("Failed to create webhook"),
   });

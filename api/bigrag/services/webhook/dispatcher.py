@@ -83,7 +83,6 @@ class WebhookDispatcher:
                 "secret": w.secret,
                 "events": list(w.events),
                 "collections": list(w.collections) if w.collections else None,
-                "description": w.description,
                 "active": w.active,
                 "created_by": str(w.created_by) if w.created_by else None,
                 "created_at": w.created_at.isoformat(),

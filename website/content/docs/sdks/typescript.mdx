@@ -181,10 +181,10 @@ client.vectors.delete(collection, ids)
 ## Webhooks
 
 ```typescript
-client.webhooks.create({ url, events, collections?, description? })
+client.webhooks.create({ url, events, collections? })
 client.webhooks.list({ limit?, offset? })
 client.webhooks.get(id)
-client.webhooks.update(id, { url?, events?, collections?, description?, active? })
+client.webhooks.update(id, { url?, events?, collections?, active? })
 client.webhooks.delete(id)
 client.webhooks.listDeliveries(id, { limit?, offset? })
 client.webhooks.test(id)

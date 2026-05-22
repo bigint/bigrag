@@ -63,7 +63,6 @@ def _webhook_response(wh: Webhook) -> WebhookResponse:
         url=wh.url,
         events=list(wh.events),
         collections=list(wh.collections) if wh.collections else None,
-        description=wh.description,
         active=wh.active,
         created_by=str(wh.created_by) if wh.created_by else None,
         created_at=wh.created_at,
@@ -78,7 +77,6 @@ def _webhook_to_dict(wh: Webhook) -> dict:
         "secret": wh.secret,
         "events": list(wh.events),
         "collections": list(wh.collections) if wh.collections else None,
-        "description": wh.description,
         "active": wh.active,
         "created_by": wh.created_by,
         "created_at": wh.created_at,
@@ -124,7 +122,6 @@ async def create_webhook(
         secret=secret,
         events=body.events,
         collections=body.collections,
-        description=body.description,
         created_by=uuid.UUID(admin["id"]) if admin.get("id") else None,
     )
     session.add(wh)
@@ -210,9 +207,6 @@ async def update_webhook(
     if body.collections is not None:
         wh.collections = body.collections
         fields.append("collections")
-    if body.description is not None:
-        wh.description = body.description
-        fields.append("description")
     if body.active is not None:
         wh.active = body.active
         fields.append("active")

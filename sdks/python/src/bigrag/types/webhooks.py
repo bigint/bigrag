@@ -27,7 +27,6 @@ class Webhook(TypedDict):
     url: str
     events: list[WebhookEvent]
     collections: list[str] | None
-    description: str
     active: bool
     created_by: str | None
     created_at: str
@@ -38,7 +37,6 @@ class CreateWebhookBody(TypedDict):
     url: str
     events: list[WebhookEvent]
     collections: NotRequired[list[str]]
-    description: NotRequired[str]
 
 
 class CreateWebhookResponse(TypedDict):
@@ -46,7 +44,6 @@ class CreateWebhookResponse(TypedDict):
     url: str
     events: list[WebhookEvent]
     collections: list[str] | None
-    description: str
     active: bool
     created_by: str | None
     created_at: str
@@ -58,7 +55,6 @@ class UpdateWebhookBody(TypedDict, total=False):
     url: str
     events: list[WebhookEvent]
     collections: list[str] | None
-    description: str
     active: bool
 
 

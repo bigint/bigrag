@@ -437,7 +437,6 @@ def upgrade() -> None:
         sa.Column("secret", bigrag.services.crypto.EncryptedString(), nullable=False),
         sa.Column("events", postgresql.ARRAY(sa.Text()), nullable=False),
         sa.Column("collections", postgresql.ARRAY(sa.Text()), nullable=True),
-        sa.Column("description", sa.Text(), server_default="", nullable=False),
         sa.Column("active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
         sa.Column("created_by", sa.Uuid(), nullable=True),
         sa.Column(

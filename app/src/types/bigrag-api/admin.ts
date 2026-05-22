@@ -44,7 +44,6 @@ export type Webhook = {
   url: string;
   events: string[];
   collections: string[] | null;
-  description: string;
   active: boolean;
   created_at: string;
   updated_at: string;

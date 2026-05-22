@@ -1,5 +1,4 @@
 export type WebhookFormValues = {
-  description: string;
   events: string[];
   url: string;
 };
@@ -25,7 +24,6 @@ export const WEBHOOK_EVENT_CATEGORIES: Record<string, string[]> = {
 const DEFAULT_WEBHOOK_EVENTS = Object.values(WEBHOOK_EVENT_CATEGORIES).flat();
 
 export const defaultWebhookFormValues = (): WebhookFormValues => ({
-  description: "",
   events: [...DEFAULT_WEBHOOK_EVENTS],
   url: "",
 });
