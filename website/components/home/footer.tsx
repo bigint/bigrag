@@ -15,7 +15,7 @@ export const Footer = () => (
       <div className="flex items-center gap-6">
         <a
           className="hover:text-fd-foreground"
-          href="https://github.com/bigint/bigrag"
+          href="https://github.com/bigint/rag.computer"
           rel="noopener noreferrer"
           target="_blank"
         >

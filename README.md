@@ -10,7 +10,7 @@ Upload documents, auto-chunk, embed, and retrieve through semantic, keyword, and
 [![npm version](https://img.shields.io/npm/v/%40bigrag%2Fclient?style=flat-square&logo=npm&logoColor=white&label=npm)](https://www.npmjs.com/package/@bigrag/client)
 [![Docker image](https://img.shields.io/docker/v/yoginth/bigrag-api?style=flat-square&logo=docker&logoColor=white&label=Docker&sort=semver)](https://hub.docker.com/r/yoginth/bigrag-api)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/bigint/bigrag?style=flat-square&logo=github&label=Stars)](https://github.com/bigint/bigrag)
+[![GitHub stars](https://img.shields.io/github/stars/bigint/rag.computer?style=flat-square&logo=github&label=Stars)](https://github.com/bigint/rag.computer)
 
 [Quick Start](#quick-start) · [Architecture](#architecture) · [API Reference](#api-reference) · [SDKs](#sdks) · [MCP Server](#mcp-server) · [Configuration](#configuration)
 

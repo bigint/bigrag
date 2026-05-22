@@ -1,6 +1,6 @@
 # @bigrag/client
 
-TypeScript client for [bigRAG](https://github.com/yoginth/bigrag) — a self-hostable RAG platform.
+TypeScript client for [bigRAG](https://github.com/bigint/rag.computer) — a self-hostable RAG platform.
 
 Zero dependencies. Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes.
 

@@ -25,10 +25,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yoginth/bigrag"
+Homepage = "https://github.com/bigint/rag.computer"
 Documentation = "https://bigrag.dev/docs/sdks/python"
-Repository = "https://github.com/yoginth/bigrag"
-Issues = "https://github.com/yoginth/bigrag/issues"
+Repository = "https://github.com/bigint/rag.computer"
+Issues = "https://github.com/bigint/rag.computer/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bigrag"]

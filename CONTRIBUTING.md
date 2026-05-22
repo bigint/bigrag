@@ -14,8 +14,8 @@ Thank you for your interest in contributing to bigRAG. This guide will help you 
 
 ```bash
 # Clone the repository
-git clone https://github.com/bigint/bigrag.git
-cd bigrag
+git clone https://github.com/bigint/rag.computer.git
+cd rag.computer
 
 # Start everything (backend + website + infrastructure)
 ./dev.sh

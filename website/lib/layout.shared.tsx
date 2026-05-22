@@ -23,7 +23,7 @@ export function baseOptions(): BaseLayoutProps {
         label: "GitHub",
         text: "GitHub",
         type: "icon",
-        url: "https://github.com/bigint/bigrag",
+        url: "https://github.com/bigint/rag.computer",
       },
       {
         icon: <SponsorIcon className="size-5" />,
