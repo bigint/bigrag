@@ -15,6 +15,7 @@ from bigrag.resources.admin.mcp_servers import AdminMcpServersResource
 from bigrag.resources.admin.realtime import AdminRealtimeResource
 from bigrag.resources.admin.settings import AdminSettingsResource
 from bigrag.resources.admin.users import AdminUsersResource
+from bigrag.resources.admin.vector_storage import AdminVectorStorageResource
 
 if TYPE_CHECKING:
     from bigrag._core import BigRAGCore
@@ -31,6 +32,7 @@ class AdminResource:
     mcp_servers: AdminMcpServersResource
     realtime: AdminRealtimeResource
     settings: AdminSettingsResource
+    vector_storage: AdminVectorStorageResource
 
     def __init__(self, client: BigRAGCore) -> None:
         self.users = AdminUsersResource(client)
@@ -43,6 +45,7 @@ class AdminResource:
         self.mcp_servers = AdminMcpServersResource(client)
         self.realtime = AdminRealtimeResource(client)
         self.settings = AdminSettingsResource(client)
+        self.vector_storage = AdminVectorStorageResource(client)
 
 
 __all__ = [
@@ -58,4 +61,5 @@ __all__ = [
     "AdminResource",
     "AdminSettingsResource",
     "AdminUsersResource",
+    "AdminVectorStorageResource",
 ]

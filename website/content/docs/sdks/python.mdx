@@ -9,7 +9,7 @@ import { Callout } from "fumadocs-ui/components/callout";
 ## Installation
 
 ```bash
-pip install bigrag==2026.5.7
+pip install bigrag==2026.5.22
 ```
 
 Requires Python 3.11+. The only runtime dependency is `httpx`. Published SDK releases use CalVer (`YYYY.M.D`).
@@ -65,14 +65,14 @@ The SDK follows a resource namespace pattern:
 
 | Namespace | Description |
 |---|---|
-| `client.collections` | Collection CRUD and stats |
+| `client.collections` | Collection CRUD, stats, event tokens, and event streams |
 | `client.documents` | Document upload, list, delete, batch ops |
-| `client.chat` | Generated answers and streaming |
+| `client.chat` | Generated answers, question suggestions, and streaming |
 | `client.queries` | Single, multi-collection, and batch queries |
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
 | `client.auth` | Setup, login, logout, identity, password, and preferences |
-| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, backups, admin realtime streams, connector config, embedding presets, and MCP server keys |
+| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, backups, vector storage overview, admin realtime streams, connector config, embedding presets, and MCP server keys |
 | `client.connectors.google` | Google Drive account, file browsing, sources, and sync jobs |
 | `client.evaluations` | Golden-set retrieval evaluation runs |
 
@@ -112,7 +112,8 @@ stats = await client.collections.stats("docs")
 await client.collections.truncate("docs")
 
 # Stream collection events (SSE)
-async for event in client.collections.stream_events("docs"):
+token = await client.collections.create_event_token("docs")
+async for event in client.collections.stream_events("docs", token=token["token"]):
     print(event)
 ```
 
@@ -191,6 +192,10 @@ answer = await client.chat.create({
     "search_mode": "hybrid",
 })
 print(answer["assistant_message"]["content"])
+
+# Question suggestions
+suggestions = await client.chat.get_question_suggestions("docs")
+fresh = await client.chat.generate_question_suggestions({"collection": "docs"})
 
 # Stream SSE events
 async for event in client.chat.stream({
@@ -333,6 +338,8 @@ await client.admin.settings.test({"values": {"turbopuffer_region": "aws-us-west-
 await client.admin.settings.update({"values": {"trusted_proxies": ["10.0.0.0/8"]}})
 await client.admin.settings.reset({"keys": ["trusted_proxies"]})
 await client.admin.settings.purge_embedding_cache()
+
+overview = await client.admin.vector_storage.overview()
 
 backups = await client.admin.backups.list(limit=20)
 backup = await client.admin.backups.create({"label": "nightly export"})

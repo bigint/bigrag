@@ -1,13 +1,31 @@
 import { type RequestClient, USER_AGENT } from "../core.js";
 import { errorForStatus } from "../errors.js";
 import { parseSSEFrames } from "../sse.js";
-import type { ChatCreateBody, ChatCreateResponse, ChatStreamEvent } from "../types/index.js";
+import type {
+  ChatCreateBody,
+  ChatCreateResponse,
+  ChatQuestionSuggestionsBody,
+  ChatQuestionSuggestionsResponse,
+  ChatStreamEvent,
+} from "../types/index.js";
 
 export class ChatResource {
   constructor(private readonly _client: RequestClient) {}
 
   create(body: ChatCreateBody): Promise<ChatCreateResponse> {
     return this._client._request("POST", "/v1/chat", { json: { ...body, stream: false } });
+  }
+
+  getQuestionSuggestions(collection: string): Promise<ChatQuestionSuggestionsResponse> {
+    return this._client._request("GET", "/v1/chat/question-suggestions", {
+      params: { collection },
+    });
+  }
+
+  generateQuestionSuggestions(
+    body: ChatQuestionSuggestionsBody,
+  ): Promise<ChatQuestionSuggestionsResponse> {
+    return this._client._request("POST", "/v1/chat/question-suggestions", { json: body });
   }
 
   async *stream(body: ChatCreateBody): AsyncGenerator<ChatStreamEvent> {

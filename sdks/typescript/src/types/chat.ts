@@ -1,6 +1,19 @@
 import type { MultimodalElementRef } from "./documents.js";
 import type { QueryTimings } from "./query.js";
 
+export interface ChatQuestionSuggestionsBody {
+  collection: string;
+  model?: string | null;
+  temperature?: number | null;
+}
+
+export interface ChatQuestionSuggestionsResponse {
+  collection: string;
+  questions: string[];
+  generated_at: string | null;
+  model: string | null;
+}
+
 export interface ChatCreateBody {
   message: string;
   collection: string;

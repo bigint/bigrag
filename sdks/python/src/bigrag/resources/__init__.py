@@ -13,6 +13,7 @@ from bigrag.resources.admin import (
     AdminResource,
     AdminSettingsResource,
     AdminUsersResource,
+    AdminVectorStorageResource,
 )
 from bigrag.resources.auth import AuthResource
 from bigrag.resources.chat import ChatResource
@@ -37,6 +38,7 @@ __all__ = [
     "AdminResource",
     "AdminSettingsResource",
     "AdminUsersResource",
+    "AdminVectorStorageResource",
     "AuthResource",
     "ChatResource",
     "CollectionsResource",

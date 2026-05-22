@@ -97,7 +97,8 @@ client.collections.delete(name)
 client.collections.truncate(name)        // delete all documents, keep the collection
 client.collections.reembed(name)         // requeue ready/failed documents
 client.collections.analytics(name)
-client.collections.streamEvents(name)    // AsyncIterable of collection events (SSE)
+client.collections.createEventToken(name)
+client.collections.streamEvents(name, { token? })    // AsyncIterable of collection events (SSE)
 ```
 
 For update calls, send `embedding_api_key: null` or `reranking_api_key: null` to clear the stored key.
@@ -141,6 +142,9 @@ const answer = await client.chat.create({
   search_mode: "hybrid",
 });
 console.log(answer.assistant_message.content);
+
+const suggestions = await client.chat.getQuestionSuggestions("docs");
+const fresh = await client.chat.generateQuestionSuggestions({ collection: "docs" });
 
 for await (const event of client.chat.stream({
   collection: "docs",
@@ -233,6 +237,8 @@ client.admin.settings.test({ values })
 client.admin.settings.update({ values })
 client.admin.settings.reset({ keys })
 client.admin.settings.purgeEmbeddingCache()
+
+client.admin.vectorStorage.overview()
 
 client.admin.backups.list({ limit?, offset? })
 client.admin.backups.get(backupId)

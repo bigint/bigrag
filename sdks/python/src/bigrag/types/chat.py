@@ -6,6 +6,19 @@ from .documents import MultimodalElementRef
 from .query import QueryTimings, SearchMode
 
 
+class ChatQuestionSuggestionsBody(TypedDict):
+    collection: str
+    model: NotRequired[str | None]
+    temperature: NotRequired[float | None]
+
+
+class ChatQuestionSuggestionsResponse(TypedDict):
+    collection: str
+    questions: list[str]
+    generated_at: str | None
+    model: str | None
+
+
 class ChatBody(TypedDict):
     message: str
     collection: str

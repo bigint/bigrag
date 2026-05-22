@@ -8,6 +8,8 @@ from bigrag._sse import parse_sse_frames
 from bigrag.types.chat import (
     ChatBody,
     ChatCreateResponse,
+    ChatQuestionSuggestionsBody,
+    ChatQuestionSuggestionsResponse,
     ChatStreamEvent,
 )
 
@@ -23,6 +25,22 @@ class ChatResource:
         payload = dict(body)
         payload["stream"] = False
         return await self._client._request("POST", "/v1/chat", json=payload)
+
+    async def get_question_suggestions(
+        self, collection: str
+    ) -> ChatQuestionSuggestionsResponse:
+        return await self._client._request(
+            "GET",
+            "/v1/chat/question-suggestions",
+            params={"collection": collection},
+        )
+
+    async def generate_question_suggestions(
+        self, body: ChatQuestionSuggestionsBody
+    ) -> ChatQuestionSuggestionsResponse:
+        return await self._client._request(
+            "POST", "/v1/chat/question-suggestions", json=body
+        )
 
     async def stream(self, body: ChatBody) -> AsyncGenerator[ChatStreamEvent, None]:
         payload = dict(body)

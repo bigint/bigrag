@@ -5,6 +5,7 @@ import { parseSSEStream } from "../sse.js";
 import type {
   AnalyticsResponse,
   Collection,
+  CollectionEventTokenResponse,
   CollectionListOptions,
   CollectionListResponse,
   CollectionStatsResponse,
@@ -74,13 +75,24 @@ export class CollectionsResource {
     return this._client._request("GET", `/v1/collections/${encodeURIComponent(name)}/analytics`);
   }
 
-  async *streamEvents(name: string): AsyncGenerator<ProgressEvent> {
+  createEventToken(name: string): Promise<CollectionEventTokenResponse> {
+    return this._client._request(
+      "POST",
+      `/v1/collections/${encodeURIComponent(name)}/events/token`,
+    );
+  }
+
+  async *streamEvents(
+    name: string,
+    options: { token?: string } = {},
+  ): AsyncGenerator<ProgressEvent> {
     const path = `/v1/collections/${encodeURIComponent(name)}/events`;
-    const url = `${this._client.baseUrl}${path}`;
+    const url = new URL(`${this._client.baseUrl}${path}`);
+    if (options.token !== undefined) url.searchParams.set("token", options.token);
     const headers: Record<string, string> = { "User-Agent": USER_AGENT };
     if (this._client.apiKey) headers.Authorization = `Bearer ${this._client.apiKey}`;
 
-    const response = await this._client._fetch(url, {
+    const response = await this._client._fetch(url.toString(), {
       method: "GET",
       headers,
     });

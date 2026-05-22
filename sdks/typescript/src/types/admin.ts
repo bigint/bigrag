@@ -120,6 +120,32 @@ export type AdminRealtimeEvent<T = unknown> =
   | AdminRealtimeError
   | AdminRealtimeMessage;
 
+export interface VectorStorageHealth {
+  status: "ok" | "error";
+  error: string | null;
+}
+
+export interface VectorStorageCollection {
+  name: string;
+  documents: number;
+  chunks: number;
+  bytes: number;
+}
+
+export interface VectorStorageTotals {
+  collections: number;
+  documents: number;
+  chunks: number;
+  bytes: number;
+}
+
+export interface VectorStorageOverviewResponse {
+  provider: string;
+  health: VectorStorageHealth;
+  collections: VectorStorageCollection[];
+  totals: VectorStorageTotals;
+}
+
 export interface UserListResponse {
   users: User[];
   total: number;

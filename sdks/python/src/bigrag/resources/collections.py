@@ -9,6 +9,7 @@ from bigrag._sse import parse_sse_stream
 from bigrag.types.analytics import AnalyticsResponse
 from bigrag.types.collections import (
     Collection,
+    CollectionEventTokenResponse,
     CollectionListResponse,
     CollectionStatsResponse,
     CreateCollectionBody,
@@ -79,12 +80,21 @@ class CollectionsResource:
             "POST", f"/v1/collections/{quote(name, safe='')}/reembed"
         )
 
-    async def stream_events(self, name: str) -> AsyncGenerator[ProgressEvent, None]:
+    async def create_event_token(self, name: str) -> CollectionEventTokenResponse:
+        return await self._client._request(
+            "POST", f"/v1/collections/{quote(name, safe='')}/events/token"
+        )
+
+    async def stream_events(
+        self, name: str, *, token: str | None = None
+    ) -> AsyncGenerator[ProgressEvent, None]:
         path = f"/v1/collections/{quote(name, safe='')}/events"
         url = f"{self._client.base_url}{path}"
+        params = {"token": token} if token is not None else None
         async with self._client._client.stream(
             "GET",
             url,
+            params=params,
             headers=self._client._headers(),
         ) as response:
             if response.status_code >= 400:

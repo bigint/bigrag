@@ -21,9 +21,13 @@ from bigrag.types.analytics import AnalyticsResponse
 from bigrag.types.chat import (
     ChatBody,
     ChatCreateResponse,
+    ChatQuestionSuggestionsResponse,
     ChatStreamEvent,
 )
-from bigrag.types.collections import CollectionStatsResponse
+from bigrag.types.collections import (
+    CollectionEventTokenResponse,
+    CollectionStatsResponse,
+)
 from bigrag.types.common import (
     HealthResponse,
     PlatformStatsResponse,
@@ -95,6 +99,11 @@ class BigRAG(BigRAGCore):
 
     async def chat_create(self, body: ChatBody) -> ChatCreateResponse:
         return await self.chat.create(body)
+
+    async def chat_question_suggestions(
+        self, collection: str
+    ) -> ChatQuestionSuggestionsResponse:
+        return await self.chat.get_question_suggestions(collection)
 
     async def chat_stream(
         self, body: ChatBody
@@ -236,3 +245,6 @@ class CollectionClient:
     async def stream_events(self) -> AsyncGenerator[ProgressEvent, None]:
         async for event in self._client.collections.stream_events(self._name):
             yield event
+
+    async def create_event_token(self) -> CollectionEventTokenResponse:
+        return await self._client.collections.create_event_token(self._name)

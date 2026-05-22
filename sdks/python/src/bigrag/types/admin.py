@@ -105,6 +105,32 @@ class AdminRealtimeEvent(TypedDict):
     data: Any
 
 
+class VectorStorageHealth(TypedDict):
+    status: Literal["ok", "error"]
+    error: str | None
+
+
+class VectorStorageCollection(TypedDict):
+    name: str
+    documents: int
+    chunks: int
+    bytes: int
+
+
+class VectorStorageTotals(TypedDict):
+    collections: int
+    documents: int
+    chunks: int
+    bytes: int
+
+
+class VectorStorageOverviewResponse(TypedDict):
+    provider: str
+    health: VectorStorageHealth
+    collections: list[VectorStorageCollection]
+    totals: VectorStorageTotals
+
+
 class UserListResponse(TypedDict):
     users: list[User]
     total: int
