@@ -15,6 +15,7 @@ from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.vector_store import vector_store
+from bigrag.services.webhook import enqueue_webhook_event
 
 logger = get_logger("bigrag.routers.collections_embedding")
 
@@ -82,6 +83,15 @@ async def reembed_collection(
         resource_type="collection",
         resource_id=str(collection.id),
         metadata={"name": name, "docs_queued": len(docs)},
+    )
+    await enqueue_webhook_event(
+        "collection.reembed.queued",
+        collection=name,
+        data={
+            "collection_id": str(collection.id),
+            "name": name,
+            "docs_queued": len(docs),
+        },
     )
     return StatusResponse(
         status="ok",

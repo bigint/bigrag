@@ -50,6 +50,7 @@ from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
+from bigrag.services.webhook import enqueue_webhook_event
 
 logger = get_logger("bigrag.routers.documents")
 
@@ -291,6 +292,15 @@ async def delete_document(
     await storage.delete(file_path)
     await storage.delete_prefix(element_asset_prefix_for_file_path(file_path))
 
+    await enqueue_webhook_event(
+        "document.deleted",
+        collection=collection_name,
+        data={
+            "document_id": document_id,
+            "collection": collection_name,
+            "filename": deleted_filename,
+        },
+    )
     audit.record(
         request,
         user=user,

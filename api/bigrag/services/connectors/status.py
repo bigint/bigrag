@@ -4,9 +4,10 @@ from typing import Any
 
 from bigrag.db.models import ConnectorSource, ConnectorSyncJob
 from bigrag.services.connectors.manifest import apply_counters
-from bigrag.services.connectors.progress import update_sync_progress
+from bigrag.services.connectors.progress import sync_counter_details, update_sync_progress
 from bigrag.services.connectors.time import next_sync_at, utcnow
 from bigrag.services.connectors.types import ConnectorSyncCounters
+from bigrag.services.webhook import enqueue_webhook_event
 
 
 async def fail_sync(
@@ -35,3 +36,27 @@ async def fail_sync(
         phase="failed",
         message=message,
     )
+    data = {
+        "provider": job.provider,
+        "source_id": str(source.id),
+        "job_id": str(job.id),
+        "trigger": job.trigger,
+        "collection": source.collection_name,
+        "status": job.status,
+        "error_message": message,
+        "counts": {
+            "found": counters.found,
+            **sync_counter_details(counters),
+        },
+    }
+    await enqueue_webhook_event(
+        "connector.sync.failed",
+        collection=source.collection_name,
+        data=data,
+    )
+    if source.status == "needs_reauth":
+        await enqueue_webhook_event(
+            "connector.sync.needs_reauth",
+            collection=source.collection_name,
+            data=data,
+        )

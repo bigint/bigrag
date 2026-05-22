@@ -36,6 +36,7 @@ from bigrag.services.pagination import apply_cursor, build_response_cursor, deco
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.vector_store import vector_store
+from bigrag.services.webhook import enqueue_webhook_event
 
 logger = get_logger("bigrag.routers.collections")
 
@@ -284,6 +285,17 @@ async def create_collection(
             "dimension": dimension,
         },
     )
+    await enqueue_webhook_event(
+        "collection.created",
+        collection=collection.name,
+        data={
+            "collection_id": str(collection.id),
+            "name": collection.name,
+            "provider": provider,
+            "model": model,
+            "dimension": dimension,
+        },
+    )
     return _collection_response(collection)
 
 
@@ -435,6 +447,15 @@ async def update_collection(
         resource_id=str(collection.id),
         metadata={"name": name, "fields": fields},
     )
+    await enqueue_webhook_event(
+        "collection.updated",
+        collection=collection.name,
+        data={
+            "collection_id": str(collection.id),
+            "name": collection.name,
+            "fields": fields,
+        },
+    )
     return _collection_response(collection)
 
 
@@ -455,6 +476,11 @@ async def delete_collection(
         resource_id=deleted_id,
         metadata={"name": name},
     )
+    await enqueue_webhook_event(
+        "collection.deleted",
+        collection=name,
+        data={"collection_id": deleted_id, "name": name},
+    )
     return StatusResponse(status="ok", message=f"Collection '{name}' deleted")
 
 
@@ -474,5 +500,10 @@ async def truncate_collection(
         resource_type="collection",
         resource_id=collection_id,
         metadata={"name": name},
+    )
+    await enqueue_webhook_event(
+        "collection.truncated",
+        collection=name,
+        data={"collection_id": collection_id, "name": name},
     )
     return StatusResponse(status="ok", message=f"Collection '{name}' truncated")

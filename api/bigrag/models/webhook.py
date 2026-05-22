@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, model_validator
 
-VALID_EVENTS = frozenset({"document.ready", "document.failed", "document.processing"})
+from bigrag.services.webhook.events import VALID_EVENTS
 
 
 def _validate_webhook_url(url: str) -> None:

@@ -47,6 +47,7 @@ from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
+from bigrag.services.webhook import enqueue_webhook_event
 
 logger = get_logger("bigrag.routers.documents.batch")
 
@@ -258,12 +259,27 @@ async def batch_delete_documents(
     deleted_ids = [
         uuid_or_404(d, "Document") for d, ok in zip(by_id.keys(), results, strict=True) if ok
     ]
+    deleted_payloads = [
+        {
+            "document_id": doc_id,
+            "collection": collection_name,
+            "filename": by_id[doc_id].filename,
+        }
+        for doc_id, ok in zip(by_id.keys(), results, strict=True)
+        if ok
+    ]
     if deleted_ids:
         await session.execute(sa.delete(Document).where(Document.id.in_(deleted_ids)))
     await recount_collection_documents(session, collection["id"])
     await session.commit()
     await collection_cache.invalidate(collection_name)
     await invalidate_collection_query_cache(collection_name)
+    for payload in deleted_payloads:
+        await enqueue_webhook_event(
+            "document.deleted",
+            collection=collection_name,
+            data=payload,
+        )
 
     logger.info("batch delete", collection=collection_name, deleted=deleted, errors=len(errors))
     audit.record(
