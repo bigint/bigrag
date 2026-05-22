@@ -1,8 +1,22 @@
+<div align="center">
+
 # bigRAG
 
-Open-source, self-hostable RAG platform with Turbopuffer-backed search. Upload documents, auto-chunk, embed, and retrieve through semantic, keyword, and hybrid modes behind a simple REST API.
+**Open-source, self-hostable RAG platform with Turbopuffer-backed search.**
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+Upload documents, auto-chunk, embed, and retrieve through semantic, keyword, and hybrid search — all behind one clean REST API.
+
+[![PyPI version](https://img.shields.io/pypi/v/bigrag?style=flat-square&logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/bigrag/)
+[![npm version](https://img.shields.io/npm/v/%40bigrag%2Fclient?style=flat-square&logo=npm&logoColor=white&label=npm)](https://www.npmjs.com/package/@bigrag/client)
+[![Docker image](https://img.shields.io/docker/v/yoginth/bigrag-api?style=flat-square&logo=docker&logoColor=white&label=Docker&sort=semver)](https://hub.docker.com/r/yoginth/bigrag-api)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/bigint/bigrag?style=flat-square&logo=github&label=Stars)](https://github.com/bigint/bigrag)
+
+[Quick Start](#quick-start) · [Architecture](#architecture) · [API Reference](#api-reference) · [SDKs](#sdks) · [MCP Server](#mcp-server) · [Configuration](#configuration)
+
+</div>
+
+---
 
 ## Features
 
@@ -32,7 +46,12 @@ Open-source, self-hostable RAG platform with Turbopuffer-backed search. Upload d
 docker compose up -d
 ```
 
-This starts bigRAG API, worker, admin UI, Postgres, and Redis. Configure Turbopuffer from onboarding before ingesting or querying collections. Open http://localhost:3000 for the admin UI or http://localhost:4000/docs for the interactive API docs.
+This starts the bigRAG API, worker, admin UI, Postgres, and Redis. Open **[localhost:3000](http://localhost:3000)** for the admin UI or **[localhost:4000/docs](http://localhost:4000/docs)** for the interactive API docs.
+
+> [!IMPORTANT]
+> Configure Turbopuffer from onboarding before ingesting or querying collections.
+
+Once Turbopuffer is configured, you can drive everything over HTTP:
 
 ```bash
 # Create a collection
@@ -63,8 +82,7 @@ docker pull yoginth/bigrag-api:2026.4.30
 docker pull yoginth/bigrag-ui:2026.4.30
 ```
 
-Release artifacts use CalVer (`YYYY.M.D`). Docker also publishes `latest`; the
-Python SDK publishes dated PyPI releases.
+Release artifacts use CalVer (`YYYY.M.D`). Docker also publishes `latest`; the Python SDK publishes dated PyPI releases.
 
 ## Architecture
 
@@ -244,7 +262,7 @@ const { results } = await client.queries.query("docs", { query: "What is RAG?" }
 ### Python
 
 ```bash
-pip install bigrag==2026.5.7
+pip install bigrag==2026.5.22
 ```
 
 ```python
@@ -259,7 +277,7 @@ doc = await client.documents.upload("docs", "/path/to/paper.pdf")
 result = await client.queries.query("docs", {"query": "What is RAG?"})
 ```
 
-## MCP server
+## MCP Server
 
 Expose bigRAG to Claude Desktop, Cursor, and any MCP-aware runtime:
 
@@ -289,24 +307,35 @@ Full-workspace keys expose 8 tools — `list_collections`, `get_collection`, `ge
 
 ## Configuration
 
-Bootstrap settings use the `BIGRAG_` prefix as environment variables, or configure via `bigrag.toml`.
-Backend logging defaults to `debug` / `text` for local development. Use `BIGRAG_LOG_LEVEL=info` and `BIGRAG_LOG_FORMAT=json` for production log collection. Configure Turbopuffer from the admin UI; it is stored in Postgres with the other instance settings.
+Bootstrap settings use the `BIGRAG_` prefix as environment variables, or configure them in `bigrag.toml`. Backend logging defaults to `debug` / `text` for local development — use `BIGRAG_LOG_LEVEL=info` and `BIGRAG_LOG_FORMAT=json` for production log collection. Turbopuffer is configured from the admin UI and stored in Postgres alongside the other instance settings.
+
+#### Server
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_PORT` | Server port | `4000` |
 | `BIGRAG_HOST` | Bind address | `127.0.0.1` |
 | `BIGRAG_WORKERS` | API worker processes | `1` |
+| `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
 | `BIGRAG_LOG_LEVEL` | Backend log level: `debug`, `info`, `warning`, or `error` | `debug` |
 | `BIGRAG_LOG_FORMAT` | Backend log renderer: `text` or `json` | `text` |
 | `BIGRAG_CORS_ORIGINS` | JSON array of allowed browser origins | `[]` |
+| `BIGRAG_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and access logs | `[]` |
+
+#### Database & Redis
+
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `BIGRAG_DATABASE_URL` | Postgres URL (`postgres:5432` inside docker-compose, `localhost:5432` for bare-metal dev) | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
 | `BIGRAG_DB_POOL_MIN` | Min Postgres pool size | `5` |
 | `BIGRAG_DB_POOL_MAX` | Max Postgres pool size | `50` |
 | `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration check timeout (`0` disables the timeout) | `60` |
 | `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
-| `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
-| `BIGRAG_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and access logs | `[]` |
+
+#### Sessions & Auth
+
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `BIGRAG_SESSION_EXPIRY_HOURS` | Session cookie lifetime | `168` |
 | `BIGRAG_SESSION_COOKIE_NAME` | Session cookie name | `bigrag_session` |
 | `BIGRAG_SESSION_COOKIE_SECURE` | HTTPS-only session cookies | `false` |
@@ -314,11 +343,13 @@ Backend logging defaults to `debug` / `text` for local development. Use `BIGRAG_
 | `BIGRAG_SESSION_COOKIE_DOMAIN` | Optional session cookie domain | — |
 | `BIGRAG_AUTH_PRINCIPAL_CACHE_TTL` | Principal cache TTL in seconds | `60` |
 
-`./dev.sh` and the default Docker Compose setup allow the local admin UI origin
-`http://localhost:3000`. For production, set `BIGRAG_CORS_ORIGINS` to the exact
-admin UI origin. Cross-site admin UI deployments also need
-`BIGRAG_SESSION_COOKIE_SECURE=true` and usually
-`BIGRAG_SESSION_COOKIE_SAMESITE=none`.
+> [!TIP]
+> `./dev.sh` and the default Docker Compose setup allow the local admin UI origin `http://localhost:3000`. For production, set `BIGRAG_CORS_ORIGINS` to the exact admin UI origin. Cross-site admin UI deployments also need `BIGRAG_SESSION_COOKIE_SECURE=true` and usually `BIGRAG_SESSION_COOKIE_SAMESITE=none`.
+
+#### Embedding
+
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `BIGRAG_EMBEDDING_API_KEY` | Default embedding API key | — |
 | `BIGRAG_EMBEDDING_PROVIDER` | Default embedding provider | `openai` |
 | `BIGRAG_EMBEDDING_MODEL` | Default embedding model | `text-embedding-3-small` |
@@ -327,6 +358,11 @@ admin UI origin. Cross-site admin UI deployments also need
 | `BIGRAG_EMBEDDING_CONCURRENCY` | Max concurrent embedding requests | `8` |
 | `BIGRAG_ALLOWED_EMBEDDING_BASE_URLS` | JSON allow-list for embedding base URLs | `[]` |
 | `BIGRAG_ALLOW_PRIVATE_EMBEDDING_BASE_URLS` | Allow private-network embedding endpoints | `false` |
+
+#### Chat
+
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `BIGRAG_CHAT_PROVIDER` | Chat provider | `openai` |
 | `BIGRAG_CHAT_MODEL` | Default chat model | `gpt-4o-mini` |
 | `BIGRAG_CHAT_BASE_URL` | Base URL for OpenAI-compatible chat endpoints | — |
@@ -334,8 +370,18 @@ admin UI origin. Cross-site admin UI deployments also need
 | `BIGRAG_CHAT_MAX_CONTEXT_CHARS` | Max retrieved-context characters per chat call | `120000` |
 | `BIGRAG_ALLOWED_CHAT_BASE_URLS` | JSON allow-list for chat base URLs | `[]` |
 | `BIGRAG_ALLOW_PRIVATE_CHAT_BASE_URLS` | Allow private-network chat endpoints | `false` |
+
+#### Security
+
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `BIGRAG_MASTER_KEY` | Fernet key that encrypts provider credentials, embedding cache rows, and Redis cache payloads (required in `prod`) | — |
 | `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys for staged rotation | `[]` |
+
+#### Ingestion & Uploads
+
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `BIGRAG_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
 | `BIGRAG_INGESTION_WORKERS` | Ingestion concurrency target | `4` |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max single-file upload size | `64` |
@@ -344,11 +390,21 @@ admin UI origin. Cross-site admin UI deployments also need
 | `BIGRAG_CONVERSION_TIMEOUT` | Docling conversion timeout in seconds | `300` |
 | `BIGRAG_CONVERSION_PDF_OCR_ENABLED` | Enable OCR for scanned PDFs | `true` |
 | `BIGRAG_QUEUE_MAX_DEPTH` | Max pending jobs in the ingestion queue | `10000` |
+
+#### Caching
+
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `BIGRAG_COLLECTION_CACHE_TTL` | Collection metadata cache TTL in seconds | `30` |
 | `BIGRAG_QUERY_EMBEDDING_CACHE_TTL` | Query embedding cache TTL in seconds | `300` |
 | `BIGRAG_QUERY_RESULT_CACHE_TTL` | Exact query-result cache TTL in seconds | `30` |
 | `BIGRAG_EMBEDDING_CACHE_MODE` | Persistent chunk embedding cache mode (`encrypted` or `disabled`) | `encrypted` |
 | `BIGRAG_EMBEDDING_CACHE_RETENTION_DAYS` | Days to keep persistent embedding-cache rows after last use | `30` |
+
+#### Webhooks
+
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `BIGRAG_WEBHOOK_DELIVERY_TIMEOUT` | Webhook HTTP timeout in seconds | `10` |
 | `BIGRAG_WEBHOOK_RETRY_DELAYS` | JSON array of webhook retry delays in seconds | `[10,30,90]` |
 | `BIGRAG_WEBHOOK_MAX_COUNT` | Max configured webhooks | `50` |
