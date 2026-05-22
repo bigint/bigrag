@@ -65,7 +65,7 @@ Environment variables override TOML values. CLI flags passed to `python -m bigra
 
 After the first admin account exists, the admin UI sends first-run operators to `/onboarding` to create one verified embedding preset and save Turbopuffer settings for collection work. The Turbopuffer step's **Save and Finish** action saves the vector settings and opens `/overview`. Later, go to `/settings` to manage platform runtime settings, uploaded source-file storage, and backups, and `/models` to manage model presets and model runtime settings. Turbopuffer is configured from the UI, is the search backend for every collection, and is stored in Postgres in the `instance_settings` table. Secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
 
-The same surface is available through [`/v1/admin/settings`](/docs/api-reference/instance-settings).
+The same settings are available through [`/v1/admin/settings`](/docs/api-reference/instance-settings).
 
 | Area | Examples |
 |------|----------|
@@ -78,7 +78,7 @@ The same surface is available through [`/v1/admin/settings`](/docs/api-reference
 
 `BIGRAG_CHAT_API_KEY` can seed a default instance chat credential for OpenAI's standard API endpoint. For non-default `chat_base_url` values, configure a saved chat key in the admin UI or pass `provider_api_key` on chat requests so the instance fallback key is never sent to a custom provider.
 
-The UI uses the same compact top tab control and shared dashboard body width as the other admin pages for Account, Health, Security, Data, Storage, Vector storage, and Backups, then opens directly into the selected Settings area without a repeated section heading. Each area is arranged sequentially from top to bottom. Each runtime panel shows common controls first, keeps raw setting keys, source metadata, and rarely changed limits in Advanced controls, keeps Save in the panel footer, and uses default or example placeholders for empty controls. Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, `/settings?tab=data`, `/settings?tab=storage`, `/settings?tab=vector_store`, and `/settings?tab=backups`.
+Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, `/settings?tab=data`, `/settings?tab=storage`, `/settings?tab=vector_store`, and `/settings?tab=backups`.
 
 Database-backed admin settings apply immediately on save. Storage, backup, and Turbopuffer connection changes validate the new target before saving, then swap the runtime client in place where applicable.
 

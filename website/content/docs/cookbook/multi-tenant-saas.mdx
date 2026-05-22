@@ -38,7 +38,7 @@ await client.collections.create({
 ### Per-tenant API key
 
 Mint a scoped key so the tenant's browser / mobile app can query but
-can't touch other collections or the admin surface:
+can't touch other collections or admin APIs:
 
 ```python
 key = await client.admin.api_keys.create({

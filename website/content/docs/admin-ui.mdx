@@ -7,8 +7,6 @@ import { Callout } from "fumadocs-ui/components/callout";
 
 The admin UI is the Vite + TanStack Router single-page app packaged with bigRAG. Every control is also a REST API, so the admin UI is optional — you can run bigRAG headless — but it's the fastest way to bootstrap, prototype, and operate the platform.
 
-The bundled interface uses normal-weight body text with slightly restrained emphasis weights so dense admin screens stay readable without feeling visually heavy.
-
 The admin UI supports light, dark, and system themes. The selection is stored in the browser, applies before the React app loads, and is available from both the login/setup screens and the signed-in account menu.
 
 Submitted operator forms use TanStack Form for client-side draft state, validation, resets, and submit handling while keeping the existing Base UI controls. This covers setup, login, collection creation and search, eval runs, API keys, MCP servers, account password changes, runtime settings, embedding presets, webhook creation, and connector credential forms.
@@ -55,7 +53,7 @@ For cross-site production deployments, enable secure session cookies and usually
 
 Unknown admin routes render the built-in 404 screen with links back to overview and collections. Unexpected route render failures use the admin 500 screen with a retry action, overview fallback, and a readable error-details panel showing the boundary error message, cause, and digest when available.
 
-The sidebar is grouped by operator task: Workspace for day-to-day retrieval surfaces, Interfaces for client and integration entry points, Observability for logs and spend, and Administration for instance settings. Member accounts only see groups that still contain at least one available destination. Standard admin pages share one centered dashboard body width so page headers, tabs, and primary panels align across routes; shared tabs rely on the page stack gap so spacing above and below the tab row stays even. The desktop sidebar keeps matching top and bottom insets so it reads as a floating surface, while page scroll areas still keep their own bottom edge available so footer actions are not clipped by a reserved app gutter. The footer account menu opens almost as wide as the sidebar footer trigger, with a small horizontal inset.
+The sidebar is grouped by operator task: Workspace, Interfaces, Observability, and Administration. Member accounts only see destinations available to their role.
 
 ## Settings sections
 
@@ -65,18 +63,11 @@ The `/connectors` page renders provider tabs above the selected provider setup p
 
 The Settings Backups tab renders backup destination settings directly above export controls backed by `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups`, and `POST /v1/admin/backups`. Backup starts are disabled when the worker heartbeat is offline or no bucket is configured.
 
-The Settings Storage tab is the runtime settings surface for uploaded source-file storage. It uses `GET /v1/admin/settings` and `PUT /v1/admin/settings` for local disk and S3-compatible object-store settings.
+The Settings Storage tab manages uploaded source-file storage. It uses `GET /v1/admin/settings` and `PUT /v1/admin/settings` for local disk and S3-compatible object-store settings.
 
 The Settings Vector storage tab exposes the saved Turbopuffer API key state, public-region dropdown, namespace prefix, and optional base URL through the same instance settings API.
 
-The settings page is a compact task-oriented workspace:
-
-- **Top tab control** for Account, Health, Security, Data, Storage, Vector storage, and Backups — no nested settings sidebar; each tab opens directly into its area without a repeated section heading.
-- **Stacked layout** — settings content is stacked sequentially rather than split into desktop columns. Common controls appear first; raw setting keys and source metadata stay inside Advanced controls; each runtime panel keeps its guidance plus Save action together in the panel footer.
-- **Security tab** focuses on trusted-proxy handling, outbound URL policy, and embedding-cache posture. CORS origins and session-cookie deployment controls stay in deployment config and the instance settings API.
-- **Data tab** covers ingestion, queue, retention, and webhook runtime settings, while the Storage tab owns uploaded source-file storage, Vector storage owns Turbopuffer settings, and the Backups tab owns readable export configuration and runs.
-- **Placeholders** — empty controls show default or example values so unset settings remain readable.
-- **Validation** — saving probes applicable storage, backup, and Turbopuffer targets before persistence.
+Settings are grouped into Account, Health, Security, Data, Storage, Vector storage, and Backups. Security covers trusted proxies, outbound URL policy, and embedding-cache posture. Data covers ingestion, queue, retention, and webhook runtime settings. Storage, Vector storage, and Backups own their matching runtime settings and validation checks.
 
 Settings only accepts current tab values: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, `/settings?tab=data`, `/settings?tab=storage`, `/settings?tab=vector_store`, and `/settings?tab=backups`. Legacy `/data-storage` and `/backups` URLs redirect to their Settings tabs.
 
