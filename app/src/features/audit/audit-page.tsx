@@ -53,7 +53,7 @@ export const AuditPage = () => {
     }),
     [action, offset, resourceType],
   );
-  const { data, isPending, error } = useRealtimeSnapshotQuery<AuditList>({
+  const { data, isPending, error, realtimeUnavailable } = useRealtimeSnapshotQuery<AuditList>({
     queryKey,
     queryFn: () => apiClient.get<AuditList>("v1/admin/audit", params),
     topic: "admin.audit",
@@ -189,6 +189,7 @@ export const AuditPage = () => {
                 <div>
                   Showing {formatNumber(firstEntry)}-{formatNumber(lastEntry)} of{" "}
                   {formatNumber(total)} entries
+                  {realtimeUnavailable ? " · realtime unavailable, polling" : ""}
                 </div>
                 <div className="flex items-center gap-3">
                   <span>

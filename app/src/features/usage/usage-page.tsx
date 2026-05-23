@@ -42,7 +42,7 @@ const humanBytes = (n: number): string => {
 export const UsagePage = () => {
   const [windowDays, setWindowDays] = useState(30);
   const queryKey = useMemo(() => queryKeys.usage({ windowDays }), [windowDays]);
-  const { data, isPending, error } = useRealtimeSnapshotQuery<UsageReport>({
+  const { data, isPending, error, realtimeUnavailable } = useRealtimeSnapshotQuery<UsageReport>({
     queryKey,
     queryFn: () => apiClient.get<UsageReport>("v1/usage", { window_days: windowDays }),
     topic: "admin.usage",
@@ -82,6 +82,9 @@ export const UsagePage = () => {
                 onChange={(v) => setWindowDays(Number(v))}
               />
             </div>
+            {realtimeUnavailable ? (
+              <span className="text-xs text-muted-foreground">realtime unavailable, polling</span>
+            ) : null}
           </div>
 
           {isPending ? (
