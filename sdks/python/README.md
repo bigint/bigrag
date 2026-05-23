@@ -33,7 +33,7 @@ The SDK is fully typed, ships `py.typed`, and uses CalVer releases like `2026.5.
 - `client.webhooks` for webhook management and delivery replay.
 - `client.auth` for session login, setup, preferences, and identity.
 - `client.admin` for users, API keys, access logs, audit logs, runtime settings, backups, vector storage overview, admin realtime streams, connector config, embedding presets, and MCP server keys.
-- `client.connectors.google` for Google Drive account, file browsing, sources, and sync jobs.
+- `client.connectors.s3` for S3-compatible bucket-prefix sources and sync jobs.
 - `client.evaluations` for golden-set retrieval evaluations.
 
 ## Authentication
