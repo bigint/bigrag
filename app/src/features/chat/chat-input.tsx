@@ -146,7 +146,7 @@ export const ChatInput = ({
                 </Button>
               }
             >
-              <SettingsMenu onPatch={onPatch} saving={saving} state={state} />
+              <SettingsMenu onPatch={onPatch} state={state} />
             </ToolbarPopover>
           </div>
 

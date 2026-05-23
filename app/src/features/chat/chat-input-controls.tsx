@@ -138,11 +138,9 @@ export const CollectionMenu = ({
 
 export const SettingsMenu = ({
   onPatch,
-  saving,
   state,
 }: {
   onPatch: (patch: ChatPatch) => void;
-  saving: boolean;
   state: ChatState;
 }) => (
   <div className="w-[min(24rem,calc(100vw-2rem))] space-y-4 p-4">
@@ -229,7 +227,6 @@ export const SettingsMenu = ({
         value={state.systemPrompt}
       />
     </div>
-    {saving && <div className="text-xs text-muted-foreground">Saving...</div>}
   </div>
 );
 
