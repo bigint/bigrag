@@ -255,7 +255,7 @@ const { results } = await client.queries.query("docs", { query: "What is RAG?" }
 ### Python
 
 ```bash
-pip install bigrag==2026.5.22
+pip install bigrag==2026.5.23
 ```
 
 ```python
