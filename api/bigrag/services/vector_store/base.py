@@ -8,17 +8,6 @@ from bigrag.services._retrieval_filters import FilterExpression
 
 _POINT_NAMESPACE = uuid.UUID("1b04f7ca-0c3b-5d76-a5bb-6e4b4a40f61d")
 _FIXED_PAYLOAD_FIELDS = {"id", "text", "document_id", "chunk_index", "embedding"}
-DEFAULT_SEARCH_PAYLOAD_FIELDS: list[str] = [
-    "id",
-    "text",
-    "document_id",
-    "chunk_index",
-    "page_no",
-    "char_start",
-    "char_end",
-    "content_kinds",
-    "multimodal_elements",
-]
 
 
 class VectorStoreBackend(Protocol):

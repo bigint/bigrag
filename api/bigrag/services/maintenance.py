@@ -10,7 +10,6 @@ from bigrag.db.engine import session_factory
 from bigrag.db.models import MaintenanceLock
 
 MAINTENANCE_LOCK_NAME = "maintenance"
-BACKUP_LOCK_NAME = MAINTENANCE_LOCK_NAME
 
 
 class MaintenanceActiveError(RuntimeError):
