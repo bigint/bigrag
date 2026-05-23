@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 
-type TabSurface = "default" | "inverse";
 type Tab = { value: string; label: string; count?: number; icon?: LucideIcon };
 
 const tabListClassName = "flex gap-1.5 overflow-x-auto";
@@ -12,80 +11,40 @@ const tabClassName =
 const tabCountClassName = "rounded px-1.5 py-0.5 text-xs font-semibold leading-none";
 const tabIconClassName = "size-3.5";
 
-const surfaceClasses: Record<
-  TabSurface,
-  {
-    active: string;
-    inactive: string;
-    countActive: string;
-    countInactive: string;
-    focus: string;
-  }
-> = {
-  default: {
-    active: "bg-primary text-primary-foreground shadow-sm",
-    inactive: "text-muted-foreground hover:bg-muted hover:text-foreground",
-    countActive: "bg-primary-foreground/15 text-primary-foreground",
-    countInactive: "bg-muted text-muted-foreground",
-    focus: "focus-visible:ring-ring focus-visible:ring-offset-background",
-  },
-  inverse: {
-    active: "bg-primary-foreground text-primary shadow-sm",
-    inactive:
-      "text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground",
-    countActive: "bg-primary/10 text-primary",
-    countInactive: "bg-primary-foreground/10 text-primary-foreground/70",
-    focus: "focus-visible:ring-primary-foreground/70 focus-visible:ring-offset-primary",
-  },
+const surfaceClass = {
+  active: "bg-primary text-primary-foreground shadow-sm",
+  inactive: "text-muted-foreground hover:bg-muted hover:text-foreground",
+  countActive: "bg-primary-foreground/15 text-primary-foreground",
+  countInactive: "bg-muted text-muted-foreground",
+  focus: "focus-visible:ring-ring focus-visible:ring-offset-background",
 };
 
-const getTabClassName = ({
-  active,
-  className,
-  surface = "default",
-}: {
-  active: boolean;
-  className?: string;
-  surface?: TabSurface;
-}) =>
+const getTabClassName = ({ active, className }: { active: boolean; className?: string }) =>
   cn(
     tabClassName,
-    surfaceClasses[surface].focus,
-    active ? surfaceClasses[surface].active : surfaceClasses[surface].inactive,
+    surfaceClass.focus,
+    active ? surfaceClass.active : surfaceClass.inactive,
     className,
   );
 
-const getTabCountClassName = ({
-  active,
-  surface = "default",
-}: {
-  active: boolean;
-  surface?: TabSurface;
-}) =>
-  cn(
-    tabCountClassName,
-    active ? surfaceClasses[surface].countActive : surfaceClasses[surface].countInactive,
-  );
+const getTabCountClassName = ({ active }: { active: boolean }) =>
+  cn(tabCountClassName, active ? surfaceClass.countActive : surfaceClass.countInactive);
 
 const TabContent = ({
   active,
   count,
   icon: Icon,
   label,
-  surface,
 }: {
   active: boolean;
   count?: number;
   icon?: LucideIcon;
   label: string;
-  surface?: TabSurface;
 }) => (
   <>
     {Icon && <Icon className={tabIconClassName} />}
     <span>{label}</span>
-    {count !== undefined && (
-      <span className={getTabCountClassName({ active, surface })}>{count}</span>
-    )}
+    {count !== undefined && <span className={getTabCountClassName({ active })}>{count}</span>}
   </>
 );
 

@@ -1,8 +1,8 @@
 import { cn } from "@/lib/cn";
 
-type Props = { className?: string; withWordmark?: boolean };
+type Props = { className?: string };
 
-export const Logo = ({ className, withWordmark = true }: Props) => (
+export const Logo = ({ className }: Props) => (
   <div className={cn("flex items-center gap-2", className)}>
     <svg
       aria-hidden="true"
@@ -16,6 +16,6 @@ export const Logo = ({ className, withWordmark = true }: Props) => (
       <path d="M8 12L16 6L24 12V20L16 26L8 20V12Z" fill="var(--color-logo-cutout)" opacity="0.9" />
       <path d="M16 6L24 12L16 18L8 12L16 6Z" fill="var(--color-logo-cutout)" />
     </svg>
-    {withWordmark && <span className="font-semibold tracking-tight">bigRAG</span>}
+    <span className="font-semibold tracking-tight">bigRAG</span>
   </div>
 );
