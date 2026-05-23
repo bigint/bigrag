@@ -188,16 +188,17 @@ client.queries.query(collection, {
   top_k?, filters?, min_score?,
   search_mode?,             // "semantic" | "keyword" | "hybrid"
   rerank?,
+  skip_cache?,
   multimodal?,
 })
 // Response exposes: results, query, collection, total, timings
 // Multimodal collections include result.multimodal_elements
 
 client.queries.multiQuery({
-  query, collections, top_k?, filters?, min_score?, search_mode?, rerank?, multimodal?
+  query, collections, top_k?, filters?, min_score?, search_mode?, rerank?, skip_cache?, multimodal?
 })
 client.queries.batchQuery({
-  queries: [{ collection, query, top_k?, search_mode? }, ...]
+  queries: [{ collection, query, top_k?, search_mode?, skip_cache? }, ...]
 })
 ```
 

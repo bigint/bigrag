@@ -252,6 +252,7 @@ result = await client.queries.query("docs", {
     "search_mode": "hybrid",  # "semantic", "keyword", or "hybrid"
     "min_score": 0.5,
     "rerank": True,
+    "skip_cache": True,
     "multimodal": True,
 })
 
@@ -260,12 +261,13 @@ result = await client.queries.multi_query({
     "query": "search terms",
     "collections": ["docs", "articles"],
     "top_k": 10,
+    "skip_cache": True,
 })
 
 # Batch query (up to 20)
 result = await client.queries.batch_query({
     "queries": [
-        {"collection": "docs", "query": "first query"},
+        {"collection": "docs", "query": "first query", "skip_cache": True},
         {"collection": "articles", "query": "second query"},
     ]
 })

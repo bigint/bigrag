@@ -85,6 +85,7 @@ async def call_query(
     search_mode: str,
     min_score: float | None,
     rerank: bool,
+    skip_cache: bool,
     filters: dict[str, Any] | None,
 ) -> dict[str, Any]:
     body: dict[str, Any] = {
@@ -92,6 +93,7 @@ async def call_query(
         "top_k": top_k,
         "search_mode": search_mode,
         "rerank": rerank,
+        "skip_cache": skip_cache,
     }
     if min_score is not None:
         body["min_score"] = min_score

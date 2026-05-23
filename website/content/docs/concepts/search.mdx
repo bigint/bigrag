@@ -60,6 +60,7 @@ Each bigRAG collection maps to one Turbopuffer namespace. Document chunks are wr
 | `min_score` | float | Collection default | Drop hits below this score |
 | `search_mode` | string | Collection default | `semantic`, `keyword`, `hybrid` |
 | `rerank` | boolean | Collection setting | Force Cohere rerank on/off |
+| `skip_cache` | boolean | `false` | Bypass Redis query-result and query-embedding caches for one request |
 
 ## Filters
 
@@ -112,7 +113,7 @@ Every response includes a `timings` breakdown:
 }
 ```
 
-When a query-result cache entry is reused, `cache_hit` is `true`, `cache_ms` contains the Redis lookup time, and the embed/search/rerank timings stay at zero instead of replaying the original uncached request's latencies.
+When a query-result cache entry is reused, `cache_hit` is `true`, `cache_ms` contains the Redis lookup time, and the embed/search/rerank timings stay at zero instead of replaying the original uncached request's latencies. Set `"skip_cache": true` to force a live retrieval for one request without reading or writing Redis query caches.
 
 ## Multi-Collection Query
 

@@ -69,7 +69,7 @@ TOKEN=$(curl -s -X POST http://localhost:4000/v1/collections/docs/realtime-token
 | `admin.platform.readiness` | none | `GET /health/ready` | stays open |
 | `collection.events` | `collection`, optional `token` | ingestion progress event | stays open |
 
-The backend uses the ingestion event bus for ingestion-backed topics and full snapshot reloads for paginated or aggregate admin surfaces.
+The backend uses event-bus wakeups for ingestion-backed topics, connector source changes, and connector sync progress. Paginated or aggregate admin surfaces still send full snapshots so reconnects and reloads see the same shape as the REST endpoint.
 
 <Callout type="info">
   REST endpoints remain available for polling fallback. Realtime SSE endpoints were removed in favor of `WS /v1/realtime`.

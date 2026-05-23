@@ -8,6 +8,7 @@ export interface QueryBody {
   search_mode?: "semantic" | "keyword" | "hybrid";
   rerank?: boolean;
   multimodal?: boolean;
+  skip_cache?: boolean;
 }
 
 export interface QueryResult {
@@ -50,6 +51,7 @@ export interface MultiQueryBody {
   search_mode?: "semantic" | "keyword" | "hybrid";
   rerank?: boolean;
   multimodal?: boolean;
+  skip_cache?: boolean;
 }
 
 export interface MultiQueryResult {
@@ -80,6 +82,7 @@ export interface BatchQueryItem {
   search_mode?: "semantic" | "keyword" | "hybrid";
   rerank?: boolean;
   multimodal?: boolean;
+  skip_cache?: boolean;
 }
 
 export interface BatchQueryBody {

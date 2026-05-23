@@ -18,6 +18,7 @@ export type CollectionSearchFormValues = {
   mode: CollectionSearchMode;
   query: string;
   rerank: boolean;
+  skipCache: boolean;
   topK: number;
 };
 
@@ -39,6 +40,7 @@ export const defaultCollectionSearchFormValues = (): CollectionSearchFormValues 
   mode: "semantic",
   query: "",
   rerank: false,
+  skipCache: false,
   topK: 5,
 });
 
@@ -132,10 +134,12 @@ export const collectionSearchBodyFromValues = ({
   mode,
   query,
   rerank,
+  skipCache,
   topK,
 }: CollectionSearchFormValues) => ({
   query,
   rerank,
   search_mode: mode,
+  skip_cache: skipCache || undefined,
   top_k: topK,
 });

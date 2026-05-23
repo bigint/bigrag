@@ -124,6 +124,8 @@ Restart Claude Desktop. The server appears under the tools icon with the tools r
 
 All tools are thin wrappers around `/v1/*` endpoints. They honor the same auth and scopes as any other API client.
 
+The `query` and `multi_collection_query` tools accept `skip_cache` when an MCP client needs a live retrieval instead of Redis query-cache reuse.
+
 ### Full-workspace key
 
 | Tool | Calls | Purpose |

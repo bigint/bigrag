@@ -56,6 +56,7 @@ async def query_collection(
             **access_log.filter_summary(body.filters),
             "requested_top_k": body.top_k,
             "rerank_override": body.rerank,
+            "skip_cache": body.skip_cache,
         },
     )
     collection = await get_collection_or_404(collection_name)
@@ -95,6 +96,7 @@ async def query_collection(
         search_mode=search_mode,
         reranking_config=get_reranking_config(collection),
         rerank_override=body.rerank,
+        skip_cache=body.skip_cache,
     )
 
     logger.debug(
@@ -202,6 +204,7 @@ async def multi_collection_query(
             "collection_count": len(body.collections),
             "top_k": body.top_k,
             "search_mode": body.search_mode,
+            "skip_cache": body.skip_cache,
         },
     )
     logger.debug(
@@ -238,6 +241,7 @@ async def multi_collection_query(
         search_mode=body.search_mode,
         reranking_configs=reranking_configs,
         rerank_override=body.rerank,
+        skip_cache=body.skip_cache,
     )
 
     logger.debug("multi-query complete", collections=body.collections, results=len(results))
@@ -284,6 +288,7 @@ async def batch_query(
             "query_hashes": [
                 access_log.query_fingerprint(item.query)["query_hash"] for item in body.queries
             ],
+            "skip_cache_count": sum(1 for item in body.queries if item.skip_cache),
         },
     )
     logger.debug("batch-query", queries=len(body.queries))
@@ -310,6 +315,7 @@ async def batch_query(
                 search_mode=item.search_mode,
                 reranking_config=get_reranking_config(collection),
                 rerank_override=item.rerank,
+                skip_cache=item.skip_cache,
             )
 
             include_multimodal = bool(item.multimodal and collection.get("multimodal_enabled"))

@@ -141,6 +141,7 @@ def _build_server() -> FastMCP:
             float | None, Field(description="Drop results below this score")
         ] = None,
         rerank: Annotated[bool, Field(description="Run the collection's reranker")] = False,
+        skip_cache: Annotated[bool, Field(description="Bypass Redis query caches")] = False,
         filters: Annotated[dict[str, Any] | None, Field(description="Metadata filter")] = None,
     ) -> dict[str, Any]:
 
@@ -149,6 +150,7 @@ def _build_server() -> FastMCP:
             "top_k": top_k,
             "search_mode": search_mode,
             "rerank": rerank,
+            "skip_cache": skip_cache,
         }
         if min_score is not None:
             body["min_score"] = min_score
@@ -169,6 +171,7 @@ def _build_server() -> FastMCP:
             float | None, Field(description="Drop results below this score")
         ] = None,
         rerank: Annotated[bool, Field(description="Run each collection's reranker")] = False,
+        skip_cache: Annotated[bool, Field(description="Bypass Redis query caches")] = False,
         filters: Annotated[dict[str, Any] | None, Field(description="Metadata filter")] = None,
     ) -> dict[str, Any]:
 
@@ -178,6 +181,7 @@ def _build_server() -> FastMCP:
             "top_k": top_k,
             "search_mode": search_mode,
             "rerank": rerank,
+            "skip_cache": skip_cache,
         }
         if min_score is not None:
             body["min_score"] = min_score

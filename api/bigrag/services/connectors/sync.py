@@ -30,6 +30,7 @@ from bigrag.services.connectors.manifest import (
     update_manifest_remote,
 )
 from bigrag.services.connectors.progress import sync_counter_details, update_sync_progress
+from bigrag.services.connectors.realtime import notify_connector_sources
 from bigrag.services.connectors.status import fail_sync
 from bigrag.services.connectors.time import next_sync_at, utcnow
 from bigrag.services.connectors.types import (
@@ -87,6 +88,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
         await update_sync_progress(
             session,
             job=job,
+            source=source,
             counters=counters,
             phase="authenticating",
             message="Connecting to S3",
@@ -119,6 +121,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             await update_sync_progress(
                 session,
                 job=job,
+                source=source,
                 counters=counters,
                 phase="scanning",
                 message="Scanning S3 objects",
@@ -132,6 +135,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             await update_sync_progress(
                 session,
                 job=job,
+                source=source,
                 counters=counters,
                 phase="syncing",
                 message=f"Found {len(remotes)} S3 objects",
@@ -167,6 +171,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             await update_sync_progress(
                 session,
                 job=job,
+                source=source,
                 counters=counters,
                 phase="removing",
                 message="Checking for removed S3 objects",
@@ -177,6 +182,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 await update_sync_progress(
                     session,
                     job=job,
+                    source=source,
                     counters=counters,
                     phase="removing",
                     message=f"Removing {manifest.remote_name}",
@@ -193,6 +199,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 await update_sync_progress(
                     session,
                     job=job,
+                    source=source,
                     counters=counters,
                     phase="removing",
                     message=f"Removed {index} of {len(missing)} missing remote files",
@@ -204,6 +211,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             await update_sync_progress(
                 session,
                 job=job,
+                source=source,
                 counters=counters,
                 phase="finalizing",
                 message="Queueing synced documents for ingestion",
@@ -222,6 +230,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             await update_sync_progress(
                 session,
                 job=job,
+                source=source,
                 counters=counters,
                 phase="complete" if counters.failed == 0 else "failed",
                 message=(
@@ -232,6 +241,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 processed_items=counters.found + counters.deleted,
                 total_items=counters.found + len(missing),
             )
+            notify_connector_sources(adapter.provider, source.collection_name)
             await collection_cache.invalidate(source.collection_name)
             await invalidate_collection_query_cache(source.collection_name)
             webhook_event = (

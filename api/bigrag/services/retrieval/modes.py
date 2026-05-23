@@ -69,9 +69,10 @@ async def hybrid_search(
     max_top_k: int,
     filter_expr: FilterExpression | None,
     timings: dict[str, float],
+    skip_cache: bool = False,
 ) -> tuple[list[dict], list[float] | None]:
     t0 = time.monotonic()
-    query_embedding = await embed_query_with_cache(query, embedding_model)
+    query_embedding = await embed_query_with_cache(query, embedding_model, skip_cache=skip_cache)
     timings["embed_ms"] = (time.monotonic() - t0) * 1000
 
     t0 = time.monotonic()
@@ -131,9 +132,10 @@ async def semantic_search(
     top_k: int,
     filter_expr: FilterExpression | None,
     timings: dict[str, float],
+    skip_cache: bool = False,
 ) -> tuple[list[dict], list[float]]:
     t0 = time.monotonic()
-    query_embedding = await embed_query_with_cache(query, embedding_model)
+    query_embedding = await embed_query_with_cache(query, embedding_model, skip_cache=skip_cache)
     timings["embed_ms"] = (time.monotonic() - t0) * 1000
 
     t0 = time.monotonic()

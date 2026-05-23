@@ -24,6 +24,7 @@ Run a search against one collection's Turbopuffer namespace. Semantic and hybrid
   "min_score": 0.5,
   "search_mode": "hybrid",
   "rerank": true,
+  "skip_cache": true,
   "multimodal": true
 }
 ```
@@ -36,6 +37,7 @@ Run a search against one collection's Turbopuffer namespace. Semantic and hybrid
 | `min_score` | float | no | Collection default | Drop results below this score |
 | `search_mode` | string | no | Collection default | `semantic`, `keyword`, or `hybrid` |
 | `rerank` | boolean | no | Collection setting | Force Cohere reranking on/off for this query |
+| `skip_cache` | boolean | no | `false` | Bypass Redis query-result and query-embedding caches for this request |
 | `multimodal` | boolean | no | `false` | Request multimodal provenance when the collection has stored elements |
 
 **Response** `200`:
@@ -116,7 +118,8 @@ Search across multiple collections and merge the results by score.
   "collections": ["docs", "papers"],
   "top_k": 20,
   "search_mode": "hybrid",
-  "rerank": true
+  "rerank": true,
+  "skip_cache": true
 }
 ```
 
@@ -129,6 +132,7 @@ Search across multiple collections and merge the results by score.
 | `min_score` | float | no | Minimum score |
 | `search_mode` | string | no | `semantic`, `keyword`, `hybrid` |
 | `rerank` | boolean | no | Override per-collection reranking |
+| `skip_cache` | boolean | no | Bypass Redis query caches for this request |
 
 Each result includes a `collection` field.
 
@@ -143,7 +147,7 @@ curl -X POST http://localhost:4000/v1/query \
 
 <Accordion title="POST /v1/batch/query — Batch query">
 
-Run up to 20 independent queries in parallel. Each query item accepts the full single-collection body.
+Run up to 20 independent queries in parallel. Each query item accepts the full single-collection body, including `skip_cache`.
 
 ```json
 {

@@ -49,13 +49,14 @@ def register(mcp: FastMCP, client: httpx.AsyncClient) -> None:
         rerank: Annotated[
             bool, Field(description="Run the collection's configured reranker")
         ] = False,
+        skip_cache: Annotated[bool, Field(description="Bypass Redis query caches")] = False,
         filters: Annotated[
             dict[str, Any] | None,
             Field(description="Metadata filter, e.g. {'source': 'docs'}"),
         ] = None,
     ) -> dict[str, Any]:
         return await call_query(
-            client, collection, query, top_k, search_mode, min_score, rerank, filters
+            client, collection, query, top_k, search_mode, min_score, rerank, skip_cache, filters
         )
 
     @mcp.tool()
@@ -75,6 +76,7 @@ def register(mcp: FastMCP, client: httpx.AsyncClient) -> None:
             float | None, Field(description="Drop results below this score")
         ] = None,
         rerank: Annotated[bool, Field(description="Run each collection's reranker")] = False,
+        skip_cache: Annotated[bool, Field(description="Bypass Redis query caches")] = False,
         filters: Annotated[dict[str, Any] | None, Field(description="Metadata filter")] = None,
     ) -> dict[str, Any]:
         body: dict[str, Any] = {
@@ -83,6 +85,7 @@ def register(mcp: FastMCP, client: httpx.AsyncClient) -> None:
             "top_k": top_k,
             "search_mode": search_mode,
             "rerank": rerank,
+            "skip_cache": skip_cache,
         }
         if min_score is not None:
             body["min_score"] = min_score

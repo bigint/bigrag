@@ -229,11 +229,10 @@ async def _wait_for_refresh(queue: asyncio.Queue, deadline: float) -> bool:
         if remaining <= 0:
             return False
         try:
-            marker = await asyncio.wait_for(queue.get(), timeout=remaining)
+            await asyncio.wait_for(queue.get(), timeout=remaining)
         except TimeoutError:
             return False
-        if marker is None:
-            return True
+        return True
 
 
 async def run_event_subscription(

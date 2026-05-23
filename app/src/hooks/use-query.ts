@@ -9,6 +9,7 @@ type QueryBody = {
   min_score?: number;
   search_mode?: "semantic" | "keyword" | "hybrid";
   rerank?: boolean;
+  skip_cache?: boolean;
   filters?: Record<string, unknown>;
 };
 

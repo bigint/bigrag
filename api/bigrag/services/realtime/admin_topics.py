@@ -19,6 +19,10 @@ from bigrag.routers.documents_progress import TERMINAL_DOCUMENT_STATUSES
 from bigrag.routers.health import readiness
 from bigrag.routers.upload_sessions import get_upload_session as upload_session_detail
 from bigrag.routers.usage import get_usage
+from bigrag.services.connectors.realtime import (
+    connector_sources_event_key,
+    connector_sync_jobs_event_key,
+)
 from bigrag.services.event_bus import INGESTION_EVENTS_KEY
 from bigrag.services.platform_stats import platform_stats_payload
 from bigrag.services.realtime.params import boolean, document_ids, integer, string
@@ -171,7 +175,12 @@ def _connector_sources_topic(user: dict, params: dict[str, Any]) -> SnapshotTopi
             )
         )
 
-    return SnapshotTopic(snapshot_topic, load, _connector_sources_interval)
+    return SnapshotTopic(
+        snapshot_topic,
+        load,
+        _connector_sources_interval,
+        connector_sources_event_key(provider, collection),
+    )
 
 
 def _connector_jobs_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
@@ -193,7 +202,12 @@ def _connector_jobs_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
             )
         )
 
-    return SnapshotTopic(snapshot_topic, load, _connector_jobs_interval)
+    return SnapshotTopic(
+        snapshot_topic,
+        load,
+        _connector_jobs_interval,
+        connector_sync_jobs_event_key(provider, collection, source_id),
+    )
 
 
 def _backups_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:

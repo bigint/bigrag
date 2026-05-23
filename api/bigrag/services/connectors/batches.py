@@ -83,6 +83,7 @@ async def sync_remote_files(
             await update_sync_progress(
                 session,
                 job=job,
+                source=source,
                 counters=counters,
                 phase="syncing",
                 message=f"Syncing {remote.name}",
@@ -132,6 +133,7 @@ async def sync_remote_files(
             await update_sync_progress(
                 session,
                 job=job,
+                source=source,
                 counters=counters,
                 phase="syncing",
                 message=f"Synced {index} of {len(remotes)} remote files",
