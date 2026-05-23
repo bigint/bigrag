@@ -42,6 +42,8 @@ class AsyncQueue<T> {
 export class BigRAGRealtimeConnection {
   private socket: AnySocket | null = null;
   private connecting: Promise<void> | null = null;
+  private closing = false;
+  private closedError: Error | null = null;
   private readonly queues = new Map<string, AsyncQueue<RealtimeMessage<unknown>>>();
 
   constructor(private readonly client: RequestClient) {}
@@ -58,6 +60,7 @@ export class BigRAGRealtimeConnection {
   }
 
   async close(): Promise<void> {
+    this.closing = true;
     for (const queue of this.queues.values()) queue.close();
     this.queues.clear();
     this.socket?.close();
@@ -76,9 +79,12 @@ export class BigRAGRealtimeConnection {
     try {
       while (true) {
         const message = await queue.next();
-        if (!message) return;
+        if (!message) {
+          if (this.closedError) throw this.closedError;
+          return;
+        }
         yield message as RealtimeMessage<T>;
-        if (message.type === "complete") return;
+        if (message.type === "complete" || message.type === "error") return;
       }
     } finally {
       this.send({ type: "unsubscribe", id });
@@ -89,6 +95,11 @@ export class BigRAGRealtimeConnection {
 
   private async open(): Promise<void> {
     const { Socket, supportsHeaders } = await websocketConstructor(this.client.apiKey !== "");
+    if (this.client.apiKey && !supportsHeaders) {
+      throw new APIConnectionError(
+        "Browser WebSocket cannot send the Authorization header required for API-key auth; use session-cookie auth or a collection realtime token.",
+      );
+    }
     const url = realtimeUrl(this.client.baseUrl);
     const headers: Record<string, string> = { "User-Agent": USER_AGENT };
     if (this.client.apiKey) headers.Authorization = `Bearer ${this.client.apiKey}`;
@@ -105,7 +116,7 @@ export class BigRAGRealtimeConnection {
       };
       on(socket, "open", () => done(resolve));
       on(socket, "error", (event) =>
-        done(() => reject(new APIConnectionError(String(event || "WebSocket error")))),
+        done(() => reject(new APIConnectionError(websocketErrorMessage(event)))),
       );
       on(socket, "message", (event) => this.handleMessage(event));
       on(socket, "close", () => this.handleClose());
@@ -135,6 +146,9 @@ export class BigRAGRealtimeConnection {
 
   private handleClose(): void {
     this.socket = null;
+    if (!this.closing) {
+      this.closedError = new APIConnectionError("Realtime connection closed unexpectedly");
+    }
     for (const queue of this.queues.values()) queue.close();
     this.queues.clear();
   }
@@ -163,7 +177,18 @@ export class RealtimeResource {
 const randomId = () => {
   const crypto = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
   if (crypto?.randomUUID) return crypto.randomUUID();
-  return Math.random().toString(36).slice(2);
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+};
+
+const websocketErrorMessage = (event: unknown): string => {
+  if (event && typeof event === "object") {
+    const candidate = event as { message?: unknown; error?: { message?: unknown } };
+    if (typeof candidate.message === "string") return candidate.message;
+    if (candidate.error && typeof candidate.error.message === "string") {
+      return candidate.error.message;
+    }
+  }
+  return "WebSocket connection failed";
 };
 
 const compactParams = (params: Record<string, unknown>) =>
