@@ -8,9 +8,7 @@ from bigrag import __version__
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
-from bigrag.services.health import (
-    readiness_status,
-)
+from bigrag.services.health import readiness_status
 from bigrag.services.platform_stats import platform_stats_payload
 
 logger = get_logger("bigrag.routers.health")
