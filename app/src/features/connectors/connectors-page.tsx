@@ -1,7 +1,9 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Database, ExternalLink, FolderSync, RefreshCw, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
@@ -34,6 +36,7 @@ export const ConnectorsPage = () => {
   const syncSource = useSyncS3Source();
   const deleteSource = useDeleteS3Source();
   const navigate = useNavigate();
+  const [deleteFor, setDeleteFor] = useState<S3Source | null>(null);
   const status = connectorStatus(sources.data?.total ?? 0);
   const ProviderIcon = provider.icon;
   const jobsBySource = new Map<string, S3SyncJob>();
@@ -76,12 +79,12 @@ export const ConnectorsPage = () => {
           <ul className="divide-y divide-border">
             {sources.data.sources.map((source) => (
               <SourceRow
-                deleteSource={(sourceId) => deleteSource.mutate(sourceId)}
                 isDeleting={deleteSource.isPending}
                 isSyncing={syncSource.isPending}
                 job={jobsBySource.get(source.id)}
                 key={source.id}
                 navigate={navigate}
+                onDelete={() => setDeleteFor(source)}
                 onSync={(sourceId) => syncSource.mutate(sourceId)}
                 source={source}
               />
@@ -97,24 +100,45 @@ export const ConnectorsPage = () => {
           />
         )}
       </section>
+      <ConfirmDialog
+        confirmLabel="Remove source"
+        description={
+          deleteFor
+            ? `Remove "${deleteFor.root_name}"? This deletes its credentials, mirrored documents, and sync state.`
+            : "Remove this source?"
+        }
+        loading={deleteSource.isPending}
+        onClose={() => setDeleteFor(null)}
+        onConfirm={async () => {
+          if (!deleteFor) return;
+          try {
+            await deleteSource.mutateAsync(deleteFor.id);
+            setDeleteFor(null);
+          } catch {
+            return;
+          }
+        }}
+        open={Boolean(deleteFor)}
+        title="Remove source"
+      />
     </Page.Shell>
   );
 };
 
 const SourceRow = ({
-  deleteSource,
   isDeleting,
   isSyncing,
   job,
   navigate,
+  onDelete,
   onSync,
   source,
 }: {
-  deleteSource: (sourceId: string) => void;
   isDeleting: boolean;
   isSyncing: boolean;
   job: S3SyncJob | undefined;
   navigate: ReturnType<typeof useNavigate>;
+  onDelete: () => void;
   onSync: (sourceId: string) => void;
   source: S3Source;
 }) => {
@@ -168,7 +192,7 @@ const SourceRow = ({
           <Button
             aria-label="Remove source"
             disabled={isDeleting}
-            onClick={() => deleteSource(source.id)}
+            onClick={onDelete}
             size="icon"
             variant="ghost"
           >

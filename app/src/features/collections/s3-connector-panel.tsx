@@ -3,6 +3,7 @@ import { FolderSync, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -362,75 +363,105 @@ const SourcesPanel = ({
   syncSource: ReturnType<typeof useSyncS3Source>;
   updateSource: ReturnType<typeof useUpdateS3Source>;
   workerOffline?: boolean;
-}) => (
-  <section className="min-w-0 overflow-hidden rounded-sm border border-border bg-card">
-    <div className="flex flex-wrap items-center justify-between gap-3 border-border border-b bg-muted/35 px-4 py-4">
-      <div className="min-w-0">
-        <h3 className="text-sm font-semibold">Sources</h3>
-        <div className="mt-0.5 text-xs text-muted-foreground">
-          {sources.length.toLocaleString()} configured
+}) => {
+  const [deleteFor, setDeleteFor] = useState<S3Source | null>(null);
+
+  return (
+    <>
+      <section className="min-w-0 overflow-hidden rounded-sm border border-border bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-border border-b bg-muted/35 px-4 py-4">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold">Sources</h3>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {sources.length.toLocaleString()} configured
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {sourcesPending && <Spinner size="sm" />}
+            <Tooltip content={workerOffline ? offlineReason : "Add source"}>
+              <Button disabled={addSourceDisabled} onClick={onAddSource} size="sm">
+                <Plus className="size-4" />
+                Add source
+              </Button>
+            </Tooltip>
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {sourcesPending && <Spinner size="sm" />}
-        <Tooltip content={workerOffline ? offlineReason : "Add source"}>
-          <Button disabled={addSourceDisabled} onClick={onAddSource} size="sm">
-            <Plus className="size-4" />
-            Add source
-          </Button>
-        </Tooltip>
-      </div>
-    </div>
-    {workerOffline && (
-      <div className="border-border border-b bg-warning/10 px-4 py-3 text-xs text-warning">
-        Scheduled syncs wait until bigrag-worker is online.
-      </div>
-    )}
-    {sources.length ? (
-      <ul className="max-h-[680px] divide-y divide-border overflow-y-auto">
-        {sources.map((source) => (
-          <SourceRow
-            deleteSource={deleteSource}
-            job={jobsBySource.get(source.id)}
-            key={source.id}
-            offlineReason={offlineReason}
-            source={source}
-            syncSource={syncSource}
-            updateSource={updateSource}
-            workerOffline={workerOffline}
+        {workerOffline && (
+          <div className="border-border border-b bg-warning/10 px-4 py-3 text-xs text-warning">
+            Scheduled syncs wait until bigrag-worker is online.
+          </div>
+        )}
+        {sources.length ? (
+          <ul className="max-h-[680px] divide-y divide-border overflow-y-auto">
+            {sources.map((source) => (
+              <SourceRow
+                isDeleting={deleteSource.isPending}
+                job={jobsBySource.get(source.id)}
+                key={source.id}
+                offlineReason={offlineReason}
+                onDelete={() => setDeleteFor(source)}
+                source={source}
+                syncSource={syncSource}
+                updateSource={updateSource}
+                workerOffline={workerOffline}
+              />
+            ))}
+          </ul>
+        ) : (
+          <Empty
+            bordered={false}
+            className="py-12"
+            action={
+              <Button disabled={addSourceDisabled} onClick={onAddSource}>
+                <Plus className="size-4" />
+                Add source
+              </Button>
+            }
+            description="Add a bucket prefix to mirror files into this collection."
+            icon={<FolderSync className="size-5" />}
+            title="No S3 sources"
           />
-        ))}
-      </ul>
-    ) : (
-      <Empty
-        bordered={false}
-        className="py-12"
-        action={
-          <Button disabled={addSourceDisabled} onClick={onAddSource}>
-            <Plus className="size-4" />
-            Add source
-          </Button>
+        )}
+      </section>
+      <ConfirmDialog
+        confirmLabel="Remove source"
+        description={
+          deleteFor
+            ? `Remove "${deleteFor.root_name}"? This deletes its credentials, mirrored documents, and sync state.`
+            : "Remove this source?"
         }
-        description="Add a bucket prefix to mirror files into this collection."
-        icon={<FolderSync className="size-5" />}
-        title="No S3 sources"
+        loading={deleteSource.isPending}
+        onClose={() => setDeleteFor(null)}
+        onConfirm={async () => {
+          if (!deleteFor) return;
+          try {
+            await deleteSource.mutateAsync(deleteFor.id);
+            setDeleteFor(null);
+          } catch {
+            return;
+          }
+        }}
+        open={Boolean(deleteFor)}
+        title="Remove source"
       />
-    )}
-  </section>
-);
+    </>
+  );
+};
 
 const SourceRow = ({
-  deleteSource,
+  isDeleting,
   job,
   offlineReason,
+  onDelete,
   source,
   syncSource,
   updateSource,
   workerOffline,
 }: {
-  deleteSource: ReturnType<typeof useDeleteS3Source>;
+  isDeleting: boolean;
   job: S3SyncJob | undefined;
   offlineReason?: string;
+  onDelete: () => void;
   source: S3Source;
   syncSource: ReturnType<typeof useSyncS3Source>;
   updateSource: ReturnType<typeof useUpdateS3Source>;
@@ -472,8 +503,8 @@ const SourceRow = ({
           <Tooltip content="Remove source">
             <Button
               aria-label="Remove source"
-              disabled={deleteSource.isPending}
-              onClick={() => deleteSource.mutate(source.id)}
+              disabled={isDeleting}
+              onClick={onDelete}
               size="icon"
               variant="ghost"
             >

@@ -161,6 +161,29 @@ class EventBus:
 
         self._spawn(_safe_publish())
 
+    def notify(self, key: str) -> None:
+        event = IngestionEvent(
+            document_id=key,
+            step="refresh",
+            status="updated",
+            message="Refresh",
+        )
+        if not self._redis:
+            self._dispatch(key, event)
+            return
+
+        async def _safe_publish() -> None:
+            try:
+                await self._redis.publish(f"{CHANNEL_PREFIX}{key}", event.serialize())
+            except Exception as e:
+                logger.warning(
+                    "event bus: notify failed",
+                    key=key,
+                    error=str(e),
+                )
+
+        self._spawn(_safe_publish())
+
     def complete(self, document_id: str) -> None:
         if document_id in self._completed:
             return
