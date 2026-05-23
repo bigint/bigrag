@@ -1,8 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import {
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   CircleAlert,
   FileText,
   FolderOpen,
@@ -11,7 +9,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,7 +33,7 @@ import {
   useBatchDeleteDocuments,
   useCancelUploadSession,
   useDeleteDocument,
-  useDocuments,
+  useInfiniteDocuments,
   useUploadSession,
   useUploadSessionDocuments,
 } from "@/hooks/use-documents";
@@ -80,7 +78,6 @@ const shouldDismissUploadSession = (session: UploadSession) =>
 
 type DocumentsTabFilters = {
   order: DocumentListOrder;
-  page: number;
   q: string;
   sort: DocumentListSort;
   status: string;
@@ -95,7 +92,6 @@ type DocumentsTabProps = {
 export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabProps) => {
   const activeFilters = filters ?? {
     order: "desc",
-    page: 1,
     q: "",
     sort: "created_at",
     status: "",
@@ -107,19 +103,23 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
   const { data: collection } = useCollection(name);
   const [qDraft, setQDraft] = useState(activeFilters.q);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const offset = (activeFilters.page - 1) * pageSize;
   const documentFilters: DocumentListFilters = {
     limit: pageSize,
-    offset,
     order: activeFilters.order,
     q: activeFilters.q,
     sort: activeFilters.sort,
     status: activeFilters.status,
   };
-  const { data, error, isError, isPending, refetch, realtimeUnavailable } = useDocuments(
-    name,
-    documentFilters,
-  );
+  const {
+    data,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isError,
+    isFetchingNextPage,
+    isPending,
+    refetch,
+  } = useInfiniteDocuments(name, documentFilters);
   const { data: stats } = usePlatformStats();
   const uploadSession = useUploadSession(name, activeSessionId);
   const upload = useUploadSessionDocuments(name, {
@@ -131,6 +131,7 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   const [deleteDoc, setDeleteDoc] = useState<{ id: string; filename: string } | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
@@ -138,13 +139,14 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
   const accept = acceptAttribute(allowed);
   const workerAvailability = getWorkerAvailability(stats);
   const workerOffline = workerAvailability.offline;
-  const totalPages = data?.total == null ? 1 : Math.max(1, Math.ceil(data.total / pageSize));
-  const pageDocuments = data?.documents ?? [];
-  const selectedVisibleCount = pageDocuments.filter((doc) => selected.has(doc.id)).length;
-  const allVisibleSelected =
-    pageDocuments.length > 0 && selectedVisibleCount === pageDocuments.length;
-  const selectedDocuments = pageDocuments.filter((doc) => selected.has(doc.id));
+  const documentPages = useMemo(() => data?.pages ?? [], [data?.pages]);
+  const documents = useMemo(() => documentPages.flatMap((page) => page.documents), [documentPages]);
+  const total = documentPages.find((page) => page.total !== null)?.total ?? null;
+  const selectedVisibleCount = documents.filter((doc) => selected.has(doc.id)).length;
+  const allVisibleSelected = documents.length > 0 && selectedVisibleCount === documents.length;
+  const selectedDocuments = documents.filter((doc) => selected.has(doc.id));
   const bulkConfirmationText = `DELETE ${selectedDocuments.length}`;
+  const canFetchNextPage = Boolean(hasNextPage && !isFetchingNextPage && !isPending && !isError);
   const dismissCompletedUploadSession = uploadSession.data
     ? shouldDismissUploadSession(uploadSession.data)
     : false;
@@ -167,23 +169,38 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
 
   useEffect(() => {
     setSelected((current) => {
-      const visible = new Set(pageDocuments.map((doc) => doc.id));
+      const visible = new Set(documents.map((doc) => doc.id));
       const next = new Set([...current].filter((id) => visible.has(id)));
       return next.size === current.size ? current : next;
     });
-  }, [pageDocuments]);
+  }, [documents]);
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node || !canFetchNextPage) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          void fetchNextPage();
+        }
+      },
+      { rootMargin: "320px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [canFetchNextPage, fetchNextPage]);
 
   const updateFilters = (next: Partial<DocumentsTabFilters>) => {
-    onFiltersChange?.({ ...next, page: next.page ?? 1 });
+    onFiltersChange?.(next);
   };
 
   const toggleVisibleSelection = () => {
     setSelected((current) => {
       const next = new Set(current);
       if (allVisibleSelected) {
-        for (const doc of pageDocuments) next.delete(doc.id);
+        for (const doc of documents) next.delete(doc.id);
       } else {
-        for (const doc of pageDocuments) next.add(doc.id);
+        for (const doc of documents) next.add(doc.id);
       }
       return next;
     });
@@ -415,10 +432,9 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
           </form>
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
             <span>
-              {data?.total == null
-                ? "Documents"
-                : `${data.total.toLocaleString()} matching document${data.total === 1 ? "" : "s"}`}
-              {realtimeUnavailable ? " · realtime unavailable, polling" : ""}
+              {total == null
+                ? `${documents.length.toLocaleString()} loaded document${documents.length === 1 ? "" : "s"}`
+                : `${total.toLocaleString()} matching document${total === 1 ? "" : "s"}`}
             </span>
             {selected.size > 0 && (
               <div className="flex items-center gap-2">
@@ -454,7 +470,7 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
             </Button>
           </CardContent>
         </Card>
-      ) : data?.documents.length === 0 ? (
+      ) : documents.length === 0 ? (
         <Empty
           icon={<FileText className="size-6" />}
           title={
@@ -483,15 +499,14 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
               <span className="text-right">Updated</span>
               <span className="w-6" />
             </div>
-            {data?.total != null && data.total > data.documents.length && (
+            {total != null && total > documents.length && (
               <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
-                Showing {offset + 1}-{Math.min(offset + data.documents.length, data.total)} of{" "}
-                {data.total} documents.
+                Showing {documents.length.toLocaleString()} of {total.toLocaleString()} documents.
               </div>
             )}
           </div>
           <ul className="divide-y divide-border">
-            {data?.documents.map((d) => (
+            {documents.map((d) => (
               <li
                 key={d.id}
                 className="group grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-4 px-4 py-3 hover:bg-muted"
@@ -547,29 +562,21 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
         </div>
       )}
 
-      {data && totalPages > 1 && (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            disabled={activeFilters.page <= 1}
-            size="sm"
-            variant="secondary"
-            onClick={() => onFiltersChange?.({ page: activeFilters.page - 1 })}
-          >
-            <ChevronLeft className="size-4" />
-            Previous
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {activeFilters.page} of {totalPages}
-          </span>
-          <Button
-            disabled={activeFilters.page >= totalPages}
-            size="sm"
-            variant="secondary"
-            onClick={() => onFiltersChange?.({ page: activeFilters.page + 1 })}
-          >
-            Next
-            <ChevronRight className="size-4" />
-          </Button>
+      {documents.length > 0 && (
+        <div ref={loadMoreRef} className="flex items-center justify-center py-2">
+          {hasNextPage ? (
+            <Button
+              disabled={isFetchingNextPage}
+              size="sm"
+              variant="secondary"
+              onClick={() => fetchNextPage()}
+            >
+              {isFetchingNextPage && <Spinner size="sm" />}
+              {isFetchingNextPage ? "Loading more" : "Load more"}
+            </Button>
+          ) : (
+            <span className="text-sm text-muted-foreground">All matching documents loaded</span>
+          )}
         </div>
       )}
 

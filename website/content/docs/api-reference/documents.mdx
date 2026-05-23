@@ -74,6 +74,8 @@ curl -X POST http://localhost:4000/v1/collections/research/documents \
 | `order` | string | `desc` | `asc` or `desc` |
 | `limit` | integer | `100` | 1–1,000 |
 | `offset` | integer | `0` | 0+ |
+| `cursor` | string | — | Cursor returned as `next_cursor`; requires `sort=created_at` |
+| `include_total` | boolean | `false` | Include the matching document count |
 
 **Response** `200`:
 
@@ -96,7 +98,8 @@ curl -X POST http://localhost:4000/v1/collections/research/documents \
       "updated_at": "..."
     }
   ],
-  "total": 15
+  "total": 15,
+  "next_cursor": null
 }
 ```
 

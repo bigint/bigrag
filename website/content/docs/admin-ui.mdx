@@ -32,7 +32,7 @@ For cross-site production deployments, enable secure session cookies and set `Sa
 | `/overview` | Platform-wide stats — collection count, document states, stored token count, queue depth, readiness, and worker heartbeat. |
 | `/collections` | List, create, delete, and search collections. |
 | `/collections/[name]` | Collection overview with configuration badges, status counts, recent documents, and shortcuts. |
-| `/collections/[name]/documents` | Upload files or folders through resumable upload sessions, filter/search/sort/paginate documents, inspect status, bulk delete with typed confirmation, and delete individual documents. Uploads are disabled when `/v1/stats` reports no live `bigrag-worker`. |
+| `/collections/[name]/documents` | Upload files or folders through resumable upload sessions, filter/search/sort documents with infinite scrolling, inspect status, bulk delete with typed confirmation, and delete individual documents. Uploads are disabled when `/v1/stats` reports no live `bigrag-worker`. |
 | `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, live progress, failed-ingest error, and delete. |
 | `/collections/[name]/connectors` | Redirects to the first available collection connector from the provider catalog. |
 | `/collections/[name]/connectors/s3` | Open the collection-scoped S3/R2 connector workspace to add bucket-prefix sources, monitor sync progress, trigger manual resync, and manage sync schedules. Source creation and manual sync are disabled when the worker is offline. |

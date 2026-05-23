@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { toast } from "sonner";
 import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
@@ -27,6 +27,11 @@ export type DocumentListFilters = {
   order?: DocumentListOrder;
   limit?: number;
   offset?: number;
+};
+type DocumentPageParam = {
+  cursor: string | null;
+  offset: number;
+  mode: "cursor" | "offset";
 };
 
 const uploadSessionFileName = (file: File) =>
@@ -72,6 +77,54 @@ export const useDocuments = (collection: string, filters: DocumentListFilters = 
     enabled: !!collection,
     topic: "admin.collections.documents",
     params: realtimeParams,
+  });
+};
+
+export const useInfiniteDocuments = (collection: string, filters: DocumentListFilters = {}) => {
+  const limit = filters.limit ?? documentListLimit;
+  const q = filters.q?.trim() || undefined;
+  const status = filters.status || undefined;
+  const sort = filters.sort ?? "created_at";
+  const order = filters.order ?? "desc";
+  const mode: DocumentPageParam["mode"] = sort === "created_at" ? "cursor" : "offset";
+  const initialPageParam = useMemo<DocumentPageParam>(
+    () => ({ cursor: null, offset: 0, mode }),
+    [mode],
+  );
+  const queryKey = useMemo(
+    () => queryKeys.documents.infiniteList({ collection, q, status, sort, order, limit }),
+    [collection, limit, order, q, sort, status],
+  );
+
+  return useInfiniteQuery({
+    queryKey,
+    initialPageParam,
+    queryFn: ({ pageParam, signal }) =>
+      apiClient.get<DocListResponse>(`v1/collections/${encodeURIComponent(collection)}/documents`, {
+        searchParams: {
+          limit,
+          order,
+          q,
+          sort,
+          status,
+          include_total: pageParam.offset === 0,
+          cursor: pageParam.mode === "cursor" ? pageParam.cursor : undefined,
+          offset: pageParam.mode === "offset" ? pageParam.offset : undefined,
+        },
+        signal,
+      }),
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((sum, page) => sum + page.documents.length, 0);
+      if (mode === "cursor") {
+        return lastPage.next_cursor ? { cursor: lastPage.next_cursor, offset: loaded, mode } : null;
+      }
+      const total = pages.find((page) => page.total !== null)?.total;
+      if (total !== undefined && total !== null && loaded >= total) return null;
+      return lastPage.documents.length >= limit ? { cursor: null, offset: loaded, mode } : null;
+    },
+    enabled: !!collection,
+    refetchInterval: 5_000,
+    retry: false,
   });
 };
 
