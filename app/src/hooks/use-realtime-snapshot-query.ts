@@ -46,7 +46,6 @@ const DEFAULT_POLL_INTERVAL_MS = 30_000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const MAX_BACKOFF_MS = 30_000;
 const BASE_BACKOFF_MS = 1_000;
-const IDLE_CLOSE_MS = 500;
 
 type MessageListener = (event: RealtimeMessage<unknown>) => void;
 type ErrorListener = () => void;
@@ -64,7 +63,6 @@ let socket: WebSocket | null = null;
 let socketGeneration = 0;
 let reconnectAttempt = 0;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-let idleCloseTimer: ReturnType<typeof setTimeout> | null = null;
 const streams = new Map<string, StreamEntry>();
 
 const randomId = () => {
@@ -102,12 +100,6 @@ const dispatchError = () => {
   }
 };
 
-const clearIdleClose = () => {
-  if (!idleCloseTimer) return;
-  clearTimeout(idleCloseTimer);
-  idleCloseTimer = null;
-};
-
 const closeSocket = () => {
   const current = socket;
   socket = null;
@@ -115,17 +107,7 @@ const closeSocket = () => {
   current?.close();
 };
 
-const scheduleIdleClose = () => {
-  if (idleCloseTimer) return;
-  idleCloseTimer = setTimeout(() => {
-    idleCloseTimer = null;
-    if (streams.size > 0) return;
-    closeSocket();
-  }, IDLE_CLOSE_MS);
-};
-
 const openSocket = () => {
-  clearIdleClose();
   if (socket && socket.readyState !== WebSocket.CLOSING && socket.readyState !== WebSocket.CLOSED) {
     return;
   }
@@ -237,7 +219,6 @@ const subscribeStream = (
           clearTimeout(reconnectTimer);
           reconnectTimer = null;
         }
-        scheduleIdleClose();
       }
     }
   };
@@ -248,7 +229,6 @@ export const closeAllRealtimeStreams = () => {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
-  clearIdleClose();
   for (const entry of streams.values()) {
     entry.listeners.clear();
     entry.errorListeners.clear();

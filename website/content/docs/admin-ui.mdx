@@ -78,7 +78,7 @@ Settings accepts tab values via query param: `/settings?tab=account`, `/settings
 
 ## Realtime updates
 
-The admin UI uses one session-cookie [realtime WebSocket](/docs/api-reference/realtime) for live document progress, batch upload progress, collection stats, connector sync state, access logs, paginated audit log pages, usage, platform stats, and readiness. Each subscription sends an immediate full `snapshot` payload matching the related REST response, then sends later snapshots as data changes. Overview platform stats refresh from ingestion events instead of waiting on the REST stats cache. The UI replays active subscriptions after reconnect and falls back to REST polling when the socket cannot deliver an initial snapshot.
+The admin UI uses one session-cookie [realtime WebSocket](/docs/api-reference/realtime) for live document progress, batch upload progress, collection stats, connector sync state, access logs, paginated audit log pages, usage, platform stats, and readiness. Each subscription sends an immediate full `snapshot` payload matching the related REST response, then sends later snapshots as data changes. The socket stays open across dashboard navigation and only swaps topic subscriptions as pages mount and unmount. Overview platform stats refresh from ingestion events instead of waiting on the REST stats cache. The UI replays active subscriptions after reconnect and falls back to REST polling when the socket cannot deliver an initial snapshot.
 
 Expensive overview surfaces keep short-lived backend caches behind the readiness and access-overview loaders so several open admin sessions do not rerun the same aggregate or dependency checks on every interval tick.
 
