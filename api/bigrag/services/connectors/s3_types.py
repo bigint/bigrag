@@ -4,6 +4,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from bigrag.db.models import ConnectorSource
+from bigrag.exceptions import UpstreamError
 from bigrag.services.connectors.types import RemoteConnectorFile
 
 S3_PROVIDER = "s3"
@@ -11,7 +12,7 @@ S3_DEFAULT_REGION = "us-east-1"
 S3_R2_REGION = "auto"
 
 
-class S3ConnectorError(RuntimeError):
+class S3ConnectorError(UpstreamError):
     pass
 
 

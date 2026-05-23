@@ -163,11 +163,13 @@ async def create_source(
     if collection is None:
         raise ValueError("Collection not found")
 
+    collection_id = collection.id
+    collection_name_value = collection.name
     metadata_dict = dict(metadata or {})
     source = ConnectorSource(
         provider=provider,
-        collection_id=collection.id,
-        collection_name=collection.name,
+        collection_id=collection_id,
+        collection_name=collection_name_value,
         tenant_id=_tenant_id(collection, metadata_dict),
         root_id=root_id,
         root_name=root_name,
@@ -175,7 +177,7 @@ async def create_source(
         source_type="prefix",
         schedule_enabled=schedule_enabled,
         sync_interval_hours=sync_interval_hours,
-        status="syncing",
+        status="idle",
         next_sync_at=utcnow() + timedelta(hours=sync_interval_hours) if schedule_enabled else None,
         meta=metadata_dict,
     )
@@ -187,7 +189,7 @@ async def create_source(
         existing = await session.scalar(
             sa.select(ConnectorSource)
             .where(ConnectorSource.provider == provider)
-            .where(ConnectorSource.collection_id == collection.id)
+            .where(ConnectorSource.collection_id == collection_id)
             .where(ConnectorSource.root_id == root_id)
         )
         if existing is None:
