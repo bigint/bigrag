@@ -1,100 +1,74 @@
 ---
 title: Connectors
-description: Provider-neutral connector configuration, OAuth, source selection, and resync APIs.
+description: S3-compatible source configuration, prefix mirroring, and resync APIs.
 ---
 
 import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
-Cloud connectors import remote files into the normal bigRAG document pipeline. The connector core owns provider config, user accounts, sources, sync jobs, manifests, scheduling, document replacement, and remote deletion handling. Provider adapters own OAuth details, remote listing, export/download behavior, and provider-specific metadata.
+Connectors import remote files into the normal bigRAG document pipeline. The S3 connector mirrors bucket prefixes into collections and uses the same document conversion, chunking, embedding, indexing, progress, and cleanup surfaces as direct uploads.
 
-Google Drive is the first provider and uses the `google` route slug with `google_drive` as the stored provider id. Future providers such as SharePoint or OneDrive should plug into the same route shape instead of cloning the source and sync job flow.
+The first provider is S3-compatible object storage. Use the `s3` route slug for AWS S3, Cloudflare R2, MinIO, and compatible services.
 
 <Accordions type="multiple">
 
-<Accordion title="GET/PUT /v1/admin/connectors/{provider} — Admin provider config">
+<Accordion title="Sources — create, update, delete">
 
-Session-only admin endpoints. For Google Drive, use `/v1/admin/connectors/google`.
-
-```
-GET /v1/admin/connectors/{provider}
-PUT /v1/admin/connectors/{provider}
-```
-
-The `PUT` body stores OAuth credentials:
-
-```json
-{
-  "enabled": true,
-  "client_id": "…apps.googleusercontent.com",
-  "client_secret": "…"
-}
-```
-
-Responses mask secret values and include `callback_url`, which must be registered with the provider. Google Drive returns a callback URL ending in `/v1/connectors/google/oauth/callback`.
-
-</Accordion>
-
-<Accordion title="User connection — OAuth flow and account management">
-
-These endpoints require session authentication.
+These endpoints require an admin session.
 
 ```
-GET /v1/connectors/{provider}/account
-GET /v1/connectors/{provider}/oauth/start?redirect_path=/collections/docs/documents
-GET /v1/connectors/{provider}/oauth/start-url?redirect_path=/collections/docs/documents
-GET /v1/connectors/{provider}/oauth/callback
-POST /v1/connectors/{provider}/disconnect
+GET /v1/connectors/s3/sources?collection=docs
+POST /v1/connectors/s3/sources
+PATCH /v1/connectors/s3/sources/{source_id}
+DELETE /v1/connectors/s3/sources/{source_id}
 ```
 
-For Google Drive, the OAuth flow uses `openid email profile` and `https://www.googleapis.com/auth/drive.readonly` so bigRAG can render an in-app Drive browser and sync selected files/folders.
-
-</Accordion>
-
-<Accordion title="GET /v1/connectors/{provider}/files — Drive browser">
-
-```
-GET /v1/connectors/{provider}/files?parent_id=root
-GET /v1/connectors/{provider}/files?query=handbook
-```
-
-Returns the connected user's visible remote files and folders, plus whether each item is supported by the ingestion pipeline. For Google Drive, native Docs, Sheets, and Slides are exported to DOCX, XLSX, and PPTX before ingestion.
-
-</Accordion>
-
-<Accordion title="Sources — CRUD, sync, and sync-job listing">
-
-```
-GET /v1/connectors/{provider}/sources?collection=docs
-POST /v1/connectors/{provider}/sources
-PATCH /v1/connectors/{provider}/sources/{source_id}
-DELETE /v1/connectors/{provider}/sources/{source_id}
-POST /v1/connectors/{provider}/sources/{source_id}/sync
-GET /v1/connectors/{provider}/sync-jobs?collection=docs&source_id=…
-```
-
-Create a source from an in-app browser selection:
+Create a bucket-prefix source:
 
 ```json
 {
   "collection_name": "docs",
-  "root_id": "drive-file-or-folder-id",
-  "root_name": "Handbook",
-  "root_mime_type": "application/vnd.google-apps.folder",
-  "source_type": "folder",
+  "bucket": "company-knowledge",
+  "prefix": "policies/",
+  "region": "us-east-1",
+  "endpoint_url": null,
+  "force_path_style": false,
+  "access_key_id": "AKIA...",
+  "secret_access_key": "...",
+  "session_token": null,
+  "schedule_enabled": true,
+  "sync_interval_hours": 24,
   "metadata": { "team": "ops" }
 }
 ```
 
-New sources start an initial sync and default to daily scheduled resync. Manual syncs detect additions, updates, and remote removals. If a provider returns a successful listing and a previously synced file is missing, bigRAG deletes the document, vectors, any remaining staged file, and connector manifest row. When a synced remote still has the same provider checksum or version and the local document is not failed, the sync updates manifest metadata without downloading the file again.
+bigRAG validates the credentials by listing the configured prefix before saving the source. Responses include bucket, prefix, region, endpoint URL, path-style setting, schedule state, sync state, timestamps, and `has_credentials`; secret values are never returned.
 
-Sync jobs can be filtered by `collection`, `source_id`, and `limit`. While a Google Drive job runs, `details.progress` reports Drive-sync progress only:
+`PATCH` can update bucket, prefix, region, endpoint URL, path-style mode, schedule settings, metadata, and credentials. `access_key_id` and `secret_access_key` must be sent together when rotating credentials.
+
+</Accordion>
+
+<Accordion title="Sync jobs — manual and scheduled prefix mirroring">
+
+```
+POST /v1/connectors/s3/sources/{source_id}/sync
+GET /v1/connectors/s3/sync-jobs?collection=docs&source_id=...
+```
+
+New sources start an initial sync. Sources default to daily scheduled sync unless `schedule_enabled` is false. Manual and scheduled syncs mirror the prefix:
+
+- new supported objects create documents
+- changed objects replace existing documents and queue re-ingestion
+- missing remote objects delete the document, vectors, staged file, and connector manifest row
+- failed listings fail the job without deleting existing documents
+
+Sync jobs can be filtered by `collection`, `source_id`, and `limit`. Running jobs include `details.progress`:
 
 ```json
 {
   "phase": "syncing",
   "message": "Syncing Contract.pdf",
   "current_item_name": "Contract.pdf",
-  "current_item_id": "drive-file-id",
+  "current_item_id": "s3://company-knowledge/policies/Contract.pdf",
   "progress_percent": 50,
   "processed_items": 1,
   "total_items": 2,
@@ -108,7 +82,7 @@ Sync jobs can be filtered by `collection`, `source_id`, and `limit`. While a Goo
 }
 ```
 
-Terminal `complete` jobs mean Drive files were scanned, changed files were staged for ingestion, remote deletions were applied, and changed documents were queued for the normal ingestion pipeline. Conversion, chunking, embedding, indexing, and staged-file cleanup continue through document status progress.
+Terminal `complete` jobs mean S3 objects were listed, changed files were staged for ingestion, remote deletions were applied, and changed documents were queued for the normal ingestion pipeline.
 
 </Accordion>
 

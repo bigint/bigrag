@@ -10,7 +10,6 @@ export type WebhookEvent =
   | "connector.sync.started"
   | "connector.sync.completed"
   | "connector.sync.failed"
-  | "connector.sync.needs_reauth"
   | "backup.started"
   | "backup.succeeded"
   | "backup.failed";

@@ -32,7 +32,7 @@ Existing UUIDv4 rows remain valid because UUIDv4 and UUIDv7 share the same Postg
 
 Not every field ending in `id` is a bigRAG record ID:
 
-- External provider identifiers (Google Drive file IDs, collection names, settings keys, OAuth states, session tokens, API keys, webhook secrets) remain opaque strings.
+- External provider identifiers (S3 object keys, collection names, settings keys, session tokens, API keys, webhook secrets) remain opaque strings.
 - Vector-store point IDs are deterministic UUIDv5 values derived from the caller-facing vector or chunk ID, so Turbopuffer writes, deletes, and exports use stable point IDs without changing API-visible IDs.
 
 ## Request flow — `POST /v1/collections/{name}/documents`
@@ -126,4 +126,4 @@ Connector routes stay provider-neutral through `connector_registry.py`. Reusable
 
 The ingestion queue keeps Redis lease/recovery state separate from per-document processing so retry, dead-letter, and webhook fanout behavior can evolve without changing route-level APIs.
 
-Scheduled connector ticks run as Dramatiq maintenance actors and claim due sources with row locks so multiple worker replicas do not create duplicate scheduled sync jobs. The Google Drive provider keeps OAuth/account handling, Drive API calls, source helpers, and sync adapter wiring in separate modules while preserving `bigrag.services.google_drive` as the public import surface.
+Scheduled connector ticks run as Dramatiq maintenance actors and claim due sources with row locks so multiple worker replicas do not create duplicate scheduled sync jobs. The S3 provider keeps credential validation, object listing, source helpers, and sync adapter wiring in separate modules.

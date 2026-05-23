@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from typing import Any, Literal, NotRequired, TypedDict
 
-GoogleProvider = Literal["google_drive"]
-ConnectorAccountStatus = Literal["pending", "connected", "needs_reauth", "revoked"]
-ConnectorSourceStatus = Literal["idle", "syncing", "needs_reauth", "error"]
-ConnectorSourceType = Literal["file", "folder"]
+ConnectorProvider = Literal["s3"]
+ConnectorSourceStatus = Literal["idle", "syncing", "error"]
+ConnectorSourceType = Literal["prefix"]
 ConnectorSyncTrigger = Literal["initial", "manual", "scheduled"]
 ConnectorSyncStatus = Literal["pending", "running", "complete", "failed"]
-GoogleSyncProgressPhase = Literal[
+ConnectorSyncProgressPhase = Literal[
     "queued",
     "authenticating",
     "scanning",
@@ -20,79 +19,47 @@ GoogleSyncProgressPhase = Literal[
 ]
 
 
-class GoogleConnectorConfig(TypedDict):
-    provider: GoogleProvider
-    configured: bool
-    enabled: bool
-    client_id: str
-    has_client_secret: bool
-    callback_url: str
-    created_at: str | None
-    updated_at: str | None
-
-
-class UpdateGoogleConnectorConfigBody(TypedDict, total=False):
-    enabled: bool
-    client_id: str
-    client_secret: str | None
-
-
-class GoogleAccount(TypedDict):
-    provider: GoogleProvider
-    configured: bool
-    connected: bool
-    status: ConnectorAccountStatus | None
-    email: str | None
-    scopes: list[str]
-    token_expires_at: str | None
-    last_connected_at: str | None
-
-
-class GoogleDriveFile(TypedDict):
-    id: str
-    name: str
-    mime_type: str
-    source_type: ConnectorSourceType
-    modified_time: str | None
-    size: int | None
-    web_url: str | None
-    sync_supported: bool
-    unsupported_reason: str | None
-
-
-class GoogleDriveFileListResponse(TypedDict):
-    provider: GoogleProvider
-    parent_id: str
-    query: str
-    files: list[GoogleDriveFile]
-    next_page_token: str | None
-
-
-class GoogleOAuthStartUrlResponse(TypedDict):
-    auth_url: str
-
-
-class CreateGoogleSourceBody(TypedDict):
+class CreateS3SourceBody(TypedDict):
     collection_name: str
-    root_id: str
-    root_name: str
-    root_mime_type: NotRequired[str]
-    source_type: NotRequired[ConnectorSourceType | None]
+    bucket: str
+    access_key_id: str
+    secret_access_key: str
+    prefix: NotRequired[str]
+    region: NotRequired[str]
+    endpoint_url: NotRequired[str | None]
+    force_path_style: NotRequired[bool]
+    session_token: NotRequired[str | None]
+    schedule_enabled: NotRequired[bool]
+    sync_interval_hours: NotRequired[int]
     metadata: NotRequired[dict[str, Any]]
 
 
-class UpdateGoogleSourceBody(TypedDict, total=False):
+class UpdateS3SourceBody(TypedDict, total=False):
+    bucket: str | None
+    prefix: str | None
+    region: str | None
+    endpoint_url: str | None
+    force_path_style: bool | None
+    access_key_id: str | None
+    secret_access_key: str | None
+    session_token: str | None
     schedule_enabled: bool | None
     sync_interval_hours: int | None
+    metadata: dict[str, Any] | None
 
 
-class GoogleSource(TypedDict):
+class S3Source(TypedDict):
     id: str
-    provider: GoogleProvider
+    provider: ConnectorProvider
     collection_name: str
+    bucket: str
+    prefix: str
+    region: str
+    endpoint_url: str | None
+    force_path_style: bool
+    has_credentials: bool
     root_id: str
     root_name: str
-    root_mime_type: str
     source_type: ConnectorSourceType
     status: ConnectorSourceStatus
     schedule_enabled: bool
@@ -100,18 +67,17 @@ class GoogleSource(TypedDict):
     last_sync_at: str | None
     next_sync_at: str | None
     last_error: str | None
-    account_email: str | None
     metadata: dict[str, Any]
     created_at: str
     updated_at: str
 
 
-class GoogleSourceListResponse(TypedDict):
-    sources: list[GoogleSource]
+class S3SourceListResponse(TypedDict):
+    sources: list[S3Source]
     total: int
 
 
-class GoogleSyncProgressCounts(TypedDict):
+class ConnectorSyncProgressCounts(TypedDict):
     created: int
     updated: int
     skipped: int
@@ -119,25 +85,25 @@ class GoogleSyncProgressCounts(TypedDict):
     failed: int
 
 
-class GoogleSyncProgress(TypedDict):
-    phase: GoogleSyncProgressPhase
+class ConnectorSyncProgress(TypedDict):
+    phase: ConnectorSyncProgressPhase
     message: str
     current_item_name: str | None
     current_item_id: str | None
     progress_percent: int
     processed_items: int
     total_items: int
-    counts: GoogleSyncProgressCounts
+    counts: ConnectorSyncProgressCounts
 
 
-class GoogleSyncJobDetails(TypedDict, total=False):
+class ConnectorSyncJobDetails(TypedDict, total=False):
     errors: list[dict[str, str]]
-    progress: GoogleSyncProgress
+    progress: ConnectorSyncProgress
 
 
-class GoogleSyncJob(TypedDict):
+class S3SyncJob(TypedDict):
     id: str
-    provider: GoogleProvider
+    provider: ConnectorProvider
     source_id: str | None
     trigger: ConnectorSyncTrigger
     status: ConnectorSyncStatus
@@ -148,13 +114,13 @@ class GoogleSyncJob(TypedDict):
     total_deleted: int
     total_failed: int
     error_message: str | None
-    details: GoogleSyncJobDetails
+    details: ConnectorSyncJobDetails
     started_at: str | None
     completed_at: str | None
     created_at: str
     updated_at: str
 
 
-class GoogleSyncJobListResponse(TypedDict):
-    jobs: list[GoogleSyncJob]
+class S3SyncJobListResponse(TypedDict):
+    jobs: list[S3SyncJob]
     total: int

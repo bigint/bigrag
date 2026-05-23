@@ -1,441 +1,181 @@
-import { useForm, useStore } from "@tanstack/react-form";
-import { CheckCircle2, Copy, KeyRound, Plug, ShieldCheck, Unplug } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useNavigate } from "@tanstack/react-router";
+import { Database, ExternalLink, FolderSync, RefreshCw, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Empty } from "@/components/ui/empty";
 import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
-import { Tabs } from "@/components/ui/tabs";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
-  type ConnectorProvider,
-  type ConnectorProviderId,
-  type ConnectorStatus,
+  isActiveS3SyncJob,
+  sourceStatusVariant,
+  syncProgressForJob,
+  syncProgressLabel,
+} from "@/features/collections/s3-connector-utils";
+import {
+  connectorCollectionHref,
   connectorProviderById,
-  connectorProviders,
   connectorStatus,
   defaultConnectorProvider,
 } from "@/features/connectors/connector-catalog";
 import {
-  defaultGoogleConnectorFormValues,
-  googleConnectorPayload,
-  validateGoogleConnectorFormValues,
-} from "@/features/connectors/google-connector-form-state";
-import {
-  useDisconnectGoogle,
-  useGoogleAccount,
-  useGoogleConnectorConfig,
-  useUpdateGoogleConnectorConfig,
-} from "@/hooks/use-google-drive";
-import { cn } from "@/lib/cn";
-import { firstString } from "@/lib/form";
-import type { GoogleAccount, GoogleConnectorConfig } from "@/types/bigrag";
-
-const CONNECTOR_PROVIDER_TABS = connectorProviders.map((provider) => ({
-  icon: provider.icon,
-  label: provider.label,
-  value: provider.id,
-}));
+  useDeleteS3Source,
+  useS3Sources,
+  useS3SyncJobs,
+  useSyncS3Source,
+} from "@/hooks/use-s3-connector";
+import { formatRelative } from "@/lib/format";
+import type { S3Source, S3SyncJob } from "@/types/bigrag";
 
 export const ConnectorsPage = () => {
-  const { data: config, isPending } = useGoogleConnectorConfig();
-  const { data: account } = useGoogleAccount();
-  const save = useUpdateGoogleConnectorConfig();
-  const disconnect = useDisconnectGoogle();
-  const [selectedProviderId, setSelectedProviderId] = useState<ConnectorProviderId>(
-    defaultConnectorProvider.id,
-  );
-  const form = useForm({
-    defaultValues: defaultGoogleConnectorFormValues(),
-    validators: {
-      onSubmit: ({ value }) => validateGoogleConnectorFormValues(value),
-    },
-    onSubmit: ({ value }) => save.mutate(googleConnectorPayload(value)),
-  });
-  const values = useStore(form.store, (state) => state.values);
-  const submitError = useStore(form.store, (state) => firstString(state.errors));
-
-  useEffect(() => {
-    if (!config) return;
-    form.reset(defaultGoogleConnectorFormValues(config));
-  }, [config, form]);
-
-  const selectedProvider = connectorProviderById(selectedProviderId);
-  const configured = config?.configured ?? false;
-  const callbackUrl = config?.callback_url ?? "";
-  const connected = account?.connected ?? false;
-  const needsReauth = account?.status === "needs_reauth";
-  const googleStatus = connectorStatus({
-    availability: "available",
-    configured,
-    connected,
-    enabled: values.enabled,
-    needsReauth,
-  });
-  const selectedStatus =
-    selectedProvider.id === "google-drive"
-      ? googleStatus
-      : connectorStatus({ availability: selectedProvider.availability });
-  const setProviderTab = (value: string) => setSelectedProviderId(value as ConnectorProviderId);
+  const provider = connectorProviderById(defaultConnectorProvider.id);
+  const sources = useS3Sources();
+  const syncJobs = useS3SyncJobs({ limit: 50 });
+  const syncSource = useSyncS3Source();
+  const deleteSource = useDeleteS3Source();
+  const navigate = useNavigate();
+  const status = connectorStatus(sources.data?.total ?? 0);
+  const ProviderIcon = provider.icon;
+  const jobsBySource = new Map<string, S3SyncJob>();
+  for (const job of syncJobs.data?.jobs ?? []) {
+    if (job.source_id && !jobsBySource.has(job.source_id)) jobsBySource.set(job.source_id, job);
+  }
 
   return (
     <Page.Shell>
       <Page.Header
         className="mb-0"
-        description="Manage provider credentials, account state, and collection source access from one connector catalog."
+        description="Manage object-storage sources that mirror bucket prefixes into collections."
         title="Connectors"
       />
 
-      <Tabs onChange={setProviderTab} tabs={CONNECTOR_PROVIDER_TABS} value={selectedProvider.id} />
-
       <section className="overflow-hidden rounded-md border border-border bg-card">
-        <ProviderHeader provider={selectedProvider} status={selectedStatus} />
-        {selectedProvider.availability === "available" ? (
-          <GoogleConnectorPanel
-            account={account}
-            callbackUrl={callbackUrl}
-            clientId={values.clientId}
-            clientSecret={values.clientSecret}
-            config={config}
-            configured={configured}
-            connected={connected}
-            disconnecting={disconnect.isPending}
-            enabled={values.enabled}
-            isPending={isPending}
-            needsReauth={needsReauth}
-            onClientIdChange={(value) => form.setFieldValue("clientId", value)}
-            onClientSecretChange={(value) => form.setFieldValue("clientSecret", value)}
-            onDisconnect={() => disconnect.mutate()}
-            onEnabledChange={(enabled) => form.setFieldValue("enabled", enabled)}
-            onSave={() => void form.handleSubmit()}
-            provider={selectedProvider}
-            saving={save.isPending}
-            submitError={submitError}
-          />
+        <div className="flex flex-wrap items-start justify-between gap-3 border-border border-b bg-muted/35 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+              <ProviderIcon className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-semibold">{provider.label}</h2>
+                <Badge variant="neutral">{provider.category}</Badge>
+              </div>
+              <p className="mt-0.5 text-sm text-muted-foreground">{status.detail}</p>
+            </div>
+          </div>
+          <Badge dot variant={status.variant}>
+            {status.label}
+          </Badge>
+        </div>
+
+        {sources.isPending ? (
+          <div className="flex h-48 items-center justify-center">
+            <Spinner />
+          </div>
+        ) : sources.data?.sources.length ? (
+          <ul className="divide-y divide-border">
+            {sources.data.sources.map((source) => (
+              <SourceRow
+                deleteSource={(sourceId) => deleteSource.mutate(sourceId)}
+                isDeleting={deleteSource.isPending}
+                isSyncing={syncSource.isPending}
+                job={jobsBySource.get(source.id)}
+                key={source.id}
+                navigate={navigate}
+                onSync={(sourceId) => syncSource.mutate(sourceId)}
+                source={source}
+              />
+            ))}
+          </ul>
         ) : (
-          <PlannedConnectorPanel provider={selectedProvider} />
+          <Empty
+            bordered={false}
+            className="py-16"
+            description="Add a source from a collection connector tab."
+            icon={<Database className="size-5" />}
+            title="No S3 sources"
+          />
         )}
       </section>
     </Page.Shell>
   );
 };
 
-const ProviderHeader = ({
-  provider,
-  status,
+const SourceRow = ({
+  deleteSource,
+  isDeleting,
+  isSyncing,
+  job,
+  navigate,
+  onSync,
+  source,
 }: {
-  provider: ConnectorProvider;
-  status: ConnectorStatus;
-}) => (
-  <div className="flex flex-wrap items-start justify-between gap-3 border-border border-b bg-muted/35 px-4 py-3">
-    <div className="flex min-w-0 items-center gap-3">
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-background">
-        <ProviderIcon provider={provider} />
-      </div>
+  deleteSource: (sourceId: string) => void;
+  isDeleting: boolean;
+  isSyncing: boolean;
+  job: S3SyncJob | undefined;
+  navigate: ReturnType<typeof useNavigate>;
+  onSync: (sourceId: string) => void;
+  source: S3Source;
+}) => {
+  const active = source.status === "syncing" || isActiveS3SyncJob(job);
+  const progress = job ? syncProgressForJob(job) : undefined;
+  const href = connectorCollectionHref(source.collection_name, defaultConnectorProvider);
+  return (
+    <li className="grid gap-3 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_minmax(180px,280px)_auto] lg:items-center">
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-base font-semibold">{provider.label}</h2>
-          <Badge variant="neutral">{provider.category}</Badge>
+        <div className="flex min-w-0 items-center gap-2">
+          <FolderSync className="size-4 shrink-0 text-muted-foreground" />
+          <span className="truncate text-sm font-semibold">{source.root_name}</span>
+          <Badge dot variant={sourceStatusVariant[source.status]}>
+            {source.status}
+          </Badge>
         </div>
-        <p className="mt-0.5 text-sm text-muted-foreground">{status.detail}</p>
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span>{source.collection_name}</span>
+          <span>{source.region}</span>
+          {source.last_sync_at && <span>last {formatRelative(source.last_sync_at)}</span>}
+        </div>
       </div>
-    </div>
-    <Badge dot variant={status.variant}>
-      {status.label}
-    </Badge>
-  </div>
-);
-
-const GoogleConnectorPanel = ({
-  account,
-  callbackUrl,
-  clientId,
-  clientSecret,
-  config,
-  configured,
-  connected,
-  disconnecting,
-  enabled,
-  isPending,
-  needsReauth,
-  onClientIdChange,
-  onClientSecretChange,
-  onDisconnect,
-  onEnabledChange,
-  onSave,
-  provider,
-  saving,
-  submitError,
-}: {
-  account: GoogleAccount | undefined;
-  callbackUrl: string;
-  clientId: string;
-  clientSecret: string;
-  config: GoogleConnectorConfig | undefined;
-  configured: boolean;
-  connected: boolean;
-  disconnecting: boolean;
-  enabled: boolean;
-  isPending: boolean;
-  needsReauth: boolean;
-  onClientIdChange: (value: string) => void;
-  onClientSecretChange: (value: string) => void;
-  onDisconnect: () => void;
-  onEnabledChange: (enabled: boolean) => void;
-  onSave: () => void;
-  provider: ConnectorProvider;
-  saving: boolean;
-  submitError: string | null;
-}) => (
-  <div className="flex flex-col gap-5 p-4">
-    <ProviderReadinessGrid
-      configured={configured}
-      connected={connected}
-      enabled={enabled}
-      needsReauth={needsReauth}
-    />
-
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-      <div className="flex flex-col gap-4">
-        <div className="rounded-md border border-border bg-background p-4">
-          <Switch checked={enabled} label="Enabled" onCheckedChange={onEnabledChange} />
-        </div>
-
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Provider setup
-          </div>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Save OAuth credentials, register the callback URL in the provider console, then connect
-            a user account from a collection source browser.
-          </p>
-        </div>
-
-        {submitError && (
-          <div
-            className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            role="alert"
-          >
-            {submitError}
-          </div>
-        )}
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            label="OAuth client ID"
-            onChange={(event) => onClientIdChange(event.target.value)}
-            placeholder="...apps.googleusercontent.com"
-            value={clientId}
-          />
-          <Input
-            description={
-              config?.has_client_secret && !clientSecret
-                ? "Leave blank to keep the current secret."
-                : undefined
-            }
-            label="OAuth client secret"
-            onChange={(event) => onClientSecretChange(event.target.value)}
-            placeholder={config?.has_client_secret ? "Saved" : "Client secret"}
-            type="password"
-            value={clientSecret}
-          />
-        </div>
-
-        <div className="flex items-end gap-2">
-          <Input label="OAuth callback URL" readOnly value={callbackUrl} />
+      <div className="min-w-0 text-xs text-muted-foreground">
+        {progress ? syncProgressLabel(progress) : "No sync job yet"}
+      </div>
+      <div className="flex items-center gap-1">
+        <Tooltip content="Open collection source">
           <Button
-            aria-label="Copy callback URL"
-            disabled={!callbackUrl}
-            onClick={async () => {
-              await navigator.clipboard.writeText(callbackUrl);
-              toast.success("Callback URL copied");
+            aria-label="Open collection source"
+            onClick={() => {
+              navigate({ to: href });
             }}
             size="icon"
             variant="outline"
           >
-            <Copy className="size-4" />
+            <ExternalLink className="size-4" />
           </Button>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button disabled={isPending || saving} onClick={onSave}>
-            {saving ? <Spinner /> : <CheckCircle2 className="size-4" />}
-            Save provider
+        </Tooltip>
+        <Tooltip content="Sync now">
+          <Button
+            aria-label="Sync source"
+            disabled={isSyncing || active}
+            onClick={() => onSync(source.id)}
+            size="icon"
+            variant="outline"
+          >
+            <RefreshCw className="size-4" />
           </Button>
-          {connected && (
-            <Button disabled={disconnecting} onClick={onDisconnect} variant="outline">
-              {disconnecting ? <Spinner /> : <Unplug className="size-4" />}
-              Disconnect account
-            </Button>
-          )}
-        </div>
+        </Tooltip>
+        <Tooltip content="Remove source">
+          <Button
+            aria-label="Remove source"
+            disabled={isDeleting}
+            onClick={() => deleteSource(source.id)}
+            size="icon"
+            variant="ghost"
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </Tooltip>
       </div>
-
-      <ProviderStatePanel
-        account={account}
-        configured={configured}
-        connected={connected}
-        needsReauth={needsReauth}
-        provider={provider}
-      />
-    </div>
-  </div>
-);
-
-const ProviderReadinessGrid = ({
-  configured,
-  connected,
-  enabled,
-  needsReauth,
-}: {
-  configured: boolean;
-  connected: boolean;
-  enabled: boolean;
-  needsReauth: boolean;
-}) => (
-  <div className="grid overflow-hidden rounded-md border border-border md:grid-cols-3 md:divide-x md:divide-border">
-    <ReadinessItem
-      icon={<ShieldCheck className="size-4" />}
-      label="Provider"
-      value={enabled ? "Enabled" : "Disabled"}
-    />
-    <ReadinessItem
-      icon={<KeyRound className="size-4" />}
-      label="Credentials"
-      value={configured ? "Saved" : "Missing"}
-    />
-    <ReadinessItem
-      icon={<Plug className="size-4" />}
-      label="Account"
-      value={connected ? "Connected" : needsReauth ? "Reconnect" : configured ? "Ready" : "Waiting"}
-    />
-  </div>
-);
-
-const ReadinessItem = ({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) => (
-  <div className="border-border border-b bg-background p-3 last:border-b-0 md:border-b-0">
-    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-      {icon}
-      {label}
-    </div>
-    <div className="mt-2 text-sm font-semibold">{value}</div>
-  </div>
-);
-
-const ProviderStatePanel = ({
-  account,
-  configured,
-  connected,
-  needsReauth,
-  provider,
-}: {
-  account: GoogleAccount | undefined;
-  configured: boolean;
-  connected: boolean;
-  needsReauth: boolean;
-  provider: ConnectorProvider;
-}) => (
-  <div className="rounded-md border border-border bg-background p-4">
-    <div className="flex items-center gap-3">
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-card">
-        <ProviderIcon provider={provider} />
-      </div>
-      <div className="min-w-0">
-        <h3 className="text-sm font-semibold">Connection</h3>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          {connected
-            ? account?.email
-            : needsReauth
-              ? "Reconnect required"
-              : configured
-                ? "Ready for OAuth"
-                : "Credentials required"}
-        </p>
-      </div>
-    </div>
-    <div className="mt-5 space-y-3 text-sm">
-      <ProviderFact label="Status" value={account?.status ?? "not connected"} />
-      <ProviderFact
-        label="Last connected"
-        value={
-          account?.last_connected_at ? formatConnectorDate(account.last_connected_at) : "Never"
-        }
-      />
-      <ProviderFact
-        label="Token expiry"
-        value={account?.token_expires_at ? formatConnectorDate(account.token_expires_at) : "None"}
-      />
-    </div>
-  </div>
-);
-
-const PlannedConnectorPanel = ({ provider }: { provider: ConnectorProvider }) => (
-  <div className="grid gap-5 p-4 lg:grid-cols-2">
-    <div>
-      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Setup path
-      </div>
-      <RequirementList items={provider.setupItems} />
-    </div>
-    <div>
-      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Source operations
-      </div>
-      <CapabilityList items={provider.capabilities} />
-    </div>
-  </div>
-);
-
-const RequirementList = ({ items }: { items: readonly string[] }) => (
-  <div className="mt-3 overflow-hidden rounded-md border border-border bg-background">
-    {items.map((item) => (
-      <div
-        className="flex items-center gap-2 border-border border-b px-3 py-3 text-sm last:border-b-0"
-        key={item}
-      >
-        <CheckCircle2 className="size-4 text-muted-foreground" />
-        <span className="font-medium">{item}</span>
-      </div>
-    ))}
-  </div>
-);
-
-const CapabilityList = ({ items }: { items: readonly string[] }) => (
-  <div className="mt-3 flex flex-wrap gap-2">
-    {items.map((item) => (
-      <Badge key={item} variant="neutral">
-        {item}
-      </Badge>
-    ))}
-  </div>
-);
-
-const ProviderIcon = ({
-  className,
-  provider,
-}: {
-  className?: string;
-  provider: ConnectorProvider;
-}) => {
-  const Icon = provider.icon;
-  return <Icon className={cn("size-5", className)} />;
+    </li>
+  );
 };
-
-const ProviderFact = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-center justify-between gap-4 border-border border-b pb-3 last:border-b-0 last:pb-0">
-    <span className="text-muted-foreground">{label}</span>
-    <span className="min-w-0 truncate font-medium">{value}</span>
-  </div>
-);
-
-const formatConnectorDate = (value: string) => new Date(value).toLocaleString();

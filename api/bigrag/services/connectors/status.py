@@ -24,8 +24,7 @@ async def fail_sync(
     job.error_message = message
     job.completed_at = completed
     apply_counters(job, counters)
-    if source.status != "needs_reauth":
-        source.status = "error"
+    source.status = "error"
     source.last_sync_at = completed
     source.next_sync_at = next_sync_at(source, from_time=completed)
     source.last_error = message
@@ -54,9 +53,3 @@ async def fail_sync(
         collection=source.collection_name,
         data=data,
     )
-    if source.status == "needs_reauth":
-        await enqueue_webhook_event(
-            "connector.sync.needs_reauth",
-            collection=source.collection_name,
-            data=data,
-        )

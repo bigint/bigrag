@@ -5,9 +5,7 @@ from bigrag.resources.admin import (
     AdminApiKeysResource,
     AdminAuditResource,
     AdminBackupsResource,
-    AdminConnectorsResource,
     AdminEmbeddingPresetsResource,
-    AdminGoogleConnectorResource,
     AdminMcpServersResource,
     AdminRealtimeResource,
     AdminResource,
@@ -18,7 +16,7 @@ from bigrag.resources.admin import (
 from bigrag.resources.auth import AuthResource
 from bigrag.resources.chat import ChatResource
 from bigrag.resources.collections import CollectionsResource
-from bigrag.resources.connectors import ConnectorsResource, GoogleDriveResource
+from bigrag.resources.connectors import ConnectorsResource, S3ConnectorResource
 from bigrag.resources.documents import DocumentsResource
 from bigrag.resources.evaluations import EvaluationsResource
 from bigrag.resources.query import QueryResource
@@ -30,8 +28,6 @@ __all__ = [
     "AdminApiKeysResource",
     "AdminAuditResource",
     "AdminBackupsResource",
-    "AdminConnectorsResource",
-    "AdminGoogleConnectorResource",
     "AdminEmbeddingPresetsResource",
     "AdminMcpServersResource",
     "AdminRealtimeResource",
@@ -45,8 +41,8 @@ __all__ = [
     "ConnectorsResource",
     "DocumentsResource",
     "EvaluationsResource",
-    "GoogleDriveResource",
     "QueryResource",
+    "S3ConnectorResource",
     "VectorsResource",
     "WebhooksResource",
 ]

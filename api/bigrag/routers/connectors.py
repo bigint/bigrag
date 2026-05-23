@@ -5,14 +5,10 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import ConnectorAccount
 from bigrag.db.session import get_session
-from bigrag.middleware.auth import require_session
+from bigrag.middleware.auth import require_admin_session
 from bigrag.models import StatusResponse
 from bigrag.models.connector import (
-    ConnectorAccountResponse,
-    ConnectorFileListResponse,
-    ConnectorFileResponse,
     ConnectorSourceListResponse,
     ConnectorSourceResponse,
     ConnectorSyncJobListResponse,
@@ -35,90 +31,17 @@ def _route_or_404(provider_slug: str) -> ConnectorRuntime:
     return route
 
 
-@router.get("/{provider_slug}/account", response_model=ConnectorAccountResponse)
-async def connector_account(
-    provider_slug: str,
-    user: dict = Depends(require_session),
-    session: AsyncSession = Depends(get_session),
-) -> ConnectorAccountResponse:
-    route = _route_or_404(provider_slug)
-    config = await route.get_config(session)
-    account = await route.get_account(session, user["id"])
-    return ConnectorAccountResponse(**route.account_public(config=config, account=account))
-
-
-@router.get("/{provider_slug}/files", response_model=ConnectorFileListResponse)
-async def connector_files(
-    provider_slug: str,
-    parent_id: str = Query(default="root", min_length=1, max_length=500),
-    query: str | None = Query(default=None, max_length=200),
-    page_token: str | None = Query(default=None, max_length=1000),
-    page_size: int = Query(default=100, ge=1, le=100),
-    user: dict = Depends(require_session),
-    session: AsyncSession = Depends(get_session),
-) -> ConnectorFileListResponse:
-    route = _route_or_404(provider_slug)
-    try:
-        data = await route.list_files(
-            session,
-            user_id=user["id"],
-            parent_id=parent_id,
-            query=query,
-            page_token=page_token,
-            page_size=page_size,
-        )
-        return ConnectorFileListResponse(
-            provider=data["provider"],
-            parent_id=data["parent_id"],
-            query=data["query"],
-            files=[ConnectorFileResponse(**item) for item in data["files"]],
-            next_page_token=data["next_page_token"],
-        )
-    except route.config_error as exc:
-        raise HTTPException(
-            status_code=400, detail=safe_error_detail(exc, "Connector is not configured.")
-        ) from exc
-    except route.auth_error as exc:
-        raise HTTPException(
-            status_code=401, detail=safe_error_detail(exc, "Connector authentication failed.")
-        ) from exc
-    except route.service_error as exc:
-        raise HTTPException(
-            status_code=502, detail=safe_error_detail(exc, "Connector upstream error.")
-        ) from exc
-
-
-@router.post("/{provider_slug}/disconnect", response_model=StatusResponse)
-async def connector_disconnect(
-    provider_slug: str,
-    request: Request,
-    user: dict = Depends(require_session),
-    session: AsyncSession = Depends(get_session),
-) -> StatusResponse:
-    route = _route_or_404(provider_slug)
-    await route.disconnect_account(session, user_id=user["id"])
-    audit.record(
-        request,
-        user=user,
-        action=f"connector.{route.slug}.disconnect",
-        resource_type="connector",
-        resource_id=route.provider,
-        metadata={},
-    )
-    return StatusResponse(status="ok", message=f"{route.display_name} disconnected")
-
-
 @router.get("/{provider_slug}/sources", response_model=ConnectorSourceListResponse)
 async def connector_sources(
     provider_slug: str,
     collection: str | None = Query(default=None, max_length=120),
-    user: dict = Depends(require_session),
+    user: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ConnectorSourceListResponse:
+    _ = user
     route = _route_or_404(provider_slug)
     sources, total = await route.list_sources(
         session,
-        user_id=user["id"],
         collection_name=collection,
     )
     return ConnectorSourceListResponse(
@@ -132,7 +55,7 @@ async def connector_source_create(
     provider_slug: str,
     body: CreateConnectorSourceRequest,
     request: Request,
-    user: dict = Depends(require_session),
+    user: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ConnectorSourceResponse:
     route = _route_or_404(provider_slug)
@@ -141,25 +64,26 @@ async def connector_source_create(
             session,
             user_id=user["id"],
             collection_name=body.collection_name,
-            root_id=body.root_id,
-            root_name=body.root_name,
-            root_mime_type=body.root_mime_type,
-            source_type=body.source_type,
+            bucket=body.bucket,
+            prefix=body.prefix,
+            region=body.region,
+            endpoint_url=body.endpoint_url,
+            force_path_style=body.force_path_style,
+            access_key_id=body.access_key_id,
+            secret_access_key=body.secret_access_key,
+            session_token=body.session_token,
+            schedule_enabled=body.schedule_enabled,
+            sync_interval_hours=body.sync_interval_hours,
             metadata=body.metadata,
         )
-    except route.config_error as exc:
+    except route.service_error as exc:
         raise HTTPException(
-            status_code=400, detail=safe_error_detail(exc, "Connector is not configured.")
-        ) from exc
-    except route.auth_error as exc:
-        raise HTTPException(
-            status_code=401, detail=safe_error_detail(exc, "Connector authentication failed.")
+            status_code=400, detail=safe_error_detail(exc, "Connector source could not be created.")
         ) from exc
     except ValueError as exc:
         raise HTTPException(
-            status_code=404, detail=safe_error_detail(exc, "Connector source not found.")
+            status_code=400, detail=safe_error_detail(exc, "Connector source could not be created.")
         ) from exc
-    account = await session.get(ConnectorAccount, source.account_id)
     audit.record(
         request,
         user=user,
@@ -169,11 +93,10 @@ async def connector_source_create(
         metadata={
             "collection": source.collection_name,
             "root_id": source.root_id,
-            "source_type": source.source_type,
             "sync_job_id": str(job.id),
         },
     )
-    return ConnectorSourceResponse(**route.source_public((source, account)))
+    return ConnectorSourceResponse(**route.source_public(source))
 
 
 @router.patch("/{provider_slug}/sources/{source_id}", response_model=ConnectorSourceResponse)
@@ -181,24 +104,39 @@ async def connector_source_update(
     provider_slug: str,
     source_id: str,
     body: UpdateConnectorSourceRequest,
-    user: dict = Depends(require_session),
+    user: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ConnectorSourceResponse:
     route = _route_or_404(provider_slug)
     try:
         source = await route.update_source(
             session,
-            user_id=user["id"],
             source_id=source_id,
+            bucket=body.bucket,
+            prefix=body.prefix,
+            region=body.region,
+            endpoint_url=body.endpoint_url,
+            endpoint_url_set="endpoint_url" in body.model_fields_set,
+            force_path_style=body.force_path_style,
+            access_key_id=body.access_key_id,
+            secret_access_key=body.secret_access_key,
+            session_token=body.session_token,
+            session_token_set="session_token" in body.model_fields_set,
             schedule_enabled=body.schedule_enabled,
             sync_interval_hours=body.sync_interval_hours,
+            metadata=body.metadata,
         )
-    except ValueError as exc:
+    except route.service_error as exc:
         raise HTTPException(
-            status_code=404, detail=safe_error_detail(exc, "Connector source not found.")
+            status_code=400, detail=safe_error_detail(exc, "Connector source could not be updated.")
         ) from exc
-    account = await session.get(ConnectorAccount, source.account_id)
-    return ConnectorSourceResponse(**route.source_public((source, account)))
+    except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(
+            status_code=status_code, detail=safe_error_detail(exc, "Connector source not found.")
+        ) from exc
+    _ = user
+    return ConnectorSourceResponse(**route.source_public(source))
 
 
 @router.delete("/{provider_slug}/sources/{source_id}", response_model=StatusResponse)
@@ -206,15 +144,16 @@ async def connector_source_delete(
     provider_slug: str,
     source_id: str,
     request: Request,
-    user: dict = Depends(require_session),
+    user: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     route = _route_or_404(provider_slug)
     try:
-        await route.delete_source(session, user_id=user["id"], source_id=source_id)
+        await route.delete_source(session, source_id=source_id)
     except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
         raise HTTPException(
-            status_code=404, detail=safe_error_detail(exc, "Connector source not found.")
+            status_code=status_code, detail=safe_error_detail(exc, "Connector source not found.")
         ) from exc
     audit.record(
         request,
@@ -232,7 +171,7 @@ async def connector_source_sync(
     provider_slug: str,
     source_id: str,
     request: Request,
-    user: dict = Depends(require_session),
+    user: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ConnectorSyncJobResponse:
     route = _route_or_404(provider_slug)
@@ -244,8 +183,9 @@ async def connector_source_sync(
             trigger="manual",
         )
     except ValueError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
         raise HTTPException(
-            status_code=404, detail=safe_error_detail(exc, "Connector source not found.")
+            status_code=status_code, detail=safe_error_detail(exc, "Connector source not found.")
         ) from exc
     audit.record(
         request,
@@ -264,9 +204,10 @@ async def connector_sync_jobs(
     collection: str | None = Query(default=None, max_length=120),
     source_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
-    user: dict = Depends(require_session),
+    user: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ConnectorSyncJobListResponse:
+    _ = user
     route = _route_or_404(provider_slug)
     if source_id:
         try:
@@ -276,7 +217,6 @@ async def connector_sync_jobs(
     jobs, total = await list_connector_sync_jobs(
         session,
         provider=route.provider,
-        user_id=user["id"],
         collection_name=collection,
         source_id=source_id,
         limit=limit,

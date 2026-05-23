@@ -1,66 +1,39 @@
 import type { RequestClient } from "../core.js";
 import type {
-  CreateGoogleSourceBody,
-  GoogleAccount,
-  GoogleDriveFileListResponse,
-  GoogleOAuthStartUrlResponse,
-  GoogleSource,
-  GoogleSourceListResponse,
-  GoogleSyncJob,
-  GoogleSyncJobListResponse,
+  CreateS3SourceBody,
+  S3Source,
+  S3SourceListResponse,
+  S3SyncJob,
+  S3SyncJobListResponse,
   StatusResponse,
-  UpdateGoogleSourceBody,
+  UpdateS3SourceBody,
 } from "../types/index.js";
 
 export class ConnectorsResource {
-  readonly google: GoogleDriveResource;
+  readonly s3: S3ConnectorResource;
 
   constructor(client: RequestClient) {
-    this.google = new GoogleDriveResource(client);
+    this.s3 = new S3ConnectorResource(client);
   }
 }
 
-export class GoogleDriveResource {
+export class S3ConnectorResource {
   constructor(private readonly _client: RequestClient) {}
 
-  account(): Promise<GoogleAccount> {
-    return this._client._request("GET", "/v1/connectors/google/account");
-  }
-
-  files(
-    options: { parentId?: string; query?: string; pageToken?: string; pageSize?: number } = {},
-  ): Promise<GoogleDriveFileListResponse> {
-    const params: Record<string, string> = { parent_id: options.parentId ?? "root" };
-    if (options.query !== undefined) params.query = options.query;
-    if (options.pageToken !== undefined) params.page_token = options.pageToken;
-    if (options.pageSize !== undefined) params.page_size = String(options.pageSize);
-    return this._client._request("GET", "/v1/connectors/google/files", { params });
-  }
-
-  oauthStartUrl(options: { redirectPath?: string } = {}): Promise<GoogleOAuthStartUrlResponse> {
-    const params: Record<string, string> = {};
-    if (options.redirectPath !== undefined) params.redirect_path = options.redirectPath;
-    return this._client._request("GET", "/v1/connectors/google/oauth/start-url", { params });
-  }
-
-  disconnect(): Promise<StatusResponse> {
-    return this._client._request("POST", "/v1/connectors/google/disconnect");
-  }
-
-  sources(options: { collection?: string } = {}): Promise<GoogleSourceListResponse> {
+  sources(options: { collection?: string } = {}): Promise<S3SourceListResponse> {
     const params: Record<string, string> = {};
     if (options.collection !== undefined) params.collection = options.collection;
-    return this._client._request("GET", "/v1/connectors/google/sources", { params });
+    return this._client._request("GET", "/v1/connectors/s3/sources", { params });
   }
 
-  createSource(body: CreateGoogleSourceBody): Promise<GoogleSource> {
-    return this._client._request("POST", "/v1/connectors/google/sources", { json: body });
+  createSource(body: CreateS3SourceBody): Promise<S3Source> {
+    return this._client._request("POST", "/v1/connectors/s3/sources", { json: body });
   }
 
-  updateSource(sourceId: string, body: UpdateGoogleSourceBody): Promise<GoogleSource> {
+  updateSource(sourceId: string, body: UpdateS3SourceBody): Promise<S3Source> {
     return this._client._request(
       "PATCH",
-      `/v1/connectors/google/sources/${encodeURIComponent(sourceId)}`,
+      `/v1/connectors/s3/sources/${encodeURIComponent(sourceId)}`,
       { json: body },
     );
   }
@@ -68,24 +41,24 @@ export class GoogleDriveResource {
   deleteSource(sourceId: string): Promise<StatusResponse> {
     return this._client._request(
       "DELETE",
-      `/v1/connectors/google/sources/${encodeURIComponent(sourceId)}`,
+      `/v1/connectors/s3/sources/${encodeURIComponent(sourceId)}`,
     );
   }
 
-  syncSource(sourceId: string): Promise<GoogleSyncJob> {
+  syncSource(sourceId: string): Promise<S3SyncJob> {
     return this._client._request(
       "POST",
-      `/v1/connectors/google/sources/${encodeURIComponent(sourceId)}/sync`,
+      `/v1/connectors/s3/sources/${encodeURIComponent(sourceId)}/sync`,
     );
   }
 
   syncJobs(
     options: { collection?: string; sourceId?: string; limit?: number } = {},
-  ): Promise<GoogleSyncJobListResponse> {
+  ): Promise<S3SyncJobListResponse> {
     const params: Record<string, string> = {};
     if (options.collection !== undefined) params.collection = options.collection;
     if (options.sourceId !== undefined) params.source_id = options.sourceId;
     if (options.limit !== undefined) params.limit = String(options.limit);
-    return this._client._request("GET", "/v1/connectors/google/sync-jobs", { params });
+    return this._client._request("GET", "/v1/connectors/s3/sync-jobs", { params });
   }
 }

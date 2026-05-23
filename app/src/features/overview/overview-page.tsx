@@ -262,7 +262,7 @@ export const OverviewPage = () => {
                 <div>
                   <h2 className="text-base font-semibold">Ingestion queue</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Work waiting behind document upload, backups, webhooks, and Drive syncs.
+                    Work waiting behind document upload, backups, webhooks, and connector syncs.
                   </p>
                 </div>
                 <Badge variant={queueHealthVariant(queueHealth?.status)} dot>
@@ -273,7 +273,7 @@ export const OverviewPage = () => {
                 availability={workerAvailability}
                 className="mt-4"
                 compact
-                message="Pending uploads, backups, webhooks, and Drive syncs cannot drain until the worker is started."
+                message="Pending uploads, backups, webhooks, and connector syncs cannot drain until the worker is started."
               />
               <QueueHealthNote reasons={queueHealth?.reasons} />
               <div className="mt-4 space-y-2">

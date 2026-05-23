@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
+from bigrag import config as config_module
 from bigrag.logging import get_logger
 from bigrag.services import runtime_settings
 from bigrag.services.backup import test_backup_target
@@ -11,7 +12,6 @@ from bigrag.services.embedding import reset_embedding_semaphores
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_setting_specs import REGISTRY
 from bigrag.services.vector_store import VectorStore, vector_store
-from bigrag import config as config_module
 
 logger = get_logger("bigrag.runtime_settings")
 

@@ -11,10 +11,10 @@ import type {
   CollectionStatsResponse,
   Document,
   DocumentListResponse,
-  GoogleSourceListResponse,
-  GoogleSyncJobListResponse,
   PlatformStatsResponse,
   ReadinessResponse,
+  S3SourceListResponse,
+  S3SyncJobListResponse,
   UploadSession,
   UsageResponse,
 } from "../../types/index.js";
@@ -78,7 +78,7 @@ export class AdminRealtimeResource {
   connectorSources(
     provider: string,
     options: { collection?: string } = {},
-  ): AsyncGenerator<AdminRealtimeEvent<GoogleSourceListResponse>> {
+  ): AsyncGenerator<AdminRealtimeEvent<S3SourceListResponse>> {
     return this._stream(`/v1/admin/realtime/${encodeURIComponent(provider)}/sources`, {
       collection: options.collection,
     });
@@ -87,7 +87,7 @@ export class AdminRealtimeResource {
   connectorSyncJobs(
     provider: string,
     options: { collection?: string; sourceId?: string; limit?: number } = {},
-  ): AsyncGenerator<AdminRealtimeEvent<GoogleSyncJobListResponse>> {
+  ): AsyncGenerator<AdminRealtimeEvent<S3SyncJobListResponse>> {
     return this._stream(`/v1/admin/realtime/${encodeURIComponent(provider)}/sync-jobs`, {
       collection: options.collection,
       source_id: options.sourceId,

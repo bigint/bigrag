@@ -71,11 +71,11 @@ The client reads `BIGRAG_API_KEY` from the environment if `api_key` is not passe
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
 | `client.auth` | Setup, login, logout, identity, password, and preferences |
-| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, backups, vector storage overview, admin realtime streams, connector config, embedding presets, and MCP server keys |
-| `client.connectors.google` | Google Drive account, file browsing, sources, and sync jobs |
+| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, backups, vector storage overview, admin realtime streams, embedding presets, and MCP server keys |
+| `client.connectors.s3` | S3-compatible bucket prefixes, sources, and sync jobs |
 | `client.evaluations` | Golden-set retrieval evaluation runs |
 
-Google Drive sync jobs support `collection`, `source_id`, and `limit` filters. Running jobs include `details["progress"]` with Drive sync phase, percent, current item, and created/updated/skipped/deleted/failed counts.
+S3 sync jobs support `collection`, `source_id`, and `limit` filters. Running jobs include `details["progress"]` with sync phase, percent, current item, and created/updated/skipped/deleted/failed counts.
 
 ## Collections
 

@@ -4,107 +4,41 @@ from datetime import datetime
 from uuid import UUID
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from bigrag.db.base import TS, Base, TSupd, UUIDpk
 from bigrag.services.crypto import EncryptedString
 
 
-class ConnectorProviderConfig(Base):
-    __tablename__ = "connector_provider_configs"
-    __table_args__ = (
-        sa.Index("idx_connector_provider_configs_provider", "provider"),
-        sa.CheckConstraint(
-            "provider <> ''",
-            name="connector_provider_configs_provider_check",
-        ),
-    )
-
-    id: Mapped[UUIDpk]
-    provider: Mapped[str] = mapped_column(sa.Text, unique=True, nullable=False)
-    enabled: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default=sa.true())
-    client_id: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
-    client_secret: Mapped[str | None] = mapped_column(EncryptedString)
-    meta: Mapped[dict] = mapped_column(
-        "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
-    )
-    created_at: Mapped[TS]
-    updated_at: Mapped[TSupd]
-
-
-class ConnectorAccount(Base):
-    __tablename__ = "connector_accounts"
-    __table_args__ = (
-        sa.Index("idx_connector_accounts_user_provider", "user_id", "provider"),
-        sa.Index("idx_connector_accounts_oauth_state", "oauth_state"),
-        sa.Index("idx_connector_accounts_tenant_id", "tenant_id"),
-        sa.UniqueConstraint("user_id", "provider", name="uq_connector_accounts_user_provider"),
-        sa.CheckConstraint(
-            "provider <> ''",
-            name="connector_accounts_provider_check",
-        ),
-        sa.CheckConstraint(
-            "status IN ('pending', 'connected', 'needs_reauth', 'revoked')",
-            name="connector_accounts_status_check",
-        ),
-    )
-
-    id: Mapped[UUIDpk]
-    provider: Mapped[str] = mapped_column(sa.Text, nullable=False)
-    user_id: Mapped[UUID] = mapped_column(
-        sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    tenant_id: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
-    account_email: Mapped[str | None] = mapped_column(sa.Text)
-    access_token: Mapped[str | None] = mapped_column(EncryptedString)
-    refresh_token: Mapped[str | None] = mapped_column(EncryptedString)
-    token_expires_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-    scopes: Mapped[list[str]] = mapped_column(
-        ARRAY(sa.Text), nullable=False, server_default=sa.text("'{}'::text[]")
-    )
-    status: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="pending")
-    oauth_state: Mapped[str | None] = mapped_column(sa.Text)
-    last_connected_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-    meta: Mapped[dict] = mapped_column(
-        "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
-    )
-    created_at: Mapped[TS]
-    updated_at: Mapped[TSupd]
-
-
 class ConnectorSource(Base):
     __tablename__ = "connector_sources"
     __table_args__ = (
-        sa.Index("idx_connector_sources_account_id", "account_id"),
         sa.Index("idx_connector_sources_collection_id", "collection_id"),
         sa.Index("idx_connector_sources_next_sync", "next_sync_at"),
         sa.Index("idx_connector_sources_tenant_id", "tenant_id"),
         sa.UniqueConstraint(
-            "account_id",
+            "provider",
             "collection_id",
             "root_id",
-            name="uq_connector_sources_account_collection_root",
+            name="uq_connector_sources_provider_collection_root",
         ),
         sa.CheckConstraint(
             "provider <> ''",
             name="connector_sources_provider_check",
         ),
         sa.CheckConstraint(
-            "source_type IN ('file', 'folder')",
+            "source_type IN ('prefix')",
             name="connector_sources_source_type_check",
         ),
         sa.CheckConstraint(
-            "status IN ('idle', 'syncing', 'needs_reauth', 'error')",
+            "status IN ('idle', 'syncing', 'error')",
             name="connector_sources_status_check",
         ),
     )
 
     id: Mapped[UUIDpk]
     provider: Mapped[str] = mapped_column(sa.Text, nullable=False)
-    account_id: Mapped[UUID] = mapped_column(
-        sa.ForeignKey("connector_accounts.id", ondelete="CASCADE"), nullable=False
-    )
     collection_id: Mapped[UUID] = mapped_column(
         sa.ForeignKey("collections.id", ondelete="CASCADE"), nullable=False
     )
@@ -126,6 +60,26 @@ class ConnectorSource(Base):
     last_error: Mapped[str | None] = mapped_column(sa.Text)
     meta: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
+    )
+    created_at: Mapped[TS]
+    updated_at: Mapped[TSupd]
+
+
+class ConnectorSourceCredential(Base):
+    __tablename__ = "connector_source_credentials"
+    __table_args__ = (sa.Index("idx_connector_source_credentials_source_id", "source_id"),)
+
+    id: Mapped[UUIDpk]
+    source_id: Mapped[UUID] = mapped_column(
+        sa.ForeignKey("connector_sources.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    access_key_id: Mapped[str] = mapped_column(EncryptedString, nullable=False)
+    secret_access_key: Mapped[str] = mapped_column(EncryptedString, nullable=False)
+    session_token: Mapped[str | None] = mapped_column(EncryptedString)
+    region: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="us-east-1")
+    endpoint_url: Mapped[str | None] = mapped_column(sa.Text)
+    force_path_style: Mapped[bool] = mapped_column(
+        sa.Boolean, nullable=False, server_default=sa.false()
     )
     created_at: Mapped[TS]
     updated_at: Mapped[TSupd]

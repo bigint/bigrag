@@ -269,9 +269,6 @@ client.admin.backups.list({ limit?, offset? })
 client.admin.backups.get(backupId)
 client.admin.backups.create({ label? })
 
-client.admin.connectors.google.get()
-client.admin.connectors.google.update({ enabled?, client_id?, client_secret? })
-
 client.admin.embeddingPresets.list({ limit?, offset? })
 client.admin.embeddingPresets.create({ name, provider, model, api_key, base_url?, dimension })
 client.admin.embeddingPresets.update(presetId, { name?, provider?, model?, api_key?, base_url?, dimension? })
@@ -307,22 +304,43 @@ for await (const event of client.admin.realtime.platformReadiness()) {
 </Accordions>
 
 <Callout type="info">
-  Admin endpoints (`/v1/admin/*`, most of `/v1/auth/*`, and Google Drive connector OAuth flows) are session-only. API keys remain the right fit for read/query/ingest workloads.
+  Admin endpoints (`/v1/admin/*` and most of `/v1/auth/*`) are session-only. API keys remain the right fit for read/query/ingest workloads.
 </Callout>
 
 ## Connectors
 
 ```typescript
-client.connectors.google.account()
-client.connectors.google.files({ parentId?, query?, pageToken?, pageSize? })
-client.connectors.google.oauthStartUrl({ redirectPath? })
-client.connectors.google.disconnect()
-client.connectors.google.sources({ collection? })
-client.connectors.google.createSource({ collection_name, root_id, root_name, root_mime_type?, source_type?, metadata? })
-client.connectors.google.updateSource(sourceId, { schedule_enabled?, sync_interval_hours? })
-client.connectors.google.deleteSource(sourceId)
-client.connectors.google.syncSource(sourceId)
-client.connectors.google.syncJobs({ collection?, sourceId?, limit? })
+client.connectors.s3.sources({ collection? })
+client.connectors.s3.createSource({
+  collection_name,
+  bucket,
+  prefix?,
+  region?,
+  endpoint_url?,
+  force_path_style?,
+  access_key_id,
+  secret_access_key,
+  session_token?,
+  metadata?,
+  schedule_enabled?,
+  sync_interval_hours?,
+})
+client.connectors.s3.updateSource(sourceId, {
+  bucket?,
+  prefix?,
+  region?,
+  endpoint_url?,
+  force_path_style?,
+  access_key_id?,
+  secret_access_key?,
+  session_token?,
+  metadata?,
+  schedule_enabled?,
+  sync_interval_hours?,
+})
+client.connectors.s3.deleteSource(sourceId)
+client.connectors.s3.syncSource(sourceId)
+client.connectors.s3.syncJobs({ collection?, sourceId?, limit? })
 ```
 
 ## Evaluations

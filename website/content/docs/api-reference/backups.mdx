@@ -86,7 +86,7 @@ While the job runs, bigRAG acquires a maintenance lock:
 - Mutating API requests are rejected with `423`
 - New ingestion jobs are rejected
 - Dramatiq ingestion and connector actors delay themselves
-- Scheduled Google Drive syncs do not start
+- Scheduled S3 syncs do not start
 
 The backup fails if:
 

@@ -5,83 +5,54 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-ConnectorProvider = str
-ConnectorAccountStatus = Literal["pending", "connected", "needs_reauth", "revoked"]
-ConnectorSourceStatus = Literal["idle", "syncing", "needs_reauth", "error"]
-ConnectorSourceType = Literal["file", "folder"]
+ConnectorProvider = Literal["s3"]
+ConnectorSourceStatus = Literal["idle", "syncing", "error"]
+ConnectorSourceType = Literal["prefix"]
 ConnectorSyncTrigger = Literal["initial", "manual", "scheduled"]
 ConnectorSyncStatus = Literal["pending", "running", "complete", "failed"]
 
 
-class ConnectorConfigResponse(BaseModel):
-    provider: ConnectorProvider
-    configured: bool
-    enabled: bool
-    client_id: str
-    has_client_secret: bool
-    callback_url: str
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
-
-
-class UpdateConnectorConfigRequest(BaseModel):
-    enabled: bool = True
-    client_id: str = Field(default="", max_length=500)
-    client_secret: str | None = Field(default=None, max_length=5000)
-
-
-class ConnectorAccountResponse(BaseModel):
-    provider: ConnectorProvider
-    configured: bool
-    connected: bool
-    status: ConnectorAccountStatus | None = None
-    email: str | None = None
-    scopes: list[str] = Field(default_factory=list)
-    token_expires_at: datetime | None = None
-    last_connected_at: datetime | None = None
-
-
-class ConnectorFileResponse(BaseModel):
-    id: str
-    name: str
-    mime_type: str
-    source_type: ConnectorSourceType
-    modified_time: datetime | None = None
-    size: int | None = None
-    web_url: str | None = None
-    sync_supported: bool
-    unsupported_reason: str | None = None
-
-
-class ConnectorFileListResponse(BaseModel):
-    provider: ConnectorProvider
-    parent_id: str
-    query: str
-    files: list[ConnectorFileResponse]
-    next_page_token: str | None = None
-
-
 class CreateConnectorSourceRequest(BaseModel):
     collection_name: str = Field(min_length=1, max_length=120)
-    root_id: str = Field(min_length=1, max_length=500)
-    root_name: str = Field(min_length=1, max_length=500)
-    root_mime_type: str = Field(default="", max_length=300)
-    source_type: ConnectorSourceType | None = None
+    bucket: str = Field(min_length=1, max_length=255)
+    prefix: str = Field(default="", max_length=1024)
+    region: str = Field(default="us-east-1", min_length=1, max_length=100)
+    endpoint_url: str | None = Field(default=None, max_length=500)
+    force_path_style: bool = False
+    access_key_id: str = Field(min_length=1, max_length=500)
+    secret_access_key: str = Field(min_length=1, max_length=5000)
+    session_token: str | None = Field(default=None, max_length=5000)
+    schedule_enabled: bool = True
+    sync_interval_hours: int = Field(default=24, ge=1, le=24 * 30)
     metadata: dict = Field(default_factory=dict)
 
 
 class UpdateConnectorSourceRequest(BaseModel):
+    bucket: str | None = Field(default=None, min_length=1, max_length=255)
+    prefix: str | None = Field(default=None, max_length=1024)
+    region: str | None = Field(default=None, min_length=1, max_length=100)
+    endpoint_url: str | None = Field(default=None, max_length=500)
+    force_path_style: bool | None = None
+    access_key_id: str | None = Field(default=None, min_length=1, max_length=500)
+    secret_access_key: str | None = Field(default=None, min_length=1, max_length=5000)
+    session_token: str | None = Field(default=None, max_length=5000)
     schedule_enabled: bool | None = None
     sync_interval_hours: int | None = Field(default=None, ge=1, le=24 * 30)
+    metadata: dict | None = None
 
 
 class ConnectorSourceResponse(BaseModel):
     id: str
     provider: ConnectorProvider
     collection_name: str
+    bucket: str
+    prefix: str
+    region: str
+    endpoint_url: str | None = None
+    force_path_style: bool
+    has_credentials: bool
     root_id: str
     root_name: str
-    root_mime_type: str
     source_type: ConnectorSourceType
     status: ConnectorSourceStatus
     schedule_enabled: bool
@@ -89,7 +60,6 @@ class ConnectorSourceResponse(BaseModel):
     last_sync_at: datetime | None = None
     next_sync_at: datetime | None = None
     last_error: str | None = None
-    account_email: str | None = None
     metadata: dict
     created_at: datetime
     updated_at: datetime

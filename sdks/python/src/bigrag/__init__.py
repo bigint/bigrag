@@ -32,8 +32,8 @@ from bigrag.resources import (
     ConnectorsResource,
     DocumentsResource,
     EvaluationsResource,
-    GoogleDriveResource,
     QueryResource,
+    S3ConnectorResource,
     VectorsResource,
     WebhooksResource,
 )
@@ -72,8 +72,8 @@ __all__ = [
     "ConnectorsResource",
     "DocumentsResource",
     "EvaluationsResource",
-    "GoogleDriveResource",
     "QueryResource",
+    "S3ConnectorResource",
     "VectorsResource",
     "WebhooksResource",
 ] + list(_types.__all__)

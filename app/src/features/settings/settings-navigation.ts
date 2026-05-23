@@ -2,13 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { Activity, Archive, Database, Lock, UserRound } from "lucide-react";
 import type { InstanceSettingGroup } from "@/types/bigrag";
 
-export type SettingsTab =
-  | "account"
-  | "health"
-  | "security"
-  | "data"
-  | "vector_store"
-  | "backups";
+export type SettingsTab = "account" | "health" | "security" | "data" | "vector_store" | "backups";
 
 type SettingsNavItem = {
   readonly value: SettingsTab;

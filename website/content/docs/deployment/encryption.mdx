@@ -79,7 +79,7 @@ The upload directory (default `./data/uploads`) is temporary ingestion staging. 
 
 ### Readable backups
 
-Readable backups created from `/settings?tab=backups` are intentionally not client-side encrypted. They keep logs and Turbopuffer payload exports inspectable, but redact provider keys, OAuth tokens, webhook secrets, S3 credentials, API key hashes, session hashes, and embedding-cache vectors.
+Readable backups created from `/settings?tab=backups` are intentionally not client-side encrypted. They keep logs and Turbopuffer payload exports inspectable, but redact provider keys, connector credentials, webhook secrets, S3 credentials, API key hashes, session hashes, and embedding-cache vectors.
 
 Protect the backup bucket with strict IAM/R2 token policy, bucket encryption, private networking where available, lifecycle retention, and access logging.
 

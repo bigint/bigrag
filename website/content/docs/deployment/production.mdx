@@ -304,7 +304,7 @@ The worker container healthcheck reads the worker heartbeat from Redis rather th
 
 <Accordion title="Worker-dependent actions are disabled in the admin UI">
 
-Uploads, backups, webhook deliveries, and Google Drive sync all depend on `bigrag-worker`. If the admin UI shows `bigrag-worker is offline`, start or restart the worker service, then confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
+Uploads, backups, webhook deliveries, and S3 sync all depend on `bigrag-worker`. If the admin UI shows `bigrag-worker is offline`, start or restart the worker service, then confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
 
 </Accordion>
 
