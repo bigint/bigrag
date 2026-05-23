@@ -12,7 +12,7 @@ import {
   isActiveS3SyncJob,
   sourceStatusVariant,
   syncProgressForJob,
-  syncProgressLabel,
+  syncStatusLabel,
 } from "@/features/collections/s3-connector-utils";
 import {
   connectorCollectionHref,
@@ -162,7 +162,7 @@ const SourceRow = ({
         </div>
       </div>
       <div className="min-w-0 truncate text-xs text-muted-foreground">
-        {progress ? syncProgressLabel(progress) : "No sync job yet"}
+        {progress ? syncStatusLabel(progress) : "No sync job yet"}
       </div>
       <div className="flex items-center gap-1">
         <Tooltip content="Open collection source">

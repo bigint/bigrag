@@ -18,9 +18,8 @@ import {
   isActiveS3SyncJob,
   jobStatusVariant,
   sourceStatusVariant,
-  syncCountLabel,
   syncProgressForJob,
-  syncProgressLabel,
+  syncStatusLabel,
 } from "@/features/collections/s3-connector-utils";
 import {
   defaultS3SourceFormValues,
@@ -306,13 +305,15 @@ const SyncJobBody = ({ job }: { job: S3SyncJob }) => {
     <div className="flex flex-col gap-4 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold">{progress.message}</div>
-          <div
-            className="mt-1 truncate text-xs text-muted-foreground"
-            title={progress.current_item_name ?? undefined}
-          >
-            {progress.current_item_name ?? syncCountLabel(progress)}
-          </div>
+          <div className="truncate text-sm font-semibold">{syncStatusLabel(progress)}</div>
+          {progress.current_item_name && (
+            <div
+              className="mt-1 truncate text-xs text-muted-foreground"
+              title={progress.current_item_name}
+            >
+              {progress.current_item_name}
+            </div>
+          )}
         </div>
         <Badge dot variant={jobStatusVariant[job.status]}>
           {job.status}
@@ -522,7 +523,7 @@ const SourceRow = ({
         <div className="rounded-sm border border-border bg-background p-3">
           <div className="flex items-center justify-between gap-3 text-xs">
             <span className="min-w-0 truncate text-muted-foreground">
-              {syncProgressLabel(progress)}
+              {syncStatusLabel(progress)}
             </span>
             <span className="font-semibold">{clampSyncProgress(progress.progress_percent)}%</span>
           </div>
