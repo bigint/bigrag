@@ -16,9 +16,11 @@ from bigrag.routers.connectors import connector_sources, connector_sync_jobs
 from bigrag.routers.documents import get_document, list_documents
 from bigrag.routers.documents_batch import batch_get_status
 from bigrag.routers.documents_progress import TERMINAL_DOCUMENT_STATUSES
-from bigrag.routers.health import platform_stats, readiness
+from bigrag.routers.health import readiness
 from bigrag.routers.upload_sessions import get_upload_session as upload_session_detail
 from bigrag.routers.usage import get_usage
+from bigrag.services.event_bus import INGESTION_EVENTS_KEY
+from bigrag.services.platform_stats import platform_stats_payload
 from bigrag.services.realtime.params import boolean, document_ids, integer, string
 from bigrag.services.realtime.specs import SnapshotTopic, TopicError, fixed
 
@@ -315,13 +317,17 @@ def _usage_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
     return SnapshotTopic(snapshot_topic, load, fixed(60.0))
 
 
-def _platform_stats_topic(websocket: WebSocket, user: dict) -> SnapshotTopic:
+def _platform_stats_topic(websocket: WebSocket, _user: dict) -> SnapshotTopic:
     async def load():
         return await with_session(
-            lambda session: platform_stats(request=websocket, _=user, session=session)
+            lambda session: platform_stats_payload(
+                websocket.app.state.queue,
+                session,
+                use_cache=False,
+            )
         )
 
-    return SnapshotTopic("platform:stats", load, fixed(15.0))
+    return SnapshotTopic("platform:stats", load, fixed(5.0), INGESTION_EVENTS_KEY)
 
 
 def _platform_readiness_topic(websocket: WebSocket) -> SnapshotTopic:
@@ -329,7 +335,7 @@ def _platform_readiness_topic(websocket: WebSocket) -> SnapshotTopic:
         response = await readiness(websocket)
         return json.loads(response.body)
 
-    return SnapshotTopic("platform:readiness", load, fixed(30.0))
+    return SnapshotTopic("platform:readiness", load, fixed(10.0))
 
 
 def _document_done(payload: Any) -> bool:

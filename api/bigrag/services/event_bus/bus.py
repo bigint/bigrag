@@ -11,6 +11,7 @@ from bigrag.services.event_bus.types import (
     _COMPLETE_MARKER,
     CHANNEL_PREFIX,
     COMPLETED_MAX_ENTRIES,
+    INGESTION_EVENTS_KEY,
     LATEST_PREFIX,
     LATEST_TTL_SECONDS,
     SUBSCRIBER_QUEUE_SIZE,
@@ -145,6 +146,8 @@ class EventBus:
                     ex=LATEST_TTL_SECONDS,
                 )
                 await self._redis.publish(f"{CHANNEL_PREFIX}{event.document_id}", data)
+                if event.document_id:
+                    await self._redis.publish(f"{CHANNEL_PREFIX}{INGESTION_EVENTS_KEY}", data)
                 if event.collection_name:
                     await self._redis.publish(
                         f"{CHANNEL_PREFIX}collection:{event.collection_name}",

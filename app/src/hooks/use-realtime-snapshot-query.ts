@@ -46,6 +46,7 @@ const DEFAULT_POLL_INTERVAL_MS = 30_000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const MAX_BACKOFF_MS = 30_000;
 const BASE_BACKOFF_MS = 1_000;
+const IDLE_CLOSE_MS = 500;
 
 type MessageListener = (event: RealtimeMessage<unknown>) => void;
 type ErrorListener = () => void;
@@ -60,8 +61,10 @@ type StreamEntry = {
 };
 
 let socket: WebSocket | null = null;
+let socketGeneration = 0;
 let reconnectAttempt = 0;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let idleCloseTimer: ReturnType<typeof setTimeout> | null = null;
 const streams = new Map<string, StreamEntry>();
 
 const randomId = () => {
@@ -99,16 +102,47 @@ const dispatchError = () => {
   }
 };
 
-const openSocket = () => {
-  if (socket && socket.readyState !== WebSocket.CLOSED) return;
-  socket = new WebSocket(realtimeUrl());
+const clearIdleClose = () => {
+  if (!idleCloseTimer) return;
+  clearTimeout(idleCloseTimer);
+  idleCloseTimer = null;
+};
 
-  socket.addEventListener("open", () => {
+const closeSocket = () => {
+  const current = socket;
+  socket = null;
+  socketGeneration += 1;
+  current?.close();
+};
+
+const scheduleIdleClose = () => {
+  if (idleCloseTimer) return;
+  idleCloseTimer = setTimeout(() => {
+    idleCloseTimer = null;
+    if (streams.size > 0) return;
+    closeSocket();
+  }, IDLE_CLOSE_MS);
+};
+
+const openSocket = () => {
+  clearIdleClose();
+  if (socket && socket.readyState !== WebSocket.CLOSING && socket.readyState !== WebSocket.CLOSED) {
+    return;
+  }
+  const currentSocket = new WebSocket(realtimeUrl());
+  socket = currentSocket;
+  const generation = socketGeneration + 1;
+  socketGeneration = generation;
+  const isCurrentSocket = () => socket === currentSocket && socketGeneration === generation;
+
+  currentSocket.addEventListener("open", () => {
+    if (!isCurrentSocket()) return;
     reconnectAttempt = 0;
     for (const entry of streams.values()) subscribeEntry(entry);
   });
 
-  socket.addEventListener("message", (event) => {
+  currentSocket.addEventListener("message", (event) => {
+    if (!isCurrentSocket()) return;
     let message: RealtimeMessage<unknown>;
     try {
       message = JSON.parse(String(event.data)) as RealtimeMessage<unknown>;
@@ -136,14 +170,16 @@ const openSocket = () => {
     for (const listener of entry.listeners) listener(message);
   });
 
-  socket.addEventListener("close", () => {
+  currentSocket.addEventListener("close", () => {
+    if (!isCurrentSocket()) return;
     socket = null;
     if (streams.size === 0) return;
     dispatchError();
     scheduleReconnect();
   });
 
-  socket.addEventListener("error", () => {
+  currentSocket.addEventListener("error", () => {
+    if (!isCurrentSocket()) return;
     dispatchError();
   });
 };
@@ -201,8 +237,7 @@ const subscribeStream = (
           clearTimeout(reconnectTimer);
           reconnectTimer = null;
         }
-        socket?.close();
-        socket = null;
+        scheduleIdleClose();
       }
     }
   };
@@ -213,14 +248,14 @@ export const closeAllRealtimeStreams = () => {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
+  clearIdleClose();
   for (const entry of streams.values()) {
     entry.listeners.clear();
     entry.errorListeners.clear();
     entry.refcount = 0;
   }
   streams.clear();
-  socket?.close();
-  socket = null;
+  closeSocket();
 };
 
 export const useRealtimeSnapshotQuery = <T>({

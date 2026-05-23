@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass, field
 import orjson
 
 CHANNEL_PREFIX = "bigrag:events:"
+INGESTION_EVENTS_KEY = "ingestion"
 LATEST_PREFIX = "bigrag:progress:"
 LATEST_TTL_SECONDS = 7 * 24 * 60 * 60
 SUBSCRIBER_QUEUE_SIZE = 256
