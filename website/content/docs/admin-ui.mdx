@@ -35,7 +35,7 @@ For cross-site production deployments, enable secure session cookies and set `Sa
 | `/collections/[name]/documents` | Upload files or folders through resumable upload sessions, filter/search/sort/paginate documents, inspect status, bulk delete with typed confirmation, and delete individual documents. Uploads are disabled when `/v1/stats` reports no live `bigrag-worker`. |
 | `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, SSE progress, failed-ingest error, and delete. |
 | `/collections/[name]/connectors` | Redirects to the first available collection connector from the provider catalog. |
-| `/collections/[name]/connectors/s3` | Add S3/R2 bucket-prefix sources, monitor sync progress, trigger manual resync, and manage sync schedules. Source creation and manual sync are disabled when the worker is offline. |
+| `/collections/[name]/connectors/s3` | Open the collection-scoped S3/R2 connector workspace to add bucket-prefix sources, monitor sync progress, trigger manual resync, and manage sync schedules. Source creation and manual sync are disabled when the worker is offline. |
 | `/collections/[name]/search` | Query tester scoped to the collection — bounded requests, cancel/retry states, result metadata, document filenames, and chunk deep links. |
 | `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
 | `/chat` | Browser-local playground chat UI; retrieve from one collection, stream cited answers, render safe markdown, and keep local sessions across reloads. |
