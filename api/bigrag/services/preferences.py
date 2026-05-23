@@ -86,7 +86,9 @@ def _remove_cleared_sensitive(merged: dict, incoming: dict) -> dict:
     out = {**merged}
     for parent, key in _SENSITIVE_PATHS:
         sub_in = incoming.get(parent)
-        if not isinstance(sub_in, dict) or sub_in.get(key) not in ("", None):
+        if not isinstance(sub_in, dict) or key not in sub_in:
+            continue
+        if sub_in.get(key) not in ("", None):
             continue
         sub_out = out.get(parent)
         if not isinstance(sub_out, dict):
