@@ -17,7 +17,7 @@ wheels = [
 
 [[package]]
 name = "bigrag"
-version = "2026.5.22"
+version = "2026.5.23"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
