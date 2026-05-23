@@ -107,21 +107,34 @@ def _get_docling_converter(*, pdf_ocr_enabled: bool = True):
             except (OSError, PermissionError) as exc:
                 logger.debug("hf cache scan failed, deferring to HF", error=str(exc))
 
+        from docling.datamodel.accelerator_options import AcceleratorOptions
         from docling.datamodel.pipeline_options import PdfPipelineOptions
-        from docling.document_converter import DocumentConverter, InputFormat, PdfFormatOption
+        from docling.document_converter import (
+            DocumentConverter,
+            ImageFormatOption,
+            InputFormat,
+            PdfFormatOption,
+        )
         from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
 
         pdf_opts = PdfPipelineOptions()
+        pdf_opts.accelerator_options = AcceleratorOptions(device=settings.conversion_device)
         pdf_opts.do_ocr = pdf_ocr_enabled
         if hasattr(pdf_opts, "generate_picture_images"):
             pdf_opts.generate_picture_images = True
+        image_opts = pdf_opts.model_copy(deep=True)
+        image_opts.do_ocr = True
 
         converter = DocumentConverter(
             format_options={
                 InputFormat.PDF: PdfFormatOption(
                     pipeline_cls=StandardPdfPipeline,
                     pipeline_options=pdf_opts,
-                )
+                ),
+                InputFormat.IMAGE: ImageFormatOption(
+                    pipeline_cls=StandardPdfPipeline,
+                    pipeline_options=image_opts,
+                ),
             }
         )
         _docling_converters[pdf_ocr_enabled] = converter

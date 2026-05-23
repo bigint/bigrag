@@ -33,6 +33,7 @@ Bootstrap config is the small set of values the API needs before it can connect 
 | `BIGRAG_TURBOPUFFER_BASE_URL` | Optional bootstrap Turbopuffer-compatible base URL. | — |
 | `BIGRAG_TURBOPUFFER_REGION` | Bootstrap Turbopuffer region slug. | `aws-us-east-1` |
 | `BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX` | Bootstrap Turbopuffer namespace prefix. | `bigrag_` |
+| `BIGRAG_CONVERSION_DEVICE` | Docling inference device for OCR and layout models. Use `cpu`, `auto`, `cuda`, `cuda:0`, `mps`, or `xpu`. | `cpu` |
 
 **Two variables to note:**
 
@@ -73,6 +74,7 @@ master_key = "generate-a-fernet-key"
 master_key_previous = []
 
 upload_dir = "./data/uploads"
+conversion_device = "cpu"
 ```
 
 Environment variables override TOML values. CLI flags passed to `python -m bigrag.main` override both.
