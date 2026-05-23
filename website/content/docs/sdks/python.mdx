@@ -64,14 +64,15 @@ The client reads `BIGRAG_API_KEY` from the environment if `api_key` is not passe
 
 | Namespace | Description |
 |---|---|
-| `client.collections` | Collection CRUD, stats, event tokens, and event streams |
+| `client.collections` | Collection CRUD, stats, realtime tokens, and event streams |
 | `client.documents` | Document upload, list, delete, batch ops |
 | `client.chat` | Generated answers, question suggestions, and streaming |
 | `client.queries` | Single, multi-collection, and batch queries |
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
 | `client.auth` | Setup, login, logout, identity, password, and preferences |
-| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, backups, vector storage overview, admin realtime streams, embedding presets, and MCP server keys |
+| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, backups, vector storage overview, admin realtime helpers, embedding presets, and MCP server keys |
+| `client.realtime` | Explicit WebSocket connect, subscribe, and unsubscribe control |
 | `client.connectors.s3` | S3-compatible bucket prefixes, sources, and sync jobs |
 | `client.evaluations` | Golden-set retrieval evaluation runs |
 
@@ -110,8 +111,8 @@ stats = await client.collections.stats("docs")
 # Truncate (delete all documents, keep the collection)
 await client.collections.truncate("docs")
 
-# Stream collection events (SSE)
-token = await client.collections.create_event_token("docs")
+# Stream collection realtime events
+token = await client.collections.create_realtime_token("docs")
 async for event in client.collections.stream_events("docs", token=token["token"]):
     print(event)
 ```
@@ -230,7 +231,7 @@ print(answer["assistant_message"]["content"])
 suggestions = await client.chat.get_question_suggestions("docs")
 fresh = await client.chat.generate_question_suggestions({"collection": "docs"})
 
-# Stream SSE events
+# Stream chat SSE events
 async for event in client.chat.stream({
     "collection": "docs",
     "message": "Answer with citations",
@@ -356,11 +357,12 @@ backup = await client.admin.backups.create({"label": "nightly export"})
 backup = await client.admin.backups.get(backup["id"])
 
 async for event in client.admin.realtime.backups(limit=20):
-    if event["event"] == "snapshot":
-        print(event["data"]["payload"]["jobs"])
+    if event["type"] == "snapshot":
+        print(event["payload"]["jobs"])
 
 async for event in client.admin.realtime.platform_readiness():
-    print(event["data"])
+    if event["type"] == "snapshot":
+        print(event["payload"])
 ```
 
 ## Platform Endpoints

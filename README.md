@@ -82,7 +82,7 @@ docker pull yoginth/bigrag-api:2026.4.30
 docker pull yoginth/bigrag-ui:2026.4.30
 ```
 
-Release artifacts use CalVer (`YYYY.M.D`). Docker also publishes `latest`; the Python SDK publishes dated PyPI releases.
+Release artifacts use CalVer (`YYYY.M.D`). Docker also publishes `latest`; the Python and TypeScript SDKs publish dated PyPI and npm releases.
 
 ## Architecture
 
@@ -148,7 +148,8 @@ graph TD
 | `DELETE` | `/v1/collections/{name}` | Delete collection |
 | `GET` | `/v1/collections/{name}/stats` | Collection stats |
 | `POST` | `/v1/collections/{name}/truncate` | Delete all documents, keep the collection |
-| `GET` | `/v1/collections/{name}/events` | Stream collection events (SSE) |
+| `POST` | `/v1/collections/{name}/realtime-token` | Create a short-lived collection realtime token |
+| `WS` | `/v1/realtime` | Subscribe to realtime snapshots and collection events |
 | **Documents** | | |
 | `POST` | `/v1/collections/{name}/documents` | Upload document |
 | `GET` | `/v1/collections/{name}/documents` | List documents |
@@ -228,6 +229,8 @@ Full interactive docs at `/docs` (Swagger UI) when running.
 ```bash
 npm install @bigrag/client
 ```
+
+Published npm releases use CalVer, for example `@bigrag/client@2026.5.22`.
 
 ```typescript
 import { BigRAG } from "@bigrag/client";

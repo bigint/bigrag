@@ -14,6 +14,7 @@ from bigrag.resources import (
     DocumentsResource,
     EvaluationsResource,
     QueryResource,
+    RealtimeResource,
     VectorsResource,
     WebhooksResource,
 )
@@ -25,7 +26,7 @@ from bigrag.types.chat import (
     ChatStreamEvent,
 )
 from bigrag.types.collections import (
-    CollectionEventTokenResponse,
+    CollectionRealtimeTokenResponse,
     CollectionStatsResponse,
 )
 from bigrag.types.common import (
@@ -50,7 +51,7 @@ from bigrag.types.query import (
     QueryBody,
     QueryResponse,
 )
-from bigrag.types.sse import ProgressEvent
+from bigrag.types.realtime import ProgressEvent
 from bigrag.types.usage import UsageResponse
 
 
@@ -65,6 +66,7 @@ class BigRAG(BigRAGCore):
     auth: AuthResource
     admin: AdminResource
     evaluations: EvaluationsResource
+    realtime: RealtimeResource
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -78,6 +80,7 @@ class BigRAG(BigRAGCore):
         self.auth = AuthResource(self)
         self.admin = AdminResource(self)
         self.evaluations = EvaluationsResource(self)
+        self.realtime = RealtimeResource(self)
 
     async def health(self) -> HealthResponse:
         return await self._request("GET", "/health")
@@ -240,5 +243,5 @@ class CollectionClient:
         async for event in self._client.collections.stream_events(self._name):
             yield event
 
-    async def create_event_token(self) -> CollectionEventTokenResponse:
-        return await self._client.collections.create_event_token(self._name)
+    async def create_realtime_token(self) -> CollectionRealtimeTokenResponse:
+        return await self._client.collections.create_realtime_token(self._name)

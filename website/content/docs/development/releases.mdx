@@ -1,0 +1,16 @@
+---
+title: Releases
+description: Release versioning and publish paths for bigRAG artifacts.
+---
+
+## Versioning
+
+bigRAG release artifacts use CalVer with the `YYYY.M.D` scheme. Month and day are not zero-padded, so a release on May 22, 2026 is `2026.5.22`.
+
+Keep the API package, SDK packages, admin UI/docs package metadata, SDK user-agent constants, Docker image tags, and docs examples on the same CalVer version when cutting a coordinated release.
+
+## Publish paths
+
+- Docker images read the version from `api/pyproject.toml` and publish dated tags plus `latest`.
+- The Python SDK workflow validates `sdks/python/pyproject.toml` and publishes tags named `python-sdk-v<version>` to PyPI.
+- The TypeScript SDK publishes to npm from the CalVer version in `sdks/typescript/package.json`.

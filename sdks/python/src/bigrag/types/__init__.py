@@ -65,8 +65,8 @@ from bigrag.types.chat import (
 )
 from bigrag.types.collections import (
     Collection,
-    CollectionEventTokenResponse,
     CollectionListResponse,
+    CollectionRealtimeTokenResponse,
     CollectionStatsResponse,
     CreateCollectionBody,
     UpdateCollectionBody,
@@ -131,7 +131,15 @@ from bigrag.types.query import (
     QueryTimings,
     SearchMode,
 )
-from bigrag.types.sse import ProgressEvent
+from bigrag.types.realtime import (
+    ProgressEvent,
+    RealtimeComplete,
+    RealtimeControlMessage,
+    RealtimeError,
+    RealtimeEvent,
+    RealtimeMessage,
+    RealtimeSnapshot,
+)
 from bigrag.types.usage import CollectionUsage, UsageResponse
 from bigrag.types.vectors import DeleteResponse, UpsertResponse, VectorEntry
 from bigrag.types.webhooks import (
@@ -211,7 +219,7 @@ __all__ = [
     "AccessLogTimelinePoint",
     "AccessLogOverviewResponse",
     "Collection",
-    "CollectionEventTokenResponse",
+    "CollectionRealtimeTokenResponse",
     "CollectionListResponse",
     "CollectionStatsResponse",
     "CreateCollectionBody",
@@ -283,4 +291,10 @@ __all__ = [
     "CollectionUsage",
     "UsageResponse",
     "ProgressEvent",
+    "RealtimeSnapshot",
+    "RealtimeEvent",
+    "RealtimeError",
+    "RealtimeComplete",
+    "RealtimeControlMessage",
+    "RealtimeMessage",
 ]

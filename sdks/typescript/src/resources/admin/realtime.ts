@@ -1,6 +1,5 @@
-import { type RequestClient, USER_AGENT } from "../../core.js";
-import { errorForStatus } from "../../errors.js";
-import { parseSSEFrames } from "../../sse.js";
+import type { RequestClient } from "../../core.js";
+import { BigRAGRealtimeConnection } from "../../realtime.js";
 import type {
   AccessLogListResponse,
   AccessLogOverviewResponse,
@@ -33,53 +32,51 @@ export class AdminRealtimeResource {
       status?: string;
     } = {},
   ): AsyncGenerator<AdminRealtimeEvent<DocumentListResponse>> {
-    return this._stream(
-      `/v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents`,
-      {
-        limit: options.limit,
-        offset: options.offset,
-        order: options.order,
-        q: options.q,
-        sort: options.sort,
-        status: options.status,
-      },
-    );
+    return this._stream("admin.collections.documents", {
+      collection,
+      limit: options.limit,
+      offset: options.offset,
+      order: options.order,
+      q: options.q,
+      sort: options.sort,
+      status: options.status,
+    });
   }
 
   documentBatchStatus(
     collection: string,
     documentIds: string[],
   ): AsyncGenerator<AdminRealtimeEvent<BatchStatusResponse>> {
-    return this._stream(
-      `/v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents/batch-status`,
-      { document_ids: documentIds.join(",") },
-    );
+    return this._stream("admin.collections.documents.batch_status", {
+      collection,
+      document_ids: documentIds,
+    });
   }
 
   document(collection: string, documentId: string): AsyncGenerator<AdminRealtimeEvent<Document>> {
-    return this._stream(
-      `/v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}`,
-    );
+    return this._stream("admin.collections.documents.detail", {
+      collection,
+      document_id: documentId,
+    });
   }
 
   uploadSession(
     collection: string,
     sessionId: string,
   ): AsyncGenerator<AdminRealtimeEvent<UploadSession>> {
-    return this._stream(
-      `/v1/admin/realtime/collections/${encodeURIComponent(collection)}/upload-sessions/${encodeURIComponent(sessionId)}`,
-    );
+    return this._stream("admin.collections.upload_session", { collection, session_id: sessionId });
   }
 
   collectionStats(collection: string): AsyncGenerator<AdminRealtimeEvent<CollectionStatsResponse>> {
-    return this._stream(`/v1/admin/realtime/collections/${encodeURIComponent(collection)}/stats`);
+    return this._stream("admin.collections.stats", { collection });
   }
 
   connectorSources(
     provider: string,
     options: { collection?: string } = {},
   ): AsyncGenerator<AdminRealtimeEvent<S3SourceListResponse>> {
-    return this._stream(`/v1/admin/realtime/${encodeURIComponent(provider)}/sources`, {
+    return this._stream("admin.connectors.sources", {
+      provider,
       collection: options.collection,
     });
   }
@@ -88,7 +85,8 @@ export class AdminRealtimeResource {
     provider: string,
     options: { collection?: string; sourceId?: string; limit?: number } = {},
   ): AsyncGenerator<AdminRealtimeEvent<S3SyncJobListResponse>> {
-    return this._stream(`/v1/admin/realtime/${encodeURIComponent(provider)}/sync-jobs`, {
+    return this._stream("admin.connectors.sync_jobs", {
+      provider,
       collection: options.collection,
       source_id: options.sourceId,
       limit: options.limit,
@@ -98,13 +96,13 @@ export class AdminRealtimeResource {
   backups(
     options: { limit?: number; offset?: number } = {},
   ): AsyncGenerator<AdminRealtimeEvent<BackupJobListResponse>> {
-    return this._stream("/v1/admin/realtime/backups", options);
+    return this._stream("admin.backups", options);
   }
 
   accessOverview(
     options: { windowDays?: number } = {},
   ): AsyncGenerator<AdminRealtimeEvent<AccessLogOverviewResponse>> {
-    return this._stream("/v1/admin/realtime/access/overview", {
+    return this._stream("admin.access.overview", {
       window_days: options.windowDays,
     });
   }
@@ -122,7 +120,7 @@ export class AdminRealtimeResource {
       offset?: number;
     } = {},
   ): AsyncGenerator<AdminRealtimeEvent<AccessLogListResponse>> {
-    return this._stream("/v1/admin/realtime/access/logs", {
+    return this._stream("admin.access.logs", {
       action: options.action,
       actor_id: options.actorId,
       collection: options.collection,
@@ -144,7 +142,7 @@ export class AdminRealtimeResource {
       offset?: number;
     } = {},
   ): AsyncGenerator<AdminRealtimeEvent<AuditLogListResponse>> {
-    return this._stream("/v1/admin/realtime/audit", {
+    return this._stream("admin.audit", {
       action: options.action,
       actor_id: options.actorId,
       resource_type: options.resourceType,
@@ -154,52 +152,41 @@ export class AdminRealtimeResource {
   }
 
   usage(options: { windowDays?: number } = {}): AsyncGenerator<AdminRealtimeEvent<UsageResponse>> {
-    return this._stream("/v1/admin/realtime/usage", {
+    return this._stream("admin.usage", {
       window_days: options.windowDays,
     });
   }
 
   platformStats(): AsyncGenerator<AdminRealtimeEvent<PlatformStatsResponse>> {
-    return this._stream("/v1/admin/realtime/platform/stats");
+    return this._stream("admin.platform.stats");
   }
 
   platformReadiness(): AsyncGenerator<AdminRealtimeEvent<ReadinessResponse>> {
-    return this._stream("/v1/admin/realtime/platform/readiness");
+    return this._stream("admin.platform.readiness");
   }
 
   custom<T = unknown>(
-    path: string,
-    params: Record<string, string | number | boolean | undefined> = {},
+    topic: string,
+    params: Record<string, string | number | boolean | string[] | undefined> = {},
   ): AsyncGenerator<AdminRealtimeEvent<T>> {
-    if (!path.startsWith("/v1/admin/realtime/")) {
-      throw new Error("admin.realtime.custom path must start with /v1/admin/realtime/");
+    if (!topic.startsWith("admin.")) {
+      throw new Error("admin.realtime.custom topic must start with admin.");
     }
-    return this._stream(path, params);
+    return this._stream(topic, params);
   }
 
   private async *_stream<T>(
-    path: string,
-    params: Record<string, string | number | boolean | undefined> = {},
+    topic: string,
+    params: Record<string, string | number | boolean | string[] | undefined> = {},
   ): AsyncGenerator<AdminRealtimeEvent<T>> {
-    const url = new URL(`${this._client.baseUrl}${path}`);
-    for (const [key, value] of Object.entries(params)) {
-      if (value !== undefined) url.searchParams.set(key, String(value));
-    }
-    const headers: Record<string, string> = { "User-Agent": USER_AGENT };
-    if (this._client.apiKey) headers.Authorization = `Bearer ${this._client.apiKey}`;
-    const response = await this._client._fetch(url.toString(), {
-      method: "GET",
-      headers,
-      credentials: "include",
-      signal: AbortSignal.timeout(this._client.timeout),
-    });
-    if (!response.ok || !response.body) {
-      const message = await response.text().catch(() => response.statusText);
-      throw errorForStatus(response.status, message);
-    }
-
-    for await (const frame of parseSSEFrames(response)) {
-      yield { event: frame.event, data: JSON.parse(frame.data) } as AdminRealtimeEvent<T>;
+    const connection = new BigRAGRealtimeConnection(this._client);
+    try {
+      for await (const message of connection.subscribe<T>(topic, params)) {
+        yield message as AdminRealtimeEvent<T>;
+        if (message.type === "complete") return;
+      }
+    } finally {
+      await connection.close();
     }
   }
 }

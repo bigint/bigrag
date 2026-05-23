@@ -1,13 +1,11 @@
 import type { RequestClient } from "../core.js";
-import { USER_AGENT } from "../core.js";
-import { errorForStatus } from "../errors.js";
-import { parseSSEStream } from "../sse.js";
+import { BigRAGRealtimeConnection } from "../realtime.js";
 import type {
   AnalyticsResponse,
   Collection,
-  CollectionEventTokenResponse,
   CollectionListOptions,
   CollectionListResponse,
+  CollectionRealtimeTokenResponse,
   CollectionStatsResponse,
   CreateCollectionBody,
   ProgressEvent,
@@ -71,10 +69,10 @@ export class CollectionsResource {
     return this._client._request("GET", `/v1/collections/${encodeURIComponent(name)}/analytics`);
   }
 
-  createEventToken(name: string): Promise<CollectionEventTokenResponse> {
+  createRealtimeToken(name: string): Promise<CollectionRealtimeTokenResponse> {
     return this._client._request(
       "POST",
-      `/v1/collections/${encodeURIComponent(name)}/events/token`,
+      `/v1/collections/${encodeURIComponent(name)}/realtime-token`,
     );
   }
 
@@ -82,22 +80,18 @@ export class CollectionsResource {
     name: string,
     options: { token?: string } = {},
   ): AsyncGenerator<ProgressEvent> {
-    const path = `/v1/collections/${encodeURIComponent(name)}/events`;
-    const url = new URL(`${this._client.baseUrl}${path}`);
-    if (options.token !== undefined) url.searchParams.set("token", options.token);
-    const headers: Record<string, string> = { "User-Agent": USER_AGENT };
-    if (this._client.apiKey) headers.Authorization = `Bearer ${this._client.apiKey}`;
-
-    const response = await this._client._fetch(url.toString(), {
-      method: "GET",
-      headers,
-    });
-
-    if (!response.ok) {
-      const message = await response.text().catch(() => response.statusText);
-      throw errorForStatus(response.status, message);
+    const connection = new BigRAGRealtimeConnection(this._client);
+    try {
+      for await (const message of connection.subscribe<ProgressEvent>("collection.events", {
+        collection: name,
+        token: options.token,
+      })) {
+        if (message.type === "event") yield message.payload;
+        if (message.type === "error") throw new Error(message.message);
+        if (message.type === "complete") return;
+      }
+    } finally {
+      await connection.close();
     }
-
-    yield* parseSSEStream(response);
   }
 }

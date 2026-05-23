@@ -33,7 +33,7 @@ export const CodeSection = () => (
               <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-fd-border bg-fd-card">
                 <Terminal className="size-4 text-fd-foreground" />
               </div>
-              <span>TypeScript SDK with zero dependencies and full type safety</span>
+              <span>TypeScript SDK with full type safety</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-fd-border bg-fd-card">

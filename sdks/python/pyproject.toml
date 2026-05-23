@@ -22,6 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "httpx>=0.28.0",
+    "websockets>=15.0,<17",
 ]
 
 [project.urls]

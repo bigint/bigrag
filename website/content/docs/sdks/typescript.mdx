@@ -1,6 +1,6 @@
 ---
 title: TypeScript SDK
-description: Zero-dependency TypeScript client for Node.js, browsers, Deno, Bun, and edge runtimes.
+description: TypeScript client for Node.js, browsers, Deno, Bun, and edge runtimes.
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
@@ -13,7 +13,8 @@ import { Accordions, Accordion } from "fumadocs-ui/components/accordion";
 npm install @bigrag/client
 ```
 
-Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes with zero dependencies.
+Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes. Browser realtime uses native `WebSocket`; Node realtime uses the SDK's `ws` dependency.
+Published npm releases use CalVer (`YYYY.M.D`), for example `@bigrag/client@2026.5.22`.
 
 ## Quick Start
 
@@ -97,8 +98,10 @@ client.collections.update(name, {
 client.collections.delete(name)
 client.collections.truncate(name)        // delete all documents, keep the collection
 client.collections.analytics(name)
-client.collections.createEventToken(name)
-client.collections.streamEvents(name, { token? })    // AsyncIterable of collection events (SSE)
+client.collections.createRealtimeToken(name)
+client.collections.streamEvents(name, { token? })    // AsyncIterable of collection realtime events
+client.realtime.connect()
+client.realtime.subscribe(topic, params?)
 ```
 
 <Callout type="info">
@@ -285,17 +288,19 @@ client.admin.mcpServers.delete(serverId)
 
 <Accordions type="multiple">
 
-<Accordion title="Admin realtime streams">
+<Accordion title="Admin realtime WebSocket helpers">
 
 ```typescript
 for await (const event of client.admin.realtime.backups({ limit: 20 })) {
-  if (event.event === "snapshot") {
-    console.log(event.data.payload.jobs)
+  if (event.type === "snapshot") {
+    console.log(event.payload.jobs)
   }
 }
 
 for await (const event of client.admin.realtime.platformReadiness()) {
-  console.log(event.data)
+  if (event.type === "snapshot") {
+    console.log(event.payload)
+  }
 }
 ```
 

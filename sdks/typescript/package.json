@@ -17,6 +17,9 @@
   "engines": {
     "node": ">=18"
   },
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",

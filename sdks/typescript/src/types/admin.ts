@@ -1,4 +1,5 @@
 import type { User } from "./auth.js";
+import type { RealtimeMessage } from "./realtime.js";
 
 export type InstanceSettingKind =
   | "bool"
@@ -92,32 +93,7 @@ export interface BackupJobListResponse {
   total: number;
 }
 
-export interface AdminRealtimeSnapshot<T = unknown> {
-  event: "snapshot";
-  data: {
-    topic: string;
-    payload: T;
-    generated_at: string;
-  };
-}
-
-export interface AdminRealtimeError {
-  event: "error";
-  data: {
-    topic: string;
-    message: string;
-  };
-}
-
-export interface AdminRealtimeMessage {
-  event: string;
-  data: unknown;
-}
-
-export type AdminRealtimeEvent<T = unknown> =
-  | AdminRealtimeSnapshot<T>
-  | AdminRealtimeError
-  | AdminRealtimeMessage;
+export type AdminRealtimeEvent<T = unknown> = RealtimeMessage<T>;
 
 export interface VectorStorageHealth {
   status: "ok" | "error";

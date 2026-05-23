@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
+import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { AccessLogListResponse, AccessLogOverview } from "@/types/bigrag";
@@ -23,12 +23,13 @@ const compactFilters = (filters: AccessLogFilters & { include_total?: boolean })
 
 export const useAccessOverview = (enabled: boolean, windowDays = 7) => {
   const queryKey = useMemo(() => queryKeys.access.overview({ windowDays }), [windowDays]);
-  return useSseSnapshotQuery<AccessLogOverview>({
+  return useRealtimeSnapshotQuery<AccessLogOverview>({
     queryKey,
     queryFn: () =>
       apiClient.get<AccessLogOverview>("v1/admin/access/overview", { window_days: windowDays }),
     enabled,
-    path: `v1/admin/realtime/access/overview?window_days=${windowDays}`,
+    topic: "admin.access.overview",
+    params: { window_days: windowDays },
   });
 };
 
@@ -61,17 +62,11 @@ export const useAccessLogs = (filters: AccessLogFilters, enabled = true) => {
     [action, actor_id, collection, limit, method, offset, pathFilter, status_family, success],
   );
   const queryKey = useMemo(() => queryKeys.access.logs(searchParams), [searchParams]);
-  const ssePath = useMemo(() => {
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(searchParams)) {
-      params.set(key, String(value));
-    }
-    return `v1/admin/realtime/access/logs?${params}`;
-  }, [searchParams]);
-  return useSseSnapshotQuery<AccessLogListResponse>({
+  return useRealtimeSnapshotQuery<AccessLogListResponse>({
     queryKey,
     queryFn: () => apiClient.get<AccessLogListResponse>("v1/admin/access/logs", searchParams),
     enabled,
-    path: ssePath,
+    topic: "admin.access.logs",
+    params: searchParams,
   });
 };

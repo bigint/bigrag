@@ -385,13 +385,13 @@ Check status of up to 100 documents.
 { "document_ids": ["doc-id-1", "doc-id-2"] }
 ```
 
-Returns `id`, `status`, `chunk_count`, `error_message`, and the latest `progress` snapshot for each found document. API clients can poll this endpoint after batch upload until every requested document is `ready` or `failed`; the admin UI uses the session-cookie admin realtime batch stream instead.
+Returns `id`, `status`, `chunk_count`, `error_message`, and the latest `progress` snapshot for each found document. API clients can poll this endpoint after batch upload until every requested document is `ready` or `failed`; the admin UI uses the `admin.collections.documents.batch_status` realtime topic instead.
 
 </Accordion>
 
 <Accordion title="GET /v1/collections/{collection_name}/documents/{document_id} — Single document polling">
 
-Use `GET /v1/collections/{collection_name}/documents/{document_id}` for a single document. Poll while `status` is `pending` or `processing`, then stop once it reaches `ready` or `failed`. The admin UI uses [admin realtime SSE streams](/docs/api-reference/admin-realtime) for the same full payloads.
+Use `GET /v1/collections/{collection_name}/documents/{document_id}` for a single document. Poll while `status` is `pending` or `processing`, then stop once it reaches `ready` or `failed`. The admin UI uses [realtime WebSocket subscriptions](/docs/api-reference/realtime) for the same full payloads.
 
 Document status responses include a `progress` object with the latest ingestion event snapshot:
 

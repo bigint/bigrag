@@ -1,7 +1,7 @@
 import { type QueryClient, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
+import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
@@ -57,19 +57,15 @@ const invalidateS3SyncJobs = (queryClient: QueryClient) => {
 
 export const useS3Sources = (collection?: string) => {
   const queryKey = useMemo(() => queryKeys.connectors.s3Sources({ collection }), [collection]);
-  const path = useMemo(() => {
-    const params = new URLSearchParams();
-    if (collection) params.set("collection", collection);
-    const query = params.toString();
-    return query ? `v1/admin/realtime/s3/sources?${query}` : "v1/admin/realtime/s3/sources";
-  }, [collection]);
-  return useSseSnapshotQuery<S3SourceList>({
+  const params = useMemo(() => ({ provider: "s3", collection }), [collection]);
+  return useRealtimeSnapshotQuery<S3SourceList>({
     queryKey,
     queryFn: () =>
       apiClient.get<S3SourceList>("v1/connectors/s3/sources", {
         ...(collection ? { collection } : {}),
       }),
-    path,
+    topic: "admin.connectors.sources",
+    params,
   });
 };
 
@@ -86,13 +82,11 @@ export const useS3SyncJobs = ({
     () => queryKeys.connectors.s3SyncJobs({ collection, limit, sourceId }),
     [collection, limit, sourceId],
   );
-  const path = useMemo(() => {
-    const params = new URLSearchParams({ limit: String(limit) });
-    if (collection) params.set("collection", collection);
-    if (sourceId) params.set("source_id", sourceId);
-    return `v1/admin/realtime/s3/sync-jobs?${params}`;
-  }, [collection, limit, sourceId]);
-  return useSseSnapshotQuery<S3SyncJobList>({
+  const params = useMemo(
+    () => ({ provider: "s3", collection, limit, source_id: sourceId }),
+    [collection, limit, sourceId],
+  );
+  return useRealtimeSnapshotQuery<S3SyncJobList>({
     queryKey,
     queryFn: () =>
       apiClient.get<S3SyncJobList>("v1/connectors/s3/sync-jobs", {
@@ -100,7 +94,8 @@ export const useS3SyncJobs = ({
         ...(collection ? { collection } : {}),
         ...(sourceId ? { source_id: sourceId } : {}),
       }),
-    path,
+    topic: "admin.connectors.sync_jobs",
+    params,
   });
 };
 

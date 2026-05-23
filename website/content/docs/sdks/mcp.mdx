@@ -154,5 +154,5 @@ Once configured:
 ## Limitations
 
 - Ingestion (upload and webhooks) is intentionally not exposed — MCP tools target retrieval workflows. Use the HTTP API, a language SDK, or the admin UI for writes.
-- Streaming SSE endpoints (collection events) are not wrapped — MCP tools are request/response only.
+- WebSocket realtime subscriptions are not wrapped — MCP tools are request/response only.
 - OAuth 2.0 flows are not implemented. Remote HTTP clients must send `Authorization: Bearer ...`; URL query-token authentication is not accepted on `/mcp`.

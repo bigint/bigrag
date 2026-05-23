@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
+import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
@@ -50,18 +50,11 @@ export const useDocuments = (collection: string, filters: DocumentListFilters = 
     () => queryKeys.documents.list({ collection, q, status, sort, order, limit, offset }),
     [collection, limit, offset, order, q, sort, status],
   );
-  const path = useMemo(() => {
-    const params = new URLSearchParams({
-      limit: String(limit),
-      offset: String(offset),
-      order,
-      sort,
-    });
-    if (q) params.set("q", q);
-    if (status) params.set("status", status);
-    return `v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents?${params}`;
-  }, [collection, limit, offset, order, q, sort, status]);
-  return useSseSnapshotQuery<DocListResponse>({
+  const realtimeParams = useMemo(
+    () => ({ collection, limit, offset, order, q, sort, status }),
+    [collection, limit, offset, order, q, sort, status],
+  );
+  return useRealtimeSnapshotQuery<DocListResponse>({
     queryKey,
     queryFn: ({ signal }) =>
       apiClient.get<DocListResponse>(`v1/collections/${encodeURIComponent(collection)}/documents`, {
@@ -77,7 +70,8 @@ export const useDocuments = (collection: string, filters: DocumentListFilters = 
         signal,
       }),
     enabled: !!collection,
-    path,
+    topic: "admin.collections.documents",
+    params: realtimeParams,
   });
 };
 
@@ -86,7 +80,7 @@ export const useDocument = (collection: string, docId: string) => {
     () => queryKeys.documents.one({ collection, id: docId }),
     [collection, docId],
   );
-  return useSseSnapshotQuery<Document>({
+  return useRealtimeSnapshotQuery<Document>({
     queryKey,
     queryFn: ({ signal }) =>
       apiClient.get<Document>(
@@ -94,7 +88,8 @@ export const useDocument = (collection: string, docId: string) => {
         { signal },
       ),
     enabled: !!collection && !!docId,
-    path: `v1/admin/realtime/collections/${encodeURIComponent(collection)}/documents/${docId}`,
+    topic: "admin.collections.documents.detail",
+    params: { collection, document_id: docId },
     closeWhen: (doc) => doc.status === "ready" || doc.status === "failed",
   });
 };
@@ -116,7 +111,7 @@ export const useUploadSession = (collection: string, sessionId: string | null) =
     [collection, sessionId],
   );
   const enabled = Boolean(collection && sessionId);
-  return useSseSnapshotQuery<UploadSession>({
+  return useRealtimeSnapshotQuery<UploadSession>({
     queryKey,
     queryFn: ({ signal }) =>
       apiClient.get<UploadSession>(
@@ -124,7 +119,8 @@ export const useUploadSession = (collection: string, sessionId: string | null) =
         { signal },
       ),
     enabled,
-    path: `v1/admin/realtime/collections/${encodeURIComponent(collection)}/upload-sessions/${sessionId}`,
+    topic: "admin.collections.upload_session",
+    params: { collection, session_id: sessionId ?? "" },
     pollIntervalMs: 2_000,
     streamPriority: "high",
     closeWhen: (session) =>

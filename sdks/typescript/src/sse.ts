@@ -1,16 +1,3 @@
-import type { ProgressEvent } from "./types/sse.js";
-
-class SSEParseError extends Error {
-  readonly raw: string;
-  readonly cause: unknown;
-  constructor(raw: string, cause: unknown) {
-    super(`SSE parse error: ${cause instanceof Error ? cause.message : String(cause)}`);
-    this.name = "SSEParseError";
-    this.raw = raw;
-    this.cause = cause;
-  }
-}
-
 export interface SSEFrame {
   event: string;
   data: string;
@@ -90,15 +77,5 @@ export async function* parseSSEFrames(
   } finally {
     await reader.cancel().catch(() => undefined);
     reader.releaseLock();
-  }
-}
-
-export async function* parseSSEStream(response: Response): AsyncGenerator<ProgressEvent> {
-  for await (const frame of parseSSEFrames(response)) {
-    try {
-      yield JSON.parse(frame.data) as ProgressEvent;
-    } catch (cause) {
-      throw new SSEParseError(frame.data, cause);
-    }
   }
 }
