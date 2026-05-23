@@ -27,6 +27,7 @@ type RealtimeMessage<T> =
       message?: string;
       topic?: string;
       type: string;
+      version?: number;
     };
 
 type RealtimeSnapshotQueryOptions<T> = {
@@ -37,7 +38,6 @@ type RealtimeSnapshotQueryOptions<T> = {
   pollIntervalMs?: number;
   queryFn: QueryFunction<T, QueryKey>;
   queryKey: QueryKey;
-  streamPriority?: "high" | "normal" | "low";
   topic: string;
 };
 
@@ -46,11 +46,14 @@ const DEFAULT_POLL_INTERVAL_MS = 30_000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const MAX_BACKOFF_MS = 30_000;
 const BASE_BACKOFF_MS = 1_000;
+const WS_POLICY_VIOLATION = 1008;
 
+type ErrorKind = "transport" | "subscription";
 type MessageListener = (event: RealtimeMessage<unknown>) => void;
-type ErrorListener = () => void;
+type ErrorListener = (kind: ErrorKind) => void;
 
 type StreamEntry = {
+  completed: boolean;
   errorListeners: Set<ErrorListener>;
   id: string;
   listeners: Set<MessageListener>;
@@ -64,10 +67,11 @@ let socketGeneration = 0;
 let reconnectAttempt = 0;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const streams = new Map<string, StreamEntry>();
+const streamsById = new Map<string, StreamEntry>();
 
 const randomId = () => {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-  return Math.random().toString(36).slice(2);
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 };
 
 const jitter = (ms: number) => ms * (0.75 + Math.random() * 0.5);
@@ -83,20 +87,19 @@ const compactParams = (params?: RealtimeParams) =>
 const streamKey = (topic: string, params?: RealtimeParams) =>
   `${topic}:${JSON.stringify(compactParams(params))}`;
 
-const streamById = (id: string) => Array.from(streams.values()).find((entry) => entry.id === id);
-
 const send = (message: unknown) => {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
   socket.send(JSON.stringify(message));
 };
 
 const subscribeEntry = (entry: StreamEntry) => {
+  if (entry.completed) return;
   send({ type: "subscribe", id: entry.id, topic: entry.topic, params: entry.params });
 };
 
-const dispatchError = () => {
+const dispatchError = (kind: ErrorKind) => {
   for (const entry of streams.values()) {
-    for (const listener of entry.errorListeners) listener();
+    for (const listener of entry.errorListeners) listener(kind);
   }
 };
 
@@ -129,40 +132,40 @@ const openSocket = () => {
     try {
       message = JSON.parse(String(event.data)) as RealtimeMessage<unknown>;
     } catch {
-      dispatchError();
       return;
     }
     if (message.type === "heartbeat" || message.type === "pong" || message.type === "subscribed") {
       return;
     }
     if (message.type === "error") {
-      const entry = message.id ? streamById(message.id) : undefined;
+      const entry = message.id ? streamsById.get(message.id) : undefined;
       const targets = entry ? [entry] : Array.from(streams.values());
       for (const target of targets) {
-        for (const listener of target.errorListeners) listener();
+        for (const listener of target.errorListeners) listener("subscription");
       }
       return;
     }
     if (!message.id) return;
-    const entry = streamById(message.id);
+    const entry = streamsById.get(message.id);
     if (!entry) return;
     if (message.type === "complete") {
-      return;
+      entry.completed = true;
     }
     for (const listener of entry.listeners) listener(message);
   });
 
-  currentSocket.addEventListener("close", () => {
+  currentSocket.addEventListener("close", (event) => {
     if (!isCurrentSocket()) return;
     socket = null;
     if (streams.size === 0) return;
-    dispatchError();
+    dispatchError("transport");
+    if (event.code === WS_POLICY_VIOLATION) return;
     scheduleReconnect();
   });
 
   currentSocket.addEventListener("error", () => {
     if (!isCurrentSocket()) return;
-    dispatchError();
+    dispatchError("transport");
   });
 };
 
@@ -177,6 +180,26 @@ const scheduleReconnect = () => {
     openSocket();
   }, delay);
 };
+
+const resumeRealtime = () => {
+  if (streams.size === 0) return;
+  if (socket && socket.readyState !== WebSocket.CLOSING && socket.readyState !== WebSocket.CLOSED) {
+    return;
+  }
+  reconnectAttempt = 0;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  openSocket();
+};
+
+if (typeof window !== "undefined") {
+  window.addEventListener("online", resumeRealtime);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") resumeRealtime();
+  });
+}
 
 const subscribeStream = (
   topic: string,
@@ -195,13 +218,16 @@ const subscribeStream = (
       listeners: new Set(),
       errorListeners: new Set(),
       refcount: 0,
+      completed: false,
     };
     streams.set(key, entry);
+    streamsById.set(entry.id, entry);
     created = true;
   }
   entry.listeners.add(onMessage);
   entry.errorListeners.add(onError);
   entry.refcount += 1;
+  reconnectAttempt = 0;
   openSocket();
   if (created && socket?.readyState === WebSocket.OPEN) subscribeEntry(entry);
 
@@ -214,11 +240,10 @@ const subscribeStream = (
     if (current.refcount === 0) {
       send({ type: "unsubscribe", id: current.id });
       streams.delete(key);
-      if (streams.size === 0) {
-        if (reconnectTimer) {
-          clearTimeout(reconnectTimer);
-          reconnectTimer = null;
-        }
+      streamsById.delete(current.id);
+      if (streams.size === 0 && reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
       }
     }
   };
@@ -235,6 +260,7 @@ export const closeAllRealtimeStreams = () => {
     entry.refcount = 0;
   }
   streams.clear();
+  streamsById.clear();
   closeSocket();
 };
 
@@ -246,7 +272,6 @@ export const useRealtimeSnapshotQuery = <T>({
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
   queryFn,
   queryKey,
-  streamPriority: _streamPriority = "normal",
   topic,
 }: RealtimeSnapshotQueryOptions<T>) => {
   const queryClient = useQueryClient();
@@ -315,6 +340,10 @@ export const useRealtimeSnapshotQuery = <T>({
     }, firstSnapshotTimeoutMs);
 
     const handleMessage = (message: RealtimeMessage<unknown>) => {
+      if (message.type === "complete") {
+        setStreaming(false);
+        return;
+      }
       if (message.type !== "snapshot") return;
       const snapshot = message as SnapshotEvent<T>;
       sawSnapshot = true;
@@ -329,7 +358,11 @@ export const useRealtimeSnapshotQuery = <T>({
       }
     };
 
-    const handleError = () => {
+    const handleError = (kind: ErrorKind) => {
+      if (kind === "transport") {
+        fetchFallback();
+        return;
+      }
       failureCount += 1;
       if (failureCount >= MAX_RECONNECT_ATTEMPTS) {
         fetchFallback();

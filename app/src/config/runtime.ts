@@ -21,6 +21,7 @@ export const apiUrl = (path: string) => `${bigragApiUrl}/${path.replace(/^\/+/, 
 
 export const realtimeUrl = () => {
   const url = new URL(apiUrl("v1/realtime"));
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  if (url.protocol === "https:") url.protocol = "wss:";
+  else if (url.protocol === "http:") url.protocol = "ws:";
   return url.toString();
 };
