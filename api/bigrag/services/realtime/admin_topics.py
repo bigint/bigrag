@@ -323,7 +323,6 @@ def _platform_stats_topic(websocket: WebSocket, _user: dict) -> SnapshotTopic:
             lambda session: platform_stats_payload(
                 websocket.app.state.queue,
                 session,
-                use_cache=False,
             )
         )
 

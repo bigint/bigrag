@@ -50,7 +50,7 @@ async def platform_stats_payload(
 
     async def worker_stats():
         heartbeat = None
-        redis = getattr(queue, "redis", None) or getattr(queue, "_redis", None)
+        redis = getattr(queue, "redis", None)
         if redis is not None and hasattr(redis, "get"):
             raw = await redis.get(worker_heartbeat_key(INGESTION_QUEUE))
             if raw is not None:
@@ -71,8 +71,22 @@ async def platform_stats_payload(
             "heartbeat_age_seconds": age,
         }
 
-    (cols, docs, webhooks), queue_data, worker_data = await asyncio.gather(
-        db_stats(), queue_stats(), worker_stats()
+    db_result, queue_result, worker_result = await asyncio.gather(
+        db_stats(), queue_stats(), worker_stats(), return_exceptions=True
+    )
+    if isinstance(db_result, BaseException):
+        raise db_result
+    cols, docs, webhooks = db_result
+    queue_data = {} if isinstance(queue_result, BaseException) else queue_result
+    worker_data = (
+        {
+            "online": False,
+            "status": "offline",
+            "heartbeat_at": None,
+            "heartbeat_age_seconds": None,
+        }
+        if isinstance(worker_result, BaseException)
+        else worker_result
     )
 
     queue_health = queue_health_payload(queue_data, worker_data)
