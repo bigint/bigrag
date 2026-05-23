@@ -15,6 +15,7 @@ from bigrag.services import collection_cache
 from bigrag.services.documents import recount_collection_documents
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
+from bigrag.services.staged_files import delete_staged_file_path
 from bigrag.services.storage import get_storage
 from bigrag.services.tenant_enforcement import tenant_field
 
@@ -46,13 +47,9 @@ async def existing_documents_by_hash(
     return out
 
 
-async def cleanup_stored_paths(paths: list[str]) -> None:
-    storage = get_storage()
+async def cleanup_staged_paths(paths: list[str]) -> None:
     for path in paths:
-        try:
-            await storage.delete(path)
-        except Exception as exc:
-            logger.warning("batch upload cleanup failed", path=path, error=str(exc))
+        await delete_staged_file_path(path)
 
 
 async def enqueue_batch_documents(
@@ -81,6 +78,8 @@ async def enqueue_batch_documents(
             )
             doc.status = "failed"
             doc.error_message = f"enqueue failed: {exc.__class__.__name__}: {exc}"
+            if await delete_staged_file_path(doc.file_path):
+                doc.file_path = ""
             failed = True
     return failed
 
@@ -98,7 +97,7 @@ async def persist_batch_upload_documents(
     seen_by_hash = await existing_documents_by_hash(session, collection, metadata, hashes)
     ordered: list[tuple[Document, bool]] = []
     new_docs: list[Document] = []
-    stored_paths: list[str] = []
+    staged_paths: list[str] = []
     storage = get_storage()
     upload_semaphore = asyncio.Semaphore(4)
 
@@ -119,7 +118,7 @@ async def persist_batch_upload_documents(
             filename = file.filename or "document"
             storage_key = f"{collection_name}/{doc_id}{file_ext}"
             put_tasks.append(asyncio.create_task(_put_one(storage_key, tmp_path, size)))
-            stored_paths.append(storage_key)
+            staged_paths.append(storage_key)
             doc = Document(
                 id=doc_id,
                 collection_id=collection["id"],
@@ -145,7 +144,7 @@ async def persist_batch_upload_documents(
                 await session.commit()
             except IntegrityError:
                 await session.rollback()
-                await cleanup_stored_paths(stored_paths)
+                await cleanup_staged_paths(staged_paths)
                 refetched = await existing_documents_by_hash(session, collection, metadata, hashes)
                 rebuilt: list[tuple[Document, bool]] = []
                 for _file, _ext, _tmp, content_hash, _size in pending:
@@ -155,7 +154,7 @@ async def persist_batch_upload_documents(
                 return rebuilt
     except Exception:
         await session.rollback()
-        await cleanup_stored_paths(stored_paths)
+        await cleanup_staged_paths(staged_paths)
         raise
 
     if new_docs:

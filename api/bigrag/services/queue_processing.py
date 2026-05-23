@@ -15,6 +15,7 @@ from bigrag.services.document_elements import replace_document_elements
 from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.event_bus import event_bus
 from bigrag.services.ingestion_job import IngestionJob
+from bigrag.services.staged_files import clear_document_staged_file
 
 logger = get_logger("bigrag.queue")
 
@@ -111,6 +112,8 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             )
             await session.commit()
 
+        await clear_document_staged_file(doc_uuid, job.file_path)
+
         from bigrag.services.retrieval import invalidate_collection_query_cache
 
         await invalidate_collection_query_cache(job.collection_name)
@@ -159,6 +162,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             )
             safe_message = sanitize_message_text(str(e)) or "ingestion cancelled"
             await _update_doc(status="failed", error_message=safe_message)
+            await clear_document_staged_file(doc_uuid, job.file_path)
             queue._emit(
                 doc,
                 "cancelled",
@@ -210,6 +214,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             await queue._redis.ltrim(queue_state.DEAD_LETTER_KEY, 0, 999)
             safe_message = safe_error
             await _update_doc(status="failed", error_message=safe_message)
+            await clear_document_staged_file(doc_uuid, job.file_path)
             logger.debug(
                 "job permanently failed",
                 prefix=prefix,

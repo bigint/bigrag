@@ -1,17 +1,5 @@
 from __future__ import annotations
 
-from bigrag.services.connectors.accounts import (
-    account_public,
-    config_public,
-    configured,
-    disconnect_account,
-    get_connector_account,
-    get_provider_config,
-    oauth_error_redirect_url,
-    oauth_redirect_url,
-    prepare_oauth_account,
-    upsert_provider_config,
-)
 from bigrag.services.connectors.progress import (
     SYNC_PROGRESS_FIXED_PERCENT,
     SYNC_PROGRESS_RANGES,
@@ -27,11 +15,12 @@ from bigrag.services.connectors.sources import (
     delete_source,
     list_sources,
     list_sync_jobs,
-    source_for_user,
+    source_by_id,
     source_public,
     sync_job_public,
     trigger_sync,
     update_source,
+    upsert_source_credential,
 )
 from bigrag.services.connectors.sync import (
     apply_counters,
@@ -47,8 +36,6 @@ from bigrag.services.connectors.sync import (
 )
 from bigrag.services.connectors.time import next_sync_at, parse_dt, utcnow
 from bigrag.services.connectors.types import (
-    ConnectorAuthError,
-    ConnectorConfigError,
     ConnectorError,
     ConnectorNotFoundError,
     ConnectorSyncAdapter,
@@ -58,8 +45,6 @@ from bigrag.services.connectors.types import (
 )
 
 __all__ = [
-    "ConnectorAuthError",
-    "ConnectorConfigError",
     "ConnectorError",
     "ConnectorNotFoundError",
     "ConnectorSyncAdapter",
@@ -68,31 +53,22 @@ __all__ = [
     "RemoteConnectorFile",
     "SYNC_PROGRESS_FIXED_PERCENT",
     "SYNC_PROGRESS_RANGES",
-    "account_public",
     "apply_counters",
     "collection_dict_for_sync",
-    "config_public",
-    "configured",
     "create_source",
     "create_sync_job",
     "delete_source",
     "delete_synced_document",
-    "disconnect_account",
     "fail_sync",
-    "get_connector_account",
-    "get_provider_config",
     "list_sources",
     "list_sync_jobs",
     "manifest_for_download",
     "manifest_unchanged",
     "next_sync_at",
-    "oauth_error_redirect_url",
-    "oauth_redirect_url",
     "parse_dt",
-    "prepare_oauth_account",
     "remote_signature",
     "run_due_syncs",
-    "source_for_user",
+    "source_by_id",
     "source_public",
     "sync_connector_job",
     "sync_counter_details",
@@ -104,6 +80,6 @@ __all__ = [
     "update_manifest",
     "update_source",
     "update_sync_progress",
-    "upsert_provider_config",
+    "upsert_source_credential",
     "utcnow",
 ]

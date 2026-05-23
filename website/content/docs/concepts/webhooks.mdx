@@ -19,11 +19,9 @@ Webhooks push notifications when data operations change state. They're useful fo
 | `collection.updated` | Collection settings changed |
 | `collection.deleted` | Collection was deleted |
 | `collection.truncated` | Collection documents were removed |
-| `collection.reembed.queued` | Collection documents were queued for re-embedding |
 | `connector.sync.started` | Connector sync started |
 | `connector.sync.completed` | Connector sync completed without failures |
 | `connector.sync.failed` | Connector sync failed or completed with failed items |
-| `connector.sync.needs_reauth` | Connector sync failed because the account needs reconnection |
 | `backup.started` | Backup job started |
 | `backup.succeeded` | Backup job completed |
 | `backup.failed` | Backup job failed |
@@ -75,7 +73,7 @@ New data-operation events use a common envelope:
   "timestamp": "2026-05-22T00:00:00Z",
   "collection": "docs",
   "data": {
-    "provider": "google_drive",
+    "provider": "s3",
     "source_id": "source-id",
     "job_id": "job-id",
     "status": "complete",

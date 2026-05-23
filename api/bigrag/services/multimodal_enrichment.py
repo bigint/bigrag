@@ -9,9 +9,7 @@ import sqlalchemy as sa
 
 from bigrag.db.engine import session_factory
 from bigrag.db.models import DocumentElement
-from bigrag.services.document_elements import element_ref
 from bigrag.services.error_sanitize import sanitize_message_text
-from bigrag.services.multimodal_assets import image_content_parts_for_refs
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.url_security import (
     UnsafeOutboundUrlError,
@@ -104,13 +102,6 @@ async def _enrich_with_client(
         for row in rows:
             prompt = _prompt_for_element(row)
             content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
-            if row.kind == "image":
-                content.extend(
-                    await image_content_parts_for_refs(
-                        [element_ref(row, document_id=str(row.document_id))],
-                        max_images=1,
-                    )
-                )
             response = await asyncio.wait_for(
                 client.chat.completions.create(
                     model=model,

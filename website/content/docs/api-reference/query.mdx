@@ -98,7 +98,7 @@ Run a search against one collection's Turbopuffer namespace. Semantic and hybrid
 | `results[].page_no` | integer? | Source page number when Docling surfaced one (PDF, DOCX, PPTX). `null` for plain-text formats. |
 | `results[].char_start` | integer? | Inclusive character offset of the chunk inside the source document. |
 | `results[].char_end` | integer? | Exclusive character offset of the chunk inside the source document. |
-| `results[].multimodal_elements` | array | Overlapping element refs for multimodal collections, including kind, text/summary, caption, page, bbox, and asset path when available |
+| `results[].multimodal_elements` | array | Overlapping element refs for multimodal collections, including kind, text/summary, caption, page, and bbox. `asset_path` is retained in the schema for compatibility but is `null` for new ingestions |
 | `results[].metadata` | object | Chunk + document metadata merged |
 | `timings` | object | Per-stage latency in milliseconds, plus `cache_hit` for reused query-result cache entries |
 

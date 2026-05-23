@@ -67,10 +67,6 @@ export class CollectionsResource {
     return this._client._request("POST", `/v1/collections/${encodeURIComponent(name)}/truncate`);
   }
 
-  reembed(name: string): Promise<StatusResponse> {
-    return this._client._request("POST", `/v1/collections/${encodeURIComponent(name)}/reembed`);
-  }
-
   analytics(name: string): Promise<AnalyticsResponse> {
     return this._client._request("GET", `/v1/collections/${encodeURIComponent(name)}/analytics`);
   }

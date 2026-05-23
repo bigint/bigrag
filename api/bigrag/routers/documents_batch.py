@@ -36,7 +36,6 @@ from bigrag.routers.documents_uploads import (
 )
 from bigrag.services import audit, collection_cache
 from bigrag.services.batch_upload import persist_batch_upload_documents
-from bigrag.services.document_elements import element_asset_prefix_for_file_path
 from bigrag.services.documents import (
     UploadBudget,
     prepare_document_metadata,
@@ -45,7 +44,7 @@ from bigrag.services.documents import (
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
-from bigrag.services.storage import get_storage
+from bigrag.services.staged_files import delete_staged_file_path
 from bigrag.services.vector_store import vector_store
 from bigrag.services.webhook import enqueue_webhook_event
 
@@ -239,13 +238,11 @@ async def batch_delete_documents(
 
     async def _delete_one(doc_id: str, doc: Document) -> bool:
         try:
+            await delete_staged_file_path(doc.file_path, raise_on_failure=True)
             await vector_store.delete_by_document(
                 collection_name,
                 doc_id,
             )
-            storage = get_storage()
-            await storage.delete(doc.file_path)
-            await storage.delete_prefix(element_asset_prefix_for_file_path(doc.file_path))
             return True
         except Exception as exc:
             logger.error("batch delete failed", document_id=doc_id, error=repr(exc))

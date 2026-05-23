@@ -1,15 +1,10 @@
-type GoogleFilesParams = {
-  readonly pageToken: string;
-  readonly parentId: string;
-  readonly query: string;
-};
-
 type OptionalCollectionParams = {
   readonly collection?: string;
 };
 
-type GoogleSyncJobsParams = {
+type S3SyncJobsParams = {
   readonly collection?: string;
+  readonly limit?: number;
   readonly sourceId?: string;
 };
 
@@ -74,19 +69,15 @@ export const queryKeys = {
   preferences: () => ["preferences"] as const,
   instanceSettings: () => ["instance-settings"] as const,
   connectors: {
-    googleConfig: () => ["connectors", "google", "config"] as const,
-    googleAccount: () => ["connectors", "google", "account"] as const,
-    googleFilesRoot: () => ["connectors", "google", "files"] as const,
-    googleFiles: ({ pageToken, parentId, query }: GoogleFilesParams) =>
-      ["connectors", "google", "files", { pageToken, parentId, query }] as const,
-    googleSources: ({ collection }: OptionalCollectionParams = {}) =>
-      ["connectors", "google", "sources", { collection: collection ?? "all" }] as const,
-    googleSyncJobs: ({ collection, sourceId }: GoogleSyncJobsParams = {}) =>
+    s3Sources: ({ collection }: OptionalCollectionParams = {}) =>
+      ["connectors", "s3", "sources", { collection: collection ?? "all" }] as const,
+    s3SyncJobsAll: () => ["connectors", "s3", "sync-jobs"] as const,
+    s3SyncJobs: ({ collection, limit, sourceId }: S3SyncJobsParams = {}) =>
       [
         "connectors",
-        "google",
+        "s3",
         "sync-jobs",
-        { collection: collection ?? "all", sourceId: sourceId ?? "all" },
+        { collection: collection ?? "all", limit: limit ?? "default", sourceId: sourceId ?? "all" },
       ] as const,
   },
   chat: {

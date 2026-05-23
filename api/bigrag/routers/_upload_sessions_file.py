@@ -250,7 +250,7 @@ async def upload_session_file(
         item.file_type = file_ext.lstrip(".")
         item.file_size = size
         item.content_hash = content_hash
-        item.storage_key = doc.file_path
+        item.storage_key = None
         item.status = "failed" if doc.status == "failed" else "queued"
         item.error_message = doc.error_message if doc.status == "failed" else None
         db.add(item)

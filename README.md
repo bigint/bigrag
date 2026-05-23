@@ -29,7 +29,7 @@ Upload documents, auto-chunk, embed, and retrieve through semantic, keyword, and
 - **Multi-collection queries** — search across collections in a single request
 - **Generated chat** — stateless backend-grounded playground chat with streaming and citations
 - **Batch operations** — bulk upload, delete, status checks, and queries
-- **Google Drive connector** — OAuth, in-app Drive browsing, and manual/scheduled resync
+- **S3/R2 connector** — mirror bucket prefixes with manual or scheduled sync
 - **Status polling** — REST endpoints for document and batch processing status
 - **Auth, audit, scopes** — admin accounts, session cookies, scoped `bigrag_sk_…` API keys, and full audit/access logs
 - **Metadata controls** — per-collection metadata schemas, file validation, and content-hash deduplication at ingest
@@ -102,8 +102,8 @@ graph TD
     API --> Chat[Chat]
     API --> Webhooks[Webhooks]
 
-    Documents -->|store files| Storage[(Storage<br/>Local disk)]
-    Documents -->|sync source files| Drive[Google Drive<br/>OAuth + in-app browser]
+    Documents -->|stage ingestion files| Storage[(Temporary staging<br/>Local disk)]
+    Documents -->|sync object prefixes| S3[S3 / R2<br/>bucket prefix mirror]
     Documents -->|enqueue| Redis[(Redis<br/>Job queue + event bus)]
     Redis -->|process| Worker[Ingestion worker]
 
@@ -147,7 +147,6 @@ graph TD
 | `PUT` | `/v1/collections/{name}` | Update collection |
 | `DELETE` | `/v1/collections/{name}` | Delete collection |
 | `GET` | `/v1/collections/{name}/stats` | Collection stats |
-| `POST` | `/v1/collections/{name}/reembed` | Re-embed all documents with a new model |
 | `POST` | `/v1/collections/{name}/truncate` | Delete all documents, keep the collection |
 | `GET` | `/v1/collections/{name}/events` | Stream collection events (SSE) |
 | **Documents** | | |
@@ -155,9 +154,7 @@ graph TD
 | `GET` | `/v1/collections/{name}/documents` | List documents |
 | `GET` | `/v1/collections/{name}/documents/{id}` | Get document |
 | `DELETE` | `/v1/collections/{name}/documents/{id}` | Delete document |
-| `POST` | `/v1/collections/{name}/documents/{id}/reprocess` | Reprocess document |
 | `GET` | `/v1/collections/{name}/documents/{id}/chunks` | Get document chunks |
-| `GET` | `/v1/collections/{name}/documents/{id}/file` | Download original file |
 | `POST` | `/v1/collections/{name}/documents/batch/upload` | Batch upload (up to 100) |
 | `POST` | `/v1/collections/{name}/documents/batch/status` | Batch status check |
 | `POST` | `/v1/collections/{name}/documents/batch/get` | Batch get documents |
@@ -165,17 +162,10 @@ graph TD
 | `GET` | `/v1/documents/{id}` | Cross-collection document lookup |
 | `GET` | `/v1/documents/{id}/chunks` | Cross-collection chunks lookup |
 | **Connectors** | | |
-| `GET`/`PUT` | `/v1/admin/connectors/google` | Configure Google OAuth |
-| `GET` | `/v1/connectors/google/account` | Current Google account status |
-| `GET` | `/v1/connectors/google/oauth/start` | Redirect into Google OAuth |
-| `GET` | `/v1/connectors/google/oauth/start-url` | Get Google OAuth redirect URL |
-| `GET` | `/v1/connectors/google/oauth/callback` | Google OAuth callback |
-| `POST` | `/v1/connectors/google/disconnect` | Disconnect the current Google account |
-| `GET` | `/v1/connectors/google/files` | Browse Drive files and folders |
-| `GET`/`POST` | `/v1/connectors/google/sources` | List or create Drive sources |
-| `PATCH`/`DELETE` | `/v1/connectors/google/sources/{id}` | Update or remove a Drive source |
-| `POST` | `/v1/connectors/google/sources/{id}/sync` | Manual Drive resync |
-| `GET` | `/v1/connectors/google/sync-jobs` | Google Drive sync job history |
+| `GET`/`POST` | `/v1/connectors/s3/sources` | List or create S3/R2 prefix sources |
+| `PATCH`/`DELETE` | `/v1/connectors/s3/sources/{id}` | Update or remove an S3/R2 source |
+| `POST` | `/v1/connectors/s3/sources/{id}/sync` | Manual S3/R2 resync |
+| `GET` | `/v1/connectors/s3/sync-jobs` | S3/R2 sync job history |
 | **Chat** | | |
 | `POST` | `/v1/chat` | Create a stateless chat turn |
 | **Query** | | |
@@ -382,7 +372,7 @@ Bootstrap settings use the `BIGRAG_` prefix as environment variables, or configu
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BIGRAG_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
+| `BIGRAG_UPLOAD_DIR` | Local ingestion staging directory | `./data/uploads` |
 | `BIGRAG_INGESTION_WORKERS` | Ingestion concurrency target | `4` |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max single-file upload size | `64` |
 | `BIGRAG_MAX_BATCH_UPLOAD_SIZE_MB` | Max total batch-upload size | `128` |

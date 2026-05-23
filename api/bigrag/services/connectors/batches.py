@@ -33,13 +33,12 @@ async def sync_remote_files(
     source: ConnectorSource,
     collection: Collection,
     job: ConnectorSyncJob,
-    access_token: str,
     remotes: list[RemoteConnectorFile],
     manifests: dict[str, ConnectorDocument],
     counters: ConnectorSyncCounters,
 ) -> None:
     async def _download(remote: RemoteConnectorFile):
-        return await adapter.download(access_token=access_token, remote=remote)
+        return await adapter.download(session, source=source, remote=remote)
 
     batch_size = 4
     index = 0
@@ -135,7 +134,7 @@ async def sync_remote_files(
                 job=job,
                 counters=counters,
                 phase="syncing",
-                message=f"Synced {index} of {len(remotes)} Drive files",
+                message=f"Synced {index} of {len(remotes)} remote files",
                 current_item=remote,
                 processed_items=index,
                 total_items=len(remotes),

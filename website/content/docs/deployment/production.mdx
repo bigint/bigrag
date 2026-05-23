@@ -20,7 +20,7 @@ Tick these off before pointing real traffic at a bigRAG deployment:
 - [ ] Redis with `requirepass` set and `appendonly yes` persisted to a mounted volume.
 - [ ] Turbopuffer API key and region saved from the admin UI for managed vector and full-text search.
 - [ ] Postgres warm-standby replica for failover.
-- [ ] Backup strategy: configure readable S3/R2 backups from `/settings?tab=backups`, protect that bucket as sensitive, and separately keep encrypted infrastructure snapshots for Postgres, Turbopuffer exports, Redis, and uploads.
+- [ ] Backup strategy: configure readable S3/R2 backups from `/settings?tab=backups`, protect that bucket as sensitive, and separately keep encrypted infrastructure snapshots for Postgres, Turbopuffer exports, Redis, and the local staging volume.
 - [ ] Set `metadata_schema` on collections that accept untrusted metadata so uploads with invalid shape are rejected at the edge.
 - [ ] Wire `GET /v1/admin/audit` into your SIEM / log pipeline.
 - [ ] Configure webhooks to your monitoring stack for `document.failed`, `connector.sync.failed`, and `backup.failed` events so data-operation errors don't sit silently.
@@ -217,7 +217,7 @@ BIGRAG_UPLOAD_DIR=/data/uploads
 
 ## Storage
 
-Files are stored on the local filesystem:
+Active ingestion files are staged on the local filesystem:
 
 ```toml
 upload_dir = "./data/uploads"
@@ -225,11 +225,11 @@ upload_dir = "./data/uploads"
 
 ## Readable backups
 
-The admin UI creates backup-only full-instance exports from `/settings?tab=backups`. The destination is S3-compatible — AWS S3, Cloudflare R2, and MinIO all work. Use a bucket or prefix dedicated to backups rather than reusing the upload bucket.
+The admin UI creates backup-only full-instance exports from `/settings?tab=backups`. The destination is S3-compatible — AWS S3, Cloudflare R2, and MinIO all work. Use a bucket or prefix dedicated to backups.
 
 **What's included:**
 
-- Postgres rows, vector-store points and payloads, uploaded files, and logs — all in plain JSON, JSONL, SQL, and raw files.
+- Postgres rows, vector-store points and payloads, and logs — all in plain JSON, JSONL, and SQL.
 - Turbopuffer point exports stream provider pages into JSONL instead of materializing a full collection in API memory.
 
 **What's redacted:**
@@ -304,7 +304,7 @@ The worker container healthcheck reads the worker heartbeat from Redis rather th
 
 <Accordion title="Worker-dependent actions are disabled in the admin UI">
 
-Uploads, document reprocessing, backups, webhook deliveries, and Google Drive sync all depend on `bigrag-worker`. If the admin UI shows `bigrag-worker is offline`, start or restart the worker service, then confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
+Uploads, backups, webhook deliveries, and S3 sync all depend on `bigrag-worker`. If the admin UI shows `bigrag-worker is offline`, start or restart the worker service, then confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
 
 </Accordion>
 

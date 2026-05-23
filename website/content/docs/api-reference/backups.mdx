@@ -8,10 +8,10 @@ import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
 Base path: `/v1/admin/backups`
 
-Readable backups export Postgres rows, vector-store points, and uploaded source files to an S3-compatible bucket. Vector-store points are written to JSONL as each provider page arrives, so backup memory usage does not grow with the full vector collection size. bigRAG does not expose restore endpoints.
+Readable backups export Postgres rows and vector-store points to an S3-compatible bucket. Vector-store points are written to JSONL as each provider page arrives, so backup memory usage does not grow with the full vector collection size. bigRAG does not expose restore endpoints.
 
 <Callout type="warn">
-  Backups are plain JSON, JSONL, SQL, and raw files — not client-side encrypted. Treat the destination bucket as sensitive. Secret-bearing database columns and embedding-cache vectors are redacted during export.
+  Backups are plain JSON, JSONL, and SQL — not client-side encrypted. Treat the destination bucket as sensitive. Secret-bearing database columns and embedding-cache vectors are redacted during export.
 </Callout>
 
 <Accordions type="multiple">
@@ -86,13 +86,12 @@ While the job runs, bigRAG acquires a maintenance lock:
 - Mutating API requests are rejected with `423`
 - New ingestion jobs are rejected
 - Dramatiq ingestion and connector actors delay themselves
-- Scheduled Google Drive syncs do not start
+- Scheduled S3 syncs do not start
 
 The backup fails if:
 
 - The backup bucket settings are incomplete or invalid
 - Turbopuffer cannot be reached
-- A stored upload file referenced by a document row is missing
 
 Returns `409` when another backup or maintenance lock is active.
 
@@ -127,7 +126,6 @@ postgres/schema.sql
 postgres/tables/{table}.jsonl
 vector_store/collections.json
 vector_store/points/{collection_name}.jsonl
-uploads/{collection}/{document_id}.{ext}
 ```
 
-`manifest.json` includes the app version, format version, generated timestamp, destination details without secrets, table counts, per-collection vector-store export metadata, vector counts, upload counts, object count, byte count, `"encryption": "redacted"`, and a `redaction` summary.
+`manifest.json` includes the app version, format version, generated timestamp, destination details without secrets, table counts, per-collection vector-store export metadata, vector counts, object count, byte count, `"encryption": "redacted"`, and a `redaction` summary.

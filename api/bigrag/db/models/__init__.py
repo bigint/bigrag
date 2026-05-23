@@ -3,10 +3,9 @@ from __future__ import annotations
 from bigrag.db.models.auth import ApiKey, User, UserSession
 from bigrag.db.models.collection import Collection, EmbeddingCache, EmbeddingPreset
 from bigrag.db.models.connector import (
-    ConnectorAccount,
     ConnectorDocument,
-    ConnectorProviderConfig,
     ConnectorSource,
+    ConnectorSourceCredential,
     ConnectorSyncJob,
 )
 from bigrag.db.models.document import (
@@ -28,10 +27,9 @@ __all__ = [
     "BackupJob",
     "ChatQuestionSuggestion",
     "Collection",
-    "ConnectorAccount",
     "ConnectorDocument",
-    "ConnectorProviderConfig",
     "ConnectorSource",
+    "ConnectorSourceCredential",
     "ConnectorSyncJob",
     "Document",
     "DocumentElement",

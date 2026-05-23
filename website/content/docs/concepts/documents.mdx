@@ -32,7 +32,7 @@ bigRAG extracts embedded text from PDFs directly and uses [Docling](https://gith
 | Single upload | One interactive file |
 | Batch upload | Small API batches of up to 100 files |
 | Upload session | Large local folder/file imports up to the configured session limits |
-| Connector sync | Cloud files managed by a provider such as Google Drive |
+| Connector sync | Object-storage files mirrored from an S3-compatible bucket prefix |
 
 Upload sessions accept one file per request under a durable session ID. The admin UI uses this path for local files and folders to keep browser memory bounded, retry individual failures, and restore progress after navigation.
 
@@ -119,7 +119,7 @@ curl "http://localhost:4000/v1/collections/research/documents/DOC_ID/elements" \
   -H "Authorization: Bearer $BIGRAG_API_KEY"
 ```
 
-Each element includes `kind`, extracted `text`, optional `summary`, `caption`, `asset_path`, `page_no`, `bbox`, character offsets, nearby context, enrichment status, and source metadata. Existing text-only retrieval still works; element records add provenance for query and chat clients that want richer context.
+Each element includes `kind`, extracted `text`, optional `summary`, `caption`, `page_no`, `bbox`, character offsets, nearby context, enrichment status, and source metadata. `asset_path` remains `null` because bigRAG does not retain multimodal binary assets after ingestion staging is cleaned up. Existing text-only retrieval still works; element records add provenance for query and chat clients that want richer context.
 
 ## Batch Operations
 
@@ -177,11 +177,6 @@ curl -X POST http://localhost:4000/v1/collections/docs/upload-sessions/SESSION_I
 
 `GET /v1/collections/{collection}/upload-sessions/{session_id}` returns aggregate progress and recent failures. The old batch upload endpoint remains useful for small API imports; upload sessions are the scalable path for thousands of browser-selected files.
 
-## Reprocessing
+## Re-ingestion
 
-Reprocess a document to re-parse, re-chunk, and re-embed it. Useful after changing collection settings or if processing previously failed:
-
-```bash
-curl -X POST http://localhost:4000/v1/collections/docs/documents/DOC_ID/reprocess \
-  -H "Authorization: Bearer $BIGRAG_API_KEY"
-```
+bigRAG deletes staged originals once ingestion reaches a terminal state. To parse or embed the same source again, upload the file again or resync the connector source.

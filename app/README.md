@@ -1,8 +1,8 @@
 # bigRAG Admin UI
 
 A Vite + TanStack Router admin console for bigRAG. It manages collections,
-documents, live ingestion status, chat with citations, Google Drive sources,
-access logs, and API/MCP keys.
+documents, live ingestion status, chat with citations, S3/R2 sources, access
+logs, and API/MCP keys.
 
 ## Running
 

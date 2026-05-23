@@ -19,7 +19,6 @@ COLLECTION_EVENTS = frozenset(
         "collection.updated",
         "collection.deleted",
         "collection.truncated",
-        "collection.reembed.queued",
     }
 )
 
@@ -28,7 +27,6 @@ CONNECTOR_SYNC_EVENTS = frozenset(
         "connector.sync.started",
         "connector.sync.completed",
         "connector.sync.failed",
-        "connector.sync.needs_reauth",
     }
 )
 

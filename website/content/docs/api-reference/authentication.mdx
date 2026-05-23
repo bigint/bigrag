@@ -114,9 +114,10 @@ Scopes use `resource:action` with `*` as a wildcard.
 | Scope | Grants |
 |-------|--------|
 | `collection:read` | List / get collections |
-| `collection:write` | Create / update / reembed / truncate collections |
-| `document:upload` | Upload documents, batch upload, upload-session create/file/complete, and reprocess |
-| `document:read` | List / get / download documents, chunks, batch get/status, upload-session status, and global `/v1/documents/{id}` lookups |
+| `collection:write` | Create / update collections |
+| `collection:delete` | Delete / truncate collections |
+| `document:upload` | Upload documents, batch upload, and upload-session create/file/complete |
+| `document:read` | List / get documents, chunks, elements, batch get/status, upload-session status, and global `/v1/documents/{id}` lookups |
 | `document:delete` | Delete documents, cancel upload sessions, and batch delete |
 | `query:read` | Run queries |
 | `chat:read` | Read generated question suggestions |

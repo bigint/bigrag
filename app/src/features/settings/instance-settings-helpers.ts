@@ -13,11 +13,6 @@ const examplePlaceholders: Record<string, string> = {
   chat_base_url: "https://api.openai.com/v1",
   embedding_api_key: "Paste API key",
   embedding_base_url: "https://api.openai.com/v1",
-  storage_s3_access_key_id: "Access key ID",
-  storage_s3_bucket: "bigrag-documents",
-  storage_s3_endpoint_url: "https://account-id.r2.cloudflarestorage.com",
-  storage_s3_prefix: "documents/",
-  storage_s3_secret_access_key: "Secret access key",
   trusted_proxies: "10.0.0.0/8",
   turbopuffer_api_key: "Paste turbopuffer API key",
 };

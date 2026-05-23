@@ -32,7 +32,6 @@ def _manifest(
     backup_prefix: str,
     table_counts: dict[str, int],
     vector_counts: dict[str, int],
-    upload_count: int,
     stats: BackupUploadStats,
     db_revision: str | None = None,
 ) -> dict[str, Any]:
@@ -46,7 +45,7 @@ def _manifest(
             "secret_columns": True,
             "embedding_cache_vectors": True,
             "vector_store_vectors": True,
-            "raw_uploads": False,
+            "staged_uploads": False,
         },
         "destination": {
             "bucket": target.bucket,
@@ -57,7 +56,6 @@ def _manifest(
         "tables": table_counts,
         "vector_store": {"provider": "per_collection"},
         "vectors": vector_counts,
-        "uploads": {"files": upload_count},
         "object_count": stats.object_count,
         "byte_count": stats.bytes,
         "db_revision": db_revision,

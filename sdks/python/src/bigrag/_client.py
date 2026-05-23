@@ -203,16 +203,10 @@ class CollectionClient:
     async def stats(self) -> CollectionStatsResponse:
         return await self._client.collections.stats(self._name)
 
-    async def reembed(self) -> StatusResponse:
-        return await self._client.collections.reembed(self._name)
-
     async def batch_delete(
         self, document_ids: list[str]
     ) -> BatchDeleteDocumentsResponse:
         return await self._client.documents.batch_delete(self._name, document_ids)
-
-    async def reprocess_document(self, document_id: str) -> StatusResponse:
-        return await self._client.documents.reprocess(self._name, document_id)
 
     async def get_document_chunks(
         self,

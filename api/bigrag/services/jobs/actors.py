@@ -21,10 +21,10 @@ from bigrag.services.jobs.runtime import ensure_worker_runtime, record_worker_he
 
 logger = get_logger("bigrag.jobs")
 
-GOOGLE_DRIVE_SCHEDULER_KEY = "bigrag:dramatiq:periodic:google_drive"
+S3_SCHEDULER_KEY = "bigrag:dramatiq:periodic:s3"
 CLEANUP_SCHEDULER_KEY = "bigrag:dramatiq:periodic:cleanup"
 WEBHOOK_OUTBOX_KEY = "bigrag:dramatiq:periodic:webhook_outbox"
-GOOGLE_DRIVE_SCHEDULER_SECONDS = 60
+S3_SCHEDULER_SECONDS = 60
 CLEANUP_SECONDS = 86400
 
 
@@ -60,8 +60,8 @@ def enqueue_webhook_outbox(*, delivery_id: str | None = None, delay_seconds: int
     )
 
 
-def enqueue_google_drive_sync(job_id: str, *, delay_seconds: int = 0) -> None:
-    run_google_drive_sync.send_with_options(
+def enqueue_s3_sync(job_id: str, *, delay_seconds: int = 0) -> None:
+    run_s3_sync.send_with_options(
         args=(job_id,),
         delay=max(0, int(delay_seconds)) * 1000 if delay_seconds else None,
     )
@@ -74,9 +74,9 @@ def enqueue_backup_job(job_id: str) -> None:
 def seed_periodic_jobs(enabled_queues: set[str] | None = None) -> None:
     if enabled_queues is None or MAINTENANCE_QUEUE in enabled_queues:
         _schedule_sync(
-            run_google_drive_scheduler,
-            GOOGLE_DRIVE_SCHEDULER_KEY,
-            GOOGLE_DRIVE_SCHEDULER_SECONDS,
+            run_s3_scheduler,
+            S3_SCHEDULER_KEY,
+            S3_SCHEDULER_SECONDS,
             skip_if_delayed_exists=True,
         )
         _schedule_sync(
@@ -148,41 +148,41 @@ async def _process_multimodal_enrichment(document_id: str, attempt: int = 0) -> 
 
 
 @dramatiq.actor(queue_name=CONNECTORS_QUEUE, max_retries=0, broker=broker)
-def run_google_drive_sync(job_id: str) -> None:
-    _run(_run_google_drive_sync, job_id)
+def run_s3_sync(job_id: str) -> None:
+    _run(_run_s3_sync, job_id)
 
 
-async def _run_google_drive_sync(job_id: str) -> None:
+async def _run_s3_sync(job_id: str) -> None:
     await ensure_worker_runtime()
     from bigrag.services.maintenance import is_active
 
     if await is_active():
-        enqueue_google_drive_sync(job_id, delay_seconds=10)
+        enqueue_s3_sync(job_id, delay_seconds=10)
         return
-    from bigrag.services.connectors.google_drive_sync import sync_google_drive_job
+    from bigrag.services.connectors.s3_sync import sync_s3_job
 
-    await sync_google_drive_job(job_id)
+    await sync_s3_job(job_id)
 
 
 @dramatiq.actor(queue_name=MAINTENANCE_QUEUE, max_retries=0, broker=broker)
-def run_google_drive_scheduler() -> None:
+def run_s3_scheduler() -> None:
     try:
-        _run(_run_google_drive_scheduler)
+        _run(_run_s3_scheduler)
     finally:
         _schedule_sync(
-            run_google_drive_scheduler,
-            GOOGLE_DRIVE_SCHEDULER_KEY,
-            GOOGLE_DRIVE_SCHEDULER_SECONDS,
+            run_s3_scheduler,
+            S3_SCHEDULER_KEY,
+            S3_SCHEDULER_SECONDS,
         )
 
 
-async def _run_google_drive_scheduler() -> None:
+async def _run_s3_scheduler() -> None:
     await ensure_worker_runtime()
-    logger.info("google drive scheduler tick starting")
-    from bigrag.services.connectors.google_drive_sync import run_due_google_syncs
+    logger.info("s3 scheduler tick starting")
+    from bigrag.services.connectors.s3_sync import run_due_s3_syncs
 
-    await run_due_google_syncs()
-    logger.info("google drive scheduler tick complete")
+    await run_due_s3_syncs()
+    logger.info("s3 scheduler tick complete")
 
 
 @dramatiq.actor(queue_name=WEBHOOKS_QUEUE, max_retries=0, broker=broker)

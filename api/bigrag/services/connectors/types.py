@@ -5,18 +5,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol
 
-from bigrag.db.models import ConnectorAccount, ConnectorProviderConfig, ConnectorSource
+from bigrag.db.models import ConnectorSource
 
 
 class ConnectorError(RuntimeError):
-    pass
-
-
-class ConnectorConfigError(ConnectorError):
-    pass
-
-
-class ConnectorAuthError(ConnectorError):
     pass
 
 
@@ -64,29 +56,20 @@ class ConnectorSyncCounters:
 
 class ConnectorSyncAdapter(Protocol):
     provider: str
-    not_configured_message: str
-    reauth_message: str
     partial_failure_message: str
-
-    async def access_token_for_account(
-        self,
-        session: Any,
-        *,
-        config: ConnectorProviderConfig,
-        account: ConnectorAccount,
-    ) -> str: ...
 
     async def iter_files(
         self,
+        session: Any,
         *,
-        access_token: str,
         source: ConnectorSource,
     ) -> list[RemoteConnectorFile]: ...
 
     async def download(
         self,
+        session: Any,
         *,
-        access_token: str,
+        source: ConnectorSource,
         remote: RemoteConnectorFile,
     ) -> DownloadedConnectorFile: ...
 

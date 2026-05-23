@@ -7,11 +7,9 @@ export type WebhookEvent =
   | "collection.updated"
   | "collection.deleted"
   | "collection.truncated"
-  | "collection.reembed.queued"
   | "connector.sync.started"
   | "connector.sync.completed"
   | "connector.sync.failed"
-  | "connector.sync.needs_reauth"
   | "backup.started"
   | "backup.succeeded"
   | "backup.failed";

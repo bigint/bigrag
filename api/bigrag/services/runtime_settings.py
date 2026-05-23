@@ -149,7 +149,7 @@ def validate_setting_value(key: str, value: Any) -> Any:
         if value is None:
             return None
         coerced_str = str(value)
-        url_keys = {"storage_s3_endpoint_url", "backup_s3_endpoint_url", "turbopuffer_base_url"}
+        url_keys = {"backup_s3_endpoint_url", "turbopuffer_base_url"}
         if key in url_keys and coerced_str.strip():
             from bigrag.services.url_security import UnsafeOutboundUrlError, normalize_url_root
 

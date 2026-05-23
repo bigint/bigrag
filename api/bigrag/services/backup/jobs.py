@@ -20,7 +20,7 @@ from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import all_runtime_values
 from bigrag.services.webhook import enqueue_webhook_event
 
-from .exporters import _export_tables, _export_uploads, _export_vector_store
+from .exporters import _export_tables, _export_vector_store
 from .filesystem import _backup_prefix, _write_json, _write_schema
 from .manifest import _manifest
 from .target import BackupConfigError, BackupUploadStats, S3BackupTarget, build_backup_target
@@ -75,7 +75,6 @@ async def _run_locked_backup(job_id: uuid.UUID) -> None:
     stats = BackupUploadStats()
     table_counts: dict[str, int] = {}
     vector_counts: dict[str, int] = {}
-    upload_count = 0
     db_revision = await _read_alembic_revision()
 
     with tempfile.TemporaryDirectory(prefix=f"bigrag-backup-{job_id}-") as raw_dir:
@@ -130,19 +129,7 @@ async def _run_locked_backup(job_id: uuid.UUID) -> None:
                 await upload(f"vector_store/points/{collection_name}.jsonl", source)
             await _update_job(
                 job_id,
-                progress=0.68,
-                object_count=stats.object_count,
-                byte_count=stats.bytes,
-            )
-
-            upload_count = await _export_uploads(temp_dir)
-            upload_root = temp_dir / "uploads"
-            for source in sorted(upload_root.rglob("*")):
-                if source.is_file():
-                    await upload(source.relative_to(temp_dir).as_posix(), source)
-            await _update_job(
-                job_id,
-                progress=0.88,
+                progress=0.82,
                 object_count=stats.object_count,
                 byte_count=stats.bytes,
             )
@@ -156,7 +143,6 @@ async def _run_locked_backup(job_id: uuid.UUID) -> None:
             backup_prefix=backup_prefix,
             table_counts=table_counts,
             vector_counts=vector_counts,
-            upload_count=upload_count,
             stats=stats,
             db_revision=db_revision,
         )

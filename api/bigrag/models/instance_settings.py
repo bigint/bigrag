@@ -11,7 +11,6 @@ SettingKind = Literal[
 SettingGroup = Literal[
     "security",
     "ingestion",
-    "storage",
     "vector_store",
     "queue",
     "search",

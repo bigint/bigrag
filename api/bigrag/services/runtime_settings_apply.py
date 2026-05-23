@@ -11,11 +11,6 @@ from bigrag.services.backup import test_backup_target
 from bigrag.services.embedding import reset_embedding_semaphores
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_setting_specs import REGISTRY
-from bigrag.services.storage import (
-    StorageBackend,
-    build_storage_from_values,
-    replace_storage_backend,
-)
 from bigrag.services.vector_store import VectorStore, vector_store
 
 logger = get_logger("bigrag.runtime_settings")
@@ -28,17 +23,6 @@ BACKUP_KEYS = {
     "backup_s3_prefix",
     "backup_s3_region",
     "backup_s3_secret_access_key",
-}
-
-STORAGE_CONFIG_KEYS = {
-    "storage_backend",
-    "storage_s3_access_key_id",
-    "storage_s3_bucket",
-    "storage_s3_endpoint_url",
-    "storage_s3_force_path_style",
-    "storage_s3_prefix",
-    "storage_s3_region",
-    "storage_s3_secret_access_key",
 }
 
 VECTOR_CONFIG_KEYS = {
@@ -56,13 +40,9 @@ class PreparedRuntimeSettings:
     keys: list[str]
     values: dict[str, Any]
     patch: dict[str, Any]
-    storage_backend: StorageBackend | None = None
     vector_backend: VectorStore | None = None
 
     async def close(self) -> None:
-        if self.storage_backend is not None:
-            await self.storage_backend.close()
-            self.storage_backend = None
         if self.vector_backend is not None:
             await self.vector_backend.close()
             self.vector_backend = None
@@ -102,9 +82,6 @@ async def apply_prepared_runtime_settings(app: Any, prepared: PreparedRuntimeSet
     keyset = set(prepared.keys)
     async with _apply_lock:
         _apply_settings_object(app, prepared.values)
-        if prepared.storage_backend is not None:
-            app.state.storage = await replace_storage_backend(prepared.storage_backend)
-            prepared.storage_backend = None
         if prepared.vector_backend is not None:
             await vector_store.replace_with(prepared.vector_backend)
             app.state.vector_store = vector_store
@@ -127,25 +104,11 @@ async def _prepare_runtime_settings(
     try:
         if keyset & BACKUP_KEYS:
             await test_backup_target(values)
-        if keyset & STORAGE_CONFIG_KEYS:
-            prepared.storage_backend = await _prepare_storage_backend(app, values)
         if keyset & VECTOR_CONFIG_KEYS:
             prepared.vector_backend = await _prepare_vector_backend(values)
         return prepared
     except Exception:
         await prepared.close()
-        raise
-
-
-async def _prepare_storage_backend(app: Any, values: dict[str, Any]) -> StorageBackend:
-    upload_dir = getattr(app.state.settings, "upload_dir", config_module.settings.upload_dir)
-    backend = build_storage_from_values(upload_dir, values)
-    try:
-        if values.get("storage_backend") == "s3":
-            await backend.exists("__bigrag_settings_probe__")
-        return backend
-    except Exception:
-        await backend.close()
         raise
 
 

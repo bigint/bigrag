@@ -71,11 +71,11 @@ The client reads `BIGRAG_API_KEY` from the environment if `api_key` is not passe
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
 | `client.auth` | Setup, login, logout, identity, password, and preferences |
-| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, backups, vector storage overview, admin realtime streams, connector config, embedding presets, and MCP server keys |
-| `client.connectors.google` | Google Drive account, file browsing, sources, and sync jobs |
+| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, backups, vector storage overview, admin realtime streams, embedding presets, and MCP server keys |
+| `client.connectors.s3` | S3-compatible bucket prefixes, sources, and sync jobs |
 | `client.evaluations` | Golden-set retrieval evaluation runs |
 
-Google Drive sync jobs support `collection`, `source_id`, and `limit` filters. Running jobs include `details["progress"]` with Drive sync phase, percent, current item, and created/updated/skipped/deleted/failed counts.
+S3 sync jobs support `collection`, `source_id`, and `limit` filters. Running jobs include `details["progress"]` with sync phase, percent, current item, and created/updated/skipped/deleted/failed counts.
 
 ## Collections
 
@@ -168,21 +168,20 @@ session = await client.documents.complete_upload_session("docs", session["id"])
 
 </Accordion>
 
-<Accordion title="List, get, delete, reprocess">
+<Accordion title="List, get, delete">
 
 ```python
 # List documents
 docs = await client.documents.list("docs", status="ready", limit=20)
 
-# Get, delete, reprocess
+# Get and delete
 doc = await client.documents.get("docs", "doc-id")
 await client.documents.delete("docs", "doc-id")
-await client.documents.reprocess("docs", "doc-id")
 ```
 
 </Accordion>
 
-<Accordion title="Chunks, elements, and file URL">
+<Accordion title="Chunks and elements">
 
 ```python
 # Get chunks
@@ -190,9 +189,6 @@ chunks = await client.documents.get_chunks("docs", "doc-id")
 
 # Get multimodal elements
 elements = await client.documents.get_elements("docs", "doc-id")
-
-# Get file download URL
-url = client.documents.get_file_url("docs", "doc-id")
 ```
 
 </Accordion>

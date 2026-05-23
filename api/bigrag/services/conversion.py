@@ -107,21 +107,34 @@ def _get_docling_converter(*, pdf_ocr_enabled: bool = True):
             except (OSError, PermissionError) as exc:
                 logger.debug("hf cache scan failed, deferring to HF", error=str(exc))
 
+        from docling.datamodel.accelerator_options import AcceleratorOptions
         from docling.datamodel.pipeline_options import PdfPipelineOptions
-        from docling.document_converter import DocumentConverter, InputFormat, PdfFormatOption
+        from docling.document_converter import (
+            DocumentConverter,
+            ImageFormatOption,
+            InputFormat,
+            PdfFormatOption,
+        )
         from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
 
         pdf_opts = PdfPipelineOptions()
+        pdf_opts.accelerator_options = AcceleratorOptions(device=settings.conversion_device)
         pdf_opts.do_ocr = pdf_ocr_enabled
         if hasattr(pdf_opts, "generate_picture_images"):
             pdf_opts.generate_picture_images = True
+        image_opts = pdf_opts.model_copy(deep=True)
+        image_opts.do_ocr = True
 
         converter = DocumentConverter(
             format_options={
                 InputFormat.PDF: PdfFormatOption(
                     pipeline_cls=StandardPdfPipeline,
                     pipeline_options=pdf_opts,
-                )
+                ),
+                InputFormat.IMAGE: ImageFormatOption(
+                    pipeline_cls=StandardPdfPipeline,
+                    pipeline_options=image_opts,
+                ),
             }
         )
         _docling_converters[pdf_ocr_enabled] = converter
@@ -135,7 +148,6 @@ def _convert_file_path(
     suffix: str,
     pdf_ocr_enabled: bool,
     include_elements: bool,
-    source_asset_path: str | None,
 ) -> ParsedDocument:
     if suffix == ".pdf" and not include_elements:
         text = extract_pdf_text(path)
@@ -143,14 +155,12 @@ def _convert_file_path(
             return parsed_document_from_text(
                 text,
                 suffix=suffix,
-                source_asset_path=source_asset_path,
                 include_elements=False,
             )
     converter = _get_docling_converter(pdf_ocr_enabled=pdf_ocr_enabled)
     return parsed_document_from_docling_result(
         converter.convert(path),
         suffix=suffix,
-        source_asset_path=source_asset_path,
         include_elements=include_elements,
     )
 
@@ -160,14 +170,12 @@ def _pool_convert(
     suffix: str,
     pdf_ocr_enabled: bool,
     include_elements: bool,
-    source_asset_path: str | None,
 ) -> ParsedDocument:
     return _convert_file_path(
         path,
         suffix,
         pdf_ocr_enabled,
         include_elements,
-        source_asset_path,
     )
 
 
@@ -234,7 +242,6 @@ async def convert_document_path_isolated(
     pdf_ocr_enabled: bool,
     timeout: int,
     include_elements: bool = False,
-    source_asset_path: str | None = None,
 ) -> ParsedDocument:
     return await _convert_document_path_isolated(
         path,
@@ -242,7 +249,6 @@ async def convert_document_path_isolated(
         pdf_ocr_enabled=pdf_ocr_enabled,
         timeout=timeout,
         include_elements=include_elements,
-        source_asset_path=source_asset_path,
     )
 
 
@@ -253,7 +259,6 @@ async def _convert_document_path_isolated(
     pdf_ocr_enabled: bool,
     timeout: int,
     include_elements: bool,
-    source_asset_path: str | None,
 ) -> ParsedDocument:
     executor = await get_conversion_executor()
     semaphore = await _get_conversion_semaphore()
@@ -266,7 +271,6 @@ async def _convert_document_path_isolated(
             suffix,
             pdf_ocr_enabled,
             include_elements,
-            source_asset_path,
         )
         try:
             return await asyncio.wait_for(future, timeout=timeout)

@@ -183,12 +183,6 @@ class DocumentsResource:
     async def delete(self, collection: str, document_id: str) -> StatusResponse:
         return await self._client._request("DELETE", _doc_path(collection, document_id))
 
-    async def reprocess(self, collection: str, document_id: str) -> StatusResponse:
-        return await self._client._request(
-            "POST",
-            f"{_doc_path(collection, document_id)}/reprocess",
-        )
-
     async def get_chunks(
         self,
         collection: str,
@@ -244,10 +238,6 @@ class DocumentsResource:
             f"/v1/documents/{quote(document_id, safe='')}/chunks",
             params=params,
         )
-
-    def get_file_url(self, collection: str, document_id: str) -> str:
-        path = f"{_doc_path(collection, document_id)}/file"
-        return f"{self._client.base_url}{path}"
 
     async def batch_get_status(
         self,

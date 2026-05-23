@@ -33,7 +33,7 @@ curl -X POST http://localhost:4000/v1/admin/webhooks \
   }'
 ```
 
-Supported event types: `document.processing`, `document.ready`, `document.failed`, `document.deleted`, `collection.created`, `collection.updated`, `collection.deleted`, `collection.truncated`, `collection.reembed.queued`, `connector.sync.started`, `connector.sync.completed`, `connector.sync.failed`, `connector.sync.needs_reauth`, `backup.started`, `backup.succeeded`, `backup.failed`.
+Supported event types: `document.processing`, `document.ready`, `document.failed`, `document.deleted`, `collection.created`, `collection.updated`, `collection.deleted`, `collection.truncated`, `connector.sync.started`, `connector.sync.completed`, `connector.sync.failed`, `backup.started`, `backup.succeeded`, `backup.failed`.
 
 </Accordion>
 
@@ -135,7 +135,7 @@ New data-operation events use a common envelope:
   "timestamp": "2026-05-22T00:00:00Z",
   "collection": "docs",
   "data": {
-    "provider": "google_drive",
+    "provider": "s3",
     "source_id": "source-id",
     "job_id": "job-id",
     "status": "complete",

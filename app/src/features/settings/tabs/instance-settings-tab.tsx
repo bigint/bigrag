@@ -133,7 +133,7 @@ export const InstanceSettingsTab = ({
           });
         }}
         title="Purge embedding cache"
-        description="Purge every persistent embedding cache row? Future requests will re-embed and pay the provider cost again."
+        description="Purge every persistent embedding cache row? Future ingestion will request fresh embeddings and pay the provider cost again."
         confirmLabel="Purge"
         loading={purgeEmbeddingCache.isPending}
       />

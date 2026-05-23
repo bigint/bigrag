@@ -15,12 +15,12 @@ from bigrag.services.connectors.types import (
     ConnectorSyncCounters,
     DownloadedConnectorFile,
 )
-from bigrag.services.document_elements import element_asset_prefix_for_file_path
 from bigrag.services.documents import prepare_document_metadata
 from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.file_validation import validate_upload
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
+from bigrag.services.staged_files import clear_document_staged_file, delete_staged_file_path
 from bigrag.services.storage import get_storage
 from bigrag.services.vector_store import vector_store
 
@@ -109,7 +109,11 @@ async def sync_downloaded_file(
             storage_key = f"{source.collection_name}/{doc.id}{downloaded.file_ext}"
             await _put_downloaded(storage_key)
             if old_path != storage_key:
-                await storage.delete(old_path)
+                try:
+                    await delete_staged_file_path(old_path, raise_on_failure=True)
+                except Exception:
+                    await delete_staged_file_path(storage_key)
+                    raise
             doc.filename = downloaded.filename
             doc.file_type = downloaded.file_ext.lstrip(".")
             doc.file_size = downloaded.file_size
@@ -138,6 +142,7 @@ async def sync_downloaded_file(
         doc.status = "failed"
         doc.error_message = sanitize_message_text(f"enqueue failed: {type(exc).__name__}")
         await session.commit()
+        await clear_document_staged_file(doc.id, doc.file_path)
         raise
 
 
@@ -152,13 +157,11 @@ async def delete_synced_document(
     doc = await session.get(Document, manifest.document_id)
     if doc is not None:
         await ingestion_queue.cancel_documents([str(doc.id)])
+        await delete_staged_file_path(doc.file_path, raise_on_failure=True)
         await vector_store.delete_by_document(
             source.collection_name,
             str(doc.id),
         )
-        storage = get_storage()
-        await storage.delete(doc.file_path)
-        await storage.delete_prefix(element_asset_prefix_for_file_path(doc.file_path))
         await session.delete(doc)
     await session.delete(manifest)
     counters.deleted += 1

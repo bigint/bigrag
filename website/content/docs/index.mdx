@@ -18,7 +18,7 @@ bigRAG is an open-source RAG platform with Turbopuffer at the retrieval layer. I
 - **Namespace isolation** — every collection maps to a Turbopuffer namespace for scoped writes, exports, deletion, and retrieval
 - **Three search modes** — semantic, keyword, and hybrid search with optional Cohere reranking
 - **First-class auth** — admin accounts, session cookies, scoped `bigrag_sk_…` API keys, and full audit/access logs
-- **Operational features** — batch ingestion, Google Drive sync, webhooks with HMAC signatures, metadata-schema validation, an evaluation runner, and per-collection query analytics
+- **Operational features** — batch ingestion, S3/R2 prefix sync, webhooks with HMAC signatures, metadata-schema validation, an evaluation runner, and per-collection query analytics
 - **Admin UI** — first-run setup, collection browser, stateless chat, connector management, access logs, MCP credentials, and API-key minting
 - **Self-hostable control plane** — Docker Compose for the API, admin UI, Postgres, and Redis
 - **MIT licensed** — run it anywhere, forever free
@@ -33,7 +33,7 @@ bigRAG is an open-source RAG platform with Turbopuffer at the retrieval layer. I
     API --> Retrieval["Retrieval plane<br/>query / search / chat"]
 
     Control --> Postgres[("Postgres<br/>users, metadata, audit")]
-    Ingestion --> Files[("Source files<br/>local disk / Google Drive")]
+    Ingestion --> Files[("Source files<br/>local disk / S3")]
     Ingestion --> Redis[("Redis queue")]
     Redis --> Worker["Ingestion worker"]
     Worker --> Docling["Docling conversion"]

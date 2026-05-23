@@ -8,7 +8,6 @@ Use these exact service names unless you also update the variable references:
 |---|---|---|---|
 | `Postgres` | Railway Postgres | Railway managed | Railway managed |
 | `Redis` | Railway Redis | Railway managed | Railway managed |
-| `Uploads` | Railway Bucket | Railway managed | Railway managed |
 | `API` | GitHub service | `/railway/api.json` | `railway/variables/api.env` |
 | `Worker` | GitHub service | `/railway/worker.json` | `railway/variables/worker.env` |
 | `App` | GitHub service | `/railway/app.json` | `railway/variables/app.env` |
@@ -23,4 +22,4 @@ Fill these required values before the first deploy:
 | `BIGRAG_TURBOPUFFER_API_KEY` | `API`, `Worker` | Turbopuffer API key |
 | `BIGRAG_EMBEDDING_API_KEY` | `API`, `Worker` | OpenAI, Cohere, Voyage, or OpenAI-compatible embedding key |
 
-Enable public HTTP networking for `API` and `App`. Leave `Worker`, `Postgres`, `Redis`, and `Uploads` private.
+Enable public HTTP networking for `API` and `App`. Leave `Worker`, `Postgres`, and `Redis` private. Ingestion staging is local-only, so the API and worker need the same mounted upload directory when they run as separate services.

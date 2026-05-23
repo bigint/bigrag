@@ -85,7 +85,6 @@ async def convert_document(
             parsed = parsed_document_from_text(
                 text,
                 suffix=suffix,
-                source_asset_path=job.file_path,
                 include_elements=include_elements,
             )
             elapsed = time.monotonic() - t0
@@ -116,7 +115,6 @@ async def convert_document(
                     pdf_ocr_enabled=False,
                     timeout=conversion_timeout,
                     include_elements=include_elements,
-                    source_asset_path=job.file_path,
                 )
             except TimeoutError as e:
                 raise ValueError(str(e)) from e
@@ -159,7 +157,6 @@ async def convert_document(
             return parsed_document_from_text(
                 text,
                 suffix=suffix,
-                source_asset_path=job.file_path,
                 include_elements=include_elements,
             )
 
@@ -170,7 +167,6 @@ async def convert_document(
                 pdf_ocr_enabled=pdf_ocr_enabled,
                 timeout=conversion_timeout,
                 include_elements=include_elements,
-                source_asset_path=job.file_path,
             )
         except TimeoutError as e:
             raise ValueError(str(e)) from e

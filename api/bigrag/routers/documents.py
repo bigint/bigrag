@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,28 +26,23 @@ from bigrag.routers.documents_progress import (
     publish_queued_progress,
 )
 from bigrag.routers.documents_uploads import (
-    document_file_response,
     metadata_or_400,
     upload_extension_or_400,
     uuid_or_404,
     validated_upload_to_temp,
 )
 from bigrag.services import audit, collection_cache
-from bigrag.services.document_elements import element_asset_prefix_for_file_path
 from bigrag.services.documents import (
     content_hash_match,
     persist_document,
     prepare_document_metadata,
     recount_collection_documents,
 )
-from bigrag.services.error_sanitize import sanitize_message_text
-from bigrag.services.event_bus import IngestionEvent, event_bus
-from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
-from bigrag.services.storage import get_storage
+from bigrag.services.staged_files import StagedFileCleanupError, delete_staged_file_path
 from bigrag.services.vector_store import vector_store
 from bigrag.services.webhook import enqueue_webhook_event
 
@@ -278,19 +272,22 @@ async def delete_document(
 
     file_path = doc.file_path
     deleted_filename = doc.filename
+    try:
+        await delete_staged_file_path(file_path, raise_on_failure=True)
+    except StagedFileCleanupError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Staged file cleanup failed. Try deleting the document again.",
+        ) from exc
+    await vector_store.delete_by_document(
+        collection_name,
+        document_id,
+    )
     await session.delete(doc)
     await recount_collection_documents(session, collection["id"])
     await session.commit()
     await collection_cache.invalidate(collection_name)
     await invalidate_collection_query_cache(collection_name)
-
-    await vector_store.delete_by_document(
-        collection_name,
-        document_id,
-    )
-    storage = get_storage()
-    await storage.delete(file_path)
-    await storage.delete_prefix(element_asset_prefix_for_file_path(file_path))
 
     await enqueue_webhook_event(
         "document.deleted",
@@ -310,89 +307,6 @@ async def delete_document(
         metadata={"collection": collection_name, "filename": deleted_filename},
     )
     return StatusResponse(status="ok", message="Document deleted")
-
-
-@router.post("/{document_id}/reprocess", response_model=StatusResponse)
-async def reprocess_document(
-    collection_name: str,
-    document_id: str,
-    request: Request,
-    user: dict = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-):
-    enforce_collection_pin(user, collection_name)
-    collection = await get_collection_or_404(collection_name)
-    doc = await session.scalar(
-        sa.select(Document)
-        .where(Document.id == uuid_or_404(document_id, "Document"))
-        .where(Document.collection_id == collection["id"])
-    )
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    ensure_embedding_or_400(collection)
-
-    if not await get_storage().exists(doc.file_path):
-        raise HTTPException(
-            status_code=400,
-            detail="Source file no longer exists. Upload the document again.",
-        )
-
-    await ingestion_queue.cancel_documents([document_id])
-    await vector_store.delete_by_document(
-        collection_name,
-        document_id,
-    )
-
-    doc.status = "pending"
-    doc.chunk_count = 0
-    doc.error_message = None
-    await session.commit()
-    publish_queued_progress(doc, collection_name, "Queued for reprocessing")
-
-    try:
-        await ingestion_queue.enqueue(
-            create_ingestion_job(
-                document_id=document_id,
-                file_path=doc.file_path,
-                collection_name=collection_name,
-                collection=collection,
-            )
-        )
-    except Exception as exc:
-        logger.exception(
-            "reprocess: enqueue failed",
-            document_id=document_id,
-            collection=collection_name,
-        )
-        doc.status = "failed"
-        doc.error_message = sanitize_message_text(f"enqueue failed: {type(exc).__name__}")
-        await session.commit()
-        event_bus.publish(
-            IngestionEvent(
-                document_id=document_id,
-                collection_name=collection_name,
-                step="failed",
-                status="failed",
-                message=doc.error_message,
-                progress=0.0,
-            )
-        )
-        event_bus.complete(document_id)
-        raise HTTPException(
-            status_code=503,
-            detail="Ingestion queue unavailable — document saved as failed, retry later.",
-        ) from exc
-
-    audit.record(
-        request,
-        user=user,
-        action="document.reprocess",
-        resource_type="document",
-        resource_id=document_id,
-        metadata={"collection": collection_name, "filename": doc.filename},
-    )
-    return StatusResponse(status="ok", message="Document reprocessing started")
 
 
 @router.get("/{document_id}/elements", response_model=DocumentElementListResponse)
@@ -461,26 +375,6 @@ async def get_document_chunks(
         offset=offset,
     )
     return {"chunks": chunks, "total": total}
-
-
-@router.get("/{document_id}/file", response_class=Response)
-async def download_document_file(
-    collection_name: str,
-    document_id: str,
-    user: dict = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-):
-    enforce_collection_pin(user, collection_name)
-    collection = await get_collection_or_404(collection_name)
-    doc = await session.scalar(
-        sa.select(Document)
-        .where(Document.id == uuid_or_404(document_id, "Document"))
-        .where(Document.collection_id == collection["id"])
-    )
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    return await document_file_response(doc, get_storage())
 
 
 def _document_element_response(row: DocumentElement) -> DocumentElementResponse:

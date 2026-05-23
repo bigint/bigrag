@@ -8,14 +8,12 @@ import sqlalchemy as sa
 from bigrag.db.engine import session_factory
 from bigrag.db.models import (
     Collection,
-    ConnectorAccount,
     ConnectorDocument,
     ConnectorSource,
     ConnectorSyncJob,
 )
 from bigrag.logging import get_logger
 from bigrag.services import collection_cache
-from bigrag.services.connectors.accounts import configured, get_provider_config
 from bigrag.services.connectors.batches import sync_remote_files
 from bigrag.services.connectors.documents import (
     delete_synced_document,
@@ -35,7 +33,6 @@ from bigrag.services.connectors.progress import sync_counter_details, update_syn
 from bigrag.services.connectors.status import fail_sync
 from bigrag.services.connectors.time import next_sync_at, utcnow
 from bigrag.services.connectors.types import (
-    ConnectorAuthError,
     ConnectorNotFoundError,
     ConnectorSyncAdapter,
     ConnectorSyncCounters,
@@ -81,8 +78,6 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
         source = await session.get(ConnectorSource, job.source_id)
         if source is None or source.provider != adapter.provider:
             return
-        account = await session.get(ConnectorAccount, source.account_id)
-        config = await get_provider_config(session, adapter.provider)
         collection = await session.get(Collection, source.collection_id)
 
         job.status = "running"
@@ -94,7 +89,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             job=job,
             counters=counters,
             phase="authenticating",
-            message="Connecting to Google Drive",
+            message="Connecting to S3",
         )
         await enqueue_webhook_event(
             "connector.sync.started",
@@ -109,32 +104,27 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
             },
         )
 
-        if account is None or config is None or not configured(config) or collection is None:
+        if collection is None:
             await fail_sync(
                 session,
                 job=job,
                 source=source,
-                message=adapter.not_configured_message,
+                message="Collection not found",
                 counters=counters,
             )
             return
 
         try:
             await ensure_writes_allowed()
-            access_token = await adapter.access_token_for_account(
-                session,
-                config=config,
-                account=account,
-            )
             await update_sync_progress(
                 session,
                 job=job,
                 counters=counters,
                 phase="scanning",
-                message="Scanning Drive files",
+                message="Scanning S3 objects",
             )
             try:
-                remotes = await adapter.iter_files(access_token=access_token, source=source)
+                remotes = await adapter.iter_files(session, source=source)
             except ConnectorNotFoundError:
                 remotes = []
 
@@ -144,7 +134,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 job=job,
                 counters=counters,
                 phase="syncing",
-                message=f"Found {len(remotes)} Drive files",
+                message=f"Found {len(remotes)} S3 objects",
                 processed_items=0,
                 total_items=len(remotes),
             )
@@ -164,7 +154,6 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 source=source,
                 collection=collection,
                 job=job,
-                access_token=access_token,
                 remotes=remotes,
                 manifests=manifests,
                 counters=counters,
@@ -180,7 +169,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 job=job,
                 counters=counters,
                 phase="removing",
-                message="Checking for removed Drive files",
+                message="Checking for removed S3 objects",
                 processed_items=0,
                 total_items=len(missing),
             )
@@ -207,7 +196,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                     job=job,
                     counters=counters,
                     phase="removing",
-                    message=f"Removed {index} of {len(missing)} missing Drive files",
+                    message=f"Removed {index} of {len(missing)} missing remote files",
                     current_item=manifest,
                     processed_items=index,
                     total_items=len(missing),
@@ -237,7 +226,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 counters=counters,
                 phase="complete" if counters.failed == 0 else "failed",
                 message=(
-                    "Drive sync complete. Documents queued for ingestion."
+                    "S3 sync complete. Documents queued for ingestion."
                     if counters.failed == 0
                     else adapter.partial_failure_message
                 ),
@@ -277,23 +266,6 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 skipped=counters.skipped,
                 deleted=counters.deleted,
                 failed=counters.failed,
-            )
-        except ConnectorAuthError as exc:
-            account.status = "needs_reauth"
-            source.status = "needs_reauth"
-            source.last_error = adapter.reauth_message
-            logger.warning(
-                "connector: auth error during sync",
-                provider=adapter.provider,
-                job_id=job_id,
-                error_type=type(exc).__name__,
-            )
-            await fail_sync(
-                session,
-                job=job,
-                source=source,
-                message=sanitize_message_text(str(exc)) or "Sync auth error",
-                counters=counters,
             )
         except asyncio.CancelledError:
             await fail_sync(

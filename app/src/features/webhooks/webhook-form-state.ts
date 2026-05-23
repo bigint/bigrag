@@ -10,14 +10,8 @@ export const WEBHOOK_EVENT_CATEGORIES: Record<string, string[]> = {
     "collection.updated",
     "collection.deleted",
     "collection.truncated",
-    "collection.reembed.queued",
   ],
-  Connectors: [
-    "connector.sync.started",
-    "connector.sync.completed",
-    "connector.sync.failed",
-    "connector.sync.needs_reauth",
-  ],
+  Connectors: ["connector.sync.started", "connector.sync.completed", "connector.sync.failed"],
   Backups: ["backup.started", "backup.succeeded", "backup.failed"],
 };
 

@@ -1,12 +1,12 @@
 ---
 title: Railway
-description: Deploy bigRAG to Railway with managed Postgres, Redis, object storage, and Turbopuffer search.
+description: Deploy bigRAG to Railway with managed Postgres, Redis, local ingestion staging, and Turbopuffer search.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 import { Accordions, Accordion } from "fumadocs-ui/components/accordion";
 
-Deploy the API, Dramatiq worker, admin UI, Postgres, Redis, and an S3-compatible Railway Bucket in one Railway project. Turbopuffer provides managed vector, keyword, and hybrid search.
+Deploy the API, Dramatiq worker, admin UI, Postgres, and Redis in one Railway project. Turbopuffer provides managed vector, keyword, and hybrid search.
 
 ## Template files
 
@@ -32,7 +32,6 @@ Railway templates are finalized in the Railway template composer. Use these file
 | **App** | Admin UI, public HTTP domain |
 | **Postgres 17** | Railway managed database, referenced as `Postgres` |
 | **Redis 7** | Railway managed cache and queue, referenced as `Redis` |
-| **Uploads** | Railway Bucket for uploaded source files, referenced as `Uploads` |
 | **Turbopuffer** | Managed vector, keyword, and hybrid search |
 
 ## Prerequisites
@@ -50,7 +49,6 @@ Use these exact service names unless you also update the reference variables in 
 |---|---|---:|---|---|
 | `Postgres` | Database → PostgreSQL | — | — | no |
 | `Redis` | Database → Redis | — | — | no |
-| `Uploads` | Bucket | — | — | no |
 | `API` | GitHub repo | `/api` | `/railway/api.json` | HTTP |
 | `Worker` | GitHub repo | `/api` | `/railway/worker.json` | no |
 | `App` | GitHub repo | `/` | `/railway/app.json` | HTTP |
@@ -81,22 +79,17 @@ Back the master key up immediately. It encrypts provider secrets, webhook secret
 
 ## Storage
 
-The template uses a Railway Bucket as S3-compatible object storage:
+Ingestion staging is local-only:
 
 ```bash
-BIGRAG_STORAGE_BACKEND=s3
-BIGRAG_STORAGE_S3_BUCKET=${{Uploads.BUCKET}}
-BIGRAG_STORAGE_S3_ENDPOINT_URL=${{Uploads.ENDPOINT}}
-BIGRAG_STORAGE_S3_REGION=${{Uploads.REGION}}
-BIGRAG_STORAGE_S3_ACCESS_KEY_ID=${{Uploads.ACCESS_KEY_ID}}
-BIGRAG_STORAGE_S3_SECRET_ACCESS_KEY=${{Uploads.SECRET_ACCESS_KEY}}
+BIGRAG_UPLOAD_DIR=/data/uploads
 ```
 
-Do not use local upload volumes for the split Railway template. API and worker services need to read the same uploaded files, so object storage is the durable shared boundary.
+When the API and worker run as separate Railway services, they must mount the same upload directory. If your Railway project cannot provide a shared local volume for both services, run API and worker in the same service or deploy the split API/worker topology on a platform with shared filesystem mounts. Staged originals are deleted after terminal processing, cancellation, or document deletion.
 
 ## First run
 
-1. Deploy all six services.
+1. Deploy all five services.
 2. Open the `App` public URL.
 3. Complete `/setup` to create the first admin account.
 4. Complete onboarding and create a verified embedding preset.
@@ -131,13 +124,13 @@ Check `BIGRAG_URL` on `App`; it must be `https://${{API.RAILWAY_PUBLIC_DOMAIN}}`
 
 <Accordion title="Documents stay pending">
 
-Check the `Worker` logs and confirm `/v1/stats` shows a recent worker heartbeat. The worker must have the same Postgres, Redis, master-key, Turbopuffer, embedding, and storage variables as `API`.
+Check the `Worker` logs and confirm `/v1/stats` shows a recent worker heartbeat. The worker must have the same Postgres, Redis, master-key, Turbopuffer, embedding, and `BIGRAG_UPLOAD_DIR` mount as `API`.
 
 </Accordion>
 
-<Accordion title="Uploads fail or files cannot be reprocessed">
+<Accordion title="Uploads fail before ingestion starts">
 
-Confirm the `Uploads` bucket service exists and the API and worker variables still reference `${{Uploads.BUCKET}}`, `${{Uploads.ENDPOINT}}`, `${{Uploads.ACCESS_KEY_ID}}`, and `${{Uploads.SECRET_ACCESS_KEY}}`.
+Confirm `BIGRAG_UPLOAD_DIR` points to a writable local directory that the API and worker both mount.
 
 </Accordion>
 

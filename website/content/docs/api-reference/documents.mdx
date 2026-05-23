@@ -10,8 +10,8 @@ Base path: `/v1/collections/{collection_name}/documents`
 
 All endpoints require [authentication](/docs/api-reference/authentication). API keys need:
 
-- `document:upload` — upload, batch upload, reprocess
-- `document:read` — list, get, download, chunks, elements, batch get/status
+- `document:upload` — upload, batch upload, upload-session create/file/complete
+- `document:read` — list, get, chunks, elements, batch get/status
 - `document:delete` — delete, batch delete
 
 ## Core
@@ -58,7 +58,7 @@ curl -X POST http://localhost:4000/v1/collections/research/documents \
 }
 ```
 
-`content_hash` is a SHA-256 of the uploaded bytes used for deduplication. If the collection already has a document with the same hash, the existing record is returned with `deduped: true` instead of creating a duplicate. See [Collections → `content_hash` dedup](/docs/concepts/collections).
+`content_hash` is a SHA-256 of the uploaded bytes used for deduplication. If the collection already has a document with the same hash, the existing record is returned with `deduped: true` instead of creating a duplicate. The uploaded original is used only as temporary ingestion staging and is deleted after processing reaches a terminal state. See [Collections → `content_hash` dedup](/docs/concepts/collections).
 
 **Errors:** `400` — Unsupported file type or blocked by metadata-schema checks, `404` — Collection not found, `413` — File too large, `503` — Queue unavailable (document is stored as `failed`)
 
@@ -121,24 +121,6 @@ Deletes the document and its associated vectors.
 ```
 
 **Errors:** `404` — Document or collection not found
-
-</Accordion>
-
-<Accordion title="POST /v1/collections/{collection_name}/documents/{document_id}/reprocess — Reprocess document">
-
-Re-parse, re-chunk, and re-embed a document.
-
-**Response** `200`:
-
-```json
-{ "status": "ok", "message": "Document reprocessing started" }
-```
-
-</Accordion>
-
-<Accordion title="GET /v1/collections/{collection_name}/documents/{document_id}/file — Download file">
-
-Download the original uploaded file. Returns binary content with appropriate `Content-Type`.
 
 </Accordion>
 
@@ -316,7 +298,7 @@ curl -X POST http://localhost:4000/v1/collections/docs/upload-sessions/$SESSION_
   -F "file=@contract.pdf"
 ```
 
-Each accepted file is validated, deduped by `content_hash`, stored, converted into a `Document`, and queued for ingestion. Failed files are recorded as upload-session items and do not abort the session.
+Each accepted file is validated, deduped by `content_hash`, staged temporarily, converted into a `Document`, and queued for ingestion. Failed files are recorded as upload-session items and do not abort the session.
 
 **Session lifecycle endpoints:**
 
