@@ -186,7 +186,6 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 )
                 await delete_synced_document(
                     session,
-                    collection=collection,
                     source=source,
                     manifest=manifest,
                     counters=counters,

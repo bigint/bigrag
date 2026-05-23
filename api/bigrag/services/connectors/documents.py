@@ -149,7 +149,6 @@ async def sync_downloaded_file(
 async def delete_synced_document(
     session: Any,
     *,
-    collection: Collection,
     source: ConnectorSource,
     manifest: ConnectorDocument,
     counters: ConnectorSyncCounters,

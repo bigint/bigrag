@@ -377,11 +377,9 @@ async def delete_source(
         from bigrag.services.documents import recount_collection_documents
 
         counters = ConnectorSyncCounters()
-        collection = await session.get(Collection, source.collection_id)
         for manifest in manifests:
             await delete_synced_document(
                 session,
-                collection=collection,
                 source=source,
                 manifest=manifest,
                 counters=counters,

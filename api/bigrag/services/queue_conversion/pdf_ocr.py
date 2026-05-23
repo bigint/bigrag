@@ -24,7 +24,6 @@ def docling_result_text(result) -> str:
 async def ocr_scanned_pdf(
     *,
     tmp_path: str,
-    suffix: str,
     job: IngestionJob,
     prefix: str,
     start_time: float,

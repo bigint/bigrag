@@ -147,7 +147,6 @@ async def convert_document(
                 return parsed
             text = await ocr_scanned_pdf(
                 tmp_path=tmp_path,
-                suffix=suffix,
                 job=job,
                 prefix=prefix,
                 start_time=t0,
