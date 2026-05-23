@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import sqlalchemy as sa
@@ -11,13 +12,17 @@ from bigrag.services.realtime.auth import authorize_collection_events
 from bigrag.services.realtime.params import string
 from bigrag.services.realtime.specs import EventTopic, TopicError
 
+_COLLECTION_NAME = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*$")
+
 
 async def collection_events_topic(
     websocket: WebSocket,
     principal: dict | None,
     params: dict[str, Any],
 ) -> EventTopic:
-    collection = string(params, "collection", required=True, max_length=120)
+    collection = string(
+        params, "collection", required=True, max_length=120, pattern=_COLLECTION_NAME
+    )
     token = string(params, "token", max_length=500)
     await authorize_collection_events(websocket, principal, collection, token)
     async with session_factory()() as session:

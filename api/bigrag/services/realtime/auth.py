@@ -62,6 +62,9 @@ async def authorize_collection_events(
     collection_name: str,
     token: str | None,
 ) -> None:
+    pinned = principal.get("collection") if principal else None
+    if pinned:
+        assert_collection_matches_pin(pinned, collection_name)
     if token and await validate_realtime_token(token, collection_name, principal):
         return
     if principal is None:
@@ -70,6 +73,3 @@ async def authorize_collection_events(
         principal.get("scopes"), "collection:read"
     ):
         raise PermissionError("API key missing required scope: collection:read")
-    pinned = principal.get("collection")
-    if pinned:
-        assert_collection_matches_pin(pinned, collection_name)

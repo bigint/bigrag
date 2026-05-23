@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from bigrag.services.realtime.specs import TopicError
@@ -12,6 +13,7 @@ def string(
     default: str | None = None,
     required: bool = False,
     max_length: int | None = None,
+    pattern: re.Pattern[str] | None = None,
 ) -> str | None:
     value = params.get(key, default)
     if value is None or value == "":
@@ -22,6 +24,8 @@ def string(
         raise TopicError(f"{key} must be a string")
     if max_length is not None and len(value) > max_length:
         raise TopicError(f"{key} is too long")
+    if pattern is not None and not pattern.fullmatch(value):
+        raise TopicError(f"{key} is invalid")
     return value
 
 

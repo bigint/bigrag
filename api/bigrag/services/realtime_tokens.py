@@ -31,7 +31,7 @@ async def validate_realtime_token(
     if redis is None:
         return False
     key = f"{_PREFIX}{token}"
-    raw = await redis.getdel(key)
+    raw = await redis.get(key)
     if raw is None:
         return False
     decoded = raw.decode("utf-8")
