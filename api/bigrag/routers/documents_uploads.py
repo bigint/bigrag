@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
-from urllib.parse import quote
 
 from fastapi import HTTPException, UploadFile
-from fastapi.responses import Response, StreamingResponse
 
-from bigrag.db.models import Document
 from bigrag.routers import uuid_or_404
 from bigrag.services.documents import (
     SUPPORTED_EXTENSIONS,
@@ -17,34 +13,11 @@ from bigrag.services.documents import (
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 
 __all__ = [
-    "CONTENT_TYPE_BY_EXTENSION",
-    "document_file_response",
     "metadata_or_400",
     "upload_extension_or_400",
     "uuid_or_404",
     "validated_upload_to_temp",
 ]
-
-CONTENT_TYPE_BY_EXTENSION = {
-    "pdf": "application/pdf",
-    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "html": "application/octet-stream",
-    "htm": "application/octet-stream",
-    "md": "text/markdown",
-    "txt": "text/plain",
-    "csv": "text/csv",
-    "tsv": "text/tab-separated-values",
-    "xml": "application/xml",
-    "json": "application/json",
-    "png": "image/png",
-    "jpg": "image/jpeg",
-    "jpeg": "image/jpeg",
-    "gif": "image/gif",
-    "tiff": "image/tiff",
-    "bmp": "image/bmp",
-}
 
 
 def upload_extension_or_400(filename: str | None, *, batch: bool = False) -> str:
@@ -107,22 +80,3 @@ def metadata_or_400(collection: dict, metadata: str, prepare, parse) -> dict:
         return prepare(collection, parse(metadata))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
-
-
-async def document_file_response(doc: Document, storage) -> Response:
-    if not await storage.exists(doc.file_path):
-        raise HTTPException(status_code=404, detail="File not found in storage")
-
-    ext = doc.file_type.lower()
-    content_type = CONTENT_TYPE_BY_EXTENSION.get(ext, "application/octet-stream")
-    safe_ascii = re.sub(r"[\x00-\x1f\x7f\"\\]", "_", doc.filename)
-    encoded = quote(doc.filename, safe="")
-    return StreamingResponse(
-        storage.get_stream(doc.file_path),
-        media_type=content_type,
-        headers={
-            "Content-Disposition": (
-                f"attachment; filename=\"{safe_ascii}\"; filename*=UTF-8''{encoded}"
-            )
-        },
-    )

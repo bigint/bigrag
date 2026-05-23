@@ -72,9 +72,6 @@ const SettingsContent = ({ tab }: { tab: SettingsTab }) => {
   if (tab === "data") {
     return <InstanceSettingsTab groups={DATA_SETTINGS_GROUPS} stacked />;
   }
-  if (tab === "storage") {
-    return <InstanceSettingsTab group="storage" stacked />;
-  }
   if (tab === "vector_store") {
     return <InstanceSettingsTab group="vector_store" stacked />;
   }

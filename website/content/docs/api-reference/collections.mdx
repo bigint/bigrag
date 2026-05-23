@@ -7,7 +7,7 @@ import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
 Base path: `/v1/collections`
 
-All endpoints require [authentication](/docs/api-reference/authentication) — a session cookie or an API key with `collection:read` (reads) or `collection:write` (create / update / delete).
+All endpoints require [authentication](/docs/api-reference/authentication) — a session cookie or an API key with `collection:read` (reads), `collection:write` (create / update), or `collection:delete` (delete / truncate).
 
 ## CRUD
 
@@ -156,7 +156,7 @@ Only the fields below are mutable. Embedding provider / model / dimension, chunk
 
 <Accordion title="DELETE /v1/collections/{name} — Delete collection">
 
-Deletes the collection, every document, every vector, and every stored file.
+Deletes the collection, every document, every vector, and any remaining staged ingestion file.
 
 **Response** `200`:
 
@@ -193,7 +193,7 @@ Lightweight endpoint returning document and chunk counts.
 
 <Accordion title="POST /v1/collections/{name}/truncate — Truncate collection">
 
-Deletes every document, vector, and file in the collection but keeps the collection configuration.
+Deletes every document, vector, and remaining staged ingestion file in the collection but keeps the collection configuration.
 
 **Response** `200`:
 
@@ -205,19 +205,6 @@ Deletes every document, vector, and file in the collection but keeps the collect
 
 </Accordion>
 
-<Accordion title="POST /v1/collections/{name}/reembed — Re-embed collection">
-
-Re-queues every `ready` or `failed` document for conversion, chunking, and embedding using the collection's current immutable embedding configuration. Vectors already cached by `content_hash + model_key` are reused automatically.
-
-**Response** `200`:
-
-```json
-{ "status": "ok", "message": "Queued 15 documents for re-embedding" }
-```
-
-**Errors:** `404`.
-
-</Accordion>
 </Accordions>
 
 ## Streams

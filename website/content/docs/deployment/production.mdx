@@ -217,7 +217,7 @@ BIGRAG_UPLOAD_DIR=/data/uploads
 
 ## Storage
 
-Files are stored on the local filesystem:
+Active ingestion files are staged on the local filesystem:
 
 ```toml
 upload_dir = "./data/uploads"
@@ -225,11 +225,11 @@ upload_dir = "./data/uploads"
 
 ## Readable backups
 
-The admin UI creates backup-only full-instance exports from `/settings?tab=backups`. The destination is S3-compatible — AWS S3, Cloudflare R2, and MinIO all work. Use a bucket or prefix dedicated to backups rather than reusing the upload bucket.
+The admin UI creates backup-only full-instance exports from `/settings?tab=backups`. The destination is S3-compatible — AWS S3, Cloudflare R2, and MinIO all work. Use a bucket or prefix dedicated to backups rather than reusing the ingestion staging bucket.
 
 **What's included:**
 
-- Postgres rows, vector-store points and payloads, uploaded files, and logs — all in plain JSON, JSONL, SQL, and raw files.
+- Postgres rows, vector-store points and payloads, and logs — all in plain JSON, JSONL, and SQL.
 - Turbopuffer point exports stream provider pages into JSONL instead of materializing a full collection in API memory.
 
 **What's redacted:**
@@ -304,7 +304,7 @@ The worker container healthcheck reads the worker heartbeat from Redis rather th
 
 <Accordion title="Worker-dependent actions are disabled in the admin UI">
 
-Uploads, document reprocessing, backups, webhook deliveries, and Google Drive sync all depend on `bigrag-worker`. If the admin UI shows `bigrag-worker is offline`, start or restart the worker service, then confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
+Uploads, backups, webhook deliveries, and Google Drive sync all depend on `bigrag-worker`. If the admin UI shows `bigrag-worker is offline`, start or restart the worker service, then confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
 
 </Accordion>
 

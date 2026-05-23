@@ -22,6 +22,7 @@ from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import sync_value
+from bigrag.services.staged_files import clear_document_staged_file
 from bigrag.services.storage import get_storage
 from bigrag.services.tenant_enforcement import require_tenant_metadata, tenant_field
 
@@ -153,7 +154,7 @@ async def persist_document(
 
     with source.open("rb") as fh:
         await storage.put_stream(storage_key, fh, size=file_size)
-    logger.info("upload stored", key=storage_key, size=file_size)
+    logger.info("upload staged", key=storage_key, size=file_size)
 
     doc = Document(
         id=doc_id,
@@ -200,6 +201,7 @@ async def persist_document(
         doc.error_message = sanitize_message_text(f"enqueue failed: {type(exc).__name__}")
         await session.commit()
         await session.refresh(doc)
+        await clear_document_staged_file(doc.id, storage_key)
         if raise_on_enqueue_failure:
             raise HTTPException(
                 status_code=503,

@@ -42,8 +42,7 @@ export const BackupSettingsTab = () => {
                 Readable backups
               </CardTitle>
               <CardDescription>
-                Export full-instance JSON, JSONL, vectors, and raw uploaded files to S3-compatible
-                storage.
+                Export full-instance JSON, JSONL, and vectors to S3-compatible storage.
               </CardDescription>
             </div>
           </div>
@@ -54,7 +53,7 @@ export const BackupSettingsTab = () => {
               <ShieldAlert className="mt-0.5 size-4 shrink-0" />
               <p>
                 Backups are readable and not client-side encrypted. Treat the destination bucket as
-                sensitive because it contains document content, vectors, chats, logs, and decrypted
+                sensitive because it contains document content, vectors, chats, logs, and redacted
                 provider settings.
               </p>
             </div>

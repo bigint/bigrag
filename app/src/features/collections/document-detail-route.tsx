@@ -1,5 +1,5 @@
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, RefreshCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -10,18 +10,7 @@ import { Empty } from "@/components/ui/empty";
 import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
-import {
-  getWorkerAvailability,
-  workerOfflineActionMessage,
-} from "@/features/workers/worker-status";
-import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
-import {
-  useChunks,
-  useDeleteDocument,
-  useDocument,
-  useReprocessDocument,
-} from "@/hooks/use-documents";
-import { usePlatformStats } from "@/hooks/use-platform";
+import { useChunks, useDeleteDocument, useDocument } from "@/hooks/use-documents";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatNumber, formatRelative } from "@/lib/format";
 import type { DocumentProgress, DocumentStatus } from "@/types/bigrag";
@@ -105,8 +94,6 @@ export const DocumentDetail = () => {
 
   const { data: doc, dataUpdatedAt, isPending, streaming } = useDocument(name, docId);
   const { data: chunks, refetch: refetchChunks } = useChunks(name, docId);
-  const { data: stats } = usePlatformStats();
-  const reprocess = useReprocessDocument(name);
   const remove = useDeleteDocument(name);
 
   useRefreshChunksWhenReady(doc?.status, refetchChunks);
@@ -124,8 +111,6 @@ export const DocumentDetail = () => {
   const progressDetail = progressDetailText(progress);
   const progressVariant = statusVariant[progress.status] ?? statusVariant[doc.status] ?? "info";
   const checkedAt = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
-  const workerAvailability = getWorkerAvailability(stats);
-  const workerOffline = workerAvailability.offline;
 
   return (
     <Page.Shell>
@@ -137,8 +122,6 @@ export const DocumentDetail = () => {
         <ArrowLeft className="h-3.5 w-3.5" /> Documents
       </Link>
 
-      <WorkerOfflineBanner availability={workerAvailability} />
-
       <Page.Header
         className="mb-0"
         eyebrow={`${doc.file_type.toUpperCase()} · ${formatBytes(doc.file_size)}`}
@@ -146,25 +129,6 @@ export const DocumentDetail = () => {
         description={`${doc.chunk_count} chunks · updated ${formatRelative(doc.updated_at)}`}
         actions={
           <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              disabled={workerOffline}
-              title={workerOffline ? workerOfflineActionMessage(workerAvailability) : undefined}
-              onClick={async () => {
-                if (workerOffline) {
-                  toast.warning(workerOfflineActionMessage(workerAvailability));
-                  return;
-                }
-                try {
-                  await reprocess.mutateAsync(docId);
-                } catch (err) {
-                  toast.error(err instanceof Error ? err.message : "Failed");
-                }
-              }}
-            >
-              <RefreshCcw className="h-4 w-4" />
-              Reprocess
-            </Button>
             <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
               <Trash2 className="h-4 w-4" />
               Delete

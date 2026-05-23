@@ -4,7 +4,6 @@ import json
 from typing import Any
 
 from bigrag.models.chat import ChatSource
-from bigrag.services.multimodal_assets import image_content_parts_for_refs
 
 
 async def _model_messages(
@@ -20,17 +19,9 @@ async def _model_messages(
     combined_system = (
         f'{system_prompt}\n\nRetrieved context from collection "{collection}":\n\n{context}'
     )
-    user_content: str | list[dict[str, Any]] = user_message
-    if multimodal:
-        refs = [
-            ref.model_dump(mode="json") for source in sources for ref in source.multimodal_elements
-        ]
-        image_parts = await image_content_parts_for_refs(refs)
-        if image_parts:
-            user_content = [{"type": "text", "text": user_message}, *image_parts]
     return [
         {"role": "system", "content": combined_system},
-        {"role": "user", "content": user_content},
+        {"role": "user", "content": user_message},
     ]
 
 

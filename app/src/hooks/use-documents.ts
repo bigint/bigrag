@@ -253,18 +253,3 @@ export const useBatchDeleteDocuments = (collection: string) => {
     onError: errorToast("Bulk delete failed"),
   });
 };
-
-export const useReprocessDocument = (collection: string) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (docId: string) =>
-      apiClient.post<{ status: string }>(
-        `v1/collections/${encodeURIComponent(collection)}/documents/${docId}/reprocess`,
-      ),
-    onSuccess: (_res, docId) => {
-      qc.invalidateQueries({ queryKey: queryKeys.documents.lists() });
-      qc.invalidateQueries({ queryKey: queryKeys.documents.one({ collection, id: docId }) });
-      toast.success("Reprocessing queued");
-    },
-  });
-};

@@ -8,7 +8,7 @@ import { Callout } from "fumadocs-ui/components/callout";
 bigRAG treats "at-rest encryption" as a split responsibility:
 
 - **App-layer envelope encryption** (handled by bigRAG) — sensitive credential columns, persistent embedding-cache rows, and Redis cache payloads are Fernet-encrypted before they ever touch disk.
-- **Storage-layer encryption** (handled by the operator) — document chunks, Turbopuffer vectors and payload attributes, uploaded files, Redis persistence, and backups still rely on the disk, managed service, or object-store encrypting its own data.
+- **Storage-layer encryption** (handled by the operator) — document chunks, Turbopuffer vectors and payload attributes, temporary ingestion staging, Redis persistence, and backups still rely on the disk, managed service, or object-store encrypting its own data.
 
 Both layers are required for a defensible "encrypted at rest" posture.
 
@@ -73,13 +73,13 @@ Redis holds the ingestion queue, the event bus, idempotency responses, and short
 - Disable RDB/AOF persistence in prod, or put the persistence directory on an encrypted volume.
 - Use TLS (`rediss://`) between bigRAG and Redis.
 
-### Stored files
+### Ingestion staging
 
-The upload directory (default `./data/uploads`) must live on an encrypted volume.
+The upload directory (default `./data/uploads`) is temporary ingestion staging. Use an encrypted local volume because active uploads remain there until ingestion reaches a terminal state.
 
 ### Readable backups
 
-Readable backups created from `/settings?tab=backups` are intentionally not client-side encrypted. They keep logs, Turbopuffer payload exports, and raw uploaded files inspectable, but redact provider keys, OAuth tokens, webhook secrets, S3 credentials, API key hashes, session hashes, and embedding-cache vectors.
+Readable backups created from `/settings?tab=backups` are intentionally not client-side encrypted. They keep logs and Turbopuffer payload exports inspectable, but redact provider keys, OAuth tokens, webhook secrets, S3 credentials, API key hashes, session hashes, and embedding-cache vectors.
 
 Protect the backup bucket with strict IAM/R2 token policy, bucket encryption, private networking where available, lifecycle retention, and access logging.
 

@@ -14,14 +14,14 @@ TERMINAL_SESSION_STATUSES = {"complete", "failed", "canceled"}
 
 
 def deleted_document_item(item: UploadSessionItem, document_status: str | None) -> bool:
-    return item.document_id is None and item.storage_key is not None and document_status is None
+    return item.document_id is None and document_status is None
 
 
 def effective_item_status(item: UploadSessionItem, document_status: str | None) -> str:
-    if deleted_document_item(item, document_status):
-        return "canceled"
     if item.status in {"failed", "canceled"}:
         return item.status
+    if deleted_document_item(item, document_status):
+        return "canceled"
     if document_status == "ready":
         return "complete"
     if document_status == "failed":

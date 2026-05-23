@@ -10,7 +10,6 @@ export const WEBHOOK_EVENT_CATEGORIES: Record<string, string[]> = {
     "collection.updated",
     "collection.deleted",
     "collection.truncated",
-    "collection.reembed.queued",
   ],
   Connectors: [
     "connector.sync.started",

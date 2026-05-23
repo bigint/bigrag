@@ -16,6 +16,7 @@ from bigrag.services.audit import start_audit_flusher, stop_audit_flusher
 from bigrag.services.conversion import get_conversion_executor, shutdown_conversion_executor
 from bigrag.services.event_bus import event_bus
 from bigrag.services.queue import ingestion_queue
+from bigrag.services.staged_files import cleanup_terminal_staged_files
 from bigrag.services.storage import init_storage_from_runtime
 from bigrag.services.vector_store import vector_store
 from bigrag.startup_guard import check_production_safety
@@ -79,6 +80,7 @@ async def lifespan(app: FastAPI):
 
     storage = await init_storage_from_runtime(upload_dir=s.upload_dir)
     app.state.storage = storage
+    await cleanup_terminal_staged_files()
 
     await redis_cache.connect(s.redis_url)
     await event_bus.connect(s.redis_url)

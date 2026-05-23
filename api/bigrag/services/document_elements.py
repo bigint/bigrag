@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass, field
-from io import BytesIO
 from typing import Any
 
 import sqlalchemy as sa
@@ -27,9 +26,6 @@ class DocumentElementPayload:
     text: str = ""
     summary: str | None = None
     caption: str | None = None
-    asset_path: str | None = None
-    asset_bytes: bytes | None = None
-    asset_media_type: str | None = None
     page_no: int | None = None
     bbox: dict | list | None = None
     char_start: int | None = None
@@ -48,14 +44,13 @@ def parsed_document_from_text(
     text: str,
     *,
     suffix: str,
-    source_asset_path: str | None = None,
     include_elements: bool = False,
 ) -> ParsedDocument:
     if not include_elements:
         return ParsedDocument(text=text, elements=[])
     return ParsedDocument(
         text=text,
-        elements=extract_text_elements(text, suffix=suffix, source_asset_path=source_asset_path),
+        elements=extract_text_elements(text, suffix=suffix),
     )
 
 
@@ -63,7 +58,6 @@ def parsed_document_from_docling_result(
     result: object,
     *,
     suffix: str,
-    source_asset_path: str | None,
     include_elements: bool,
 ) -> ParsedDocument:
     text = docling_result_text(result)
@@ -74,10 +68,9 @@ def parsed_document_from_docling_result(
         doc,
         text,
         suffix=suffix,
-        source_asset_path=source_asset_path,
     )
     if not elements:
-        elements = extract_text_elements(text, suffix=suffix, source_asset_path=source_asset_path)
+        elements = extract_text_elements(text, suffix=suffix)
     return ParsedDocument(text=text, elements=elements)
 
 
@@ -101,7 +94,6 @@ def extract_docling_elements(
     full_text: str,
     *,
     suffix: str,
-    source_asset_path: str | None,
 ) -> list[DocumentElementPayload]:
     if doc is None:
         return []
@@ -111,15 +103,9 @@ def extract_docling_elements(
     for item in items:
         kind = _docling_kind(item)
         text = _docling_item_text(item, doc)
-        classified_kind, classified_caption, classified_asset_path = _classify_text_block(text)
+        classified_kind, classified_caption = _classify_text_block(text)
         if kind in {"text", "unknown"} and classified_kind != "text":
             kind = classified_kind
-        asset_path = _docling_asset_path(item)
-        asset_bytes, asset_media_type = _docling_asset_bytes(item, doc)
-        if not asset_path:
-            asset_path = classified_asset_path
-        if kind == "image" and not asset_path and suffix in IMAGE_EXTS:
-            asset_path = source_asset_path
         if not text and kind not in {"image", "table", "equation"}:
             continue
         char_start, char_end, cursor = _find_span(full_text, text, cursor)
@@ -130,9 +116,6 @@ def extract_docling_elements(
                 kind=kind,
                 text=text,
                 caption=_caption_for(item, text) or classified_caption,
-                asset_path=asset_path,
-                asset_bytes=asset_bytes,
-                asset_media_type=asset_media_type,
                 page_no=page_no,
                 bbox=bbox,
                 char_start=char_start,
@@ -148,7 +131,6 @@ def extract_docling_elements(
                 0,
                 kind="image",
                 text=full_text[:ELEMENT_TEXT_LIMIT],
-                asset_path=source_asset_path,
                 char_start=0 if full_text else None,
                 char_end=len(full_text) if full_text else None,
                 surrounding_context=full_text[: CONTEXT_RADIUS * 2] if full_text else None,
@@ -164,7 +146,6 @@ def extract_text_elements(
     text: str,
     *,
     suffix: str,
-    source_asset_path: str | None,
 ) -> list[DocumentElementPayload]:
     elements: list[DocumentElementPayload] = []
     cursor = 0
@@ -174,7 +155,6 @@ def extract_text_elements(
                 0,
                 kind="image",
                 text=text[:ELEMENT_TEXT_LIMIT],
-                asset_path=source_asset_path,
                 char_start=0 if text else None,
                 char_end=len(text) if text else None,
                 surrounding_context=text[: CONTEXT_RADIUS * 2] if text else None,
@@ -192,16 +172,13 @@ def extract_text_elements(
         leading = len(raw_block) - len(raw_block.lstrip())
         char_start = start + leading
         char_end = char_start + len(block)
-        kind, caption, asset_path = _classify_text_block(block)
-        if asset_path is None and kind == "image" and suffix in IMAGE_EXTS:
-            asset_path = source_asset_path
+        kind, caption = _classify_text_block(block)
         elements.append(
             _element(
                 len(elements),
                 kind=kind,
                 text=block,
                 caption=caption,
-                asset_path=asset_path,
                 char_start=char_start,
                 char_end=char_end,
                 surrounding_context=_surrounding_context(text, char_start, char_end),
@@ -237,17 +214,8 @@ async def replace_document_elements(
     await session.execute(
         sa.delete(DocumentElement).where(DocumentElement.document_id == document_id)
     )
-    from bigrag.services.storage import get_storage
-
-    storage = get_storage()
-    asset_prefix = element_asset_prefix_for_file_path(document.file_path)
-    await storage.delete_prefix(asset_prefix)
     rows = []
     for index, element in enumerate(elements):
-        asset_path = element.asset_path
-        if element.asset_bytes:
-            asset_path = f"{asset_prefix}{index}{_asset_suffix(element.asset_media_type)}"
-            await storage.put(asset_path, element.asset_bytes)
         rows.append(
             DocumentElement(
                 document_id=document_id,
@@ -257,7 +225,7 @@ async def replace_document_elements(
                 text=element.text[:ELEMENT_TEXT_LIMIT],
                 summary=element.summary,
                 caption=element.caption,
-                asset_path=asset_path,
+                asset_path=None,
                 page_no=element.page_no,
                 bbox=element.bbox,
                 char_start=element.char_start,
@@ -366,59 +334,6 @@ def _docling_item_text(item: object, doc: object) -> str:
     return ""
 
 
-def _docling_asset_path(item: object) -> str | None:
-    dump = _jsonable(item)
-    if not isinstance(dump, dict):
-        return None
-    stack = [dump]
-    while stack:
-        current = stack.pop()
-        if isinstance(current, dict):
-            for key, value in current.items():
-                if key in {"uri", "path", "img_path", "image_path"} and isinstance(value, str):
-                    candidate = _stored_asset_path_candidate(value)
-                    if candidate:
-                        return candidate
-                if isinstance(value, dict | list):
-                    stack.append(value)
-        elif isinstance(current, list):
-            stack.extend(current)
-    return None
-
-
-def _docling_asset_bytes(item: object, doc: object) -> tuple[bytes | None, str | None]:
-    image = None
-    for method_name in ("get_image", "get_pil_image"):
-        method = getattr(item, method_name, None)
-        if not callable(method):
-            continue
-        for args in ((doc,), ()):
-            try:
-                image = method(*args)
-            except TypeError:
-                continue
-            except Exception:
-                image = None
-                break
-            if image is not None:
-                break
-        if image is not None:
-            break
-    if image is None:
-        image = getattr(item, "image", None)
-    if image is None:
-        return None, None
-    save = getattr(image, "save", None)
-    if callable(save):
-        buffer = BytesIO()
-        save(buffer, format="PNG")
-        return buffer.getvalue(), "image/png"
-    data = getattr(image, "data", None)
-    if isinstance(data, bytes):
-        return data, getattr(image, "mime_type", None) or "image/png"
-    return None, None
-
-
 def _docling_provenance(item: object) -> tuple[int | None, dict | list | None]:
     prov = getattr(item, "prov", None)
     if not prov:
@@ -439,26 +354,25 @@ def _caption_for(item: object, fallback: str) -> str | None:
     return None
 
 
-def _classify_text_block(block: str) -> tuple[str, str | None, str | None]:
+def _classify_text_block(block: str) -> tuple[str, str | None]:
     image = IMAGE_RE.search(block)
     if image:
-        asset_path = _stored_asset_path_candidate(image.group(2))
-        return "image", image.group(1).strip() or None, asset_path
+        return "image", image.group(1).strip() or None
     if block.startswith("#"):
-        return "heading", block.lstrip("#").strip()[:1000] or None, None
+        return "heading", block.lstrip("#").strip()[:1000] or None
     lines = [line.strip() for line in block.splitlines() if line.strip()]
     if any(
         first.count("|") >= 2 and second.count("|") >= 2
         for first, second in zip(lines, lines[1:], strict=False)
     ):
-        return "table", None, None
+        return "table", None
     if (
         MATH_BLOCK_RE.search(block)
         or _looks_like_equation(block)
         or any(_looks_like_equation(line) for line in lines)
     ):
-        return "equation", None, None
-    return "text", None, None
+        return "equation", None
+    return "text", None
 
 
 def _looks_like_equation(block: str) -> bool:
@@ -498,9 +412,6 @@ def _element(
     text: str = "",
     summary: str | None = None,
     caption: str | None = None,
-    asset_path: str | None = None,
-    asset_bytes: bytes | None = None,
-    asset_media_type: str | None = None,
     page_no: int | None = None,
     bbox: dict | list | None = None,
     char_start: int | None = None,
@@ -514,9 +425,6 @@ def _element(
         text=(text or "")[:ELEMENT_TEXT_LIMIT],
         summary=summary,
         caption=caption,
-        asset_path=asset_path,
-        asset_bytes=asset_bytes,
-        asset_media_type=asset_media_type,
         page_no=page_no,
         bbox=bbox,
         char_start=char_start,
@@ -546,25 +454,6 @@ def _enrichment_status(element: DocumentElementPayload, enrichment_enabled: bool
 def element_asset_prefix_for_file_path(file_path: str) -> str:
     stem = file_path.rsplit(".", 1)[0] if "." in file_path.rsplit("/", 1)[-1] else file_path
     return f"{stem}/elements/"
-
-
-def _asset_suffix(media_type: str | None) -> str:
-    if media_type == "image/jpeg":
-        return ".jpg"
-    if media_type == "image/webp":
-        return ".webp"
-    if media_type == "image/gif":
-        return ".gif"
-    return ".png"
-
-
-def _stored_asset_path_candidate(value: str) -> str | None:
-    candidate = value.strip()
-    if not candidate or candidate.startswith("/") or "://" in candidate:
-        return None
-    if any(part == ".." for part in candidate.split("/")):
-        return None
-    return candidate
 
 
 def _label_value(label: object) -> str:

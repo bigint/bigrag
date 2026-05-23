@@ -85,7 +85,7 @@ Create a source from an in-app browser selection:
 }
 ```
 
-New sources start an initial sync and default to daily scheduled resync. Manual syncs detect additions, updates, and remote removals. If a provider returns a successful listing and a previously synced file is missing, bigRAG deletes the document, vectors, stored file, and connector manifest row. When a synced remote still has the same provider checksum or version and the local document is not failed, the sync updates manifest metadata without downloading the file again.
+New sources start an initial sync and default to daily scheduled resync. Manual syncs detect additions, updates, and remote removals. If a provider returns a successful listing and a previously synced file is missing, bigRAG deletes the document, vectors, any remaining staged file, and connector manifest row. When a synced remote still has the same provider checksum or version and the local document is not failed, the sync updates manifest metadata without downloading the file again.
 
 Sync jobs can be filtered by `collection`, `source_id`, and `limit`. While a Google Drive job runs, `details.progress` reports Drive-sync progress only:
 
@@ -108,7 +108,7 @@ Sync jobs can be filtered by `collection`, `source_id`, and `limit`. While a Goo
 }
 ```
 
-Terminal `complete` jobs mean Drive files were scanned, downloaded or updated, remote deletions were applied, and changed documents were queued for the normal ingestion pipeline. Conversion, chunking, embedding, and indexing continue through document status progress.
+Terminal `complete` jobs mean Drive files were scanned, changed files were staged for ingestion, remote deletions were applied, and changed documents were queued for the normal ingestion pipeline. Conversion, chunking, embedding, indexing, and staged-file cleanup continue through document status progress.
 
 </Accordion>
 

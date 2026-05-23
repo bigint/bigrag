@@ -168,21 +168,20 @@ session = await client.documents.complete_upload_session("docs", session["id"])
 
 </Accordion>
 
-<Accordion title="List, get, delete, reprocess">
+<Accordion title="List, get, delete">
 
 ```python
 # List documents
 docs = await client.documents.list("docs", status="ready", limit=20)
 
-# Get, delete, reprocess
+# Get and delete
 doc = await client.documents.get("docs", "doc-id")
 await client.documents.delete("docs", "doc-id")
-await client.documents.reprocess("docs", "doc-id")
 ```
 
 </Accordion>
 
-<Accordion title="Chunks, elements, and file URL">
+<Accordion title="Chunks and elements">
 
 ```python
 # Get chunks
@@ -190,9 +189,6 @@ chunks = await client.documents.get_chunks("docs", "doc-id")
 
 # Get multimodal elements
 elements = await client.documents.get_elements("docs", "doc-id")
-
-# Get file download URL
-url = client.documents.get_file_url("docs", "doc-id")
 ```
 
 </Accordion>

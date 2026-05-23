@@ -56,9 +56,10 @@ Scopes are `resource:action` pairs. A key without `scopes` has full access; a ke
 
 ```
 collection:read          # GET /v1/collections, GET /v1/collections/{name}, stats
-collection:write         # POST, PUT, DELETE collections, reembed, truncate
-document:upload          # POST /v1/collections/{name}/documents, batch upload, reprocess
-document:read            # GET documents, chunks, download file, batch get/status, /v1/documents/{id}
+collection:write         # POST, PUT collections
+collection:delete        # DELETE collections, truncate
+document:upload          # POST /v1/collections/{name}/documents, batch upload, upload sessions
+document:read            # GET documents, chunks, elements, batch get/status, /v1/documents/{id}
 document:delete          # DELETE documents, batch delete
 query:read               # POST /query, /batch/query, /collections/{name}/query
 chat:read                # GET /v1/chat/question-suggestions

@@ -32,7 +32,7 @@ Railway templates are finalized in the Railway template composer. Use these file
 | **App** | Admin UI, public HTTP domain |
 | **Postgres 17** | Railway managed database, referenced as `Postgres` |
 | **Redis 7** | Railway managed cache and queue, referenced as `Redis` |
-| **Uploads** | Railway Bucket for uploaded source files, referenced as `Uploads` |
+| **Uploads** | Railway Bucket for temporary ingestion staging, referenced as `Uploads` |
 | **Turbopuffer** | Managed vector, keyword, and hybrid search |
 
 ## Prerequisites
@@ -81,7 +81,7 @@ Back the master key up immediately. It encrypts provider secrets, webhook secret
 
 ## Storage
 
-The template uses a Railway Bucket as S3-compatible object storage:
+The template uses a Railway Bucket as S3-compatible temporary ingestion staging:
 
 ```bash
 BIGRAG_STORAGE_BACKEND=s3
@@ -92,7 +92,7 @@ BIGRAG_STORAGE_S3_ACCESS_KEY_ID=${{Uploads.ACCESS_KEY_ID}}
 BIGRAG_STORAGE_S3_SECRET_ACCESS_KEY=${{Uploads.SECRET_ACCESS_KEY}}
 ```
 
-Do not use local upload volumes for the split Railway template. API and worker services need to read the same uploaded files, so object storage is the durable shared boundary.
+Do not use local upload volumes for the split Railway template. API and worker services need to read the same staged files while ingestion is active, so object storage is the shared temporary boundary. Staged originals are deleted after terminal processing, cancellation, or document deletion.
 
 ## First run
 
@@ -135,7 +135,7 @@ Check the `Worker` logs and confirm `/v1/stats` shows a recent worker heartbeat.
 
 </Accordion>
 
-<Accordion title="Uploads fail or files cannot be reprocessed">
+<Accordion title="Uploads fail before ingestion starts">
 
 Confirm the `Uploads` bucket service exists and the API and worker variables still reference `${{Uploads.BUCKET}}`, `${{Uploads.ENDPOINT}}`, `${{Uploads.ACCESS_KEY_ID}}`, and `${{Uploads.SECRET_ACCESS_KEY}}`.
 

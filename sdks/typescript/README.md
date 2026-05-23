@@ -53,8 +53,8 @@ while (current.status === "pending" || current.status === "processing") {
 
 ## Namespaces
 
-- `client.collections` for collection CRUD, stats, re-embedding, analytics, event tokens, and event streams.
-- `client.documents` for uploads, batch operations, file URLs, and status polling.
+- `client.collections` for collection CRUD, stats, analytics, event tokens, and event streams.
+- `client.documents` for uploads, batch operations, chunks, elements, and status polling.
 - `client.queries` for single, multi-collection, and batch retrieval queries.
 - `client.chat` for generated answers, question suggestions, and streaming.
 - `client.vectors` for raw vector upsert and delete.

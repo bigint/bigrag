@@ -116,19 +116,5 @@ class LocalStorage(StorageBackend):
         path = self._safe_path(key)
         return await asyncio.to_thread(path.exists)
 
-    async def write_to_path(self, key: str, path: Path) -> int:
-        source = self._safe_path(key)
-
-        def _copy() -> int:
-            if not source.exists():
-                raise FileNotFoundError(f"File not found: {key}")
-            path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, path)
-            return path.stat().st_size
-
-        size = await asyncio.to_thread(_copy)
-        logger.info(f"local write_to_path: key={key} size={size}")
-        return size
-
     async def close(self) -> None:
         pass

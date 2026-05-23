@@ -14,7 +14,7 @@ bigRAG uses four distinct stores, each with a specific role, wired together thro
 | **Turbopuffer** | Dense embeddings, chunk text, payload metadata, BM25 full-text search, filtered semantic search, collection namespaces |
 | **Postgres** | Metadata and control plane: collections, documents, users, API keys, webhooks, query logs, audit trail, embedding cache. Transactions keep ingestion consistent across stores. |
 | **Redis** | Dramatiq broker for ingestion, connector, webhook, backup, and maintenance actors; processing leases, cancellation epochs, idempotency-key cache, auth/collection/query hot-path caches, batched document-progress lookups, short-lived platform/health caches |
-| **Local disk** | Raw uploaded documents. Required for citations back into source files and for re-embedding without re-uploading. |
+| **Local disk** | Temporary ingestion staging shared by the API and worker. Staged originals are deleted after successful processing, final failure, cancellation, or document deletion. |
 
 <Callout type="info">
 Postgres and Redis run locally via `docker compose up`. Turbopuffer is the managed vector and full-text search backend.

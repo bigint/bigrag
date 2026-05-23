@@ -8,15 +8,11 @@ import sqlalchemy as sa
 
 from bigrag.db.base import Base
 from bigrag.db.engine import session_factory
-from bigrag.db.models import Collection, Document, DocumentElement, EmbeddingCache
-from bigrag.logging import get_logger
-from bigrag.services.storage import get_storage
+from bigrag.db.models import Collection, EmbeddingCache
 from bigrag.services.vector_store import vector_store
 
 from .constants import _SENSITIVE_COLUMN_NAMES, REDACTED
 from .filesystem import _readable_value, _write_json
-
-logger = get_logger("bigrag.backup")
 
 
 async def _export_tables(temp_dir: Path) -> dict[str, int]:
@@ -108,36 +104,3 @@ def _point_payload(point: Any) -> dict[str, Any]:
         "payload": _readable_value(getattr(point, "payload", {}) or {}),
         "vector": REDACTED,
     }
-
-
-async def _export_uploads(temp_dir: Path) -> int:
-    storage = get_storage()
-    async with session_factory()() as session:
-        document_paths = (
-            await session.scalars(
-                sa.select(Document.file_path)
-                .where(Document.file_path != "")
-                .order_by(Document.collection_id.asc(), Document.id.asc())
-            )
-        ).all()
-        asset_paths = (
-            await session.scalars(
-                sa.select(DocumentElement.asset_path)
-                .where(DocumentElement.asset_path.is_not(None))
-                .order_by(DocumentElement.collection_id.asc(), DocumentElement.document_id.asc())
-            )
-        ).all()
-        paths = sorted({path for path in [*document_paths, *asset_paths] if path})
-        count = 0
-        for file_path in paths:
-            rel = Path(file_path)
-            if rel.is_absolute() or ".." in rel.parts:
-                raise ValueError(f"unsafe document file_path: {file_path}")
-            target = temp_dir / "uploads" / rel
-            try:
-                await storage.write_to_path(file_path, target)
-            except FileNotFoundError:
-                logger.warning("backup: missing upload", file_path=file_path)
-                continue
-            count += 1
-    return count

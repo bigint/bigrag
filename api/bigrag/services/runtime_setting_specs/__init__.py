@@ -8,7 +8,6 @@ from bigrag.services.runtime_setting_specs.queue import QUEUE_SPECS
 from bigrag.services.runtime_setting_specs.retention import RETENTION_SPECS
 from bigrag.services.runtime_setting_specs.search import SEARCH_SPECS
 from bigrag.services.runtime_setting_specs.security import SECURITY_SPECS
-from bigrag.services.runtime_setting_specs.storage import STORAGE_SPECS
 from bigrag.services.runtime_setting_specs.vector_store import VECTOR_STORE_SPECS
 from bigrag.services.runtime_setting_specs.webhooks import WEBHOOKS_SPECS
 
@@ -16,7 +15,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
     *SECURITY_SPECS,
     *INGESTION_SPECS,
     *QUEUE_SPECS,
-    *STORAGE_SPECS,
     *BACKUPS_SPECS,
     *VECTOR_STORE_SPECS,
     *SEARCH_SPECS,

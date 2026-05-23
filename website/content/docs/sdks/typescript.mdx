@@ -96,7 +96,6 @@ client.collections.update(name, {
 })
 client.collections.delete(name)
 client.collections.truncate(name)        // delete all documents, keep the collection
-client.collections.reembed(name)         // requeue ready/failed documents
 client.collections.analytics(name)
 client.collections.createEventToken(name)
 client.collections.streamEvents(name, { token? })    // AsyncIterable of collection events (SSE)
@@ -115,10 +114,8 @@ client.documents.list(collection, { q?, status?, sort?, order?, limit?, offset? 
 client.documents.listAll(collection, { q?, status?, sort?, order?, limit? })  // AsyncGenerator
 client.documents.get(collection, documentId)
 client.documents.delete(collection, documentId)
-client.documents.reprocess(collection, documentId)
 client.documents.getChunks(collection, documentId, { limit?, offset? }?)
 client.documents.getElements(collection, documentId, { limit?, offset? }?)
-client.documents.getFileUrl(collection, documentId)         // returns URL string
 ```
 
 File uploads accept `File`, `Blob`, `Buffer`, `Uint8Array`, or `{ path: string; name?: string }`.

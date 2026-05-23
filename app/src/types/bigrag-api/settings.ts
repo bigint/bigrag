@@ -11,7 +11,6 @@ type InstanceSettingKind =
 export type InstanceSettingGroup =
   | "security"
   | "ingestion"
-  | "storage"
   | "vector_store"
   | "queue"
   | "search"

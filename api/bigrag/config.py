@@ -70,14 +70,6 @@ class Settings(BaseSettings):
     allow_private_chat_base_urls: bool = False
 
     upload_dir: str = "./data/uploads"
-    storage_backend: Literal["local", "s3"] = "local"
-    storage_s3_bucket: str = ""
-    storage_s3_endpoint_url: str | None = None
-    storage_s3_region: str = "us-east-1"
-    storage_s3_prefix: str = ""
-    storage_s3_access_key_id: str | None = None
-    storage_s3_secret_access_key: str | None = None
-    storage_s3_force_path_style: bool = False
     backup_s3_bucket: str = ""
     backup_s3_endpoint_url: str | None = None
     backup_s3_region: str = "us-east-1"

@@ -11,7 +11,6 @@ WebhookEvent = Literal[
     "collection.updated",
     "collection.deleted",
     "collection.truncated",
-    "collection.reembed.queued",
     "connector.sync.started",
     "connector.sync.completed",
     "connector.sync.failed",

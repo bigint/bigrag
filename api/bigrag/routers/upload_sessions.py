@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import UploadSession
+from bigrag.db.models import Document, UploadSession
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
@@ -35,6 +35,7 @@ from bigrag.services import audit
 from bigrag.services.documents import prepare_document_metadata
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import get_values
+from bigrag.services.staged_files import delete_staged_file_path
 
 logger = get_logger("bigrag.routers.upload_sessions")
 
@@ -164,10 +165,23 @@ async def cancel_upload_session(
     document_ids = [str(item.document_id) for item, _status, _error in rows if item.document_id]
     if document_ids:
         await ingestion_queue.cancel_documents(document_ids)
+    pending_document_ids = {
+        item.document_id
+        for item, status, _error in rows
+        if item.document_id and _effective_item_status(item, status) == "queued"
+    }
+    for document_id in pending_document_ids:
+        doc = await db.get(Document, document_id)
+        if doc is not None and doc.status == "pending":
+            if await delete_staged_file_path(doc.file_path):
+                doc.file_path = ""
+            doc.status = "failed"
+            doc.error_message = "Upload session canceled"
     for item, status, _error in rows:
         if _effective_item_status(item, status) in {"queued", "ingesting"}:
             item.status = "canceled"
             item.error_message = "Upload session canceled"
+            item.storage_key = None
     upload_session.status = "canceled"
     upload_session.closed_at = upload_session.closed_at or datetime.now(UTC)
     await db.commit()

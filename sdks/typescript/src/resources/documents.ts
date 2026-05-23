@@ -154,13 +154,6 @@ export class DocumentsResource {
     );
   }
 
-  reprocess(collection: string, documentId: string): Promise<StatusResponse> {
-    return this._client._request(
-      "POST",
-      `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/reprocess`,
-    );
-  }
-
   getChunks(
     collection: string,
     documentId: string,
@@ -189,11 +182,6 @@ export class DocumentsResource {
       `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/elements`,
       { params },
     );
-  }
-
-  getFileUrl(collection: string, documentId: string): string {
-    const path = `/v1/collections/${encodeURIComponent(collection)}/documents/${encodeURIComponent(documentId)}/file`;
-    return `${this._client.baseUrl}${path}`;
   }
 
   batchGetStatus(collection: string, documentIds: string[]): Promise<BatchStatusResponse> {

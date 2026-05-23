@@ -83,7 +83,7 @@ POST /v1/chat
 
 Non-streaming responses include the current user message, current assistant message, sources, and timings.
 
-Set `multimodal: true` to include retrieved image content for vision-capable models when the collection has `multimodal_enabled`. If no image payload can be sent, chat falls back to stored element text, captions, or generated summaries. Source objects include `multimodal_elements` hydrated from the retrieved chunk's own document inside the requested collection.
+Set `multimodal: true` to include retrieved element text, captions, and generated summaries when the collection has `multimodal_enabled`. Source objects include `multimodal_elements` hydrated from the retrieved chunk's own document inside the requested collection. bigRAG does not retain binary image payloads after ingestion staging cleanup.
 
 When `search_mode` is `semantic` and the message contains identifier-like tokens such as UUIDs, chat uses hybrid retrieval for that turn so exact IDs and error codes are matched lexically. The response retrieval payload includes both `requested_search_mode` and the effective `search_mode`. If the message names a document UUID in the selected collection, the source list can include a metadata-only source for that document.
 

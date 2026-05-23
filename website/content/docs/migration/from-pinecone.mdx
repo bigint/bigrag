@@ -73,7 +73,7 @@ asyncio.run(main())
 
 **Lift and shift** — the script above copies vectors as-is. Fastest, keeps existing retrieval quality identical. Good when you're just moving off Pinecone's hosting cost.
 
-**Re-ingest from source** — upload the original documents through `POST /v1/collections/{name}/documents`. Slower (you pay the embedding bill again) but unlocks features Pinecone doesn't have: citation provenance (`page_no`, `char_start`), chunk-level re-embedding, the persistent embedding cache, Docling-parsed tables and images. Recommended if you're in the middle of a chunking rethink anyway.
+**Re-ingest from source** — upload the original documents through `POST /v1/collections/{name}/documents`. Slower (you pay the embedding bill again) but unlocks features Pinecone doesn't have: citation provenance (`page_no`, `char_start`), the persistent embedding cache, and Docling-parsed tables and images. Recommended if you're in the middle of a chunking rethink anyway.
 
 ## API differences to watch
 

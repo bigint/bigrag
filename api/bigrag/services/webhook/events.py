@@ -19,7 +19,6 @@ COLLECTION_EVENTS = frozenset(
         "collection.updated",
         "collection.deleted",
         "collection.truncated",
-        "collection.reembed.queued",
     }
 )
 

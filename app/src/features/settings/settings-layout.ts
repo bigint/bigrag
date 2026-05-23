@@ -121,25 +121,6 @@ const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupLayout> 
     recommendedAction: "Keep outbound provider access narrow before widening network policy.",
     title: "Security posture",
   },
-  storage: {
-    commonKeys: [
-      "storage_backend",
-      "storage_s3_bucket",
-      "storage_s3_endpoint_url",
-      "storage_s3_region",
-      "storage_s3_prefix",
-      "storage_s3_access_key_id",
-      "storage_s3_secret_access_key",
-      "storage_s3_force_path_style",
-    ],
-    description: "Where uploaded source files are stored and retrieved.",
-    emptyState: "Storage settings are not available from this API.",
-    eyebrow: "Files",
-    group: "storage",
-    recommendedAction:
-      "Choose local storage for development and S3-compatible storage for production.",
-    title: "File storage",
-  },
   vector_store: {
     commonKeys: ["turbopuffer_api_key", "turbopuffer_region", "turbopuffer_namespace_prefix"],
     description: "Turbopuffer connection details and provider credentials.",
@@ -194,7 +175,7 @@ export const settingsRecommendedAction = (
   layout: SettingsGroupLayout,
   summary: SettingsStatusSummary,
 ): string => {
-  if (summary.missingSecrets > 0 && (layout.group === "backups" || layout.group === "storage")) {
+  if (summary.missingSecrets > 0 && layout.group === "backups") {
     return "Add the missing credentials, then save the connection.";
   }
   return layout.recommendedAction;

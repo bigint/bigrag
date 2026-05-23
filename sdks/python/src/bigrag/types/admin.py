@@ -18,7 +18,6 @@ InstanceSettingKind = Literal[
 InstanceSettingGroup = Literal[
     "security",
     "ingestion",
-    "storage",
     "vector_store",
     "queue",
     "search",

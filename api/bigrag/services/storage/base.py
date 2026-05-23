@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
-from pathlib import Path
 from typing import BinaryIO
 
 
@@ -27,9 +26,6 @@ class StorageBackend(ABC):
 
     @abstractmethod
     async def exists(self, key: str) -> bool: ...
-
-    @abstractmethod
-    async def write_to_path(self, key: str, path: Path) -> int: ...
 
     @abstractmethod
     async def close(self) -> None: ...

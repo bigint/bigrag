@@ -75,11 +75,6 @@ class CollectionsResource:
             "POST", f"/v1/collections/{quote(name, safe='')}/truncate"
         )
 
-    async def reembed(self, name: str) -> StatusResponse:
-        return await self._client._request(
-            "POST", f"/v1/collections/{quote(name, safe='')}/reembed"
-        )
-
     async def create_event_token(self, name: str) -> CollectionEventTokenResponse:
         return await self._client._request(
             "POST", f"/v1/collections/{quote(name, safe='')}/events/token"

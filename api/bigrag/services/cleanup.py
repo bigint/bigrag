@@ -7,6 +7,7 @@ from bigrag.db.models import AccessLog, QueryLog, UploadSession, WebhookDelivery
 from bigrag.logging import get_logger
 from bigrag.services import embedding_cache
 from bigrag.services.runtime_settings import get_values
+from bigrag.services.staged_files import cleanup_terminal_staged_files
 
 logger = get_logger("bigrag.cleanup")
 
@@ -59,3 +60,5 @@ async def cleanup_old_data_once() -> None:
         int(retention["embedding_cache_retention_days"])
     )
     logger.info("embedding_cache cleanup", deleted=purged_embeddings)
+    cleaned_staged_files = await cleanup_terminal_staged_files()
+    logger.info("staged_files cleanup", deleted=cleaned_staged_files)

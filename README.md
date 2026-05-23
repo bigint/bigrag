@@ -102,8 +102,8 @@ graph TD
     API --> Chat[Chat]
     API --> Webhooks[Webhooks]
 
-    Documents -->|store files| Storage[(Storage<br/>Local disk)]
-    Documents -->|sync source files| Drive[Google Drive<br/>OAuth + in-app browser]
+    Documents -->|stage ingestion files| Storage[(Temporary staging<br/>Local disk)]
+    Documents -->|sync selected files| Drive[Google Drive<br/>OAuth + in-app browser]
     Documents -->|enqueue| Redis[(Redis<br/>Job queue + event bus)]
     Redis -->|process| Worker[Ingestion worker]
 
@@ -147,7 +147,6 @@ graph TD
 | `PUT` | `/v1/collections/{name}` | Update collection |
 | `DELETE` | `/v1/collections/{name}` | Delete collection |
 | `GET` | `/v1/collections/{name}/stats` | Collection stats |
-| `POST` | `/v1/collections/{name}/reembed` | Re-embed all documents with a new model |
 | `POST` | `/v1/collections/{name}/truncate` | Delete all documents, keep the collection |
 | `GET` | `/v1/collections/{name}/events` | Stream collection events (SSE) |
 | **Documents** | | |
@@ -155,9 +154,7 @@ graph TD
 | `GET` | `/v1/collections/{name}/documents` | List documents |
 | `GET` | `/v1/collections/{name}/documents/{id}` | Get document |
 | `DELETE` | `/v1/collections/{name}/documents/{id}` | Delete document |
-| `POST` | `/v1/collections/{name}/documents/{id}/reprocess` | Reprocess document |
 | `GET` | `/v1/collections/{name}/documents/{id}/chunks` | Get document chunks |
-| `GET` | `/v1/collections/{name}/documents/{id}/file` | Download original file |
 | `POST` | `/v1/collections/{name}/documents/batch/upload` | Batch upload (up to 100) |
 | `POST` | `/v1/collections/{name}/documents/batch/status` | Batch status check |
 | `POST` | `/v1/collections/{name}/documents/batch/get` | Batch get documents |
