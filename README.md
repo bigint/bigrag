@@ -379,7 +379,7 @@ Bootstrap settings use the `BIGRAG_` prefix as environment variables, or configu
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BIGRAG_UPLOAD_DIR` | Local upload directory | `./data/uploads` |
+| `BIGRAG_UPLOAD_DIR` | Local ingestion staging directory | `./data/uploads` |
 | `BIGRAG_INGESTION_WORKERS` | Ingestion concurrency target | `4` |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max single-file upload size | `64` |
 | `BIGRAG_MAX_BATCH_UPLOAD_SIZE_MB` | Max total batch-upload size | `128` |
