@@ -7,7 +7,7 @@ import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
 import type { S3Source, S3SourceList, S3SyncJob, S3SyncJobList } from "@/types/bigrag";
 
-export type CreateS3SourceBody = {
+type CreateS3SourceBody = {
   collection_name: string;
   bucket: string;
   prefix?: string;
@@ -22,7 +22,7 @@ export type CreateS3SourceBody = {
   metadata?: Record<string, unknown>;
 };
 
-export type UpdateS3SourceBody = {
+type UpdateS3SourceBody = {
   bucket?: string | null;
   prefix?: string | null;
   region?: string | null;

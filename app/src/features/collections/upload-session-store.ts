@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { type PersistStorage, persist, type StorageValue } from "zustand/middleware";
 
-export type UploadSessionStoreState = {
+type UploadSessionStoreState = {
   activeSessionIds: Record<string, string>;
   clearActiveSessionId: (collection: string) => void;
   setActiveSessionId: (collection: string, sessionId: string) => void;
