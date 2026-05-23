@@ -22,6 +22,7 @@ import {
 } from "@/features/collections/s3-connector-utils";
 import {
   defaultS3SourceFormValues,
+  isCloudflareR2Endpoint,
   s3SourcePayload,
   validateS3SourceFormValues,
 } from "@/features/collections/s3-source-form-state";
@@ -117,6 +118,12 @@ const S3SourceForm = ({
   });
   const values = useStore(form.store, (state) => state.values);
   const submitError = useStore(form.store, (state) => firstString(state.errors));
+  const setEndpointUrl = (endpointUrl: string) => {
+    form.setFieldValue("endpointUrl", endpointUrl);
+    if (isCloudflareR2Endpoint(endpointUrl)) {
+      form.setFieldValue("region", "auto");
+    }
+  };
 
   return (
     <section className="min-w-0 overflow-hidden rounded-sm border border-border bg-card">
@@ -163,14 +170,14 @@ const S3SourceForm = ({
             value={values.prefix}
           />
           <Input
-            label="Region"
+            label="Signing region"
             onChange={(event) => form.setFieldValue("region", event.target.value)}
-            placeholder="us-east-1"
+            placeholder="us-east-1 or auto"
             value={values.region}
           />
           <Input
             label="Endpoint URL"
-            onChange={(event) => form.setFieldValue("endpointUrl", event.target.value)}
+            onChange={(event) => setEndpointUrl(event.target.value)}
             placeholder="https://account-id.r2.cloudflarestorage.com"
             value={values.endpointUrl}
           />

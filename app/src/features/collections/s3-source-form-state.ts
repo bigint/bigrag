@@ -11,6 +11,21 @@ export type S3SourceFormValues = {
   syncIntervalHours: string;
 };
 
+export const isCloudflareR2Endpoint = (endpointUrl: string): boolean => {
+  const value = endpointUrl.trim();
+  if (!value) return false;
+  try {
+    const parsed = new URL(value.includes("://") ? value : `https://${value}`);
+    const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+    return host === "r2.cloudflarestorage.com" || host.endsWith(".r2.cloudflarestorage.com");
+  } catch {
+    return value.toLowerCase().includes("r2.cloudflarestorage.com");
+  }
+};
+
+export const normalizedS3SourceRegion = (region: string, endpointUrl: string) =>
+  isCloudflareR2Endpoint(endpointUrl) ? "auto" : region.trim() || "us-east-1";
+
 export const defaultS3SourceFormValues = (): S3SourceFormValues => ({
   accessKeyId: "",
   bucket: "",
@@ -27,11 +42,9 @@ export const defaultS3SourceFormValues = (): S3SourceFormValues => ({
 export const validateS3SourceFormValues = ({
   accessKeyId,
   bucket,
-  region,
   secretAccessKey,
 }: S3SourceFormValues): string | undefined => {
   if (!bucket.trim()) return "Bucket is required";
-  if (!region.trim()) return "Region is required";
   if (!accessKeyId.trim()) return "Access key ID is required";
   if (!secretAccessKey.trim()) return "Secret access key is required";
   return undefined;
@@ -54,7 +67,7 @@ export const s3SourcePayload = ({
   endpoint_url: endpointUrl.trim() || null,
   force_path_style: forcePathStyle,
   prefix: prefix.trim(),
-  region: region.trim(),
+  region: normalizedS3SourceRegion(region, endpointUrl),
   schedule_enabled: scheduleEnabled,
   secret_access_key: secretAccessKey.trim(),
   session_token: sessionToken.trim() || null,

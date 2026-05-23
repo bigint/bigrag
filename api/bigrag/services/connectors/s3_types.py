@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlsplit
 
 from bigrag.db.models import ConnectorSource
 from bigrag.services.connectors.types import RemoteConnectorFile
 
 S3_PROVIDER = "s3"
 S3_DEFAULT_REGION = "us-east-1"
+S3_R2_REGION = "auto"
 
 
 class S3ConnectorError(RuntimeError):
@@ -15,6 +17,24 @@ class S3ConnectorError(RuntimeError):
 
 def clean_s3_prefix(prefix: str | None) -> str:
     return str(prefix or "").strip().lstrip("/")
+
+
+def is_cloudflare_r2_endpoint(endpoint_url: str | None) -> bool:
+    if not endpoint_url:
+        return False
+    value = endpoint_url.strip()
+    if not value:
+        return False
+    parsed = urlsplit(value if "://" in value else f"https://{value}")
+    host = (parsed.hostname or "").lower().rstrip(".")
+    return host == "r2.cloudflarestorage.com" or host.endswith(".r2.cloudflarestorage.com")
+
+
+def normalize_s3_region(region: str | None, endpoint_url: str | None) -> str:
+    if is_cloudflare_r2_endpoint(endpoint_url):
+        return S3_R2_REGION
+    value = str(region or S3_DEFAULT_REGION).strip()
+    return value or S3_DEFAULT_REGION
 
 
 def s3_root_id(bucket: str, prefix: str) -> str:
@@ -51,13 +71,14 @@ def source_s3_config(source: ConnectorSource) -> dict[str, Any]:
     config = dict((source.meta or {}).get("s3") or {})
     bucket = str(config.get("bucket") or "").strip()
     prefix = clean_s3_prefix(config.get("prefix"))
+    endpoint_url = config.get("endpoint_url") or None
     if not bucket:
         raise S3ConnectorError("S3 bucket is required")
     return {
         "bucket": bucket,
         "prefix": prefix,
-        "region": str(config.get("region") or S3_DEFAULT_REGION).strip() or S3_DEFAULT_REGION,
-        "endpoint_url": config.get("endpoint_url") or None,
+        "region": normalize_s3_region(config.get("region"), endpoint_url),
+        "endpoint_url": endpoint_url,
         "force_path_style": bool(config.get("force_path_style")),
     }
 

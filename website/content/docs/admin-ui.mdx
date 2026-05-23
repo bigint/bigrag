@@ -58,7 +58,7 @@ The sidebar is grouped by operator task: Workspace, Interfaces, Observability, a
 
 The `/models` page owns reusable embedding presets and runtime model settings. `/models` opens embedding presets by default; `/models?tab=settings` opens fallback embedding, retrieval, and chat settings; `/models?tab=settings&group=search` and `/models?tab=settings&group=chat` focus one model settings panel.
 
-The `/connectors` page lists configured S3/R2 sources across collections. Collection connector pages own source creation, per-source credentials, schedule changes, manual sync, source deletion, and sync-job progress through `/v1/connectors/s3/*`.
+The `/connectors` page lists configured S3/R2 sources across collections. Collection connector pages own source creation, per-source credentials, schedule changes, manual sync, source deletion, and sync-job progress through `/v1/connectors/s3/*`. Cloudflare R2 endpoint URLs set the connector signing region to `auto`.
 
 The Settings Backups tab renders backup destination settings directly above export controls backed by `GET /v1/admin/backups`, the `admin.backups` realtime topic, and `POST /v1/admin/backups`. Backup starts are disabled when the worker heartbeat is offline or no bucket is configured.
 

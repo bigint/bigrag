@@ -25,7 +25,7 @@ class CreateS3SourceBody(TypedDict):
     access_key_id: str
     secret_access_key: str
     prefix: NotRequired[str]
-    region: NotRequired[str]
+    region: NotRequired[str | None]
     endpoint_url: NotRequired[str | None]
     force_path_style: NotRequired[bool]
     session_token: NotRequired[str | None]

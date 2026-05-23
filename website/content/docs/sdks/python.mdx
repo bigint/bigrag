@@ -78,6 +78,8 @@ The client reads `BIGRAG_API_KEY` from the environment if `api_key` is not passe
 
 S3 sync jobs support `collection`, `source_id`, and `limit` filters. Running jobs include `details["progress"]` with sync phase, percent, current item, and created/updated/skipped/deleted/failed counts.
 
+For Cloudflare R2, set `endpoint_url` to the R2 S3 API endpoint and omit `region` or use `auto`.
+
 ## Collections
 
 ```python

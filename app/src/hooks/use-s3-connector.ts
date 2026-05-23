@@ -11,7 +11,7 @@ type CreateS3SourceBody = {
   collection_name: string;
   bucket: string;
   prefix?: string;
-  region?: string;
+  region?: string | null;
   endpoint_url?: string | null;
   force_path_style?: boolean;
   access_key_id: string;

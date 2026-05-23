@@ -348,6 +348,8 @@ client.connectors.s3.syncSource(sourceId)
 client.connectors.s3.syncJobs({ collection?, sourceId?, limit? })
 ```
 
+For Cloudflare R2, set `endpoint_url` to the R2 S3 API endpoint and omit `region` or use `auto`.
+
 ## Evaluations
 
 ```typescript
