@@ -161,7 +161,7 @@ const SourceRow = ({
           {source.last_sync_at && <span>last {formatRelative(source.last_sync_at)}</span>}
         </div>
       </div>
-      <div className="min-w-0 text-xs text-muted-foreground">
+      <div className="min-w-0 truncate text-xs text-muted-foreground">
         {progress ? syncProgressLabel(progress) : "No sync job yet"}
       </div>
       <div className="flex items-center gap-1">

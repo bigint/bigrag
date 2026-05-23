@@ -306,8 +306,13 @@ const SyncJobBody = ({ job }: { job: S3SyncJob }) => {
     <div className="flex flex-col gap-4 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-semibold">{syncProgressLabel(progress)}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{syncCountLabel(progress)}</div>
+          <div className="truncate text-sm font-semibold">{progress.message}</div>
+          <div
+            className="mt-1 truncate text-xs text-muted-foreground"
+            title={progress.current_item_name ?? undefined}
+          >
+            {progress.current_item_name ?? syncCountLabel(progress)}
+          </div>
         </div>
         <Badge dot variant={jobStatusVariant[job.status]}>
           {job.status}
