@@ -28,10 +28,6 @@ def _is_trusted(addr: str) -> bool:
     return any(ip in net for net in _trusted_networks())
 
 
-def is_trusted_proxy(addr: str | None) -> bool:
-    return _is_trusted(addr) if addr else False
-
-
 def _resolve(immediate: str | None, forwarded: str | None) -> str | None:
     if immediate is None:
         return None

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from collections import OrderedDict
-from collections.abc import AsyncIterator
 
 import redis.asyncio as aioredis
 
@@ -257,17 +256,6 @@ class EventBus:
             if document_id not in events and document_id in self._latest:
                 events[document_id] = self._latest[document_id]
         return events
-
-    async def stream(self, document_id: str) -> AsyncIterator[IngestionEvent]:
-        q = self.subscribe(document_id)
-        try:
-            while True:
-                event = await q.get()
-                if event is None:
-                    break
-                yield event
-        finally:
-            self.unsubscribe(document_id, q)
 
 
 event_bus = EventBus()

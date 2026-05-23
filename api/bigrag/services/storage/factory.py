@@ -26,7 +26,3 @@ def init_storage(upload_dir: str = "./data/uploads") -> StorageBackend:
 
 async def init_storage_from_runtime(upload_dir: str = "./data/uploads") -> StorageBackend:
     return init_storage(upload_dir)
-
-
-def init_storage_from_values(upload_dir: str, _values: dict[str, object]) -> StorageBackend:
-    return init_storage(upload_dir)

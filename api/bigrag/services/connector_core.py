@@ -34,7 +34,7 @@ from bigrag.services.connectors.sync import (
     sync_downloaded_file,
     update_manifest,
 )
-from bigrag.services.connectors.time import next_sync_at, parse_dt, utcnow
+from bigrag.services.connectors.time import next_sync_at, utcnow
 from bigrag.services.connectors.types import (
     ConnectorError,
     ConnectorNotFoundError,
@@ -65,7 +65,6 @@ __all__ = [
     "manifest_for_download",
     "manifest_unchanged",
     "next_sync_at",
-    "parse_dt",
     "remote_signature",
     "run_due_syncs",
     "source_by_id",

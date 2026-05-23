@@ -14,13 +14,6 @@ PDF_OCR_PROGRESS_START = 0.16
 PDF_OCR_PROGRESS_END = 0.35
 
 
-def docling_result_text(result) -> str:
-    text = result.document.export_to_markdown()
-    if not text.strip():
-        text = result.document.export_to_text()
-    return text
-
-
 async def ocr_scanned_pdf(
     *,
     tmp_path: str,

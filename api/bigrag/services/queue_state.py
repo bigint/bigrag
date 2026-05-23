@@ -170,9 +170,3 @@ async def queue_stats(redis) -> dict:
         "leased_processing": leased_processing,
         "stale_processing": stale_processing,
     }
-
-
-def time_seconds() -> float:
-    import time
-
-    return time.time()
