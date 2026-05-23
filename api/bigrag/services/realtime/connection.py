@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
-from fastapi import WebSocket
+from fastapi import HTTPException, WebSocket
 from starlette.websockets import WebSocketDisconnect
 
 from bigrag.services.error_sanitize import sanitize_message_text
@@ -17,13 +18,18 @@ from bigrag.services.realtime.specs import (
     EventTopic,
     RealtimeTopic,
     SnapshotTopic,
+    TopicError,
 )
 from bigrag.services.realtime.topics import (
     resolve_topic,
     topic_error_message,
 )
 
+logger = logging.getLogger(__name__)
+
 HEARTBEAT_SECONDS = 30.0
+SEND_TIMEOUT_SECONDS = 30.0
+MAX_MESSAGE_BYTES = 64 * 1024
 
 SendMessage = Callable[[dict[str, Any]], Awaitable[None]]
 
@@ -41,43 +47,72 @@ class RealtimeConnection:
         self.principal = principal
         self.outgoing: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue(maxsize=1024)
         self.subscriptions: dict[str, Subscription] = {}
+        self._closed = asyncio.Event()
 
     async def run(self) -> None:
         writer = asyncio.create_task(self._write_loop())
         heartbeat = asyncio.create_task(self._heartbeat_loop())
+        closed = asyncio.create_task(self._closed.wait())
         try:
-            while True:
-                raw = await self.websocket.receive_text()
+            while not self._closed.is_set():
+                receive = asyncio.create_task(self.websocket.receive_text())
+                done, _ = await asyncio.wait({receive, closed}, return_when=asyncio.FIRST_COMPLETED)
+                if receive not in done:
+                    receive.cancel()
+                    break
+                try:
+                    raw = receive.result()
+                except WebSocketDisconnect:
+                    break
+                except Exception as exc:
+                    logger.debug("realtime receive failed: %s", exc)
+                    break
                 await self._handle_raw(raw)
-        except WebSocketDisconnect:
-            pass
         finally:
+            closed.cancel()
             await self.close()
             heartbeat.cancel()
             writer.cancel()
-            await asyncio.gather(heartbeat, writer, return_exceptions=True)
+            await asyncio.gather(heartbeat, writer, closed, return_exceptions=True)
 
     async def close(self) -> None:
+        self._closed.set()
         for subscription_id in list(self.subscriptions):
             await self.unsubscribe(subscription_id, notify=False)
         await self.outgoing.put(None)
 
     async def send(self, message: dict[str, Any]) -> None:
-        await self.outgoing.put(message)
+        if self._closed.is_set():
+            return
+        try:
+            await asyncio.wait_for(self.outgoing.put(message), timeout=SEND_TIMEOUT_SECONDS)
+        except TimeoutError:
+            self._closed.set()
 
     async def _write_loop(self) -> None:
         while True:
             message = await self.outgoing.get()
             if message is None:
                 return
-            await self.websocket.send_json(messages.encode_message(message))
+            try:
+                await asyncio.wait_for(
+                    self.websocket.send_json(messages.encode_message(message)),
+                    timeout=SEND_TIMEOUT_SECONDS,
+                )
+            except (WebSocketDisconnect, RuntimeError, TimeoutError) as exc:
+                logger.debug("realtime write failed: %s", exc)
+                self._closed.set()
+                return
 
     async def _heartbeat_loop(self) -> None:
-        while True:
+        while not self._closed.is_set():
             await asyncio.sleep(HEARTBEAT_SECONDS)
             await self.send(messages.heartbeat())
 
     async def _handle_raw(self, raw: str) -> None:
+        if len(raw) > MAX_MESSAGE_BYTES:
+            await self.send(messages.error(None, None, "Message too large"))
+            return
         try:
             message = json.loads(raw)
         except json.JSONDecodeError:
@@ -120,6 +155,8 @@ class RealtimeConnection:
         try:
             topic = await resolve_topic(self.websocket, self.principal, topic_name, params)
         except Exception as exc:
+            if not isinstance(exc, TopicError | HTTPException | PermissionError):
+                logger.exception("realtime topic resolution failed: %s", topic_name)
             await self.send(messages.error(subscription_id, topic_name, topic_error_message(exc)))
             return
         task = asyncio.create_task(self._run_subscription(subscription_id, topic))
@@ -141,8 +178,17 @@ class RealtimeConnection:
                 await run_snapshot_subscription(subscription_id, topic, self.send)
             else:
                 await run_event_subscription(subscription_id, topic, self.send)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("realtime subscription failed: %s", topic.topic)
+            await self.send(
+                messages.error(subscription_id, topic.topic, "Realtime subscription failed")
+            )
         finally:
-            self.subscriptions.pop(subscription_id, None)
+            current = self.subscriptions.get(subscription_id)
+            if current is not None and current.task is asyncio.current_task():
+                del self.subscriptions[subscription_id]
 
 
 async def run_snapshot_subscription(
@@ -163,17 +209,10 @@ async def run_snapshot_subscription(
             interval = max(1.0, topic.interval_for(payload))
             if queue is None:
                 await asyncio.sleep(interval)
-            else:
-                elapsed = time.monotonic() - last_snapshot
-                timeout = max(0.1, interval - elapsed)
-                try:
-                    marker = await asyncio.wait_for(queue.get(), timeout=timeout)
-                except TimeoutError:
-                    marker = object()
-                if marker is None and payload is not None and topic.done is not None:
-                    if topic.done(payload):
-                        await send(messages.complete(subscription_id, topic.topic))
-                        return
+            elif await _wait_for_refresh(queue, last_snapshot + interval):
+                if payload is not None and topic.done is not None and topic.done(payload):
+                    await send(messages.complete(subscription_id, topic.topic))
+                    return
             payload = await _load_snapshot(subscription_id, topic, send)
             last_snapshot = time.monotonic()
             if payload is not None and topic.done is not None and topic.done(payload):
@@ -182,6 +221,19 @@ async def run_snapshot_subscription(
     finally:
         if queue is not None and topic.event_key is not None:
             event_bus.unsubscribe(topic.event_key, queue)
+
+
+async def _wait_for_refresh(queue: asyncio.Queue, deadline: float) -> bool:
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        try:
+            marker = await asyncio.wait_for(queue.get(), timeout=remaining)
+        except TimeoutError:
+            return False
+        if marker is None:
+            return True
 
 
 async def run_event_subscription(
@@ -203,12 +255,12 @@ async def run_event_subscription(
                     subscription_id,
                     topic.topic,
                     {
+                        **event.detail,
                         "document_id": event.document_id,
                         "step": event.step,
                         "status": event.status,
                         "message": event.message,
                         "progress": event.progress,
-                        **event.detail,
                     },
                 )
             )
