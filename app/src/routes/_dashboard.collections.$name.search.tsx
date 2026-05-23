@@ -84,34 +84,35 @@ const SearchTab = () => {
                 )}
               </form.Field>
             </div>
-            <div className="flex flex-col gap-3 border-t border-border bg-muted/35 p-4 sm:flex-row sm:items-end sm:p-5">
+            <div className="flex flex-col gap-4 border-t border-border bg-muted/35 p-4 sm:flex-row sm:flex-wrap sm:items-end sm:p-5">
               <form.Field name="mode">
                 {(field) => (
                   <SearchModeControl onChange={field.handleChange} value={field.state.value} />
                 )}
               </form.Field>
-              <form.Field
-                name="topK"
-                validators={{
-                  onSubmit: ({ value }) =>
-                    value < 1 || value > 50 ? "Top K must be between 1 and 50" : undefined,
-                }}
-              >
-                {(field) => (
-                  <Input
-                    className="w-24"
-                    error={errorText(field.state.meta.errors)}
-                    label="Top K"
-                    max={50}
-                    min={1}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(Number(e.target.value))}
-                    type="number"
-                    value={field.state.value}
-                  />
-                )}
-              </form.Field>
-              <div className="grid gap-3 sm:min-w-72 sm:grid-cols-2">
+              <div className="w-24 shrink-0">
+                <form.Field
+                  name="topK"
+                  validators={{
+                    onSubmit: ({ value }) =>
+                      value < 1 || value > 50 ? "Top K must be between 1 and 50" : undefined,
+                  }}
+                >
+                  {(field) => (
+                    <Input
+                      error={errorText(field.state.meta.errors)}
+                      label="Top K"
+                      max={50}
+                      min={1}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(Number(e.target.value))}
+                      type="number"
+                      value={field.state.value}
+                    />
+                  )}
+                </form.Field>
+              </div>
+              <div className="flex flex-wrap items-center gap-2.5">
                 <form.Field name="skipCache">
                   {(field) => (
                     <SearchToggle
@@ -121,7 +122,7 @@ const SearchTab = () => {
                     />
                   )}
                 </form.Field>
-                {collection?.reranking_enabled ? (
+                {collection?.reranking_enabled && (
                   <form.Field name="rerank">
                     {(field) => (
                       <SearchToggle
@@ -131,12 +132,10 @@ const SearchTab = () => {
                       />
                     )}
                   </form.Field>
-                ) : (
-                  <div className="hidden sm:block" />
                 )}
               </div>
               <Button
-                className="h-10 w-full sm:ml-auto sm:w-auto"
+                className="h-10 w-full shrink-0 sm:ml-auto sm:w-auto"
                 type="submit"
                 disabled={run.isPending || !values.query.trim()}
               >

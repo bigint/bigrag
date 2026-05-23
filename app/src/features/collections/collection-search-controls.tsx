@@ -15,18 +15,20 @@ export const SearchModeControl = ({
   onChange: (value: CollectionSearchMode) => void;
   value: CollectionSearchMode;
 }) => (
-  <div className="flex min-w-0 flex-col gap-1.5 sm:w-80">
+  <div className="flex shrink-0 flex-col gap-1.5">
     <span className="text-sm font-semibold">Mode</span>
-    <div className="grid grid-cols-3 rounded-md border border-input bg-background p-1">
+    <div className="inline-grid grid-cols-3 gap-1 rounded-md border border-input bg-background p-1">
       {searchModeOptions.map((option) => {
         const active = option.value === value;
         return (
           <button
             aria-pressed={active}
             className={cn(
-              "h-8 rounded-sm px-2 text-sm font-semibold text-muted-foreground",
+              "h-8 whitespace-nowrap rounded-sm px-4 text-sm font-semibold",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              active && "bg-primary text-primary-foreground",
+              active
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
             key={option.value}
             onClick={() => onChange(option.value)}
@@ -51,11 +53,11 @@ export const SearchToggle = ({
 }) => (
   <div
     className={cn(
-      "flex h-10 items-center justify-between gap-3 rounded-md border border-input bg-background px-3",
+      "flex h-10 shrink-0 items-center gap-3 rounded-md border border-input bg-background px-3.5",
       checked && "border-primary bg-primary/5",
     )}
   >
-    <span className="min-w-0 truncate text-sm font-semibold">{label}</span>
+    <span className="whitespace-nowrap text-sm font-semibold">{label}</span>
     <Switch aria-label={label} checked={checked} onCheckedChange={onCheckedChange} />
   </div>
 );
