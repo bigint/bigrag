@@ -16,8 +16,6 @@ export type SettingsGroupLayout = {
 };
 
 export type SettingsStatusSummary = {
-  readonly total: number;
-  readonly common: number;
   readonly advanced: number;
   readonly overrides: number;
   readonly secrets: number;
@@ -160,14 +158,12 @@ export const settingsStatusSummary = (
   values: Readonly<Record<string, InstanceSettingValue | undefined>>,
   layout: SettingsGroupLayout,
 ): SettingsStatusSummary => {
-  const { advanced, common } = splitSettingsByImportance(specs, layout);
+  const { advanced } = splitSettingsByImportance(specs, layout);
   return {
     advanced: advanced.length,
-    common: common.length,
     missingSecrets: specs.filter((spec) => spec.secret && !values[spec.key]?.has_value).length,
     overrides: specs.filter((spec) => values[spec.key]?.source === "database").length,
     secrets: specs.filter((spec) => spec.secret).length,
-    total: specs.length,
   };
 };
 
