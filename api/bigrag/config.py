@@ -70,6 +70,14 @@ class Settings(BaseSettings):
     allow_private_chat_base_urls: bool = False
 
     upload_dir: str = "./data/uploads"
+    storage_backend: Literal["local", "s3"] = "local"
+    storage_s3_bucket: str = ""
+    storage_s3_endpoint_url: str | None = None
+    storage_s3_region: str = "us-east-1"
+    storage_s3_prefix: str = ""
+    storage_s3_access_key_id: str | None = None
+    storage_s3_secret_access_key: str | None = None
+    storage_s3_force_path_style: bool = False
     backup_s3_bucket: str = ""
     backup_s3_endpoint_url: str | None = None
     backup_s3_region: str = "us-east-1"
@@ -89,6 +97,10 @@ class Settings(BaseSettings):
     max_vector_delete_count: int = 10000
     max_vector_text_chars: int = 100000
     max_vector_metadata_bytes: int = 65536
+    turbopuffer_api_key: str | None = None
+    turbopuffer_base_url: str | None = None
+    turbopuffer_region: str = "aws-us-east-1"
+    turbopuffer_namespace_prefix: str = "bigrag_"
 
     @classmethod
     def from_toml(cls, path: str | Path) -> Settings:

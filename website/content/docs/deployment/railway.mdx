@@ -1,101 +1,75 @@
 ---
 title: Railway
-description: Deploy bigRAG to Railway with managed Postgres, Redis, and Turbopuffer search.
+description: Deploy bigRAG to Railway with managed Postgres, Redis, object storage, and Turbopuffer search.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 import { Accordions, Accordion } from "fumadocs-ui/components/accordion";
 
-Deploy the API, Dramatiq worker, admin UI, Postgres, and Redis in one Railway project. Turbopuffer provides managed vector, keyword, and hybrid search.
+Deploy the API, Dramatiq worker, admin UI, Postgres, Redis, and an S3-compatible Railway Bucket in one Railway project. Turbopuffer provides managed vector, keyword, and hybrid search.
+
+## Template files
+
+The repository includes Railway template assets under `railway/`:
+
+| File | Purpose |
+|---|---|
+| `railway/api.json` | API build, healthcheck, restart, and shutdown settings |
+| `railway/worker.json` | Worker build, start command, restart, and shutdown settings |
+| `railway/app.json` | Admin UI build, healthcheck, restart, and shutdown settings |
+| `railway/variables/api.env` | API variables for the Railway raw editor |
+| `railway/variables/worker.env` | Worker variables for the Railway raw editor |
+| `railway/variables/app.env` | Admin UI variables for the Railway raw editor |
+
+Railway templates are finalized in the Railway template composer. Use these files as the source of truth when creating or updating the published bigRAG template.
 
 ## What you get
 
 | Service | Notes |
 |---------|-------|
-| **API** | FastAPI backend, public domain |
+| **API** | FastAPI backend, public HTTP domain |
 | **Worker** | Dramatiq background jobs for ingestion, connectors, webhooks, backups, and cleanup |
-| **App** | Admin UI, public domain |
-| **Postgres 17** | Railway plugin, exposes `DATABASE_URL` |
-| **Redis 7** | Railway plugin, exposes `REDIS_URL` |
-| **Turbopuffer** | Managed vector, keyword, and hybrid search, configured from the admin UI |
+| **App** | Admin UI, public HTTP domain |
+| **Postgres 17** | Railway managed database, referenced as `Postgres` |
+| **Redis 7** | Railway managed cache and queue, referenced as `Redis` |
+| **Uploads** | Railway Bucket for uploaded source files, referenced as `Uploads` |
+| **Turbopuffer** | Managed vector, keyword, and hybrid search |
 
 ## Prerequisites
 
 - Railway Pro plan for comfortable API and worker memory limits.
 - A Turbopuffer API key.
 - An OpenAI, Cohere, Voyage, or OpenAI-compatible embedding provider key.
-- A region close to your users and embedding provider.
+- A region close to your users, Turbopuffer region, and embedding provider.
 
-## Service order
+## Template composer
 
-Provision in this order so API variables can reference private service domains:
+Use these exact service names unless you also update the reference variables in `railway/variables/*.env`.
 
-1. Postgres plugin.
-2. Redis plugin.
-3. `App` from the repository root.
-4. `API` from the repo root directory `/api`.
-5. `Worker` from the repo root directory `/api`.
+| Service | Railway source | Root directory | Config file | Public networking |
+|---|---|---:|---|---|
+| `Postgres` | Database → PostgreSQL | — | — | no |
+| `Redis` | Database → Redis | — | — | no |
+| `Uploads` | Bucket | — | — | no |
+| `API` | GitHub repo | `/api` | `/railway/api.json` | HTTP |
+| `Worker` | GitHub repo | `/api` | `/railway/worker.json` | no |
+| `App` | GitHub repo | `/` | `/railway/app.json` | HTTP |
 
-## App
+The `API`, `Worker`, and `App` services all build from Dockerfiles. The API and worker use the same backend image, but separate Railway config files because their runtime commands are different.
 
-| Setting | Value |
-|---|---|
-| Source | GitHub repo, **Root Directory `/`** |
-| Builder | Nixpacks |
-| Build command | `pnpm install --frozen-lockfile && pnpm --filter @bigrag/app build` |
-| Start command | `pnpm --filter @bigrag/app start` |
-| Public domain | yes |
+## Variables
 
-Environment:
+Paste `railway/variables/api.env` into the `API` raw editor, `railway/variables/worker.env` into the `Worker` raw editor, and `railway/variables/app.env` into the `App` raw editor.
 
-```bash
-BIGRAG_URL=https://${{API.RAILWAY_PUBLIC_DOMAIN}}
-```
+Fill these required values before the first deploy:
 
-## API
+| Variable | Services | Value |
+|---|---|---|
+| `BIGRAG_MASTER_KEY` | `API`, `Worker` | Fernet key from the command below |
+| `BIGRAG_TURBOPUFFER_API_KEY` | `API`, `Worker` | Turbopuffer API key |
+| `BIGRAG_EMBEDDING_API_KEY` | `API`, `Worker` | Embedding provider key |
 
-| Setting | Value |
-|---|---|
-| Source | GitHub repo, **Root Directory `/api`** |
-| Builder | Dockerfile |
-| Dockerfile path | `/api/Dockerfile` |
-| Start command | leave empty |
-| Volume | 10 GB at `/data` |
-| Public domain | yes |
-
-Environment:
-
-```bash
-BIGRAG_ENV=prod
-BIGRAG_LOG_LEVEL=info
-BIGRAG_LOG_FORMAT=json
-BIGRAG_DATABASE_URL=${{Postgres.DATABASE_URL}}
-BIGRAG_REDIS_URL=${{Redis.REDIS_URL}}
-BIGRAG_EMBEDDING_API_KEY=<your embedding key>
-BIGRAG_MASTER_KEY=<generated Fernet key>
-BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD=true
-BIGRAG_SESSION_COOKIE_SECURE=true
-BIGRAG_SESSION_COOKIE_SAMESITE=none
-BIGRAG_CORS_ORIGINS=["https://${{App.RAILWAY_PUBLIC_DOMAIN}}"]
-BIGRAG_UPLOAD_DIR=/data/uploads
-```
-
-Save the Turbopuffer API key and region from the admin UI after setup.
-
-## Worker
-
-| Setting | Value |
-|---|---|
-| Source | GitHub repo, **Root Directory `/api`** |
-| Builder | Dockerfile |
-| Dockerfile path | `/api/Dockerfile` |
-| Start command | `bigrag-worker --processes 1 --threads 8` |
-| Volume | same mounted upload volume path as API |
-| Public domain | no |
-
-Use the same environment as `API`, including `BIGRAG_DATABASE_URL`, `BIGRAG_REDIS_URL`, `BIGRAG_MASTER_KEY`, and `BIGRAG_UPLOAD_DIR`.
-
-## Generate the master key
+Generate the master key locally:
 
 ```bash
 python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
@@ -105,52 +79,71 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 Back the master key up immediately. It encrypts provider secrets, webhook secrets, embedding-cache rows, and Redis cache payloads; losing it loses decrypt access.
 </Callout>
 
-## First Run
+## Storage
 
-1. Wait for Postgres, Redis, API, Worker, and app services to deploy.
-2. Open the admin UI public URL.
+The template uses a Railway Bucket as S3-compatible object storage:
+
+```bash
+BIGRAG_STORAGE_BACKEND=s3
+BIGRAG_STORAGE_S3_BUCKET=${{Uploads.BUCKET}}
+BIGRAG_STORAGE_S3_ENDPOINT_URL=${{Uploads.ENDPOINT}}
+BIGRAG_STORAGE_S3_REGION=${{Uploads.REGION}}
+BIGRAG_STORAGE_S3_ACCESS_KEY_ID=${{Uploads.ACCESS_KEY_ID}}
+BIGRAG_STORAGE_S3_SECRET_ACCESS_KEY=${{Uploads.SECRET_ACCESS_KEY}}
+```
+
+Do not use local upload volumes for the split Railway template. API and worker services need to read the same uploaded files, so object storage is the durable shared boundary.
+
+## First run
+
+1. Deploy all six services.
+2. Open the `App` public URL.
 3. Complete `/setup` to create the first admin account.
-4. Save the Turbopuffer API key and region in the admin UI.
+4. Complete onboarding and create a verified embedding preset.
 5. Create a collection and upload a small document.
-6. Check `/health/ready`; it should report `vector_store: true`.
+6. Check `https://API_DOMAIN/health/ready`; it should report `vector_store: true`.
+
+## Updating the template
+
+After changing any Railway config, deploy a normal Railway project from the GitHub repo first. When the project is healthy, open the Railway project settings and generate or update the template from that project.
 
 ## Troubleshooting
 
 <Accordions type="single">
 
-<Accordion title="/health/ready reports degraded Turbopuffer search">
+<Accordion title="API deploy fails the startup guard">
 
-Check the Turbopuffer settings in the admin UI and any outbound network restrictions.
-
-</Accordion>
-
-<Accordion title="API exits with ImportError: Can't find Python file .../site-packages/alembic/env.py">
-
-Rebuild from the latest repo revision and clear Railway's build cache if it keeps reusing an old image. The API image bundles bigRAG's Alembic migration environment into the installed package; this error means the deployed image was built without that migration environment.
+Check `BIGRAG_MASTER_KEY`, `BIGRAG_SESSION_COOKIE_SECURE=true`, `BIGRAG_ALLOW_PUBLIC_BIND_IN_PROD=true`, and `BIGRAG_DATABASE_URL`. Production mode refuses insecure bootstrap defaults.
 
 </Accordion>
 
-<Accordion title="App loads but API calls fail with CORS errors">
+<Accordion title="Admin UI loads but API calls fail with CORS errors">
 
-Check `BIGRAG_CORS_ORIGINS` on `API`; it must match the app public domain exactly.
+Check `BIGRAG_CORS_ORIGINS` on `API`; it must match `https://${{App.RAILWAY_PUBLIC_DOMAIN}}` or your custom admin UI domain exactly.
+
+</Accordion>
+
+<Accordion title="Admin UI cannot reach the API">
+
+Check `BIGRAG_URL` on `App`; it must be `https://${{API.RAILWAY_PUBLIC_DOMAIN}}` or your custom API domain. Keep `PORT=3000` on `App` because the Nginx image listens on port 3000.
 
 </Accordion>
 
 <Accordion title="Documents stay pending">
 
-Check the Worker service logs and confirm `/v1/stats` shows a recent worker heartbeat.
+Check the `Worker` logs and confirm `/v1/stats` shows a recent worker heartbeat. The worker must have the same Postgres, Redis, master-key, Turbopuffer, embedding, and storage variables as `API`.
 
 </Accordion>
 
-<Accordion title="Admin UI says bigrag-worker is offline">
+<Accordion title="Uploads fail or files cannot be reprocessed">
 
-Uploads, document reprocessing, backups, webhook deliveries, and Google Drive sync require the Worker service. Restart the Worker service and confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
+Confirm the `Uploads` bucket service exists and the API and worker variables still reference `${{Uploads.BUCKET}}`, `${{Uploads.ENDPOINT}}`, `${{Uploads.ACCESS_KEY_ID}}`, and `${{Uploads.SECRET_ACCESS_KEY}}`.
 
 </Accordion>
 
-<Accordion title="App build fails with workspace errors">
+<Accordion title="/health/ready reports degraded Turbopuffer search">
 
-Confirm the root directory is `/`, the build command uses `pnpm --filter @bigrag/app build`, and the start command uses `pnpm --filter @bigrag/app start`.
+Check `BIGRAG_TURBOPUFFER_API_KEY`, `BIGRAG_TURBOPUFFER_REGION`, and any custom `BIGRAG_TURBOPUFFER_BASE_URL`. The liveness healthcheck uses `/health`; readiness checks external providers.
 
 </Accordion>
 

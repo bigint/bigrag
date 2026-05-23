@@ -321,7 +321,10 @@ def _source_for(row: InstanceSetting | None, spec: SettingSpec) -> SettingSource
 
 def _public_value(spec: SettingSpec, row: InstanceSetting | None) -> InstanceSettingResponse:
     value = None if spec.secret else _runtime_value(spec, row)
-    has_value = bool(row.secret_value) if spec.secret and row is not None else row is not None
+    if spec.secret:
+        has_value = bool(row.secret_value) if row is not None else bool(_default_for(spec))
+    else:
+        has_value = row is not None
     return InstanceSettingResponse(
         key=spec.key,
         value=value,

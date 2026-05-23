@@ -29,6 +29,18 @@ Bootstrap config is the small set of values the API needs before it can connect 
 | `BIGRAG_MASTER_KEY` | Fernet key for encrypted provider secrets, instance-setting secrets, embedding-cache rows, and Redis cache payloads. Required for production. | — |
 | `BIGRAG_MASTER_KEY_PREVIOUS` | JSON array of old Fernet keys during staged key rotation. | `[]` |
 | `BIGRAG_UPLOAD_DIR` | Local document upload directory when storage backend is `local`. | `./data/uploads` |
+| `BIGRAG_STORAGE_BACKEND` | Bootstrap storage backend for uploaded source files: `local` or `s3`. | `local` |
+| `BIGRAG_STORAGE_S3_BUCKET` | Bootstrap S3-compatible upload bucket. | — |
+| `BIGRAG_STORAGE_S3_ENDPOINT_URL` | Bootstrap S3-compatible upload endpoint. | — |
+| `BIGRAG_STORAGE_S3_REGION` | Bootstrap S3-compatible upload region. | `us-east-1` |
+| `BIGRAG_STORAGE_S3_PREFIX` | Bootstrap S3-compatible upload key prefix. | — |
+| `BIGRAG_STORAGE_S3_ACCESS_KEY_ID` | Bootstrap S3-compatible upload access key. | — |
+| `BIGRAG_STORAGE_S3_SECRET_ACCESS_KEY` | Bootstrap S3-compatible upload secret key. | — |
+| `BIGRAG_STORAGE_S3_FORCE_PATH_STYLE` | Use S3 path-style addressing for the upload bucket. | `false` |
+| `BIGRAG_TURBOPUFFER_API_KEY` | Bootstrap Turbopuffer API key. Saved admin settings override it. | — |
+| `BIGRAG_TURBOPUFFER_BASE_URL` | Optional bootstrap Turbopuffer-compatible base URL. | — |
+| `BIGRAG_TURBOPUFFER_REGION` | Bootstrap Turbopuffer region slug. | `aws-us-east-1` |
+| `BIGRAG_TURBOPUFFER_NAMESPACE_PREFIX` | Bootstrap Turbopuffer namespace prefix. | `bigrag_` |
 
 **Two variables to note:**
 
@@ -69,6 +81,7 @@ master_key = "generate-a-fernet-key"
 master_key_previous = []
 
 upload_dir = "./data/uploads"
+storage_backend = "local"
 ```
 
 Environment variables override TOML values. CLI flags passed to `python -m bigrag.main` override both.
@@ -98,7 +111,7 @@ Turbopuffer is the search backend for every collection. Settings are stored in P
 The same settings are available through [`/v1/admin/settings`](/docs/api-reference/instance-settings). Database-backed admin settings apply immediately on save. Storage, backup, and Turbopuffer connection changes validate the new target before saving, then swap the runtime client in place where applicable.
 
 <Callout type="info">
-Turbopuffer settings are not bootstrap environment variables. Save them from the admin UI so the API and worker read the same database-backed instance settings before creating collections.
+Bootstrap storage and Turbopuffer environment variables are useful for managed deploy templates. Values saved from the admin UI are stored in Postgres and override bootstrap defaults for both API and worker processes.
 </Callout>
 
 ## CLI flags

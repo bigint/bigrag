@@ -9,11 +9,14 @@ RUN corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY app/package.json app/package.json
+COPY sdks/typescript/package.json sdks/typescript/package.json
 
-RUN pnpm install --filter @bigrag/app --frozen-lockfile
+RUN pnpm install --filter @bigrag/app... --frozen-lockfile
 
 COPY app app
+COPY sdks/typescript sdks/typescript
 
+RUN pnpm --filter @bigrag/client build
 RUN pnpm --filter @bigrag/app build
 
 FROM nginx:1.29-alpine AS runtime
