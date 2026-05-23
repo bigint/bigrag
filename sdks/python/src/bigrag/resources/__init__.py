@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from bigrag._realtime import RealtimeResource
 from bigrag.resources.admin import (
     AdminAccessResource,
     AdminApiKeysResource,
@@ -20,7 +21,6 @@ from bigrag.resources.connectors import ConnectorsResource, S3ConnectorResource
 from bigrag.resources.documents import DocumentsResource
 from bigrag.resources.evaluations import EvaluationsResource
 from bigrag.resources.query import QueryResource
-from bigrag._realtime import RealtimeResource
 from bigrag.resources.vectors import VectorsResource
 from bigrag.resources.webhooks import WebhooksResource
 

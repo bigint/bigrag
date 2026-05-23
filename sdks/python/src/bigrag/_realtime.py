@@ -7,6 +7,7 @@ from typing import Any
 from uuid import uuid4
 
 from websockets.asyncio.client import connect
+from websockets.exceptions import ConnectionClosedOK
 
 from bigrag.types.realtime import RealtimeMessage
 
@@ -17,6 +18,14 @@ class RealtimeConnection:
         self._socket = None
         self._reader: asyncio.Task | None = None
         self._queues: dict[str, asyncio.Queue[RealtimeMessage | None]] = {}
+        self._closed_exc: Exception | None = None
+
+    async def __aenter__(self) -> RealtimeConnection:
+        await self.connect()
+        return self
+
+    async def __aexit__(self, *_exc: object) -> None:
+        await self.close()
 
     async def connect(self) -> None:
         if self._socket is not None:
@@ -25,6 +34,8 @@ class RealtimeConnection:
             _realtime_url(self._client.base_url),
             additional_headers=self._client._headers(),
             open_timeout=self._client.timeout,
+            ping_interval=20,
+            ping_timeout=20,
         )
         self._reader = asyncio.create_task(self._read_loop())
 
@@ -59,18 +70,23 @@ class RealtimeConnection:
             while True:
                 message = await queue.get()
                 if message is None:
+                    if self._closed_exc is not None:
+                        raise self._closed_exc
                     return
                 yield message
-                if message.get("type") == "complete":
+                if message.get("type") in {"complete", "error"}:
                     return
         finally:
-            await self._send({"type": "unsubscribe", "id": subscription_id})
+            try:
+                await self._send({"type": "unsubscribe", "id": subscription_id})
+            except Exception:
+                pass
             self._queues.pop(subscription_id, None)
             queue.put_nowait(None)
 
     async def _send(self, message: dict[str, Any]) -> None:
         if self._socket is None:
-            return
+            raise RuntimeError("realtime connection is not open")
         await self._socket.send(json.dumps(message))
 
     async def _read_loop(self) -> None:
@@ -93,6 +109,12 @@ class RealtimeConnection:
                 queue = self._queues.get(subscription_id)
                 if queue is not None:
                     queue.put_nowait(message)
+        except asyncio.CancelledError:
+            raise
+        except ConnectionClosedOK:
+            pass
+        except Exception as exc:
+            self._closed_exc = exc
         finally:
             for queue in self._queues.values():
                 queue.put_nowait(None)
