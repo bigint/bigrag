@@ -1,6 +1,6 @@
 {
   "name": "@bigrag/client",
-  "version": "2026.5.22",
+  "version": "2026.5.23",
   "description": "TypeScript client for bigRAG — a self-hostable RAG platform",
   "license": "MIT",
   "type": "module",
@@ -16,6 +16,9 @@
   ],
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
   },
   "scripts": {
     "build": "tsc",

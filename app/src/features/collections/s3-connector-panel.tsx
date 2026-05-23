@@ -1,10 +1,12 @@
 import { useForm, useStore } from "@tanstack/react-form";
-import { Database, FolderSync, RefreshCw, Trash2 } from "lucide-react";
-import { useMemo } from "react";
+import { FolderSync, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
@@ -16,12 +18,12 @@ import {
   isActiveS3SyncJob,
   jobStatusVariant,
   sourceStatusVariant,
-  syncCountLabel,
   syncProgressForJob,
-  syncProgressLabel,
+  syncStatusLabel,
 } from "@/features/collections/s3-connector-utils";
 import {
   defaultS3SourceFormValues,
+  isCloudflareR2Endpoint,
   s3SourcePayload,
   validateS3SourceFormValues,
 } from "@/features/collections/s3-source-form-state";
@@ -39,11 +41,12 @@ import {
   useSyncS3Source,
   useUpdateS3Source,
 } from "@/hooks/use-s3-connector";
-import { firstString } from "@/lib/form";
+import { firstString, submitWith } from "@/lib/form";
 import { formatRelative } from "@/lib/format";
 import type { ConnectorSyncProgress, S3Source, S3SyncJob } from "@/types/bigrag";
 
 export const S3ConnectorPanel = ({ collection }: { collection: string }) => {
+  const [addSourceOpen, setAddSourceOpen] = useState(false);
   const sources = useS3Sources(collection);
   const syncJobs = useS3SyncJobs({ collection, limit: 20 });
   const createSource = useCreateS3Source(collection);
@@ -67,14 +70,22 @@ export const S3ConnectorPanel = ({ collection }: { collection: string }) => {
       syncJobs.data?.jobs[0],
     [syncJobs.data?.jobs],
   );
+  const addSourceDisabled = createSource.isPending || workerOffline;
 
   return (
     <div className="flex flex-col gap-4">
       <WorkerOfflineBanner availability={workerAvailability} />
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_430px]">
-        <S3SourceForm
-          isPending={createSource.isPending}
-          onSubmit={(value) => createSource.mutate(s3SourcePayload(value))}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <SourcesPanel
+          addSourceDisabled={addSourceDisabled}
+          deleteSource={deleteSource}
+          jobsBySource={jobsBySource}
+          offlineReason={offlineReason}
+          onAddSource={() => setAddSourceOpen(true)}
+          sources={sources.data?.sources ?? []}
+          sourcesPending={sources.isPending}
+          syncSource={syncSource}
+          updateSource={updateSource}
           workerOffline={workerOffline}
         />
         <aside className="flex min-w-0 flex-col gap-4">
@@ -83,29 +94,60 @@ export const S3ConnectorPanel = ({ collection }: { collection: string }) => {
             job={activeJob}
             streaming={syncJobs.streaming}
           />
-          <SourcesPanel
-            deleteSource={deleteSource}
-            jobsBySource={jobsBySource}
-            offlineReason={offlineReason}
-            sources={sources.data?.sources ?? []}
-            sourcesPending={sources.isPending}
-            syncSource={syncSource}
-            updateSource={updateSource}
-            workerOffline={workerOffline}
-          />
         </aside>
       </div>
+      {addSourceOpen && (
+        <AddS3SourceModal
+          isPending={createSource.isPending}
+          onClose={() => setAddSourceOpen(false)}
+          onSubmit={async (value) => {
+            try {
+              await createSource.mutateAsync(s3SourcePayload(value));
+              setAddSourceOpen(false);
+            } catch {
+              return;
+            }
+          }}
+          open={addSourceOpen}
+          workerOffline={workerOffline}
+        />
+      )}
     </div>
   );
 };
 
+const AddS3SourceModal = ({
+  isPending,
+  onClose,
+  onSubmit,
+  open,
+  workerOffline,
+}: {
+  isPending: boolean;
+  onClose: () => void;
+  onSubmit: (value: ReturnType<typeof defaultS3SourceFormValues>) => Promise<void>;
+  open: boolean;
+  workerOffline: boolean;
+}) => (
+  <Modal onClose={onClose} open={open} size="lg" title="Add source">
+    <S3SourceForm
+      isPending={isPending}
+      onCancel={onClose}
+      onSubmit={onSubmit}
+      workerOffline={workerOffline}
+    />
+  </Modal>
+);
+
 const S3SourceForm = ({
   isPending,
+  onCancel,
   onSubmit,
   workerOffline,
 }: {
   isPending: boolean;
-  onSubmit: (value: ReturnType<typeof defaultS3SourceFormValues>) => void;
+  onCancel: () => void;
+  onSubmit: (value: ReturnType<typeof defaultS3SourceFormValues>) => Promise<void> | void;
   workerOffline: boolean;
 }) => {
   const form = useForm({
@@ -113,111 +155,115 @@ const S3SourceForm = ({
     validators: {
       onSubmit: ({ value }) => validateS3SourceFormValues(value),
     },
-    onSubmit: ({ value }) => onSubmit(value),
+    onSubmit: async ({ value }) => {
+      await onSubmit(value);
+    },
   });
   const values = useStore(form.store, (state) => state.values);
   const submitError = useStore(form.store, (state) => firstString(state.errors));
+  const setEndpointUrl = (endpointUrl: string) => {
+    form.setFieldValue("endpointUrl", endpointUrl);
+    if (isCloudflareR2Endpoint(endpointUrl)) {
+      form.setFieldValue("region", "auto");
+    }
+  };
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-sm border border-border bg-card">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-border border-b bg-muted/35 px-4 py-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-sm border border-border bg-background">
-            <Database className="size-5" />
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">S3 / R2 source</div>
-            <div className="mt-0.5 text-xs text-muted-foreground">Bucket prefix mirror</div>
-          </div>
+    <form
+      className="flex flex-col gap-4"
+      noValidate
+      onSubmit={submitWith(() => form.handleSubmit())}
+    >
+      <div className="flex items-center justify-between gap-3 rounded-sm border border-border bg-muted/35 px-3 py-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold">S3 / R2 source</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">Bucket prefix mirror</div>
         </div>
         <Badge dot variant={workerOffline ? "warning" : "primary"}>
           {workerOffline ? "worker offline" : "ready"}
         </Badge>
       </div>
-      <form
-        className="flex flex-col gap-4 p-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void form.handleSubmit();
-        }}
-      >
-        {submitError && (
-          <div
-            className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            role="alert"
-          >
-            {submitError}
-          </div>
-        )}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Input
-            label="Bucket"
-            onChange={(event) => form.setFieldValue("bucket", event.target.value)}
-            placeholder="company-knowledge"
-            value={values.bucket}
+      {submitError && (
+        <div
+          className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          role="alert"
+        >
+          {submitError}
+        </div>
+      )}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Input
+          label="Bucket"
+          onChange={(event) => form.setFieldValue("bucket", event.target.value)}
+          placeholder="company-knowledge"
+          value={values.bucket}
+        />
+        <Input
+          label="Prefix"
+          onChange={(event) => form.setFieldValue("prefix", event.target.value)}
+          placeholder="policies/"
+          value={values.prefix}
+        />
+        <Input
+          label="Signing region"
+          onChange={(event) => form.setFieldValue("region", event.target.value)}
+          placeholder="us-east-1 or auto"
+          value={values.region}
+        />
+        <Input
+          label="Endpoint URL"
+          onChange={(event) => setEndpointUrl(event.target.value)}
+          placeholder="https://account-id.r2.cloudflarestorage.com"
+          value={values.endpointUrl}
+        />
+        <Input
+          label="Access key ID"
+          onChange={(event) => form.setFieldValue("accessKeyId", event.target.value)}
+          value={values.accessKeyId}
+        />
+        <Input
+          label="Secret access key"
+          onChange={(event) => form.setFieldValue("secretAccessKey", event.target.value)}
+          type="password"
+          value={values.secretAccessKey}
+        />
+        <Input
+          label="Session token"
+          onChange={(event) => form.setFieldValue("sessionToken", event.target.value)}
+          type="password"
+          value={values.sessionToken}
+        />
+        <Select
+          label="Sync interval"
+          onChange={(value) => form.setFieldValue("syncIntervalHours", value)}
+          options={intervalOptions}
+          value={values.syncIntervalHours}
+        />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border bg-background p-3">
+        <div className="flex flex-wrap items-center gap-5">
+          <Switch
+            checked={values.scheduleEnabled}
+            label="Scheduled"
+            onCheckedChange={(checked) => form.setFieldValue("scheduleEnabled", checked)}
           />
-          <Input
-            label="Prefix"
-            onChange={(event) => form.setFieldValue("prefix", event.target.value)}
-            placeholder="policies/"
-            value={values.prefix}
-          />
-          <Input
-            label="Region"
-            onChange={(event) => form.setFieldValue("region", event.target.value)}
-            placeholder="us-east-1"
-            value={values.region}
-          />
-          <Input
-            label="Endpoint URL"
-            onChange={(event) => form.setFieldValue("endpointUrl", event.target.value)}
-            placeholder="https://account-id.r2.cloudflarestorage.com"
-            value={values.endpointUrl}
-          />
-          <Input
-            label="Access key ID"
-            onChange={(event) => form.setFieldValue("accessKeyId", event.target.value)}
-            value={values.accessKeyId}
-          />
-          <Input
-            label="Secret access key"
-            onChange={(event) => form.setFieldValue("secretAccessKey", event.target.value)}
-            type="password"
-            value={values.secretAccessKey}
-          />
-          <Input
-            label="Session token"
-            onChange={(event) => form.setFieldValue("sessionToken", event.target.value)}
-            type="password"
-            value={values.sessionToken}
-          />
-          <Select
-            label="Sync interval"
-            onChange={(value) => form.setFieldValue("syncIntervalHours", value)}
-            options={intervalOptions}
-            value={values.syncIntervalHours}
+          <Switch
+            checked={values.forcePathStyle}
+            label="Path style"
+            onCheckedChange={(checked) => form.setFieldValue("forcePathStyle", checked)}
           />
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border bg-background p-3">
-          <div className="flex flex-wrap items-center gap-5">
-            <Switch
-              checked={values.scheduleEnabled}
-              label="Scheduled"
-              onCheckedChange={(checked) => form.setFieldValue("scheduleEnabled", checked)}
-            />
-            <Switch
-              checked={values.forcePathStyle}
-              label="Path style"
-              onCheckedChange={(checked) => form.setFieldValue("forcePathStyle", checked)}
-            />
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={onCancel} type="button" variant="outline">
+            Cancel
+          </Button>
           <Button disabled={isPending || workerOffline} type="submit">
             {isPending ? <Spinner /> : <FolderSync className="size-4" />}
             Add source
           </Button>
         </div>
-      </form>
-    </section>
+      </div>
+    </form>
   );
 };
 
@@ -259,8 +305,15 @@ const SyncJobBody = ({ job }: { job: S3SyncJob }) => {
     <div className="flex flex-col gap-4 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-semibold">{syncProgressLabel(progress)}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{syncCountLabel(progress)}</div>
+          <div className="truncate text-sm font-semibold">{syncStatusLabel(progress)}</div>
+          {progress.current_item_name && (
+            <div
+              className="mt-1 truncate text-xs text-muted-foreground"
+              title={progress.current_item_name}
+            >
+              {progress.current_item_name}
+            </div>
+          )}
         </div>
         <Badge dot variant={jobStatusVariant[job.status]}>
           {job.status}
@@ -295,73 +348,126 @@ const SyncCount = ({ label, value }: { label: string; value: number }) => (
 );
 
 const SourcesPanel = ({
+  addSourceDisabled,
   deleteSource,
   jobsBySource,
   offlineReason,
+  onAddSource,
   sources,
   sourcesPending,
   syncSource,
   updateSource,
   workerOffline,
 }: {
+  addSourceDisabled: boolean;
   deleteSource: ReturnType<typeof useDeleteS3Source>;
   jobsBySource: Map<string, S3SyncJob>;
   offlineReason?: string;
+  onAddSource: () => void;
   sources: S3Source[];
   sourcesPending: boolean;
   syncSource: ReturnType<typeof useSyncS3Source>;
   updateSource: ReturnType<typeof useUpdateS3Source>;
   workerOffline?: boolean;
-}) => (
-  <section className="min-w-0 overflow-hidden rounded-sm border border-border bg-card">
-    <div className="flex items-center justify-between border-border border-b px-4 py-3">
-      <h3 className="text-sm font-semibold">Sources</h3>
-      {sourcesPending && <Spinner />}
-    </div>
-    {workerOffline && (
-      <div className="border-border border-b bg-warning/10 px-4 py-3 text-xs text-warning">
-        Scheduled syncs wait until bigrag-worker is online.
-      </div>
-    )}
-    {sources.length ? (
-      <ul className="max-h-[680px] divide-y divide-border overflow-y-auto">
-        {sources.map((source) => (
-          <SourceRow
-            deleteSource={deleteSource}
-            job={jobsBySource.get(source.id)}
-            key={source.id}
-            offlineReason={offlineReason}
-            source={source}
-            syncSource={syncSource}
-            updateSource={updateSource}
-            workerOffline={workerOffline}
+}) => {
+  const [deleteFor, setDeleteFor] = useState<S3Source | null>(null);
+
+  return (
+    <>
+      <section className="min-w-0 overflow-hidden rounded-sm border border-border bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-border border-b bg-muted/35 px-4 py-4">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold">Sources</h3>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {sources.length.toLocaleString()} configured
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {sourcesPending && <Spinner size="sm" />}
+            <Tooltip content={workerOffline ? offlineReason : "Add source"}>
+              <Button disabled={addSourceDisabled} onClick={onAddSource} size="sm">
+                <Plus className="size-4" />
+                Add source
+              </Button>
+            </Tooltip>
+          </div>
+        </div>
+        {workerOffline && (
+          <div className="border-border border-b bg-warning/10 px-4 py-3 text-xs text-warning">
+            Scheduled syncs wait until bigrag-worker is online.
+          </div>
+        )}
+        {sources.length ? (
+          <ul className="max-h-[680px] divide-y divide-border overflow-y-auto">
+            {sources.map((source) => (
+              <SourceRow
+                isDeleting={deleteSource.isPending}
+                job={jobsBySource.get(source.id)}
+                key={source.id}
+                offlineReason={offlineReason}
+                onDelete={() => setDeleteFor(source)}
+                source={source}
+                syncSource={syncSource}
+                updateSource={updateSource}
+                workerOffline={workerOffline}
+              />
+            ))}
+          </ul>
+        ) : (
+          <Empty
+            bordered={false}
+            className="py-12"
+            action={
+              <Button disabled={addSourceDisabled} onClick={onAddSource}>
+                <Plus className="size-4" />
+                Add source
+              </Button>
+            }
+            description="Add a bucket prefix to mirror files into this collection."
+            icon={<FolderSync className="size-5" />}
+            title="No S3 sources"
           />
-        ))}
-      </ul>
-    ) : (
-      <Empty
-        bordered={false}
-        className="py-12"
-        description="S3 bucket prefixes appear here."
-        icon={<FolderSync className="size-5" />}
-        title="No S3 sources"
+        )}
+      </section>
+      <ConfirmDialog
+        confirmLabel="Remove source"
+        description={
+          deleteFor
+            ? `Remove "${deleteFor.root_name}"? This deletes its credentials, mirrored documents, and sync state.`
+            : "Remove this source?"
+        }
+        loading={deleteSource.isPending}
+        onClose={() => setDeleteFor(null)}
+        onConfirm={async () => {
+          if (!deleteFor) return;
+          try {
+            await deleteSource.mutateAsync(deleteFor.id);
+            setDeleteFor(null);
+          } catch {
+            return;
+          }
+        }}
+        open={Boolean(deleteFor)}
+        title="Remove source"
       />
-    )}
-  </section>
-);
+    </>
+  );
+};
 
 const SourceRow = ({
-  deleteSource,
+  isDeleting,
   job,
   offlineReason,
+  onDelete,
   source,
   syncSource,
   updateSource,
   workerOffline,
 }: {
-  deleteSource: ReturnType<typeof useDeleteS3Source>;
+  isDeleting: boolean;
   job: S3SyncJob | undefined;
   offlineReason?: string;
+  onDelete: () => void;
   source: S3Source;
   syncSource: ReturnType<typeof useSyncS3Source>;
   updateSource: ReturnType<typeof useUpdateS3Source>;
@@ -403,8 +509,8 @@ const SourceRow = ({
           <Tooltip content="Remove source">
             <Button
               aria-label="Remove source"
-              disabled={deleteSource.isPending}
-              onClick={() => deleteSource.mutate(source.id)}
+              disabled={isDeleting}
+              onClick={onDelete}
               size="icon"
               variant="ghost"
             >
@@ -417,7 +523,7 @@ const SourceRow = ({
         <div className="rounded-sm border border-border bg-background p-3">
           <div className="flex items-center justify-between gap-3 text-xs">
             <span className="min-w-0 truncate text-muted-foreground">
-              {syncProgressLabel(progress)}
+              {syncStatusLabel(progress)}
             </span>
             <span className="font-semibold">{clampSyncProgress(progress.progress_percent)}%</span>
           </div>

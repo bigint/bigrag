@@ -4,25 +4,25 @@ import secrets
 
 from bigrag.services.redis_cache import get_redis
 
-EVENT_TOKEN_TTL_SECONDS = 300
-_PREFIX = "bigrag:event_token:"
+REALTIME_TOKEN_TTL_SECONDS = 300
+_PREFIX = "bigrag:realtime_token:"
 
 
-async def create_event_token(user: dict, collection_name: str) -> str:
+async def create_realtime_token(user: dict, collection_name: str) -> str:
     token = secrets.token_urlsafe(32)
     redis = get_redis()
     if redis is None:
-        raise RuntimeError("Redis is required for event tokens")
+        raise RuntimeError("Redis is required for realtime tokens")
     payload = f"{user['id']}|{collection_name}"
     await redis.set(
         f"{_PREFIX}{token}",
         payload.encode("utf-8"),
-        ex=EVENT_TOKEN_TTL_SECONDS,
+        ex=REALTIME_TOKEN_TTL_SECONDS,
     )
     return token
 
 
-async def validate_event_token(
+async def validate_realtime_token(
     token: str | None, collection_name: str, user: dict | None = None
 ) -> bool:
     if not token:
@@ -31,7 +31,7 @@ async def validate_event_token(
     if redis is None:
         return False
     key = f"{_PREFIX}{token}"
-    raw = await redis.getdel(key)
+    raw = await redis.get(key)
     if raw is None:
         return False
     decoded = raw.decode("utf-8")

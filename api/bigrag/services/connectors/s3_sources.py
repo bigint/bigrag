@@ -18,6 +18,7 @@ from bigrag.services.connectors.s3_types import (
     S3_PROVIDER,
     S3ConnectorError,
     clean_s3_prefix,
+    normalize_s3_region,
     s3_metadata,
     s3_root_id,
     s3_root_name,
@@ -117,8 +118,10 @@ async def update_s3_source(
     current = source_s3_config(source)
     next_bucket = bucket.strip() if bucket is not None else current["bucket"]
     next_prefix = clean_s3_prefix(prefix) if prefix is not None else current["prefix"]
-    next_region = (region or current["region"] or S3_DEFAULT_REGION).strip()
     next_endpoint = _clean_optional(endpoint_url) if endpoint_url_set else current["endpoint_url"]
+    next_region = normalize_s3_region(
+        region or current["region"] or S3_DEFAULT_REGION, next_endpoint
+    )
     next_force_path_style = (
         force_path_style if force_path_style is not None else current["force_path_style"]
     )
@@ -242,8 +245,8 @@ def _source_values(
 ) -> dict[str, Any]:
     clean_bucket = bucket.strip()
     clean_prefix = clean_s3_prefix(prefix)
-    clean_region = (region or S3_DEFAULT_REGION).strip()
     clean_endpoint = _clean_optional(endpoint_url)
+    clean_region = normalize_s3_region(region, clean_endpoint)
     if not clean_bucket:
         raise S3ConnectorError("S3 bucket is required")
     if not clean_region:

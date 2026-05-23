@@ -63,15 +63,25 @@ export const syncProgressForJob = (job: S3SyncJob): ConnectorSyncProgress => {
 
 export const clampSyncProgress = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
-export const syncCountLabel = (progress: ConnectorSyncProgress) => {
-  if (progress.total_items <= 0) return "No S3 objects found";
-  return `${progress.processed_items.toLocaleString()} of ${progress.total_items.toLocaleString()}`;
-};
-
-export const syncProgressLabel = (progress: ConnectorSyncProgress) => {
-  const item =
-    progress.current_item_name && !progress.message.includes(progress.current_item_name)
-      ? `: ${progress.current_item_name}`
-      : "";
-  return `${progress.message}${item}`;
+export const syncStatusLabel = (progress: ConnectorSyncProgress) => {
+  const count = `${progress.processed_items.toLocaleString()} of ${progress.total_items.toLocaleString()}`;
+  const hasCount = progress.total_items > 0;
+  switch (progress.phase) {
+    case "queued":
+      return "Sync queued";
+    case "authenticating":
+      return "Connecting to S3";
+    case "scanning":
+      return "Scanning S3 objects";
+    case "syncing":
+      return hasCount ? `Syncing ${count} remote files` : "Syncing remote files";
+    case "removing":
+      return hasCount ? `Removing ${count} missing files` : "Checking for removed files";
+    case "finalizing":
+      return "Finalizing sync";
+    case "complete":
+      return hasCount ? `Synced ${count} remote files` : "Sync complete";
+    case "failed":
+      return "Sync failed";
+  }
 };

@@ -3,14 +3,12 @@ import type { PlatformStats, WorkerStats } from "@/types/bigrag";
 type WorkerAvailabilityState = "online" | "offline" | "unknown";
 
 export type WorkerAvailability = {
-  state: WorkerAvailabilityState;
   online: boolean;
   offline: boolean;
   unknown: boolean;
   title: string;
   message: string;
   heartbeatAgeLabel: string | null;
-  heartbeatAt: string | null;
 };
 
 const offlineMessage = "Queued work will not run until the worker is started.";
@@ -35,7 +33,6 @@ const workerAvailability = (
   state: WorkerAvailabilityState,
   workers: WorkerStats | undefined,
 ): WorkerAvailability => ({
-  state,
   online: state === "online",
   offline: state === "offline",
   unknown: state === "unknown",
@@ -52,7 +49,6 @@ const workerAvailability = (
         ? "Queued work can be processed."
         : "Worker-dependent actions stay available until an offline heartbeat is confirmed.",
   heartbeatAgeLabel: formatHeartbeatAge(workers?.heartbeat_age_seconds ?? null),
-  heartbeatAt: workers?.heartbeat_at ?? null,
 });
 
 const formatHeartbeatAge = (seconds: number | null) => {

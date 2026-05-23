@@ -97,13 +97,13 @@ Returns `409` when another backup or maintenance lock is active.
 
 </Accordion>
 
-<Accordion title="GET /v1/admin/realtime/backups — Realtime stream">
+<Accordion title="WS /v1/realtime — admin.backups topic">
 
-```http
-GET /v1/admin/realtime/backups
+```json
+{ "type": "subscribe", "id": "backups", "topic": "admin.backups", "params": { "limit": 20, "offset": 0 } }
 ```
 
-Session-cookie SSE stream used by the admin UI. Each `snapshot` payload has the same shape as `GET /v1/admin/backups`. Refreshes quickly while jobs are pending or running.
+Session-cookie realtime topic used by the admin UI. Each `snapshot` payload has the same shape as `GET /v1/admin/backups`. Refreshes quickly while jobs are pending or running.
 
 </Accordion>
 

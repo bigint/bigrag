@@ -105,6 +105,20 @@ export const queryKeys = {
           ...(offset === undefined ? {} : { offset }),
         },
       ] as const,
+    infiniteList: ({ collection, status, q, sort, order, limit }: DocumentListParams) =>
+      [
+        "documents",
+        "list",
+        "infinite",
+        {
+          collection,
+          ...(status ? { status } : {}),
+          ...(q ? { q } : {}),
+          ...(sort ? { sort } : {}),
+          ...(order ? { order } : {}),
+          ...(limit === undefined ? {} : { limit }),
+        },
+      ] as const,
     one: ({ collection, id }: DocumentParams) =>
       ["documents", "detail", { collection, id }] as const,
     chunks: ({ collection, id }: DocumentParams) =>

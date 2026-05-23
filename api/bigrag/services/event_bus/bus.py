@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from collections import OrderedDict
-from collections.abc import AsyncIterator
 
 import redis.asyncio as aioredis
 
@@ -11,6 +10,7 @@ from bigrag.services.event_bus.types import (
     _COMPLETE_MARKER,
     CHANNEL_PREFIX,
     COMPLETED_MAX_ENTRIES,
+    INGESTION_EVENTS_KEY,
     LATEST_PREFIX,
     LATEST_TTL_SECONDS,
     SUBSCRIBER_QUEUE_SIZE,
@@ -145,6 +145,8 @@ class EventBus:
                     ex=LATEST_TTL_SECONDS,
                 )
                 await self._redis.publish(f"{CHANNEL_PREFIX}{event.document_id}", data)
+                if event.document_id:
+                    await self._redis.publish(f"{CHANNEL_PREFIX}{INGESTION_EVENTS_KEY}", data)
                 if event.collection_name:
                     await self._redis.publish(
                         f"{CHANNEL_PREFIX}collection:{event.collection_name}",
@@ -154,6 +156,29 @@ class EventBus:
                 logger.warning(
                     "event bus: publish failed",
                     document_id=event.document_id,
+                    error=str(e),
+                )
+
+        self._spawn(_safe_publish())
+
+    def notify(self, key: str) -> None:
+        event = IngestionEvent(
+            document_id=key,
+            step="refresh",
+            status="updated",
+            message="Refresh",
+        )
+        if not self._redis:
+            self._dispatch(key, event)
+            return
+
+        async def _safe_publish() -> None:
+            try:
+                await self._redis.publish(f"{CHANNEL_PREFIX}{key}", event.serialize())
+            except Exception as e:
+                logger.warning(
+                    "event bus: notify failed",
+                    key=key,
                     error=str(e),
                 )
 
@@ -254,17 +279,6 @@ class EventBus:
             if document_id not in events and document_id in self._latest:
                 events[document_id] = self._latest[document_id]
         return events
-
-    async def stream(self, document_id: str) -> AsyncIterator[IngestionEvent]:
-        q = self.subscribe(document_id)
-        try:
-            while True:
-                event = await q.get()
-                if event is None:
-                    break
-                yield event
-        finally:
-            self.unsubscribe(document_id, q)
 
 
 event_bus = EventBus()

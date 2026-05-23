@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import json
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING
-from urllib.parse import quote
+from typing import TYPE_CHECKING, Any
 
-from bigrag._sse import parse_sse_frames
+from bigrag._realtime import RealtimeConnection
 from bigrag.types.admin import AdminRealtimeEvent
 
 if TYPE_CHECKING:
@@ -23,49 +21,58 @@ class AdminRealtimeResource:
         status: str | None = None,
         limit: int | None = None,
         offset: int | None = None,
+        order: str | None = None,
+        q: str | None = None,
+        sort: str | None = None,
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
         return self._stream(
-            f"/v1/admin/realtime/collections/{quote(collection, safe='')}/documents",
-            {"status": status, "limit": limit, "offset": offset},
+            "admin.collections.documents",
+            {
+                "collection": collection,
+                "status": status,
+                "limit": limit,
+                "offset": offset,
+                "order": order,
+                "q": q,
+                "sort": sort,
+            },
         )
 
     def document_batch_status(
         self, collection: str, document_ids: list[str]
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
         return self._stream(
-            f"/v1/admin/realtime/collections/{quote(collection, safe='')}/documents/batch-status",
-            {"document_ids": ",".join(document_ids)},
+            "admin.collections.documents.batch_status",
+            {"collection": collection, "document_ids": document_ids},
         )
 
     def document(
         self, collection: str, document_id: str
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
         return self._stream(
-            "/v1/admin/realtime/collections/"
-            f"{quote(collection, safe='')}/documents/{quote(document_id, safe='')}"
+            "admin.collections.documents.detail",
+            {"collection": collection, "document_id": document_id},
         )
 
     def upload_session(
         self, collection: str, session_id: str
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
         return self._stream(
-            "/v1/admin/realtime/collections/"
-            f"{quote(collection, safe='')}/upload-sessions/{quote(session_id, safe='')}"
+            "admin.collections.upload_session",
+            {"collection": collection, "session_id": session_id},
         )
 
     def collection_stats(
         self, collection: str
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
-        return self._stream(
-            f"/v1/admin/realtime/collections/{quote(collection, safe='')}/stats"
-        )
+        return self._stream("admin.collections.stats", {"collection": collection})
 
     def connector_sources(
         self, provider: str, *, collection: str | None = None
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
         return self._stream(
-            f"/v1/admin/realtime/{quote(provider, safe='')}/sources",
-            {"collection": collection},
+            "admin.connectors.sources",
+            {"provider": provider, "collection": collection},
         )
 
     def connector_sync_jobs(
@@ -77,23 +84,24 @@ class AdminRealtimeResource:
         limit: int | None = None,
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
         return self._stream(
-            f"/v1/admin/realtime/{quote(provider, safe='')}/sync-jobs",
-            {"collection": collection, "source_id": source_id, "limit": limit},
+            "admin.connectors.sync_jobs",
+            {
+                "provider": provider,
+                "collection": collection,
+                "source_id": source_id,
+                "limit": limit,
+            },
         )
 
     def backups(
         self, *, limit: int | None = None, offset: int | None = None
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
-        return self._stream(
-            "/v1/admin/realtime/backups", {"limit": limit, "offset": offset}
-        )
+        return self._stream("admin.backups", {"limit": limit, "offset": offset})
 
     def access_overview(
         self, *, window_days: int | None = None
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
-        return self._stream(
-            "/v1/admin/realtime/access/overview", {"window_days": window_days}
-        )
+        return self._stream("admin.access.overview", {"window_days": window_days})
 
     def access_logs(
         self,
@@ -109,7 +117,7 @@ class AdminRealtimeResource:
         offset: int | None = None,
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
         return self._stream(
-            "/v1/admin/realtime/access/logs",
+            "admin.access.logs",
             {
                 "action": action,
                 "actor_id": actor_id,
@@ -133,7 +141,7 @@ class AdminRealtimeResource:
         offset: int | None = None,
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
         return self._stream(
-            "/v1/admin/realtime/audit",
+            "admin.audit",
             {
                 "action": action,
                 "actor_id": actor_id,
@@ -146,48 +154,29 @@ class AdminRealtimeResource:
     def usage(
         self, *, window_days: int | None = None
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
-        return self._stream("/v1/admin/realtime/usage", {"window_days": window_days})
+        return self._stream("admin.usage", {"window_days": window_days})
 
     def platform_stats(self) -> AsyncGenerator[AdminRealtimeEvent, None]:
-        return self._stream("/v1/admin/realtime/platform/stats")
+        return self._stream("admin.platform.stats")
 
     def platform_readiness(self) -> AsyncGenerator[AdminRealtimeEvent, None]:
-        return self._stream("/v1/admin/realtime/platform/readiness")
+        return self._stream("admin.platform.readiness")
 
     def custom(
-        self, path: str, params: dict[str, str | int | bool | None] | None = None
+        self, topic: str, params: dict[str, Any] | None = None
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
-        if not path.startswith("/v1/admin/realtime/"):
-            raise ValueError(
-                "admin.realtime.custom path must start with /v1/admin/realtime/"
-            )
-        return self._stream(path, params or {})
+        if not topic.startswith("admin."):
+            raise ValueError("admin.realtime.custom topic must start with admin.")
+        return self._stream(topic, params or {})
 
     async def _stream(
-        self, path: str, params: dict[str, str | int | bool | None] | None = None
+        self, topic: str, params: dict[str, Any] | None = None
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:
-        query = _stream_params(params or {})
-        async with self._client._client.stream(
-            "GET",
-            f"{self._client.base_url}{path}",
-            params=query,
-            headers=self._client._headers(),
-            timeout=self._client.timeout,
-        ) as response:
-            if response.status_code >= 400:
-                await response.aread()
-                await self._client._throw_for_status(response)
-            async for frame in parse_sse_frames(response):
-                yield {"event": frame.event, "data": json.loads(frame.data)}
-
-
-def _stream_params(params: dict[str, str | int | bool | None]) -> dict[str, str]:
-    query: dict[str, str] = {}
-    for key, value in params.items():
-        if value is None:
-            continue
-        if isinstance(value, bool):
-            query[key] = "true" if value else "false"
-        else:
-            query[key] = str(value)
-    return query
+        connection = RealtimeConnection(self._client)
+        try:
+            async for message in connection.subscribe(topic, params or {}):
+                yield message
+                if message["type"] == "complete":
+                    return
+        finally:
+            await connection.close()

@@ -2501,15 +2501,22 @@ if (lastError.name === "TimeoutError" || lastError.name === "AbortError") {
 }
 ```
 
-### SSE Streaming
+### Realtime Streaming
 
-Use async generators for SSE endpoints:
+Use async generators for WebSocket realtime subscriptions:
 
 ```typescript
 async *streamEvents(name: string): AsyncGenerator<ProgressEvent> {
-  const response = await this._client._fetch(url, { method: "GET", headers });
-  if (!response.ok) throw errorForStatus(response.status, response.statusText);
-  yield* parseSSEStream(response);
+  const connection = new BigRAGRealtimeConnection(this._client);
+  try {
+    for await (const message of connection.subscribe<ProgressEvent>("collection.events", {
+      collection: name,
+    })) {
+      if (message.type === "event") yield message.payload;
+    }
+  } finally {
+    await connection.close();
+  }
 }
 ```
 

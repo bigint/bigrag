@@ -3,7 +3,7 @@ import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
 
-export type ChatQuestionSuggestionsResponse = {
+type ChatQuestionSuggestionsResponse = {
   collection: string;
   generated_at: string | null;
   model: string | null;

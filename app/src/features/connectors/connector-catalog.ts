@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { HardDrive } from "lucide-react";
 
-export type ConnectorProviderId = "s3";
+type ConnectorProviderId = "s3";
 type ConnectorStatusVariant = "neutral" | "primary" | "success";
 
 export type ConnectorProvider = {
@@ -16,7 +16,7 @@ export type ConnectorProvider = {
   readonly capabilities: readonly string[];
 };
 
-export type ConnectorStatus = {
+type ConnectorStatus = {
   readonly label: string;
   readonly detail: string;
   readonly variant: ConnectorStatusVariant;

@@ -46,7 +46,7 @@ export interface CollectionStatsResponse {
   status_counts: Record<string, number>;
 }
 
-export interface CollectionEventTokenResponse {
+export interface CollectionRealtimeTokenResponse {
   token: string;
   expires_in: number;
 }

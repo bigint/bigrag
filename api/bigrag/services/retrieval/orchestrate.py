@@ -55,6 +55,7 @@ async def retrieve(
     search_mode: str = "semantic",
     reranking_config: dict | None = None,
     rerank_override: bool | None = None,
+    skip_cache: bool = False,
 ) -> RetrievalOutcome:
     if top_k > MAX_TOP_K:
         raise ValidationError(f"top_k {top_k} exceeds maximum {MAX_TOP_K}")
@@ -84,50 +85,51 @@ async def retrieve(
         query_terms = tokenize_query(query)
 
         result_cache_key: str | None = None
-        cache_settings = await get_values(["query_result_cache_ttl"])
-        if cache_settings["query_result_cache_ttl"] > 0:
-            cache_t0 = time.monotonic()
-            result_cache_key = await query_result_cache_key(
-                collection_name=collection_name,
-                query=query,
-                embedding_model=embedding_model,
-                top_k=top_k,
-                filters=filters,
-                min_score=min_score,
-                search_mode=search_mode,
-                reranking_config=reranking_config,
-                rerank_override=rerank_override,
-            )
-            cached_outcome = await cached_query_result(result_cache_key)
-            if cached_outcome is not None:
-                cache_ms = (time.monotonic() - cache_t0) * 1000
-                total_ms = (time.monotonic() - _retrieve_start) * 1000
-                cached_outcome.cache_ms = round(cache_ms, 2)
-                cached_outcome.total_ms = round(total_ms, 2)
-                avg_score = (
-                    sum(r.get("score", 0) for r in cached_outcome.results)
-                    / len(cached_outcome.results)
-                    if cached_outcome.results
-                    else None
-                )
-                log_retrieval_cache_hit(
+        if not skip_cache:
+            cache_settings = await get_values(["query_result_cache_ttl"])
+            if cache_settings["query_result_cache_ttl"] > 0:
+                cache_t0 = time.monotonic()
+                result_cache_key = await query_result_cache_key(
                     collection_name=collection_name,
-                    result_count=len(cached_outcome.results),
-                    total_ms=total_ms,
+                    query=query,
+                    embedding_model=embedding_model,
+                    top_k=top_k,
+                    filters=filters,
+                    min_score=min_score,
+                    search_mode=search_mode,
+                    reranking_config=reranking_config,
+                    rerank_override=rerank_override,
                 )
-                _safe_create_task(
-                    log_query(
+                cached_outcome = await cached_query_result(result_cache_key)
+                if cached_outcome is not None:
+                    cache_ms = (time.monotonic() - cache_t0) * 1000
+                    total_ms = (time.monotonic() - _retrieve_start) * 1000
+                    cached_outcome.cache_ms = round(cache_ms, 2)
+                    cached_outcome.total_ms = round(total_ms, 2)
+                    avg_score = (
+                        sum(r.get("score", 0) for r in cached_outcome.results)
+                        / len(cached_outcome.results)
+                        if cached_outcome.results
+                        else None
+                    )
+                    log_retrieval_cache_hit(
                         collection_name=collection_name,
-                        query=query,
-                        top_k=top_k,
                         result_count=len(cached_outcome.results),
-                        avg_score=avg_score,
-                        latency_ms=cached_outcome.total_ms,
-                        search_mode=search_mode,
-                    ),
-                    name="log_cached_query",
-                )
-                return cached_outcome
+                        total_ms=total_ms,
+                    )
+                    _safe_create_task(
+                        log_query(
+                            collection_name=collection_name,
+                            query=query,
+                            top_k=top_k,
+                            result_count=len(cached_outcome.results),
+                            avg_score=avg_score,
+                            latency_ms=cached_outcome.total_ms,
+                            search_mode=search_mode,
+                        ),
+                        name="log_cached_query",
+                    )
+                    return cached_outcome
 
         if search_mode == "keyword":
             results = await keyword_search(
@@ -147,6 +149,7 @@ async def retrieve(
                 max_top_k=MAX_TOP_K,
                 filter_expr=filter_expr,
                 timings=timings,
+                skip_cache=skip_cache,
             )
         else:
             results, _ = await semantic_search(
@@ -156,6 +159,7 @@ async def retrieve(
                 top_k=top_k,
                 filter_expr=filter_expr,
                 timings=timings,
+                skip_cache=skip_cache,
             )
 
         if reranking_config and results:
@@ -243,6 +247,7 @@ async def retrieve_multi(
     search_mode: str = "semantic",
     reranking_configs: dict[str, dict] | None = None,
     rerank_override: bool | None = None,
+    skip_cache: bool = False,
 ) -> list[dict]:
     if top_k > MAX_TOP_K:
         raise ValidationError(f"top_k {top_k} exceeds maximum {MAX_TOP_K}")
@@ -259,6 +264,7 @@ async def retrieve_multi(
             search_mode=search_mode,
             reranking_config=col_reranking,
             rerank_override=rerank_override,
+            skip_cache=skip_cache,
         )
         for r in outcome.results:
             r["collection"] = col_name

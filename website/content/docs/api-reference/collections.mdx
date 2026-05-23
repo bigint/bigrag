@@ -207,28 +207,34 @@ Deletes every document, vector, and remaining staged ingestion file in the colle
 
 </Accordions>
 
-## Streams
+## Realtime
 
 <Accordions type="multiple">
-<Accordion title="GET /v1/collections/{name}/events — Stream collection events (SSE)">
+<Accordion title="POST /v1/collections/{name}/realtime-token — Create collection realtime token">
 
-Server-Sent Events stream for every document event in the collection — useful for admin UI integrations, dashboards, and multi-document status panels.
-
-SSE clients that can't set headers should first mint a short-lived event token and then pass it as `?token=...`:
+Creates a short-lived token for the `collection.events` WebSocket topic. Use it when a browser client cannot send an API-key bearer header during the WebSocket handshake.
 
 ```http
-POST /v1/collections/{name}/events/token
+POST /v1/collections/{name}/realtime-token
 ```
 
 **Response** `200`:
 
 ```json
-{ "token": "br_evt_...", "expires_in": 300 }
+{ "token": "...", "expires_in": 300 }
 ```
 
-Only short-lived event tokens are accepted in the query string. Long-lived API keys must be sent in the `Authorization` header.
+</Accordion>
 
-**Event shape:**
+<Accordion title="WS /v1/realtime — collection.events topic">
+
+The `collection.events` topic streams every document event in the collection. It accepts a session cookie, an API-key bearer header, or the short-lived token from `POST /v1/collections/{name}/realtime-token`.
+
+```json
+{ "type": "subscribe", "id": "events", "topic": "collection.events", "params": { "collection": "research_papers", "token": "..." } }
+```
+
+**Event payload:**
 
 ```json
 {

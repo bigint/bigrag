@@ -2,13 +2,15 @@
 
 TypeScript client for [bigRAG](https://github.com/bigint/rag.computer) — a self-hostable RAG platform.
 
-Zero dependencies. Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes.
+Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes. Browser realtime uses native `WebSocket`; Node realtime uses the SDK's `ws` dependency.
 
 ## Installation
 
 ```bash
 npm install @bigrag/client
 ```
+
+Published releases use CalVer in the form `YYYY.M.D`.
 
 ## Quick Start
 
@@ -53,14 +55,15 @@ while (current.status === "pending" || current.status === "processing") {
 
 ## Namespaces
 
-- `client.collections` for collection CRUD, stats, analytics, event tokens, and event streams.
+- `client.collections` for collection CRUD, stats, analytics, realtime tokens, and event streams.
 - `client.documents` for uploads, batch operations, chunks, elements, and status polling.
 - `client.queries` for single, multi-collection, and batch retrieval queries.
 - `client.chat` for generated answers, question suggestions, and streaming.
 - `client.vectors` for raw vector upsert and delete.
 - `client.webhooks` for webhook management and delivery replay.
 - `client.auth` for setup, login, identity, password, and preferences.
-- `client.admin` for users, API keys, access logs, audit logs, runtime settings, backups, vector storage overview, admin realtime streams, connectors, embedding presets, and MCP server keys.
+- `client.admin` for users, API keys, access logs, audit logs, runtime settings, backups, vector storage overview, admin realtime helpers, connectors, embedding presets, and MCP server keys.
+- `client.realtime` for explicit WebSocket connect, subscribe, and unsubscribe control.
 - `client.connectors.s3` for S3-compatible bucket-prefix sources and sync jobs.
 - `client.evaluations` for golden-set retrieval evaluations.
 

@@ -73,9 +73,11 @@ async def invalidate_collection_query_cache(collection_name: str) -> None:
 async def embed_query_with_cache(
     query: str,
     embedding_model: EmbeddingModel,
+    *,
+    skip_cache: bool = False,
 ) -> list[float]:
     ttl = await get_value("query_embedding_cache_ttl")
-    if ttl <= 0:
+    if skip_cache or ttl <= 0:
         t0 = time.monotonic()
         logger.debug(
             "query_embedding_provider_request",

@@ -4,7 +4,7 @@ const DEFAULT_BASE_URL = "http://localhost:4000";
 const DEFAULT_TIMEOUT = 120_000;
 const DEFAULT_MAX_RETRIES = 2;
 
-export const USER_AGENT = "bigrag-typescript/2026.5.22";
+export const USER_AGENT = "bigrag-typescript/2026.5.23";
 
 export interface BigRAGOptions {
   apiKey?: string;

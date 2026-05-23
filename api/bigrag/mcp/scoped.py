@@ -37,13 +37,14 @@ def register(mcp: FastMCP, client: httpx.AsyncClient, pinned: str) -> None:
         rerank: Annotated[
             bool, Field(description="Run the collection's configured reranker")
         ] = False,
+        skip_cache: Annotated[bool, Field(description="Bypass Redis query caches")] = False,
         filters: Annotated[
             dict[str, Any] | None,
             Field(description="Metadata filter, e.g. {'source': 'docs'}"),
         ] = None,
     ) -> dict[str, Any]:
         return await call_query(
-            client, pinned, query, top_k, search_mode, min_score, rerank, filters
+            client, pinned, query, top_k, search_mode, min_score, rerank, skip_cache, filters
         )
 
     @mcp.tool()

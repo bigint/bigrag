@@ -16,7 +16,6 @@ const orders = new Set(["asc", "desc"]);
 
 type DocumentsSearch = {
   order?: DocumentListOrder;
-  page?: number;
   q?: string;
   sort?: DocumentListSort;
   status?: string;
@@ -28,12 +27,9 @@ const validateSearch = (search: Record<string, unknown>): DocumentsSearch => {
   const status = stringValue(search.status);
   const sort = stringValue(search.sort);
   const order = stringValue(search.order);
-  const page = Number(search.page);
-  const parsedPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
   const q = stringValue(search.q).slice(0, 200);
   return {
     ...(orders.has(order) && order !== "desc" ? { order: order as DocumentListOrder } : {}),
-    ...(parsedPage === 1 ? {} : { page: parsedPage }),
     ...(q ? { q } : {}),
     ...(sorts.has(sort) && sort !== "created_at" ? { sort: sort as DocumentListSort } : {}),
     ...(statuses.has(status) && status ? { status } : {}),
@@ -47,7 +43,6 @@ const DocumentsRoute = () => {
   const name = decodeCollectionName(rawName);
   const filters = {
     order: search.order ?? "desc",
-    page: search.page ?? 1,
     q: search.q ?? "",
     sort: search.sort ?? "created_at",
     status: search.status ?? "",

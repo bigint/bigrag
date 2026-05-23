@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { ChatMessage } from "@/features/chat/chat-messages";
 
-export type ChatStoreState = {
+type ChatStoreState = {
   collection: string;
   isStreaming: boolean;
   messages: ChatMessage[];

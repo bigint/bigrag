@@ -66,7 +66,7 @@ async def generate_question_suggestions(
         request_base_url=None,
     )
     documents = await _sample_documents(session, collection["id"])
-    chunks = await _sample_chunks(collection_name, collection, documents)
+    chunks = await _sample_chunks(collection_name, documents)
     text = await generate_questions_text(
         model=model,
         temperature=temperature,
@@ -180,7 +180,6 @@ async def _sample_documents(session: AsyncSession, collection_id: object) -> lis
 
 async def _sample_chunks(
     collection_name: str,
-    collection: dict,
     documents: list[Document],
 ) -> list[dict]:
     out: list[dict] = []

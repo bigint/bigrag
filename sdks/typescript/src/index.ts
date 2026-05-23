@@ -3,6 +3,7 @@ export type { BigRAGOptions, RequestClient } from "./core.js";
 export { BigRAGCore } from "./core.js";
 export * from "./errors.js";
 export { normalizeFileInput } from "./files.js";
+export { BigRAGRealtimeConnection, RealtimeResource } from "./realtime.js";
 export {
   AdminResource,
   AuthResource,

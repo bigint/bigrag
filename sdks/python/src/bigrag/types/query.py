@@ -15,6 +15,7 @@ class QueryBody(TypedDict):
     search_mode: NotRequired[SearchMode]
     rerank: NotRequired[bool]
     multimodal: NotRequired[bool]
+    skip_cache: NotRequired[bool]
 
 
 class QueryResult(TypedDict):
@@ -57,6 +58,7 @@ class MultiQueryBody(TypedDict):
     search_mode: NotRequired[SearchMode]
     rerank: NotRequired[bool]
     multimodal: NotRequired[bool]
+    skip_cache: NotRequired[bool]
 
 
 class MultiQueryResult(TypedDict):
@@ -87,6 +89,7 @@ class BatchQueryItem(TypedDict):
     search_mode: NotRequired[SearchMode]
     rerank: NotRequired[bool]
     multimodal: NotRequired[bool]
+    skip_cache: NotRequired[bool]
 
 
 class BatchQueryBody(TypedDict):

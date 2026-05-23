@@ -16,7 +16,7 @@ class CreateConnectorSourceRequest(BaseModel):
     collection_name: str = Field(min_length=1, max_length=120)
     bucket: str = Field(min_length=1, max_length=255)
     prefix: str = Field(default="", max_length=1024)
-    region: str = Field(default="us-east-1", min_length=1, max_length=100)
+    region: str | None = Field(default=None, max_length=100)
     endpoint_url: str | None = Field(default=None, max_length=500)
     force_path_style: bool = False
     access_key_id: str = Field(min_length=1, max_length=500)
@@ -30,7 +30,7 @@ class CreateConnectorSourceRequest(BaseModel):
 class UpdateConnectorSourceRequest(BaseModel):
     bucket: str | None = Field(default=None, min_length=1, max_length=255)
     prefix: str | None = Field(default=None, max_length=1024)
-    region: str | None = Field(default=None, min_length=1, max_length=100)
+    region: str | None = Field(default=None, max_length=100)
     endpoint_url: str | None = Field(default=None, max_length=500)
     force_path_style: bool | None = None
     access_key_id: str | None = Field(default=None, min_length=1, max_length=500)

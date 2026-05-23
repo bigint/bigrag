@@ -1,17 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
+import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { BackupJob, BackupJobListResponse } from "@/types/bigrag";
 
 export const useBackups = () => {
   const queryKey = useMemo(() => queryKeys.backups(), []);
-  return useSseSnapshotQuery<BackupJobListResponse>({
+  return useRealtimeSnapshotQuery<BackupJobListResponse>({
     queryKey,
     queryFn: () => apiClient.get<BackupJobListResponse>("v1/admin/backups"),
-    path: "v1/admin/realtime/backups",
+    topic: "admin.backups",
   });
 };
 

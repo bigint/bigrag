@@ -6,7 +6,7 @@ import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
-import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
+import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { formatNumber, formatRelative } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -53,13 +53,11 @@ export const AuditPage = () => {
     }),
     [action, offset, resourceType],
   );
-  const realtimeParams = new URLSearchParams(
-    Object.fromEntries(Object.entries(params).map(([key, value]) => [key, String(value)])),
-  );
-  const { data, isPending, error } = useSseSnapshotQuery<AuditList>({
+  const { data, isPending, error, realtimeUnavailable } = useRealtimeSnapshotQuery<AuditList>({
     queryKey,
     queryFn: () => apiClient.get<AuditList>("v1/admin/audit", params),
-    path: `v1/admin/realtime/audit?${realtimeParams}`,
+    topic: "admin.audit",
+    params,
   });
   const total = data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -191,6 +189,7 @@ export const AuditPage = () => {
                 <div>
                   Showing {formatNumber(firstEntry)}-{formatNumber(lastEntry)} of{" "}
                   {formatNumber(total)} entries
+                  {realtimeUnavailable ? " · realtime unavailable, polling" : ""}
                 </div>
                 <div className="flex items-center gap-3">
                   <span>

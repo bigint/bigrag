@@ -13,6 +13,7 @@ class QueryRequest(BaseModel):
     search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
     rerank: bool | None = None
     multimodal: bool = False
+    skip_cache: bool = False
 
 
 class VectorEntry(BaseModel):
@@ -80,6 +81,7 @@ class MultiQueryRequest(BaseModel):
     search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
     rerank: bool | None = None
     multimodal: bool = False
+    skip_cache: bool = False
 
 
 class MultiQueryResult(BaseModel):
@@ -110,6 +112,7 @@ class BatchQueryItem(BaseModel):
     search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
     rerank: bool | None = None
     multimodal: bool = False
+    skip_cache: bool = False
 
 
 class BatchQueryRequest(BaseModel):

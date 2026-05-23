@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from bigrag.db.models import ConnectorDocument, ConnectorSyncJob
+from bigrag.db.models import ConnectorDocument, ConnectorSource, ConnectorSyncJob
+from bigrag.services.connectors.realtime import notify_connector_sync_jobs
 from bigrag.services.connectors.types import ConnectorSyncCounters, RemoteConnectorFile
 
 SYNC_PROGRESS_FIXED_PERCENT = {
@@ -70,6 +71,7 @@ async def update_sync_progress(
     session: Any,
     *,
     job: ConnectorSyncJob,
+    source: ConnectorSource | None = None,
     counters: ConnectorSyncCounters,
     phase: str,
     message: str,
@@ -96,3 +98,5 @@ async def update_sync_progress(
         ),
     }
     await session.commit()
+    if source is not None:
+        notify_connector_sync_jobs(job.provider, source.collection_name, str(source.id))

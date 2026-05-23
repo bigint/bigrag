@@ -1,0 +1,76 @@
+---
+title: Realtime
+description: One WebSocket endpoint for subscribed realtime snapshots and events.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Realtime subscriptions use one WebSocket connection at `WS /v1/realtime`. Clients subscribe and unsubscribe topics over that socket instead of opening one HTTP stream per page or resource.
+
+Chat streaming remains separate because `POST /v1/chat` is request-response generation streaming, not a reusable subscription surface.
+
+## Client Messages
+
+```json
+{ "type": "subscribe", "id": "sub_1", "topic": "admin.collections.documents", "params": { "collection": "docs" } }
+{ "type": "unsubscribe", "id": "sub_1" }
+{ "type": "ping" }
+```
+
+Subscription IDs are client-generated and scoped to the WebSocket connection. Reusing an ID replaces the existing subscription with the new topic.
+
+## Server Messages
+
+```json
+{ "type": "subscribed", "version": 1, "id": "sub_1", "topic": "documents:list:docs", "generated_at": "2026-05-23T00:00:00Z" }
+{ "type": "snapshot", "version": 1, "id": "sub_1", "topic": "documents:list:docs", "payload": { "...": "..." }, "generated_at": "2026-05-23T00:00:00Z" }
+{ "type": "event", "version": 1, "id": "sub_1", "topic": "collection.events:docs", "payload": { "...": "..." }, "generated_at": "2026-05-23T00:00:00Z" }
+{ "type": "error", "version": 1, "id": "sub_1", "topic": "collection.events", "message": "Collection not found", "generated_at": "2026-05-23T00:00:00Z" }
+{ "type": "complete", "version": 1, "id": "sub_1", "topic": "documents:detail:docs:doc_1", "generated_at": "2026-05-23T00:00:00Z" }
+{ "type": "pong", "version": 1, "generated_at": "2026-05-23T00:00:00Z" }
+{ "type": "heartbeat", "version": 1, "generated_at": "2026-05-23T00:00:00Z" }
+```
+
+Every server message carries a `version` for the protocol envelope. The `topic` field is the backend's resolved topic key (handy for debugging); clients demultiplex on the subscription `id`, not the topic. Snapshot payloads match the related REST response shape.
+
+## Authentication
+
+Admin topics require an admin session cookie. Cookie-authenticated WebSocket connections validate the `Origin` header against the configured CORS origins or the backend's own origin.
+
+Collection event topics accept any of:
+- Admin or member session cookie.
+- API-key bearer auth with `collection:read`.
+- Short-lived realtime token from `POST /v1/collections/{name}/realtime-token`.
+
+Realtime tokens are useful when a browser cannot send bearer headers during the WebSocket handshake. Tokens are short-lived (5 minutes) and collection-scoped, and stay valid for the duration of the connection so they survive automatic reconnects.
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:4000/v1/collections/docs/realtime-token \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" | jq -r .token)
+```
+
+## Topics
+
+| Topic | Params | Payload shape | Lifecycle |
+|-------|--------|---------------|-----------|
+| `admin.collections.documents` | `collection`, `q`, `status`, `sort`, `order`, `limit`, `offset` | `GET /v1/collections/{name}/documents` | stays open |
+| `admin.collections.documents.detail` | `collection`, `document_id` | `GET /v1/collections/{name}/documents/{document_id}` | completes when `ready` or `failed` |
+| `admin.collections.documents.batch_status` | `collection`, `document_ids` | `POST /v1/collections/{name}/documents/batch/status` | completes when watched documents are terminal |
+| `admin.collections.upload_session` | `collection`, `session_id` | `GET /v1/collections/{name}/upload-sessions/{session_id}` | completes when `complete`, `failed`, or `canceled` |
+| `admin.collections.stats` | `collection` | `GET /v1/collections/{name}/stats` | stays open |
+| `admin.connectors.sources` | `provider`, `collection` | `GET /v1/connectors/{provider}/sources` | stays open |
+| `admin.connectors.sync_jobs` | `provider`, `collection`, `source_id`, `limit` | `GET /v1/connectors/{provider}/sync-jobs` | stays open |
+| `admin.backups` | `limit`, `offset` | `GET /v1/admin/backups` | stays open |
+| `admin.access.overview` | `window_days` | `GET /v1/admin/access/overview` | stays open |
+| `admin.access.logs` | access-log filters, `limit`, `offset` | `GET /v1/admin/access/logs` | stays open |
+| `admin.audit` | audit filters, `limit`, `offset` | `GET /v1/admin/audit` | stays open |
+| `admin.usage` | `window_days` | `GET /v1/usage` | stays open |
+| `admin.platform.stats` | none | `GET /v1/stats` | stays open |
+| `admin.platform.readiness` | none | `GET /health/ready` | stays open |
+| `collection.events` | `collection`, optional `token` | ingestion progress event | stays open |
+
+The backend uses event-bus wakeups for ingestion-backed topics, connector source changes, and connector sync progress. Paginated or aggregate admin surfaces still send full snapshots so reconnects and reloads see the same shape as the REST endpoint.
+
+<Callout type="info">
+  REST endpoints remain available for polling fallback. Realtime SSE endpoints were removed in favor of `WS /v1/realtime`.
+</Callout>

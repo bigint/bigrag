@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HTTPError } from "ky";
 import { toast } from "sonner";
-import { closeAllSseStreams } from "@/hooks/use-sse-snapshot-query";
+import { closeAllRealtimeStreams } from "@/hooks/use-realtime-snapshot-query";
 import { AUTH_TIMEOUT_MS, apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -72,7 +72,7 @@ export const useLogout = () => {
   return useMutation({
     mutationFn: () => apiClient.post<void>("v1/auth/logout"),
     onSuccess: () => {
-      closeAllSseStreams();
+      closeAllRealtimeStreams();
       qc.clear();
       qc.setQueryData(queryKeys.auth.session(), null);
       toast.success("Signed out");
@@ -85,7 +85,7 @@ export const useLogoutAll = () => {
   return useMutation({
     mutationFn: () => apiClient.post<void>("v1/auth/logout-all"),
     onSuccess: () => {
-      closeAllSseStreams();
+      closeAllRealtimeStreams();
       qc.clear();
       qc.setQueryData(queryKeys.auth.session(), null);
       toast.success("Signed out of all devices");

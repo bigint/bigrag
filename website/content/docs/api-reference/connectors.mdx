@@ -41,7 +41,9 @@ Create a bucket-prefix source:
 }
 ```
 
-bigRAG validates the credentials by listing the configured prefix before saving the source. Responses include bucket, prefix, region, endpoint URL, path-style setting, schedule state, sync state, timestamps, and `has_credentials`; secret values are never returned.
+bigRAG validates the credentials by listing the configured prefix before saving the source. Failed validation returns a public-safe S3 reachability or timeout message. Responses include bucket, prefix, region, endpoint URL, path-style setting, schedule state, sync state, timestamps, and `has_credentials`; secret values are never returned.
+
+`region` is the S3 signing region, not a storage-location selector. Cloudflare R2 endpoints (`*.r2.cloudflarestorage.com`) are normalized to `auto`; jurisdiction-specific R2 data locations belong in the endpoint URL.
 
 `PATCH` can update bucket, prefix, region, endpoint URL, path-style mode, schedule settings, metadata, and credentials. `access_key_id` and `secret_access_key` must be sent together when rotating credentials.
 

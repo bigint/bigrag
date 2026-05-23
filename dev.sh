@@ -10,6 +10,27 @@ NC='\033[0m'
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PIDS=()
 
+descendants() {
+  local child
+  for child in $(pgrep -P "$1" 2>/dev/null); do
+    descendants "$child"
+    echo "$child"
+  done
+}
+
+stop_tree() {
+  local tree
+  tree="$(descendants "$1") $1"
+  kill -TERM $tree 2>/dev/null || true
+  for _ in $(seq 1 20); do
+    local alive=false pid
+    for pid in $tree; do kill -0 "$pid" 2>/dev/null && alive=true; done
+    [ "$alive" = false ] && return 0
+    sleep 0.5
+  done
+  kill -KILL $tree 2>/dev/null || true
+}
+
 START_INFRA=false
 START_BACKEND=false
 START_WEBSITE=false
@@ -46,7 +67,7 @@ fi
 cleanup() {
   echo -e "\n${YELLOW}Shutting down...${NC}"
   for pid in "${PIDS[@]+"${PIDS[@]}"}"; do
-    kill "$pid" 2>/dev/null || true
+    stop_tree "$pid"
   done
   if [ "$STARTED_INFRA" = true ]; then
     docker compose -f "$ROOT_DIR/docker-compose.yml" down 2>/dev/null || true
@@ -102,10 +123,15 @@ fi
 if [ "$START_BACKEND" = true ]; then
   stale_workers=$(ps -axo pid=,command= | awk -v root="$ROOT_DIR" '$0 ~ root "/api" && $0 ~ /bigrag-worker/ {print $1}' || true)
   if [ -n "$stale_workers" ]; then
-    echo -e "${YELLOW}Killing stale bigrag-worker process(es)${NC}"
-    echo "$stale_workers" | xargs kill -9 2>/dev/null || true
-    sleep 1
+    echo -e "${YELLOW}Stopping stale bigrag-worker process tree(s)${NC}"
+    for wpid in $stale_workers; do stop_tree "$wpid"; done
   fi
+  orphans=$(ps -axo pid=,ppid=,command= | awk -v root="$ROOT_DIR" '$2==1 && $0 ~ root "/api/.venv" && /multiprocessing/ {print $1}' || true)
+  if [ -n "$orphans" ]; then
+    echo -e "${YELLOW}Cleaning orphaned worker subprocess(es)${NC}"
+    echo "$orphans" | xargs kill -9 2>/dev/null || true
+  fi
+  sleep 1
 fi
 
 if [ "$START_INFRA" = true ]; then

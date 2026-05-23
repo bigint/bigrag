@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Page } from "@/components/ui/page";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { useSseSnapshotQuery } from "@/hooks/use-sse-snapshot-query";
+import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -42,10 +42,11 @@ const humanBytes = (n: number): string => {
 export const UsagePage = () => {
   const [windowDays, setWindowDays] = useState(30);
   const queryKey = useMemo(() => queryKeys.usage({ windowDays }), [windowDays]);
-  const { data, isPending, error } = useSseSnapshotQuery<UsageReport>({
+  const { data, isPending, error, realtimeUnavailable } = useRealtimeSnapshotQuery<UsageReport>({
     queryKey,
     queryFn: () => apiClient.get<UsageReport>("v1/usage", { window_days: windowDays }),
-    path: `v1/admin/realtime/usage?window_days=${windowDays}`,
+    topic: "admin.usage",
+    params: { window_days: windowDays },
   });
 
   return (
@@ -81,6 +82,9 @@ export const UsagePage = () => {
                 onChange={(v) => setWindowDays(Number(v))}
               />
             </div>
+            {realtimeUnavailable ? (
+              <span className="text-xs text-muted-foreground">realtime unavailable, polling</span>
+            ) : null}
           </div>
 
           {isPending ? (

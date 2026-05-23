@@ -32,7 +32,6 @@ class VectorStore:
 
     def configure(
         self,
-        url: str | None = None,
         *,
         turbopuffer_api_key: str | None = None,
         turbopuffer_region: str = "aws-us-east-1",

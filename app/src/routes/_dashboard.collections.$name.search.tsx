@@ -1,21 +1,19 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CircleAlert, Copy, RotateCcw, Search, Sparkles, X } from "lucide-react";
+import { CircleAlert, Copy, Database, Gauge, RotateCcw, Search, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
 import {
-  type CollectionSearchMode,
   collectionSearchBodyFromValues,
   defaultCollectionSearchFormValues,
   validateCollectionSearchFormValues,
 } from "@/features/collections/collection-form-state";
+import { SearchModeControl, SearchToggle } from "@/features/collections/collection-search-controls";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import { useCollection } from "@/hooks/use-collections";
 import { useRunQuery } from "@/hooks/use-query";
@@ -44,51 +42,52 @@ const SearchTab = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent className="pt-5">
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
           <form
-            className="flex flex-col gap-4"
+            className="flex flex-col"
             noValidate
             onSubmit={submitWith(() => form.handleSubmit())}
           >
-            <form.Field
-              name="query"
-              validators={{
-                onSubmit: ({ value }) => {
-                  if (!value.trim()) return "Query is required";
-                  if (value.length > 500) return "Query must be 500 characters or fewer";
-                  return undefined;
-                },
-              }}
-            >
-              {(field) => (
-                <Input
-                  autoFocus
-                  description={`${field.state.value.length}/500 characters`}
-                  error={errorText(field.state.meta.errors)}
-                  maxLength={500}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder="Ask a question of this collection…"
-                  trailing={<Search className="h-4 w-4" />}
-                  value={field.state.value}
-                />
-              )}
-            </form.Field>
-            <div className="flex flex-wrap items-end gap-3">
-              <form.Field name="mode">
+            <div className="flex flex-col gap-3 p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-sm font-semibold" htmlFor="collection-search-query">
+                  Search query
+                </label>
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                  {values.query.length}/500
+                </span>
+              </div>
+              <form.Field
+                name="query"
+                validators={{
+                  onSubmit: ({ value }) => {
+                    if (!value.trim()) return "Query is required";
+                    if (value.length > 500) return "Query must be 500 characters or fewer";
+                    return undefined;
+                  },
+                }}
+              >
                 {(field) => (
-                  <Select
-                    className="w-40"
-                    label="Mode"
-                    onChange={(value) => field.handleChange(value as CollectionSearchMode)}
-                    options={[
-                      { value: "semantic", label: "Semantic" },
-                      { value: "keyword", label: "Keyword" },
-                      { value: "hybrid", label: "Hybrid" },
-                    ]}
+                  <Input
+                    autoFocus
+                    className="h-12 text-base"
+                    error={errorText(field.state.meta.errors)}
+                    id="collection-search-query"
+                    maxLength={500}
+                    onBlur={field.handleBlur}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    placeholder="Ask a question of this collection"
+                    trailing={<Search className="size-4" />}
                     value={field.state.value}
                   />
+                )}
+              </form.Field>
+            </div>
+            <div className="flex flex-col gap-3 border-t border-border bg-muted/35 p-4 sm:flex-row sm:items-end sm:p-5">
+              <form.Field name="mode">
+                {(field) => (
+                  <SearchModeControl onChange={field.handleChange} value={field.state.value} />
                 )}
               </form.Field>
               <form.Field
@@ -112,31 +111,43 @@ const SearchTab = () => {
                   />
                 )}
               </form.Field>
-              {collection?.reranking_enabled && (
-                <div className="flex items-center gap-2 text-sm">
+              <div className="grid gap-3 sm:min-w-72 sm:grid-cols-2">
+                <form.Field name="skipCache">
+                  {(field) => (
+                    <SearchToggle
+                      checked={field.state.value}
+                      label="Skip cache"
+                      onCheckedChange={field.handleChange}
+                    />
+                  )}
+                </form.Field>
+                {collection?.reranking_enabled ? (
                   <form.Field name="rerank">
                     {(field) => (
-                      <Switch
-                        aria-label="Rerank results"
+                      <SearchToggle
                         checked={field.state.value}
+                        label="Rerank"
                         onCheckedChange={field.handleChange}
                       />
                     )}
                   </form.Field>
-                  <span>Rerank</span>
-                </div>
-              )}
-              <div className="ml-auto">
-                <Button type="submit" disabled={run.isPending || !values.query.trim()}>
-                  {run.isPending ? (
-                    <Spinner size="sm" />
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" /> Run query
-                    </>
-                  )}
-                </Button>
+                ) : (
+                  <div className="hidden sm:block" />
+                )}
               </div>
+              <Button
+                className="h-10 w-full sm:ml-auto sm:w-auto"
+                type="submit"
+                disabled={run.isPending || !values.query.trim()}
+              >
+                {run.isPending ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <>
+                    <Sparkles className="size-4" /> Run query
+                  </>
+                )}
+              </Button>
             </div>
           </form>
         </CardContent>
@@ -189,11 +200,24 @@ const SearchTab = () => {
 
       {run.data && run.data.results.length > 0 && (
         <div className="flex flex-col gap-2">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            {run.data.total} result{run.data.total === 1 ? "" : "s"} for "{run.data.query}"
+          <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+            <Badge variant="neutral">
+              {run.data.total} result{run.data.total === 1 ? "" : "s"}
+            </Badge>
+            <span>for "{run.data.query}"</span>
             {run.data.timings?.total_ms === undefined
               ? ""
-              : ` · ${Math.round(run.data.timings.total_ms)}ms`}
+              : ` ${Math.round(run.data.timings.total_ms)}ms`}
+            {run.data.timings && (
+              <Badge variant={run.data.timings.cache_hit ? "warning" : "neutral"}>
+                {run.data.timings.cache_hit ? (
+                  <Database className="size-3" />
+                ) : (
+                  <Gauge className="size-3" />
+                )}
+                {run.data.timings.cache_hit ? "cache hit" : "live"}
+              </Badge>
+            )}
           </div>
           {run.data.results.map((r) => (
             <article key={r.id} className="rounded-xl border border-border bg-card p-4">

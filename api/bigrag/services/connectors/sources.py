@@ -16,6 +16,7 @@ from bigrag.db.models import (
 )
 from bigrag.services import collection_cache
 from bigrag.services.connectors.progress import sync_progress_details
+from bigrag.services.connectors.realtime import notify_connector_sources, notify_connector_state
 from bigrag.services.connectors.time import next_sync_at, utcnow
 from bigrag.services.retrieval import invalidate_collection_query_cache
 
@@ -163,11 +164,13 @@ async def create_source(
     if collection is None:
         raise ValueError("Collection not found")
 
+    collection_id = collection.id
+    collection_name_value = collection.name
     metadata_dict = dict(metadata or {})
     source = ConnectorSource(
         provider=provider,
-        collection_id=collection.id,
-        collection_name=collection.name,
+        collection_id=collection_id,
+        collection_name=collection_name_value,
         tenant_id=_tenant_id(collection, metadata_dict),
         root_id=root_id,
         root_name=root_name,
@@ -175,7 +178,7 @@ async def create_source(
         source_type="prefix",
         schedule_enabled=schedule_enabled,
         sync_interval_hours=sync_interval_hours,
-        status="syncing",
+        status="idle",
         next_sync_at=utcnow() + timedelta(hours=sync_interval_hours) if schedule_enabled else None,
         meta=metadata_dict,
     )
@@ -187,7 +190,7 @@ async def create_source(
         existing = await session.scalar(
             sa.select(ConnectorSource)
             .where(ConnectorSource.provider == provider)
-            .where(ConnectorSource.collection_id == collection.id)
+            .where(ConnectorSource.collection_id == collection_id)
             .where(ConnectorSource.root_id == root_id)
         )
         if existing is None:
@@ -207,6 +210,7 @@ async def create_source(
         )
         await session.commit()
         await session.refresh(existing)
+        notify_connector_state(provider, existing.collection_name, str(existing.id))
         if job.status == "pending" and job.started_at is None:
             start_sync_job(str(job.id))
         return existing, job
@@ -223,6 +227,7 @@ async def create_source(
     await session.commit()
     await session.refresh(source)
     await session.refresh(job)
+    notify_connector_state(provider, source.collection_name, str(source.id))
     if job.status == "pending" and job.started_at is None:
         start_sync_job(str(job.id))
     return source, job
@@ -313,6 +318,7 @@ async def trigger_sync(
     )
     if job.status == "pending" and job.started_at is None:
         start_sync_job(str(job.id))
+    notify_connector_state(provider, source.collection_name, str(source.id))
     return job
 
 
@@ -350,6 +356,7 @@ async def update_source(
     source.next_sync_at = next_sync_at(source)
     await session.commit()
     await session.refresh(source)
+    notify_connector_sources(provider, source.collection_name)
     return source
 
 
@@ -366,6 +373,8 @@ async def delete_source(
         source_id=source_id,
         not_found_message=not_found_message,
     )
+    collection_name = source.collection_name
+    source_uuid = str(source.id)
     manifests = (
         await session.scalars(
             sa.select(ConnectorDocument).where(ConnectorDocument.source_id == source.id)
@@ -377,11 +386,9 @@ async def delete_source(
         from bigrag.services.documents import recount_collection_documents
 
         counters = ConnectorSyncCounters()
-        collection = await session.get(Collection, source.collection_id)
         for manifest in manifests:
             await delete_synced_document(
                 session,
-                collection=collection,
                 source=source,
                 manifest=manifest,
                 counters=counters,
@@ -390,7 +397,8 @@ async def delete_source(
         await invalidate_collection_query_cache(source.collection_name)
     await session.delete(source)
     await session.commit()
-    await collection_cache.invalidate(source.collection_name)
+    await collection_cache.invalidate(collection_name)
+    notify_connector_state(provider, collection_name, source_uuid)
 
 
 async def list_sync_jobs(

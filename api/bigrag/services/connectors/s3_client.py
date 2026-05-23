@@ -13,6 +13,14 @@ from bigrag.services.connectors.s3_types import S3ConnectorError, source_s3_conf
 from bigrag.services.connectors.types import DownloadedConnectorFile, RemoteConnectorFile
 from bigrag.services.documents import SUPPORTED_EXTENSIONS
 
+S3_CLIENT_CONNECT_TIMEOUT_SECONDS = 10
+S3_CLIENT_READ_TIMEOUT_SECONDS = 60
+S3_CLIENT_RETRY_ATTEMPTS = 3
+S3_PROBE_CONNECT_TIMEOUT_SECONDS = 3
+S3_PROBE_READ_TIMEOUT_SECONDS = 8
+S3_PROBE_RETRY_ATTEMPTS = 1
+S3_PROBE_TIMEOUT_SECONDS = 12
+
 
 def _boto3_client(
     *,
@@ -22,6 +30,9 @@ def _boto3_client(
     region: str,
     endpoint_url: str | None,
     force_path_style: bool,
+    connect_timeout: int = S3_CLIENT_CONNECT_TIMEOUT_SECONDS,
+    read_timeout: int = S3_CLIENT_READ_TIMEOUT_SECONDS,
+    retry_attempts: int = S3_CLIENT_RETRY_ATTEMPTS,
 ):
     try:
         import boto3
@@ -35,9 +46,9 @@ def _boto3_client(
         "endpoint_url": endpoint_url,
         "region_name": region,
         "config": Config(
-            connect_timeout=10,
-            read_timeout=60,
-            retries={"max_attempts": 3, "mode": "standard"},
+            connect_timeout=connect_timeout,
+            read_timeout=read_timeout,
+            retries={"max_attempts": retry_attempts, "mode": "standard"},
             s3={"addressing_style": "path" if force_path_style else "auto"},
         ),
     }
@@ -62,14 +73,22 @@ async def probe_s3_credentials(
         region=region,
         endpoint_url=endpoint_url,
         force_path_style=force_path_style,
+        connect_timeout=S3_PROBE_CONNECT_TIMEOUT_SECONDS,
+        read_timeout=S3_PROBE_READ_TIMEOUT_SECONDS,
+        retry_attempts=S3_PROBE_RETRY_ATTEMPTS,
     )
     try:
-        await asyncio.to_thread(
-            client.list_objects_v2,
-            Bucket=bucket,
-            Prefix=prefix,
-            MaxKeys=1,
+        await asyncio.wait_for(
+            asyncio.to_thread(
+                client.list_objects_v2,
+                Bucket=bucket,
+                Prefix=prefix,
+                MaxKeys=1,
+            ),
+            timeout=S3_PROBE_TIMEOUT_SECONDS,
         )
+    except TimeoutError as exc:
+        raise S3ConnectorError("S3 bucket did not respond before timeout") from exc
     except Exception as exc:
         raise S3ConnectorError("S3 bucket could not be reached") from exc
 

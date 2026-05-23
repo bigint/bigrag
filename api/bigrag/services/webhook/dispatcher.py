@@ -106,9 +106,6 @@ class WebhookDispatcher:
             )
         return name
 
-    async def _deliver(self, webhook: dict, event: str, payload: str) -> None:
-        await self._enqueue_deliveries([webhook], event, payload)
-
     async def _enqueue_deliveries(self, webhooks: list[dict], event: str, payload: str) -> None:
         if not webhooks:
             return

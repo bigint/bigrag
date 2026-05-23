@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -16,7 +17,7 @@ import {
   ShieldCheck,
   SignalHigh,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
@@ -28,6 +29,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { usePlatformStats, useReadiness } from "@/hooks/use-platform";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatNumber, formatRelative } from "@/lib/format";
+import { queryKeys } from "@/lib/query-keys";
 import type { AccessLogOverview } from "@/types/bigrag";
 
 const QUICK_ACTIONS = [
@@ -52,6 +54,8 @@ const QUICK_ACTIONS = [
 ] as const;
 
 export const OverviewPage = () => {
+  const queryClient = useQueryClient();
+  const collectionRefreshMarkerRef = useRef<string | null>(null);
   const { data: session } = useSession();
   const { data: stats, isPending: statsPending } = usePlatformStats();
   const { data: readiness } = useReadiness();
@@ -62,6 +66,14 @@ export const OverviewPage = () => {
   const collections = collectionsData?.collections ?? [];
   const firstName = session?.user.display_name?.split(" ")[0] || session?.user.email || "there";
   const docs = stats?.documents;
+  const collectionRefreshMarker = [
+    stats?.collections ?? "",
+    docs?.total ?? "",
+    docs?.ready ?? "",
+    docs?.pending ?? "",
+    docs?.processing ?? "",
+    docs?.failed ?? "",
+  ].join(":");
   const queuedDocs = (docs?.pending ?? 0) + (docs?.processing ?? 0);
   const readyPct = docs?.total ? Math.round((docs.ready / docs.total) * 100) : 0;
   const failedPct = docs?.total ? Math.round((docs.failed / docs.total) * 100) : 0;
@@ -86,6 +98,16 @@ export const OverviewPage = () => {
     () => Object.entries(stats?.queue ?? {}).filter(([, value]) => value > 0),
     [stats?.queue],
   );
+  useEffect(() => {
+    if (!stats || !collectionsData) return;
+    if (collectionRefreshMarkerRef.current === null) {
+      collectionRefreshMarkerRef.current = collectionRefreshMarker;
+      return;
+    }
+    if (collectionRefreshMarkerRef.current === collectionRefreshMarker) return;
+    collectionRefreshMarkerRef.current = collectionRefreshMarker;
+    void queryClient.invalidateQueries({ queryKey: queryKeys.collections.all() });
+  }, [collectionRefreshMarker, collectionsData, queryClient, stats]);
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-6 md:px-8 lg:px-10">

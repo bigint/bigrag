@@ -3,7 +3,7 @@ import type { EmbeddingPreset } from "@/types/bigrag";
 
 export type Provider = "openai" | "openai_compatible" | "cohere" | "voyage";
 
-export type EmbeddingModelCatalogItem = {
+type EmbeddingModelCatalogItem = {
   description?: string;
   dimension: number;
   model: string;

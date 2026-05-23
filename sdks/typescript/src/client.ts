@@ -1,5 +1,6 @@
 import type { BigRAGOptions } from "./core.js";
 import { BigRAGCore } from "./core.js";
+import { RealtimeResource } from "./realtime.js";
 import {
   AdminResource,
   AuthResource,
@@ -29,6 +30,7 @@ export class BigRAG extends BigRAGCore {
   readonly documents: DocumentsResource;
   readonly evaluations: EvaluationsResource;
   readonly queries: QueryResource;
+  readonly realtime: RealtimeResource;
   readonly vectors: VectorsResource;
   readonly webhooks: WebhooksResource;
 
@@ -42,6 +44,7 @@ export class BigRAG extends BigRAGCore {
     this.documents = new DocumentsResource(this);
     this.evaluations = new EvaluationsResource(this);
     this.queries = new QueryResource(this);
+    this.realtime = new RealtimeResource(this);
     this.vectors = new VectorsResource(this);
     this.webhooks = new WebhooksResource(this);
   }

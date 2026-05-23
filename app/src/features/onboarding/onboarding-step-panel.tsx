@@ -10,7 +10,6 @@ type StepPanelProps = {
   readonly complete: boolean;
   readonly icon: LucideIcon;
   readonly index: number;
-  readonly optional?: boolean;
   readonly title: string;
 };
 
@@ -20,7 +19,6 @@ export const StepPanel = ({
   complete,
   icon: Icon,
   index,
-  optional = false,
   title,
 }: StepPanelProps) => (
   <section
@@ -49,7 +47,6 @@ export const StepPanel = ({
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        {optional && <Badge variant="neutral">optional</Badge>}
         <Badge dot variant={complete ? "success" : active ? "primary" : "neutral"}>
           {complete ? "complete" : active ? "active" : "pending"}
         </Badge>

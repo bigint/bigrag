@@ -4,19 +4,18 @@ from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
-from bigrag._errors import error_for_status
-from bigrag._sse import parse_sse_stream
+from bigrag._realtime import RealtimeConnection
 from bigrag.types.analytics import AnalyticsResponse
 from bigrag.types.collections import (
     Collection,
-    CollectionEventTokenResponse,
     CollectionListResponse,
+    CollectionRealtimeTokenResponse,
     CollectionStatsResponse,
     CreateCollectionBody,
     UpdateCollectionBody,
 )
 from bigrag.types.common import StatusResponse
-from bigrag.types.sse import ProgressEvent
+from bigrag.types.realtime import ProgressEvent
 
 if TYPE_CHECKING:
     from bigrag._core import BigRAGCore
@@ -75,28 +74,24 @@ class CollectionsResource:
             "POST", f"/v1/collections/{quote(name, safe='')}/truncate"
         )
 
-    async def create_event_token(self, name: str) -> CollectionEventTokenResponse:
+    async def create_realtime_token(self, name: str) -> CollectionRealtimeTokenResponse:
         return await self._client._request(
-            "POST", f"/v1/collections/{quote(name, safe='')}/events/token"
+            "POST", f"/v1/collections/{quote(name, safe='')}/realtime-token"
         )
 
     async def stream_events(
         self, name: str, *, token: str | None = None
     ) -> AsyncGenerator[ProgressEvent, None]:
-        path = f"/v1/collections/{quote(name, safe='')}/events"
-        url = f"{self._client.base_url}{path}"
-        params = {"token": token} if token is not None else None
-        async with self._client._client.stream(
-            "GET",
-            url,
-            params=params,
-            headers=self._client._headers(),
-        ) as response:
-            if response.status_code >= 400:
-                await response.aread()
-                raise error_for_status(
-                    response.status_code,
-                    response.reason_phrase or "Unknown error",
-                )
-            async for event in parse_sse_stream(response):
-                yield event
+        connection = RealtimeConnection(self._client)
+        try:
+            async for message in connection.subscribe(
+                "collection.events", {"collection": name, "token": token}
+            ):
+                if message["type"] == "event":
+                    yield message["payload"]
+                elif message["type"] == "error":
+                    raise RuntimeError(message["message"])
+                elif message["type"] == "complete":
+                    return
+        finally:
+            await connection.close()

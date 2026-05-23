@@ -32,11 +32,11 @@ For cross-site production deployments, enable secure session cookies and set `Sa
 | `/overview` | Platform-wide stats — collection count, document states, stored token count, queue depth, readiness, and worker heartbeat. |
 | `/collections` | List, create, delete, and search collections. |
 | `/collections/[name]` | Collection overview with configuration badges, status counts, recent documents, and shortcuts. |
-| `/collections/[name]/documents` | Upload files or folders through resumable upload sessions, filter/search/sort/paginate documents, inspect status, bulk delete with typed confirmation, and delete individual documents. Uploads are disabled when `/v1/stats` reports no live `bigrag-worker`. |
-| `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, SSE progress, failed-ingest error, and delete. |
+| `/collections/[name]/documents` | Upload files or folders through resumable upload sessions, filter/search/sort documents with infinite scrolling, inspect status, bulk delete with typed confirmation, and delete individual documents. Uploads are disabled when `/v1/stats` reports no live `bigrag-worker`. |
+| `/collections/[name]/documents/[docId]` | Document detail — chunk viewer, live progress, failed-ingest error, and delete. |
 | `/collections/[name]/connectors` | Redirects to the first available collection connector from the provider catalog. |
-| `/collections/[name]/connectors/s3` | Open the collection-scoped S3/R2 connector workspace to add bucket-prefix sources, monitor sync progress, trigger manual resync, and manage sync schedules. Source creation and manual sync are disabled when the worker is offline. |
-| `/collections/[name]/search` | Query tester scoped to the collection — bounded requests, cancel/retry states, result metadata, document filenames, and chunk deep links. |
+| `/collections/[name]/connectors/s3` | Open the collection-scoped S3/R2 connector workspace with an inline source list, an Add source modal for bucket-prefix credentials, sync progress, manual resync, and schedule controls. Source creation and manual sync are disabled when the worker is offline. |
+| `/collections/[name]/search` | Query tester scoped to the collection — mode segments, top-k control, skip-cache runs, cancel/retry states, result metadata, document filenames, and chunk deep links. |
 | `/collections/[name]/settings` | Edit description, metadata, metadata schema, reranking, chunking, and default query params. |
 | `/chat` | Browser-local playground chat UI; retrieve from one collection, stream cited answers, render safe markdown, and keep local sessions across reloads. |
 | `/models` | Manage [embedding presets](/docs/api-reference/embedding-presets), including provider connection tests and OpenAI-compatible base URLs, plus fallback embedding, retrieval, and chat model settings. |
@@ -58,9 +58,9 @@ The sidebar is grouped by operator task: Workspace, Interfaces, Observability, a
 
 The `/models` page owns reusable embedding presets and runtime model settings. `/models` opens embedding presets by default; `/models?tab=settings` opens fallback embedding, retrieval, and chat settings; `/models?tab=settings&group=search` and `/models?tab=settings&group=chat` focus one model settings panel.
 
-The `/connectors` page lists configured S3/R2 sources across collections. Collection connector pages own source creation, per-source credentials, schedule changes, manual sync, source deletion, and sync-job progress through `/v1/connectors/s3/*`.
+The `/connectors` page lists configured S3/R2 sources across collections. Collection connector pages show source rows inline and open source creation in a modal; they own per-source credentials, schedule changes, manual sync, source deletion with confirmation, and sync-job progress through `/v1/connectors/s3/*`. Cloudflare R2 endpoint URLs set the connector signing region to `auto`.
 
-The Settings Backups tab renders backup destination settings directly above export controls backed by `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups`, and `POST /v1/admin/backups`. Backup starts are disabled when the worker heartbeat is offline or no bucket is configured.
+The Settings Backups tab renders backup destination settings directly above export controls backed by `GET /v1/admin/backups`, the `admin.backups` realtime topic, and `POST /v1/admin/backups`. Backup starts are disabled when the worker heartbeat is offline or no bucket is configured.
 
 The Settings Vector storage tab exposes the saved Turbopuffer API key state, public-region dropdown, namespace prefix, and optional base URL through the same instance settings API.
 
@@ -69,28 +69,28 @@ Settings accepts tab values via query param: `/settings?tab=account`, `/settings
 | Group | Section | Reads from | Writes to |
 |-------|---------|-----------|-----------|
 | **Personal** | Account | `GET /v1/auth/me` | `PATCH /v1/admin/users/{user_id}`, `POST /v1/auth/password`, `POST /v1/auth/logout-all` |
-| **Operate** | Health | `GET /health/ready`, `GET /v1/admin/realtime/platform/readiness` | — |
+| **Operate** | Health | `GET /health/ready`, `admin.platform.readiness` realtime topic | — |
 | **Operate** | Security | `GET /v1/admin/settings` | `PUT /v1/admin/settings`, `POST /v1/admin/settings/embedding-cache/purge` |
 | **Operate** | Data | `GET /v1/admin/settings` | `PUT /v1/admin/settings` |
 | **Operate** | Storage | `GET /v1/admin/settings` | `PUT /v1/admin/settings` |
 | **Operate** | Vector storage | `GET /v1/admin/settings` | `PUT /v1/admin/settings` |
-| **Operate** | Backups | `GET /v1/admin/settings`, `GET /v1/admin/backups`, `GET /v1/admin/realtime/backups` | `PUT /v1/admin/settings`, `POST /v1/admin/backups` |
+| **Operate** | Backups | `GET /v1/admin/settings`, `GET /v1/admin/backups`, `admin.backups` realtime topic | `PUT /v1/admin/settings`, `POST /v1/admin/backups` |
 
 ## Realtime updates
 
-The admin UI uses session-cookie [admin realtime SSE streams](/docs/api-reference/admin-realtime) for live document progress, batch upload progress, collection stats, connector sync state, access logs, paginated audit log pages, usage, platform stats, and readiness. Each stream sends an immediate full `snapshot` payload matching the related REST response, then sends later snapshots as data changes.
+The admin UI uses one session-cookie [realtime WebSocket](/docs/api-reference/realtime) for live document progress, batch upload progress, collection stats, connector sync state, access logs, paginated audit log pages, usage, platform stats, and readiness. Each subscription sends an immediate full `snapshot` payload matching the related REST response, then sends later snapshots as data changes. The socket stays open across dashboard navigation and only swaps topic subscriptions as pages mount and unmount. Overview platform stats refresh from ingestion events instead of waiting on the REST stats cache. The UI replays active subscriptions after reconnect and falls back to REST polling when the socket cannot deliver an initial snapshot.
 
 Expensive overview surfaces keep short-lived backend caches behind the readiness and access-overview loaders so several open admin sessions do not rerun the same aggregate or dependency checks on every interval tick.
 
 **Worker-offline UX:** The same platform stats stream drives the offline indicator. When `workers.online` is `false`, the admin UI shows `bigrag-worker is offline`, includes the last heartbeat age when available, and disables actions that would enqueue uploads, backups, S3 source sync, or manual S3 resync. Missing worker stats are treated as unknown, so actions remain available until an offline heartbeat is confirmed.
 
-**Large upload progress:** After a large local upload starts, the collection documents page opens `GET /v1/admin/realtime/collections/{name}/upload-sessions/{session_id}` as a high-priority realtime stream. The stream returns received, queued, ingesting, completed, failed, and canceled counts. The panel renders the active summary plus a small item window that prioritizes active and failed files before older completed rows, so 10,000-file uploads do not require a 10,000-ID status stream. If the browser cannot keep an SSE connection open, the panel falls back to two-second polling. If a linked document is deleted while the upload session remains visible, the item is treated as canceled rather than active queued work. Terminal sessions are removed automatically once no active or failed work remains.
+**Large upload progress:** After a large local upload starts, the collection documents page subscribes to `admin.collections.upload_session` with the upload session ID. The snapshot returns received, queued, ingesting, completed, failed, and canceled counts. The panel renders the active summary plus a small item window that prioritizes active and failed files before older completed rows, so 10,000-file uploads do not require a 10,000-ID status stream. If the browser cannot keep the WebSocket healthy, the panel falls back to two-second polling. If a linked document is deleted while the upload session remains visible, the item is treated as canceled rather than active queued work. Terminal sessions are removed automatically once no active or failed work remains.
 
-**S3/R2:** The S3 connector page opens `GET /v1/admin/realtime/s3/sync-jobs?collection={name}` beside the source stream. The sync monitor shows object scanning, download/update progress, remote deletion cleanup, and queued-for-ingestion completion; document conversion and indexing continue through the normal document progress surfaces.
+**S3/R2:** The S3 connector page subscribes to `admin.connectors.sources` and `admin.connectors.sync_jobs` for the selected collection. The sync monitor shows object scanning, download/update progress, remote deletion cleanup, and queued-for-ingestion completion; document conversion and indexing continue through the normal document progress surfaces.
 
 Upload progress restoration is browser-local admin UI state. Upload session IDs are persisted in local storage so a collection's upload panel can reconnect after navigation; stale upload-session IDs are cleared without a failure alert when the API returns `404`. Chat turns are in-memory only and are not persisted in browser storage or the REST API.
 
-REST document status endpoints remain available for API clients and SDKs that prefer polling. `GET /v1/collections/{name}/events` remains available for collection-wide ingestion events outside the admin UI.
+REST document status endpoints remain available for API clients and SDKs that prefer polling. Collection-wide ingestion events are available through the `collection.events` realtime topic.
 
 Realtime pages only evaluate terminal-state predicates after the first snapshot or poll response exists, so stale browser-local upload-session state cannot crash the documents route during initial load.
 
