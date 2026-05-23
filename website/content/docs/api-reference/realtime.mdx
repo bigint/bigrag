@@ -22,16 +22,16 @@ Subscription IDs are client-generated and scoped to the WebSocket connection. Re
 ## Server Messages
 
 ```json
-{ "type": "subscribed", "id": "sub_1", "topic": "admin.collections.documents", "generated_at": "2026-05-23T00:00:00Z" }
-{ "type": "snapshot", "id": "sub_1", "topic": "admin.collections.documents", "payload": { "...": "..." }, "generated_at": "2026-05-23T00:00:00Z" }
-{ "type": "event", "id": "sub_1", "topic": "collection.events:docs", "payload": { "...": "..." }, "generated_at": "2026-05-23T00:00:00Z" }
-{ "type": "error", "id": "sub_1", "topic": "admin.collections.documents", "message": "Collection not found", "generated_at": "2026-05-23T00:00:00Z" }
-{ "type": "complete", "id": "sub_1", "topic": "admin.collections.documents.detail", "generated_at": "2026-05-23T00:00:00Z" }
-{ "type": "pong", "generated_at": "2026-05-23T00:00:00Z" }
-{ "type": "heartbeat", "generated_at": "2026-05-23T00:00:00Z" }
+{ "type": "subscribed", "version": 1, "id": "sub_1", "topic": "documents:list:docs", "generated_at": "2026-05-23T00:00:00Z" }
+{ "type": "snapshot", "version": 1, "id": "sub_1", "topic": "documents:list:docs", "payload": { "...": "..." }, "generated_at": "2026-05-23T00:00:00Z" }
+{ "type": "event", "version": 1, "id": "sub_1", "topic": "collection.events:docs", "payload": { "...": "..." }, "generated_at": "2026-05-23T00:00:00Z" }
+{ "type": "error", "version": 1, "id": "sub_1", "topic": "collection.events", "message": "Collection not found", "generated_at": "2026-05-23T00:00:00Z" }
+{ "type": "complete", "version": 1, "id": "sub_1", "topic": "documents:detail:docs:doc_1", "generated_at": "2026-05-23T00:00:00Z" }
+{ "type": "pong", "version": 1, "generated_at": "2026-05-23T00:00:00Z" }
+{ "type": "heartbeat", "version": 1, "generated_at": "2026-05-23T00:00:00Z" }
 ```
 
-Snapshots keep the same `{ topic, payload, generated_at }` shape inside the envelope, with the client subscription `id` added for demultiplexing. Snapshot payloads match the related REST response shape.
+Every server message carries a `version` for the protocol envelope. The `topic` field is the backend's resolved topic key (handy for debugging); clients demultiplex on the subscription `id`, not the topic. Snapshot payloads match the related REST response shape.
 
 ## Authentication
 
@@ -42,7 +42,7 @@ Collection event topics accept any of:
 - API-key bearer auth with `collection:read`.
 - Short-lived realtime token from `POST /v1/collections/{name}/realtime-token`.
 
-Realtime tokens are useful when a browser cannot send bearer headers during the WebSocket handshake. Tokens are short-lived, collection-scoped, and single-use.
+Realtime tokens are useful when a browser cannot send bearer headers during the WebSocket handshake. Tokens are short-lived (5 minutes) and collection-scoped, and stay valid for the duration of the connection so they survive automatic reconnects.
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:4000/v1/collections/docs/realtime-token \
