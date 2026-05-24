@@ -1,8 +1,7 @@
 import { Check, Copy } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { useCopy } from "@/hooks/use-copy";
 
 interface Props {
   secret: string | null;
@@ -10,15 +9,7 @@ interface Props {
 }
 
 export const WebhookSecretModal = ({ secret, onClose }: Props) => {
-  const [copied, setCopied] = useState(false);
-
-  const copy = async () => {
-    if (!secret) return;
-    await navigator.clipboard.writeText(secret);
-    setCopied(true);
-    toast.success("Secret copied");
-    setTimeout(() => setCopied(false), 1800);
-  };
+  const { copied, copy } = useCopy();
 
   return (
     <Modal onClose={onClose} open={!!secret} title="Signing secret">
@@ -32,7 +23,7 @@ export const WebhookSecretModal = ({ secret, onClose }: Props) => {
             {secret}
           </div>
           <div className="flex justify-end">
-            <Button onClick={copy}>
+            <Button onClick={() => copy(secret, "Secret copied")}>
               {copied ? (
                 <>
                   <Check className="size-4" /> Copied

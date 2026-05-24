@@ -1,10 +1,11 @@
 import { useForm, useStore } from "@tanstack/react-form";
-import { Check, Copy, ExternalLink, KeyRound, Plug, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ExternalLink, KeyRound, Plug, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CopyButton } from "@/components/ui/copy-button";
 import { type Column, DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -89,33 +90,6 @@ const buildSnippets = (serverName: string, keyValue: string) => ({
   jsonSnippet: buildClaudeDesktopJson(serverName, bigragApiUrl, keyValue),
   shellSnippet: buildShellSnippet(bigragApiUrl, keyValue),
 });
-
-const CopyButton = ({ code, label }: { code: string; label: string }) => {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      toast.success("Copied");
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      toast.error("Couldn't copy — select and copy manually");
-    }
-  };
-  return (
-    <Tooltip content={copied ? "Copied" : "Copy"}>
-      <Button
-        aria-label={`Copy ${label}`}
-        className="h-7 w-7 p-0"
-        onClick={copy}
-        size="sm"
-        variant="secondary"
-      >
-        {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-      </Button>
-    </Tooltip>
-  );
-};
 
 const CodeBlock = ({ code, label }: { code: string; label: string }) => (
   <div className="relative">

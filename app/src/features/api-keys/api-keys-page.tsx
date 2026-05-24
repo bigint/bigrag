@@ -28,6 +28,7 @@ import {
   useUpdateApiKey,
 } from "@/hooks/use-api-keys";
 import { useCollections } from "@/hooks/use-collections";
+import { useCopy } from "@/hooks/use-copy";
 import { errorText, firstString, submitWith } from "@/lib/form";
 import { formatRelative } from "@/lib/format";
 import type { ApiKey, CreatedApiKey } from "@/types/bigrag";
@@ -44,7 +45,7 @@ export const ApiKeysPage = () => {
 
   const [addOpen, setAddOpen] = useState(false);
   const [newKey, setNewKey] = useState<CreatedApiKey | null>(null);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopy();
   const [deleteFor, setDeleteFor] = useState<ApiKey | null>(null);
   const [testingKey, setTestingKey] = useState(false);
   const form = useForm({
@@ -63,14 +64,6 @@ export const ApiKeysPage = () => {
       }
     },
   });
-
-  const copy = async () => {
-    if (!newKey) return;
-    await navigator.clipboard.writeText(newKey.key);
-    setCopied(true);
-    toast.success("Copied");
-    setTimeout(() => setCopied(false), 1800);
-  };
 
   const testNewKey = async () => {
     if (!newKey) return;
@@ -359,7 +352,7 @@ export const ApiKeysPage = () => {
               <Button onClick={testNewKey} size="lg" variant="secondary" disabled={testingKey}>
                 {testingKey ? "Testing…" : "Test connection"}
               </Button>
-              <Button onClick={copy} size="lg">
+              <Button onClick={() => copy(newKey.key)} size="lg">
                 {copied ? (
                   <>
                     <Check className="size-4" /> Copied
