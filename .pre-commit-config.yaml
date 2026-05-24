@@ -4,19 +4,19 @@ repos:
   - repo: local
     hooks:
       - id: ruff-check
-        name: ruff check (api)
+        name: ruff check (api + python sdk)
         entry: uv run --project api ruff check --fix --force-exclude
         language: system
         types: [python]
-        files: ^api/
+        files: ^(api/|sdks/python/src/)
         pass_filenames: true
         require_serial: true
       - id: ruff-format
-        name: ruff format (api)
+        name: ruff format (api + python sdk)
         entry: uv run --project api ruff format --force-exclude
         language: system
         types: [python]
-        files: ^api/
+        files: ^(api/|sdks/python/src/)
         pass_filenames: true
         require_serial: true
       - id: biome-check
