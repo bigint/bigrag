@@ -107,7 +107,6 @@ const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupLayout> 
   security: {
     commonKeys: ["trusted_proxies", "embedding_cache_mode"],
     dangerKeys: [
-      "allow_public_bind_in_prod",
       "allow_private_embedding_base_urls",
       "allow_private_chat_base_urls",
       "allow_local_webhooks",

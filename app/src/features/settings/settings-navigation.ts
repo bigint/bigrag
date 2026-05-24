@@ -86,7 +86,6 @@ export const SECURITY_SETTINGS_KEYS: readonly string[] = [
   "allowed_chat_base_urls",
   "allow_private_chat_base_urls",
   "allow_local_webhooks",
-  "allow_public_bind_in_prod",
 ];
 
 const isSettingsTab = (value: string | undefined): value is SettingsTab =>
