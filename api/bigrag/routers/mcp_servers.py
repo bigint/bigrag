@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import ApiKey
@@ -14,6 +12,13 @@ from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import invalidate_api_key_principal, require_admin_session
 from bigrag.models import StatusResponse
+from bigrag.models.mcp_server import (
+    CreateMcpServerResponse,
+    McpServerBase,
+    McpServerListResponse,
+    McpServerResponse,
+    UpdateMcpServerRequest,
+)
 from bigrag.routers import uuid_or_404, validate_collection_name
 from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
@@ -22,53 +27,6 @@ from bigrag.services.scopes import is_mcp_key, mcp_permissions_filter
 logger = get_logger("bigrag.routers.mcp_servers")
 
 router = APIRouter(prefix="/v1/admin/mcp-servers", tags=["admin:mcp-servers"])
-
-
-class McpServerBase(BaseModel):
-    title: str = Field(min_length=1, max_length=80)
-    server_name: str = Field(
-        min_length=1,
-        max_length=60,
-        pattern=r"^[a-z0-9][a-z0-9-]*$",
-        description="mcpServers object key in the client config; lowercase, alphanumeric + dashes.",
-    )
-    collection: str | None = Field(
-        default=None,
-        max_length=80,
-        description="Optional collection to pin the server to.",
-    )
-
-
-class UpdateMcpServerRequest(BaseModel):
-    title: str | None = Field(default=None, min_length=1, max_length=80)
-    server_name: str | None = Field(
-        default=None, min_length=1, max_length=60, pattern=r"^[a-z0-9][a-z0-9-]*$"
-    )
-    collection: str | None = Field(
-        default=None,
-        max_length=80,
-        description="Empty string clears the scope; a name pins to that collection.",
-    )
-
-
-class McpServerResponse(BaseModel):
-    id: str
-    title: str
-    server_name: str
-    collection: str | None = None
-    key_prefix: str
-    last_used_at: datetime | None = None
-    created_at: datetime
-    updated_at: datetime
-
-
-class CreateMcpServerResponse(McpServerResponse):
-    api_key: str = Field(description="Plaintext API key — shown once.")
-
-
-class McpServerListResponse(BaseModel):
-    servers: list[McpServerResponse]
-    total: int
 
 
 def _to_response(key: ApiKey) -> McpServerResponse:
