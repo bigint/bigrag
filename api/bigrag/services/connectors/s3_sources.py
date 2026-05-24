@@ -3,15 +3,6 @@ from __future__ import annotations
 from typing import Any
 
 from bigrag.db.models import ConnectorSource, ConnectorSyncJob
-from bigrag.services.connector_core import (
-    create_source,
-    delete_source,
-    list_sources,
-    source_public,
-    sync_job_public,
-    trigger_sync,
-    update_source,
-)
 from bigrag.services.connectors.s3_client import probe_s3_credentials, source_credential
 from bigrag.services.connectors.s3_types import (
     S3_DEFAULT_REGION,
@@ -23,6 +14,15 @@ from bigrag.services.connectors.s3_types import (
     s3_root_id,
     s3_root_name,
     source_s3_config,
+)
+from bigrag.services.connectors.sources import (
+    create_source,
+    delete_source,
+    list_sources,
+    source_public,
+    sync_job_public,
+    trigger_sync,
+    update_source,
 )
 
 
@@ -210,7 +210,7 @@ async def delete_s3_source(session, *, source_id: str) -> None:
 
 
 async def source_by_id_for_s3(session, *, source_id: str) -> ConnectorSource:
-    from bigrag.services.connector_core import source_by_id
+    from bigrag.services.connectors.sources import source_by_id
 
     return await source_by_id(
         session,

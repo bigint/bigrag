@@ -17,8 +17,8 @@ from bigrag.models.connector import (
     UpdateConnectorSourceRequest,
 )
 from bigrag.services import audit
-from bigrag.services.connector_core import list_sync_jobs as list_connector_sync_jobs
 from bigrag.services.connector_registry import ConnectorRuntime, connector_runtime
+from bigrag.services.connectors.sources import list_sync_jobs as list_connector_sync_jobs
 from bigrag.services.error_sanitize import safe_error_detail
 
 router = APIRouter(prefix="/v1/connectors", tags=["connectors"])
