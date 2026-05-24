@@ -9,7 +9,7 @@ MAX_QUERY_CHARS = 16_000
 
 class QueryRequest(BaseModel):
     query: str = Field(max_length=MAX_QUERY_CHARS)
-    top_k: int | None = Field(default=None, ge=1, le=1000)
+    top_k: int | None = Field(default=None, ge=1, le=200)
     filters: dict | None = None
     min_score: float | None = None
     search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
@@ -77,7 +77,7 @@ class QueryResponse(BaseModel):
 class MultiQueryRequest(BaseModel):
     query: str = Field(max_length=MAX_QUERY_CHARS)
     collections: list[str] = Field(min_length=1, max_length=20)
-    top_k: int = Field(default=10, ge=1, le=1000)
+    top_k: int = Field(default=10, ge=1, le=200)
     filters: dict | None = None
     min_score: float | None = None
     search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
@@ -108,7 +108,7 @@ class MultiQueryResponse(BaseModel):
 class BatchQueryItem(BaseModel):
     collection: str
     query: str = Field(max_length=MAX_QUERY_CHARS)
-    top_k: int = Field(default=10, ge=1, le=1000)
+    top_k: int = Field(default=10, ge=1, le=200)
     filters: dict | None = None
     min_score: float | None = None
     search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
